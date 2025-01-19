@@ -2,6 +2,7 @@ package fileTree
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ethanrous/weblens/internal/log"
@@ -26,8 +27,7 @@ type FileEvent struct {
 	Actions     []*FileAction `bson:"actions"`
 	actionsLock sync.RWMutex  `bson:"-"`
 
-	LogLock sync.Mutex `bson:"-"`
-	Logged  bool       `bson:"-"`
+	Logged atomic.Bool `bson:"-"`
 }
 
 func (fe *FileEvent) addAction(a *FileAction) {

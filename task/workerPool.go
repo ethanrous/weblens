@@ -453,6 +453,8 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 					t.SwLap("Task finish")
 					t.sw.Stop()
 					wp.log.Trace.Func(func(l log.Logger) {
+						t.updateMu.RLock()
+						defer t.updateMu.RUnlock()
 						l.Printf("Finished %s task T[%s] in %s with status [%s]", t.jobName, t.taskId, t.ExeTime(), t.exitStatus)
 					})
 
@@ -504,7 +506,7 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 					directParent.completedTasks.Add(1)
 
 					// Run the cleanup routine for errors, if any
-					if t.exitStatus == TaskError {
+					if t.exitStatus == TaskError || t.exitStatus == TaskCanceled {
 						wp.log.Trace.Printf("Running error cleanup for task [%s]", t.taskId)
 						for _, ecf := range t.errorCleanup {
 							ecf(t)

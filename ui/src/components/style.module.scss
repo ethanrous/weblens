@@ -1,367 +1,351 @@
 @import "theme.module";
 
 .body {
-    background-color: $background;
-    overflow: hidden;
-    height: 100%;
-    margin: 0;
-    transition: background-color 200ms ease-in-out;
+	background-color: var(--wl-background);
+	overflow: hidden;
+	height: 100%;
+	margin: 0;
+	transition: background-color 200ms ease-in-out;
 }
 
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
+	from {
+		opacity: 0;
+	}
 
-    to {
-        opacity: 100%;
-    }
+	to {
+		opacity: 100%;
+	}
 }
 
 .media-image {
-    height: 100%;
-    width: 100%;
-    user-select: none;
-    position: relative;
-    z-index: inherit;
-    border-radius: 4px;
+	height: 100%;
+	width: 100%;
+	user-select: none;
+	position: relative;
+	z-index: inherit;
+	border-radius: 4px;
 
-    &[data-fit-logic='cover'] {
-        transform-origin: center center;
-        object-fit: cover;
-    }
+	&[data-fit-logic='cover'] {
+		transform-origin: center center;
+		object-fit: cover;
+	}
 
-    &[data-fit-logic='contain'] {
-        max-height: 100%;
-        width: 100%;
-        height: 100%;
-        max-width: 100%;
-        object-fit: contain;
-    }
+	&[data-fit-logic='contain'] {
+		max-height: 100%;
+		width: 100%;
+		height: 100%;
+		max-width: 100%;
+		object-fit: contain;
+	}
 
-    &[data-disabled='true'] {
-        filter: grayscale(100%);
-    }
+	&[data-disabled='true'] {
+		filter: grayscale(100%);
+	}
 
-    &[data-hide='true'] {
-        display: none;
-    }
+	&[data-hide='true'] {
+		display: none;
+	}
 }
 
 .media-thumbnail {
-    height: 100%;
-    width: 100%;
-    /* transition: all 0.2s ease-in-out; */
-    //animation: imageFadeIn 200ms forwards;
-    transform-origin: center center;
-    object-fit: cover;
-    user-select: none;
+	height: 100%;
+	width: 100%;
+	/* transition: all 0.2s ease-in-out; */
+	//animation: imageFadeIn 200ms forwards;
+	transform-origin: center center;
+	object-fit: cover;
+	user-select: none;
 }
 
 .media-fullres {
-    height: 100%;
-    width: 100%;
-    max-height: 100%;
-    max-width: 100%;
-    object-fit: contain;
-    user-select: none;
+	height: 100%;
+	width: 100%;
+	max-height: 100%;
+	max-width: 100%;
+	object-fit: contain;
+	user-select: none;
 }
 
 .meta-icon {
-    color: white;
-    background-color: #00000055;
-    margin: 5px;
-    border-radius: 4px;
+	color: white;
+	background-color: #00000055;
+	margin: 5px;
+	border-radius: 4px;
 }
 
-.header-bar {
-    display: flex;
-    flex-direction: row;
-    height: 50px;
-    align-items: center;
-    padding-top: 8px;
-    padding-bottom: 8px;
-    border-bottom: 2px solid $floating-grey;
-}
 
-.nav-box {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    width: 384px;
-    flex-shrink: 1;
-}
 
 @media screen and (max-width: 600px) {
-    .nav-box {
-        width: 180px;
-    }
+	.nav-box {
+		width: 180px;
+	}
 }
 
 .no-scrollbar {
-    //height: 100%;
-    overflow-y: scroll;
-    overflow-x: hidden;
-    scrollbar-width: thin;
-    scrollbar-color: transparent transparent;
+	//height: 100%;
+	overflow-y: scroll;
+	overflow-x: hidden;
+	scrollbar-width: thin;
+	scrollbar-color: transparent transparent;
 
-    &::-webkit-scrollbar {
-        width: 1px;
-    }
+	&::-webkit-scrollbar {
+		width: 1px;
+	}
 
-    &::-webkit-scrollbar-track {
-        background: transparent;
-    }
+	&::-webkit-scrollbar-track {
+		background: transparent;
+	}
 
-    &::-webkit-scrollbar-thumb {
-        background-color: transparent;
-    }
+	&::-webkit-scrollbar-thumb {
+		background-color: transparent;
+	}
 
-    :focus-visible {
-        outline: none;
-    }
+	:focus-visible {
+		outline: none;
+	}
 }
 
 .no-scrollbar::-webkit-scrollbar {
-    display: none;
-    /* Safari and Chrome */
+	display: none;
+	/* Safari and Chrome */
 }
 
 .photo-container {
-    display: flex;
-    flex-shrink: 0;
-    height: 100%;
-    width: 100%;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    border-radius: 4px;
+	display: flex;
+	flex-shrink: 0;
+	height: 100%;
+	width: 100%;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+	border-radius: 4px;
 }
 
 .weblens-menu {
-    max-width: 300px;
-    border: 0;
-    box-shadow: 1px 1px 1px 1px black;
+	max-width: 300px;
+	border: 0;
+	box-shadow: 1px 1px 1px 1px black;
 }
 
 .weblens-select-icon {
-    position: relative;
-    padding: 6px;
-    cursor: pointer;
-    transition: 100ms background-color ease-in-out;
-    border-radius: 4px;
+	position: relative;
+	padding: 6px;
+	cursor: pointer;
+	transition: 100ms background-color ease-in-out;
+	border-radius: 4px;
 }
 
 .weblens-select-icon:where([data-selected]) {
-    background-color: #4444ff;
-    border-radius: 0;
-    transition: 100ms border-radius;
+	background-color: #4444ff;
+	border-radius: 0;
+	transition: 100ms border-radius;
 }
 
 .key-display {
-    padding: 4px !important;
-    width: max-content;
-    border-radius: 4px;
-    box-shadow: 0 0 10px 1px #00000055;
-    background-color: #111111;
-    margin: 4px !important;
-    line-height: 100% !important;
+	padding: 4px !important;
+	width: max-content;
+	border-radius: 4px;
+	box-shadow: 0 0 10px 1px #00000055;
+	background-color: #111111;
+	margin: 4px !important;
+	line-height: 100% !important;
 }
 
 .key-line {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    /* line-height: 100% !important; */
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	/* line-height: 100% !important; */
 }
 
 .settings-menu-container {
-    z-index: 99;
-    position: fixed;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    width: 100vw;
-    padding: 2vh;
-    background-color: #00000077;
-    backdrop-filter: blur(4px);
+	z-index: 99;
+	position: fixed;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	height: 100vh;
+	width: 100vw;
+	padding: 2vh;
+	background-color: #00000077;
+	backdrop-filter: blur(4px);
 
-    transition: opacity 150ms ease-in-out;
+	transition: opacity 150ms ease-in-out;
 
-    pointer-events: none;
-    opacity: 0;
+	pointer-events: none;
+	opacity: 0;
 
-    &[data-open='true'] {
-        pointer-events: all;
-        opacity: 100%;
-    }
+	&[data-open='true'] {
+		pointer-events: all;
+		opacity: 100%;
+	}
 }
 
 .settings-menu {
-    z-index: 99;
-    position: relative;
+	z-index: 99;
+	position: relative;
 
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    // overflow-y: scroll;
-    background-color: $bottom-grey;
-    outline: 1px solid $main-accent;
-    box-shadow: 0 0 10px 2px #00000044;
-    border-radius: 6px;
-    gap: 4px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	// overflow-y: scroll;
+	background-color: $bottom-grey;
+	outline: 1px solid $main-accent;
+	box-shadow: 0 0 10px 2px #00000044;
+	border-radius: 6px;
+	gap: 4px;
 }
 
 .menu-tab:where([data-active="true"]) {
-    background-color: #4444ff;
+	background-color: #4444ff;
 }
 
 .weblens-dropdown-input {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    padding: 4px;
-    width: 100%;
-    height: 100%;
-    cursor: pointer;
-    user-select: none;
-    color: white;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	padding: 4px;
+	width: 100%;
+	height: 100%;
+	cursor: pointer;
+	user-select: none;
+	color: white;
 }
 
 .weblens-dropdown-input-drop {
-    display: flex;
-    flex-direction: column;
-    position: absolute;
-    padding: 8px;
-    height: max-content;
-    max-height: 600px;
-    overflow-y: scroll;
-    user-select: none;
-    color: white;
-    background-color: #222222;
-    border-radius: 4px;
-    z-index: 2;
-    width: 200px;
-    margin-left: -35px;
-    margin-top: 5px;
-    gap: 6px;
-    box-shadow: 0 0 10px 2px #00000044;
+	display: flex;
+	flex-direction: column;
+	position: absolute;
+	padding: 8px;
+	height: max-content;
+	max-height: 600px;
+	overflow-y: scroll;
+	user-select: none;
+	color: white;
+	background-color: #222222;
+	border-radius: 4px;
+	z-index: 2;
+	width: 200px;
+	margin-left: -35px;
+	margin-top: 5px;
+	gap: 6px;
+	box-shadow: 0 0 10px 2px #00000044;
 }
 
 .weblens-dropdown-input-item {
-    padding: 6px;
-    border-radius: 4px;
-    height: max-content;
-    user-select: none;
-    color: white;
-    background-color: #222222;
-    cursor: pointer;
+	padding: 6px;
+	border-radius: 4px;
+	height: max-content;
+	user-select: none;
+	color: white;
+	background-color: #222222;
+	cursor: pointer;
 }
 
 .weblens-dropdown-input-item:where([data-selected="true"]) {
-    background-color: #4444ff;
+	background-color: #4444ff;
 }
 
 .weblens-dropdown-input-item:hover:where([data-selected="false"]) {
-    background-color: #333333;
+	background-color: #333333;
 }
 
 .weblens-dropdown-text {
-    font-size: 20px;
-    max-width: 100%;
-    line-height: 28px;
-    user-select: none;
-    text-wrap: nowrap;
-    color: white;
+	font-size: 20px;
+	max-width: 100%;
+	line-height: 28px;
+	user-select: none;
+	text-wrap: nowrap;
+	color: white;
 }
 
 .scattered-photo {
-    position: absolute;
-    box-shadow: rgba(0, 0, 0, 0.5) 4px 4px 50px;
-    border-radius: 4px;
-    overflow: hidden;
+	position: absolute;
+	box-shadow: rgba(0, 0, 0, 0.5) 4px 4px 50px;
+	border-radius: 4px;
+	overflow: hidden;
 }
 
 .menu-item {
-    height: 40px;
-    border-radius: 4px;
-    display: flex;
-    flex-direction: row;
-    flex-grow: 0;
-    flex-shrink: 0;
-    align-items: center;
-    cursor: pointer;
-    width: 100%;
-    padding: 8px;
-    color: white;
+	height: 40px;
+	border-radius: 4px;
+	display: flex;
+	flex-direction: row;
+	flex-grow: 0;
+	flex-shrink: 0;
+	align-items: center;
+	cursor: pointer;
+	width: 100%;
+	padding: 8px;
+	color: white;
 
-    &[data-disabled='true'] {
-        color: #777777;
-        cursor: default;
-        pointer-events: none;
-    }
+	&[data-disabled='true'] {
+		color: #777777;
+		cursor: default;
+		pointer-events: none;
+	}
 }
 
 .menu-item:hover {
-    background-color: #373a40;
+	background-color: #373a40;
 }
 
 .menu-item-text {
-    width: 100%;
-    padding-left: 8px !important;
-    flex-grow: 1;
-    user-select: none;
+	width: 100%;
+	padding-left: 8px !important;
+	flex-grow: 1;
+	user-select: none;
 }
 
 .presentation-icon {
-    position: absolute;
-    //left: 15px;
-    //top: 15px;
-    cursor: pointer;
-    color: white;
-    opacity: 0;
-    transition: opacity 200ms ease-in-out;
-    pointer-events: none;
+	position: absolute;
+	//left: 15px;
+	//top: 15px;
+	cursor: pointer;
+	color: white;
+	opacity: 0;
+	transition: opacity 200ms ease-in-out;
+	pointer-events: none;
 
-    &[data-shown='true'],
-    &:hover {
-        pointer-events: all;
-        opacity: 100%;
-    }
+	&[data-shown='true'],
+	&:hover {
+		pointer-events: all;
+		opacity: 100%;
+	}
 }
 
 @keyframes float {
-    0% {
-        transform: translate(0, -0px);
-    }
+	0% {
+		transform: translate(0, -0px);
+	}
 
-    50% {
-        transform: translate(0, -5px);
-    }
+	50% {
+		transform: translate(0, -5px);
+	}
 
-    100% {
-        transform: translate(0, 0px);
-    }
+	100% {
+		transform: translate(0, 0px);
+	}
 }
 
 .fade-blink {
-    opacity: 1;
-    animation: pulse 2s ease-in-out infinite;
+	opacity: 1;
+	animation: pulse 2s ease-in-out infinite;
 }
 
 @keyframes pulse {
 
-    0%,
-    100% {
-        opacity: .3;
-    }
+	0%,
+	100% {
+		opacity: .3;
+	}
 
-    50% {
-        opacity: 1;
-    }
+	50% {
+		opacity: 1;
+	}
 }

@@ -46,7 +46,7 @@ $menu-base-square-size: 250px;
     overflow: hidden;
 
     outline: 2px solid $main-accent;
-    background-color: $background;
+    background-color: var(--wl-background);
     border: none;
     border-radius: 8px;
 

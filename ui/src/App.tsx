@@ -16,6 +16,7 @@ import Logo from './components/Logo'
 import useR, { useSessionStore } from './components/UserInfo'
 import Backup from './pages/Backup/Backup'
 import StartUp from './pages/Startup/StartupPage'
+import { SettingsMenu } from './pages/UserSettings/Settings'
 import { ErrorHandler } from './types/Types'
 import { useMediaStore } from './types/media/MediaStateControl'
 
@@ -193,6 +194,12 @@ const PageSwitcher = () => {
         </Suspense>
     )
 
+    const settingsPage = (
+        <Suspense fallback={<PageLoader />}>
+            <SettingsMenu />
+        </Suspense>
+    )
+
     const Gal = useRoutes([
         { path: '/', element: galleryPage },
         { path: '/timeline', element: galleryPage },
@@ -202,6 +209,7 @@ const PageSwitcher = () => {
         { path: '/login', element: loginPage },
         { path: '/setup', element: setupPage },
         { path: '/backup', element: backupPage },
+        { path: '/settings/*', element: settingsPage },
     ])
 
     return Gal

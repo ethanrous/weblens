@@ -264,6 +264,8 @@ func (tp *TaskPool) Cancel() {
 }
 
 func (tp *TaskPool) QueueTask(t *Task) (err error) {
+	noterr := werror.Errorf("QueueTask")
+	log.ErrTrace(noterr)
 
 	if tp.workerPool.exitFlag.Load() == 1 {
 		log.Warning.Println("Not queuing task while worker pool is going down")

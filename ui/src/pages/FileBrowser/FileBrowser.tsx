@@ -1117,7 +1117,7 @@ function FileBrowser() {
 
     return (
         <div className="h-screen flex flex-col">
-            <HeaderBar setBlockFocus={setBlockFocus} page={'files'} />
+            <HeaderBar />
             <DraggingCounter />
             <PresentationFile file={filesMap.get(presentingId)} />
             {pasteImgBytes && <PasteImageDialogue />}

@@ -222,11 +222,10 @@ func HandleFileUploads(t *task.Task) {
 	timeout := false
 
 	t.SetErrorCleanup(func(*task.Task) {
-		fileEvent.LogLock.Lock()
-		defer fileEvent.LogLock.Unlock()
-		if fileEvent.Logged {
+		if fileEvent.Logged.Load() {
 			return
 		}
+		log.Trace.Println("Doing error cleanup journal log for upload")
 		meta.FileService.GetJournalByTree("USERS").LogEvent(fileEvent)
 	})
 
@@ -306,12 +305,18 @@ WriterLoop:
 				// or the journal worker will beat us to it, which could break if importing
 				// the file media shortly after uploading here.
 				chnk.File.SetContentId(service.ContentIdFromHash(chnk.Hash))
+				if chnk.File.GetContentId() == "" {
+					t.Fail(werror.Errorf("failed to generate contentId for file upload [%s]", chnk.File.AbsPath()))
+				}
 
 				if !chnk.File.IsDir() {
 					meta.Caster.PushFileCreate(chnk.File)
 				}
 
-				fileEvent.NewCreateAction(chnk.File)
+				newAction := fileEvent.NewCreateAction(chnk.File)
+				if newAction == nil {
+					t.Fail(werror.Errorf("failed to create new file action on upload for [%s]", chnk.File.AbsPath()))
+				}
 
 				// Remove the file from our local map
 				i, e := slices.BinarySearchFunc(
@@ -323,12 +328,21 @@ WriterLoop:
 				}
 				delete(fileMap, chunk.FileId)
 			}
+			log.Trace.Func(func(l log.Logger) {
+				if chnk.BytesWritten < chnk.FileSizeTotal {
+					l.Printf("%s has not finished uploading yet %d of %d", chnk.File.AbsPath(), chnk.BytesWritten, chnk.FileSizeTotal)
+				}
+			})
 
 			// When we have no files being worked on, and there are no more
 			// chunks to write, we are finished.
 			if len(fileMap) == 0 && len(meta.ChunkStream) == 0 {
 				break WriterLoop
 			}
+			log.Trace.Printf("FileMap has %d remaining and chunk stream has %d remaining", len(fileMap), len(meta.ChunkStream))
+			// for _, f := range fileMap {
+			// 	log.Trace.Printf("File: %s", f.File.AbsPath())
+			// }
 			t.ExitIfSignaled()
 			continue WriterLoop
 		}

@@ -18,7 +18,6 @@ $theme-bright: #2549ff;
 $theme-outline: light-dark($main-accent, #4444ff);
 $theme-outline-transparent: light-dark($main-accent-transparent, #4444ff00);
 
-$background: light-dark(#fafafa, #111418);
 $background-transparent: light-dark(#eeeeee00, #11141800);
 $dark-paper-transparent: light-dark(#4b2fb900, #1c104900);
 $light-paper: light-dark(#240f77, #381eaa);
@@ -41,105 +40,107 @@ $warning: #fad30b;
 
 // Components //
 :root {
-    box-sizing: border-box;
-    /* Default color scheme */
-    color-scheme: light;
-    --wl-theme-color: #3600cc;
-    --wl-main-accent: #3636ca;
-    --wl-theme-color-bright: #7c4dff;
-    --wl-theme-rgb: 54, 0, 204;
-    --dark-paper: light-dark(#7274d6, #1c1049);
-    --wl-text-color: light-dark(#000000, #ffffff);
-    --wl-text-color-dull: light-dark(#333333, #cccccc);
-    --wl-text-color-inverted: light-dark(#ffffff, #000000);
-    --wl-barely-visible: light-dark(#dadae3, #181a1f);
-    --wl-card-background: light-dark(#cccccc, #222222);
-    --wl-danger: #ff4444;
-    --wl-danger-subtle: light-dark(#ffa6ac, #521f22);
-    --wl-background: light-dark(#fafafa, #111418);
-    --wl-outline: light-dark(var(--wl-theme-color), #4444ff);
-    --wl-outline-subtle: light-dark(#222222, #555555);
+	box-sizing: border-box;
+	/* Default color scheme */
+	color-scheme: light;
+	--wl-theme-color: #3600cc;
+	--wl-main-accent: #3636ca;
+	--wl-theme-color-bright: #7c4dff;
+	--wl-theme-rgb: 54, 0, 204;
+	--dark-paper: light-dark(#7274d6, #1c1049);
+	--wl-text-color: light-dark(#000000, #ffffff);
+	--wl-text-color-dull: light-dark(#333333, #cccccc);
+	--wl-text-color-inverted: light-dark(#ffffff, #000000);
+	--wl-barely-visible: light-dark(#dadae3, #181a1f);
+	--wl-card-background: light-dark(#cccccc, #222222);
+	--wl-danger: #ff4444;
+	--wl-danger-subtle: light-dark(#ffa6ac, #521f22);
+	--wl-background: light-dark(#fafafa, #111418);
+	--wl-outline: light-dark(var(--wl-theme-color), #4444ff);
+	--wl-outline-subtle: light-dark(#111111, #333333);
 
-    --wl-error-background: light-dark(#ff000055, #ff000055);
+	--wl-error-background: light-dark(#ff000055, #ff000055);
 
-    --wl-border-radius: 6px;
+	--wl-border-radius: 6px;
+
+	--wl-item-grey: light-dark(#dddddd, #222222);
 }
 
 /* Dark theme styles */
 :root.dark {
-    color-scheme: dark;
+	color-scheme: dark;
 }
 
 body {
-    width: 100vw;
-    position: fixed;
-    line-height: 1.5;
+	width: 100vw;
+	position: fixed;
+	line-height: 1.5;
 }
 
 h2 {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--wl-text-color);
+	font-size: 2rem;
+	font-weight: 700;
+	color: var(--wl-text-color);
 }
 
 h3 {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--wl-text-color);
+	font-size: 1.5rem;
+	font-weight: 600;
+	color: var(--wl-text-color);
 }
 
 h4 {
-    font-size: 1.5rem;
-    font-weight: 500;
-    color: var(--wl-text-color);
+	font-size: 1.5rem;
+	font-weight: 500;
+	color: var(--wl-text-color);
 }
 
 p {
-    font-size: 1rem;
-    font-weight: 400;
-    color: var(--wl-text-color);
+	font-size: 1rem;
+	font-weight: 400;
+	color: var(--wl-text-color);
 }
 
 a {
-    color: white;
-    text-decoration: none;
-    padding: 0.10em;
-    border-radius: 0.20em;
-    background-color: var(--wl-theme-color);
-    transition: background-color 150ms ease-in-out;
+	color: white;
+	text-decoration: none;
+	padding: 0.10em;
+	border-radius: 0.20em;
+	background-color: var(--wl-theme-color);
+	transition: background-color 150ms ease-in-out;
 
-    &:hover {
-        background-color: var(--dark-paper);
-    }
+	&:hover {
+		background-color: var(--dark-paper);
+	}
 }
 
 input,
 select,
 textarea {
-    color: var(--wl-text-color);
+	color: var(--wl-text-color);
 }
 
 .background-icon {
-    color: $main-text;
-    flex-shrink: 0;
+	color: $main-text;
+	flex-shrink: 0;
 }
 
 .theme-background {
-    background-color: $background;
+	background-color: var(--wl-background);
 }
 
 .theme-text-flipped {
-    color: $main-text-flipped;
+	color: $main-text-flipped;
 }
 
 .theme-text-dark-bg {
-    color: white;
+	color: white;
 }
 
 .theme-outline {
-    outline: 2px solid $floating-grey;
+	outline: 2px solid $floating-grey;
 }
 
 .theme-dark-paper {
-    background-color: var(--dark-paper);
+	background-color: var(--dark-paper);
 }

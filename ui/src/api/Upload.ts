@@ -101,10 +101,6 @@ function queueChunks(
                 return
             }
 
-            // const chunk = await readFile(
-            //     file.slice(chunkLowByte, chunkHighByte)
-            // )
-
             await FileApi.uploadFileChunk(
                 uploadId,
                 uploadMeta.fileId,
@@ -125,30 +121,8 @@ function queueChunks(
                 useUploadStatus.getState().setError(key, String(err))
                 ErrorHandler(err)
             })
+            console.log('Finished uploading', file.name)
             useUploadStatus.getState().chunkComplete(key, thisChunkIndex)
-
-            // await uploadChunk(
-            //     file,
-            //     chunkLowByte,
-            //     chunkHighByte,
-            //     uploadId,
-            //     uploadMeta.fileId,
-            //     (bytesWritten: number, bytesPerSecond: number) => {
-            //         useUploadStatus
-            //             .getState()
-            //             .updateProgress(
-            //                 key,
-            //                 thisChunkIndex,
-            //                 bytesWritten,
-            //                 bytesPerSecond ? Math.trunc(bytesPerSecond) : 0
-            //             )
-            //     },
-            //     () => {
-            //         useUploadStatus
-            //             .getState()
-            //             .chunkComplete(key, thisChunkIndex)
-            //     }
-            // )
         })
         chunkIndex++
     }

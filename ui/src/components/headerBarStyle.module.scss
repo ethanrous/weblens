@@ -1,0 +1,17 @@
+.header-bar {
+	display: flex;
+	flex-direction: row;
+	height: 50px;
+	align-items: center;
+	padding-top: 8px;
+	padding-bottom: 8px;
+	border-bottom: 2px solid var(--wl-outline-subtle);
+}
+
+.nav-box {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	width: 384px;
+	flex-shrink: 1;
+}

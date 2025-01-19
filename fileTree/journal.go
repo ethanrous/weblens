@@ -241,7 +241,7 @@ func (j *JournalImpl) GetLatestAction() (*FileAction, error) {
 func (j *JournalImpl) GetPastFile(id FileId, time time.Time) (*WeblensFileImpl, error) {
 	lt := j.Get(id)
 	if lt == nil {
-		return nil, werror.WithStack(werror.ErrNoFileAction)
+		return nil, werror.WithStack(werror.ErrNoFileAction.WithArg(id))
 	}
 
 	actions := lt.GetActions()
@@ -374,6 +374,9 @@ func (j *JournalImpl) fetchLifetime(ctx context.Context) (*Lifetime, error) {
 	filter := bson.M{"_id": lId}
 	res := j.col.FindOne(ctx, filter)
 	if err := res.Err(); err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, nil
+		}
 		return nil, werror.WithStack(err)
 	}
 
@@ -441,10 +444,7 @@ func (j *JournalImpl) EventWorker() {
 }
 
 func (j *JournalImpl) handleFileEvent(event *FileEvent) error {
-	event.LogLock.Lock()
-	defer event.LogLock.Unlock()
-
-	if event.Logged {
+	if event.Logged.Load() {
 		j.log.Debug.Println("Skipping event already logged")
 		return nil
 	}
@@ -531,7 +531,7 @@ func (j *JournalImpl) handleFileEvent(event *FileEvent) error {
 		return err
 	}
 
-	event.Logged = true
+	event.Logged.Store(true)
 	return nil
 }
 
