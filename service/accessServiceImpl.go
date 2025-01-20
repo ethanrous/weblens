@@ -193,22 +193,20 @@ func (accSrv *AccessServiceImpl) Size() int {
 	return len(accSrv.apiKeyMap)
 }
 
-func (accSrv *AccessServiceImpl) GenerateApiKey(creator *models.User, local *models.Instance) (
+func (accSrv *AccessServiceImpl) GenerateApiKey(creator *models.User, local *models.Instance, keyName string) (
 	models.ApiKey, error,
 ) {
-	if !creator.IsAdmin() {
-		return models.ApiKey{}, werror.ErrUserNotAuthorized
-	}
-
 	createTime := time.Now()
 	hash := models.WeblensApiKey(internal.GlobbyHash(0, creator.GetUsername(), strconv.Itoa(int(createTime.Unix()))))
 
 	newKey := models.ApiKey{
+		Name:        keyName,
 		Id:          primitive.NewObjectID(),
 		Key:         hash,
 		Owner:       creator.GetUsername(),
 		CreatedTime: createTime,
 		CreatedBy:   local.ServerId(),
+		LastUsed:    time.UnixMilli(0),
 	}
 
 	_, err := accSrv.collection.InsertOne(context.Background(), newKey)

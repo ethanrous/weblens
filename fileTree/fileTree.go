@@ -682,8 +682,6 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, doFileDiscovery bool) err
 				log.Trace.Func(func(l log.Logger) {
 					if _, ok := missing[activeLt.Id]; !ok {
 						l.Printf("Could not find lifetime in missing map %s", activeLt.Id)
-					} else {
-						l.Printf("Removing Lifetime from missing map %s", activeLt.GetLatestPath())
 					}
 				})
 				delete(missing, activeLt.Id)

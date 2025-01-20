@@ -358,6 +358,7 @@ func (j *JournalImpl) GetPastFolderChildren(folder *WeblensFileImpl, time time.T
 
 func (j *JournalImpl) Get(lId FileId) *Lifetime {
 	ctx := context.Background()
+	ctx = context.WithValue(ctx, "lifetimeId", lId)
 	lt, err := j.cache.GetFetch(ctx, lId, j.fetchLifetime)
 	if err != nil {
 		j.log.ErrTrace(err)
@@ -399,7 +400,6 @@ func (j *JournalImpl) Add(lts ...*Lifetime) error {
 		if err != nil {
 			return err
 		}
-		j.log.Trace.Printf("Updating lifetime [%s] in map", lt.ID())
 		j.cache.Set(lt.ID(), lt)
 		// j.lifetimes[lt.ID()] = lt
 	}
@@ -488,7 +488,7 @@ func (j *JournalImpl) handleFileEvent(event *FileEvent) error {
 		}
 
 		j.log.Trace.Func(func(l log.Logger) {
-			l.Printf("Handling %s for %s (%s)", action.GetActionType(), action.GetLifetimeId(), action.GetRelevantPath())
+			l.Printf("Handling %s for [%s] [%s]", action.GetActionType(), action.GetRelevantPath(), action.GetLifetimeId())
 		})
 
 		actionType := action.GetActionType()
@@ -518,6 +518,10 @@ func (j *JournalImpl) handleFileEvent(event *FileEvent) error {
 			updated = append(updated, newL)
 		} else if actionType == FileDelete || actionType == FileMove || actionType == FileSizeChange {
 			existing := j.Get(action.LifeId)
+			if existing == nil {
+				j.log.ErrTrace(werror.WithStack(werror.ErrNoLifetime.WithArg(action.LifeId)))
+				continue
+			}
 			existing.Add(action)
 
 			updated = append(updated, existing)

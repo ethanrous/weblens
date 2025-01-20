@@ -111,7 +111,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 		return
 	}
 
-	log.Debug.Func(func(l log.Logger) { l.Printf("Got wsmsg from [%s]: %v", c.GetUser().GetUsername(), msg) })
+	log.Trace.Func(func(l log.Logger) { l.Printf("Got wsmsg from [%s]: %v", c.GetUser().GetUsername(), msg) })
 
 	if msg.Action == models.ReportError {
 		log.ErrorCatcher.Printf("Web client caught unexpected error\n%s\n\n", msg.Content)

@@ -19,7 +19,7 @@ import {
     BackupProgressT,
     RestoreProgress,
 } from '@weblens/pages/Backup/BackupLogic'
-import { historyDate } from '@weblens/pages/FileBrowser/FileBrowserLogic'
+import { historyDateTime } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { WebsocketStatus } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
 import { TaskStageT } from '@weblens/store/TaskStateControl'
 import { ErrorHandler } from '@weblens/types/Types'
@@ -126,7 +126,7 @@ export default function RemoteStatus({
                         <IconClockHour4 />
                         <p className="theme-text-dark-bg">
                             {remoteInfo.lastBackup
-                                ? historyDate(remoteInfo.lastBackup)
+                                ? historyDateTime(remoteInfo.lastBackup)
                                 : 'Never'}
                         </p>
                         {remoteInfo.backupSize != -1 && (

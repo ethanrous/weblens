@@ -265,22 +265,26 @@ func UserInfoArchiveToUser(uInfo UserInfoArchive) *models.User {
 }
 
 type ApiKeyInfo struct {
-	Id          string               `json:"id"`
-	Key         models.WeblensApiKey `json:"key"`
-	Owner       models.Username      `json:"owner"`
-	RemoteUsing models.InstanceId    `json:"remoteUsing"`
-	CreatedBy   models.InstanceId    `json:"createdBy"`
-	CreatedTime int64                `json:"createdTime"`
+	Id           string               `json:"id" validate:"required"`
+	Name         string               `json:"name" validate:"required"`
+	Key          models.WeblensApiKey `json:"key" validate:"required"`
+	Owner        models.Username      `json:"owner" validate:"required"`
+	RemoteUsing  models.InstanceId    `json:"remoteUsing" validate:"required"`
+	CreatedBy    models.InstanceId    `json:"createdBy" validate:"required"`
+	CreatedTime  int64                `json:"createdTime" validate:"required"`
+	LastUsedTime int64                `json:"lastUsedTime" validate:"required"`
 } // @name ApiKeyInfo
 
 func ApiKeyToApiKeyInfo(k models.ApiKey) ApiKeyInfo {
 	return ApiKeyInfo{
-		Id:          k.Id.Hex(),
-		Key:         k.Key,
-		Owner:       k.Owner,
-		CreatedTime: k.CreatedTime.UnixMilli(),
-		RemoteUsing: k.RemoteUsing,
-		CreatedBy:   k.CreatedBy,
+		Id:           k.Id.Hex(),
+		Name:         k.Name,
+		Key:          k.Key,
+		Owner:        k.Owner,
+		CreatedTime:  k.CreatedTime.UnixMilli(),
+		RemoteUsing:  k.RemoteUsing,
+		CreatedBy:    k.CreatedBy,
+		LastUsedTime: k.LastUsed.UnixMilli(),
 	}
 }
 

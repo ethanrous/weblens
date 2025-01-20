@@ -806,9 +806,7 @@
             "post": {
                 "security": [
                     {
-                        "SessionAuth": [
-                            "admin"
-                        ]
+                        "SessionAuth": []
                     }
                 ],
                 "produces": [
@@ -819,6 +817,17 @@
                 ],
                 "summary": "Create a new api key",
                 "operationId": "CreateApiKey",
+                "parameters": [
+                    {
+                        "description": "The new key params",
+                        "name": "params",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ApiKeyParams"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "The new api key info",
@@ -2357,6 +2366,16 @@
         },
         "ApiKeyInfo": {
             "type": "object",
+            "required": [
+                "createdBy",
+                "createdTime",
+                "id",
+                "key",
+                "lastUsedTime",
+                "name",
+                "owner",
+                "remoteUsing"
+            ],
             "properties": {
                 "createdBy": {
                     "type": "string"
@@ -2370,10 +2389,27 @@
                 "key": {
                     "type": "string"
                 },
+                "lastUsedTime": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
                 "owner": {
                     "type": "string"
                 },
                 "remoteUsing": {
+                    "type": "string"
+                }
+            }
+        },
+        "ApiKeyParams": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
                     "type": "string"
                 }
             }
@@ -3068,6 +3104,12 @@
                     "type": "string"
                 },
                 "key": {
+                    "type": "string"
+                },
+                "lastUsed": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 },
                 "owner": {

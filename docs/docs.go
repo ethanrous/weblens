@@ -808,9 +808,7 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "SessionAuth": [
-                            "admin"
-                        ]
+                        "SessionAuth": []
                     }
                 ],
                 "produces": [
@@ -821,6 +819,17 @@ const docTemplate = `{
                 ],
                 "summary": "Create a new api key",
                 "operationId": "CreateApiKey",
+                "parameters": [
+                    {
+                        "description": "The new key params",
+                        "name": "params",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ApiKeyParams"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "The new api key info",
@@ -2359,6 +2368,16 @@ const docTemplate = `{
         },
         "ApiKeyInfo": {
             "type": "object",
+            "required": [
+                "createdBy",
+                "createdTime",
+                "id",
+                "key",
+                "lastUsedTime",
+                "name",
+                "owner",
+                "remoteUsing"
+            ],
             "properties": {
                 "createdBy": {
                     "type": "string"
@@ -2372,10 +2391,27 @@ const docTemplate = `{
                 "key": {
                     "type": "string"
                 },
+                "lastUsedTime": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
                 "owner": {
                     "type": "string"
                 },
                 "remoteUsing": {
+                    "type": "string"
+                }
+            }
+        },
+        "ApiKeyParams": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
                     "type": "string"
                 }
             }
@@ -3070,6 +3106,12 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "key": {
+                    "type": "string"
+                },
+                "lastUsed": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 },
                 "owner": {

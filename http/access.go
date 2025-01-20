@@ -13,14 +13,15 @@ import (
 //
 //	@ID	CreateApiKey
 //
-//	@Security
-//	@Security	SessionAuth[admin]
+//	@Security	SessionAuth
 //
 //	@Summary	Create a new api key
 //	@Tags		ApiKeys
 //	@Produce	json
 //
-//	@Success	200	{object}	rest.ApiKeyInfo	"The new api key info"
+//	@Param		params	body		rest.ApiKeyParams	true "The new key params"
+//
+//	@Success	200		{object}	rest.ApiKeyInfo		"The new api key info"
 //	@Failure	403
 //	@Failure	500
 //	@Router		/keys [post]
@@ -31,12 +32,12 @@ func newApiKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !u.IsAdmin() {
-		w.WriteHeader(http.StatusForbidden)
+	body, err := readCtxBody[rest.ApiKeyParams](w, r)
+	if err != nil {
 		return
 	}
 
-	newKey, err := pack.AccessService.GenerateApiKey(u, pack.InstanceService.GetLocal())
+	newKey, err := pack.AccessService.GenerateApiKey(u, pack.InstanceService.GetLocal(), body.Name)
 	if err != nil {
 		log.ShowErr(err)
 		w.WriteHeader(http.StatusInternalServerError)

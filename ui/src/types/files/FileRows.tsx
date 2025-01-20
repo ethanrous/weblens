@@ -1,6 +1,6 @@
 import {
     HandleDrop,
-    historyDate,
+    historyDateTime,
 } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import {
     GetStartedCard,
@@ -148,7 +148,7 @@ function FileRow({
                             </h1>
                         </div>
                         <p className="selectable-text w-max text-xs pl-1">
-                            {historyDate(file.GetModified().getTime())}
+                            {historyDateTime(file.GetModified().getTime())}
                         </p>
                     </div>
                     <div

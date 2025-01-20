@@ -1310,7 +1310,9 @@ func newFileUpload(w http.ResponseWriter, r *http.Request) {
 						return err
 					}
 				} else {
-					newF, err = pack.FileService.CreateFile(parent, newFInfo.NewFileName, uploadMeta.UploadEvent, pack.Caster)
+					// We must not pass the event in here, as it will attempt to generate the contentId for the
+					// file before the file has content.
+					newF, err = pack.FileService.CreateFile(parent, newFInfo.NewFileName, nil, pack.Caster)
 					if err != nil {
 						return err
 					}

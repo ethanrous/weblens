@@ -66,7 +66,7 @@ import { DraggingCounter, TransferCard } from './DropSpot'
 import {
     HandleUploadButton,
     getRealId,
-    historyDate,
+    historyDateTime,
     uploadViaUrl,
     useKeyDownFileBrowser,
     usePaste,
@@ -744,7 +744,7 @@ function DirViewHeader() {
                         className="crumb-text ml-2 text-xl"
                         style={{ opacity: hoverTime ? 0 : 1 }}
                     >
-                        {historyDate(pastTime.getTime())}
+                        {historyDateTime(pastTime.getTime())}
                     </p>
                 </div>
             )}
@@ -902,7 +902,6 @@ function FileBrowser() {
         setSelected,
         clearSelected,
         setFilesData,
-        setBlockFocus,
     } = useFileBrowserStore()
 
     useEffect(() => {

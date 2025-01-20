@@ -10,6 +10,7 @@
 	grid-column: 1;
 	height: 100%;
 	width: 20rem;
+	flex-shrink: 0;
 	padding-right: 4rem;
 }
 
@@ -48,8 +49,9 @@
 
 .tab-icon {
 	display: flex;
-	width: 16px;
-	height: 16px;
+	width: 1rem;
+	height: 1.25rem;
+	align-items: center;
 	margin-right: 0.35rem
 }
 
@@ -62,7 +64,12 @@
 	border-bottom: 0.0625rem solid var(--wl-outline-subtle)
 }
 
+.settings-header h3 {
+	font-size: 1.5rem;
+}
+
 .settings-section {
+	position: relative;
 	margin-bottom: 3rem;
 }
 
@@ -74,8 +81,9 @@
 	flex-direction: row;
 	align-items: center;
 	justify-content: space-between;
-	border-radius: 6px;
+	border-radius: var(--wl-border-radius);
 	background-color: var(--wl-item-grey);
-	height: 56px;
-	padding: 8px;
+	height: 8rem;
+	padding: 1rem;
+	margin: 0.5rem 0;
 }

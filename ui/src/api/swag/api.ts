@@ -59,37 +59,62 @@ export interface ApiKeyInfo {
      * @type {string}
      * @memberof ApiKeyInfo
      */
-    'createdBy'?: string;
+    'createdBy': string;
     /**
      * 
      * @type {number}
      * @memberof ApiKeyInfo
      */
-    'createdTime'?: number;
+    'createdTime': number;
     /**
      * 
      * @type {string}
      * @memberof ApiKeyInfo
      */
-    'id'?: string;
+    'id': string;
     /**
      * 
      * @type {string}
      * @memberof ApiKeyInfo
      */
-    'key'?: string;
+    'key': string;
+    /**
+     * 
+     * @type {number}
+     * @memberof ApiKeyInfo
+     */
+    'lastUsedTime': number;
     /**
      * 
      * @type {string}
      * @memberof ApiKeyInfo
      */
-    'owner'?: string;
+    'name': string;
     /**
      * 
      * @type {string}
      * @memberof ApiKeyInfo
      */
-    'remoteUsing'?: string;
+    'owner': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ApiKeyInfo
+     */
+    'remoteUsing': string;
+}
+/**
+ * 
+ * @export
+ * @interface ApiKeyParams
+ */
+export interface ApiKeyParams {
+    /**
+     * 
+     * @type {string}
+     * @memberof ApiKeyParams
+     */
+    'name': string;
 }
 /**
  * 
@@ -608,6 +633,18 @@ export interface ModelsApiKey {
      * @memberof ModelsApiKey
      */
     'key'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelsApiKey
+     */
+    'lastUsed'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelsApiKey
+     */
+    'name'?: string;
     /**
      * 
      * @type {string}
@@ -1316,10 +1353,13 @@ export const ApiKeysApiAxiosParamCreator = function (configuration?: Configurati
         /**
          * 
          * @summary Create a new api key
+         * @param {ApiKeyParams} params The new key params
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        createApiKey: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        createApiKey: async (params: ApiKeyParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'params' is not null or undefined
+            assertParamExists('createApiKey', 'params', params)
             const localVarPath = `/keys`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1334,9 +1374,12 @@ export const ApiKeysApiAxiosParamCreator = function (configuration?: Configurati
 
 
     
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(params, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -1420,11 +1463,12 @@ export const ApiKeysApiFp = function(configuration?: Configuration) {
         /**
          * 
          * @summary Create a new api key
+         * @param {ApiKeyParams} params The new key params
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async createApiKey(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiKeyInfo>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.createApiKey(options);
+        async createApiKey(params: ApiKeyParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiKeyInfo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.createApiKey(params, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['ApiKeysApi.createApiKey']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -1467,11 +1511,12 @@ export const ApiKeysApiFactory = function (configuration?: Configuration, basePa
         /**
          * 
          * @summary Create a new api key
+         * @param {ApiKeyParams} params The new key params
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        createApiKey(options?: RawAxiosRequestConfig): AxiosPromise<ApiKeyInfo> {
-            return localVarFp.createApiKey(options).then((request) => request(axios, basePath));
+        createApiKey(params: ApiKeyParams, options?: RawAxiosRequestConfig): AxiosPromise<ApiKeyInfo> {
+            return localVarFp.createApiKey(params, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -1505,12 +1550,13 @@ export class ApiKeysApi extends BaseAPI {
     /**
      * 
      * @summary Create a new api key
+     * @param {ApiKeyParams} params The new key params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof ApiKeysApi
      */
-    public createApiKey(options?: RawAxiosRequestConfig) {
-        return ApiKeysApiFp(this.configuration).createApiKey(options).then((request) => request(this.axios, this.basePath));
+    public createApiKey(params: ApiKeyParams, options?: RawAxiosRequestConfig) {
+        return ApiKeysApiFp(this.configuration).createApiKey(params, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

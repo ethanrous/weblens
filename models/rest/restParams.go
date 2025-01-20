@@ -166,3 +166,7 @@ type RestoreCoreParams struct {
 	HostUrl  string `json:"restoreUrl"`
 	ServerId string `json:"restoreId"`
 } // @name RestoreCoreParams
+
+type ApiKeyParams struct {
+	Name string `json:"name" validate:"required"`
+} // @name ApiKeyParams

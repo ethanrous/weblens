@@ -3,9 +3,7 @@ import {
     IconCaretDown,
     IconCaretUp,
     IconEyeOff,
-    IconPolaroid,
 } from '@tabler/icons-react'
-import AlbumsApi from '@weblens/api/AlbumsApi'
 import MediaApi from '@weblens/api/MediaApi'
 import { useClick, useKeyDown } from '@weblens/components/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
@@ -242,7 +240,7 @@ export const GalleryMenu = memo(
     }) => {
         const selecting = useGalleryStore((state) => state.selecting)
         const menuTargetId = useGalleryStore((state) => state.menuTargetId)
-        const albumId = useGalleryStore((state) => state.albumId)
+        // const albumId = useGalleryStore((state) => state.albumId)
         const timeAdjustOffset = useGalleryStore(
             (state) => state.timeAdjustOffset
         )
@@ -360,23 +358,23 @@ export const GalleryMenu = memo(
                                 setTimeOffset(newTimeOffset())
                             }}
                         />
-                        <WeblensButton
-                            label="Set as Cover"
-                            centerContent
-                            fillWidth
-                            Left={IconPolaroid}
-                            squareSize={40}
-                            textMin={100}
-                            disabled={!albumId}
-                            style={{ opacity: open ? '100%' : '0%' }}
-                            onClick={async (e) => {
-                                e.stopPropagation()
-                                return AlbumsApi.updateAlbum(
-                                    albumId,
-                                    media.Id()
-                                )
-                            }}
-                        />
+                        {/* <WeblensButton */}
+                        {/*     label="Set as Cover" */}
+                        {/*     centerContent */}
+                        {/*     fillWidth */}
+                        {/*     Left={IconPolaroid} */}
+                        {/*     squareSize={40} */}
+                        {/*     textMin={100} */}
+                        {/*     disabled={!albumId} */}
+                        {/*     style={{ opacity: open ? '100%' : '0%' }} */}
+                        {/*     onClick={(e) => { */}
+                        {/*         e.stopPropagation() */}
+                        {/*         return AlbumsApi.updateAlbum( */}
+                        {/*             albumId, */}
+                        {/*             media.Id() */}
+                        {/*         ) */}
+                        {/*     }} */}
+                        {/* /> */}
                         <WeblensButton
                             label={media.IsHidden() ? 'Unhide' : 'Hide'}
                             centerContent

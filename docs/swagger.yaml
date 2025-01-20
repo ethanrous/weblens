@@ -21,10 +21,30 @@ definitions:
         type: string
       key:
         type: string
+      lastUsedTime:
+        type: integer
+      name:
+        type: string
       owner:
         type: string
       remoteUsing:
         type: string
+    required:
+    - createdBy
+    - createdTime
+    - id
+    - key
+    - lastUsedTime
+    - name
+    - owner
+    - remoteUsing
+    type: object
+  ApiKeyParams:
+    properties:
+      name:
+        type: string
+    required:
+    - name
     type: object
   CreateFolderBody:
     properties:
@@ -490,6 +510,10 @@ definitions:
       id:
         type: string
       key:
+        type: string
+      lastUsed:
+        type: string
+      name:
         type: string
       owner:
         type: string
@@ -1056,6 +1080,13 @@ paths:
       - ApiKeys
     post:
       operationId: CreateApiKey
+      parameters:
+      - description: The new key params
+        in: body
+        name: params
+        required: true
+        schema:
+          $ref: '#/definitions/ApiKeyParams'
       produces:
       - application/json
       responses:
@@ -1068,8 +1099,7 @@ paths:
         "500":
           description: Internal Server Error
       security:
-      - SessionAuth:
-        - admin
+      - SessionAuth: []
       summary: Create a new api key
       tags:
       - ApiKeys

@@ -16,7 +16,6 @@ import { FbMenuModeT, WeblensFile } from '@weblens/types/files/File'
 import { PhotoQuality } from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import User from '@weblens/types/user/User'
-import { toggleLightTheme } from '@weblens/util'
 import { FC, useCallback, useEffect } from 'react'
 
 import { DirViewModeT } from './FileBrowserTypes'
@@ -385,12 +384,6 @@ export const useKeyDownFileBrowser = () => {
                     } else if (presentingId) {
                         setPresentation('')
                     }
-                } else if (
-                    event.key === 't' &&
-                    !event.metaKey &&
-                    !event.ctrlKey
-                ) {
-                    toggleLightTheme()
                 }
             }
         }
@@ -516,7 +509,7 @@ export async function uploadViaUrl(
     await Upload([meta], false, '', res.data.uploadId)
 }
 
-export const historyDate = (timestamp: number, short: boolean = false) => {
+export const historyDateTime = (timestamp: number, short: boolean = false) => {
     if (timestamp < 10000000000) {
         timestamp = timestamp * 1000
     }
@@ -524,7 +517,7 @@ export const historyDate = (timestamp: number, short: boolean = false) => {
     let options: Intl.DateTimeFormatOptions
     if (short) {
         options = {
-            month: 'numeric',
+            month: 'short',
             day: 'numeric',
             minute: 'numeric',
             hour: 'numeric',
@@ -535,6 +528,29 @@ export const historyDate = (timestamp: number, short: boolean = false) => {
             day: 'numeric',
             minute: 'numeric',
             hour: 'numeric',
+        }
+    }
+    if (dateObj.getFullYear() !== new Date().getFullYear()) {
+        options.year = 'numeric'
+    }
+    return dateObj.toLocaleDateString('en-US', options)
+}
+
+export const historyDate = (timestamp: number, short: boolean = false) => {
+    if (timestamp < 10000000000) {
+        timestamp = timestamp * 1000
+    }
+    const dateObj = new Date(timestamp)
+    let options: Intl.DateTimeFormatOptions
+    if (short) {
+        options = {
+            month: 'short',
+            day: 'numeric',
+        }
+    } else {
+        options = {
+            month: 'long',
+            day: 'numeric',
         }
     }
     if (dateObj.getFullYear() !== new Date().getFullYear()) {

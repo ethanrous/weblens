@@ -113,12 +113,7 @@ func TestAccessServiceImpl_GenerateApiKey(t *testing.T) {
 
 	local := models.NewInstance("", "test-instance", "", models.CoreServerRole, true, "", "")
 
-	_, err = acc.GenerateApiKey(billUser, local)
-	assert.Error(t, err)
-
-	billUser.Admin = true
-
-	key, err := acc.GenerateApiKey(billUser, local)
+	key, err := acc.GenerateApiKey(billUser, local, "test-key")
 	require.NoError(t, err)
 	assert.Equal(t, billUser.Username, key.Owner)
 
@@ -167,7 +162,7 @@ func TestAccessServiceImpl_SetKeyUsedBy(t *testing.T) {
 
 	local := models.NewInstance("", "test-instance", "", models.CoreServerRole, true, "", "")
 
-	key, err := acc.GenerateApiKey(billUser, local)
+	key, err := acc.GenerateApiKey(billUser, local, "test-key")
 	require.NoError(t, err)
 
 	backupServer := models.NewInstance("", "test-instance", key.Key, models.BackupServerRole, false, "", t.Name())

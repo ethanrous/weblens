@@ -17,7 +17,7 @@ import {
     useWindowSize,
 } from '@weblens/components/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
-import { historyDate } from '@weblens/pages/FileBrowser/FileBrowserLogic'
+import { historyDateTime } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import {
     FileFmt,
     PathFmt,
@@ -341,7 +341,7 @@ function ExpandableEventRow({
                     {event[0].actionType.slice(4)}d ...
                 </p>
                 <p className={historyStyle['file-action-text'] + ' ml-auto'}>
-                    {historyDate(event[0].timestamp, true)}
+                    {historyDateTime(event[0].timestamp, true)}
                 </p>
             </div>
             {open && (
@@ -387,7 +387,7 @@ const HistoryEventRow = memo(
 
         const folderName = portableToFileName(folderPath)
 
-        const date = historyDate(event[0].timestamp, true)
+        const date = historyDateTime(event[0].timestamp, true)
         const folderInfo = useFileBrowserStore((state) => state.folderInfo)
 
         let isSelected = false
@@ -624,7 +624,7 @@ function FileHistory() {
 
     let createTimeString = '---'
     if (epoch) {
-        createTimeString = historyDate(epoch.timestamp)
+        createTimeString = historyDateTime(epoch.timestamp)
     }
 
     return (

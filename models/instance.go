@@ -171,6 +171,8 @@ type WeblensApiKey = string
 
 type ApiKey struct {
 	CreatedTime time.Time          `bson:"createdTime"`
+	Name        string             `bson:"name"`
+	LastUsed    time.Time          `bson:"lastUsed"`
 	Key         WeblensApiKey      `bson:"key"`
 	Owner       Username           `bson:"owner"`
 	RemoteUsing InstanceId         `bson:"remoteUsing"`
@@ -184,7 +186,7 @@ type AccessService interface {
 	AddApiKey(key ApiKey) error
 	GetUserFromToken(token string) (*User, error)
 	DeleteApiKey(key WeblensApiKey) error
-	GenerateApiKey(creator *User, local *Instance) (ApiKey, error)
+	GenerateApiKey(creator *User, local *Instance, keyName string) (ApiKey, error)
 	CanUserAccessFile(user *User, file *fileTree.WeblensFileImpl, share *FileShare) bool
 	CanUserModifyShare(user *User, share Share) bool
 	CanUserAccessAlbum(user *User, album *Album, share *AlbumShare) bool

@@ -190,7 +190,7 @@ func (wsc *WsClient) Send(msg WsResponseInfo) error {
 		wsc.updateMu.Lock()
 		defer wsc.updateMu.Unlock()
 
-		log.Debug.Func(func(l log.Logger) { l.Printf("Sending [%s] event to client [%s]", msg.EventTag, wsc.getClientName()) })
+		log.Trace.Func(func(l log.Logger) { l.Printf("Sending [%s] event to client [%s]", msg.EventTag, wsc.getClientName()) })
 
 		err := wsc.conn.WriteJSON(msg)
 		if err != nil {

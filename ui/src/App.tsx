@@ -14,11 +14,13 @@ import MediaApi from './api/MediaApi'
 import ErrorBoundary from './components/Error'
 import Logo from './components/Logo'
 import useR, { useSessionStore } from './components/UserInfo'
+import { useKeyDown } from './components/hooks'
 import Backup from './pages/Backup/Backup'
 import StartUp from './pages/Startup/StartupPage'
 import { SettingsMenu } from './pages/UserSettings/Settings'
 import { ErrorHandler } from './types/Types'
 import { useMediaStore } from './types/media/MediaStateControl'
+import { toggleLightTheme } from './util'
 
 const Gallery = React.lazy(() => import('./pages/Gallery/Gallery'))
 const FileBrowser = React.lazy(() => import('./pages/FileBrowser/FileBrowser'))
@@ -218,6 +220,10 @@ const PageSwitcher = () => {
 function App() {
     document.documentElement.style.overflow = 'hidden'
     document.body.className = 'body'
+
+    useKeyDown('t', () => {
+        toggleLightTheme()
+    })
 
     return (
         <MantineProvider defaultColorScheme="dark">

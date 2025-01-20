@@ -96,10 +96,14 @@ function queueChunks(
             .createChunk(key, thisChunkIndex, chunkHighByte - chunkLowByte)
 
         chunkTasks.push(async () => {
-            if (useUploadStatus.getState().uploads.get(key).error) {
+            if (useUploadStatus.getState().readError(key)) {
                 console.warn(`Skipping upload with error: ${key}`)
                 return
             }
+
+            console.log(
+                `Uplading file ${file.name} ${uploadMeta.fileId} of size ${file.size}`
+            )
 
             await FileApi.uploadFileChunk(
                 uploadId,
@@ -158,22 +162,39 @@ async function Upload(
     }
 
     let count = 0
-    while (!filesMeta[filesMeta.length - 1].file && count < 1000) {
+    while (
+        filesMeta.findIndex((v) => !v.isDir && !v.file) !== -1 &&
+        count < 1000
+    ) {
+        console.log(filesMeta[filesMeta.findIndex((v) => !v.file)])
         console.debug('Upload waiting...')
-        await new Promise((r) => setTimeout(r, 1))
+        await new Promise((r) => setTimeout(r, 10))
         count++
     }
+
+    if (count >= 1000) {
+        console.error('Upload failed: timeout waiting for file objects')
+        return
+    }
+
+    filesMeta = filesMeta.filter(
+        (meta) => meta.isDir || (meta.file && !meta.file.name.startsWith('.'))
+    )
 
     for (const meta of filesMeta) {
         if (meta.isTopLevel) {
             const name = meta.file?.name ?? meta.entry.name
             const key: string = meta.folderId || meta.parentId + name
-
             newUpload(key, name, meta.isDir, meta.isDir ? 0 : meta.file.size)
             if (meta.isDir) {
                 topDirs.push(meta.folderId)
             }
             hasTopFile = hasTopFile || !meta.isDir
+        }
+        if (!meta.isDir) {
+            console.log(
+                `File ${meta.file.name} ${meta.fileId} is of size ${meta.file.size}`
+            )
         }
     }
 
@@ -218,6 +239,7 @@ async function Upload(
     let index = 0
     for (const meta of filesMeta) {
         if (!meta.isDir && meta.file && meta.file.name.startsWith('.')) {
+            index++
             continue
         }
 

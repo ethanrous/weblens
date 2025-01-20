@@ -79,7 +79,7 @@ func NewWeblensTestInstance(testName string, cnf env.Config) (*models.ServicePac
 			return nil, err
 		}
 
-		_, err = services.AccessService.GenerateApiKey(owner, services.InstanceService.GetLocal())
+		_, err = services.AccessService.GenerateApiKey(owner, services.InstanceService.GetLocal(), "test-key")
 		if err != nil {
 			return nil, err
 		}

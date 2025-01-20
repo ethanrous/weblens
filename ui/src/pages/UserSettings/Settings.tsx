@@ -1,4 +1,5 @@
 import {
+    IconBrush,
     IconClipboard,
     IconLock,
     IconLogout,
@@ -10,7 +11,7 @@ import AccessApi from '@weblens/api/AccessApi'
 import { ServersApi } from '@weblens/api/ServersApi'
 import UsersApi from '@weblens/api/UserApi'
 import { ApiKeyInfo, ServerInfo } from '@weblens/api/swag'
-import HeaderBar from '@weblens/components/HeaderBar'
+import HeaderBar, { ThemeToggleButton } from '@weblens/components/HeaderBar'
 import WeblensLoader from '@weblens/components/Loading'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import { useKeyDown } from '@weblens/components/hooks'
@@ -22,6 +23,7 @@ import User from '@weblens/types/user/User'
 import { FC, useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import { historyDate } from '../FileBrowser/FileBrowserLogic'
 import settingsStyle from './settingsStyle.module.scss'
 
 type settingsTab = {
@@ -44,16 +46,23 @@ const tabs: settingsTab[] = [
         icon: IconLock,
         pageComp: SecurityTab,
     },
+    {
+        id: 'appearance',
+        name: 'Appearance',
+        icon: IconBrush,
+        pageComp: AppearanceTab,
+    },
 ]
 
 export function SettingsMenu() {
     const user = useSessionStore((state) => state.user)
     const setUser = useSessionStore((state) => state.setUser)
     const nav = useNavigate()
-    window.location.pathname.replace('/settings', '')
     const [activeTab, setActiveTab] = useState(
-        window.location.pathname.replace('/settings', '')
+        window.location.pathname.replace('/settings/', '')
     )
+
+    console.log(activeTab)
 
     const ActivePage = tabs.find((val) => val.id === activeTab)?.pageComp
 
@@ -63,6 +72,13 @@ export function SettingsMenu() {
             nav('/settings/account')
         }
     }, [])
+
+    useEffect(() => {
+        const desiredLoc = `/settings/${activeTab}`
+        if (window.location.pathname !== desiredLoc) {
+            nav(desiredLoc)
+        }
+    }, [activeTab])
 
     return (
         <div className={settingsStyle['settings-menu']}>
@@ -134,10 +150,22 @@ function AccountTab() {
     )
 }
 
+function AppearanceTab() {
+    return (
+        <div className="flex flex-col gap-2">
+            <p className="text-lg font-semibold p-2 w-max text-nowrap">
+                Appearance
+            </p>
+            <ThemeToggleButton />
+        </div>
+    )
+}
+
 function SecurityTab() {
     const user = useSessionStore((state) => state.user)
     const [oldP, setOldP] = useState('')
     const [newP, setNewP] = useState('')
+    const [namingKey, setNamingKey] = useState(false)
     const [buttonRef, setButtonRef] = useState<HTMLDivElement>()
 
     const updatePass = useCallback(async () => {
@@ -181,17 +209,33 @@ function SecurityTab() {
     })
 
     return (
-        <div className="flex flex-col w-full gap-2">
+        <div className="flex flex-col w-full gap-2 relative">
             <div className={settingsStyle['settings-section']}>
+                {namingKey && (
+                    <div className="absolute flex w-full h-full z-10 backdrop-blur-sm rounded scale-105">
+                        <div className="relative w-32 h-10 m-auto">
+                            <WeblensInput
+                                placeholder="New Key Name"
+                                autoFocus
+                                closeInput={() => setNamingKey(false)}
+                                onComplete={async (v) => {
+                                    await AccessApi.createApiKey({
+                                        name: v,
+                                    }).then(() => refetchKeys())
+                                    await refetchKeys()
+                                    return
+                                }}
+                            />
+                        </div>
+                    </div>
+                )}
                 <div className={settingsStyle['settings-header']}>
-                    <h4>API Keys</h4>
+                    <h3>API Keys</h3>
                     <WeblensButton
                         squareSize={32}
                         label="New Api Key"
                         onClick={() => {
-                            AccessApi.createApiKey()
-                                .then(() => refetchKeys())
-                                .catch(ErrorHandler)
+                            setNamingKey(true)
                         }}
                     />
                 </div>
@@ -199,6 +243,7 @@ function SecurityTab() {
                     keys?.map((val) => {
                         return (
                             <ApiKeyRow
+                                key={val.id}
                                 keyInfo={val}
                                 refetch={() => {
                                     refetchRemotes().catch(ErrorHandler)
@@ -217,7 +262,7 @@ function SecurityTab() {
             </div>
 
             <div className={settingsStyle['settings-header']}>
-                <h4>Change Password</h4>
+                <h3>Change Password</h3>
             </div>
             <WeblensInput
                 value={oldP}
@@ -256,15 +301,32 @@ function ApiKeyRow({
     refetch: () => void
     remotes: ServerInfo[]
 }) {
+    const stars = '*'.repeat(keyInfo.key.slice(4).length)
+
     return (
         <div key={keyInfo.id} className={settingsStyle['settings-content-row']}>
             <div className="flex flex-col grow w-1/2">
-                <p className="theme-text font-bold text-nowrap w-full truncate select-none">
-                    {keyInfo.key}
+                <strong className="theme-text font-bold text-nowrap w-full truncate select-none my-1">
+                    {keyInfo.name}
+                </strong>
+                <code className="theme-text text-nowrap w-full truncate select-none text-[12px]">
+                    {keyInfo.key.slice(0, 4)}
+                    {stars}
+                </code>
+                <p className="text-gray-400">
+                    Added {historyDate(keyInfo.createdTime)}
                 </p>
+                {keyInfo.lastUsedTime === 0 && (
+                    <p className="select-none text-gray-400">Unused</p>
+                )}
+                {keyInfo.lastUsedTime !== 0 && (
+                    <p className="select-none text-gray-400">
+                        {historyDate(keyInfo.lastUsedTime)}
+                    </p>
+                )}
                 {keyInfo.remoteUsing !== '' && (
-                    <p className="select-none">
-                        Used by:{' '}
+                    <p className="select-none text-gray-400">
+                        Linked to{' '}
                         {
                             remotes.find((r) => r.id === keyInfo.remoteUsing)
                                 ?.name
@@ -272,7 +334,7 @@ function ApiKeyRow({
                     </p>
                 )}
                 {keyInfo.remoteUsing === '' && (
-                    <p className="select-none">Unused</p>
+                    <p className="select-none text-gray-400">Not Linked</p>
                 )}
             </div>
             <WeblensButton
