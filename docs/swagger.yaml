@@ -1743,6 +1743,10 @@ paths:
         name: uploadId
         required: true
         type: string
+      - description: Share Id
+        in: query
+        name: shareId
+        type: string
       - description: New file params
         in: body
         name: request
@@ -1778,6 +1782,10 @@ paths:
         in: path
         name: fileId
         required: true
+        type: string
+      - description: Share Id
+        in: query
+        name: shareId
         type: string
       - description: File chunk
         in: formData
@@ -1861,8 +1869,10 @@ paths:
         "500":
           description: Internal Server Error
       security:
-      - SessionAuth: []
-      - ApiKeyAuth: []
+      - SessionAuth:
+        - Admin
+      - ApiKeyAuth:
+        - Admin
       summary: Delete a user
       tags:
       - Users

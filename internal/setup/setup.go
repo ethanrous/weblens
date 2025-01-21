@@ -195,7 +195,7 @@ func setupTaskService(workerCount int, pack *models.ServicePack, logger log.Bund
 
 	workerPool.RegisterJob(models.ScanDirectoryTask, jobs.ScanDirectory)
 	workerPool.RegisterJob(models.ScanFileTask, jobs.ScanFile)
-	workerPool.RegisterJob(models.UploadFilesTask, jobs.HandleFileUploads)
+	workerPool.RegisterJob(models.UploadFilesTask, jobs.HandleFileUploads, task.TaskOptions{Persistent: true, Unique: true})
 	workerPool.RegisterJob(models.CreateZipTask, jobs.CreateZip)
 	workerPool.RegisterJob(models.GatherFsStatsTask, jobs.GatherFilesystemStats)
 	if pack.InstanceService.GetLocal().Role == models.BackupServerRole {

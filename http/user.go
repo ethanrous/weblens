@@ -390,8 +390,8 @@ func activateUser(w http.ResponseWriter, r *http.Request) {
 //
 //	@ID			DeleteUser
 //
-//	@Security	SessionAuth
-//	@Security	ApiKeyAuth
+//	@Security	SessionAuth[Admin]
+//	@Security	ApiKeyAuth[Admin]
 //
 //	@Summary	Delete a user
 //	@Tags		Users
@@ -409,9 +409,7 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 	if SafeErrorAndExit(err, w) {
 		return
 	}
-	if SafeErrorAndExit(err, w) {
-		return
-	}
+
 	if !u.IsAdmin() {
 		w.WriteHeader(http.StatusForbidden)
 		return
@@ -419,12 +417,13 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 
 	username := chi.URLParam(r, "username")
 
-	deleteUser := pack.UserService.Get(username)
-	if deleteUser == nil {
-		w.WriteHeader(http.StatusNotFound)
+	userToDelete := pack.UserService.Get(username)
+	if userToDelete == nil {
+		SafeErrorAndExit(werror.ErrNoUser, w)
 		return
 	}
-	err = pack.UserService.Del(deleteUser.GetUsername())
+
+	err = pack.UserService.Del(userToDelete.GetUsername())
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -471,7 +470,7 @@ func searchUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var usersInfo []rest.UserInfo
+	usersInfo := []rest.UserInfo{}
 	for user := range users {
 		if user.Username == u.Username {
 			continue

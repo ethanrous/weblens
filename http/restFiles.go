@@ -1228,6 +1228,7 @@ func newUploadTask(w http.ResponseWriter, r *http.Request) {
 		User:         u,
 		Caster:       pack.Caster,
 		UploadEvent:  uploadEvent,
+		Share:        share,
 	}
 	t, err := pack.TaskService.DispatchJob(models.UploadFilesTask, meta, nil)
 	if SafeErrorAndExit(err, w) {
@@ -1248,6 +1249,7 @@ func newUploadTask(w http.ResponseWriter, r *http.Request) {
 //	@Summary	Add a file to an upload task
 //	@Tags		Files
 //	@Param		uploadId	path		string				true	"Upload Id"
+//	@Param		shareId		query		string				false	"Share Id"
 //	@Param		request		body		rest.NewFilesParams	true	"New file params"
 //	@Success	200			{object}	rest.NewFilesInfo	"FileIds"
 //	@Failure	401
@@ -1348,6 +1350,7 @@ func newFileUpload(w http.ResponseWriter, r *http.Request) {
 //	@Tags		Files
 //	@Param		uploadId	path		string	true	"Upload Id"
 //	@Param		fileId		path		string	true	"File Id"
+//	@Param		shareId		query		string	false	"Share Id"
 //	@Param		chunk		formData	file	true	"File chunk"
 //	@Success	200
 //	@Failure	401

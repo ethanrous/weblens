@@ -37,7 +37,7 @@ type Task struct {
 
 	taskPool      *TaskPool
 	childTaskPool *TaskPool
-	work          TaskHandler
+	work          job
 	result        TaskResult
 
 	// Function to be run to clean up when the task completes, only if the task is successful
@@ -70,8 +70,12 @@ type Task struct {
 
 	timerLock sync.RWMutex
 
-	waitChan   chan struct{}
-	persistent bool
+	waitChan chan struct{}
+}
+
+type TaskOptions struct {
+	Persistent bool
+	Unique     bool
 }
 
 type QueueState string

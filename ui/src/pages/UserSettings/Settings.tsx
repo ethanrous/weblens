@@ -1,18 +1,35 @@
 import {
     IconBrush,
     IconClipboard,
+    IconExternalLink,
     IconLock,
+    IconLockOpen,
     IconLogout,
+    IconServer,
     IconTrash,
     IconUser,
+    IconUserMinus,
+    IconUserShield,
+    IconUserUp,
+    IconUsers,
 } from '@tabler/icons-react'
-import { useQuery } from '@tanstack/react-query'
+import {
+    QueryObserverResult,
+    RefetchOptions,
+    useQuery,
+} from '@tanstack/react-query'
 import AccessApi from '@weblens/api/AccessApi'
 import { ServersApi } from '@weblens/api/ServersApi'
 import UsersApi from '@weblens/api/UserApi'
+import {
+    HandleWebsocketMessage,
+    useWeblensSocket,
+    useWebsocketStore,
+} from '@weblens/api/Websocket'
 import { ApiKeyInfo, ServerInfo } from '@weblens/api/swag'
 import HeaderBar, { ThemeToggleButton } from '@weblens/components/HeaderBar'
 import WeblensLoader from '@weblens/components/Loading'
+import RemoteStatus from '@weblens/components/RemoteStatus'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import { useKeyDown } from '@weblens/components/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
@@ -20,9 +37,11 @@ import WeblensInput from '@weblens/lib/WeblensInput'
 import { ErrorHandler } from '@weblens/types/Types'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import User from '@weblens/types/user/User'
-import { FC, useCallback, useEffect, useState } from 'react'
+import { FC, useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import { AdminWebsocketHandler } from '../AdminSettings/adminLogic'
+import { BackupProgressT } from '../Backup/BackupLogic'
 import { historyDate } from '../FileBrowser/FileBrowserLogic'
 import settingsStyle from './settingsStyle.module.scss'
 
@@ -54,24 +73,31 @@ const tabs: settingsTab[] = [
     },
 ]
 
+const adminTabs: settingsTab[] = [
+    {
+        id: 'servers',
+        name: 'Servers',
+        icon: IconServer,
+        pageComp: ServersTab,
+    },
+    {
+        id: 'users',
+        name: 'Users',
+        icon: IconUsers,
+        pageComp: UsersTab,
+    },
+]
+
 export function SettingsMenu() {
     const user = useSessionStore((state) => state.user)
     const setUser = useSessionStore((state) => state.setUser)
     const nav = useNavigate()
+
     const [activeTab, setActiveTab] = useState(
         window.location.pathname.replace('/settings/', '')
     )
 
-    console.log(activeTab)
-
-    const ActivePage = tabs.find((val) => val.id === activeTab)?.pageComp
-
-    useEffect(() => {
-        if (!ActivePage) {
-            setActiveTab('account')
-            nav('/settings/account')
-        }
-    }, [])
+    useWeblensSocket()
 
     useEffect(() => {
         const desiredLoc = `/settings/${activeTab}`
@@ -80,11 +106,32 @@ export function SettingsMenu() {
         }
     }, [activeTab])
 
+    const ActivePage = useMemo(() => {
+        const allTabs = [...tabs]
+        if (user.admin) {
+            allTabs.push(...adminTabs)
+        }
+
+        const ActivePage = allTabs.find((val) => val.id === activeTab)?.pageComp
+        return ActivePage
+    }, [activeTab])
+
+    useEffect(() => {
+        if (!user.isLoggedIn) {
+            nav('/login', { state: { returnTo: window.location.pathname } })
+            return
+        }
+        if (!ActivePage) {
+            setActiveTab('account')
+            nav('/settings/account')
+        }
+    }, [user])
+
     return (
         <div className={settingsStyle['settings-menu']}>
             <HeaderBar />
             <div className="flex flex-col grow p-8">
-                <div className="flex h-max items-center gap-2 w-full mb-4">
+                <div className="flex h-max items-center gap-2 w-full mb-2 pb-2 border-b-[--wl-outline-subtle] border-b">
                     <IconUser size={25} />
                     <h3>{user.username}</h3>
                 </div>
@@ -107,13 +154,50 @@ export function SettingsMenu() {
                                                     settingsStyle['tab-icon']
                                                 }
                                             >
-                                                <tab.icon size={16} />
+                                                <tab.icon size={20} />
                                             </span>
                                             <span>{tab.name}</span>
                                         </a>
                                     </li>
                                 )
                             })}
+                            {user.admin && (
+                                <p
+                                    className={
+                                        settingsStyle['settings-tabs-group']
+                                    }
+                                >
+                                    Admin
+                                </p>
+                            )}
+                            {user.admin &&
+                                adminTabs.map((tab) => {
+                                    return (
+                                        <li key={tab.id}>
+                                            <a
+                                                data-active={
+                                                    activeTab === tab.id
+                                                }
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    e.preventDefault()
+                                                    setActiveTab(tab.id)
+                                                }}
+                                            >
+                                                <span
+                                                    className={
+                                                        settingsStyle[
+                                                            'tab-icon'
+                                                        ]
+                                                    }
+                                                >
+                                                    <tab.icon size={16} />
+                                                </span>
+                                                <span>{tab.name}</span>
+                                            </a>
+                                        </li>
+                                    )
+                                })}
                             <li className="mt-auto">
                                 <WeblensButton
                                     label={'Logout'}
@@ -157,6 +241,9 @@ function AppearanceTab() {
                 Appearance
             </p>
             <ThemeToggleButton />
+            <p className="text-[--wl-text-color-dull]">
+                Hint: Press [T] to toggle theme
+            </p>
         </div>
     )
 }
@@ -359,6 +446,309 @@ function ApiKeyRow({
                         .catch(ErrorHandler)
                 }}
             />
+        </div>
+    )
+}
+
+function ServersTab() {
+    const readyState = useWebsocketStore((state) => state.readyState)
+    const wsSend = useWebsocketStore((state) => state.wsSend)
+
+    const { data: remotes, refetch: refetchRemotes } = useQuery<ServerInfo[]>({
+        queryKey: ['remotes'],
+        initialData: [],
+        queryFn: async () =>
+            (await ServersApi.getRemotes().then((res) => res.data)) || [],
+        retry: false,
+    })
+
+    const lastMessage = useWebsocketStore((state) => state.lastMessage)
+
+    const [backupProgress, setBackupProgress] = useState<
+        Map<string, BackupProgressT>
+    >(new Map())
+
+    useEffect(() => {
+        if (!readyState) {
+            return
+        }
+
+        wsSend('taskSubscribe', { taskType: 'do_backup' })
+        return () => wsSend('unsubscribe', { taskType: 'do_backup' })
+    }, [readyState])
+
+    useEffect(() => {
+        HandleWebsocketMessage(
+            lastMessage,
+            AdminWebsocketHandler(setBackupProgress, () => {
+                refetchRemotes().catch(ErrorHandler)
+            })
+        )
+    }, [lastMessage])
+
+    return (
+        <div className="flex flex-col items-center p-2 rounded w-full gap-2 overflow-scroll">
+            {remotes.length === 0 && (
+                <div className="flex flex-col items-center mt-16">
+                    <IconServer />
+                    <h2 className="text-center">No remote servers</h2>
+                    <p className="text-sm mt-2 text-[--wl-text-color-dull]">
+                        After you set up a {''}
+                        <a
+                            href="https://github.com/ethanrous/weblens?tab=readme-ov-file#weblens-backup"
+                            target="_blank"
+                            className="p-1"
+                            data-subtle
+                        >
+                            backup server
+                            <IconExternalLink size={18} />
+                        </a>
+                        , it will appear here
+                    </p>
+                </div>
+            )}
+            {remotes.map((r) => {
+                return (
+                    <RemoteStatus
+                        key={r.id}
+                        remoteInfo={r}
+                        refetchRemotes={() => {
+                            refetchRemotes().catch(ErrorHandler)
+                        }}
+                        restoreProgress={null}
+                        backupProgress={backupProgress.get(r.id)}
+                        setBackupProgress={(progress) => {
+                            setBackupProgress((old) => {
+                                const newMap = new Map(old)
+                                newMap.set(r.id, progress)
+                                return newMap
+                            })
+                        }}
+                    />
+                )
+            })}
+        </div>
+    )
+}
+
+function UsersTab() {
+    const user = useSessionStore((state) => state.user)
+    const { data: allUsersInfo, refetch: refetchUsers } = useQuery<User[]>({
+        queryKey: ['users'],
+        initialData: [],
+        queryFn: () =>
+            UsersApi.getUsers().then((res) =>
+                res.data.map((info) => new User(info))
+            ),
+    })
+    const usersList = useMemo(() => {
+        if (!allUsersInfo) {
+            return null
+        }
+        allUsersInfo.sort((a, b) => {
+            return a.username.localeCompare(b.username)
+        })
+
+        return allUsersInfo.map((val) => (
+            <UserRow
+                key={val.username}
+                rowUser={val}
+                accessor={user}
+                refetchUsers={refetchUsers}
+            />
+        ))
+    }, [allUsersInfo])
+
+    return (
+        <div className="flex flex-col w-full">
+            <div className="flex flex-col p-2 w-full h-0 grow shrink overflow-scroll">
+                <div className="grid h-max">{usersList}</div>
+            </div>
+            <CreateUserBox refetchUsers={refetchUsers} />
+        </div>
+    )
+}
+
+const UserRow = ({
+    rowUser,
+    accessor,
+    refetchUsers,
+}: {
+    rowUser: User
+    accessor: User
+    refetchUsers: (
+        opts?: RefetchOptions
+    ) => Promise<QueryObserverResult<User[], Error>>
+}) => {
+    const [changingPass, setChangingPass] = useState(false)
+
+    let userLevel = ''
+    if (rowUser.owner) {
+        userLevel = 'Owner'
+    } else if (rowUser.admin) {
+        userLevel = 'Admin'
+    }
+
+    return (
+        <div
+            key={rowUser.username}
+            className={settingsStyle['settings-content-row']}
+        >
+            <div className="flex flex-col justify-center w-max h-max">
+                <p className="font-bold w-max theme-text">{rowUser.username}</p>
+                <p className="theme-text">{userLevel}</p>
+            </div>
+            <div className="flex">
+                {rowUser.activated === false && (
+                    <WeblensButton
+                        label="Activate"
+                        squareSize={35}
+                        onClick={() => {
+                            UsersApi.activateUser(rowUser.username, true)
+                                .then(() => refetchUsers())
+                                .catch(ErrorHandler)
+                        }}
+                    />
+                )}
+                {!changingPass && accessor.owner && (
+                    <WeblensButton
+                        tooltip="Change Password"
+                        labelOnHover={true}
+                        Left={IconLockOpen}
+                        squareSize={35}
+                        disabled={!rowUser.activated}
+                        onClick={() => {
+                            setChangingPass(true)
+                        }}
+                    />
+                )}
+                {changingPass && (
+                    <WeblensInput
+                        placeholder="New Password"
+                        autoFocus={true}
+                        closeInput={() => setChangingPass(false)}
+                        onComplete={async (newPass) => {
+                            if (newPass === '') {
+                                return Promise.reject(
+                                    new Error(
+                                        'Cannot update password to empty string'
+                                    )
+                                )
+                            }
+                            return UsersApi.updateUserPassword(
+                                rowUser.username,
+                                { newPassword: newPass }
+                            )
+                        }}
+                    />
+                )}
+                {!rowUser.admin && accessor.owner && (
+                    <WeblensButton
+                        tooltip="Make Admin"
+                        Left={IconUserUp}
+                        labelOnHover={true}
+                        allowShrink={false}
+                        squareSize={35}
+                        onClick={() => {
+                            UsersApi.setUserAdmin(rowUser.username, true)
+                                .then(() => refetchUsers())
+                                .catch(ErrorHandler)
+                        }}
+                    />
+                )}
+                {!rowUser.owner && rowUser.admin && accessor.owner && (
+                    <WeblensButton
+                        tooltip="Remove Admin"
+                        Left={IconUserMinus}
+                        squareSize={35}
+                        onClick={() => {
+                            UsersApi.setUserAdmin(rowUser.username, false)
+                                .then(() => refetchUsers())
+                                .catch(ErrorHandler)
+                        }}
+                    />
+                )}
+
+                <WeblensButton
+                    squareSize={35}
+                    tooltip="Delete"
+                    Left={IconTrash}
+                    danger
+                    requireConfirm
+                    centerContent
+                    disabled={rowUser.admin && !accessor.owner}
+                    onClick={() =>
+                        UsersApi.deleteUser(rowUser.username).then(() =>
+                            refetchUsers()
+                        )
+                    }
+                />
+            </div>
+        </div>
+    )
+}
+
+function CreateUserBox({
+    refetchUsers,
+}: {
+    refetchUsers: (
+        opts?: RefetchOptions
+    ) => Promise<QueryObserverResult<User[], Error>>
+}) {
+    const [userInput, setUserInput] = useState('')
+    const [passInput, setPassInput] = useState('')
+    const [makeAdmin, setMakeAdmin] = useState(false)
+    return (
+        <div className="flex flex-col p-2 h-max w-full gap-2">
+            <div className="flex flex-col gap-2 w-full">
+                <div className="flex gap-1">
+                    <WeblensInput
+                        placeholder="Username"
+                        value={userInput}
+                        squareSize={50}
+                        onComplete={null}
+                        fillWidth
+                        valueCallback={setUserInput}
+                    />
+                    <WeblensInput
+                        placeholder="Password"
+                        value={passInput}
+                        squareSize={50}
+                        onComplete={null}
+                        fillWidth
+                        password
+                        valueCallback={setPassInput}
+                    />
+                    <div className="flex flex-row grow w-max">
+                        <WeblensButton
+                            Left={IconUserShield}
+                            tooltip="Admin"
+                            allowRepeat
+                            squareSize={50}
+                            toggleOn={makeAdmin}
+                            onClick={() => setMakeAdmin(!makeAdmin)}
+                        />
+                        <WeblensButton
+                            label="Create User"
+                            squareSize={50}
+                            disabled={userInput === '' || passInput === ''}
+                            onClick={() =>
+                                UsersApi.createUser({
+                                    admin: makeAdmin,
+                                    autoActivate: true,
+                                    username: userInput,
+                                    password: passInput,
+                                })
+                                    .then(() => {
+                                        setUserInput('')
+                                        setPassInput('')
+                                    })
+                                    .then(() => refetchUsers())
+                            }
+                        />
+                    </div>
+                </div>
+            </div>
         </div>
     )
 }

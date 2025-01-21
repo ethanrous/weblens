@@ -75,7 +75,7 @@ function queueChunks(
     uploadMeta: FileUploadMetadata,
     // isPublic: boolean,
     uploadId: string,
-    // shareId: string,
+    shareId: string,
     taskQueue: PromiseQueue<void>
 ) {
     const file: File = uploadMeta.file
@@ -109,6 +109,7 @@ function queueChunks(
                 uploadId,
                 uploadMeta.fileId,
                 file.slice(chunkLowByte, chunkHighByte) as File,
+                shareId,
                 {
                     headers: {
                         'Content-Range': `${chunkLowByte}-${chunkHighByte - 1}/${file.size}`,
@@ -212,9 +213,13 @@ async function Upload(
     })
     console.log('Adding all files to upload')
 
-    const newFilesRes = await FileApi.addFilesToUpload(uploadId, {
-        newFiles: newFiles,
-    }).catch((err) => {
+    const newFilesRes = await FileApi.addFilesToUpload(
+        uploadId,
+        {
+            newFiles: newFiles,
+        },
+        shareId
+    ).catch((err) => {
         console.error('Failed to add files to upload', err)
         for (const dir of topDirs) {
             console.log('Setting error for', dir)
@@ -263,7 +268,7 @@ async function Upload(
         if (meta.isDir) {
             continue
         }
-        queueChunks(meta, uploadId, taskQueue)
+        queueChunks(meta, uploadId, shareId, taskQueue)
     }
     await taskQueue.run()
 }

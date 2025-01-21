@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/creativecreature/sturdyc"
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/viccon/sturdyc"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -359,7 +359,7 @@ func (j *JournalImpl) GetPastFolderChildren(folder *WeblensFileImpl, time time.T
 func (j *JournalImpl) Get(lId FileId) *Lifetime {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, "lifetimeId", lId)
-	lt, err := j.cache.GetFetch(ctx, lId, j.fetchLifetime)
+	lt, err := j.cache.GetOrFetch(ctx, lId, j.fetchLifetime)
 	if err != nil {
 		j.log.ErrTrace(err)
 		return nil

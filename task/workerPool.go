@@ -23,10 +23,15 @@ type hit struct {
 type workChannel chan *Task
 type hitChannel chan hit
 
+type job struct {
+	handler TaskHandler
+	opts    TaskOptions
+}
+
 type WorkerPool struct {
 	busyCount *atomic.Int64 // Number of workers currently executing a task
 
-	registeredJobs map[string]TaskHandler
+	registeredJobs map[string]job
 
 	taskMap map[Id]*Task
 
@@ -62,7 +67,7 @@ func NewWorkerPool(initWorkers int, logger log.Bundle) *WorkerPool {
 	logger.Trace.Func(func(l log.Logger) { l.Printf("Starting new worker pool with %d workers", initWorkers) })
 
 	newWp := &WorkerPool{
-		registeredJobs: map[string]TaskHandler{},
+		registeredJobs: map[string]job{},
 		taskMap:        map[Id]*Task{},
 		poolMap:        map[Id]*TaskPool{},
 
@@ -154,10 +159,15 @@ func (wp *WorkerPool) GetTaskPoolByJobName(jobName string) *TaskPool {
 }
 
 // RegisterJob adds a template for a repeatable job that can be called upon later in the program
-func (wp *WorkerPool) RegisterJob(jobName string, fn TaskHandler) {
+func (wp *WorkerPool) RegisterJob(jobName string, fn TaskHandler, opts ...TaskOptions) {
 	wp.jobsMu.Lock()
 	defer wp.jobsMu.Unlock()
-	wp.registeredJobs[jobName] = fn
+
+	o := TaskOptions{}
+	if len(opts) != 0 {
+		o = opts[0]
+	}
+	wp.registeredJobs[jobName] = job{handler: fn, opts: o}
 }
 
 func (wp *WorkerPool) DispatchJob(jobName string, meta TaskMetadata, pool *TaskPool) (*Task, error) {
@@ -170,7 +180,7 @@ func (wp *WorkerPool) DispatchJob(jobName string, meta TaskMetadata, pool *TaskP
 	}
 
 	wp.jobsMu.RLock()
-	if wp.registeredJobs[jobName] == nil {
+	if wp.registeredJobs[jobName].handler == nil {
 		wp.jobsMu.RUnlock()
 		return nil, werror.Errorf("trying to dispatch non-registered job: %s", jobName)
 	}
@@ -180,11 +190,17 @@ func (wp *WorkerPool) DispatchJob(jobName string, meta TaskMetadata, pool *TaskP
 		pool = wp.GetTaskPool("GLOBAL")
 	}
 
+	job := wp.getRegisteredJob(jobName)
+
 	var taskId Id
 	if meta == nil {
 		taskId = globbyHash(8, time.Now().String())
 	} else {
-		taskId = globbyHash(8, meta.MetaString())
+		metaStr := meta.MetaString()
+		if job.opts.Unique {
+			metaStr += time.Now().String()
+		}
+		taskId = globbyHash(8, metaStr)
 	}
 
 	t := wp.GetTask(taskId)
@@ -192,12 +208,11 @@ func (wp *WorkerPool) DispatchJob(jobName string, meta TaskMetadata, pool *TaskP
 		wp.log.Trace.Printf("Task [%s] already exists, not launching again", taskId)
 		return t, nil
 	} else {
-		wp.jobsMu.RLock()
 		t = &Task{
 			taskId:   taskId,
 			jobName:  jobName,
 			metadata: meta,
-			work:     wp.registeredJobs[jobName],
+			work:     job,
 
 			queueState: PreQueued,
 
@@ -208,7 +223,6 @@ func (wp *WorkerPool) DispatchJob(jobName string, meta TaskMetadata, pool *TaskP
 
 			sw: internal.NewStopwatch(fmt.Sprintf("%s Task [%s]", jobName, taskId)),
 		}
-		wp.jobsMu.RUnlock()
 	}
 
 	wp.addTask(t)
@@ -265,6 +279,12 @@ func (wp *WorkerPool) DispatchJob(jobName string, meta TaskMetadata, pool *TaskP
 	return t, nil
 }
 
+func (wp *WorkerPool) getRegisteredJob(jobName string) job {
+	wp.jobsMu.RLock()
+	defer wp.jobsMu.RUnlock()
+	return wp.registeredJobs[jobName]
+}
+
 func (wp *WorkerPool) workerRecover(task *Task, workerId int64) {
 	recovered := recover()
 	if recovered != nil {
@@ -297,7 +317,7 @@ func (wp *WorkerPool) safetyWork(task *Task, workerId int64) {
 	if task.exitStatus != TaskNoStatus {
 		wp.log.Trace.Printf("Task [%s] already has exit status [%s], not running", task.taskId, task.exitStatus)
 	} else {
-		task.work(task)
+		task.work.handler(task)
 	}
 
 }
@@ -402,9 +422,8 @@ func (wp *WorkerPool) removeTask(taskId Id) {
 // different to minimize parked time of the other task.
 func (wp *WorkerPool) execWorker(replacement bool) {
 	go func(workerId int64) {
-		// Dec alive workers
+		wp.log.Trace.Printf("Spinning up worker with id [%d] o7", workerId)
 		defer func() { log.Debug.Printf("worker %d exiting, %d workers remain", workerId, wp.currentWorkers.Add(-1)) }()
-		wp.log.Trace.Func(func(l log.Logger) { l.Printf("Worker %d reporting for duty o7", workerId) })
 
 		// WorkLoop:
 		for {
@@ -496,7 +515,7 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 						rootTaskPool.AddError(t)
 					}
 
-					if !t.persistent {
+					if !t.work.opts.Persistent {
 						wp.removeTask(t.taskId)
 					}
 
@@ -677,7 +696,7 @@ func (wp *WorkerPool) addToRetryBuffer(tasks ...*Task) {
 }
 
 type TaskService interface {
-	RegisterJob(jobName string, fn TaskHandler)
+	RegisterJob(jobName string, fn TaskHandler, opts ...TaskOptions)
 	NewTaskPool(replace bool, createdBy *Task) *TaskPool
 	GetTaskPoolByJobName(jobName string) *TaskPool
 	GetTasksByJobName(jobName string) []*Task

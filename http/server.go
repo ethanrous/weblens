@@ -19,13 +19,11 @@ import (
 	"github.com/ethanrous/weblens/models"
 	"github.com/go-chi/chi/v5"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
-	// gin-swagger middleware
 )
 
 type Server struct {
 	StartupFunc func()
 
-	// router     *gin.Engine
 	router     *chi.Mux
 	stdServer  *http.Server
 	services   *models.ServicePack
@@ -204,7 +202,7 @@ func (s *Server) UseApi() *chi.Mux {
 		r.Post("/logout", logoutUser)
 		r.Patch("/{username}/password", updateUserPassword)
 		r.Patch("/{username}/admin", setUserAdmin)
-		r.Delete("/", deleteUser)
+		r.Delete("/{username}", deleteUser)
 	})
 
 	// Share

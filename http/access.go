@@ -11,7 +11,7 @@ import (
 
 // CreateApiKey godoc
 //
-//	@ID	CreateApiKey
+//	@ID			CreateApiKey
 //
 //	@Security	SessionAuth
 //
@@ -19,7 +19,7 @@ import (
 //	@Tags		ApiKeys
 //	@Produce	json
 //
-//	@Param		params	body		rest.ApiKeyParams	true "The new key params"
+//	@Param		params	body		rest.ApiKeyParams	true	"The new key params"
 //
 //	@Success	200		{object}	rest.ApiKeyInfo		"The new api key info"
 //	@Failure	403

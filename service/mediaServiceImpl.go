@@ -17,13 +17,13 @@ import (
 
 	"github.com/EdlinOrg/prominentcolor"
 	"github.com/barasher/go-exiftool"
-	"github.com/creativecreature/sturdyc"
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal"
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
+	"github.com/viccon/sturdyc"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/image/webp"
@@ -273,7 +273,7 @@ func (ms *MediaServiceImpl) FetchCacheImg(m *models.Media, q models.MediaQuality
 	ctx = context.WithValue(ctx, CachePageKey, pageNum)
 	ctx = context.WithValue(ctx, CacheMediaKey, m)
 
-	cache, err := ms.mediaCache.GetFetch(ctx, cacheId, ms.getFetchMediaCacheImage)
+	cache, err := ms.mediaCache.GetOrFetch(ctx, cacheId, ms.getFetchMediaCacheImage)
 	if err != nil {
 		return nil, werror.WithStack(err)
 	}

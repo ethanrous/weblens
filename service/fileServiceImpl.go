@@ -226,7 +226,7 @@ func (fs *FileServiceImpl) GetFileSafe(id fileTree.FileId, user *models.User, sh
 
 	if !fs.accessService.CanUserAccessFile(user, f, share) {
 		log.Warning.Printf(
-			"Username [%s] attempted to access file at %s [%s], but they do not have access",
+			"User [%s] attempted to access file at %s [%s], but they do not have access",
 			user.GetUsername(), f.GetPortablePath(), f.ID(),
 		)
 		return nil, werror.WithStack(werror.ErrNoFileAccess)
@@ -924,7 +924,12 @@ func (fs *FileServiceImpl) NewBackupFile(lt *fileTree.Lifetime) (*fileTree.Weble
 
 	tree := fs.trees[lt.ServerId]
 	if tree == nil {
-		return nil, werror.WithStack(werror.ErrNoFileTree)
+		return nil, werror.WithStack(werror.ErrNoFileTree.WithArg(lt.ServerId))
+	}
+
+	restoreTree := fs.trees["RESTORE"]
+	if restoreTree == nil {
+		return nil, werror.WithStack(werror.ErrNoFileTree.WithArg("RESTORE"))
 	}
 
 	if lt.GetIsDir() {
@@ -967,11 +972,20 @@ func (fs *FileServiceImpl) NewBackupFile(lt *fileTree.Lifetime) (*fileTree.Weble
 		return nil, nil
 	}
 
-	restoreFile, err := fs.trees["RESTORE"].Touch(fs.trees["RESTORE"].GetRoot(), lt.GetContentId(), nil)
-	if err != nil {
-		return nil, err
+	var restoreFile *fileTree.WeblensFileImpl
+	if restoreFile, _ = restoreTree.GetRoot().GetChild(lt.GetContentId()); restoreFile == nil {
+		var err error
+		restoreFile, err = restoreTree.Touch(restoreTree.GetRoot(), lt.GetContentId(), nil)
+		if err != nil {
+			return nil, err
+		}
+		restoreFile.SetContentId(lt.GetContentId())
+	} else {
+		_, err := restoreFile.LoadStat()
+		if err != nil {
+			return nil, werror.WithStack(err)
+		}
 	}
-	restoreFile.SetContentId(lt.GetContentId())
 
 	if lt.GetLatestAction().ActionType != fileTree.FileDelete {
 		portable := fileTree.ParsePortable(lt.GetLatestAction().DestinationPath)
@@ -993,7 +1007,7 @@ func (fs *FileServiceImpl) NewBackupFile(lt *fileTree.Lifetime) (*fileTree.Weble
 
 		newF := fileTree.NewWeblensFile(lt.ID(), newPortable.Filename(), parent, false)
 
-		err = tree.Add(newF)
+		err := tree.Add(newF)
 		if err != nil {
 			return nil, err
 		}

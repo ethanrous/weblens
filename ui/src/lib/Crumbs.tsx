@@ -302,6 +302,7 @@ function Crumbs({
         crumbs.shift()
     }
 
+    console.log(folderInfo.GetFilename())
     // Add the current folder, which is not always navigable
     crumbs.push({
         path: folderInfo.GetFilename(),

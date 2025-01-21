@@ -254,7 +254,6 @@ func DoBackup(t *task.Task) {
 				t.ReqNoErr(err)
 			}
 			continue
-
 		} else if err != nil && !errors.Is(err, werror.ErrNoFile) {
 			t.Fail(err)
 		}
@@ -277,14 +276,13 @@ func DoBackup(t *task.Task) {
 		restoreFile, err := meta.FileService.NewBackupFile(lt)
 		t.ReqNoErr(err)
 
-		if restoreFile == nil {
+		if restoreFile == nil || restoreFile.Size() != 0 {
 			continue
 		}
 
-		// if !coreClient.IsOpen() {
-		// 	coreClient = meta.WebsocketService.GetClientByServerId(meta.Core.ServerId())
-		// }
+		log.Trace.Printf("Queuing copy file task for %s", restoreFile.GetPortablePath())
 
+		// Spawn subtask to copy the file from the core server
 		copyFileMeta := models.BackupCoreFileMeta{
 			FileService: meta.FileService,
 			File:        restoreFile,
@@ -298,11 +296,13 @@ func DoBackup(t *task.Task) {
 		t.ReqNoErr(err)
 	}
 
+	log.Debug.Printf("Waiting for %d copy file tasks", pool.Status().Total)
+
 	pool.SignalAllQueued()
 	pool.Wait(true)
 
 	if len(pool.Errors()) != 0 {
-		t.ReqNoErr(werror.Errorf("%d of %d backup file copies have failed", len(pool.Errors()), pool.Status().Total))
+		t.Fail(werror.Errorf("%d of %d backup file copies have failed", len(pool.Errors()), pool.Status().Total))
 	}
 
 	stages.FinishStage("sync_fs")
@@ -345,6 +345,7 @@ func CopyFileFromCore(t *task.Task) {
 			"filename": filename, "coreId": meta.Core.ServerId(), "timestamp": time.Now().UnixMilli(),
 		},
 	)
+
 	log.Trace.Func(func(l log.Logger) { l.Printf("Copying file from core [%s]", meta.File.Filename()) })
 
 	if meta.File.GetContentId() == "" {

@@ -2,9 +2,8 @@ import {
     IconFolder,
     IconLibraryPhoto,
     IconMoon,
-    IconServerCog,
+    IconSettings,
     IconSun,
-    IconUser,
 } from '@tabler/icons-react'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import Admin from '@weblens/pages/AdminSettings/Admin'
@@ -106,17 +105,17 @@ function HeaderBar() {
                 </div>
                 <div className="flex grow" />
 
-                {user?.admin && (
-                    <WeblensButton
-                        Left={IconServerCog}
-                        tooltip="Server Settings"
-                        onClick={() => setAdmin(true)}
-                    />
-                )}
+                {/* {user?.admin && ( */}
+                {/*     <WeblensButton */}
+                {/*         Left={IconServerCog} */}
+                {/*         tooltip="Server Settings" */}
+                {/*         onClick={() => setAdmin(true)} */}
+                {/*     /> */}
+                {/* )} */}
                 <WeblensButton
                     label={!user.isLoggedIn ? 'Login' : ''}
-                    tooltip={!user.isLoggedIn ? 'Login' : 'Me'}
-                    Left={IconUser}
+                    tooltip={!user.isLoggedIn ? 'Login' : 'Settings'}
+                    Left={IconSettings}
                     disabled={window.location.pathname.startsWith('/settings')}
                     onClick={() => {
                         if (user.isLoggedIn) {
@@ -131,7 +130,7 @@ function HeaderBar() {
                     }}
                 />
 
-                <div className="pr-3" />
+                <div className="pr-4" />
             </div>
         </div>
     )

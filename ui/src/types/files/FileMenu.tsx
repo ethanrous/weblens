@@ -641,7 +641,7 @@ function FileShareMenu({ targetFile }: { targetFile: WeblensFile }) {
         }
         UsersApi.searchUsers(userSearch)
             .then((res) => {
-                setUserSearchResults(res.data)
+                setUserSearchResults(res.data ?? [])
             })
             .catch((err) => {
                 console.error('Failed to search users', err)

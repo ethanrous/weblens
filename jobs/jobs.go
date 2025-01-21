@@ -231,7 +231,7 @@ func HandleFileUploads(t *task.Task) {
 	t.SetCleanup(func(t *task.Task) {
 
 		log.Debug.Func(func(l log.Logger) {
-			l.Printf("FileMap has %d remaining and chunk stream has %d remaining", len(fileMap), len(meta.ChunkStream))
+			l.Printf("Upload fileMap has %d remaining and chunk stream has %d remaining", len(fileMap), len(meta.ChunkStream))
 			for _, f := range fileMap {
 				l.Printf("Waiting on File: %s", f.File.AbsPath())
 			}

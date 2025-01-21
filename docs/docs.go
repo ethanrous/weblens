@@ -1858,6 +1858,12 @@ const docTemplate = `{
                         "required": true
                     },
                     {
+                        "type": "string",
+                        "description": "Share Id",
+                        "name": "shareId",
+                        "in": "query"
+                    },
+                    {
                         "description": "New file params",
                         "name": "request",
                         "in": "body",
@@ -1912,6 +1918,12 @@ const docTemplate = `{
                         "name": "fileId",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Share Id",
+                        "name": "shareId",
+                        "in": "query"
                     },
                     {
                         "type": "file",
@@ -2147,10 +2159,14 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "SessionAuth": []
+                        "SessionAuth": [
+                            "Admin"
+                        ]
                     },
                     {
-                        "ApiKeyAuth": []
+                        "ApiKeyAuth": [
+                            "Admin"
+                        ]
                     }
                 ],
                 "produces": [

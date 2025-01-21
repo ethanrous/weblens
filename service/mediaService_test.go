@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/barasher/go-exiftool"
-	"github.com/creativecreature/sturdyc"
+	"github.com/viccon/sturdyc"
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"

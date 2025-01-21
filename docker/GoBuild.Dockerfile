@@ -1,6 +1,6 @@
 ARG ARCHITECTURE=$ARCHITECTURE
 
-FROM --platform=linux/${ARCHITECTURE} golang:1.23-alpine
+FROM --platform=linux/${ARCHITECTURE} golang:1.23.5-alpine
 
 # Install dependencies
 RUN apk upgrade --no-cache

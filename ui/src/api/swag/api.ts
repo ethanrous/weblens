@@ -1596,10 +1596,11 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
          * @summary Add a file to an upload task
          * @param {string} uploadId Upload Id
          * @param {NewFilesParams} request New file params
+         * @param {string} [shareId] Share Id
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        addFilesToUpload: async (uploadId: string, request: NewFilesParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        addFilesToUpload: async (uploadId: string, request: NewFilesParams, shareId?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'uploadId' is not null or undefined
             assertParamExists('addFilesToUpload', 'uploadId', uploadId)
             // verify required parameter 'request' is not null or undefined
@@ -1616,6 +1617,10 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
             const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
+
+            if (shareId !== undefined) {
+                localVarQueryParameter['shareId'] = shareId;
+            }
 
 
     
@@ -2207,10 +2212,11 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
          * @param {string} uploadId Upload Id
          * @param {string} fileId File Id
          * @param {File} chunk File chunk
+         * @param {string} [shareId] Share Id
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        uploadFileChunk: async (uploadId: string, fileId: string, chunk: File, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        uploadFileChunk: async (uploadId: string, fileId: string, chunk: File, shareId?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'uploadId' is not null or undefined
             assertParamExists('uploadFileChunk', 'uploadId', uploadId)
             // verify required parameter 'fileId' is not null or undefined
@@ -2231,6 +2237,10 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
             const localVarFormParams = new ((configuration && configuration.formDataCtor) || FormData)();
+
+            if (shareId !== undefined) {
+                localVarQueryParameter['shareId'] = shareId;
+            }
 
 
             if (chunk !== undefined) { 
@@ -2265,11 +2275,12 @@ export const FilesApiFp = function(configuration?: Configuration) {
          * @summary Add a file to an upload task
          * @param {string} uploadId Upload Id
          * @param {NewFilesParams} request New file params
+         * @param {string} [shareId] Share Id
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async addFilesToUpload(uploadId: string, request: NewFilesParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<NewFilesInfo>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.addFilesToUpload(uploadId, request, options);
+        async addFilesToUpload(uploadId: string, request: NewFilesParams, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<NewFilesInfo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.addFilesToUpload(uploadId, request, shareId, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['FilesApi.addFilesToUpload']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -2483,11 +2494,12 @@ export const FilesApiFp = function(configuration?: Configuration) {
          * @param {string} uploadId Upload Id
          * @param {string} fileId File Id
          * @param {File} chunk File chunk
+         * @param {string} [shareId] Share Id
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async uploadFileChunk(uploadId: string, fileId: string, chunk: File, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.uploadFileChunk(uploadId, fileId, chunk, options);
+        async uploadFileChunk(uploadId: string, fileId: string, chunk: File, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.uploadFileChunk(uploadId, fileId, chunk, shareId, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['FilesApi.uploadFileChunk']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -2507,11 +2519,12 @@ export const FilesApiFactory = function (configuration?: Configuration, basePath
          * @summary Add a file to an upload task
          * @param {string} uploadId Upload Id
          * @param {NewFilesParams} request New file params
+         * @param {string} [shareId] Share Id
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        addFilesToUpload(uploadId: string, request: NewFilesParams, options?: RawAxiosRequestConfig): AxiosPromise<NewFilesInfo> {
-            return localVarFp.addFilesToUpload(uploadId, request, options).then((request) => request(axios, basePath));
+        addFilesToUpload(uploadId: string, request: NewFilesParams, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<NewFilesInfo> {
+            return localVarFp.addFilesToUpload(uploadId, request, shareId, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -2677,11 +2690,12 @@ export const FilesApiFactory = function (configuration?: Configuration, basePath
          * @param {string} uploadId Upload Id
          * @param {string} fileId File Id
          * @param {File} chunk File chunk
+         * @param {string} [shareId] Share Id
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        uploadFileChunk(uploadId: string, fileId: string, chunk: File, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.uploadFileChunk(uploadId, fileId, chunk, options).then((request) => request(axios, basePath));
+        uploadFileChunk(uploadId: string, fileId: string, chunk: File, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.uploadFileChunk(uploadId, fileId, chunk, shareId, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -2698,12 +2712,13 @@ export class FilesApi extends BaseAPI {
      * @summary Add a file to an upload task
      * @param {string} uploadId Upload Id
      * @param {NewFilesParams} request New file params
+     * @param {string} [shareId] Share Id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof FilesApi
      */
-    public addFilesToUpload(uploadId: string, request: NewFilesParams, options?: RawAxiosRequestConfig) {
-        return FilesApiFp(this.configuration).addFilesToUpload(uploadId, request, options).then((request) => request(this.axios, this.basePath));
+    public addFilesToUpload(uploadId: string, request: NewFilesParams, shareId?: string, options?: RawAxiosRequestConfig) {
+        return FilesApiFp(this.configuration).addFilesToUpload(uploadId, request, shareId, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -2900,12 +2915,13 @@ export class FilesApi extends BaseAPI {
      * @param {string} uploadId Upload Id
      * @param {string} fileId File Id
      * @param {File} chunk File chunk
+     * @param {string} [shareId] Share Id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof FilesApi
      */
-    public uploadFileChunk(uploadId: string, fileId: string, chunk: File, options?: RawAxiosRequestConfig) {
-        return FilesApiFp(this.configuration).uploadFileChunk(uploadId, fileId, chunk, options).then((request) => request(this.axios, this.basePath));
+    public uploadFileChunk(uploadId: string, fileId: string, chunk: File, shareId?: string, options?: RawAxiosRequestConfig) {
+        return FilesApiFp(this.configuration).uploadFileChunk(uploadId, fileId, chunk, shareId, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

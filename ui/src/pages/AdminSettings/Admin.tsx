@@ -2,7 +2,6 @@ import {
     IconArrowLeft,
     IconClipboard,
     IconLockOpen,
-    IconPlus,
     IconServer,
     IconTrash,
     IconUserMinus,
@@ -365,16 +364,6 @@ function Servers() {
                         ))}
                     </div>
                 )}
-                <WeblensButton
-                    squareSize={40}
-                    label="New Api Key"
-                    Left={IconPlus}
-                    onClick={() => {
-                        AccessApi.createApiKey()
-                            .then(() => refetchKeys())
-                            .catch(ErrorHandler)
-                    }}
-                />
             </div>
             <div>
                 <div className={adminStyle['content-header']}>

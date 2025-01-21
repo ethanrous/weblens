@@ -168,10 +168,13 @@ export async function HandleDrop(
 
     const entries = Array.from(items).map((i) => i.webkitGetAsEntry())
 
-    const res = await FileApi.startUpload({
-        rootFolderId: rootFolderId,
-        chunkSize: UPLOAD_CHUNK_SIZE,
-    }).catch((err) => {
+    const res = await FileApi.startUpload(
+        {
+            rootFolderId: rootFolderId,
+            chunkSize: UPLOAD_CHUNK_SIZE,
+        },
+        shareId
+    ).catch((err) => {
         ErrorHandler(Error(String(err)))
     })
 
@@ -578,7 +581,8 @@ export function filenameFromPath(pathName: string): {
     let StartIcon: FC<{ className: string }>
     if (
         nameText === useSessionStore.getState().user.username &&
-        !parts.length
+        !parts.length &&
+        useFileBrowserStore.getState().shareId === ''
     ) {
         StartIcon = IconHome
         nameText = 'Home'
