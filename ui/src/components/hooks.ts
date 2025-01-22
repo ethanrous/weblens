@@ -305,7 +305,7 @@ export const useTimer = (startTime: Date, startPaused?: boolean) => {
 
     useEffect(() => {
         clearInterval(countRef.current)
-        if (!startTime || startPaused == false) {
+        if (!startTime || startPaused === false) {
             return
         }
         handleStart()

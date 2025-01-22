@@ -2,20 +2,20 @@ package http
 
 import (
 	"net/http"
-
-	"github.com/ethanrous/weblens/internal/log"
 )
 
 func clearCache(w http.ResponseWriter, r *http.Request) {
-	pack := getServices(r)
-	err := pack.MediaService.NukeCache()
-	if err != nil {
-		log.ShowErr(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusNotImplemented)
+	return
+	// pack := getServices(r)
+	// err := pack.MediaService.NukeCache()
+	// if err != nil {
+	// 	log.ShowErr(err)
+	// 	w.WriteHeader(http.StatusInternalServerError)
+	// 	return
+	// }
+	//
+	// w.WriteHeader(http.StatusOK)
 
 }
 

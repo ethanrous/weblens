@@ -19,11 +19,11 @@ import (
 var _ models.InstanceService = (*InstanceServiceImpl)(nil)
 
 type InstanceServiceImpl struct {
-	instanceMap     map[string]*models.Instance
-	instanceMapLock sync.RWMutex
-	local           *models.Instance
+	col         database.MongoCollection
+	instanceMap map[string]*models.Instance
+	local       *models.Instance
 
-	col database.MongoCollection
+	instanceMapLock sync.RWMutex
 }
 
 func NewInstanceService(col database.MongoCollection) (*InstanceServiceImpl, error) {

@@ -4,10 +4,6 @@ import { GetFolderData } from '@weblens/api/FileBrowserApi'
 import WeblensLoader from '@weblens/components/Loading'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import { useKeyDown, useResize, useResizeDrag } from '@weblens/components/hooks'
-import {
-    FbModeT,
-    useFileBrowserStore,
-} from '@weblens/pages/FileBrowser/FBStateControl'
 import { HandleDrop } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import {
     GetStartedCard,
@@ -15,6 +11,7 @@ import {
 } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
 import { DirViewModeT } from '@weblens/pages/FileBrowser/FileBrowserTypes'
 import fbStyle from '@weblens/pages/FileBrowser/style/fileBrowserStyle.module.scss'
+import { FbModeT, useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { SelectedState, WeblensFile } from '@weblens/types/files/File'
 import filesStyle from '@weblens/types/files/filesStyle.module.scss'
 import { humanFileSize } from '@weblens/util'
@@ -22,7 +19,6 @@ import {
     CSSProperties,
     MouseEvent,
     createRef,
-    memo,
     useEffect,
     useMemo,
     useRef,
@@ -81,154 +77,136 @@ function ColumnRowWrapper({ data, index, style }: ColumnRowProps) {
     )
 }
 
-const ColumnRow = memo(
-    ({ file, selState }: { file: WeblensFile; selState: SelectedState }) => {
-        const [mouseDown, setMouseDown] = useState<{ x: number; y: number }>(
-            null
-        )
-        const fileRef = useRef<HTMLDivElement>()
+function ColumnRow({
+    file,
+    selState,
+}: {
+    file: WeblensFile
+    selState: SelectedState
+}) {
+    const [mouseDown, setMouseDown] = useState<{ x: number; y: number }>(null)
+    const fileRef = useRef<HTMLDivElement>()
 
-        const draggingState = useFileBrowserStore(
-            (state) => state.draggingState
-        )
-        const folderInfo = useFileBrowserStore((state) => state.folderInfo)
-        const lastSelectedId = useFileBrowserStore(
-            (state) => state.lastSelectedId
-        )
-        const setMoveDest = useFileBrowserStore((state) => state.setMoveDest)
-        const setHovering = useFileBrowserStore((state) => state.setHovering)
-        const setSelected = useFileBrowserStore((state) => state.setSelected)
-        const setDragging = useFileBrowserStore((state) => state.setDragging)
-        const setPresentationTarget = useFileBrowserStore(
-            (state) => state.setPresentationTarget
-        )
-        const setMenu = useFileBrowserStore((state) => state.setMenu)
-        const clearSelected = useFileBrowserStore(
-            (state) => state.clearSelected
-        )
-        const setSelectedMoved = useFileBrowserStore(
-            (state) => state.setSelectedMoved
-        )
+    const draggingState = useFileBrowserStore((state) => state.draggingState)
+    const folderInfo = useFileBrowserStore((state) => state.folderInfo)
+    const lastSelectedId = useFileBrowserStore((state) => state.lastSelectedId)
+    const setMoveDest = useFileBrowserStore((state) => state.setMoveDest)
+    const setHovering = useFileBrowserStore((state) => state.setHovering)
+    const setSelected = useFileBrowserStore((state) => state.setSelected)
+    const setDragging = useFileBrowserStore((state) => state.setDragging)
+    const setPresentationTarget = useFileBrowserStore(
+        (state) => state.setPresentationTarget
+    )
+    const setMenu = useFileBrowserStore((state) => state.setMenu)
+    const clearSelected = useFileBrowserStore((state) => state.clearSelected)
+    const setSelectedMoved = useFileBrowserStore(
+        (state) => state.setSelectedMoved
+    )
 
-        useEffect(() => {
-            if (
-                file.IsFolder() &&
-                file.Id() === lastSelectedId &&
-                fileRef.current
-            ) {
-                fileRef.current.scrollIntoView({
-                    behavior: 'instant',
-                    block: 'nearest',
-                    inline: 'nearest',
-                })
+    useEffect(() => {
+        if (
+            file.IsFolder() &&
+            file.Id() === lastSelectedId &&
+            fileRef.current
+        ) {
+            fileRef.current.scrollIntoView({
+                behavior: 'instant',
+                block: 'nearest',
+                inline: 'nearest',
+            })
+        }
+    }, [lastSelectedId])
+
+    return (
+        <div
+            ref={fileRef}
+            key={file.Id()}
+            className={filesStyle['weblens-file'] + ' animate-fade'}
+            data-column-row
+            data-clickable={!draggingState || file.IsFolder()}
+            data-hovering={selState & SelectedState.Hovering}
+            data-in-range={(selState & SelectedState.InRange) >> 1}
+            data-selected={(selState & SelectedState.Selected) >> 2}
+            data-last-selected={(selState & SelectedState.LastSelected) >> 3}
+            data-current-view={
+                file.Id() === lastSelectedId ||
+                file.parentId === folderInfo.Id()
             }
-        }, [lastSelectedId])
-
-        return (
-            <div
-                ref={fileRef}
-                key={file.Id()}
-                className={filesStyle['weblens-file'] + ' animate-fade'}
-                data-column-row
-                data-clickable={!draggingState || file.IsFolder()}
-                data-hovering={selState & SelectedState.Hovering}
-                data-in-range={(selState & SelectedState.InRange) >> 1}
-                data-selected={(selState & SelectedState.Selected) >> 2}
-                data-last-selected={
-                    (selState & SelectedState.LastSelected) >> 3
-                }
-                data-current-view={
-                    file.Id() === lastSelectedId ||
-                    file.parentId === folderInfo.Id()
-                }
-                data-droppable={(selState & SelectedState.Droppable) >> 4}
-                data-moved={(selState & SelectedState.Moved) >> 5}
-                onMouseOver={(e: MouseEvent<HTMLDivElement>) =>
-                    handleMouseOver(
-                        e,
-                        file,
-                        draggingState,
-                        setHovering,
-                        setMoveDest,
-                        setDragging
-                    )
-                }
-                onMouseDown={(e) => {
-                    setMouseDown({ x: e.clientX, y: e.clientY })
-                }}
-                onMouseUp={(e) => {
-                    e.stopPropagation()
-                    return handleMouseUp(
-                        file,
-                        draggingState,
-                        Array.from(
-                            useFileBrowserStore.getState().selected.keys()
-                        ),
-                        setSelectedMoved,
-                        clearSelected,
-                        setMoveDest,
-                        setDragging,
-                        setMouseDown,
-                        DirViewModeT.Columns
-                    )
-                }}
-                onContextMenu={(e) => fileHandleContextMenu(e, setMenu, file)}
-                onClick={(e) => {
-                    e.stopPropagation()
-                }}
-                onDoubleClick={(e) =>
-                    visitFile(
-                        e,
-                        file,
-                        folderInfo.IsTrash(),
-                        setPresentationTarget
-                    )
-                }
-                onMouseMove={(e) =>
-                    mouseMove(
-                        e,
-                        file,
-                        draggingState,
-                        mouseDown,
-                        setSelected,
-                        setDragging
-                    )
-                }
-                onMouseLeave={(e) =>
-                    handleMouseLeave(
-                        e,
-                        file,
-                        draggingState,
-                        fileRef.current,
-                        setMoveDest,
-                        setHovering,
-                        mouseDown,
-                        setMouseDown
-                    )
-                }
-            >
-                <div className="flex items-center h-[40px] max-h-full gap-3 w-full">
-                    <div className="flex shrink-0 justify-center items-center w-[40px] h-[40px] max-w-[40px] max-h-full">
-                        <IconDisplay file={file} allowMedia={true} />
-                    </div>
-                    <div className={filesStyle['file-text-container']}>
-                        <p className={filesStyle['file-text']}>
-                            {file.GetFilename()}
-                        </p>
-                    </div>
+            data-droppable={(selState & SelectedState.Droppable) >> 4}
+            data-moved={(selState & SelectedState.Moved) >> 5}
+            onMouseOver={(e: MouseEvent<HTMLDivElement>) =>
+                handleMouseOver(
+                    e,
+                    file,
+                    draggingState,
+                    setHovering,
+                    setMoveDest,
+                    setDragging
+                )
+            }
+            onMouseDown={(e) => {
+                setMouseDown({ x: e.clientX, y: e.clientY })
+            }}
+            onMouseUp={(e) => {
+                e.stopPropagation()
+                return handleMouseUp(
+                    file,
+                    draggingState,
+                    Array.from(useFileBrowserStore.getState().selected.keys()),
+                    setSelectedMoved,
+                    clearSelected,
+                    setMoveDest,
+                    setDragging,
+                    setMouseDown,
+                    DirViewModeT.Columns
+                )
+            }}
+            onContextMenu={(e) => fileHandleContextMenu(e, setMenu, file)}
+            onClick={(e) => {
+                e.stopPropagation()
+            }}
+            onDoubleClick={(e) =>
+                visitFile(e, file, folderInfo.IsTrash(), setPresentationTarget)
+            }
+            onMouseMove={(e) =>
+                mouseMove(
+                    e,
+                    file,
+                    draggingState,
+                    mouseDown,
+                    setSelected,
+                    setDragging
+                )
+            }
+            onMouseLeave={(e) =>
+                handleMouseLeave(
+                    e,
+                    file,
+                    draggingState,
+                    fileRef.current,
+                    setMoveDest,
+                    setHovering,
+                    mouseDown,
+                    setMouseDown
+                )
+            }
+        >
+            <div className="flex items-center h-[40px] max-h-full gap-3 w-full">
+                <div className="flex shrink-0 justify-center items-center w-[40px] h-[40px] max-w-[40px] max-h-full">
+                    <IconDisplay file={file} allowMedia={true} />
                 </div>
-                {file.IsFolder() && (
-                    <IconChevronRight className="text-[--wl-file-text-color]" />
-                )}
+                <div className={filesStyle['file-text-container']}>
+                    <p className={filesStyle['file-text']}>
+                        {file.GetFilename()}
+                    </p>
+                </div>
             </div>
-        )
-    },
-    (prev, next) => {
-        return (
-            prev.file.Id() === next.file.Id() && prev.selState === next.selState
-        )
-    }
-)
+            {file.IsFolder() && (
+                <IconChevronRight className="text-[--wl-file-text-color]" />
+            )}
+        </div>
+    )
+}
 
 function Preview({ file }: { file: WeblensFile }) {
     const media = useMediaStore((state) =>
@@ -440,7 +418,6 @@ function Column({
                             HandleDrop(
                                 e.dataTransfer.items,
                                 parentId,
-                                [],
                                 false,
                                 shareId
                             ).catch(ErrorHandler)
@@ -615,7 +592,7 @@ function FileColumns() {
             e.preventDefault()
 
             // Allow for vim keybindings
-            let key = e.key.toLowerCase()
+            let key = e.key
             if (key === 'h') {
                 key = 'ArrowLeft'
             } else if (key === 'j') {
@@ -639,6 +616,7 @@ function FileColumns() {
             }
 
             let nextItem: WeblensFile
+            console.log('NEXT COL?', key)
 
             if (key === 'ArrowLeft') {
                 if (lastSelected) {
@@ -722,7 +700,10 @@ function FileColumns() {
                 }
             }
             if (!nextItem) {
-                console.error('No nextItem in column keydown')
+                console.error(
+                    'No nextItem in column keydown. Last Selected:',
+                    lastSelected
+                )
                 return
             }
             goToFile(nextItem, false)

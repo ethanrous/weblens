@@ -16,7 +16,7 @@ import WeblensButton from '@weblens/lib/WeblensButton'
 import dirViewHeaderStyle from '@weblens/pages/FileBrowser/style/dirViewHeader.module.scss'
 import { useEffect, useState } from 'react'
 
-import { useFileBrowserStore } from './FBStateControl'
+import { useFileBrowserStore } from '../../store/FBStateControl'
 import { DirViewModeT } from './FileBrowserTypes'
 
 const fileSortTypes = [

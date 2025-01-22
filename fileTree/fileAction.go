@@ -7,17 +7,18 @@ import (
 type FileActionType = string
 
 type FileAction struct {
-	Timestamp       time.Time      `json:"timestamp" bson:"timestamp"`
-	ActionType      FileActionType `json:"actionType" bson:"actionType"`
-	OriginPath      string         `json:"originPath" bson:"originPath,omitempty"`
-	DestinationPath string         `json:"destinationPath" bson:"destinationPath,omitempty"`
-	LifeId          FileId         `json:"lifeId" bson:"lifeId"`
-	EventId         FileEventId    `json:"eventId" bson:"eventId"`
-	Size            int64          `json:"size" bson:"size"`
-	ParentId        FileId         `json:"parentId" bson:"parentId"`
-	ServerId        string         `json:"serverId" bson:"serverId"`
+	Timestamp time.Time `json:"timestamp" bson:"timestamp"`
 
-	file *WeblensFileImpl `bson:"-"`
+	file            *WeblensFileImpl `bson:"-"`
+	ActionType      FileActionType   `json:"actionType" bson:"actionType"`
+	OriginPath      string           `json:"originPath" bson:"originPath,omitempty"`
+	DestinationPath string           `json:"destinationPath" bson:"destinationPath,omitempty"`
+	LifeId          FileId           `json:"lifeId" bson:"lifeId"`
+	EventId         FileEventId      `json:"eventId" bson:"eventId"`
+	ParentId        FileId           `json:"parentId" bson:"parentId"`
+	ServerId        string           `json:"serverId" bson:"serverId"`
+
+	Size int64 `json:"size" bson:"size"`
 }
 
 func (fa *FileAction) GetTimestamp() time.Time {
@@ -49,6 +50,13 @@ func (fa *FileAction) GetOriginPath() string {
 }
 
 func (fa *FileAction) GetDestinationPath() string {
+	return fa.DestinationPath
+}
+
+func (fa *FileAction) GetRelevantPath() string {
+	if fa.GetActionType() == FileDelete {
+		return fa.OriginPath
+	}
 	return fa.DestinationPath
 }
 

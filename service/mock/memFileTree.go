@@ -9,11 +9,11 @@ import (
 var _ fileTree.FileTree = (*MemFileTree)(nil)
 
 type MemFileTree struct {
-	rootAlias string
-	fMap      map[fileTree.FileId]*fileTree.WeblensFileImpl
-	root      *fileTree.WeblensFileImpl
-
 	journal fileTree.Journal
+	fMap    map[fileTree.FileId]*fileTree.WeblensFileImpl
+	root    *fileTree.WeblensFileImpl
+
+	rootAlias string
 }
 
 func (ft *MemFileTree) ReplaceId(oldId, newId fileTree.FileId) error {
@@ -128,4 +128,12 @@ func (ft *MemFileTree) PortableToAbs(portable fileTree.WeblensFilepath) (string,
 
 func (ft *MemFileTree) GenerateFileId() fileTree.FileId {
 	return fileTree.FileId(primitive.NewObjectID().Hex())
+}
+
+func (ft *MemFileTree) ResizeDown(anchor *fileTree.WeblensFileImpl, event *fileTree.FileEvent, updateCallback func(newFile *fileTree.WeblensFileImpl)) error {
+	return nil
+}
+
+func (ft *MemFileTree) ResizeUp(anchor *fileTree.WeblensFileImpl, event *fileTree.FileEvent, updateCallback func(newFile *fileTree.WeblensFileImpl)) error {
+	return nil
 }

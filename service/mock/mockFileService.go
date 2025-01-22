@@ -99,7 +99,9 @@ func (mfs *MockFileService) GetFileTreeByName(treeName string) fileTree.FileTree
 }
 
 func (mfs *MockFileService) GetFileOwner(file *fileTree.WeblensFileImpl) *models.User {
-	return nil
+	return &models.User{
+		Username: "MOCK_USER",
+	}
 }
 
 func (mfs *MockFileService) IsFileInTrash(file *fileTree.WeblensFileImpl) bool {
@@ -167,11 +169,11 @@ func (mfs *MockFileService) GetJournalByTree(treeName string) fileTree.Journal {
 	return mfs.trees[treeName].GetJournal()
 }
 
-func (mfs *MockFileService) ResizeDown(file *fileTree.WeblensFileImpl, caster models.FileCaster) error {
+func (mfs *MockFileService) ResizeDown(file *fileTree.WeblensFileImpl, event *fileTree.FileEvent, caster models.FileCaster) error {
 	return nil
 }
 
-func (mfs *MockFileService) ResizeUp(file *fileTree.WeblensFileImpl, caster models.FileCaster) error {
+func (mfs *MockFileService) ResizeUp(file *fileTree.WeblensFileImpl, event *fileTree.FileEvent, caster models.FileCaster) error {
 	return nil
 }
 
@@ -195,6 +197,10 @@ func (mfs *MockFileService) NewCacheFile(
 	cache := fileTree.NewWeblensFile("TODO", filename, nil, false)
 	cache.SetMemOnly(true)
 	return cache, nil
+}
+
+func (mfs *MockFileService) GetThumbsDir() (*fileTree.WeblensFileImpl, error) {
+	return nil, nil
 }
 
 func (mfs *MockFileService) NewBackupFile(lt *fileTree.Lifetime) (*fileTree.WeblensFileImpl, error) {

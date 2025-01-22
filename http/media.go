@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/ethanrous/bimg"
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal"
 	"github.com/ethanrous/weblens/internal/log"
@@ -27,6 +26,7 @@ import (
 //	@Param		raw			query		bool				false	"Include raw files"		Enums(true, false)	default(false)
 //	@Param		hidden		query		bool				false	"Include hidden media"	Enums(true, false)	default(false)
 //	@Param		sort		query		string				false	"Sort by field"			Enums(createDate)	default(createDate)
+//	@Param		search		query		string				false	"Search string"
 //	@Param		page		query		int					false	"Page of medias to get"
 //	@Param		limit		query		int					false	"Number of medias to get"
 //	@Param		folderIds	query		string				false	"Search only in given folders"			SchemaExample([fId1, fId2])
@@ -80,6 +80,7 @@ func getMediaBatch(w http.ResponseWriter, r *http.Request) {
 
 	raw := r.URL.Query().Get("raw") == "true"
 	hidden := r.URL.Query().Get("hidden") == "true"
+	search := r.URL.Query().Get("search")
 
 	var page int64
 	pageStr := r.URL.Query().Get("page")
@@ -118,7 +119,7 @@ func getMediaBatch(w http.ResponseWriter, r *http.Request) {
 		mediaFilter = append(mediaFilter, a.GetMedias()...)
 	}
 
-	ms, err := pack.MediaService.GetFilteredMedia(u, sort, 1, mediaFilter, raw, hidden)
+	ms, err := pack.MediaService.GetFilteredMedia(u, sort, 1, mediaFilter, raw, hidden, search)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -220,8 +221,9 @@ func getMediaImage(w http.ResponseWriter, r *http.Request) {
 }
 
 func streamVideo(w http.ResponseWriter, r *http.Request) {
-	log.Debug.Func(func(l log.Logger) { l.Println("Streaming video", chi.URLParam(r, "chunkName")) })
 	pack := getServices(r)
+
+	pack.Log.Debug.Func(func(l log.Logger) { l.Println("Streaming video", chi.URLParam(r, "chunkName")) })
 
 	sh, err := getShareFromCtx[*models.FileShare](w, r)
 	if err != nil {
@@ -233,7 +235,7 @@ func streamVideo(w http.ResponseWriter, r *http.Request) {
 	if m == nil {
 		writeError(w, http.StatusNotFound, werror.ErrNoMedia)
 		return
-	} else if !pack.MediaService.GetMediaType(m).IsVideo() {
+	} else if !pack.MediaService.GetMediaType(m).Video {
 		writeError(w, http.StatusBadRequest, werror.Errorf("media is not of type video"))
 		return
 	}
@@ -250,14 +252,14 @@ func streamVideo(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		log.Trace.Println("Serving chunk", chunkName)
+		pack.Log.Trace.Println("Serving chunk", chunkName)
 		wrote, err := io.Copy(w, chunkFile)
 		if SafeErrorAndExit(err, w) {
 			return
 		}
 
 		err = chunkFile.Close()
-		log.Trace.Println("Chunk [%s] wrote [%d] bytes", chunkName, wrote)
+		pack.Log.Trace.Println("Chunk [%s] wrote [%d] bytes", chunkName, wrote)
 		if SafeErrorAndExit(err, w) {
 			return
 		}
@@ -308,7 +310,7 @@ func hideMedia(w http.ResponseWriter, r *http.Request) {
 	for _, m := range medias {
 		err = pack.MediaService.HideMedia(m, hidden)
 		if err != nil {
-			log.ShowErr(err)
+			pack.Log.ShowErr(err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -335,7 +337,7 @@ func adjustMediaDate(w http.ResponseWriter, r *http.Request) {
 
 	err = pack.MediaService.AdjustMediaDates(anchor, body.NewTime, extras)
 	if err != nil {
-		log.ShowErr(err)
+		pack.Log.ShowErr(err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -353,12 +355,13 @@ func adjustMediaDate(w http.ResponseWriter, r *http.Request) {
 //	@Tags		Media
 //	@Produce	json
 //	@Param		mediaId	path	string	true	"Id of media"
+//	@Param		shareId	query	string	false	"ShareId"
 //	@Param		liked	query	bool	true	"Liked status to set"
 //	@Success	200
 //	@Failure	401
 //	@Failure	404
 //	@Failure	500
-//	@Router		/media/{mediaId}/like [patch]
+//	@Router		/media/{mediaId}/liked [patch]
 func setMediaLiked(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
 	u, err := getUserFromCtx(r)
@@ -433,7 +436,7 @@ func getMediaInFolders(pack *models.ServicePack, u *models.User, folderIds []str
 	for _, folderId := range folderIds {
 		f, err := pack.FileService.GetFileSafe(folderId, u, nil)
 		if err != nil {
-			log.ShowErr(err)
+			pack.Log.ShowErr(err)
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
@@ -466,13 +469,13 @@ func getProcessedMedia(q models.MediaQuality, format string, w http.ResponseWrit
 		pageString := r.URL.Query().Get("page")
 		pageNum, err = strconv.Atoi(pageString)
 		if err != nil {
-			log.Debug.Println("Bad page number trying to get fullres multi-page image")
+			pack.Log.Debug.Println("Bad page number trying to get fullres multi-page image")
 			writeJson(w, http.StatusBadRequest, rest.WeblensErrorInfo{Error: "bad page number"})
 			return
 		}
 	}
 
-	if q == models.Video && !pack.MediaService.GetMediaType(m).IsVideo() {
+	if q == models.Video && !pack.MediaService.GetMediaType(m).Video {
 		writeJson(w, http.StatusBadRequest, rest.WeblensErrorInfo{Error: "media type is not video"})
 		return
 	}
@@ -482,51 +485,56 @@ func getProcessedMedia(q models.MediaQuality, format string, w http.ResponseWrit
 	if errors.Is(err, werror.ErrNoCache) {
 		files := m.GetFiles()
 		f, err := pack.FileService.GetFileSafe(files[len(files)-1], u, nil)
-		if err == nil {
-			meta := models.ScanMeta{
-				File:         f.GetParent(),
-				FileService:  pack.FileService,
-				MediaService: pack.MediaService,
-				TaskService:  pack.TaskService,
-				TaskSubber:   pack.ClientService,
-			}
-			_, err = pack.TaskService.DispatchJob(models.ScanDirectoryTask, meta, nil)
-			if err != nil {
-				log.ShowErr(err)
-				writeJson(w, http.StatusInternalServerError, rest.WeblensErrorInfo{Error: "Failed to launch process media task"})
-				return
-			}
-			w.WriteHeader(http.StatusNoContent)
-			return
-		} else {
-			SafeErrorAndExit(err, w)
+		if SafeErrorAndExit(err, w) {
 			return
 		}
-	}
 
-	if err != nil {
-		log.ErrTrace(err)
-		writeJson(w, http.StatusInternalServerError, rest.WeblensErrorInfo{Error: "Failed to get media content"})
+		meta := models.ScanMeta{
+			File:         f.GetParent(),
+			FileService:  pack.FileService,
+			MediaService: pack.MediaService,
+			TaskService:  pack.TaskService,
+			TaskSubber:   pack.ClientService,
+		}
+		_, err = pack.TaskService.DispatchJob(models.ScanDirectoryTask, meta, nil)
+		if SafeErrorAndExit(err, w) {
+			return
+		}
+		pack.Log.Debug.Printf("Image %s has no cache", m.ID())
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
-	if format == "png" {
-		image := bimg.NewImage(bs)
-		bs, err = image.Convert(bimg.PNG)
-		if err != nil {
-			log.ErrTrace(err)
-			writeJson(w, http.StatusInternalServerError, rest.WeblensErrorInfo{Error: "Failed to convert image to PNG"})
-			return
-		}
+	if SafeErrorAndExit(err, w) {
+		return
 	}
 
+	// This segfaults in the cgo part of GetImageBlob() (which takes down the whole process) when on alpine right now, and I don't know why...
+	// if format == "png" {
+	// 	mw := imagick.NewMagickWand()
+	// 	err = mw.ReadImageBlob(bs)
+	// 	if SafeErrorAndExit(err, w) {
+	// 		return
+	// 	}
+	// 	err = mw.SetImageFormat("png")
+	// 	if SafeErrorAndExit(err, w) {
+	// 		return
+	// 	}
+	//
+	// 	bs, err = mw.GetImageBlob()
+	// 	if SafeErrorAndExit(err, w) {
+	// 		return
+	// 	}
+	// }
+
+	// Instruct the client to cache images that are returned
 	w.Header().Set("Cache-Control", "max-age=3600")
 
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(bs)
 
 	if err != nil {
-		log.ErrTrace(err)
+		pack.Log.ErrTrace(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

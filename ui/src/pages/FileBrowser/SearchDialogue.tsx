@@ -5,7 +5,7 @@ import { FileInfo } from '@weblens/api/swag'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import { useResize } from '@weblens/components/hooks'
 import WeblensInput from '@weblens/lib/WeblensInput'
-import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
+import { useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { CSSProperties, useCallback, useEffect, useRef, useState } from 'react'
 import { FixedSizeList as WindowList } from 'react-window'
 

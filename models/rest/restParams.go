@@ -18,8 +18,8 @@ type UpdateFileParams struct {
 } // @name UpdateFileParams
 
 type MoveFilesParams struct {
-	Files       []fileTree.FileId `json:"fileIds"`
 	NewParentId fileTree.FileId   `json:"newParentId"`
+	Files       []fileTree.FileId `json:"fileIds"`
 } // @name MoveFilesParams
 
 type FilesListParams struct {
@@ -47,6 +47,7 @@ type NewFileParams struct {
 	ParentFolderId fileTree.FileId `json:"parentFolderId"`
 	NewFileName    string          `json:"newFileName"`
 	FileSize       int64           `json:"fileSize"`
+	IsDir          bool            `json:"isDir"`
 } // @name NewFileParams
 
 type NewFilesParams struct {
@@ -54,9 +55,8 @@ type NewFilesParams struct {
 } // @name NewFilesParams
 
 type NewUploadParams struct {
-	RootFolderId    fileTree.FileId `json:"rootFolderId"`
-	ChunkSize       int64           `json:"chunkSize"`
-	TotalUploadSize int64           `json:"totalUploadSize"`
+	RootFolderId fileTree.FileId `json:"rootFolderId"`
+	ChunkSize    int64           `json:"chunkSize"`
 } // @name NewUploadParams
 
 type PasswordUpdateParams struct {
@@ -157,8 +157,8 @@ type ScanBody struct {
 }
 
 type RestoreFilesBody struct {
-	FileIds     []fileTree.FileId `json:"fileIds"`
 	NewParentId fileTree.FileId   `json:"newParentId"`
+	FileIds     []fileTree.FileId `json:"fileIds"`
 	Timestamp   int64             `json:"timestamp"`
 } // @name RestoreFilesBody
 
@@ -166,3 +166,7 @@ type RestoreCoreParams struct {
 	HostUrl  string `json:"restoreUrl"`
 	ServerId string `json:"restoreId"`
 } // @name RestoreCoreParams
+
+type ApiKeyParams struct {
+	Name string `json:"name" validate:"required"`
+} // @name ApiKeyParams

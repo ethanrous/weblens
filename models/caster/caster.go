@@ -16,11 +16,11 @@ import (
 var _ models.Broadcaster = (*SimpleCaster)(nil)
 
 type SimpleCaster struct {
-	enabled   atomic.Bool
-	global    atomic.Bool
 	cm        models.ClientManager
 	msgChan   chan models.WsResponseInfo
 	flushLock sync.RWMutex
+	enabled   atomic.Bool
+	global    atomic.Bool
 }
 
 func (c *SimpleCaster) DisableAutoFlush() {
@@ -101,7 +101,7 @@ func (c *SimpleCaster) msgWorker(cm models.ClientManager) {
 }
 
 func (c *SimpleCaster) addToQueue(msg models.WsResponseInfo) {
-	log.Trace.Println("Caster adding message with event [%s] to queue", msg.EventTag)
+	log.Trace.Printf("Caster adding message with event [%s] to queue", msg.EventTag)
 	c.flushLock.RLock()
 	defer c.flushLock.RUnlock()
 	c.msgChan <- (msg)

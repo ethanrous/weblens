@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ethanrous/weblens/internal/env"
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/task"
@@ -14,6 +15,7 @@ import (
 )
 
 type ServicePack struct {
+	Log             log.Bundle
 	FileService     FileService
 	MediaService    MediaService
 	AccessService   AccessService
@@ -26,19 +28,25 @@ type ServicePack struct {
 	Caster          Broadcaster
 
 	Server      Server
-	Loaded      atomic.Bool
 	StartupChan chan bool
 
 	Db *mongo.Database
 
-	startupTasks  []StartupTask
+	startupTasks []StartupTask
+
+	Cnf env.Config
+
 	waitingOnLock sync.RWMutex
+	Loaded        atomic.Bool
+	Closing       atomic.Bool
+
+	updateMu sync.RWMutex
 }
 
 type StartupTask struct {
+	StartedAt   time.Time
 	Name        string
 	Description string
-	StartedAt   time.Time
 }
 
 func (pack *ServicePack) AddStartupTask(taskName, description string) {
@@ -49,7 +57,7 @@ func (pack *ServicePack) AddStartupTask(taskName, description string) {
 	pack.waitingOnLock.Unlock()
 
 	pack.Caster.PushWeblensEvent(StartupProgressEvent, WsC{"waitingOn": pack.GetStartupTasks()})
-	log.Trace.Func(func(l log.Logger) { l.Printf("Added startup task: %s", taskName) })
+	log.Debug.Func(func(l log.Logger) { l.Printf("Beginning startup task: %s", taskName) })
 }
 
 func (pack *ServicePack) GetStartupTasks() []StartupTask {
@@ -78,7 +86,31 @@ func (pack *ServicePack) RemoveStartupTask(taskName string) {
 
 	pack.Caster.PushWeblensEvent(StartupProgressEvent, WsC{"waitingOn": pack.GetStartupTasks()})
 
-	log.Trace.Func(func(l log.Logger) { l.Printf("Removed startup task: %s", taskName) })
+	log.Debug.Func(func(l log.Logger) { l.Printf("Finished startup task: %s", taskName) })
+}
+
+func (pack *ServicePack) SetFileService(fs FileService) {
+	pack.updateMu.Lock()
+	pack.FileService = fs
+	pack.updateMu.Unlock()
+}
+
+func (pack *ServicePack) GetFileService() FileService {
+	pack.updateMu.RLock()
+	defer pack.updateMu.RUnlock()
+	return pack.FileService
+}
+
+func (pack *ServicePack) SetCaster(c Broadcaster) {
+	pack.updateMu.Lock()
+	pack.Caster = c
+	pack.updateMu.Unlock()
+}
+
+func (pack *ServicePack) GetCaster() Broadcaster {
+	pack.updateMu.RLock()
+	defer pack.updateMu.RUnlock()
+	return pack.Caster
 }
 
 type Server interface {

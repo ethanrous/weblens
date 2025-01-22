@@ -9,7 +9,6 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/ethanrous/weblens/internal/env"
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
@@ -180,7 +179,7 @@ func WeblensAuth(next http.Handler) http.Handler {
 				return
 			}
 
-			log.Trace.Func(func(l log.Logger) { l.Printf("User [%s] authenticated", usr.GetUsername()) })
+			// log.Trace.Func(func(l log.Logger) { l.Printf("User [%s] authenticated", usr.GetUsername()) })
 
 			r = r.WithContext(context.WithValue(r.Context(), UserKey, usr))
 			next.ServeHTTP(w, r)
@@ -253,23 +252,52 @@ func KeyOnlyAuth(next http.Handler) http.HandlerFunc {
 	})
 }
 
-func CORSMiddleware(next http.Handler) http.Handler {
-	host := env.GetProxyAddress()
-	// host = "http://local.weblens.io:8080"
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", host)
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-		w.Header().Set(
-			"Access-Control-Allow-Headers",
-			"Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, Content-Range, Cookie",
-		)
-		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, PATCH, DELETE")
+func CORSMiddleware(proxyAddress string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", proxyAddress)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set(
+				"Access-Control-Allow-Headers",
+				"Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, Content-Range, Cookie",
+			)
+			w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, PATCH, DELETE")
 
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func Recoverer(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rvr := recover(); rvr != nil {
+				if rvr == http.ErrAbortHandler {
+					// we don't recover http.ErrAbortHandler so the response
+					// to the client is aborted, this should not be logged
+					panic(rvr)
+				}
+
+				err, ok := rvr.(error)
+				if ok {
+					log.ErrTrace(err)
+				} else {
+					log.Error.Println("HTTP PANIC\n", rvr)
+				}
+
+				if r.Header.Get("Connection") != "Upgrade" {
+					w.WriteHeader(http.StatusInternalServerError)
+				}
+			}
+		}()
 
 		next.ServeHTTP(w, r)
-	})
+	}
+
+	return http.HandlerFunc(fn)
 }

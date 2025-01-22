@@ -23,11 +23,10 @@ import (
 var _ models.AccessService = (*AccessServiceImpl)(nil)
 
 type AccessServiceImpl struct {
-	apiKeyMap map[models.WeblensApiKey]models.ApiKey
-	keyMapMu  sync.RWMutex
-
 	userService models.UserService
+	apiKeyMap   map[models.WeblensApiKey]models.ApiKey
 	collection  *mongo.Collection
+	keyMapMu    sync.RWMutex
 }
 
 type WlClaims struct {
@@ -68,6 +67,10 @@ func NewAccessService(userService models.UserService, col *mongo.Collection) (*A
 func (accSrv *AccessServiceImpl) CanUserAccessFile(
 	user *models.User, file *fileTree.WeblensFileImpl, share *models.FileShare,
 ) bool {
+	if user == nil || user.IsPublic() {
+		return share != nil && share.IsPublic()
+	}
+
 	if getFileOwnerName(file) == user.GetUsername() {
 		return true
 	}
@@ -190,22 +193,20 @@ func (accSrv *AccessServiceImpl) Size() int {
 	return len(accSrv.apiKeyMap)
 }
 
-func (accSrv *AccessServiceImpl) GenerateApiKey(creator *models.User, local *models.Instance) (
+func (accSrv *AccessServiceImpl) GenerateApiKey(creator *models.User, local *models.Instance, keyName string) (
 	models.ApiKey, error,
 ) {
-	if !creator.IsAdmin() {
-		return models.ApiKey{}, werror.ErrUserNotAuthorized
-	}
-
 	createTime := time.Now()
 	hash := models.WeblensApiKey(internal.GlobbyHash(0, creator.GetUsername(), strconv.Itoa(int(createTime.Unix()))))
 
 	newKey := models.ApiKey{
+		Name:        keyName,
 		Id:          primitive.NewObjectID(),
 		Key:         hash,
 		Owner:       creator.GetUsername(),
 		CreatedTime: createTime,
 		CreatedBy:   local.ServerId(),
+		LastUsed:    time.UnixMilli(0),
 	}
 
 	_, err := accSrv.collection.InsertOne(context.Background(), newKey)

@@ -94,9 +94,9 @@ const (
 )
 
 type Subscription struct {
+	When time.Time
 	Type WsAction
 	Key  SubId
-	When time.Time
 }
 
 type WsResponseInfo struct {
@@ -112,8 +112,8 @@ type WsResponseInfo struct {
 
 type WsRequestInfo struct {
 	Action  WsAction `json:"action"`
-	SentAt  int64    `json:"sentAt"`
 	Content string   `json:"content"`
+	SentAt  int64    `json:"sentAt"`
 }
 
 // WsR WebSocket Request interface

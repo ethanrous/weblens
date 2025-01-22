@@ -2,11 +2,12 @@ package service_test
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/ethanrous/weblens/database"
 	"github.com/ethanrous/weblens/internal/env"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/tests"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
 	. "github.com/ethanrous/weblens/service"
@@ -96,8 +97,13 @@ func TestInstanceServiceImpl_InitCore(t *testing.T) {
 
 	col := mondb.Collection(t.Name())
 	err := col.Drop(context.Background())
+	if err != nil {
+		log.ErrTrace(err)
+		t.Fatal(err)
+	}
 	if err = col.Drop(context.Background()); err != nil {
-		t.Fatalf(err.Error())
+		log.ErrTrace(err)
+		t.Fatal(err)
 	}
 	defer col.Drop(context.Background())
 
@@ -115,7 +121,8 @@ func TestInstanceServiceImpl_InitCore(t *testing.T) {
 	assert.Equal(t, models.CoreServerRole, is.GetLocal().GetRole())
 
 	if err = col.Drop(context.Background()); err != nil {
-		t.Fatalf(err.Error())
+		log.ErrTrace(err)
+		t.Fatal(err)
 	}
 
 	badMongo := &mock.MockFailMongoCol{
@@ -136,26 +143,37 @@ func TestInstanceServiceImpl_InitCore(t *testing.T) {
 }
 
 func TestInstanceServiceImpl_InitBackup(t *testing.T) {
-	t.Skip()
-	if os.Getenv("REMOTE_TESTS") != "true" {
-		t.Skip("REMOTE_TESTS not set")
-	}
-
-	coreAddress := os.Getenv("CORE_ADDRESS")
-	if coreAddress == "" {
-		t.Fatalf("CORE_ADDRESS environment variable required for %s", t.Name())
-	}
-	coreKey := os.Getenv("CORE_API_KEY")
-	if coreKey == "" {
-		t.Fatalf("CORE_API_KEY environment variable required for %s", t.Name())
-	}
-
 	t.Parallel()
 
+	coreServices, err := tests.NewWeblensTestInstance(t.Name(), env.Config{
+		Role: string(models.CoreServerRole),
+	})
+
+	require.NoError(t, err)
+
+	keys, err := coreServices.AccessService.GetAllKeys(coreServices.UserService.GetRootUser())
+	if err != nil {
+		log.ErrTrace(err)
+		t.FailNow()
+	}
+
+	coreAddress := env.GetProxyAddress(coreServices.Cnf)
+	coreApiKey := keys[0].Key
+
+	owner := coreServices.UserService.Get("test-username")
+	if owner == nil {
+		t.Fatalf("No owner")
+	}
+
 	col := mondb.Collection(t.Name())
-	err := col.Drop(context.Background())
+	err = col.Drop(context.Background())
+	if err != nil {
+		log.ErrTrace(err)
+		t.FailNow()
+	}
+
 	if err = col.Drop(context.Background()); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 	defer col.Drop(context.Background())
 
@@ -167,9 +185,8 @@ func TestInstanceServiceImpl_InitBackup(t *testing.T) {
 	}
 	assert.Equal(t, models.InitServerRole, is.GetLocal().GetRole())
 
-	err = is.InitBackup("My backup server", coreAddress, models.WeblensApiKey(coreKey))
+	err = is.InitBackup("My backup server", coreAddress, coreApiKey)
 	require.NoError(t, err)
 
 	assert.Equal(t, models.BackupServerRole, is.GetLocal().GetRole())
-
 }

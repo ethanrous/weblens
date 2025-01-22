@@ -10,7 +10,7 @@ import {
     TaskStage,
     TaskType,
     useTaskState,
-} from './TaskStateControl'
+} from '../../store/TaskStateControl'
 
 export const TasksDisplay = () => {
     const tasksMap = useTaskState((state) => state.tasks)

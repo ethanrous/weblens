@@ -14,7 +14,6 @@ import (
 
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal"
-	"github.com/ethanrous/weblens/internal/env"
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
@@ -23,18 +22,34 @@ import (
 )
 
 type Media struct {
-	MediaId primitive.ObjectID `bson:"_id" example:"5f9b3b3b7b4f3b0001b3b3b7"`
+	CreateDate time.Time `bson:"createDate"`
+
+	// WEBP thumbnail cache fileId
+	lowresCacheFile *fileTree.WeblensFileImpl
 
 	// Hash of the file content, to ensure that the same files don't get duplicated
-	ContentId ContentId `bson:"contentId"`
-
-	// Slices of files whos content hash to the contentId
-	FileIds []fileTree.FileId `bson:"fileIds"`
-
-	CreateDate time.Time `bson:"createDate"`
+	ContentID ContentId `bson:"contentId"`
 
 	// User who owns the file that resulted in this media being created
 	Owner Username `bson:"owner"`
+
+	// Mime-type key of the media
+	MimeType string `bson:"mimeType"`
+
+	// The rotation of the image from its original. Found from the exif data
+	Rotate string
+
+	// Slices of files whos content hash to the contentId
+	FileIDs []fileTree.FileId `bson:"fileIds"`
+
+	// Tags from the ML image scan so searching for particular objects in the images can be done
+	RecognitionTags []string `bson:"recognitionTags"`
+
+	LikedBy []Username `bson:"likedBy"`
+
+	// Ids for the files that are the cached WEBP of the fullres file. This is a slice
+	// because fullres images could be multi-page, and a cache file is created per page
+	highResCacheFiles []*fileTree.WeblensFileImpl
 
 	// Full-res image dimensions
 	Width  int `bson:"width"`
@@ -46,11 +61,12 @@ type Media struct {
 	// Total time, in milliseconds, of a video
 	Duration int `bson:"duration"`
 
-	// Mime-type key of the media
-	MimeType string `bson:"mimeType"`
+	/* NON-DATABASE FIELDS */
 
-	// Tags from the ML image scan so searching for particular objects in the images can be done
-	RecognitionTags []string `bson:"recognitionTags"`
+	// Lock to synchronize updates to the media
+	updateMu sync.RWMutex
+
+	MediaID primitive.ObjectID `bson:"_id" example:"5f9b3b3b7b4f3b0001b3b3b7"`
 
 	// If the media is hidden from the timeline
 	// TODO - make this per user
@@ -60,40 +76,23 @@ type Media struct {
 	// but the media stays behind because it can be re-used if needed.
 	Enabled bool `bson:"enabled"`
 
-	LikedBy []Username `bson:"likedBy"`
-
-	/* NON-DATABASE FIELDS */
-
-	// Lock to synchronize updates to the media
-	updateMu sync.RWMutex
-
-	// The rotation of the image from its original. Found from the exif data
-	Rotate string
-
 	// If the media is imported into the databse yet. If not, we shouldn't ask about
 	// things like cache, dimensions, etc., as it might not have them.
 	imported bool
-
-	// WEBP thumbnail cache fileId
-	lowresCacheFile *fileTree.WeblensFileImpl
-
-	// Ids for the files that are the cached WEBP of the fullres file. This is a slice
-	// because fullres images could be multi-page, and a cache file is created per page
-	highResCacheFiles []*fileTree.WeblensFileImpl
 }
 
 func NewMedia(contentId ContentId) *Media {
 	return &Media{
-		ContentId: contentId,
+		ContentID: contentId,
 	}
 }
 
 func (m *Media) ID() ContentId {
-	return m.ContentId
+	return m.ContentID
 }
 
 func (m *Media) SetContentId(id ContentId) {
-	m.ContentId = id
+	m.ContentID = id
 }
 
 func (m *Media) IsHidden() bool {
@@ -101,6 +100,8 @@ func (m *Media) IsHidden() bool {
 }
 
 func (m *Media) GetCreateDate() time.Time {
+	m.updateMu.RLock()
+	defer m.updateMu.RUnlock()
 	return m.CreateDate
 }
 
@@ -136,25 +137,23 @@ func (m *Media) GetOwner() Username {
 func (m *Media) GetFiles() []fileTree.FileId {
 	m.updateMu.RLock()
 	defer m.updateMu.RUnlock()
-	return m.FileIds
+	return m.FileIDs
 }
 
 func (m *Media) AddFile(f *fileTree.WeblensFileImpl) {
 	m.updateMu.Lock()
 	defer m.updateMu.Unlock()
-	m.FileIds = internal.AddToSet(m.FileIds, f.ID())
+	m.FileIDs = internal.AddToSet(m.FileIDs, f.ID())
 }
 
-func (m *Media) removeFile(f *fileTree.WeblensFileImpl) error {
+func (m *Media) RemoveFile(fileIdToRemove fileTree.FileId) {
 	m.updateMu.Lock()
 	defer m.updateMu.Unlock()
-	m.FileIds = internal.Filter(
-		m.FileIds, func(fId fileTree.FileId) bool {
-			return fId != f.ID()
+	m.FileIDs = internal.Filter(
+		m.FileIDs, func(fId fileTree.FileId) bool {
+			return fId != fileIdToRemove
 		},
 	)
-
-	return nil
 }
 
 func (m *Media) SetImported(i bool) {
@@ -175,6 +174,18 @@ func (m *Media) SetEnabled(e bool) {
 
 func (m *Media) IsEnabled() bool {
 	return m.Enabled
+}
+
+func (m *Media) SetRecognitionTags(tags []string) {
+	m.updateMu.Lock()
+	defer m.updateMu.Unlock()
+	m.RecognitionTags = tags
+}
+
+func (m *Media) GetRecognitionTags() []string {
+	m.updateMu.RLock()
+	defer m.updateMu.RUnlock()
+	return m.RecognitionTags
 }
 
 func (m *Media) setHidden(hidden bool) {
@@ -260,7 +271,7 @@ func (m *Media) UnmarshalBSON(bs []byte) error {
 	if !ok {
 		return werror.Errorf("failed to parse contentId")
 	}
-	m.ContentId = ContentId(contentId)
+	m.ContentID = ContentId(contentId)
 
 	filesArr, ok := raw.Lookup("fileIds").ArrayOK()
 	if ok {
@@ -268,13 +279,13 @@ func (m *Media) UnmarshalBSON(bs []byte) error {
 		if err != nil {
 			return werror.WithStack(err)
 		}
-		m.FileIds = internal.Map(
+		m.FileIDs = internal.Map(
 			fileIdsRaw, func(e bson.RawValue) fileTree.FileId {
 				return fileTree.FileId(e.StringValue())
 			},
 		)
 	} else {
-		m.FileIds = []fileTree.FileId{}
+		m.FileIDs = []fileTree.FileId{}
 	}
 
 	m.PageCount = int(raw.Lookup("pageCount").Int32())
@@ -325,11 +336,11 @@ func (m *Media) UnmarshalBSON(bs []byte) error {
 			return werror.WithStack(err)
 		}
 
-		m.RecognitionTags = internal.Map(
+		m.SetRecognitionTags(internal.Map(
 			rts, func(e bson.RawValue) string {
 				return e.StringValue()
 			},
-		)
+		))
 	}
 
 	hidden, ok := raw.Lookup("hidden").BooleanOK()
@@ -344,8 +355,8 @@ func (m *Media) UnmarshalBSON(bs []byte) error {
 
 func (m *Media) MarshalJSON() ([]byte, error) {
 	data := map[string]any{
-		"contentId":   m.ContentId,
-		"fileIds":     m.FileIds,
+		"contentId":   m.ContentID,
+		"fileIds":     m.FileIDs,
 		"owner":       m.Owner,
 		"width":       m.Width,
 		"height":      m.Height,
@@ -368,7 +379,7 @@ func (m *Media) UnmarshalJSON(bs []byte) error {
 		return werror.WithStack(err)
 	}
 
-	m.ContentId = ContentId(data["contentId"].(string))
+	m.ContentID = ContentId(data["contentId"].(string))
 
 	m.Width = int(data["width"].(float64))
 	m.Height = int(data["height"].(float64))
@@ -376,7 +387,7 @@ func (m *Media) UnmarshalJSON(bs []byte) error {
 	m.MimeType = data["mimeType"].(string)
 
 	if data["recognitionTags"] != nil {
-		m.RecognitionTags = internal.SliceConvert[string](data["recognitionTags"].([]any))
+		m.SetRecognitionTags(internal.SliceConvert[string](data["recognitionTags"].([]any)))
 	}
 
 	m.PageCount = int(data["pageCount"].(float64))
@@ -415,10 +426,9 @@ type MediaService interface {
 	FetchCacheImg(m *Media, quality MediaQuality, pageNum int) ([]byte, error)
 	StreamVideo(m *Media, u *User, share *FileShare) (*VideoStreamer, error)
 	StreamCacheVideo(m *Media, startByte, endByte int) ([]byte, error)
-	NukeCache() error
 
 	GetFilteredMedia(
-		requester *User, sort string, sortDirection int, excludeIds []ContentId, raw bool, hidden bool,
+		requester *User, sort string, sortDirection int, excludeIds []ContentId, raw bool, hidden bool, search string,
 	) ([]*Media, error)
 	RecursiveGetMedia(folders ...*fileTree.WeblensFileImpl) []*Media
 
@@ -435,16 +445,16 @@ const (
 )
 
 type VideoStreamer struct {
-	file          *fileTree.WeblensFileImpl
-	encodingBegun atomic.Bool
-	streamDirPath string
 	err           error
-	updateMu      sync.RWMutex
+	file          *fileTree.WeblensFileImpl
+	streamDirPath string
 	listFileCache []byte
+	updateMu      sync.RWMutex
+	encodingBegun atomic.Bool
 }
 
-func NewVideoStreamer(file *fileTree.WeblensFileImpl) *VideoStreamer {
-	destPath := fmt.Sprintf("%s/%s-stream/", env.GetThumbsDir(), file.GetContentId())
+func NewVideoStreamer(file *fileTree.WeblensFileImpl, thumbsPath string) *VideoStreamer {
+	destPath := fmt.Sprintf("%s/%s-stream/", thumbsPath, file.GetContentId())
 
 	return &VideoStreamer{
 		file:          file,

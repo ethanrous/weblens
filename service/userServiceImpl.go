@@ -17,11 +17,11 @@ import (
 var _ models.UserService = (*UserServiceImpl)(nil)
 
 type UserServiceImpl struct {
+	col        database.MongoCollection
 	userMap    map[models.Username]*models.User
-	userLock   sync.RWMutex
 	publicUser *models.User
 	rootUser   *models.User
-	col        database.MongoCollection
+	userLock   sync.RWMutex
 }
 
 func NewUserService(col database.MongoCollection) (*UserServiceImpl, error) {

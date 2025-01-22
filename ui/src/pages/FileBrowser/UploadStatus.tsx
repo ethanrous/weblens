@@ -6,7 +6,7 @@ import { humanFileSize } from '@weblens/util'
 import { CSSProperties, useEffect, useMemo, useRef } from 'react'
 import { VariableSizeList } from 'react-window'
 
-import { SingleUpload, useUploadStatus } from './UploadStateControl'
+import { SingleUpload, useUploadStatus } from '../../store/UploadStateControl'
 import './style/uploadStatusStyle.scss'
 
 function UploadCardWrapper({

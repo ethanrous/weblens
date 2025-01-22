@@ -44,6 +44,8 @@ func TestScanFile(t *testing.T) {
 	}
 	t.Parallel()
 
+	logger := log.NewLogPackage("", log.DEBUG)
+
 	col := mondb.Collection(t.Name())
 	err := col.Drop(context.Background())
 	if err != nil {
@@ -62,7 +64,7 @@ func TestScanFile(t *testing.T) {
 
 	mediaService, err := service.NewMediaService(
 		&mock.MockFileService{}, typeService, &mock.MockAlbumService{},
-		col,
+		col, logger,
 	)
 	require.NoError(t, err)
 
@@ -90,6 +92,8 @@ func TestScanDirectory(t *testing.T) {
 	}
 	t.Parallel()
 
+	logger := log.NewLogPackage("", log.DEBUG)
+
 	col := mondb.Collection(t.Name())
 	err := col.Drop(context.Background())
 	if err != nil {
@@ -97,7 +101,7 @@ func TestScanDirectory(t *testing.T) {
 	}
 	defer func() { _ = col.Drop(context.Background()) }()
 
-	wp := task.NewWorkerPool(4, -1)
+	wp := task.NewWorkerPool(4, logger)
 	wp.RegisterJob(models.ScanFileTask, ScanFile)
 	wp.RegisterJob(models.ScanDirectoryTask, ScanDirectory)
 
@@ -114,7 +118,7 @@ func TestScanDirectory(t *testing.T) {
 
 	mediaService, err := service.NewMediaService(
 		&mock.MockFileService{}, typeService, &mock.MockAlbumService{},
-		col,
+		col, logger,
 	)
 	require.NoError(t, err)
 
@@ -136,7 +140,7 @@ func TestScanDirectory(t *testing.T) {
 
 	_, exitStatus := tsk.Status()
 	if !assert.Equal(t, task.TaskSuccess, exitStatus) {
-		log.ErrTrace(tsk.ReadError())
+		logger.ErrTrace(tsk.ReadError())
 		t.FailNow()
 	}
 

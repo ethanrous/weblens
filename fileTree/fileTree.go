@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethanrous/weblens/internal"
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -17,14 +18,16 @@ import (
 var _ FileTree = (*FileTreeImpl)(nil)
 
 type FileTreeImpl struct {
-	fMap       map[FileId]*WeblensFileImpl
-	fsTreeLock sync.RWMutex
-	journal    Journal
+	journal Journal
+
+	fMap map[FileId]*WeblensFileImpl
+
+	root *WeblensFileImpl
 
 	rootPath  string
 	rootAlias string
 
-	root *WeblensFileImpl
+	fsTreeLock sync.RWMutex
 }
 
 type MoveInfo struct {
@@ -37,6 +40,18 @@ func boolPointer(b bool) *bool {
 }
 
 func NewFileTree(rootPath, rootAlias string, journal Journal, doFileDiscovery bool) (FileTree, error) {
+	if journal == nil {
+		return nil, werror.Errorf("Got nil journal trying to create new FileTree")
+	}
+
+	if rootPath[len(rootPath)-1] != '/' {
+		rootPath = rootPath + "/"
+	}
+
+	if !filepath.IsAbs(rootPath) {
+		return nil, werror.Errorf("rootPath must be an absolute path: %s", rootPath)
+	}
+
 	if _, err := os.Stat(rootPath); errors.Is(err, os.ErrNotExist) {
 		err = os.MkdirAll(rootPath, os.ModePerm)
 		if err != nil {
@@ -44,10 +59,6 @@ func NewFileTree(rootPath, rootAlias string, journal Journal, doFileDiscovery bo
 		}
 	} else if err != nil {
 		return nil, werror.WithStack(err)
-	}
-
-	if rootPath[len(rootPath)-1] != '/' {
-		rootPath = rootPath + "/"
 	}
 
 	root := &WeblensFileImpl{
@@ -65,10 +76,6 @@ func NewFileTree(rootPath, rootAlias string, journal Journal, doFileDiscovery bo
 	}
 
 	root.size.Store(-1)
-
-	if journal == nil {
-		return nil, werror.Errorf("Got nil journal trying to create new FileTree")
-	}
 
 	tree := &FileTreeImpl{
 		fMap:      map[FileId]*WeblensFileImpl{root.id: root},
@@ -553,17 +560,91 @@ func (ft *FileTreeImpl) AbsToPortable(absPath string) (WeblensFilepath, error) {
 	return NewFilePath(ft.GetRoot().AbsPath(), ft.rootAlias, absPath), nil
 }
 
+func (ft *FileTreeImpl) ResizeUp(anchor *WeblensFileImpl, event *FileEvent, updateCallback func(newFile *WeblensFileImpl)) error {
+	if ft.journal.IgnoreLocal() {
+		return nil
+	}
+
+	externalEvent := event != nil
+	if !externalEvent {
+		event = ft.journal.NewEvent()
+	}
+
+	if err := anchor.BubbleMap(
+		func(f *WeblensFileImpl) error {
+			return handleFileResize(f, ft.journal, event, updateCallback)
+		},
+	); err != nil {
+		return err
+	}
+
+	if !externalEvent {
+		ft.journal.LogEvent(event)
+	}
+
+	return nil
+}
+
+func (ft *FileTreeImpl) ResizeDown(anchor *WeblensFileImpl, event *FileEvent, updateCallback func(newFile *WeblensFileImpl)) error {
+	if ft.journal.IgnoreLocal() {
+		return nil
+	}
+
+	externalEvent := event != nil
+	if !externalEvent {
+		event = ft.journal.NewEvent()
+	}
+
+	if err := anchor.LeafMap(
+		func(f *WeblensFileImpl) error {
+			return handleFileResize(f, ft.journal, event, updateCallback)
+		},
+	); err != nil {
+		return err
+	}
+
+	if !externalEvent {
+		ft.journal.LogEvent(event)
+	}
+
+	return nil
+}
+
 var IgnoreFilenames = []string{
 	".DS_Store",
+	".content",
+}
+
+func handleFileResize(file *WeblensFileImpl, journal Journal, event *FileEvent, updateCallback func(newFile *WeblensFileImpl)) error {
+	newSize, err := file.LoadStat()
+	if err != nil {
+		return err
+	}
+	if newSize != -1 && !journal.IgnoreLocal() && file.ID() != "ROOT" {
+		updateCallback(file)
+
+		lt := journal.Get(file.ID())
+
+		if lt == nil || lt.GetLatestSize() != newSize {
+			event.NewSizeChangeAction(file)
+		}
+	}
+
+	return err
 }
 
 func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, doFileDiscovery bool) error {
+	start := time.Now()
+	sw := internal.NewStopwatch("Load from root " + ft.GetRoot().GetPortablePath().RootName())
+
 	lifetimesByPath := map[string]*Lifetime{}
+	missing := map[string]struct{}{}
 	for _, lt := range ft.journal.GetActiveLifetimes() {
 		// If we are discovering new files, and therefore are not mimicking another
 		// tree, we just put the path into the map as-is.
 		if doFileDiscovery {
 			lifetimesByPath[lt.GetLatestAction().DestinationPath] = lt
+			missing[lt.Id] = struct{}{}
 			continue
 		}
 
@@ -576,10 +657,13 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, doFileDiscovery bool) err
 		lifetimesByPath[path.ToPortable()] = lt
 	}
 
+	sw.Lap("Get active lifetimes")
+
 	toLoad, err := ft.ReadDir(ft.root)
 	if err != nil {
 		return err
 	}
+	sw.Lap("Read dir")
 
 	log.Trace.Func(func(l log.Logger) { l.Printf("[loadFromRoot] Starting loadFromRoot with %d children", len(toLoad)) })
 	for len(toLoad) != 0 {
@@ -587,13 +671,21 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, doFileDiscovery bool) err
 
 		// Pop from slice of files to load
 		fileToLoad, toLoad = toLoad[0], toLoad[1:]
-		if slices.Contains(IgnoreFilenames, fileToLoad.Filename()) || (fileToLoad.Filename() == ".content") {
+		if slices.Contains(IgnoreFilenames, fileToLoad.Filename()) {
 			continue
 		}
 
 		if event != nil {
 			portablePath := fileToLoad.GetPortablePath().ToPortable()
 			if activeLt, ok := lifetimesByPath[portablePath]; ok {
+				// We found this lifetime, so it is not missing, remove it from the missing map
+				log.Trace.Func(func(l log.Logger) {
+					if _, ok := missing[activeLt.Id]; !ok {
+						l.Printf("Could not find lifetime in missing map %s", activeLt.Id)
+					}
+				})
+				delete(missing, activeLt.Id)
+
 				if event.journal != nil && activeLt.GetIsDir() != fileToLoad.IsDir() {
 					activeLt.IsDir = fileToLoad.IsDir()
 					err := event.journal.UpdateLifetime(activeLt)
@@ -635,8 +727,29 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, doFileDiscovery bool) err
 			toLoad = append(toLoad, children...)
 		}
 	}
+	sw.Lap("Import loop")
 
-	log.Trace.Func(func(l log.Logger) { l.Printf("[loadFromRoot] Complete") })
+	if doFileDiscovery {
+		// If we have missing files, create delete actions for them
+		for missingId := range missing {
+			log.Trace.Printf("Removing file with missing id %s", missingId)
+			event.NewDeleteAction(missingId)
+		}
+		sw.Lap("Delete events")
+	}
+
+	err = ft.ResizeDown(ft.GetRoot(), event, func(newFile *WeblensFileImpl) {})
+	if err != nil {
+		return err
+	}
+	sw.Lap("Resize Root")
+
+	sw.Stop()
+	sw.PrintResults(false)
+
+	log.Trace.Func(func(l log.Logger) {
+		l.Printf("loadFromRoot of %s complete in %s", ft.GetRoot().GetPortablePath(), time.Since(start))
+	})
 
 	return nil
 }
@@ -731,6 +844,9 @@ type FileTree interface {
 	PortableToAbs(portable WeblensFilepath) (string, error)
 	AbsToPortable(absPath string) (WeblensFilepath, error)
 	GenerateFileId() FileId
+
+	ResizeUp(anchor *WeblensFileImpl, event *FileEvent, updateCallback func(newFile *WeblensFileImpl)) error
+	ResizeDown(anchor *WeblensFileImpl, event *FileEvent, updateCallback func(newFile *WeblensFileImpl)) error
 }
 
 type Hasher interface {

@@ -14,13 +14,14 @@ import (
 )
 
 type Request struct {
-	method  string
+	err     error
 	remote  *models.Instance
 	req     *http.Request
+	method  string
 	url     string
 	body    []byte
 	queries [][]string
-	err     error
+	headers [][]string
 }
 
 func NewCoreRequest(remote *models.Instance, method, endpoint string) Request {
@@ -35,6 +36,11 @@ func NewCoreRequest(remote *models.Instance, method, endpoint string) Request {
 
 func (r Request) WithQuery(key, val string) Request {
 	r.queries = append(r.queries, []string{key, val})
+	return r
+}
+
+func (r Request) WithHeader(key, val string) Request {
+	r.headers = append(r.headers, []string{key, val})
 	return r
 }
 
@@ -81,6 +87,10 @@ func (r Request) Call() (*http.Response, error) {
 		return nil, err
 	}
 
+	for _, header := range r.headers {
+		req.Header.Add(header[0], header[1])
+	}
+
 	if len(r.queries) != 0 {
 		q := req.URL.Query()
 		for _, query := range r.queries {
@@ -102,6 +112,7 @@ func (r Request) Call() (*http.Response, error) {
 		target := rest.WeblensErrorInfo{}
 		bs, err := io.ReadAll(resp.Body)
 		if err != nil {
+			log.ErrTrace(err)
 			return nil, werror.Errorf("Failed to call home to [%s %s]: %s", r.method, req.URL.String(), resp.Status)
 		}
 

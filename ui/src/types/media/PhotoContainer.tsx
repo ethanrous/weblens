@@ -23,6 +23,7 @@ import {
 } from 'react'
 
 import { ErrorHandler } from '../Types'
+import mediaStyle from './photoContainerStyle.module.scss'
 
 export const MediaImage = memo(
     ({
@@ -74,14 +75,14 @@ export const MediaImage = memo(
                         pageNumber,
                         () => {
                             setUrl({
-                                url: media.GetObjectUrl(quality),
+                                url: media.GetObjectUrl(quality, pageNumber),
                                 id: media.Id(),
                             })
                             setLoadErr(media.HasLoadError())
                         },
                         () => {
                             setUrl({
-                                url: media.GetObjectUrl(quality),
+                                url: media.GetObjectUrl(quality, pageNumber),
                                 id: media.Id(),
                             })
                             setLoadErr(media.HasLoadError())
@@ -98,7 +99,10 @@ export const MediaImage = memo(
                 (media.HasQualityLoaded(quality) && src.url === '') ||
                 src.id !== media.Id()
             ) {
-                setUrl({ url: media.GetObjectUrl(quality), id: media.Id() })
+                setUrl({
+                    url: media.GetObjectUrl(quality, pageNumber),
+                    id: media.Id(),
+                })
             } else if (media.HighestQualityLoaded() !== '' && src.url === '') {
                 setUrl({
                     url: media.GetObjectUrl(PhotoQuality.LowRes),
@@ -208,187 +212,79 @@ function toggleFullScreen(div: HTMLDivElement) {
     }
 }
 
-function VideoWrapper({
-    url,
-    shouldShowVideo,
-    fitLogic,
-    media,
-    imgStyle,
-    videoRef,
-    setVideoRef,
-    isPlaying,
-    playtime,
-}: {
-    url: string
-    shouldShowVideo: boolean
-    fitLogic: string
-    media: WeblensMedia
-    imgStyle: CSSProperties
-    videoRef: HTMLVideoElement
-    setVideoRef: (r: HTMLVideoElement) => void
-    isPlaying: boolean
-    playtime: number
-}) {
-    const [containerRef, setContainerRef] = useState<HTMLDivElement>()
-    const size = useResize(containerRef)
+const VideoInterface = memo(
+    ({
+        videoLength,
+        volume,
+        setVolume,
+        playtime,
+        setPlaytime,
+        isPlaying,
+        showUi,
+        videoRef,
+        containerRef,
+    }: {
+        videoLength: number
+        volume: number
+        setVolume: (v: number) => void
+        playtime: number
+        setPlaytime: (v: number) => void
+        isPlaying: boolean
+        showUi: boolean
+        videoRef: HTMLVideoElement
+        containerRef: HTMLDivElement
+    }) => {
+        const size = useResize(containerRef)
+        const [wasPlaying, setWasPlaying] = useState(false)
 
-    const [showUi, setShowUi] = useState<NodeJS.Timeout>()
-    const [volume, setVolume] = useState<number>()
-    const [playtimeInternal, setPlaytime] = useState(0)
-    const [wasPlaying, setWasPlaying] = useState(false)
-
-    useEffect(() => {
-        setPlaytime(playtime)
-    }, [playtime])
-
-    useEffect(() => {
-        if (!videoRef) {
-            return
-        }
-
-        if (videoRef.canPlayType('application/vnd.apple.mpegurl')) {
-            console.debug('Not Using HLS')
-            videoRef.src = media.StreamVideoUrl()
-        } else if (Hls.isSupported()) {
-            Hls.DefaultConfig.debug = true
-            console.debug('Using HLS')
-            const hls = new Hls()
-            hls.loadSource(media.StreamVideoUrl())
-            hls.attachMedia(videoRef)
-            return () => {
-                hls.destroy()
+        const VolumeIcon = useMemo(() => {
+            if (volume === 0) {
+                return IconVolume3
+            } else {
+                return IconVolume
             }
-        }
-    }, [videoRef, media.StreamVideoUrl()])
+        }, [volume])
 
-    const togglePlayState = useCallback(() => {
-        console.log('togglePlayState')
-        if (!videoRef) {
-            return
-        }
-        console.log('is playing', isPlaying)
-        if (isPlaying) {
-            videoRef.pause()
-        } else {
-            videoRef.play().catch((e) => {
-                console.error('Failed to play video', e)
-            })
-        }
-    }, [isPlaying, videoRef])
+        const buffered = useMemo(() => {
+            const buffered = videoRef?.buffered.length
+                ? (videoRef.buffered.end(videoRef.buffered.length - 1) /
+                      videoRef.duration) *
+                  100
+                : 0
 
-    useKeyDown(' ', togglePlayState, !shouldShowVideo)
+            return buffered
+        }, [videoRef?.buffered])
 
-    useEffect(() => {
-        const muted = localStorage.getItem('volume-muted') === 'true'
-        if (muted) {
-            setVolume(0)
-            return
-        }
-        setVolume(Number(localStorage.getItem('volume')) || 50)
-    }, [])
+        const PlayIcon = isPlaying
+            ? IconPlayerPauseFilled
+            : IconPlayerPlayFilled
 
-    useEffect(() => {
-        if (volume === undefined) {
-            return
-        }
-        if (videoRef) {
-            videoRef.volume = volume / 100
-        }
-        if (volume === 0) {
-            localStorage.setItem('volume-muted', 'true')
-        } else {
-            localStorage.setItem('volume-muted', 'false')
-            localStorage.setItem('volume', volume.toString())
-        }
-    }, [volume])
-
-    const VolumeIcon = useMemo(() => {
-        if (volume === 0) {
-            return IconVolume3
-        } else {
-            return IconVolume
-        }
-    }, [volume])
-
-    const buffered = useMemo(() => {
-        const buffered = videoRef?.buffered.length
-            ? (videoRef.buffered.end(videoRef.buffered.length - 1) /
-                  videoRef.duration) *
-              100
-            : 0
-
-        return buffered
-    }, [videoRef?.buffered])
-
-    if (!shouldShowVideo) {
-        return null
-    }
-
-    const lenInSec = media.GetVideoLength() / 1000
-
-    return (
-        <div
-            ref={setContainerRef}
-            className="flex relative items-center justify-center"
-            onMouseMove={() => {
-                setShowUi((prev) => {
-                    if (prev) {
-                        clearTimeout(prev)
-                    }
-                    return setTimeout(() => setShowUi(null), 2000)
-                })
-            }}
-        >
-            <div
-                className="flex shrink-0 w-[24px] h-[24px] absolute z-50 cursor-pointer
-                            transition-opacity duration-300 drop-shadow-xl"
-                style={{ opacity: showUi || !isPlaying ? 1 : 0 }}
-            >
-                {isPlaying && (
-                    <IconPlayerPauseFilled
-                        className="text-white"
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            videoRef.pause()
-                        }}
-                    />
-                )}
-                {!isPlaying && (
-                    <IconPlayerPlayFilled
-                        className="text-white"
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            videoRef
-                                .play()
-                                .catch((e) =>
-                                    console.error('Failed to play video', e)
-                                )
-                        }}
-                    />
-                )}
-            </div>
-            <video
-                ref={setVideoRef}
-                autoPlay
-                muted={volume === 0}
-                preload="none"
-                className="media-image animate-fade"
-                poster={media.GetObjectUrl(PhotoQuality.LowRes)}
-                data-fit-logic={fitLogic}
-                data-hide={
-                    url === '' || media.HasLoadError() || !shouldShowVideo
-                }
-                style={{ ...imgStyle, borderRadius: '0', zIndex: 1 }}
-                onClick={togglePlayState}
-            />
+        return (
             <div
                 className="flex absolute justify-center items-end p-2"
                 style={{
                     width: size.width,
                     height: size.height,
-                    opacity: showUi || !isPlaying ? 1 : 0,
+                    opacity: showUi ? 1 : 0,
                 }}
             >
+                <div className="flex justify-center items-center relative h-full w-full">
+                    <PlayIcon
+                        className="absolute text-white w-6 h-6 z-50 cursor-pointer"
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            if (isPlaying) {
+                                videoRef.pause()
+                            } else {
+                                videoRef
+                                    .play()
+                                    .catch((e) =>
+                                        console.error('Failed to play video', e)
+                                    )
+                            }
+                        }}
+                    />
+                </div>
                 <div
                     className="flex flex-row h-max w-full justify-around items-center absolute p-2 z-10 gap-2"
                     onClick={(e) => {
@@ -396,30 +292,29 @@ function VideoWrapper({
                     }}
                 >
                     <div
-                        className="flex w-max justify-center h-max text-nowrap gap-1 font-mono select-none"
+                        className="flex w-max justify-center h-max text-nowrap gap-1 select-none"
                         style={{
-                            minWidth: `${lenInSec < 3600 ? 6.5 : 10}rem`,
+                            minWidth: `${videoLength < 3600 ? 6.5 : 10}rem`,
                         }}
                     >
-                        <p className="text-sm">
-                            {secondsToVideoTime(
-                                playtimeInternal,
-                                lenInSec > 3600
-                            )}
-                        </p>
-                        <p className="text-sm">/</p>
-                        <p className="text-sm">
-                            {secondsToVideoTime(lenInSec)}
-                        </p>
+                        <span className={mediaStyle['video-time-text']}>
+                            {secondsToVideoTime(playtime, videoLength > 3600)}
+                        </span>
+                        <span className={mediaStyle['video-time-text']}>
+                            {' / '}
+                        </span>
+                        <span className={mediaStyle['video-time-text']}>
+                            {secondsToVideoTime(videoLength)}
+                        </span>
                     </div>
                     <div className="relative grow">
                         <WeblensProgress
                             height={12}
-                            value={(playtimeInternal * 100) / lenInSec}
+                            value={(playtime * 100) / videoLength}
                             secondaryValue={buffered}
                             seekCallback={(v, seeking) => {
                                 if (videoRef) {
-                                    const newTime = lenInSec * (v / 100)
+                                    const newTime = videoLength * (v / 100)
 
                                     if (!videoRef.paused && !wasPlaying) {
                                         videoRef.pause()
@@ -473,6 +368,173 @@ function VideoWrapper({
                     />
                 </div>
             </div>
+        )
+    },
+    (prev, next) => {
+        if (!prev.containerRef) {
+            return false
+        }
+
+        if (
+            !next.showUi &&
+            !prev.showUi &&
+            prev.containerRef === next.containerRef
+        ) {
+            return true
+        }
+
+        if (prev.showUi !== next.showUi) {
+            return false
+        } else if (prev.playtime !== next.playtime) {
+            return false
+        } else if (prev.volume !== next.volume) {
+            return false
+        } else if (prev.isPlaying !== next.isPlaying) {
+            return false
+        } else if (prev.videoRef !== next.videoRef) {
+            return false
+        } else if (prev.containerRef !== next.containerRef) {
+            return false
+        }
+        return true
+    }
+)
+
+function VideoWrapper({
+    url,
+    shouldShowVideo,
+    fitLogic,
+    media,
+    imgStyle,
+    videoRef,
+    setVideoRef,
+    isPlaying,
+    playtime,
+}: {
+    url: string
+    shouldShowVideo: boolean
+    fitLogic: string
+    media: WeblensMedia
+    imgStyle: CSSProperties
+    videoRef: HTMLVideoElement
+    setVideoRef: (r: HTMLVideoElement) => void
+    isPlaying: boolean
+    playtime: number
+}) {
+    const [containerRef, setContainerRef] = useState<HTMLDivElement>()
+
+    const [showUi, setShowUi] = useState<NodeJS.Timeout>()
+    const [volume, setVolume] = useState<number>()
+    const [playtimeInternal, setPlaytime] = useState(0)
+
+    useEffect(() => {
+        const muted = localStorage.getItem('volume-muted') === 'true'
+        if (muted) {
+            setVolume(0)
+            return
+        }
+        setVolume(Number(localStorage.getItem('volume')) || 50)
+        setShowUi(setTimeout(() => setShowUi(null), 2000))
+    }, [])
+
+    useEffect(() => {
+        setPlaytime(playtime)
+    }, [playtime])
+
+    useEffect(() => {
+        if (!videoRef) {
+            return
+        }
+
+        if (videoRef.canPlayType('application/vnd.apple.mpegurl')) {
+            console.debug('Not Using HLS')
+            videoRef.src = media.StreamVideoUrl()
+        } else if (Hls.isSupported()) {
+            Hls.DefaultConfig.debug = true
+            console.debug('Using HLS')
+            const hls = new Hls()
+            hls.loadSource(media.StreamVideoUrl())
+            hls.attachMedia(videoRef)
+            return () => {
+                hls.destroy()
+            }
+        }
+    }, [videoRef, media.StreamVideoUrl()])
+
+    const togglePlayState = useCallback(() => {
+        if (!videoRef) {
+            return
+        }
+        if (isPlaying) {
+            videoRef.pause()
+        } else {
+            videoRef.play().catch((e) => {
+                console.error('Failed to play video', e)
+            })
+        }
+    }, [isPlaying, videoRef])
+
+    useKeyDown(' ', togglePlayState, !shouldShowVideo)
+
+    useEffect(() => {
+        if (volume === undefined) {
+            return
+        }
+        if (videoRef) {
+            videoRef.volume = volume / 100
+        }
+        if (volume === 0) {
+            localStorage.setItem('volume-muted', 'true')
+        } else {
+            localStorage.setItem('volume-muted', 'false')
+            localStorage.setItem('volume', volume.toString())
+        }
+    }, [volume])
+
+    if (!shouldShowVideo) {
+        return null
+    }
+
+    const lenInSec = media.GetVideoLength() / 1000
+
+    return (
+        <div
+            ref={setContainerRef}
+            className="flex relative items-center justify-center"
+            onMouseMove={() => {
+                setShowUi((prev) => {
+                    if (prev) {
+                        clearTimeout(prev)
+                    }
+                    return setTimeout(() => setShowUi(null), 2000)
+                })
+            }}
+        >
+            <video
+                ref={setVideoRef}
+                autoPlay
+                muted={volume === 0}
+                preload="none"
+                className="media-image animate-fade"
+                poster={media.GetObjectUrl(PhotoQuality.LowRes)}
+                data-fit-logic={fitLogic}
+                data-hide={
+                    url === '' || media.HasLoadError() || !shouldShowVideo
+                }
+                style={{ ...imgStyle, borderRadius: '0', zIndex: 1 }}
+                onClick={togglePlayState}
+            />
+            <VideoInterface
+                videoLength={lenInSec}
+                volume={volume}
+                setVolume={setVolume}
+                playtime={playtimeInternal}
+                setPlaytime={setPlaytime}
+                isPlaying={isPlaying}
+                showUi={!!showUi || !isPlaying}
+                videoRef={videoRef}
+                containerRef={containerRef}
+            />
         </div>
     )
 }

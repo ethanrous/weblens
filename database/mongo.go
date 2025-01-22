@@ -9,10 +9,23 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+type DbCollectionName string
+
+const (
+	InstanceCollectionKey    DbCollectionName = "servers"
+	ApiKeysCollectionKey     DbCollectionName = "apiKeys"
+	UsersCollectionKey       DbCollectionName = "users"
+	AlbumsCollectionKey      DbCollectionName = "albums"
+	SharesCollectionKey      DbCollectionName = "shares"
+	FileHistoryCollectionKey DbCollectionName = "fileHistory"
+	FolderMediaCollectionKey DbCollectionName = "folderMedia"
+	MediaCollectionKey       DbCollectionName = "media"
+)
+
 const maxRetries = 5
 
 func ConnectToMongo(mongoUri, mongoDbName string) (*mongo.Database, error) {
-	log.Trace.Func(func(l log.Logger) {l.Printf("Connecting to Mongo at %s with name %s ...", mongoUri, mongoDbName)})
+	log.Trace.Func(func(l log.Logger) { l.Printf("Connecting to Mongo at %s with name %s ...", mongoUri, mongoDbName) })
 	clientOptions := options.Client().ApplyURI(mongoUri).SetTimeout(time.Second * 5)
 	var err error
 	mongoc, err := mongo.Connect(context.Background(), clientOptions)
@@ -35,7 +48,7 @@ func ConnectToMongo(mongoUri, mongoDbName string) (*mongo.Database, error) {
 		return nil, err
 	}
 
-	log.Trace.Println("Connected to mongo")
+	log.Debug.Println("Connected to mongodb")
 
 	return mongoc.Database(mongoDbName), nil
 }

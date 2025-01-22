@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/ethanrous/weblens/database"
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/models"
 	. "github.com/ethanrous/weblens/service"
@@ -15,21 +16,21 @@ import (
 func TestAccessServiceImpl_CanUserAccessFile(t *testing.T) {
 	t.Parallel()
 
-	col := mondb.Collection(t.Name())
-	err := col.Drop(context.Background())
+	keysCol := mondb.Collection(string(database.ApiKeysCollectionKey) + "-" + t.Name())
+	err := keysCol.Drop(context.Background())
 	if err != nil {
 		log.ErrTrace(err)
 		t.FailNow()
 	}
-	defer col.Drop(context.Background())
+	defer func() { log.ErrTrace(keysCol.Drop(context.Background())) }()
 
-	userCol := mondb.Collection(t.Name() + "-users")
+	userCol := mondb.Collection(string(database.UsersCollectionKey) + "-" + t.Name())
 	userService, err := NewUserService(userCol)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	acc, err := NewAccessService(userService, col)
+	acc, err := NewAccessService(userService, keysCol)
 	if err != nil {
 		log.ErrTrace(err)
 		t.FailNow()
@@ -84,21 +85,21 @@ func TestAccessServiceImpl_CanUserAccessFile(t *testing.T) {
 func TestAccessServiceImpl_GenerateApiKey(t *testing.T) {
 	t.Parallel()
 
-	col := mondb.Collection(t.Name())
-	err := col.Drop(context.Background())
+	keysCol := mondb.Collection(string(database.ApiKeysCollectionKey) + "-" + t.Name())
+	err := keysCol.Drop(context.Background())
 	if err != nil {
 		log.ErrTrace(err)
 		t.FailNow()
 	}
-	defer col.Drop(context.Background())
+	defer func() { log.ErrTrace(keysCol.Drop(context.Background())) }()
 
-	userCol := mondb.Collection(t.Name() + "-users")
+	userCol := mondb.Collection(string(database.UsersCollectionKey) + "-" + t.Name())
 	userService, err := NewUserService(userCol)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	acc, err := NewAccessService(userService, col)
+	acc, err := NewAccessService(userService, keysCol)
 	if err != nil {
 		log.ErrTrace(err)
 		t.FailNow()
@@ -112,12 +113,7 @@ func TestAccessServiceImpl_GenerateApiKey(t *testing.T) {
 
 	local := models.NewInstance("", "test-instance", "", models.CoreServerRole, true, "", "")
 
-	_, err = acc.GenerateApiKey(billUser, local)
-	assert.Error(t, err)
-
-	billUser.Admin = true
-
-	key, err := acc.GenerateApiKey(billUser, local)
+	key, err := acc.GenerateApiKey(billUser, local, "test-key")
 	require.NoError(t, err)
 	assert.Equal(t, billUser.Username, key.Owner)
 
@@ -138,21 +134,21 @@ func TestAccessServiceImpl_GenerateApiKey(t *testing.T) {
 func TestAccessServiceImpl_SetKeyUsedBy(t *testing.T) {
 	t.Parallel()
 
-	col := mondb.Collection(t.Name())
-	err := col.Drop(context.Background())
+	keysCol := mondb.Collection(string(database.ApiKeysCollectionKey) + "-" + t.Name())
+	err := keysCol.Drop(context.Background())
 	if err != nil {
 		log.ErrTrace(err)
 		t.FailNow()
 	}
-	defer col.Drop(context.Background())
+	defer func() { log.ErrTrace(keysCol.Drop(context.Background())) }()
 
-	userCol := mondb.Collection(t.Name() + "-users")
+	userCol := mondb.Collection(string(database.UsersCollectionKey) + "-" + t.Name())
 	userService, err := NewUserService(userCol)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	acc, err := NewAccessService(userService, col)
+	acc, err := NewAccessService(userService, keysCol)
 	if err != nil {
 		log.ErrTrace(err)
 		t.FailNow()
@@ -166,7 +162,7 @@ func TestAccessServiceImpl_SetKeyUsedBy(t *testing.T) {
 
 	local := models.NewInstance("", "test-instance", "", models.CoreServerRole, true, "", "")
 
-	key, err := acc.GenerateApiKey(billUser, local)
+	key, err := acc.GenerateApiKey(billUser, local, "test-key")
 	require.NoError(t, err)
 
 	backupServer := models.NewInstance("", "test-instance", key.Key, models.BackupServerRole, false, "", t.Name())

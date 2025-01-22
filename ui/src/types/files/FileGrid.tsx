@@ -1,7 +1,7 @@
 import WeblensLoader from '@weblens/components/Loading'
-import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
 import { HandleDrop } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { GetStartedCard } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
+import { useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { WeblensFile } from '@weblens/types/files/File'
 import { FileSquare } from '@weblens/types/files/FileSquare'
 import filesStyle from '@weblens/types/files/filesStyle.module.scss'
@@ -120,25 +120,30 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
             className={filesStyle['files-grid']}
             data-droppable={Boolean(
                 moveDest === folderInfo?.Id() &&
-                    folderInfo.modifiable &&
+                    folderInfo?.modifiable &&
                     dragState === DraggingStateT.ExternalDrag
             )}
             data-bad-drop={Boolean(
                 moveDest === folderInfo?.Id() &&
-                    !folderInfo.modifiable &&
+                    !folderInfo?.modifiable &&
                     dragState === DraggingStateT.ExternalDrag
             )}
             onDragOver={(e) => {
                 // https://stackoverflow.com/questions/50230048/react-ondrop-is-not-firing
-                e.preventDefault()
+                if (dragState === DraggingStateT.ExternalDrag) {
+                    e.preventDefault()
+                }
             }}
             onDrop={(e) => {
+                if (dragState !== DraggingStateT.ExternalDrag) {
+                    return
+                }
+
                 e.preventDefault()
-                if (folderInfo.modifiable) {
+                if (folderInfo?.modifiable) {
                     HandleDrop(
                         e.dataTransfer.items,
                         folderInfo.Id(),
-                        [],
                         false,
                         shareId
                     ).catch(ErrorHandler)

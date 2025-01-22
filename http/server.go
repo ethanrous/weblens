@@ -3,9 +3,11 @@ package http
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -16,21 +18,18 @@ import (
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/models"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
-	// gin-swagger middleware
 )
 
 type Server struct {
-	Running     bool
 	StartupFunc func()
 
-	// router     *gin.Engine
 	router     *chi.Mux
 	stdServer  *http.Server
-	RouterLock sync.Mutex
 	services   *models.ServicePack
 	hostStr    string
+	RouterLock sync.Mutex
+	Running    bool
 }
 
 // @title						Weblens API
@@ -51,9 +50,9 @@ type Server struct {
 // @name						Authorization
 //
 // @scope.admin				Grants read and write access to privileged data
-func NewServer(host, port string, services *models.ServicePack) *Server {
+func NewServer(host string, port int, services *models.ServicePack) *Server {
 
-	proxyHost := env.GetProxyAddress()
+	proxyHost := env.GetProxyAddress(services.Cnf)
 	if strings.HasPrefix(proxyHost, "http") {
 		i := strings.Index(proxyHost, "://")
 		proxyHost = proxyHost[i+3:]
@@ -63,7 +62,7 @@ func NewServer(host, port string, services *models.ServicePack) *Server {
 	srv := &Server{
 		router:   chi.NewRouter(),
 		services: services,
-		hostStr:  host + ":" + port,
+		hostStr:  fmt.Sprintf("%s:%d", host, port),
 	}
 
 	services.Server = srv
@@ -87,12 +86,12 @@ func (s *Server) Start() {
 		s.RouterLock.Lock()
 		go s.StartupFunc()
 		<-s.services.StartupChan
-		log.Trace.Println("Router got startup signal")
+		s.services.Log.Trace.Println("Router got startup signal")
 
-		s.stdServer = &http.Server{Addr: s.hostStr, Handler: s.router}
+		s.stdServer = &http.Server{Addr: s.hostStr, Handler: s.router, ReadHeaderTimeout: 5 * time.Second}
 		s.Running = true
 
-		log.Info.Printf("Starting router at %s", s.hostStr)
+		s.services.Log.Info.Printf("Starting router at %s", s.hostStr)
 		s.RouterLock.Unlock()
 
 		err := s.stdServer.ListenAndServe()
@@ -111,10 +110,9 @@ func (s *Server) Start() {
 }
 
 func (s *Server) UseApi() *chi.Mux {
-	log.Trace.Println("Using api routes")
 	r := chi.NewRouter()
 
-	r.Use(log.ApiLogger(log.GetLogLevel()), middleware.Recoverer, CORSMiddleware, WithServices(s.services), WeblensAuth)
+	r.Use(log.ApiLogger(s.services.Log), Recoverer, CORSMiddleware(env.GetProxyAddress(s.services.Cnf)), WithServices(s.services), WeblensAuth)
 
 	r.Group(func(r chi.Router) {
 		r.Use(AllowPublic)
@@ -126,8 +124,8 @@ func (s *Server) UseApi() *chi.Mux {
 	r.Route("/media", func(r chi.Router) {
 		r.Get("/", getMediaBatch)
 		r.Get("/{mediaId}/file", getMediaFile)
-		r.Post("/{mediaId}/liked", setMediaLiked)
 		r.Post("/cleanup", cleanupMedia)
+		r.Patch("/{mediaId}/liked", setMediaLiked)
 		r.Patch("/visibility", hideMedia)
 		r.Patch("/date", adjustMediaDate)
 
@@ -179,6 +177,7 @@ func (s *Server) UseApi() *chi.Mux {
 
 	// Upload
 	r.Route("/upload", func(r chi.Router) {
+		r.Get("/{uploadId}", getUploadResult)
 		r.Post("/", newUploadTask)
 		r.Post("/{uploadId}", newFileUpload)
 		r.Put("/{uploadId}/file/{fileId}", handleUploadChunk)
@@ -203,7 +202,7 @@ func (s *Server) UseApi() *chi.Mux {
 		r.Post("/logout", logoutUser)
 		r.Patch("/{username}/password", updateUserPassword)
 		r.Patch("/{username}/admin", setUserAdmin)
-		r.Delete("/", deleteUser)
+		r.Delete("/{username}", deleteUser)
 	})
 
 	// Share
@@ -217,16 +216,14 @@ func (s *Server) UseApi() *chi.Mux {
 	})
 
 	// Albums
-	r.Route("/albums", func(r chi.Router) {
-		r.Get("/", getAlbums)
-		r.Get("/{albumId}", getAlbum)
-		r.Get("/{albumId}/media", getAlbumMedia)
-		r.Post("/album", createAlbum)
-		r.Patch("/{albumId}", updateAlbum)
-		r.Delete("/{albumId}", deleteAlbum)
-		// r.Get("/{albumId}/preview", albumPreviewMedia)
-		// r.Post("/{albumId}/leave", unshareMeAlbum)
-	})
+	// r.Route("/albums", func(r chi.Router) {
+	// 	r.Get("/", getAlbums)
+	// 	r.Get("/{albumId}", getAlbum)
+	// 	r.Get("/{albumId}/media", getAlbumMedia)
+	// 	r.Post("/album", createAlbum)
+	// 	r.Patch("/{albumId}", updateAlbum)
+	// 	r.Delete("/{albumId}", deleteAlbum)
+	// })
 
 	// ApiKeys
 	r.Route("/keys", func(r chi.Router) {
@@ -263,51 +260,9 @@ func (s *Server) UseApi() *chi.Mux {
 	return r
 }
 
-func (s *Server) UseWebdav(fileService models.FileService, caster models.FileCaster) {
-	// fs := service.WebdavFs{
-	// 	WeblensFs: fileService,
-	// 	Caster:    caster,
-	// }
-
-	// handler := &webdav.Handler{
-	// 	FileSystem: fs,
-	// 	// FileSystem: webdav.Dir(env.GetDataRoot(),
-	// 	LockSystem: webdav.NewMemLS(),
-	// 	Logger: func(r *http.Request, err error) {
-	// 		if err != nil {
-	// 			log.Error.Printf("WEBDAV [%s]: %s, ERROR: %s\n", r.Method, r.URL, err)
-	// 		} else {
-	// 			log.Info.Printf("WEBDAV [%s]: %s \n", r.Method, r.URL)
-	// 		}
-	// 	},
-	// }
-
-	// go http.ListenAndServe(":8081", handler)
-}
-
-func (s *Server) UseInterserverRoutes() {
-	log.Trace.Println("Using interserver routes")
-
-	// core := s.router.Group("/api/core")
-	// core.Use(KeyOnlyAuth(s.services))
-
-	// core.POST("/remote", attachRemote)
-
-	// r.Post("/files", getFilesMeta)
-	// r.Get("/file/:fileId", getFileMeta)
-	// r.Get("/file/:fileId/stat", getFileStat)
-	// r.Get("/file/:fileId/directory", getDirectoryContent)
-	// r.Get("/file/content/:contentId", getFileBytes)
-	//
-	// r.Get("/history/since", getLifetimesSince)
-	// r.Get("/history/folder", getFolderHistory)
-	//
-	// r.Get("/backup", doFullBackup)
-}
-
 func (s *Server) UseUi() *chi.Mux {
-	memFs := &InMemoryFS{routes: make(map[string]*memFileReal, 10), routesMu: &sync.RWMutex{}, Pack: s.services}
-	memFs.loadIndex()
+	memFs := &InMemoryFS{routes: make(map[string]*memFileReal, 10), routesMu: &sync.RWMutex{}, Pack: s.services, proxyAddress: env.GetProxyAddress(s.services.Cnf)}
+	memFs.loadIndex(s.services.Cnf.UiPath)
 
 	r := chi.NewMux()
 	r.Route("/assets", func(r chi.Router) {
@@ -325,9 +280,8 @@ func (s *Server) UseUi() *chi.Mux {
 		func(w http.ResponseWriter, r *http.Request) {
 			if !strings.HasPrefix(r.RequestURI, "/api") {
 				log.Trace.Func(func(l log.Logger) { l.Printf("Serving index.html for %s", r.RequestURI) })
-				// using the real path here makes gin redirect to /, which creates an infinite loop
-				// ctx.Writer.Header().Set("Content-Encoding", "gzip")
-				_, err := w.Write(memFs.index.data)
+				index := memFs.Index(r.RequestURI)
+				_, err := w.Write(index.realFile.data)
 				SafeErrorAndExit(err, w)
 			} else {
 				w.WriteHeader(http.StatusNotFound)
@@ -339,9 +293,25 @@ func (s *Server) UseUi() *chi.Mux {
 	return r
 }
 
+var staticDir = ""
+
 func serveStaticContent(w http.ResponseWriter, r *http.Request) {
 	filename := chi.URLParam(r, "filename")
-	fullPath := env.GetAppRootDir() + "/static/" + filename
+
+	if staticDir == "" {
+		testDir := filepath.Join(env.GetAppRootDir(), "/static")
+		_, err := os.Stat(testDir)
+		if err != nil {
+			testDir = filepath.Join(env.GetAppRootDir(), "/images/brand/")
+			_, err = os.Stat(testDir)
+			if err != nil {
+				panic(err)
+			}
+		}
+		staticDir = testDir
+	}
+
+	fullPath := filepath.Join(staticDir, filename)
 	f, err := os.Open(fullPath)
 	if SafeErrorAndExit(err, w) {
 		return
@@ -365,14 +335,15 @@ func (s *Server) Restart(wait bool) {
 }
 
 func (s *Server) Stop() {
-	log.Debug.Println("Stopping server", s.services.InstanceService.GetLocal().GetName())
+	s.services.Log.Debug.Println("Stopping server", s.services.InstanceService.GetLocal().GetName())
+	s.services.Closing.Store(true)
 	s.services.Caster.PushWeblensEvent(models.ServerGoingDownEvent)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	err := s.stdServer.Shutdown(ctx)
-	log.ErrTrace(err)
-	log.ErrTrace(ctx.Err())
+	s.services.Log.ErrTrace(err)
+	s.services.Log.ErrTrace(ctx.Err())
 
 	for _, c := range s.services.ClientService.GetAllClients() {
 		s.services.ClientService.ClientDisconnect(c)

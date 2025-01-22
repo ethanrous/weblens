@@ -4,7 +4,7 @@
         "mongodbUri": "mongodb://admin:admin@mongo-weblens:27017",
         "logLevel": "",
         "routerHost": "0.0.0.0",
-        "routerPort": "8080",
+        "routerPort": 8080,
         "dataRoot": "/data",
         "cachesRoot": "/cache"
     },
@@ -17,7 +17,7 @@
         "logLevel": "debug",
         "detachUi": true,
         "routerHost": "127.0.0.1",
-        "routerPort": "8089",
+        "routerPort": 8089,
         "dataRoot": "./build/fs/mock-core/data",
         "cachesRoot": "./build/fs/mock-core/caches"
     },
@@ -27,7 +27,7 @@
         "logLevel": "info",
         "detachUi": true,
         "routerHost": "127.0.0.1",
-        "routerPort": "8090",
+        "routerPort": 8090,
         "dataRoot": "./build/fs/test/data",
         "cachesRoot": "./build/fs/test/caches",
         "testMediaPath": "./images/testMedia"
@@ -38,7 +38,7 @@
         "logLevel": "info",
         "detachUi": true,
         "routerHost": "127.0.0.1",
-        "routerPort": "8091",
+        "routerPort": 8091,
         "dataRoot": "./build/fs/test-core/data",
         "cachesRoot": "./build/fs/test-core/caches"
     },
@@ -48,7 +48,7 @@
         "logLevel": "info",
         "detachUi": true,
         "routerHost": "127.0.0.1",
-        "routerPort": "8092",
+        "routerPort": 8092,
         "dataRoot": "./build/fs/test-backup/data",
         "cachesRoot": "./build/fs/test-backup/caches"
     },
@@ -58,7 +58,7 @@
         "logLevel": "debug",
         "detachUi": false,
         "routerHost": "127.0.0.1",
-        "routerPort": "8080",
+        "routerPort": 8080,
         "proxyAddress": "http://local.weblens.io:8080",
         "dataRoot": "./build/fs/core/data",
         "cachesRoot": "./build/fs/core/caches"
@@ -69,7 +69,7 @@
         "logLevel": "debug",
         "detachUi": true,
         "routerHost": "127.0.0.1",
-        "routerPort": "8080",
+        "routerPort": 8080,
         "dataRoot": "./build/fs/core-restore/data",
         "cachesRoot": "./build/fs/core-restore/caches"
     },
@@ -79,7 +79,7 @@
         "logLevel": "debug",
         "detachUi": true,
         "routerHost": "127.0.0.1",
-        "routerPort": "8081",
+        "routerPort": 8081,
         "dataRoot": "./build/fs/backup/data",
         "cachesRoot": "./build/fs/backup/caches"
     }

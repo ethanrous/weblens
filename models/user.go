@@ -11,22 +11,23 @@ import (
 )
 
 type User struct {
-	Id            primitive.ObjectID `bson:"_id"`
-	Username      Username           `bson:"username"`
-	Password      string             `bson:"password"`
-	Admin         bool               `bson:"admin"`
-	Activated     bool               `bson:"activated"`
-	IsServerOwner bool               `bson:"owner"`
-	HomeId        fileTree.FileId    `bson:"homeId"`
-	TrashId       fileTree.FileId    `bson:"trashId"`
-
-	// The id of the server instance that created this user
-	CreatedBy InstanceId `bson:"createdBy"`
 
 	// non-database types
 	homeFolder  *fileTree.WeblensFileImpl
 	trashFolder *fileTree.WeblensFileImpl
-	SystemUser  bool
+	Username    Username        `bson:"username"`
+	Password    string          `bson:"password"`
+	HomeId      fileTree.FileId `bson:"homeId"`
+	TrashId     fileTree.FileId `bson:"trashId"`
+
+	// The id of the server instance that created this user
+	CreatedBy InstanceId `bson:"createdBy"`
+
+	Id            primitive.ObjectID `bson:"_id"`
+	Admin         bool               `bson:"admin"`
+	Activated     bool               `bson:"activated"`
+	IsServerOwner bool               `bson:"owner"`
+	SystemUser    bool
 }
 
 func NewUser(username Username, password string, isAdmin, autoActivate bool) (*User, error) {
@@ -58,9 +59,6 @@ func NewUser(username Username, password string, isAdmin, autoActivate bool) (*U
 }
 
 func (u *User) GetUsername() Username {
-	if u == nil {
-		return ""
-	}
 	return u.Username
 }
 

@@ -2,12 +2,13 @@ package jobs_test
 
 import (
 	"context"
-	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/ethanrous/weblens/database"
 	"github.com/ethanrous/weblens/internal/env"
 	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/tests"
 	. "github.com/ethanrous/weblens/jobs"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/models/rest"
@@ -24,17 +25,28 @@ func TestBackupCore(t *testing.T) {
 		t.Skipf("skipping %s in short mode", t.Name())
 	}
 
-	if os.Getenv("REMOTE_TESTS") != "true" {
-		t.Skipf("skipping %s without REMOTE_TESTS set", t.Name())
+	t.Parallel()
+
+	coreServices, err := tests.NewWeblensTestInstance(t.Name(), env.Config{
+		Role: string(models.CoreServerRole),
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	coreAddress := os.Getenv("CORE_ADDRESS")
-	require.NotEmpty(t, coreAddress)
+	coreKeys, err := coreServices.AccessService.GetAllKeys(coreServices.UserService.GetRootUser())
+	require.NoError(t, err)
+	coreApiKey := coreKeys[0].Key
+	coreAddress := env.GetProxyAddress(coreServices.Cnf)
 
-	coreApiKey := os.Getenv("CORE_API_KEY")
-	require.NotEmpty(t, coreApiKey)
+	cnf := env.Config{
+		MongodbUri:  env.GetMongoURI(),
+		MongodbName: "weblens-" + t.Name(),
+		DataRoot:    filepath.Join(env.GetBuildDir(), "fs/test", t.Name(), "data"),
+		CachesRoot:  filepath.Join(env.GetBuildDir(), "fs/test", t.Name(), "cache"),
+	}
 
-	mondb, err := database.ConnectToMongo(env.GetMongoURI("TEST-BACKUP"), env.GetMongoDBName("TEST-BACKUP"))
+	mondb, err := database.ConnectToMongo(cnf.MongodbUri, cnf.MongodbName)
 	require.NoError(t, err)
 	err = mondb.Drop(context.Background())
 	require.NoError(t, err)
@@ -49,7 +61,7 @@ func TestBackupCore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	wp := task.NewWorkerPool(2, log.GetLogLevel())
+	wp := task.NewWorkerPool(2, log.NewEmptyLogPackage())
 	wp.RegisterJob(models.BackupTask, DoBackup)
 
 	instanceService, err := service.NewInstanceService(mondb.Collection("servers"))
@@ -108,4 +120,6 @@ func TestBackupCore(t *testing.T) {
 
 	err = backupTask.ReadError()
 	assert.NoError(t, err)
+
+	coreServices.Server.Stop()
 }

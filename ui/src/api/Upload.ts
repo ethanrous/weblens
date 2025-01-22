@@ -1,11 +1,11 @@
-import { useUploadStatus } from '@weblens/pages/FileBrowser/UploadStateControl'
+import { useUploadStatus } from '@weblens/store/UploadStateControl'
 import { ErrorHandler } from '@weblens/types/Types'
 import { AxiosProgressEvent } from 'axios'
 
 import { FileApi } from './FileBrowserApi'
 import { NewFileParams } from './swag'
 
-export type fileUploadMetadata = {
+export type FileUploadMetadata = {
     file?: File
     entry?: FileSystemEntry
     isDir: boolean
@@ -68,14 +68,14 @@ class PromiseQueue<T> {
     }
 }
 
-const UPLOAD_CHUNK_SIZE: number = 51200000
+export const UPLOAD_CHUNK_SIZE: number = 51200000
 const CONCURRENT_UPLOAD_COUNT = 4
 
 function queueChunks(
-    uploadMeta: fileUploadMetadata,
+    uploadMeta: FileUploadMetadata,
     // isPublic: boolean,
     uploadId: string,
-    // shareId: string,
+    shareId: string,
     taskQueue: PromiseQueue<void>
 ) {
     const file: File = uploadMeta.file
@@ -96,19 +96,20 @@ function queueChunks(
             .createChunk(key, thisChunkIndex, chunkHighByte - chunkLowByte)
 
         chunkTasks.push(async () => {
-            if (useUploadStatus.getState().uploads.get(key).error) {
+            if (useUploadStatus.getState().readError(key)) {
                 console.warn(`Skipping upload with error: ${key}`)
                 return
             }
 
-            // const chunk = await readFile(
-            //     file.slice(chunkLowByte, chunkHighByte)
-            // )
+            console.log(
+                `Uplading file ${file.name} ${uploadMeta.fileId} of size ${file.size}`
+            )
 
             await FileApi.uploadFileChunk(
                 uploadId,
                 uploadMeta.fileId,
                 file.slice(chunkLowByte, chunkHighByte) as File,
+                shareId,
                 {
                     headers: {
                         'Content-Range': `${chunkLowByte}-${chunkHighByte - 1}/${file.size}`,
@@ -117,42 +118,16 @@ function queueChunks(
                     onUploadProgress: (e: AxiosProgressEvent) => {
                         useUploadStatus
                             .getState()
-                            .updateProgress(
-                                key,
-                                thisChunkIndex,
-                                e.loaded
-                            )
+                            .updateProgress(key, thisChunkIndex, e.loaded)
                     },
                 }
-            ).catch((err) => {
+            ).catch((err: Error) => {
                 taskQueue.cancelQueue()
                 useUploadStatus.getState().setError(key, String(err))
-                console.error('Failed to upload chunk', err)
+                ErrorHandler(err)
             })
+            console.log('Finished uploading', file.name)
             useUploadStatus.getState().chunkComplete(key, thisChunkIndex)
-
-            // await uploadChunk(
-            //     file,
-            //     chunkLowByte,
-            //     chunkHighByte,
-            //     uploadId,
-            //     uploadMeta.fileId,
-            //     (bytesWritten: number, bytesPerSecond: number) => {
-            //         useUploadStatus
-            //             .getState()
-            //             .updateProgress(
-            //                 key,
-            //                 thisChunkIndex,
-            //                 bytesWritten,
-            //                 bytesPerSecond ? Math.trunc(bytesPerSecond) : 0
-            //             )
-            //     },
-            //     () => {
-            //         useUploadStatus
-            //             .getState()
-            //             .chunkComplete(key, thisChunkIndex)
-            //     }
-            // )
         })
         chunkIndex++
     }
@@ -161,11 +136,12 @@ function queueChunks(
 }
 
 async function Upload(
-    filesMeta: fileUploadMetadata[],
+    filesMeta: FileUploadMetadata[],
     isPublic: boolean,
     shareId: string,
-    rootFolder: string
+    uploadId: string
 ) {
+    console.debug('Starting upload...')
     const newUpload = useUploadStatus.getState().newUpload
 
     if (isPublic && !shareId) {
@@ -183,33 +159,49 @@ async function Upload(
             ;(meta.entry as FileSystemFileEntry).file((f) => {
                 meta.file = f
             })
-            let count = 0
-            while (!meta.file && count < 1000) {
-                await new Promise((r) => setTimeout(r, 1))
-                count++
-            }
         }
+    }
+
+    let count = 0
+    while (
+        filesMeta.findIndex((v) => !v.isDir && !v.file) !== -1 &&
+        count < 1000
+    ) {
+        console.log(filesMeta[filesMeta.findIndex((v) => !v.file)])
+        console.debug('Upload waiting...')
+        await new Promise((r) => setTimeout(r, 10))
+        count++
+    }
+
+    if (count >= 1000) {
+        console.error('Upload failed: timeout waiting for file objects')
+        return
+    }
+
+    filesMeta = filesMeta.filter(
+        (meta) => meta.isDir || (meta.file && !meta.file.name.startsWith('.'))
+    )
+
+    for (const meta of filesMeta) {
         if (meta.isTopLevel) {
             const name = meta.file?.name ?? meta.entry.name
             const key: string = meta.folderId || meta.parentId + name
-
             newUpload(key, name, meta.isDir, meta.isDir ? 0 : meta.file.size)
             if (meta.isDir) {
                 topDirs.push(meta.folderId)
             }
             hasTopFile = hasTopFile || !meta.isDir
         }
+        if (!meta.isDir) {
+            console.log(
+                `File ${meta.file.name} ${meta.fileId} is of size ${meta.file.size}`
+            )
+        }
     }
 
+    console.log('Collecting files to upload')
     const newFiles: NewFileParams[] = []
-    let totalUploadSize = 0
     filesMeta.forEach((v) => {
-        if (v.file?.size !== undefined) {
-            totalUploadSize += v.file.size
-        } else if (!v.isDir) {
-            console.error('Failed to get file size in upload')
-        }
-
         if (v.isDir) {
             return
         }
@@ -219,28 +211,15 @@ async function Upload(
             fileSize: v.file.size,
         })
     })
+    console.log('Adding all files to upload')
 
-    const res = await FileApi.startUpload({
-        rootFolderId: rootFolder,
-        totalUploadSize: totalUploadSize,
-        chunkSize: UPLOAD_CHUNK_SIZE,
-    }).catch((err) => {
-        // useUploadStatus.getState().setError(key, String(err))
-        ErrorHandler(Error(String(err)))
-    })
-
-    if (!res) {
-        return
-    }
-
-    if (res.status !== 201 || !res.data.uploadId) {
-        console.error('Failed to start upload', res.data)
-        return
-    }
-
-    const newFilesRes = await FileApi.addFilesToUpload(res.data.uploadId, {
-        newFiles: newFiles,
-    }).catch((err) => {
+    const newFilesRes = await FileApi.addFilesToUpload(
+        uploadId,
+        {
+            newFiles: newFiles,
+        },
+        shareId
+    ).catch((err) => {
         console.error('Failed to add files to upload', err)
         for (const dir of topDirs) {
             console.log('Setting error for', dir)
@@ -265,6 +244,7 @@ async function Upload(
     let index = 0
     for (const meta of filesMeta) {
         if (!meta.isDir && meta.file && meta.file.name.startsWith('.')) {
+            index++
             continue
         }
 
@@ -288,7 +268,7 @@ async function Upload(
         if (meta.isDir) {
             continue
         }
-        queueChunks(meta, res.data.uploadId, taskQueue)
+        queueChunks(meta, uploadId, shareId, taskQueue)
     }
     await taskQueue.run()
 }

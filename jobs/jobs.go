@@ -207,8 +207,6 @@ func HandleFileUploads(t *task.Task) {
 		t.ReqNoErr(err)
 	}
 
-	var bottom, top, total int64
-
 	// This map will only be accessed by this task and by this 1 thread,
 	// so we do not need any synchronization here
 	fileMap := map[fileTree.FileId]*models.FileUploadProgress{}
@@ -217,39 +215,109 @@ func HandleFileUploads(t *task.Task) {
 	var usingFiles []fileTree.FileId
 	var topLevels []*fileTree.WeblensFileImpl
 
-	// TODO
-	// Release all the files once we are finished here, if they haven't been already.
-	// This should only be required in error cases, as if all files are successfully
-	// written, they are then unlocked in the main body.
-
-	fileEvent := meta.FileService.GetJournalByTree("USERS").NewEvent()
-	defer func() {
-		if !t.CheckExit() {
-			meta.FileService.GetJournalByTree("USERS").LogEvent(fileEvent)
-		}
-	}()
+	fileEvent := meta.UploadEvent
 
 	timeout := false
 
+	t.SetErrorCleanup(func(*task.Task) {
+		if fileEvent.Logged.Load() {
+			return
+		}
+		log.Trace.Println("Doing error cleanup journal log for upload")
+		meta.FileService.GetJournalByTree("USERS").LogEvent(fileEvent)
+	})
+
+	// Cleanup routine. This must be run even if the upload fails
+	t.SetCleanup(func(t *task.Task) {
+
+		log.Debug.Func(func(l log.Logger) {
+			l.Printf("Upload fileMap has %d remaining and chunk stream has %d remaining", len(fileMap), len(meta.ChunkStream))
+			for _, f := range fileMap {
+				l.Printf("Waiting on File: %s", f.File.AbsPath())
+			}
+		})
+
+		doingRootScan := false
+
+		// Do not report that this task pool was created by this task, we want to detach
+		// and allow these scans to take place independently
+		newTp := t.GetTaskPool().GetWorkerPool().NewTaskPool(false, nil)
+		for _, tl := range topLevels {
+			if tl.IsDir() {
+				err = meta.FileService.ResizeDown(tl, fileEvent, meta.Caster)
+				if err != nil {
+					t.ReqNoErr(err)
+				}
+
+				if !timeout {
+					scanMeta := models.ScanMeta{
+						File:         tl,
+						FileService:  meta.FileService,
+						TaskService:  meta.TaskService,
+						MediaService: meta.MediaService,
+						TaskSubber:   meta.TaskSubber,
+					}
+					_, err = t.GetTaskPool().GetWorkerPool().DispatchJob(models.ScanDirectoryTask, scanMeta, newTp)
+					if err != nil {
+						log.ErrTrace(err)
+						continue
+					}
+				}
+			} else if !doingRootScan && !timeout {
+				scanMeta := models.ScanMeta{
+					File:         rootFile,
+					FileService:  meta.FileService,
+					TaskService:  meta.TaskService,
+					MediaService: meta.MediaService,
+					TaskSubber:   meta.TaskSubber,
+				}
+				_, err = t.GetTaskPool().GetWorkerPool().DispatchJob(models.ScanDirectoryTask, scanMeta, newTp)
+				if err != nil {
+					log.ErrTrace(err)
+					continue
+				}
+				doingRootScan = true
+			}
+			media := meta.MediaService.Get(tl.GetContentId())
+			if tl.IsDir() {
+				meta.Caster.PushFileUpdate(tl, media)
+			}
+		}
+		newTp.SignalAllQueued()
+
+		err = meta.FileService.ResizeUp(rootFile, fileEvent, meta.Caster)
+		if err != nil {
+			log.ErrTrace(err)
+		}
+
+		meta.FileService.GetJournalByTree("USERS").LogEvent(fileEvent)
+		fileEvent.Wait()
+
+		if newTp.Status().Total != 0 {
+			newTp.AddCleanup(
+				func(_ task.Pool) {
+					meta.Caster.Close()
+				},
+			)
+		} else {
+			meta.Caster.Close()
+		}
+	})
+
 WriterLoop:
 	for {
-		t.SetTimeout(time.Now().Add(time.Second * 10))
+		t.SetTimeout(time.Now().Add(time.Second * 60))
 		select {
 		case signal := <-t.GetSignalChan(): // Listen for cancellation
 			if signal == 1 {
 				timeout = true
 				break WriterLoop
 			}
-		// case <-time.After(time.Second * 10):
-		// 	timeout = true
-		// 	break WriterLoop
 		case chunk := <-meta.ChunkStream:
 			t.ClearTimeout()
 
-			bottom, top, total, err = parseRangeHeader(chunk.ContentRange)
-			if err != nil {
-				t.ReqNoErr(err)
-			}
+			bottom, top, total, err := parseRangeHeader(chunk.ContentRange)
+			t.ReqNoErr(err)
 
 			if chunk.NewFile != nil {
 
@@ -271,6 +339,9 @@ WriterLoop:
 					usingFiles, chunk.NewFile.ID(),
 					func(a, b fileTree.FileId) int { return strings.Compare(string(a), string(b)) },
 				)
+
+				log.Trace.Printf("New upload [%s] of size [%d bytes]", chunk.NewFile.GetPortablePath(), total)
+
 				continue WriterLoop
 			}
 
@@ -278,9 +349,14 @@ WriterLoop:
 			// the specific file has had an error or been canceled, and should be removed.
 			if total == -1 {
 				delete(fileMap, chunk.FileId)
+				continue
 			}
 
 			chnk := fileMap[chunk.FileId]
+
+			if chnk.FileSizeTotal != total {
+				t.Fail(werror.Errorf("upload size mismatch for file [%s / %s] (%d != %d)", chnk.File.GetPortablePath(), chnk.File.ID(), chnk.FileSizeTotal, total))
+			}
 
 			// Add the new bytes to the counter for the file-size of this file.
 			// If we upload content in range e.g. 0-1 bytes, that includes 2 bytes,
@@ -306,12 +382,18 @@ WriterLoop:
 				// or the journal worker will beat us to it, which could break if importing
 				// the file media shortly after uploading here.
 				chnk.File.SetContentId(service.ContentIdFromHash(chnk.Hash))
+				if chnk.File.GetContentId() == "" {
+					t.Fail(werror.Errorf("failed to generate contentId for file upload [%s]", chnk.File.AbsPath()))
+				}
 
 				if !chnk.File.IsDir() {
 					meta.Caster.PushFileCreate(chnk.File)
 				}
 
-				fileEvent.NewCreateAction(chnk.File)
+				newAction := fileEvent.NewCreateAction(chnk.File)
+				if newAction == nil {
+					t.Fail(werror.Errorf("failed to create new file action on upload for [%s]", chnk.File.AbsPath()))
+				}
 
 				// Remove the file from our local map
 				i, e := slices.BinarySearchFunc(
@@ -323,6 +405,11 @@ WriterLoop:
 				}
 				delete(fileMap, chunk.FileId)
 			}
+			log.Trace.Func(func(l log.Logger) {
+				if chnk.BytesWritten < chnk.FileSizeTotal {
+					l.Printf("%s has not finished uploading yet %d of %d", chnk.File.AbsPath(), chnk.BytesWritten, chnk.FileSizeTotal)
+				}
+			})
 
 			// When we have no files being worked on, and there are no more
 			// chunks to write, we are finished.
@@ -332,71 +419,6 @@ WriterLoop:
 			t.ExitIfSignaled()
 			continue WriterLoop
 		}
-	}
-
-	t.ExitIfSignaled()
-
-	doingRootScan := false
-
-	// Do not report that this task pool was created by this task, we want to detach
-	// and allow these scans to take place independently
-	newTp := t.GetTaskPool().GetWorkerPool().NewTaskPool(false, nil)
-	for _, tl := range topLevels {
-		if tl.IsDir() {
-			err = meta.FileService.ResizeDown(tl, meta.Caster)
-			if err != nil {
-				t.ReqNoErr(err)
-			}
-
-			if !timeout {
-				scanMeta := models.ScanMeta{
-					File:         tl,
-					FileService:  meta.FileService,
-					TaskService:  meta.TaskService,
-					MediaService: meta.MediaService,
-					TaskSubber:   meta.TaskSubber,
-				}
-				_, err = t.GetTaskPool().GetWorkerPool().DispatchJob(models.ScanDirectoryTask, scanMeta, newTp)
-				if err != nil {
-					log.ErrTrace(err)
-					continue
-				}
-			}
-		} else if !doingRootScan && !timeout {
-			scanMeta := models.ScanMeta{
-				File:         rootFile,
-				FileService:  meta.FileService,
-				TaskService:  meta.TaskService,
-				MediaService: meta.MediaService,
-				TaskSubber:   meta.TaskSubber,
-			}
-			_, err = t.GetTaskPool().GetWorkerPool().DispatchJob(models.ScanDirectoryTask, scanMeta, newTp)
-			if err != nil {
-				log.ErrTrace(err)
-				continue
-			}
-			doingRootScan = true
-		}
-		media := meta.MediaService.Get(tl.GetContentId())
-		if tl.IsDir() {
-			meta.Caster.PushFileUpdate(tl, media)
-		}
-	}
-	newTp.SignalAllQueued()
-
-	err = meta.FileService.ResizeUp(rootFile, meta.Caster)
-	if err != nil {
-		t.ReqNoErr(err)
-	}
-
-	if newTp.Status().Total != 0 {
-		newTp.AddCleanup(
-			func(_ task.Pool) {
-				meta.Caster.Close()
-			},
-		)
-	} else {
-		meta.Caster.Close()
 	}
 
 	log.Debug.Printf("Finished writing upload files for %s", rootFile.GetPortablePath())
@@ -456,7 +478,11 @@ func HashFile(t *task.Task) {
 	contentId, err := service.GenerateContentId(meta.File)
 	t.ReqNoErr(err)
 
-	log.Trace.Func(func(l log.Logger) { l.Printf("Hashed file %s to %s", meta.File.GetPortablePath(), contentId) })
+	if contentId == "" && meta.File.Size() != 0 {
+		t.Fail(werror.ErrNoContentId)
+	}
+
+	log.Trace.Func(func(l log.Logger) { l.Printf("Hashed file [%s] to [%s]", meta.File.GetPortablePath(), contentId) })
 
 	// TODO - sync database content id if this file is created before being added to db (i.e upload)
 	// err = dataStore.SetContentId(meta.file, contentId)

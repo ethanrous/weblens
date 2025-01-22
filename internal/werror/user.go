@@ -3,25 +3,25 @@ package werror
 import "errors"
 
 var ErrUserNotActive = errors.New("user is not active")
-var ErrUserAlreadyExists = clientSafeErr{realError: errors.New("user already exists"), statusCode: 409}
+var ErrUserAlreadyExists = ClientSafeErr{realError: errors.New("user already exists"), statusCode: 409}
 
 var ErrBadUserOrPass = errors.New("username or password is incorrect")
 
-var ErrBadPassword = clientSafeErr{
+var ErrBadPassword = ClientSafeErr{
 	realError:  errors.New("password provided does not authenticate user"),
 	safeErr:    ErrBadUserOrPass,
 	statusCode: 404,
 }
 
-var ErrNoUserLogin = clientSafeErr{
+var ErrNoUserLogin = ClientSafeErr{
 	realError:  errors.New("could not find user to login"),
 	safeErr:    ErrBadUserOrPass,
 	statusCode: 404,
 }
 
-var ErrNoUser = clientSafeErr{
+var ErrNoUser = ClientSafeErr{
 	safeErr:    errors.New("could not find user"),
 	statusCode: 404,
 }
 
-var ErrCtxMissingUser = clientSafeErr{realError: errors.New("user not found in context"), statusCode: 500}
+var ErrCtxMissingUser = ClientSafeErr{realError: errors.New("user not found in context"), statusCode: 500}

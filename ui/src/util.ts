@@ -110,8 +110,6 @@ export function friendlyFolderName(
         return 'Home'
     } else if (folderId === usr.trashId) {
         return 'Trash'
-    } else if (folderName === usr.username) {
-        return 'Home'
     } else if (folderName === '.user_trash') {
         return 'Trash'
     }

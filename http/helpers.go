@@ -39,12 +39,16 @@ func getServices(r *http.Request) *models.ServicePack {
 	return srv.(*models.ServicePack)
 }
 
+// SafeErrorAndExit reads the given error, and if not nil will write to the
+// response writer the correct http code and json error response. It returns
+// true if there is an error and the http request should be terminated, and
+// false if the error is nil
 func SafeErrorAndExit(err error, w http.ResponseWriter) (shouldExit bool) {
 	if err == nil {
 		return false
 	}
 
-	safe, code := werror.TrySafeErr(err)
+	safe, code := log.TrySafeErr(err)
 	writeError(w, code, safe)
 	return true
 }
@@ -56,19 +60,16 @@ func SafeErrorAndExit(err error, w http.ResponseWriter) (shouldExit bool) {
 func readCtxBody[T any](w http.ResponseWriter, r *http.Request) (obj T, err error) {
 	if r.Method == "GET" {
 		err = errors.New("trying to get body of get request")
-		log.ShowErr(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	jsonData, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.ShowErr(err)
 		writeJson(w, http.StatusInternalServerError, map[string]any{"error": "Could not read request body"})
 		return
 	}
 	err = json.Unmarshal(jsonData, &obj)
 	if err != nil {
-		log.ShowErr(err)
 		writeJson(w, http.StatusBadRequest, map[string]any{"error": "Request body is not in expected JSON format"})
 		return
 	}
@@ -153,9 +154,9 @@ func getShareFromCtx[T models.Share](w http.ResponseWriter, r *http.Request) (T,
 }
 
 type FileStat struct {
+	ModTime time.Time `json:"modifyTimestamp"`
 	Name    string    `json:"name"`
 	Size    int64     `json:"size"`
 	IsDir   bool      `json:"isDir"`
-	ModTime time.Time `json:"modifyTimestamp"`
 	Exists  bool      `json:"exists"`
 }

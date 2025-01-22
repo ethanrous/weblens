@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	. "github.com/ethanrous/weblens/task"
 	"github.com/stretchr/testify/assert"
@@ -16,7 +17,9 @@ var subpoolJobName = "Test Subpool Job"
 func TestWorkerPoolBasic(t *testing.T) {
 	t.Parallel()
 
-	wp := NewWorkerPool(2, -1)
+	wpLogger := log.NewEmptyLogPackage()
+
+	wp := NewWorkerPool(2, wpLogger)
 	wp.RegisterJob(jobName, testJob)
 
 	wp.Run()
@@ -38,7 +41,9 @@ func TestSubPool(t *testing.T) {
 
 	t.Parallel()
 
-	wp := NewWorkerPool(2, -1)
+	wpLogger := log.NewEmptyLogPackage()
+
+	wp := NewWorkerPool(2, wpLogger)
 	wp.RegisterJob(jobName, testJob)
 	wp.RegisterJob(subpoolJobName, testSubpoolJob)
 	wp.Run()
@@ -68,7 +73,9 @@ func TestSubPool(t *testing.T) {
 func TestFailedJob(t *testing.T) {
 	t.Parallel()
 
-	wp := NewWorkerPool(2, -1)
+	wpLogger := log.NewEmptyLogPackage()
+
+	wp := NewWorkerPool(2, wpLogger)
 	wp.RegisterJob(jobName, testJob)
 	wp.RegisterJob(subpoolJobName, testSubpoolJob)
 	wp.Run()

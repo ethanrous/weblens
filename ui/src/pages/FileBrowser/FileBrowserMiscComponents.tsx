@@ -19,6 +19,7 @@ import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensTooltip from '@weblens/lib/WeblensTooltip'
 import { ButtonIcon } from '@weblens/lib/buttonTypes'
 import historyStyle from '@weblens/pages/FileBrowser/style/historyStyle.module.scss'
+import { ErrorHandler } from '@weblens/types/Types'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import { FbMenuModeT, WeblensFile } from '@weblens/types/files/File'
 import { PhotoQuality } from '@weblens/types/media/Media'
@@ -28,7 +29,7 @@ import User from '@weblens/types/user/User'
 import { friendlyFolderName, humanFileSize } from '@weblens/util'
 import { FC, ReactElement, memo, useState } from 'react'
 
-import { FbModeT, useFileBrowserStore } from './FBStateControl'
+import { FbModeT, useFileBrowserStore } from '../../store/FBStateControl'
 import { HandleUploadButton, filenameFromPath } from './FileBrowserLogic'
 import fbStyle from './style/fileBrowserStyle.module.scss'
 
@@ -322,7 +323,7 @@ export function GetStartedCard() {
                                     folderInfo.Id(),
                                     false,
                                     ''
-                                )
+                                ).catch(ErrorHandler)
                             }}
                             accept="file"
                             multiple

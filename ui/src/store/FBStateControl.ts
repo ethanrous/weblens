@@ -14,7 +14,10 @@ import { NavigateFunction, NavigateOptions, To } from 'react-router-dom'
 import { StateCreator, create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 
-import { DirViewModeT, FbViewOptsT } from './FileBrowserTypes'
+import {
+    DirViewModeT,
+    FbViewOptsT,
+} from '../pages/FileBrowser/FileBrowserTypes'
 
 export enum FbModeT {
     unset,
@@ -890,14 +893,11 @@ const FBStateControl: StateCreator<
                     continue
                 }
                 if (newFileInfo.id === user.trashId) {
-                    // if (!newFileInfo.pastFile) {
-                    //     state.trashDirSize = newFileInfo.size
-                    // }
                     continue
                 }
 
                 const file = new WeblensFile(newFileInfo)
-                if (selfFile.Id() == 'shared') {
+                if (selfFile?.Id() === 'shared') {
                     file.parentId = selfFile.Id()
                 }
                 changedFiles = true
@@ -981,9 +981,15 @@ const FBStateControl: StateCreator<
 
             if (!state.holdingShift) {
                 if (state.lastSelectedId) {
-                    state.filesMap
-                        .get(state.lastSelectedId)
-                        .UnsetSelected(SelectedState.LastSelected)
+                    const lastSelected = state.filesMap.get(
+                        state.lastSelectedId
+                    )
+
+                    if (!lastSelected) {
+                        state.lastSelectedId = ''
+                    } else {
+                        lastSelected.UnsetSelected(SelectedState.LastSelected)
+                    }
                 }
 
                 if (exclusive) {

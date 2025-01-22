@@ -47,7 +47,7 @@ export class SingleUpload {
 
     incFiles() {
         this.files += 1
-        if (this.files == this.filesTotal) {
+        if (this.files === this.filesTotal) {
             this.complete = true
         }
     }
@@ -173,10 +173,12 @@ export interface UploadStatusStateT {
     updateProgress: (key: string, chunk: number, progress: number) => void
     chunkComplete: (key: string, chunkIndex: number) => void
     setError: (key: string, error: string) => void
+    readError: (key: string) => string
     clearUploads: () => void
 }
 const UploadStatusControl: StateCreator<UploadStatusStateT, [], []> = (
-    set
+    set,
+    get
 ) => ({
     uploads: new Map<string, SingleUpload>(),
 
@@ -284,6 +286,20 @@ const UploadStatusControl: StateCreator<UploadStatusStateT, [], []> = (
             state.uploads.set(upload.key, upload)
             return { uploads: new Map(state.uploads) }
         })
+    },
+
+    readError: (key: string): string => {
+        const state = get()
+        let upload = state.uploads.get(key)
+        if (upload?.parent) {
+            upload = state.uploads.get(upload.parent)
+        }
+        if (!upload) {
+            console.error('Could not find upload with key', key)
+            return
+        }
+
+        return upload.error
     },
 
     clearUploads: () => {

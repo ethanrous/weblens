@@ -3,7 +3,6 @@ import '@mantine/core/styles.css'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import axios from 'axios'
 import React, { Suspense, useEffect } from 'react'
-import { CookiesProvider } from 'react-cookie'
 import {
     BrowserRouter as Router,
     useLocation,
@@ -15,10 +14,13 @@ import MediaApi from './api/MediaApi'
 import ErrorBoundary from './components/Error'
 import Logo from './components/Logo'
 import useR, { useSessionStore } from './components/UserInfo'
+import { useKeyDown } from './components/hooks'
 import Backup from './pages/Backup/Backup'
 import StartUp from './pages/Startup/StartupPage'
+import { SettingsMenu } from './pages/UserSettings/Settings'
 import { ErrorHandler } from './types/Types'
 import { useMediaStore } from './types/media/MediaStateControl'
+import { toggleLightTheme } from './util'
 
 const Gallery = React.lazy(() => import('./pages/Gallery/Gallery'))
 const FileBrowser = React.lazy(() => import('./pages/FileBrowser/FileBrowser'))
@@ -194,6 +196,12 @@ const PageSwitcher = () => {
         </Suspense>
     )
 
+    const settingsPage = (
+        <Suspense fallback={<PageLoader />}>
+            <SettingsMenu />
+        </Suspense>
+    )
+
     const Gal = useRoutes([
         { path: '/', element: galleryPage },
         { path: '/timeline', element: galleryPage },
@@ -203,6 +211,7 @@ const PageSwitcher = () => {
         { path: '/login', element: loginPage },
         { path: '/setup', element: setupPage },
         { path: '/backup', element: backupPage },
+        { path: '/settings/*', element: settingsPage },
     ])
 
     return Gal
@@ -212,13 +221,15 @@ function App() {
     document.documentElement.style.overflow = 'hidden'
     document.body.className = 'body'
 
+    useKeyDown('t', () => {
+        toggleLightTheme()
+    })
+
     return (
         <MantineProvider defaultColorScheme="dark">
-            <CookiesProvider defaultSetOptions={{ path: '/' }}>
-                <Router>
-                    <WeblensRoutes />
-                </Router>
-            </CookiesProvider>
+            <Router>
+                <WeblensRoutes />
+            </Router>
         </MantineProvider>
     )
 }

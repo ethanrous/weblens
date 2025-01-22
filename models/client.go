@@ -21,14 +21,14 @@ type ClientId = string
 var _ Client = (*WsClient)(nil)
 
 type WsClient struct {
-	Active        atomic.Bool
-	connId        ClientId
 	conn          *websocket.Conn
-	updateMu      sync.Mutex
-	subsMu        sync.Mutex
-	subscriptions []Subscription
 	user          *User
 	remote        *Instance
+	connId        ClientId
+	subscriptions []Subscription
+	updateMu      sync.Mutex
+	subsMu        sync.Mutex
+	Active        atomic.Bool
 }
 
 func NewClient(conn *websocket.Conn, socketUser SocketUser) *WsClient {
@@ -77,11 +77,14 @@ func (wsc *WsClient) GetRemote() *Instance {
 }
 
 func (wsc *WsClient) ReadOne() (int, []byte, error) {
+	if wsc.conn == nil || !wsc.Active.Load() {
+		return 0, nil, werror.Errorf("client is closed")
+	}
 	return wsc.conn.ReadMessage()
 }
 
 func (wsc *WsClient) Error(err error) {
-	safe, _ := werror.TrySafeErr(err)
+	safe, _ := log.TrySafeErr(err)
 	err = wsc.Send(WsResponseInfo{EventTag: "error", Error: safe.Error()})
 	log.ErrTrace(err)
 }
@@ -162,11 +165,8 @@ func (wsc *WsClient) RemoveSubscription(key SubId) {
 		wsc.updateMu.Unlock()
 		return
 	}
-	var subToRemove Subscription
-	wsc.subscriptions, subToRemove = internal.Yoink(wsc.subscriptions, subIndex)
+	wsc.subscriptions, _ = internal.Yoink(wsc.subscriptions, subIndex)
 	wsc.updateMu.Unlock()
-
-	log.Trace.Func(func(l log.Logger) { l.Printf("[%s] unsubscribing from %s", wsc.user.GetUsername(), subToRemove) })
 }
 
 func (wsc *WsClient) Raw(msg any) error {
@@ -182,11 +182,15 @@ func (wsc *WsClient) SubUnlock() {
 }
 
 func (wsc *WsClient) Send(msg WsResponseInfo) error {
+	if msg.SentTime == 0 {
+		msg.SentTime = time.Now().UnixMilli()
+	}
+
 	if wsc != nil && wsc.Active.Load() {
 		wsc.updateMu.Lock()
 		defer wsc.updateMu.Unlock()
 
-		log.Debug.Func(func(l log.Logger) { l.Printf("Sending [%s] event to client [%s]", msg.EventTag, wsc.getClientName()) })
+		log.Trace.Func(func(l log.Logger) { l.Printf("Sending [%s] event to client [%s]", msg.EventTag, wsc.getClientName()) })
 
 		err := wsc.conn.WriteJSON(msg)
 		if err != nil {

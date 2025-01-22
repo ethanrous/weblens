@@ -45,6 +45,8 @@ func (h *HollowJournalService) LogEvent(fe *fileTree.FileEvent) {
 	}
 }
 
+func (h *HollowJournalService) Flush() {}
+
 func (h *HollowJournalService) GetActionsByPath(filepath fileTree.WeblensFilepath) ([]*fileTree.FileAction, error) {
 	return nil, nil
 }

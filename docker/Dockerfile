@@ -4,7 +4,7 @@ FROM alpine:latest
 
 RUN apk upgrade --no-cache
 RUN apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community --repository http://dl-3.alpinelinux.org/alpine/edge/main vips
-RUN apk add --no-cache imagemagick exiftool ffmpeg
+RUN apk add --no-cache imagemagick exiftool ffmpeg tiff libraw libpng libwebp
 
 WORKDIR /app
 COPY ui/dist /app/ui/dist

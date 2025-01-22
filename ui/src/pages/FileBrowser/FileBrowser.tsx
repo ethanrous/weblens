@@ -57,19 +57,23 @@ import {
 } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
+import {
+    FbModeT,
+    ShareRoot,
+    useFileBrowserStore,
+} from '../../store/FBStateControl'
 import { DraggingCounter, TransferCard } from './DropSpot'
-import { FbModeT, ShareRoot, useFileBrowserStore } from './FBStateControl'
 import {
     HandleUploadButton,
     getRealId,
-    historyDate,
+    historyDateTime,
     uploadViaUrl,
     useKeyDownFileBrowser,
     usePaste,
 } from './FileBrowserLogic'
 import { DirViewWrapper, WebsocketStatus } from './FileBrowserMiscComponents'
 import { DirViewModeT } from './FileBrowserTypes'
-import FileInfoPane from './FileInfoPane'
+import FileHistoryPane from './FileHistoryPane'
 import FileSortBox from './FileSortBox'
 import SearchDialogue from './SearchDialogue'
 import { TasksDisplay } from './TaskProgress'
@@ -139,11 +143,16 @@ function TrashSize() {
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const trashSize = useFileBrowserStore((state) => state.trashDirSize)
     const mode = useFileBrowserStore((state) => state.fbMode)
+    const pastTime = useFileBrowserStore((state) => state.pastTime)
     const user = useSessionStore((state) => state.user)
     if (trashSize <= 0) {
         return null
     }
     const [trashSizeValue, trashSizeUnit] = humanFileSize(trashSize)
+
+    if (pastTime.getTime() !== 0) {
+        return null
+    }
 
     return (
         <div
@@ -422,7 +431,7 @@ function GlobalActions() {
                                     folderInfo.Id(),
                                     false,
                                     ''
-                                )
+                                ).catch(ErrorHandler)
                             }}
                             accept="file"
                             multiple
@@ -481,6 +490,7 @@ const UsageInfo = () => {
     const trashSize = useFileBrowserStore((state) => state.trashDirSize)
     const selected = useFileBrowserStore((state) => state.selected)
     const filesMap = useFileBrowserStore((state) => state.filesMap)
+    const pastTime = useFileBrowserStore((state) => state.pastTime)
 
     const selectedLength = selected.size
 
@@ -507,15 +517,6 @@ const UsageInfo = () => {
             return { selectedFileSize, selectedFolderCount, selectedFileCount }
         }, [selectedLength])
 
-    if (
-        folderInfo?.Id() === 'shared' ||
-        user === null ||
-        homeSize === -1 ||
-        trashSize === -1
-    ) {
-        return null
-    }
-
     let displaySize = folderInfo?.GetSize() || 0
 
     if (folderInfo?.Id() !== user.trashId) {
@@ -528,11 +529,14 @@ const UsageInfo = () => {
 
     const doGlobalSize = selectedLength === 0 && mode !== FbModeT.share
 
-    let usagePercent = doGlobalSize
-        ? (displaySize / homeSize) * 100
-        : (selectedFileSize / displaySize) * 100
-    if (!usagePercent || (selectedLength !== 0 && displaySize === 0)) {
-        usagePercent = 0
+    let usagePercent = 100
+    if (pastTime.getTime() === 0) {
+        usagePercent = doGlobalSize
+            ? (displaySize / homeSize) * 100
+            : (selectedFileSize / displaySize) * 100
+        if (!usagePercent || (selectedLength !== 0 && displaySize === 0)) {
+            usagePercent = 0
+        }
     }
 
     const miniMode = size.width !== -1 && size.width < 100
@@ -541,6 +545,25 @@ const UsageInfo = () => {
     let EndIcon = doGlobalSize ? IconHome : IconFolder
     if (miniMode) {
         ;[StartIcon, EndIcon] = [EndIcon, StartIcon]
+    }
+
+    let startSize = doGlobalSize
+        ? humanFileSize(displaySize).join(' ')
+        : humanFileSize(selectedFileSize).join(' ')
+
+    let endSize = doGlobalSize
+        ? humanFileSize(homeSize).join(' ')
+        : humanFileSize(displaySize).join(' ')
+
+    if (
+        pastTime.getTime() !== 0 ||
+        folderInfo?.Id() === 'shared' ||
+        user === null ||
+        homeSize === -1 ||
+        trashSize === -1
+    ) {
+        startSize = '--'
+        endSize = '--'
     }
 
     return (
@@ -580,9 +603,7 @@ const UsageInfo = () => {
                                 display: miniMode ? 'none' : 'block',
                             }}
                         >
-                            {doGlobalSize
-                                ? humanFileSize(displaySize)
-                                : humanFileSize(selectedFileSize)}
+                            {startSize}
                         </p>
                     </div>
                 )}
@@ -593,9 +614,7 @@ const UsageInfo = () => {
                             display: miniMode ? 'none' : 'block',
                         }}
                     >
-                        {doGlobalSize
-                            ? humanFileSize(homeSize)
-                            : humanFileSize(displaySize)}
+                        {endSize}
                     </p>
                     {<EndIcon className={theme['background-icon']} />}
                 </div>
@@ -725,7 +744,7 @@ function DirViewHeader() {
                         className="crumb-text ml-2 text-xl"
                         style={{ opacity: hoverTime ? 0 : 1 }}
                     >
-                        {historyDate(pastTime.getTime())}
+                        {historyDateTime(pastTime.getTime())}
                     </p>
                 </div>
             )}
@@ -830,7 +849,7 @@ function DirView({
                         </div>
                     </div>
                 </div>
-                {user.isLoggedIn && <FileInfoPane />}
+                {user.isLoggedIn && <FileHistoryPane />}
             </div>
         </div>
     )
@@ -883,7 +902,6 @@ function FileBrowser() {
         setSelected,
         clearSelected,
         setFilesData,
-        setBlockFocus,
     } = useFileBrowserStore()
 
     useEffect(() => {
@@ -993,7 +1011,7 @@ function FileBrowser() {
             const folder = filesMap.get(contentId)
             if (
                 folder &&
-                (!pastTime || folder.modifyDate === pastTime) &&
+                (pastTime.getTime() === 0 || folder.modifyDate === pastTime) &&
                 (folder.GetFetching() ||
                     (folder.modifiable !== undefined &&
                         folder.childrenIds &&
@@ -1098,7 +1116,7 @@ function FileBrowser() {
 
     return (
         <div className="h-screen flex flex-col">
-            <HeaderBar setBlockFocus={setBlockFocus} page={'files'} />
+            <HeaderBar />
             <DraggingCounter />
             <PresentationFile file={filesMap.get(presentingId)} />
             {pasteImgBytes && <PasteImageDialogue />}

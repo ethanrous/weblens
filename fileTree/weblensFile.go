@@ -40,50 +40,59 @@ var _ http.File = (*WeblensFileImpl)(nil)
 type FileId = string
 
 type WeblensFileImpl struct {
+
+	// The most recent time that this file was changes on the real filesystem
+	modifyDate time.Time
+
+	// is the real file on disk a directory or regular file
+	isDir *bool
+
+	// Pointer to the directory that this file belongs
+	parent *WeblensFileImpl
+
+	childrenMap map[string]*WeblensFileImpl
+
+	// The portable filepath of the file. This path can be safely translated between
+	// systems with trees using the same root alias
+	portablePath WeblensFilepath
+
 	// the main way to identify a file. A file id is generated via a hash of its relative filepath
 	id FileId
 
 	// The absolute path of the real file on disk
 	absolutePath string
 
-	// The portable filepath of the file. This path can be safely translated between
-	// systems with trees using the same root alias
-	portablePath WeblensFilepath
-
 	// Base of the filepath, the actual name of the file.
 	filename string
-
-	// size in bytes of the file on the disk
-	size atomic.Int64
-
-	// is the real file on disk a directory or regular file
-	isDir *bool
-
-	// The most recent time that this file was changes on the real filesystem
-	modifyDate time.Time
-
-	writeHead int64
 
 	contentId string
 
 	parentId FileId
-	// Pointer to the directory that this file belongs
-	parent *WeblensFileImpl
 
-	// If we already have added the file to the watcher
-	// See fileWatch.go
-	watching bool
+	// the id of the file in the past, if a new file is occupying the same path as this file
+	pastId string
+
+	childIds []FileId
+
+	buffer []byte
+
+	// size in bytes of the file on the disk
+	size atomic.Int64
+
+	writeHead int64
 
 	// If this file is a directory, these are the files that are housed by this directory.
-	childLock   sync.RWMutex
-	childrenMap map[string]*WeblensFileImpl
-	childIds    []FileId
+	childLock sync.RWMutex
 
 	// General RW lock on file updates to prevent data races
 	updateLock sync.RWMutex
 
 	// Lock to atomize long file events
 	fileLock sync.Mutex
+
+	// If we already have added the file to the watcher
+	// See fileWatch.go
+	watching bool
 
 	// Mark file as read-only internally.
 	// This should be checked before any write action is to be performed.
@@ -98,7 +107,6 @@ type WeblensFileImpl struct {
 	// memOnly if the file is meant to only be stored in memory,
 	// writing to it will only write to the buffer
 	memOnly bool
-	buffer  []byte
 }
 
 func NewWeblensFile(id FileId, filename string, parent *WeblensFileImpl, isDir bool) *WeblensFileImpl {
@@ -188,6 +196,12 @@ func (f *WeblensFileImpl) GetPortablePath() WeblensFilepath {
 	f.updateLock.RLock()
 	defer f.updateLock.RUnlock()
 	return f.portablePath
+}
+
+func (f *WeblensFileImpl) GetPastId() FileId {
+	f.updateLock.RLock()
+	defer f.updateLock.RUnlock()
+	return f.pastId
 }
 
 // Exists check if the file exists on the real filesystem below
@@ -354,7 +368,7 @@ func (f *WeblensFileImpl) Write(data []byte) (int, error) {
 		return len(data), nil
 	}
 
-	err := os.WriteFile(f.AbsPath(), data, 0660)
+	err := os.WriteFile(f.AbsPath(), data, 0600)
 	if err == nil {
 		f.size.Store(int64(len(data)))
 		f.modifyDate = time.Now()
@@ -438,7 +452,7 @@ func (f *WeblensFileImpl) GetChildren() []*WeblensFileImpl {
 	f.childLock.RLock()
 	defer f.childLock.RUnlock()
 
-	return internal.SliceConvert[*WeblensFileImpl](slices.Collect(maps.Values(f.childrenMap)))
+	return slices.Collect(maps.Values(f.childrenMap))
 }
 
 func (f *WeblensFileImpl) AddChild(child *WeblensFileImpl) error {

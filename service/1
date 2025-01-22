@@ -1,282 +1,0 @@
- 1/33 [90m./1[39m [37m103.31ms[39m
- 2/33 [90m./accessService_test.go[39m [37m42.14ms[39m[31m X[39m
- 3/33 [90m./accessServiceImpl.go[39m [37m21.72ms[39m[31m X[39m
- 4/33 [90m./albumService_test.go[39m [37m3.45ms[39m[31m X[39m
- 5/33 [90m./albumServiceImpl.go[39m [37m10.90ms[39m[31m X[39m
- 6/33 [90m./clientManagerImpl.go[39m [37m22.03ms[39m[31m X[39m
- 7/33 [90m./fileService_test.go[39m [37m15.28ms[39m[31m X[39m
- 8/33 [90m./fileServiceImpl.go[39m [37m48.53ms[39m[31m X[39m
- 9/33 [90m./instanceService_test.go[39m [37m15.55ms[39m[31m X[39m
-10/33 [90m./instanceServiceImpl.go[39m [37m23.70ms[39m[31m X[39m
-11/33 [90m./mediaService_test.go[39m [37m25.11ms[39m[31m X[39m
-12/33 [90m./mediaServiceImpl.go[39m [37m51.01ms[39m[31m X[39m
-13/33 [90m./mock/memFileTree.go[39m [37m4.97ms[39m[31m X[39m
-14/33 [90m./mock/mockAccessService.go[39m [37m0.43ms[39m
-15/33 [90m./mock/mockAlbumService.go[39m [37m2.12ms[39m
-16/33 [90m./mock/mockCaster.go[39m [37m2.86ms[39m
-17/33 [90m./mock/mockClientService.go[39m [37m2.89ms[39m
-18/33 [90m./mock/mockFileService.go[39m [37m8.10ms[39m
-19/33 [90m./mock/mockHasher.go[39m [37m1.82ms[39m
-20/33 [90m./mock/mockJournalService.go[39m [37m3.13ms[39m
-21/33 [90m./mock/mockMediaService.go[39m [37m3.85ms[39m
-22/33 [90m./mock/mockMongoCollection.go[39m [37m3.33ms[39m
-23/33 [90m./proxy/proxy.go[39m [37m5.19ms[39m[31m X[39m
-24/33 [90m./proxy/proxyFileService.go[39m [37m6.90ms[39m
-25/33 [90m./proxy/proxyJournalService.go[39m [37m5.62ms[39m[31m X[39m
-26/33 [90m./proxy/proxyMediaService.go[39m [37m3.83ms[39m
-27/33 [90m./proxy/proxyUserService.go[39m [37m4.42ms[39m
-28/33 [90m./service_test.go[39m [37m1.73ms[39m[31m X[39m
-29/33 [90m./shareService_test.go[39m [37m13.02ms[39m[31m X[39m
-30/33 [90m./shareServiceImpl.go[39m [37m11.89ms[39m[31m X[39m
-31/33 [90m./userService_test.go[39m [37m8.68ms[39m[31m X[39m
-32/33 [90m./userServiceImpl.go[39m [37m10.07ms[39m[31m X[39m
-33/33 [90m./webdavFs.go[39m [37m4.66ms[39m[31m X[39m
--------------------------------------------
-Issues found:
-[32m./accessService_test.go[39m:[33m11:14[39m - Unknown word ([31mstretchr[39m)
-[32m./accessService_test.go[39m:[33m12:14[39m - Unknown word ([31mstretchr[39m)
-[32m./accessService_test.go[39m:[33m18:9[39m - Unknown word ([31mmondb[39m)
-[32m./accessService_test.go[39m:[33m26:13[39m - Unknown word ([31mmondb[39m)
-[32m./accessService_test.go[39m:[33m38:35[39m - Unknown word ([31mbillcypher[39m)
-[32m./accessService_test.go[39m:[33m38:49[39m - Unknown word ([31mshakemyhand[39m)
-[32m./accessService_test.go[39m:[33m41:37[39m - Unknown word ([31mdipperpines[39m)
-[32m./accessService_test.go[39m:[33m41:52[39m - Unknown word ([31mivegotabook[39m)
-[32m./accessService_test.go[39m:[33m76:9[39m - Unknown word ([31mmondb[39m)
-[32m./accessService_test.go[39m:[33m84:13[39m - Unknown word ([31mmondb[39m)
-[32m./accessService_test.go[39m:[33m96:35[39m - Unknown word ([31mbillcypher[39m)
-[32m./accessService_test.go[39m:[33m96:49[39m - Unknown word ([31mshakemyhand[39m)
-[32m./accessService_test.go[39m:[33m130:9[39m - Unknown word ([31mmondb[39m)
-[32m./accessService_test.go[39m:[33m150:35[39m - Unknown word ([31mbillcypher[39m)
-[32m./accessService_test.go[39m:[33m150:49[39m - Unknown word ([31mshakemyhand[39m)
-[32m./accessServiceImpl.go[39m:[33m15:41[39m - Unknown word ([31mwerror[39m)
-[32m./accessServiceImpl.go[39m:[33m116:27[39m - Unknown word ([31mwerror[39m)
-[32m./accessServiceImpl.go[39m:[33m142:15[39m - Unknown word ([31mwerror[39m)
-[32m./accessServiceImpl.go[39m:[33m154:16[39m - Unknown word ([31mwerror[39m)
-[32m./accessServiceImpl.go[39m:[33m156:15[39m - Unknown word ([31mwerror[39m)
-[32m./accessServiceImpl.go[39m:[33m201:40[39m - Unknown word ([31mGlobby[39m)
-[32m./albumService_test.go[39m:[33m10:14[39m - Unknown word ([31mstretchr[39m)
-[32m./albumService_test.go[39m:[33m16:9[39m - Unknown word ([31mmondb[39m)
-[32m./albumService_test.go[39m:[33m23:14[39m - Unknown word ([31mmondb[39m)
-[32m./albumService_test.go[39m:[33m33:35[39m - Unknown word ([31mbillcypher[39m)
-[32m./albumService_test.go[39m:[33m33:49[39m - Unknown word ([31mshakemyhand[39m)
-[32m./albumServiceImpl.go[39m:[33m10:41[39m - Unknown word ([31mwerror[39m)
-[32m./albumServiceImpl.go[39m:[33m101:11[39m - Unknown word ([31mwerror[39m)
-[32m./albumServiceImpl.go[39m:[33m107:10[39m - Unknown word ([31mwerror[39m)
-[32m./albumServiceImpl.go[39m:[33m116:10[39m - Unknown word ([31mwerror[39m)
-[32m./albumServiceImpl.go[39m:[33m128:10[39m - Unknown word ([31mwerror[39m)
-[32m./clientManagerImpl.go[39m:[33m12:41[39m - Unknown word ([31mwerror[39m)
-[32m./clientManagerImpl.go[39m:[33m199:22[39m - Unknown word ([31mwerror[39m)
-[32m./clientManagerImpl.go[39m:[33m243:11[39m - Unknown word ([31mwerror[39m)
-[32m./clientManagerImpl.go[39m:[33m324:10[39m - Unknown word ([31mwerror[39m)
-[32m./clientManagerImpl.go[39m:[33m412:11[39m - Unknown word ([31mwerror[39m)
-[32m./fileService_test.go[39m:[33m18:14[39m - Unknown word ([31mstretchr[39m)
-[32m./fileService_test.go[39m:[33m19:14[39m - Unknown word ([31mstretchr[39m)
-[32m./fileService_test.go[39m:[33m47:2[39m - Unknown word ([31mmondb[39m)
-[32m./fileService_test.go[39m:[33m49:14[39m - Unknown word ([31mmondb[39m)
-[32m./fileService_test.go[39m:[33m54:15[39m - Unknown word ([31mmondb[39m)
-[32m./fileService_test.go[39m:[33m59:14[39m - Unknown word ([31mmondb[39m)
-[32m./fileService_test.go[39m:[33m64:20[39m - Unknown word ([31mmondb[39m)
-[32m./fileServiceImpl.go[39m:[33m22:41[39m - Unknown word ([31mwerror[39m)
-[32m./fileServiceImpl.go[39m:[33m165:14[39m - Unknown word ([31mwerror[39m)
-[32m./fileServiceImpl.go[39m:[33m165:31[39m - Unknown word ([31mwerror[39m)
-[32m./fileServiceImpl.go[39m:[33m174:21[39m - Unknown word ([31mwerror[39m)
-[32m./fileServiceImpl.go[39m:[33m206:15[39m - Unknown word ([31mwerror[39m)
-[32m./fileServiceImpl.go[39m:[33m423:3[39m - Unknown word ([31macns[39m)
-[32m./fileServiceImpl.go[39m:[33m424:10[39m - Unknown word ([31macns[39m)
-[32m./fileServiceImpl.go[39m:[33m424:42[39m - Unknown word ([31macns[39m)
-[32m./fileServiceImpl.go[39m:[33m424:51[39m - Unknown word ([31macns[39m)
-[32m./fileServiceImpl.go[39m:[33m428:22[39m - Unknown word ([31macns[39m)
-[32m./instanceService_test.go[39m:[33m10:41[39m - Unknown word ([31mwerror[39m)
-[32m./instanceService_test.go[39m:[33m14:14[39m - Unknown word ([31mstretchr[39m)
-[32m./instanceService_test.go[39m:[33m15:14[39m - Unknown word ([31mstretchr[39m)
-[32m./instanceService_test.go[39m:[33m20:5[39m - Unknown word ([31mmondb[39m)
-[32m./instanceService_test.go[39m:[33m22:3[39m - Unknown word ([31mmondb[39m)
-[32m./instanceService_test.go[39m:[33m32:9[39m - Unknown word ([31mmondb[39m)
-[32m./instanceService_test.go[39m:[33m52:28[39m - Unknown word ([31mwerror[39m)
-[32m./instanceService_test.go[39m:[33m56:34[39m - Unknown word ([31mdeadbeefdeadbeef[39m)
-[32m./instanceService_test.go[39m:[33m72:12[39m - Unknown word ([31mdeadbeefdeadbeef[39m)
-[32m./instanceService_test.go[39m:[33m75:25[39m - Unknown word ([31mwerror[39m)
-[32m./instanceService_test.go[39m:[33m80:25[39m - Unknown word ([31mwerror[39m)
-[32m./instanceService_test.go[39m:[33m82:24[39m - Unknown word ([31mdeadbeefdeadbeef[39m)
-[32m./instanceService_test.go[39m:[33m85:25[39m - Unknown word ([31mwerror[39m)
-[32m./instanceService_test.go[39m:[33m88:24[39m - Unknown word ([31mdeadbeefdeadbeef[39m)
-[32m./instanceService_test.go[39m:[33m97:9[39m - Unknown word ([31mmondb[39m)
-[32m./instanceService_test.go[39m:[33m155:9[39m - Unknown word ([31mmondb[39m)
-[32m./instanceServiceImpl.go[39m:[33m12:41[39m - Unknown word ([31mwerror[39m)
-[32m./instanceServiceImpl.go[39m:[33m37:15[39m - Unknown word ([31mwerror[39m)
-[32m./instanceServiceImpl.go[39m:[33m43:15[39m - Unknown word ([31mwerror[39m)
-[32m./instanceServiceImpl.go[39m:[33m85:10[39m - Unknown word ([31mwerror[39m)
-[32m./instanceServiceImpl.go[39m:[33m85:27[39m - Unknown word ([31mwerror[39m)
-[32m./mediaService_test.go[39m:[33m8:14[39m - Unknown word ([31mbarasher[39m)
-[32m./mediaService_test.go[39m:[33m8:26[39m - Unknown word ([31mexiftool[39m)
-[32m./mediaService_test.go[39m:[33m9:14[39m - Unknown word ([31mcreativecreature[39m)
-[32m./mediaService_test.go[39m:[33m9:31[39m - Unknown word ([31msturdyc[39m)
-[32m./mediaService_test.go[39m:[33m11:41[39m - Unknown word ([31mwerror[39m)
-[32m./mediaService_test.go[39m:[33m15:14[39m - Unknown word ([31mstretchr[39m)
-[32m./mediaService_test.go[39m:[33m16:14[39m - Unknown word ([31mstretchr[39m)
-[32m./mediaService_test.go[39m:[33m23:2[39m - Unknown word ([31mexif[39m)
-[32m./mediaService_test.go[39m:[33m23:16[39m - Unknown word ([31mexiftool[39m)
-[32m./mediaService_test.go[39m:[33m23:25[39m - Unknown word ([31mExiftool[39m)
-[32m./mediaService_test.go[39m:[33m24:16[39m - Unknown word ([31msturdyc[39m)
-[32m./mediaService_test.go[39m:[33m42:35[39m - Unknown word ([31mdeadbeefdeadbeefdeadbeef[39m)
-[32m./mediaService_test.go[39m:[33m57:9[39m - Unknown word ([31mwerror[39m)
-[32m./mediaService_test.go[39m:[33m63:35[39m - Unknown word ([31mdeadbeefdeadbeefdeadbeef[39m)
-[32m./mediaService_test.go[39m:[33m72:8[39m - Unknown word ([31mwerror[39m)
-[32m./mediaService_test.go[39m:[33m87:8[39m - Unknown word ([31mwerror[39m)
-[32m./mediaService_test.go[39m:[33m93:35[39m - Unknown word ([31mdeadbeefdeadbeefdeadbeef[39m)
-[32m./mediaService_test.go[39m:[33m102:8[39m - Unknown word ([31mwerror[39m)
-[32m./mediaService_test.go[39m:[33m108:35[39m - Unknown word ([31mdeadbeefdeadbeefdeadbeef[39m)
-[32m./mediaService_test.go[39m:[33m123:35[39m - Unknown word ([31mdeadbeefdeadbeefdeadbeef[39m)
-[32m./mediaService_test.go[39m:[33m145:17[39m - Unknown word ([31mitsa[39m)
-[32m./mediaService_test.go[39m:[33m156:9[39m - Unknown word ([31mmondb[39m)
-[32m./mediaService_test.go[39m:[33m205:9[39m - Unknown word ([31mmondb[39m)
-[32m./mediaServiceImpl.go[39m:[33m18:14[39m - Unknown word ([31mEdlin[39m)
-[32m./mediaServiceImpl.go[39m:[33m18:23[39m - Unknown word ([31mprominentcolor[39m)
-[32m./mediaServiceImpl.go[39m:[33m19:14[39m - Unknown word ([31mbarasher[39m)
-[32m./mediaServiceImpl.go[39m:[33m19:26[39m - Unknown word ([31mexiftool[39m)
-[32m./mediaServiceImpl.go[39m:[33m20:14[39m - Unknown word ([31mcreativecreature[39m)
-[32m./mediaServiceImpl.go[39m:[33m20:31[39m - Unknown word ([31msturdyc[39m)
-[32m./mediaServiceImpl.go[39m:[33m21:24[39m - Unknown word ([31mbimg[39m)
-[32m./mediaServiceImpl.go[39m:[33m26:41[39m - Unknown word ([31mwerror[39m)
-[32m./mediaServiceImpl.go[39m:[33m28:23[39m - Unknown word ([31mtakey[39m)
-[32m./mediaServiceImpl.go[39m:[33m31:22[39m - Unknown word ([31mwebp[39m)
-[32m./mediaServiceImpl.go[39m:[33m47:15[39m - Unknown word ([31msturdyc[39m)
-[32m./mediaServiceImpl.go[39m:[33m58:5[39m - Unknown word ([31mexif[39m)
-[32m./mediaServiceImpl.go[39m:[33m58:11[39m - Unknown word ([31mexiftool[39m)
-[32m./mediaServiceImpl.go[39m:[33m58:20[39m - Unknown word ([31mExiftool[39m)
-[32m./mediaServiceImpl.go[39m:[33m59:8[39m - Unknown word ([31mExif[39m)
-[32m./mediaServiceImpl.go[39m:[33m59:14[39m - Unknown word ([31mexiftool[39m)
-[32m./mediaServiceImpl.go[39m:[33m59:23[39m - Unknown word ([31mExiftool[39m)
-[32m./mediaServiceImpl.go[39m:[33m63:2[39m - Unknown word ([31mexif[39m)
-[32m./mediaServiceImpl.go[39m:[33m63:14[39m - Unknown word ([31mexiftool[39m)
-[32m./mediaServiceImpl.go[39m:[33m63:26[39m - Unknown word ([31mExiftool[39m)
-[32m./mediaServiceImpl.go[39m:[33m64:3[39m - Unknown word ([31mexiftool[39m)
-[32m./mediaServiceImpl.go[39m:[33m64:17[39m - Unknown word ([31mlargefilesupport[39m)
-[32m./mediaServiceImpl.go[39m:[33m71:5[39m - Unknown word ([31mExif[39m)
-[32m./mediaServiceImpl.go[39m:[33m71:29[39m - Unknown word ([31mExiftool[39m)
-[32m./mediaServiceImpl.go[39m:[33m72:17[39m - Unknown word ([31mlargefilesupport[39m)
-[32m./mediaServiceImpl.go[39m:[33m81:43[39m - Unknown word ([31mServ[39m)
-[32m./mediaServiceImpl.go[39m:[33m87:26[39m - Unknown word ([31mServ[39m)
-[32m./mediaServiceImpl.go[39m:[33m88:17[39m - Unknown word ([31msturdyc[39m)
-[32m./mediaServiceImpl.go[39m:[33m106:15[39m - Unknown word ([31mwerror[39m)
-[32m./mediaServiceImpl.go[39m:[33m117:16[39m - Unknown word ([31mwerror[39m)
-[32m./mediaServiceImpl.go[39m:[33m131:10[39m - Unknown word ([31mwerror[39m)
-[32m./mediaServiceImpl.go[39m:[33m135:10[39m - Unknown word ([31mwerror[39m)
-[32m./mediaServiceImpl.go[39m:[33m369:11[39m - Unknown word ([31mwebp[39m)
-[32m./mediaServiceImpl.go[39m:[33m374:21[39m - Unknown word ([31mprominentcolor[39m)
-[32m./mediaServiceImpl.go[39m:[33m374:36[39m - Unknown word ([31mKmeans[39m)
-[32m./mediaServiceImpl.go[39m:[33m375:41[39m - Unknown word ([31mprominentcolor[39m)
-[32m./mediaServiceImpl.go[39m:[33m382:20[39m - Unknown word ([31mSERV[39m)
-[32m./mediaServiceImpl.go[39m:[33m384:19[39m - Unknown word ([31mSERV[39m)
-[32m./mediaServiceImpl.go[39m:[33m390:18[39m - Unknown word ([31mSERV[39m)
-[32m./mediaServiceImpl.go[39m:[33m396:21[39m - Unknown word ([31msturdyc[39m)
-[32m./mediaServiceImpl.go[39m:[33m478:2[39m - Unknown word ([31mhighres[39m)
-[32m./mediaServiceImpl.go[39m:[33m483:5[39m - Unknown word ([31mhighres[39m)
-[32m./mediaServiceImpl.go[39m:[33m484:40[39m - Unknown word ([31mhighres[39m)
-[32m./mediaServiceImpl.go[39m:[33m515:6[39m - Unknown word ([31mMetas[39m)
-[32m./mediaServiceImpl.go[39m:[33m515:15[39m - Unknown word ([31mexif[39m)
-[32m./mediaServiceImpl.go[39m:[33m517:31[39m - Unknown word ([31mMetas[39m)
-[32m./mediaServiceImpl.go[39m:[33m525:16[39m - Unknown word ([31mMetas[39m)
-[32m./mediaServiceImpl.go[39m:[33m527:16[39m - Unknown word ([31mMetas[39m)
-[32m./mediaServiceImpl.go[39m:[33m549:23[39m - Unknown word ([31mMetas[39m)
-[32m./mediaServiceImpl.go[39m:[33m601:17[39m - Unknown word ([31mExif[39m)
-[32m./mediaServiceImpl.go[39m:[33m605:51[39m - Unknown word ([31mExif[39m)
-[32m./mediaServiceImpl.go[39m:[33m630:3[39m - Unknown word ([31mbufbuf[39m)
-[32m./mediaServiceImpl.go[39m:[33m631:3[39m - Unknown word ([31mbufbuf[39m)
-[32m./mediaServiceImpl.go[39m:[33m636:63[39m - Unknown word ([31mvcodec[39m)
-[32m./mediaServiceImpl.go[39m:[33m636:73[39m - Unknown word ([31mmjpeg[39m)
-[32m./mediaServiceImpl.go[39m:[33m637:16[39m - Unknown word ([31mbufbuf[39m)
-[32m./mediaServiceImpl.go[39m:[33m642:9[39m - Unknown word ([31mbufbuf[39m)
-[32m./mediaServiceImpl.go[39m:[33m649:3[39m - Unknown word ([31mbufbuf[39m)
-[32m./mediaServiceImpl.go[39m:[33m743:38[39m - Unknown word ([31mLowres[39m)
-[32m./mediaServiceImpl.go[39m:[33m744:15[39m - Unknown word ([31mLowres[39m)
-[32m./mediaServiceImpl.go[39m:[33m745:46[39m - Unknown word ([31mHighres[39m)
-[32m./mediaServiceImpl.go[39m:[33m746:15[39m - Unknown word ([31mHighres[39m)
-[32m./mediaServiceImpl.go[39m:[33m756:8[39m - Unknown word ([31mLowres[39m)
-[32m./mediaServiceImpl.go[39m:[33m758:8[39m - Unknown word ([31mHighres[39m)
-[32m./mediaServiceImpl.go[39m:[33m786:6[39m - Unknown word ([31mimgs[39m)
-[32m./mediaServiceImpl.go[39m:[33m788:11[39m - Unknown word ([31mbimg[39m)
-[32m./mediaServiceImpl.go[39m:[33m789:13[39m - Unknown word ([31mbimg[39m)
-[32m./mediaServiceImpl.go[39m:[33m790:13[39m - Unknown word ([31mbimg[39m)
-[32m./mediaServiceImpl.go[39m:[33m790:18[39m - Unknown word ([31mWEBP[39m)
-[32m./mediaServiceImpl.go[39m:[33m794:15[39m - Unknown word ([31mbimg[39m)
-[32m./mediaServiceImpl.go[39m:[33m799:3[39m - Unknown word ([31mimgs[39m)
-[32m./mediaServiceImpl.go[39m:[33m799:17[39m - Unknown word ([31mimgs[39m)
-[32m./mediaServiceImpl.go[39m:[33m802:28[39m - Unknown word ([31mimgs[39m)
-[32m./mediaServiceImpl.go[39m:[33m816:33[39m - Unknown word ([31mimgs[39m)
-[32m./mediaServiceImpl.go[39m:[33m833:7[39m - Unknown word ([31mLowres[39m)
-[32m./mediaServiceImpl.go[39m:[33m836:3[39m - Unknown word ([31mfullres[39m)
-[32m./mediaServiceImpl.go[39m:[33m842:13[39m - Unknown word ([31mfullres[39m)
-[32m./mediaServiceImpl.go[39m:[33m847:9[39m - Unknown word ([31mHighres[39m)
-[32m./mediaServiceImpl.go[39m:[33m847:27[39m - Unknown word ([31mfullres[39m)
-[32m./mock/memFileTree.go[39m:[33m5:41[39m - Unknown word ([31mwerror[39m)
-[32m./mock/memFileTree.go[39m:[33m68:10[39m - Unknown word ([31mwerror[39m)
-[32m./proxy/proxy.go[39m:[33m11:41[39m - Unknown word ([31mwerror[39m)
-[32m./proxy/proxy.go[39m:[33m54:11[39m - Unknown word ([31mwerror[39m)
-[32m./proxy/proxy.go[39m:[33m72:15[39m - Unknown word ([31mwerror[39m)
-[32m./proxy/proxy.go[39m:[33m75:15[39m - Unknown word ([31mwerror[39m)
-[32m./proxy/proxy.go[39m:[33m105:16[39m - Unknown word ([31mwerror[39m)
-[32m./proxy/proxyJournalService.go[39m:[33m9:41[39m - Unknown word ([31mwerror[39m)
-[32m./proxy/proxyJournalService.go[39m:[33m88:15[39m - Unknown word ([31mwerror[39m)
-[32m./service_test.go[39m:[33m10:5[39m - Unknown word ([31mmondb[39m)
-[32m./service_test.go[39m:[33m14:2[39m - Unknown word ([31mmondb[39m)
-[32m./shareService_test.go[39m:[33m10:14[39m - Unknown word ([31mstretchr[39m)
-[32m./shareService_test.go[39m:[33m11:14[39m - Unknown word ([31mstretchr[39m)
-[32m./shareService_test.go[39m:[33m18:9[39m - Unknown word ([31mmondb[39m)
-[32m./shareService_test.go[39m:[33m30:35[39m - Unknown word ([31mbillcypher[39m)
-[32m./shareService_test.go[39m:[33m30:49[39m - Unknown word ([31mshakemyhand[39m)
-[32m./shareService_test.go[39m:[33m33:37[39m - Unknown word ([31mdipperpines[39m)
-[32m./shareService_test.go[39m:[33m33:52[39m - Unknown word ([31mivegotabook[39m)
-[32m./shareService_test.go[39m:[33m37:41[39m - Unknown word ([31mbillcypher[39m)
-[32m./shareService_test.go[39m:[33m55:9[39m - Unknown word ([31mmondb[39m)
-[32m./shareService_test.go[39m:[33m67:35[39m - Unknown word ([31mbillcypher[39m)
-[32m./shareService_test.go[39m:[33m67:49[39m - Unknown word ([31mshakemyhand[39m)
-[32m./shareService_test.go[39m:[33m71:41[39m - Unknown word ([31mbillcypher[39m)
-[32m./shareService_test.go[39m:[33m99:9[39m - Unknown word ([31mmondb[39m)
-[32m./shareService_test.go[39m:[33m111:35[39m - Unknown word ([31mbillcypher[39m)
-[32m./shareService_test.go[39m:[33m111:49[39m - Unknown word ([31mshakemyhand[39m)
-[32m./shareService_test.go[39m:[33m114:37[39m - Unknown word ([31mdipperpines[39m)
-[32m./shareService_test.go[39m:[33m114:52[39m - Unknown word ([31mjournalboy[39m)
-[32m./shareService_test.go[39m:[33m165:15[39m - Unknown word ([31mEqualf[39m)
-[32m./shareService_test.go[39m:[33m188:15[39m - Unknown word ([31mEqualf[39m)
-[32m./shareService_test.go[39m:[33m213:15[39m - Unknown word ([31mEqualf[39m)
-[32m./shareService_test.go[39m:[33m254:15[39m - Unknown word ([31mEqualf[39m)
-[32m./shareService_test.go[39m:[33m277:15[39m - Unknown word ([31mEqualf[39m)
-[32m./shareService_test.go[39m:[33m287:15[39m - Unknown word ([31mServ[39m)
-[32m./shareService_test.go[39m:[33m302:85[39m - Unknown word ([31mServ[39m)
-[32m./shareService_test.go[39m:[33m303:104[39m - Unknown word ([31mServ[39m)
-[32m./shareServiceImpl.go[39m:[33m12:41[39m - Unknown word ([31mwerror[39m)
-[32m./shareServiceImpl.go[39m:[33m79:10[39m - Unknown word ([31mwerror[39m)
-[32m./shareServiceImpl.go[39m:[33m94:11[39m - Unknown word ([31mwerror[39m)
-[32m./shareServiceImpl.go[39m:[33m106:10[39m - Unknown word ([31mwerror[39m)
-[32m./shareServiceImpl.go[39m:[33m140:2[39m - Unknown word ([31maccs[39m)
-[32m./shareServiceImpl.go[39m:[33m142:21[39m - Unknown word ([31maccs[39m)
-[32m./shareServiceImpl.go[39m:[33m144:11[39m - Unknown word ([31mwerror[39m)
-[32m./shareServiceImpl.go[39m:[33m146:3[39m - Unknown word ([31maccs[39m)
-[32m./shareServiceImpl.go[39m:[33m146:17[39m - Unknown word ([31maccs[39m)
-[32m./shareServiceImpl.go[39m:[33m150:47[39m - Unknown word ([31maccs[39m)
-[32m./userService_test.go[39m:[33m12:14[39m - Unknown word ([31mstretchr[39m)
-[32m./userService_test.go[39m:[33m13:14[39m - Unknown word ([31mstretchr[39m)
-[32m./userService_test.go[39m:[33m27:9[39m - Unknown word ([31mmondb[39m)
-[32m./userService_test.go[39m:[33m111:9[39m - Unknown word ([31mmondb[39m)
-[32m./userService_test.go[39m:[33m139:9[39m - Unknown word ([31mmondb[39m)
-[32m./userService_test.go[39m:[33m172:9[39m - Unknown word ([31mmondb[39m)
-[32m./userService_test.go[39m:[33m195:2[39m - Unknown word ([31mblan[39m)
-[32m./userService_test.go[39m:[33m195:35[39m - Unknown word ([31mblan[39m)
-[32m./userService_test.go[39m:[33m198:26[39m - Unknown word ([31mblan[39m)
-[32m./userService_test.go[39m:[33m201:24[39m - Unknown word ([31mblan[39m)
-[32m./userService_test.go[39m:[33m222:9[39m - Unknown word ([31mmondb[39m)
-[32m./userServiceImpl.go[39m:[33m9:41[39m - Unknown word ([31mwerror[39m)
-[32m./userServiceImpl.go[39m:[33m78:10[39m - Unknown word ([31mwerror[39m)
-[32m./userServiceImpl.go[39m:[33m80:10[39m - Unknown word ([31mwerror[39m)
-[32m./userServiceImpl.go[39m:[33m92:10[39m - Unknown word ([31mwerror[39m)
-[32m./userServiceImpl.go[39m:[33m115:15[39m - Unknown word ([31mwerror[39m)
-[32m./webdavFs.go[39m:[33m12:20[39m - Unknown word ([31mwebdav[39m)
-[32m./webdavFs.go[39m:[33m15:7[39m - Unknown word ([31mwebdav[39m)
-[32m./webdavFs.go[39m:[33m15:29[39m - Unknown word ([31mWebdav[39m)
-[32m./webdavFs.go[39m:[33m17:6[39m - Unknown word ([31mWebdav[39m)
-[32m./webdavFs.go[39m:[33m22:9[39m - Unknown word ([31mWebdav[39m)
-[32m./webdavFs.go[39m:[33m42:9[39m - Unknown word ([31mWebdav[39m)
-[32m./webdavFs.go[39m:[33m42:91[39m - Unknown word ([31mwebdav[39m)
-[32m./webdavFs.go[39m:[33m64:9[39m - Unknown word ([31mWebdav[39m)
-CSpell: Files checked: 33, Issues found: 246 in 20 files.

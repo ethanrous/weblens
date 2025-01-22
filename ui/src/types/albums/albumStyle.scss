@@ -100,7 +100,7 @@ $cover-size: 450px;
     height: $cover-size;
     z-index: 1;
     flex-shrink: 0;
-    background-color: $background;
+    background-color: var(--wl-background);
     outline: 2px solid #22222200;
     position: fixed;
 

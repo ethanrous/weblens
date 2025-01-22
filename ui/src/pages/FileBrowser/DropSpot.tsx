@@ -5,7 +5,7 @@ import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import { WeblensFile } from '@weblens/types/files/File'
 import { useMemo } from 'react'
 
-import { useFileBrowserStore } from './FBStateControl'
+import { useFileBrowserStore } from '../../store/FBStateControl'
 import { HandleDrop } from './FileBrowserLogic'
 import { FileFmt } from './FileBrowserMiscComponents'
 import fbStyle from './style/fileBrowserStyle.module.scss'
@@ -107,7 +107,6 @@ export const DropSpot = ({ parent }: { parent: WeblensFile }) => {
                             HandleDrop(
                                 e.dataTransfer.items,
                                 parent.Id(),
-                                [],
                                 false,
                                 shareId
                             ).catch(ErrorHandler)

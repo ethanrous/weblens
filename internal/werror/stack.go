@@ -3,7 +3,9 @@ package werror
 import (
 	"fmt"
 	"runtime"
+	"runtime/debug"
 	"strconv"
+	"strings"
 )
 
 type frame uintptr
@@ -41,11 +43,93 @@ func (f frame) String() (str string) {
 	return f.name() + "\n\t" + f.file() + ":" + strconv.Itoa(f.line())
 }
 
+var (
+	red    = "\u001b[31m"
+	blue   = "\u001b[32m"
+	yellow = "\u001b[33m"
+	orange = "\u001b[36m"
+	reset  = "\u001B[0m"
+)
+
+func formatFramePair(frameStr string) string {
+	splitIndex := strings.Index(frameStr, "\n")
+	if splitIndex == -1 {
+		return ""
+	}
+	packAndFunc := frameStr[:splitIndex]
+	fileAndLine := frameStr[splitIndex:]
+
+	slashIndex := strings.LastIndex(packAndFunc, "/")
+	if slashIndex != -1 {
+		dotIndex := strings.Index(packAndFunc[slashIndex:], ".")
+		packAndFunc = yellow + packAndFunc[:slashIndex+dotIndex] + blue + packAndFunc[slashIndex+dotIndex:] + reset
+	}
+
+	startIndex := strings.Index(fileAndLine, "/")
+	fileIndex := strings.LastIndex(fileAndLine, "/")
+	lineIndex := strings.LastIndex(fileAndLine, ":")
+	if lineIndex == -1 {
+		return "[MALFORMED STACK FRAME] " + frameStr
+	}
+
+	fileAndLine = fileAndLine[startIndex:fileIndex+1] + orange + fileAndLine[fileIndex+1:lineIndex] + blue + fileAndLine[lineIndex:] + reset + "\n"
+
+	return "    " + packAndFunc + "\n      " + fileAndLine
+}
+
+func formatTopFramePair(frameStr string) string {
+	splitIndex := strings.Index(frameStr, "\n")
+	packAndFunc := frameStr[:splitIndex]
+	fileAndLine := frameStr[splitIndex:]
+
+	slashIndex := strings.LastIndex(packAndFunc, "/")
+	if slashIndex != -1 {
+		dotIndex := strings.Index(packAndFunc[slashIndex:], ".")
+		packAndFunc = yellow + packAndFunc[:slashIndex+dotIndex] + red + packAndFunc[slashIndex+dotIndex:] + reset
+	}
+
+	startIndex := strings.Index(fileAndLine, "/")
+	fileIndex := strings.LastIndex(fileAndLine, "/")
+	lineIndex := strings.LastIndex(fileAndLine, ":")
+	fileAndLine = fileAndLine[startIndex:fileIndex+1] + red + fileAndLine[fileIndex+1:lineIndex] + blue + fileAndLine[lineIndex:] + reset + "\n"
+
+	return red + "->  " + reset + packAndFunc + "\n" + red + "->    " + reset + fileAndLine + "\n"
+}
+
 func (s *stack) String() (stack string) {
-	for _, pc := range *s {
-		stack += fmt.Sprintf("%+v\n", frame(pc))
+	for i, pc := range *s {
+		frameStr := frame(pc).String()
+
+		if i == 0 {
+			stack += formatTopFramePair(frameStr)
+		} else {
+			stack += formatFramePair(frameStr)
+		}
 	}
 	return
+}
+
+func StackString() string {
+	rawStackStr := string(debug.Stack())
+	stackStr := ""
+
+	var frame string
+
+	for len(rawStackStr) != 0 {
+		firstN := strings.Index(rawStackStr, "\n")
+		if firstN == -1 {
+			break
+		}
+		secondN := strings.Index(rawStackStr[firstN:], "\n")
+		frame, rawStackStr = rawStackStr[:firstN+secondN+1], rawStackStr[firstN+secondN+1:]
+		if frame[0] == '\n' {
+			frame = frame[1:]
+		}
+
+		stackStr += formatFramePair(frame)
+	}
+
+	return stackStr
 }
 
 func callers(ignore int) *stack {
@@ -63,6 +147,7 @@ func GetStack(ignoreDepth int) *stack {
 type StackError interface {
 	Error() string
 	Stack() string
+	Errorln() string
 }
 
 var _ StackError = (*withStack)(nil)
@@ -88,7 +173,7 @@ func WithStack(err error) error {
 }
 
 func (err *withStack) Stack() string {
-	return fmt.Sprintf("\u001b[31m%s\u001B[0m\n%s", err.err, err.stack.String())
+	return "\n" + red + err.Error() + reset + "\n\n" + err.stack.String()
 }
 
 func (err *withStack) Unwrap() error {

@@ -6,8 +6,9 @@ import (
 	"time"
 
 	"github.com/barasher/go-exiftool"
-	"github.com/creativecreature/sturdyc"
+	"github.com/viccon/sturdyc"
 	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
 	. "github.com/ethanrous/weblens/service"
@@ -38,8 +39,8 @@ var sampleMediaValid = []testMedia{
 	{
 		name: "good media",
 		media: models.Media{
-			ContentId:  "yBjwGUnv5-flkMAmSH-1",
-			FileIds:    []fileTree.FileId{"deadbeefdeadbeefdeadbeef"},
+			ContentID:  "yBjwGUnv5-flkMAmSH-1",
+			FileIDs:    []fileTree.FileId{"deadbeefdeadbeefdeadbeef"},
 			CreateDate: time.Now(),
 			Owner:      "weblens",
 			Width:      1080,
@@ -59,8 +60,8 @@ var sampleMediaInvalid = []testMedia{
 	{
 		name: "media missing id",
 		media: models.Media{
-			ContentId:  "",
-			FileIds:    []fileTree.FileId{"deadbeefdeadbeefdeadbeef"},
+			ContentID:  "",
+			FileIDs:    []fileTree.FileId{"deadbeefdeadbeefdeadbeef"},
 			CreateDate: time.Now(),
 			Owner:      "weblens",
 			Width:      1080,
@@ -74,8 +75,8 @@ var sampleMediaInvalid = []testMedia{
 	{
 		name: "media missing file ids",
 		media: models.Media{
-			ContentId:  "yBjwGUnv5-flkMAmSH-3",
-			FileIds:    nil,
+			ContentID:  "yBjwGUnv5-flkMAmSH-3",
+			FileIDs:    nil,
 			CreateDate: time.Now(),
 			Owner:      "weblens",
 			Width:      1080,
@@ -89,8 +90,8 @@ var sampleMediaInvalid = []testMedia{
 	{
 		name: "media missing width",
 		media: models.Media{
-			ContentId:  "yBjwGUnv5-flkMAmSH-4",
-			FileIds:    []fileTree.FileId{"deadbeefdeadbeefdeadbeef"},
+			ContentID:  "yBjwGUnv5-flkMAmSH-4",
+			FileIDs:    []fileTree.FileId{"deadbeefdeadbeefdeadbeef"},
 			CreateDate: time.Now(),
 			Owner:      "weblens",
 			Width:      0,
@@ -104,8 +105,8 @@ var sampleMediaInvalid = []testMedia{
 	{
 		name: "image with duration",
 		media: models.Media{
-			ContentId:  "yBjwGUnv5-flkMAmSH-5",
-			FileIds:    []fileTree.FileId{"deadbeefdeadbeefdeadbeef"},
+			ContentID:  "yBjwGUnv5-flkMAmSH-5",
+			FileIDs:    []fileTree.FileId{"deadbeefdeadbeefdeadbeef"},
 			CreateDate: time.Now(),
 			Owner:      "weblens",
 			Width:      1080,
@@ -119,8 +120,8 @@ var sampleMediaInvalid = []testMedia{
 	{
 		name: "video with no duration",
 		media: models.Media{
-			ContentId:  "yBjwGUnv5-flkMAmSH-6",
-			FileIds:    []fileTree.FileId{"deadbeefdeadbeefdeadbeef"},
+			ContentID:  "yBjwGUnv5-flkMAmSH-6",
+			FileIDs:    []fileTree.FileId{"deadbeefdeadbeefdeadbeef"},
 			CreateDate: time.Now(),
 			Owner:      "weblens",
 			Width:      1080,
@@ -134,8 +135,8 @@ var sampleMediaInvalid = []testMedia{
 	{
 		name: "media bad mime",
 		media: models.Media{
-			ContentId:  "yBjwGUnv5-flkMAmSH-7",
-			FileIds:    []fileTree.FileId{"deadbeefdeadbeefdeadbeef"},
+			ContentID:  "yBjwGUnv5-flkMAmSH-7",
+			FileIDs:    []fileTree.FileId{"deadbeefdeadbeefdeadbeef"},
 			CreateDate: time.Now(),
 			Owner:      "weblens",
 			Width:      1080,
@@ -152,6 +153,8 @@ var typeService models.MediaTypeService
 
 func TestMediaServiceImpl_Add(t *testing.T) {
 	t.Parallel()
+
+	logger := log.NewLogPackage("", log.DEBUG)
 
 	col := mondb.Collection(t.Name())
 	err := col.Drop(context.Background())
@@ -185,7 +188,7 @@ func TestMediaServiceImpl_Add(t *testing.T) {
 
 	ms, err := NewMediaService(
 		nil, typeService, &mock.MockAlbumService{},
-		col,
+		col, logger,
 	)
 
 	require.NoError(t, err)
@@ -201,6 +204,8 @@ func TestMediaServiceImpl_Add(t *testing.T) {
 
 func TestMediaServiceImpl_Del(t *testing.T) {
 	t.Parallel()
+
+	logger := log.NewLogPackage("", log.DEBUG)
 
 	col := mondb.Collection(t.Name())
 	err := col.Drop(context.Background())
@@ -218,7 +223,7 @@ func TestMediaServiceImpl_Del(t *testing.T) {
 
 	ms, err := NewMediaService(
 		&mock.MockFileService{}, typeService, &mock.MockAlbumService{},
-		col,
+		col, logger,
 	)
 	require.NoError(t, err)
 
@@ -227,7 +232,7 @@ func TestMediaServiceImpl_Del(t *testing.T) {
 	}
 
 	for _, m := range sampleMediaValid {
-		err = ms.Del(m.media.ContentId)
+		err = ms.Del(m.media.ContentID)
 		if !assert.NoError(t, err) {
 			t.FailNow()
 		}

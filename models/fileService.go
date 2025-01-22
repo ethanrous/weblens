@@ -58,8 +58,11 @@ type FileService interface {
 
 	GetJournalByTree(treeName string) fileTree.Journal
 
-	ResizeDown(file *fileTree.WeblensFileImpl, caster FileCaster) error
-	ResizeUp(file *fileTree.WeblensFileImpl, caster FileCaster) error
+	ResizeDown(file *fileTree.WeblensFileImpl, event *fileTree.FileEvent, caster FileCaster) error
+	ResizeUp(file *fileTree.WeblensFileImpl, event *fileTree.FileEvent, caster FileCaster) error
+
+	GetThumbsDir() (*fileTree.WeblensFileImpl, error)
+
 	NewZip(zipName string, owner *User) (*fileTree.WeblensFileImpl, error)
 	GetZip(id fileTree.FileId) (*fileTree.WeblensFileImpl, error)
 }

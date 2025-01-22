@@ -39,15 +39,15 @@ type TaskDispatcher interface {
 }
 
 type ScanMeta struct {
-	File         *fileTree.WeblensFileImpl
-	FileBytes    []byte
-	PartialMedia *Media
-
 	FileService  FileService
 	MediaService MediaService
 	TaskService  TaskDispatcher
 	TaskSubber   TaskSubscriber
 	Caster       FileCaster
+	File         *fileTree.WeblensFileImpl
+	PartialMedia *Media
+
+	FileBytes []byte
 }
 
 // MetaString overrides marshal function for scanMetadata
@@ -93,12 +93,12 @@ func (m ScanMeta) Verify() error {
 }
 
 type ZipMeta struct {
-	Files     []*fileTree.WeblensFileImpl
-	Share     *FileShare
-	Requester *User
-
 	FileService FileService
 	Caster      FileCaster
+	Share       *FileShare
+	Requester   *User
+
+	Files []*fileTree.WeblensFileImpl
 }
 
 func (m ZipMeta) MetaString() string {
@@ -154,14 +154,15 @@ func (m ZipMeta) Verify() error {
 }
 
 type MoveMeta struct {
-	FileIds             []fileTree.FileId
+	Caster FileCaster
+
+	FileService FileService
+	FileEvent   *fileTree.FileEvent
+
+	User                *User
 	DestinationFolderId fileTree.FileId
 	NewFilename         string
-	FileEvent           *fileTree.FileEvent
-	Caster              FileCaster
-
-	User        *User
-	FileService FileService
+	FileIds             []fileTree.FileId
 }
 
 func (m MoveMeta) MetaString() string {
@@ -190,32 +191,31 @@ func (m MoveMeta) Verify() error {
 }
 
 type FileChunk struct {
+	NewFile      *fileTree.WeblensFileImpl
 	FileId       fileTree.FileId
-	Chunk        []byte
 	ContentRange string
 
-	NewFile *fileTree.WeblensFileImpl
+	Chunk []byte
 }
 
 type UploadFilesMeta struct {
-	ChunkStream  chan FileChunk
-	RootFolderId fileTree.FileId
-	ChunkSize    int64
-	TotalSize    int64
-
-	UploadEvent *fileTree.FileEvent
-
 	FileService  FileService
 	MediaService MediaService
 	TaskService  task.TaskService
 	TaskSubber   TaskSubscriber
+	Caster       FileCaster
+	ChunkStream  chan FileChunk
+
+	UploadEvent *fileTree.FileEvent
+
 	User         *User
 	Share        *FileShare
-	Caster       FileCaster
+	RootFolderId fileTree.FileId
+	ChunkSize    int64
 }
 
 func (m UploadFilesMeta) MetaString() string {
-	return fmt.Sprintf("%s%s%d%d", UploadFilesTask, m.RootFolderId, m.ChunkSize, m.TotalSize)
+	return fmt.Sprintf("%s%s%d", UploadFilesTask, m.RootFolderId, m.ChunkSize)
 }
 
 func (m UploadFilesMeta) FormatToResult() task.TaskResult {
@@ -233,8 +233,6 @@ func (m UploadFilesMeta) Verify() error {
 		return werror.ErrBadJobMetadata(m.JobName(), "rootFolderId")
 	} else if m.ChunkSize == 0 {
 		return werror.ErrBadJobMetadata(m.JobName(), "chunkSize")
-	} else if m.TotalSize == 0 {
-		return werror.ErrBadJobMetadata(m.JobName(), "totalSize")
 	} else if m.FileService == nil {
 		return werror.ErrBadJobMetadata(m.JobName(), "fileService")
 	} else if m.MediaService == nil {
@@ -280,10 +278,10 @@ func (m FsStatMeta) Verify() error {
 }
 
 type FileUploadProgress struct {
+	Hash          hash.Hash
 	File          *fileTree.WeblensFileImpl
 	BytesWritten  int64
 	FileSizeTotal int64
-	Hash          hash.Hash
 }
 
 type BackupMeta struct {
@@ -367,12 +365,12 @@ func (m HashFileMeta) Verify() error {
 }
 
 type BackupCoreFileMeta struct {
-	ProxyFileService FileService
-	FileService      FileService
-	File             *fileTree.WeblensFileImpl
-	Caster           Broadcaster
-	Core             *Instance
-	Filename         string
+	FileService FileService
+	CoreFileId  string
+	File        *fileTree.WeblensFileImpl
+	Caster      Broadcaster
+	Core        *Instance
+	Filename    string
 }
 
 func (m BackupCoreFileMeta) MetaString() string {
@@ -401,9 +399,6 @@ func (m BackupCoreFileMeta) Verify() error {
 	}
 	if m.File == nil {
 		return werror.ErrBadJobMetadata(m.JobName(), "File")
-	}
-	if m.ProxyFileService == nil {
-		return werror.ErrBadJobMetadata(m.JobName(), "ProxyFileService")
 	}
 	if m.FileService == nil {
 		return werror.ErrBadJobMetadata(m.JobName(), "FileService")

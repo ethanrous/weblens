@@ -1,8 +1,8 @@
 #!/bin/bash
 
 if [[ ! -e ./ui ]]; then
-  echo "ERR Could not find ./ui directory, are you at the root of the repo? i.e. ~/repos/weblens and not ~/repos/weblens/scripts"
-  exit 1
+	echo "ERR Could not find ./ui directory, are you at the root of the repo? i.e. ~/repos/weblens and not ~/repos/weblens/scripts"
+	exit 1
 fi
 
 mkdir -p build/logs
@@ -10,24 +10,24 @@ mkdir -p build/logs
 tail_pid=-1
 tail_file=""
 do_tail() {
-  tail_file="$1"
-  if [[ $show_logs == true ]]; then
-    printf "\n"
-    : >"$1"
-    tail -f "$1" &
-    tail_pid=$!
-  else
-    printf " "
-  fi
+	tail_file="$1"
+	if [[ $show_logs == true ]]; then
+		printf "\n"
+		: >"$1"
+		tail -f "$1" &
+		tail_pid=$!
+	else
+		printf " "
+	fi
 }
 
 stop_tail() {
-  if [[ $tail_pid -ne -1 ]]; then
-    kill $tail_pid &>/dev/null
-    wait $tail_pid 2>/dev/null
-    tail_pid=-1
-    tail_file=""
-  fi
+	if [[ $tail_pid -ne -1 ]]; then
+		kill $tail_pid &>/dev/null
+		wait $tail_pid 2>/dev/null
+		tail_pid=-1
+		tail_file=""
+	fi
 }
 
 failed=false
@@ -35,17 +35,17 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 show_fail() {
-  failed=true
-  printf "%bFAIL%b\n" "${RED}" "${NC}"
-  if [[ $show_logs != true ]]; then
-    cat "$tail_file"
-    printf "%bFAIL%b\n" "${RED}" "${NC}"
-  fi
-  stop_tail
+	failed=true
+	printf "%bFAIL%b\n" "${RED}" "${NC}"
+	if [[ $show_logs != true ]]; then
+		cat "$tail_file"
+		printf "%bFAIL%b\n" "${RED}" "${NC}"
+	fi
+	stop_tail
 }
 show_pass() {
-  stop_tail
-  printf "%bPASS%b\n" "${GREEN}" "${NC}"
+	stop_tail
+	printf "%bPASS%b\n" "${GREEN}" "${NC}"
 }
 
 trap 'kill $tail_pid &>/dev/null' EXIT
@@ -59,10 +59,6 @@ Options:
   --backend               
       Enable basic backend tests
 
-  -r, --remote-tests      
-      Enable remote (end-to-end) tests for the backend 
-      (sets --backend)
-
   --ui                    
       Enable UI tests
 
@@ -70,156 +66,148 @@ Options:
       Generate and display go test coverage report
 
   -a, --all               
-      Run both backend (includes remote) and UI tests 
-      (sets --remote-tests and --ui)
+      Run all available tests
+      (sets --backend and --ui)
 
   -l, --show-logs         
       Display logs during the test run (logs are also saved to ./build/logs and are printed on test failure reglardless of this flag)
 "
 
 backend_tests=false
-remote_tests=false
 show_logs=false
 ui_tests=false
 coverage=false
 loop=false
 
 while [ "${1:-}" != "" ]; do
-  case "$1" in
-  "-a" | "--all")
-    backend_tests=true
-    remote_tests=true
-    ui_tests=true
-    ;;
-  "--backend")
-    backend_tests=true
-    ;;
-  "-r" | "--remote-tests")
-    backend_tests=true
-    remote_tests=true
-    ;;
-  "--target")
-    shift
-    target=$1
-    ;;
-  "-l" | "--show-logs")
-    show_logs=true
-    ;;
-  "--coverage")
-    coverage=true
-    ;;
-  "--ui")
-    ui_tests=true
-    ;;
-  "--loop")
-    loop=true
-    ;;
-  "-h" | "--help")
-    echo "$usage"
-    exit 0
-    ;;
-  *)
-    "Unknown argument: $1"
-    echo "$usage"
-    exit 1
-    ;;
-  esac
-  shift
+	case "$1" in
+	"-a" | "--all")
+		backend_tests=true
+		ui_tests=true
+		;;
+	"--backend")
+		backend_tests=true
+		;;
+	"--target")
+		shift
+		target=$1
+		;;
+	"-l" | "--show-logs")
+		show_logs=true
+		;;
+	"--coverage")
+		coverage=true
+		;;
+	"--ui")
+		ui_tests=true
+		;;
+	"--loop")
+		loop=true
+		;;
+	"-h" | "--help")
+		echo "$usage"
+		exit 0
+		;;
+	*)
+		"Unknown argument: $1"
+		echo "$usage"
+		exit 1
+		;;
+	esac
+	shift
 done
 
+if [[ $loop == true ]] && [[ $coverage == true ]]; then
+	echo "ERR Using incompatible options --loop and --coverage"
+	exit 1
+fi
+
 while true; do
-  if [[ $REMOTE_TESTS == true ]]; then
-    remote_tests=true
-    backend_tests=true
-  fi
+	if [[ $ui_tests != true ]] && [[ $backend_tests != true ]]; then
+		echo "No tests selected..."
+		echo "$usage"
+		exit 1
+	fi
 
-  if [[ $ui_tests != true ]] && [[ $backend_tests != true ]]; then
-    echo "No tests selected..."
-    echo "$usage"
-    exit 1
-  fi
+	if [[ ! -e ./ui/dist/index.html ]] || [[ ! -d ./ui/node_modules ]]; then
+		cd ui || exit
+		export VITE_APP_BUILD_TAG=test
+		export VITE_BUILD=true
+		# npm install
+		npm run build
+		cd .. || exit
+	fi
 
-  if [[ ! -e ./ui/dist/index.html ]] || [[ ! -d ./ui/node_modules ]]; then
-    cd ui || exit
-    export VITE_APP_BUILD_TAG=test
-    export VITE_BUILD=true
-    # npm install
-    npm run build
-    cd .. || exit
-  fi
+	if [[ $ui_tests == true ]]; then
+		printf "Running UI linter... "
+		cd ui || exit
+		do_tail ../build/logs/ui-lint.log
+		if ! npx eslint . &>../build/logs/ui-lint.log; then
+			show_fail
+		else
+			show_pass
+		fi
+		cd .. || exit
+	fi
 
-  if [[ $ui_tests == true ]]; then
-    printf "Running UI linter ..."
-    cd ui || exit
-    do_tail ../build/logs/ui-lint.log
-    if ! npx eslint . &>../build/logs/ui-lint.log; then
-      show_fail
-    else
-      show_pass
-    fi
-    cd .. || exit
-  fi
+	if [[ $backend_tests == true ]]; then
+		dbstr=$(mongosh --eval "show dbs" | awk '{print $1;}' | grep weblens-Test)
+		dbs=($dbstr)
 
-  if [[ $remote_tests == true ]]; then
-    export REMOTE_TESTS=true
+		for db in "${dbs[@]}"; do
+			echo "Dropping test database: $db"
+			mongosh --eval "use $db" --eval "db.dropDatabase()" >/dev/null
+		done
 
-    printf "Setting up remote tests ..."
-    do_tail ./build/logs/remote-setup.log
-    if ! source ./scripts/setupRemoteTests &>./build/logs/remote-setup.log; then
-      show_fail
-      printf "%bERR Failed to setup remote target, not running tests%b\n" "${RED}" "${NC}"
-      exit 1
-    fi
-    stop_tail
-    echo "Done"
-  fi
+		rm -rf ./build/fs/test
 
-  if [[ $backend_tests == true ]]; then
-    mongosh --eval "use weblens-test" --eval "db.dropDatabase()" >/dev/null
-    mongosh --eval "use weblens-core-test" --eval "db.dropDatabase()" >/dev/null
-    mongosh --eval "use weblens-backup-test" --eval "db.dropDatabase()" >/dev/null
+		if [[ -z "$target" ]]; then
+			target="./..."
+		else
+			echo "Using target: $target"
+		fi
+		printf "Running backend tests ... "
+		do_tail ./build/logs/backend-test.log
 
-    if [[ -z "$target" ]]; then
-      target="./..."
-    else
-      echo "Using target: $target"
-    fi
-    printf "Running backend tests ..."
-    do_tail ./build/logs/backend-test.log
+		export CGO_CFLAGS_ALLOW='-Xpreprocessor'
+		export CONFIG_PATH=$PWD/config
+		export CONFIG_NAME=TEST
+		export APP_ROOT=$PWD
+		if [[ $coverage == true ]]; then
+			if ! (
+				set -o pipefail
+				go test -coverprofile ./build/logs/cover_raw.out -v "$target" &>./build/logs/backend-test.log
+			); then
+				show_fail
+			else
+				grep -v -e internal -e models -e mock -e main -e database ./build/logs/cover_raw.out >./build/logs/cover.out
+				rm ./build/logs/cover_raw.out
+				show_pass
+			fi
+		else
+			if ! (
+				set -o pipefail
+				go test -v "$target" &>./build/logs/backend-test.log
+			); then
+				show_fail
+			else
+				show_pass
+			fi
+		fi
+	fi
 
-    export CGO_CFLAGS_ALLOW='-Xpreprocessor'
-    if ! (
-      set -o pipefail
-      APP_ROOT=$PWD CONFIG_PATH=$PWD/config CONFIG_NAME=TEST go test -coverprofile ./build/logs/cover_raw.out -v "$target" &>./build/logs/backend-test.log
-    ); then
-      show_fail
-    else
-      if [[ $coverage == true ]]; then
-        grep -v -e internal -e models -e http -e mock ./build/logs/cover_raw.out >./build/logs/cover.out
-        rm ./build/logs/cover_raw.out
-      fi
-      show_pass
-    fi
-  fi
+	if [[ $failed == true ]]; then
+		exit 1
+	fi
 
-  weblens_pid=$(cat ./build/logs/weblens.pid 2>/dev/null)
+	if [[ $coverage == true ]]; then
+		go tool cover -html=./build/logs/cover.out
+	fi
 
-  if [[ $remote_tests == true ]] && [[ -n $weblens_pid ]]; then
-    echo "Killing test weblens instance (PID: $weblens_pid)"
-    kill "$weblens_pid"
-  fi
-
-  if [[ $failed == true ]]; then
-    exit 1
-  fi
-
-  if [[ $coverage == true ]]; then
-    go tool cover -html=./build/logs/cover.out
-  fi
-
-  if [[ $loop != true ]]; then
-    exit 0
-  else
-    go clean -testcache
-  fi
+	if [[ $loop != true ]]; then
+		exit 0
+	else
+		echo "Cleaning cache..."
+		go clean -testcache
+	fi
 done

@@ -180,6 +180,7 @@ func downloadFile(w http.ResponseWriter, r *http.Request) {
 	if SafeErrorAndExit(err, w) {
 		return
 	}
+	i := getInstanceFromCtx(r)
 
 	fileId := chi.URLParam(r, "fileId")
 	isTakeout := r.URL.Query().Get("isTakeout")
@@ -192,6 +193,11 @@ func downloadFile(w http.ResponseWriter, r *http.Request) {
 			writeJson(w, http.StatusNotFound, err)
 			return
 		}
+	} else if i != nil {
+		file, err = pack.FileService.GetFileSafe(fileId, pack.UserService.GetRootUser(), nil)
+		if SafeErrorAndExit(err, w) {
+			return
+		}
 	} else {
 		share, err := getShareFromCtx[*models.FileShare](w, r)
 		if err != nil {
@@ -199,12 +205,12 @@ func downloadFile(w http.ResponseWriter, r *http.Request) {
 		}
 
 		file, err = pack.FileService.GetFileSafe(fileId, u, share)
-		if err != nil {
-			writeJson(w, http.StatusNotFound, err)
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 	}
 
+	pack.Log.Debug.Println("Downloading file", file.GetPortablePath())
 	http.ServeFile(w, r, file.AbsPath())
 }
 
@@ -428,10 +434,10 @@ func createFolder(w http.ResponseWriter, r *http.Request) {
 //	@Tags		Folder
 //	@Accept		json
 //	@Produce	json
-//	@Param		folderId	path		string	true	"Folder Id"
-//	@Param		shareId		query		string	false	"Share Id"
-//	@Param		timestamp	query		int		false	"Past timestamp to view the folder at, in ms since epoch"
-//	@Success	200			{object}	rest.FolderInfoResponse"Folder Info"
+//	@Param		folderId	path		string					true	"Folder Id"
+//	@Param		shareId		query		string					false	"Share Id"
+//	@Param		timestamp	query		int						false	"Past timestamp to view the folder at, in ms since epoch"
+//	@Success	200			{object}	rest.FolderInfoResponse	"Folder Info"
 //	@Router		/folder/{folderId} [get]
 func getFolder(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
@@ -644,7 +650,7 @@ func getSharedFiles(w http.ResponseWriter, r *http.Request) {
 				log.Error.Println("Could not find file acompanying a file share")
 				continue
 			}
-			safeErr, code := werror.TrySafeErr(err)
+			safeErr, code := log.TrySafeErr(err)
 			writeJson(w, code, safeErr)
 			return
 		}
@@ -880,8 +886,8 @@ func autocompletePath(w http.ResponseWriter, r *http.Request) {
 //	@Tags		Files
 //	@Accept		json
 //	@Produce	json
-//	@Param		request	body		rest.RestoreFilesBody				true	"Restore files request body"
-//	@Success	200		{object}	http.restoreFiles.restoreFilesInfo	"Restore files info"
+//	@Param		request	body		rest.RestoreFilesBody	true	"Restore files request body"
+//	@Success	200		{object}	rest.RestoreFilesInfo	"Restore files info"
 //	@Failure	400
 //	@Failure	404
 //	@Failure	500
@@ -930,10 +936,7 @@ func restoreFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type restoreFilesInfo struct {
-		NewParentId string `json:"newParentId"`
-	} //	@name	RestoreFilesInfo
-	res := restoreFilesInfo{NewParentId: newParent.ID()}
+	res := rest.RestoreFilesInfo{NewParentId: newParent.ID()}
 
 	writeJson(w, http.StatusOK, res)
 }
@@ -949,6 +952,7 @@ func restoreFiles(w http.ResponseWriter, r *http.Request) {
 //	@Tags		Files
 //	@Accept		json
 //	@Param		fileId	path	string					true	"File Id"
+//	@Param		shareId	query	string					false	"Share Id"
 //	@Param		request	body	rest.UpdateFileParams	true	"Update file request body"
 //	@Success	200
 //	@Failure	403
@@ -961,13 +965,19 @@ func updateFile(w http.ResponseWriter, r *http.Request) {
 	if SafeErrorAndExit(err, w) {
 		return
 	}
+
 	fileId := chi.URLParam(r, "fileId")
 	updateInfo, err := readCtxBody[rest.UpdateFileParams](w, r)
 	if err != nil {
 		return
 	}
 
-	file, err := pack.FileService.GetFileSafe(fileId, u, nil)
+	share, err := getShareFromCtx[*models.FileShare](w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+
+	file, err := pack.FileService.GetFileSafe(fileId, u, share)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -1057,59 +1067,6 @@ func moveFiles(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// TrashFiles godoc
-//
-//	@ID			TrashFiles
-//
-//	@Security	SessionAuth
-//
-//	@Summary	Move a list of files to the trash
-//	@Tags		Files
-//	@Param		request	body	rest.FilesListParams	true	"Trash files request body"
-//	@Success	200
-//	@Failure	403
-//	@Failure	404
-//	@Failure	500
-//	@Router		/files/trash [patch]
-// func trashFiles(w http.ResponseWriter, r *http.Request) {
-// 	pack := getServices(r)
-// 	params, err := readCtxBody[rest.FilesListParams](w, r)
-// 	if err != nil {
-// 		return
-// 	}
-// 	fileIds := params.FileIds
-// 	u, err := getUserFromCtx(r)
-// 	if SafeErrorAndExit(err, w) {
-// 		return
-// 	}
-//
-// 	var files []*fileTree.WeblensFileImpl
-// 	for _, fileId := range fileIds {
-// 		file, err := pack.FileService.GetFileSafe(fileId, u, nil)
-// 		if SafeErrorAndExit(err, w) {
-// 			return
-// 		}
-//
-// 		if u != pack.FileService.GetFileOwner(file) {
-// 			writeJson(w, http.StatusForbidden, rest.WeblensErrorInfo{Error: "You can't trash this file"})
-// 			return
-// 		}
-//
-// 		if file.GetParentId() == u.TrashId {
-// 			writeJson(w, http.StatusBadRequest, rest.WeblensErrorInfo{Error: "File is already in trash"})
-// 			return
-// 		}
-//
-// 		files = append(files, file)
-// 	}
-// 	err = pack.FileService.MoveFilesToTrash(files, u, nil, pack.Caster)
-// 	if SafeErrorAndExit(err, w) {
-// 		return
-// 	}
-//
-// 	w.WriteHeader(http.StatusOK)
-// }
-
 // UnTrashFiles godoc
 //
 //	@ID			UnTrashFiles
@@ -1168,7 +1125,8 @@ func unTrashFiles(w http.ResponseWriter, r *http.Request) {
 //
 //	@Summary	Delete Files "permanently"
 //	@Tags		Files
-//	@Param		request	body	rest.FilesListParams	true	"Delete files request body"
+//	@Param		request		body	rest.FilesListParams	true	"Delete files request body"
+//	@Param		ignoreTrash	query	boolean					false	"Delete files even if they are not in the trash"
 //	@Success	200
 //	@Failure	401
 //	@Failure	404
@@ -1182,6 +1140,7 @@ func deleteFiles(w http.ResponseWriter, r *http.Request) {
 	}
 	params, err := readCtxBody[rest.FilesListParams](w, r)
 	if err != nil {
+		pack.Log.ErrTrace(err)
 		return
 	}
 	fileIds := params.FileIds
@@ -1191,6 +1150,8 @@ func deleteFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ignoreTrash := r.URL.Query().Get("ignore_trash") == "true"
+
 	var files []*fileTree.WeblensFileImpl
 	for _, fileId := range fileIds {
 		file, err := pack.FileService.GetFileSafe(fileId, u, nil)
@@ -1199,7 +1160,7 @@ func deleteFiles(w http.ResponseWriter, r *http.Request) {
 		} else if u != pack.FileService.GetFileOwner(file) {
 			writeJson(w, http.StatusNotFound, rest.WeblensErrorInfo{Error: "Could not find file to delete"})
 			return
-		} else if !pack.FileService.IsFileInTrash(file) {
+		} else if !ignoreTrash && !pack.FileService.IsFileInTrash(file) {
 			writeJson(w, http.StatusForbidden, rest.WeblensErrorInfo{Error: "Cannot delete file not in trash"})
 			return
 		}
@@ -1207,6 +1168,7 @@ func deleteFiles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = pack.FileService.DeleteFiles(files, "USERS", pack.Caster)
+	pack.Log.ErrTrace(err)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -1224,6 +1186,7 @@ func deleteFiles(w http.ResponseWriter, r *http.Request) {
 //	@Summary	Begin a new upload task
 //	@Tags		Files
 //	@Param		request	body		rest.NewUploadParams	true	"New upload request body"
+//	@Param		shareId	query		string					false	"Share Id"
 //	@Success	200		{object}	rest.NewUploadInfo		"Upload Info"
 //	@Failure	401
 //	@Failure	404
@@ -1232,8 +1195,11 @@ func deleteFiles(w http.ResponseWriter, r *http.Request) {
 func newUploadTask(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
 	u, err := getUserFromCtx(r)
-	if SafeErrorAndExit(err, w) {
+	if err != nil && !errors.Is(err, werror.ErrNoPublicUser) {
+		SafeErrorAndExit(err, w)
 		return
+	} else if err != nil {
+		u = pack.UserService.GetPublicUser()
 	}
 
 	upInfo, err := readCtxBody[rest.NewUploadParams](w, r)
@@ -1241,22 +1207,35 @@ func newUploadTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if upInfo.TotalUploadSize == 0 {
-		writeJson(w, http.StatusBadRequest, rest.WeblensErrorInfo{Error: "Total upload size cannot be 0"})
+	share, err := getShareFromCtx[*models.FileShare](w, r)
+	if SafeErrorAndExit(err, w) {
 		return
 	}
+
+	rootFolder, err := pack.FileService.GetFileSafe(upInfo.RootFolderId, u, share)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+
+	if !pack.AccessService.CanUserAccessFile(u, rootFolder, share) {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	uploadEvent := pack.FileService.GetJournalByTree("USERS").NewEvent()
 
 	meta := models.UploadFilesMeta{
 		ChunkStream:  make(chan models.FileChunk, 10),
 		RootFolderId: upInfo.RootFolderId,
 		ChunkSize:    upInfo.ChunkSize,
-		TotalSize:    upInfo.TotalUploadSize,
 		FileService:  pack.FileService,
 		MediaService: pack.MediaService,
 		TaskService:  pack.TaskService,
 		TaskSubber:   pack.ClientService,
 		User:         u,
 		Caster:       pack.Caster,
+		UploadEvent:  uploadEvent,
+		Share:        share,
 	}
 	t, err := pack.TaskService.DispatchJob(models.UploadFilesTask, meta, nil)
 	if SafeErrorAndExit(err, w) {
@@ -1277,6 +1256,7 @@ func newUploadTask(w http.ResponseWriter, r *http.Request) {
 //	@Summary	Add a file to an upload task
 //	@Tags		Files
 //	@Param		uploadId	path		string				true	"Upload Id"
+//	@Param		shareId		query		string				false	"Share Id"
 //	@Param		request		body		rest.NewFilesParams	true	"New file params"
 //	@Success	200			{object}	rest.NewFilesInfo	"FileIds"
 //	@Failure	401
@@ -1295,6 +1275,12 @@ func newFileUpload(w http.ResponseWriter, r *http.Request) {
 	if SafeErrorAndExit(err, w) {
 		return
 	}
+
+	share, err := getShareFromCtx[*models.FileShare](w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+
 	uTask := pack.TaskService.GetTask(uploadTaskId)
 	if uTask == nil {
 		w.WriteHeader(http.StatusNotFound)
@@ -1303,15 +1289,15 @@ func newFileUpload(w http.ResponseWriter, r *http.Request) {
 
 	completed, _ := uTask.Status()
 	if completed {
-		w.WriteHeader(http.StatusNotFound)
+		writeError(w, http.StatusNotFound, werror.ErrUploadAlreadyComplete)
 		return
 	}
 
 	var ids []fileTree.FileId
 	for _, newFInfo := range params.NewFiles {
-		parent, err := pack.FileService.GetFileSafe(newFInfo.ParentFolderId, u, nil)
+		parent, err := pack.FileService.GetFileSafe(newFInfo.ParentFolderId, u, share)
 		if err != nil {
-			w.WriteHeader(http.StatusNotFound)
+			writeError(w, http.StatusNotFound, err)
 			return
 		}
 
@@ -1321,20 +1307,31 @@ func newFileUpload(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		uTask.ClearTimeout()
+
 		err = uTask.Manipulate(
 			func(meta task.TaskMetadata) error {
 				uploadMeta := meta.(models.UploadFilesMeta)
+				var newF *fileTree.WeblensFileImpl
+				if newFInfo.IsDir {
+					newF, err = pack.FileService.CreateFolder(parent, newFInfo.NewFileName, uploadMeta.UploadEvent, pack.Caster)
+					if err != nil {
+						return err
+					}
+				} else {
+					// We must not pass the event in here, as it will attempt to generate the contentId for the
+					// file before the file has content.
+					newF, err = pack.FileService.CreateFile(parent, newFInfo.NewFileName, nil, pack.Caster)
+					if err != nil {
+						return err
+					}
 
-				newF, err := pack.FileService.CreateFile(parent, newFInfo.NewFileName, uploadMeta.UploadEvent, pack.Caster)
-				if err != nil {
-					return err
+					uploadMeta.ChunkStream <- models.FileChunk{
+						NewFile: newF, ContentRange: "0-0/" + strconv.FormatInt(newFInfo.FileSize, 10),
+					}
 				}
 
 				ids = append(ids, newF.ID())
-
-				uploadMeta.ChunkStream <- models.FileChunk{
-					NewFile: newF, ContentRange: "0-0/" + strconv.FormatInt(newFInfo.FileSize, 10),
-				}
 
 				return nil
 			},
@@ -1360,6 +1357,7 @@ func newFileUpload(w http.ResponseWriter, r *http.Request) {
 //	@Tags		Files
 //	@Param		uploadId	path		string	true	"Upload Id"
 //	@Param		fileId		path		string	true	"File Id"
+//	@Param		shareId		query		string	false	"Share Id"
 //	@Param		chunk		formData	file	true	"File chunk"
 //	@Success	200
 //	@Failure	401
@@ -1401,16 +1399,11 @@ func handleUploadChunk(w http.ResponseWriter, r *http.Request) {
 		chunk = bytes.TrimSuffix(chunk, []byte("--"+boundry+"--\r\n"))
 
 		chunk = chunk[bytes.Index(chunk, []byte("\r\n\r\n"))+4:]
+	}
 
-		// Search for null byte and truncate the chunk
-		// var b byte = 0
-		// var counter = 0
-		// for b != 0 || counter == 0 {
-		// 	b = chunk[counter]
-		// 	counter++
-		// }
-		// chunk = chunk[counter:]
-
+	if len(r.Header["Content-Range"]) == 0 {
+		writeJson(w, http.StatusBadRequest, rest.WeblensErrorInfo{Error: "Missing Content-Range header"})
+		return
 	}
 
 	err = t.Manipulate(
@@ -1428,6 +1421,40 @@ func handleUploadChunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.WriteHeader(http.StatusOK)
+}
+
+// GetUploadResult godoc
+//
+//	@ID	GetUploadResult
+//
+//	@Security
+//	@Security	SessionAuth
+//
+//	@Summary	Get the result of an upload task. This will block until the upload is complete
+//	@Tags		Files
+//	@Param		uploadId	path	string	true	"Upload Id"
+//	@Success	200
+//	@Failure	401
+//	@Failure	404
+//	@Failure	500
+//	@Router		/upload/{uploadId} [get]
+func getUploadResult(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+
+	uploadId := chi.URLParam(r, "uploadId")
+	if uploadId == "" {
+		writeError(w, http.StatusBadRequest, werror.Errorf("Missing upload id"))
+		return
+	}
+
+	t := pack.TaskService.GetTask(uploadId)
+	if t == nil {
+		writeError(w, http.StatusNotFound, werror.Errorf("No upload exists with given id"))
+		return
+	}
+
+	t.Wait()
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -1521,8 +1548,9 @@ func formatRespondPastFolderInfo(folderId fileTree.FileId, pastTime time.Time, w
 	})
 
 	pack := getServices(r)
+	userJournal := pack.FileService.GetJournalByTree("USERS")
 
-	pastFile, err := pack.FileService.GetJournalByTree("USERS").GetPastFile(folderId, pastTime)
+	pastFile, err := userJournal.GetPastFile(folderId, pastTime)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -1538,7 +1566,7 @@ func formatRespondPastFolderInfo(folderId fileTree.FileId, pastTime time.Time, w
 		return
 	}
 	for parentId != "ROOT" {
-		pastParent, err := pack.FileService.GetJournalByTree("USERS").GetPastFile(parentId, pastTime)
+		pastParent, err := userJournal.GetPastFile(parentId, pastTime)
 		if SafeErrorAndExit(err, w) {
 			return
 		}
@@ -1552,13 +1580,13 @@ func formatRespondPastFolderInfo(folderId fileTree.FileId, pastTime time.Time, w
 		parentId = pastParent.GetParentId()
 	}
 
-	children, err := pack.FileService.GetJournalByTree("USERS").GetPastFolderChildren(pastFile, pastTime)
-	if SafeErrorAndExit(err, w) {
-		return
-	}
-
+	children := pastFile.GetChildren()
 	childrenInfos := make([]rest.FileInfo, 0, len(children))
 	for _, child := range children {
+		if child.Filename() == ".user_trash" {
+			continue
+		}
+
 		childInfo, err := rest.WeblensFileToFileInfo(child, pack, true)
 		if SafeErrorAndExit(err, w) {
 			return

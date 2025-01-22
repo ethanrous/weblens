@@ -1,7 +1,7 @@
 import { IconFolder } from '@tabler/icons-react'
-import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
 import { HandleDrop } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { IconDisplay } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
+import { useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { SelectedState, WeblensFile } from '@weblens/types/files/File'
 import {
     fileHandleContextMenu,
@@ -207,7 +207,6 @@ export const FileSquare = memo(
                         HandleDrop(
                             e.dataTransfer.items,
                             file.Id(),
-                            [],
                             false,
                             useFileBrowserStore.getState().shareId
                         ).catch(ErrorHandler)

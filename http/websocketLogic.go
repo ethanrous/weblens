@@ -111,7 +111,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 		return
 	}
 
-	log.Debug.Func(func(l log.Logger) { l.Printf("Got wsmsg from [%s]: %v", c.GetUser().GetUsername(), msg) })
+	log.Trace.Func(func(l log.Logger) { l.Printf("Got wsmsg from [%s]: %v", c.GetUser().GetUsername(), msg) })
 
 	if msg.Action == models.ReportError {
 		log.ErrorCatcher.Printf("Web client caught unexpected error\n%s\n\n", msg.Content)
@@ -203,9 +203,10 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 		}
 
 		err = pack.ClientService.Unsubscribe(c, key, time.UnixMilli(msg.SentAt))
-		if err != nil {
+		if err != nil && !errors.Is(err, werror.ErrSubscriptionNotFound) {
 			c.Error(err)
-			return
+		} else if err != nil {
+			log.Warning.Printf("Subscription [%s] not found in unsub task", key)
 		}
 
 	case models.ScanDirectory:
@@ -280,7 +281,7 @@ func wsServerClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.S
 	}
 
 	if msg.SentTime == 0 {
-		err := werror.Errorf("invalid sent time on relay message %s", msg.EventTag)
+		err := werror.Errorf("invalid sent time on relay message: [%s]", msg.EventTag)
 		c.Error(err)
 		return
 	}
@@ -338,5 +339,9 @@ func onWebConnect(c models.Client, pack *models.ServicePack) {
 }
 
 func wsRecover(c models.Client) {
-	internal.RecoverPanic(fmt.Sprintf("[%s] websocket panic", c.GetUser().GetUsername()))
+	name := ""
+	if u := c.GetUser(); u != nil {
+		name = u.GetUsername()
+	}
+	internal.RecoverPanic(fmt.Sprintf("[%s] websocket panic", name))
 }

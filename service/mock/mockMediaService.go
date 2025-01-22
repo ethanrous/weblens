@@ -103,7 +103,7 @@ func (ms *MockMediaService) NukeCache() error {
 }
 
 func (ms *MockMediaService) GetFilteredMedia(
-	requester *models.User, sort string, sortDirection int, excludeIds []models.ContentId, raw bool, hidden bool,
+	requester *models.User, sort string, sortDirection int, excludeIds []models.ContentId, raw bool, hidden bool, search string,
 ) ([]*models.Media, error) {
 
 	panic("implement me")

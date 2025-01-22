@@ -16,16 +16,18 @@ import (
 )
 
 type ShareServiceImpl struct {
-	repo   map[models.ShareId]models.Share
-	repoMu sync.RWMutex
+	repo map[models.ShareId]models.Share
 
 	fileIdMap map[fileTree.FileId]models.ShareId
-	fileMu    sync.RWMutex
 
 	albumIdMap map[models.AlbumId]models.ShareId
-	albumMu    sync.RWMutex
 
-	col *mongo.Collection
+	col    *mongo.Collection
+	repoMu sync.RWMutex
+
+	fileMu sync.RWMutex
+
+	albumMu sync.RWMutex
 }
 
 func NewShareService(collection *mongo.Collection) (models.ShareService, error) {

@@ -21,6 +21,8 @@ func TestJournalImplSimple(t *testing.T) {
 		panic(err)
 	}
 
+	logger := log.NewLogPackage("", log.DEBUG)
+
 	hasherFactory := func() Hasher {
 		hasher := mock.NewMockHasher()
 		hasher.SetShouldCount(true)
@@ -33,6 +35,7 @@ func TestJournalImplSimple(t *testing.T) {
 		"weblens_test_server",
 		false,
 		hasherFactory,
+		logger,
 	)
 	require.NoError(t, err)
 	defer journal.Close()
@@ -69,6 +72,8 @@ func TestJournalImpl_GetPastFile(t *testing.T) {
 		panic(err)
 	}
 
+	logger := log.NewLogPackage("", log.DEBUG)
+
 	hasherFactory := func() Hasher {
 		hasher := mock.NewMockHasher()
 		hasher.SetShouldCount(true)
@@ -76,12 +81,7 @@ func TestJournalImpl_GetPastFile(t *testing.T) {
 	}
 
 	col := mondb.Collection(t.Name() + "-journal")
-	journal, err := NewJournal(
-		col,
-		"weblens_test_server",
-		false,
-		hasherFactory,
-	)
+	journal, err := NewJournal(col, "weblens_test_server", false, hasherFactory, logger)
 	require.NoError(t, err)
 
 	defer journal.Close()
@@ -106,6 +106,11 @@ func TestJournalImpl_GetPastFile(t *testing.T) {
 	journal.LogEvent(event)
 	event.Wait()
 
+	// Mongo only has millisecond precision, so we need to wait a bit to ensure the delete event is
+	// for sure after the create events. This test is a bit flaky without this. In reality, this is
+	// not an issue because two related events will never be within the same millisecond as they are here.
+	time.Sleep(time.Millisecond * 10)
+
 	secondDirEvent := journal.NewEvent()
 	newDir2, err := tree.MkDir(tree.GetRoot(), "newDir2", secondDirEvent)
 	require.NoError(t, err)
@@ -114,7 +119,7 @@ func TestJournalImpl_GetPastFile(t *testing.T) {
 	secondDirEvent.Wait()
 
 	pastRootChildren, err := journal.GetPastFolderChildren(
-		tree.GetRoot(), secondDirEvent.EventBegin,
+		tree.GetRoot(), secondDirEvent.EventBegin.Add(-time.Millisecond*2),
 	)
 	require.NoError(t, err)
 
@@ -127,6 +132,8 @@ func TestJournalImpl_GetPastFile(t *testing.T) {
 		log.Error.Println("Wrong children:", childNames)
 		t.FailNow()
 	}
+
+	time.Sleep(time.Millisecond * 10)
 
 	deleteEvent := journal.NewEvent()
 	err = tree.Delete(testFile.ID(), deleteEvent)
@@ -147,7 +154,7 @@ func TestJournalImpl_GetPastFile(t *testing.T) {
 	assert.Equal(t, tree.GetRoot().ID(), pastRoot.ID())
 
 	pastRootChildren, err = journal.GetPastFolderChildren(
-		tree.GetRoot(), deleteEvent.EventBegin,
+		tree.GetRoot(), deleteEvent.EventBegin.Add(-time.Millisecond),
 	)
 	require.NoError(t, err)
 
@@ -185,7 +192,7 @@ func TestJournalImpl_GetPastFile(t *testing.T) {
 
 	require.Equal(t, newDir.ID(), pastDir.ID())
 
-	pastDirChildren, err := journal.GetPastFolderChildren(newDir, deleteEvent.EventBegin)
+	pastDirChildren, err := journal.GetPastFolderChildren(newDir, deleteEvent.EventBegin.Add(-time.Millisecond))
 	require.NoError(t, err)
 
 	require.Equal(t, 1, len(pastDirChildren))

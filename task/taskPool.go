@@ -14,30 +14,33 @@ import (
 )
 
 type TaskPool struct {
-	id Id
+	createdAt time.Time
 
-	treatAsGlobal  bool
-	hasQueueThread bool
-
-	tasks    map[Id]*Task
-	taskLock sync.RWMutex
-
-	totalTasks     atomic.Int64
-	completedTasks atomic.Int64
-	waiterCount    atomic.Int32
-	waiterGate     chan struct{}
-	exitLock       sync.Mutex
+	tasks      map[Id]*Task
+	waiterGate chan struct{}
 
 	workerPool     *WorkerPool
 	parentTaskPool *TaskPool
 	createdBy      *Task
-	createdAt      time.Time
 
 	cleanupFn func(pool Pool)
 
-	allQueuedFlag atomic.Bool
+	id Id
 
 	erroredTasks []*Task
+
+	totalTasks     atomic.Int64
+	completedTasks atomic.Int64
+	taskLock       sync.RWMutex
+
+	exitLock sync.Mutex
+
+	waiterCount atomic.Int32
+
+	allQueuedFlag atomic.Bool
+
+	treatAsGlobal  bool
+	hasQueueThread bool
 }
 
 func (tp *TaskPool) IsRoot() bool {
@@ -78,20 +81,13 @@ func (tp *TaskPool) handleTaskExit(replacementThread bool) (canContinue bool) {
 		// Even if we are out of tasks, if we have not been told all tasks
 		// were queued, we do not wake the waiters
 		if uncompletedTasks == 0 && tp.allQueuedFlag.Load() {
-			if tp.waiterCount.Load() != 0 {
-				log.Trace.Println("Pool complete, waking sleepers!")
-				// TODO - move pool completion to cleanup function
-				// if tp.createdBy != nil && tp.createdBy.caster != nil {
-				// 	tp.createdBy.caster.PushPoolUpdate(tp, websocket.PoolCompleteEvent, nil)
-				// }
-				close(tp.waiterGate)
+			close(tp.waiterGate)
 
-				// Check if all waiters have awoken before closing the queue, spin and sleep for 10ms if not
-				// Should only loop a handful of times, if at all, we just need to wait for the waiters to
-				// lock and then release immediately. Should take, like, nanoseconds (?) each
-				for tp.waiterCount.Load() != 0 {
-					time.Sleep(time.Millisecond * 1)
-				}
+			// Check if all waiters have awoken before closing the queue, spin and sleep for 10ms if not
+			// Should only loop a handful of times, if at all, we just need to wait for the waiters to
+			// lock and then release immediately. Should take, like, nanoseconds (?) each
+			for tp.waiterCount.Load() != 0 {
+				time.Sleep(time.Millisecond * 1)
 			}
 
 			// Once all the tasks have exited, this worker pool is now closing, and so we must run
@@ -187,8 +183,10 @@ func (tp *TaskPool) Wait(supplementWorker bool, task ...*Task) {
 		tp.workerPool.addReplacementWorker()
 	}
 
-	_, file, line, _ := runtime.Caller(1)
-	log.Trace.Func(func(l log.Logger) { l.Printf("Parking on worker pool from %s:%d", file, line) })
+	log.Trace.Func(func(l log.Logger) {
+		_, file, line, _ := runtime.Caller(2)
+		l.Printf("Parking on worker pool from %s:%d", file, line)
+	})
 
 	if !tp.allQueuedFlag.Load() {
 		log.Warning.Println("Going to sleep on pool without allQueuedFlag set! This thread may never wake up!")
@@ -205,7 +203,10 @@ func (tp *TaskPool) Wait(supplementWorker bool, task ...*Task) {
 	}
 	tp.waiterCount.Add(-1)
 
-	log.Trace.Func(func(l log.Logger) { l.Printf("Woke up, returning to %s:%d", file, line) })
+	log.Trace.Func(func(l log.Logger) {
+		_, file, line, _ := runtime.Caller(2)
+		l.Printf("Woke up, returning to %s:%d", file, line)
+	})
 
 	if supplementWorker {
 		tp.workerPool.busyCount.Add(1)
@@ -263,6 +264,8 @@ func (tp *TaskPool) Cancel() {
 }
 
 func (tp *TaskPool) QueueTask(t *Task) (err error) {
+	noterr := werror.Errorf("QueueTask")
+	log.ErrTrace(noterr)
 
 	if tp.workerPool.exitFlag.Load() == 1 {
 		log.Warning.Println("Not queuing task while worker pool is going down")
@@ -352,6 +355,9 @@ func (tp *TaskPool) SignalAllQueued() {
 	if tp.completedTasks.Load() == tp.totalTasks.Load() {
 		close(tp.waiterGate)
 		tp.workerPool.removeTaskPool(tp.ID())
+		tp.GetWorkerPool().log.Trace.Println("Task Pool Already Complete in SignalAllQueued")
+	} else {
+		tp.GetWorkerPool().log.Trace.Println("Task Pool NOT Complete")
 	}
 	tp.allQueuedFlag.Store(true)
 	tp.exitLock.Unlock()
