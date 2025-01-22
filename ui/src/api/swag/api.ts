@@ -2171,10 +2171,11 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
          * @summary Update a File
          * @param {string} fileId File Id
          * @param {UpdateFileParams} request Update file request body
+         * @param {string} [shareId] Share Id
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        updateFile: async (fileId: string, request: UpdateFileParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        updateFile: async (fileId: string, request: UpdateFileParams, shareId?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'fileId' is not null or undefined
             assertParamExists('updateFile', 'fileId', fileId)
             // verify required parameter 'request' is not null or undefined
@@ -2191,6 +2192,10 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
             const localVarRequestOptions = { method: 'PATCH', ...baseOptions, ...options};
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
+
+            if (shareId !== undefined) {
+                localVarQueryParameter['shareId'] = shareId;
+            }
 
 
     
@@ -2479,11 +2484,12 @@ export const FilesApiFp = function(configuration?: Configuration) {
          * @summary Update a File
          * @param {string} fileId File Id
          * @param {UpdateFileParams} request Update file request body
+         * @param {string} [shareId] Share Id
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async updateFile(fileId: string, request: UpdateFileParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.updateFile(fileId, request, options);
+        async updateFile(fileId: string, request: UpdateFileParams, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.updateFile(fileId, request, shareId, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['FilesApi.updateFile']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -2678,11 +2684,12 @@ export const FilesApiFactory = function (configuration?: Configuration, basePath
          * @summary Update a File
          * @param {string} fileId File Id
          * @param {UpdateFileParams} request Update file request body
+         * @param {string} [shareId] Share Id
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        updateFile(fileId: string, request: UpdateFileParams, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.updateFile(fileId, request, options).then((request) => request(axios, basePath));
+        updateFile(fileId: string, request: UpdateFileParams, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.updateFile(fileId, request, shareId, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -2901,12 +2908,13 @@ export class FilesApi extends BaseAPI {
      * @summary Update a File
      * @param {string} fileId File Id
      * @param {UpdateFileParams} request Update file request body
+     * @param {string} [shareId] Share Id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof FilesApi
      */
-    public updateFile(fileId: string, request: UpdateFileParams, options?: RawAxiosRequestConfig) {
-        return FilesApiFp(this.configuration).updateFile(fileId, request, options).then((request) => request(this.axios, this.basePath));
+    public updateFile(fileId: string, request: UpdateFileParams, shareId?: string, options?: RawAxiosRequestConfig) {
+        return FilesApiFp(this.configuration).updateFile(fileId, request, shareId, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

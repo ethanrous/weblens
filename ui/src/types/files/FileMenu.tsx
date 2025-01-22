@@ -478,6 +478,7 @@ function StandardFileMenu({
                                 Left={IconPhotoUp}
                                 squareSize={100}
                                 centerContent
+                                disabled={targetFile.owner !== user?.username}
                                 onMouseOver={() =>
                                     setFooterNote({
                                         hint: 'Set Folder Image',
@@ -900,6 +901,7 @@ function FileRenameInput() {
     const menuTarget = useFileBrowserStore((state) =>
         state.filesMap.get(state.menuTargetId)
     )
+    const shareId = useFileBrowserStore((state) => state.shareId)
 
     const setMenu = useFileBrowserStore((state) => state.setMenu)
 
@@ -913,9 +915,13 @@ function FileRenameInput() {
                 squareSize={50}
                 buttonIcon={IconPlus}
                 onComplete={async (newName) => {
-                    return FileApi.updateFile(menuTarget.Id(), {
-                        newName: newName,
-                    }).then(() => {
+                    return FileApi.updateFile(
+                        menuTarget.Id(),
+                        {
+                            newName: newName,
+                        },
+                        shareId
+                    ).then(() => {
                         setMenu({ menuState: FbMenuModeT.Closed })
                         return true
                     })

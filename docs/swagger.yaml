@@ -675,6 +675,10 @@ paths:
         name: fileId
         required: true
         type: string
+      - description: Share Id
+        in: query
+        name: shareId
+        type: string
       - description: Update file request body
         in: body
         name: request

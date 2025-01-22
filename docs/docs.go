@@ -370,6 +370,12 @@ const docTemplate = `{
                         "required": true
                     },
                     {
+                        "type": "string",
+                        "description": "Share Id",
+                        "name": "shareId",
+                        "in": "query"
+                    },
+                    {
                         "description": "Update file request body",
                         "name": "request",
                         "in": "body",

@@ -952,6 +952,7 @@ func restoreFiles(w http.ResponseWriter, r *http.Request) {
 //	@Tags		Files
 //	@Accept		json
 //	@Param		fileId	path	string					true	"File Id"
+//	@Param		shareId	query	string					false	"Share Id"
 //	@Param		request	body	rest.UpdateFileParams	true	"Update file request body"
 //	@Success	200
 //	@Failure	403
@@ -964,13 +965,19 @@ func updateFile(w http.ResponseWriter, r *http.Request) {
 	if SafeErrorAndExit(err, w) {
 		return
 	}
+
 	fileId := chi.URLParam(r, "fileId")
 	updateInfo, err := readCtxBody[rest.UpdateFileParams](w, r)
 	if err != nil {
 		return
 	}
 
-	file, err := pack.FileService.GetFileSafe(fileId, u, nil)
+	share, err := getShareFromCtx[*models.FileShare](w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+
+	file, err := pack.FileService.GetFileSafe(fileId, u, share)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
