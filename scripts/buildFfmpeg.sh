@@ -1,6 +1,6 @@
 #!/bin/sh
 
-apk add git gcc g++ gnutls-dev pkgconfig make
+apk add git gcc g++ gnutls-dev pkgconfig make nasm
 git clone https://git.videolan.org/git/ffmpeg/nv-codec-headers.git
 
 (
