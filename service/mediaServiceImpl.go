@@ -333,7 +333,6 @@ func (ms *MediaServiceImpl) GetFilteredMedia(
 
 	pipe = append(pipe, bson.D{{Key: "$sort", Value: bson.D{{Key: sort, Value: sortDirection}}}})
 	pipe = append(pipe, bson.D{{Key: "$project", Value: bson.D{{Key: "_id", Value: false}, {Key: "contentId", Value: true}}}})
-	log.Debug.Printf("Filtering media with pipe: %v", pipe)
 
 	cur, err := ms.collection.Aggregate(context.Background(), pipe)
 	if err != nil {
@@ -345,11 +344,9 @@ func (ms *MediaServiceImpl) GetFilteredMedia(
 	if err != nil {
 		return nil, werror.WithStack(err)
 	}
-	log.Debug.Printf("Found %d media", len(allIds))
 
 	medias := make([]*models.Media, 0, len(allIds))
 	for _, id := range allIds {
-		log.Debug.Println("Getting media with id", id.Cid)
 		m := ms.Get(id.Cid)
 		if m != nil {
 			if m.MimeType == "application/pdf" {
@@ -364,26 +361,6 @@ func (ms *MediaServiceImpl) GetFilteredMedia(
 			medias = append(medias, m)
 		}
 	}
-
-	// ms.mediaLock.RLock()
-	// allMs := internal.MapToValues(ms.mediaMap)
-	// ms.mediaLock.RUnlock()
-	// allMs = internal.Filter(
-	// 	allMs, func(m *models.Media) bool {
-	// 		mt := ms.GetMediaType(m)
-	// 		if mt.Mime == "" || (mt.IsRaw() && !allowRaw) || (m.IsHidden() && !allowHidden) || m.GetOwner() != requester.GetUsername() || len(m.GetFiles()) == 0 || mt.IsMime("application/pdf") {
-	// 			return false
-	// 		}
-	//
-	// 		// Exclude Media if it is present in the filter
-	// 		_, e := slices.BinarySearch(excludeIds, m.ID())
-	// 		return !e
-	// 	},
-	// )
-	//
-	// slices.SortFunc(
-	// 	allMs, func(a, b *models.Media) int { return b.GetCreateDate().Compare(a.GetCreateDate()) * sortDirection },
-	// )
 
 	return medias, nil
 }
@@ -644,6 +621,9 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 				return err
 			}
 			m.Duration = int(duration * 1000)
+
+			m.Height = int(fileMetas[0].Fields["ImageHeight"].(float64))
+			m.Width = int(fileMetas[0].Fields["ImageWidth"].(float64))
 		}
 	}
 

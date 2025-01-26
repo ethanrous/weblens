@@ -6,6 +6,7 @@ var ErrNoMedia = ClientSafeErr{
 	safeErr:    errors.New("no media found"),
 	statusCode: 404,
 }
+
 var ErrNoExiftool = errors.New("exiftool not initialized")
 var ErrNoCache = errors.New("could not find or generate requested media cache file")
 

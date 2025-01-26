@@ -22,6 +22,16 @@ func (fsm *folderSubscribeMeta) GetKey() models.SubId {
 	return fsm.Key
 }
 
+func (fsm *folderSubscribeMeta) GetShare(shareService models.ShareService) *models.FileShare {
+	sh := shareService.Get(fsm.ShareId)
+	if sh == nil {
+		return nil
+	}
+
+	fileShare := sh.(*models.FileShare)
+	return fileShare
+}
+
 type taskSubscribeMeta struct {
 	Key     models.SubId `json:"subscribeKey"`
 	JobName string       `json:"taskType"`
@@ -45,6 +55,10 @@ func (tsm *taskSubscribeMeta) GetKey() models.SubId {
 	return tsm.realKey
 }
 
+func (tsm *taskSubscribeMeta) GetShare(shareService models.ShareService) *models.FileShare {
+	return nil
+}
+
 type unsubscribeMeta struct {
 	Key models.SubId `json:"subscribeKey"`
 }
@@ -57,16 +71,31 @@ func (um *unsubscribeMeta) GetKey() models.SubId {
 	return um.Key
 }
 
-type scanDirectoryMeta struct {
-	Key models.SubId `json:"folderId"`
+func (um *unsubscribeMeta) GetShare(shareService models.ShareService) *models.FileShare {
+	return nil
 }
 
-func (um *scanDirectoryMeta) Action() models.WsAction {
+type scanDirectoryMeta struct {
+	Key     models.SubId   `json:"folderId"`
+	ShareId models.ShareId `json:"shareId"`
+}
+
+func (sdm *scanDirectoryMeta) Action() models.WsAction {
 	return models.ScanDirectory
 }
 
-func (um *scanDirectoryMeta) GetKey() models.SubId {
-	return um.Key
+func (sdm *scanDirectoryMeta) GetKey() models.SubId {
+	return sdm.Key
+}
+
+func (sdm *scanDirectoryMeta) GetShare(shareService models.ShareService) *models.FileShare {
+	sh := shareService.Get(sdm.ShareId)
+	if sh == nil {
+		return nil
+	}
+
+	fileShare := sh.(*models.FileShare)
+	return fileShare
 }
 
 type cancelTaskMeta struct {
@@ -79,6 +108,10 @@ func (ctm *cancelTaskMeta) Action() models.WsAction {
 
 func (ctm *cancelTaskMeta) GetKey() models.SubId {
 	return ctm.TaskPoolId
+}
+
+func (ctm *cancelTaskMeta) GetShare(shareService models.ShareService) *models.FileShare {
+	return nil
 }
 
 // newActionBody returns a structure to hold the correct version of the websocket request body

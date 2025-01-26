@@ -1,5 +1,3 @@
-@import "../../../components/theme.module";
-
 .file-history-menu {
 	position: absolute;
 	height: 400px;
@@ -201,7 +199,7 @@
 	transition: background-color 150ms ease-in-out, outline-color 150ms ease-in-out;
 
 	&:hover {
-		background-color: #222;
+		background-color: var(--wl-item-grey);
 	}
 
 	&[data-now='true'] {

@@ -29,7 +29,7 @@ func TestFiles(t *testing.T) {
 
 	require.NoError(t, err)
 
-	keys, err := coreServices.AccessService.GetAllKeys(coreServices.UserService.GetRootUser())
+	keys, err := coreServices.AccessService.GetKeysByUser(coreServices.UserService.Get("test-username"))
 	if err != nil {
 		log.ErrTrace(err)
 		t.FailNow()
@@ -114,8 +114,8 @@ func uploadFile(core *models.Instance, owner *models.User) error {
 	}
 
 	createUploadRequest := proxy.NewCoreRequest(core, "POST", "/upload").WithBody(rest.NewUploadParams{
-		RootFolderId:    owner.HomeId,
-		ChunkSize:       fileSize,
+		RootFolderId: owner.HomeId,
+		ChunkSize:    fileSize,
 	})
 	uploadInfo, err := proxy.CallHomeStruct[rest.NewUploadInfo](createUploadRequest)
 	if err != nil {
@@ -220,8 +220,8 @@ func moveFiles(core *models.Instance, owner *models.User) error {
 	}
 
 	createUploadRequest := proxy.NewCoreRequest(core, "POST", "/upload").WithBody(rest.NewUploadParams{
-		RootFolderId:    subFolder.Id,
-		ChunkSize:       fileSize,
+		RootFolderId: subFolder.Id,
+		ChunkSize:    fileSize,
 	})
 
 	uploadInfo, err := proxy.CallHomeStruct[rest.NewUploadInfo](createUploadRequest)

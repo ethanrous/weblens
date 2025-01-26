@@ -63,7 +63,7 @@ func launchBackup(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		u, err := getUserFromCtx(r)
+		u, err := getUserFromCtx(r, true)
 		if SafeErrorAndExit(err, w) {
 			return
 		}

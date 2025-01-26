@@ -17,7 +17,7 @@ import WeblensButton from '@weblens/lib/WeblensButton'
 import { downloadSelected } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { ErrorHandler } from '@weblens/types/Types'
-import { WeblensFile } from '@weblens/types/files/File'
+import WeblensFile from '@weblens/types/files/File'
 import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
@@ -150,7 +150,13 @@ export const ContainerMedia = ({
     }
 }
 
-function TextDisplay({ file }: { file: WeblensFile }) {
+function TextDisplay({
+    file,
+    shareId,
+}: {
+    file: WeblensFile
+    shareId: string
+}) {
     const setBlockFocus = useFileBrowserStore((state) => state.setBlockFocus)
     const [content, setContent] = useState('')
 
@@ -160,7 +166,7 @@ function TextDisplay({ file }: { file: WeblensFile }) {
 
     useEffect(() => {
         setBlockFocus(true)
-        FileApi.getFileText(file.Id())
+        FileApi.getFileText(file.Id(), shareId)
             .then((r) => {
                 setContent(r.data)
             })
@@ -327,9 +333,9 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
                             </div>
                         )}
                         {user.isLoggedIn && (
-                            <div className="flex gap-1 items-center">
+                            <div className="flex gap-1 items-center text-white">
                                 <IconPhoto className="shrink-0" />
-                                <p className="text-xl text-white text-nowrap mr-4">
+                                <p className="text-xl text-nowrap mr-4">
                                     {mediaData
                                         .GetCreateDate()
                                         .toLocaleDateString('en-us', {
@@ -472,6 +478,8 @@ export function PresentationFile({ file }: { file: WeblensFile }) {
     const mediaMap = useMediaStore((state) => state.mediaMap)
     const mediaData = mediaMap.get(contentId)
 
+    const shareId = useFileBrowserStore((state) => state.shareId)
+
     const setPresTarget = useFileBrowserStore(
         (state) => state.setPresentationTarget
     )
@@ -494,7 +502,7 @@ export function PresentationFile({ file }: { file: WeblensFile }) {
     } else if (file.IsFolder()) {
         Visual = <IconFolder className="w-[50%] h-[50%]" />
     } else {
-        Visual = <TextDisplay file={file} />
+        Visual = <TextDisplay file={file} shareId={shareId} />
     }
 
     const ToggleInfoIcon = fileInfoOpen ? IconChevronRight : IconChevronLeft
@@ -526,7 +534,7 @@ export function PresentationFile({ file }: { file: WeblensFile }) {
                 {Visual}
             </div>
             <ToggleInfoIcon
-                className="cursor-pointer shrink-0 max-4-[4%]"
+                className="cursor-pointer text-white shrink-0 max-4-[4%]"
                 onClick={(e) => {
                     e.stopPropagation()
                     setFileInfoOpen(!fileInfoOpen)

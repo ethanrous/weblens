@@ -51,8 +51,6 @@ export const useVideo = (elem: HTMLVideoElement) => {
 
     const updatePlayState = useCallback(
         (e: Event) => {
-            console.log('play event', e)
-
             if (e.type === 'canplaythrough') {
                 if (isWaiting) {
                     setIsWaiting(false)
@@ -71,7 +69,6 @@ export const useVideo = (elem: HTMLVideoElement) => {
 
     const updateBufferState = useCallback(
         (e: Event) => {
-            console.log('video event', e)
             if (e.type === 'waiting') {
                 setIsWaiting(true)
             } else if (e.type === 'playing') {
@@ -119,9 +116,12 @@ export const useKeyDown = (
 ) => {
     const onKeyDown = useCallback(
         (event: KeyboardEvent) => {
+            console.log(event)
             if (
-                (typeof key === 'string' && event.key === key) ||
-                (typeof key === 'function' && key(event))
+                !event.ctrlKey &&
+                !event.metaKey &&
+                ((typeof key === 'string' && event.key === key) ||
+                    (typeof key === 'function' && key(event)))
             ) {
                 callback(event)
             }

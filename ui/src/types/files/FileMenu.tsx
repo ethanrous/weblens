@@ -21,17 +21,16 @@ import SharesApi from '@weblens/api/SharesApi'
 import UsersApi from '@weblens/api/UserApi'
 import { useWebsocketStore } from '@weblens/api/Websocket'
 import { UserInfo } from '@weblens/api/swag'
+import { FileFmt } from '@weblens/components/filebrowser/filename'
+import SearchDialogue from '@weblens/components/filebrowser/searchDialogue'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import { downloadSelected } from '@weblens/pages/FileBrowser/FileBrowserLogic'
-import { FileFmt } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
-import SearchDialogue from '@weblens/pages/FileBrowser/SearchDialogue'
 import '@weblens/pages/FileBrowser/style/fileBrowserMenuStyle.scss'
 import { FbModeT, useFileBrowserStore } from '@weblens/store/FBStateControl'
-import {
+import WeblensFile, {
     FbMenuModeT,
     SelectedState,
-    WeblensFile,
 } from '@weblens/types/files/File'
 import { PhotoQuality } from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
@@ -558,11 +557,14 @@ function PastFileMenu({
     activeItems: WeblensFile[]
 }) {
     const nav = useNavigate()
+
     const menuMode = useFileBrowserStore((state) => state.menuMode)
     const folderId = useFileBrowserStore((state) => state.folderInfo.Id())
     const restoreTime = useFileBrowserStore((state) => state.pastTime)
     const setMenu = useFileBrowserStore((state) => state.setMenu)
     const setPastTime = useFileBrowserStore((state) => state.setPastTime)
+
+    const canRestore = activeItems.find((f) => !f.hasRestoreMedia) === undefined
 
     return (
         <div
@@ -574,6 +576,12 @@ function PastFileMenu({
                     Left={IconRestore}
                     squareSize={100}
                     centerContent
+                    disabled={!canRestore}
+                    tooltip={
+                        canRestore
+                            ? ''
+                            : 'One or more selected files are missing restore media, and cannot be recovered'
+                    }
                     onMouseOver={() =>
                         setFooterNote({ hint: 'Restore', danger: false })
                     }
@@ -634,6 +642,7 @@ function FileShareMenu({ targetFile }: { targetFile: WeblensFile }) {
     }, [targetFile])
 
     const [userSearch, setUserSearch] = useState('')
+    const [searchMenuOpen, setSearchMenuOpen] = useState(false)
     const [userSearchResults, setUserSearchResults] = useState<UserInfo[]>([])
     useEffect(() => {
         if (userSearch.length < 2) {
@@ -674,7 +683,6 @@ function FileShareMenu({ targetFile }: { targetFile: WeblensFile }) {
                     .then(async (res) => {
                         targetFile.SetShare(new WeblensShare(res.data))
                         const sh = await targetFile.GetShare()
-                        console.log('JUST set share:', sh)
                         return sh
                     })
                     .catch(ErrorHandler)
@@ -691,6 +699,7 @@ function FileShareMenu({ targetFile }: { targetFile: WeblensFile }) {
         <div
             className="file-share-menu"
             data-visible={menuMode === FbMenuModeT.Sharing}
+            onClick={(e) => e.stopPropagation()}
         >
             <div className="flex flex-row w-full">
                 <div className="flex justify-center w-1/4 m-1 grow">
@@ -748,9 +757,11 @@ function FileShareMenu({ targetFile }: { targetFile: WeblensFile }) {
                         placeholder="Add users"
                         onComplete={null}
                         Icon={IconUsersPlus}
+                        openInput={() => setSearchMenuOpen(true)}
+                        closeInput={() => setSearchMenuOpen(false)}
                     />
                 </div>
-                {userSearchResults.length !== 0 && (
+                {userSearchResults.length !== 0 && searchMenuOpen && (
                     <div
                         className="flex flex-col w-full bg-raised-grey absolute gap-1 rounded
                                     p-1 z-10 mt-14 max-h-32 overflow-y-scroll drop-shadow-xl"
@@ -1196,6 +1207,7 @@ function BackdropDefaultItems({
     const menuMode = useFileBrowserStore((state) => state.menuMode)
     const menuTarget = useFileBrowserStore((state) => state.menuTargetId)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
+    const shareId = useFileBrowserStore((state) => state.shareId)
     const wsSend = useWebsocketStore((state) => state.wsSend)
 
     const setMenu = useFileBrowserStore((state) => state.setMenu)
@@ -1263,7 +1275,10 @@ function BackdropDefaultItems({
                     }
                     onClick={(e) => {
                         e.stopPropagation()
-                        wsSend('scanDirectory', { folderId: folderInfo.Id() })
+                        wsSend('scanDirectory', {
+                            folderId: folderInfo.Id(),
+                            shareId: shareId,
+                        })
                     }}
                 />
             </div>

@@ -90,7 +90,7 @@ function StyledIcon({ Icon, visible, onClick, label }: mediaTypeProps) {
         >
             <Icon className="shrink-0" />
             <p
-                className="font-semibold pl-1 text-nowrap select-none"
+                className="font-semibold pl-1 text-nowrap select-none text-white"
                 ref={setTextRef}
             >
                 {label}

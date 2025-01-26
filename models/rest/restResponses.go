@@ -38,20 +38,21 @@ type WeblensErrorInfo struct {
 
 // FileInfo is a structure for safely sending file information to the client.
 type FileInfo struct {
-	Id           string           `json:"id"`
-	PortablePath string           `json:"portablePath"`
-	Filename     string           `json:"filename"`
-	ParentId     string           `json:"parentId"`
-	ContentId    models.ContentId `json:"contentId"`
-	Owner        models.Username  `json:"owner"`
-	ShareId      models.ShareId   `json:"shareId,omitempty"`
-	PastId       string           `json:"currentId"`
-	Children     []string         `json:"childrenIds"`
-	Size         int64            `json:"size"`
-	ModTime      int64            `json:"modifyTimestamp"`
-	IsDir        bool             `json:"isDir"`
-	Modifiable   bool             `json:"modifiable"`
-	PastFile     bool             `json:"pastFile"`
+	Id              string           `json:"id"`
+	PortablePath    string           `json:"portablePath"`
+	Filename        string           `json:"filename"`
+	ParentId        string           `json:"parentId"`
+	ContentId       models.ContentId `json:"contentId"`
+	Owner           models.Username  `json:"owner"`
+	ShareId         models.ShareId   `json:"shareId,omitempty"`
+	PastId          string           `json:"currentId"`
+	Children        []string         `json:"childrenIds"`
+	Size            int64            `json:"size"`
+	ModTime         int64            `json:"modifyTimestamp"`
+	IsDir           bool             `json:"isDir"`
+	Modifiable      bool             `json:"modifiable"`
+	PastFile        bool             `json:"pastFile"`
+	HasRestoreMedia bool             `json:"hasRestoreMedia"`
 } // @name FileInfo
 
 func WeblensFileToFileInfo(f *fileTree.WeblensFileImpl, pack *models.ServicePack, isPastFile bool) (FileInfo, error) {
@@ -60,9 +61,9 @@ func WeblensFileToFileInfo(f *fileTree.WeblensFileImpl, pack *models.ServicePack
 	// so we conditionally ignore them.
 	var ownerName models.Username
 	var children []fileTree.FileId
-	owner := pack.FileService.GetFileOwner(f)
-	if owner == nil {
-		return FileInfo{}, werror.WithStack(werror.ErrNoUser)
+	owner, err := pack.FileService.GetFileOwner(f)
+	if err != nil {
+		return FileInfo{}, err
 	}
 	ownerName = owner.GetUsername()
 
@@ -88,19 +89,29 @@ func WeblensFileToFileInfo(f *fileTree.WeblensFileImpl, pack *models.ServicePack
 
 	modifiable := !isPastFile && !pack.FileService.IsFileInTrash(f)
 
+	var hasRestoreMedia bool
+	if !isPastFile || f.IsDir() {
+		hasRestoreMedia = true
+	} else {
+		restoreTree := pack.FileService.GetFileTreeByName("RESTORE")
+		_, err := restoreTree.GetRoot().GetChild(f.GetContentId())
+		hasRestoreMedia = err == nil
+	}
+
 	return FileInfo{
-		Id:           f.ID(),
-		PortablePath: f.GetPortablePath().ToPortable(),
-		Filename:     f.Filename(),
-		Size:         f.Size(),
-		IsDir:        f.IsDir(),
-		ModTime:      f.ModTime().UnixMilli(),
-		ParentId:     f.GetParentId(),
-		ContentId:    f.GetContentId(),
-		ShareId:      shareId,
-		Modifiable:   modifiable,
-		PastFile:     isPastFile,
-		PastId:       f.GetPastId(),
+		Id:              f.ID(),
+		PortablePath:    f.GetPortablePath().ToPortable(),
+		Filename:        f.Filename(),
+		Size:            f.Size(),
+		IsDir:           f.IsDir(),
+		ModTime:         f.ModTime().UnixMilli(),
+		ParentId:        f.GetParentId(),
+		ContentId:       f.GetContentId(),
+		ShareId:         shareId,
+		Modifiable:      modifiable,
+		PastFile:        isPastFile,
+		HasRestoreMedia: hasRestoreMedia,
+		PastId:          f.GetPastId(),
 
 		Owner:    ownerName,
 		Children: children,

@@ -8,7 +8,7 @@
 	align-items: center;
 	justify-content: space-between;
 	border-radius: 6px;
-	background-color: $item-grey;
+	background-color: var(--wl-item-grey);
 	height: 56px;
 	padding: 8px;
 }
@@ -47,8 +47,8 @@
 	width: 100%;
 	height: 100%;
 	// overflow-y: scroll;
-	background-color: $bottom-grey;
-	outline: 1px solid $main-accent;
+	background-color: var(--wl-bottom-grey);
+	outline: 1px solid var(--wl-main-accent);
 	box-shadow: 0 0 10px 2px #00000044;
 	border-radius: 6px;
 	gap: 4px;

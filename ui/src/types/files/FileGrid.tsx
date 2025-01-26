@@ -1,8 +1,7 @@
 import WeblensLoader from '@weblens/components/Loading'
+import GetStartedCard from '@weblens/components/filebrowser/getStartedCard'
 import { HandleDrop } from '@weblens/pages/FileBrowser/FileBrowserLogic'
-import { GetStartedCard } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
 import { useFileBrowserStore } from '@weblens/store/FBStateControl'
-import { WeblensFile } from '@weblens/types/files/File'
 import { FileSquare } from '@weblens/types/files/FileSquare'
 import filesStyle from '@weblens/types/files/filesStyle.module.scss'
 import { useResize } from 'components/hooks'
@@ -11,6 +10,7 @@ import { FixedSizeGrid as Grid } from 'react-window'
 
 import { ErrorHandler } from '../Types'
 import { DraggingStateT } from './FBTypes'
+import WeblensFile from './File'
 
 type GridDataProps = {
     files: WeblensFile[]

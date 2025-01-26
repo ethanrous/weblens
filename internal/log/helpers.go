@@ -19,6 +19,14 @@ type StackError interface {
 	Errorln() string
 }
 
+var (
+	red    = "\u001b[31m"
+	blue   = "\u001b[32m"
+	yellow = "\u001b[33m"
+	orange = "\u001b[36m"
+	reset  = "\u001B[0m"
+)
+
 func ErrTrace(err error, extras ...string) {
 	if err != nil {
 		if logLevel < DEBUG {
@@ -32,8 +40,8 @@ func ErrTrace(err error, extras ...string) {
 			return
 		}
 
-		middleware.PrintPrettyStack(err)
-		werror.StackString()
+		fmt.Printf("\n\t%serror: %s%s\n\n", red, reset, err)
+		fmt.Print(werror.StackString())
 	}
 }
 

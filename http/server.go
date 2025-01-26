@@ -227,7 +227,6 @@ func (s *Server) UseApi() *chi.Mux {
 
 	// ApiKeys
 	r.Route("/keys", func(r chi.Router) {
-		r.Use(RequireAdmin)
 		r.Get("/", getApiKeys)
 		r.Post("/", newApiKey)
 		r.Delete("/{keyId}", deleteApiKey)

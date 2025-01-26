@@ -6,11 +6,17 @@ import (
 )
 
 var genericNotFound = errors.New("404 Not Found")
+var ErrNoAuth = errors.New("no auth header provided")
 
 var ErrUserNotAuthorized = ClientSafeErr{
 	realError:  errors.New("user does not have access the requested resource"),
 	safeErr:    genericNotFound,
 	statusCode: http.StatusNotFound,
+}
+
+var ErrBadAuth = ClientSafeErr{
+	safeErr:    errors.New("recieved non-empty authorization but format was incorrect"),
+	statusCode: http.StatusBadRequest,
 }
 
 var ErrKeyInUse = ClientSafeErr{
@@ -19,8 +25,7 @@ var ErrKeyInUse = ClientSafeErr{
 }
 
 var ErrKeyNotFound = ClientSafeErr{
-	realError:  errors.New("api was not found"),
-	safeErr:    genericNotFound,
+	safeErr:    errors.New("api key was not found"),
 	statusCode: http.StatusNotFound,
 }
 
@@ -46,5 +51,10 @@ var ErrNotOwner = ClientSafeErr{
 
 var ErrNoPublicUser = ClientSafeErr{
 	safeErr:    errors.New("user must be logged in to access this resource"),
+	statusCode: http.StatusUnauthorized,
+}
+
+var ErrNoServerInContext = ClientSafeErr{
+	safeErr:    errors.New("the requester was expected to identify itself as a server, but no server id was found"),
 	statusCode: http.StatusUnauthorized,
 }

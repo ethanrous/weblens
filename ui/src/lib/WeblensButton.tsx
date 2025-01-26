@@ -247,7 +247,7 @@ function WeblensButton({
                         transform: `translateY(${squareSize / 2 + 25}px)`,
                     }}
                 >
-                    <p className="text-white text-nowrap">
+                    <p className="text-white z-10" style={{width: squareSize * 1.5, maxWidth: squareSize * 1.5}}>
                         {confirming ? 'Really?' : tooltip}
                     </p>
                 </div>

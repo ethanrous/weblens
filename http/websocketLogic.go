@@ -41,12 +41,11 @@ func wsConnect(w http.ResponseWriter, r *http.Request) {
 	if getServer {
 		server = getInstanceFromCtx(r)
 		if server == nil {
-			log.Error.Println("Got server websocket query but no server in context")
-			w.WriteHeader(http.StatusUnauthorized)
+			SafeErrorAndExit(werror.WithStack(werror.ErrNoServerInContext), w)
 			return
 		}
 	} else {
-		u, err = getUserFromCtx(r)
+		u, err = getUserFromCtx(r, true)
 		if SafeErrorAndExit(err, w) {
 			return
 		}
@@ -74,7 +73,7 @@ func wsConnect(w http.ResponseWriter, r *http.Request) {
 func wsMain(c *models.WsClient, pack *models.ServicePack) {
 	defer pack.ClientService.ClientDisconnect(c)
 	defer wsRecover(c)
-	var switchboard func([]byte, *models.WsClient, *models.ServicePack)
+	var switchboard func([]byte, *models.WsClient, *models.ServicePack) error
 
 	if c.GetUser() != nil {
 		switchboard = wsWebClientSwitchboard
@@ -91,69 +90,58 @@ func wsMain(c *models.WsClient, pack *models.ServicePack) {
 		if err != nil {
 			break
 		}
-		go switchboard(buf, c, pack)
+		go func() {
+			defer wsRecover(c)
+			err := switchboard(buf, c, pack)
+			if err != nil {
+				c.Error(err)
+			}
+		}()
 	}
 }
 
-func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.ServicePack) {
-	defer wsRecover(c)
+func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.ServicePack) error {
 
 	if pack.InstanceService.GetLocal().GetRole() == models.InitServerRole {
-		c.Error(werror.ErrServerNotInitialized)
-		return
+		return werror.ErrServerNotInitialized
 	}
 
 	var msg models.WsRequestInfo
 	err := json.Unmarshal(msgBuf, &msg)
 	if err != nil {
-		log.Debug.Println(string(msgBuf))
-		c.Error(werror.WithStack(err))
-		return
+		return werror.WithStack(err)
 	}
 
 	log.Trace.Func(func(l log.Logger) { l.Printf("Got wsmsg from [%s]: %v", c.GetUser().GetUsername(), msg) })
 
 	if msg.Action == models.ReportError {
 		log.ErrorCatcher.Printf("Web client caught unexpected error\n%s\n\n", msg.Content)
-		return
+		return nil
 	}
 
 	subInfo, err := newActionBody(msg)
 	if err != nil {
-		c.Error(err)
-		return
+		return err
 	}
 
 	switch subInfo.Action() {
 	case models.FolderSubscribe:
 		{
 			if pack.FileService == nil {
-				c.Error(werror.Errorf("file service not ready"))
-				return
+				return werror.Errorf("file service not ready")
 			}
 
 			err = json.Unmarshal([]byte(msg.Content), &subInfo)
 			if err != nil {
-				log.ErrTrace(err)
-				c.Error(errors.New("failed to parse subscribe request"))
+				return werror.WithStack(err)
 			}
 
-			folderSub := subInfo.(*folderSubscribeMeta)
-			var share models.Share
-			if folderSub.ShareId != "" {
-				share = pack.ShareService.Get(folderSub.ShareId)
-				if share == nil {
-					c.Error(errors.New("share not found"))
-					return
-				}
-			}
-
+			share := subInfo.GetShare(pack.ShareService)
 			complete, result, err := pack.ClientService.Subscribe(
 				c, subInfo.GetKey(), models.FolderSubscribe, time.UnixMilli(msg.SentAt), share,
 			)
 			if err != nil {
-				c.Error(err)
-				return
+				return err
 			}
 
 			if complete {
@@ -164,15 +152,14 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 	case models.TaskSubscribe:
 		key := subInfo.GetKey()
 		if key == "" {
-			return
+			return werror.WithStack(werror.ErrNoSubKey)
 		}
 
 		if strings.HasPrefix(key, "TID#") {
 			key = key[4:]
 			complete, result, err := pack.ClientService.Subscribe(c, key, models.TaskSubscribe, time.Now(), nil)
 			if err != nil {
-				c.Error(err)
-				return
+				return err
 			}
 
 			if complete {
@@ -193,7 +180,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 	case models.Unsubscribe:
 		key := subInfo.GetKey()
 		if key == "" {
-			return
+			return werror.WithStack(werror.ErrNoSubKey)
 		}
 
 		if strings.HasPrefix(key, "TID#") {
@@ -212,13 +199,13 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 	case models.ScanDirectory:
 		{
 			if pack.InstanceService.GetLocal().GetRole() == models.BackupServerRole {
-				return
+				return werror.ErrServerIsBackup
 			}
+			share := subInfo.GetShare(pack.ShareService)
 
-			folder, err := pack.FileService.GetFileSafe(subInfo.GetKey(), c.GetUser(), nil)
+			folder, err := pack.FileService.GetFileSafe(subInfo.GetKey(), c.GetUser(), share)
 			if err != nil {
-				c.Error(errors.New("could not find directory to scan"))
-				return
+				return werror.Errorf("could not find directory to scan")
 			}
 
 			meta := models.ScanMeta{
@@ -239,14 +226,12 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 
 			t, err := pack.TaskService.DispatchJob(taskName, meta, nil)
 			if err != nil {
-				c.Error(err)
-				return
+				return err
 			}
 
-			_, _, err = pack.ClientService.Subscribe(c, t.TaskId(), models.TaskSubscribe, time.Now(), nil)
+			_, _, err = pack.ClientService.Subscribe(c, t.TaskId(), models.TaskSubscribe, time.Now(), share)
 			if err != nil {
-				c.Error(err)
-				return
+				return err
 			}
 		}
 
@@ -255,8 +240,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 			taskId := subInfo.GetKey()
 			task := pack.TaskService.GetTask(taskId)
 			if task == nil {
-				c.Error(werror.Errorf("could not find task T[%s] to cancel", taskId))
-				return
+				return werror.Errorf("could not find task T[%s] to cancel", taskId)
 			}
 
 			task.Cancel()
@@ -268,22 +252,22 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 			c.Error(fmt.Errorf("unknown websocket request type: %s", string(msg.Action)))
 		}
 	}
+
+	return nil
 }
 
-func wsServerClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.ServicePack) {
+func wsServerClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.ServicePack) error {
 	defer wsRecover(c)
 
 	var msg models.WsResponseInfo
 	err := json.Unmarshal(msgBuf, &msg)
 	if err != nil {
-		c.Error(err)
-		return
+		return err
 	}
 
 	if msg.SentTime == 0 {
 		err := werror.Errorf("invalid sent time on relay message: [%s]", msg.EventTag)
-		c.Error(err)
-		return
+		return err
 	}
 
 	sentTime := time.UnixMilli(msg.SentTime)
@@ -292,30 +276,30 @@ func wsServerClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.S
 	switch msg.EventTag {
 	case models.ServerGoingDownEvent:
 		c.Disconnect()
-		return
+		return nil
 	case models.BackupCompleteEvent:
 		// Log the backup time, but don't return so the
 		// message can be relayed to the web client
 		err := pack.InstanceService.SetLastBackup(relaySourceId, sentTime)
 		if err != nil {
-			c.Error(err)
-			return
+			return err
 		}
 
 		if pack.InstanceService.GetLocal().IsCore() {
 			// Also update the local core server's last backup time
 			err = pack.InstanceService.SetLastBackup(pack.InstanceService.GetLocal().ServerId(), sentTime)
 			if err != nil {
-				c.Error(err)
-				return
+				return err
 			}
 		}
 	case models.RemoteConnectionChangedEvent:
-		return
+		return nil
 	}
 
 	msg.RelaySource = relaySourceId
 	pack.Caster.Relay(msg)
+
+	return nil
 }
 
 func onWebConnect(c models.Client, pack *models.ServicePack) {

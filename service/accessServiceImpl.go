@@ -254,15 +254,19 @@ func (accSrv *AccessServiceImpl) SetKeyUsedBy(key models.WeblensApiKey, remote *
 	return nil
 }
 
-func (accSrv *AccessServiceImpl) GetAllKeys(accessor *models.User) ([]models.ApiKey, error) {
-	if !accessor.IsAdmin() {
-		return nil, werror.WithStack(werror.ErrNotAdmin)
+func (accSrv *AccessServiceImpl) GetKeysByUser(accessor *models.User) ([]models.ApiKey, error) {
+	accSrv.keyMapMu.RLock()
+	keys := slices.Collect(maps.Values(accSrv.apiKeyMap))
+	accSrv.keyMapMu.RUnlock()
+
+	var usersKeys []models.ApiKey
+	for _, key := range keys {
+		if key.Owner == accessor.Username {
+			usersKeys = append(usersKeys, key)
+		}
 	}
 
-	accSrv.keyMapMu.RLock()
-	defer accSrv.keyMapMu.RUnlock()
-
-	return slices.Collect(maps.Values(accSrv.apiKeyMap)), nil
+	return usersKeys, nil
 }
 
 func (accSrv *AccessServiceImpl) GetAllKeysByServer(

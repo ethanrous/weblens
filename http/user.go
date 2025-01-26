@@ -28,7 +28,7 @@ import (
 //	@Router		/users [post]
 func createUser(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -131,7 +131,7 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 //	@Success	200
 //	@Router		/users/logout [post]
 func logoutUser(w http.ResponseWriter, r *http.Request) {
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -163,7 +163,7 @@ func logoutUser(w http.ResponseWriter, r *http.Request) {
 //	@Router		/users [get]
 func getUsers(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -209,7 +209,7 @@ func getUserInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -252,7 +252,7 @@ func getUserInfo(w http.ResponseWriter, r *http.Request) {
 //	@Router		/users/{username}/password [patch]
 func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -317,7 +317,7 @@ func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 //	@Router		/users/{username}/admin [patch]
 func setUserAdmin(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	owner, err := getUserFromCtx(r)
+	owner, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -405,7 +405,7 @@ func activateUser(w http.ResponseWriter, r *http.Request) {
 //	@Router		/users/{username} [delete]
 func deleteUser(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -450,13 +450,11 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 //	@Router		/users/search [get]
 func searchUsers(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
-	if SafeErrorAndExit(err, w) {
-		return
-	}
+
 	search := r.URL.Query().Get("search")
 	if len(search) < 2 {
 		writeJson(w, http.StatusBadRequest, rest.WeblensErrorInfo{Error: "Username autocomplete must contain at least 2 characters"})

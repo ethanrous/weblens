@@ -82,7 +82,7 @@ func doFullBackup(w http.ResponseWriter, r *http.Request) {
 
 	owner := pack.UserService.Get(usingKey.Owner)
 
-	keys, err := pack.AccessService.GetAllKeys(owner)
+	keys, err := pack.AccessService.GetKeysByUser(owner)
 	if SafeErrorAndExit(err, w) {
 		return
 	}

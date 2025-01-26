@@ -191,7 +191,7 @@ type AccessService interface {
 	CanUserModifyShare(user *User, share Share) bool
 	CanUserAccessAlbum(user *User, album *Album, share *AlbumShare) bool
 
-	GetAllKeys(accessor *User) ([]ApiKey, error)
+	GetKeysByUser(accessor *User) ([]ApiKey, error)
 	GetAllKeysByServer(accessor *User, serverId InstanceId) ([]ApiKey, error)
 	SetKeyUsedBy(key WeblensApiKey, server *Instance) error
 }

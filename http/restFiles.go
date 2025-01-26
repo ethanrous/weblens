@@ -40,13 +40,11 @@ import (
 //	@Router		/files/{fileId} [get]
 func getFile(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
-	if u == nil {
-		return
-	}
+
 	sh, err := getShareFromCtx[*models.FileShare](w, r)
 	if err != nil {
 		return
@@ -84,21 +82,24 @@ func getFile(w http.ResponseWriter, r *http.Request) {
 //	@Tags		Files
 //	@Produce	plain
 //	@Param		fileId	path		string	true	"File Id"
+//	@Param		shareId		query		string					false	"Share Id"
 //	@Success	200		{string}	string	"File text"
 //	@Failure	400
 //	@Router		/files/{fileId}/text [get]
 func getFileText(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
-	if u == nil {
+
+	share, err := getShareFromCtx[*models.FileShare](w, r)
+	if err != nil {
 		return
 	}
 
 	fileId := chi.URLParam(r, "fileId")
-	file, err := pack.FileService.GetFileSafe(fileId, u, nil)
+	file, err := pack.FileService.GetFileSafe(fileId, u, share)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -130,12 +131,9 @@ func getFileText(w http.ResponseWriter, r *http.Request) {
 //	@Router		/files/{fileId}/stats [get]
 func getFileStats(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
-	}
-	if u == nil {
-		u = pack.UserService.GetPublicUser()
 	}
 
 	fileId := chi.URLParam(r, "fileId")
@@ -176,7 +174,7 @@ func getFileStats(w http.ResponseWriter, r *http.Request) {
 //	@Router		/files/{fileId}/download [get]
 func downloadFile(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -286,7 +284,7 @@ func getFolderHistory(w http.ResponseWriter, r *http.Request) {
 //	@Router		/files/search [get]
 func searchByFilename(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -371,7 +369,7 @@ func searchByFilename(w http.ResponseWriter, r *http.Request) {
 //	@Router		/folder [post]
 func createFolder(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -441,7 +439,7 @@ func createFolder(w http.ResponseWriter, r *http.Request) {
 //	@Router		/folder/{folderId} [get]
 func getFolder(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -500,7 +498,7 @@ func getFolder(w http.ResponseWriter, r *http.Request) {
 //	@Router		/folder/{folderId}/cover [patch]
 func setFolderCover(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -575,7 +573,7 @@ func getExternalFolderInfo(w http.ResponseWriter, r *http.Request) {
 //	@Router		/folder/scan [post]
 func scanDir(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -632,7 +630,7 @@ func scanDir(w http.ResponseWriter, r *http.Request) {
 //	@Router		/files/shared [get]
 func getSharedFiles(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -708,10 +706,12 @@ func getSharedFiles(w http.ResponseWriter, r *http.Request) {
 //	@Router			/takeout [post]
 func createTakeout(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
-	if SafeErrorAndExit(err, w) {
+	u, err := getUserFromCtx(r, true)
+	if err != nil && !errors.Is(err, werror.ErrNoPublicUser) {
+		SafeErrorAndExit(err, w)
 		return
 	}
+
 	if u == nil {
 		u = pack.UserService.GetPublicUser()
 	}
@@ -730,6 +730,7 @@ func createTakeout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Make sure user has access to all requested files
 	var files []*fileTree.WeblensFileImpl
 	for _, fileId := range takeoutRequest.FileIds {
 		file, err := pack.FileService.GetFileSafe(fileId, u, share)
@@ -775,7 +776,7 @@ func createTakeout(w http.ResponseWriter, r *http.Request) {
 
 func getFileStat(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -815,7 +816,7 @@ func autocompletePath(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -894,7 +895,7 @@ func autocompletePath(w http.ResponseWriter, r *http.Request) {
 //	@Router		/files/restore [post]
 func restoreFiles(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -961,7 +962,7 @@ func restoreFiles(w http.ResponseWriter, r *http.Request) {
 //	@Router		/files/{fileId} [patch]
 func updateFile(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -1013,7 +1014,7 @@ func updateFile(w http.ResponseWriter, r *http.Request) {
 //	@Router		/files [patch]
 func moveFiles(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -1083,7 +1084,7 @@ func moveFiles(w http.ResponseWriter, r *http.Request) {
 //	@Router		/files/untrash [patch]
 func unTrashFiles(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -1100,7 +1101,16 @@ func unTrashFiles(w http.ResponseWriter, r *http.Request) {
 	var files []*fileTree.WeblensFileImpl
 	for _, fileId := range fileIds {
 		file, err := pack.FileService.GetFileSafe(fileId, u, nil)
-		if err != nil || u != pack.FileService.GetFileOwner(file) {
+		if SafeErrorAndExit(err, w) {
+			return
+		}
+
+		owner, err := pack.FileService.GetFileOwner(file)
+		if SafeErrorAndExit(err, w) {
+			return
+		}
+
+		if err != nil || u != owner {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
@@ -1134,7 +1144,7 @@ func unTrashFiles(w http.ResponseWriter, r *http.Request) {
 //	@Router		/files [delete]
 func deleteFiles(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -1157,13 +1167,23 @@ func deleteFiles(w http.ResponseWriter, r *http.Request) {
 		file, err := pack.FileService.GetFileSafe(fileId, u, nil)
 		if SafeErrorAndExit(err, w) {
 			return
-		} else if u != pack.FileService.GetFileOwner(file) {
+		}
+
+		owner, err := pack.FileService.GetFileOwner(file)
+		if SafeErrorAndExit(err, w) {
+			return
+		}
+
+		if u != owner {
 			writeJson(w, http.StatusNotFound, rest.WeblensErrorInfo{Error: "Could not find file to delete"})
 			return
-		} else if !ignoreTrash && !pack.FileService.IsFileInTrash(file) {
+		}
+
+		if !ignoreTrash && !pack.FileService.IsFileInTrash(file) {
 			writeJson(w, http.StatusForbidden, rest.WeblensErrorInfo{Error: "Cannot delete file not in trash"})
 			return
 		}
+
 		files = append(files, file)
 	}
 
@@ -1194,7 +1214,7 @@ func deleteFiles(w http.ResponseWriter, r *http.Request) {
 //	@Router		/upload [post]
 func newUploadTask(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if err != nil && !errors.Is(err, werror.ErrNoPublicUser) {
 		SafeErrorAndExit(err, w)
 		return
@@ -1271,7 +1291,7 @@ func newFileUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -1296,8 +1316,7 @@ func newFileUpload(w http.ResponseWriter, r *http.Request) {
 	var ids []fileTree.FileId
 	for _, newFInfo := range params.NewFiles {
 		parent, err := pack.FileService.GetFileSafe(newFInfo.ParentFolderId, u, share)
-		if err != nil {
-			writeError(w, http.StatusNotFound, err)
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 
@@ -1490,7 +1509,7 @@ func getChildMedias(pack *models.ServicePack, children []*fileTree.WeblensFileIm
 // Format and write back directory information. Authorization checks should be done before this function
 func formatRespondFolderInfo(dir *fileTree.WeblensFileImpl, w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -1501,7 +1520,13 @@ func formatRespondFolderInfo(dir *fileTree.WeblensFileImpl, w http.ResponseWrite
 
 	var parentsInfo []rest.FileInfo
 	parent := dir.GetParent()
-	for parent.ID() != "ROOT" && pack.AccessService.CanUserAccessFile(u, parent, share) && !pack.FileService.GetFileOwner(parent).IsSystemUser() {
+
+	owner, err := pack.FileService.GetFileOwner(parent)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+
+	for parent.ID() != "ROOT" && pack.AccessService.CanUserAccessFile(u, parent, share) && !owner.IsSystemUser() {
 		parentInfo, err := rest.WeblensFileToFileInfo(parent, pack, false)
 		if SafeErrorAndExit(err, w) {
 			return

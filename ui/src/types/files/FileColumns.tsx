@@ -3,16 +3,13 @@ import { IconChevronRight, IconFile } from '@tabler/icons-react'
 import { GetFolderData } from '@weblens/api/FileBrowserApi'
 import WeblensLoader from '@weblens/components/Loading'
 import { useSessionStore } from '@weblens/components/UserInfo'
+import FileVisual from '@weblens/components/filebrowser/fileVisual'
+import GetStartedCard from '@weblens/components/filebrowser/getStartedCard'
 import { useKeyDown, useResize, useResizeDrag } from '@weblens/components/hooks'
 import { HandleDrop } from '@weblens/pages/FileBrowser/FileBrowserLogic'
-import {
-    GetStartedCard,
-    IconDisplay,
-} from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
 import { DirViewModeT } from '@weblens/pages/FileBrowser/FileBrowserTypes'
 import fbStyle from '@weblens/pages/FileBrowser/style/fileBrowserStyle.module.scss'
 import { FbModeT, useFileBrowserStore } from '@weblens/store/FBStateControl'
-import { SelectedState, WeblensFile } from '@weblens/types/files/File'
 import filesStyle from '@weblens/types/files/filesStyle.module.scss'
 import { humanFileSize } from '@weblens/util'
 import {
@@ -31,6 +28,7 @@ import { PhotoQuality } from '../media/Media'
 import { useMediaStore } from '../media/MediaStateControl'
 import { MediaImage } from '../media/PhotoContainer'
 import { DraggingStateT } from './FBTypes'
+import WeblensFile, { SelectedState } from './File'
 import {
     fileHandleContextMenu,
     goToFile,
@@ -193,7 +191,7 @@ function ColumnRow({
         >
             <div className="flex items-center h-[40px] max-h-full gap-3 w-full">
                 <div className="flex shrink-0 justify-center items-center w-[40px] h-[40px] max-w-[40px] max-h-full">
-                    <IconDisplay file={file} allowMedia={true} />
+                    <FileVisual file={file} allowMedia={true} />
                 </div>
                 <div className={filesStyle['file-text-container']}>
                     <p className={filesStyle['file-text']}>

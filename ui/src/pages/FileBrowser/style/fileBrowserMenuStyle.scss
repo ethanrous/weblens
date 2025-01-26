@@ -4,133 +4,133 @@ $menu-title-height: 50px;
 $menu-base-square-size: 250px;
 
 .file-menu-title {
-    display: flex;
-    position: fixed;
-    flex-grow: 1;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    height: $menu-title-height;
-    width: 100%;
-    max-width: 400px;
-    padding: 4px;
+	display: flex;
+	position: fixed;
+	flex-grow: 1;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	height: $menu-title-height;
+	width: 100%;
+	max-width: 400px;
+	padding: 4px;
 }
 
 .backdrop-menu-wrapper {
-    display: flex;
-    position: absolute;
-    width: max-content;
-    height: max-content;
-    transform-origin: center;
-    translate: -50% -50%;
-    z-index: 100;
-    pointer-events: none;
+	display: flex;
+	position: absolute;
+	width: max-content;
+	height: max-content;
+	transform-origin: center;
+	translate: -50% -50%;
+	z-index: 100;
+	pointer-events: none;
 }
 
 .menu-body-below-header {
-    margin-top: $menu-title-height;
+	margin-top: $menu-title-height;
 }
 
 .backdrop-menu {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: center;
-    pointer-events: all;
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-start;
+	align-items: center;
+	pointer-events: all;
 
-    // +10 to give overflowing buttons a chance to peak through,
-    // and make the fact the menu scrolls more discoverable
-    height: $menu-base-square-size + $menu-title-height + 10px;
-    width: $menu-base-square-size;
+	// +10 to give overflowing buttons a chance to peak through,
+	// and make the fact the menu scrolls more discoverable
+	height: $menu-base-square-size + $menu-title-height + 10px;
+	width: $menu-base-square-size;
 
-    overflow: hidden;
+	overflow: hidden;
 
-    outline: 2px solid $main-accent;
-    background-color: var(--wl-background);
-    border: none;
-    border-radius: 8px;
+	outline: 2px solid var(--wl-main-accent);
+	background-color: var(--wl-background);
+	border: none;
+	border-radius: 8px;
 
-    scale: 0;
-    transition: scale 150ms ease-in-out, width 150ms ease-in-out, height 150ms ease-in-out;
+	scale: 0;
+	transition: scale 150ms ease-in-out, width 150ms ease-in-out, height 150ms ease-in-out;
 
-    &[data-mode='1'] {
-        scale: 1;
-    }
+	&[data-mode='1'] {
+		scale: 1;
+	}
 
-    &[data-mode='2'] {
-        scale: 1;
-        width: 310px;
-        max-width: 310px;
-        height: 460px + $menu-title-height;
-    }
+	&[data-mode='2'] {
+		scale: 1;
+		width: 310px;
+		max-width: 310px;
+		height: 460px + $menu-title-height;
+	}
 
-    &[data-mode='3'] {
-        scale: 1;
-        width: 300px;
-        max-width: 300px;
-        height: 80px + $menu-title-height;
-    }
+	&[data-mode='3'] {
+		scale: 1;
+		width: 300px;
+		max-width: 300px;
+		height: 80px + $menu-title-height;
+	}
 
-    &[data-mode='4'] {
-        scale: 1;
-        width: 300px;
-        height: max-content;
+	&[data-mode='4'] {
+		scale: 1;
+		width: 300px;
+		height: max-content;
 
-        max-height: 515px + $menu-title-height;
-    }
+		max-height: 515px + $menu-title-height;
+	}
 
-    &[data-mode='5'] {
-        scale: 1;
-        width: 300px;
-        max-width: 300px;
-        height: 75px + $menu-title-height;
-    }
+	&[data-mode='5'] {
+		scale: 1;
+		width: 300px;
+		max-width: 300px;
+		height: 75px + $menu-title-height;
+	}
 
-    &[data-mode='6'] {
-        scale: 1;
-        width: max-content;
-        height: calc(40vh + $menu-title-height);
+	&[data-mode='6'] {
+		scale: 1;
+		width: max-content;
+		height: calc(40vh + $menu-title-height);
 
-    }
+	}
 }
 
 .default-grid {
-    display: grid;
-    position: absolute;
-    align-items: center;
-    justify-items: center;
-    grid-template-columns: 120px 120px;
-    //grid-template-rows: repeat(auto, 120px);
-    grid-auto-rows: 120px;
-    justify-content: center;
-    pointer-events: all;
-    opacity: 100%;
+	display: grid;
+	position: absolute;
+	align-items: center;
+	justify-items: center;
+	grid-template-columns: 120px 120px;
+	//grid-template-rows: repeat(auto, 120px);
+	grid-auto-rows: 120px;
+	justify-content: center;
+	pointer-events: all;
+	opacity: 100%;
 
-    // +10 to give overflowing buttons a chance to peak through,
-    // and make the fact the menu scrolls more discoverable
-    height: $menu-base-square-size + 10;
-    width: $menu-base-square-size;
-    margin-top: $menu-title-height;
-    overflow-y: scroll;
+	// +10 to give overflowing buttons a chance to peak through,
+	// and make the fact the menu scrolls more discoverable
+	height: $menu-base-square-size + 10;
+	width: $menu-base-square-size;
+	margin-top: $menu-title-height;
+	overflow-y: scroll;
 
-    transition: opacity 150ms ease-in-out;
+	transition: opacity 150ms ease-in-out;
 
-    &[data-visible='false'] {
-        pointer-events: none;
-        opacity: 0;
-    }
+	&[data-visible='false'] {
+		pointer-events: none;
+		opacity: 0;
+	}
 }
 
 .default-menu-icon {
-    width: 108px;
-    height: 108px;
-    scale: 0;
+	width: 108px;
+	height: 108px;
+	scale: 0;
 
-    transition: scale 150ms ease-in-out;
+	transition: scale 150ms ease-in-out;
 
-    [data-visible='true'] & {
-        scale: 1;
-    }
+	[data-visible='true'] & {
+		scale: 1;
+	}
 }
 
 //.default-grid[data-visible='true'] .default-menu-icon {
@@ -138,98 +138,98 @@ $menu-base-square-size: 250px;
 //}
 
 .file-share-menu {
-    width: 300px;
-    height: 450px;
-    position: absolute;
-    margin-top: $menu-title-height;
+	width: 300px;
+	height: 450px;
+	position: absolute;
+	margin-top: $menu-title-height;
 
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
-    pointer-events: none;
+	flex-direction: column;
+	align-items: center;
+	justify-content: space-between;
+	pointer-events: none;
 
-    opacity: 0;
-    transition: all 150ms ease-in-out;
-    display: none;
+	opacity: 0;
+	transition: all 150ms ease-in-out;
+	display: none;
 
-    &[data-visible='true'] {
-        opacity: 100%;
-        display: flex;
-        pointer-events: all;
-    }
+	&[data-visible='true'] {
+		opacity: 100%;
+		display: flex;
+		pointer-events: all;
+	}
 }
 
 .user-autocomplete-row {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    height: 45px;
-    width: 100%;
-    cursor: pointer;
-    border-radius: 4px;
-    padding: 8px;
-    color: white;
-    //box-shadow: $hard-shadow-off;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	height: 45px;
+	width: 100%;
+	cursor: pointer;
+	border-radius: 4px;
+	padding: 8px;
+	color: white;
+	//box-shadow: $hard-shadow-off;
 
-    transition: background-color 150ms ease-in-out;
+	transition: background-color 150ms ease-in-out;
 
-    &:hover {
-        background-color: var(--dark-paper);
-        //box-shadow: $hard-shadow;
-    }
+	&:hover {
+		background-color: var(--dark-paper);
+		//box-shadow: $hard-shadow;
+	}
 
-    &:hover .user-minus-button {
-        opacity: 100%;
-    }
+	&:hover .user-minus-button {
+		opacity: 100%;
+	}
 }
 
 .user-minus-button {
-    opacity: 0;
-    transition: opacity 200ms ease-in-out;
+	opacity: 0;
+	transition: opacity 200ms ease-in-out;
 }
 
 .new-folder-menu {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    height: max-content;
-    width: 100%;
-    padding: 8px;
-    gap: 8px;
-    margin-top: $menu-title-height;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	height: max-content;
+	width: 100%;
+	padding: 8px;
+	gap: 8px;
+	margin-top: $menu-title-height;
 
-    transition: all 150ms ease-in-out;
+	transition: all 150ms ease-in-out;
 }
 
 .add-to-album-menu {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    height: max-content;
-    width: 100%;
-    padding: 8px;
-    gap: 8px;
-    margin-top: $menu-title-height;
-    pointer-events: all;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	height: max-content;
+	width: 100%;
+	padding: 8px;
+	gap: 8px;
+	margin-top: $menu-title-height;
+	pointer-events: all;
 
-    transition: all 150ms ease-in-out;
+	transition: all 150ms ease-in-out;
 }
 
 .footer-wrapper {
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    padding: 8px;
-    border-radius: 4px;
-    color: white;
-    transition: background-color 150ms ease-in-out;
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
+	padding: 8px;
+	border-radius: 4px;
+	color: white;
+	transition: background-color 150ms ease-in-out;
 
-    background-color: var(--dark-paper);
-    outline: 1px solid $main-accent;
+	background-color: var(--dark-paper);
+	outline: 1px solid var(--wl-main-accent);
 
-    &[data-danger='true'] {
-        background-color: var(--wl-danger-subtle);
-        outline: 1px solid var(--wl-danger);
-    }
+	&[data-danger='true'] {
+		background-color: var(--wl-danger-subtle);
+		outline: 1px solid var(--wl-danger);
+	}
 }

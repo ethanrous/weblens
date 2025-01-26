@@ -25,7 +25,7 @@ import (
 //	@Router		/share/file [post]
 func createFileShare(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -83,7 +83,7 @@ func createFileShare(w http.ResponseWriter, r *http.Request) {
 //	@Router		/share/album [post]
 func createAlbumShare(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -136,7 +136,7 @@ func createAlbumShare(w http.ResponseWriter, r *http.Request) {
 //	@Router		/share/{shareId} [get]
 func getFileShare(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -176,7 +176,7 @@ func getFileShare(w http.ResponseWriter, r *http.Request) {
 //	@Router		/share/{shareId}/public [patch]
 func setSharePublic(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -220,7 +220,7 @@ func setSharePublic(w http.ResponseWriter, r *http.Request) {
 //	@Router		/share/{shareId}/accessors [patch]
 func setShareAccessors(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}

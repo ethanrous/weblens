@@ -1,7 +1,6 @@
 package models
 
 import (
-	"io"
 	"time"
 
 	"github.com/ethanrous/weblens/fileTree"
@@ -32,7 +31,7 @@ type FileService interface {
 
 	NewBackupFile(lt *fileTree.Lifetime) (*fileTree.WeblensFileImpl, error)
 
-	GetFileOwner(file *fileTree.WeblensFileImpl) *User
+	GetFileOwner(file *fileTree.WeblensFileImpl) (*User, error)
 	IsFileInTrash(file *fileTree.WeblensFileImpl) bool
 
 	MoveFiles(files []*fileTree.WeblensFileImpl, destFolder *fileTree.WeblensFileImpl, treeName string, caster FileCaster) error
@@ -42,8 +41,6 @@ type FileService interface {
 	DeleteFiles(files []*fileTree.WeblensFileImpl, treeName string, caster FileCaster) error
 	RestoreFiles(ids []fileTree.FileId, newParent *fileTree.WeblensFileImpl, restoreTime time.Time, caster FileCaster) error
 	RestoreHistory(lifetimes []*fileTree.Lifetime) error
-
-	ReadFile(f *fileTree.WeblensFileImpl) (io.ReadCloser, error)
 
 	GetMediaCacheByFilename(filename string) (*fileTree.WeblensFileImpl, error)
 	NewCacheFile(media *Media, quality MediaQuality, pageNum int) (*fileTree.WeblensFileImpl, error)

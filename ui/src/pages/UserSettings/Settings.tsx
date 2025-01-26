@@ -400,19 +400,19 @@ function ApiKeyRow({
                     {keyInfo.key.slice(0, 4)}
                     {stars}
                 </code>
-                <p className="text-gray-400">
+                <p className="text-[--wl-text-color-dull]">
                     Added {historyDate(keyInfo.createdTime)}
                 </p>
                 {keyInfo.lastUsedTime === 0 && (
-                    <p className="select-none text-gray-400">Unused</p>
+                    <p className="select-none text-[--wl-text-color-dull]">Unused</p>
                 )}
                 {keyInfo.lastUsedTime !== 0 && (
-                    <p className="select-none text-gray-400">
+                    <p className="select-none text-[--wl-text-color-dull]">
                         {historyDate(keyInfo.lastUsedTime)}
                     </p>
                 )}
                 {keyInfo.remoteUsing !== '' && (
-                    <p className="select-none text-gray-400">
+                    <p className="select-none text-[--wl-text-color-dull]">
                         Linked to{' '}
                         {
                             remotes.find((r) => r.id === keyInfo.remoteUsing)
@@ -421,7 +421,9 @@ function ApiKeyRow({
                     </p>
                 )}
                 {keyInfo.remoteUsing === '' && (
-                    <p className="select-none text-gray-400">Not Linked</p>
+                    <p className="select-none text-[--wl-text-color-dull]">
+                        Not Linked
+                    </p>
                 )}
             </div>
             <WeblensButton

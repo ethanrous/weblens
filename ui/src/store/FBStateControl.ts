@@ -2,10 +2,9 @@ import { FileInfo, MediaInfo } from '@weblens/api/swag'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import { Coordinates } from '@weblens/types/Types'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
-import {
+import WeblensFile, {
     FbMenuModeT,
     SelectedState,
-    WeblensFile,
 } from '@weblens/types/files/File'
 import WeblensMedia from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'

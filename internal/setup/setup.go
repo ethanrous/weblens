@@ -403,7 +403,7 @@ func setupAccessService(pack *models.ServicePack, db *mongo.Database) {
 	}
 	pack.AccessService = accessService
 
-	keys, err := accessService.GetAllKeys(pack.UserService.GetRootUser())
+	keys, err := accessService.GetKeysByUser(pack.UserService.GetRootUser())
 	if err != nil {
 		panic(err)
 	}
