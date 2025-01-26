@@ -48,6 +48,7 @@ COPY --from=web dist /app/ui/dist
 COPY --from=backend /server/weblens /app/weblens
 COPY config/ /app/config
 COPY images/brand /app/static
+COPY build/ffmpeg /usr/bin/ffmpeg
 
 EXPOSE 8080
 

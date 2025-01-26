@@ -77,7 +77,11 @@ if [ ! $skip == true ]; then
 	fi
 fi
 
-printf "Building Weblens binary..."
+if [[ ! -e ./build/ffmpeg ]]; then
+	docker run --platform linux/amd64 -v ./scripts/buildFfmpeg.sh:/buildFfmpeg.sh -v ./build:/build --rm alpine /buildFfmpeg.sh
+fi
+
+printf "Building Weblens container..."
 sudo docker rmi ethrous/weblens:"${docker_tag}-${arch}" &>/dev/null
 sudo docker build --platform "linux/$arch" -t ethrous/weblens:"${docker_tag}-${arch}" --build-arg build_tag="$docker_tag" --build-arg ARCHITECTURE=amd64 -f ./docker/Dockerfile .
 

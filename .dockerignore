@@ -1,3 +1,4 @@
 /build
+!/build/ffmpeg
 ui/node_modules
 ui/dist
