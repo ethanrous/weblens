@@ -10,7 +10,7 @@ import (
 )
 
 func TestConnectToMongo(t *testing.T) {
-	mondb, err := database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName())
+	mondb, err := database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName(env.Config{}))
 	require.NoError(t, err)
 
 	assert.NotNil(t, mondb)

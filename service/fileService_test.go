@@ -43,7 +43,7 @@ func NewTestFileTree() (fileTree.FileTree, error) {
 }
 
 func NewTestFileService(name string, logger log.Bundle) (*models.ServicePack, error) {
-	mondb, err := database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName())
+	mondb, err := database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName(env.Config{}))
 	if err != nil {
 		return nil, err
 	}

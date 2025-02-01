@@ -21,7 +21,7 @@ FROM --platform=linux/${ARCHITECTURE} golang:1.23.5-alpine AS backend
 RUN apk upgrade --no-cache
 RUN apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community --repository http://dl-3.alpinelinux.org/alpine/edge/main vips-dev
 RUN apk add --no-cache bash build-base pkgconfig
-RUN apk add --no-cache imagemagick imagemagick-dev tiff-dev libraw-dev libpng-dev libwebp-dev
+RUN apk add --no-cache imagemagick imagemagick-dev tiff-dev libraw-dev libpng-dev libwebp-dev libheif imagemagick-pdf
 
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod \
@@ -41,7 +41,7 @@ ENV NVIDIA_DRIVER_CAPABILITIES="compute,video,utility"
 
 RUN apk upgrade --no-cache
 RUN apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community --repository http://dl-3.alpinelinux.org/alpine/edge/main vips
-RUN apk add --no-cache imagemagick exiftool ffmpeg tiff libraw libpng libwebp
+RUN apk add --no-cache imagemagick exiftool ffmpeg tiff libraw libpng libwebp libheif imagemagick-pdf
 
 WORKDIR /app
 COPY --from=web dist /app/ui/dist

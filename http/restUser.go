@@ -215,7 +215,7 @@ func getUserInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if u == nil || u.IsPublic() {
-		SafeErrorAndExit(werror.ErrNoUser, w)
+		SafeErrorAndExit(werror.ErrInvalidToken, w)
 		return
 	}
 

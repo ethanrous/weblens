@@ -17,3 +17,4 @@ export PKG_CONFIG_PATH=/usr/lib/pkgconfig
 make
 
 cp ./ffmpeg /build/
+cp ./ffprobe /build/

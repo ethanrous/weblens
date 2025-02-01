@@ -177,8 +177,6 @@ func WeblensAuth(next http.Handler) http.Handler {
 				return
 			}
 
-			// log.Trace.Func(func(l log.Logger) { l.Printf("User [%s] authenticated", usr.GetUsername()) })
-
 			r = r.WithContext(context.WithValue(r.Context(), UserKey, usr))
 			next.ServeHTTP(w, r)
 			return

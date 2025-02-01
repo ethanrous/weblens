@@ -244,10 +244,16 @@ function WeblensButton({
                 <div
                     className={buttonStyle['button-tooltip']}
                     style={{
-                        transform: `translateY(${squareSize / 2 + 25}px)`,
+                        transform: `translateY(${squareSize / 2 + 20}px)`,
                     }}
                 >
-                    <p className="text-white z-10" style={{width: squareSize * 1.5, maxWidth: squareSize * 1.5}}>
+                    <p
+                        className="flex text-white z-10 grow text-nowrap"
+                        style={{
+                            width: buttonSize.width * 2,
+                            maxWidth: 'max-content',
+                        }}
+                    >
                         {confirming ? 'Really?' : tooltip}
                     </p>
                 </div>

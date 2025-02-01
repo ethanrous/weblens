@@ -116,7 +116,6 @@ export const useKeyDown = (
 ) => {
     const onKeyDown = useCallback(
         (event: KeyboardEvent) => {
-            console.log(event)
             if (
                 !event.ctrlKey &&
                 !event.metaKey &&

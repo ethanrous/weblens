@@ -66,6 +66,8 @@ func GetConfig(configName string, withOverrides bool) (Config, error) {
 		cnf.DataRoot = GetDataRoot(cnf)
 		cnf.CachesRoot = GetCachesRoot(cnf)
 		cnf.LogLevel = GetLogLevel(string(cnf.LogLevel))
+		cnf.MongodbName = GetMongoDBName(cnf)
+		cnf.MongodbUri = GetMongoURI()
 	}
 
 	return cnf, nil
@@ -180,10 +182,24 @@ func DetachUi() bool {
 }
 
 func GetMongoURI() string {
+	mongoUri := os.Getenv("MONGODB_URI")
+	if mongoUri != "" {
+		return mongoUri
+	}
+
 	return "mongodb://localhost:27017"
 }
 
-func GetMongoDBName(configName ...string) string {
+func GetMongoDBName(cnf Config) string {
+	mongoName := os.Getenv("MONGO_DB_NAME")
+	if mongoName != "" {
+		return mongoName
+	}
+
+	if cnf.MongodbName != "" {
+		return cnf.MongodbName
+	}
+
 	return "weblens"
 }
 

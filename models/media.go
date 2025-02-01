@@ -497,25 +497,28 @@ func (vs *VideoStreamer) transcodeChunks(f *fileTree.WeblensFileImpl, speed stri
 	}
 
 	log.Trace.Printf("Bitrate: %d %d", videoBitrate, audioBitrate)
+	outputArgs := ffmpeg.KwArgs{
+		"c:v":                "libx264",
+		"b:v":                int(videoBitrate),
+		"b:a":                320_000,
+		"segment_list_flags": "+live",
+		"format":             "segment",
+		"segment_format":     "mpegts",
+		"hls_init_time":      5,
+		"hls_time":           5,
+		"hls_list_size":      0,
+		"segment_list":       filepath.Join(vs.streamDirPath, "list.m3u8"),
+		// "crf":                18,
+		// "preset":             speed,
+	}
+
+	var useCuda = true
+	if useCuda {
+		outputArgs["c:v"] = "h264_nvenc"
+	}
 
 	outErr := bytes.NewBuffer(nil)
-	err = ffmpeg.Input(f.AbsPath(), ffmpeg.KwArgs{"hwaccel": "cuda", "ss": 0}).Output(
-		vs.streamDirPath+"%03d.ts", ffmpeg.KwArgs{
-			"c:v": "libx264",
-			"b:v": int(videoBitrate),
-			// "b:a":                int(audioBitrate),
-			"b:a":                320_000,
-			"crf":                18,
-			"preset":             speed,
-			"segment_list_flags": "+live",
-			"format":             "segment",
-			"segment_format":     "mpegts",
-			"hls_init_time":      5,
-			"hls_time":           5,
-			"hls_list_size":      0,
-			"segment_list":       filepath.Join(vs.streamDirPath, "list.m3u8"),
-		},
-	).WithErrorOutput(outErr).Run()
+	err = ffmpeg.Input(f.AbsPath(), ffmpeg.KwArgs{"hwaccel": "cuda", "ss": 0}).Output(vs.streamDirPath+"%03d.ts", outputArgs).WithErrorOutput(outErr).Run()
 
 	if err != nil {
 		log.Error.Println(outErr.String())
@@ -604,6 +607,7 @@ func (vs *VideoStreamer) IsTranscoding() bool {
 }
 
 func (vs *VideoStreamer) probeSourceBitrate(f *fileTree.WeblensFileImpl) (videoBitrate int64, audioBitrate int64, err error) {
+	log.Debug.Println("Probing", f.AbsPath())
 	probeJson, err := ffmpeg.Probe(f.AbsPath())
 	if err != nil {
 		return 0, 0, err

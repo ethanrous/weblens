@@ -245,6 +245,7 @@ function FBSidebar() {
                                 allowRepeat={false}
                                 Left={IconServer}
                                 // disabled={draggingState !== DraggingStateT.NoDrag}
+								tooltip={'Coming Soon'}
                                 disabled={true}
                                 onClick={navToExternal}
                             />

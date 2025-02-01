@@ -8,38 +8,51 @@ fi
 mkdir -p ./build/bin
 mkdir -p ./build/logs
 
+docker_tag=devel_$(git rev-parse --abbrev-ref HEAD)
+arch="amd64"
+
 # Once the container is build, push it to docker hub
-push=false
+do_push=false
 
 # Skip testing
-skip=false
+skip_tests=false
 
-while getopts ":t:a:ps" opt; do
-	case $opt in
-	t)
-		docker_tag="$OPTARG"
-		;;
-	a)
-		arch="$OPTARG"
-		;;
-	p)
-		push=true
-		;;
-	s)
-		skip=true
-		;;
-	\?)
-		echo "Invalid option -$OPTARG" >&2
-		exit 1
-		;;
-	esac
+# The base image to build from. Alpine is smaller, debian allows for cuda accelerated ffmpeg
+base_image="alpine"
 
-	case $OPTARG in
-	-*)
-		echo "Option $opt needs a valid argument"
-		exit 1
-		;;
-	esac
+usage="TODO"
+
+while [ "${1:-}" != "" ]; do
+    case "$1" in
+    "-t" | "--tag")
+        shift
+        docker_tag=$1
+        ;;
+    "-a" | "--arch")
+        shift
+        arch=$1
+        ;;
+    "-p" | "--push")
+        do_push=true
+        ;;
+    "-s" | "--skip-tests")
+        skip_tests=true
+        ;;
+    "--base-image")
+        shift
+        base_image=$1
+        ;;
+    "-h" | "--help")
+        echo "$usage"
+        exit 0
+        ;;
+    *)
+        "Unknown argument: $1"
+        echo "$usage"
+        exit 1
+        ;;
+    esac
+    shift
 done
 
 sudo docker ps &>/dev/null
@@ -54,39 +67,36 @@ else
 	printf " PASS\n"
 fi
 
-if [ -z "$docker_tag" ]; then
-	docker_tag=devel_$(git rev-parse --abbrev-ref HEAD)
-	echo "WARN No tag specified"
-fi
-
-if [ -z "$arch" ]; then
-	arch="amd64"
-fi
-
-echo "Using tag: $docker_tag-$arch"
-
-if [ ! $skip == true ]; then
-	printf "Running tests..."
-	if ! ./scripts/testWeblens -a &>./build/logs/container-build-pretest.log; then
-		printf " FAILED\n"
-		cat ./build/logs/container-build-pretest.log
-		echo "Aborting container build. Ensure ./scripts/testWeblens passes before building container"
-		exit 1
-	else
-		printf " PASS\n"
-	fi
+if [ ! $skip_tests == true ]; then
+    printf "Running tests..."
+    if ! ./scripts/testWeblens -a &>./build/logs/container-build-pretest.log; then
+        printf " FAILED\n"
+        cat ./build/logs/container-build-pretest.log
+        echo "Aborting container build. Ensure ./scripts/testWeblens passes before building container"
+        exit 1
+    else
+        printf " PASS\n"
+    fi
 fi
 
 if [[ ! -e ./build/ffmpeg ]]; then
-	docker run --platform linux/amd64 -v ./scripts/buildFfmpeg.sh:/buildFfmpeg.sh -v ./build:/build --rm alpine /buildFfmpeg.sh
+    docker run --platform linux/amd64 -v ./scripts/buildFfmpeg.sh:/buildFfmpeg.sh -v ./build:/build --rm alpine /buildFfmpeg.sh
 fi
+
+df_path="./docker/Dockerfile"
+if [ "$base_image" == "debian" ]; then
+    df_path="./docker/Debian.Dockerfile"
+fi
+
+full_tag="${docker_tag}-${base_image}-${arch}"
+echo "Using tag: $full_tag"
 
 printf "Building Weblens container..."
-sudo docker rmi ethrous/weblens:"${docker_tag}-${arch}" &>/dev/null
-sudo docker build --platform "linux/$arch" -t ethrous/weblens:"${docker_tag}-${arch}" --build-arg build_tag="$docker_tag" --build-arg ARCHITECTURE=amd64 -f ./docker/Dockerfile .
+sudo docker rmi ethrous/weblens:"$full_tag" &>/dev/null
+sudo docker build --platform "linux/$arch" -t ethrous/weblens:"$full_tag" --build-arg build_tag="$full_tag" --build-arg ARCHITECTURE="$arch" -f $df_path .
 
-if [ $push == true ]; then
-	sudo docker push ethrous/weblens:"${docker_tag}-${arch}"
+if [ $do_push == true ]; then
+    sudo docker push ethrous/weblens:"$full_tag"
 fi
 
-printf "\nBUILD COMPLETE. Container tag: ethrous/weblens:%s-%s\n" "$docker_tag" "$arch"
+printf "\nBUILD COMPLETE. Container tag: ethrous/weblens:%s\n" "$full_tag" 

@@ -154,7 +154,7 @@ func (accSrv *AccessServiceImpl) GetUserFromToken(tokenStr string) (*models.User
 	)
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {
-			return nil, werror.ErrTokenExpired
+			return nil, werror.WithStack(werror.ErrTokenExpired)
 		}
 		return nil, werror.WithStack(err)
 	}

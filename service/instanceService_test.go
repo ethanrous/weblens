@@ -20,7 +20,7 @@ import (
 func init() {
 	if mondb == nil {
 		var err error
-		mondb, err = database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName()+"-test")
+		mondb, err = database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName(env.Config{})+"-test")
 		if err != nil {
 			panic(err)
 		}

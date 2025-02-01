@@ -29,7 +29,10 @@ var ErrKeyNotFound = ClientSafeErr{
 	statusCode: http.StatusNotFound,
 }
 
-var ErrInvalidToken = errors.New("session token is invalid")
+var ErrInvalidToken  = ClientSafeErr{
+	safeErr:    errors.New("session token is invalid"),
+	statusCode: http.StatusUnauthorized,
+}
 
 var ErrTokenExpired = ClientSafeErr{
 	safeErr:    errors.New("session token is expired"),
