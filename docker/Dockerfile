@@ -21,7 +21,7 @@ FROM --platform=linux/${ARCHITECTURE} golang:1.23.5-alpine AS backend
 RUN apk upgrade --no-cache
 RUN apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community --repository http://dl-3.alpinelinux.org/alpine/edge/main vips-dev
 RUN apk add --no-cache bash build-base pkgconfig
-RUN apk add --no-cache imagemagick imagemagick-dev tiff-dev libraw-dev libpng-dev libwebp-dev libheif imagemagick-pdf
+RUN apk add --no-cache imagemagick imagemagick-pdf imagemagick-dev tiff-dev libraw-dev libpng-dev libwebp-dev libheif 
 
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod \

@@ -597,9 +597,12 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 	if m.MimeType == "" {
 		mimeType, ok := fileMetas[0].Fields["MIMEType"].(string)
 		if !ok {
-			mimeType = "generic"
+			ext := filepath.Ext(file.Filename())
+			mType := ms.typeService.ParseExtension(ext)
+			m.MimeType = mType.Mime
+		} else {
+			m.MimeType = mimeType
 		}
-		m.MimeType = mimeType
 
 		if ms.typeService.ParseMime(m.MimeType).Video {
 			probeJson, err := ffmpeg.Probe(file.AbsPath())
@@ -760,11 +763,18 @@ func (ms *MediaServiceImpl) handleCacheCreation(m *models.Media, file *fileTree.
 		m.Width = int(width)
 		sw.Lap("Read image dimensions")
 
+		mw.SetIteratorIndex(0)
+		thumbImage := mw.GetImage()
+
 		for page := range m.PageCount {
 			mw.SetIteratorIndex(page)
+			tmpMw := mw.GetImage()
+
+			// Make sure that transparent background PDFs are white
+			tmpMw = tmpMw.MergeImageLayers(imagick.IMAGE_LAYER_FLATTEN)
 
 			// Convert image to webp format for effecient transfer
-			err = mw.SetImageFormat("webp")
+			err = tmpMw.SetImageFormat("webp")
 			if err != nil {
 				return nil, werror.WithStack(err)
 			}
@@ -782,7 +792,7 @@ func (ms *MediaServiceImpl) handleCacheCreation(m *models.Media, file *fileTree.
 				}
 				log.Trace.Printf("Resizing %s highres image to %dx%d", file.Filename(), fullWidth, fullHeight)
 
-				err = mw.ScaleImage(fullWidth, fullHeight)
+				err = tmpMw.ScaleImage(fullWidth, fullHeight)
 				if err != nil {
 					return nil, werror.WithStack(err)
 				}
@@ -794,7 +804,7 @@ func (ms *MediaServiceImpl) handleCacheCreation(m *models.Media, file *fileTree.
 			if err != nil && !errors.Is(err, werror.ErrFileAlreadyExists) {
 				return nil, werror.WithStack(err)
 			} else if err == nil {
-				blob, err := mw.GetImageBlob()
+				blob, err := tmpMw.GetImageBlob()
 				if err != nil {
 					return nil, werror.WithStack(err)
 				}
@@ -807,8 +817,13 @@ func (ms *MediaServiceImpl) handleCacheCreation(m *models.Media, file *fileTree.
 			}
 		}
 
-		// return nil, to first page if this is a PDF, so the thumbnail will be the cover page
-		mw.SetIteratorIndex(0)
+		// return to first page if this is a PDF, so the thumbnail will be the cover page
+		// mw.SetIteratorIndex(0)
+		mw = thumbImage.MergeImageLayers(imagick.IMAGE_LAYER_FLATTEN)
+		err = mw.SetImageFormat("webp")
+		if err != nil {
+			return nil, werror.WithStack(err)
+		}
 
 		// Resize thumb image if too big
 		if width > ThumbSize || height > ThumbSize {

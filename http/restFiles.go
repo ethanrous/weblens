@@ -82,7 +82,7 @@ func getFile(w http.ResponseWriter, r *http.Request) {
 //	@Tags		Files
 //	@Produce	plain
 //	@Param		fileId	path		string	true	"File Id"
-//	@Param		shareId		query		string					false	"Share Id"
+//	@Param		shareId	query		string	false	"Share Id"
 //	@Success	200		{string}	string	"File text"
 //	@Failure	400
 //	@Router		/files/{fileId}/text [get]

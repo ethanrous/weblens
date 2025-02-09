@@ -25,7 +25,6 @@ import {
     Dispatch,
     MouseEventHandler,
     ReactNode,
-    memo,
     useCallback,
     useEffect,
     useMemo,
@@ -555,112 +554,99 @@ interface PresentationProps {
     element?: () => ReactNode
 }
 
-const Presentation = memo(
-    ({ mediaId, element, setTarget }: PresentationProps) => {
-        useKeyDownPresentation(mediaId, setTarget)
+function Presentation({ mediaId, element, setTarget }: PresentationProps) {
+    useKeyDownPresentation(mediaId, setTarget)
 
-        const [to, setTo] = useState<NodeJS.Timeout>(null)
-        const [guiShown, setGuiShown] = useState(false)
-        const [likedHover, setLikedHover] = useState(false)
-        const { user } = useSessionStore()
+    const [to, setTo] = useState<NodeJS.Timeout>(null)
+    const [guiShown, setGuiShown] = useState(false)
+    const [likedHover, setLikedHover] = useState(false)
+    const { user } = useSessionStore()
 
-        const mediaData = useMediaStore((state) => state.mediaMap.get(mediaId))
-        const isLiked = useMediaStore((state) => {
-            const m = state.mediaMap.get(mediaId)
-            return m ? m.GetLikedBy().includes(user.username) : false
-        })
-        const setMediaLiked = useMediaStore((state) => state.setLiked)
+    const mediaData = useMediaStore((state) => state.mediaMap.get(mediaId))
+    const isLiked = useMediaStore((state) => {
+        const m = state.mediaMap.get(mediaId)
+        return m ? m.GetLikedBy().includes(user.username) : false
+    })
+    const setMediaLiked = useMediaStore((state) => state.setLiked)
 
-        if (!mediaId || !mediaData) {
-            return null
-        }
+    if (!mediaId || !mediaData) {
+        return null
+    }
 
-        const otherLikes =
-            (!isLiked && mediaData.GetLikedBy()?.length > 0) ||
-            (isLiked && mediaData.GetLikedBy()?.length > 1)
+    const otherLikes =
+        (!isLiked && mediaData.GetLikedBy()?.length > 0) ||
+        (isLiked && mediaData.GetLikedBy()?.length > 1)
 
-        return (
-            <PresentationContainer
-                onMouseMove={() => {
-                    setGuiShown(true)
-                    handleTimeout(to, setTo, setGuiShown)
-                }}
-                onClick={() => setTarget('')}
+    return (
+        <PresentationContainer
+            onMouseMove={() => {
+                setGuiShown(true)
+                handleTimeout(to, setTo, setGuiShown)
+            }}
+            onClick={() => setTarget('')}
+        >
+            <PresentationVisual
+                key={mediaId}
+                mediaData={mediaData}
+                Element={element}
+            />
+
+            <div
+                className="presentation-icon top-4 left-4"
+                data-shown={guiShown}
             >
-                <PresentationVisual
-                    key={mediaId}
-                    mediaData={mediaData}
-                    Element={element}
+                <WeblensButton
+                    subtle
+                    Left={IconX}
+                    onClick={() => setTarget('')}
                 />
-
-                <div
-                    className="presentation-icon top-4 left-4"
-                    data-shown={guiShown}
-                >
-                    <WeblensButton
-                        subtle
-                        Left={IconX}
-                        onClick={() => setTarget('')}
+            </div>
+            <div
+                className="presentation-icon bottom-4 right-4"
+                data-shown={guiShown || isLiked}
+                onClick={(e) => {
+                    e.stopPropagation()
+                    MediaApi.setMediaLiked(mediaData.Id(), !isLiked)
+                        .then(() => {
+                            setMediaLiked(mediaData.Id(), user.username)
+                        })
+                        .catch(ErrorHandler)
+                }}
+                onMouseOver={() => {
+                    setLikedHover(true)
+                }}
+                onMouseLeave={() => {
+                    setLikedHover(false)
+                }}
+            >
+                <div className="flex flex-col h-max items-center justify-center">
+                    {mediaData.GetLikedBy()?.length !== 0 && (
+                        <p className="absolute text-xs right-0 -bottom-1">
+                            {mediaData.GetLikedBy()?.length}
+                        </p>
+                    )}
+                    <IconHeart
+                        size={30}
+                        fill={isLiked ? 'red' : ''}
+                        color={isLiked ? 'red' : 'white'}
                     />
                 </div>
-                <div
-                    className="presentation-icon bottom-4 right-4"
-                    data-shown={guiShown || isLiked}
-                    onClick={(e) => {
-                        e.stopPropagation()
-                        MediaApi.setMediaLiked(mediaData.Id(), !isLiked)
-                            .then(() => {
-                                setMediaLiked(mediaData.Id(), user.username)
-                            })
-                            .catch(ErrorHandler)
-                    }}
-                    onMouseOver={() => {
-                        setLikedHover(true)
-                    }}
-                    onMouseLeave={() => {
-                        setLikedHover(false)
-                    }}
-                >
-                    <div className="flex flex-col h-max items-center justify-center">
-                        {mediaData.GetLikedBy()?.length !== 0 && (
-                            <p className="absolute text-xs right-0 -bottom-1">
-                                {mediaData.GetLikedBy()?.length}
-                            </p>
-                        )}
-                        <IconHeart
-                            size={30}
-                            fill={isLiked ? 'red' : ''}
-                            color={isLiked ? 'red' : 'white'}
-                        />
+                {likedHover && otherLikes && (
+                    <div className="flex flex-col bg-bottom-grey p-2 rounded items-center absolute bottom-7 right-0 w-max">
+                        <p>Likes</p>
+                        <div className="bg-raised-grey h-[1px] w-full m-1" />
+                        {mediaData.GetLikedBy().map((username: string) => {
+                            return (
+                                <p className="text-lg" key={username}>
+                                    {username}
+                                </p>
+                            )
+                        })}
                     </div>
-                    {likedHover && otherLikes && (
-                        <div className="flex flex-col bg-bottom-grey p-2 rounded items-center absolute bottom-7 right-0 w-max">
-                            <p>Likes</p>
-                            <div className="bg-raised-grey h-[1px] w-full m-1" />
-                            {mediaData.GetLikedBy().map((username: string) => {
-                                return (
-                                    <p className="text-lg" key={username}>
-                                        {username}
-                                    </p>
-                                )
-                            })}
-                        </div>
-                    )}
-                </div>
-            </PresentationContainer>
-        )
-    },
-    (prev, next) => {
-        if (prev.mediaId !== next.mediaId) {
-            return false
-        } else if (prev.element !== next.element) {
-            return false
-        } else if (prev.setTarget !== next.setTarget) {
-            return false
-        }
-
-        return true
-    }
-)
+                )}
+            </div>
+        </PresentationContainer>
+    )
+}
 
 export default Presentation

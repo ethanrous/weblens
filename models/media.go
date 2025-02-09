@@ -236,35 +236,6 @@ func (m *Media) FmtCacheFileName(quality MediaQuality, pageNum int) string {
 
 const ThumbnailHeight float32 = 500
 
-func (m *Media) getImageRecognitionTags() (err error) {
-	log.Warning.Println("Skipping image recognition tags")
-	return nil
-	// bs, err := m.ReadDisplayable(LowRes, 0)
-	// if err != nil {
-	// 	return
-	// }
-	// imgBuf := bytes.NewBuffer(bs)
-	//
-	// resp, err := comm.Post(internal.GetImgRecognitionUrl()+"/recognize", "application/jpeg", imgBuf)
-	// if err != nil {
-	// 	return
-	// }
-	// if resp.StatusCode != 200 {
-	// 	return fmt.Errorf("failed to get recognition tags: %s", resp.Status)
-	// }
-	//
-	// var recogTags []string
-	//
-	// err = json.NewDecoder(resp.Body).Decode(&recogTags)
-	// if err != nil {
-	// 	return err
-	// }
-	//
-	// m.RecognitionTags = recogTags
-	//
-	// return
-}
-
 func (m *Media) UnmarshalBSON(bs []byte) error {
 	raw := bson.Raw(bs)
 	contentId, ok := raw.Lookup("contentId").StringValueOK()
@@ -345,7 +316,7 @@ func (m *Media) UnmarshalBSON(bs []byte) error {
 
 	hidden, ok := raw.Lookup("hidden").BooleanOK()
 	if ok {
-		m.Hidden = hidden
+		m.setHidden(hidden)
 	}
 
 	m.imported = true
@@ -501,6 +472,7 @@ func (vs *VideoStreamer) transcodeChunks(f *fileTree.WeblensFileImpl, speed stri
 		"c:v":                "libx264",
 		"b:v":                int(videoBitrate),
 		"b:a":                320_000,
+		"c:a":                "copy",
 		"segment_list_flags": "+live",
 		"format":             "segment",
 		"segment_format":     "mpegts",
@@ -508,17 +480,12 @@ func (vs *VideoStreamer) transcodeChunks(f *fileTree.WeblensFileImpl, speed stri
 		"hls_time":           5,
 		"hls_list_size":      0,
 		"segment_list":       filepath.Join(vs.streamDirPath, "list.m3u8"),
-		// "crf":                18,
-		// "preset":             speed,
-	}
-
-	var useCuda = true
-	if useCuda {
-		outputArgs["c:v"] = "h264_nvenc"
+		"crf":                18,
+		"preset":             speed,
 	}
 
 	outErr := bytes.NewBuffer(nil)
-	err = ffmpeg.Input(f.AbsPath(), ffmpeg.KwArgs{"hwaccel": "cuda", "ss": 0}).Output(vs.streamDirPath+"%03d.ts", outputArgs).WithErrorOutput(outErr).Run()
+	err = ffmpeg.Input(f.AbsPath(), ffmpeg.KwArgs{"ss": 0}).Output(vs.streamDirPath+"%03d.ts", outputArgs).WithErrorOutput(outErr).Run()
 
 	if err != nil {
 		log.Error.Println(outErr.String())

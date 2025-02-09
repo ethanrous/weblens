@@ -531,6 +531,7 @@ func getProcessedMedia(q models.MediaQuality, format string, w http.ResponseWrit
 
 	// Instruct the client to cache images that are returned
 	w.Header().Set("Cache-Control", "max-age=3600")
+	w.Header().Set("Content-Type", "image/webp")
 
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(bs)
