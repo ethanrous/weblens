@@ -248,6 +248,7 @@ func SetLogLevel(newLevel Level, outputPath string) {
 	}
 
 	if logLevel == newLevel {
+		Warning.Println("IGNORING LOG LEVEL CHANGE")
 		return
 	}
 	if logLevel != DEFAULT {

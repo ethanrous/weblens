@@ -1,13 +1,10 @@
+import FileVisual from '@weblens/components/filebrowser/fileVisual'
+import GetStartedCard from '@weblens/components/filebrowser/getStartedCard'
 import {
     HandleDrop,
     historyDateTime,
 } from '@weblens/pages/FileBrowser/FileBrowserLogic'
-import {
-    GetStartedCard,
-    IconDisplay,
-} from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
 import { useFileBrowserStore } from '@weblens/store/FBStateControl'
-import { SelectedState, WeblensFile } from '@weblens/types/files/File'
 import {
     fileHandleContextMenu,
     handleMouseLeave,
@@ -23,6 +20,7 @@ import { FixedSizeList as WindowList } from 'react-window'
 
 import { Coordinates, ErrorHandler } from '../Types'
 import { DraggingStateT } from './FBTypes'
+import WeblensFile, { SelectedState } from './File'
 
 function FileRow({
     data,
@@ -139,7 +137,7 @@ function FileRow({
             >
                 <div className={filesStyle['file-row-box']}>
                     <div className="flex shrink-0 h-full aspect-square rounded overflow-hidden m-1 justify-center items-center">
-                        <IconDisplay file={file} allowMedia={true} />
+                        <FileVisual file={file} allowMedia={true} />
                     </div>
                     <div className="flex flex-col h-full grow">
                         <div className={filesStyle['file-text-container']}>

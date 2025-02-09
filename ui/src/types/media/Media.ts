@@ -240,7 +240,7 @@ class WeblensMedia {
         }
 
         let thumb: Promise<boolean>
-        if (!this.thumbnail) {
+        if (!this.thumbnail && pageNumber === 0) {
             thumb = this.getImageData(PhotoQuality.LowRes, this.abort.signal)
         }
         let fullres: Promise<boolean>

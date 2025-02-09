@@ -46,7 +46,7 @@ func ParseApiKeyLogin(authHeader string, pack *models.ServicePack) (
 
 	if len(authParts) < 2 || authParts[0] != "Bearer" {
 		// Bad auth header format
-		return nil, nil, werror.ErrBadAuthScheme
+		return nil, nil, werror.ErrBadAuth
 	}
 
 	key, err := pack.AccessService.GetApiKey(authParts[1])
@@ -86,7 +86,7 @@ func RequireAdmin(next http.Handler) http.Handler {
 			return
 		}
 
-		u, err := getUserFromCtx(r)
+		u, err := getUserFromCtx(r, true)
 		if SafeErrorAndExit(err, w) {
 			return
 		}
@@ -97,7 +97,6 @@ func RequireAdmin(next http.Handler) http.Handler {
 		}
 
 		SafeErrorAndExit(werror.ErrNotAdmin, w)
-		return
 	})
 }
 
@@ -124,7 +123,7 @@ func RequireOwner(next http.Handler) http.Handler {
 			return
 		}
 
-		u, err := getUserFromCtx(r)
+		u, err := getUserFromCtx(r, true)
 		if SafeErrorAndExit(err, w) {
 			return
 		}
@@ -135,7 +134,6 @@ func RequireOwner(next http.Handler) http.Handler {
 		}
 
 		SafeErrorAndExit(werror.ErrNotOwner, w)
-		return
 	})
 }
 
@@ -179,8 +177,6 @@ func WeblensAuth(next http.Handler) http.Handler {
 				return
 			}
 
-			// log.Trace.Func(func(l log.Logger) { l.Printf("User [%s] authenticated", usr.GetUsername()) })
-
 			r = r.WithContext(context.WithValue(r.Context(), UserKey, usr))
 			next.ServeHTTP(w, r)
 			return
@@ -189,15 +185,14 @@ func WeblensAuth(next http.Handler) http.Handler {
 		authHeader := r.Header["Authorization"]
 		if len(authHeader) != 0 {
 			usr, server, err := ParseApiKeyLogin(authHeader[0], pack)
-			if err != nil {
-				log.ShowErr(err)
-				w.WriteHeader(http.StatusUnauthorized)
+			if SafeErrorAndExit(err, w) {
 				return
 			}
 
 			if server != nil {
 				r = r.WithContext(context.WithValue(r.Context(), ServerKey, server))
 			}
+
 			r = r.WithContext(context.WithValue(r.Context(), UserKey, usr))
 			next.ServeHTTP(w, r)
 			return
@@ -207,12 +202,6 @@ func WeblensAuth(next http.Handler) http.Handler {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-
-		// allowPublic, ok := r.Context().Value("allow_public").(bool)
-		// if !ok || !allowPublic {
-		// 	w.WriteHeader(http.StatusUnauthorized)
-		// 	return
-		// }
 
 		r = r.WithContext(context.WithValue(r.Context(), UserKey, pack.UserService.GetPublicUser()))
 		next.ServeHTTP(w, r)

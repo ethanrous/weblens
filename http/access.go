@@ -27,7 +27,7 @@ import (
 //	@Router		/keys [post]
 func newApiKey(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, false)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -53,7 +53,7 @@ func newApiKey(w http.ResponseWriter, r *http.Request) {
 //	@ID	GetApiKeys
 //
 //	@Security
-//	@Security	SessionAuth[admin]
+//	@Security	SessionAuth
 //
 //	@Summary	Get all api keys
 //	@Tags		ApiKeys
@@ -65,12 +65,12 @@ func newApiKey(w http.ResponseWriter, r *http.Request) {
 //	@Router		/keys [get]
 func getApiKeys(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, false)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
 
-	keys, err := pack.AccessService.GetAllKeys(u)
+	keys, err := pack.AccessService.GetKeysByUser(u)
 	if SafeErrorAndExit(err, w) {
 		return
 	}

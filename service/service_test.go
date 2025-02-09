@@ -11,7 +11,7 @@ var mondb *mongo.Database
 
 func init() {
 	var err error
-	mondb, err = database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName())
+	mondb, err = database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName(env.Config{}))
 	if err != nil {
 		panic(err)
 	}

@@ -16,7 +16,7 @@ package http
 //	@Router		/albums/{albumId} [get]
 // func getAlbum(w http.ResponseWriter, r *http.Request) {
 // 	pack := getServices(r)
-// 	u, err := getUserFromCtx(r)
+// 	u, err := getUserFromCtx(r, true)
 // 	if SafeErrorAndExit(err, w) {
 // 		return
 // 	}
@@ -75,7 +75,7 @@ package http
 //	@Router		/albums [get]
 // func getAlbums(w http.ResponseWriter, r *http.Request) {
 // 	pack := getServices(r)
-// 	u, err := getUserFromCtx(r)
+// 	u, err := getUserFromCtx(r, true)
 // 	if SafeErrorAndExit(err, w) {
 // 		return
 // 	}
@@ -118,7 +118,7 @@ package http
 //	@Router		/albums [post]
 // func createAlbum(w http.ResponseWriter, r *http.Request) {
 // 	pack := getServices(r)
-// 	u, err := getUserFromCtx(r)
+// 	u, err := getUserFromCtx(r, true)
 // 	if SafeErrorAndExit(err, w) {
 // 		return
 // 	}
@@ -153,7 +153,7 @@ package http
 //	@Router		/albums/{albumId} [patch]
 // func updateAlbum(w http.ResponseWriter, r *http.Request) {
 // 	pack := getServices(r)
-// 	u, err := getUserFromCtx(r)
+// 	u, err := getUserFromCtx(r, true)
 // 	if SafeErrorAndExit(err, w) {
 // 		return
 // 	}
@@ -312,7 +312,7 @@ package http
 //	@Router		/albums/{albumId} [delete]
 // func deleteAlbum(w http.ResponseWriter, r *http.Request) {
 // 	pack := getServices(r)
-// 	u, err := getUserFromCtx(r)
+// 	u, err := getUserFromCtx(r, true)
 // 	if SafeErrorAndExit(err, w) {
 // 		return
 // 	}
@@ -370,7 +370,7 @@ package http
 //	@Router		/albums/{albumId}/media [get]
 // func getAlbumMedia(w http.ResponseWriter, r *http.Request) {
 // 	pack := getServices(r)
-// 	u, err := getUserFromCtx(r)
+// 	u, err := getUserFromCtx(r, true)
 // 	if SafeErrorAndExit(err, w) {
 // 		return
 // 	}
@@ -403,7 +403,7 @@ package http
 
 // func unshareMeAlbum(w http.ResponseWriter, r *http.Request) {
 // 	pack := getServices(r)
-// 	u, err := getUserFromCtx(r)
+// 	u, err := getUserFromCtx(r, true)
 // 	if SafeErrorAndExit(err, w) {
 // 		return
 // 	}

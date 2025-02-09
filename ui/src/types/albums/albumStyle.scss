@@ -253,7 +253,7 @@ $cover-size: 450px;
     &[data-disabled='true'] {
         pointer-events: none;
         filter: grayscale(100%);
-        color: $disabled-grey-text;
+        color: var(--wl-text-color-dull);
     }
 }
 

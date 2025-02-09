@@ -1,127 +1,123 @@
 @import "@weblens/components/theme.module";
 
 .weblens-progress-container {
-    position: relative;
-    display: flex;
-    align-items: center;
-    pointer-events: all;
-    width: 100%;
-    height: 100%;
+	position: relative;
+	display: flex;
+	align-items: center;
+	pointer-events: all;
+	width: 100%;
+	height: 100%;
 }
 
 .weblens-progress {
-    position: relative;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    background-color: #121212;
-    border-radius: 3px;
-    overflow: hidden;
-    box-shadow: 2px 2px 2px #000000aa;
-    width: 100%;
-    height: 100%;
-    max-height: 100%;
-    pointer-events: all;
-    flex-grow: 0;
-    transition: height 50ms ease-in-out;
+	position: relative;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	background-color: var(--wl-bottom-grey);
+	border-radius: 3px;
+	overflow: hidden;
+	box-shadow: 2px 2px 2px #000000aa;
+	width: 100%;
+	height: 100%;
+	max-height: 100%;
+	pointer-events: all;
+	flex-grow: 0;
+	transition: height 50ms ease-in-out;
 
-    [data-seekable='true'] & {
-        cursor: pointer;
-    }
+	[data-seekable='true'] & {
+		cursor: pointer;
+	}
 
-    &[data-loading='true'][data-failure='false'] {
-        display: grid;
-        place-content: center;
-        --border-angle: 0turn;
-        --main-bg: conic-gradient(from var(--border-angle),
-                #114,
-                #114 0%,
-                #114 100%,
-                #114 0%);
+	&[data-loading='true'][data-failure='false'] {
+		display: grid;
+		place-content: center;
+		--border-angle: 0turn;
+		--main-bg: conic-gradient(from var(--border-angle),
+				#114,
+				#114 0%,
+				#114 100%,
+				#114 0%);
 
-        border: solid 2px transparent;
-        --gradient-border: conic-gradient(from var(--border-angle), transparent 50%, #44f, rgb(123, 0, 0) 99%, transparent);
+		border: solid 2px transparent;
+		--gradient-border: conic-gradient(from var(--border-angle), transparent 50%, #44f, rgb(123, 0, 0) 99%, transparent);
 
-        background: var(--main-bg) padding-box,
-            var(--gradient-border) border-box,
-            var(--main-bg) border-box;
-        background-position: center center;
+		background: var(--main-bg) padding-box,
+			var(--gradient-border) border-box,
+			var(--main-bg) border-box;
+		background-position: center center;
 
-        animation: bg-spin 4s linear infinite;
+		animation: bg-spin 4s linear infinite;
 
-        @keyframes bg-spin {
-            to {
-                --border-angle: 1turn;
-            }
-        }
-    }
+		@keyframes bg-spin {
+			to {
+				--border-angle: 1turn;
+			}
+		}
+	}
 
-    &[data-failure='true'] {
-        background-color: #ff000077;
-    }
+	&[data-failure='true'] {
+		background-color: #ff000077;
+	}
 
-    &[data-disabled='true'] {
-        cursor: default;
-        pointer-events: none;
-        box-shadow: 0 0 0 #00001100;
-    }
+	&[data-disabled='true'] {
+		cursor: default;
+		pointer-events: none;
+		box-shadow: 0 0 0 #00001100;
+	}
 }
 
 @property --border-angle {
-    syntax: "<angle>";
-    inherits: true;
-    initial-value: 0turn;
+	syntax: "<angle>";
+	inherits: true;
+	initial-value: 0turn;
 }
 
 .weblens-progress-bar {
-    position: relative;
-    pointer-events: none;
-    background-color: var(--wl-theme-color);
-    box-shadow: $soft-shadow;
-    height: 100%;
-    z-index: 3;
+	position: relative;
+	pointer-events: none;
+	background-color: var(--wl-theme-color);
+	box-shadow: var(--wl-soft-shadow);
+	height: 100%;
+	z-index: 3;
 
-    //[data-seekable='true'] & {
-    //    transition: width 100ms ease-in-out;
-    //}
+	&[data-secondary='true'] {
+		transition: width 100ms ease-in-out;
+		position: absolute;
+		z-index: 1;
+		background-color: var(--dark-paper);
+	}
 
-    &[data-secondary='true'] {
-        transition: width 100ms ease-in-out;
-        position: absolute;
-        z-index: 1;
-        background-color: var(--dark-paper);
-    }
+	&[data-seek-hint='true'] {
+		position: absolute;
+		z-index: 2;
+		background-color: var(--wl-disabled-grey);
+	}
 
-    &[data-seek-hint='true'] {
-        position: absolute;
-        z-index: 2;
-        background-color: $disabled-grey;
-    }
+	&[data-complete='true'] {
+		background-color: #22bb33;
+	}
 
-    &[data-complete='true'] {
-        background-color: #22bb33;
-    }
-
-    [data-disabled='true'] & {
-        background-color: $disabled-grey;
-    }
+	[data-disabled='true'] & {
+		background-color: var(--wl-disabled-grey);
+	}
 }
 
 .slider-handle {
-    height: 100%;
-    max-width: 15px;
-    border-radius: 4px;
-    flex-shrink: 0;
-    background-color: azure;
-    z-index: 4;
-    cursor: pointer;
-    position: absolute;
-    transform: translateX(-6px);
-    // transform-origin: 4px;
-    pointer-events: none;
-    transition: transform 100ms cubic-bezier(.4, 0, 1, 1);
+	height: 100%;
+	max-width: 15px;
+	border-radius: 4px;
+	flex-shrink: 0;
+	background-color: azure;
+	z-index: 4;
+	cursor: pointer;
+	position: absolute;
+	transform: translateX(-6px);
+	// transform-origin: 4px;
+	pointer-events: none;
+	transition: transform 100ms cubic-bezier(.4, 0, 1, 1);
 
-    // [data-seekable='true'] & {
-    // transform: scale(1) translateX(-4px);
-    // }
+	// [data-seekable='true'] & {
+	// transform: scale(1) translateX(-4px);
+	// }
 }

@@ -1,29 +1,17 @@
-import { CSSProperties, Loader } from '@mantine/core'
-import {
-    IconExclamationCircle,
-    IconMaximize,
-    IconPhoto,
-    IconPlayerPauseFilled,
-    IconPlayerPlayFilled,
-    IconVolume,
-    IconVolume3,
-} from '@tabler/icons-react'
-import WeblensProgress from '@weblens/lib/WeblensProgress'
-import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
-import { secondsToVideoTime } from '@weblens/util'
-import { useKeyDown, useResize, useVideo } from 'components/hooks'
-import Hls from 'hls.js'
-import {
-    MouseEvent,
-    memo,
-    useCallback,
-    useEffect,
-    useMemo,
-    useState,
-} from 'react'
+import { CSSProperties, Loader } from '@mantine/core';
+import { IconExclamationCircle, IconMaximize, IconPhoto, IconPlayerPauseFilled, IconPlayerPlayFilled, IconVolume, IconVolume3 } from '@tabler/icons-react';
+import WeblensProgress from '@weblens/lib/WeblensProgress';
+import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media';
+import { secondsToVideoTime } from '@weblens/util';
+import { useKeyDown, useResize, useVideo } from 'components/hooks';
+import Hls from 'hls.js';
+import { MouseEvent, memo, useCallback, useEffect, useMemo, useState } from 'react';
 
-import { ErrorHandler } from '../Types'
-import mediaStyle from './photoContainerStyle.module.scss'
+
+
+import { ErrorHandler } from '../Types';
+import mediaStyle from './photoContainerStyle.module.scss';
+
 
 export const MediaImage = memo(
     ({
@@ -103,7 +91,11 @@ export const MediaImage = memo(
                     url: media.GetObjectUrl(quality, pageNumber),
                     id: media.Id(),
                 })
-            } else if (media.HighestQualityLoaded() !== '' && src.url === '') {
+            } else if (
+                media.HighestQualityLoaded() !== '' &&
+                src.url === '' &&
+                pageNumber === 0
+            ) {
                 setUrl({
                     url: media.GetObjectUrl(PhotoQuality.LowRes),
                     id: media.Id(),
@@ -514,7 +506,7 @@ function VideoWrapper({
                 ref={setVideoRef}
                 autoPlay
                 muted={volume === 0}
-                preload="none"
+                preload="metadata"
                 className="media-image animate-fade"
                 poster={media.GetObjectUrl(PhotoQuality.LowRes)}
                 data-fit-logic={fitLogic}

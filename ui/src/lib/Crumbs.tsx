@@ -10,7 +10,7 @@ import { useClick, useResize } from '@weblens/components/hooks'
 import { filenameFromPath } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { ShareRoot, useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
-import { WeblensFile } from '@weblens/types/files/File'
+import WeblensFile from '@weblens/types/files/File'
 import { goToFile } from '@weblens/types/files/FileDragLogic'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -302,7 +302,6 @@ function Crumbs({
         crumbs.shift()
     }
 
-    console.log(folderInfo.GetFilename())
     // Add the current folder, which is not always navigable
     crumbs.push({
         path: folderInfo.GetFilename(),

@@ -1,7 +1,6 @@
 // import { IconFolder } from '@tabler/icons-react'
 // import { useResize } from '@weblens/components/hooks'
 // import WeblensButton from '@weblens/lib/WeblensButton'
-// import { WeblensFile } from '@weblens/types/files/File'
 // // import * as d3 from 'd3';
 // import { humanFileSize } from '@weblens/util'
 // import { useEffect, useState } from 'react'

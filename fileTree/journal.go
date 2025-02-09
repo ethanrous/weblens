@@ -265,6 +265,10 @@ func (j *JournalImpl) GetPastFile(id FileId, time time.Time) (*WeblensFileImpl, 
 		)
 	}
 
+	if len(actions) == 0 {
+		return nil, werror.WithStack(werror.ErrNoFile.WithArg(id))
+	}
+
 	relevantAction := actions[len(actions)-1]
 	counter := 1
 	for relevantAction.GetTimestamp().UnixMilli() >= time.UnixMilli() {

@@ -36,38 +36,6 @@ jobs:
 
       - run: cd ui && npm ci
 
-      # - name: Install Deps
-      #   run: |
-      #     wget -qO- https://www.mongodb.org/static/pgp/server-7.0.asc | sudo tee /etc/apt/trusted.gpg.d/server-7.0.asc
-      #     echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
-      #     sudo apt-get update
-      #     sudo apt-get install -y \
-      #     mongodb-mongosh \
-      #     libvips-dev \
-      #     exiftool \
-      #     nodejs \
-      #     npm \
-      #     autoconf pkg-config build-essential curl libpng-dev libjpeg-dev libwebp-dev libraw-dev libheif-dev libvips ffmpeg darktable ghostscript
-      #
-      #     export IMAGEMAGICK_VERSION=7.1.1-41
-      #
-      #     wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/${IMAGEMAGICK_VERSION}.tar.gz && \
-      #         tar xzf ${IMAGEMAGICK_VERSION}.tar.gz && \
-      #         rm ${IMAGEMAGICK_VERSION}.tar.gz
-      #
-      #     sh ./ImageMagick-${IMAGEMAGICK_VERSION}/configure \
-      #             --without-magick-plus-plus \
-      #             --without-perl \
-      #             --disable-openmp \
-      #             --with-gvc=no \
-      #             --disable-docs && \
-      #         make -j$(nproc) && sudo make install && sudo ldconfig /usr/local/lib/
-      #
-      # - name: Start MongoDB
-      #   uses: supercharge/mongodb-github-action@1.11.0
-      #   with:
-      #     mongodb-version: '7.0'
-      #
       - name: GoGoGadgetDocker
         run: |
           sudo docker login -u ${{ vars.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}

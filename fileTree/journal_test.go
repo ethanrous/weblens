@@ -16,7 +16,7 @@ import (
 )
 
 func TestJournalImplSimple(t *testing.T) {
-	mondb, err := database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName())
+	mondb, err := database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName(env.Config{}))
 	if err != nil {
 		panic(err)
 	}
@@ -67,7 +67,7 @@ func TestJournalImplSimple(t *testing.T) {
 }
 
 func TestJournalImpl_GetPastFile(t *testing.T) {
-	mondb, err := database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName())
+	mondb, err := database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName(env.Config{}))
 	if err != nil {
 		panic(err)
 	}

@@ -561,6 +561,12 @@ const docTemplate = `{
                         "name": "fileId",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Share Id",
+                        "name": "shareId",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -780,9 +786,7 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "SessionAuth": [
-                            "admin"
-                        ]
+                        "SessionAuth": []
                     }
                 ],
                 "produces": [
@@ -2527,6 +2531,9 @@ const docTemplate = `{
                 },
                 "filename": {
                     "type": "string"
+                },
+                "hasRestoreMedia": {
+                    "type": "boolean"
                 },
                 "id": {
                     "type": "string"

@@ -106,7 +106,7 @@ func readRespBodyRaw(resp *http.Response) (bodyB []byte, err error) {
 	return
 }
 
-func getUserFromCtx(r *http.Request) (*models.User, error) {
+func getUserFromCtx(r *http.Request, allowPublic bool) (*models.User, error) {
 	userI := r.Context().Value(UserKey)
 	if userI == nil {
 		return nil, werror.ErrCtxMissingUser
@@ -114,7 +114,7 @@ func getUserFromCtx(r *http.Request) (*models.User, error) {
 
 	u, _ := userI.(*models.User)
 
-	if u.IsPublic() && r.Context().Value(AllowPublicKey) == nil && r.Context().Value(ServerKey) == nil {
+	if u.IsPublic() && (!allowPublic && (r.Context().Value(AllowPublicKey) == nil && r.Context().Value(ServerKey) == nil)) {
 		return nil, werror.WithStack(werror.ErrNoPublicUser)
 	}
 	return u, nil
@@ -145,6 +145,7 @@ func getShareFromCtx[T models.Share](w http.ResponseWriter, r *http.Request) (T,
 	sh := pack.ShareService.Get(shareId)
 	tsh, ok := sh.(T)
 	if sh != nil && ok {
+		pack.Log.Debug.Printf("Got share [%s]", tsh.ID())
 		return tsh, nil
 	}
 

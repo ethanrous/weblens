@@ -559,6 +559,12 @@
                         "name": "fileId",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Share Id",
+                        "name": "shareId",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -778,9 +784,7 @@
             "get": {
                 "security": [
                     {
-                        "SessionAuth": [
-                            "admin"
-                        ]
+                        "SessionAuth": []
                     }
                 ],
                 "produces": [
@@ -2525,6 +2529,9 @@
                 },
                 "filename": {
                     "type": "string"
+                },
+                "hasRestoreMedia": {
+                    "type": "boolean"
                 },
                 "id": {
                     "type": "string"

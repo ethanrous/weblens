@@ -12,7 +12,7 @@ import { WsSendT } from '@weblens/api/Websocket'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import { FbModeT, useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { ErrorHandler } from '@weblens/types/Types'
-import { FbMenuModeT, WeblensFile } from '@weblens/types/files/File'
+import WeblensFile, { FbMenuModeT } from '@weblens/types/files/File'
 import { PhotoQuality } from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import User from '@weblens/types/user/User'
@@ -81,15 +81,19 @@ async function addDir(
     shareId: string
 ): Promise<FileUploadMetadata[]> {
     if (fsEntry.isDirectory) {
-        const newDirRes = await FileApi.addFilesToUpload(uploadId, {
-            newFiles: [
-                {
-                    isDir: true,
-                    parentFolderId: parentFolderId,
-                    newFileName: fsEntry.name,
-                },
-            ],
-        }).catch((err) => {
+        const newDirRes = await FileApi.addFilesToUpload(
+            uploadId,
+            {
+                newFiles: [
+                    {
+                        isDir: true,
+                        parentFolderId: parentFolderId,
+                        newFileName: fsEntry.name,
+                    },
+                ],
+            },
+            shareId
+        ).catch((err) => {
             console.error('Failed to add files to upload', err)
         })
 
@@ -231,10 +235,13 @@ export async function HandleUploadButton(
         })
     }
 
-    const res = await FileApi.startUpload({
-        rootFolderId: parentFolderId,
-        chunkSize: UPLOAD_CHUNK_SIZE,
-    }).catch((err) => {
+    const res = await FileApi.startUpload(
+        {
+            rootFolderId: parentFolderId,
+            chunkSize: UPLOAD_CHUNK_SIZE,
+        },
+        shareId
+    ).catch((err) => {
         ErrorHandler(Error(String(err)))
     })
 
@@ -480,7 +487,8 @@ export const usePaste = (folderId: string, usr: User, blockFocus: boolean) => {
 export async function uploadViaUrl(
     img: ArrayBuffer,
     folderId: string,
-    dirMap: Map<string, WeblensFile>
+    dirMap: Map<string, WeblensFile>,
+    shareId?: string
 ) {
     const names = Array.from(dirMap.values()).map((v) => v.GetFilename())
     let imgNumber = 1
@@ -509,7 +517,7 @@ export async function uploadViaUrl(
         return
     }
 
-    await Upload([meta], false, '', res.data.uploadId)
+    await Upload([meta], false, shareId, res.data.uploadId)
 }
 
 export const historyDateTime = (timestamp: number, short: boolean = false) => {

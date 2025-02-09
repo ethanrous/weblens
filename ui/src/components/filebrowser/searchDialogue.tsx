@@ -99,7 +99,7 @@ function SearchResult({
     )
 }
 
-export default function SearchDialogue({
+function SearchDialogue({
     text = '',
     visitFunc,
 }: {
@@ -297,3 +297,5 @@ export default function SearchDialogue({
         </div>
     )
 }
+
+export default SearchDialogue

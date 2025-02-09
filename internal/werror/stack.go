@@ -63,6 +63,8 @@ func formatFramePair(frameStr string) string {
 	if slashIndex != -1 {
 		dotIndex := strings.Index(packAndFunc[slashIndex:], ".")
 		packAndFunc = yellow + packAndFunc[:slashIndex+dotIndex] + blue + packAndFunc[slashIndex+dotIndex:] + reset
+	} else if strings.HasPrefix(packAndFunc, "panic") {
+		packAndFunc = red + packAndFunc + reset
 	}
 
 	startIndex := strings.Index(fileAndLine, "/")
@@ -72,7 +74,7 @@ func formatFramePair(frameStr string) string {
 		return "[MALFORMED STACK FRAME] " + frameStr
 	}
 
-	fileAndLine = fileAndLine[startIndex:fileIndex+1] + orange + fileAndLine[fileIndex+1:lineIndex] + blue + fileAndLine[lineIndex:] + reset + "\n"
+	fileAndLine = fileAndLine[startIndex:fileIndex+1] + orange + fileAndLine[fileIndex+1:lineIndex] + blue + fileAndLine[lineIndex:] + reset + "\n\n"
 
 	return "    " + packAndFunc + "\n      " + fileAndLine
 }
@@ -116,16 +118,26 @@ func StackString() string {
 	var frame string
 
 	for len(rawStackStr) != 0 {
-		firstN := strings.Index(rawStackStr, "\n")
-		if firstN == -1 {
+		firstN := strings.Index(rawStackStr, "\n") + 1
+		if firstN == 0 {
 			break
 		}
-		secondN := strings.Index(rawStackStr[firstN:], "\n")
-		frame, rawStackStr = rawStackStr[:firstN+secondN+1], rawStackStr[firstN+secondN+1:]
-		if frame[0] == '\n' {
-			frame = frame[1:]
+		if strings.HasPrefix(rawStackStr, "goroutine") {
+			rawStackStr = rawStackStr[firstN:]
+			continue
 		}
 
+		secondN := strings.Index(rawStackStr[firstN:], "\n") + 1
+		if secondN == 0 || secondN == 1 {
+			stackStr += "... failed to finish trace ..."
+			break
+		}
+		frame, rawStackStr = rawStackStr[:firstN+secondN], rawStackStr[firstN+secondN:]
+		if len(frame) == 0 {
+			break
+		}
+
+		frame = strings.Trim(frame, "\n")
 		stackStr += formatFramePair(frame)
 	}
 

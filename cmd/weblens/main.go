@@ -19,6 +19,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	log.SetLogLevel(log.Level(cnf.LogLevel), "")
 	var services = &models.ServicePack{
 		Cnf:         cnf,
 		Log:         log.NewLogPackage(env.GetLogFile(), log.Level(cnf.LogLevel)),

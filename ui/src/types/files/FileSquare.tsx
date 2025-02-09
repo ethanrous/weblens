@@ -1,8 +1,7 @@
 import { IconFolder } from '@tabler/icons-react'
+import FileVisual from '@weblens/components/filebrowser/fileVisual'
 import { HandleDrop } from '@weblens/pages/FileBrowser/FileBrowserLogic'
-import { IconDisplay } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
 import { useFileBrowserStore } from '@weblens/store/FBStateControl'
-import { SelectedState, WeblensFile } from '@weblens/types/files/File'
 import {
     fileHandleContextMenu,
     handleMouseLeave,
@@ -16,6 +15,7 @@ import { MouseEvent, memo, useRef, useState } from 'react'
 
 import { Coordinates, ErrorHandler } from '../Types'
 import { DraggingStateT } from './FBTypes'
+import WeblensFile, { SelectedState } from './File'
 
 const FileGridVisual = ({
     file,
@@ -27,7 +27,7 @@ const FileGridVisual = ({
     return (
         <div className="w-full p-2 pb-0 aspect-square overflow-hidden">
             <div className="w-full h-full overflow-hidden rounded-md flex justify-center items-center">
-                <IconDisplay file={file} allowMedia={allowMedia} />
+                <FileVisual file={file} allowMedia={allowMedia} />
             </div>
         </div>
     )

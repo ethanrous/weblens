@@ -8,50 +8,51 @@ fi
 mkdir -p ./build/bin
 mkdir -p ./build/logs
 
-# Build go binary locally, on host OS, rather than in a container
-local=false
+docker_tag=devel_$(git rev-parse --abbrev-ref HEAD)
+arch="amd64"
 
 # Once the container is build, push it to docker hub
-push=false
+do_push=false
 
 # Skip testing
-skip=false
+skip_tests=false
 
-# Rebuild the build container
-rebuildBuildContainer=false
+# The base image to build from. Alpine is smaller, debian allows for cuda accelerated ffmpeg
+base_image="alpine"
 
-while getopts ":t:a:lpsr" opt; do
-	case $opt in
-	t)
-		docker_tag="$OPTARG"
-		;;
-	a)
-		arch="$OPTARG"
-		;;
-	l)
-		local=true
-		;;
-	p)
-		push=true
-		;;
-	s)
-		skip=true
-		;;
-	r)
-		rebuildBuildContainer=true
-		;;
-	\?)
-		echo "Invalid option -$OPTARG" >&2
-		exit 1
-		;;
-	esac
+usage="TODO"
 
-	case $OPTARG in
-	-*)
-		echo "Option $opt needs a valid argument"
-		exit 1
-		;;
-	esac
+while [ "${1:-}" != "" ]; do
+    case "$1" in
+    "-t" | "--tag")
+        shift
+        docker_tag=$1
+        ;;
+    "-a" | "--arch")
+        shift
+        arch=$1
+        ;;
+    "-p" | "--push")
+        do_push=true
+        ;;
+    "-s" | "--skip-tests")
+        skip_tests=true
+        ;;
+    "--base-image")
+        shift
+        base_image=$1
+        ;;
+    "-h" | "--help")
+        echo "$usage"
+        exit 0
+        ;;
+    *)
+        "Unknown argument: $1"
+        echo "$usage"
+        exit 1
+        ;;
+    esac
+    shift
 done
 
 sudo docker ps &>/dev/null
@@ -66,87 +67,36 @@ else
 	printf " PASS\n"
 fi
 
-if [ -z "$docker_tag" ]; then
-	docker_tag=devel_$(git rev-parse --abbrev-ref HEAD)
-	echo "WARN No tag specified"
+if [ ! $skip_tests == true ]; then
+    printf "Running tests..."
+    if ! ./scripts/testWeblens -a &>./build/logs/container-build-pretest.log; then
+        printf " FAILED\n"
+        cat ./build/logs/container-build-pretest.log
+        echo "Aborting container build. Ensure ./scripts/testWeblens passes before building container"
+        exit 1
+    else
+        printf " PASS\n"
+    fi
 fi
 
-if [ -z "$arch" ]; then
-	arch="amd64"
+if [[ ! -e ./build/ffmpeg ]]; then
+    docker run --platform linux/amd64 -v ./scripts/buildFfmpeg.sh:/buildFfmpeg.sh -v ./build:/build --rm alpine /buildFfmpeg.sh
 fi
 
-echo "Using tag: $docker_tag-$arch"
-
-if [ ! $skip == true ]; then
-	printf "Running tests..."
-	if ! ./scripts/testWeblens -a &>./build/logs/container-build-pretest.log; then
-		printf " FAILED\n"
-		cat ./build/logs/container-build-pretest.log
-		echo "Aborting container build. Ensure ./scripts/testWeblens passes before building container"
-		exit 1
-	else
-		printf " PASS\n"
-	fi
+df_path="./docker/Dockerfile"
+if [ "$base_image" == "debian" ]; then
+    df_path="./docker/Debian.Dockerfile"
 fi
 
-if [ $local == false ] && [ -z "$(sudo docker images -q weblens-go-build-"${arch}" 2>/dev/null)" ]; then
-	echo "No weblens-go-build image found, attempting to build now..."
-	rebuildBuildContainer=true
+full_tag="${docker_tag}-${base_image}-${arch}"
+echo "Using tag: $full_tag"
+
+printf "Building Weblens container..."
+sudo docker rmi ethrous/weblens:"$full_tag" &>/dev/null
+sudo docker build --platform "linux/$arch" -t ethrous/weblens:"$full_tag" --build-arg build_tag="$full_tag" --build-arg ARCHITECTURE="$arch" -f $df_path .
+
+if [ $do_push == true ]; then
+    sudo docker push ethrous/weblens:"$full_tag"
 fi
 
-if [ $rebuildBuildContainer == true ]; then
-	echo "Rebuilding weblens-go-build image..."
-	sudo docker rmi weblens-go-build-"${arch}"
-	if ! sudo docker build -t weblens-go-build-"${arch}" --build-arg ARCHITECTURE="$arch" -f ./docker/GoBuild.Dockerfile .; then
-		echo "Failed to build weblens-go-build image"
-		exit 1
-	fi
-fi
-
-cd ./ui || exit
-printf "Building UI..."
-npm install &>/dev/null
-export VITE_APP_BUILD_TAG=$docker_tag-$arch
-export VITE_BUILD=true
-if ! npm run build &>../build/logs/ui-build.log; then
-	printf " FAILED\n"
-	echo "Aborting container build. Ensure npm run build completes successfully before building container"
-	exit 1
-else
-	printf " DONE\n"
-fi
-
-cd ..
-
-rm -f ./build/bin/weblensbin
-
-printf "Building Weblens binary..."
-if [ $local == true ]; then
-	CC=gcc CGO_ENABLED=1 CGO_CFLAGS_ALLOW='-Xpreprocessor' GOOS=linux GOARCH=$arch go build -v -ldflags="-s -w" -o ./build/bin/weblensbin ./cmd/weblens/main.go &>./build/logs/weblens-build.log
-else
-	#shellcheck disable=SC2024
-	if ! sudo docker run -v ./:/source -v ./build/.cache/go-pkg:/go -v ./build/.cache/go-build:/root/.cache/go-build --platform "linux/$arch" --rm weblens-go-build-"${arch}" /bin/bash -c \
-		"cd /source && CC=gcc CGO_ENABLED=1 CGO_CFLAGS_ALLOW='-Xpreprocessor' GOOS=linux GOARCH=$arch go build -v -ldflags=\"-s -w\" -o ./build/bin/weblensbin ./cmd/weblens/main.go" &>./build/logs/weblens-build.log; then
-		printf " FAILED\n"
-		cat ./build/logs/weblens-build.log
-		echo "Aborting container build. Ensure go build completes successfully before building container"
-		exit 1
-	fi
-fi
-
-if [[ ! -e ./build/bin/weblensbin ]]; then
-	printf " FAILED\n"
-	cat ./build/logs/weblens-build.log
-	echo "Aborting container build. Could not find ./build/bin/weblensbin"
-	exit 1
-fi
-printf " DONE\n"
-
-sudo docker rmi ethrous/weblens:"${docker_tag}-${arch}" &>/dev/null
-sudo docker build --platform "linux/$arch" -t ethrous/weblens:"${docker_tag}-${arch}" --build-arg build_tag="$docker_tag" -f ./docker/Dockerfile .
-
-if [ $push == true ]; then
-	sudo docker push ethrous/weblens:"${docker_tag}-${arch}"
-fi
-
-printf "\nBUILD COMPLETE. Container tag: ethrous/weblens:%s-%s\n" "$docker_tag" "$arch"
+printf "\nBUILD COMPLETE. Container tag: ethrous/weblens:%s\n" "$full_tag" 

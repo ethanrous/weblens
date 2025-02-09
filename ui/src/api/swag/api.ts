@@ -247,6 +247,12 @@ export interface FileInfo {
     'filename'?: string;
     /**
      * 
+     * @type {boolean}
+     * @memberof FileInfo
+     */
+    'hasRestoreMedia'?: boolean;
+    /**
+     * 
      * @type {string}
      * @memberof FileInfo
      */
@@ -1876,10 +1882,11 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
          * 
          * @summary Get the text of a text file
          * @param {string} fileId File Id
+         * @param {string} [shareId] Share Id
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getFileText: async (fileId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        getFileText: async (fileId: string, shareId?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'fileId' is not null or undefined
             assertParamExists('getFileText', 'fileId', fileId)
             const localVarPath = `/files/{fileId}/text`
@@ -1894,6 +1901,10 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
             const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
+
+            if (shareId !== undefined) {
+                localVarQueryParameter['shareId'] = shareId;
+            }
 
 
     
@@ -2377,11 +2388,12 @@ export const FilesApiFp = function(configuration?: Configuration) {
          * 
          * @summary Get the text of a text file
          * @param {string} fileId File Id
+         * @param {string} [shareId] Share Id
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getFileText(fileId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getFileText(fileId, options);
+        async getFileText(fileId: string, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getFileText(fileId, shareId, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['FilesApi.getFileText']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -2601,11 +2613,12 @@ export const FilesApiFactory = function (configuration?: Configuration, basePath
          * 
          * @summary Get the text of a text file
          * @param {string} fileId File Id
+         * @param {string} [shareId] Share Id
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getFileText(fileId: string, options?: RawAxiosRequestConfig): AxiosPromise<string> {
-            return localVarFp.getFileText(fileId, options).then((request) => request(axios, basePath));
+        getFileText(fileId: string, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<string> {
+            return localVarFp.getFileText(fileId, shareId, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -2809,12 +2822,13 @@ export class FilesApi extends BaseAPI {
      * 
      * @summary Get the text of a text file
      * @param {string} fileId File Id
+     * @param {string} [shareId] Share Id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof FilesApi
      */
-    public getFileText(fileId: string, options?: RawAxiosRequestConfig) {
-        return FilesApiFp(this.configuration).getFileText(fileId, options).then((request) => request(this.axios, this.basePath));
+    public getFileText(fileId: string, shareId?: string, options?: RawAxiosRequestConfig) {
+        return FilesApiFp(this.configuration).getFileText(fileId, shareId, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

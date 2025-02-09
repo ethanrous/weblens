@@ -34,7 +34,7 @@ func TestBackupCore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	coreKeys, err := coreServices.AccessService.GetAllKeys(coreServices.UserService.GetRootUser())
+	coreKeys, err := coreServices.AccessService.GetKeysByUser(coreServices.UserService.Get("test-username"))
 	require.NoError(t, err)
 	coreApiKey := coreKeys[0].Key
 	coreAddress := env.GetProxyAddress(coreServices.Cnf)

@@ -1,10 +1,13 @@
 import { FbModeT } from '@weblens/store/FBStateControl'
-import { useTaskState } from '@weblens/store/TaskStateControl'
-import { humanFileSize } from '@weblens/util'
 
 import API_ENDPOINT from './ApiEndpoint'
 import { WsSendT, useWebsocketStore } from './Websocket'
-import { FilesApiFactory, FolderApiFactory, FolderInfo } from './swag'
+import {
+    FilesApiAxiosParamCreator,
+    FilesApiFactory,
+    FolderApiFactory,
+    FolderInfo,
+} from './swag'
 
 export const FileApi = FilesApiFactory(null, API_ENDPOINT)
 export const FolderApi = FolderApiFactory(null, API_ENDPOINT)
@@ -60,51 +63,22 @@ export async function GetFolderData(
     return res.data
 }
 
-function downloadBlob(blob: Blob, filename: string) {
-    const aElement = document.createElement('a')
-    aElement.setAttribute('download', filename)
-    const href = URL.createObjectURL(blob)
-    aElement.href = href
-    aElement.setAttribute('target', '_blank')
-    aElement.click()
-    URL.revokeObjectURL(href)
-    return
-}
-
 export async function downloadSingleFile(
     fileId: string,
     filename: string,
     isZip: boolean,
     shareId: string
 ) {
-    const taskId = `DOWNLOAD_${fileId}`
-    useTaskState
-        .getState()
-        .addTask(taskId, 'download_file', { target: filename })
+    const a = document.createElement('a')
+    const paramCreator = FilesApiAxiosParamCreator()
+    const args = await paramCreator.downloadFile(fileId, shareId, isZip)
+    const url = API_ENDPOINT + args.url
 
-    return FileApi.downloadFile(fileId, shareId, isZip, {
-        responseType: 'blob',
-        onDownloadProgress: (p) => {
-            const [rateSize, rateUnits] = humanFileSize(p.rate)
-            const [bytesSize, bytesUnits] = humanFileSize(p.loaded)
-            const [totalSize, totalUnits] = humanFileSize(p.total)
-            useTaskState.getState().updateTaskProgress(taskId, {
-                progress: p.progress * 100,
-                workingOn: `${rateSize}${rateUnits}/s`,
-                tasksComplete: `${bytesSize}${bytesUnits}`,
-                tasksTotal: `${totalSize}${totalUnits}`,
-            })
-        },
-    })
-        .then((res) => {
-            if (res.status === 200) {
-                useTaskState.getState().handleTaskCompete(taskId, 0, '')
-                return new Blob([res.data])
-            } else {
-                return Promise.reject(new Error(res.statusText))
-            }
-        })
-        .then((blob) => {
-            downloadBlob(blob, filename)
-        })
+    if (isZip) {
+        filename = 'weblens_download_' + filename
+    }
+
+    a.href = url
+    a.download = filename
+    a.click()
 }

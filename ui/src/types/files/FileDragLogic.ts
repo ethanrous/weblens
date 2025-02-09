@@ -8,14 +8,10 @@ import {
     useFileBrowserStore,
 } from '@weblens/store/FBStateControl'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
-import {
-    FbMenuModeT,
-    SelectedState,
-    WeblensFile,
-} from '@weblens/types/files/File'
 import { Dispatch, MouseEvent } from 'react'
 
 import { Coordinates } from '../Types'
+import WeblensFile, { FbMenuModeT, SelectedState } from './File'
 
 export function mouseMove(
     e: MouseEvent,

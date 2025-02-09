@@ -1,4 +1,3 @@
-import { Loader } from '@mantine/core'
 import {
     IconClipboard,
     IconClockHour4,
@@ -20,12 +19,13 @@ import {
     RestoreProgress,
 } from '@weblens/pages/Backup/BackupLogic'
 import { historyDateTime } from '@weblens/pages/FileBrowser/FileBrowserLogic'
-import { WebsocketStatus } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
 import { TaskStageT } from '@weblens/store/TaskStateControl'
 import { ErrorHandler } from '@weblens/types/Types'
 import { humanFileSize, nsToHumanTime } from '@weblens/util'
 import { useEffect, useMemo, useState } from 'react'
 
+import WeblensLoader from './Loading'
+import WebsocketStatus from './filebrowser/websocketStatus'
 import './remoteStatus.scss'
 
 export default function RemoteStatus({
@@ -83,7 +83,7 @@ export default function RemoteStatus({
                 return (
                     <div className="flex items-center gap-2">
                         <h4 className="text-white">Backup In Progress</h4>
-                        <Loader size={16} color="white" />
+                        <WeblensLoader />
                     </div>
                 )
             }

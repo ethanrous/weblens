@@ -37,7 +37,7 @@ import (
 //	@Router		/media [get]
 func getMediaBatch(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -364,7 +364,7 @@ func adjustMediaDate(w http.ResponseWriter, r *http.Request) {
 //	@Router		/media/{mediaId}/liked [patch]
 func setMediaLiked(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -397,8 +397,8 @@ func setMediaLiked(w http.ResponseWriter, r *http.Request) {
 //	@Router		/media/{mediaId}/file [get]
 func getMediaFile(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
-	if err != nil {
+	u, err := getUserFromCtx(r, true)
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
@@ -412,16 +412,18 @@ func getMediaFile(w http.ResponseWriter, r *http.Request) {
 
 	var f *fileTree.WeblensFileImpl
 	for _, fId := range m.GetFiles() {
-		f, err = pack.FileService.GetFileSafe(fId, u, nil)
-		if err == nil && f.GetPortablePath().RootName() == "USERS" {
+		fu, err := pack.FileService.GetFileSafe(fId, u, nil)
+		if err == nil && fu.GetPortablePath().RootName() == "USERS" {
 			break
 		}
 	}
 
-	// f, err := pack.FileService.GetFileByContentId(m.ContentId)
-	// if SafeErrorAndExit(err, w) {
-	// 	return
-	// }
+	if f == nil {
+		f, err = pack.FileService.GetFileByContentId(m.ID())
+		if SafeErrorAndExit(err, w) {
+			return
+		}
+	}
 
 	fInfo, err := rest.WeblensFileToFileInfo(f, pack, false)
 	if SafeErrorAndExit(err, w) {
@@ -452,7 +454,7 @@ func getMediaInFolders(pack *models.ServicePack, u *models.User, folderIds []str
 // Helper function
 func getProcessedMedia(q models.MediaQuality, format string, w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(r)
+	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -529,6 +531,7 @@ func getProcessedMedia(q models.MediaQuality, format string, w http.ResponseWrit
 
 	// Instruct the client to cache images that are returned
 	w.Header().Set("Cache-Control", "max-age=3600")
+	w.Header().Set("Content-Type", "image/webp")
 
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(bs)

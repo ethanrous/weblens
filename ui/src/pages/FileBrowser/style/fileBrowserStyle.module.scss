@@ -95,8 +95,8 @@
 	gap: 4px;
 	max-width: 100%;
 
-	background-color: $bottom-grey;
-	outline: 1px solid $main-accent;
+	background-color: var(--wl-bottom-grey);
+	outline: 1px solid var(--wl-main-accent);
 }
 
 
@@ -272,7 +272,7 @@
 
 	:hover>& {
 		transition-delay: 100ms;
-		background-color: $main-accent;
+		background-color: var(--wl-main-accent);
 	}
 }
 
@@ -353,7 +353,7 @@
 	z-index: 1;
 	padding: 8px;
 	margin-left: 12px;
-	outline: 1px solid $main-accent;
+	outline: 1px solid var(--wl-main-accent);
 	cursor: pointer;
 	color: white;
 }

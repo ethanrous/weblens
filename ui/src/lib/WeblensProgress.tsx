@@ -37,9 +37,6 @@ const WeblensProgress = memo(
         const [dragging, setDragging] = useState(false)
         const [percentage, setPercentage] = useState(clamp(value, 0, 100))
         const [hoverPercent, setHoverPercent] = useState(clamp(value, 0, 100))
-        // const [secondaryPercentage, setSecondaryPercentage] = useState(
-        //     clamp(secondaryValue, 0, 100)
-        // )
         const [boxRef, setBoxRef] = useState<HTMLDivElement>(null)
         const size = useResize(boxRef)
 
@@ -86,7 +83,7 @@ const WeblensProgress = memo(
                     <div
                         className={progressStyle['slider-handle']}
                         style={{
-                            left: `${clamp(value/100 * size.width, 6, size.width - 6)}px`,
+                            left: `${clamp((value / 100) * size.width, 6, size.width - 6)}px`,
                             height: height,
                             width: height,
                         }}

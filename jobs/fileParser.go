@@ -209,16 +209,16 @@ func ScanFile_(meta models.ScanMeta, exitCheck func()) error {
 	meta.PartialMedia.ContentID = meta.File.GetContentId()
 	meta.PartialMedia.FileIDs = []fileTree.FileId{meta.File.ID()}
 
-	owner := meta.FileService.GetFileOwner(meta.File)
-	if owner == nil {
-		return werror.WithStack(werror.ErrNoUser)
+	owner, err := meta.FileService.GetFileOwner(meta.File)
+	if err != nil {
+		return err
 	}
 	meta.PartialMedia.Owner = owner.GetUsername()
 
 	exitCheck()
 
 	sw.Lap("Checked metadata")
-	err := meta.MediaService.LoadMediaFromFile(meta.PartialMedia, meta.File)
+	err = meta.MediaService.LoadMediaFromFile(meta.PartialMedia, meta.File)
 	if err != nil {
 		return err
 	}

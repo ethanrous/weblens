@@ -20,7 +20,7 @@ import (
 func init() {
 	if mondb == nil {
 		var err error
-		mondb, err = database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName()+"-test")
+		mondb, err = database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName(env.Config{})+"-test")
 		if err != nil {
 			panic(err)
 		}
@@ -151,11 +151,12 @@ func TestInstanceServiceImpl_InitBackup(t *testing.T) {
 
 	require.NoError(t, err)
 
-	keys, err := coreServices.AccessService.GetAllKeys(coreServices.UserService.GetRootUser())
+	keys, err := coreServices.AccessService.GetKeysByUser(coreServices.UserService.Get("test-username"))
 	if err != nil {
 		log.ErrTrace(err)
 		t.FailNow()
 	}
+	log.Debug.Println("Key count:", len(keys))
 
 	coreAddress := env.GetProxyAddress(coreServices.Cnf)
 	coreApiKey := keys[0].Key

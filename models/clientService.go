@@ -120,6 +120,7 @@ type WsRequestInfo struct {
 type WsR interface {
 	GetKey() SubId
 	Action() WsAction
+	GetShare(ShareService) *FileShare
 }
 
 const (

@@ -1,13 +1,13 @@
 import { useMouse } from '@mantine/hooks'
 import { IconFile, IconFolder, IconFolderCancel } from '@tabler/icons-react'
+import { FileFmt } from '@weblens/components/filebrowser/filename'
 import { ErrorHandler } from '@weblens/types/Types'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
-import { WeblensFile } from '@weblens/types/files/File'
+import WeblensFile from '@weblens/types/files/File'
 import { useMemo } from 'react'
 
 import { useFileBrowserStore } from '../../store/FBStateControl'
 import { HandleDrop } from './FileBrowserLogic'
-import { FileFmt } from './FileBrowserMiscComponents'
 import fbStyle from './style/fileBrowserStyle.module.scss'
 
 export const TransferCard = ({

@@ -12,6 +12,33 @@ import { useSessionStore } from '@weblens/components/UserInfo'
 import { WeblensShare } from '@weblens/types/share/share'
 import { humanFileSize } from '@weblens/util'
 
+export enum SelectedState {
+    NotSelected = 0b0,
+    Hovering = 0b1,
+    InRange = 0b10,
+    Selected = 0b100,
+    LastSelected = 0b1000,
+    Droppable = 0b10000,
+    Moved = 0b100000,
+
+    ALL = 0b111111,
+}
+
+export type FileContextT = {
+    file: WeblensFile
+    selected: SelectedState
+}
+
+export enum FbMenuModeT {
+    Closed,
+    Default,
+    Sharing,
+    NameFolder,
+    AddToAlbum,
+    RenameFile,
+    SearchForFile,
+}
+
 function getIcon(folderName: string): Icon {
     if (folderName === 'HOME') {
         return IconHome
@@ -24,7 +51,7 @@ function getIcon(folderName: string): Icon {
     }
 }
 
-export class WeblensFile {
+class WeblensFile {
     id?: string
     owner?: string
     private filename?: string
@@ -37,6 +64,7 @@ export class WeblensFile {
 
     isDir?: boolean
     pastFile?: boolean
+    hasRestoreMedia?: boolean
     modifiable?: boolean
     displayable?: boolean
 
@@ -313,29 +341,4 @@ export class WeblensFile {
     }
 }
 
-export enum SelectedState {
-    NotSelected = 0b0,
-    Hovering = 0b1,
-    InRange = 0b10,
-    Selected = 0b100,
-    LastSelected = 0b1000,
-    Droppable = 0b10000,
-    Moved = 0b100000,
-
-    ALL = 0b111111,
-}
-
-export type FileContextT = {
-    file: WeblensFile
-    selected: SelectedState
-}
-
-export enum FbMenuModeT {
-    Closed,
-    Default,
-    Sharing,
-    NameFolder,
-    AddToAlbum,
-    RenameFile,
-    SearchForFile,
-}
+export default WeblensFile

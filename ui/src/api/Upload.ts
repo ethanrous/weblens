@@ -73,7 +73,6 @@ const CONCURRENT_UPLOAD_COUNT = 4
 
 function queueChunks(
     uploadMeta: FileUploadMetadata,
-    // isPublic: boolean,
     uploadId: string,
     shareId: string,
     taskQueue: PromiseQueue<void>

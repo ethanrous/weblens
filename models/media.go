@@ -236,35 +236,6 @@ func (m *Media) FmtCacheFileName(quality MediaQuality, pageNum int) string {
 
 const ThumbnailHeight float32 = 500
 
-func (m *Media) getImageRecognitionTags() (err error) {
-	log.Warning.Println("Skipping image recognition tags")
-	return nil
-	// bs, err := m.ReadDisplayable(LowRes, 0)
-	// if err != nil {
-	// 	return
-	// }
-	// imgBuf := bytes.NewBuffer(bs)
-	//
-	// resp, err := comm.Post(internal.GetImgRecognitionUrl()+"/recognize", "application/jpeg", imgBuf)
-	// if err != nil {
-	// 	return
-	// }
-	// if resp.StatusCode != 200 {
-	// 	return fmt.Errorf("failed to get recognition tags: %s", resp.Status)
-	// }
-	//
-	// var recogTags []string
-	//
-	// err = json.NewDecoder(resp.Body).Decode(&recogTags)
-	// if err != nil {
-	// 	return err
-	// }
-	//
-	// m.RecognitionTags = recogTags
-	//
-	// return
-}
-
 func (m *Media) UnmarshalBSON(bs []byte) error {
 	raw := bson.Raw(bs)
 	contentId, ok := raw.Lookup("contentId").StringValueOK()
@@ -345,7 +316,7 @@ func (m *Media) UnmarshalBSON(bs []byte) error {
 
 	hidden, ok := raw.Lookup("hidden").BooleanOK()
 	if ok {
-		m.Hidden = hidden
+		m.setHidden(hidden)
 	}
 
 	m.imported = true
@@ -465,17 +436,26 @@ func NewVideoStreamer(file *fileTree.WeblensFileImpl, thumbsPath string) *VideoS
 func (vs *VideoStreamer) transcodeChunks(f *fileTree.WeblensFileImpl, speed string) {
 	defer func() {
 		vs.encodingBegun.Store(false)
+		e := recover()
+		if e == nil {
+			return
+		}
+
+		err, ok := e.(error)
+		if !ok {
+			log.Error.Printf("transcodeChunks panicked and got non-error error: %v", e)
+			return
+		}
+		log.ErrTrace(err)
 	}()
 
-	log.Trace.Printf("Transcoding video %s => %s", f.AbsPath(), vs.streamDirPath)
+	log.Debug.Printf("Transcoding video %s => %s", f.AbsPath(), vs.streamDirPath)
 
 	err := os.Mkdir(vs.streamDirPath, os.ModePerm)
 	if err != nil && !errors.Is(err, os.ErrExist) {
 		vs.updateMu.Lock()
 		vs.err = err
 		vs.updateMu.Unlock()
-		return
-	} else if errors.Is(err, os.ErrExist) {
 		return
 	}
 
@@ -488,25 +468,24 @@ func (vs *VideoStreamer) transcodeChunks(f *fileTree.WeblensFileImpl, speed stri
 	}
 
 	log.Trace.Printf("Bitrate: %d %d", videoBitrate, audioBitrate)
+	outputArgs := ffmpeg.KwArgs{
+		"c:v":                "libx264",
+		"b:v":                int(videoBitrate),
+		"b:a":                320_000,
+		"c:a":                "copy",
+		"segment_list_flags": "+live",
+		"format":             "segment",
+		"segment_format":     "mpegts",
+		"hls_init_time":      5,
+		"hls_time":           5,
+		"hls_list_size":      0,
+		"segment_list":       filepath.Join(vs.streamDirPath, "list.m3u8"),
+		"crf":                18,
+		"preset":             speed,
+	}
 
 	outErr := bytes.NewBuffer(nil)
-	err = ffmpeg.Input(f.AbsPath(), ffmpeg.KwArgs{"ss": 0}).Output(
-		vs.streamDirPath+"%03d.ts", ffmpeg.KwArgs{
-			"c:v": "libx264",
-			"b:v": int(videoBitrate),
-			// "b:a":                int(audioBitrate),
-			"b:a":                320_000,
-			"crf":                18,
-			"preset":             speed,
-			"segment_list_flags": "+live",
-			"format":             "segment",
-			"segment_format":     "mpegts",
-			"hls_init_time":      5,
-			"hls_time":           5,
-			"hls_list_size":      0,
-			"segment_list":       filepath.Join(vs.streamDirPath, "list.m3u8"),
-		},
-	).WithErrorOutput(outErr).Run()
+	err = ffmpeg.Input(f.AbsPath(), ffmpeg.KwArgs{"ss": 0}).Output(vs.streamDirPath+"%03d.ts", outputArgs).WithErrorOutput(outErr).Run()
 
 	if err != nil {
 		log.Error.Println(outErr.String())
@@ -595,6 +574,7 @@ func (vs *VideoStreamer) IsTranscoding() bool {
 }
 
 func (vs *VideoStreamer) probeSourceBitrate(f *fileTree.WeblensFileImpl) (videoBitrate int64, audioBitrate int64, err error) {
+	log.Debug.Println("Probing", f.AbsPath())
 	probeJson, err := ffmpeg.Probe(f.AbsPath())
 	if err != nil {
 		return 0, 0, err
@@ -607,15 +587,19 @@ func (vs *VideoStreamer) probeSourceBitrate(f *fileTree.WeblensFileImpl) (videoB
 
 	formatChunk, ok := probeResult["format"].(map[string]any)
 	if !ok {
-		return 0, 0, errors.New("invalid movie format")
+		return 0, 0, werror.Errorf("invalid movie format")
 	}
 
 	streamsChunk, ok := probeResult["streams"].([]any)
 	if !ok {
-		return 0, 0, errors.New("invalid movie format")
+		return 0, 0, werror.Errorf("invalid movie format")
 	}
 
-	videoBitrate, err = strconv.ParseInt(formatChunk["bit_rate"].(string), 10, 64)
+	bitRateStr, ok := formatChunk["bit_rate"].(string)
+	if !ok {
+		return 0, 0, werror.Errorf("bitrate does not exist or is not a string")
+	}
+	videoBitrate, err = strconv.ParseInt(bitRateStr, 10, 64)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -624,7 +608,11 @@ func (vs *VideoStreamer) probeSourceBitrate(f *fileTree.WeblensFileImpl) (videoB
 	for _, stream := range streamsChunk {
 		streamMap := stream.(map[string]any)
 		if streamMap["codec_type"].(string) == "audio" {
-			audioBitrate, err = strconv.ParseInt(streamMap["bit_rate"].(string), 10, 64)
+			bitRate, ok := streamMap["bit_rate"].(string)
+			if !ok {
+				continue
+			}
+			audioBitrate, err = strconv.ParseInt(bitRate, 10, 64)
 			if err != nil {
 				return 0, 0, err
 			}
