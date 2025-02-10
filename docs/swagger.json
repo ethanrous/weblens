@@ -1018,6 +1018,41 @@
                 }
             }
         },
+        "/media/drop": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Media"
+                ],
+                "summary": "DANGEROUS, call only if you understand what this does. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.",
+                "operationId": "DropMedia",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
         "/media/types": {
             "get": {
                 "produces": [

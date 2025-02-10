@@ -5,6 +5,7 @@ go 1.23.5
 require (
 	github.com/EdlinOrg/prominentcolor v1.0.0
 	github.com/barasher/go-exiftool v1.10.0
+	github.com/davidbyttow/govips/v2 v2.16.0
 	github.com/fsnotify/fsnotify v1.8.0
 	github.com/go-chi/chi/v5 v5.2.0
 	github.com/golang-jwt/jwt/v5 v5.2.1

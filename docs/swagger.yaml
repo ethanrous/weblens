@@ -1336,6 +1336,27 @@ paths:
       summary: Make sure all media is correctly synced with the file system
       tags:
       - Media
+  /media/drop:
+    post:
+      operationId: DropMedia
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: DANGEROUS, call only if you understand what this does. Drop all computed
+        media and clear thumbnail in-memory and filesystem cache. Must be server owner.
+      tags:
+      - Media
   /media/types:
     get:
       operationId: GetMediaTypes

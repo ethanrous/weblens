@@ -55,6 +55,11 @@ func (ms *MockMediaService) Cleanup() error {
 	panic("implement me")
 }
 
+func (ms *MockMediaService) Drop() error {
+
+	panic("implement me")
+}
+
 func (ms *MockMediaService) GetMediaType(m *models.Media) models.MediaType {
 
 	panic("implement me")
@@ -126,6 +131,6 @@ func (ms *MockMediaService) AdjustMediaDates(
 	panic("implement me")
 }
 
-func (pms *MockMediaService) AddFileToMedia(m *models.Media, f *fileTree.WeblensFileImpl) error {
+func (mms *MockMediaService) AddFileToMedia(m *models.Media, f *fileTree.WeblensFileImpl) error {
 	panic("implement me")
 }

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"image"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -31,7 +32,8 @@ import (
 	ollama "github.com/ollama/ollama/api"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"gopkg.in/gographics/imagick.v3/imagick"
+
+	"github.com/davidbyttow/govips/v2/vips"
 )
 
 var _ models.MediaService = (*MediaServiceImpl)(nil)
@@ -72,8 +74,8 @@ const (
 	CachePageKey    cacheKey = "cachePageNum"
 	CacheMediaKey   cacheKey = "cacheMedia"
 
-	HighresSize = 2500
-	ThumbSize   = 500
+	HighresMaxSize = 2500
+	ThumbMaxSize   = 1000
 )
 
 func init() {
@@ -86,7 +88,8 @@ func init() {
 		panic(err)
 	}
 
-	imagick.Initialize()
+	vips.Startup(&vips.Config{})
+	vips.LoggingSettings(nil, vips.LogLevelWarning)
 }
 
 func NewMediaService(
@@ -452,6 +455,48 @@ func (ms *MediaServiceImpl) Cleanup() error {
 	return nil
 }
 
+func (ms *MediaServiceImpl) Drop() error {
+	ms.mediaLock.Lock()
+	defer ms.mediaLock.Unlock()
+
+	// Drop media collection in mongo
+	err := ms.collection.Drop(context.Background())
+	if err != nil {
+		return werror.WithStack(err)
+	}
+
+	cacheTree := ms.fileService.GetFileTreeByName(CachesTreeKey)
+	if cacheTree == nil {
+		return werror.WithStack(werror.ErrNoFileTree)
+	}
+
+	thumbsDir, err := cacheTree.GetRoot().GetChild(ThumbsDirName)
+	if err != nil {
+		return werror.WithStack(err)
+	}
+
+	// Delete all cache files on disk
+	err = thumbsDir.RecursiveMap(func(thumb *fileTree.WeblensFileImpl) error {
+		if thumbsDir == thumb {
+			return nil
+		}
+		return ms.fileService.DeleteCacheFile(thumb)
+	})
+
+	if err != nil {
+		return err
+	}
+
+	// Evict all keys from cache
+	for _, cacheKey := range ms.mediaCache.ScanKeys() {
+		ms.mediaCache.Delete(cacheKey)
+	}
+
+	ms.mediaMap = map[models.ContentId]*models.Media{}
+
+	return nil
+}
+
 func (ms *MediaServiceImpl) GetProminentColors(media *models.Media) (prom []string, err error) {
 	var i image.Image
 	thumbBytes, err := ms.FetchCacheImg(media, models.LowRes, 0)
@@ -561,48 +606,27 @@ func (ms *MediaServiceImpl) removeCacheFiles(media *models.Media) error {
 }
 
 func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.WeblensFileImpl) error {
-	fileMetas := exif.ExtractMetadata(file.AbsPath())
-
-	for _, fileMeta := range fileMetas {
-		if fileMeta.Err != nil {
-			return fileMeta.Err
-		}
-	}
-
-	var err error
-	if m.CreateDate.Unix() <= 0 {
-		r, ok := fileMetas[0].Fields["SubSecCreateDate"]
-		if !ok {
-			r, ok = fileMetas[0].Fields["MediaCreateDate"]
-		}
-		if ok {
-			m.CreateDate, err = time.Parse("2006:01:02 15:04:05.000-07:00", r.(string))
-			if err != nil {
-				m.CreateDate, err = time.Parse("2006:01:02 15:04:05.00-07:00", r.(string))
-			}
-			if err != nil {
-				m.CreateDate, err = time.Parse("2006:01:02 15:04:05", r.(string))
-			}
-			if err != nil {
-				m.CreateDate, err = time.Parse("2006:01:02 15:04:05-07:00", r.(string))
-			}
-			if err != nil {
-				m.CreateDate = file.ModTime()
-			}
-		} else {
-			m.CreateDate = file.ModTime()
-		}
-	}
+	// fileMetas := exif.ExtractMetadata(file.AbsPath())
+	//
+	// for _, fileMeta := range fileMetas {
+	// 	if fileMeta.Err != nil {
+	// 		return fileMeta.Err
+	// 	}
+	// }
+	//
+	// var err error
+	// if m.CreateDate.Unix() <= 0 {
+	// 	createDate, err := getCreateDateFromExif(fileMetas[0].Fields, file)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	m.CreateDate = createDate
+	// }
 
 	if m.MimeType == "" {
-		mimeType, ok := fileMetas[0].Fields["MIMEType"].(string)
-		if !ok {
-			ext := filepath.Ext(file.Filename())
-			mType := ms.typeService.ParseExtension(ext)
-			m.MimeType = mType.Mime
-		} else {
-			m.MimeType = mimeType
-		}
+		ext := filepath.Ext(file.Filename())
+		mType := ms.typeService.ParseExtension(ext)
+		m.MimeType = mType.Mime
 
 		if ms.typeService.ParseMime(m.MimeType).Video {
 			probeJson, err := ffmpeg.Probe(file.AbsPath())
@@ -625,8 +649,8 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 			}
 			m.Duration = int(duration * 1000)
 
-			m.Height = int(fileMetas[0].Fields["ImageHeight"].(float64))
-			m.Width = int(fileMetas[0].Fields["ImageWidth"].(float64))
+			// m.Height = int(fileMetas[0].Fields["ImageHeight"].(float64))
+			// m.Width = int(fileMetas[0].Fields["ImageWidth"].(float64))
 		}
 	}
 
@@ -635,25 +659,11 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 		return werror.ErrMediaBadMime
 	}
 
-	if mType.IsMultiPage() {
-		m.PageCount = int(fileMetas[0].Fields["PageCount"].(float64))
-	} else {
-		m.PageCount = 1
-	}
-
-	if m.Rotate == "" {
-		rotate := fileMetas[0].Fields["Orientation"]
-		if rotate != nil {
-			m.Rotate = rotate.(string)
-		}
-	}
-
-	buf := *ms.filesBuffer.Get().(*[]byte)
-	log.Trace.Func(func(l log.Logger) {
-		if len(buf) > 0 {
-			l.Printf("Re-using buffer of %d bytes", len(buf))
-		}
-	})
+	// if mType.IsMultiPage() {
+	// 	m.PageCount = int(fileMetas[0].Fields["PageCount"].(float64))
+	// } else {
+	// 	m.PageCount = 1
+	// }
 
 	thumb, err := ms.handleCacheCreation(m, file)
 	if err != nil {
@@ -722,77 +732,75 @@ func (ms *MediaServiceImpl) handleCacheCreation(m *models.Media, file *fileTree.
 	mType := ms.GetMediaType(m)
 	sw.Lap("Get media type")
 
+	//TODO: NOT THIS
+	// log.Debug.Println(img.GetExif())
+	m.CreateDate = time.Now()
+	m.PageCount = 1
+
 	if !mType.Video {
-		// Setup magick wand
-		mw := imagick.NewMagickWand()
-		// defer mw.Destroy()
-		sw.Lap("New MagickWand")
+		filePath := file.AbsPath()
 
-		err := mw.SetCompressionQuality(100)
-		if err != nil {
-			return nil, werror.WithStack(err)
-		}
-
-		// Make sure PDFs are read with enough fidelity to be recreated
-		// this should not affect images that already have dimensions
-		err = mw.SetResolution(300, 300)
-		if err != nil {
-			return nil, err
-		}
-
-		// Load image into magick wand buffer
-		err = mw.ReadImage(file.AbsPath())
-		if err != nil {
-			return nil, werror.WithStack(err)
-		}
-		sw.Lap("Read image")
-
-		if !mType.IsMultiPage() {
-			// Rotate image based on exif data
-			err = mw.AutoOrientImage()
+		if strings.HasSuffix(filePath, "ARW") {
+			tmpFile, err := os.CreateTemp("/tmp", "weblens_thumb-*.webp")
 			if err != nil {
 				return nil, werror.WithStack(err)
 			}
-			sw.Lap("Image orientation")
+			tmpFile.Close()
+
+			tmpFilePath := tmpFile.Name()
+
+			cmd := exec.Command("vips", "copy", filePath, tmpFilePath+"[Q=100]")
+			var errb bytes.Buffer
+			cmd.Stderr = &errb
+
+			err = cmd.Run()
+			if err != nil {
+				return nil, werror.WithStack(errors.New(errb.String()))
+			}
+
+			filePath = tmpFilePath
+		}
+
+		img, err := vips.NewImageFromFile(filePath)
+		if err != nil {
+			return nil, werror.WithStack(err)
+		}
+		sw.Lap("Load image")
+
+		if !mType.IsMultiPage() && !mType.IsMime("image/heif") {
+			// Rotate image based on exif data
+			err = img.AutoRotate()
+			if err != nil {
+				return nil, werror.WithStack(err)
+			}
+			sw.Lap("Auto rotate image")
 		}
 
 		// Read image dimensions
-		width := mw.GetImageWidth()
-		height := mw.GetImageHeight()
-		m.Height = int(height)
-		m.Width = int(width)
+		m.Height = img.Height()
+		m.Width = img.Width()
 		sw.Lap("Read image dimensions")
 
-		mw.SetIteratorIndex(0)
-		thumbImage := mw.GetImage()
+		// webpExportParams := vips.NewWebpExportParams()
+		// imgBytes, _, err := img.Export(webpExportParams)
+		// if err != nil {
+		// 	return nil, werror.WithStack(err)
+		// }
 
 		for page := range m.PageCount {
-			mw.SetIteratorIndex(page)
-			tmpMw := mw.GetImage()
-
-			// Make sure that transparent background PDFs are white
-			tmpMw = tmpMw.MergeImageLayers(imagick.IMAGE_LAYER_FLATTEN)
-
-			// Convert image to webp format for effecient transfer
-			err = tmpMw.SetImageFormat("webp")
-			if err != nil {
-				return nil, werror.WithStack(err)
-			}
-			sw.Lap("Image convert to webp")
-
 			// Resize highres image if too big
-			if width > HighresSize || height > HighresSize {
-				var fullWidth, fullHeight uint
-				if width > height {
-					fullWidth = HighresSize
-					fullHeight = HighresSize * uint(height) / uint(width)
+			if m.Width > HighresMaxSize || m.Height > HighresMaxSize {
+				var fullWidth, fullHeight int
+				if m.Width > m.Height {
+					fullWidth = HighresMaxSize
+					fullHeight = HighresMaxSize * m.Height / m.Width
 				} else {
-					fullHeight = HighresSize
-					fullWidth = HighresSize * uint(width) / uint(height)
+					fullHeight = HighresMaxSize
+					fullWidth = HighresMaxSize * m.Width / m.Height
 				}
 				log.Trace.Printf("Resizing %s highres image to %dx%d", file.Filename(), fullWidth, fullHeight)
 
-				err = tmpMw.ScaleImage(fullWidth, fullHeight)
+				err = img.Resize(float64(fullHeight)/float64(m.Height), vips.KernelAuto)
 				if err != nil {
 					return nil, werror.WithStack(err)
 				}
@@ -804,7 +812,7 @@ func (ms *MediaServiceImpl) handleCacheCreation(m *models.Media, file *fileTree.
 			if err != nil && !errors.Is(err, werror.ErrFileAlreadyExists) {
 				return nil, werror.WithStack(err)
 			} else if err == nil {
-				blob, err := tmpMw.GetImageBlob()
+				blob, _, err := img.ExportWebp(nil)
 				if err != nil {
 					return nil, werror.WithStack(err)
 				}
@@ -817,26 +825,18 @@ func (ms *MediaServiceImpl) handleCacheCreation(m *models.Media, file *fileTree.
 			}
 		}
 
-		// return to first page if this is a PDF, so the thumbnail will be the cover page
-		// mw.SetIteratorIndex(0)
-		mw = thumbImage.MergeImageLayers(imagick.IMAGE_LAYER_FLATTEN)
-		err = mw.SetImageFormat("webp")
-		if err != nil {
-			return nil, werror.WithStack(err)
-		}
-
 		// Resize thumb image if too big
-		if width > ThumbSize || height > ThumbSize {
+		if m.Width > ThumbMaxSize || m.Height > ThumbMaxSize {
 			var thumbWidth, thumbHeight uint
-			if width > height {
-				thumbWidth = ThumbSize
-				thumbHeight = uint(float64(ThumbSize) / float64(width) * float64(height))
+			if m.Width > m.Height {
+				thumbWidth = ThumbMaxSize
+				thumbHeight = uint(float64(ThumbMaxSize) / float64(m.Width) * float64(m.Height))
 			} else {
-				thumbHeight = ThumbSize
-				thumbWidth = uint(float64(ThumbSize) / float64(height) * float64(width))
+				thumbHeight = ThumbMaxSize
+				thumbWidth = uint(float64(ThumbMaxSize) / float64(m.Height) * float64(m.Width))
 			}
 			log.Trace.Printf("Resizing %s thumb image to %dx%d", file.Filename(), thumbWidth, thumbHeight)
-			err = mw.ScaleImage(thumbWidth, thumbHeight)
+			err = img.Resize(float64(thumbHeight)/float64(m.Height), vips.KernelAuto)
 			if err != nil {
 				return nil, werror.WithStack(err)
 			}
@@ -848,7 +848,7 @@ func (ms *MediaServiceImpl) handleCacheCreation(m *models.Media, file *fileTree.
 		if err != nil && !errors.Is(err, werror.ErrFileAlreadyExists) {
 			return nil, werror.WithStack(err)
 		} else if err == nil {
-			blob, err := mw.GetImageBlob()
+			blob, _, err := img.ExportWebp(nil)
 			if err != nil {
 				return nil, werror.WithStack(err)
 			}
@@ -963,23 +963,17 @@ func (ms *MediaServiceImpl) GetImageTags(m *models.Media, imageBytes []byte) err
 
 	recogLock.Lock()
 	defer recogLock.Unlock()
-	mw := imagick.NewMagickWand()
+	img, err := vips.NewImageFromBuffer(imageBytes)
+	if err != nil {
+		return werror.WithStack(err)
+	}
 
-	err := mw.ReadImageBlob(imageBytes)
-	if err != nil {
-		return werror.WithStack(err)
-	}
-	err = mw.SetImageFormat("jpeg")
-	if err != nil {
-		return werror.WithStack(err)
-	}
-	blob, err := mw.GetImageBlob()
+	blob, _, err := img.ExportJpeg(nil)
 	if err != nil {
 		return werror.WithStack(err)
 	}
 
 	stream := false
-
 	req := &ollama.GenerateRequest{
 		Model:  "llava:13b",
 		Prompt: "describe this image using a list of single words seperated only by commas. do not include any text other than these words",
@@ -1031,4 +1025,30 @@ func (ms *MediaServiceImpl) GetImageTags(m *models.Media, imageBytes []byte) err
 	m.SetRecognitionTags(tags)
 
 	return nil
+}
+
+func getCreateDateFromExif(exif map[string]any, file *fileTree.WeblensFileImpl) (createDate time.Time, err error) {
+	r, ok := exif["SubSecCreateDate"]
+	if !ok {
+		r, ok = exif["MediaCreateDate"]
+	}
+	if ok {
+		createDate, err = time.Parse("2006:01:02 15:04:05.000-07:00", r.(string))
+		if err != nil {
+			createDate, err = time.Parse("2006:01:02 15:04:05.00-07:00", r.(string))
+		}
+		if err != nil {
+			createDate, err = time.Parse("2006:01:02 15:04:05", r.(string))
+		}
+		if err != nil {
+			createDate, err = time.Parse("2006:01:02 15:04:05-07:00", r.(string))
+		}
+		if err != nil {
+			createDate = file.ModTime()
+		}
+	} else {
+		createDate = file.ModTime()
+	}
+
+	return createDate, nil
 }

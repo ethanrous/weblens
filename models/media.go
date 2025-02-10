@@ -386,6 +386,7 @@ type MediaService interface {
 	LoadMediaFromFile(m *Media, file *fileTree.WeblensFileImpl) error
 	RemoveFileFromMedia(media *Media, fileId fileTree.FileId) error
 	Cleanup() error
+	Drop() error
 	AddFileToMedia(media *Media, file *fileTree.WeblensFileImpl) error
 
 	GetMediaType(m *Media) MediaType

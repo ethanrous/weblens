@@ -3430,6 +3430,39 @@ export const MediaApiAxiosParamCreator = function (configuration?: Configuration
         },
         /**
          * 
+         * @summary DANGEROUS, call only if you understand what this does. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        dropMedia: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/media/drop`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication ApiKeyAuth required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary Get paginated media
          * @param {boolean} [raw] Include raw files
          * @param {boolean} [hidden] Include hidden media
@@ -3762,6 +3795,18 @@ export const MediaApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary DANGEROUS, call only if you understand what this does. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async dropMedia(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.dropMedia(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['MediaApi.dropMedia']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Get paginated media
          * @param {boolean} [raw] Include raw files
          * @param {boolean} [hidden] Include hidden media
@@ -3884,6 +3929,15 @@ export const MediaApiFactory = function (configuration?: Configuration, basePath
         },
         /**
          * 
+         * @summary DANGEROUS, call only if you understand what this does. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        dropMedia(options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.dropMedia(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary Get paginated media
          * @param {boolean} [raw] Include raw files
          * @param {boolean} [hidden] Include hidden media
@@ -3983,6 +4037,17 @@ export class MediaApi extends BaseAPI {
      */
     public cleanupMedia(options?: RawAxiosRequestConfig) {
         return MediaApiFp(this.configuration).cleanupMedia(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary DANGEROUS, call only if you understand what this does. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof MediaApi
+     */
+    public dropMedia(options?: RawAxiosRequestConfig) {
+        return MediaApiFp(this.configuration).dropMedia(options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

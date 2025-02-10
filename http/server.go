@@ -125,6 +125,7 @@ func (s *Server) UseApi() *chi.Mux {
 		r.Get("/", getMediaBatch)
 		r.Get("/{mediaId}/file", getMediaFile)
 		r.Post("/cleanup", cleanupMedia)
+		r.Post("/drop", dropMedia)
 		r.Patch("/{mediaId}/liked", setMediaLiked)
 		r.Patch("/visibility", hideMedia)
 		r.Patch("/date", adjustMediaDate)

@@ -167,11 +167,45 @@ func getMediaTypes(w http.ResponseWriter, r *http.Request) {
 //	@Tags		Media
 //	@Produce	json
 //	@Success	200
-//	@Success	500
+//	@Failure	500
 //	@Router		/media/cleanup  [post]
 func cleanupMedia(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
 	err := pack.MediaService.Cleanup()
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+// DropMedia godoc
+//
+//	@ID			DropMedia
+//
+//	@Security	SessionAuth[admin]
+//	@Security	ApiKeyAuth[admin]
+//
+//	@Summary	DANGEROUS, call only if you understand what this does. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
+//	@Tags		Media
+//	@Produce	json
+//	@Success	200
+//	@Failure	403
+//	@Failure	500
+//	@Router		/media/drop  [post]
+func dropMedia(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(r, false)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+
+	log.Debug.Println(u.Username, u.IsOwner())
+	if !u.IsOwner() {
+		SafeErrorAndExit(werror.ErrNotOwner, w)
+		return
+	}
+
+	err = pack.MediaService.Drop()
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -510,24 +544,6 @@ func getProcessedMedia(q models.MediaQuality, format string, w http.ResponseWrit
 	if SafeErrorAndExit(err, w) {
 		return
 	}
-
-	// This segfaults in the cgo part of GetImageBlob() (which takes down the whole process) when on alpine right now, and I don't know why...
-	// if format == "png" {
-	// 	mw := imagick.NewMagickWand()
-	// 	err = mw.ReadImageBlob(bs)
-	// 	if SafeErrorAndExit(err, w) {
-	// 		return
-	// 	}
-	// 	err = mw.SetImageFormat("png")
-	// 	if SafeErrorAndExit(err, w) {
-	// 		return
-	// 	}
-	//
-	// 	bs, err = mw.GetImageBlob()
-	// 	if SafeErrorAndExit(err, w) {
-	// 		return
-	// 	}
-	// }
 
 	// Instruct the client to cache images that are returned
 	w.Header().Set("Cache-Control", "max-age=3600")

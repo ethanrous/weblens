@@ -6,6 +6,7 @@ import {
     IconLockOpen,
     IconLogout,
     IconServer,
+    IconTerminal2,
     IconTrash,
     IconUser,
     IconUserMinus,
@@ -13,37 +14,33 @@ import {
     IconUserUp,
     IconUsers,
 } from '@tabler/icons-react'
-import {
-    QueryObserverResult,
-    RefetchOptions,
-    useQuery,
-} from '@tanstack/react-query'
-import AccessApi from '@weblens/api/AccessApi'
-import { ServersApi } from '@weblens/api/ServersApi'
-import UsersApi from '@weblens/api/UserApi'
-import {
-    HandleWebsocketMessage,
-    useWeblensSocket,
-    useWebsocketStore,
-} from '@weblens/api/Websocket'
-import { ApiKeyInfo, ServerInfo } from '@weblens/api/swag'
-import HeaderBar, { ThemeToggleButton } from '@weblens/components/HeaderBar'
-import WeblensLoader from '@weblens/components/Loading'
-import RemoteStatus from '@weblens/components/RemoteStatus'
-import { useSessionStore } from '@weblens/components/UserInfo'
-import { useKeyDown } from '@weblens/components/hooks'
-import WeblensButton from '@weblens/lib/WeblensButton'
-import WeblensInput from '@weblens/lib/WeblensInput'
-import { ErrorHandler } from '@weblens/types/Types'
-import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import User from '@weblens/types/user/User'
-import { FC, useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { QueryObserverResult, RefetchOptions, useQuery } from '@tanstack/react-query';
+import AccessApi from '@weblens/api/AccessApi';
+import MediaApi from '@weblens/api/MediaApi';
+import { ServersApi } from '@weblens/api/ServersApi';
+import UsersApi from '@weblens/api/UserApi';
+import { HandleWebsocketMessage, useWeblensSocket, useWebsocketStore } from '@weblens/api/Websocket';
+import { ApiKeyInfo, ServerInfo } from '@weblens/api/swag';
+import HeaderBar, { ThemeToggleButton } from '@weblens/components/HeaderBar';
+import WeblensLoader from '@weblens/components/Loading';
+import RemoteStatus from '@weblens/components/RemoteStatus';
+import { useSessionStore } from '@weblens/components/UserInfo';
+import { useKeyDown } from '@weblens/components/hooks';
+import WeblensButton from '@weblens/lib/WeblensButton';
+import WeblensInput from '@weblens/lib/WeblensInput';
+import { ErrorHandler } from '@weblens/types/Types';
+import { useMediaStore } from '@weblens/types/media/MediaStateControl';
+import User from '@weblens/types/user/User';
+import { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-import { AdminWebsocketHandler } from '../AdminSettings/adminLogic'
-import { BackupProgressT } from '../Backup/BackupLogic'
-import { historyDate } from '../FileBrowser/FileBrowserLogic'
-import settingsStyle from './settingsStyle.module.scss'
+
+
+import { AdminWebsocketHandler } from '../AdminSettings/adminLogic';
+import { BackupProgressT } from '../Backup/BackupLogic';
+import { historyDate } from '../FileBrowser/FileBrowserLogic';
+import settingsStyle from './settingsStyle.module.scss';
+
 
 type settingsTab = {
     id: string
@@ -85,6 +82,12 @@ const adminTabs: settingsTab[] = [
         name: 'Users',
         icon: IconUsers,
         pageComp: UsersTab,
+    },
+    {
+        id: 'dev',
+        name: 'Developer',
+        icon: IconTerminal2,
+        pageComp: DeveloperTab,
     },
 ]
 
@@ -751,6 +754,18 @@ function CreateUserBox({
                     </div>
                 </div>
             </div>
+        </div>
+    )
+}
+
+function DeveloperTab() {
+    return (
+        <div className="flex flex-col w-full">
+            <WeblensButton
+                label="Clear Media"
+                danger
+                onClick={() => MediaApi.dropMedia()}
+            />
         </div>
     )
 }
