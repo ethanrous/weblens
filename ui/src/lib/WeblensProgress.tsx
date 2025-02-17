@@ -72,7 +72,7 @@ const WeblensProgress = memo(
 
         return (
             <div
-                className={progressStyle['weblens-progress-container']}
+                className={progressStyle.weblensProgressContainer}
                 data-scrubbing={dragging}
                 style={{
                     height: orientation === 'vertical' ? '100%' : height,
@@ -81,7 +81,7 @@ const WeblensProgress = memo(
             >
                 {seekCallback !== undefined && (
                     <div
-                        className={progressStyle['slider-handle']}
+                        className={progressStyle.sliderHandle}
                         style={{
                             left: `${clamp((value / 100) * size.width, 6, size.width - 6)}px`,
                             height: height,
@@ -93,7 +93,7 @@ const WeblensProgress = memo(
                     />
                 )}
                 <div
-                    className={progressStyle['weblens-progress']}
+                    className={progressStyle.weblensProgress}
                     ref={setBoxRef}
                     data-loading={loading}
                     data-disabled={disabled}
@@ -136,7 +136,7 @@ const WeblensProgress = memo(
                     }}
                 >
                     <div
-                        className={progressStyle['weblens-progress-bar']}
+                        className={progressStyle.weblensProgressBar}
                         data-complete={complete}
                         style={{
                             height:
@@ -148,7 +148,7 @@ const WeblensProgress = memo(
                     />
                     {seekCallback !== undefined && (
                         <div
-                            className={progressStyle['weblens-progress-bar']}
+                            className={progressStyle.weblensProgressBar}
                             data-seek-hint={true}
                             style={{
                                 height:
@@ -166,7 +166,7 @@ const WeblensProgress = memo(
                         />
                     )}
                     <div
-                        className={progressStyle['weblens-progress-bar']}
+                        className={progressStyle.weblensProgressBar}
                         data-secondary={true}
                         style={{
                             height:

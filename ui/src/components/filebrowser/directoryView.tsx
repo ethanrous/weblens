@@ -185,7 +185,7 @@ function DirViewHeader() {
 
     return (
         <div className="flex flex-col h-max">
-            <div className={dirViewStyle['dir-view-header-wrapper']}>
+            <div className={dirViewStyle.dirViewHeaderWrapper}>
                 {(mode === FbModeT.default || mode === FbModeT.share) && (
                     <Crumbs navOnLast={false} moveSelectedTo={moveSelectedTo} />
                 )}
@@ -193,7 +193,7 @@ function DirViewHeader() {
             </div>
             {pastTime && pastTime.getTime() !== 0 && (
                 <div
-                    className={dirViewStyle['past-time-box']}
+                    className={dirViewStyle.pastTimeBox}
                     onClick={(e) => {
                         e.stopPropagation()
                         setHoverTime(false)

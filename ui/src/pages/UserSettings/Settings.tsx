@@ -14,33 +14,38 @@ import {
     IconUserUp,
     IconUsers,
 } from '@tabler/icons-react'
-import { QueryObserverResult, RefetchOptions, useQuery } from '@tanstack/react-query';
-import AccessApi from '@weblens/api/AccessApi';
-import MediaApi from '@weblens/api/MediaApi';
-import { ServersApi } from '@weblens/api/ServersApi';
-import UsersApi from '@weblens/api/UserApi';
-import { HandleWebsocketMessage, useWeblensSocket, useWebsocketStore } from '@weblens/api/Websocket';
-import { ApiKeyInfo, ServerInfo } from '@weblens/api/swag';
-import HeaderBar, { ThemeToggleButton } from '@weblens/components/HeaderBar';
-import WeblensLoader from '@weblens/components/Loading';
-import RemoteStatus from '@weblens/components/RemoteStatus';
-import { useSessionStore } from '@weblens/components/UserInfo';
-import { useKeyDown } from '@weblens/components/hooks';
-import WeblensButton from '@weblens/lib/WeblensButton';
-import WeblensInput from '@weblens/lib/WeblensInput';
-import { ErrorHandler } from '@weblens/types/Types';
-import { useMediaStore } from '@weblens/types/media/MediaStateControl';
-import User from '@weblens/types/user/User';
-import { FC, useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import {
+    QueryObserverResult,
+    RefetchOptions,
+    useQuery,
+} from '@tanstack/react-query'
+import AccessApi from '@weblens/api/AccessApi'
+import MediaApi from '@weblens/api/MediaApi'
+import { ServersApi } from '@weblens/api/ServersApi'
+import UsersApi from '@weblens/api/UserApi'
+import {
+    HandleWebsocketMessage,
+    useWeblensSocket,
+    useWebsocketStore,
+} from '@weblens/api/Websocket'
+import { ApiKeyInfo, ServerInfo } from '@weblens/api/swag'
+import HeaderBar, { ThemeToggleButton } from '@weblens/components/HeaderBar'
+import WeblensLoader from '@weblens/components/Loading'
+import RemoteStatus from '@weblens/components/RemoteStatus'
+import { useSessionStore } from '@weblens/components/UserInfo'
+import { useKeyDown } from '@weblens/components/hooks'
+import WeblensButton from '@weblens/lib/WeblensButton'
+import WeblensInput from '@weblens/lib/WeblensInput'
+import { ErrorHandler } from '@weblens/types/Types'
+import { useMediaStore } from '@weblens/types/media/MediaStateControl'
+import User from '@weblens/types/user/User'
+import { FC, useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
-
-
-import { AdminWebsocketHandler } from '../AdminSettings/adminLogic';
-import { BackupProgressT } from '../Backup/BackupLogic';
-import { historyDate } from '../FileBrowser/FileBrowserLogic';
-import settingsStyle from './settingsStyle.module.scss';
-
+import { AdminWebsocketHandler } from '../AdminSettings/adminLogic'
+import { BackupProgressT } from '../Backup/BackupLogic'
+import { historyDate } from '../FileBrowser/FileBrowserLogic'
+import settingsStyle from './settingsStyle.module.scss'
 
 type settingsTab = {
     id: string
@@ -131,7 +136,7 @@ export function SettingsMenu() {
     }, [user])
 
     return (
-        <div className={settingsStyle['settings-menu']}>
+        <div className={settingsStyle.settingsMenu}>
             <HeaderBar />
             <div className="flex flex-col grow p-8">
                 <div className="flex h-max items-center gap-2 w-full mb-2 pb-2 border-b-[--wl-outline-subtle] border-b">
@@ -139,7 +144,7 @@ export function SettingsMenu() {
                     <h3>{user.username}</h3>
                 </div>
                 <div className="flex grow">
-                    <div className={settingsStyle['sidebar']}>
+                    <div className={settingsStyle.sidebar}>
                         <ul className="flex flex-col h-full">
                             {tabs.map((tab) => {
                                 return (
@@ -154,7 +159,7 @@ export function SettingsMenu() {
                                         >
                                             <span
                                                 className={
-                                                    settingsStyle['tab-icon']
+                                                    settingsStyle.tabIcon
                                                 }
                                             >
                                                 <tab.icon size={20} />
@@ -165,11 +170,7 @@ export function SettingsMenu() {
                                 )
                             })}
                             {user.admin && (
-                                <p
-                                    className={
-                                        settingsStyle['settings-tabs-group']
-                                    }
-                                >
+                                <p className={settingsStyle.settingsTabsGroup}>
                                     Admin
                                 </p>
                             )}
@@ -189,9 +190,7 @@ export function SettingsMenu() {
                                             >
                                                 <span
                                                     className={
-                                                        settingsStyle[
-                                                            'tab-icon'
-                                                        ]
+                                                        settingsStyle.tabIcon
                                                     }
                                                 >
                                                     <tab.icon size={16} />
@@ -300,7 +299,7 @@ function SecurityTab() {
 
     return (
         <div className="flex flex-col w-full gap-2 relative">
-            <div className={settingsStyle['settings-section']}>
+            <div className={settingsStyle.settingsSection}>
                 {namingKey && (
                     <div className="absolute flex w-full h-full z-10 backdrop-blur-sm rounded scale-105">
                         <div className="relative w-32 h-10 m-auto">
@@ -319,7 +318,7 @@ function SecurityTab() {
                         </div>
                     </div>
                 )}
-                <div className={settingsStyle['settings-header']}>
+                <div className={settingsStyle.settingsHeader}>
                     <h3>API Keys</h3>
                     <WeblensButton
                         squareSize={32}
@@ -351,7 +350,7 @@ function SecurityTab() {
                 {isLoading && <WeblensLoader />}
             </div>
 
-            <div className={settingsStyle['settings-header']}>
+            <div className={settingsStyle.settingsHeader}>
                 <h3>Change Password</h3>
             </div>
             <WeblensInput
@@ -394,7 +393,7 @@ function ApiKeyRow({
     const stars = '*'.repeat(keyInfo.key.slice(4).length)
 
     return (
-        <div key={keyInfo.id} className={settingsStyle['settings-content-row']}>
+        <div key={keyInfo.id} className={settingsStyle.settingsContentRow}>
             <div className="flex flex-col grow w-1/2">
                 <strong className="theme-text font-bold text-nowrap w-full truncate select-none my-1">
                     {keyInfo.name}
@@ -407,7 +406,9 @@ function ApiKeyRow({
                     Added {historyDate(keyInfo.createdTime)}
                 </p>
                 {keyInfo.lastUsedTime === 0 && (
-                    <p className="select-none text-[--wl-text-color-dull]">Unused</p>
+                    <p className="select-none text-[--wl-text-color-dull]">
+                        Unused
+                    </p>
                 )}
                 {keyInfo.lastUsedTime !== 0 && (
                     <p className="select-none text-[--wl-text-color-dull]">
@@ -597,7 +598,7 @@ const UserRow = ({
     return (
         <div
             key={rowUser.username}
-            className={settingsStyle['settings-content-row']}
+            className={settingsStyle.settingsContentRow}
         >
             <div className="flex flex-col justify-center w-max h-max">
                 <p className="font-bold w-max theme-text">{rowUser.username}</p>

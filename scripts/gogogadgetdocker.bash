@@ -93,7 +93,7 @@ echo "Using tag: $full_tag"
 
 printf "Building Weblens container..."
 sudo docker rmi ethrous/weblens:"$full_tag" &>/dev/null
-sudo docker build --platform "linux/$arch" -t ethrous/weblens:"$full_tag" --build-arg build_tag="$full_tag" --build-arg ARCHITECTURE="$arch" -f $df_path .
+sudo docker build --progress=plain --platform "linux/$arch" -t ethrous/weblens:"$full_tag" --build-arg build_tag="$full_tag" --build-arg ARCHITECTURE="$arch" -f $df_path .
 
 if [ $do_push == true ]; then
     sudo docker push ethrous/weblens:"$full_tag"

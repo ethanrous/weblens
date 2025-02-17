@@ -65,7 +65,7 @@ func ShowErr(err error, extras ...string) {
 		_, file, line, _ := runtime.Caller(2)
 		file = file[strings.LastIndex(file, "/")+1:]
 
-		ErrorCatcher.Printf("%s:%d%s: %s", file, line, msg, err)
+		ErrorCatcher.Printf("%s[ERROR] %s%s:%d%s: %s", red, file, reset, line, msg, err)
 	}
 }
 

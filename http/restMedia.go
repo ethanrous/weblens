@@ -305,6 +305,10 @@ func streamVideo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// if !bytes.HasSuffix(listFile, []byte("#EXT-X-ENDLIST")) {
+	// 	listFile = append(listFile, []byte("#EXT-X-ENDLIST")...)
+	// }
+
 	_, err = w.Write(listFile)
 	SafeErrorAndExit(err, w)
 }

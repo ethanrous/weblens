@@ -31,6 +31,8 @@ export type buttonProps = {
     Left?: ButtonIcon
     Right?: ButtonIcon
 
+    type?: 'button' | 'submit' | 'reset'
+
     // Style
     squareSize?: number
     fontSize?: string
@@ -41,7 +43,7 @@ export type buttonProps = {
     onMouseOver?: ButtonActionHandler
     onMouseLeave?: ButtonActionHandler
     style?: CSSProperties
-    setButtonRef?: (ref: HTMLDivElement) => void
+    setButtonRef?: (ref: HTMLButtonElement) => void
 }
 
 export type ButtonContentProps = {

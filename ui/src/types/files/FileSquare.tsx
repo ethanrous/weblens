@@ -44,17 +44,15 @@ const FileTextBox = ({
 }) => {
     return (
         <div className="flex items-center justify-between px-2 relative w-full h-full">
-            <p className={filesStyle['file-text']}>{file.GetFilename()}</p>
+            <p className={filesStyle.fileText}>{file.GetFilename()}</p>
             <div
-                className={filesStyle['file-size-box']}
+                className={filesStyle.fileSizeBox}
                 data-moved={(selState & SelectedState.Moved) >> 5}
             >
-                <h4 className={filesStyle['file-size-text']}>
-                    {file.FormatSize()}
-                </h4>
+                <h4 className={filesStyle.fileSizeText}>{file.FormatSize()}</h4>
                 {doFolderIcon && (
                     <IconFolder
-                        className={filesStyle['file-size-text'] + ' max-h-full'}
+                        className={filesStyle.fileSizeText + ' max-h-full'}
                         stroke={2}
                     />
                 )}
@@ -90,7 +88,7 @@ export const FileSquare = memo(
         return (
             <div
                 ref={fileRef}
-                className={filesStyle['weblens-file'] + ' animate-fade'}
+                className={filesStyle.weblensFile + ' animate-fade'}
                 data-clickable={!draggingState || file.IsFolder()}
                 data-hovering={selState & SelectedState.Hovering}
                 data-in-range={(selState & SelectedState.InRange) >> 1}
@@ -223,7 +221,7 @@ export const FileSquare = memo(
                     allowMedia={!((selState & SelectedState.Moved) >> 5)}
                 />
                 <div
-                    className={filesStyle['file-text-container']}
+                    className={filesStyle.fileTextContainer}
                     style={{ height: '16%' }}
                 >
                     <FileTextBox

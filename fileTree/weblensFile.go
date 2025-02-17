@@ -360,7 +360,7 @@ func (f *WeblensFileImpl) ReadAll() ([]byte, error) {
 
 func (f *WeblensFileImpl) Write(data []byte) (int, error) {
 	if f.IsDir() {
-		return 0, werror.ErrDirNotAllowed
+		return 0, werror.WithStack(werror.ErrDirNotAllowed)
 	}
 
 	if f.memOnly {
@@ -373,7 +373,7 @@ func (f *WeblensFileImpl) Write(data []byte) (int, error) {
 		f.size.Store(int64(len(data)))
 		f.modifyDate = time.Now()
 	}
-	return len(data), err
+	return len(data), werror.WithStack(err)
 }
 
 func (f *WeblensFileImpl) WriteAt(data []byte, seekLoc int64) error {

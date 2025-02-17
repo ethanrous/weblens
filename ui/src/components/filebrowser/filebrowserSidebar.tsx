@@ -171,10 +171,10 @@ function FBSidebar() {
             }}
         >
             <div
-                className={fbStyle['sidebar-container']}
+                className={fbStyle.sidebarContainer}
                 data-mini={resizeOffset < SIDEBAR_MIN_OPEN_WIDTH}
             >
-                <div className={fbStyle['sidebar-upper-half']}>
+                <div className={fbStyle.sidebarUpperHalf}>
                     <div className="flex flex-col w-full gap-1 items-center">
                         <WeblensButton
                             label="Home"
@@ -245,7 +245,7 @@ function FBSidebar() {
                                 allowRepeat={false}
                                 Left={IconServer}
                                 // disabled={draggingState !== DraggingStateT.NoDrag}
-								tooltip={'Coming Soon'}
+                                tooltip={'Coming Soon'}
                                 disabled={true}
                                 onClick={navToExternal}
                             />
@@ -325,13 +325,13 @@ function FBSidebar() {
             </div>
             <div
                 draggable={false}
-                className={fbStyle['resize-bar-wrapper']}
+                className={fbStyle.resizeBarWrapper}
                 onMouseDown={(e) => {
                     e.preventDefault()
                     setResizing(true)
                 }}
             >
-                <div className={fbStyle['resize-bar']} />
+                <div className={fbStyle.resizeBar} />
             </div>
         </div>
     )
@@ -354,16 +354,16 @@ function TrashSize() {
 
     return (
         <div
-            className={filesStyle['trash-size-box']}
+            className={filesStyle.trashSizeBox}
             data-selected={
                 folderInfo?.Id() === user?.trashId && mode === FbModeT.default
                     ? 1
                     : 0
             }
         >
-            <div className={filesStyle['file-size-box']}>
+            <div className={filesStyle.fileSizeBox}>
                 <p
-                    className={filesStyle['file-size-text']}
+                    className={filesStyle.fileSizeText}
                 >{`${trashSizeValue}${trashSizeUnit}`}</p>
             </div>
         </div>

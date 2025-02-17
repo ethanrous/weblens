@@ -57,7 +57,7 @@ function FileSortBox() {
     return (
         <div
             ref={setSortRef}
-            className={dirViewHeaderStyle['file-sort-box']}
+            className={dirViewHeaderStyle.fileSortBox}
             data-open={open}
         >
             {isVertical && (
@@ -84,9 +84,9 @@ function FileSortBox() {
                 }
             />
 
-            <div className={dirViewHeaderStyle['file-sort-divider']} />
+            <div className={dirViewHeaderStyle.fileSortDivider} />
 
-            <div className={dirViewHeaderStyle['file-sort-group']}>
+            <div className={dirViewHeaderStyle.fileSortGroup}>
                 {fileSortTypes.map((v) => {
                     return (
                         <WeblensButton
@@ -104,9 +104,9 @@ function FileSortBox() {
                 })}
             </div>
 
-            <div className={dirViewHeaderStyle['file-sort-divider']} />
+            <div className={dirViewHeaderStyle.fileSortDivider} />
 
-            <div className={dirViewHeaderStyle['file-sort-group']}>
+            <div className={dirViewHeaderStyle.fileSortGroup}>
                 {dirViewModes.map((v) => {
                     return (
                         <WeblensButton

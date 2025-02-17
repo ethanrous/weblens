@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/barasher/go-exiftool"
 	"github.com/viccon/sturdyc"
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal/log"
@@ -21,7 +20,6 @@ import (
 type mediaServiceFields struct {
 	mediaMap     map[models.ContentId]*models.Media
 	streamerMap  map[models.ContentId]*models.VideoStreamer
-	exif         *exiftool.Exiftool
 	mediaCache   *sturdyc.Client[[]byte]
 	typeService  models.MediaTypeService
 	fileService  *FileServiceImpl

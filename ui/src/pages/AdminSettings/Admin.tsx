@@ -114,7 +114,7 @@ const UserRow = ({
 }) => {
     const [changingPass, setChangingPass] = useState(false)
     return (
-        <div key={rowUser.username} className={adminStyle['admin-user-row']}>
+        <div key={rowUser.username} className={adminStyle.adminUserRow}>
             <div className="flex flex-col justify-center w-max h-max">
                 <p className="font-bold w-max theme-text">{rowUser.username}</p>
                 {rowUser.admin && !rowUser.owner && (
@@ -241,7 +241,7 @@ function UsersBox() {
     }, [allUsersInfo])
 
     return (
-        <div className={adminStyle['content-box']}>
+        <div className={adminStyle.contentBox}>
             <div className="flex flex-col p-2 shrink w-full h-full">
                 <h4 className="p-1">Users</h4>
                 <div className="flex flex-col grow relative gap-1 overflow-y-scroll overflow-x-visible max-h-[50vh]">
@@ -263,7 +263,7 @@ function ApiKeyRow({
     remotes: ServerInfo[]
 }) {
     return (
-        <div key={keyInfo.id} className={adminStyle['admin-user-row']}>
+        <div key={keyInfo.id} className={adminStyle.adminUserRow}>
             <div className="flex flex-col grow w-1/2">
                 <p className="theme-text font-bold text-nowrap w-full truncate select-none">
                     {keyInfo.key}
@@ -344,9 +344,9 @@ function Servers() {
     }, [remotes?.length])
 
     return (
-        <div className={adminStyle['content-box']}>
+        <div className={adminStyle.contentBox}>
             <div className="h-1/2">
-                <div className={adminStyle['content-header']}>
+                <div className={adminStyle.contentHeader}>
                     <h2>API Keys</h2>
                 </div>
 
@@ -366,7 +366,7 @@ function Servers() {
                 )}
             </div>
             <div>
-                <div className={adminStyle['content-header']}>
+                <div className={adminStyle.contentHeader}>
                     <h2>Remotes</h2>
                 </div>
 
@@ -473,7 +473,7 @@ function GeneralInfo() {
         : 'local'
 
     return (
-        <div className={adminStyle['content-box']}>
+        <div className={adminStyle.contentBox}>
             <div className="flex flex-col h-full">
                 <div className="flex items-center justify-center gap-4">
                     <Logo />
@@ -511,7 +511,7 @@ function AdminPageContent({ pageName }: { pageName: Page }) {
         case Page.Servers:
             return <Servers />
         default:
-            return <div className={adminStyle['content-box']} />
+            return <div className={adminStyle.contentBox} />
     }
 }
 
@@ -534,9 +534,9 @@ export function Admin({ closeAdminMenu }: { closeAdminMenu: () => void }) {
     }
 
     return (
-        <div className={adminStyle['settings-menu-container']} data-open={true}>
+        <div className={adminStyle.settingsMenuContainer} data-open={true}>
             <div
-                className={adminStyle['settings-menu']}
+                className={adminStyle.settingsMenu}
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex flex-col w-[25vw] h-full">

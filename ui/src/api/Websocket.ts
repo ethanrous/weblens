@@ -214,6 +214,7 @@ export enum WsMsgEvent {
     FileCreatedEvent = 'fileCreated',
     FileDeletedEvent = 'fileDeleted',
     FileMovedEvent = 'fileMoved',
+    FileScanStartedEvent = 'fileScanStarted',
     FileScanCompleteEvent = 'fileScanComplete',
     FileUpdatedEvent = 'fileUpdated',
     FilesDeletedEvent = 'filesDeleted',
@@ -399,6 +400,20 @@ function filebrowserWebsocketHandler(
             }
 
             case WsMsgEvent.FileScanCompleteEvent: {
+                useTaskState
+                    .getState()
+                    .updateTaskProgress(msgData.subscribeKey, {
+                        progress: msgData.content.percentProgress,
+                        tasksComplete: msgData.content.tasksComplete,
+                        tasksTotal: msgData.content.tasksTotal,
+                        tasksFailed: msgData.content.tasksFailed,
+                        finished: msgData.content.filename,
+
+                    })
+                break
+            }
+
+            case WsMsgEvent.FileScanStartedEvent: {
                 useTaskState
                     .getState()
                     .updateTaskProgress(msgData.subscribeKey, {

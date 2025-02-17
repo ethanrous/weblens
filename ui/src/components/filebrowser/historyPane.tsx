@@ -82,7 +82,7 @@ function FileHistoryPane() {
 
     return (
         <div
-            className={fbStyle['file-info-pane']}
+            className={fbStyle.fileInfoPane}
             data-resizing={dragging}
             data-open={open}
             onClick={(e) => {
@@ -93,7 +93,7 @@ function FileHistoryPane() {
                 e.stopPropagation()
             }}
         >
-            <div className={fbStyle['open-arrow-container']}>
+            <div className={fbStyle.openArrowContainer}>
                 <WeblensButton
                     squareSize={20}
                     Left={open ? IconChevronRight : IconChevronLeft}
@@ -110,7 +110,7 @@ function FileHistoryPane() {
                 >
                     <div
                         draggable={false}
-                        className={fbStyle['resize-bar-wrapper']}
+                        className={fbStyle.resizeBarWrapper}
                         onMouseDown={(e) => {
                             e.preventDefault()
                             setDragging(DraggingStateT.InterfaceDrag)
@@ -125,7 +125,7 @@ function FileHistoryPane() {
                             }
                         }}
                     >
-                        <div className={fbStyle['resize-bar']} />
+                        <div className={fbStyle.resizeBar} />
                     </div>
                     <div className="flex flex-col w-[75px] grow h-full">
                         {open && <FileHistory />}
@@ -199,7 +199,7 @@ function ActionRow({
     }, [action])
 
     return (
-        <div className={historyStyle['history-detail-action-row']}>
+        <div className={historyStyle.historyDetailActionRow}>
             {fromNode}
             {action.actionType === FbActionT.FileMove.valueOf() && (
                 <IconArrowRight className="theme-text icon-noshrink" />
@@ -317,7 +317,7 @@ function ExpandableEventRow({
 
     return (
         <div
-            className={historyStyle['history-row-content']}
+            className={historyStyle.historyRowContent}
             data-selected={pastTime.getTime() === event[0].timestamp}
             data-expandable={true}
             style={{
@@ -334,7 +334,7 @@ function ExpandableEventRow({
         >
             <div className="flex flex-row items-center pl-2 shrink-0 cursor-pointer w-full h-[2rem]">
                 <div
-                    className={historyStyle['event-caret']}
+                    className={historyStyle.eventCaret}
                     onClick={(e) => {
                         e.stopPropagation()
                         setOpen(!open)
@@ -347,13 +347,13 @@ function ExpandableEventRow({
                     {event.length !== 1 ? 's' : ''}{' '}
                     {event[0].actionType.slice(4)}d ...
                 </p>
-                <p className={historyStyle['file-action-text'] + ' ml-auto'}>
+                <p className={historyStyle.fileActionText + ' ml-auto'}>
                     {historyDateTime(event[0].timestamp, true)}
                 </p>
             </div>
             {open && (
                 <div
-                    className={historyStyle['file-history-detail-accordion']}
+                    className={historyStyle.fileHistoryDetailAccordion}
                     ref={setBoxRef}
                 >
                     <WindowList
@@ -418,7 +418,7 @@ const HistoryEventRow = memo(
         ) {
             content = (
                 <div className="flex flex-row items-center rounded w-full justify-between gap-2 max-h-[48px] ">
-                    <div className={historyStyle['size-change-divider']}>
+                    <div className={historyStyle.sizeChangeDivider}>
                         <FileFmt pathName={event[0].destinationPath} />
                         <p>
                             {humanFileSize(previousSize)}
@@ -433,9 +433,9 @@ const HistoryEventRow = memo(
             event[0].destinationPath === folderInfo?.portablePath
         ) {
             content = (
-                <div className={historyStyle['history-row-content']}>
+                <div className={historyStyle.historyRowContent}>
                     <FileFmt pathName={event[0].destinationPath} />
-                    <p className={historyStyle['file-action-text']}>
+                    <p className={historyStyle.fileActionText}>
                         Folder {event[0].actionType.slice(4)}d
                     </p>
                 </div>
@@ -443,17 +443,15 @@ const HistoryEventRow = memo(
         } else if (event.length === 1) {
             content = (
                 <div
-                    className={historyStyle['history-row-content']}
+                    className={historyStyle.historyRowContent}
                     data-selected={isSelected}
                 >
                     <ActionRow action={event[0]} folderName={folderName} />
                     <div className="flex flex-col items-end">
-                        <p className={historyStyle['file-action-text']}>
+                        <p className={historyStyle.fileActionText}>
                             File {event[0].actionType.slice(4)}d
                         </p>
-                        <p className={historyStyle['file-action-text']}>
-                            {date}
-                        </p>
+                        <p className={historyStyle.fileActionText}>{date}</p>
                     </div>
                 </div>
             )
@@ -471,7 +469,7 @@ const HistoryEventRow = memo(
 
         return (
             <div
-                className={historyStyle['history-event-row']}
+                className={historyStyle.historyEventRow}
                 data-resize={
                     event[0].actionType === FbActionT.FileSizeChange.valueOf()
                 }
@@ -694,7 +692,7 @@ function FileHistory() {
     return (
         <div className="flex flex-col items-center p-2 h-[2px] grow relative w-full justify-center">
             <div
-                className={historyStyle['history-row-content']}
+                className={historyStyle.historyRowContent}
                 data-now={true}
                 data-selected={pastTime.getTime() === 0}
                 onClick={() => {
@@ -704,7 +702,9 @@ function FileHistory() {
                     })
                 }}
             >
-                <p className="relative select-none z-10 text-[--wl-text-color]">Now</p>
+                <p className="relative select-none z-10 text-[--wl-text-color]">
+                    Now
+                </p>
             </div>
             {!epoch && !error && (
                 <div className="flex items-center justify-center w-full h-1 grow">

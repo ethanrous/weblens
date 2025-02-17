@@ -25,6 +25,7 @@ const WeblensInput = memo(
         subtle = false,
         fillWidth = true,
         failed = false,
+        autoComplete = '',
     }: {
         onComplete?: (val: string) => ButtonActionPromiseReturn
         value?: string
@@ -43,6 +44,7 @@ const WeblensInput = memo(
         subtle?: boolean
         fillWidth?: boolean
         failed?: boolean
+        autoComplete?: string
     }) => {
         const [searchRef, setSearchRef] = useState<HTMLInputElement>(null)
         const isFocused = useIsFocused(searchRef)
@@ -66,7 +68,11 @@ const WeblensInput = memo(
             <div
                 className="weblens-input-wrapper"
                 ref={setWrapperRef}
-                style={{ maxHeight: squareSize, minWidth: squareSize }}
+                style={{
+                    height: squareSize,
+                    maxHeight: squareSize,
+                    minWidth: squareSize,
+                }}
                 data-value={internalValue}
                 data-minimize={minimize}
                 data-subtle={subtle}
@@ -101,7 +107,8 @@ const WeblensInput = memo(
                     autoFocus={autoFocus}
                     value={internalValue}
                     placeholder={placeholder}
-                    type={password ? 'password' : ''}
+                    type={password ? 'password' : 'text'}
+                    autoComplete={autoComplete}
                     onKeyDown={(e) => {
                         if (e.ctrlKey) {
                             return

@@ -7,14 +7,12 @@
 	justify-content: space-between;
 	gap: 4px;
 	padding: 8px;
-	margin: 4px;
-	//flex-shrink: 0;
 	cursor: text;
 
 	border-radius: 4px;
 	background-color: var(--wl-background);
 	box-shadow: $hard-shadow-off;
-	outline: 1px solid $theme-outline;
+	outline: 1px solid var(--wl-border-color-primary);
 	height: 100%;
 	width: max-content;
 	max-width: 100%;

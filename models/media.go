@@ -473,7 +473,7 @@ func (vs *VideoStreamer) transcodeChunks(f *fileTree.WeblensFileImpl, speed stri
 		"c:v":                "libx264",
 		"b:v":                int(videoBitrate),
 		"b:a":                320_000,
-		"c:a":                "copy",
+		"c:a":                "aac",
 		"segment_list_flags": "+live",
 		"format":             "segment",
 		"segment_format":     "mpegts",
@@ -567,6 +567,8 @@ func (vs *VideoStreamer) GetListFile() ([]byte, error) {
 }
 
 func (vs *VideoStreamer) Err() error {
+	vs.updateMu.RLock()
+	defer vs.updateMu.RUnlock()
 	return vs.err
 }
 

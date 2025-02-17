@@ -184,7 +184,7 @@ export default function RemoteStatus({
                 </div>
             </div>
             {restoring && (
-                <div className="restore-diologue">
+                <div className="restore-dialogue">
                     <div className="flex flex-col w-[50%] justify-around items-center">
                         <div className="flex flex-col w-[50%] ">
                             <p className="text-2xl m-2">Restore Target</p>

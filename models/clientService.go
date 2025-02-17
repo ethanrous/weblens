@@ -134,6 +134,7 @@ const (
 	FileCreatedEvent             = "fileCreated"
 	FileDeletedEvent             = "fileDeleted"
 	FileMovedEvent               = "fileMoved"
+	FileScanStartedEvent         = "fileScanStarted"
 	FileScanCompleteEvent        = "fileScanComplete"
 	FileUpdatedEvent             = "fileUpdated"
 	FilesDeletedEvent            = "filesDeleted"

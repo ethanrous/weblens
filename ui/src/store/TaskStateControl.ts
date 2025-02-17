@@ -16,12 +16,18 @@ export type TaskStageT = {
     finished: number
 }
 
+type SubTaskInfo = {
+    itemId: string
+    itemName: string
+    startTime: Date
+}
+
 export class TaskProgress {
     taskId: string
     poolId: string
     taskType: TaskType
     target: string
-    workingOn: string
+    workingOn: SubTaskInfo[]
     note: string
     error: string
 
@@ -52,6 +58,7 @@ export class TaskProgress {
         this.stage = TaskStage.Queued
 
         this.hidden = false
+        this.workingOn = []
     }
 
     GetTaskId(): string {
@@ -171,6 +178,8 @@ type TaskUpdateProps = {
     tasksComplete?: number | string
     tasksFailed?: number | string
     workingOn?: string
+    finished?: string
+    itemId?: string
     taskId?: string
     note?: string
     taskType?: TaskType
@@ -285,8 +294,31 @@ const TaskStateControl: StateCreator<TaskStateT, [], []> = (set) => ({
             task.stage = TaskStage.InProgress
             switch (task.taskType) {
                 case TaskType.ScanDirectory:
+                    if (opts.workingOn) {
+                        task.workingOn.push({
+                            itemName: opts.workingOn,
+                            itemId: opts.itemId,
+                            startTime: new Date(),
+                        })
+                    } else {
+                        const finishedIndex = task.workingOn.findIndex(
+                            (val) => val.itemId === opts.itemId
+                        )
+                        task.workingOn.splice(finishedIndex, 1)
+                    }
+                    task.tasksComplete = opts.tasksComplete
+                    task.tasksTotal = opts.tasksTotal
+                    task.tasksFailed = opts.tasksFailed
+                    break
+
                 case TaskType.CreateZip:
-                    task.workingOn = opts.workingOn
+                    task.workingOn = [
+                        {
+                            itemName: opts.workingOn,
+                            itemId: '',
+                            startTime: new Date(),
+                        },
+                    ]
                     task.tasksComplete = opts.tasksComplete
                     task.tasksTotal = opts.tasksTotal
                     task.tasksFailed = opts.tasksFailed

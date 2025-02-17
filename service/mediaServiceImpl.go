@@ -606,22 +606,22 @@ func (ms *MediaServiceImpl) removeCacheFiles(media *models.Media) error {
 }
 
 func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.WeblensFileImpl) error {
-	// fileMetas := exif.ExtractMetadata(file.AbsPath())
-	//
-	// for _, fileMeta := range fileMetas {
-	// 	if fileMeta.Err != nil {
-	// 		return fileMeta.Err
-	// 	}
-	// }
-	//
-	// var err error
-	// if m.CreateDate.Unix() <= 0 {
-	// 	createDate, err := getCreateDateFromExif(fileMetas[0].Fields, file)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	m.CreateDate = createDate
-	// }
+	fileMetas := exif.ExtractMetadata(file.AbsPath())
+
+	for _, fileMeta := range fileMetas {
+		if fileMeta.Err != nil {
+			return fileMeta.Err
+		}
+	}
+
+	var err error
+	if m.CreateDate.Unix() <= 0 {
+		createDate, err := getCreateDateFromExif(fileMetas[0].Fields, file)
+		if err != nil {
+			return err
+		}
+		m.CreateDate = createDate
+	}
 
 	if m.MimeType == "" {
 		ext := filepath.Ext(file.Filename())
@@ -629,28 +629,14 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 		m.MimeType = mType.Mime
 
 		if ms.typeService.ParseMime(m.MimeType).Video {
-			probeJson, err := ffmpeg.Probe(file.AbsPath())
-			if err != nil {
-				return err
-			}
-			probeResult := map[string]any{}
-			err = json.Unmarshal([]byte(probeJson), &probeResult)
-			if err != nil {
-				return err
-			}
+			m.Width = int(fileMetas[0].Fields["ImageWidth"].(float64))
+			m.Height = int(fileMetas[0].Fields["ImageHeight"].(float64))
 
-			formatChunk, ok := probeResult["format"].(map[string]any)
-			if !ok {
-				return errors.New("invalid movie format")
-			}
-			duration, err := strconv.ParseFloat(formatChunk["duration"].(string), 32)
+			duration, err := getVideoDurationMs(file.AbsPath())
 			if err != nil {
 				return err
 			}
-			m.Duration = int(duration * 1000)
-
-			// m.Height = int(fileMetas[0].Fields["ImageHeight"].(float64))
-			// m.Width = int(fileMetas[0].Fields["ImageWidth"].(float64))
+			m.Duration = duration
 		}
 	}
 
@@ -659,11 +645,11 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 		return werror.ErrMediaBadMime
 	}
 
-	// if mType.IsMultiPage() {
-	// 	m.PageCount = int(fileMetas[0].Fields["PageCount"].(float64))
-	// } else {
-	// 	m.PageCount = 1
-	// }
+	if mType.IsMultiPage() {
+		m.PageCount = int(fileMetas[0].Fields["PageCount"].(float64))
+	} else {
+		m.PageCount = 1
+	}
 
 	thumb, err := ms.handleCacheCreation(m, file)
 	if err != nil {
@@ -732,41 +718,36 @@ func (ms *MediaServiceImpl) handleCacheCreation(m *models.Media, file *fileTree.
 	mType := ms.GetMediaType(m)
 	sw.Lap("Get media type")
 
-	//TODO: NOT THIS
-	// log.Debug.Println(img.GetExif())
-	m.CreateDate = time.Now()
-	m.PageCount = 1
-
 	if !mType.Video {
 		filePath := file.AbsPath()
+		var img *vips.ImageRef
 
+		// Sony RAWs do not play nice with govips. Should fall back to imagick but it thinks its a TIFF.
+		// The real libvips figures this out, adding an intermediary step using dcraw to convert to a real TIFF
+		// and continuing processing from there solves this issue, and is surprisingly fast. Everyone say "Thank you dcraw"
 		if strings.HasSuffix(filePath, "ARW") {
-			tmpFile, err := os.CreateTemp("/tmp", "weblens_thumb-*.webp")
-			if err != nil {
-				return nil, werror.WithStack(err)
-			}
-			tmpFile.Close()
-
-			tmpFilePath := tmpFile.Name()
-
-			cmd := exec.Command("vips", "copy", filePath, tmpFilePath+"[Q=100]")
-			var errb bytes.Buffer
+			cmd := exec.Command("dcraw", "-T", "-w", "-h", "-c", filePath)
+			var stdb, errb bytes.Buffer
 			cmd.Stderr = &errb
+			cmd.Stdout = &stdb
 
 			err = cmd.Run()
 			if err != nil {
-				return nil, werror.WithStack(errors.New(errb.String()))
+				return nil, werror.WithStack(errors.New(err.Error() + "\n" + errb.String()))
 			}
 
-			filePath = tmpFilePath
+			img, err = vips.NewImageFromReader(&stdb)
+		} else {
+			img, err = vips.NewImageFromFile(filePath)
 		}
 
-		img, err := vips.NewImageFromFile(filePath)
 		if err != nil {
 			return nil, werror.WithStack(err)
 		}
+
 		sw.Lap("Load image")
 
+		// PDFs and HEIFs do not need to be rotated.
 		if !mType.IsMultiPage() && !mType.IsMime("image/heif") {
 			// Rotate image based on exif data
 			err = img.AutoRotate()
@@ -776,52 +757,34 @@ func (ms *MediaServiceImpl) handleCacheCreation(m *models.Media, file *fileTree.
 			sw.Lap("Auto rotate image")
 		}
 
+		m.PageCount = img.Pages()
 		// Read image dimensions
 		m.Height = img.Height()
 		m.Width = img.Width()
 		sw.Lap("Read image dimensions")
 
-		// webpExportParams := vips.NewWebpExportParams()
-		// imgBytes, _, err := img.Export(webpExportParams)
-		// if err != nil {
-		// 	return nil, werror.WithStack(err)
-		// }
-
-		for page := range m.PageCount {
-			// Resize highres image if too big
-			if m.Width > HighresMaxSize || m.Height > HighresMaxSize {
-				var fullWidth, fullHeight int
-				if m.Width > m.Height {
-					fullWidth = HighresMaxSize
-					fullHeight = HighresMaxSize * m.Height / m.Width
-				} else {
-					fullHeight = HighresMaxSize
-					fullWidth = HighresMaxSize * m.Width / m.Height
-				}
-				log.Trace.Printf("Resizing %s highres image to %dx%d", file.Filename(), fullWidth, fullHeight)
-
-				err = img.Resize(float64(fullHeight)/float64(m.Height), vips.KernelAuto)
-				if err != nil {
-					return nil, werror.WithStack(err)
-				}
-				sw.Lap("Image resize for fullres")
-			}
-
-			// Create and write highres cache file
-			highres, err := ms.fileService.NewCacheFile(m, models.HighRes, page)
-			if err != nil && !errors.Is(err, werror.ErrFileAlreadyExists) {
+		if mType.IsMultiPage() {
+			fullPdf, err := file.ReadAll()
+			if err != nil {
 				return nil, werror.WithStack(err)
-			} else if err == nil {
-				blob, _, err := img.ExportWebp(nil)
+			}
+			for page := range m.PageCount {
+				vipsPage := vips.IntParameter{}
+				vipsPage.Set(page)
+				img, err := vips.LoadImageFromBuffer(fullPdf, &vips.ImportParams{Page: vipsPage})
 				if err != nil {
 					return nil, werror.WithStack(err)
 				}
-				_, err = highres.Write(blob)
+
+				err = ms.handleNewHighRes(m, img, page)
 				if err != nil {
-					return nil, werror.WithStack(err)
+					return nil, err
 				}
-				m.SetHighresCacheFiles(highres, page)
-				sw.Lap("Write highres cache file")
+			}
+		} else {
+			err = ms.handleNewHighRes(m, img, 0)
+			if err != nil {
+				return nil, err
 			}
 		}
 
@@ -863,39 +826,62 @@ func (ms *MediaServiceImpl) handleCacheCreation(m *models.Media, file *fileTree.
 
 		sw.Lap("Write thumb")
 	} else {
-		const frameNum = 10
-
-		buf := bytes.NewBuffer(nil)
-		errOut := bytes.NewBuffer(nil)
-
 		thumb, err := ms.fileService.NewCacheFile(m, models.LowRes, 0)
 		if err != nil && !errors.Is(err, werror.ErrFileAlreadyExists) {
 			return nil, werror.WithStack(err)
 		} else if err == nil {
-			// Get the 10th frame of the video and save it to the cache as the thumbnail
-			// "Highres" for video is the video itself
-			err := ffmpeg.Input(file.AbsPath()).Filter(
-				"select", ffmpeg.Args{fmt.Sprintf("gte(n,%d)", frameNum)},
-			).Output(
-				"pipe:", ffmpeg.KwArgs{"frames:v": 1, "format": "image2", "vcodec": "mjpeg"},
-			).WithOutput(buf).WithErrorOutput(errOut).Run()
+			thumbBytes, err = generateVideoThumbnail(file.AbsPath())
 			if err != nil {
-				ms.log.Error.Println(errOut)
-				return nil, werror.WithStack(err)
+				return nil, err
 			}
-			_, err = thumb.Write(buf.Bytes())
+			_, err = thumb.Write(thumbBytes)
 			if err != nil {
-				return nil, werror.WithStack(err)
+				return nil, err
 			}
 			m.SetLowresCacheFile(thumb)
-
-			thumbBytes = buf.Bytes()
 		}
 
 		sw.Lap("Read video")
 	}
 
 	return thumbBytes, nil
+}
+
+func (ms *MediaServiceImpl) handleNewHighRes(m *models.Media, img *vips.ImageRef, page int) error {
+	// Resize highres image if too big
+	if m.Width > HighresMaxSize || m.Height > HighresMaxSize {
+		var fullHeight int
+		if m.Width > m.Height {
+			// fullWidth = HighresMaxSize
+			fullHeight = HighresMaxSize * m.Height / m.Width
+		} else {
+			fullHeight = HighresMaxSize
+			// fullWidth = HighresMaxSize * m.Width / m.Height
+		}
+
+		err := img.Resize(float64(fullHeight)/float64(m.Height), vips.KernelAuto)
+		if err != nil {
+			return werror.WithStack(err)
+		}
+	}
+
+	// Create and write highres cache file
+	highres, err := ms.fileService.NewCacheFile(m, models.HighRes, page)
+	if err != nil && !errors.Is(err, werror.ErrFileAlreadyExists) {
+		return werror.WithStack(err)
+	} else if err == nil {
+		blob, _, err := img.ExportWebp(nil)
+		if err != nil {
+			return werror.WithStack(err)
+		}
+		_, err = highres.Write(blob)
+		if err != nil {
+			return werror.WithStack(err)
+		}
+		m.SetHighresCacheFiles(highres, page)
+	}
+
+	return nil
 }
 
 func (ms *MediaServiceImpl) getFetchMediaCacheImage(ctx context.Context) (data []byte, err error) {
@@ -1051,4 +1037,46 @@ func getCreateDateFromExif(exif map[string]any, file *fileTree.WeblensFileImpl) 
 	}
 
 	return createDate, nil
+}
+
+func generateVideoThumbnail(filepath string) ([]byte, error) {
+	const frameNum = 10
+
+	buf := bytes.NewBuffer(nil)
+	errOut := bytes.NewBuffer(nil)
+
+	// Get the 10th frame of the video and save it to the cache as the thumbnail
+	// "Highres" for video is the video itself
+	err := ffmpeg.Input(filepath).Filter(
+		"select", ffmpeg.Args{fmt.Sprintf("gte(n,%d)", frameNum)},
+	).Output(
+		"pipe:", ffmpeg.KwArgs{"frames:v": 1, "format": "image2", "vcodec": "mjpeg"},
+	).WithOutput(buf).WithErrorOutput(errOut).Run()
+	if err != nil {
+		return nil, werror.WithStack(errors.New(err.Error() + errOut.String()))
+	}
+
+	return buf.Bytes(), nil
+}
+
+func getVideoDurationMs(filepath string) (int, error) {
+	probeJson, err := ffmpeg.Probe(filepath)
+	if err != nil {
+		return 0, err
+	}
+	probeResult := map[string]any{}
+	err = json.Unmarshal([]byte(probeJson), &probeResult)
+	if err != nil {
+		return 0, err
+	}
+
+	formatChunk, ok := probeResult["format"].(map[string]any)
+	if !ok {
+		return 0, werror.Errorf("invalid movie format")
+	}
+	duration, err := strconv.ParseFloat(formatChunk["duration"].(string), 32)
+	if err != nil {
+		return 0, err
+	}
+	return int(duration) * 1000, nil
 }

@@ -55,13 +55,13 @@ function ButtonContent({
 
     return (
         <div
-            className={buttonStyle['button-content']}
+            className={buttonStyle.buttonContent}
             data-center={centerContent || !showText}
             data-hidden={hidden}
             data-has-icon={Boolean(Left || Right)}
         >
             <div
-                className={buttonStyle['button-icon-box']}
+                className={buttonStyle.buttonIconBox}
                 data-has-icon={Boolean(Left)}
                 data-has-text={showText}
                 style={{
@@ -69,16 +69,16 @@ function ButtonContent({
                     width: iconSize,
                 }}
             >
-                {Left && <Left className={buttonStyle['button-icon']} />}
+                {Left && <Left className={buttonStyle.buttonIcon} />}
             </div>
             <div
-                className={buttonStyle['button-text-box']}
+                className={buttonStyle.buttonTextBox}
                 data-show-text={showText}
                 data-center={centerContent}
                 data-hover-only={labelOnHover}
             >
                 <p
-                    className={buttonStyle['button-text']}
+                    className={buttonStyle.buttonText}
                     ref={setTextRef}
                     data-show-text={showText}
                 >
@@ -87,7 +87,7 @@ function ButtonContent({
             </div>
 
             <div
-                className={buttonStyle['button-icon-box']}
+                className={buttonStyle.buttonIconBox}
                 data-has-icon={Boolean(Right)}
                 data-has-text={showText}
                 data-icon-side={'right'}
@@ -96,7 +96,7 @@ function ButtonContent({
                     // width: iconSize,
                 }}
             >
-                {Right && <Right className={buttonStyle['button-icon']} />}
+                {Right && <Right className={buttonStyle.buttonIcon} />}
             </div>
         </div>
     )
@@ -159,6 +159,7 @@ function WeblensButton({
     fillWidth = false,
     allowShrink = true,
     onClick,
+	type = 'button',
     squareSize = 40,
     float = false,
     requireConfirm = false,
@@ -228,7 +229,7 @@ function WeblensButton({
     return (
         <div
             ref={setSizeRef}
-            className={buttonStyle['weblens-button-wrapper']}
+            className={buttonStyle.weblensButtonWrapper}
             data-fill-width={fillWidth}
             data-text-on-hover={labelOnHover}
             style={{
@@ -242,7 +243,7 @@ function WeblensButton({
         >
             {(tooltip || confirming) && (
                 <div
-                    className={buttonStyle['button-tooltip']}
+                    className={buttonStyle.buttonTooltip}
                     style={{
                         transform: `translateY(${squareSize / 2 + 20}px)`,
                     }}
@@ -258,8 +259,8 @@ function WeblensButton({
                     </p>
                 </div>
             )}
-            <div
-                className={buttonStyle['weblens-button']}
+            <button
+                className={buttonStyle.weblensButton}
                 ref={setButtonRef}
                 data-disabled={disabled}
                 data-toggled={toggleOn}
@@ -273,6 +274,7 @@ function WeblensButton({
                 data-super={doSuper}
                 data-danger={danger}
                 data-float={float}
+				type={type}
                 style={{ ...style, width: targetWidth }}
                 onClick={(e) => {
                     if (!requireConfirm || confirming) {
@@ -327,7 +329,7 @@ function WeblensButton({
             >
                 {success && showSuccess && (
                     <div
-                        className={buttonStyle['button-content'] + ' absolute'}
+                        className={buttonStyle.buttonContent + ' absolute'}
                         data-center={true}
                     >
                         <IconCheck />
@@ -335,7 +337,7 @@ function WeblensButton({
                 )}
                 {fail && showSuccess && (
                     <div
-                        className={buttonStyle['button-content'] + ' absolute'}
+                        className={buttonStyle.buttonContent + ' absolute'}
                         data-center={true}
                     >
                         <IconX color="white" />
@@ -344,7 +346,7 @@ function WeblensButton({
                 {loading && showSuccess && (
                     <div
                         className={
-                            buttonStyle['button-content'] + ' absolute h-full'
+                            buttonStyle.buttonContent + ' absolute h-full'
                         }
                         data-center={true}
                     >
@@ -369,7 +371,7 @@ function WeblensButton({
                     labelOnHover={labelOnHover}
                 />
                 {/* )} */}
-            </div>
+            </button>
         </div>
     )
 }

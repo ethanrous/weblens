@@ -166,6 +166,8 @@ func ScanDirectory(t *task.Task) {
 }
 
 func ScanFile(t *task.Task) {
+	reportSubscanStatus(t)
+
 	meta := t.GetMeta().(models.ScanMeta)
 	err := ScanFile_(meta, t.ExitIfSignaled)
 	if err != nil {
@@ -250,10 +252,15 @@ func ScanFile_(meta models.ScanMeta, exitCheck func()) error {
 
 func reportSubscanStatus(t *task.Task) {
 	meta := t.GetMeta().(models.ScanMeta)
+	event := models.FileScanStartedEvent
+	if complete, _ := t.Status(); complete {
+		event = models.FileScanCompleteEvent
+	}
+
 	if t.GetTaskPool().IsGlobal() {
-		meta.Caster.PushTaskUpdate(t, models.TaskCompleteEvent, getScanResult(t))
+		meta.Caster.PushTaskUpdate(t, event, getScanResult(t))
 	} else {
-		meta.Caster.PushPoolUpdate(t.GetTaskPool().GetRootPool(), models.FileScanCompleteEvent, getScanResult(t))
+		meta.Caster.PushPoolUpdate(t.GetTaskPool().GetRootPool(), event, getScanResult(t))
 	}
 }
 
@@ -269,6 +276,7 @@ func getScanResult(t *task.Task) task.TaskResult {
 	if ok {
 		result = task.TaskResult{
 			"filename": meta.File.Filename(),
+			"fileId":   meta.File.ID(),
 		}
 		if tp != nil && tp.CreatedInTask() != nil {
 			result["taskJobTarget"] = tp.CreatedInTask().GetMeta().(models.ScanMeta).File.Filename()

@@ -117,7 +117,7 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
     return (
         <div
             ref={setContainerRef}
-            className={filesStyle['files-grid']}
+            className={filesStyle.filesGrid}
             data-droppable={Boolean(
                 moveDest === folderInfo?.Id() &&
                     folderInfo?.modifiable &&

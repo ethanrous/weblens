@@ -59,8 +59,8 @@ function HeaderBar() {
                 <Admin closeAdminMenu={() => setAdmin(false)} />
             )}
 
-            <div className={headerBarStyle['header-bar']}>
-                <div className={headerBarStyle['nav-box']}>
+            <div className={headerBarStyle.headerBar}>
+                <div className={headerBarStyle.navBox}>
                     <div className="p-1" />
                     {user !== null && (
                         <div className="flex flex-row items-center w-[140px] grow">

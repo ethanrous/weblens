@@ -280,7 +280,7 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
     const [size, units] = humanFileSize(file.GetSize())
     return (
         <div
-            className={presentationStyle['file-info-box']}
+            className={presentationStyle.fileInfoBox}
             onClick={(e) => e.stopPropagation()}
         >
             <div className="flex flex-col justify-center h-max max-w-full gap-2">

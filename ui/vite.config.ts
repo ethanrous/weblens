@@ -1,5 +1,6 @@
 import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'node:url'
+import sass from 'sass'
 import { defineConfig, loadEnv } from 'vite'
 import viteTsconfigPaths from 'vite-tsconfig-paths'
 
@@ -51,6 +52,16 @@ export default ({ mode }: { mode: string }) => {
                     ),
                 },
             ],
+        },
+        css: {
+            preprocessorOptions: {
+                scss: {
+                    implementation: sass,
+                },
+            },
+            modules: {
+                localsConvention: 'camelCaseOnly',
+            },
         },
     })
 }

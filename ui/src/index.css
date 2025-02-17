@@ -4,14 +4,10 @@
 
 body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans',
-        Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
-    /* font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', */
-    /*     'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', */
-    /*     'Helvetica Neue', sans-serif; */
+    font-family: 'Noto Sans', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    color: var(--wl-text-color);
+    color: var(--wl-text-color-primary);
 }
 
 code {
@@ -25,69 +21,66 @@ body {
     line-height: 1.5;
 }
 
+h1 {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--wl-text-color-primary);
+}
+
 h2 {
     font-size: 2rem;
     font-weight: 700;
-    color: var(--wl-text-color);
+    color: var(--wl-text-color-primary);
 }
 
 h3 {
     font-size: 1.5rem;
     font-weight: 600;
-    color: var(--wl-text-color);
+    color: var(--wl-text-color-primary);
 }
 
 h4 {
     font-size: 1.5rem;
     font-weight: 500;
-    color: var(--wl-text-color);
+    color: var(--wl-text-color-primary);
+}
+
+h5 {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--wl-text-color-primary);
 }
 
 p,
 span {
     font-size: 1rem;
     font-weight: 400;
-    color: var(--wl-text-color);
+    color: var(--wl-text-color-primary);
 }
 
 a {
-    color: white;
-    text-decoration: none;
-    padding: 0.1em;
-    border-radius: 0.2em;
-    background-color: var(--wl-theme-color);
-    transition: background-color 150ms ease-in-out;
-
-    &:hover {
-        background-color: var(--dark-paper);
-    }
+    color: var(--wl-color-bluenova-300);
+    text-decoration: underline;
 }
 
-a[data-subtle] {
-    transition:
-        outline 150ms ease-in-out,
-        color 150ms ease-in-out;
-    outline: 1px solid var(--wl-theme-color-transparent);
-    background-color: var(--dark-paper);
-    display: inline-flex;
-    align-items: center;
-    color: #bbbbbb;
-    gap: 0.25rem;
-
-    &:hover {
-        color: white;
-        outline: 1px solid var(--wl-theme-color);
-    }
+a:hover,
+a:focus {
+    color: var(--wl-color-bluenova-200);
 }
 
 input,
 select,
 textarea {
-    color: var(--wl-text-color);
+    color: var(--wl-text-color-primary);
+    font-family: 'Noto Sans', sans-serif;
+}
+
+input:placeholder-shown {
+    font-style: italic;
 }
 
 .background-icon {
-    color: var(--wl-text-color);
+    color: var(--wl-text-color-primary);
     flex-shrink: 0;
 }
 
@@ -96,7 +89,7 @@ textarea {
 }
 
 .theme-text-flipped {
-    color: var(--wl-text-color-inverted);
+    color: var(--wl-text-color-primary-inverted);
 }
 
 .theme-text-dark-bg {

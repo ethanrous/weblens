@@ -132,7 +132,7 @@ function UsageInfo() {
                     <div className="flex flex-row items-center">
                         {<StartIcon className={theme['background-icon']} />}
                         <p
-                            className="select-none p-1"
+                            className="select-none p-1 text-nowrap"
                             style={{
                                 display: miniMode ? 'none' : 'block',
                             }}
@@ -143,7 +143,7 @@ function UsageInfo() {
                 )}
                 <div className="flex flex-row justify-end w-max items-center">
                     <p
-                        className="select-none p-1"
+                        className="select-none p-1 text-nowrap"
                         style={{
                             display: miniMode ? 'none' : 'block',
                         }}

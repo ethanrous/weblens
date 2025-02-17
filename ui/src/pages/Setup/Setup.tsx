@@ -47,10 +47,10 @@ const UserSelect = ({
 
     if (owner) {
         return (
-            <div className={setupStyle['caution-box']}>
-                <div className={setupStyle['caution-header']}>
+            <div className={setupStyle.cautionBox}>
+                <div className={setupStyle.cautionHeader}>
                     <Text
-                        className={setupStyle['subheader-text']}
+                        className={setupStyle.subheaderText}
                         c="white"
                         style={{ paddingTop: 0 }}
                     >
@@ -63,7 +63,7 @@ const UserSelect = ({
                 </p>
                 <Input
                     variant="unstyled"
-                    className={setupStyle['weblens-input-wrapper']}
+                    className={setupStyle.weblensInputWrapper}
                     type="password"
                     placeholder="Password"
                     style={{ width: '100%' }}
@@ -74,10 +74,10 @@ const UserSelect = ({
     }
 
     return (
-        <div className={setupStyle['caution-box']}>
-            <div className={setupStyle['caution-header']}>
+        <div className={setupStyle.cautionBox}>
+            <div className={setupStyle.cautionHeader}>
                 <Text
-                    className={setupStyle['subheader-text']}
+                    className={setupStyle.subheaderText}
                     c="#ffffff"
                     style={{ paddingTop: 0 }}
                 >
@@ -132,7 +132,7 @@ const Core = ({
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
     const [passwordVerify, setPasswordVerify] = useState('')
-    const [buttonRef, setButtonRef] = useState<HTMLDivElement>()
+    const [buttonRef, setButtonRef] = useState<HTMLButtonElement>()
     const [serverName, setServerName] = useState(
         existingName ? existingName : ''
     )
@@ -169,10 +169,7 @@ const Core = ({
     }
 
     return (
-        <div
-            className={setupStyle['setup-content-box']}
-            data-on-deck={onDeck}
-        >
+        <div className={setupStyle.setupContentBox} data-on-deck={onDeck}>
             <div className="w-[90%] absolute">
                 <WeblensButton
                     Left={IconArrowLeft}
@@ -223,11 +220,11 @@ const Core = ({
             <Divider />
 
             {existingName && (
-                <div className={setupStyle['caution-box']}>
-                    <div className={setupStyle['caution-header']}>
+                <div className={setupStyle.cautionBox}>
+                    <div className={setupStyle.cautionHeader}>
                         <p
                             className={require_css(
-                                setupStyle['subheader-text'],
+                                setupStyle.subheaderText,
                                 'text-white'
                             )}
                         >
@@ -337,10 +334,7 @@ const Backup = ({
         onDeck = 'next'
     }
     return (
-        <div
-            className={setupStyle['setup-content-box']}
-            data-on-deck={onDeck}
-        >
+        <div className={setupStyle.setupContentBox} data-on-deck={onDeck}>
             <div className="w-[90%] absolute">
                 <WeblensButton
                     Left={IconArrowLeft}
@@ -443,10 +437,7 @@ const Restore = ({
     }, [lastMessage])
 
     return (
-        <div
-            className={setupStyle['setup-content-box']}
-            data-on-deck={onDeck}
-        >
+        <div className={setupStyle.setupContentBox} data-on-deck={onDeck}>
             <div className="w-[90%] absolute">
                 <WeblensButton
                     Left={IconArrowLeft}
@@ -486,7 +477,7 @@ const Landing = ({
     return (
         <div
             className={require_css(
-                setupStyle['setup-content-box'],
+                setupStyle.setupContentBox,
                 'max-h-[60%] mt-40'
             )}
             data-on-deck={onDeck}
@@ -546,18 +537,12 @@ const Setup = () => {
     }
 
     return (
-        <div className={setupStyle['setup-container']}>
+        <div className={setupStyle.setupContainer}>
             <div className="absolute bottom-4 right-4">
                 <ThemeToggleButton />
             </div>
-            <div
-                className={setupStyle['setup-content-pane']}
-                data-active={true}
-            >
-                <div
-                    className={setupStyle['setup-logo']}
-                    data-page={page}
-                >
+            <div className={setupStyle.setupContentPane} data-active={true}>
+                <div className={setupStyle.setupLogo} data-page={page}>
                     <Logo size={logoSize} />
                 </div>
                 <Landing page={page} setPage={setPage} />

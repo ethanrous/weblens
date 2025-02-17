@@ -38,21 +38,21 @@ const CrumbText = ({ crumb }: { crumb: Crumb }) => {
 
     if (crumb.id === usr.homeId) {
         return (
-            <div className={crumbStyle['crumb-icon']}>
+            <div className={crumbStyle.crumbIcon}>
                 <IconHome className="w-full h-full" />
             </div>
         )
     }
     if (crumb.id === 'shared') {
         return (
-            <div className={crumbStyle['crumb-icon']}>
+            <div className={crumbStyle.crumbIcon}>
                 <IconUsers className="w-full h-full" />
             </div>
         )
     }
     if (crumb.id === usr.trashId) {
         return (
-            <div className={crumbStyle['crumb-icon']}>
+            <div className={crumbStyle.crumbIcon}>
                 <IconTrash className="w-full h-full" />
             </div>
         )
@@ -61,9 +61,7 @@ const CrumbText = ({ crumb }: { crumb: Crumb }) => {
     const { nameText } = filenameFromPath(crumb.path)
 
     return (
-        <p className={`${crumbStyle['crumb-text']} w-max max-w-full`}>
-            {nameText}
-        </p>
+        <p className={`${crumbStyle.crumbText} w-max max-w-full`}>{nameText}</p>
     )
 }
 
@@ -90,7 +88,7 @@ export const StyledBreadcrumb = ({
 
     return (
         <div
-            className={crumbStyle['crumb-box']}
+            className={crumbStyle.crumbBox}
             data-navigable={crumbInfo.navigable}
             data-compact={compact}
             data-dragging={dragging === DraggingStateT.InternalDrag}
@@ -165,7 +163,7 @@ function LoafOverflowMenu({
 }) {
     useClick(() => setOpen(false), reff, !open)
     return (
-        <div className={crumbStyle['overflow-menu']} data-open={open}>
+        <div className={crumbStyle.overflowMenu} data-open={open}>
             {crumbs.map((item, i: number) => {
                 return (
                     <div
@@ -224,7 +222,7 @@ export const StyledLoaf = ({
     }
 
     return (
-        <div ref={setCrumbRef} className={crumbStyle['loaf']}>
+        <div ref={setCrumbRef} className={crumbStyle.loaf}>
             {crumbs.map((c, i) => (
                 <div
                     key={c.id}
@@ -258,7 +256,7 @@ export const StyledLoaf = ({
                         style={{ width: '20px', minWidth: '20px' }}
                     />
                     <div>
-                        <p className={crumbStyle['crumb-text'] + 'trun'}>...</p>
+                        <p className={crumbStyle.crumbText + 'trun'}>...</p>
                         <LoafOverflowMenu
                             open={overflowMenu}
                             reff={overflowRef}

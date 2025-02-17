@@ -45,13 +45,13 @@ export const TransferCard = ({
 
     return (
         <div
-            className={fbStyle['transfer-info-wrapper']}
+            className={fbStyle.transferInfoWrapper}
             style={{
                 width: width ? width : '100%',
                 left: left ? left : 0,
             }}
         >
-            <div className={fbStyle['transfer-info-box']}>
+            <div className={fbStyle.transferInfoBox}>
                 <p className="select-none">{action} to</p>
                 <FileFmt pathName={destFile.portablePath} />
             </div>
@@ -71,7 +71,7 @@ export const DropSpot = ({ parent }: { parent: WeblensFile }) => {
     return (
         <div
             draggable={false}
-            className={fbStyle['dropspot-wrapper']}
+            className={fbStyle.dropspotWrapper}
             style={{
                 // pointerEvents:
                 //     draggingState === DraggingStateT.ExternalDrag
@@ -88,7 +88,7 @@ export const DropSpot = ({ parent }: { parent: WeblensFile }) => {
         >
             {draggingState === DraggingStateT.ExternalDrag && (
                 <div
-                    className={fbStyle['dropbox']}
+                    className={fbStyle.dropbox}
                     onMouseLeave={() => {
                         if (draggingState === DraggingStateT.ExternalDrag) {
                             setDragging(DraggingStateT.NoDrag)

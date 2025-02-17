@@ -1,83 +1,106 @@
-import { Space } from '@mantine/core'
 import { IconBrandGithub } from '@tabler/icons-react'
 import UsersApi from '@weblens/api/UserApi'
 import WeblensLogo from '@weblens/components/Logo'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import { useKeyDown } from '@weblens/components/hooks'
+// import { useKeyDown } from '@weblens/components/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
+import { ErrorHandler } from '@weblens/types/Types'
 import User from '@weblens/types/user/User'
-import { useCallback, useState } from 'react'
-
-import loginStyle from './loginStyle.module.scss'
+import { AxiosError } from 'axios'
+import { useCallback, useEffect, useState } from 'react'
 
 const Login = () => {
     const [userInput, setUserInput] = useState('')
     const [passInput, setPassInput] = useState('')
+    const [loading, setLoading] = useState(false)
+    const [formError, setFormError] = useState('')
 
     const setUser = useSessionStore((state) => state.setUser)
-
-    const [buttonRef, setButtonRef] = useState<HTMLDivElement>(null)
-    useKeyDown('Enter', () => {
-        if (buttonRef) {
-            buttonRef.click()
-        }
-    })
-    // const badUsername = userInput[0] === '.' || userInput.includes('/')
-
     const doLogin = useCallback(async (username: string, password: string) => {
+        setLoading(true)
         if (username === '' || password === '') {
             return Promise.reject(
                 new Error('username and password must not be empty')
             )
         }
-        return UsersApi.loginUser({ username, password }).then((res) => {
-            const user = new User(res.data)
-            user.isLoggedIn = true
-            setUser(user)
-        })
+        return UsersApi.loginUser({ username, password })
+            .then((res) => {
+                const user = new User(res.data)
+                user.isLoggedIn = true
+                setUser(user)
+            })
+            .catch((err: AxiosError) => {
+                setLoading(false)
+                if (err.status === 401) {
+                    setFormError('Invalid username or password')
+                } else {
+                    setFormError('An error occurred')
+                }
+            })
     }, [])
 
+    useEffect(() => {
+        if (formError !== '') {
+            setFormError('')
+        }
+    }, [userInput, passInput])
+
     return (
-        <div className="h-screen max-h-screen items-center bg-wl-background gap-2 my-0 m-[0 auto]">
-            <div className="flex justify-center w-full text-center">
-                <WeblensLogo className="mt-10" size={100} />
+        <div className="flex flex-col h-screen max-h-screen items-center bg-wl-background gap-2">
+            <div className="flex justify-center w-full text-center mt-80">
+                <WeblensLogo size={100} />
+                <h1 className="mt-auto">EBLENS</h1>
             </div>
-            <div className={loginStyle['login-form']}>
-                <div className="w-full text-center mb-4">
-                    <h1>Sign in to Weblens</h1>
-                </div>
-                <div className={loginStyle['login-box']}>
-                    <p className="w-full font-semibold">Username</p>
-                    <WeblensInput
-                        value={userInput}
-                        autoFocus
-                        valueCallback={setUserInput}
-                        squareSize={40}
-                    />
-                    <p className="w-full font-semibold">Password</p>
-                    <WeblensInput
-                        value={passInput}
-                        valueCallback={setPassInput}
-                        squareSize={40}
-                        password
-                    />
-                    <Space h={'md'} />
-                    <WeblensButton
-                        label="Sign in"
-                        fillWidth
-                        squareSize={50}
-                        disabled={userInput === '' || passInput === ''}
-                        centerContent
-                        onClick={async () => doLogin(userInput, passInput)}
-                        setButtonRef={setButtonRef}
-                    />
-                </div>
-                <div className="flex justify-center items-center p-4 wl-outline-subtle gap-2 mt-3">
-                    <h3>New Here?</h3>
+            <form
+                id="login"
+                action="#"
+                className="flex flex-col gap-3 w-96 mx-auto mt-8"
+                onSubmit={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    doLogin(userInput, passInput).catch(ErrorHandler)
+                }}
+            >
+                <WeblensInput
+                    placeholder="Username"
+                    value={userInput}
+                    autoFocus
+                    valueCallback={setUserInput}
+                    squareSize={44}
+                    autoComplete="username"
+                />
+                <WeblensInput
+                    placeholder="Password"
+                    value={passInput}
+                    valueCallback={setPassInput}
+                    squareSize={44}
+                    password
+                    autoComplete="current-password"
+                />
+                {formError && (
+                    <span className="text-red-500 text-center">
+                        {formError}
+                    </span>
+                )}
+				<div className='my-3'>
+					<WeblensButton
+						label={loading ? 'Signing in...' : 'Sign in'}
+						fillWidth
+						squareSize={50}
+						disabled={userInput === '' || passInput === '' || loading}
+						centerContent
+						type="submit"
+						// setButtonRef={setButtonRef}
+					/>
+				</div>
+                <div className="flex justify-center items-center p-2 gap-2 border-t-2 border-wl-color-graphite-800">
+                    <span className="text-wl-text-color-secondary ml-auto">
+                        New Here?
+                    </span>
                     <a href="/signup">Request an Account</a>
                 </div>
-            </div>
+            </form>
             <a
                 href="https://github.com/ethanrous/weblens"
                 className="flex flex-row absolute bottom-0 right-0 m-4 bg-transparent"

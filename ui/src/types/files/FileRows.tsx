@@ -62,7 +62,7 @@ function FileRow({
         <div style={{ ...style, padding: 4 }}>
             <div
                 ref={fileRef}
-                className={filesStyle['weblens-file'] + ' animate-fade-short'}
+                className={filesStyle.weblensFile + ' animate-fade-short'}
                 data-row={true}
                 data-clickable={!draggingState || file.IsFolder()}
                 data-hovering={selState & SelectedState.Hovering}
@@ -135,13 +135,13 @@ function FileRow({
                     )
                 }
             >
-                <div className={filesStyle['file-row-box']}>
+                <div className={filesStyle.fileRowBox}>
                     <div className="flex shrink-0 h-full aspect-square rounded overflow-hidden m-1 justify-center items-center">
                         <FileVisual file={file} allowMedia={true} />
                     </div>
                     <div className="flex flex-col h-full grow">
-                        <div className={filesStyle['file-text-container']}>
-                            <h1 className={filesStyle['file-text']}>
+                        <div className={filesStyle.fileTextContainer}>
+                            <h1 className={filesStyle.fileText}>
                                 {file.GetFilename()}
                             </h1>
                         </div>
@@ -150,10 +150,10 @@ function FileRow({
                         </p>
                     </div>
                     <div
-                        className={filesStyle['file-size-box']}
+                        className={filesStyle.fileSizeBox}
                         data-moved={(selState & SelectedState.Moved) >> 5}
                     >
-                        <p className={filesStyle['file-size-text']}>
+                        <p className={filesStyle.fileSizeText}>
                             {file.FormatSize()}
                         </p>
                     </div>
@@ -177,7 +177,7 @@ export function FileRows({ files }: { files: WeblensFile[] }) {
     return (
         <div
             ref={setBoxRef}
-            className={filesStyle['file-rows']}
+            className={filesStyle.fileRows}
             data-droppable={Boolean(
                 moveDest === folderInfo?.Id() &&
                     folderInfo?.modifiable &&

@@ -41,7 +41,7 @@ export function PathFmt({ pathName }: { pathName: string }) {
                             className="text-[--wl-text-color] shrink-0"
                             size={18}
                         />
-                        <p className={historyStyle['path-text']}>{part}</p>
+                        <p className={historyStyle.pathText}>{part}</p>
                     </div>
                 )
             })}

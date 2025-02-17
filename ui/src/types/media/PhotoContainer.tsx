@@ -1,201 +1,187 @@
-import { CSSProperties, Loader } from '@mantine/core';
-import { IconExclamationCircle, IconMaximize, IconPhoto, IconPlayerPauseFilled, IconPlayerPlayFilled, IconVolume, IconVolume3 } from '@tabler/icons-react';
-import WeblensProgress from '@weblens/lib/WeblensProgress';
-import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media';
-import { secondsToVideoTime } from '@weblens/util';
-import { useKeyDown, useResize, useVideo } from 'components/hooks';
-import Hls from 'hls.js';
-import { MouseEvent, memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { CSSProperties } from '@mantine/core'
+import {
+    IconExclamationCircle,
+    IconMaximize,
+    IconPhoto,
+    IconPlayerPauseFilled,
+    IconPlayerPlayFilled,
+    IconVolume,
+    IconVolume3,
+} from '@tabler/icons-react'
+import WeblensLoader from '@weblens/components/Loading'
+import WeblensProgress from '@weblens/lib/WeblensProgress'
+import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
+import { secondsToVideoTime } from '@weblens/util'
+import { useKeyDown, useResize, useVideo } from 'components/hooks'
+import Hls from 'hls.js'
+import {
+    MouseEvent,
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+} from 'react'
 
+import { ErrorHandler } from '../Types'
+import mediaStyle from './photoContainerStyle.module.scss'
 
+export function MediaImage({
+    media,
+    quality,
+    fitLogic = 'cover',
+    pageNumber = 0,
+    expectFailure = false,
+    preventClick = false,
+    doFetch = true,
+    imgStyle,
+    containerStyle,
+    containerClass = '',
 
-import { ErrorHandler } from '../Types';
-import mediaStyle from './photoContainerStyle.module.scss';
+    disabled = false,
+}: {
+    media: WeblensMedia
+    quality: PhotoQuality
+    fitLogic?: 'contain' | 'cover'
+    pageNumber?: number
+    expectFailure?: boolean
+    preventClick?: boolean
+    doFetch?: boolean
+    imgStyle?: CSSProperties
+    containerStyle?: CSSProperties
+    containerClass?: string
 
-
-export const MediaImage = memo(
-    ({
-        media,
-        quality,
-        fitLogic = 'cover',
-        pageNumber = 0,
-        expectFailure = false,
-        preventClick = false,
-        doFetch = true,
-        imgStyle,
-        containerStyle,
-        containerClass = '',
-
-        disabled = false,
-    }: {
-        media: WeblensMedia
-        quality: PhotoQuality
-        fitLogic?: 'contain' | 'cover'
-        pageNumber?: number
-        expectFailure?: boolean
-        preventClick?: boolean
-        doFetch?: boolean
-        imgStyle?: CSSProperties
-        containerStyle?: CSSProperties
-        containerClass?: string
-
-        disabled?: boolean
-    }) => {
-        if (!media) {
-            media = new WeblensMedia({ contentId: '' })
-        }
-
-        const [loadError, setLoadErr] = useState('')
-        const [src, setUrl] = useState({ url: '', id: media.Id() })
-        const [videoRef, setVideoRef] = useState<HTMLVideoElement>()
-        const { playtime, isPlaying, isWaiting } = useVideo(videoRef)
-
-        useEffect(() => {
-            if (
-                media.GetMediaType() &&
-                doFetch &&
-                media.Id() &&
-                !media.HasQualityLoaded(quality)
-            ) {
-                media
-                    .LoadBytes(
-                        quality,
-                        pageNumber,
-                        () => {
-                            setUrl({
-                                url: media.GetObjectUrl(quality, pageNumber),
-                                id: media.Id(),
-                            })
-                            setLoadErr(media.HasLoadError())
-                        },
-                        () => {
-                            setUrl({
-                                url: media.GetObjectUrl(quality, pageNumber),
-                                id: media.Id(),
-                            })
-                            setLoadErr(media.HasLoadError())
-                        }
-                    )
-                    .catch((e) => {
-                        console.error('Failed to get media bytes', e)
-                    })
-            }
-
-            if (!doFetch) {
-                media.CancelLoad()
-            } else if (
-                (media.HasQualityLoaded(quality) && src.url === '') ||
-                src.id !== media.Id()
-            ) {
-                setUrl({
-                    url: media.GetObjectUrl(quality, pageNumber),
-                    id: media.Id(),
-                })
-            } else if (
-                media.HighestQualityLoaded() !== '' &&
-                src.url === '' &&
-                pageNumber === 0
-            ) {
-                setUrl({
-                    url: media.GetObjectUrl(PhotoQuality.LowRes),
-                    id: media.Id(),
-                })
-            }
-            return () => {
-                media.CancelLoad()
-            }
-        }, [media, quality, doFetch, media.GetMediaType()])
-
-        const containerClick = useCallback(
-            (e: MouseEvent) => {
-                if (preventClick) {
-                    e.stopPropagation()
-                }
-            },
-            [preventClick]
-        )
-
-        const shouldShowVideo =
-            media.GetMediaType()?.IsVideo && quality === PhotoQuality.HighRes
-
-        return (
-            <div
-                className={`photo-container ${containerClass}`}
-                style={containerStyle}
-                onClick={containerClick}
-            >
-                {loadError && !expectFailure && (
-                    <IconExclamationCircle color="red" />
-                )}
-                {((loadError && expectFailure) ||
-                    !media.Id() ||
-                    !media.HighestQualityLoaded()) && <IconPhoto />}
-                {media.Id() !== '' &&
-                    media.GetMediaType() &&
-                    quality === PhotoQuality.HighRes &&
-                    media.HighestQualityLoaded() !== PhotoQuality.HighRes &&
-                    !loadError &&
-                    (!media.GetMediaType().IsVideo || isWaiting) && (
-                        <Loader
-                            color="white"
-                            bottom={40}
-                            right={40}
-                            size={20}
-                            style={{ position: 'absolute' }}
-                        />
-                    )}
-
-                <img
-                    className="media-image"
-                    data-fit-logic={fitLogic}
-                    data-disabled={disabled}
-                    data-hide={
-                        src.url === '' ||
-                        media.HasLoadError() ||
-                        shouldShowVideo ||
-                        !media.HighestQualityLoaded()
-                    }
-                    draggable={false}
-                    src={src.url}
-                    style={imgStyle}
-                    data-id={media.Id()}
-                />
-
-                <VideoWrapper
-                    url={src.url}
-                    shouldShowVideo={shouldShowVideo}
-                    media={media}
-                    fitLogic={fitLogic}
-                    imgStyle={imgStyle}
-                    videoRef={videoRef}
-                    setVideoRef={setVideoRef}
-                    isPlaying={isPlaying}
-                    playtime={playtime}
-                />
-            </div>
-        )
-    },
-    (last, next) => {
-        if (last.doFetch !== next.doFetch) {
-            return false
-        } else if (last.disabled !== next.disabled) {
-            return false
-        } else if (last.media?.Id() !== next.media?.Id()) {
-            return false
-        } else if (last.containerStyle !== next.containerStyle) {
-            return false
-        } else if (
-            last.media?.HighestQualityLoaded() !==
-            next.media?.HighestQualityLoaded()
-        ) {
-            return false
-        } else if (last.quality !== next.quality) {
-            return false
-        }
-        return true
+    disabled?: boolean
+}) {
+    if (!media) {
+        media = new WeblensMedia({ contentId: '' })
     }
-)
 
+    const [loadError, setLoadErr] = useState('')
+    const [src, setUrl] = useState({ url: '', id: media.Id() })
+    const [videoRef, setVideoRef] = useState<HTMLVideoElement>()
+    const { playtime, isPlaying, isWaiting } = useVideo(videoRef)
+
+    useEffect(() => {
+        if (
+            media.GetMediaType() &&
+            doFetch &&
+            media.Id() &&
+            !media.HasQualityLoaded(quality)
+        ) {
+            media
+                .LoadBytes(
+                    quality,
+                    pageNumber,
+                    () => {
+                        setUrl({
+                            url: media.GetObjectUrl(quality, pageNumber),
+                            id: media.Id(),
+                        })
+                        setLoadErr(media.HasLoadError())
+                    },
+                    () => {
+                        setUrl({
+                            url: media.GetObjectUrl(quality, pageNumber),
+                            id: media.Id(),
+                        })
+                        setLoadErr(media.HasLoadError())
+                    }
+                )
+                .catch((e) => {
+                    console.error('Failed to get media bytes', e)
+                })
+        }
+
+        if (!doFetch) {
+            media.CancelLoad()
+        } else if (
+            (media.HasQualityLoaded(quality) && src.url === '') ||
+            src.id !== media.Id()
+        ) {
+            setUrl({
+                url: media.GetObjectUrl(quality, pageNumber),
+                id: media.Id(),
+            })
+        } else if (
+            media.HighestQualityLoaded() !== '' &&
+            src.url === '' &&
+            pageNumber === 0
+        ) {
+            setUrl({
+                url: media.GetObjectUrl(PhotoQuality.LowRes),
+                id: media.Id(),
+            })
+        }
+        return () => {
+            media.CancelLoad()
+        }
+    }, [media, quality, doFetch, media.GetMediaType()])
+
+    const containerClick = useCallback(
+        (e: MouseEvent) => {
+            if (preventClick) {
+                e.stopPropagation()
+            }
+        },
+        [preventClick]
+    )
+
+    const shouldShowVideo =
+        media.GetMediaType()?.IsVideo && quality === PhotoQuality.HighRes
+
+    return (
+        <div
+            className={`photo-container ${containerClass}`}
+            style={containerStyle}
+            onClick={containerClick}
+        >
+            {loadError && !expectFailure && (
+                <IconExclamationCircle color="red" />
+            )}
+            {((loadError && expectFailure) ||
+                !media.Id() ||
+                !media.HighestQualityLoaded()) && <IconPhoto />}
+            {media.Id() !== '' &&
+                media.GetMediaType() &&
+                quality === PhotoQuality.HighRes &&
+                media.HighestQualityLoaded() !== PhotoQuality.HighRes &&
+                !loadError &&
+                (!media.GetMediaType().IsVideo || isWaiting) && (
+                    <div className="bottom-10 right-10 absolute w-8">
+                        <WeblensLoader />
+                    </div>
+                )}
+            <img
+                className="media-image"
+                data-fit-logic={fitLogic}
+                data-disabled={disabled}
+                data-hide={
+                    src.url === '' ||
+                    media.HasLoadError() ||
+                    shouldShowVideo ||
+                    !media.HighestQualityLoaded()
+                }
+                draggable={false}
+                src={src.url}
+                style={imgStyle}
+                data-id={media.Id()}
+            />
+
+            <VideoWrapper
+                url={src.url}
+                shouldShowVideo={shouldShowVideo}
+                media={media}
+                fitLogic={fitLogic}
+                imgStyle={imgStyle}
+                videoRef={videoRef}
+                setVideoRef={setVideoRef}
+                isPlaying={isPlaying}
+                playtime={playtime}
+            />
+        </div>
+    )
+}
 function toggleFullScreen(div: HTMLDivElement) {
     if (!document.fullscreenElement) {
         div.requestFullscreen?.call(div)
@@ -289,13 +275,13 @@ const VideoInterface = memo(
                             minWidth: `${videoLength < 3600 ? 6.5 : 10}rem`,
                         }}
                     >
-                        <span className={mediaStyle['video-time-text']}>
+                        <span className={mediaStyle.videoTimeText}>
                             {secondsToVideoTime(playtime, videoLength > 3600)}
                         </span>
-                        <span className={mediaStyle['video-time-text']}>
+                        <span className={mediaStyle.videoTimeText}>
                             {' / '}
                         </span>
-                        <span className={mediaStyle['video-time-text']}>
+                        <span className={mediaStyle.videoTimeText}>
                             {secondsToVideoTime(videoLength)}
                         </span>
                     </div>
@@ -437,6 +423,7 @@ function VideoWrapper({
         if (!videoRef) {
             return
         }
+        console.log('UPDATING HLS')
 
         if (videoRef.canPlayType('application/vnd.apple.mpegurl')) {
             console.debug('Not Using HLS')
@@ -444,7 +431,12 @@ function VideoWrapper({
         } else if (Hls.isSupported()) {
             Hls.DefaultConfig.debug = true
             console.debug('Using HLS')
-            const hls = new Hls()
+            const hls = new Hls({
+                debug: true,
+                maxBufferSize: 1024 * 1024 * 10, // Increase the buffer size to 10MB
+                // loadTimeout: 60000, // Increase the load timeout (60 seconds)
+                // maxBufferTime: 10000, // Increase the maximum buffer time (10 seconds)
+            })
             hls.loadSource(media.StreamVideoUrl())
             hls.attachMedia(videoRef)
             return () => {
@@ -506,7 +498,8 @@ function VideoWrapper({
                 ref={setVideoRef}
                 autoPlay
                 muted={volume === 0}
-                preload="metadata"
+                // preload="metadata"
+                preload="none"
                 className="media-image animate-fade"
                 poster={media.GetObjectUrl(PhotoQuality.LowRes)}
                 data-fit-logic={fitLogic}

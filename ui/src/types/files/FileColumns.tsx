@@ -119,7 +119,7 @@ function ColumnRow({
         <div
             ref={fileRef}
             key={file.Id()}
-            className={filesStyle['weblens-file'] + ' animate-fade'}
+            className={filesStyle.weblensFile + ' animate-fade'}
             data-column-row
             data-clickable={!draggingState || file.IsFolder()}
             data-hovering={selState & SelectedState.Hovering}
@@ -193,10 +193,8 @@ function ColumnRow({
                 <div className="flex shrink-0 justify-center items-center w-[40px] h-[40px] max-w-[40px] max-h-full">
                     <FileVisual file={file} allowMedia={true} />
                 </div>
-                <div className={filesStyle['file-text-container']}>
-                    <p className={filesStyle['file-text']}>
-                        {file.GetFilename()}
-                    </p>
+                <div className={filesStyle.fileTextContainer}>
+                    <p className={filesStyle.fileText}>{file.GetFilename()}</p>
                 </div>
             </div>
             {file.IsFolder() && (
@@ -385,7 +383,7 @@ function Column({
     return (
         <div
             ref={setBoxRef}
-            className={filesStyle['files-column']}
+            className={filesStyle.filesColumn}
             onClick={(e) => {
                 e.stopPropagation()
                 if (draggingState !== DraggingStateT.NoDrag) {
@@ -402,7 +400,7 @@ function Column({
             {!loading && (
                 <div className="flex grow w-1 p-1">
                     <div
-                        className={filesStyle['files-column-inner']}
+                        className={filesStyle.filesColumnInner}
                         onDragOver={(e) => {
                             // https://stackoverflow.com/questions/50230048/react-ondrop-is-not-firing
                             e.preventDefault()
@@ -520,7 +518,7 @@ function ColumnResizer({
     return (
         <div
             draggable={false}
-            className={fbStyle['resize-bar-wrapper']}
+            className={fbStyle.resizeBarWrapper}
             onMouseDown={(e) => {
                 e.preventDefault()
                 setDragging(DraggingStateT.InterfaceDrag)
@@ -533,7 +531,7 @@ function ColumnResizer({
                 e.stopPropagation()
             }}
         >
-            <div className={fbStyle['resize-bar']} />
+            <div className={fbStyle.resizeBar} />
         </div>
     )
 }

@@ -78,7 +78,7 @@ const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
 
     return (
         <div
-            className={fbStyle['task-progress-box'] + ' animate-fade'}
+            className={fbStyle.taskProgressBox + ' animate-fade'}
             data-hidden={prog.hidden}
         >
             <div className="flex flex-row w-full max-w-full h-max items-center">
@@ -140,15 +140,22 @@ const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
                 />
             </div>
             {prog.stage === TaskStage.InProgress && (
-                <div className="flex flex-row w-full justify-between h-max gap-3 m-2">
-                    <p className="text-sm select-none text-nowrap truncate">
-                        {prog.workingOn}
-                    </p>
+                <div className="flex flex-col w-full justify-between h-max gap-3 m-2">
                     {totalNum > 0 && (
-                        <p className="text-sm select-none">
+                        <p className="text-sm select-none border-b border-b-wl-outline-subtle pb-1">
                             {prog.tasksComplete}/{prog.tasksTotal}
                         </p>
                     )}
+                    {prog.workingOn.map((workingOn) => {
+                        return (
+                            <p
+                                key={workingOn}
+                                className="text-sm select-none text-nowrap truncate text-wl-text-dull"
+                            >
+                                {workingOn}
+                            </p>
+                        )
+                    })}
                 </div>
             )}
 

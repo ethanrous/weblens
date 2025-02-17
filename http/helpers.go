@@ -20,6 +20,7 @@ func writeJson(w http.ResponseWriter, status int, obj any) {
 	if err != nil {
 		panic(err)
 	}
+	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(status)
 	_, err = w.Write(bs)
 	if err != nil {
