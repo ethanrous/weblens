@@ -92,7 +92,7 @@
 	justify-content: center;
 	position: absolute;
 	bottom: 16px;
-	background-color: var(--dark-paper);
+	background-color: rgb(from var(--wl-theme-color-secondary) r g b / 0.50);
 	border-radius: 6px;
 	z-index: 1;
 	padding: 8px;

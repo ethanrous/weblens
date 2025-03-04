@@ -37,10 +37,11 @@ type MediaTimeBody struct {
 }
 
 type NewUserParams struct {
+	FullName     string          `json:"fullName" validate:"required"`
 	Username     models.Username `json:"username" validate:"required"`
 	Password     string          `json:"password" validate:"required"`
-	Admin        bool            `json:"admin" validate:"required"`
-	AutoActivate bool            `json:"autoActivate" validate:"required"`
+	Admin        bool            `json:"admin"`
+	AutoActivate bool            `json:"autoActivate"`
 } // @name NewUserParams
 
 type NewFileParams struct {
@@ -83,6 +84,7 @@ type InitServerParams struct {
 
 	Username    models.Username      `json:"username"`
 	Password    string               `json:"password"`
+	FullName    string               `json:"fullName"`
 	CoreAddress string               `json:"coreAddress"`
 	CoreKey     models.WeblensApiKey `json:"coreKey"`
 	RemoteId    models.InstanceId    `json:"remoteId"`

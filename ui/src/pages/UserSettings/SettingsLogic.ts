@@ -1,9 +1,9 @@
 import { WsMsgEvent, wsMsgInfo } from '@weblens/api/Websocket'
+import { TaskStageT } from '@weblens/store/TaskStateControl'
 
-import { TaskStageT } from '../../store/TaskStateControl'
 import { BackupProgressT } from '../Backup/BackupLogic'
 
-export function AdminWebsocketHandler(
+export function SettingsWebsocketHandler(
     setBackupProgress: React.Dispatch<
         React.SetStateAction<Map<string, BackupProgressT>>
     >,

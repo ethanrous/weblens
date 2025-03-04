@@ -365,7 +365,7 @@ const GalleryStateControl: StateCreator<
 
     setBlockFocus: (block: boolean) => {
         set({ blockSearchFocus: block })
-    }
+    },
 }))
 
 export const useGalleryStore = create<GalleryStateT>()(GalleryStateControl)

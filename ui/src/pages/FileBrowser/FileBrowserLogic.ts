@@ -260,14 +260,16 @@ export async function downloadSelected(
     files: WeblensFile[],
     removeLoading: (loading: string) => void,
     wsSend: WsSendT,
-    shareId?: string
+    shareId?: string,
+    format?: 'webp' | 'jpeg'
 ) {
     if (files.length === 1 && !files[0].IsFolder()) {
         return downloadSingleFile(
             files[0].Id(),
             files[0].GetFilename(),
             false,
-            shareId
+            shareId,
+            format
         )
     }
 
@@ -280,7 +282,8 @@ export async function downloadSelected(
                 res.data.takeoutId,
                 res.data.filename,
                 true,
-                shareId
+                shareId,
+                null
             ).catch(ErrorHandler)
         } else if (res.status === 202) {
             SubToTask(res.data.taskId, ['takeoutId'], wsSend)

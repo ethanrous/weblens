@@ -96,7 +96,7 @@ func TestStartupCore(t *testing.T) {
 	log.Debug.Println("Core startup took", time.Since(start))
 	assert.True(t, services.Loaded.Load())
 
-	_, err = services.UserService.CreateOwner("test-username", "test-password")
+	_, err = services.UserService.CreateOwner("test-username", "test-password", "Test Owner")
 	if err != nil {
 		t.Fatal(err)
 	}

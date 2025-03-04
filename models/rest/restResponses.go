@@ -214,6 +214,7 @@ func ServerInfoToInstance(si ServerInfo) *models.Instance {
 
 type UserInfo struct {
 	Username  models.Username `json:"username"`
+	FullName  string          `json:"fullName"`
 	HomeId    string          `json:"homeId"`
 	TrashId   string          `json:"trashId"`
 	Token     string          `json:"token" omitEmpty:"true"`
@@ -235,6 +236,7 @@ func UserToUserInfo(u *models.User) UserInfo {
 	}
 	info := UserInfo{
 		Username: u.GetUsername(),
+		FullName: u.GetFullName(),
 		Admin:    u.IsAdmin(),
 		Owner:    u.IsOwner(),
 		HomeId:   u.HomeId,
@@ -249,10 +251,11 @@ func UserToUserInfoArchive(u *models.User) UserInfoArchive {
 		return UserInfoArchive{}
 	}
 	info := UserInfoArchive{
-		Password:  u.Password,
+		Password:  u.PasswordHash,
 		Activated: u.IsActive(),
 	}
 	info.Username = u.GetUsername()
+	info.FullName = u.GetFullName()
 	info.Admin = u.IsAdmin()
 	info.Owner = u.IsOwner()
 	info.HomeId = u.HomeId
@@ -264,7 +267,7 @@ func UserToUserInfoArchive(u *models.User) UserInfoArchive {
 func UserInfoArchiveToUser(uInfo UserInfoArchive) *models.User {
 	u := &models.User{
 		Username:      uInfo.Username,
-		Password:      uInfo.Password,
+		PasswordHash:  uInfo.Password,
 		Activated:     uInfo.Activated,
 		Admin:         uInfo.Admin,
 		IsServerOwner: uInfo.Owner,
@@ -394,26 +397,35 @@ func MediaToMediaInfo(m *models.Media) MediaInfo {
 }
 
 type ShareInfo struct {
-	ShareId   string   `json:"shareId"`
-	FileId    string   `json:"fileId"`
-	ShareName string   `json:"shareName"`
-	Owner     string   `json:"owner"`
-	ShareType string   `json:"shareType"`
-	Accessors []string `json:"accessors"`
-	Expires   int64    `json:"expires"`
-	Updated   int64    `json:"updated"`
-	Public    bool     `json:"public"`
-	Wormhole  bool     `json:"wormhole"`
-	Enabled   bool     `json:"enabled"`
+	ShareId   string     `json:"shareId"`
+	FileId    string     `json:"fileId"`
+	ShareName string     `json:"shareName"`
+	Owner     string     `json:"owner"`
+	ShareType string     `json:"shareType"`
+	Accessors []UserInfo `json:"accessors"`
+	Expires   int64      `json:"expires"`
+	Updated   int64      `json:"updated"`
+	Public    bool       `json:"public"`
+	Wormhole  bool       `json:"wormhole"`
+	Enabled   bool       `json:"enabled"`
 } // @name ShareInfo
 
-func ShareToShareInfo(s *models.FileShare) ShareInfo {
+func ShareToShareInfo(s *models.FileShare, userService models.UserService) ShareInfo {
+	accessors := make([]UserInfo, 0, len(s.Accessors))
+	for _, a := range s.Accessors {
+		u := userService.Get(a)
+		if u == nil {
+			continue
+		}
+		accessors = append(accessors, UserToUserInfo(u))
+	}
+
 	return ShareInfo{
 		ShareId:   s.ID(),
 		FileId:    s.FileId,
 		ShareName: s.ShareName,
 		Owner:     s.GetOwner(),
-		Accessors: s.GetAccessors(),
+		Accessors: accessors,
 		Public:    s.IsPublic(),
 		Wormhole:  s.IsWormhole(),
 		Enabled:   s.IsEnabled(),

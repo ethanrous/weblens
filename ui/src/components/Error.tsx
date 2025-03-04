@@ -64,12 +64,12 @@ function ErrorDisplay({
     const nav = useNavigate()
     const [errOpen, setErrOpen] = useState(false)
     return (
-        <div className="flex flex-col h-screen w-screen items-center justify-center theme-background">
-            <div className="flex flex-col w-max">
-                <p className="text-xl font-semibold m-2">
+        <div className="theme-background flex h-screen w-screen flex-col items-center justify-center">
+            <div className="flex w-max flex-col">
+                <p className="m-2 text-xl font-semibold">
                     Sorry, something went wrong
                 </p>
-                <div className="flex flex-row w-full">
+                <div className="flex w-full flex-row">
                     <WeblensButton
                         label="Go Home"
                         centerContent
@@ -92,9 +92,9 @@ function ErrorDisplay({
                     />
                 </div>
             </div>
-            <div className="flex flex-col w-[20vw] mt-16">
+            <div className="mt-16 flex w-[20vw] flex-col">
                 <div
-                    className="flex flex-row items-center cursor-pointer"
+                    className="flex cursor-pointer flex-row items-center"
                     onClick={() => setErrOpen((o) => !o)}
                 >
                     <p className="flex w-full justify-end">Advanced</p>

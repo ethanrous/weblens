@@ -1,6 +1,6 @@
 module github.com/ethanrous/weblens
 
-go 1.23.5
+go 1.24
 
 require (
 	github.com/EdlinOrg/prominentcolor v1.0.0
@@ -23,7 +23,6 @@ require (
 	golang.org/x/crypto v0.32.0
 	golang.org/x/image v0.24.0
 	golang.org/x/net v0.34.0
-	gopkg.in/gographics/imagick.v3 v3.7.2
 )
 
 require (

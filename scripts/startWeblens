@@ -103,45 +103,50 @@ while true; do
     printf "Building Weblens binary..."
     rm -f ./build/bin/weblens
 
+    pwd=$(pwd)
+
     export GORACE="halt_on_error=1"
     export CGO_CFLAGS_ALLOW='-Xpreprocessor'
-    # export GODEBUG='schedtrace=10000'
-    go build -gcflags="all=-N -l" -race -o ./build/bin/weblens ./cmd/weblens/main.go &>./build/logs/weblens-build.log
+    export APP_ROOT=$pwd
+    export CONFIG_NAME=$config_name
 
-    if [[ ! -e ./build/bin/weblens ]]; then
-        printf " FAILED\n"
-        cat ./build/logs/weblens-build.log
-        echo "Failed to build Weblens, exiting..."
-        exit 1
-    fi
-    printf " DONE\n"
+    air --build.cmd "go build -gcflags=\"all=-N -l\" -race -o ./build/bin/weblens ./cmd/weblens/main.go" --build.bin "./build/bin/weblens" --build.exclude_dir "ui,build"
 
-    pkill -f exiftool
-
-    if [[ $detach == true ]]; then
-        printf "Starting Weblens and detaching..."
-        APP_ROOT="$(pwd)" CONFIG_NAME="$config_name" nohup ./build/bin/weblens &>"$log_file" &
-        weblens_pid=$!
-        echo "$weblens_pid" >./build/logs/weblens.pid
-        printf " RUNNING\n"
-        exit 0
-    fi
-
-    if [[ -n "$log_file" ]]; then
-        echo "Logging from now on to $log_file"
-        exec &>"$log_file" # Redirect both stdout and stderr to the log file
-    fi
-    APP_ROOT=$(pwd) CONFIG_NAME=$config_name ./build/bin/weblens
-    exit=$?
-
-    if [[ $restart != true ]]; then
-        break
-    fi
-
-    if [[ $exit != 0 ]] && [[ $exit != 137 ]]; then
-        echo "Got exit status $exit, exiting..."
-        exit 1
-    fi
-    clear
+    # if [[ ! -e ./build/bin/weblens ]]; then
+    #     printf " FAILED\n"
+    #     cat ./build/logs/weblens-build.log
+    #     echo "Failed to build Weblens, exiting..."
+    #     exit 1
+    # fi
+    # printf " DONE\n"
+    #
+    # pkill -f exiftool
+    #
+    # if [[ $detach == true ]]; then
+    #     printf "Starting Weblens and detaching..."
+    #     APP_ROOT="$(pwd)" CONFIG_NAME="$config_name" nohup ./build/bin/weblens &>"$log_file" &
+    #     weblens_pid=$!
+    #     echo "$weblens_pid" >./build/logs/weblens.pid
+    #     printf " RUNNING\n"
+    #     exit 0
+    # fi
+    #
+    # if [[ -n "$log_file" ]]; then
+    #     echo "Logging from now on to $log_file"
+    #     exec &>"$log_file" # Redirect both stdout and stderr to the log file
+    # fi
+    # APP_ROOT=$(pwd) CONFIG_NAME=$config_name ./build/bin/weblens
+    # exit=$?
+    #
+    # if [[ $restart != true ]]; then
+    #     break
+    # fi
+    #
+    # if [[ $exit != 0 ]] && [[ $exit != 137 ]]; then
+    #     echo "Got exit status $exit, exiting..."
+    #     exit 1
+    # fi
+    # clear
+    break
 
 done

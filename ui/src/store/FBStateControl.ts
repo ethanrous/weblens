@@ -64,6 +64,7 @@ export interface FileBrowserStateT {
     menuPos: { x: number; y: number }
     viewOpts: FbViewOptsT
     fbMode: FbModeT
+    sidebarCollapsed: boolean
 
     folderInfo: WeblensFile
 
@@ -140,9 +141,12 @@ export interface FileBrowserStateT {
     setIsSearching: (isSearching: boolean) => void
     setNumCols: (cols: number) => void
     setPasteImgBytes: (bytes: ArrayBuffer) => void
+    setSidebarCollapsed: (c: boolean) => void
 
     setMenu: (opts: MenuOptionsT) => void
     setViewOptions: (opts: ViewOptionsT) => void
+
+    reset: () => void
 }
 
 function loadViewOptions(): FbViewOptsT {
@@ -428,6 +432,20 @@ function setLocation(
     { contentId, shareId, mode, pastTime, jumpTo }: setLocationStateOptsT,
     state: FileBrowserStateT
 ): FileBrowserStateT {
+    console.debug(
+        'SETTING LOCATION -- ',
+        'contentId',
+        contentId,
+        'shareId',
+        shareId,
+        'mode',
+        mode,
+        'pastTime',
+        pastTime,
+        'jumpTo',
+        jumpTo
+    )
+
     const homeId: string = useSessionStore.getState().user.homeId
     const trashId: string = useSessionStore.getState().user.trashId
 
@@ -508,11 +526,13 @@ function setLocation(
 
     state = _debug_sanity_check(state)
 
+    console.debug('FINISH SETTING LOCATION -- ', state)
+
     return {
         ...state,
         contentId: contentId,
-        fbMode: state.fbMode,
-        shareId: state.shareId,
+        // fbMode: state.fbMode,
+        // shareId: state.shareId,
         // lastSelectedId: jumpTo ? jumpTo : contentId,
         jumpTo: jumpTo ? jumpTo : state.jumpTo,
         filesMap: new Map<string, WeblensFile>(state.filesMap),
@@ -621,11 +641,7 @@ export const ShareRoot = new WeblensFile({
     isDir: true,
 })
 
-const FBStateControl: StateCreator<
-    FileBrowserStateT,
-    [],
-    [['zustand/devtools', never]]
-> = devtools((set) => ({
+const initState: FileBrowserStateT = {
     filesMap: new Map<string, WeblensFile>(),
     selected: new Map<string, boolean>(),
     folderInfo: null,
@@ -649,6 +665,7 @@ const FBStateControl: StateCreator<
     trashDirSize: -1,
     numCols: 0,
     fbMode: FbModeT.unset,
+    sidebarCollapsed: false,
     viewOpts: loadViewOptions(),
     draggingState: DraggingStateT.NoDrag,
     menuPos: { x: 0, y: 0 },
@@ -656,6 +673,14 @@ const FBStateControl: StateCreator<
 
     nav: null,
     navTimer: null,
+} as FileBrowserStateT
+
+const FBStateControl: StateCreator<
+    FileBrowserStateT,
+    [],
+    [['zustand/devtools', never]]
+> = devtools((set) => ({
+    ...initState,
     setNav: (nav: NavigateFunction) =>
         set({
             nav: (to: To, options?: NavigateOptions) => {
@@ -673,10 +698,7 @@ const FBStateControl: StateCreator<
     removeLoading: (loading: string) =>
         set((state: FileBrowserStateT) => {
             console.debug('Remove loading:', loading)
-            const index = state.loading.indexOf(loading)
-            if (index != -1) {
-                state.loading.splice(index, 1)
-            }
+            state.loading = state.loading.filter((l) => l !== loading)
 
             return {
                 loading: [...state.loading],
@@ -1226,6 +1248,10 @@ const FBStateControl: StateCreator<
         set({ numCols: cols })
     },
 
+    setSidebarCollapsed: (c: boolean) => {
+        set({ sidebarCollapsed: c })
+    },
+
     setViewOptions: ({
         sortKey,
         sortDirection,
@@ -1268,6 +1294,8 @@ const FBStateControl: StateCreator<
             pasteImgBytes: bytes,
         })
     },
+
+    reset: () => set(initState),
 }))
 
 export const useFileBrowserStore = create<FileBrowserStateT>()(FBStateControl)

@@ -30,7 +30,7 @@ func TestAlbumServiceImpl_Add(t *testing.T) {
 	ss, err := NewShareService(shareCol)
 	require.NoError(t, err)
 
-	billUser, err := models.NewUser("billcypher", "shakemyhand", false, true)
+	billUser, err := models.NewUser("billcypher", "shakemyhand", "Bill Cypher", false, true)
 	require.NoError(t, err)
 
 	albs := NewAlbumService(col, &mock.MockMediaService{}, ss)

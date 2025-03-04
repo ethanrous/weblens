@@ -95,7 +95,9 @@ function FileHistoryPane() {
         >
             <div className={fbStyle.openArrowContainer}>
                 <WeblensButton
-                    squareSize={20}
+                    size="tiny"
+                    className="h-6 w-6"
+                    flavor="outline"
                     Left={open ? IconChevronRight : IconChevronLeft}
                     onClick={(e) => {
                         e.stopPropagation()
@@ -127,7 +129,7 @@ function FileHistoryPane() {
                     >
                         <div className={fbStyle.resizeBar} />
                     </div>
-                    <div className="flex flex-col w-[75px] grow h-full">
+                    <div className="flex h-full w-[75px] grow flex-col">
                         {open && <FileHistory />}
                     </div>
                 </div>
@@ -332,7 +334,7 @@ function ExpandableEventRow({
                     : 48,
             }}
         >
-            <div className="flex flex-row items-center pl-2 shrink-0 cursor-pointer w-full h-[2rem]">
+            <div className="flex h-[2rem] w-full shrink-0 cursor-pointer flex-row items-center pl-2">
                 <div
                     className={historyStyle.eventCaret}
                     onClick={(e) => {
@@ -342,7 +344,7 @@ function ExpandableEventRow({
                 >
                     <CaretIcon size={20} className="shrink-0" />
                 </div>
-                <p className="theme-text font-semibold truncate text-xl w-max text-nowrap p-2 select-none">
+                <p className="theme-text w-max select-none truncate text-nowrap p-2 text-xl font-semibold">
                     {event.length} File
                     {event.length !== 1 ? 's' : ''}{' '}
                     {event[0].actionType.slice(4)}d ...
@@ -417,7 +419,7 @@ const HistoryEventRow = memo(
             event[0].actionType === FbActionT.FileSizeChange.valueOf()
         ) {
             content = (
-                <div className="flex flex-row items-center rounded w-full justify-between gap-2 max-h-[48px] ">
+                <div className="flex max-h-[48px] w-full flex-row items-center justify-between gap-2 rounded">
                     <div className={historyStyle.sizeChangeDivider}>
                         <FileFmt pathName={event[0].destinationPath} />
                         <p>
@@ -563,19 +565,19 @@ function FileHistoryFooter({
     }
 
     return (
-        <div className="flex flex-col w-full justify-around p-2">
+        <div className="flex w-full flex-col justify-around p-2">
             <WeblensButton
                 allowRepeat
                 label={'Size Changes'}
                 toggleOn={showResize}
                 onClick={() => setShowResize((r) => !r)}
             />
-            <div className="flex flex-col items-center pt-2 border-t border-t-[--wl-outline-subtle] mt-4">
-                <div className="flex flex-row gap-2 items-center">
+            <div className="mt-4 flex flex-col items-center border-t border-t-wl-border-color-primary pt-2">
+                <div className="flex flex-row items-center gap-2">
                     <FileFmt pathName={epoch?.destinationPath} />
-                    <p className="h-max text-xl select-none">History</p>
+                    <p className="h-max select-none text-xl">History</p>
                 </div>
-                <p className="text-nowrap select-none">
+                <p className="select-none text-nowrap">
                     Created {createTimeString}
                 </p>
             </div>
@@ -683,14 +685,14 @@ function FileHistory() {
 
     if (mode === FbModeT.share) {
         return (
-            <div className="flex justify-center mt-10">
+            <div className="mt-10 flex justify-center">
                 <p>Cannot get file history of shared file</p>
             </div>
         )
     }
 
     return (
-        <div className="flex flex-col items-center p-2 h-[2px] grow relative w-full justify-center">
+        <div className="relative flex h-[2px] w-full grow flex-col items-center justify-center p-2">
             <div
                 className={historyStyle.historyRowContent}
                 data-now={true}
@@ -702,18 +704,18 @@ function FileHistory() {
                     })
                 }}
             >
-                <p className="relative select-none z-10 text-[--wl-text-color]">
+                <p className="relative z-10 select-none text-[--wl-text-color]">
                     Now
                 </p>
             </div>
             {!epoch && !error && (
-                <div className="flex items-center justify-center w-full h-1 grow">
+                <div className="flex h-1 w-full grow items-center justify-center">
                     <WeblensLoader />
                 </div>
             )}
             {error && (
-                <div className="flex items-center w-full h-1 grow">
-                    <div className="inline-flex flex-row w-max p-2 m-auto gap-1">
+                <div className="flex h-1 w-full grow items-center">
+                    <div className="m-auto inline-flex w-max flex-row gap-1 p-2">
                         <IconExclamationCircle
                             size={24}
                             className="ml-2 text-red-500"
@@ -725,7 +727,7 @@ function FileHistory() {
             {epoch && (
                 <div
                     ref={setBoxRef}
-                    className="relative flex flex-col w-full h-1 grow pt-1"
+                    className="relative flex h-1 w-full grow flex-col pt-1"
                 >
                     <WindowList
                         ref={setWindowRef}

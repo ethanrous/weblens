@@ -153,7 +153,7 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
             }}
         >
             {size.width !== -1 && (
-                <div className="flex relative w-full h-full items-center">
+                <div className="relative flex h-full w-full items-center">
                     {isLoading && (
                         <div className="m-auto p-2">
                             <WeblensLoader />

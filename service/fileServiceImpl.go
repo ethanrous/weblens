@@ -663,6 +663,9 @@ func (fs *FileServiceImpl) RestoreFiles(
 		}
 
 		path := pastFile.GetPortablePath().ToPortable()
+		if path == "" {
+			return werror.Errorf("Got empty string for portable path on past file [%s]", pastFile.AbsPath())
+		}
 		// Paths of directory files will have an extra / on the end, so we need to remove it
 		if pastFile.IsDir() {
 			path = path[:len(path)-1]

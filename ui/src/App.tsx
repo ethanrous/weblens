@@ -2,7 +2,7 @@ import { MantineProvider } from '@mantine/core'
 import '@mantine/core/styles.css'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import axios from 'axios'
-import React, { Suspense, useEffect } from 'react'
+import React, { Suspense, useCallback, useEffect } from 'react'
 import {
     BrowserRouter as Router,
     useLocation,
@@ -13,14 +13,17 @@ import {
 import MediaApi from './api/MediaApi'
 import ErrorBoundary from './components/Error'
 import Logo from './components/Logo'
+import Messages from './components/Messages'
 import useR, { useSessionStore } from './components/UserInfo'
 import { useKeyDown } from './components/hooks'
+import Fourohfour from './pages/404/fourohfour'
 import Backup from './pages/Backup/Backup'
+import Signup from './pages/Signup/Signup'
 import StartUp from './pages/Startup/StartupPage'
 import { SettingsMenu } from './pages/UserSettings/Settings'
+import { ThemeStateEnum, useWlTheme } from './store/ThemeControl'
 import { ErrorHandler } from './types/Types'
 import { useMediaStore } from './types/media/MediaStateControl'
-import { toggleLightTheme } from './util'
 
 const Gallery = React.lazy(() => import('./pages/Gallery/Gallery'))
 const FileBrowser = React.lazy(() => import('./pages/FileBrowser/FileBrowser'))
@@ -146,7 +149,7 @@ function PageLoader() {
 
 function FatalError({ err }: { err: string }) {
     return (
-        <div className="flex flex-col items-center justify-center h-screen w-screen gap-6">
+        <div className="flex h-screen w-screen flex-col items-center justify-center gap-6">
             <h2 className="text-red-500">Fatal Error</h2>
             <h3>{err}</h3>
 
@@ -155,7 +158,7 @@ function FatalError({ err }: { err: string }) {
     )
 }
 
-const PageSwitcher = () => {
+function PageSwitcher() {
     const user = useSessionStore((state) => state.user)
     const loc = useLocation()
 
@@ -184,6 +187,12 @@ const PageSwitcher = () => {
         </Suspense>
     )
 
+    const signupPage = (
+        <Suspense fallback={<PageLoader />}>
+            <Signup />
+        </Suspense>
+    )
+
     const setupPage = (
         <Suspense fallback={<PageLoader />}>
             <Setup />
@@ -202,6 +211,12 @@ const PageSwitcher = () => {
         </Suspense>
     )
 
+    const fourOhFourPage = (
+        <Suspense fallback={<PageLoader />}>
+            <Fourohfour />
+        </Suspense>
+    )
+
     const Gal = useRoutes([
         { path: '/', element: galleryPage },
         { path: '/timeline', element: galleryPage },
@@ -209,24 +224,37 @@ const PageSwitcher = () => {
         { path: '/files/*', element: filesPage },
         // { path: '/wormhole', element: wormholePage },
         { path: '/login', element: loginPage },
+        { path: '/signup', element: signupPage },
         { path: '/setup', element: setupPage },
         { path: '/backup', element: backupPage },
         { path: '/settings/*', element: settingsPage },
+        { path: '*', element: fourOhFourPage },
     ])
 
-    return Gal
+    return Gal || <Fourohfour />
 }
 
 function App() {
     document.documentElement.style.overflow = 'hidden'
     document.body.className = 'body'
+    const { theme, isOSControlled, changeTheme } = useWlTheme()
 
-    useKeyDown('t', () => {
-        toggleLightTheme()
-    })
+    const toggleThemeCb = useCallback(() => {
+        if (isOSControlled) {
+            return
+        }
+        changeTheme(
+            theme === ThemeStateEnum.DARK
+                ? ThemeStateEnum.LIGHT
+                : ThemeStateEnum.DARK
+        )
+    }, [theme, isOSControlled, changeTheme])
+
+    useKeyDown('t', toggleThemeCb)
 
     return (
         <MantineProvider defaultColorScheme="dark">
+            <Messages />
             <Router>
                 <WeblensRoutes />
             </Router>

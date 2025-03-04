@@ -1,8 +1,8 @@
 #!/bin/bash
 
 if [[ ! -e ./scripts ]]; then
-	echo "ERR Could not find ./scripts directory, are you at the root of the repo? i.e. ~/repos/weblens and not ~/repos/weblens/scripts"
-	exit 1
+    echo "ERR Could not find ./scripts directory, are you at the root of the repo? i.e. ~/repos/weblens and not ~/repos/weblens/scripts"
+    exit 1
 fi
 
 mkdir -p ./build/bin
@@ -60,11 +60,11 @@ docker_status=$?
 
 printf "Checking connection to docker..."
 if [ $docker_status != 0 ]; then
-	printf " FAILED\n"
-	echo "Aborting container build. Ensure docker is runnning"
-	exit 1
+    printf " FAILED\n"
+    echo "Aborting container build. Ensure docker is runnning"
+    exit 1
 else
-	printf " PASS\n"
+    printf " PASS\n"
 fi
 
 if [ ! $skip_tests == true ]; then
@@ -93,10 +93,10 @@ echo "Using tag: $full_tag"
 
 printf "Building Weblens container..."
 sudo docker rmi ethrous/weblens:"$full_tag" &>/dev/null
-sudo docker build --progress=plain --platform "linux/$arch" -t ethrous/weblens:"$full_tag" --build-arg build_tag="$full_tag" --build-arg ARCHITECTURE="$arch" -f $df_path .
+sudo docker build --platform "linux/$arch" -t ethrous/weblens:"$full_tag" --build-arg build_tag="$full_tag" --build-arg ARCHITECTURE="$arch" -f $df_path .
 
 if [ $do_push == true ]; then
     sudo docker push ethrous/weblens:"$full_tag"
 fi
 
-printf "\nBUILD COMPLETE. Container tag: ethrous/weblens:%s\n" "$full_tag" 
+printf "\nBUILD COMPLETE. Container tag: ethrous/weblens:%s\n" "$full_tag"

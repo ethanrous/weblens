@@ -134,3 +134,7 @@ func (ms *MockMediaService) AdjustMediaDates(
 func (mms *MockMediaService) AddFileToMedia(m *models.Media, f *fileTree.WeblensFileImpl) error {
 	panic("implement me")
 }
+
+func (mms *MockMediaService) GetMediaConverted(m *models.Media, format string) ([]byte, error) {
+	panic("implement me")
+}

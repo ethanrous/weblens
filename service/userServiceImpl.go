@@ -76,7 +76,7 @@ func (us *UserServiceImpl) GetRootUser() *models.User {
 func (us *UserServiceImpl) Add(user *models.User) error {
 	if user.GetUsername() == "" {
 		return werror.Errorf("Cannot add user with no username")
-	} else if user.Password == "" {
+	} else if user.PasswordHash == "" {
 		return werror.Errorf("Cannot add user with no password")
 	}
 
@@ -104,11 +104,13 @@ func (us *UserServiceImpl) Add(user *models.User) error {
 	return nil
 }
 
-func (us *UserServiceImpl) CreateOwner(username, password string) (*models.User, error) {
-	owner, err := models.NewUser(username, password, true, true)
+func (us *UserServiceImpl) CreateOwner(username, password, fullname string) (*models.User, error) {
+	owner, err := models.NewUser(username, password, fullname, true, true)
 	if err != nil {
 		return nil, err
 	}
+
+	owner.IsServerOwner = true
 
 	_, err = us.col.InsertOne(context.Background(), owner)
 	if err != nil {
@@ -116,6 +118,7 @@ func (us *UserServiceImpl) CreateOwner(username, password string) (*models.User,
 	}
 
 	us.userMap[username] = owner
+
 
 	return owner, nil
 }
@@ -142,6 +145,19 @@ func (us *UserServiceImpl) ActivateUser(u *models.User, active bool) error {
 	}
 
 	u.Activated = active
+
+	return nil
+}
+
+func (us *UserServiceImpl) UpdateFullName(u *models.User, newFullName string) error {
+	filter := bson.M{"username": u.GetUsername()}
+	update := bson.M{"$set": bson.M{"fullName": newFullName}}
+	_, err := us.col.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		return werror.WithStack(err)
+	}
+
+	u.SetFullName(newFullName)
 
 	return nil
 }
@@ -245,7 +261,7 @@ func (us *UserServiceImpl) UpdateUserPassword(
 		return err
 	}
 
-	usr.Password = passHashStr
+	usr.PasswordHash = passHashStr
 
 	return nil
 }

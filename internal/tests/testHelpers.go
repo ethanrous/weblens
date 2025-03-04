@@ -67,7 +67,7 @@ func NewWeblensTestInstance(testName string, cnf env.Config) (*models.ServicePac
 			return nil, err
 		}
 
-		owner, err := services.UserService.CreateOwner("test-username", "test-password")
+		owner, err := services.UserService.CreateOwner("test-username", "test-password", "Test Owner")
 		if err != nil {
 			return nil, err
 		}

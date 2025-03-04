@@ -25,8 +25,8 @@ const FileGridVisual = ({
     allowMedia: boolean
 }) => {
     return (
-        <div className="w-full p-2 pb-0 aspect-square overflow-hidden">
-            <div className="w-full h-full overflow-hidden rounded-md flex justify-center items-center">
+        <div className="aspect-square w-full overflow-hidden p-2 pb-0">
+            <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-md">
                 <FileVisual file={file} allowMedia={allowMedia} />
             </div>
         </div>
@@ -43,13 +43,13 @@ const FileTextBox = ({
     doFolderIcon: boolean
 }) => {
     return (
-        <div className="flex items-center justify-between px-2 relative w-full h-full">
-            <p className={filesStyle.fileText}>{file.GetFilename()}</p>
+        <div className="relative flex h-full w-full items-center justify-between px-2">
+            <span className={filesStyle.fileText}>{file.GetFilename()}</span>
             <div
                 className={filesStyle.fileSizeBox}
                 data-moved={(selState & SelectedState.Moved) >> 5}
             >
-                <h4 className={filesStyle.fileSizeText}>{file.FormatSize()}</h4>
+                <span className={filesStyle.fileSizeText}>{file.FormatSize()}</span>
                 {doFolderIcon && (
                     <IconFolder
                         className={filesStyle.fileSizeText + ' max-h-full'}

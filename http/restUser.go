@@ -45,7 +45,7 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newUser, err := models.NewUser(userParams.Username, userParams.Password, userParams.Admin, userParams.AutoActivate)
+	newUser, err := models.NewUser(userParams.Username, userParams.Password, userParams.FullName, userParams.Admin, userParams.AutoActivate)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -118,6 +118,36 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+}
+
+// CheckUsernameUnique godoc
+//
+//	@ID		CheckUsernameUnique
+//
+//	@Summary	Check if username is unique
+//	@Tags		Users
+//	@Produce	json
+//	@Param		username	query		string	true	"Username to check"
+//	@Success	200
+//	@Failure	400
+//	@Failure	409
+//	@Router		/users/unique [get]
+func checkUsernameUnique(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+
+	username := r.URL.Query().Get("username")
+	if username == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	user := pack.UserService.Get(username)
+	if user != nil {
+		w.WriteHeader(http.StatusConflict)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 // LogoutUser godoc
@@ -205,7 +235,7 @@ func getUsers(w http.ResponseWriter, r *http.Request) {
 func getUserInfo(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
 	if pack.InstanceService.GetLocal().GetRole() == models.InitServerRole {
-		writeJson(w, http.StatusTemporaryRedirect, rest.WeblensErrorInfo{Error: "weblens not initialized"})
+		writeJson(w, http.StatusServiceUnavailable, rest.WeblensErrorInfo{Error: "weblens not initialized"})
 		return
 	}
 
@@ -360,7 +390,7 @@ func setUserAdmin(w http.ResponseWriter, r *http.Request) {
 //	@Produce	json
 //
 //	@Param		username	path	string	true	"Username of user to update"
-//	@Param		setActive	query	boolean	true	"Target admin status"
+//	@Param		setActive	query	boolean	true	"Target activation status"
 //	@Success	200
 //	@Failure	400	{object}	rest.WeblensErrorInfo
 //	@Failure	401
@@ -382,6 +412,54 @@ func activateUser(w http.ResponseWriter, r *http.Request) {
 	if SafeErrorAndExit(err, w) {
 		return
 	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// ChangeFullName godoc
+//
+//	@ID		ChangeFullName
+//
+//	@Security	SessionAuth
+//	@Security	ApiKeyAuth
+//
+//	@Summary	Update full name of user
+//	@Tags		Users
+//	@Produce	json
+//
+//	@Param		username	path	string	true	"Username of user to update"
+//	@Param		newFullName	query	string	true	"New full name of user"
+//	@Success	200
+//	@Failure	400	{object}	rest.WeblensErrorInfo
+//	@Failure	401 {object}	rest.WeblensErrorInfo
+//	@Failure	404 {object}	rest.WeblensErrorInfo
+//	@Router		/users/{username}/fullName [patch]
+func changeFullName(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	accessor, err := getUserFromCtx(r, true)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+
+	username := chi.URLParam(r, "username")
+
+	if accessor.Username != username {
+		writeError(w, http.StatusForbidden, werror.ErrUserNotAuthorized)
+		return
+	}
+
+	u := pack.UserService.Get(username)
+	if u == nil {
+		writeError(w, http.StatusNotFound, werror.ErrNoUser)
+		return
+	}
+
+	newFullName := r.URL.Query().Get("newFullName")
+	if newFullName == "" {
+		writeJson(w, http.StatusBadRequest, rest.WeblensErrorInfo{Error: "newFullName query parameter is required"})
+		return
+	}
+	pack.UserService.UpdateFullName(u, newFullName)
 
 	w.WriteHeader(http.StatusOK)
 }

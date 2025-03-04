@@ -174,6 +174,8 @@ func (is *InstanceServiceImpl) GetByInstanceId(serverId models.InstanceId) *mode
 }
 
 func (is *InstanceServiceImpl) GetLocal() *models.Instance {
+	is.instanceMapLock.RLock()
+	defer is.instanceMapLock.RUnlock()
 	return is.local
 }
 
@@ -311,14 +313,13 @@ func (is *InstanceServiceImpl) ResetAll() error {
 	}
 
 	is.instanceMap = make(map[models.InstanceId]*models.Instance)
-	is.instanceMapLock.Unlock()
 
 	newLocal := models.NewInstance(localId, "", "", models.InitServerRole, true, "", localId)
 
-	_, err = is.col.InsertOne(context.Background(), newLocal)
-	if err != nil {
-		return err
-	}
+	// _, err = is.col.InsertOne(context.Background(), newLocal)
+	// if err != nil {
+	// 	return err
+	// }
 
 	is.local = newLocal
 

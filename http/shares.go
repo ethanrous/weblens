@@ -65,7 +65,7 @@ func createFileShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newShareInfo := rest.ShareToShareInfo(newShare)
+	newShareInfo := rest.ShareToShareInfo(newShare, pack.UserService)
 
 	writeJson(w, http.StatusCreated, newShareInfo)
 }
@@ -157,7 +157,7 @@ func getFileShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shareInfo := rest.ShareToShareInfo(fileShare)
+	shareInfo := rest.ShareToShareInfo(fileShare, pack.UserService)
 
 	writeJson(w, http.StatusOK, shareInfo)
 }
@@ -215,7 +215,7 @@ func setSharePublic(w http.ResponseWriter, r *http.Request) {
 //	@Produce	json
 //	@Param		shareId	path	string				true	"Share Id"
 //	@Param		request	body	rest.UserListBody	true	"Share Accessors"
-//	@Success	200
+//	@Success	200 	{object}	rest.ShareInfo
 //	@Failure	404
 //	@Router		/share/{shareId}/accessors [patch]
 func setShareAccessors(w http.ResponseWriter, r *http.Request) {
@@ -280,7 +280,9 @@ func setShareAccessors(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.WriteHeader(http.StatusOK)
+	shareInfo := rest.ShareToShareInfo(share, pack.UserService)
+
+	writeJson(w, http.StatusOK, shareInfo)
 }
 
 // DeleteFileShare godoc

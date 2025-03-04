@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -168,6 +169,7 @@ func getFileStats(w http.ResponseWriter, r *http.Request) {
 //	@Produce	octet-stream
 //	@Param		fileId		path		string					true	"File Id"
 //	@Param		shareId		query		string					false	"Share Id"
+//	@Param		format		query		string					false	"File format conversion"
 //	@Param		isTakeout	query		bool					false	"Is this a takeout file"	Enums(true, false)	default(false)
 //	@Success	200			{string}	binary					"File content"
 //	@Success	404			{object}	rest.WeblensErrorInfo	"Error Info"
@@ -203,6 +205,19 @@ func downloadFile(w http.ResponseWriter, r *http.Request) {
 		}
 
 		file, err = pack.FileService.GetFileSafe(fileId, u, share)
+		if SafeErrorAndExit(err, w) {
+			return
+		}
+	}
+
+	format := r.URL.Query().Get("format")
+	if format != "" {
+		m := pack.MediaService.Get(file.GetContentId())
+		convertedImg, err := pack.MediaService.GetMediaConverted(m, format)
+		if SafeErrorAndExit(err, w) {
+			return
+		}
+		_, err = w.Write(convertedImg)
 		if SafeErrorAndExit(err, w) {
 			return
 		}
@@ -258,7 +273,7 @@ func getFolderHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var actionInfos []rest.FileActionInfo
+	var actionInfos []rest.FileActionInfo = []rest.FileActionInfo{}
 	for _, a := range actions {
 		actionInfos = append(actionInfos, rest.FileActionToFileActionInfo(a))
 	}
@@ -931,6 +946,15 @@ func restoreFiles(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	actions := lt.GetActions()
+	for i, action := range actions {
+		if action.Timestamp.After(restoreTime) && (action.ActionType != fileTree.FileSizeChange || i == len(actions)-1) {
+			if i != 0 {
+				restoreTime = actions[i-1].Timestamp
+			}
+			break
+		}
+	}
 
 	err = pack.FileService.RestoreFiles(body.FileIds, newParent, restoreTime, pack.Caster)
 	if SafeErrorAndExit(err, w) {
@@ -1207,7 +1231,7 @@ func deleteFiles(w http.ResponseWriter, r *http.Request) {
 //	@Tags		Files
 //	@Param		request	body		rest.NewUploadParams	true	"New upload request body"
 //	@Param		shareId	query		string					false	"Share Id"
-//	@Success	200		{object}	rest.NewUploadInfo		"Upload Info"
+//	@Success	201		{object}	rest.NewUploadInfo		"Upload Info"
 //	@Failure	401
 //	@Failure	404
 //	@Failure	500
@@ -1278,7 +1302,7 @@ func newUploadTask(w http.ResponseWriter, r *http.Request) {
 //	@Param		uploadId	path		string				true	"Upload Id"
 //	@Param		shareId		query		string				false	"Share Id"
 //	@Param		request		body		rest.NewFilesParams	true	"New file params"
-//	@Success	200			{object}	rest.NewFilesInfo	"FileIds"
+//	@Success	201			{object}	rest.NewFilesInfo	"FileIds"
 //	@Failure	401
 //	@Failure	404
 //	@Failure	500
@@ -1365,6 +1389,8 @@ func newFileUpload(w http.ResponseWriter, r *http.Request) {
 	writeJson(w, http.StatusCreated, newInfo)
 }
 
+var rangeMatchR = regexp.MustCompile("^[0-9]+-[0-9]+/[0-9]+$")
+
 // UploadFileChunk godoc
 //
 //	@ID	UploadFileChunk
@@ -1422,6 +1448,12 @@ func handleUploadChunk(w http.ResponseWriter, r *http.Request) {
 
 	if len(r.Header["Content-Range"]) == 0 {
 		writeJson(w, http.StatusBadRequest, rest.WeblensErrorInfo{Error: "Missing Content-Range header"})
+		return
+	}
+
+	rangeHeader := r.Header["Content-Range"][0]
+	if !rangeMatchR.MatchString(rangeHeader) {
+		writeJson(w, http.StatusBadRequest, rest.WeblensErrorInfo{Error: "Invalid Content-Range header"})
 		return
 	}
 

@@ -1,0 +1,90 @@
+.weblens-input-wrapper {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	gap: 4px;
+	padding: 8px;
+	cursor: text;
+
+	border-radius: 4px;
+	background-color: var(--wl-background-color-primary);
+	box-shadow: var(--wl-soft-shadow-hidden);
+	border: 1px solid var(--wl-border-color-primary);
+	height: 100%;
+	width: max-content;
+	max-width: 100%;
+	overflow: hidden;
+	user-select: none;
+	-webkit-user-select: none;
+	-moz-user-select: none;
+
+	transition-property: background-color, transform, border-color, box-shadow;
+	transition-duration: 150ms;
+	transition-timing-function: var(--wl-transition-func);
+
+	&:focus-within {
+		border: 1px solid var(--wl-theme-color-primary);
+		box-shadow: var(--wl-soft-shadow);
+	}
+
+	&[data-subtle='true']:not(:focus-within) {
+		background-color: var(--wl-background-color-secondary);
+	}
+
+	&[data-value=''][data-minimize='true']:not(:focus-within) {
+		width: 0px;
+		justify-content: center;
+		cursor: pointer;
+
+		&:hover {
+			box-shadow: var(--wl-soft-shadow);
+			background-color: rgb(from var(--wl-theme-color-secondary) r g b / 0.50);
+			border: 1px solid var(--wl-theme-color-primary);
+			transform: translateY(-1px);
+		}
+	}
+
+	input {
+		color: var(--wl-text-color-primary);
+	}
+
+	input::placeholder {
+		color: var(--wl-text-color-secondary);
+	}
+
+	&[data-fill-width='true'] {
+		width: 100%;
+	}
+
+	&[data-failed='true'] {
+		background-color: rgb(from var(--wl-button-color-danger) r g b / 10%);
+		border: 1px solid var(--wl-button-color-danger);
+
+		input {
+			background-color: rgb(from var(--wl-button-color-danger) r g b / 0%) !important;
+		}
+	}
+
+	&[data-valid='true'] {
+		border: 1px solid var(--wl-color-valid);
+	}
+
+	&[data-disabled='true'] {
+		pointer-events: none;
+		background-color: var(--wl-color-button-disabled);
+		border-color: var(--wl-border-color-primary);
+	}
+
+}
+
+.weblens-input-text {
+	user-select: none;
+	text-wrap: nowrap;
+	text-overflow: ellipsis;
+	overflow: hidden;
+	white-space: nowrap;
+	width: max-content;
+	opacity: 0;
+	position: absolute;
+}

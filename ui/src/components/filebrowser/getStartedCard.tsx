@@ -23,18 +23,26 @@ import { FbModeT, useFileBrowserStore } from '../../store/FBStateControl'
 
 const EmptyIcon = ({ folderId, usr }: { folderId: string; usr: User }) => {
     if (folderId === usr.homeId) {
-        return <IconHome size={500} className="text-wl-barely-visible " />
+        return (
+            <IconHome size={500} className="text-wl-color-nearly-invisible" />
+        )
     }
     if (folderId === usr.trashId) {
-        return <IconTrash size={500} className="text-wl-barely-visible" />
+        return (
+            <IconTrash size={500} className="text-wl-color-nearly-invisible" />
+        )
     }
     if (folderId === 'shared') {
-        return <IconUsers size={500} className="text-wl-barely-visible" />
+        return (
+            <IconUsers size={500} className="text-wl-color-nearly-invisible" />
+        )
     }
     if (folderId === 'EXTERNAL') {
-        return <IconServer size={500} className="text-wl-barely-visible" />
+        return (
+            <IconServer size={500} className="text-wl-color-nearly-invisible" />
+        )
     }
-    return <IconFolder size={500} className="text-wl-barely-visible" />
+    return <IconFolder size={500} className="text-wl-color-nearly-invisible" />
 }
 
 function GetStartedCard() {
@@ -59,7 +67,7 @@ function GetStartedCard() {
 
     if (!folderInfo && mode === FbModeT.share) {
         return (
-            <div className="flex justify-center items-center m-auto p-2">
+            <div className="m-auto flex items-center justify-center p-2">
                 <div className="h-max w-max p-4 wl-outline">
                     <h4>You have no files shared with you</h4>
                 </div>
@@ -79,20 +87,20 @@ function GetStartedCard() {
     return (
         <div
             ref={setViewRef}
-            className="flex w-[50vw] min-w-[250px] justify-center items-center animate-fade h-max m-auto p-4 z-[3]"
+            className="z-[3] m-auto flex h-max w-[50vw] min-w-[250px] animate-fade items-center justify-center p-4"
         >
-            <div className="flex flex-col w-max max-w-full h-fit justify-center items-center">
-                <div className="flex items-center p-30 absolute -z-1 pointer-events-none h-max max-w-full min-w-[200px]">
+            <div className="flex h-fit w-max max-w-full flex-col items-center justify-center">
+                <div className="p-30 -z-1 pointer-events-none absolute flex h-max min-w-[200px] max-w-full items-center">
                     <EmptyIcon folderId={folderInfo.Id()} usr={user} />
                 </div>
 
-                <p className="text-2xl w-max h-max select-none z-10">
+                <p className="z-10 h-max w-max select-none text-2xl">
                     {`This folder ${folderInfo.IsPastFile() ? 'was' : 'is'} empty`}
                 </p>
 
                 {folderInfo.IsModifiable() && (
                     <div
-                        className="flex p-5 w-350 max-w-full z-10 items-center"
+                        className="w-350 z-10 flex max-w-full items-center p-5"
                         style={{ flexDirection: doVertical ? 'column' : 'row' }}
                     >
                         <FileButton

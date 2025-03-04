@@ -19,6 +19,8 @@ const (
 	testUser2Name = "testUser2"
 	testUser1Pass = "testPass1"
 	testUser2Pass = "testPass2"
+
+	testUserFullName = "Test User"
 )
 
 func TestUserService(t *testing.T) {
@@ -36,7 +38,7 @@ func TestUserService(t *testing.T) {
 	fs := &mock.MockFileService{}
 
 	// test user 1, do not auto activate
-	testUser1, err := models.NewUser(testUser1Name, testUser1Pass, false, false)
+	testUser1, err := models.NewUser(testUser1Name, testUser1Pass, testUserFullName, false, false)
 	require.NoError(t, err)
 
 	err = fs.CreateUserHome(testUser1)
@@ -56,7 +58,7 @@ func TestUserService(t *testing.T) {
 	assert.Equal(t, 1, userService.Size())
 
 	// test user 2, do auto activate
-	testUser2, err := models.NewUser(testUser2Name, testUser1Pass, false, true)
+	testUser2, err := models.NewUser(testUser2Name, testUser1Pass, testUserFullName, false, true)
 	require.NoError(t, err)
 
 	err = fs.CreateUserHome(testUser2)
@@ -120,14 +122,14 @@ func TestUserServiceImpl_Add(t *testing.T) {
 		panic(err)
 	}
 
-	_, err = models.NewUser(testUser1Name, "", false, false)
+	_, err = models.NewUser(testUser1Name, "", testUserFullName, false, false)
 	assert.Error(t, err)
-	_, err = models.NewUser("", testUser1Pass, false, false)
+	_, err = models.NewUser("", testUser1Pass, testUserFullName, false, false)
 	assert.Error(t, err)
 
 	badUser := &models.User{
-		Username: "",
-		Password: "",
+		Username:     "",
+		PasswordHash: "",
 	}
 
 	err = userService.Add(badUser)
@@ -150,7 +152,7 @@ func TestUserServiceImpl_Del(t *testing.T) {
 
 	fs := &mock.MockFileService{}
 
-	newUser, err := models.NewUser(testUser1Name, testUser1Pass, false, false)
+	newUser, err := models.NewUser(testUser1Name, testUser1Pass, testUserFullName, false, false)
 	require.NoError(t, err)
 
 	err = fs.CreateUserHome(newUser)
@@ -183,7 +185,7 @@ func TestUserServiceImpl_SearchByUsername(t *testing.T) {
 
 	fs := &mock.MockFileService{}
 
-	stanUser, err := models.NewUser("stan", testUser1Pass, false, true)
+	stanUser, err := models.NewUser("stan", testUser1Pass, testUserFullName, false, true)
 	require.NoError(t, err)
 
 	err = fs.CreateUserHome(stanUser)
@@ -192,7 +194,7 @@ func TestUserServiceImpl_SearchByUsername(t *testing.T) {
 	err = userService.Add(stanUser)
 	require.NoError(t, err)
 
-	blanUser, err := models.NewUser("blan", testUser1Pass, false, true)
+	blanUser, err := models.NewUser("blan", testUser1Pass, testUserFullName, false, true)
 	require.NoError(t, err)
 
 	err = fs.CreateUserHome(blanUser)
@@ -233,7 +235,7 @@ func TestUserServiceImpl_SetUserAdmin(t *testing.T) {
 
 	fs := &mock.MockFileService{}
 
-	newUser, err := models.NewUser(testUser1Name, testUser1Pass, false, false)
+	newUser, err := models.NewUser(testUser1Name, testUser1Pass, testUserFullName, false, false)
 	require.NoError(t, err)
 
 	err = fs.CreateUserHome(newUser)
@@ -264,7 +266,7 @@ func TestUserServiceImpl_SetUserAdmin(t *testing.T) {
 	failUserService, err := NewUserService(failingMongo)
 	require.NoError(t, err)
 
-	newUser2, err := models.NewUser(testUser2Name, testUser2Pass, false, true)
+	newUser2, err := models.NewUser(testUser2Name, testUser2Pass, testUserFullName, false, true)
 	require.NoError(t, err)
 	assert.True(t, newUser2.IsActive())
 
@@ -297,7 +299,7 @@ func TestUserServiceImpl_UpdateUserPassword(t *testing.T) {
 
 	fs := &mock.MockFileService{}
 
-	newUser, err := models.NewUser(testUser1Name, testUser1Pass, false, true)
+	newUser, err := models.NewUser(testUser1Name, testUser1Pass, testUserFullName, false, true)
 	require.NoError(t, err)
 
 	err = fs.CreateUserHome(newUser)

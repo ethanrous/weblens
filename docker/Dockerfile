@@ -1,21 +1,24 @@
 ARG ARCHITECTURE
 
-ARG NODE_VERSION=22
+ARG NODE_VERSION=22.14.0
+ARG GO_VERSION=1.24
 
 #
 # Build UI
 #
 FROM node:${NODE_VERSION}-alpine AS web
+WORKDIR /ui
 
 COPY ui .
 
-RUN --mount=type=cache,target=/root/.npm npm install
-RUN npm run build
+RUN npm install --global pnpm
+RUN pnpm install
+RUN pnpm run build
 
 #
 # Build server binary
 #
-FROM --platform=linux/${ARCHITECTURE} golang:1.23.5-alpine AS backend
+FROM --platform=linux/${ARCHITECTURE} golang:${GO_VERSION}-alpine AS backend
 
 # Install dependencies
 RUN apk upgrade --no-cache
@@ -38,7 +41,7 @@ FROM --platform=linux/${ARCHITECTURE} alpine:latest
 
 RUN apk upgrade --no-cache
 RUN apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community --repository http://dl-3.alpinelinux.org/alpine/edge/main vips
-RUN apk add --no-cache ffmpeg tiff libraw libpng libwebp libheif libjpeg 
+RUN apk add --no-cache ffmpeg tiff libraw libpng libwebp libheif libjpeg exiftool
 
 # Build deps
 RUN apk add --no-cache build-base gcc jasper-dev libjpeg-turbo-dev lcms2-dev gettext gettext-dev gnu-libiconv-dev
@@ -64,7 +67,7 @@ RUN cd /tmp/dcraw; ./install
 RUN rm -r /tmp/*
 
 WORKDIR /app
-COPY --from=web dist /app/ui/dist
+COPY --from=web /ui/dist /app/ui/dist
 COPY --from=backend /server/weblens /app/weblens
 COPY config/ /app/config
 COPY images/brand /app/static

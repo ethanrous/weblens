@@ -20,9 +20,18 @@ function TimelineControls({ setSearch }: { setSearch: (v: string) => void }) {
 
     const hasMedia = useMediaStore((state) => state.mediaMap.size !== 0)
 
+    // display: flex;
+    // flex-direction: row;
+    // align-items: center;
+    // flex-grow: 0;
+    // margin: 8px;
+    // height: 56px;
+    // width: 95%;
+    // gap: 24px;
+
     return (
-        <div className="timeline-controls">
-            <div className="relative h-10 w-56 shrink-0">
+        <div className="m-2 flex h-14 w-full grow-0 flex-row items-center justify-center gap-2 px-4">
+            <div className="h-10 w-56 shrink-0">
                 <WeblensProgress
                     height={40}
                     value={((imageSize - 150) / 350) * 100}
@@ -39,7 +48,7 @@ function TimelineControls({ setSearch }: { setSearch: (v: string) => void }) {
 
             <GalleryFilters />
 
-            <div className="flex grow w-0 justify-end">
+            <div className="flex w-0 grow items-center justify-end gap-1">
                 <WeblensInput
                     Icon={IconSearch}
                     fillWidth={false}
@@ -91,7 +100,7 @@ export function Timeline() {
     })
 
     return (
-        <div className="flex flex-col items-center h-1/2 w-full relative grow">
+        <div className="relative flex h-1/2 w-full grow flex-col items-center">
             <TimelineControls setSearch={setSearch} />
             <PhotoGallery medias={medias} loading={isLoading} error={error} />
         </div>

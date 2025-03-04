@@ -28,13 +28,13 @@ export default function StartUp() {
     }, [lastMessage])
 
     return (
-        <div className="flex flex-col justify-center items-center w-screen h-screen theme-background">
+        <div className="theme-background flex h-screen w-screen flex-col items-center justify-center">
             <Logo size={150} />
             <div className="absolute bottom-1 left-1">
                 <WebsocketStatus ready={readyState} />
             </div>
             {setupProgress !== 0 && (
-                <div className="flex flex-col relative w-[670px] max-w-full h-14 p-2 mt-16 gap-2">
+                <div className="relative mt-16 flex h-14 w-[670px] max-w-full flex-col gap-2 p-2">
                     <WeblensProgress value={setupProgress} />
                     <p className="theme-text">{lastTask}</p>
                 </div>
@@ -45,7 +45,7 @@ export default function StartUp() {
                         return (
                             <p
                                 key={startupTask.Name}
-                                className="theme-text w-full h-4"
+                                className="theme-text h-4 w-full"
                             >
                                 {startupTask.Description}
                             </p>

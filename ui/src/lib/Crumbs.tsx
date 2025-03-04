@@ -39,21 +39,21 @@ const CrumbText = ({ crumb }: { crumb: Crumb }) => {
     if (crumb.id === usr.homeId) {
         return (
             <div className={crumbStyle.crumbIcon}>
-                <IconHome className="w-full h-full" />
+                <IconHome className="h-full w-full" />
             </div>
         )
     }
     if (crumb.id === 'shared') {
         return (
             <div className={crumbStyle.crumbIcon}>
-                <IconUsers className="w-full h-full" />
+                <IconUsers className="h-full w-full" />
             </div>
         )
     }
     if (crumb.id === usr.trashId) {
         return (
             <div className={crumbStyle.crumbIcon}>
-                <IconTrash className="w-full h-full" />
+                <IconTrash className="h-full w-full" />
             </div>
         )
     }
@@ -168,7 +168,7 @@ function LoafOverflowMenu({
                 return (
                     <div
                         key={`crumb-overflow-${i}`}
-                        className="flex flex-row items-center min-w-0"
+                        className="flex min-w-0 flex-row items-center"
                         style={{
                             paddingLeft: 12 + (i - 1) * 28,
                         }}
@@ -226,7 +226,7 @@ export const StyledLoaf = ({
             {crumbs.map((c, i) => (
                 <div
                     key={c.id}
-                    className="flex flex-row items-center min-w-[50px]"
+                    className="flex min-w-[50px] flex-row items-center"
                 >
                     <StyledBreadcrumb
                         crumbInfo={c}
@@ -244,7 +244,7 @@ export const StyledLoaf = ({
             {squished > 0 && (
                 <div
                     ref={setOverflowRef}
-                    className="flex flex-row items-center h-max w-max cursor-pointer"
+                    className="flex h-max w-max cursor-pointer flex-row items-center"
                     onClick={(e) => {
                         e.stopPropagation()
                         setOverflowMenu((o) => {

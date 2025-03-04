@@ -476,15 +476,12 @@ func (ms *MediaServiceImpl) Drop() error {
 	}
 
 	// Delete all cache files on disk
-	err = thumbsDir.RecursiveMap(func(thumb *fileTree.WeblensFileImpl) error {
-		if thumbsDir == thumb {
-			return nil
+	thumbs := thumbsDir.GetChildren()
+	for _, thumb := range thumbs {
+		err = ms.fileService.DeleteCacheFile(thumb)
+		if err != nil {
+			return err
 		}
-		return ms.fileService.DeleteCacheFile(thumb)
-	})
-
-	if err != nil {
-		return err
 	}
 
 	// Evict all keys from cache
@@ -575,6 +572,29 @@ func (ms *MediaServiceImpl) SetMediaLiked(mediaId models.ContentId, liked bool, 
 	}
 
 	return nil
+}
+
+func (ms *MediaServiceImpl) GetMediaConverted(m *models.Media, format string) ([]byte, error) {
+	f, err := ms.fileService.GetFileByTree(m.FileIDs[0], UsersTreeKey)
+	if err != nil {
+		return nil, err
+	}
+
+	img, err := ms.loadImageFromFile(f, ms.GetMediaType(m))
+	if err != nil {
+		return nil, err
+	}
+
+	var blob []byte
+	switch format {
+	case "png":
+		blob, _, err = img.ExportPng(nil)
+	case "jpeg":
+		blob, _, err = img.ExportJpeg(nil)
+	default:
+		return nil, werror.Errorf("Unknown media convert format [%s]", format)
+	}
+	return blob, err
 }
 
 func (ms *MediaServiceImpl) removeCacheFiles(media *models.Media) error {
@@ -719,42 +739,9 @@ func (ms *MediaServiceImpl) handleCacheCreation(m *models.Media, file *fileTree.
 	sw.Lap("Get media type")
 
 	if !mType.Video {
-		filePath := file.AbsPath()
-		var img *vips.ImageRef
-
-		// Sony RAWs do not play nice with govips. Should fall back to imagick but it thinks its a TIFF.
-		// The real libvips figures this out, adding an intermediary step using dcraw to convert to a real TIFF
-		// and continuing processing from there solves this issue, and is surprisingly fast. Everyone say "Thank you dcraw"
-		if strings.HasSuffix(filePath, "ARW") {
-			cmd := exec.Command("dcraw", "-T", "-w", "-h", "-c", filePath)
-			var stdb, errb bytes.Buffer
-			cmd.Stderr = &errb
-			cmd.Stdout = &stdb
-
-			err = cmd.Run()
-			if err != nil {
-				return nil, werror.WithStack(errors.New(err.Error() + "\n" + errb.String()))
-			}
-
-			img, err = vips.NewImageFromReader(&stdb)
-		} else {
-			img, err = vips.NewImageFromFile(filePath)
-		}
-
+		img, err := ms.loadImageFromFile(file, mType)
 		if err != nil {
-			return nil, werror.WithStack(err)
-		}
-
-		sw.Lap("Load image")
-
-		// PDFs and HEIFs do not need to be rotated.
-		if !mType.IsMultiPage() && !mType.IsMime("image/heif") {
-			// Rotate image based on exif data
-			err = img.AutoRotate()
-			if err != nil {
-				return nil, werror.WithStack(err)
-			}
-			sw.Lap("Auto rotate image")
+			return nil, err
 		}
 
 		m.PageCount = img.Pages()
@@ -938,6 +925,46 @@ func (ms *MediaServiceImpl) getCacheFile(
 	}
 
 	return cacheFile, nil
+}
+
+func (ms *MediaServiceImpl) loadImageFromFile(f *fileTree.WeblensFileImpl, mType models.MediaType) (*vips.ImageRef, error) {
+	filePath := f.AbsPath()
+	var img *vips.ImageRef
+	var err error
+
+	// Sony RAWs do not play nice with govips. Should fall back to imagick but it thinks its a TIFF.
+	// The real libvips figures this out, adding an intermediary step using dcraw to convert to a real TIFF
+	// and continuing processing from there solves this issue, and is surprisingly fast. Everyone say "Thank you dcraw"
+	if strings.HasSuffix(filePath, "ARW") {
+		cmd := exec.Command("dcraw", "-T", "-w", "-h", "-c", filePath)
+		var stdb, errb bytes.Buffer
+		cmd.Stderr = &errb
+		cmd.Stdout = &stdb
+
+		err = cmd.Run()
+		if err != nil {
+			return nil, werror.WithStack(errors.New(err.Error() + "\n" + errb.String()))
+		}
+
+		img, err = vips.NewImageFromReader(&stdb)
+	} else {
+		img, err = vips.NewImageFromFile(filePath)
+	}
+
+	if err != nil {
+		return nil, werror.WithStack(err)
+	}
+
+	// PDFs and HEIFs do not need to be rotated.
+	if !mType.IsMultiPage() && !mType.IsMime("image/heif") {
+		// Rotate image based on exif data
+		err = img.AutoRotate()
+		if err != nil {
+			return nil, werror.WithStack(err)
+		}
+	}
+
+	return img, nil
 }
 
 var recogLock sync.Mutex

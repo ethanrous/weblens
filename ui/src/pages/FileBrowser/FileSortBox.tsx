@@ -57,7 +57,7 @@ function FileSortBox() {
     return (
         <div
             ref={setSortRef}
-            className={dirViewHeaderStyle.fileSortBox}
+            className={dirViewHeaderStyle.fileSortBox + ' ' + "wl-static-card"}
             data-open={open}
         >
             {isVertical && (

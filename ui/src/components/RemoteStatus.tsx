@@ -110,7 +110,7 @@ export default function RemoteStatus({
                             }
                         >
                             <h3
-                                className="theme-text-dark-bg font-semibold select-none cursor-pointer truncate"
+                                className="theme-text-dark-bg cursor-pointer select-none truncate font-semibold"
                                 onClick={() => {
                                     navigator.clipboard
                                         .writeText(remoteInfo.id)
@@ -122,7 +122,7 @@ export default function RemoteStatus({
                         </WeblensTooltip>
                         <WebsocketStatus ready={remoteInfo.online ? 1 : -1} />
                     </div>
-                    <div className="flex gap-1 h-max">
+                    <div className="flex h-max gap-1">
                         <IconClockHour4 />
                         <p className="theme-text-dark-bg">
                             {remoteInfo.lastBackup
@@ -131,7 +131,7 @@ export default function RemoteStatus({
                         </p>
                         {remoteInfo.backupSize != -1 && (
                             <div className="flex">
-                                <div className="w-[1px] bg-[--wl-outline-subtle] h-min-1 m-1" />
+                                <div className="h-min-1 m-1 w-[1px] bg-[--wl-outline-subtle]" />
                                 <p className="text-white">
                                     {humanFileSize(remoteInfo.backupSize)}
                                 </p>
@@ -144,7 +144,7 @@ export default function RemoteStatus({
                         Server is not initialized - Recommend restore
                     </p>
                 )}
-                <div className="flex flex-row max-w-full">
+                <div className="flex max-w-full flex-row">
                     <WeblensButton
                         squareSize={40}
                         labelOnHover
@@ -185,9 +185,9 @@ export default function RemoteStatus({
             </div>
             {restoring && (
                 <div className="restore-dialogue">
-                    <div className="flex flex-col w-[50%] justify-around items-center">
-                        <div className="flex flex-col w-[50%] ">
-                            <p className="text-2xl m-2">Restore Target</p>
+                    <div className="flex w-[50%] flex-col items-center justify-around">
+                        <div className="flex w-[50%] flex-col">
+                            <p className="m-2 text-2xl">Restore Target</p>
                             <WeblensInput
                                 value={restoreUrl}
                                 squareSize={40}
@@ -236,8 +236,8 @@ export default function RemoteStatus({
                 </div>
             )}
             {backupProgress && (
-                <div className="flex flex-col mt-4 pl-4 gap-2 border-l-2 border-wl-outline-subtle">
-                    <div className="flex flex-col gap-1 mb-2">
+                <div className="border-wl-outline-subtle mt-4 flex flex-col gap-2 border-l-2 pl-4">
+                    <div className="mb-2 flex flex-col gap-1">
                         {backupHeaderText}
                     </div>
                     {backupProgress.stages?.map((s) => (
@@ -248,7 +248,7 @@ export default function RemoteStatus({
                         />
                     ))}
                     {backupProgress.progressTotal && (
-                        <div className="flex w-full m-1 items-center gap-2">
+                        <div className="m-1 flex w-full items-center gap-2">
                             <WeblensProgress
                                 value={
                                     (backupProgress.progressCurrent /
@@ -256,14 +256,14 @@ export default function RemoteStatus({
                                     100
                                 }
                             />
-                            <p className="text-nowrap text-white p-1">
+                            <p className="text-nowrap p-1 text-white">
                                 {backupProgress.progressCurrent} /{' '}
                                 {backupProgress.progressTotal} files
                             </p>
                         </div>
                     )}
                     {backupProgress.files.size > 0 && (
-                        <div className="flex flex-col gap-1 my-2">
+                        <div className="my-2 flex flex-col gap-1">
                             {Array.from(backupProgress.files).map(
                                 ([name, { start }]) => (
                                     <BackupFile

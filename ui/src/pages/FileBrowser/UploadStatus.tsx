@@ -67,19 +67,19 @@ function UploadCard({ uploadMetadata }: { uploadMetadata: SingleUpload }) {
     ])
 
     return (
-        <div className="flex w-full flex-col p-2 gap-2">
-            <div className="flex flex-row h-max min-h-[40px] shrink-0 m-[1px] items-center">
-                <div className="flex flex-col h-max w-0 items-start justify-center grow">
-                    <p className="truncate font-semibold w-full">
+        <div className="flex w-full flex-col gap-2 p-2">
+            <div className="m-[1px] flex h-max min-h-[40px] shrink-0 flex-row items-center">
+                <div className="flex h-max w-0 grow flex-col items-start justify-center">
+                    <p className="w-full truncate font-semibold">
                         {uploadMetadata.friendlyName}
                     </p>
                     {/* {statusText && prog !== 100 && prog !== -1 && ( */}
                     <div>
-                        <p className="text-[--wl-text-color] text-nowrap pr-[4px] text-sm my-1">
+                        <p className="my-1 text-nowrap pr-[4px] text-sm text-[--wl-text-color]">
                             {statusText}
                         </p>
                         {!uploadMetadata.complete && (
-                            <p className="text-[--wl-text-color] text-nowrap pr-[4px] text-sm mt-1">
+                            <p className="mt-1 text-nowrap pr-[4px] text-sm text-[--wl-text-color]">
                                 {speedStr} {speedUnits}/s
                             </p>
                         )}
@@ -181,7 +181,7 @@ const UploadStatus = () => {
 
     return (
         <div className="upload-status-container">
-            <div className="flex flex-col h-max max-h-full w-full bg-[--wl-card-background] p-2 pb-0 mb-1 rounded overflow-hidden">
+            <div className="wl-static-card mb-1 flex h-max max-h-full w-full flex-col overflow-hidden rounded p-2 pb-0">
                 <div className="flex h-max min-h-[50px]">
                     <div className="h-max min-h-max w-full">
                         <VariableSizeList
@@ -205,9 +205,9 @@ const UploadStatus = () => {
                 </div>
 
                 <Divider h={2} w={'100%'} />
-                <div className="flex flex-row justify-center w-full h-max p-2">
-                    <div className="flex flex-row h-full w-full items-center justify-between">
-                        <p className="text-[--wl-text-color] font-semibold text-lg">
+                <div className="flex h-max w-full flex-row justify-center p-2">
+                    <div className="flex h-full w-full flex-row items-center justify-between">
+                        <p className="text-lg font-semibold text-[--wl-text-color]">
                             Uploading {topLevelCount} item
                             {topLevelCount !== 1 ? 's' : ''}
                         </p>

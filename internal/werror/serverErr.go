@@ -7,6 +7,11 @@ var ErrServerNotInitialized = ClientSafeErr{
 	statusCode: 503,
 }
 
+var ErrServerAlreadyInitialized = ClientSafeErr{
+	realError:  errors.New("server already initialized"),
+	statusCode: 400,
+}
+
 var ErrServerIsBackup = errors.New("this operation cannot be performed on a backup server")
 var ErrNoServerId = errors.New("server must have an id")
 var ErrNoCreator = errors.New("instances must have a creator id")

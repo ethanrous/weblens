@@ -36,10 +36,10 @@ func TestAccessServiceImpl_CanUserAccessFile(t *testing.T) {
 		t.FailNow()
 	}
 
-	billUser, err := models.NewUser("billcypher", "shakemyhand", false, true)
+	billUser, err := models.NewUser("billcypher", "shakemyhand", "Bill Cypher", false, true)
 	require.NoError(t, err)
 
-	dipperUser, err := models.NewUser("dipperpines", "ivegotabook", false, true)
+	dipperUser, err := models.NewUser("dipperpines", "ivegotabook", "Dipper Pines", false, true)
 	require.NoError(t, err)
 
 	// Make file tree
@@ -105,7 +105,7 @@ func TestAccessServiceImpl_GenerateApiKey(t *testing.T) {
 		t.FailNow()
 	}
 
-	billUser, err := models.NewUser("billcypher", "shakemyhand", false, true)
+	billUser, err := models.NewUser("billcypher", "shakemyhand", "Bill Cypher", false, true)
 	if err != nil {
 		log.ErrTrace(err)
 		t.FailNow()
@@ -154,7 +154,7 @@ func TestAccessServiceImpl_SetKeyUsedBy(t *testing.T) {
 		t.FailNow()
 	}
 
-	billUser, err := models.NewUser("billcypher", "shakemyhand", true, true)
+	billUser, err := models.NewUser("billcypher", "shakemyhand", "Bill Cypher", true, true)
 	if err != nil {
 		log.ErrTrace(err)
 		t.FailNow()

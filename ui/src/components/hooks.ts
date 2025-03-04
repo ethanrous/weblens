@@ -9,7 +9,7 @@ import {
 } from 'react'
 
 export const useResize = (
-    elem: HTMLDivElement,
+    elem: HTMLElement,
     resizeCallback?: (oldSize: Dimensions, newSize: Dimensions) => void
 ) => {
     const [size, setSize] = useState({ height: -1, width: -1 })

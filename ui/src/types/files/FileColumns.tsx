@@ -189,8 +189,8 @@ function ColumnRow({
                 )
             }
         >
-            <div className="flex items-center h-[40px] max-h-full gap-3 w-full">
-                <div className="flex shrink-0 justify-center items-center w-[40px] h-[40px] max-w-[40px] max-h-full">
+            <div className="flex h-[40px] max-h-full w-full items-center gap-3">
+                <div className="flex h-[40px] max-h-full w-[40px] max-w-[40px] shrink-0 items-center justify-center">
                     <FileVisual file={file} allowMedia={true} />
                 </div>
                 <div className={filesStyle.fileTextContainer}>
@@ -222,13 +222,13 @@ function Preview({ file }: { file: WeblensFile }) {
 
     return (
         <div
-            className="flex flex-col w-full p-4"
+            className="flex w-full flex-col p-4"
             ref={setPreviewRef}
             onClick={(e) => e.stopPropagation()}
         >
             {file && !file.IsFolder() && (
                 <div className="h-full">
-                    <div className="flex justify-center items-center w-full p-4 h-[75%]">
+                    <div className="flex h-[75%] w-full items-center justify-center p-4">
                         {media && (
                             <MediaImage
                                 media={media}
@@ -393,12 +393,12 @@ function Column({
             }}
         >
             {loading && (
-                <div className="flex grow justify-center items-center">
+                <div className="flex grow items-center justify-center">
                     <WeblensLoader />
                 </div>
             )}
             {!loading && (
-                <div className="flex grow w-1 p-1">
+                <div className="flex w-1 grow p-1">
                     <div
                         className={filesStyle.filesColumnInner}
                         onDragOver={(e) => {
@@ -753,7 +753,7 @@ function FileColumns() {
     return (
         <div
             ref={setContainerRef}
-            className="flex relative flex-row h-full w-full outline-0 overflow-x-scroll overflow-y-hidden gap-2"
+            className="relative flex h-full w-full flex-row gap-2 overflow-y-hidden overflow-x-scroll outline-0"
         >
             {emptyFolder && <GetStartedCard />}
             {!emptyFolder &&
@@ -789,7 +789,7 @@ function FileColumns() {
                     )
                 })}
             <div
-                className="flex shrink-0 grow w-[40vw]"
+                className="flex w-[40vw] shrink-0 grow"
                 // style={{ width: colWidths[lists.length + 1] ?? 300 }}
             >
                 <Preview file={lastSelected} />

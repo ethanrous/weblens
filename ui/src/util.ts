@@ -74,6 +74,40 @@ export function nsToHumanTime(ns: number) {
     return timeStr
 }
 
+const MS_IN_SECOND = 1000
+const MS_IN_MINUTE = MS_IN_SECOND * 60
+const MS_IN_HOUR = MS_IN_MINUTE * 60
+
+export function msToHumanTime(ms: number) {
+    if (!ms || ms < 0) {
+        return '0ms'
+    }
+
+    let timeStr = ''
+
+    const hours = Math.floor(ms / MS_IN_HOUR)
+    if (hours >= 1) {
+        timeStr += hours + 'h '
+        ms = ms % MS_IN_HOUR
+    }
+
+    const minutes = Math.floor(ms / MS_IN_MINUTE)
+    if (minutes >= 1) {
+        timeStr += minutes + 'm '
+        ms = ms % MS_IN_MINUTE
+    }
+
+    const seconds = Math.floor(ms / MS_IN_SECOND)
+    if (seconds >= 1) {
+        timeStr += seconds + 's '
+        ms = ms % MS_IN_SECOND
+    }
+
+    timeStr += ms + 'ms '
+
+    return timeStr
+}
+
 export function secondsToVideoTime(seconds: number, padForHours = false) {
     const hours = Math.floor(seconds / 3600)
     const hoursStr = hours.toString().padStart(2, '0')
@@ -140,20 +174,11 @@ export function binarySearch<T>(
     return -1
 }
 
-export function require_css(...classNames: string[]) {
-    for (const className of classNames) {
-        if (className === undefined) {
-            throw new Error('undefined className')
-        }
-    }
-    return classNames.join(' ')
-}
-
-export function toggleLightTheme() {
-    const isDarkTheme = document.documentElement.classList.contains('dark')
-
-    localStorage.setItem('theme', isDarkTheme ? 'light' : 'dark')
-    document.documentElement.classList.toggle('dark')
-
-    return !isDarkTheme
-}
+// export function require_css(...classNames: string[]) {
+//     for (const className of classNames) {
+//         if (className === undefined) {
+//             throw new Error('undefined className')
+//         }
+//     }
+//     return classNames.join(' ')
+// }

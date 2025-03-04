@@ -170,7 +170,9 @@ func TestFileService_Restore_SingleFile(t *testing.T) {
 
 	// Create a user
 	userName := "test-user"
-	testUser, err := models.NewUser(userName, "test-pass", false, true)
+	fullName := "Test User"
+	password := "test-pass"
+	testUser, err := models.NewUser(userName, password, fullName, false, true)
 	require.NoError(t, err)
 
 	usersTree := pack.FileService.GetFileTreeByName("USERS")
@@ -257,7 +259,9 @@ func TestFileService_Restore_Directory(t *testing.T) {
 
 	// Create a user
 	userName := "test-user"
-	testUser, err := models.NewUser(userName, "test-pass", false, true)
+	fullName := "Test User"
+	password := "test-pass"
+	testUser, err := models.NewUser(userName, password, fullName, false, true)
 	require.NoError(t, err)
 
 	err = pack.FileService.CreateUserHome(testUser)

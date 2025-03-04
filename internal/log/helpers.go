@@ -83,7 +83,7 @@ func TrySafeErr(err error) (error, int) {
 	var safeErr = werror.ClientSafeErr{}
 	if errors.As(err, &safeErr) {
 		if safeErr.Code() >= 400 {
-			if GetLogLevel() == TRACE {
+			if GetLogLevel() >= DEBUG {
 				ErrTrace(err)
 			} else {
 				ShowErr(err)

@@ -28,10 +28,10 @@ function FilesErrorDisplay({
     }
 
     return (
-        <div className="flex flex-col justify-center items-center h-full w-full">
-            <div className="flex flex-col h-max w-[360px] p-12 mb-[40vh] bg-wl-barely-visible outline outline-main-accent rounded justify-center items-center">
+        <div className="flex h-full w-full flex-col items-center justify-center">
+            <div className="bg-wl-barely-visible outline-main-accent mb-[40vh] flex h-max w-[360px] flex-col items-center justify-center rounded p-12 outline">
                 <div className="flex items-center gap-1">
-                    <p className="font-bold text-2xl w-max">{preText}</p>
+                    <p className="w-max text-2xl font-bold">{preText}</p>
                     <IconExclamationCircle size={32} className="text-red-500" />
                 </div>
 

@@ -2,7 +2,6 @@ import { IconBrandGithub } from '@tabler/icons-react'
 import UsersApi from '@weblens/api/UserApi'
 import WeblensLogo from '@weblens/components/Logo'
 import { useSessionStore } from '@weblens/components/UserInfo'
-// import { useKeyDown } from '@weblens/components/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import { ErrorHandler } from '@weblens/types/Types'
@@ -47,15 +46,15 @@ const Login = () => {
     }, [userInput, passInput])
 
     return (
-        <div className="flex flex-col h-screen max-h-screen items-center bg-wl-background gap-2">
-            <div className="flex justify-center w-full text-center mt-80">
+        <div className="bg-wl-background my-auto flex h-screen max-h-screen flex-col items-center justify-center gap-2 sm:justify-normal lg:my-0">
+            <div className="flex w-full justify-center text-center sm:mt-80">
                 <WeblensLogo size={100} />
                 <h1 className="mt-auto">EBLENS</h1>
             </div>
             <form
                 id="login"
                 action="#"
-                className="flex flex-col gap-3 w-96 mx-auto mt-8"
+                className="mx-auto mt-8 flex w-96 min-w-0 max-w-full flex-col gap-3 px-4"
                 onSubmit={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
@@ -79,23 +78,25 @@ const Login = () => {
                     autoComplete="current-password"
                 />
                 {formError && (
-                    <span className="text-red-500 text-center">
+                    <span className="text-center text-red-500">
                         {formError}
                     </span>
                 )}
-				<div className='my-3'>
-					<WeblensButton
-						label={loading ? 'Signing in...' : 'Sign in'}
-						fillWidth
-						squareSize={50}
-						disabled={userInput === '' || passInput === '' || loading}
-						centerContent
-						type="submit"
-						// setButtonRef={setButtonRef}
-					/>
-				</div>
-                <div className="flex justify-center items-center p-2 gap-2 border-t-2 border-wl-color-graphite-800">
-                    <span className="text-wl-text-color-secondary ml-auto">
+                <div className="my-3">
+                    <WeblensButton
+                        label={loading ? 'Signing in...' : 'Sign in'}
+                        fillWidth
+                        squareSize={50}
+                        disabled={
+                            userInput === '' || passInput === '' || loading
+                        }
+                        centerContent
+                        type="submit"
+                        // setButtonRef={setButtonRef}
+                    />
+                </div>
+                <div className="flex items-center justify-center gap-2 border-t-[1px] border-wl-border-color-primary p-2">
+                    <span className="ml-auto text-wl-text-color-primary">
                         New Here?
                     </span>
                     <a href="/signup">Request an Account</a>
@@ -103,7 +104,7 @@ const Login = () => {
             </form>
             <a
                 href="https://github.com/ethanrous/weblens"
-                className="flex flex-row absolute bottom-0 right-0 m-4 bg-transparent"
+                className="absolute bottom-0 right-0 m-4 flex flex-row bg-transparent"
                 target="_blank"
             >
                 <IconBrandGithub />

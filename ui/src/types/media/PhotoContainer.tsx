@@ -148,7 +148,7 @@ export function MediaImage({
                 media.HighestQualityLoaded() !== PhotoQuality.HighRes &&
                 !loadError &&
                 (!media.GetMediaType().IsVideo || isWaiting) && (
-                    <div className="bottom-10 right-10 absolute w-8">
+                    <div className="absolute bottom-10 right-10 w-8">
                         <WeblensLoader />
                     </div>
                 )}
@@ -239,16 +239,16 @@ const VideoInterface = memo(
 
         return (
             <div
-                className="flex absolute justify-center items-end p-2"
+                className="absolute flex items-end justify-center p-2"
                 style={{
                     width: size.width,
                     height: size.height,
                     opacity: showUi ? 1 : 0,
                 }}
             >
-                <div className="flex justify-center items-center relative h-full w-full">
+                <div className="relative flex h-full w-full items-center justify-center">
                     <PlayIcon
-                        className="absolute text-white w-6 h-6 z-50 cursor-pointer"
+                        className="absolute z-50 h-6 w-6 cursor-pointer text-white"
                         onClick={(e) => {
                             e.stopPropagation()
                             if (isPlaying) {
@@ -264,13 +264,13 @@ const VideoInterface = memo(
                     />
                 </div>
                 <div
-                    className="flex flex-row h-max w-full justify-around items-center absolute p-2 z-10 gap-2"
+                    className="absolute z-10 flex h-max w-full flex-row items-center justify-around gap-2 p-2"
                     onClick={(e) => {
                         e.stopPropagation()
                     }}
                 >
                     <div
-                        className="flex w-max justify-center h-max text-nowrap gap-1 select-none"
+                        className="flex h-max w-max select-none justify-center gap-1 text-nowrap"
                         style={{
                             minWidth: `${videoLength < 3600 ? 6.5 : 10}rem`,
                         }}
@@ -312,9 +312,9 @@ const VideoInterface = memo(
                             }}
                         />
                     </div>
-                    <div className="flex justify-center items-center relative w-[12%] gap-2 mx-4">
+                    <div className="relative mx-4 flex w-[12%] items-center justify-center gap-2">
                         <VolumeIcon
-                            className="w-4 h-4 cursor-pointer text-white z-10 shrink-0"
+                            className="z-10 h-4 w-4 shrink-0 cursor-pointer text-white"
                             onClick={() => {
                                 if (volume === 0) {
                                     const volume =
@@ -338,7 +338,7 @@ const VideoInterface = memo(
                         />
                     </div>
                     <IconMaximize
-                        className="relative w-5 h-5 cursor-pointer text-white z-100 pointer-events-auto"
+                        className="z-100 pointer-events-auto relative h-5 w-5 cursor-pointer text-white"
                         onClick={(e) => {
                             e.stopPropagation()
                             toggleFullScreen(containerRef)
@@ -484,7 +484,7 @@ function VideoWrapper({
     return (
         <div
             ref={setContainerRef}
-            className="flex relative items-center justify-center"
+            className="relative flex items-center justify-center"
             onMouseMove={() => {
                 setShowUi((prev) => {
                     if (prev) {

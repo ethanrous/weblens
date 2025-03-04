@@ -136,19 +136,22 @@
 }
 
 .event-caret {
-	width: 20px;
-	height: 20px;
-	border-radius: 4px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	width: 24px;
+	height: 24px;
+	border-radius: var(--wl-border-radius);
 	transition: background-color 150ms ease-in-out;
-	color: var(--wl-text-color);
+	color: var(--wl-text-color-primary);
 
 	&:hover {
-		background-color: var(--wl-main-accent);
+		background-color: var(--wl-background-color-tertiary);
 	}
 }
 
 .path-text {
-	color: var(--wl-text-color);
+	color: var(--wl-text-color-primary);
 	align-items: center;
 	user-select: none;
 	font-weight: 600;
@@ -160,7 +163,7 @@
 }
 
 .file-action-text {
-	color: var(--wl-text-color);
+	color: var(--wl-text-color-primary);
 	user-select: none;
 	font-weight: 500;
 	font-size: 12px;
@@ -188,7 +191,7 @@
 .history-row-content {
 	display: flex;
 	align-items: center;
-	outline: 1px solid #374151;
+	outline: 1px solid var(--wl-border-color-primary);
 	padding: 0.5rem;
 	border-radius: 4px;
 	width: 100%;
@@ -196,20 +199,22 @@
 	gap: 0.5rem;
 	max-height: 48px;
 	cursor: pointer;
-	transition: background-color 150ms ease-in-out, outline-color 150ms ease-in-out;
+	transition-timing-function: var(--wl-transition-func);
+	transition-duration: var(--wl-transition-duration);
+	transition-property: background-color, outline-color;
 
 	&:hover {
-		background-color: var(--wl-item-grey);
+		background-color: var(--wl-background-color-secondary);
 	}
 
 	&[data-now='true'] {
-		outline: 1px dashed var(--wl-outline-subtle);
+		outline: 1px dashed var(--wl-border-color-primary);
 		max-height: 32px;
 		justify-content: center
 	}
 
 	&[data-selected='true'] {
-		outline-color: var(--wl-main-accent);
+		outline-color: var(--wl-theme-color-primary);
 		outline-width: 2px;
 		background-color: #00000000;
 	}
@@ -227,7 +232,7 @@
 	align-items: center;
 	gap: 1rem;
 	user-select: none;
-	color: var(--wl-text-color);
+	color: var(--wl-text-color-primary);
 }
 
 .size-change-divider::before,
@@ -235,7 +240,7 @@
 	flex: 1;
 	content: '';
 	padding: 0.5px;
-	background-color: var(--wl-text-color);
+	background-color: var(--wl-text-color-primary);
 	margin: 3px;
 }
 

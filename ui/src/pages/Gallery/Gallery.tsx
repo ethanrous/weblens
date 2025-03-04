@@ -53,7 +53,7 @@ export function GalleryFilters() {
     })
 
     return (
-        <div className="flex flex-col items-center h-full w-[40px]">
+        <div className="relative flex h-max w-[40px] flex-col items-center">
             <WeblensButton
                 Left={IconFilter}
                 allowRepeat
@@ -63,38 +63,32 @@ export function GalleryFilters() {
                 toggleOn={disabledAlbums.length !== 0 || showRaw}
             />
             <div
-                className="options-dropdown"
+                className="wl-floating-card pointer-events-auto absolute z-50 mt-12 flex w-max flex-col items-center rounded-md shadow-xl transition data-[open=false]:pointer-events-none data-[open=false]:scale-90 data-[open=false]:opacity-0"
                 data-open={optionsOpen}
                 ref={setDropdownRef}
             >
-                <div className="flex flex-col items-center p-2 gap-4">
-                    <p className="font-semibold text-lg">Gallery Filters</p>
-                    <div className="flex gap-3">
+                <div className="flex flex-col items-center gap-4 p-2">
+                    <p className="text-lg font-semibold">Gallery Filters</p>
+                    <div className="flex h-max w-full gap-3">
                         <WeblensButton
                             label="Show RAWs"
-                            squareSize={40}
-                            allowRepeat
-                            toggleOn={rawOn}
+                            flavor={rawOn ? 'default' : 'outline'}
                             onClick={() => setRawOn((raw) => !raw)}
                         />
                         <WeblensButton
                             label="Show Hidden"
-                            squareSize={40}
-                            allowRepeat
-                            toggleOn={hiddenOn}
+                            centerContent
+                            flavor={hiddenOn ? 'default' : 'outline'}
                             onClick={() => {
                                 setHiddenOn((hidden) => !hidden)
                             }}
                         />
                     </div>
-
-                    {/* <div className="grid grid-cols-2 gap-2 max-h-[500px] overflow-y-scroll no-scrollbar"> */}
-                    {/*     {albumsOptions} */}
-                    {/* </div> */}
                 </div>
-                <div className="flex justify-end w-full">
+                <div className="flex w-full justify-end">
                     <WeblensButton
                         label="Save"
+                        centerContent
                         disabled={rawOn === showRaw && hiddenOn === showHidden}
                         onClick={(e) => {
                             if (optionsOpen) {
@@ -124,8 +118,6 @@ const Gallery = () => {
     const setPresentationTarget = useGalleryStore(
         (state) => state.setPresentationTarget
     )
-    const setBlockFocus = useGalleryStore((state) => state.setBlockFocus)
-
     const server = useSessionStore((state) => state.server)
 
     const loc = useLocation()
@@ -157,11 +149,8 @@ const Gallery = () => {
     }, [bouncedSize])
 
     return (
-        <div className="flex flex-col h-screen w-screen relative">
-            <HeaderBar
-                page={'gallery'}
-                setBlockFocus={(block: boolean) => setBlockFocus(block)}
-            />
+        <div className="relative flex h-screen w-screen flex-col">
+            <HeaderBar />
             <Presentation
                 mediaId={
                     presentingMode === PresentType.Fullscreen
@@ -176,7 +165,7 @@ const Gallery = () => {
 
             <div
                 ref={viewportRef}
-                className="flex flex-col h-[50%] w-full shrink-0 relative grow"
+                className="relative flex h-[50%] w-full shrink-0 grow flex-col"
             >
                 {page == 'timeline' && <Timeline />}
                 {/* {page == 'albums' && <Albums selectedAlbumId={albumId} />} */}

@@ -34,10 +34,10 @@ function FileVisual({
             return (
                 <div
                     ref={setContainerRef}
-                    className="relative flex w-full h-full justify-center items-center "
+                    className="relative flex h-full w-full items-center justify-center"
                 >
                     <div
-                        className="relative w-[90%] h-[90%] z-20"
+                        className="relative z-20 h-[90%] w-[90%]"
                         style={{
                             translate: `${containerQuanta * -3}px ${containerQuanta * -3}px`,
                         }}
@@ -47,9 +47,9 @@ function FileVisual({
                             quality={PhotoQuality.LowRes}
                         />
                     </div>
-                    <div className="absolute w-[88%] h-[88%] bg-wl-outline-subtle outline outline-2 outline-theme-text opacity-75 rounded z-10" />
+                    <div className="bg-wl-outline-subtle outline-theme-text absolute z-10 h-[88%] w-[88%] rounded opacity-75 outline outline-2" />
                     <div
-                        className="absolute w-[88%] h-[88%] bg-wl-outline-subtle outline outline-2 outline-theme-text opacity-50 rounded"
+                        className="bg-wl-outline-subtle outline-theme-text absolute h-[88%] w-[88%] rounded opacity-50 outline outline-2"
                         style={{
                             translate: `${containerQuanta * 3}px ${containerQuanta * 3}px`,
                         }}
@@ -60,7 +60,7 @@ function FileVisual({
             return (
                 <IconFolder
                     stroke={1}
-                    className="h-3/4 w-3/4 z-10 shrink-0 text-[--wl-file-text-color]"
+                    className="z-10 h-3/4 w-3/4 shrink-0 text-[--wl-file-text-color]"
                 />
             )
         }
@@ -85,12 +85,12 @@ function FileVisual({
             return (
                 <div
                     ref={setContainerRef}
-                    className="flex justify-center items-center w-full h-full"
+                    className="flex h-full w-full items-center justify-center"
                 >
-                    <IconFile stroke={1} className="w-3/4 h-3/4" />
+                    <IconFile stroke={1} className="h-3/4 w-3/4" />
                     {extIndex !== -1 && (
                         <p
-                            className="font-semibold absolute select-none"
+                            className="absolute select-none font-semibold"
                             style={{ fontSize: textSize }}
                         >
                             .{ext}

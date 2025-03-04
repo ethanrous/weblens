@@ -27,7 +27,7 @@ export function PathFmt({ pathName }: { pathName: string }) {
 
     return (
         <div
-            className="flex items-center min-w-0"
+            className="flex min-w-0 items-center"
             style={{ flexShrink: parts.length ? 1 : 0 }}
         >
             <StartIcon className="shrink-0 text-[--wl-text-color]" />
@@ -35,10 +35,10 @@ export function PathFmt({ pathName }: { pathName: string }) {
                 return (
                     <div
                         key={part}
-                        className="flex w-max items-center shrink min-w-0"
+                        className="flex w-max min-w-0 shrink items-center"
                     >
                         <IconSlash
-                            className="text-[--wl-text-color] shrink-0"
+                            className="shrink-0 text-[--wl-text-color]"
                             size={18}
                         />
                         <p className={historyStyle.pathText}>{part}</p>
@@ -59,11 +59,11 @@ export function FileFmt({ pathName }: { pathName: string }) {
     }
 
     return (
-        <div className="flex items-center w-max min-w-0 max-w-full">
+        <div className="flex w-max min-w-0 max-w-full items-center">
             {StartIcon && (
                 <StartIcon className="theme-text m-1 shrink-0 text-[--wl-text-color]" />
             )}
-            <p className="theme-text select-none font-semibold text-lg text-nowrap truncate">
+            <p className="theme-text select-none truncate text-nowrap text-lg font-semibold">
                 {nameText}
             </p>
         </div>

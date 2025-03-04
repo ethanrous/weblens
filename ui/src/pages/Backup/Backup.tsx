@@ -32,9 +32,9 @@ function NewCoreMenu({ closeNewCore }: { closeNewCore: () => void }) {
     const [apiKey, setApiKey] = useState('')
 
     return (
-        <div className="absolute backdrop-blur h-screen w-screen p-20 z-10">
-            <div className="flex flex-col bg-wl-background p-10 wl-outline h-max">
-                <div className="flex items-center gap-5 mb-8">
+        <div className="absolute z-10 h-screen w-screen p-20 backdrop-blur">
+            <div className="bg-wl-background flex h-max flex-col p-10 wl-outline">
+                <div className="mb-8 flex items-center gap-5">
                     <WeblensButton
                         Left={IconX}
                         squareSize={35}
@@ -49,7 +49,7 @@ function NewCoreMenu({ closeNewCore }: { closeNewCore: () => void }) {
                 <WeblensInput
                     placeholder={'https://myremoteweblens.net/'}
                     valueCallback={setCoreAddress}
-                    failed={
+                    valid={
                         coreAddress &&
                         coreAddress.match(
                             '^http(s)?:\\/\\/[^:]+(:\\d{2,5})?/?$'
@@ -127,18 +127,18 @@ export default function Backup() {
     }
 
     return (
-        <div className="flex flex-col w-full h-full p-4 items-end">
+        <div className="flex h-full w-full flex-col items-end p-4">
             {newCoreMenu && (
                 <NewCoreMenu closeNewCore={() => setNewCoreMenu(false)} />
             )}
-            <div className="flex w-full justify-between items-center">
+            <div className="flex w-full items-center justify-between">
                 <div className="flex flex-row gap-2">
                     <Logo />
                     <h1 className="text-3xl">Backup</h1>
                 </div>
                 <ThemeToggleButton />
             </div>
-            <div className="flex w-full pt-4 gap-1 mb-10">
+            <div className="mb-10 flex w-full gap-1 pt-4">
                 {remotes.map((remote) => {
                     return (
                         <RemoteStatus

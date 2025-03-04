@@ -24,7 +24,7 @@ function TimeSlice({
     incDecFunc: (n: number) => void
 }) {
     return (
-        <div className="flex flex-col w-max h-max p-2 items-center">
+        <div className="flex h-max w-max flex-col items-center p-2">
             {isAnchor && (
                 <IconCaretUp
                     className="cursor-pointer"
@@ -34,7 +34,7 @@ function TimeSlice({
                     }}
                 />
             )}
-            <div className="flex flex-col w-max h-max p-2 rounded select-none bg-[#00000077] text-white">
+            <div className="flex h-max w-max select-none flex-col rounded bg-[#00000077] p-2 text-white">
                 <p>{value}</p>
             </div>
             {isAnchor && (
@@ -150,8 +150,8 @@ function TimeDialogue({
     }
 
     return (
-        <div className="flex flex-col h-full items-center justify-evenly">
-            <div className="flex flex-col w-full items-center justify-around p-1">
+        <div className="flex h-full flex-col items-center justify-evenly">
+            <div className="flex w-full flex-col items-center justify-around p-1">
                 <div className="flex flex-row items-center justify-center">
                     {/* Month */}
                     <TimeSlice
@@ -346,7 +346,7 @@ export const GalleryMenu = memo(
                     />
                 )}
                 {open && timeAdjustOffset === null && (
-                    <div className="flex flex-col items-center w-full max-w-[300px] p-2">
+                    <div className="flex w-full max-w-[300px] flex-col items-center p-2">
                         <WeblensButton
                             squareSize={40}
                             fillWidth

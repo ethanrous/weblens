@@ -76,7 +76,18 @@ func (s *Server) Start() {
 			return
 		}
 
-		s.router.Mount("/docs", httpSwagger.WrapHandler)
+		s.router.Get("/docs", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/docs/", http.StatusMovedPermanently)
+		})
+
+		// Kinda hacky, but allows for docs to be served from /docs/ instead of /docs/index.html
+		s.router.Get("/docs/*", func(w http.ResponseWriter, r *http.Request) {
+			if r.RequestURI == "/docs/" {
+				r.RequestURI = "/docs/index.html"
+			}
+			httpSwagger.WrapHandler(w, r)
+		})
+
 		s.router.Mount("/api", s.UseApi())
 
 		if !env.DetachUi() {
@@ -198,11 +209,14 @@ func (s *Server) UseApi() *chi.Mux {
 		r.Group(func(r chi.Router) {
 			r.Use(AllowPublic)
 			r.Post("/auth", loginUser)
+			r.Get("/unique", checkUsernameUnique)
 		})
 
 		r.Post("/logout", logoutUser)
 		r.Patch("/{username}/password", updateUserPassword)
 		r.Patch("/{username}/admin", setUserAdmin)
+		r.Patch("/{username}/active", activateUser)
+		r.Patch("/{username}/fullName", changeFullName)
 		r.Delete("/{username}", deleteUser)
 	})
 
@@ -238,6 +252,7 @@ func (s *Server) UseApi() *chi.Mux {
 		r.Group(func(r chi.Router) {
 			r.Use(AllowPublic)
 			r.Post("/init", initializeServer)
+			r.Post("/reset", resetServer)
 		})
 
 		r.Group(func(r chi.Router) {

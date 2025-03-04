@@ -34,7 +34,9 @@ const useR = () => {
                     setUser(new User({}, false))
                     if (
                         err.response.status === 401 &&
-                        !window.location.pathname.includes('share/')
+                        !window.location.pathname.includes('share/') &&
+                        !window.location.pathname.includes('login') &&
+                        !window.location.pathname.includes('signup')
                     ) {
                         console.debug('Going to login')
                         nav('/login', {

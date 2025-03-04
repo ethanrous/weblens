@@ -394,6 +394,7 @@ type MediaService interface {
 	IsFileDisplayable(file *fileTree.WeblensFileImpl) bool
 	IsCached(m *Media) bool
 	GetProminentColors(media *Media) (prom []string, err error)
+	GetMediaConverted(m *Media, format string) ([]byte, error)
 
 	FetchCacheImg(m *Media, quality MediaQuality, pageNum int) ([]byte, error)
 	StreamVideo(m *Media, u *User, share *FileShare) (*VideoStreamer, error)

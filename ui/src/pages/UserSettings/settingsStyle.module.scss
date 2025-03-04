@@ -3,7 +3,7 @@
 	flex-direction: column;
 	width: 100vw;
 	height: 100vh;
-	background-color: var(--wl-background-color);
+	background-color: var(--wl-background-color-primary);
 }
 
 .sidebar {
@@ -35,12 +35,12 @@
 	align-items: center;
 
 	&[data-active='true'] {
-		background-color: #44444466;
+		background-color: var(--wl-background-color-tertiary);
 		font-weight: 500;
 	}
 
 	&:hover {
-		background-color: #44444499;
+		background-color: var(--wl-background-color-secondary);
 	}
 }
 
@@ -58,7 +58,7 @@
 
 .settings-tabs-group {
 	color: var(--wl-text-color-dull);
-	border-top: 0.0625rem solid var(--wl-outline-subtle);
+	border-top: 0.0625rem solid var(--wl-border-color-primary);
 	margin-top: 0.5rem;
 	padding: 0.5rem;
 }
@@ -69,7 +69,7 @@
 	align-items: center;
 	padding-bottom: 1rem;
 	margin-bottom: 1rem;
-	border-bottom: 0.0625rem solid var(--wl-outline-subtle)
+	border-bottom: 0.0625rem solid var(--wl-border-color-primary)
 }
 
 .settings-header h3 {

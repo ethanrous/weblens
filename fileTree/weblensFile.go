@@ -133,6 +133,8 @@ func NewWeblensFile(id FileId, filename string, parent *WeblensFileImpl, isDir b
 // Freeze returns a "deep-enough" copy of the file descriptor. All only-locally-relevant
 // fields are copied, however references, except for locks, are the same as the original version
 func (f *WeblensFileImpl) Freeze() *WeblensFileImpl {
+	f.updateLock.RLock()
+	defer f.updateLock.RUnlock()
 	// Copy values of wf struct
 	c := *f
 
@@ -240,10 +242,6 @@ func (f *WeblensFileImpl) setPastFile(isPastFile bool) {
 
 func (f *WeblensFileImpl) Stat() (fs.FileInfo, error) {
 	return f, nil
-}
-
-func (f *WeblensFileImpl) setModTime(t time.Time) {
-	f.modifyDate = t
 }
 
 func (f *WeblensFileImpl) Size() int64 {
@@ -371,7 +369,7 @@ func (f *WeblensFileImpl) Write(data []byte) (int, error) {
 	err := os.WriteFile(f.AbsPath(), data, 0600)
 	if err == nil {
 		f.size.Store(int64(len(data)))
-		f.modifyDate = time.Now()
+		f.setModifyDate(time.Now())
 	}
 	return len(data), werror.WithStack(err)
 }
@@ -400,7 +398,7 @@ func (f *WeblensFileImpl) WriteAt(data []byte, seekLoc int64) error {
 	wroteLen, err := realFile.WriteAt(data, seekLoc)
 	if err == nil {
 		f.size.Add(int64(wroteLen))
-		f.modifyDate = time.Now()
+		f.setModifyDate(time.Now())
 	}
 
 	return err
@@ -424,7 +422,7 @@ func (f *WeblensFileImpl) Append(data []byte) error {
 	wroteLen, err := realFile.Write(data)
 	if err == nil {
 		f.size.Add(int64(wroteLen))
-		f.modifyDate = time.Now()
+		f.setModifyDate(time.Now())
 	}
 	return err
 }
@@ -514,6 +512,18 @@ func (f *WeblensFileImpl) SetContentId(newContentId string) {
 	f.contentId = newContentId
 }
 
+func (f *WeblensFileImpl) getModifyDate() time.Time {
+	f.updateLock.RLock()
+	defer f.updateLock.RUnlock()
+	return f.modifyDate
+}
+
+func (f *WeblensFileImpl) setModifyDate(newModifyDate time.Time) {
+	f.updateLock.Lock()
+	defer f.updateLock.Unlock()
+	f.modifyDate = newModifyDate
+}
+
 func (f *WeblensFileImpl) UnmarshalJSON(bs []byte) error {
 	data := map[string]any{}
 	err := json.Unmarshal(bs, &data)
@@ -567,7 +577,7 @@ func (f *WeblensFileImpl) MarshalJSON() ([]byte, error) {
 	}
 
 	if f.ModTime().UnixMilli() < 0 {
-		log.Warning.Printf("File [ %s ] has invalid mod time trying to marshal", f.GetPortablePath())
+		log.Warning.Printf("File [%s] has invalid mod time trying to marshal", f.GetPortablePath())
 	}
 
 	return json.Marshal(data)

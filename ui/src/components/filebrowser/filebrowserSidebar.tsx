@@ -1,6 +1,8 @@
 import { Divider, FileButton } from '@mantine/core'
 import {
+    IconFiles,
     IconFolderPlus,
+    IconFolders,
     IconHome,
     IconPlus,
     IconServer,
@@ -16,16 +18,15 @@ import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import { ButtonActionHandler } from '@weblens/lib/buttonTypes'
 import { HandleUploadButton } from '@weblens/pages/FileBrowser/FileBrowserLogic'
-import { TasksDisplay } from '@weblens/pages/FileBrowser/TaskProgress'
+import { TaskProgressMini } from '@weblens/pages/FileBrowser/TaskProgress'
 import UploadStatus from '@weblens/pages/FileBrowser/UploadStatus'
 import fbStyle from '@weblens/pages/FileBrowser/style/fileBrowserStyle.module.scss'
 import { ErrorHandler } from '@weblens/types/Types'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import WeblensFile from '@weblens/types/files/File'
 import { goToFile } from '@weblens/types/files/FileDragLogic'
-import filesStyle from '@weblens/types/files/filesStyle.module.scss'
 import { humanFileSize } from '@weblens/util'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import {
     FbModeT,
@@ -54,8 +55,14 @@ function FBSidebar() {
     const mode = useFileBrowserStore((state) => state.fbMode)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const shareId = useFileBrowserStore((state) => state.shareId)
+    const sidebarCollapsed = useFileBrowserStore(
+        (state) => state.sidebarCollapsed
+    )
 
     const setDragging = useFileBrowserStore((state) => state.setDragging)
+    const setSidebarCollapsed = useFileBrowserStore(
+        (state) => state.setSidebarCollapsed
+    )
     const setMoveDest = useFileBrowserStore((state) => state.setMoveDest)
     const setSelectedMoved = useFileBrowserStore(
         (state) => state.setSelectedMoved
@@ -75,6 +82,14 @@ function FBSidebar() {
         }
     }, [windowSize.width])
 
+    useEffect(() => {
+        if (resizeOffset < SIDEBAR_MIN_OPEN_WIDTH && !sidebarCollapsed) {
+            setSidebarCollapsed(true)
+        } else if (resizeOffset >= SIDEBAR_MIN_OPEN_WIDTH && sidebarCollapsed) {
+            setSidebarCollapsed(false)
+        }
+    }, [resizeOffset])
+
     const homeMouseOver = useCallback(() => {
         if (draggingState !== DraggingStateT.NoDrag) {
             setMoveDest('Home')
@@ -91,6 +106,7 @@ function FBSidebar() {
         async (e) => {
             e.stopPropagation()
             setMoveDest('')
+
             if (draggingState !== DraggingStateT.NoDrag) {
                 const selectedIds = Array.from(selected.keys())
                 setSelectedMoved(selectedIds)
@@ -165,7 +181,7 @@ function FBSidebar() {
 
     return (
         <div
-            className="flex flex-row items-start w-full h-full grow-0 shrink-0"
+            className="flex h-full w-full shrink-0 grow-0 flex-row items-start"
             style={{
                 width: resizeOffset,
             }}
@@ -175,11 +191,17 @@ function FBSidebar() {
                 data-mini={resizeOffset < SIDEBAR_MIN_OPEN_WIDTH}
             >
                 <div className={fbStyle.sidebarUpperHalf}>
-                    <div className="flex flex-col w-full gap-1 items-center">
+                    <div className="flex w-full flex-col items-center gap-2">
                         <WeblensButton
                             label="Home"
                             fillWidth
                             squareSize={40}
+                            flavor={
+                                folderInfo?.Id() === user?.homeId &&
+                                mode === FbModeT.default
+                                    ? 'default'
+                                    : 'outline'
+                            }
                             toggleOn={
                                 folderInfo?.Id() === user?.homeId &&
                                 mode === FbModeT.default
@@ -199,6 +221,11 @@ function FBSidebar() {
                             label="Shared"
                             fillWidth
                             squareSize={40}
+                            flavor={
+                                mode === FbModeT.share && !shareId
+                                    ? 'default'
+                                    : 'outline'
+                            }
                             toggleOn={mode === FbModeT.share && !shareId}
                             disabled={
                                 draggingState !== DraggingStateT.NoDrag ||
@@ -213,6 +240,12 @@ function FBSidebar() {
                             label="Trash"
                             fillWidth
                             squareSize={40}
+                            flavor={
+                                folderInfo?.Id() === user?.trashId &&
+                                mode === FbModeT.default
+                                    ? 'default'
+                                    : 'outline'
+                            }
                             float={
                                 draggingState === DraggingStateT.InternalDrag
                             }
@@ -303,8 +336,9 @@ function FBSidebar() {
                                     <WeblensButton
                                         label="Upload"
                                         squareSize={40}
-                                        fillWidth
+                                        className="w-full max-w-full"
                                         showSuccess={false}
+                                        fillWidth
                                         disabled={
                                             draggingState !==
                                                 DraggingStateT.NoDrag ||
@@ -320,7 +354,8 @@ function FBSidebar() {
                     <Divider w={'100%'} my="md" size={1.5} />
                     <UsageInfo />
                 </div>
-                <TasksDisplay />
+                <SelectedBox />
+                <TaskProgressMini />
                 <UploadStatus />
             </div>
             <div
@@ -338,11 +373,8 @@ function FBSidebar() {
 }
 
 function TrashSize() {
-    const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const trashSize = useFileBrowserStore((state) => state.trashDirSize)
-    const mode = useFileBrowserStore((state) => state.fbMode)
     const pastTime = useFileBrowserStore((state) => state.pastTime)
-    const user = useSessionStore((state) => state.user)
     if (trashSize <= 0) {
         return null
     }
@@ -353,19 +385,86 @@ function TrashSize() {
     }
 
     return (
-        <div
-            className={filesStyle.trashSizeBox}
-            data-selected={
-                folderInfo?.Id() === user?.trashId && mode === FbModeT.default
-                    ? 1
-                    : 0
+        <div className="z-20 ml-2 flex h-full w-max items-center contain-size">
+            <span className="">{`${trashSizeValue}${trashSizeUnit}`}</span>
+        </div>
+    )
+}
+
+function SelectedBox() {
+    const selected = useFileBrowserStore((state) => state.selected)
+    const selectedLength = selected.size
+
+    const [closed, setClosed] = useState(selected.size === 0)
+    const sidebarCollapsed = useFileBrowserStore(
+        (state) => state.sidebarCollapsed
+    )
+    const filesMap = useFileBrowserStore((state) => state.filesMap)
+
+    const { selectedFolderCount, selectedFileCount } = useMemo(() => {
+        if (selected.size !== 0) {
+            setClosed(false)
+        }
+
+        let selectedFolderCount = 0
+        let selectedFileCount = 0
+        Array.from(selected.keys()).forEach((fileId) => {
+            const f = filesMap.get(fileId)
+            if (!f) {
+                return
             }
+            if (f.IsFolder()) {
+                selectedFolderCount++
+            } else {
+                selectedFileCount++
+            }
+        })
+
+        return { selectedFolderCount, selectedFileCount }
+    }, [selected.size])
+
+    return (
+        <div
+            className="mt-2 h-max w-full animate-popup flex-row items-center justify-between rounded-lg bg-wl-background-color-secondary p-2 transition"
+            onTransitionEnd={() => {
+                if (selectedLength === 0) {
+                    setClosed(true)
+                } else {
+                    setClosed(false)
+                }
+            }}
+            style={{
+                display: closed ? 'none' : 'flex',
+                opacity: selectedLength > 0 ? 100 : 0,
+                transform: selectedLength > 0 ? 'scale(1)' : 'scale(0.90)',
+                flexDirection: sidebarCollapsed ? 'column' : 'row',
+            }}
         >
-            <div className={filesStyle.fileSizeBox}>
-                <p
-                    className={filesStyle.fileSizeText}
-                >{`${trashSizeValue}${trashSizeUnit}`}</p>
+            <div className="flex h-max w-min items-center text-wl-text-color-primary">
+                <IconFiles />
+                <span className="select-none p-1">{selectedFileCount}</span>
             </div>
+            {!sidebarCollapsed && (
+                <>
+                    <span className="text-wl-text-color-secondary">
+                        Selected
+                    </span>
+                    <div className="flex h-max w-min items-center text-wl-text-color-primary">
+                        <span className="select-none p-1">
+                            {selectedFolderCount}
+                        </span>
+                        <IconFolders />
+                    </div>
+                </>
+            )}
+            {sidebarCollapsed && (
+                <div className="flex h-max w-min items-center text-wl-text-color-primary">
+                    <IconFolders />
+                    <span className="select-none p-1">
+                        {selectedFolderCount}
+                    </span>
+                </div>
+            )}
         </div>
     )
 }

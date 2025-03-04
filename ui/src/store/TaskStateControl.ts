@@ -19,7 +19,9 @@ export type TaskStageT = {
 type SubTaskInfo = {
     itemId: string
     itemName: string
-    startTime: Date
+    startTimeEpochMs: number
+
+    elapsedTimeMs?: number
 }
 
 export class TaskProgress {
@@ -113,6 +115,7 @@ export class TaskProgress {
         return nsToHumanTime(this.timeNs)
     }
 
+    // Returns the progress of the task as a percentage
     getProgress(): number {
         if (this.stage === TaskStage.Complete) {
             return 100
@@ -187,6 +190,7 @@ type TaskUpdateProps = {
 
 type TaskStateT = {
     tasks: Map<string, TaskProgress>
+    showingMenu: boolean
 
     addTask: (taskId: string, taskType: string, opts?: NewTaskOptions) => void
     removeTask: (taskId: string) => void
@@ -195,10 +199,12 @@ type TaskStateT = {
     handleTaskCompete: (taskId: string, time: number, note: string) => void
     handleTaskFailure: (taskId: string, error: string) => void
     handleTaskCancel: (taskId: string) => void
+    setShowingMenu: (showing: boolean) => void
 }
 
 const TaskStateControl: StateCreator<TaskStateT, [], []> = (set) => ({
     tasks: new Map<string, TaskProgress>(),
+    showingMenu: false,
 
     addTask: (taskId: string, taskType: TaskType, opts?: NewTaskOptions) => {
         set((state) => {
@@ -298,7 +304,10 @@ const TaskStateControl: StateCreator<TaskStateT, [], []> = (set) => ({
                         task.workingOn.push({
                             itemName: opts.workingOn,
                             itemId: opts.itemId,
-                            startTime: new Date(),
+                            startTimeEpochMs: Math.floor(
+                                performance.timeOrigin + performance.now()
+                            ),
+                            elapsedTimeMs: 0,
                         })
                     } else {
                         const finishedIndex = task.workingOn.findIndex(
@@ -316,7 +325,9 @@ const TaskStateControl: StateCreator<TaskStateT, [], []> = (set) => ({
                         {
                             itemName: opts.workingOn,
                             itemId: '',
-                            startTime: new Date(),
+                            startTimeEpochMs: Math.floor(
+                                performance.timeOrigin + performance.now()
+                            ),
                         },
                     ]
                     task.tasksComplete = opts.tasksComplete
@@ -329,6 +340,9 @@ const TaskStateControl: StateCreator<TaskStateT, [], []> = (set) => ({
             state.tasks.set(taskId, task)
             return { tasks: new Map<string, TaskProgress>(state.tasks) }
         })
+    },
+    setShowingMenu: (showing: boolean) => {
+        set({ showingMenu: showing })
     },
 })
 

@@ -184,12 +184,13 @@ func (j *JournalImpl) LogEvent(fe *FileEvent) {
 	if fe == nil {
 		j.log.Warning.Println("Tried to log nil event")
 		return
+	} else if fe.Logged.Load() {
+		j.log.Warning.Println("Tried to log which has already been logged")
+		return
 	} else if j.ignoreLocal {
 		j.log.Trace.Func(func(l log.Logger) { l.Printf("Ignoring local file event [%s]", fe.EventId) })
-		close(fe.LoggedChan)
+		fe.SetLogged()
 		return
-	} else if fe.LoggedChan == nil {
-		j.log.Warning.Println("Tried to log which has already been logged")
 	}
 
 	if len(fe.Actions) != 0 {
@@ -197,7 +198,7 @@ func (j *JournalImpl) LogEvent(fe *FileEvent) {
 		j.eventStream <- fe
 	} else {
 		j.log.Trace.Func(func(l log.Logger) { l.Printf("File Event [%s] has no actions, not logging", fe.EventId) })
-		close(fe.LoggedChan)
+		fe.SetLogged()
 	}
 }
 
@@ -282,6 +283,14 @@ func (j *JournalImpl) GetPastFile(id FileId, time time.Time) (*WeblensFileImpl, 
 		relevantAction = actions[len(actions)-counter]
 	}
 
+	if relevantAction.ActionType == FileDelete {
+		return nil, werror.Errorf("Trying to get past file after delete [%s]", id)
+	}
+
+	if relevantAction.DestinationPath == "" {
+		return nil, werror.Errorf("Got empty DestinationPath trying to get past file [%s] from journal", id)
+	}
+
 	path := ParsePortable(relevantAction.DestinationPath)
 
 	f := NewWeblensFile(id, path.Filename(), nil, path.IsDir())
@@ -290,7 +299,7 @@ func (j *JournalImpl) GetPastFile(id FileId, time time.Time) (*WeblensFileImpl, 
 	f.pastFile = true
 	f.pastId = relevantAction.LifeId
 	f.SetContentId(lt.ContentId)
-	f.setModTime(relevantAction.GetTimestamp())
+	f.setModifyDate(relevantAction.GetTimestamp())
 
 	children, err := j.GetPastFolderChildren(f, time)
 	if err != nil {
@@ -346,7 +355,7 @@ func (j *JournalImpl) GetPastFolderChildren(folder *WeblensFileImpl, time time.T
 			action.GetLifetimeId(), filepath.Base(action.DestinationPath), folder,
 			action.DestinationPath[len(action.DestinationPath)-1] == '/',
 		)
-		newChild.setModTime(time)
+		newChild.setModifyDate(time)
 		newChild.setPastFile(true)
 		newChild.size.Store(action.Size)
 		newChild.contentId = j.Get(action.LifeId).ContentId

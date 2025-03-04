@@ -33,8 +33,8 @@ function SingleFile({ file }: { file: WeblensFile }) {
     }
 
     return (
-        <div className="flex flex-row w-full h-full justify-around pb-2">
-            <div className="flex justify-center items-center p-6 h-full w-full">
+        <div className="flex h-full w-full flex-row justify-around pb-2">
+            <div className="flex h-full w-full items-center justify-center p-6">
                 <PresentationFile file={file} />
             </div>
         </div>
@@ -106,7 +106,7 @@ function DirView({
     }
 
     return (
-        <div className="flex flex-col h-full" ref={setFullViewRef}>
+        <div className="flex h-full flex-col" ref={setFullViewRef}>
             <DirViewHeader />
             <TransferCard
                 action={dropAction}
@@ -131,9 +131,9 @@ function DirView({
                     setDragging(DraggingStateT.NoDrag)
                 }}
             >
-                <div className="flex flex-col w-full h-full min-w-[20vw]">
-                    <div className="flex flex-row h-[200px] grow max-w-full">
-                        <div className="grow shrink w-0 p-1 ml-1">
+                <div className="flex h-full w-full min-w-[20vw] flex-col">
+                    <div className="flex h-[200px] max-w-full grow flex-row">
+                        <div className="ml-1 w-0 shrink grow p-1">
                             {fileDisplay}
                         </div>
                     </div>
@@ -184,7 +184,7 @@ function DirViewHeader() {
     }, [folderInfo])
 
     return (
-        <div className="flex flex-col h-max">
+        <div className="flex h-max flex-col">
             <div className={dirViewStyle.dirViewHeaderWrapper}>
                 {(mode === FbModeT.default || mode === FbModeT.share) && (
                     <Crumbs navOnLast={false} moveSelectedTo={moveSelectedTo} />
@@ -212,7 +212,7 @@ function DirViewHeader() {
                     }}
                 >
                     <p
-                        className="crumb-text absolute pointer-events-none ml-2 text-xl"
+                        className="crumb-text pointer-events-none absolute ml-2 text-xl"
                         style={{ opacity: hoverTime ? 1 : 0 }}
                     >
                         Back to the future
@@ -248,7 +248,7 @@ function DirectoryView({
     return (
         <div
             draggable={false}
-            className="h-full shrink-0 grow w-0"
+            className="h-full w-0 shrink-0 grow"
             onDrag={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
@@ -274,7 +274,7 @@ function DirectoryView({
                 })
             }}
         >
-            <div className="w-full h-full p-2">
+            <div className="h-full w-full p-2">
                 <DirView
                     filesError={filesError}
                     setFilesError={setFilesError}

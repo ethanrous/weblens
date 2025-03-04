@@ -66,12 +66,16 @@ func (pus *ProxyUserService) Add(user *models.User) error {
 		pus.userMap[user.Username] = user
 	}
 
-	log.Trace.Func(func(l log.Logger) {l.Printf("Added user [%s] to proxy user service", user.Username)})
+	log.Trace.Func(func(l log.Logger) { l.Printf("Added user [%s] to proxy user service", user.Username) })
 
 	return nil
 }
 
-func (pus *ProxyUserService) CreateOwner(username, password string) (*models.User, error) {
+func (pus *ProxyUserService) CreateOwner(username, password, fullName string) (*models.User, error) {
+	panic("implement me")
+}
+
+func (pus *ProxyUserService) UpdateFullName(u *models.User, newFullName string) error {
 	panic("implement me")
 }
 

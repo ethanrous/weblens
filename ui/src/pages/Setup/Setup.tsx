@@ -14,6 +14,7 @@ import {
     HandleWebsocketMessage,
     useWebsocketStore,
 } from '@weblens/api/Websocket'
+import { ServerInfo } from '@weblens/api/swag'
 import { ThemeToggleButton } from '@weblens/components/HeaderBar'
 import Logo from '@weblens/components/Logo'
 import { useSessionStore } from '@weblens/components/UserInfo'
@@ -21,11 +22,12 @@ import { useKeyDown } from '@weblens/components/hooks'
 import setupStyle from '@weblens/components/setupStyle.module.scss'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
+import { ErrorHandler } from '@weblens/types/Types'
 import User from '@weblens/types/user/User'
-import { require_css } from '@weblens/util'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import { SignupInputForm } from '../Signup/Signup'
 import { setupWebsocketHandler } from './SetupLogic'
 
 const UserSelect = ({
@@ -86,7 +88,7 @@ const UserSelect = ({
                 <IconExclamationCircle color="white" />
             </div>
             <p className="text-white">Select a user to make owner</p>
-            <div className="w-full h-max max-h-[100px] shrink-0 overflow-scroll">
+            <div className="h-max max-h-[100px] w-full shrink-0 overflow-scroll">
                 {users.map((u) => {
                     return (
                         <WeblensButton
@@ -106,14 +108,6 @@ const UserSelect = ({
                     <p className="text-white">
                         Log in as {username} to continue
                     </p>
-                    {/* <Input */}
-                    {/*     variant="unstyled" */}
-                    {/*     className={css(["weblens-input-wrapper"])} */}
-                    {/*     type="password" */}
-                    {/*     placeholder="Password" */}
-                    {/*     style={{ width: '100%' }} */}
-                    {/*     onChange={(e) => setPassword(e.target.value)} */}
-                    {/* /> */}
                 </div>
             )}
         </div>
@@ -131,7 +125,7 @@ const Core = ({
 }) => {
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
-    const [passwordVerify, setPasswordVerify] = useState('')
+    const [fullName, setFullName] = useState('')
     const [buttonRef, setButtonRef] = useState<HTMLButtonElement>()
     const [serverName, setServerName] = useState(
         existingName ? existingName : ''
@@ -170,7 +164,7 @@ const Core = ({
 
     return (
         <div className={setupStyle.setupContentBox} data-on-deck={onDeck}>
-            <div className="w-[90%] absolute">
+            <div className="absolute w-[90%]">
                 <WeblensButton
                     Left={IconArrowLeft}
                     squareSize={35}
@@ -181,31 +175,15 @@ const Core = ({
                 <h1 className="text-4xl font-bold">Core</h1>
             </div>
             {users.length === 0 && (
-                <div className="flex flex-col w-full">
-                    <p className=" m-2">Create an Owner Account *</p>
-                    <div className="flex flex-col p-4 outline-gray-700 outline rounded gap-2">
-                        <WeblensInput
-                            placeholder={'Username'}
-                            squareSize={50}
-                            valueCallback={setUsername}
-                        />
-                        <WeblensInput
-                            placeholder={'Password'}
-                            squareSize={50}
-                            password={true}
-                            valueCallback={setPassword}
-                        />
-                        <WeblensInput
-                            placeholder={'Verify Password'}
-                            squareSize={50}
-                            valueCallback={setPasswordVerify}
-                            failed={
-                                passwordVerify !== '' &&
-                                password !== passwordVerify
-                            }
-                            password={true}
-                        />
-                    </div>
+                <div className="flex w-full flex-col rounded-md border border-wl-border-color-primary p-4">
+                    <h4 className="mb-4">Create an Owner Account</h4>
+                    <SignupInputForm
+                        setFullName={setFullName}
+                        setUsername={setUsername}
+                        setPassword={setPassword}
+                        setError={() => {}}
+                        disabled={false}
+                    />
                 </div>
             )}
 
@@ -222,12 +200,7 @@ const Core = ({
             {existingName && (
                 <div className={setupStyle.cautionBox}>
                     <div className={setupStyle.cautionHeader}>
-                        <p
-                            className={require_css(
-                                setupStyle.subheaderText,
-                                'text-white'
-                            )}
-                        >
+                        <p className={setupStyle.subheaderText}>
                             This server already has a name
                         </p>
                         <IconExclamationCircle color="white" />
@@ -240,24 +213,30 @@ const Core = ({
                 </div>
             )}
             {!existingName && (
-                <div className="flex flex-col w-full">
-                    <p className="m-2">Server Name *</p>
+                <>
+                    <label htmlFor="serverName" className="mr-auto">
+                        <span>Server Name</span>
+                        <sup className="text-red-500">*</sup>
+                    </label>
+
                     <WeblensInput
                         value={serverName}
                         squareSize={50}
                         placeholder="My Radical Weblens Server"
                         valueCallback={setServerName}
+                        autoComplete="serverName"
                     />
-                </div>
+                </>
             )}
-            <div className="flex flex-col w-full">
-                <p className="m-2">Server Address</p>
-                <WeblensInput
-                    squareSize={50}
-                    placeholder={location.origin}
-                    // valueCallback={}
-                />
-            </div>
+            <label htmlFor="serverAddress" className="mr-auto mt-4">
+                <span>Server Address</span>
+            </label>
+
+            <WeblensInput
+                squareSize={50}
+                value={location.origin}
+                autoComplete="serverAddress"
+            />
 
             <WeblensButton
                 label="Start Weblens"
@@ -265,10 +244,7 @@ const Core = ({
                 squareSize={50}
                 Left={IconRocket}
                 disabled={
-                    serverName === '' ||
-                    username === '' ||
-                    password === '' ||
-                    password !== passwordVerify
+                    serverName === '' || username === '' || password === ''
                 }
                 doSuper
                 onClick={async () => {
@@ -277,6 +253,7 @@ const Core = ({
                         role: 'core',
                         username: username,
                         password: password,
+                        fullName: fullName,
                     })
 
                     if (res.status !== 201) {
@@ -284,7 +261,32 @@ const Core = ({
                         return false
                     }
 
-                    await new Promise((r) => setTimeout(r, 200))
+                    // let srvInfo: ServerInfo | void
+                    // let tries = 0
+                    // while (
+                    //     !srvInfo ||
+                    //     !srvInfo.started ||
+                    //     srvInfo.role === 'init'
+                    // ) {
+                    //     await new Promise((r) => setTimeout(r, 500))
+                    //     srvInfo = await ServersApi.getServerInfo()
+                    //         .then((res) => res.data)
+                    //         .catch((r: Error) =>
+                    //             ErrorHandler(r, 'Waiting for server to start')
+                    //         )
+                    //     if (
+                    //         srvInfo &&
+                    //         srvInfo.started &&
+                    //         srvInfo.role !== 'init'
+                    //     ) {
+                    //         break
+                    //     }
+                    //     if (tries > 25) {
+                    //         console.error('Server failed to start')
+                    //         return false
+                    //     }
+                    //     tries++
+                    // }
 
                     const gotInfo = await UsersApi.getUser()
                         .then((res) => {
@@ -335,18 +337,18 @@ const Backup = ({
     }
     return (
         <div className={setupStyle.setupContentBox} data-on-deck={onDeck}>
-            <div className="w-[90%] absolute">
+            <div className="absolute w-[90%]">
                 <WeblensButton
                     Left={IconArrowLeft}
                     squareSize={35}
                     onClick={() => setPage('landing')}
                 />
             </div>
-            <div className="flex pl-16 items-center max-w-max">
+            <div className="flex max-w-max items-center pl-16">
                 <h1 className="text-4xl font-bold">Backup</h1>
             </div>
 
-            <div className="w-full h-14">
+            <div className="h-14 w-full">
                 <p className="m-2">Server Name *</p>
                 <WeblensInput
                     placeholder={'My Rad Backup Server'}
@@ -354,12 +356,12 @@ const Backup = ({
                 />
             </div>
 
-            <div className="w-full h-14">
+            <div className="h-14 w-full">
                 <p className="m-2">Core Server Address *</p>
                 <WeblensInput
                     placeholder={'https://myremoteweblens.net/'}
                     valueCallback={setCoreAddress}
-                    failed={
+                    valid={
                         coreAddress &&
                         coreAddress.match(
                             '^http(s)?:\\/\\/[^:]+(:\\d{2,5})?/?$'
@@ -368,7 +370,7 @@ const Backup = ({
                 />
             </div>
 
-            <div className="w-full h-14">
+            <div className="h-14 w-full">
                 <p className="m-2">Core API Key *</p>
                 <WeblensInput
                     placeholder={'RUH8gHMH4EgQvw_n2...'}
@@ -438,7 +440,7 @@ const Restore = ({
 
     return (
         <div className={setupStyle.setupContentBox} data-on-deck={onDeck}>
-            <div className="w-[90%] absolute">
+            <div className="absolute w-[90%]">
                 <WeblensButton
                     Left={IconArrowLeft}
                     squareSize={35}
@@ -475,39 +477,33 @@ const Landing = ({
     }
 
     return (
-        <div
-            className={require_css(
-                setupStyle.setupContentBox,
-                'max-h-[60%] mt-40'
-            )}
-            data-on-deck={onDeck}
-        >
+        <div className={setupStyle.setupContentBox} data-on-deck={onDeck}>
+            <h3>Welcome to Weblens!</h3>
+            <h5>Choose how you'd like to set up this new server</h5>
             <WeblensButton
                 label="Set Up Weblens Core"
                 Left={IconPackage}
-                squareSize={75}
                 centerContent
                 onClick={() => setPage('core')}
+                className="my-auto h-20 max-w-96 justify-center"
+                size="jumbo"
+                fillWidth
             />
-            <div className="w-[90%] h-[1px] bg-[--wl-outline-subtle]" />
-            <div className="flex flex-row gap-2">
+            <div className="h-[1px] w-[90%] bg-wl-border-color-primary" />
+            <div className="my-auto flex flex-row gap-2">
                 <WeblensButton
                     label="Set Up As Backup"
-                    squareSize={40}
                     Left={IconDatabase}
-                    style={{ width: '200px' }}
-                    centerContent
-                    subtle
+                    className="w-52"
                     onClick={() => setPage('backup')}
+                    flavor="outline"
                 />
                 <WeblensButton
                     label="Restore From Backup"
-                    squareSize={40}
                     Left={IconDatabaseImport}
-                    style={{ width: '200px' }}
-                    centerContent
-                    subtle
+                    className="w-52"
                     onClick={() => setPage('restore')}
+                    flavor="outline"
                 />
             </div>
         </div>
@@ -531,20 +527,13 @@ const Setup = () => {
         return null
     }
 
-    let logoSize = 100
-    if (page !== 'landing') {
-        logoSize = 48
-    }
-
     return (
         <div className={setupStyle.setupContainer}>
-            <div className="absolute bottom-4 right-4">
-                <ThemeToggleButton />
+            <div className="flex w-full justify-center text-center sm:mt-16">
+                <Logo size={100} />
+                <h1 className="mt-auto">EBLENS</h1>
             </div>
-            <div className={setupStyle.setupContentPane} data-active={true}>
-                <div className={setupStyle.setupLogo} data-page={page}>
-                    <Logo size={logoSize} />
-                </div>
+            <div className={setupStyle.setupContentPane}>
                 <Landing page={page} setPage={setPage} />
                 <Core
                     page={page}
@@ -553,6 +542,9 @@ const Setup = () => {
                 />
                 <Backup page={page} setPage={setPage} />
                 <Restore page={page} setPage={setPage} />
+            </div>
+            <div className="absolute bottom-4 right-4">
+                <ThemeToggleButton />
             </div>
         </div>
     )

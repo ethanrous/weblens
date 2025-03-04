@@ -27,10 +27,10 @@ func TestShareServiceImpl_Add(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	billUser, err := models.NewUser("billcypher", "shakemyhand", false, true)
+	billUser, err := models.NewUser("billcypher", "shakemyhand", "Bill Cypher", false, true)
 	require.NoError(t, err)
 
-	dipperUser, err := models.NewUser("dipperpines", "ivegotabook", false, true)
+	dipperUser, err := models.NewUser("dipperpines", "ivegotabook", "Dipper Pines", false, true)
 	require.NoError(t, err)
 
 	ft := mock.NewMemFileTree("USERS")
@@ -64,7 +64,7 @@ func TestShareServiceImpl_Del(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	billUser, err := models.NewUser("billcypher", "shakemyhand", false, true)
+	billUser, err := models.NewUser("billcypher", "shakemyhand", "Bill Cypher", false, true)
 	require.NoError(t, err)
 
 	ft := mock.NewMemFileTree("USERS")
@@ -108,10 +108,10 @@ func TestShareServiceImpl_UpdateUsers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	billUser, err := models.NewUser("billcypher", "shakemyhand", false, true)
+	billUser, err := models.NewUser("billcypher", "shakemyhand", "Bill Cypher", false, true)
 	require.NoError(t, err)
 
-	dipperUser, err := models.NewUser("dipperpines", "journalboy123", false, true)
+	dipperUser, err := models.NewUser("dipperpines", "journalboy123", "Dipper Pines", false, true)
 	require.NoError(t, err)
 
 	ft := mock.NewMemFileTree("USERS")

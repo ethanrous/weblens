@@ -30,14 +30,16 @@ export function useWeblensSocket() {
     const { sendMessage, lastMessage, lastJsonMessage, readyState } =
         useWebSocket<wsMsgInfo>(API_WS_ENDPOINT, {
             onOpen: () => {
+                console.debug('WS Connected')
                 setGivenUp(false)
             },
-            reconnectAttempts: 5,
+            reconnectAttempts: 50,
             reconnectInterval: (last) => {
                 return ((last + 1) ^ 2) * 1000
             },
             shouldReconnect: () => user?.username !== '',
             onReconnectStop: () => {
+                console.debug('WS Reconnect stopped')
                 setGivenUp(true)
             },
         })
@@ -49,7 +51,7 @@ export function useWeblensSocket() {
                 sentAt: Date.now(),
                 content: JSON.stringify(content),
             }
-            console.debug('WSSend', msg)
+            // console.debug('WSSend', msg)
             sendMessage(JSON.stringify(msg))
         }
 
@@ -188,7 +190,7 @@ export function HandleWebsocketMessage(
     handler: (msgData: wsMsgInfo) => void
 ) {
     if (lastMessage) {
-        console.debug('WsRecv', lastMessage)
+        // console.debug('WsRecv', lastMessage)
         try {
             handler(lastMessage)
         } catch (e) {
@@ -408,7 +410,6 @@ function filebrowserWebsocketHandler(
                         tasksTotal: msgData.content.tasksTotal,
                         tasksFailed: msgData.content.tasksFailed,
                         finished: msgData.content.filename,
-
                     })
                 break
             }
@@ -462,7 +463,8 @@ function filebrowserWebsocketHandler(
                     msgData.content.takeoutId,
                     msgData.content.filename,
                     true,
-                    shareId
+                    shareId,
+                    null
                 ).catch(ErrorHandler)
                 break
             }

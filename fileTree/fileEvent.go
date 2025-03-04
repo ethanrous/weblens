@@ -17,17 +17,17 @@ type FileEvent struct {
 	journal *JournalImpl `bson:"-"`
 	hasher  Hasher       `bson:"-"`
 
-	// LoggedChan is used to signal that the event has been logged to the journal.
-	// This is used to prevent actions on the same lifetime to be logged out of order.
-	// LoggedChan does not get written to, it is only closed.
-	LoggedChan chan struct{} `bson:"-"`
-	EventId    FileEventId   `bson:"_id"`
-	ServerId   string        `bson:"serverId"`
+	EventId  FileEventId `bson:"_id"`
+	ServerId string      `bson:"serverId"`
 
 	Actions     []*FileAction `bson:"actions"`
 	actionsLock sync.RWMutex  `bson:"-"`
 
-	Logged atomic.Bool `bson:"-"`
+	// LoggedChan is used to signal that the event has been logged to the journal.
+	// This is used to prevent actions on the same lifetime to be logged out of order.
+	// LoggedChan does not get written to, it is only closed.
+	LoggedChan chan struct{} `bson:"-"`
+	Logged     atomic.Bool   `bson:"-"`
 }
 
 func (fe *FileEvent) addAction(a *FileAction) {
@@ -87,10 +87,28 @@ func (fe *FileEvent) Wait() {
 		log.ErrTrace(werror.Errorf("Cannot wait on nil event"))
 		return
 	}
+	if fe.Logged.Load() {
+		log.TraceCaller(1, "Event [%s] already logged, not waiting", fe.EventId)
+		return
+	}
 
 	log.TraceCaller(1, "Waiting for event [%s] to be logged", fe.EventId)
 	<-fe.LoggedChan
 	log.TraceCaller(1, "Event [%s] logged", fe.EventId)
+}
+
+func (fe *FileEvent) SetLogged() {
+	if fe == nil {
+		log.ErrTrace(werror.Errorf("Cannot set logged on nil event"))
+		return
+	}
+	if fe.Logged.Load() {
+		log.ErrTrace(werror.Errorf("Event [%s] already logged", fe.EventId))
+		return
+	}
+
+	fe.Logged.Store(true)
+	close(fe.LoggedChan)
 }
 
 func (fe *FileEvent) NewMoveAction(lifeId FileId, file *WeblensFileImpl) *FileAction {

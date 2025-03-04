@@ -185,7 +185,7 @@ func cleanupMedia(w http.ResponseWriter, r *http.Request) {
 //	@Security	SessionAuth[admin]
 //	@Security	ApiKeyAuth[admin]
 //
-//	@Summary	DANGEROUS, call only if you understand what this does. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
+//	@Summary	DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
 //	@Tags		Media
 //	@Produce	json
 //	@Success	200
@@ -240,7 +240,7 @@ func getMediaInfo(w http.ResponseWriter, r *http.Request) {
 //
 //	@Summary	Get a media image bytes
 //	@Tags		Media
-//	@Produce	image/webp, image/png, image/jpeg
+//	@Produce	image/*
 //	@Param		mediaId		path		string	true	"Media Id"
 //	@Param		extension	path		string	true	"Extension"
 //	@Param		quality		query		string	true	"Image Quality"	Enums(thumbnail, fullres)
@@ -551,7 +551,7 @@ func getProcessedMedia(q models.MediaQuality, format string, w http.ResponseWrit
 
 	// Instruct the client to cache images that are returned
 	w.Header().Set("Cache-Control", "max-age=3600")
-	w.Header().Set("Content-Type", "image/webp")
+	w.Header().Set("Content-Type", "image/"+format)
 
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(bs)

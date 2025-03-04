@@ -14,7 +14,7 @@
 	flex-direction: column;
 	padding: 1rem;
 	border-radius: 6px;
-	background-color: var(--dark-paper);
+	background-color: rgb(from var(--wl-theme-color-secondary) r g b / 0.50);
 	width: 100%;
 	height: max-content;
 	transition: height 200ms ease-in-out;
@@ -29,7 +29,7 @@
 	display: flex;
 	flex-grow: 1;
 	margin-top: 1rem;
-	background-color: var(--wl-bottom-grey);
+	background-color: var(--wl-background-color-secondary);
 	border-radius: 6px;
 	outline: 2px solid var(--wl-warning);
 	padding: 1rem;

@@ -136,16 +136,16 @@ function FileRow({
                 }
             >
                 <div className={filesStyle.fileRowBox}>
-                    <div className="flex shrink-0 h-full aspect-square rounded overflow-hidden m-1 justify-center items-center">
+                    <div className="m-1 flex aspect-square h-full shrink-0 items-center justify-center overflow-hidden rounded">
                         <FileVisual file={file} allowMedia={true} />
                     </div>
-                    <div className="flex flex-col h-full grow">
+                    <div className="flex h-full grow flex-col">
                         <div className={filesStyle.fileTextContainer}>
                             <h1 className={filesStyle.fileText}>
                                 {file.GetFilename()}
                             </h1>
                         </div>
-                        <p className="selectable-text w-max text-xs pl-1">
+                        <p className="selectable-text w-max pl-1 text-xs">
                             {historyDateTime(file.GetModified().getTime())}
                         </p>
                     </div>
@@ -158,7 +158,7 @@ function FileRow({
                         </p>
                     </div>
                 </div>
-                <div className="flex flex-col h-full"></div>
+                <div className="flex h-full flex-col"></div>
             </div>
         </div>
     )

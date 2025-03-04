@@ -2,7 +2,7 @@
 @import "@weblens/components/style.module";
 
 $button-margin: 4px;
-$button-padding: 8px;
+$button-padding: 4px;
 
 .weblens-button-wrapper {
 	display: flex;
@@ -15,11 +15,11 @@ $button-padding: 8px;
 	max-width: max-content;
 	animation: fadeIn 200ms ease-in-out;
 
-	&[data-fill-width='true'] {
-		flex-grow: 1;
-		width: 100%;
-		max-width: calc(100% - $button-margin * 2);
-	}
+	// &[data-fill-width='true'] {
+	// 	flex-grow: 1;
+	// 	width: 100%;
+	// 	max-width: calc(100% - $button-margin * 2);
+	// }
 
 	&[data-text-on-hover='true'] {
 		transition: max-width 250ms ease-in-out;
@@ -32,50 +32,52 @@ $button-padding: 8px;
 
 .weblens-button {
 	display: flex;
-	flex-shrink: 1;
 	font-size: 16px;
 	border-radius: 4px;
 	margin: $button-margin;
 	max-width: 100%;
-	min-height: 100%;
+	height: 100%;
 	max-height: 100%;
+	min-height: 100%;
 	width: max-content;
 	align-items: center;
 	padding: $button-padding;
 	cursor: pointer;
 	color: white;
-	background-color: var(--wl-theme-color);
-	outline: 2px solid rgb(var(--wl-theme-rgb), 0);
+	background-color: var(--wl-theme-color-primary);
+	outline: 2px solid rgb(from var(--wl-theme-color-primary) r g b / 0%);
 	box-shadow: $hard-shadow-off;
 	overflow: hidden;
 	flex-grow: 0;
 	opacity: 100%;
 	position: relative;
-	transition:
-		background-color 200ms ease-in-out,
-		transform 200ms ease-in-out,
-		outline 200ms ease-in-out,
-		box-shadow 200ms ease-in-out;
 
-	--wl-button-text-color: white;
+	transition-property: background-color, transform, outline, box-shadow;
+	transition-duration: 200ms;
+	transition-timing-function: var(--wl-transition-func);
+
+	--wl-button-text-color: var(--wl-text-color-primary);
 
 	&:hover {
-		box-shadow: $hard-shadow;
+		box-shadow: var(--wl-hard-shadow);
 		background-color: var(--wl-barely-visible);
-		outline: 2px solid rgb(var(--wl-theme-rgb), 1);
+		outline: 2px solid rgb(from var(--wl-theme-color-primary) r g b / 100%);
 		transform: translateY(-1px);
-		--wl-button-text-color: var(--wl-text-color);
+		--wl-button-text-color: var(--wl-text-color-primary);
 	}
 
 	&[data-subtle='true'] {
-		--wl-button-text-color: white;
-		background-color: var(--dark-paper);
+		--wl-button-text-color: var(--wl-text-color-primary);
+		background-color: var(--wl-theme-color-tertiary);
+
+		&:hover {
+			background-color: rgb(from var(--wl-theme-color-tertiary) r g b / 50%);
+		}
 	}
 
 	&[data-toggled='true'] {
-		background-color: var(--dark-paper);
-		background-color: #3600cc;
-		outline: 1px solid #3600cc00;
+		background-color: var(--wl-theme-color-primary);
+		outline: 1px solid var(--wl-theme-color-primary);
 		--wl-button-text-color: white;
 
 		&[data-repeat='true']:hover {
@@ -89,13 +91,13 @@ $button-padding: 8px;
 	}
 
 	&[data-toggled='false'] {
-		--wl-button-text-color: var(--wl-text-color);
-		background-color: var(--wl-background);
-		outline: 1px solid $theme-outline;
+		--wl-button-text-color: var(--wl-text-color-primary);
+		background-color: var(--wl-background-color-primary);
+		outline: 1px solid var(--wl-theme-color-primary);
 
 		&:hover {
-			background-color: var(--wl-barely-visible);
-			outline: 1px solid $theme-outline;
+			outline: 1px solid var(--wl-theme-color-primary);
+			background-color: var(--wl-background-color-secondary);
 		}
 	}
 
@@ -106,20 +108,20 @@ $button-padding: 8px;
 
 	&[data-disabled='true'] {
 		box-shadow: $hard-shadow-off;
-		background-color: var(--wl-disabled-grey);
+		background-color: var(--wl-color-button-disabled);
 		pointer-events: none;
 		cursor: default;
-		color: var(--wl-text-color-dull);
+		color: var(--wl-text-color-secondary);
 		outline: 1px solid #3600cc00;
 	}
 
 	&[data-success='true'] {
 		background-color: #00b123;
-		outline: none;
+		outline: 2px solid rgb(from var(--wl-theme-color-primary) r g b / 0%);
 		cursor: default;
 		pointer-events: none;
-		box-shadow: $hard-shadow;
 		padding: 0;
+		color: var(--wl-color-near-white);
 	}
 
 	&[data-fail='true'] {
@@ -130,7 +132,7 @@ $button-padding: 8px;
 	}
 
 	&[data-loading='true'] {
-		background-color: var(--wl-disabled-grey);
+		background-color: var(--wl-color-button-disabled);
 		outline: 1px solid #3600cc00;
 		cursor: default;
 		pointer-events: none;
@@ -138,17 +140,17 @@ $button-padding: 8px;
 	}
 
 	&[data-danger='true'] {
-		background-color: var(--wl-danger);
-		outline: 1px solid #ff444400;
+		background-color: rgb(var(--wl-button-color-danger));
+		outline: 1px solid rgb(var(--wl-button-color-danger), 0);
 
 		&[data-subtle='true'] {
 			background-color: var(--wl-danger-subtle);
 		}
 
 		&:hover {
-			background-color: var(--wl-barely-visible);
-			--wl-button-text-color: var(--wl-danger);
-			outline: 2px solid var(--wl-danger);
+			background-color: var(--wl-background-color-secondary);
+			--wl-button-text-color: rgb(var(--wl-button-color-danger));
+			outline: 1px solid rgb(var(--wl-button-color-danger), 100);
 		}
 
 		&[data-disabled='true'] {
@@ -215,8 +217,11 @@ $button-padding: 8px;
 	flex-grow: 0;
 	opacity: 100%;
 	overflow: hidden;
-	transition: opacity 200ms ease-in-out;
 	width: 100%;
+
+	transition-property: opacity;
+	transition-duration: 150ms;
+	transition-timing-function: var(--wl-transition-func);
 
 	&[data-center='true'] {
 		width: 100%;
@@ -257,6 +262,9 @@ $button-padding: 8px;
 }
 
 .button-text {
+	font-size: 16px;
+	font-weight: 400;
+
 	user-select: none;
 	width: max-content;
 	max-width: 100%;
@@ -268,7 +276,6 @@ $button-padding: 8px;
 	opacity: 0;
 	pointer-events: none;
 	color: var(--wl-button-text-color);
-	font-weight: 500;
 	transition: color 200ms ease-in-out;
 
 	&[data-show-text='true'] {
@@ -283,7 +290,7 @@ $button-padding: 8px;
 	}
 
 	[data-disabled='true'] & {
-		color: var(--wl-text-color-dull);
+		color: var(--wl-text-color-secondary);
 	}
 }
 
@@ -318,14 +325,14 @@ $button-padding: 8px;
 	transition: color 200ms ease-in-out;
 
 	[data-disabled='true'] & {
-		color: var(--wl-text-color-dull);
+		color: var(--wl-text-color-secondary);
 	}
 }
 
 .button-tooltip {
 	position: absolute;
 	z-index: 100;
-	background-color: var(--dark-paper);
+	background-color: rgb(from var(--wl-theme-color-secondary) r g b / 0.50);
 	color: white;
 	border-radius: 4px;
 	padding: 4px;

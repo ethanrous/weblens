@@ -193,7 +193,7 @@ func (ft *FileTreeImpl) Add(f *WeblensFileImpl) error {
 func (ft *FileTreeImpl) Remove(id FileId) ([]*WeblensFileImpl, error) {
 	f := ft.Get(id)
 	if f == nil {
-		return nil, werror.WithStack(werror.ErrNoFile)
+		return nil, werror.WithStack(werror.ErrNoFile.WithArg(id))
 	}
 
 	if f == ft.root {

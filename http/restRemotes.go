@@ -220,6 +220,7 @@ func removeRemote(w http.ResponseWriter, r *http.Request) {
 //	@Param		request	body	rest.InitServerParams	true	"Server initialization body"
 //
 //	@Success	200		{array}	rest.ServerInfo			"New server info"
+//	@Failure	404
 //	@Failure	500
 //	@Router		/servers/init [post]
 func initializeServer(w http.ResponseWriter, r *http.Request) {
@@ -227,27 +228,23 @@ func initializeServer(w http.ResponseWriter, r *http.Request) {
 	// Can't init server if already initialized
 	role := pack.InstanceService.GetLocal().GetRole()
 	if role != models.InitServerRole {
-		w.WriteHeader(http.StatusNotFound)
+		writeError(w, http.StatusConflict, werror.ErrServerAlreadyInitialized)
 		return
 	}
 
 	initBody, err := readCtxBody[rest.InitServerParams](w, r)
-	if err != nil {
-		log.ShowErr(err)
-		w.WriteHeader(http.StatusBadRequest)
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
 	if initBody.Role == models.CoreServerRole {
 		if initBody.Name == "" || initBody.Username == "" || initBody.Password == "" {
-			w.WriteHeader(http.StatusBadRequest)
+			writeError(w, http.StatusBadRequest, werror.Errorf("missing required fields"))
 			return
 		}
 
 		err = pack.InstanceService.InitCore(initBody.Name)
-		if err != nil {
-			log.ShowErr(err)
-			w.WriteHeader(http.StatusBadRequest)
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 
@@ -263,24 +260,25 @@ func initializeServer(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		owner, err := pack.UserService.CreateOwner(initBody.Username, initBody.Password)
-		if err != nil {
-			log.ShowErr(err)
-			w.WriteHeader(http.StatusInternalServerError)
+		owner, err := pack.UserService.CreateOwner(initBody.Username, initBody.Password, initBody.FullName)
+		if SafeErrorAndExit(err, w) {
+			return
+		}
+
+		err = pack.FileService.CreateUserHome(owner)
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 
 		token, expires, err := pack.AccessService.GenerateJwtToken(owner)
-		if err != nil {
-			log.ShowErr(err)
-			w.WriteHeader(http.StatusInternalServerError)
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 
 		cookie := fmt.Sprintf("%s=%s; expires=%s;", SessionTokenCookie, token, expires.Format(time.RFC1123))
 		w.Header().Set("Set-Cookie", cookie)
 
-		go pack.Server.Restart(false)
+		// go pack.Server.Restart(false)
 	} else if initBody.Role == models.BackupServerRole {
 		if initBody.Name == "" {
 			w.WriteHeader(http.StatusBadRequest)
@@ -345,6 +343,53 @@ func initializeServer(w http.ResponseWriter, r *http.Request) {
 
 	writeJson(w, http.StatusCreated, pack.InstanceService.GetLocal())
 	// go pack.Server.Restart()
+}
+
+// ResetServer godoc
+//
+//	@ID		ResetServer
+//
+//	@Security	SessionAuth[admin]
+//	@Security	ApiKeyAuth[admin]
+//
+//	@Summary	Reset server
+//	@Tags		Servers
+//	@Produce	json
+//
+//	@Success	202
+//	@Failure	404
+//	@Failure	500
+//	@Router		/servers/reset [post]
+func resetServer(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(r, false)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+
+	if !u.IsOwner() {
+		writeError(w, http.StatusForbidden, werror.ErrNotOwner)
+		return
+	}
+
+	// Can't reset server if not initialized
+	role := pack.InstanceService.GetLocal().GetRole()
+	if role == models.InitServerRole {
+		writeError(w, http.StatusNotFound, werror.ErrServerNotInitialized)
+		return
+	}
+
+	err = pack.InstanceService.ResetAll()
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+
+	err = pack.UserService.Del(u.GetUsername())
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 // RestoreCore godoc

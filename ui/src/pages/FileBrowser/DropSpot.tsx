@@ -127,7 +127,7 @@ export const DropSpot = ({ parent }: { parent: WeblensFile }) => {
                     }}
                 >
                     {!parent.modifiable && (
-                        <div className="flex justify-center items-center relative cursor-no-drop w-max pointer-events-none">
+                        <div className="pointer-events-none relative flex w-max cursor-no-drop items-center justify-center">
                             <IconFolderCancel
                                 className="pointer-events-none"
                                 size={100}
@@ -175,7 +175,7 @@ export function DraggingCounter() {
 
     return (
         <div
-            className="fixed z-10 bg-wl-barely-visible wl-outline p-2"
+            className="fixed z-10 bg-wl-theme-color-primary/40 p-2 wl-outline"
             style={{
                 top: position.y + 8,
                 left: position.x + 8,
@@ -185,13 +185,13 @@ export function DraggingCounter() {
             }}
         >
             {Boolean(files) && (
-                <div className="flex flex-row h-max text-[--wl-text-color] items-center">
+                <div className="flex h-max flex-row items-center text-[--wl-text-color]">
                     <IconFile size={30} />
                     <p>{files}</p>
                 </div>
             )}
             {Boolean(folders) && (
-                <div className="flex flex-row h-max text-[--wl-text-color] items-center">
+                <div className="flex h-max flex-row items-center text-[--wl-text-color]">
                     <IconFolder size={30} />
                     <p>{folders}</p>
                 </div>
