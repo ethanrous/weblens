@@ -8,27 +8,31 @@ import (
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/setup"
 	"github.com/ethanrous/weblens/models"
+	"github.com/rs/zerolog"
+	zlog "github.com/rs/zerolog/log"
 )
 
 func main() {
 	var server *http.Server
 
+	logger := log.NewZeroLogger()
+	zlog.Logger = *logger
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+
 	cnf, err := env.GetConfig(env.GetConfigName(), true)
 	if err != nil {
-		log.ErrTrace(err)
+		logger.Fatal().Stack().Err(err).Msg("Failed to load config")
 		os.Exit(1)
 	}
 
-	log.SetLogLevel(log.Level(cnf.LogLevel), "")
 	var services = &models.ServicePack{
 		Cnf:         cnf,
-		Log:         log.NewLogPackage(env.GetLogFile(), log.Level(cnf.LogLevel)),
+		Log:         logger,
 		StartupChan: make(chan bool),
 	}
 
-	services.Log.Info.Println("Log level:", cnf.LogLevel)
-	defer setup.MainRecovery("WEBLENS ENCOUNTERED AN UNRECOVERABLE ERROR", services.Log)
-	log.Info.Println("Starting Weblens")
+	defer setup.MainRecovery(services.Log)
+	logger.Info().Msg("Starting Weblens")
 
 	server = http.NewServer(cnf.RouterHost, cnf.RouterPort, services)
 	server.StartupFunc = func() {

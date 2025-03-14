@@ -1,10 +1,8 @@
-import { useDebouncedValue } from '@mantine/hooks'
-import { IconFilter } from '@tabler/icons-react'
 import HeaderBar from '@weblens/components/HeaderBar'
 import Presentation from '@weblens/components/Presentation'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import { useClick, useKeyDown } from '@weblens/components/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
+import { useClick, useKeyDown } from '@weblens/lib/hooks'
 import { PresentType } from '@weblens/types/Types'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import React, { useEffect, useRef, useState } from 'react'
@@ -15,11 +13,9 @@ import { Timeline } from './Timeline'
 import './galleryStyle.scss'
 
 export function GalleryFilters() {
-    const albumsFilter = useGalleryStore((state) => state.albumsFilter)
-    const selecting = useGalleryStore((state) => state.selecting)
+    // const selecting = useGalleryStore((state) => state.selecting)
 
     const [optionsOpen, setOptionsOpen] = useState(false)
-    const [disabledAlbums] = useState([...albumsFilter])
     const clearMedias = useMediaStore((state) => state.clear)
 
     const showRaw = useMediaStore((state) => state.showRaw)
@@ -30,12 +26,6 @@ export function GalleryFilters() {
 
     const [rawOn, setRawOn] = useState(showRaw)
     const [hiddenOn, setHiddenOn] = useState(showHidden)
-
-    // const albumsOptions = useMemo(() => {
-    //     return Array.from(albumsMap.values()).map((a) => {
-    //         return <MiniAlbumCover key={a.id} album={a} />
-    //     })
-    // }, [galleryState.albumsMap, disabledAlbums])
 
     const [dropdownRef, setDropdownRef] = useState<HTMLDivElement>(null)
 
@@ -54,14 +44,14 @@ export function GalleryFilters() {
 
     return (
         <div className="relative flex h-max w-[40px] flex-col items-center">
-            <WeblensButton
-                Left={IconFilter}
-                allowRepeat
-                tooltip="Gallery Filters"
-                onClick={() => setOptionsOpen((p) => !p)}
-                disabled={selecting}
-                toggleOn={disabledAlbums.length !== 0 || showRaw}
-            />
+            {/* <WeblensButton */}
+            {/*     Left={IconFilter} */}
+            {/*     allowRepeat */}
+            {/*     tooltip="Gallery Filters" */}
+            {/*     onClick={() => setOptionsOpen((p) => !p)} */}
+            {/*     disabled={selecting} */}
+            {/*     toggleOn={disabledAlbums.length !== 0 || showRaw} */}
+            {/* /> */}
             <div
                 className="wl-floating-card pointer-events-auto absolute z-50 mt-12 flex w-max flex-col items-center rounded-md shadow-xl transition data-[open=false]:pointer-events-none data-[open=false]:scale-90 data-[open=false]:opacity-0"
                 data-open={optionsOpen}
@@ -109,7 +99,6 @@ export function GalleryFilters() {
 const Gallery = () => {
     const nav = useNavigate()
 
-    const albumsFilter = useGalleryStore((state) => state.albumsFilter)
     const imageSize = useGalleryStore((state) => state.imageSize)
     const presentingMode = useGalleryStore((state) => state.presentingMode)
     const presentingMediaId = useGalleryStore(
@@ -140,13 +129,8 @@ const Gallery = () => {
     }, [server])
 
     useEffect(() => {
-        localStorage.setItem('albumsFilter', JSON.stringify(albumsFilter))
-    }, [albumsFilter])
-
-    const [bouncedSize] = useDebouncedValue(imageSize, 500)
-    useEffect(() => {
-        localStorage.setItem('imageSize', JSON.stringify(bouncedSize))
-    }, [bouncedSize])
+        localStorage.setItem('imageSize', JSON.stringify(imageSize))
+    }, [imageSize])
 
     return (
         <div className="relative flex h-screen w-screen flex-col">

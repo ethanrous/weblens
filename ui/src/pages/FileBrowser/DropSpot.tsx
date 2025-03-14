@@ -1,6 +1,6 @@
-import { useMouse } from '@mantine/hooks'
 import { IconFile, IconFolder, IconFolderCancel } from '@tabler/icons-react'
 import { FileFmt } from '@weblens/components/filebrowser/filename'
+import { useMouse } from '@weblens/lib/hooks'
 import { ErrorHandler } from '@weblens/types/Types'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import WeblensFile from '@weblens/types/files/File'
@@ -175,7 +175,7 @@ export function DraggingCounter() {
 
     return (
         <div
-            className="fixed z-10 bg-wl-theme-color-primary/40 p-2 wl-outline"
+            className="wl-floating-card fixed z-10 p-2"
             style={{
                 top: position.y + 8,
                 left: position.x + 8,
@@ -185,13 +185,13 @@ export function DraggingCounter() {
             }}
         >
             {Boolean(files) && (
-                <div className="flex h-max flex-row items-center text-[--wl-text-color]">
+                <div className="flex h-max flex-row items-center text-(--color-text)">
                     <IconFile size={30} />
                     <p>{files}</p>
                 </div>
             )}
             {Boolean(folders) && (
-                <div className="flex h-max flex-row items-center text-[--wl-text-color]">
+                <div className="flex h-max flex-row items-center text-(--color-text)">
                     <IconFolder size={30} />
                     <p>{folders}</p>
                 </div>

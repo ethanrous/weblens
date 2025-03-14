@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/models/rest"
 	"github.com/go-chi/chi/v5"
+	"github.com/rs/zerolog"
 )
 
 // CreateUser godoc
@@ -88,19 +88,19 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !u.Activated {
-		log.Warning.Printf("[%s] attempted login but is not activated", u.Username)
+		pack.Log.Warn().Msgf("[%s] attempted login but is not activated", u.Username)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
 	if u.CheckLogin(userCredentials.Password) {
-		log.Debug.Printf("Valid login for [%s]", userCredentials.Username)
+		pack.Log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Valid login for [%s]", userCredentials.Username) })
 
 		var token string
 		var expires time.Time
 		token, expires, err = pack.AccessService.GenerateJwtToken(u)
 		if err != nil || token == "" {
-			log.ErrTrace(werror.Errorf("Could not get login token"))
+			pack.Log.Error().Stack().Err(werror.Errorf("Could not get login token")).Msg("")
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 
@@ -108,7 +108,7 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 
 		cookie := fmt.Sprintf("%s=%s;Path=/;Expires=%s;HttpOnly", SessionTokenCookie, token, expires.Format(time.RFC1123))
 
-		log.Trace.Println("Setting cookie", cookie)
+		pack.Log.Trace().Msgf("Setting cookie %s", cookie)
 		w.Header().Set("Set-Cookie", cookie)
 
 		userInfo.Token = token
@@ -161,6 +161,7 @@ func checkUsernameUnique(w http.ResponseWriter, r *http.Request) {
 //	@Success	200
 //	@Router		/users/logout [post]
 func logoutUser(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
 	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
@@ -170,7 +171,7 @@ func logoutUser(w http.ResponseWriter, r *http.Request) {
 	}
 	if u == nil || u.IsPublic() {
 		// This should not happen. We must check for user before this point
-		log.Error.Panicln("Could not find user to logout")
+		pack.Log.Error().Msg("Could not find user to logout")
 	}
 
 	cookie := fmt.Sprintf("%s=;Path=/;Expires=Thu, 01 Jan 1970 00:00:00 GMT;HttpOnly", SessionTokenCookie)
@@ -314,7 +315,7 @@ func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
-		log.ShowErr(err)
+		pack.Log.Error().Stack().Err(err).Msg("")
 		switch {
 		case errors.Is(err, werror.ErrBadPassword):
 			w.WriteHeader(http.StatusForbidden)
@@ -459,7 +460,11 @@ func changeFullName(w http.ResponseWriter, r *http.Request) {
 		writeJson(w, http.StatusBadRequest, rest.WeblensErrorInfo{Error: "newFullName query parameter is required"})
 		return
 	}
-	pack.UserService.UpdateFullName(u, newFullName)
+
+	err = pack.UserService.UpdateFullName(u, newFullName)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -541,7 +546,7 @@ func searchUsers(w http.ResponseWriter, r *http.Request) {
 
 	users, err := pack.UserService.SearchByUsername(search)
 	if err != nil {
-		log.ShowErr(err)
+		pack.Log.Error().Stack().Err(err).Msg("")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

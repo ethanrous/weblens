@@ -23,7 +23,7 @@ function TimelineControls({ setSearch }: { setSearch: (v: string) => void }) {
     // display: flex;
     // flex-direction: row;
     // align-items: center;
-    // flex-grow: 0;
+    // grow: 0;
     // margin: 8px;
     // height: 56px;
     // width: 95%;

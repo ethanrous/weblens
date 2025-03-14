@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/fileTree"
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/task"
 )
@@ -32,7 +31,6 @@ func (mfs *MockFileService) Size(treeName string) int64 {
 }
 
 func (mfs *MockFileService) AddTree(tree fileTree.FileTree) {
-	log.Trace.Func(func(l log.Logger) { l.Printf("AddTree %s", tree.GetRoot().GetPortablePath().RootName()) })
 	mfs.trees[tree.GetRoot().GetPortablePath().RootName()] = tree
 }
 
@@ -165,7 +163,6 @@ func (mfs *MockFileService) GetTasks(f *fileTree.WeblensFileImpl) []*task.Task {
 }
 
 func (mfs *MockFileService) GetJournalByTree(treeName string) fileTree.Journal {
-	log.Trace.Printf("GetJournalByTree %s", treeName)
 	return mfs.trees[treeName].GetJournal()
 }
 

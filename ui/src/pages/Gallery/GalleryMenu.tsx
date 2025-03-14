@@ -5,7 +5,7 @@ import {
     IconEyeOff,
 } from '@tabler/icons-react'
 import MediaApi from '@weblens/api/MediaApi'
-import { useClick, useKeyDown } from '@weblens/components/hooks'
+import { useClick, useKeyDown } from '@weblens/lib/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import { TimeOffset, newTimeOffset } from '@weblens/types/Types'
 import WeblensMedia from '@weblens/types/media/Media'
@@ -34,7 +34,7 @@ function TimeSlice({
                     }}
                 />
             )}
-            <div className="flex h-max w-max select-none flex-col rounded bg-[#00000077] p-2 text-white">
+            <div className="flex h-max w-max select-none flex-col rounded-sm bg-[#00000077] p-2 text-white">
                 <p>{value}</p>
             </div>
             {isAnchor && (

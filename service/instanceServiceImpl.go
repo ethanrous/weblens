@@ -8,10 +8,10 @@ import (
 
 	"github.com/ethanrous/weblens/database"
 	"github.com/ethanrous/weblens/internal"
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/service/proxy"
+	"github.com/rs/zerolog"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -24,12 +24,15 @@ type InstanceServiceImpl struct {
 	local       *models.Instance
 
 	instanceMapLock sync.RWMutex
+
+	log *zerolog.Logger
 }
 
-func NewInstanceService(col database.MongoCollection) (*InstanceServiceImpl, error) {
+func NewInstanceService(col database.MongoCollection, log *zerolog.Logger) (*InstanceServiceImpl, error) {
 	is := &InstanceServiceImpl{
 		instanceMap: make(map[models.InstanceId]*models.Instance),
 		col:         col,
+		log:         log,
 	}
 
 	ret, err := is.col.Find(context.Background(), bson.M{})
@@ -67,8 +70,8 @@ func NewInstanceService(col database.MongoCollection) (*InstanceServiceImpl, err
 				continue
 			}
 
-			log.Trace.Func(func(l log.Logger) {
-				l.Printf("Adding server [%s] (created by [%s]) to instance map", server.Id, server.CreatedBy)
+			is.log.Trace().Func(func(e *zerolog.Event) {
+				e.Msgf("Adding server [%s] (created by [%s]) to instance map", server.Id, server.CreatedBy)
 			})
 			is.instanceMap[server.DbId.Hex()] = server
 		}
@@ -189,7 +192,7 @@ func (is *InstanceServiceImpl) GetCores() []*models.Instance {
 	defer is.instanceMapLock.RUnlock()
 
 	for _, i := range is.instanceMap {
-		log.Debug.Printf("Checking instance [%s] created by [%s]", i.ServerId(), i.CreatedBy)
+		is.log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Checking instance [%s] created by [%s]", i.ServerId(), i.CreatedBy) })
 		if i.IsCore() && i.CreatedBy == is.local.ServerId() {
 			cores = append(cores, i)
 		}

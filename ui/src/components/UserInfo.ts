@@ -1,6 +1,6 @@
 import { ServersApi } from '@weblens/api/ServersApi'
 import UsersApi from '@weblens/api/UserApi'
-import { ServerInfo } from '@weblens/api/swag'
+import { ServerInfo } from '@weblens/api/swag/api'
 import User from '@weblens/types/user/User'
 import { AxiosError } from 'axios'
 import { useEffect } from 'react'

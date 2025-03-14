@@ -9,7 +9,7 @@ import {
 } from '@tabler/icons-react'
 import { ServersApi } from '@weblens/api/ServersApi'
 import { ServerInfo } from '@weblens/api/swag'
-import { useTimer } from '@weblens/components/hooks'
+import { useTimer } from '@weblens/lib/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
@@ -131,7 +131,7 @@ export default function RemoteStatus({
                         </p>
                         {remoteInfo.backupSize != -1 && (
                             <div className="flex">
-                                <div className="h-min-1 m-1 w-[1px] bg-[--wl-outline-subtle]" />
+                                <div className="h-min-1 m-1 w-[1px] bg-(--wl-outline-subtle)" />
                                 <p className="text-white">
                                     {humanFileSize(remoteInfo.backupSize)}
                                 </p>

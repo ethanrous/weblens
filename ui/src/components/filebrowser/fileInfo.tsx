@@ -1,4 +1,3 @@
-import { Divider, Text } from '@mantine/core'
 import WeblensFile from '@weblens/types/files/File'
 import { humanFileSize } from '@weblens/util'
 
@@ -15,11 +14,10 @@ function FileInfo({ file }: { file: WeblensFile }) {
                         {file.GetChildren().length} Item
                         {file.GetChildren().length !== 1 ? 's' : ''}
                     </p>
-                    <Divider orientation="vertical" size={2} mx={10} />
-                    <Text style={{ fontSize: '25px' }}>
+                    <span>
                         {size}
                         {units}
-                    </Text>
+                    </span>
                 </div>
             )}
             {!file.IsFolder() && (

@@ -131,7 +131,7 @@ package http
 // 	newAlbum := models.NewAlbum(albumData.Name, u)
 // 	err = pack.AlbumService.Add(newAlbum)
 // 	if err != nil {
-// 		log.ShowErr(err)
+// 		log.Error().Stack().Err(err).Msg("")
 // 		writeJson(w, http.StatusInternalServerError, rest.WeblensErrorInfo{Error: "Album creation failed"})
 // 	}
 //
@@ -203,7 +203,7 @@ package http
 // 			update.AddFolders, func(fId fileTree.FileId) *fileTree.WeblensFileImpl {
 // 				f, err := pack.FileService.GetFileSafe(fId, u, nil)
 // 				if err != nil {
-// 					log.ShowErr(err)
+// 					log.Error().Stack().Err(err).Msg("")
 // 					return nil
 // 				}
 // 				return f
@@ -217,7 +217,7 @@ package http
 // 	if len(ms) != 0 {
 // 		err = pack.AlbumService.AddMediaToAlbum(a, ms...)
 // 		if err != nil {
-// 			log.ErrTrace(err)
+// 			log.Error().Stack().Err(err).Msg("")
 // 			writeJson(w, http.StatusInternalServerError, rest.WeblensErrorInfo{Error: "Failed to add media to album"})
 // 			return
 // 		}
@@ -225,7 +225,7 @@ package http
 // 		if a.GetCover() == "" {
 // 			err = pack.AlbumService.SetAlbumCover(a.ID(), ms[0])
 // 			if err != nil {
-// 				log.ErrTrace(err)
+// 				log.Error().Stack().Err(err).Msg("")
 // 				writeJson(w, http.StatusInternalServerError, rest.WeblensErrorInfo{Error: "Failed to set album cover"})
 // 				return
 // 			}
@@ -236,7 +236,7 @@ package http
 // 	if update.RemoveMedia != nil {
 // 		err = pack.AlbumService.RemoveMediaFromAlbum(a, update.RemoveMedia...)
 // 		if err != nil {
-// 			log.ErrTrace(err)
+// 			log.Error().Stack().Err(err).Msg("")
 // 			writeJson(w, http.StatusInternalServerError, rest.WeblensErrorInfo{Error: "Failed to remove media from album"})
 // 			return
 // 		}
@@ -250,7 +250,7 @@ package http
 // 		}
 // 		err = pack.AlbumService.SetAlbumCover(a.ID(), cover)
 // 		if err != nil {
-// 			log.ErrTrace(err)
+// 			log.Error().Stack().Err(err).Msg("")
 // 			writeJson(w, http.StatusInternalServerError, rest.WeblensErrorInfo{Error: "Failed to set album cover"})
 // 			return
 // 		}
@@ -259,7 +259,7 @@ package http
 // 	if update.NewName != "" {
 // 		err := pack.AlbumService.RenameAlbum(a, update.NewName)
 // 		if err != nil {
-// 			log.ErrTrace(err)
+// 			log.Error().Stack().Err(err).Msg("")
 // 			writeJson(w, http.StatusInternalServerError, rest.WeblensErrorInfo{Error: "Failed to set album name"})
 // 			return
 // 		}
@@ -274,7 +274,7 @@ package http
 // 		err = pack.ShareService.RemoveUsers(sh, users)
 //
 // 		if err != nil {
-// 			log.ErrTrace(err)
+// 			log.Error().Stack().Err(err).Msg("")
 // 			writeJson(w, http.StatusInternalServerError, rest.WeblensErrorInfo{Error: "Failed to un-share user(s)"})
 // 			return
 // 		}
@@ -288,7 +288,7 @@ package http
 //
 // 		err = pack.ShareService.AddUsers(sh, users)
 // 		if err != nil {
-// 			log.ErrTrace(err)
+// 			log.Error().Stack().Err(err).Msg("")
 // 			writeJson(w, http.StatusInternalServerError, rest.WeblensErrorInfo{Error: "Failed to share user(s)"})
 // 			return
 // 		}
@@ -426,7 +426,7 @@ package http
 //
 // 	err = pack.ShareService.RemoveUsers(sh, []*models.User{u})
 // 	if err != nil {
-// 		log.ShowErr(err)
+// 		log.Error().Stack().Err(err).Msg("")
 // 		w.WriteHeader(http.StatusInternalServerError)
 // 		return
 // 	}

@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/internal"
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/google/uuid"
+	"github.com/rs/zerolog"
 )
 
 type TaskHandler func(*Task)
@@ -42,7 +42,7 @@ type WorkerPool struct {
 
 	exitSignal chan bool
 
-	log log.Bundle
+	log *zerolog.Logger
 
 	retryBuffer    []*Task
 	maxWorkers     atomic.Int64 // Max allowed worker count
@@ -60,11 +60,11 @@ type WorkerPool struct {
 	taskBufferMu sync.Mutex
 }
 
-func NewWorkerPool(initWorkers int, logger log.Bundle) *WorkerPool {
+func NewWorkerPool(initWorkers int, logger *zerolog.Logger) *WorkerPool {
 	if initWorkers == 0 {
 		initWorkers = 1
 	}
-	logger.Trace.Func(func(l log.Logger) { l.Printf("Starting new worker pool with %d workers", initWorkers) })
+	logger.Trace().Func(func(e *zerolog.Event) { e.Msgf("Starting new worker pool with %d workers", initWorkers) })
 
 	newWp := &WorkerPool{
 		registeredJobs: map[string]job{},
@@ -204,8 +204,9 @@ func (wp *WorkerPool) DispatchJob(jobName string, meta TaskMetadata, pool *TaskP
 	}
 
 	t := wp.GetTask(taskId)
+	logger := wp.log.With().Str("task_id", taskId).Str("job_name", jobName).Logger()
 	if t != nil {
-		wp.log.Trace.Printf("Task [%s] already exists, not launching again", taskId)
+		wp.log.Trace().Msgf("Task [%s] already exists, not launching again", taskId)
 		return t, nil
 	} else {
 		t = &Task{
@@ -221,7 +222,8 @@ func (wp *WorkerPool) DispatchJob(jobName string, meta TaskMetadata, pool *TaskP
 
 			waitChan: make(chan struct{}),
 
-			sw: internal.NewStopwatch(fmt.Sprintf("%s Task [%s]", jobName, taskId)),
+			sw:  internal.NewStopwatch(fmt.Sprintf("%s Task [%s]", jobName, taskId), &logger),
+			Log: &logger,
 		}
 	}
 
@@ -293,7 +295,7 @@ func (wp *WorkerPool) workerRecover(task *Task, workerId int64) {
 		case error:
 			if errors.Is(err, werror.ErrTaskError) {
 				// wp.log.Error.Printf("Task [%s] exited with an error", task.TaskId())
-				// wp.log.ErrTrace(task.err)
+				// wp.log.Error().Stack().Err(task.err).Msg("")
 				return
 			} else if errors.Is(err, werror.ErrTaskExit) {
 				return
@@ -315,7 +317,7 @@ func (wp *WorkerPool) safetyWork(task *Task, workerId int64) {
 	defer wp.workerRecover(task, workerId)
 
 	if task.exitStatus != TaskNoStatus {
-		wp.log.Trace.Printf("Task [%s] already has exit status [%s], not running", task.taskId, task.exitStatus)
+		wp.log.Trace().Msgf("Task [%s] already has exit status [%s], not running", task.taskId, task.exitStatus)
 	} else {
 		task.work.handler(task)
 	}
@@ -335,10 +337,10 @@ func (wp *WorkerPool) reaper() {
 		select {
 		case _, ok := <-wp.exitSignal:
 			if !ok {
-				wp.log.Debug.Println("Task reaper exiting")
+				wp.log.Debug().Msg("Task reaper exiting")
 				return
 			}
-			wp.log.Warning.Println("Reaper not exiting?")
+			wp.log.Warn().Msg("Reaper not exiting?")
 		case newHit := <-wp.hitStream:
 			go func(h hit) { time.Sleep(time.Until(h.time)); timerStream <- h.target }(newHit)
 		case task := <-timerStream:
@@ -348,7 +350,7 @@ func (wp *WorkerPool) reaper() {
 			// has not already finished
 			timeout := task.GetTimeout()
 			if task.QueueState() != Exited && time.Until(timeout) <= 0 && timeout.Unix() != 0 {
-				wp.log.Warning.Printf("Sending timeout signal to T[%s]\n", task.taskId)
+				wp.log.Warn().Msgf("Sending timeout signal to T[%s]\n", task.taskId)
 				task.Cancel()
 				task.error(werror.ErrTaskTimeout)
 			}
@@ -382,7 +384,7 @@ func (wp *WorkerPool) Stop() {
 	wp.exitFlag.Store(1)
 	close(wp.exitSignal)
 	for wp.currentWorkers.Load() > 0 {
-		wp.log.Debug.Printf("Waiting for %d workers to exit", wp.currentWorkers.Load())
+		wp.log.Debug().Msgf("Waiting for %d workers to exit", wp.currentWorkers.Load())
 		time.Sleep(100 * time.Millisecond)
 	}
 }
@@ -422,8 +424,10 @@ func (wp *WorkerPool) removeTask(taskId Id) {
 // different to minimize parked time of the other task.
 func (wp *WorkerPool) execWorker(replacement bool) {
 	go func(workerId int64) {
-		wp.log.Trace.Printf("Spinning up worker with id [%d] o7", workerId)
-		defer func() { log.Debug.Printf("worker %d exiting, %d workers remain", workerId, wp.currentWorkers.Add(-1)) }()
+		wp.log.Trace().Msgf("Spinning up worker with id [%d] o7", workerId)
+		defer func() {
+			wp.log.Debug().Msgf("worker %d exiting, %d workers remain", workerId, wp.currentWorkers.Add(-1))
+		}()
 
 		// WorkLoop:
 		for {
@@ -449,7 +453,7 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 						// If there are twice the number of free spaces in the chan, don't bother pulling
 						// everything into the waiting buffer, just put it at the end right now.
 						if cap(wp.taskStream)-len(wp.taskStream) > int(wp.currentWorkers.Load())*2 {
-							// util.Debug.Println("Replacement worker putting scan dir task back")
+							// util.Debug().Msg("Replacement worker putting scan dir task back")
 							wp.taskStream <- t
 							continue
 						}
@@ -464,17 +468,21 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 						wp.addToRetryBuffer(tBuf...)
 					}
 
+					t.Log.UpdateContext(func(c zerolog.Context) zerolog.Context {
+						return c.Int("worker_id", int(workerId))
+					})
+
 					// Inc tasks being processed
 					wp.busyCount.Add(1)
 					t.SwLap("Task start")
-					wp.log.Trace.Func(func(l log.Logger) { l.Printf("Starting %s task T[%s]", t.jobName, t.taskId) })
+					t.Log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Starting task") })
 					wp.safetyWork(t, workerId)
 					t.SwLap("Task finish")
 					t.sw.Stop()
-					wp.log.Trace.Func(func(l log.Logger) {
+					t.Log.Trace().Func(func(e *zerolog.Event) {
 						t.updateMu.RLock()
 						defer t.updateMu.RUnlock()
-						l.Printf("Finished %s task T[%s] in %s with status [%s]", t.jobName, t.taskId, t.ExeTime(), t.exitStatus)
+						e.Dur("task_duration", t.ExeTime()).Str("exit_status", string(t.exitStatus)).Msg("Task finished")
 					})
 
 					// Dec tasks being processed
@@ -526,32 +534,32 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 
 					// Run the cleanup routine for errors, if any
 					if t.exitStatus == TaskError || t.exitStatus == TaskCanceled {
-						wp.log.Trace.Printf("Running error cleanup for task [%s]", t.taskId)
+						t.Log.Trace().Msgf("Running error cleanup")
 						for _, ecf := range t.errorCleanup {
 							ecf(t)
 						}
-						wp.log.Trace.Printf("Finished error cleanup for task [%s]", t.taskId)
+						t.Log.Trace().Msgf("Finished error cleanup")
 					}
 
 					// We want the pool completed and error count to reflect the task has completed
 					// when we are doing cleanup. Cleanup is intended to execute "after" the task
 					// has finished, so we must inc the completed tasks counter (above) before cleanup
-					wp.log.Trace.Printf("Running cleanup(s) for task [%s]", t.taskId)
+					t.Log.Trace().Msgf("Running cleanup(s)")
 					t.updateMu.RLock()
 					cleanups := t.cleanups
 					t.updateMu.RUnlock()
 					for _, cf := range cleanups {
 						cf(t)
 					}
-					wp.log.Trace.Printf("Finished cleanup for task [%s]", t.taskId)
+					t.Log.Trace().Msgf("Finished cleanup")
 
 					// The post action is intended to run after the task has completed, and after
 					// the cleanup has run. This is useful for tasks that need to use the result of
 					// the task to do something else, but don't want to block until the task is done
 					if t.postAction != nil && t.exitStatus == TaskSuccess {
-						wp.log.Trace.Printf("Running post-action for task [%s]", t.taskId)
+						t.Log.Trace().Msg("Running task post-action")
 						t.postAction(t.result)
-						wp.log.Trace.Printf("Finished post-action for task [%s]", t.taskId)
+						t.Log.Trace().Msg("Finished task post-action")
 					}
 
 					if directParent.IsRoot() {
@@ -576,7 +584,7 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 
 						directParent.LockExit()
 						uncompletedTasks := directParent.totalTasks.Load() - directParent.completedTasks.Load()
-						wp.log.Debug.Printf(
+						wp.log.Debug().Msgf(
 							"Uncompleted tasks on tp created by %s: %d",
 							directParent.CreatedInTask().TaskId(), uncompletedTasks-1,
 						)
@@ -621,7 +629,7 @@ func (wp *WorkerPool) removeWorker() {
 func (wp *WorkerPool) newTaskPoolInternal() *TaskPool {
 	tpId, err := uuid.NewUUID()
 	if err != nil {
-		wp.log.ShowErr(err)
+		wp.log.Error().Err(err).Msg("Failed to generate UUID for new task pool")
 		return nil
 	}
 
@@ -632,6 +640,7 @@ func (wp *WorkerPool) newTaskPoolInternal() *TaskPool {
 		createdAt:    time.Now(),
 		erroredTasks: make([]*Task, 0),
 		waiterGate:   make(chan struct{}),
+		log:          wp.log.With().Str("task_pool", tpId.String()).Logger(),
 	}
 
 	return newQueue
@@ -662,15 +671,14 @@ func (wp *WorkerPool) statusReporter() {
 		if lastCount != remaining {
 			lastCount = remaining
 			waitTime = 1
-			wp.log.Debug.Printf(
-				"Task worker pool status : Queued[%d]/Total[%d], Buffered[%d], Busy[%d], Alive[%d]",
-				remaining, total, retrySize, busy, alive,
+			wp.log.Debug().Int("queue_remaining", remaining).Int("queue_total", total).Int("queue_buffered", retrySize).Int("busy_workers", busy).Int("alive_workers", alive).Msg(
+				"Worker pool status",
 			)
 		} else if waitTime < time.Second*10 {
 			waitTime += 1
 		}
 	}
-	wp.log.Debug.Println("status reporter exited")
+	wp.log.Warn().Msg("status reporter exited")
 }
 
 func (wp *WorkerPool) bufferDrainer() {
@@ -686,7 +694,7 @@ func (wp *WorkerPool) bufferDrainer() {
 		time.Sleep(time.Second * 10)
 	}
 
-	wp.log.Debug.Println("buffer drainer exited")
+	wp.log.Debug().Msg("buffer drainer exited")
 }
 
 func (wp *WorkerPool) addToRetryBuffer(tasks ...*Task) {

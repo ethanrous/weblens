@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/rs/zerolog"
 	"github.com/viccon/sturdyc"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -29,7 +29,7 @@ type JournalImpl struct {
 
 	flushCond *sync.Cond
 
-	log log.Bundle
+	log *zerolog.Logger
 
 	serverId string
 
@@ -40,16 +40,21 @@ type JournalImpl struct {
 	cache *sturdyc.Client[*Lifetime]
 }
 
-func NewJournal(col *mongo.Collection, serverId string, ignoreLocal bool, hasherFactory func() Hasher, logger log.Bundle) (
+func NewJournal(col *mongo.Collection, serverId string, ignoreLocal bool, hasherFactory func() Hasher, logger *zerolog.Logger) (
 	*JournalImpl, error,
 ) {
+	newLogger := logger.With().Str("service", "journal").Logger()
+	if hasherFactory == nil {
+		return nil, errors.New("Hasher factory cannot be nil")
+	}
+
 	j := &JournalImpl{
 		eventStream:   make(chan *FileEvent, 10),
 		col:           col,
 		serverId:      serverId,
 		ignoreLocal:   ignoreLocal,
 		hasherFactory: hasherFactory,
-		log:           logger,
+		log:           &newLogger,
 		flushCond:     sync.NewCond(&sync.Mutex{}),
 		cache:         sturdyc.New[*Lifetime](10000, 10, time.Hour*2, 10),
 	}
@@ -88,13 +93,13 @@ func NewJournal(col *mongo.Collection, serverId string, ignoreLocal bool, hasher
 	if err != nil {
 		return nil, err
 	}
-	logger.Trace.Printf("Get all lifetimes in %s", time.Since(start))
+	logger.Trace().Func(func(e *zerolog.Event) { e.Msgf("Get all lifetimes in %s", time.Since(start)) })
 	start = time.Now()
 
 	for _, lt := range lifetimes {
 		j.cache.Set(lt.ID(), lt)
 	}
-	logger.Trace.Printf("Add lifetimes to map in %s", time.Since(start))
+	logger.Trace().Func(func(e *zerolog.Event) { e.Msgf("Add lifetimes to map in %s", time.Since(start)) })
 
 	go j.EventWorker()
 
@@ -102,12 +107,20 @@ func NewJournal(col *mongo.Collection, serverId string, ignoreLocal bool, hasher
 }
 
 func (j *JournalImpl) NewEvent() *FileEvent {
+	hasher := j.hasherFactory()
+	j.log.Debug().Msgf("Hasher ???? %v", hasher)
+
+	if hasher == nil {
+		j.log.Error().Msgf("Hasher is nil trying to create new file event")
+		return nil
+	}
+
 	return &FileEvent{
 		EventId:    FileEventId(primitive.NewObjectID().Hex()),
 		EventBegin: time.Now(),
 		journal:    j,
 		ServerId:   j.serverId,
-		hasher:     j.hasherFactory(),
+		hasher:     hasher,
 
 		LoggedChan: make(chan struct{}),
 	}
@@ -129,14 +142,14 @@ func (j *JournalImpl) GetActiveLifetimes() []*Lifetime {
 	filter := bson.M{"actions.actionType": bson.M{"$ne": "fileDelete"}}
 	res, err := j.col.Find(context.Background(), filter)
 	if err != nil {
-		j.log.ErrTrace(err)
+		j.log.Error().Stack().Err(err).Msg("")
 		return nil
 	}
 
 	var target []*Lifetime
 	err = res.All(context.Background(), &target)
 	if err != nil {
-		j.log.ErrTrace(err)
+		j.log.Error().Stack().Err(err).Msg("")
 		return nil
 	}
 
@@ -151,14 +164,14 @@ func (j *JournalImpl) GetAllLifetimes() []*Lifetime {
 	filter := bson.M{}
 	res, err := j.col.Find(context.Background(), filter)
 	if err != nil {
-		j.log.ErrTrace(err)
+		j.log.Error().Stack().Err(err).Msg("")
 		return nil
 	}
 
 	var target []*Lifetime
 	err = res.All(context.Background(), &target)
 	if err != nil {
-		j.log.ErrTrace(err)
+		j.log.Error().Stack().Err(err).Msg("")
 		return nil
 	}
 
@@ -182,28 +195,28 @@ func (j *JournalImpl) Clear() error {
 
 func (j *JournalImpl) LogEvent(fe *FileEvent) {
 	if fe == nil {
-		j.log.Warning.Println("Tried to log nil event")
+		j.log.Warn().Msgf("Tried to log nil event")
 		return
 	} else if fe.Logged.Load() {
-		j.log.Warning.Println("Tried to log which has already been logged")
+		j.log.Warn().Msgf("Tried to log which has already been logged")
 		return
 	} else if j.ignoreLocal {
-		j.log.Trace.Func(func(l log.Logger) { l.Printf("Ignoring local file event [%s]", fe.EventId) })
+		j.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Ignoring local file event [%s]", fe.EventId) })
 		fe.SetLogged()
 		return
 	}
 
 	if len(fe.Actions) != 0 {
-		j.log.Trace.Func(func(l log.Logger) { l.Printf("Dropping off event [%s] with %d actions", fe.EventId, len(fe.Actions)) })
+		j.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Dropping off event [%s] with %d actions", fe.EventId, len(fe.Actions)) })
 		j.eventStream <- fe
 	} else {
-		j.log.Trace.Func(func(l log.Logger) { l.Printf("File Event [%s] has no actions, not logging", fe.EventId) })
+		j.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("File Event [%s] has no actions, not logging", fe.EventId) })
 		fe.SetLogged()
 	}
 }
 
 func (j *JournalImpl) Flush() {
-	j.log.Trace.Println("Waiting for journal flush...")
+	j.log.Trace().Msg("Waiting for journal flush...")
 
 	j.flushCond.L.Lock()
 	for len(j.eventStream) > 0 {
@@ -211,7 +224,7 @@ func (j *JournalImpl) Flush() {
 	}
 	j.flushCond.L.Unlock()
 
-	j.log.Trace.Println("Finished journal flush...")
+	j.log.Trace().Msg("Finished journal flush...")
 }
 
 func (j *JournalImpl) GetActionsByPath(path WeblensFilepath) ([]*FileAction, error) {
@@ -254,7 +267,10 @@ func (j *JournalImpl) GetPastFile(id FileId, time time.Time) (*WeblensFileImpl, 
 	)
 
 	var err error
-	if time.Unix() != 0 && actions[0].GetTimestamp().After(time) {
+	// If the first action is after the time we are looking for, we need to get the actions
+	// from the path of the file, but not necessarily the same lifetime.
+	diff := actions[0].GetTimestamp().UnixMilli() - time.UnixMilli()
+	if time.Unix() != 0 && diff > 0 {
 		actions, err = j.getActionsByPath(lt.GetLatestPath(), true)
 		if err != nil {
 			return nil, err
@@ -339,7 +355,7 @@ func (j *JournalImpl) GetPastFolderChildren(folder *WeblensFileImpl, time time.T
 		return nil, err
 	}
 
-	j.log.Trace.Printf("Got %d actions", len(actions))
+	j.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Got %d actions", len(actions)) })
 
 	lifeIdMap := map[FileId]any{}
 	children := []*WeblensFileImpl{}
@@ -374,7 +390,7 @@ func (j *JournalImpl) Get(lId FileId) *Lifetime {
 	ctx = context.WithValue(ctx, "lifetimeId", lId)
 	lt, err := j.cache.GetOrFetch(ctx, lId, j.fetchLifetime)
 	if err != nil {
-		j.log.ErrTrace(err)
+		j.log.Error().Stack().Err(err).Msg("")
 		return nil
 	}
 	return lt
@@ -430,48 +446,52 @@ func (j *JournalImpl) Close() {
 
 func (j *JournalImpl) EventWorker() {
 	for {
-		e, ok := <-j.eventStream
+		fe, ok := <-j.eventStream
 		if !ok {
-			j.log.Debug.Println("Event worker exiting...")
+			j.log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Event worker exiting...") })
 			return
 		}
 
-		if e == nil {
-			j.log.Error.Println("Got nil event in event stream...")
+		if fe == nil {
+			j.log.Error().Msg("Got nil event in event stream...")
 		} else {
-			j.log.Trace.Println("Journal event worker got event starting with", e.GetActions()[0].GetActionType())
+			j.log.Trace().Func(func(e *zerolog.Event) {
+				e.Msgf("Journal event worker got event starting with %s", fe.GetActions()[0].GetActionType())
+			})
 			j.flushCond.L.Lock()
 
-			if err := j.handleFileEvent(e); err != nil {
-				j.log.ErrTrace(err)
+			if err := j.handleFileEvent(fe); err != nil {
+				j.log.Error().Stack().Err(err).Msg("")
 			}
-			close(e.LoggedChan)
+			close(fe.LoggedChan)
 		}
 
 		if len(j.eventStream) == 0 {
 			j.flushCond.Broadcast()
 		}
-		j.log.Trace.Printf("Journal worker finishing %s event at %s", e.Actions[0].ActionType, e.Actions[0].DestinationPath)
+		j.log.Trace().Func(func(ze *zerolog.Event) {
+			ze.Msgf("Journal worker finishing %s event at %s", fe.Actions[0].ActionType, fe.Actions[0].DestinationPath)
+		})
 		j.flushCond.L.Unlock()
 	}
 }
 
 func (j *JournalImpl) handleFileEvent(event *FileEvent) error {
 	if event.Logged.Load() {
-		j.log.Debug.Println("Skipping event already logged")
+		j.log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Skipping event already logged") })
 		return nil
 	}
 
-	j.log.Trace.Func(func(l log.Logger) { l.Printf("Handling event with %d actions", len(event.GetActions())) })
+	j.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Handling event with %d actions", len(event.GetActions())) })
 
 	defer func() {
 		e := recover()
 		if e != nil {
 			err, ok := e.(error)
 			if !ok {
-				j.log.Error.Println(e)
+				j.log.Error().Msgf("%v", e)
 			} else {
-				j.log.ErrTrace(err)
+				j.log.Error().Stack().Err(err).Msg("")
 			}
 		}
 	}()
@@ -500,8 +520,8 @@ func (j *JournalImpl) handleFileEvent(event *FileEvent) error {
 			action.SetSize(size)
 		}
 
-		j.log.Trace.Func(func(l log.Logger) {
-			l.Printf("Handling %s for [%s] [%s]", action.GetActionType(), action.GetRelevantPath(), action.GetLifetimeId())
+		j.log.Trace().Func(func(e *zerolog.Event) {
+			e.Msgf("Handling %s for [%s] [%s]", action.GetActionType(), action.GetRelevantPath(), action.GetLifetimeId())
 		})
 
 		actionType := action.GetActionType()
@@ -509,7 +529,7 @@ func (j *JournalImpl) handleFileEvent(event *FileEvent) error {
 			if action.Size == -1 {
 				_, err := action.file.LoadStat()
 				if err != nil {
-					j.log.ErrTrace(err)
+					j.log.Error().Stack().Err(err).Msg("")
 					continue
 				}
 				action.Size = action.file.Size()
@@ -532,7 +552,7 @@ func (j *JournalImpl) handleFileEvent(event *FileEvent) error {
 		} else if actionType == FileDelete || actionType == FileMove || actionType == FileSizeChange {
 			existing := j.Get(action.LifeId)
 			if existing == nil {
-				j.log.ErrTrace(werror.WithStack(werror.ErrNoLifetime.WithArg(action.LifeId)))
+				j.log.Error().Stack().Err(werror.WithStack(werror.ErrNoLifetime.WithArg(action.LifeId))).Msg("")
 				continue
 			}
 			existing.Add(action)

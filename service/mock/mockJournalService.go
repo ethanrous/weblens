@@ -32,7 +32,9 @@ func (h *HollowJournalService) IgnoreLocal() bool { return true }
 func (h *HollowJournalService) SetIgnoreLocal(bool) {}
 
 func (h *HollowJournalService) NewEvent() *fileTree.FileEvent {
-	return &fileTree.FileEvent{LoggedChan: make(chan struct{})}
+	e := &fileTree.FileEvent{LoggedChan: make(chan struct{})}
+	e.SetJournal(h)
+	return e
 }
 
 func (h *HollowJournalService) WatchFolder(f *fileTree.WeblensFileImpl) error {

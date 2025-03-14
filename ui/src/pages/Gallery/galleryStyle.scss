@@ -22,7 +22,7 @@
 
 	transition-property: scale, outline, opacity, border-radius, box-shadow;
 	transition-duration: 200ms;
-	transition-timing-function: var(--wl-transition-func);
+	transition-timing-function: var(--ease-wl-default);
 
 	&[data-selecting='true'] {
 		scale: 0.90;
@@ -77,13 +77,13 @@
 	height: 100%;
 	backdrop-filter: blur(0px);
 	pointer-events: none;
-	outline: 3px solid rgb(from var(--wl-theme-color-secondary) r g b / 0.5);
+	outline: 3px solid rgb(from var(--color-theme-secondary) r g b / 0.5);
 
 	transition: all 200ms;
 
 	&[data-open='true'] {
 		outline-offset: 0;
-		outline: 3px solid rgb(from var(--wl-theme-color-secondary) r g b / 0.50);
+		outline: 3px solid rgb(from var(--color-theme-secondary) r g b / 0.50);
 		background-color: #00000044;
 		pointer-events: all;
 		backdrop-filter: blur(6px);

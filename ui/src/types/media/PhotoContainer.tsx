@@ -1,4 +1,3 @@
-import { CSSProperties } from '@mantine/core'
 import {
     IconExclamationCircle,
     IconMaximize,
@@ -10,11 +9,12 @@ import {
 } from '@tabler/icons-react'
 import WeblensLoader from '@weblens/components/Loading'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
+import { useKeyDown, useResize, useVideo } from '@weblens/lib/hooks'
 import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
 import { secondsToVideoTime } from '@weblens/util'
-import { useKeyDown, useResize, useVideo } from 'components/hooks'
 import Hls from 'hls.js'
 import {
+    CSSProperties,
     MouseEvent,
     memo,
     useCallback,
@@ -148,7 +148,7 @@ export function MediaImage({
                 media.HighestQualityLoaded() !== PhotoQuality.HighRes &&
                 !loadError &&
                 (!media.GetMediaType().IsVideo || isWaiting) && (
-                    <div className="absolute bottom-10 right-10 w-8">
+                    <div className="absolute right-10 bottom-10 w-8">
                         <WeblensLoader />
                     </div>
                 )}
@@ -270,7 +270,7 @@ const VideoInterface = memo(
                     }}
                 >
                     <div
-                        className="flex h-max w-max select-none justify-center gap-1 text-nowrap"
+                        className="flex h-max w-max justify-center gap-1 text-nowrap select-none"
                         style={{
                             minWidth: `${videoLength < 3600 ? 6.5 : 10}rem`,
                         }}
@@ -338,7 +338,7 @@ const VideoInterface = memo(
                         />
                     </div>
                     <IconMaximize
-                        className="z-100 pointer-events-auto relative h-5 w-5 cursor-pointer text-white"
+                        className="pointer-events-auto relative z-100 h-5 w-5 cursor-pointer text-white"
                         onClick={(e) => {
                             e.stopPropagation()
                             toggleFullScreen(containerRef)

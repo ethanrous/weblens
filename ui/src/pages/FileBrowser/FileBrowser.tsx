@@ -4,6 +4,7 @@ import { useSubscribe as useFolderSubscribe } from '@weblens/api/Websocket'
 import HeaderBar from '@weblens/components/HeaderBar'
 import { PresentationFile } from '@weblens/components/Presentation'
 import { useSessionStore } from '@weblens/components/UserInfo'
+import { FileContextMenu } from '@weblens/components/filebrowser/FileMenu'
 import DirectoryView from '@weblens/components/filebrowser/directoryView'
 import FBSidebar from '@weblens/components/filebrowser/filebrowserSidebar'
 import PasteDialogue from '@weblens/components/filebrowser/pasteDialogue'
@@ -12,7 +13,6 @@ import WebsocketStatus from '@weblens/components/filebrowser/websocketStatus'
 import { ErrorHandler } from '@weblens/types/Types'
 import WeblensFile from '@weblens/types/files/File'
 import { goToFile } from '@weblens/types/files/FileDragLogic'
-import { FileContextMenu } from '@weblens/types/files/FileMenu'
 import { useCallback, useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
@@ -287,7 +287,7 @@ function FileBrowser() {
             <PresentationFile file={filesMap.get(presentingId)} />
             <PasteDialogue />
             {isSearching && (
-                <div className="absolute z-40 flex h-screen w-screen items-center justify-center bg-[#00000088] px-[30%] py-[10%] backdrop-blur-sm">
+                <div className="absolute z-40 flex h-screen w-screen items-center justify-center bg-[#00000088] px-[30%] py-[10%] backdrop-blur-xs">
                     <SearchDialogue text={''} visitFunc={searchVisitFunc} />
                 </div>
             )}

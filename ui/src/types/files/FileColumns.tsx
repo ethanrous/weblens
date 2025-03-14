@@ -1,17 +1,16 @@
-import { clamp } from '@mantine/hooks'
 import { IconChevronRight, IconFile } from '@tabler/icons-react'
 import { GetFolderData } from '@weblens/api/FileBrowserApi'
 import WeblensLoader from '@weblens/components/Loading'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import FileVisual from '@weblens/components/filebrowser/fileVisual'
 import GetStartedCard from '@weblens/components/filebrowser/getStartedCard'
-import { useKeyDown, useResize, useResizeDrag } from '@weblens/components/hooks'
+import { useKeyDown, useResize, useResizeDrag } from '@weblens/lib/hooks'
 import { HandleDrop } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { DirViewModeT } from '@weblens/pages/FileBrowser/FileBrowserTypes'
 import fbStyle from '@weblens/pages/FileBrowser/style/fileBrowserStyle.module.scss'
 import { FbModeT, useFileBrowserStore } from '@weblens/store/FBStateControl'
 import filesStyle from '@weblens/types/files/filesStyle.module.scss'
-import { humanFileSize } from '@weblens/util'
+import { clamp, humanFileSize } from '@weblens/util'
 import {
     CSSProperties,
     MouseEvent,
@@ -198,7 +197,7 @@ function ColumnRow({
                 </div>
             </div>
             {file.IsFolder() && (
-                <IconChevronRight className="text-[--wl-file-text-color]" />
+                <IconChevronRight className="text-(--color-file-text)" />
             )}
         </div>
     )
@@ -753,7 +752,7 @@ function FileColumns() {
     return (
         <div
             ref={setContainerRef}
-            className="relative flex h-full w-full flex-row gap-2 overflow-y-hidden overflow-x-scroll outline-0"
+            className="relative flex h-full w-full flex-row gap-2 overflow-x-scroll overflow-y-hidden outline-0"
         >
             {emptyFolder && <GetStartedCard />}
             {!emptyFolder &&

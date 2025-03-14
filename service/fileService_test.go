@@ -2,9 +2,10 @@ package service_test
 
 import (
 	"context"
-	"math/rand"
+	"crypto/rand"
+	"encoding/base64"
+	"math/big"
 	"os"
-	"strconv"
 	"testing"
 	"time"
 
@@ -15,11 +16,14 @@ import (
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/service"
 	"github.com/ethanrous/weblens/service/mock"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func NewTestFileTree() (fileTree.FileTree, error) {
+	logger := log.NewZeroLogger()
+
 	hasher := mock.NewMockHasher()
 	hasher.SetShouldCount(true)
 	journal := mock.NewHollowJournalService()
@@ -32,9 +36,9 @@ func NewTestFileTree() (fileTree.FileTree, error) {
 	// MkdirTemp does not add a trailing slash to directories, which the fileTree expects
 	rootPath += "/"
 
-	log.Trace.Func(func(l log.Logger) { l.Printf("Creating tmp root for FileTree test [%s]", rootPath) })
+	logger.Trace().Func(func(e *zerolog.Event) { e.Msgf("Creating tmp root for FileTree test [%s]", rootPath) })
 
-	tree, err := fileTree.NewFileTree(rootPath, "USERS", journal, false)
+	tree, err := fileTree.NewFileTree(rootPath, "USERS", journal, false, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -42,8 +46,8 @@ func NewTestFileTree() (fileTree.FileTree, error) {
 	return tree, nil
 }
 
-func NewTestFileService(name string, logger log.Bundle) (*models.ServicePack, error) {
-	mondb, err := database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName(env.Config{}))
+func NewTestFileService(name string, logger *zerolog.Logger) (*models.ServicePack, error) {
+	mondb, err := database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName(env.Config{}), logger)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +139,7 @@ func NewTestFileService(name string, logger log.Bundle) (*models.ServicePack, er
 	}
 
 	// Create instance service
-	instanceService, err := service.NewInstanceService(serversCol)
+	instanceService, err := service.NewInstanceService(serversCol, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +163,7 @@ func NewTestFileService(name string, logger log.Bundle) (*models.ServicePack, er
 func TestFileService_Restore_SingleFile(t *testing.T) {
 	t.Parallel()
 
-	logger := log.NewLogPackage("", log.DEBUG)
+	logger := log.NewZeroLogger()
 
 	pack, err := NewTestFileService(t.Name(), logger)
 	if err != nil {
@@ -209,7 +213,12 @@ func TestFileService_Restore_SingleFile(t *testing.T) {
 	require.NoError(t, err)
 
 	// Write some data to the file
-	testData := []byte("test")
+	fileSize, err := GenerateRandomInt(256)
+	require.NoError(t, err)
+
+	testData, err := GenerateRandomBytes(fileSize)
+	require.NoError(t, err)
+
 	_, err = testF.Write(testData)
 	require.NoError(t, err)
 
@@ -234,7 +243,7 @@ func TestFileService_Restore_SingleFile(t *testing.T) {
 	// Check if the file is in the user's home
 	restoredFile, err := userHome.GetChild(testFileName)
 	if !assert.NoError(t, err) {
-		log.ErrTrace(err)
+		logger.Error().Stack().Err(err).Msg("")
 		t.FailNow()
 	}
 
@@ -248,7 +257,7 @@ func TestFileService_Restore_SingleFile(t *testing.T) {
 func TestFileService_Restore_Directory(t *testing.T) {
 	t.Parallel()
 
-	logger := log.NewLogPackage("", log.DEBUG)
+	logger := log.NewZeroLogger()
 
 	pack, err := NewTestFileService(t.Name(), logger)
 	if err != nil {
@@ -257,8 +266,11 @@ func TestFileService_Restore_Directory(t *testing.T) {
 
 	pack.Caster = &mock.MockCaster{}
 
+	uniqueUserExt, err := GenerateRandomBytes(8)
+	require.NoError(t, err)
+
 	// Create a user
-	userName := "test-user"
+	userName := "test-user" + base64.URLEncoding.EncodeToString(uniqueUserExt)
 	fullName := "Test User"
 	password := "test-pass"
 	testUser, err := models.NewUser(userName, password, fullName, false, true)
@@ -276,78 +288,60 @@ func TestFileService_Restore_Directory(t *testing.T) {
 	usersJournal := pack.FileService.GetJournalByTree("USERS")
 	event := usersJournal.NewEvent()
 
-	// Create a directory
-	testDirName := "test-dir"
-	dir, err := pack.FileService.CreateFolder(userHome, testDirName, event, pack.Caster)
+	// Create a random filesystem
+	err = generateRandomFilesystem(pack.FileService, userHome, event, logger)
 	require.NoError(t, err)
 
-	testFileName := "test-file"
-	fileCount := rand.Intn(20) + 1
-	// Create 1-20 files in the directory
-	for i := range fileCount {
-		// Create a file
-		testF, err := pack.FileService.CreateFile(dir, testFileName+strconv.Itoa(i), event, pack.Caster)
-		require.NoError(t, err)
-
-		// Write some data to the file
-		testData := []byte("test" + strconv.Itoa(i))
-		_, err = testF.Write(testData)
-		require.NoError(t, err)
-
-	}
-
-	require.Equal(t, fileCount, len(dir.GetChildren()))
-
-	// Commit the event
+	// Commit the event to the journal
 	usersJournal.LogEvent(event)
-
+	// Wait for the event to be processed before continuing
 	event.Wait()
+
+	origHomeDirSize := userHome.Size()
+	assert.NotEqual(t, origHomeDirSize, int64(0))
+
+	allMyData, err := userHome.GetChild("literally-all-my-data")
+	if !assert.NoError(t, err) {
+		logger.Error().Stack().Err(err).Msg("")
+		t.FailNow()
+	}
 
 	beforeDelete := time.Now()
 
-	// Move the file to the trash
-	err = pack.FileService.MoveFilesToTrash([]*fileTree.WeblensFileImpl{dir}, testUser, nil, pack.Caster)
+	// Move the top directory to the trash
+	err = pack.FileService.MoveFilesToTrash([]*fileTree.WeblensFileImpl{allMyData}, testUser, nil, pack.Caster)
 	require.NoError(t, err)
 
-	err = pack.FileService.DeleteFiles([]*fileTree.WeblensFileImpl{dir}, "USERS", pack.Caster)
+	// Delete the top directory
+	err = pack.FileService.DeleteFiles([]*fileTree.WeblensFileImpl{allMyData}, "USERS", pack.Caster)
 	require.NoError(t, err)
 
-	// Add one here to account for the ROOT directory
-	// require.Equal(t, fileCount+1, restoreTree.Size())
+	// Make sure home directory is empty
+	assert.Equal(t, userHome.Size(), int64(0))
 
 	// Restore the file
-	err = pack.FileService.RestoreFiles([]string{dir.ID()}, userHome, beforeDelete, pack.Caster)
+	err = pack.FileService.RestoreFiles([]string{allMyData.ID()}, userHome, beforeDelete, pack.Caster)
 	if !assert.NoError(t, err) {
-		log.ErrTrace(err)
+		logger.Error().Stack().Err(err).Msg("")
 		t.FailNow()
 	}
 
 	// Check if the file is in the user's home
-	restoredFile, err := userHome.GetChild(testDirName)
+	_, err = userHome.GetChild("literally-all-my-data")
 	if !assert.NoError(t, err) {
-		log.ErrTrace(err)
+		logger.Error().Stack().Err(err).Msg("")
 		t.FailNow()
 	}
 
-	// TODO: This fails when the random file count is 1
-	assert.Equal(t, fileCount, len(restoredFile.GetChildren()))
-}
-
-func generateRandomString(n int) string {
-	const letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-	ret := make([]byte, n)
-	for i := 0; i < n; i++ {
-		num := rand.Intn(len(letters))
-		ret[i] = letters[num]
-	}
-
-	return string(ret)
+	// Make sure all the bytes came back
+	postRestoreHomeDirSize := userHome.Size()
+	assert.Equal(t, postRestoreHomeDirSize, origHomeDirSize)
 }
 
 func TestFileService_RestoreHistory(t *testing.T) {
 	t.Parallel()
 
-	logger := log.NewLogPackage("", log.DEBUG)
+	logger := log.NewZeroLogger()
 
 	pack, err := NewTestFileService(t.Name(), logger)
 	if err != nil {
@@ -367,20 +361,40 @@ func TestFileService_RestoreHistory(t *testing.T) {
 
 	event := usersJournal.NewEvent()
 
-	filesCount := rand.Intn(200)
+	filesCount, err := GenerateRandomInt(200)
+	require.NoError(t, err)
+
 	folders := []*fileTree.WeblensFileImpl{usersTree.GetRoot()}
-	for range filesCount {
-		parent := folders[rand.Intn(len(folders))]
-		isFolder := rand.Intn(2)
-		name := generateRandomString(10)
+	for range filesCount + 1 {
+		parentIndex, err := GenerateRandomInt(len(folders))
+		require.NoError(t, err)
+
+		parent := folders[parentIndex]
+		isFolder, err := GenerateRandomInt(2)
+		require.NoError(t, err)
+
+		b, err := GenerateRandomBytes(16)
+		name := base64.URLEncoding.EncodeToString(b)
+
+		require.NoError(t, err)
 		if isFolder == 0 {
-			log.Trace.Func(func(l log.Logger) { l.Printf("Creating file [%s] with parent [%s]", name, parent.Filename()) })
-			_, err = pack.FileService.CreateFile(parent, name, event, pack.Caster)
+			logger.Trace().Func(func(e *zerolog.Event) { e.Msgf("Creating file [%s] with parent [%s]", name, parent.Filename()) })
+			newF, err := pack.FileService.CreateFile(parent, name, event, pack.Caster)
+			if err != nil {
+				t.Fatal(err)
+			}
+			fileSize, err := GenerateRandomInt(4096) // Simulate writing data
+			require.NoError(t, err)
+
+			fileContent, err := GenerateRandomBytes(fileSize)
+			require.NoError(t, err)
+
+			_, err = newF.Write(fileContent)
 			if err != nil {
 				t.Fatal(err)
 			}
 		} else {
-			log.Trace.Func(func(l log.Logger) { l.Printf("Creating folder [%s] with parent [%s]", name, parent.Filename()) })
+			logger.Trace().Func(func(e *zerolog.Event) { e.Msgf("Creating folder [%s] with parent [%s]", name, parent.Filename()) })
 			_, err = pack.FileService.CreateFolder(parent, name, event, pack.Caster)
 			if err != nil {
 				t.Fatal(err)
@@ -392,7 +406,7 @@ func TestFileService_RestoreHistory(t *testing.T) {
 	event.Wait()
 
 	lifetimes := usersJournal.GetAllLifetimes()
-	assert.Equal(t, filesCount, len(lifetimes))
+	assert.Equal(t, filesCount+1, len(lifetimes))
 
 	restorePack, err := NewTestFileService(t.Name()+"-restore", logger)
 	if err != nil {
@@ -409,5 +423,94 @@ func TestFileService_RestoreHistory(t *testing.T) {
 		t.Fatal("restored users journal not found")
 	}
 
+	// TODO: NOT a good check. make more accurate to verify all files are accounted for
 	assert.Equal(t, len(restoredUsersJournal.GetAllLifetimes()), len(lifetimes))
+}
+
+func GenerateRandomBytes(n int) ([]byte, error) {
+	b := make([]byte, n)
+	_, err := rand.Read(b)
+	// Note that err == nil only if we read len(b) bytes.
+	if err != nil {
+		return nil, err
+	}
+
+	return b, nil
+}
+
+func GenerateRandomInt(max int) (int, error) {
+	if max < 2 {
+		return 0, nil
+	}
+
+	nBig, err := rand.Int(rand.Reader, big.NewInt(int64(max)))
+	if err != nil {
+		return 0, err
+	}
+
+	return int(nBig.Int64()), nil
+}
+
+func generateRandomFilesystem(fileService models.FileService, rootFile *fileTree.WeblensFileImpl, event *fileTree.FileEvent, logger *zerolog.Logger) error {
+
+	caster := &mock.MockCaster{}
+
+	subRootFolder, err := fileService.CreateFolder(rootFile, "literally-all-my-data", event, caster)
+	if err != nil {
+		return err
+	}
+
+	folders := []*fileTree.WeblensFileImpl{subRootFolder}
+	fileCount, err := GenerateRandomInt(2048)
+	if err != nil {
+		return err
+	}
+
+	logger.Debug().Msgf("Creating %d random files", fileCount)
+	for range fileCount {
+		parentIndex, err := GenerateRandomInt(len(folders))
+		if err != nil {
+			return err
+		}
+		parent := folders[parentIndex]
+
+		fType, err := GenerateRandomInt(2)
+		if err != nil {
+			return err
+		}
+
+		b, err := GenerateRandomBytes((parentIndex % 16) + 4)
+		if err != nil {
+			return err
+		}
+		filename := base64.URLEncoding.EncodeToString(b)
+
+		if fType == 0 {
+			// Create a folder
+			newF, err := fileService.CreateFolder(parent, filename, event, caster)
+			if err != nil {
+				return err
+			}
+			folders = append(folders, newF)
+		} else {
+			// Create a file
+			testF, err := fileService.CreateFile(parent, filename, event, caster)
+			if err != nil {
+				return err
+			}
+
+			// Write some data to the file
+			testData, err := GenerateRandomBytes(4096)
+			if err != nil {
+				return err
+			}
+
+			_, err = testF.Write(testData)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return fileService.ResizeDown(rootFile, event, caster)
 }

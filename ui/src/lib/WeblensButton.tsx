@@ -1,8 +1,8 @@
-import { useResize } from '@weblens/components/hooks'
+import { useResize } from '@weblens/lib/hooks'
 import { ErrorHandler } from '@weblens/types/Types'
 import React, { CSSProperties, useEffect, useState } from 'react'
 
-import { ButtonActionHandler, buttonProps as ButtonProps } from './buttonTypes'
+import { ButtonActionHandler, ButtonProps } from './buttonTypes'
 
 // function ButtonContent({
 //     label,
@@ -155,6 +155,10 @@ function WeblensButton({
     const [success, setSuccess] = useState(false)
     const [fail, setFail] = useState(false)
     const [loading, setLoading] = useState(false)
+
+    // TODO: implement these
+    console.debug(success, fail, loading)
+
     const [showLabel, setShowLabel] = useState(true)
     const [buttonRef, setButtonRef] = useState<HTMLButtonElement>()
 
@@ -172,119 +176,119 @@ function WeblensButton({
         }
     }, [buttonSize])
 
-    let buttonColor = '--wl-button-color-primary'
-    let buttonHoverColor = '--wl-button-color-primary-hover'
-    let buttonTextColor = '--wl-button-text-color-primary'
+    let buttonColor = '--color-button-primary'
+    let buttonHoverColor = '--color-button-primary-hover'
+    let buttonTextColor = '--color-button-text-primary'
     if (danger) {
-        buttonColor = '--wl-button-color-danger'
-        buttonHoverColor = '--wl-button-color-danger-hover'
+        buttonColor = '--color-button-danger'
+        buttonHoverColor = '--color-button-danger-hover'
     }
 
     switch (flavor) {
         case 'default':
-            buttonTextColor = '--wl-text-color-near-white'
+            buttonTextColor = '--color-text-near-white'
             break
         case 'outline':
-            buttonTextColor = '--wl-text-color-primary'
+            buttonTextColor = '--color-text-primary'
             break
         case 'light':
             break
     }
 
-    let sizeClass = ''
     let iconSize = 24
     let buttonSpacing = '0.5rem'
     switch (size) {
         case 'default':
-            sizeClass = 'h-max'
             break
         case 'small':
-            sizeClass = 'text-s h-5'
             iconSize = 20
             buttonSpacing = '0.3rem'
             break
         case 'tiny':
-            sizeClass = 'text-xs h-4'
             iconSize = 16
             buttonSpacing = '0.2rem'
             break
         case 'jumbo':
-            sizeClass = 'text-xl'
             iconSize = 48
             buttonSpacing = '0.75rem'
             break
     }
 
     return (
-        <button
-            ref={setButtonRef}
-            style={
-                {
-                    '--wl-button-color': `var(${buttonColor})`,
-                    '--wl-button-hover-color': `var(${buttonHoverColor})`,
-                    '--wl-button-text-color': `var(${buttonTextColor})`,
-                    '--wl-button-spacing': buttonSpacing,
-                } as CSSProperties
-            }
-            className={className}
-            data-fill-width={fillWidth}
-            data-flavor={flavor}
-            disabled={disabled}
-            onClick={(e) => {
-                handleButtonEvent(
-                    e,
-                    onClick,
-                    showSuccess,
-                    setLoading,
-                    setSuccess,
-                    setFail
-                ).catch(ErrorHandler)
-            }}
-            onMouseUp={(e) => {
-                handleButtonEvent(
-                    e,
-                    onMouseUp,
-                    showSuccess,
-                    setLoading,
-                    setSuccess,
-                    setFail
-                ).catch(ErrorHandler)
-            }}
-            onMouseLeave={(e) => {
-                handleButtonEvent(
-                    e,
-                    onMouseLeave,
-                    showSuccess,
-                    setLoading,
-                    setSuccess,
-                    setFail
-                ).catch(ErrorHandler)
-            }}
+        <div
+            className="bg-background-primary flex h-max min-h-0 w-max rounded data-fill-width:w-full"
+            data-fill-width={fillWidth ? true : null}
         >
-            <span
-                className={
-                    'flex items-center justify-center text-wl-button-text-color' +
-                    sizeClass
+            <button
+                ref={setButtonRef}
+                style={
+                    {
+                        '--color-button': `var(${buttonColor})`,
+                        '--color-button-hover': `var(${buttonHoverColor})`,
+                        '--color-button-text': `var(${buttonTextColor})`,
+                        '--wl-button-spacing': buttonSpacing,
+                    } as CSSProperties
                 }
+                data-fill-width={fillWidth}
+                className={className}
+                data-flavor={flavor}
+                disabled={disabled}
+                onClick={(e) => {
+                    handleButtonEvent(
+                        e,
+                        onClick,
+                        showSuccess,
+                        setLoading,
+                        setSuccess,
+                        setFail
+                    ).catch(ErrorHandler)
+                }}
+                onMouseUp={(e) => {
+                    handleButtonEvent(
+                        e,
+                        onMouseUp,
+                        showSuccess,
+                        setLoading,
+                        setSuccess,
+                        setFail
+                    ).catch(ErrorHandler)
+                }}
+                onMouseLeave={(e) => {
+                    handleButtonEvent(
+                        e,
+                        onMouseLeave,
+                        showSuccess,
+                        setLoading,
+                        setSuccess,
+                        setFail
+                    ).catch(ErrorHandler)
+                }}
             >
-                {Left && (
-                    <span className="me-[--wl-button-spacing] text-inherit only:me-0">
-                        <Left size={iconSize} />
-                    </span>
-                )}
-                {label && showLabel && (
-                    <span className="text-nowrap text-[length:inherit] text-inherit">
-                        {label}
-                    </span>
-                )}
+                <span
+                    className={
+                        'text-button-text flex items-center justify-center data-[size=default]:h-6 data-[size=small]:text-sm data-[size=tiny]:text-xs'
+                    }
+                    data-size={size}
+                >
+                    {Left && (
+                        <span className="me-(--wl-button-spacing) text-inherit only:me-0">
+                            <Left size={iconSize} />
+                        </span>
+                    )}
+                    {label && showLabel && (
+                        <span className="text-[length:inherit] leading-none text-nowrap text-inherit">
+                            {label}
+                        </span>
+                    )}
 
-                {Right && (
-                    <span className="ms-[--wl-button-spacing] text-inherit only:ms-0">
-                        <Right size={iconSize} />
-                    </span>
-                )}
-            </span>
-        </button>
+                    {Right && (
+                        <span className="ms-(--wl-button-spacing) text-inherit only:ms-0">
+                            <Right size={iconSize} />
+                        </span>
+                    )}
+                </span>
+            </button>
+        </div>
     )
 }
 
@@ -402,7 +406,7 @@ function WeblensButton({
 //                     }}
 //                 >
 //                     <span
-//                         className="relative z-50 mt-1 truncate text-nowrap rounded-md border border-wl-border-color-primary bg-wl-background-color-secondary p-1 text-wl-text-color-primary opacity-0 shadow-lg transition group-hover/button:opacity-100"
+//                         className="relative z-50 mt-1 truncate text-nowrap rounded-md border border-color-border-primary bg-background-secondary p-1 text-color-text-primary opacity-0 shadow-lg transition group-hover/button:opacity-100"
 //                         style={{
 //                             width: buttonSize.width * 2,
 //                             maxWidth: 'max-content',

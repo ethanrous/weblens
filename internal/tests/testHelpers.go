@@ -13,6 +13,8 @@ import (
 	"github.com/ethanrous/weblens/internal/setup"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
+	"github.com/rs/zerolog"
+	zlog "github.com/rs/zerolog/log"
 )
 
 // Create a new instance of the weblens application to test against
@@ -30,12 +32,15 @@ func NewWeblensTestInstance(testName string, cnf env.Config) (*models.ServicePac
 	cnf.CachesRoot = filepath.Join(env.GetBuildDir(), "fs/test", testName+"-auto", "cache")
 	cnf.UiPath = env.GetUIPath()
 
+	logger := log.NewZeroLogger()
+
 	var services = &models.ServicePack{
 		Cnf: cnf,
-		Log: log.NewLogPackage(filepath.Join(env.GetBuildDir(), "logs", testName+"-auto.log"), cnf.LogLevel),
+		Log: logger,
+		// Log: log.NewLogPackage(filepath.Join(env.GetBuildDir(), "logs", testName+"-auto.log"), cnf.LogLevel),
 	}
 
-	mondb, err := database.ConnectToMongo(cnf.MongodbUri, cnf.MongodbName)
+	mondb, err := database.ConnectToMongo(cnf.MongodbUri, cnf.MongodbName, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -101,12 +106,12 @@ func NewWeblensTestInstance(testName string, cnf env.Config) (*models.ServicePac
 }
 
 func waitForStartup(startupChan chan bool) error {
-	log.Debug.Println("Waiting for startup...")
+	zlog.Debug().Func(func(e *zerolog.Event) { e.Msgf("Waiting for startup...") })
 	for {
 		select {
 		case sig, ok := <-startupChan:
 			if ok {
-				log.Debug.Println("Relaying startup signal")
+				zlog.Debug().Func(func(e *zerolog.Event) { e.Msgf("Relaying startup signal") })
 				startupChan <- sig
 			} else {
 				return nil

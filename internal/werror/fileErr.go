@@ -70,6 +70,7 @@ var ErrAlreadyWatching = errors.New("trying to watch directory that is already b
 var ErrFileAlreadyHasTask = errors.New("file already has a task")
 var ErrFileNoTask = errors.New("file does not have task")
 var ErrNoContentId = errors.New("file does not have a content id")
+var ErrRootFolder = errors.New("cannot delete root folder")
 
 var ErrEmptyFile = ClientSafeErr{
 	safeErr:    errors.New("file size is 0 and has no content"),

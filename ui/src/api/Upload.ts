@@ -3,7 +3,7 @@ import { ErrorHandler } from '@weblens/types/Types'
 import { AxiosProgressEvent } from 'axios'
 
 import { FileApi } from './FileBrowserApi'
-import { NewFileParams } from './swag'
+import { NewFileParams } from './swag/api.js'
 
 export type FileUploadMetadata = {
     file?: File

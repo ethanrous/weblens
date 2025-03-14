@@ -69,7 +69,7 @@ function ErrorDisplay({
                 <p className="m-2 text-xl font-semibold">
                     Sorry, something went wrong
                 </p>
-                <div className="flex w-full flex-row">
+                <div className="flex w-full flex-row gap-2">
                     <WeblensButton
                         label="Go Home"
                         centerContent
@@ -101,13 +101,13 @@ function ErrorDisplay({
                     {!errOpen && (
                         <IconChevronLeft
                             size={20}
-                            className="text-[--wl-text-color]"
+                            className="text-(--color-text)"
                         />
                     )}
                     {errOpen && (
                         <IconChevronDown
                             size={20}
-                            className="text-[--wl-text-color]"
+                            className="text-(--color-text)"
                         />
                     )}
                 </div>

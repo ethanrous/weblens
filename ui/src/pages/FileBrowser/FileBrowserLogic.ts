@@ -256,6 +256,21 @@ export async function HandleUploadButton(
     }
 }
 
+export function calculateShareId(files: WeblensFile[]): string {
+    const state = useFileBrowserStore.getState()
+    if (state.folderInfo.id === 'shared') {
+        if (files.length !== 1) {
+            throw new Error(
+                'Cannot download multiple files from the shared folder'
+            )
+        }
+
+        return files[0].shareId
+    }
+
+    return state.shareId
+}
+
 export async function downloadSelected(
     files: WeblensFile[],
     removeLoading: (loading: string) => void,
@@ -370,7 +385,8 @@ export const useKeyDownFileBrowser = () => {
                 } else if (
                     event.key === 'Escape' &&
                     menuMode === FbMenuModeT.Closed &&
-                    presentingId === ''
+                    presentingId === '' &&
+                    folderInfo.IsFolder()
                 ) {
                     event.preventDefault()
                     clearSelected()
@@ -383,13 +399,6 @@ export const useKeyDownFileBrowser = () => {
                         )
                         return
                     }
-                    // uploadViaUrl(
-                    //     fbState.pasteImg,
-                    //     folderInfo.Id(),
-                    //     filesList,
-                    //     auth,
-                    //     wsSend
-                    // )
                 } else if (event.key === ' ') {
                     event.preventDefault()
                     if (lastSelected && !presentingId) {

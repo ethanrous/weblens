@@ -1,7 +1,10 @@
 import { useSessionStore } from '@weblens/components/UserInfo'
 import { DirViewModeT } from '@weblens/pages/FileBrowser/FileBrowserTypes'
 import { StartupTask } from '@weblens/pages/Startup/StartupLogic'
-import { ShareRoot, useFileBrowserStore } from '@weblens/store/FBStateControl'
+import {
+    ShareRoot,
+    useFileBrowserStore,
+} from '@weblens/store/FBStateControl'
 import {
     TaskStageT,
     TaskType,
@@ -14,13 +17,13 @@ import { useEffect, useState } from 'react'
 import useWebSocket from 'react-use-websocket'
 import { StateCreator, create } from 'zustand'
 
-import { API_WS_ENDPOINT } from './ApiEndpoint'
+import { API_WS_ENDPOINT } from './ApiEndpoint.js'
 import {
     SubToFolder,
     UnsubFromFolder,
     downloadSingleFile,
-} from './FileBrowserApi'
-import { FileInfo, MediaInfo } from './swag'
+} from '@weblens/api/FileBrowserApi'
+import { FileInfo, MediaInfo } from './swag/api.js'
 
 export function useWeblensSocket() {
     const user = useSessionStore((state) => state.user)

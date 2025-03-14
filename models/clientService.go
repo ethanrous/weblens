@@ -123,6 +123,7 @@ type WsR interface {
 	GetShare(ShareService) *FileShare
 }
 
+// All Websocket event tags. These are used to identify the type of content being sent to the client
 const (
 	BackupCompleteEvent          = "backupComplete"
 	BackupFailedEvent            = "backupFailed"

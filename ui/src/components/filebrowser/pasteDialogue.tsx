@@ -30,7 +30,7 @@ function PasteDialogue() {
                 setPasteImgBytes(null)
             }}
         >
-            <div className="absolute z-[2] flex h-full w-full flex-col items-center justify-center">
+            <div className="absolute z-2 flex h-full w-full flex-col items-center justify-center">
                 <p className="pb-[50px] text-[40px] font-bold">
                     Upload from clipboard?
                 </p>

@@ -1,7 +1,6 @@
 import { IconFiles, IconFolder, IconHome } from '@tabler/icons-react'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import { useResize } from '@weblens/components/hooks'
-import theme from '@weblens/components/theme.module.scss'
+import { useResize } from '@weblens/lib/hooks'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
 import { humanFileSize } from '@weblens/util'
 import { useMemo, useState } from 'react'
@@ -86,12 +85,12 @@ function UsageInfo() {
     return (
         <div
             ref={setBox}
-            className="mb-2 flex h-max w-full flex-col gap-3"
+            className="border-t-color-border-primary mt-4 mb-1 flex h-max w-full flex-col gap-3 border-t pt-4"
             style={{
                 alignItems: miniMode ? 'center' : 'flex-start',
             }}
         >
-            {miniMode && <StartIcon className={theme['background-icon']} />}
+            {miniMode && <StartIcon />}
             <div
                 className="relative h-max w-max"
                 style={{
@@ -113,9 +112,9 @@ function UsageInfo() {
             >
                 {folderInfo?.Id() !== 'shared' && !miniMode && (
                     <div className="flex flex-row items-center">
-                        {<StartIcon className={theme['background-icon']} />}
+                        {<StartIcon />}
                         <h6
-                            className="select-none text-nowrap p-1"
+                            className="p-1 text-nowrap select-none"
                             style={{
                                 display: miniMode ? 'none' : 'block',
                             }}
@@ -126,14 +125,14 @@ function UsageInfo() {
                 )}
                 <div className="flex w-max flex-row items-center justify-end">
                     <h6
-                        className="select-none text-nowrap p-1"
+                        className="p-1 text-nowrap select-none"
                         style={{
                             display: miniMode ? 'none' : 'block',
                         }}
                     >
                         {endSize}
                     </h6>
-                    {<EndIcon className={theme['background-icon']} />}
+                    {<EndIcon />}
                 </div>
             </div>
         </div>

@@ -8,9 +8,9 @@ import (
 
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal"
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
+	"github.com/rs/zerolog"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -28,9 +28,11 @@ type ShareServiceImpl struct {
 	fileMu sync.RWMutex
 
 	albumMu sync.RWMutex
+
+	log *zerolog.Logger
 }
 
-func NewShareService(collection *mongo.Collection) (models.ShareService, error) {
+func NewShareService(collection *mongo.Collection, log *zerolog.Logger) (models.ShareService, error) {
 	ss := &ShareServiceImpl{
 		repo:      make(map[models.ShareId]models.Share),
 		fileIdMap: make(map[fileTree.FileId]models.ShareId),
@@ -51,7 +53,9 @@ func NewShareService(collection *mongo.Collection) (models.ShareService, error) 
 	ss.repo = make(map[models.ShareId]models.Share)
 	for _, sh := range target {
 		if len(sh.GetAccessors()) == 0 && !sh.IsPublic() && (sh.GetShareType() != models.SharedFile || !sh.IsWormhole()) {
-			log.Debug.Printf("*NOT* Removing %sShare [%s] on init...", sh.GetShareType(), sh.ShareId)
+			log.Debug().Func(func(e *zerolog.Event) {
+				e.Msgf("*NOT* Removing %sShare [%s] on init...", sh.GetShareType(), sh.ShareId)
+			})
 			// err = db.DeleteShare(sh.GetShareId())
 			if err != nil {
 				return nil, err

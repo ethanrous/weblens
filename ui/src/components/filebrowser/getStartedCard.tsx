@@ -1,19 +1,16 @@
-import { Divider, FileButton } from '@mantine/core'
 import {
     IconFolder,
     IconFolderPlus,
     IconHome,
     IconServer,
     IconTrash,
-    IconUpload,
     IconUsers,
 } from '@tabler/icons-react'
 import WeblensLoader from '@weblens/components/Loading'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import { useResize } from '@weblens/components/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
-import { HandleUploadButton } from '@weblens/pages/FileBrowser/FileBrowserLogic'
-import { ErrorHandler } from '@weblens/types/Types'
+import WeblensFileButton from '@weblens/lib/WeblensFileButton'
+import { useResize } from '@weblens/lib/hooks'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import { FbMenuModeT } from '@weblens/types/files/File'
 import User from '@weblens/types/user/User'
@@ -23,26 +20,18 @@ import { FbModeT, useFileBrowserStore } from '../../store/FBStateControl'
 
 const EmptyIcon = ({ folderId, usr }: { folderId: string; usr: User }) => {
     if (folderId === usr.homeId) {
-        return (
-            <IconHome size={500} className="text-wl-color-nearly-invisible" />
-        )
+        return <IconHome size={500} className="text-nearly-invisible" />
     }
     if (folderId === usr.trashId) {
-        return (
-            <IconTrash size={500} className="text-wl-color-nearly-invisible" />
-        )
+        return <IconTrash size={500} className="text-nearly-invisible" />
     }
     if (folderId === 'shared') {
-        return (
-            <IconUsers size={500} className="text-wl-color-nearly-invisible" />
-        )
+        return <IconUsers size={500} className="text-nearly-invisible" />
     }
     if (folderId === 'EXTERNAL') {
-        return (
-            <IconServer size={500} className="text-wl-color-nearly-invisible" />
-        )
+        return <IconServer size={500} className="text-nearly-invisible" />
     }
-    return <IconFolder size={500} className="text-wl-color-nearly-invisible" />
+    return <IconFolder size={500} className="text-nearly-invisible" />
 }
 
 function GetStartedCard() {
@@ -68,7 +57,7 @@ function GetStartedCard() {
     if (!folderInfo && mode === FbModeT.share) {
         return (
             <div className="m-auto flex items-center justify-center p-2">
-                <div className="h-max w-max p-4 wl-outline">
+                <div className="wl-outline h-max w-max p-4">
                     <h4>You have no files shared with you</h4>
                 </div>
             </div>
@@ -87,55 +76,31 @@ function GetStartedCard() {
     return (
         <div
             ref={setViewRef}
-            className="z-[3] m-auto flex h-max w-[50vw] min-w-[250px] animate-fade items-center justify-center p-4"
+            className="animate-fade z-3 m-auto flex h-max w-[50vw] min-w-[250px] items-center justify-center p-4"
         >
             <div className="flex h-fit w-max max-w-full flex-col items-center justify-center">
-                <div className="p-30 -z-1 pointer-events-none absolute flex h-max min-w-[200px] max-w-full items-center">
+                <div className="pointer-events-none absolute -z-1 flex h-max max-w-full min-w-[200px] items-center p-30">
                     <EmptyIcon folderId={folderInfo.Id()} usr={user} />
                 </div>
 
-                <p className="z-10 h-max w-max select-none text-2xl">
+                <h4 className="z-10 h-max w-max select-none">
                     {`This folder ${folderInfo.IsPastFile() ? 'was' : 'is'} empty`}
-                </p>
+                </h4>
 
                 {folderInfo.IsModifiable() && (
                     <div
-                        className="w-350 z-10 flex max-w-full items-center p-5"
+                        className="z-10 flex w-max max-w-full items-center gap-8 p-4"
                         style={{ flexDirection: doVertical ? 'column' : 'row' }}
                     >
-                        <FileButton
-                            onChange={(files) => {
-                                HandleUploadButton(
-                                    files,
-                                    folderInfo.Id(),
-                                    false,
-                                    shareId
-                                ).catch(ErrorHandler)
-                            }}
-                            accept="file"
-                            multiple
-                        >
-                            {(props) => {
-                                return (
-                                    <WeblensButton
-                                        subtle
-                                        Left={IconUpload}
-                                        squareSize={buttonSize}
-                                        tooltip="Upload"
-                                        onClick={props.onClick}
-                                    />
-                                )
-                            }}
-                        </FileButton>
-                        <Divider
-                            orientation={doVertical ? 'horizontal' : 'vertical'}
-                            m={30 * (buttonSize / 128)}
+                        <WeblensFileButton
+                            folderId={folderInfo.Id()}
+                            shareId={shareId}
+                            buttonProps={{ size: 'jumbo' }}
                         />
-
                         <WeblensButton
                             Left={IconFolderPlus}
                             squareSize={buttonSize}
-                            subtle
+                            size="jumbo"
                             tooltip="New Folder"
                             onClick={(e) => {
                                 setMenu({

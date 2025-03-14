@@ -1,4 +1,3 @@
-import { AlbumInfo } from '@weblens/api/swag'
 import { PresentType, TimeOffset } from '@weblens/types/Types'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { clamp } from '@weblens/util'
@@ -269,10 +268,9 @@ export const useKeyDownGallery = () => {
 // })
 
 export interface GalleryStateT {
-    albumsMap: Map<string, AlbumInfo>
-    albumsFilter: string[]
+    // albumsFilter: string[]
     loading: string[]
-    newAlbumDialogue: boolean
+    // newAlbumDialogue: boolean
     blockSearchFocus: boolean
     selecting: boolean
     menuTargetId: string
@@ -284,7 +282,7 @@ export interface GalleryStateT {
     hoverIndex: number
     lastSelId: string
     holdingShift: boolean
-    albumId: string
+    // albumId: string
 
     setSelecting: (selecting: boolean) => void
     setHoldingShift: (shift: boolean) => void
@@ -302,11 +300,11 @@ const GalleryStateControl: StateCreator<
     [],
     [['zustand/devtools', never]]
 > = devtools((set) => ({
-    albumsMap: new Map<string, AlbumInfo>(),
-    albumsFilter:
-        (JSON.parse(localStorage.getItem('albumsFilter')) as string[]) || [],
+    // albumsMap: new Map<string, AlbumInfo>(),
+    // albumsFilter:
+    //     (JSON.parse(localStorage.getItem('albumsFilter')) as string[]) || [],
     loading: [],
-    newAlbumDialogue: false,
+    // newAlbumDialogue: false,
     blockSearchFocus: false,
     selecting: false,
     menuTargetId: '',
@@ -322,7 +320,7 @@ const GalleryStateControl: StateCreator<
     hoverIndex: -1,
     lastSelId: '',
     holdingShift: false,
-    albumId: '',
+    // albumId: '',
 
     setSelecting: (selecting: boolean) => {
         set({ selecting })

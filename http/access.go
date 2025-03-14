@@ -3,7 +3,6 @@ package http
 import (
 	"net/http"
 
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/models/rest"
 	"github.com/go-chi/chi/v5"
@@ -39,7 +38,7 @@ func newApiKey(w http.ResponseWriter, r *http.Request) {
 
 	newKey, err := pack.AccessService.GenerateApiKey(u, pack.InstanceService.GetLocal(), body.Name)
 	if err != nil {
-		log.ShowErr(err)
+		pack.Log.Error().Stack().Err(err).Msg("")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -106,14 +105,14 @@ func deleteApiKey(w http.ResponseWriter, r *http.Request) {
 	key := models.WeblensApiKey(chi.URLParam(r, "keyId"))
 	keyInfo, err := pack.AccessService.GetApiKey(key)
 	if err != nil || keyInfo.Key == "" {
-		log.ShowErr(err)
+		pack.Log.Error().Stack().Err(err).Msg("")
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
 	err = pack.AccessService.DeleteApiKey(key)
 	if err != nil {
-		log.ShowErr(err)
+		pack.Log.Error().Stack().Err(err).Msg("")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

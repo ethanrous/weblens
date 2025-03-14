@@ -6,6 +6,8 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 type frame uintptr
@@ -148,6 +150,7 @@ func callers(ignore int) *stack {
 	const depth = 32
 	var pcs [depth]uintptr
 	n := runtime.Callers(ignore, pcs[:])
+
 	var st stack = pcs[0:n]
 	return &st
 }
@@ -170,18 +173,19 @@ type withStack struct {
 }
 
 func WithStack(err error) error {
-	if err == nil {
-		return nil
-	}
-
-	if _, ok := err.(StackError); ok {
-		return err
-	}
-
-	return &withStack{
-		err:   err,
-		stack: callers(3),
-	}
+	return errors.WithStack(err)
+	// if err == nil {
+	// 	return nil
+	// }
+	//
+	// if _, ok := err.(StackError); ok {
+	// 	return err
+	// }
+	//
+	// return &withStack{
+	// 	err:   err,
+	// 	stack: callers(3),
+	// }
 }
 
 func (err *withStack) Stack() string {

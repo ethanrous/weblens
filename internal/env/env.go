@@ -9,22 +9,18 @@ import (
 	"runtime"
 	"strconv"
 
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/rs/zerolog/log"
 )
-
-func init() {
-	log.SetLogLevel(GetLogLevel(""), "")
-}
 
 type Config struct {
 	// Required
-	MongodbName string    `json:"mongodbName"`
-	MongodbUri  string    `json:"mongodbUri"`
-	DataRoot    string    `json:"dataRoot"`
-	CachesRoot  string    `json:"cachesRoot"`
-	RouterHost  string    `json:"routerHost"`
-	LogLevel    log.Level `json:"logLevel"`
+	MongodbName string `json:"mongodbName"`
+	MongodbUri  string `json:"mongodbUri"`
+	DataRoot    string `json:"dataRoot"`
+	CachesRoot  string `json:"cachesRoot"`
+	RouterHost  string `json:"routerHost"`
+	LogLevel    string `json:"logLevel"`
 
 	// Testing only
 	AppRoot     string `json:"appRoot"`
@@ -65,7 +61,7 @@ func GetConfig(configName string, withOverrides bool) (Config, error) {
 		cnf.WorkerCount = GetWorkerCount(cnf)
 		cnf.DataRoot = GetDataRoot(cnf)
 		cnf.CachesRoot = GetCachesRoot(cnf)
-		cnf.LogLevel = GetLogLevel(string(cnf.LogLevel))
+		// cnf.LogLevel = GetLogLevel(string(cnf.LogLevel))
 		cnf.MongodbName = GetMongoDBName(cnf)
 		cnf.MongodbUri = GetMongoURI()
 	}
@@ -88,7 +84,7 @@ func GetWorkerCount(cnf Config) int {
 		if err == nil {
 			return count
 		}
-		log.Error.Println(err)
+		log.Error().Err(err).Msg("Could not parse POOL_WORKER_COUNT")
 	}
 
 	if cnf.WorkerCount > 0 {
@@ -106,6 +102,15 @@ func GetAppRootDir() string {
 	}
 
 	appRoot = os.Getenv("APP_ROOT")
+	if appRoot != "" {
+		return appRoot
+	}
+
+	dir, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	appRoot = dir
 
 	if appRoot == "" {
 		appRoot = "/app"
@@ -147,23 +152,23 @@ func GetRouterHost() string {
 	}
 }
 
-func GetLogLevel(level string) log.Level {
-	envLevel := os.Getenv("LOG_LEVEL")
-	if envLevel != "" {
-		level = envLevel
-	}
-
-	if level != "" {
-		switch level {
-		case "debug":
-			return log.DEBUG
-		case "trace":
-			return log.TRACE
-		}
-	}
-
-	return log.DEFAULT
-}
+// func GetLogLevel(level string) log.Level {
+// 	envLevel := os.Getenv("LOG_LEVEL")
+// 	if envLevel != "" {
+// 		level = envLevel
+// 	}
+//
+// 	if level != "" {
+// 		switch level {
+// 		case "debug":
+// 			return log.DEBUG
+// 		case "trace":
+// 			return log.TRACE
+// 		}
+// 	}
+//
+// 	return log.DEFAULT
+// }
 
 func GetLogFile() string {
 	logPath := os.Getenv("WEBLENS_LOG_FILE")
@@ -234,7 +239,7 @@ func ReadTypesConfig(target any) error {
 	defer func(typeJson *os.File) {
 		err = typeJson.Close()
 		if err != nil {
-			log.ErrTrace(err)
+			log.Error().Stack().Err(err).Msg("")
 		}
 	}(typeJson)
 

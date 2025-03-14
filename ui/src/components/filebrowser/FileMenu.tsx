@@ -21,40 +21,44 @@ import SharesApi from '@weblens/api/SharesApi'
 import UsersApi from '@weblens/api/UserApi'
 import { useWebsocketStore } from '@weblens/api/Websocket'
 import { UserInfo } from '@weblens/api/swag'
+import { useSessionStore } from '@weblens/components/UserInfo'
 import { FileFmt } from '@weblens/components/filebrowser/filename'
 import SearchDialogue from '@weblens/components/filebrowser/searchDialogue'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
-import { downloadSelected } from '@weblens/pages/FileBrowser/FileBrowserLogic'
-import menuStyle from '@weblens/pages/FileBrowser/style/fileBrowserMenuStyle.module.scss'
-import { FbModeT, useFileBrowserStore } from '@weblens/store/FBStateControl'
-import WeblensFile, {
-    FbMenuModeT,
-    SelectedState,
-} from '@weblens/types/files/File'
-import { PhotoQuality } from '@weblens/types/media/Media'
-import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import { WeblensShare } from '@weblens/types/share/share'
-import { clamp } from '@weblens/util'
-import { useSessionStore } from 'components/UserInfo'
 import {
     useClick,
     useKeyDown,
     useResize,
     useWindowSize,
-} from 'components/hooks'
+} from '@weblens/lib/hooks'
+import {
+    calculateShareId,
+    downloadSelected,
+} from '@weblens/pages/FileBrowser/FileBrowserLogic'
+import menuStyle from '@weblens/pages/FileBrowser/style/fileBrowserMenuStyle.module.scss'
+import { FbModeT, useFileBrowserStore } from '@weblens/store/FBStateControl'
+import { useMessagesController } from '@weblens/store/MessagesController'
+import { ErrorHandler } from '@weblens/types/Types'
+import WeblensFile, {
+    FbMenuModeT,
+    SelectedState,
+} from '@weblens/types/files/File'
+import { activeItemsFromState } from '@weblens/types/files/FileDragLogic'
+import { PhotoQuality } from '@weblens/types/media/Media'
+import { useMediaStore } from '@weblens/types/media/MediaStateControl'
+import { MediaImage } from '@weblens/types/media/PhotoContainer'
+import { WeblensShare } from '@weblens/types/share/share'
+import { clamp } from '@weblens/util'
 import React, {
     ReactElement,
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ErrorHandler } from 'types/Types'
-
-import { MediaImage } from '../media/PhotoContainer'
-import { activeItemsFromState } from './FileDragLogic'
 
 type footerNote = {
     hint: string
@@ -88,26 +92,27 @@ const MenuTitle = () => {
     }, [targetItem, selected])
 
     return (
-        <div className={menuStyle.fileMenuTitle}>
-            {menuMode === FbMenuModeT.NameFolder && (
-                <div className="absolute flex w-full flex-grow">
-                    <WeblensButton
-                        Left={IconArrowLeft}
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            setMenu({ menuState: FbMenuModeT.Default })
-                        }}
-                    />
-                </div>
+        <div className="mb-2 flex h-max w-full max-w-96">
+            {(menuMode === FbMenuModeT.NameFolder ||
+                menuMode === FbMenuModeT.RenameFile) && (
+                <WeblensButton
+                    className="absolute"
+                    Left={IconArrowLeft}
+                    size="small"
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        setMenu({ menuState: FbMenuModeT.Default })
+                    }}
+                />
             )}
 
-            <div className="flex h-8 w-full flex-row items-center justify-center gap-1">
+            <div className="m-auto flex items-center">
                 <FileFmt pathName={targetItem?.portablePath} />
 
                 {extrasText && (
-                    <p className="flex h-3 w-max select-none items-center justify-end text-xs">
+                    <span className="mt-auto mb-0.5 ml-1 select-none">
                         {extrasText}
-                    </p>
+                    </span>
                 )}
             </div>
         </div>
@@ -126,7 +131,7 @@ const MenuFooter = ({
     }
 
     return (
-        <div className="absolute bottom-0 z-[100] flex h-max w-full flex-grow translate-y-[120%] justify-center">
+        <div className="absolute bottom-0 z-100 flex h-max w-full grow translate-y-[120%] justify-center">
             <div
                 className={menuStyle.footerWrapper}
                 data-danger={footerNote.danger}
@@ -276,23 +281,21 @@ export function FileContextMenu() {
 
     return (
         <div
-            className={menuStyle.backdropMenuWrapper}
+            key={'fileContextMenu'}
+            className="absolute z-50 flex h-max w-max origin-center -translate-1/2 data-closed:pointer-events-none data-closed:max-h-0 data-closed:max-w-0 data-closed:opacity-0"
+            data-closed={menuMode === FbMenuModeT.Closed ? true : null}
             data-mode={menuMode}
             style={menuPosStyle}
         >
             <div
-                className={
-                    menuStyle.backdropMenu + ' ' + 'wl-floating-card'
-                }
+                className="wl-floating-card flex h-max flex-col items-center justify-start p-2"
                 data-mode={menuMode}
                 ref={setMenuRef}
                 onClick={(e) => {
                     e.stopPropagation()
-                    setMenu({ menuState: FbMenuModeT.Closed })
                 }}
             >
                 <MenuTitle />
-                {/* {viewingPast !== null && <div />} */}
                 {menuBody}
             </div>
             <MenuFooter footerNote={footerNote} menuMode={menuMode} />
@@ -312,7 +315,6 @@ function StandardFileMenu({
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const menuTarget = useFileBrowserStore((state) => state.menuTargetId)
     const menuMode = useFileBrowserStore((state) => state.menuMode)
-    const shareId = useFileBrowserStore((state) => state.shareId)
     const mode = useFileBrowserStore((state) => state.fbMode)
 
     const setMenu = useFileBrowserStore((state) => state.setMenu)
@@ -331,7 +333,9 @@ function StandardFileMenu({
 
     return (
         <div
-            className={menuStyle.defaultGrid + ' ' + 'no-scrollbar'}
+            className={
+                'no-scrollbar grid max-h-56 grid-flow-row grid-cols-2 items-center justify-center justify-items-center gap-2 p-1 pb-4'
+            }
             data-visible={menuMode === FbMenuModeT.Default && menuTarget !== ''}
         >
             <WeblensButton
@@ -375,14 +379,27 @@ function StandardFileMenu({
                 onMouseLeave={() => setFooterNote({ hint: '', danger: false })}
                 onClick={async (e) => {
                     e.stopPropagation()
+                    const dlShareId = calculateShareId(activeItems.items)
                     return await downloadSelected(
                         activeItems.items,
                         removeLoading,
                         wsSend,
-                        shareId
+                        dlShareId
                     )
-                        .then(() => true)
-                        .catch(() => false)
+                        .then(() =>
+                            useMessagesController.getState().addMessage({
+                                severity: 'success',
+                                text:
+                                    activeItems.items.length === 1
+                                        ? `Downloading ${activeItems.items[0].GetFilename()}`
+                                        : `Downloading ${activeItems.items.length} files`,
+                                duration: 2000,
+                            })
+                        )
+                        .catch((e: Error) => {
+                            ErrorHandler(e)
+                            return false
+                        })
                 }}
             />
             {folderInfo.IsModifiable() && (
@@ -528,7 +545,7 @@ function PastFileMenu({
 
     return (
         <div
-            className={menuStyle.defaultGrid}
+            className="no-scrollbar grid grid-flow-row grid-cols-2 items-center justify-center justify-items-center pb-4"
             data-visible={menuMode === FbMenuModeT.Default}
         >
             <WeblensButton
@@ -567,10 +584,15 @@ function FileShareMenu({ targetFile }: { targetFile: WeblensFile }) {
     const menuMode = useFileBrowserStore((state) => state.menuMode)
     const setMenu = useFileBrowserStore((state) => state.setMenu)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
+    const searchRef = useRef<HTMLInputElement>()
 
     const [accessors, setAccessors] = useState<UserInfo[]>([])
     const [isPublic, setIsPublic] = useState(false)
     const [share, setShare] = useState<WeblensShare>(null)
+
+    useClick(() => {
+        setSearchMenuOpen(false)
+    }, searchRef.current)
 
     if (!targetFile) {
         targetFile = folderInfo
@@ -607,7 +629,18 @@ function FileShareMenu({ targetFile }: { targetFile: WeblensFile }) {
         }
         UsersApi.searchUsers(userSearch)
             .then((res) => {
-                setUserSearchResults(res.data ?? [])
+                if (!res.data) {
+                    setUserSearchResults([])
+                    return
+                }
+                const searchResults = res.data.filter(
+                    (u) =>
+                        accessors.findIndex(
+                            (val) => val.username === u.username
+                        ) === -1
+                )
+
+                setUserSearchResults(searchResults)
             })
             .catch((err) => {
                 console.error('Failed to search users', err)
@@ -656,60 +689,69 @@ function FileShareMenu({ targetFile }: { targetFile: WeblensFile }) {
 
     return (
         <div
-            className={menuStyle.fileShareMenu}
+            className="flex h-max w-72 flex-col items-center"
             data-visible={menuMode === FbMenuModeT.Sharing}
             onClick={(e) => e.stopPropagation()}
         >
-            <div className="flex w-full flex-row">
-                <div className="m-1 flex w-1/4 grow justify-center">
-                    <WeblensButton
-                        squareSize={40}
-                        label={isPublic ? 'Public' : 'Private'}
-                        allowRepeat
-                        fillWidth
-                        size="jumbo"
-                        toggleOn={isPublic}
-                        Left={isPublic ? IconUsers : IconUser}
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            setIsPublic((p) => !p)
-                        }}
-                    />
-                </div>
-                <div className="m-1 flex w-1/4 grow justify-center">
-                    <WeblensButton
-                        squareSize={40}
-                        label={'Copy Link'}
-                        fillWidth
-                        size="jumbo"
-                        Left={IconLink}
-                        disabled={!isPublic && accessors.length === 0}
-                        onClick={async (e) => {
-                            e.stopPropagation()
-                            return await updateShare(e)
-                                .then(async (share) => {
-                                    if (!share) {
-                                        console.error('No Shares!')
-                                        return false
-                                    }
-                                    return navigator.clipboard
-                                        .writeText(share.GetPublicLink())
-                                        .then(() => true)
-                                        .catch((r) => {
-                                            console.error(r)
-                                            return false
-                                        })
-                                })
-                                .catch((r) => {
-                                    console.error(r)
+            <div className="flex w-full flex-row gap-1">
+                <WeblensButton
+                    label={isPublic ? 'Public' : 'Private'}
+                    Left={isPublic ? IconUsers : IconUser}
+                    flavor={isPublic ? 'default' : 'outline'}
+                    fillWidth
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        setIsPublic((p) => !p)
+                    }}
+                />
+                <WeblensButton
+                    label={'Copy Link'}
+                    Left={IconLink}
+                    fillWidth
+                    disabled={!isPublic && accessors.length === 0}
+                    onClick={async (e) => {
+                        e.stopPropagation()
+                        return await updateShare(e)
+                            .then(async (share) => {
+                                if (!share) {
+                                    console.error('No Shares!')
                                     return false
-                                })
-                        }}
-                    />
-                </div>
+                                }
+                                return navigator.clipboard
+                                    .writeText(share.GetPublicLink())
+                                    .then(() => {
+                                        useMessagesController
+                                            .getState()
+                                            .addMessage({
+                                                severity: 'success',
+                                                text: 'Share link copied!',
+                                                duration: 2000,
+                                            })
+                                    })
+                                    .catch((r) => {
+                                        useMessagesController
+                                            .getState()
+                                            .addMessage({
+                                                severity: 'error',
+                                                text: 'Failed to copy share link',
+                                                duration: 5000,
+                                            })
+                                        console.error(r)
+                                        return false
+                                    })
+                            })
+                            .catch((r) => {
+                                console.error(r)
+                                return false
+                            })
+                    }}
+                />
             </div>
-            <div className="flex w-full flex-col items-center gap-1">
-                <div className="z-20 mb-3 mt-3 h-10 w-full">
+            <div
+                ref={searchRef}
+                className="flex w-full flex-col items-center gap-1"
+            >
+                <div className="z-20 mt-3 mb-3 h-10 w-full">
                     <WeblensInput
                         value={userSearch}
                         valueCallback={setUserSearch}
@@ -717,19 +759,16 @@ function FileShareMenu({ targetFile }: { targetFile: WeblensFile }) {
                         onComplete={null}
                         Icon={IconUsersPlus}
                         openInput={() => setSearchMenuOpen(true)}
-                        // closeInput={() => setSearchMenuOpen(false)}
                     />
                 </div>
                 {userSearchResults.length !== 0 && searchMenuOpen && (
-                    <div className="no-scrollbar absolute z-10 mt-14 flex max-h-32 w-full flex-col gap-1 rounded bg-wl-background-color-secondary p-1 drop-shadow-xl">
+                    <div className="no-scrollbar bg-background-secondary absolute z-10 mt-14 flex max-h-32 w-11/12 flex-col gap-1 rounded-sm p-2 drop-shadow-xl">
                         {userSearchResults.map((u) => {
                             return (
                                 <div
-                                    className={menuStyle.userAutocompleteRow}
+                                    className="hover:bg-background-tertiary flex h-10 w-full cursor-pointer flex-row items-center rounded p-4"
                                     key={u.username}
                                     onClick={(e) => {
-                                        console.log('HERE')
-
                                         e.stopPropagation()
                                         e.preventDefault()
                                         setAccessors((p) => {
@@ -745,7 +784,7 @@ function FileShareMenu({ targetFile }: { targetFile: WeblensFile }) {
                                     }}
                                 >
                                     <span>{u.fullName}</span>
-                                    <span className="ml-1 text-wl-text-color-secondary">
+                                    <span className="text-text-secondary ml-1">
                                         [{u.username}]
                                     </span>
                                     <IconPlus className="ml-auto" />
@@ -756,7 +795,7 @@ function FileShareMenu({ targetFile }: { targetFile: WeblensFile }) {
                 )}
                 <span className="m-2">Shared With</span>
             </div>
-            <div className="m-2 mt-0 flex h-full w-full flex-row justify-center rounded border border-wl-border-color-primary p-2">
+            <div className="no-scrollbar m-2 mt-0 flex h-full max-h-60 min-h-20 w-full rounded-sm border p-2">
                 {accessors.length === 0 && (
                     <span className="m-auto">Not Shared</span>
                 )}
@@ -765,21 +804,19 @@ function FileShareMenu({ targetFile }: { targetFile: WeblensFile }) {
                         return (
                             <div
                                 key={u.username}
-                                className={menuStyle.userAutocompleteRow}
+                                className="bg-background-secondary hover:bg-background-tertiary group/user flex h-10 w-full items-center rounded p-2 transition"
                             >
                                 <span>{u.fullName}</span>
-                                <span className="ml-1 text-wl-text-color-secondary">
+                                <span className="text-color-text-secondary ml-1">
                                     [{u.username}]
                                 </span>
                                 <div
                                     className={
-                                        menuStyle.userMinusButton +
-                                        ' ' +
-                                        'ml-auto'
+                                        'ml-auto opacity-0 group-hover/user:opacity-100'
                                     }
                                 >
                                     <WeblensButton
-                                        squareSize={35}
+                                        size="small"
                                         Left={IconMinus}
                                         onClick={(e) => {
                                             e.stopPropagation()
@@ -805,8 +842,6 @@ function FileShareMenu({ targetFile }: { targetFile: WeblensFile }) {
             <div className="flex w-full flex-row">
                 <div className="m-1 flex w-1/4 grow justify-center">
                     <WeblensButton
-                        squareSize={40}
-                        size="jumbo"
                         label="Back"
                         fillWidth
                         Left={IconArrowLeft}
@@ -816,10 +851,8 @@ function FileShareMenu({ targetFile }: { targetFile: WeblensFile }) {
                         }}
                     />
                 </div>
-                <div className="m-1 flex w-1/4 grow justify-center">
+                <div className="m-1 flex h-full w-1/4 grow justify-center">
                     <WeblensButton
-                        squareSize={40}
-                        size="jumbo"
                         fillWidth
                         label="Save"
                         disabled={
@@ -861,30 +894,27 @@ function NewFolderName({ items }: { items: WeblensFile[] }) {
     }
 
     return (
-        <div className={menuStyle.newFolderMenu}>
-            <WeblensInput
-                placeholder="New Folder Name"
-                autoFocus
-                fillWidth
-                squareSize={60}
-                buttonIcon={IconPlus}
-                valid={badName ? false : undefined}
-                valueCallback={setNewName}
-                onComplete={async (newName) => {
-                    const itemIds = items.map((f) => f.Id())
-                    setMoved(itemIds)
-                    await FolderApi.createFolder(
-                        {
-                            parentFolderId: folderInfo.Id(),
-                            newFolderName: newName,
-                            children: itemIds,
-                        },
-                        shareId
-                    )
-                    setMenu({ menuState: FbMenuModeT.Closed })
-                }}
-            />
-        </div>
+        <WeblensInput
+            placeholder="New Folder Name"
+            autoFocus
+            fillWidth
+            buttonIcon={IconPlus}
+            valid={badName ? false : undefined}
+            valueCallback={setNewName}
+            onComplete={async (newName) => {
+                const itemIds = items.map((f) => f.Id())
+                setMoved(itemIds)
+                await FolderApi.createFolder(
+                    {
+                        parentFolderId: folderInfo.Id(),
+                        newFolderName: newName,
+                        children: itemIds,
+                    },
+                    shareId
+                )
+                setMenu({ menuState: FbMenuModeT.Closed })
+            }}
+        />
     )
 }
 
@@ -897,29 +927,26 @@ function FileRenameInput() {
     const setMenu = useFileBrowserStore((state) => state.setMenu)
 
     return (
-        <div className={menuStyle.newFolderMenu}>
-            <WeblensInput
-                value={menuTarget.GetFilename()}
-                placeholder="Rename File"
-                autoFocus
-                fillWidth
-                squareSize={50}
-                buttonIcon={IconPlus}
-                onComplete={async (newName) => {
-                    return FileApi.updateFile(
-                        menuTarget.Id(),
-                        {
-                            newName: newName,
-                        },
-                        shareId
-                    ).then(() => {
-                        setMenu({ menuState: FbMenuModeT.Closed })
-                        return true
-                    })
-                }}
-            />
-            <div className="w-[220px]"></div>
-        </div>
+        <WeblensInput
+            value={menuTarget.GetFilename()}
+            placeholder="Rename File"
+            autoFocus
+            fillWidth
+            squareSize={50}
+            buttonIcon={IconPlus}
+            onComplete={async (newName) => {
+                return FileApi.updateFile(
+                    menuTarget.Id(),
+                    {
+                        newName: newName,
+                    },
+                    shareId
+                ).then(() => {
+                    setMenu({ menuState: FbMenuModeT.Closed })
+                    return true
+                })
+            }}
+        />
     )
 }
 
@@ -1120,7 +1147,7 @@ function InTrashMenu({
     }
 
     return (
-        <div className={menuStyle.defaultGrid + ' ' + 'no-scrollbar'}>
+        <div className="no-scrollbar grid grid-flow-row grid-cols-2 items-center justify-center justify-items-center gap-2 p-1 pb-4">
             <WeblensButton
                 className="mx-auto h-24 w-24"
                 Left={IconFileExport}
@@ -1198,7 +1225,7 @@ function BackdropDefaultItems({
 
     return (
         <div
-            className={menuStyle.defaultGrid + ' ' + 'no-scrollbar'}
+            className="no-scrollbar grid grid-flow-row grid-cols-2 items-center justify-center justify-items-center gap-2 p-1 pb-4"
             data-visible={menuMode === FbMenuModeT.Default && menuTarget === ''}
         >
             <WeblensButton

@@ -1,11 +1,8 @@
 package setup
 
 import (
-	"errors"
 	"os"
-	"os/signal"
 	"path/filepath"
-	"syscall"
 	"time"
 
 	"github.com/ethanrous/weblens/database"
@@ -13,7 +10,6 @@ import (
 	"github.com/ethanrous/weblens/http"
 	"github.com/ethanrous/weblens/internal"
 	"github.com/ethanrous/weblens/internal/env"
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/jobs"
 	"github.com/ethanrous/weblens/models"
@@ -21,71 +17,60 @@ import (
 	"github.com/ethanrous/weblens/service"
 	"github.com/ethanrous/weblens/service/mock"
 	"github.com/ethanrous/weblens/task"
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func MainRecovery(msg string, logger log.Bundle) {
+func MainRecovery(logger *zerolog.Logger) {
 	err := recover()
 	if err != nil {
-		if _, ok := err.(error); !ok {
-			err = werror.Errorf("%s", err)
+		if erri, ok := err.(error); ok {
+			erri = errors.Wrap(errors.New(erri.Error()), "Panic")
+			logger.Fatal().Stack().Err(erri).Msgf("Unrecoverable error occurred during router startup")
+		} else {
+			err := errors.Wrap(errors.New("Panic"), "Panic")
+			logger.Fatal().Stack().Err(err).Msgf("Unrecoverable error occurred during router startup: %v", err)
 		}
-		logger.ErrTrace(err.(error))
-		logger.Error.Println(msg)
 		os.Exit(1)
 	}
 }
 
 func Startup(cnf env.Config, pack *models.ServicePack) {
-	defer MainRecovery("WEBLENS STARTUP FAILED", pack.Log)
+	defer MainRecovery(pack.Log)
+	start := time.Now()
 
-	pack.Log.Trace.Println("Beginning service setup")
-
-	sw := internal.NewStopwatch("Initialization")
+	pack.Log.Trace().Msg("Service setup started")
 
 	/* Database connection */
-	db, err := database.ConnectToMongo(cnf.MongodbUri, cnf.MongodbName)
+	db, err := database.ConnectToMongo(cnf.MongodbUri, cnf.MongodbName, pack.Log)
 	if err != nil {
 		panic(err)
 	}
 	pack.Db = db
-	sw.Lap("Connect to Mongo")
+	pack.Log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Connected to mongodb") })
 
 	setupInstanceService(pack)
-	sw.Lap("Init instance service")
 
 	localRole := pack.InstanceService.GetLocal().Role
 
 	setupUserService(pack)
-	sw.Lap("Init user service")
 
 	setupTaskService(cnf.WorkerCount, pack, pack.Log)
-	sw.Lap("Worker pool enabled")
 
 	/* Client Manager */
-	pack.ClientService = service.NewClientManager(pack)
-	sw.Lap("Init client service")
+	pack.ClientService = service.NewClientManager(pack, pack.Log)
 
 	/* Basic global pack.Caster */
-	caster := caster.NewSimpleCaster(pack.ClientService)
+	caster := caster.NewSimpleCaster(pack.ClientService, pack.Log)
 	caster.Global()
 	pack.SetCaster(caster)
 
 	setupAccessService(pack, db)
-	sw.Lap("Init access service")
 
-	/* Share Service */
-	pack.AddStartupTask("share_service", "Setting up Shares Service")
-	shareService, err := service.NewShareService(db.Collection(string(database.SharesCollectionKey)))
-	if err != nil {
-		panic(err)
-	}
-	pack.ShareService = shareService
-	sw.Lap("Init share service")
-	pack.RemoveStartupTask("share_service")
+	setupShareService(pack, db)
 
 	setupFileService(cnf.DataRoot, cnf.CachesRoot, pack)
-	sw.Lap("Init file service")
 
 	// Add basic routes to the router
 	if localRole != models.InitServerRole {
@@ -93,18 +78,17 @@ func Startup(cnf env.Config, pack *models.ServicePack) {
 		if localRole == models.CoreServerRole {
 			// srv.UseInterserverRoutes()
 
-			sw.Lap("Find or create user directories")
 		} else if localRole == models.BackupServerRole {
 			/* If server is backup server, connect to core server and launch backup daemon */
 			pack.AddStartupTask("core_connect", "Waiting for Core connection")
 			cores := pack.InstanceService.GetCores()
 			if len(cores) == 0 {
-				pack.Log.Error.Println("No core servers found in database")
+				pack.Log.Error().Msg("No core servers found in database")
 			}
 
 			for _, core := range cores {
 				if core != nil {
-					pack.Log.Trace.Func(func(l log.Logger) { l.Printf("Connecting to core server [%s]", core.Address) })
+					pack.Log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Connecting to core server [%s]", core.Address) })
 					if err = http.WebsocketToCore(core, pack); err != nil {
 						panic(err)
 					}
@@ -127,57 +111,46 @@ func Startup(cnf env.Config, pack *models.ServicePack) {
 		}
 
 		setupMediaService(pack, db)
-		sw.Lap("Init media service")
 
 		setupAlbumService(pack, db)
-		sw.Lap("Init album service")
 
-		pack.Log.Info.Printf(
-			"Weblens loaded in %s. %s in files, %d medias, and %d users\n", sw.GetTotalTime(false),
+		pack.Log.Info().Msgf(
+			"Weblens loaded in %s. %s in files, %d medias, and %d users\n", time.Since(start),
 			internal.ByteCountSI(pack.FileService.(*service.FileServiceImpl).Size("USERS")),
 			pack.MediaService.Size(), pack.UserService.Size(),
 		)
 	}
 
-	sw.Stop()
-	sw.PrintResults(false)
-
 	server := pack.Server.(*http.Server)
 	server.RouterLock.Lock()
 	pack.Loaded.Store(true)
 
-	pack.Log.Trace.Println("Closing startup channel")
+	pack.Log.Trace().Msg("Closing startup channel")
 
 	close(pack.StartupChan)
 	pack.StartupChan = nil
 	server.RouterLock.Unlock()
 
-	pack.Log.Debug.Println("Service setup complete")
+	pack.Log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Service setup complete") })
 	pack.GetCaster().PushWeblensEvent(models.WeblensLoadedEvent, models.WsC{"role": pack.InstanceService.GetLocal().GetRole()})
-
-	// If we're in debug mode, wait for a SIGQUIT to exit,
-	// this is to allow for easy restarting of the server
-	if pack.Log.Level >= log.DEBUG {
-		sigs := make(chan os.Signal, 1)
-		signal.Notify(sigs, syscall.SIGQUIT)
-		<-sigs
-		pack.Log.Info.Println("\nReceived SIGQUIT, exiting...")
-		os.Exit(0)
-	}
 }
 
 func setupInstanceService(pack *models.ServicePack) {
-	instanceService, err := service.NewInstanceService(pack.Db.Collection(string(database.InstanceCollectionKey)))
+	instanceService, err := service.NewInstanceService(pack.Db.Collection(string(database.InstanceCollectionKey)), pack.Log)
 	if err != nil {
 		panic(err)
 	}
+
 	pack.InstanceService = instanceService
+	pack.Log.UpdateContext(func(c zerolog.Context) zerolog.Context {
+		return c.Str("instance", pack.InstanceService.GetLocal().ServerId())
+	})
 
 	// Let router know it can start. Instance server is required for the most basic routes,
 	// so we can start the router only after that's set.
 	pack.StartupChan <- true
 
-	log.Debug.Printf("Local server role is %s", pack.InstanceService.GetLocal().Role)
+	pack.Log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Local server role is %s", pack.InstanceService.GetLocal().Role) })
 }
 
 func setupUserService(pack *models.ServicePack) {
@@ -188,7 +161,7 @@ func setupUserService(pack *models.ServicePack) {
 	pack.UserService = userService
 }
 
-func setupTaskService(workerCount int, pack *models.ServicePack, logger log.Bundle) {
+func setupTaskService(workerCount int, pack *models.ServicePack, logger *zerolog.Logger) {
 	// Loading the filesystem might dispatch tasks,
 	// so we have to start the pool first
 	workerPool := task.NewWorkerPool(workerCount, logger)
@@ -213,7 +186,7 @@ func setupTaskService(workerCount int, pack *models.ServicePack, logger log.Bund
 func setupFileService(dataRootPath, cachesRootPath string, pack *models.ServicePack) {
 	pack.AddStartupTask("file_services", "Setting up File Services")
 
-	sw := internal.NewStopwatch("Setup File Service")
+	sw := internal.NewStopwatch("Setup File Service", pack.Log)
 
 	/* Hasher */
 	hasherFactory := func() fileTree.Hasher {
@@ -239,7 +212,7 @@ func setupFileService(dataRootPath, cachesRootPath string, pack *models.ServiceP
 
 	/* Restore FileTree */
 	restoreFileTree, err := fileTree.NewFileTree(
-		filepath.Join(dataRootPath, ".restore"), "RESTORE", hollowJournal, !ignoreLocal,
+		filepath.Join(dataRootPath, ".restore"), "RESTORE", hollowJournal, !ignoreLocal, pack.Log,
 	)
 	if err != nil {
 		panic(err)
@@ -249,14 +222,14 @@ func setupFileService(dataRootPath, cachesRootPath string, pack *models.ServiceP
 	if localRole == models.CoreServerRole {
 		/* Users FileTree */
 		usersFileTree, err := fileTree.NewFileTree(
-			filepath.Join(dataRootPath, "users"), "USERS", mediaJournal, !ignoreLocal,
+			filepath.Join(dataRootPath, "users"), "USERS", mediaJournal, !ignoreLocal, pack.Log,
 		)
 		if err != nil {
 			panic(err)
 		}
 		sw.Lap("Init Users Tree")
 
-		cachesTree, err := fileTree.NewFileTree(cachesRootPath, "CACHES", hollowJournal, !ignoreLocal)
+		cachesTree, err := fileTree.NewFileTree(cachesRootPath, "CACHES", hollowJournal, !ignoreLocal, pack.Log)
 		if err != nil {
 			panic(err)
 		}
@@ -282,7 +255,7 @@ func setupFileService(dataRootPath, cachesRootPath string, pack *models.ServiceP
 			}
 
 			newTree, err := fileTree.NewFileTree(
-				filepath.Join(dataRootPath, core.ServerId()), core.ServerId(), newJournal, false,
+				filepath.Join(dataRootPath, core.ServerId()), core.ServerId(), newJournal, false, pack.Log,
 			)
 			if err != nil {
 				panic(err)
@@ -422,4 +395,14 @@ func setupAccessService(pack *models.ServicePack, db *mongo.Database) {
 		}
 	}
 	pack.RemoveStartupTask("access_service")
+}
+
+func setupShareService(pack *models.ServicePack, db *mongo.Database) {
+	pack.AddStartupTask("share_service", "Setting up Shares Service")
+	shareService, err := service.NewShareService(db.Collection(string(database.SharesCollectionKey)), pack.Log)
+	if err != nil {
+		panic(err)
+	}
+	pack.ShareService = shareService
+	pack.RemoveStartupTask("share_service")
 }

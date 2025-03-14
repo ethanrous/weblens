@@ -16,13 +16,20 @@ import (
 func TestAccessServiceImpl_CanUserAccessFile(t *testing.T) {
 	t.Parallel()
 
+	logger := log.NewZeroLogger()
+
 	keysCol := mondb.Collection(string(database.ApiKeysCollectionKey) + "-" + t.Name())
 	err := keysCol.Drop(context.Background())
 	if err != nil {
-		log.ErrTrace(err)
+		logger.Error().Stack().Err(err).Msg("")
 		t.FailNow()
 	}
-	defer func() { log.ErrTrace(keysCol.Drop(context.Background())) }()
+	defer func() {
+		err := keysCol.Drop(context.Background())
+		if err != nil {
+			logger.Error().Stack().Err(err).Msg("")
+		}
+	}()
 
 	userCol := mondb.Collection(string(database.UsersCollectionKey) + "-" + t.Name())
 	userService, err := NewUserService(userCol)
@@ -32,7 +39,7 @@ func TestAccessServiceImpl_CanUserAccessFile(t *testing.T) {
 
 	acc, err := NewAccessService(userService, keysCol)
 	if err != nil {
-		log.ErrTrace(err)
+		logger.Error().Stack().Err(err).Msg("")
 		t.FailNow()
 	}
 
@@ -47,13 +54,13 @@ func TestAccessServiceImpl_CanUserAccessFile(t *testing.T) {
 	// Make bills home in tree
 	billHome, err := ft.MkDir(ft.GetRoot(), string(billUser.Username), nil)
 	if err != nil {
-		log.ErrTrace(err)
+		logger.Error().Stack().Err(err).Msg("")
 		t.FailNow()
 	}
 	// Make dippers home
 	dipperHome, err := ft.MkDir(ft.GetRoot(), string(dipperUser.Username), nil)
 	if err != nil {
-		log.ErrTrace(err)
+		logger.Error().Stack().Err(err).Msg("")
 		t.FailNow()
 	}
 
@@ -85,13 +92,20 @@ func TestAccessServiceImpl_CanUserAccessFile(t *testing.T) {
 func TestAccessServiceImpl_GenerateApiKey(t *testing.T) {
 	t.Parallel()
 
+	logger := log.NewZeroLogger()
+
 	keysCol := mondb.Collection(string(database.ApiKeysCollectionKey) + "-" + t.Name())
 	err := keysCol.Drop(context.Background())
 	if err != nil {
-		log.ErrTrace(err)
+		logger.Error().Stack().Err(err).Msg("")
 		t.FailNow()
 	}
-	defer func() { log.ErrTrace(keysCol.Drop(context.Background())) }()
+	defer func() {
+		err := keysCol.Drop(context.Background())
+		if err != nil {
+			logger.Error().Stack().Err(err).Msg("")
+		}
+	}()
 
 	userCol := mondb.Collection(string(database.UsersCollectionKey) + "-" + t.Name())
 	userService, err := NewUserService(userCol)
@@ -101,13 +115,13 @@ func TestAccessServiceImpl_GenerateApiKey(t *testing.T) {
 
 	acc, err := NewAccessService(userService, keysCol)
 	if err != nil {
-		log.ErrTrace(err)
+		logger.Error().Stack().Err(err).Msg("")
 		t.FailNow()
 	}
 
 	billUser, err := models.NewUser("billcypher", "shakemyhand", "Bill Cypher", false, true)
 	if err != nil {
-		log.ErrTrace(err)
+		logger.Error().Stack().Err(err).Msg("")
 		t.FailNow()
 	}
 
@@ -134,13 +148,20 @@ func TestAccessServiceImpl_GenerateApiKey(t *testing.T) {
 func TestAccessServiceImpl_SetKeyUsedBy(t *testing.T) {
 	t.Parallel()
 
+	logger := log.NewZeroLogger()
+
 	keysCol := mondb.Collection(string(database.ApiKeysCollectionKey) + "-" + t.Name())
 	err := keysCol.Drop(context.Background())
 	if err != nil {
-		log.ErrTrace(err)
+		logger.Error().Stack().Err(err).Msg("")
 		t.FailNow()
 	}
-	defer func() { log.ErrTrace(keysCol.Drop(context.Background())) }()
+	defer func() {
+		err := keysCol.Drop(context.Background())
+		if err != nil {
+			logger.Error().Stack().Err(err).Msg("")
+		}
+	}()
 
 	userCol := mondb.Collection(string(database.UsersCollectionKey) + "-" + t.Name())
 	userService, err := NewUserService(userCol)
@@ -150,13 +171,13 @@ func TestAccessServiceImpl_SetKeyUsedBy(t *testing.T) {
 
 	acc, err := NewAccessService(userService, keysCol)
 	if err != nil {
-		log.ErrTrace(err)
+		logger.Error().Stack().Err(err).Msg("")
 		t.FailNow()
 	}
 
 	billUser, err := models.NewUser("billcypher", "shakemyhand", "Bill Cypher", true, true)
 	if err != nil {
-		log.ErrTrace(err)
+		logger.Error().Stack().Err(err).Msg("")
 		t.FailNow()
 	}
 

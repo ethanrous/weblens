@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { FileApi } from '@weblens/api/FileBrowserApi'
 import { FileInfo } from '@weblens/api/swag'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import { useResize } from '@weblens/components/hooks'
+import { useResize } from '@weblens/lib/hooks'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import { useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { ErrorHandler } from '@weblens/types/Types'
@@ -55,7 +55,7 @@ function SearchResult({
     return (
         <div
             key={data.files[index].id}
-            className="flex h-10 max-w-full cursor-pointer items-center justify-between gap-1 rounded p-2"
+            className="flex h-10 max-w-full cursor-pointer items-center justify-between gap-1 rounded-sm p-2"
             onMouseOver={() => data.setHighlightIndex(index)}
             onClick={(e) => {
                 e.stopPropagation()
@@ -66,16 +66,16 @@ function SearchResult({
                 ...style,
                 backgroundColor:
                     data.highlightIndex === index
-                        ? 'var(--wl-background-color-secondary)'
+                        ? 'var(--color-background-secondary)'
                         : '',
                 pointerEvents: alreadyHere ? 'none' : 'auto',
                 color: alreadyHere
-                    ? 'var(--wl-text-color-tertiary)'
-                    : 'var(--wl-text-color-primary)',
+                    ? 'var(--color-text-tertiary)'
+                    : 'var(--color-text-primary)',
             }}
         >
             {data.searchType !== SearchModeT.global && (
-                <div className="flex select-none flex-row items-center gap-1">
+                <div className="flex flex-row items-center gap-1 select-none">
                     <span className="shrink-0 text-nowrap text-transparent">
                         {preText}
                     </span>
@@ -91,7 +91,7 @@ function SearchResult({
             )}
             {data.searchType === SearchModeT.global && (
                 <div className="flex w-1 max-w-full grow text-inherit">
-                    <span className="select-none truncate text-nowrap">
+                    <span className="truncate text-nowrap select-none">
                         ~/
                         {data.files[index].portablePath.slice(
                             data.files[index].portablePath.indexOf('/') + 1
@@ -255,7 +255,7 @@ function SearchDialogue({
                 }
             }}
         >
-            <div className="relative flex h-max max-h-full flex-col items-center rounded-lg bg-wl-background-color-primary p-2">
+            <div className="bg-background-primary relative flex h-max max-h-full flex-col items-center rounded-lg p-2">
                 <div className="m-3 flex h-16 w-full shrink-0">
                     <WeblensInput
                         value={search}
@@ -286,27 +286,27 @@ function SearchDialogue({
 
                 {search == '~' && (
                     <div className="flex items-center gap-1 text-sm">
-                        <span className="bg-background h-max rounded p-1 text-white">
+                        <span className="bg-background h-max rounded-sm p-1 text-white">
                             Enter
                         </span>
                         <span>to go home</span>
                     </div>
                 )}
                 {search.length === 0 && (
-                    <div className="flex select-none flex-row items-center gap-1 text-nowrap text-sm">
-                        <span className="bg-background h-max rounded p-1 text-white">
+                    <div className="flex flex-row items-center gap-1 text-sm text-nowrap select-none">
+                        <span className="bg-background h-max rounded-sm p-1 text-white">
                             Tab
                         </span>
                         <span className="mr-1">to fill</span>
-                        <span className="bg-background h-max rounded p-1 text-white">
+                        <span className="bg-background h-max rounded-sm p-1 text-white">
                             Enter
                         </span>
                         <span className="mr-1">to navigate</span>
-                        <span className="bg-background h-max rounded p-1 text-white">
+                        <span className="bg-background h-max rounded-sm p-1 text-white">
                             ~/
                         </span>
                         <span className="mr-1">or</span>
-                        <span className="bg-background h-max rounded p-1 text-white">
+                        <span className="bg-background h-max rounded-sm p-1 text-white">
                             ./
                         </span>
                         <span>to find by path</span>

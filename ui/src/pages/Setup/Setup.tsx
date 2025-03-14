@@ -1,4 +1,3 @@
-import { Divider, Input, Text } from '@mantine/core'
 import {
     IconArrowLeft,
     IconDatabase,
@@ -14,15 +13,13 @@ import {
     HandleWebsocketMessage,
     useWebsocketStore,
 } from '@weblens/api/Websocket'
-import { ServerInfo } from '@weblens/api/swag'
 import { ThemeToggleButton } from '@weblens/components/HeaderBar'
 import Logo from '@weblens/components/Logo'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import { useKeyDown } from '@weblens/components/hooks'
+import { useKeyDown } from '@weblens/lib/hooks'
 import setupStyle from '@weblens/components/setupStyle.module.scss'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
-import { ErrorHandler } from '@weblens/types/Types'
 import User from '@weblens/types/user/User'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -51,25 +48,17 @@ const UserSelect = ({
         return (
             <div className={setupStyle.cautionBox}>
                 <div className={setupStyle.cautionHeader}>
-                    <Text
-                        className={setupStyle.subheaderText}
-                        c="white"
-                        style={{ paddingTop: 0 }}
-                    >
-                        This Server Already Has An Owner
-                    </Text>
+                    <span>This Server Already Has An Owner</span>
                     <IconExclamationCircle color="white" />
                 </div>
                 <p className="text-sm text-white">
                     Log in as {owner.username} to continue
                 </p>
-                <Input
-                    variant="unstyled"
+                <WeblensInput
                     className={setupStyle.weblensInputWrapper}
-                    type="password"
+                    password
                     placeholder="Password"
-                    style={{ width: '100%' }}
-                    onChange={(e) => setPassword(e.target.value)}
+                    valueCallback={(v) => setPassword(v)}
                 />
             </div>
         )
@@ -78,13 +67,7 @@ const UserSelect = ({
     return (
         <div className={setupStyle.cautionBox}>
             <div className={setupStyle.cautionHeader}>
-                <Text
-                    className={setupStyle.subheaderText}
-                    c="#ffffff"
-                    style={{ paddingTop: 0 }}
-                >
-                    This Server Already Has Users
-                </Text>
+                <span>This Server Already Has Users</span>
                 <IconExclamationCircle color="white" />
             </div>
             <p className="text-white">Select a user to make owner</p>
@@ -175,7 +158,7 @@ const Core = ({
                 <h1 className="text-4xl font-bold">Core</h1>
             </div>
             {users.length === 0 && (
-                <div className="flex w-full flex-col rounded-md border border-wl-border-color-primary p-4">
+                <div className="border-color-border-primary flex w-full flex-col rounded-md border p-4">
                     <h4 className="mb-4">Create an Owner Account</h4>
                     <SignupInputForm
                         setFullName={setFullName}
@@ -194,8 +177,6 @@ const Core = ({
                 setPassword={setPassword}
                 owner={owner}
             />
-
-            <Divider />
 
             {existingName && (
                 <div className={setupStyle.cautionBox}>
@@ -228,7 +209,7 @@ const Core = ({
                     />
                 </>
             )}
-            <label htmlFor="serverAddress" className="mr-auto mt-4">
+            <label htmlFor="serverAddress" className="mt-4 mr-auto">
                 <span>Server Address</span>
             </label>
 
@@ -489,7 +470,7 @@ const Landing = ({
                 size="jumbo"
                 fillWidth
             />
-            <div className="h-[1px] w-[90%] bg-wl-border-color-primary" />
+            <div className="bg-border-primary h-[1px] w-[90%]" />
             <div className="my-auto flex flex-row gap-2">
                 <WeblensButton
                     label="Set Up As Backup"
@@ -543,7 +524,7 @@ const Setup = () => {
                 <Backup page={page} setPage={setPage} />
                 <Restore page={page} setPage={setPage} />
             </div>
-            <div className="absolute bottom-4 right-4">
+            <div className="absolute right-4 bottom-4">
                 <ThemeToggleButton />
             </div>
         </div>

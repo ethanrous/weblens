@@ -12,7 +12,7 @@
 //             >
 //                 {(props) => {
 //                     return (
-//                         <div className="flex bg-bottom-grey h-[20vh] w-[20vw] p-3 rounded justify-center">
+//                         <div className="flex bg-bottom-grey h-[20vh] w-[20vw] p-3 rounded-sm justify-center">
 //                             <div
 //                                 className="cursor-pointer h-max w-max"
 //                                 onClick={() => {

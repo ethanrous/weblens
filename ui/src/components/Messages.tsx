@@ -7,7 +7,7 @@ import { CSSProperties } from 'react'
 export default function Messages() {
     const messages = useMessagesController((state) => state.messages)
     return (
-        <div className="absolute bottom-4 right-4 z-50 w-max">
+        <div className="absolute right-4 bottom-4 z-50 w-max">
             {messages
                 .values()
                 .toArray()
@@ -23,36 +23,36 @@ function SingleMessage({ message }: { message: Message }) {
     let messageColor = ''
     switch (message.severity) {
         case 'info':
-            messageColor = '--wl-theme-color-primary'
+            messageColor = '--color-theme-primary'
             break
         case 'success':
-            messageColor = '--wl-color-valid'
+            messageColor = '--color-valid'
             break
         case 'warning':
-            messageColor = '--wl-theme-color-warning'
+            messageColor = '--color-theme-warning'
             break
         case 'error':
-            messageColor = '--wl-button-color-danger'
+            messageColor = '--color-button-danger'
             break
         case 'debug':
-            messageColor = '--wl-background-color-secondary'
+            messageColor = '--color-background-secondary'
             break
     }
 
     return (
         <div
-            className="m-2 animate-fade rounded-md border border-wl-message-color transition bg-wl-background-color-primary"
+            className="animate-fade-in border-message bg-background-primary m-2 rounded-md border transition"
             style={
                 {
                     opacity: message.expired ? 0 : 100,
-                    '--wl-message-color': `var(${messageColor})`,
+                    '--color-message': `var(${messageColor})`,
                 } as CSSProperties
             }
         >
-			<div className='bg-wl-message-color/20 p-2'>
-				<h4>{message.title}</h4>
-				<span>{message.text}</span>
-			</div>
+            <div className="bg-message/50 p-2">
+                <h4>{message.title}</h4>
+                <span>{message.text}</span>
+            </div>
         </div>
     )
 }

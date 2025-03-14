@@ -1,4 +1,3 @@
-import { Space } from '@mantine/core'
 import { IconExclamationCircle } from '@tabler/icons-react'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import { useNavigate } from 'react-router-dom'
@@ -29,13 +28,11 @@ function FilesErrorDisplay({
 
     return (
         <div className="flex h-full w-full flex-col items-center justify-center">
-            <div className="bg-wl-barely-visible outline-main-accent mb-[40vh] flex h-max w-[360px] flex-col items-center justify-center rounded p-12 outline">
+            <div className="bg-wl-barely-visible outline-main-accent mb-[40vh] flex h-max w-[360px] flex-col items-center justify-center rounded-sm p-12 outline">
                 <div className="flex items-center gap-1">
                     <p className="w-max text-2xl font-bold">{preText}</p>
                     <IconExclamationCircle size={32} className="text-red-500" />
                 </div>
-
-                <Space h={15} />
 
                 <WeblensButton
                     centerContent

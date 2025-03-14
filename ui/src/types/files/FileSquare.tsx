@@ -25,7 +25,7 @@ const FileGridVisual = ({
     allowMedia: boolean
 }) => {
     return (
-        <div className="aspect-square w-full overflow-hidden p-2 pb-0">
+        <div className="group-data-moved:text-text-tertiary aspect-square w-full overflow-hidden p-2 pb-0">
             <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-md">
                 <FileVisual file={file} allowMedia={allowMedia} />
             </div>
@@ -43,13 +43,17 @@ const FileTextBox = ({
     doFolderIcon: boolean
 }) => {
     return (
-        <div className="relative flex h-full w-full items-center justify-between px-2">
+        <div className="group-data-moved:text-text-tertiary relative flex h-full w-full items-center justify-between px-2">
             <span className={filesStyle.fileText}>{file.GetFilename()}</span>
             <div
-                className={filesStyle.fileSizeBox}
-                data-moved={(selState & SelectedState.Moved) >> 5}
+                className={
+                    'border-theme-primary flex max-h-6/10 w-max items-center rounded-md border p-1 text-[30cqh] select-none group-data-moved:border-none'
+                }
+                data-moved={(selState & SelectedState.Moved) >> 5 ? true : null}
             >
-                <span className={filesStyle.fileSizeText}>{file.FormatSize()}</span>
+                <span className="text-[35cqh] text-current">
+                    {file.FormatSize()}
+                </span>
                 {doFolderIcon && (
                     <IconFolder
                         className={filesStyle.fileSizeText + ' max-h-full'}
@@ -88,16 +92,24 @@ export const FileSquare = memo(
         return (
             <div
                 ref={fileRef}
-                className={filesStyle.weblensFile + ' animate-fade'}
+                className={
+                    'group bg-card-background-primary animate-fade-in data-selected:bg-card-background-selected hover:bg-background-tertiary data-droppable:bg-background-primary data-droppable:border-theme-primary border-theme-primary/0 relative m-1.5 flex aspect-[0.9] max-w-[400px] shrink basis-[250px] cursor-pointer flex-col rounded-md border-2 shadow transition select-none data-droppable:scale-101 data-moved:pointer-events-none'
+                }
                 data-clickable={!draggingState || file.IsFolder()}
                 data-hovering={selState & SelectedState.Hovering}
-                data-in-range={(selState & SelectedState.InRange) >> 1}
-                data-selected={(selState & SelectedState.Selected) >> 2}
-                data-last-selected={
-                    (selState & SelectedState.LastSelected) >> 3
+                data-in-range={
+                    (selState & SelectedState.InRange) >> 1 ? true : null
                 }
-                data-droppable={(selState & SelectedState.Droppable) >> 4}
-                data-moved={(selState & SelectedState.Moved) >> 5}
+                data-selected={
+                    (selState & SelectedState.Selected) >> 2 ? true : null
+                }
+                data-last-selected={
+                    (selState & SelectedState.LastSelected) >> 3 ? true : null
+                }
+                data-droppable={
+                    (selState & SelectedState.Droppable) >> 4 ? true : null
+                }
+                data-moved={(selState & SelectedState.Moved) >> 5 ? true : null}
                 data-dragging={draggingState}
                 onMouseOver={(e: MouseEvent<HTMLDivElement>) =>
                     handleMouseOver(

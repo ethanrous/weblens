@@ -7,6 +7,7 @@ import (
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/service"
 )
 
 type Option[T any] struct {
@@ -90,12 +91,17 @@ func WeblensFileToFileInfo(f *fileTree.WeblensFileImpl, pack *models.ServicePack
 	modifiable := !isPastFile && !pack.FileService.IsFileInTrash(f)
 
 	var hasRestoreMedia bool
-	if !isPastFile || f.IsDir() {
+	if !isPastFile || f.IsDir() || f.Exists() {
 		hasRestoreMedia = true
 	} else {
-		restoreTree := pack.FileService.GetFileTreeByName("RESTORE")
-		_, err := restoreTree.GetRoot().GetChild(f.GetContentId())
-		hasRestoreMedia = err == nil
+		_, err := pack.FileService.GetFileByTree(f.ID(), service.UsersTreeKey)
+		if err == nil {
+			hasRestoreMedia = true
+		} else {
+			restoreTree := pack.FileService.GetFileTreeByName(service.RestoreTreeKey)
+			_, err = restoreTree.GetRoot().GetChild(f.GetContentId())
+			hasRestoreMedia = err == nil
+		}
 	}
 
 	return FileInfo{

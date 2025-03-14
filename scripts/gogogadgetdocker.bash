@@ -91,9 +91,16 @@ fi
 full_tag="${docker_tag}-${base_image}-${arch}"
 echo "Using tag: $full_tag"
 
+base_version=$(git rev-parse --short HEAD)
+dirty_version=$(git diff | shasum -a 256)
+WEBLENS_BUILD_VERSION="${base_version}-devel-${dirty_version:0:7}"
+export WEBLENS_BUILD_VERSION
+
+echo "Weblens build version: $WEBLENS_BUILD_VERSION"
+
 printf "Building Weblens container..."
 sudo docker rmi ethrous/weblens:"$full_tag" &>/dev/null
-sudo docker build --platform "linux/$arch" -t ethrous/weblens:"$full_tag" --build-arg build_tag="$full_tag" --build-arg ARCHITECTURE="$arch" -f $df_path .
+sudo docker build --platform "linux/$arch" -t ethrous/weblens:"$full_tag" --build-arg WEBLENS_BUILD_VERSION="$WEBLENS_BUILD_VERSION" --build-arg ARCHITECTURE="$arch" -f $df_path .
 
 if [ $do_push == true ]; then
     sudo docker push ethrous/weblens:"$full_tag"

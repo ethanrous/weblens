@@ -1,13 +1,13 @@
 import { FbModeT } from '@weblens/store/FBStateControl'
 
-import API_ENDPOINT from './ApiEndpoint'
+import API_ENDPOINT from './ApiEndpoint.js'
 import { WsSendT, useWebsocketStore } from './Websocket'
 import {
     FilesApiAxiosParamCreator,
     FilesApiFactory,
     FolderApiFactory,
     FolderInfo,
-} from './swag'
+} from './swag/api.js'
 
 export const FileApi = FilesApiFactory(null, API_ENDPOINT)
 export const FolderApi = FolderApiFactory(null, API_ENDPOINT)

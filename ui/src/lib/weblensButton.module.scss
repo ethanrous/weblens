@@ -44,8 +44,8 @@ $button-padding: 4px;
 	padding: $button-padding;
 	cursor: pointer;
 	color: white;
-	background-color: var(--wl-theme-color-primary);
-	outline: 2px solid rgb(from var(--wl-theme-color-primary) r g b / 0%);
+	background-color: var(--color-theme-primary);
+	outline: 2px solid rgb(from var(--color-theme-primary) r g b / 0%);
 	box-shadow: $hard-shadow-off;
 	overflow: hidden;
 	flex-grow: 0;
@@ -54,31 +54,31 @@ $button-padding: 4px;
 
 	transition-property: background-color, transform, outline, box-shadow;
 	transition-duration: 200ms;
-	transition-timing-function: var(--wl-transition-func);
+	transition-timing-function: var(--ease-wl-default);
 
-	--wl-button-text-color: var(--wl-text-color-primary);
+	--color-button-text: var(--color-text-primary);
 
 	&:hover {
 		box-shadow: var(--wl-hard-shadow);
 		background-color: var(--wl-barely-visible);
-		outline: 2px solid rgb(from var(--wl-theme-color-primary) r g b / 100%);
+		outline: 2px solid rgb(from var(--color-theme-primary) r g b / 100%);
 		transform: translateY(-1px);
-		--wl-button-text-color: var(--wl-text-color-primary);
+		--color-button-text: var(--color-text-primary);
 	}
 
 	&[data-subtle='true'] {
-		--wl-button-text-color: var(--wl-text-color-primary);
-		background-color: var(--wl-theme-color-tertiary);
+		--color-button-text: var(--color-text-primary);
+		background-color: var(--color-theme-tertiary);
 
 		&:hover {
-			background-color: rgb(from var(--wl-theme-color-tertiary) r g b / 50%);
+			background-color: rgb(from var(--color-theme-tertiary) r g b / 50%);
 		}
 	}
 
 	&[data-toggled='true'] {
-		background-color: var(--wl-theme-color-primary);
-		outline: 1px solid var(--wl-theme-color-primary);
-		--wl-button-text-color: white;
+		background-color: var(--color-theme-primary);
+		outline: 1px solid var(--color-theme-primary);
+		--color-button-text: white;
 
 		&[data-repeat='true']:hover {
 			background-color: #3600cccc;
@@ -91,13 +91,13 @@ $button-padding: 4px;
 	}
 
 	&[data-toggled='false'] {
-		--wl-button-text-color: var(--wl-text-color-primary);
-		background-color: var(--wl-background-color-primary);
-		outline: 1px solid var(--wl-theme-color-primary);
+		--color-button-text: var(--color-text-primary);
+		background-color: var(--color-background-primary);
+		outline: 1px solid var(--color-theme-primary);
 
 		&:hover {
-			outline: 1px solid var(--wl-theme-color-primary);
-			background-color: var(--wl-background-color-secondary);
+			outline: 1px solid var(--color-theme-primary);
+			background-color: var(--color-background-secondary);
 		}
 	}
 
@@ -111,13 +111,13 @@ $button-padding: 4px;
 		background-color: var(--wl-color-button-disabled);
 		pointer-events: none;
 		cursor: default;
-		color: var(--wl-text-color-secondary);
+		color: var(--color-text-secondary);
 		outline: 1px solid #3600cc00;
 	}
 
 	&[data-success='true'] {
 		background-color: #00b123;
-		outline: 2px solid rgb(from var(--wl-theme-color-primary) r g b / 0%);
+		outline: 2px solid rgb(from var(--color-theme-primary) r g b / 0%);
 		cursor: default;
 		pointer-events: none;
 		padding: 0;
@@ -140,17 +140,17 @@ $button-padding: 4px;
 	}
 
 	&[data-danger='true'] {
-		background-color: rgb(var(--wl-button-color-danger));
-		outline: 1px solid rgb(var(--wl-button-color-danger), 0);
+		background-color: rgb(var(--color-button-danger));
+		outline: 1px solid rgb(var(--color-button-danger), 0);
 
 		&[data-subtle='true'] {
 			background-color: var(--wl-danger-subtle);
 		}
 
 		&:hover {
-			background-color: var(--wl-background-color-secondary);
-			--wl-button-text-color: rgb(var(--wl-button-color-danger));
-			outline: 1px solid rgb(var(--wl-button-color-danger), 100);
+			background-color: var(--color-background-secondary);
+			--color-button-text: rgb(var(--color-button-danger));
+			outline: 1px solid rgb(var(--color-button-danger), 100);
 		}
 
 		&[data-disabled='true'] {
@@ -186,7 +186,7 @@ $button-padding: 4px;
 
 	&[data-float='true'] {
 		animation: float 2s infinite;
-		//outline: 1px solid var(--wl-theme-color)
+		//outline: 1px solid var(--color-theme)
 	}
 }
 
@@ -221,7 +221,7 @@ $button-padding: 4px;
 
 	transition-property: opacity;
 	transition-duration: 150ms;
-	transition-timing-function: var(--wl-transition-func);
+	transition-timing-function: var(--ease-wl-default);
 
 	&[data-center='true'] {
 		width: 100%;
@@ -275,7 +275,7 @@ $button-padding: 4px;
 	overflow: hidden;
 	opacity: 0;
 	pointer-events: none;
-	color: var(--wl-button-text-color);
+	color: var(--color-button-text);
 	transition: color 200ms ease-in-out;
 
 	&[data-show-text='true'] {
@@ -290,7 +290,7 @@ $button-padding: 4px;
 	}
 
 	[data-disabled='true'] & {
-		color: var(--wl-text-color-secondary);
+		color: var(--color-text-secondary);
 	}
 }
 
@@ -321,18 +321,18 @@ $button-padding: 4px;
 .button-icon {
 	height: 100%;
 	width: 100%;
-	color: var(--wl-button-text-color);
+	color: var(--color-button-text);
 	transition: color 200ms ease-in-out;
 
 	[data-disabled='true'] & {
-		color: var(--wl-text-color-secondary);
+		color: var(--color-text-secondary);
 	}
 }
 
 .button-tooltip {
 	position: absolute;
 	z-index: 100;
-	background-color: rgb(from var(--wl-theme-color-secondary) r g b / 0.50);
+	background-color: rgb(from var(--color-theme-secondary) r g b / 0.50);
 	color: white;
 	border-radius: 4px;
 	padding: 4px;

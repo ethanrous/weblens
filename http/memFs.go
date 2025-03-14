@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/fileTree"
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
+	"github.com/rs/zerolog/log"
 )
 
 type InMemoryFS struct {
@@ -38,7 +38,7 @@ func (fs *InMemoryFS) loadIndex(uiDir string) string {
 
 // Open Implements FileSystem interface
 func (fs *InMemoryFS) Open(name string) (http.File, error) {
-	log.Trace.Println("MemFs Opening file", name)
+	log.Trace().Msgf("MemFs Opening file: %s", name)
 
 	if name == "/index" {
 		return fs.Index("/index"), nil
@@ -129,14 +129,14 @@ func (fs *InMemoryFS) Index(loc string) *MemFileWrap {
 
 	tmpl, err := template.New("index").Parse(string(index.realFile.data))
 	if err != nil {
-		log.ErrTrace(err)
+		log.Error().Stack().Err(err).Msg("")
 		return index
 	}
 
 	buf := bytes.NewBuffer(nil)
 	err = tmpl.Execute(buf, fields)
 	if err != nil {
-		log.ErrTrace(err)
+		log.Error().Stack().Err(err).Msg("")
 		return index
 	}
 
@@ -158,18 +158,24 @@ func getIndexFields(path, proxyAddress string, pack *models.ServicePack) indexFi
 		path = path[len("files/share/"):]
 		slashIndex := strings.Index(path, "/")
 		if slashIndex == -1 {
-			log.Debug.Println("Could not find slash in path:", path)
 			return fields
 		}
 
 		shareId := models.ShareId(path[:slashIndex])
 		share := pack.ShareService.Get(shareId)
 		if share != nil {
+			if !share.IsPublic() {
+				fields.Title = "Sign in to view"
+				fields.Description = "Private file share"
+				fields.Image = "/logo_1200.png"
+				return fields
+			}
+
 			f, err := pack.FileService.GetFileSafe(
 				fileTree.FileId(share.GetItemId()), pack.UserService.GetRootUser(), nil,
 			)
 			if err != nil {
-				log.ErrTrace(err)
+				log.Error().Stack().Err(err).Msg("")
 				return fields
 			}
 			m := pack.MediaService.Get(models.ContentId(f.GetContentId()))
@@ -177,7 +183,7 @@ func getIndexFields(path, proxyAddress string, pack *models.ServicePack) indexFi
 				if f.IsDir() {
 					cover, err := pack.FileService.GetFolderCover(f)
 					if err != nil {
-						log.ErrTrace(err)
+						log.Error().Stack().Err(err).Msg("")
 						return fields
 					}
 					if cover != "" {

@@ -5,8 +5,8 @@ import (
 	"sync"
 
 	"github.com/ethanrous/weblens/internal"
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/rs/zerolog/log"
 )
 
 type Lifetime struct {
@@ -30,7 +30,7 @@ func NewLifetime(createAction *FileAction) (*Lifetime, error) {
 	}
 
 	if !createAction.file.IsDir() && createAction.file.GetContentId() == "" && createAction.file.Size() != 0 {
-		log.Error.Printf("No content file: %s", createAction.OriginPath)
+		log.Error().Msgf("No content file: %s", createAction.OriginPath)
 		return nil, werror.Errorf("cannot create regular file lifetime without content id")
 	}
 
@@ -137,15 +137,13 @@ func LifetimeSorter(a, b *Lifetime) int {
 	// Sort lifetimes by their most recent move time
 	aLatestMove := a.GetLatestMove()
 	if aLatestMove == nil {
-		log.Error.Printf("LifetimeSorter: a is nil for %s", a.Id)
-		log.Debug.Println(a.GetActions()[0].ActionType)
+		log.Error().Msgf("LifetimeSorter: a is nil for %s", a.Id)
 		return 1
 	}
 
 	bLatestMove := b.GetLatestMove()
 	if bLatestMove == nil {
-		log.Error.Printf("LifetimeSorter: b is nil for %s", b.Id)
-		log.Debug.Println(b.GetActions()[0].ActionType)
+		log.Error().Msgf("LifetimeSorter: b is nil for %s", b.Id)
 		return -1
 	}
 

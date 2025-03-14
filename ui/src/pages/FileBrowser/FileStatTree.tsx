@@ -1,5 +1,5 @@
 // import { IconFolder } from '@tabler/icons-react'
-// import { useResize } from '@weblens/components/hooks'
+// import { useResize } from '@weblens/lib/hooks'
 // import WeblensButton from '@weblens/lib/WeblensButton'
 // // import * as d3 from 'd3';
 // import { humanFileSize } from '@weblens/util'
@@ -72,7 +72,7 @@
 //             </div>
 //             <div
 //                 ref={setBoxRef}
-//                 className="flex justify-center items-center h-full rounded m-5"
+//                 className="flex justify-center items-center h-full rounded-sm m-5"
 //             >
 //                 {stats.length === 0 && (
 //                     <p className="flex w-max text-nowrap text-xl font-bold">

@@ -11,12 +11,14 @@ function globalApplyTheme(
     newTheme: AbsoluteTheme,
     setTheme?: (theme: AbsoluteTheme) => void
 ) {
-    const currentMode = document.documentElement.classList.contains('dark')
-        ? ThemeStateEnum.DARK
-        : ThemeStateEnum.LIGHT
+    const currentMode =
+        document.documentElement.style.getPropertyValue('color-scheme') ===
+        'dark'
+            ? ThemeStateEnum.DARK
+            : ThemeStateEnum.LIGHT
 
     if (newTheme !== currentMode) {
-        document.documentElement.classList.toggle('dark')
+        document.documentElement.style.setProperty('color-scheme', newTheme)
     }
     if (setTheme) {
         setTheme(newTheme)
@@ -50,6 +52,7 @@ export interface ThemeStateT {
     isOSControlled: boolean
     changeTheme: (newTheme: ThemeStateEnum) => void
 }
+
 const ThemeControl: StateCreator<ThemeStateT, [], []> = (set) => {
     const callback = (event: MediaQueryListEvent) => {
         set((state) => {

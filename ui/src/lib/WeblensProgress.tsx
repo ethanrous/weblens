@@ -1,4 +1,4 @@
-import { useResize } from '@weblens/components/hooks'
+import { useResize } from '@weblens/lib/hooks'
 import progressStyle from '@weblens/lib/weblensProgress.module.scss'
 import { clamp } from '@weblens/util'
 import { CSSProperties, useEffect, useState } from 'react'
@@ -16,7 +16,7 @@ type progressProps = {
     style?: CSSProperties
     primaryColor?: string
     secondaryColor?: string
-	className?: string
+    className?: string
 }
 
 function WeblensProgress({
@@ -30,7 +30,7 @@ function WeblensProgress({
     seekCallback,
     primaryColor,
     secondaryColor,
-	className,
+    className,
 }: progressProps) {
     const [dragging, setDragging] = useState(false)
     const [percentage, setPercentage] = useState(clamp(value, 0, 100))
@@ -71,15 +71,18 @@ function WeblensProgress({
         // height: orientation === 'vertical' ? '100%' : height,
     }
     if (primaryColor) {
-        style['--wl-progress-bar-color-primary'] = primaryColor
+        style['--color-progress-bar-primary'] = primaryColor
     }
     if (secondaryColor) {
-        style['--wl-progress-bar-color-secondary'] = secondaryColor
+        style['--color-progress-bar-secondary'] = secondaryColor
     }
 
     return (
         <div
-            className={"pointer-events-auto relative flex items-center h-full " + className}
+            className={
+                'pointer-events-auto relative flex h-3 items-center ' +
+                className
+            }
             data-scrubbing={dragging}
             style={style}
             data-seekable={seekCallback !== undefined}
@@ -129,7 +132,7 @@ function WeblensProgress({
                 }}
             >
                 <div
-                    className="pointer-events-none relative z-20 h-full bg-wl-progress-bar-color-primary shadow-lg transition-colors"
+                    className="bg-progress-bar-primary pointer-events-none relative z-20 h-full shadow-lg transition-colors"
                     data-complete={complete}
                     style={{
                         height: orientation === 'horizontal' ? '' : `${value}%`,
@@ -138,7 +141,7 @@ function WeblensProgress({
                 />
                 {seekCallback !== undefined && (
                     <div
-                        className="pointer-events-none absolute z-20 h-full bg-wl-progress-bar-color-primary/50 shadow-lg transition-colors"
+                        className="bg-progress-bar-primary/50 pointer-events-none absolute z-20 h-full shadow-lg transition-colors"
                         data-seek-hint={true}
                         style={{
                             height:
@@ -153,7 +156,7 @@ function WeblensProgress({
                     />
                 )}
                 <div
-                    className="pointer-events-none absolute z-10 h-full bg-wl-progress-bar-color-secondary shadow-lg transition-colors"
+                    className="bg-progress-bar-secondary pointer-events-none absolute z-10 h-full shadow-lg transition-colors"
                     data-secondary={true}
                     style={{
                         height:

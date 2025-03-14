@@ -1,4 +1,3 @@
-import { useClickOutside } from '@mantine/hooks'
 import {
     IconChevronLeft,
     IconChevronRight,
@@ -6,6 +5,7 @@ import {
     IconX,
 } from '@tabler/icons-react'
 import { WsMsgAction, useWebsocketStore } from '@weblens/api/Websocket'
+import { useClick } from '@weblens/lib/hooks'
 import LoaderDots from '@weblens/lib/LoaderDots'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
@@ -34,21 +34,17 @@ export function TasksPane({
     const showingMenu = useTaskState((state) => state.showingMenu)
     const setShowingMenu = useTaskState((state) => state.setShowingMenu)
 
-    useClickOutside(
-        () => {
-            useMessagesController.getState().addMessage({
-                text: 'Tasks menu closed',
-                duration: 5000,
-                severity: 'debug',
-            })
+    useClick(() => {
+        useMessagesController.getState().addMessage({
+            text: 'Tasks menu closed',
+            duration: 5000,
+            severity: 'debug',
+        })
 
-            if (showingMenu) {
-                setShowingMenu(false)
-            }
-        },
-        null,
-        [calloutDivRef]
-    )
+        if (showingMenu) {
+            setShowingMenu(false)
+        }
+    }, calloutDivRef)
 
     const sortedTasks = useMemo(() => {
         const sortedTasks = Array.from(tasksMap.values()).sort((a, b) => {
@@ -72,19 +68,19 @@ export function TasksPane({
     return (
         <div
             ref={setPaneRef}
-            className="absolute left-full top-[-100%] z-50 ml-10 flex h-max w-96 max-w-[50vw] grow flex-col rounded-md border border-wl-theme-color-primary bg-wl-background-color-primary p-4 pt-4 shadow-2xl"
+            className="border-color-theme-primary bg-background-primary absolute top-[-100%] left-full z-50 ml-10 flex h-max w-96 max-w-[50vw] grow flex-col rounded-md border p-4 pt-4 shadow-2xl"
         >
-			<div className='flex flex-row items-center mb-2'>
-				<WeblensButton
-					Left={IconChevronLeft}
-					size="tiny"
-					className="w-max h-max"
-					onClick={() => {
-						setShowingMenu(false)
-					}}
-				/>
-				<h4 className='m-auto'>Tasks</h4>
-			</div>
+            <div className="mb-2 flex flex-row items-center">
+                <WeblensButton
+                    Left={IconChevronLeft}
+                    size="tiny"
+                    className="h-max w-max"
+                    onClick={() => {
+                        setShowingMenu(false)
+                    }}
+                />
+                <h4 className="m-auto">Tasks</h4>
+            </div>
             {sortedTasks.length === 0 && (
                 <h3 className="my-12 text-center">No tasks running</h3>
             )}
@@ -137,7 +133,7 @@ function TaskProgTimers({ prog }: { prog: TaskProgress }) {
             {prog.workingOn.map((workingOn, i) => {
                 return (
                     <div
-                        className="flex select-none justify-between text-nowrap"
+                        className="flex justify-between text-nowrap select-none"
                         key={i}
                     >
                         <p key={workingOn.itemId} className="truncate">
@@ -165,12 +161,12 @@ const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
     }
 
     return (
-        <div className="m-1 flex h-max min-w-0 flex-col items-center rounded-md bg-wl-background-color-primary p-4 transition hover:bg-wl-background-color-secondary/50">
+        <div className="bg-background-primary hover:bg-background-secondary/50 m-1 flex h-max min-w-0 flex-col items-center rounded-md p-4 transition">
             <div className="flex h-max w-full max-w-full flex-row items-center">
                 <div className="flex w-full flex-col">
                     <div className="flex h-max w-full flex-row items-center justify-between">
                         <div className="flex w-[50%] grow flex-row items-center gap-2">
-                            <h5 className="max-w-full select-none truncate text-nowrap">
+                            <h5 className="max-w-full truncate text-nowrap select-none">
                                 {prog.FormatTaskName()}
                             </h5>
                             {Number(prog.tasksFailed) > 0 && (
@@ -212,7 +208,7 @@ const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
                 </div>
             </div>
             {prog.stage !== TaskStage.InProgress && (
-                <div className="flex h-max w-full select-none flex-row justify-between gap-3 text-wl-text-color-secondary">
+                <div className="text-color-text-secondary flex h-max w-full flex-row justify-between gap-3 select-none">
                     {prog.stage === TaskStage.Complete && (
                         <span className="w-max">
                             Finished{' '}
@@ -220,17 +216,17 @@ const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
                         </span>
                     )}
                     {prog.stage === TaskStage.Queued && (
-                        <span className="w-max select-none truncate text-sm">
+                        <span className="w-max truncate text-sm select-none">
                             Queued...
                         </span>
                     )}
                     {prog.stage === TaskStage.Failure && (
-                        <span className="w-max select-none truncate text-sm">
+                        <span className="w-max truncate text-sm select-none">
                             {prog.tasksFailed || prog.FormatTaskType()} failed
                         </span>
                     )}
                     {prog.stage === TaskStage.Cancelled && (
-                        <span className="w-max select-none truncate text-sm">
+                        <span className="w-max truncate text-sm select-none">
                             Cancelled
                         </span>
                     )}
@@ -251,7 +247,7 @@ const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
             {prog.stage === TaskStage.InProgress && (
                 <div className="m-2 flex h-max w-full flex-col justify-between gap-3">
                     {totalNum > 0 && (
-                        <p className="select-none border-b border-wl-border-color-primary pb-1 text-sm">
+                        <p className="border-color-border-primary border-b pb-1 text-sm select-none">
                             {prog.tasksComplete}/{prog.tasksTotal}
                         </p>
                     )}
@@ -293,37 +289,37 @@ export function TaskProgressMini() {
             ref={setCalloutRef}
         >
             {taskPoolProgress < 100 && (
-                <div className="group mt-2 flex w-full cursor-pointer flex-col items-center gap-2 rounded p-2 text-wl-text-color-secondary transition hover:bg-wl-background-color-secondary hover:text-wl-theme-color-primary">
+                <div className="group text-color-text-secondary hover:bg-background-secondary hover:text-color-theme-primary mt-2 flex w-full cursor-pointer flex-col items-center gap-2 rounded-sm p-2 transition">
                     <div className="flex w-full items-center">
-                        <span className="text-wl-text-color-secondary transition group-hover:text-wl-text-color-primary">
+                        <span className="text-color-text-secondary group-hover:text-color-text-primary transition">
                             Tasks are running
                         </span>
-                        <LoaderDots className="mb-1 ml-1 mt-auto group-hover:text-wl-text-color-primary" />
-                        <IconChevronRight className="ml-auto text-wl-text-color-secondary transition group-hover:text-wl-text-color-primary" />
+                        <LoaderDots className="group-hover:text-color-text-primary mt-auto mb-1 ml-1" />
+                        <IconChevronRight className="text-color-text-secondary group-hover:text-color-text-primary ml-auto transition" />
                     </div>
                     <WeblensProgress
                         value={taskPoolProgress}
-						className='min-h-3 w-full'
+                        className="min-h-3 w-full"
                     />
                 </div>
             )}
             {taskPoolProgress === 100 && (
-                <div className="group mt-2 flex w-full cursor-pointer flex-col items-center gap-2 rounded p-2 text-wl-text-color-secondary transition hover:bg-wl-background-color-secondary hover:text-wl-theme-color-primary">
+                <div className="group text-color-text-secondary hover:bg-background-secondary hover:text-color-theme-primary mt-2 flex w-full cursor-pointer flex-col items-center gap-2 rounded-sm p-2 transition">
                     <div className="flex w-full items-center">
-                        <span className="text-wl-text-color-secondary transition group-hover:text-wl-text-color-primary">
+                        <span className="text-color-text-secondary group-hover:text-color-text-primary transition">
                             Tasks complete
                         </span>
-                        <IconChevronRight className="ml-auto text-wl-text-color-secondary transition group-hover:translate-x-1 group-hover:text-wl-text-color-primary" />
+                        <IconChevronRight className="text-color-text-secondary group-hover:text-color-text-primary ml-auto transition group-hover:translate-x-1" />
                     </div>
                 </div>
             )}
             {tasksMap.size === 0 && (
-                <div className="group mt-2 flex w-full cursor-pointer flex-col items-center gap-2 rounded p-2 text-wl-text-color-secondary transition hover:bg-wl-background-color-secondary hover:text-wl-theme-color-primary">
+                <div className="group text-color-text-secondary hover:bg-background-secondary hover:text-color-theme-primary mt-2 flex w-full cursor-pointer flex-col items-center gap-2 rounded-sm p-2 transition">
                     <div className="flex w-full items-center">
-                        <span className="text-wl-text-color-secondary transition group-hover:text-wl-text-color-primary">
+                        <span className="text-color-text-secondary group-hover:text-color-text-primary transition">
                             No Tasks
                         </span>
-                        <IconChevronRight className="ml-auto text-wl-text-color-secondary transition group-hover:translate-x-1 group-hover:text-wl-text-color-primary" />
+                        <IconChevronRight className="text-color-text-secondary group-hover:text-color-text-primary ml-auto transition group-hover:translate-x-1" />
                     </div>
                 </div>
             )}

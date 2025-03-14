@@ -16,6 +16,7 @@ import (
 	"github.com/ethanrous/weblens/internal"
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/rs/zerolog"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -424,6 +425,8 @@ type VideoStreamer struct {
 	listFileCache []byte
 	updateMu      sync.RWMutex
 	encodingBegun atomic.Bool
+
+	log *zerolog.Logger
 }
 
 func NewVideoStreamer(file *fileTree.WeblensFileImpl, thumbsPath string) *VideoStreamer {
@@ -445,13 +448,13 @@ func (vs *VideoStreamer) transcodeChunks(f *fileTree.WeblensFileImpl, speed stri
 
 		err, ok := e.(error)
 		if !ok {
-			log.Error.Printf("transcodeChunks panicked and got non-error error: %v", e)
+			vs.log.Error().Msgf("transcodeChunks panicked and got non-error error: %v", e)
 			return
 		}
-		log.ErrTrace(err)
+		vs.log.Error().Stack().Err(err).Msg("")
 	}()
 
-	log.Debug.Printf("Transcoding video %s => %s", f.AbsPath(), vs.streamDirPath)
+	vs.log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Transcoding video %s => %s", f.AbsPath(), vs.streamDirPath) })
 
 	err := os.Mkdir(vs.streamDirPath, os.ModePerm)
 	if err != nil && !errors.Is(err, os.ErrExist) {
@@ -469,7 +472,7 @@ func (vs *VideoStreamer) transcodeChunks(f *fileTree.WeblensFileImpl, speed stri
 		return
 	}
 
-	log.Trace.Printf("Bitrate: %d %d", videoBitrate, audioBitrate)
+	vs.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Bitrate: %d %d", videoBitrate, audioBitrate) })
 	outputArgs := ffmpeg.KwArgs{
 		"c:v":                "libx264",
 		"b:v":                int(videoBitrate),
@@ -578,7 +581,7 @@ func (vs *VideoStreamer) IsTranscoding() bool {
 }
 
 func (vs *VideoStreamer) probeSourceBitrate(f *fileTree.WeblensFileImpl) (videoBitrate int64, audioBitrate int64, err error) {
-	log.Debug.Println("Probing", f.AbsPath())
+	vs.log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Probing %s", f.AbsPath()) })
 	probeJson, err := ffmpeg.Probe(f.AbsPath())
 	if err != nil {
 		return 0, 0, err

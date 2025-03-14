@@ -1,4 +1,3 @@
-import { Divider, FileButton } from '@mantine/core'
 import {
     IconFiles,
     IconFolderPlus,
@@ -7,21 +6,19 @@ import {
     IconPlus,
     IconServer,
     IconTrash,
-    IconUpload,
     IconUsers,
 } from '@tabler/icons-react'
 import { FileApi, FolderApi } from '@weblens/api/FileBrowserApi'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import UsageInfo from '@weblens/components/filebrowser/usageInfo'
-import { useResizeDrag, useWindowSize } from '@weblens/components/hooks'
+import { useResizeDrag, useWindowSize } from '@weblens/lib/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
+import WeblensFileButton from '@weblens/lib/WeblensFileButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import { ButtonActionHandler } from '@weblens/lib/buttonTypes'
-import { HandleUploadButton } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { TaskProgressMini } from '@weblens/pages/FileBrowser/TaskProgress'
 import UploadStatus from '@weblens/pages/FileBrowser/UploadStatus'
 import fbStyle from '@weblens/pages/FileBrowser/style/fileBrowserStyle.module.scss'
-import { ErrorHandler } from '@weblens/types/Types'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import WeblensFile from '@weblens/types/files/File'
 import { goToFile } from '@weblens/types/files/FileDragLogic'
@@ -181,7 +178,7 @@ function FBSidebar() {
 
     return (
         <div
-            className="flex h-full w-full shrink-0 grow-0 flex-row items-start"
+            className="animate-fade-in flex h-full w-full shrink-0 grow-0 flex-row items-start"
             style={{
                 width: resizeOffset,
             }}
@@ -319,39 +316,15 @@ function FBSidebar() {
                             />
                         )}
 
-                        <FileButton
-                            onChange={(files) => {
-                                HandleUploadButton(
-                                    files,
-                                    folderInfo.Id(),
-                                    false,
-                                    shareId
-                                ).catch(ErrorHandler)
+                        <WeblensFileButton
+                            folderId={folderInfo?.Id()}
+                            shareId={shareId}
+                            buttonProps={{
+                                fillWidth: true,
+                                label: 'Upload',
                             }}
-                            accept="file"
-                            multiple
-                        >
-                            {(props) => {
-                                return (
-                                    <WeblensButton
-                                        label="Upload"
-                                        squareSize={40}
-                                        className="w-full max-w-full"
-                                        showSuccess={false}
-                                        fillWidth
-                                        disabled={
-                                            draggingState !==
-                                                DraggingStateT.NoDrag ||
-                                            !folderInfo?.IsModifiable()
-                                        }
-                                        Left={IconUpload}
-                                        onClick={props.onClick}
-                                    />
-                                )
-                            }}
-                        </FileButton>
+                        />
                     </div>
-                    <Divider w={'100%'} my="md" size={1.5} />
                     <UsageInfo />
                 </div>
                 <SelectedBox />
@@ -425,7 +398,7 @@ function SelectedBox() {
 
     return (
         <div
-            className="mt-2 h-max w-full animate-popup flex-row items-center justify-between rounded-lg bg-wl-background-color-secondary p-2 transition"
+            className="animate-popup bg-background-secondary mt-2 h-max w-full flex-row items-center justify-between rounded-lg p-2 transition"
             onTransitionEnd={() => {
                 if (selectedLength === 0) {
                     setClosed(true)
@@ -440,17 +413,15 @@ function SelectedBox() {
                 flexDirection: sidebarCollapsed ? 'column' : 'row',
             }}
         >
-            <div className="flex h-max w-min items-center text-wl-text-color-primary">
+            <div className="text-color-text-primary flex h-max w-min items-center">
                 <IconFiles />
-                <span className="select-none p-1">{selectedFileCount}</span>
+                <span className="p-1 select-none">{selectedFileCount}</span>
             </div>
             {!sidebarCollapsed && (
                 <>
-                    <span className="text-wl-text-color-secondary">
-                        Selected
-                    </span>
-                    <div className="flex h-max w-min items-center text-wl-text-color-primary">
-                        <span className="select-none p-1">
+                    <span className="text-color-text-secondary">Selected</span>
+                    <div className="text-color-text-primary flex h-max w-min items-center">
+                        <span className="p-1 select-none">
                             {selectedFolderCount}
                         </span>
                         <IconFolders />
@@ -458,9 +429,9 @@ function SelectedBox() {
                 </>
             )}
             {sidebarCollapsed && (
-                <div className="flex h-max w-min items-center text-wl-text-color-primary">
+                <div className="text-color-text-primary flex h-max w-min items-center">
                     <IconFolders />
-                    <span className="select-none p-1">
+                    <span className="p-1 select-none">
                         {selectedFolderCount}
                     </span>
                 </div>

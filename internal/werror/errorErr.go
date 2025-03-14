@@ -1,15 +1,13 @@
 package werror
 
 import (
-	"errors"
 	"fmt"
+
+	"github.com/pkg/errors"
 )
 
-func Errorf(format string, args ...any) StackError {
-	return &withStack{
-		err:   fmt.Errorf(format, args...),
-		stack: callers(3),
-	}
+func Errorf(format string, args ...any) error {
+	return errors.New(fmt.Sprintf(format, args...))
 }
 
 var NotImplemented = func(note string) error {
@@ -19,12 +17,26 @@ var NotImplemented = func(note string) error {
 	}
 }
 
+func NewClientSafeError(safeErr error, statusCode int, realErr ...error) ClientSafeErr {
+	var rerr error
+	if len(realErr) > 0 {
+		rerr = realErr[0]
+	}
+
+	return ClientSafeErr{
+		safeErr:    safeErr,
+		statusCode: statusCode,
+		realError:  rerr,
+	}
+}
+
 // ClientSafeErr packages an error that is safe to send to the client, and the real error that should be logged on the server.
 // See TrySafeErr for more information
 type ClientSafeErr struct {
 	realError  error
 	safeErr    error
 	arg        any
+	skipTrace  bool
 	statusCode int
 }
 
@@ -55,9 +67,18 @@ func (cse ClientSafeErr) Unwrap() error {
 	return cse.realError
 }
 
-func (cse ClientSafeErr) WithArg(arg any) ClientSafeErr {
+func (cse ClientSafeErr) WithArg(arg ...any) ClientSafeErr {
 	newCse := cse
 	newCse.realError = cse
 	newCse.arg = arg
 	return newCse
+}
+
+func GetSafeErr(err error) (error, int) {
+	var safeErr = ClientSafeErr{}
+	if errors.As(err, &safeErr) {
+		return safeErr.Safe(), safeErr.Code()
+	}
+
+	return errors.New("Unknown Server Error"), 500
 }

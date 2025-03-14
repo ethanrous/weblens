@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/fileTree"
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/models/rest"
@@ -121,7 +120,7 @@ func attachRemote(w http.ResponseWriter, r *http.Request) {
 		}
 
 		mockJournal := mock.NewHollowJournalService()
-		newTree, err := fileTree.NewFileTree(filepath.Join(pack.Cnf.DataRoot, newCore.ServerId()), newCore.ServerId(), mockJournal, false)
+		newTree, err := fileTree.NewFileTree(filepath.Join(pack.Cnf.DataRoot, newCore.ServerId()), newCore.ServerId(), mockJournal, false, pack.Log)
 		if SafeErrorAndExit(err, w) {
 			return
 		}
@@ -147,7 +146,7 @@ func attachRemote(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			log.ErrTrace(err)
+			pack.Log.Error().Stack().Err(err).Msg("")
 			writeJson(w, http.StatusInternalServerError, rest.WeblensErrorInfo{Error: err.Error()})
 			return
 		}
@@ -256,7 +255,7 @@ func initializeServer(w http.ResponseWriter, r *http.Request) {
 		for u := range users {
 			err = pack.UserService.Del(u.GetUsername())
 			if err != nil {
-				log.ShowErr(err)
+				pack.Log.Error().Stack().Err(err).Msg("")
 			}
 		}
 
@@ -292,7 +291,7 @@ func initializeServer(w http.ResponseWriter, r *http.Request) {
 		err = pack.InstanceService.InitBackup(initBody.Name, initBody.CoreAddress, initBody.CoreKey)
 		if err != nil {
 			pack.InstanceService.GetLocal().SetRole(models.InitServerRole)
-			log.ShowErr(err)
+			pack.Log.Error().Stack().Err(err).Msg("")
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -310,8 +309,7 @@ func initializeServer(w http.ResponseWriter, r *http.Request) {
 
 		err = pack.AccessService.AddApiKey(initBody.UsingKeyInfo)
 		if err != nil && !errors.Is(err, werror.ErrKeyAlreadyExists) {
-			safe, code := log.TrySafeErr(err)
-			writeJson(w, code, safe)
+			SafeErrorAndExit(err, w)
 			return
 		}
 
@@ -325,7 +323,7 @@ func initializeServer(w http.ResponseWriter, r *http.Request) {
 		if SafeErrorAndExit(err, w) {
 			return
 		}
-		usersTree, err := fileTree.NewFileTree(filepath.Join(pack.Cnf.DataRoot, "users"), "USERS", journal, false)
+		usersTree, err := fileTree.NewFileTree(filepath.Join(pack.Cnf.DataRoot, "users"), "USERS", journal, false, pack.Log)
 		if SafeErrorAndExit(err, w) {
 			return
 		}

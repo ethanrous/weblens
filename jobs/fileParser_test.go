@@ -24,7 +24,8 @@ var typeService models.MediaTypeService
 
 func init() {
 	var err error
-	mondb, err = database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName(env.Config{}))
+	logger := log.NewZeroLogger()
+	mondb, err = database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName(env.Config{}), logger)
 	if err != nil {
 		panic(err)
 	}
@@ -44,7 +45,7 @@ func TestScanFile(t *testing.T) {
 	}
 	t.Parallel()
 
-	logger := log.NewLogPackage("", log.DEBUG)
+	logger := log.NewZeroLogger()
 
 	col := mondb.Collection(t.Name())
 	err := col.Drop(context.Background())
@@ -53,7 +54,7 @@ func TestScanFile(t *testing.T) {
 	}
 	defer func() { _ = col.Drop(context.Background()) }()
 
-	testMediaTree, err := fileTree.NewFileTree(env.GetTestMediaPath(), "TEST_MEDIA", mock.NewHollowJournalService(), false)
+	testMediaTree, err := fileTree.NewFileTree(env.GetTestMediaPath(), "TEST_MEDIA", mock.NewHollowJournalService(), false, logger)
 	if err != nil {
 		panic(err)
 	}
@@ -79,7 +80,7 @@ func TestScanFile(t *testing.T) {
 			MediaService: mediaService,
 			Caster:       &mock.MockCaster{},
 		}
-		err = ScanFile_(scanMeta, func() {})
+		err = ScanFile_(scanMeta, func() {}, logger)
 		assert.NoError(t, err)
 	}
 
@@ -92,7 +93,7 @@ func TestScanDirectory(t *testing.T) {
 	}
 	t.Parallel()
 
-	logger := log.NewLogPackage("", log.DEBUG)
+	logger := log.NewZeroLogger()
 
 	col := mondb.Collection(t.Name())
 	err := col.Drop(context.Background())
@@ -105,9 +106,7 @@ func TestScanDirectory(t *testing.T) {
 	wp.RegisterJob(models.ScanFileTask, ScanFile)
 	wp.RegisterJob(models.ScanDirectoryTask, ScanDirectory)
 
-	testMediaTree, err := fileTree.NewFileTree(
-		env.GetTestMediaPath(), "TEST_MEDIA", mock.NewHollowJournalService(),
-		false)
+	testMediaTree, err := fileTree.NewFileTree(env.GetTestMediaPath(), "TEST_MEDIA", mock.NewHollowJournalService(), false, logger)
 	if err != nil {
 		panic(err)
 	}
@@ -140,7 +139,7 @@ func TestScanDirectory(t *testing.T) {
 
 	_, exitStatus := tsk.Status()
 	if !assert.Equal(t, task.TaskSuccess, exitStatus) {
-		logger.ErrTrace(tsk.ReadError())
+		logger.Error().Stack().Err(tsk.ReadError()).Msg("")
 		t.FailNow()
 	}
 

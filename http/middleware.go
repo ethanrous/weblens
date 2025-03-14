@@ -5,13 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"reflect"
-	"runtime"
+	"runtime/debug"
 	"strings"
+	"time"
 
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
+	"github.com/go-chi/chi/v5"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/hlog"
+	"github.com/rs/zerolog/log"
 )
 
 const SessionTokenCookie = "weblens-session-token"
@@ -137,19 +140,6 @@ func RequireOwner(next http.Handler) http.Handler {
 	})
 }
 
-func WithFuncName(next http.Handler) http.Handler {
-	if log.GetLogLevel() >= log.DEBUG {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			log.Debug.Println("Setting func name")
-			funcName := runtime.FuncForPC(reflect.ValueOf(next).Pointer()).Name()
-			funcName = funcName[strings.LastIndex(funcName, "/")+1 : strings.LastIndex(funcName, ".")]
-			r = r.WithContext(context.WithValue(r.Context(), FuncNameKey, funcName))
-			next.ServeHTTP(w, r)
-		})
-	}
-	return next
-}
-
 func WeblensAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		pack := getServices(r)
@@ -158,7 +148,7 @@ func WeblensAuth(next http.Handler) http.Handler {
 		// but everyone is the public user
 		if !pack.Loaded.Load() || pack.InstanceService.GetLocal().GetRole() == models.InitServerRole {
 			r = r.WithContext(context.WithValue(r.Context(), UserKey, pack.UserService.GetPublicUser()))
-			log.Trace.Println("Allowing unauthenticated request")
+			log.Trace().Msg("Allowing unauthenticated request")
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -168,7 +158,7 @@ func WeblensAuth(next http.Handler) http.Handler {
 		if sessionCookie != nil && len(sessionCookie.Value) != 0 && err == nil {
 			usr, err := ParseUserLogin(sessionCookie.Value, pack.AccessService)
 			if err != nil {
-				log.ShowErr(err)
+				log.Error().Stack().Err(err).Msg("")
 				if errors.Is(err, werror.ErrTokenExpired) {
 					cookie := fmt.Sprintf("%s=;Path=/;Expires=Thu, 01 Jan 1970 00:00:00 GMT;HttpOnly", SessionTokenCookie)
 					w.Header().Set("Set-Cookie", cookie)
@@ -178,6 +168,10 @@ func WeblensAuth(next http.Handler) http.Handler {
 			}
 
 			r = r.WithContext(context.WithValue(r.Context(), UserKey, usr))
+
+			hlog.FromRequest(r).UpdateContext(func(c zerolog.Context) zerolog.Context {
+				return c.Str("user", usr.GetUsername())
+			})
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -194,6 +188,9 @@ func WeblensAuth(next http.Handler) http.Handler {
 			}
 
 			r = r.WithContext(context.WithValue(r.Context(), UserKey, usr))
+			hlog.FromRequest(r).UpdateContext(func(c zerolog.Context) zerolog.Context {
+				return c.Str("user", usr.GetUsername())
+			})
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -213,7 +210,7 @@ func KeyOnlyAuth(next http.Handler) http.HandlerFunc {
 		pack, ok := r.Context().Value(ServicesKey).(*models.ServicePack)
 		if pack == nil || !ok {
 			w.WriteHeader(http.StatusInternalServerError)
-			log.Error.Println(werror.Errorf("Could not assert services from context in WeblensAuth"))
+			log.Error().Err(werror.Errorf("Could not assert services from context in WeblensAuth")).Msg("")
 			return
 		}
 
@@ -221,12 +218,12 @@ func KeyOnlyAuth(next http.Handler) http.HandlerFunc {
 		if len(authHeader) != 0 {
 			_, server, err := ParseApiKeyLogin(authHeader[0], pack)
 			if err != nil {
-				log.ShowErr(err)
+				log.Error().Stack().Err(err).Msg("")
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 			if server == nil {
-				log.Warning.Println(werror.Errorf("Got nil server in KeyOnlyAuth"))
+				log.Warn().Err(werror.Errorf("Got nil server in KeyOnlyAuth")).Msg("")
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
@@ -272,11 +269,14 @@ func Recoverer(next http.Handler) http.Handler {
 					panic(rvr)
 				}
 
+				log := hlog.FromRequest(r)
+				stack := debug.Stack()
+
 				err, ok := rvr.(error)
 				if ok {
-					log.ErrTrace(err)
+					log.Error().Bytes("panic_traceback", stack).Err(err).Msg("Recovered from panic in request handler")
 				} else {
-					log.Error.Println("HTTP PANIC\n", rvr)
+					log.Error().Stack().Msgf("Recovered unknown panic in request handler: %v", rvr)
 				}
 
 				if r.Header.Get("Connection") != "Upgrade" {
@@ -289,4 +289,60 @@ func Recoverer(next http.Handler) http.Handler {
 	}
 
 	return http.HandlerFunc(fn)
+}
+
+// URLHandler adds the requested URL as a field to the context's logger
+// using fieldKey as field key.
+func URLGroupHandler(fieldKey string) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			log := zerolog.Ctx(r.Context())
+			next.ServeHTTP(w, r)
+			log.UpdateContext(func(c zerolog.Context) zerolog.Context {
+				route := chi.RouteContext(r.Context()).RoutePattern()
+				return c.Str(fieldKey, route)
+			})
+		})
+	}
+}
+
+func QueryParamHandler(fieldKey string) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			log := zerolog.Ctx(r.Context())
+			next.ServeHTTP(w, r)
+			log.UpdateContext(func(c zerolog.Context) zerolog.Context {
+				// Get the query parameters from the request
+				queryParams := r.URL.Query()
+				// Convert the query parameters to a string representation
+				for key, values := range queryParams {
+					value := strings.Join(values, ",")
+					c = c.Str("query_"+key, value)
+
+				}
+				return c
+			})
+		})
+	}
+}
+
+func LoggerMiddlewares(logger zerolog.Logger) []func(http.Handler) http.Handler {
+	return []func(http.Handler) http.Handler{
+		hlog.NewHandler(logger),
+		hlog.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
+			hlog.FromRequest(r).Info().
+				Str("method", r.Method).
+				Stringer("url", r.URL).
+				Int("status", status).
+				Int("size", size).
+				Dur("duration", duration).
+				Msg("")
+		}),
+		URLGroupHandler("url_group"),
+		QueryParamHandler("query"),
+		hlog.RemoteIPHandler("ip"),
+		hlog.RefererHandler("referer"),
+		hlog.RequestIDHandler("req_id", "Request-Id"),
+	}
+
 }

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/ethanrous/weblens/internal/log"
+	"github.com/rs/zerolog"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -24,8 +24,8 @@ const (
 
 const maxRetries = 5
 
-func ConnectToMongo(mongoUri, mongoDbName string) (*mongo.Database, error) {
-	log.Debug.Func(func(l log.Logger) { l.Printf("Connecting to Mongo at %s with name %s ...", mongoUri, mongoDbName) })
+func ConnectToMongo(mongoUri, mongoDbName string, logger *zerolog.Logger) (*mongo.Database, error) {
+	logger.Debug().Func(func(e *zerolog.Event) { e.Msgf("Connecting to Mongo at %s with name %s ...", mongoUri, mongoDbName) })
 	clientOptions := options.Client().ApplyURI(mongoUri).SetTimeout(time.Second * 5)
 	var err error
 	mongoc, err := mongo.Connect(context.Background(), clientOptions)
@@ -39,16 +39,14 @@ func ConnectToMongo(mongoUri, mongoDbName string) (*mongo.Database, error) {
 		if err == nil {
 			break
 		}
-		log.Warning.Printf("Failed to connect to mongo, trying %d more time(s)", maxRetries-retries)
+		logger.Warn().Msgf("Failed to connect to mongo, trying %d more time(s)", maxRetries-retries)
 		time.Sleep(time.Second * 1)
 		retries++
 	}
 	if err != nil {
-		log.Error.Printf("Failed to connect to database after %d retries", maxRetries)
+		logger.Error().Msgf("Failed to connect to database after %d retries", maxRetries)
 		return nil, err
 	}
-
-	log.Debug.Println("Connected to mongodb")
 
 	return mongoc.Database(mongoDbName), nil
 }

@@ -6,7 +6,7 @@ import {
     IconUsers,
 } from '@tabler/icons-react'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import { useClick, useResize } from '@weblens/components/hooks'
+import { useClick, useResize } from '@weblens/lib/hooks'
 import { filenameFromPath } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { ShareRoot, useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'

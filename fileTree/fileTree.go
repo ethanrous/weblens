@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethanrous/weblens/internal"
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -28,6 +28,7 @@ type FileTreeImpl struct {
 	rootAlias string
 
 	fsTreeLock sync.RWMutex
+	log        *zerolog.Logger
 }
 
 type MoveInfo struct {
@@ -39,7 +40,7 @@ func boolPointer(b bool) *bool {
 	return &b
 }
 
-func NewFileTree(rootPath, rootAlias string, journal Journal, doFileDiscovery bool) (FileTree, error) {
+func NewFileTree(rootPath, rootAlias string, journal Journal, doFileDiscovery bool, log *zerolog.Logger) (FileTree, error) {
 	if journal == nil {
 		return nil, werror.Errorf("Got nil journal trying to create new FileTree")
 	}
@@ -83,6 +84,7 @@ func NewFileTree(rootPath, rootAlias string, journal Journal, doFileDiscovery bo
 		root:      root,
 		journal:   journal,
 		rootAlias: rootAlias,
+		log:       log,
 	}
 
 	event := tree.GetJournal().NewEvent()
@@ -111,7 +113,7 @@ func (ft *FileTreeImpl) addInternal(id FileId, f *WeblensFileImpl) {
 	ft.fsTreeLock.Lock()
 	defer ft.fsTreeLock.Unlock()
 
-	// log.Trace.Func(func(l log.Logger) {l.Printf("Adding %s (%s) to file tree", f.filename, f.id)})
+	// log.Trace().Func(func(e *zerolog.Event) {e.Msgf("Adding %s (%s) to file tree", f.filename, f.id)})
 
 	// Do not use .ID() inside critical section, as it may need to use the locks
 	ft.fMap[id] = f
@@ -205,7 +207,7 @@ func (ft *FileTreeImpl) Remove(id FileId) ([]*WeblensFileImpl, error) {
 	// f.ID()
 
 	if !ft.has(f.id) {
-		log.Warning.Println("Tried to remove key not in FsTree", f.ID())
+		ft.log.Warn().Msgf("Tried to remove key not in FsTree [%s]", f.ID())
 		return nil, werror.WithStack(werror.ErrNoFile.WithArg(f.ID()))
 	}
 
@@ -234,7 +236,7 @@ func (ft *FileTreeImpl) Delete(id FileId, event *FileEvent) error {
 	}
 
 	if f == ft.root {
-		return werror.Errorf("cannot delete root directory")
+		return werror.WithStack(werror.ErrRootFolder)
 	}
 
 	if f.IsDir() && len(f.GetChildren()) != 0 {
@@ -251,7 +253,10 @@ func (ft *FileTreeImpl) Delete(id FileId, event *FileEvent) error {
 		return werror.WithStack(err)
 	}
 
-	event.NewDeleteAction(f.ID())
+	_, err = event.NewDeleteAction(f.ID())
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -529,7 +534,7 @@ func (ft *FileTreeImpl) ReadDir(dir *WeblensFileImpl) ([]*WeblensFileImpl, error
 
 func (ft *FileTreeImpl) GetRoot() *WeblensFileImpl {
 	if ft.root == nil {
-		log.Error.Println("GetRoot called on fileTree with nil root")
+		ft.log.Error().Msg("GetRoot called on fileTree with nil root")
 	}
 	return ft.root
 }
@@ -587,6 +592,7 @@ func (ft *FileTreeImpl) ResizeUp(anchor *WeblensFileImpl, event *FileEvent, upda
 
 func (ft *FileTreeImpl) ResizeDown(anchor *WeblensFileImpl, event *FileEvent, updateCallback func(newFile *WeblensFileImpl)) error {
 	if ft.journal.IgnoreLocal() {
+		ft.log.Trace().Msg("Ignoring local resize down")
 		return nil
 	}
 
@@ -635,7 +641,6 @@ func handleFileResize(file *WeblensFileImpl, journal Journal, event *FileEvent, 
 
 func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, doFileDiscovery bool) error {
 	start := time.Now()
-	sw := internal.NewStopwatch("Load from root " + ft.GetRoot().GetPortablePath().RootName())
 
 	lifetimesByPath := map[string]*Lifetime{}
 	missing := map[string]struct{}{}
@@ -657,15 +662,12 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, doFileDiscovery bool) err
 		lifetimesByPath[path.ToPortable()] = lt
 	}
 
-	sw.Lap("Get active lifetimes")
-
 	toLoad, err := ft.ReadDir(ft.root)
 	if err != nil {
 		return err
 	}
-	sw.Lap("Read dir")
 
-	log.Trace.Func(func(l log.Logger) { l.Printf("[loadFromRoot] Starting loadFromRoot with %d children", len(toLoad)) })
+	log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Starting loadFromRoot with %d children", len(toLoad)) })
 	for len(toLoad) != 0 {
 		var fileToLoad *WeblensFileImpl
 
@@ -679,11 +681,6 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, doFileDiscovery bool) err
 			portablePath := fileToLoad.GetPortablePath().ToPortable()
 			if activeLt, ok := lifetimesByPath[portablePath]; ok {
 				// We found this lifetime, so it is not missing, remove it from the missing map
-				log.Trace.Func(func(l log.Logger) {
-					if _, ok := missing[activeLt.Id]; !ok {
-						l.Printf("Could not find lifetime in missing map %s", activeLt.Id)
-					}
-				})
 				delete(missing, activeLt.Id)
 
 				if event.journal != nil && activeLt.GetIsDir() != fileToLoad.IsDir() {
@@ -700,10 +697,10 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, doFileDiscovery bool) err
 				}
 			} else if doFileDiscovery {
 				fileToLoad.setIdInternal(ft.GenerateFileId())
-				log.Trace.Func(func(l log.Logger) { l.Printf("[loadFromRoot] Discovering new file %s", fileToLoad.getIdInternal()) })
+				log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Discovering new file %s", fileToLoad.getIdInternal()) })
 				event.NewCreateAction(fileToLoad)
 			} else {
-				log.Trace.Func(func(l log.Logger) { l.Printf("[loadFromRoot] Skipping new file and children %s", portablePath) })
+				log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Skipping new file and children %s", portablePath) })
 				continue
 			}
 		} else {
@@ -727,28 +724,25 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, doFileDiscovery bool) err
 			toLoad = append(toLoad, children...)
 		}
 	}
-	sw.Lap("Import loop")
 
 	if doFileDiscovery {
 		// If we have missing files, create delete actions for them
 		for missingId := range missing {
-			log.Trace.Printf("Removing file with missing id %s", missingId)
-			event.NewDeleteAction(missingId)
+			ft.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Removing file with missing id %s", missingId) })
+			_, err := event.NewDeleteAction(missingId)
+			if err != nil {
+				return err
+			}
 		}
-		sw.Lap("Delete events")
 	}
 
 	err = ft.ResizeDown(ft.GetRoot(), event, func(newFile *WeblensFileImpl) {})
 	if err != nil {
 		return err
 	}
-	sw.Lap("Resize Root")
 
-	sw.Stop()
-	sw.PrintResults(false)
-
-	log.Trace.Func(func(l log.Logger) {
-		l.Printf("loadFromRoot of %s complete in %s", ft.GetRoot().GetPortablePath(), time.Since(start))
+	log.Trace().Func(func(e *zerolog.Event) {
+		e.Msgf("loadFromRoot of %s complete in %s", ft.GetRoot().GetPortablePath(), time.Since(start))
 	})
 
 	return nil

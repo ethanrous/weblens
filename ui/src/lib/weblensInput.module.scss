@@ -8,9 +8,9 @@
 	cursor: text;
 
 	border-radius: 4px;
-	background-color: var(--wl-background-color-primary);
+	background-color: var(--color-background-primary);
 	box-shadow: var(--wl-soft-shadow-hidden);
-	border: 1px solid var(--wl-border-color-primary);
+	border: 1px solid var(--color-border-primary);
 	height: 100%;
 	width: max-content;
 	max-width: 100%;
@@ -21,15 +21,15 @@
 
 	transition-property: background-color, transform, border-color, box-shadow;
 	transition-duration: 150ms;
-	transition-timing-function: var(--wl-transition-func);
+	transition-timing-function: var(--ease-wl-default);
 
 	&:focus-within {
-		border: 1px solid var(--wl-theme-color-primary);
+		border: 1px solid var(--color-theme-primary);
 		box-shadow: var(--wl-soft-shadow);
 	}
 
 	&[data-subtle='true']:not(:focus-within) {
-		background-color: var(--wl-background-color-secondary);
+		background-color: var(--color-background-secondary);
 	}
 
 	&[data-value=''][data-minimize='true']:not(:focus-within) {
@@ -39,18 +39,18 @@
 
 		&:hover {
 			box-shadow: var(--wl-soft-shadow);
-			background-color: rgb(from var(--wl-theme-color-secondary) r g b / 0.50);
-			border: 1px solid var(--wl-theme-color-primary);
+			background-color: rgb(from var(--color-theme-secondary) r g b / 0.50);
+			border: 1px solid var(--color-theme-primary);
 			transform: translateY(-1px);
 		}
 	}
 
 	input {
-		color: var(--wl-text-color-primary);
+		color: var(--color-text-primary);
 	}
 
 	input::placeholder {
-		color: var(--wl-text-color-secondary);
+		color: var(--color-text-secondary);
 	}
 
 	&[data-fill-width='true'] {
@@ -58,11 +58,11 @@
 	}
 
 	&[data-failed='true'] {
-		background-color: rgb(from var(--wl-button-color-danger) r g b / 10%);
-		border: 1px solid var(--wl-button-color-danger);
+		background-color: rgb(from var(--color-button-danger) r g b / 10%);
+		border: 1px solid var(--color-button-danger);
 
 		input {
-			background-color: rgb(from var(--wl-button-color-danger) r g b / 0%) !important;
+			background-color: rgb(from var(--color-button-danger) r g b / 0%) !important;
 		}
 	}
 
@@ -73,7 +73,7 @@
 	&[data-disabled='true'] {
 		pointer-events: none;
 		background-color: var(--wl-color-button-disabled);
-		border-color: var(--wl-border-color-primary);
+		border-color: var(--color-border-primary);
 	}
 
 }

@@ -1,9 +1,9 @@
 import { Icon } from '@tabler/icons-react'
-import { useIsFocused } from '@weblens/components/hooks'
+import { useIsFocused } from '@weblens/lib/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import { useEffect, useState } from 'react'
 
-import { ButtonActionPromiseReturn } from './buttonTypes'
+import { ButtonActionPromiseReturn, ButtonIcon } from './buttonTypes'
 import inputStyle from './weblensInput.module.scss'
 
 function WeblensInput({
@@ -32,7 +32,7 @@ function WeblensInput({
     value?: string
     valueCallback?: (v: string) => void
     Icon?: Icon
-    buttonIcon?: Icon
+    buttonIcon?: ButtonIcon
     squareSize?: number
     placeholder?: string
     openInput?: () => void

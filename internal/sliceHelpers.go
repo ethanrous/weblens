@@ -10,18 +10,6 @@ func Yoink[T any](s []T, i int) ([]T, T) {
 	return n, t
 }
 
-func YoinkFunc[T any](s []T, fn func(f T) bool) (rs []T, rt T, re bool) {
-	for i, t := range s {
-		if fn(t) {
-			rs, rt = Yoink(s, i)
-			re = true
-			return
-		}
-	}
-	rs = s
-	return
-}
-
 func OnlyUnique[T comparable](s []T) (rs []T) {
 	tmpMap := make(map[T]bool, len(s))
 	for _, t := range s {

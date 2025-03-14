@@ -11,7 +11,7 @@ import {
     IconSortDescending2,
     TablerIconsProps,
 } from '@tabler/icons-react'
-import { useResize } from '@weblens/components/hooks'
+import { useResize } from '@weblens/lib/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import dirViewHeaderStyle from '@weblens/pages/FileBrowser/style/dirViewHeader.module.scss'
 import { useEffect, useState } from 'react'

@@ -160,12 +160,12 @@ $menu-base-square-size: 250px;
 	border-radius: 4px;
 	padding: 8px;
 	color: white;
-	background-color: var(--wl-background-color-secondary);
+	background-color: var(--color-background-secondary);
 
 	transition: background-color 150ms ease-in-out;
 
 	&:hover {
-		background-color: rgb(from var(--wl-theme-color-secondary) r g b / 0.50);
+		background-color: rgb(from var(--color-theme-secondary) r g b / 0.50);
 		//box-shadow: $hard-shadow;
 	}
 
@@ -215,7 +215,7 @@ $menu-base-square-size: 250px;
 	color: white;
 	transition: background-color 150ms ease-in-out;
 
-	background-color: rgb(from var(--wl-theme-color-secondary) r g b / 0.50);
+	background-color: rgb(from var(--color-theme-secondary) r g b / 0.50);
 	outline: 1px solid var(--wl-main-accent);
 
 	&[data-danger='true'] {

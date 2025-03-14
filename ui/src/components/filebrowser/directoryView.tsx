@@ -4,6 +4,7 @@ import FilesErrorDisplay from '@weblens/components/NotFound'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import FileHistoryPane from '@weblens/components/filebrowser/historyPane'
 import Crumbs from '@weblens/lib/Crumbs'
+import { useKeyDown } from '@weblens/lib/hooks'
 import { TransferCard } from '@weblens/pages/FileBrowser/DropSpot'
 import { historyDateTime } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { DirViewModeT } from '@weblens/pages/FileBrowser/FileBrowserTypes'
@@ -15,6 +16,7 @@ import FileColumns from '@weblens/types/files/FileColumns'
 import FileGrid from '@weblens/types/files/FileGrid'
 import { FileRows } from '@weblens/types/files/FileRows'
 import { ReactElement, useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 import { FbModeT, useFileBrowserStore } from '../../store/FBStateControl'
 import { PresentationFile } from '../Presentation'
@@ -49,7 +51,10 @@ function DirView({
     setFilesError: (err: number) => void
     searchFilter: string
 }) {
+    const nav = useNavigate()
+
     const [fullViewRef, setFullViewRef] = useState<HTMLDivElement>(null)
+    const [dragBoxRef, setDragBoxRef] = useState<HTMLDivElement>()
 
     const mode = useFileBrowserStore((state) => state.fbMode)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
@@ -60,11 +65,28 @@ function DirView({
     const setViewOptions = useFileBrowserStore((state) => state.setViewOptions)
     const setDragging = useFileBrowserStore((state) => state.setDragging)
     const setMoveDest = useFileBrowserStore((state) => state.setMoveDest)
-    const [dragBoxRef, setDragBoxRef] = useState<HTMLDivElement>()
 
     const user = useSessionStore((state) => state.user)
 
     const activeList = filesList.get(folderInfo?.Id()) || []
+
+    const isSingleSharedFile =
+        (mode === FbModeT.default || mode === FbModeT.share) &&
+        folderInfo?.Id() &&
+        !folderInfo.IsFolder()
+
+    // useEffect(() => {
+    //     if (isSingleSharedFile && presentingId !== folderInfo.Id()) {
+    //         setPresentingId(folderInfo.Id())
+    //     }
+    // }, [folderInfo])
+
+    useKeyDown('Escape', (e) => {
+        if (isSingleSharedFile) {
+            e.stopPropagation()
+            nav('/files/shared')
+        }
+    })
 
     let fileDisplay: ReactElement
     if (filesError) {

@@ -4,7 +4,7 @@ import {
     IconFolder,
     IconPhoto,
 } from '@tabler/icons-react'
-import { useResize } from '@weblens/components/hooks'
+import { useResize } from '@weblens/lib/hooks'
 import WeblensFile from '@weblens/types/files/File'
 import { PhotoQuality } from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
@@ -47,9 +47,9 @@ function FileVisual({
                             quality={PhotoQuality.LowRes}
                         />
                     </div>
-                    <div className="bg-wl-outline-subtle outline-theme-text absolute z-10 h-[88%] w-[88%] rounded opacity-75 outline outline-2" />
+                    <div className="bg-wl-outline-subtle outline-theme-text absolute z-10 h-[88%] w-[88%] rounded-sm opacity-75 outline outline-2" />
                     <div
-                        className="bg-wl-outline-subtle outline-theme-text absolute h-[88%] w-[88%] rounded opacity-50 outline outline-2"
+                        className="bg-wl-outline-subtle outline-theme-text absolute h-[88%] w-[88%] rounded-sm opacity-50 outline outline-2"
                         style={{
                             translate: `${containerQuanta * 3}px ${containerQuanta * 3}px`,
                         }}
@@ -60,7 +60,7 @@ function FileVisual({
             return (
                 <IconFolder
                     stroke={1}
-                    className="z-10 h-3/4 w-3/4 shrink-0 text-[--wl-file-text-color]"
+                    className="z-10 h-3/4 w-3/4 shrink-0 text-(--color-file-text)"
                 />
             )
         }

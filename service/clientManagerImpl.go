@@ -9,11 +9,11 @@ import (
 
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal"
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/task"
 	"github.com/gorilla/websocket"
+	"github.com/rs/zerolog"
 )
 
 var _ models.ClientManager = (*ClientManager)(nil)
@@ -47,11 +47,11 @@ type ClientManager struct {
 	taskMu sync.Mutex
 
 	taskTypeMu sync.Mutex
+
+	log *zerolog.Logger
 }
 
-func NewClientManager(
-	pack *models.ServicePack,
-) *ClientManager {
+func NewClientManager(pack *models.ServicePack, log *zerolog.Logger) *ClientManager {
 	cm := &ClientManager{
 		webClientMap:    map[models.Username]*models.WsClient{},
 		remoteClientMap: map[models.InstanceId]*models.WsClient{},
@@ -61,24 +61,24 @@ func NewClientManager(
 		taskTypeSubs: map[models.SubId][]*models.WsClient{},
 
 		pack: pack,
+		log:  log,
 	}
 
 	return cm
 }
 
 func (cm *ClientManager) ClientConnect(conn *websocket.Conn, user *models.User) *models.WsClient {
-	newClient := models.NewClient(conn, user)
+	newClient := models.NewClient(conn, user, cm.log)
 
 	cm.clientMu.Lock()
 	cm.webClientMap[newClient.GetClientId()] = newClient
 	cm.clientMu.Unlock()
 
-	log.Trace.Func(func(l log.Logger) { l.Printf("Web client [%s] connected", user.GetUsername()) })
 	return newClient
 }
 
 func (cm *ClientManager) RemoteConnect(conn *websocket.Conn, remote *models.Instance) *models.WsClient {
-	newClient := models.NewClient(conn, remote)
+	newClient := models.NewClient(conn, remote, cm.log)
 
 	cm.clientMu.Lock()
 	cm.remoteClientMap[remote.ServerId()] = newClient
@@ -88,7 +88,6 @@ func (cm *ClientManager) RemoteConnect(conn *websocket.Conn, remote *models.Inst
 		cm.core = newClient
 	}
 
-	log.Trace.Func(func(l log.Logger) { l.Printf("Server [%s] connected", remote.Name) })
 	cm.pack.Caster.PushWeblensEvent(models.RemoteConnectionChangedEvent, models.WsC{"remoteId": remote.ServerId(), "online": true})
 	return newClient
 }
@@ -100,7 +99,7 @@ func (cm *ClientManager) ClientDisconnect(c *models.WsClient) {
 		// Client is leaving anyway, no point returning an error from here
 		// just print it out
 		if err != nil {
-			log.ErrTrace(err)
+			cm.log.Error().Stack().Err(err).Msg("")
 		}
 	}
 
@@ -183,7 +182,7 @@ func (cm *ClientManager) GetSubscribers(st models.WsAction, key models.SubId) (c
 			cm.taskTypeMu.Unlock()
 		}
 	default:
-		log.Error.Printf("Unknown subscriber type: [%s]", st)
+		cm.log.Error().Msgf("Unknown subscriber type: [%s]", st)
 	}
 
 	// Copy clients to not modify reference in the map
@@ -274,13 +273,11 @@ func (cm *ClientManager) Subscribe(
 	default:
 		{
 			err = fmt.Errorf("unknown subscription type %s", action)
-			log.ErrTrace(err)
+			cm.log.Error().Stack().Err(err).Msg("")
 			c.Error(err)
 			return
 		}
 	}
-
-	log.Trace.Func(func(l log.Logger) { l.Printf("U[%s] subscribed to [%s]", c.GetUser().GetUsername(), key) })
 
 	c.AddSubscription(sub)
 	cm.addSubscription(sub, c)
@@ -295,7 +292,7 @@ func (cm *ClientManager) Unsubscribe(c *models.WsClient, key models.SubId, unSub
 	var sub models.Subscription
 	for s := range c.GetSubscriptions() {
 		if s.Key == key && !s.When.Before(unSubTime) {
-			log.Debug.Println("Ignoring unsubscribe request that happened before subscribe request")
+			cm.log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Ignoring unsubscribe request that happened before subscribe request") })
 			continue
 		}
 
@@ -308,7 +305,6 @@ func (cm *ClientManager) Unsubscribe(c *models.WsClient, key models.SubId, unSub
 	if sub == (models.Subscription{}) {
 		return werror.WithStack(werror.ErrSubscriptionNotFound)
 	}
-	log.Trace.Func(func(l log.Logger) { l.Printf("Removing [%s]'s subscription to [%s]", c.GetUser().GetUsername(), key) })
 
 	c.RemoveSubscription(key)
 	return cm.removeSubscription(sub, c, false)
@@ -318,15 +314,9 @@ func (cm *ClientManager) FolderSubToTask(folderId fileTree.FileId, taskId task.I
 	subs := cm.GetSubscribers(models.FolderSubscribe, folderId)
 
 	for _, s := range subs {
-		log.Trace.Func(func(l log.Logger) {
-			l.Printf(
-				"Subscribing U[%s] to T[%s] due to F[%s]", s.GetUser().GetUsername(),
-				taskId, folderId,
-			)
-		})
 		_, _, err := cm.Subscribe(s, taskId, models.TaskSubscribe, time.Now(), nil)
 		if err != nil {
-			log.ShowErr(err)
+			cm.log.Error().Stack().Err(err).Msg("")
 		}
 	}
 }
@@ -335,15 +325,11 @@ func (cm *ClientManager) UnsubTask(taskId task.Id) {
 	subs := cm.GetSubscribers(models.TaskSubscribe, taskId)
 
 	for _, s := range subs {
-		log.Debug.Func(func(l log.Logger) {
-			l.Printf(
-				"Unsubscribing U[%s] from T[%s]", s.GetUser().GetUsername(), taskId)
-		})
 		err := cm.Unsubscribe(s, taskId, time.Now())
 		if err != nil && !errors.Is(err, werror.ErrSubscriptionNotFound) {
-			log.ShowErr(err)
+			cm.log.Error().Stack().Err(err).Msg("")
 		} else if err != nil {
-			log.Warning.Printf("Subscription [%s] not found in unsub task", taskId)
+			cm.log.Warn().Msgf("Subscription [%s] not found in unsub task", taskId)
 		}
 	}
 }
@@ -352,7 +338,7 @@ func (cm *ClientManager) Send(msg models.WsResponseInfo) {
 	defer internal.RecoverPanic("Panic caught while broadcasting")
 
 	if msg.SubscribeKey == "" {
-		log.Error.Println("Trying to broadcast on empty key")
+		cm.log.Error().Stack().Msg("Trying to broadcast on empty key")
 		return
 	}
 
@@ -375,16 +361,16 @@ func (cm *ClientManager) Send(msg models.WsResponseInfo) {
 	}
 
 	if len(clients) != 0 {
+		cm.log.Debug().Str("websocket_event", msg.EventTag).Msgf("Sending websocket message to %d client(s)", len(clients))
 		for _, c := range clients {
 			err := c.Send(msg)
 			if err != nil {
-				log.ErrTrace(err)
+				cm.log.Error().Stack().Err(err).Msg("")
 			}
 		}
 	} else {
-		// log.TraceCaller(2, "No subscribers to [%s]", msg.SubscribeKey)
-		log.Trace.Func(func(l log.Logger) {
-			l.Printf("No subscribers to [%s]. Trying to send [%s]", msg.SubscribeKey, msg.EventTag)
+		cm.log.Trace().Func(func(e *zerolog.Event) {
+			e.Msgf("No subscribers to [%s]. Trying to send [%s]", msg.SubscribeKey, msg.EventTag)
 		})
 		return
 	}
@@ -412,7 +398,7 @@ func (cm *ClientManager) addSubscription(subInfo models.Subscription, client *mo
 		}
 	default:
 		{
-			log.Error.Println("Unknown subType", subInfo.Type)
+			cm.log.Error().Msgf("Unknown subType: %s", subInfo.Type)
 			return
 		}
 	}

@@ -22,7 +22,7 @@ FROM --platform=linux/${ARCHITECTURE} golang:${GO_VERSION}-alpine AS backend
 
 # Install dependencies
 RUN apk upgrade --no-cache
-RUN apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community --repository http://dl-3.alpinelinux.org/alpine/edge/main vips-dev
+RUN apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community --repository http://dl-3.alpinelinux.org/alpine/edge/main vips-dev vips-poppler
 RUN apk add --no-cache bash build-base pkgconfig
 RUN apk add --no-cache tiff-dev libraw-dev libpng-dev libwebp-dev libheif 
 
@@ -40,23 +40,13 @@ RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=1 CGO_CFLAGS_ALL
 FROM --platform=linux/${ARCHITECTURE} alpine:latest
 
 RUN apk upgrade --no-cache
-RUN apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community --repository http://dl-3.alpinelinux.org/alpine/edge/main vips
-RUN apk add --no-cache ffmpeg tiff libraw libpng libwebp libheif libjpeg exiftool
+RUN apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community --repository http://dl-3.alpinelinux.org/alpine/edge/main vips-poppler
+RUN apk add --no-cache ffmpeg tiff libraw libpng libwebp libheif libjpeg exiftool 
 
 # Build deps
-RUN apk add --no-cache build-base gcc jasper-dev libjpeg-turbo-dev lcms2-dev gettext gettext-dev gnu-libiconv-dev
+RUN apk add --no-cache build-base gcc jasper-dev libjpeg-turbo-dev lcms2-dev gettext gettext-dev gnu-libiconv-dev 
 
 WORKDIR /tmp
-# build iconv
-# RUN cd /tmp; \
-# 		wget https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.17.tar.gz; \
-# 		tar -xzvf libiconv-*.tar.gz ;\
-# 		cd libiconv* ; \
-# 		./configure ;
-# RUN cd /tmp/libiconv* ; \
-# 		make ; \
-# 		make install ;
-
 RUN wget https://www.dechifro.org/dcraw/archive/dcraw-9.28.0.tar.gz ; \
     tar -xzvf dcraw-*.tar.gz ; \
     cd /tmp/dcraw ; \
@@ -71,7 +61,9 @@ COPY --from=web /ui/dist /app/ui/dist
 COPY --from=backend /server/weblens /app/weblens
 COPY config/ /app/config
 COPY images/brand /app/static
-# COPY build/ffmpeg /usr/bin/ffmpeg
+
+ARG WEBLENS_BUILD_VERSION=devel
+ENV WEBLENS_BUILD_VERSION=$WEBLENS_BUILD_VERSION
 
 EXPOSE 8080
 

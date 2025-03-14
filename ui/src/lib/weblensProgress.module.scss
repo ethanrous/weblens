@@ -12,7 +12,7 @@
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	background-color: var(--wl-background-color-secondary);
+	background-color: var(--color-background-secondary);
 	border-radius: 3px;
 	overflow: hidden;
 	box-shadow: var(--wl-soft-shadow);
@@ -74,7 +74,7 @@
 .weblens-progress-bar {
 	position: relative;
 	pointer-events: none;
-	background-color: var(--wl-theme-color-primary);
+	background-color: var(--color-theme-primary);
 	box-shadow: var(--wl-soft-shadow);
 	height: 100%;
 	z-index: 3;
@@ -84,13 +84,13 @@
 		transition: width 100ms ease-in-out;
 		position: absolute;
 		z-index: 1;
-		background-color: rgb(from var(--wl-theme-color-secondary) r g b / 0.50);
+		background-color: rgb(from var(--color-theme-secondary) r g b / 0.50);
 	}
 
 	&[data-seek-hint='true'] {
 		position: absolute;
 		z-index: 2;
-		background-color: rgb(from var(--wl-theme-color-secondary) r g b / 0.5);
+		background-color: rgb(from var(--color-theme-secondary) r g b / 0.5);
 	}
 
 	&[data-complete='true'] {

@@ -17,8 +17,8 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/internal"
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/rs/zerolog/log"
 )
 
 /*
@@ -158,7 +158,6 @@ func (f *WeblensFileImpl) Freeze() *WeblensFileImpl {
 func (f *WeblensFileImpl) ID() FileId {
 	id := f.getIdInternal()
 	if id == "" {
-		log.ErrTrace(werror.Errorf("Tried to ID() file with no Id and path [%s]", f.absolutePath))
 		return ""
 	}
 
@@ -216,7 +215,7 @@ func (f *WeblensFileImpl) IsDir() bool {
 	if f.isDir == nil {
 		stat, err := os.Stat(f.absolutePath)
 		if err != nil {
-			log.ErrTrace(err)
+			log.Error().Stack().Err(err).Msg("")
 			return false
 		}
 		f.isDir = boolPointer(stat.IsDir())
@@ -230,7 +229,7 @@ func (f *WeblensFileImpl) ModTime() (t time.Time) {
 	if f.modifyDate.Unix() <= 0 {
 		_, err := f.LoadStat()
 		if err != nil {
-			log.ErrTrace(err)
+			log.Error().Stack().Err(err).Msg("")
 		}
 	}
 	return f.modifyDate
@@ -391,7 +390,7 @@ func (f *WeblensFileImpl) WriteAt(data []byte, seekLoc int64) error {
 	defer func(realFile *os.File) {
 		err := realFile.Close()
 		if err != nil {
-			log.ErrTrace(err)
+			log.Error().Stack().Err(err).Msg("")
 		}
 	}(realFile)
 
@@ -539,7 +538,7 @@ func (f *WeblensFileImpl) UnmarshalJSON(bs []byte) error {
 	f.modifyDate = time.UnixMilli(int64(data["modifyTimestamp"].(float64)))
 	f.contentId = data["contentId"].(string)
 	if f.modifyDate.Unix() <= 0 {
-		log.Error.Println("AHHHH")
+		log.Error().Msg("File has invalid mod time")
 	}
 
 	parentId := FileId(data["parentId"].(string))
@@ -560,7 +559,7 @@ func (f *WeblensFileImpl) MarshalJSON() ([]byte, error) {
 		parentId = f.parent.ID()
 	}
 	if !f.IsDir() && f.Size() != 0 && f.GetContentId() == "" {
-		log.Warning.Printf("File [%s] has no content Id", f.GetPortablePath())
+		log.Warn().Msgf("File [%s] has no content Id", f.GetPortablePath())
 	}
 
 	data := map[string]any{
@@ -577,7 +576,7 @@ func (f *WeblensFileImpl) MarshalJSON() ([]byte, error) {
 	}
 
 	if f.ModTime().UnixMilli() < 0 {
-		log.Warning.Printf("File [%s] has invalid mod time trying to marshal", f.GetPortablePath())
+		log.Warn().Msgf("File [%s] has invalid mod time trying to marshal", f.GetPortablePath())
 	}
 
 	return json.Marshal(data)

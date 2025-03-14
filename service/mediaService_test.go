@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/viccon/sturdyc"
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
@@ -14,6 +13,7 @@ import (
 	"github.com/ethanrous/weblens/service/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/viccon/sturdyc"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -152,7 +152,7 @@ var typeService models.MediaTypeService
 func TestMediaServiceImpl_Add(t *testing.T) {
 	t.Parallel()
 
-	logger := log.NewLogPackage("", log.DEBUG)
+	logger := log.NewZeroLogger()
 
 	col := mondb.Collection(t.Name())
 	err := col.Drop(context.Background())
@@ -203,7 +203,7 @@ func TestMediaServiceImpl_Add(t *testing.T) {
 func TestMediaServiceImpl_Del(t *testing.T) {
 	t.Parallel()
 
-	logger := log.NewLogPackage("", log.DEBUG)
+	logger := log.NewZeroLogger()
 
 	col := mondb.Collection(t.Name())
 	err := col.Drop(context.Background())

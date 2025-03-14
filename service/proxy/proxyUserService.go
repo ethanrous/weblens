@@ -6,7 +6,6 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/models"
 )
 
@@ -65,8 +64,6 @@ func (pus *ProxyUserService) Add(user *models.User) error {
 	if _, ok := pus.userMap[user.Username]; !ok {
 		pus.userMap[user.Username] = user
 	}
-
-	log.Trace.Func(func(l log.Logger) { l.Printf("Added user [%s] to proxy user service", user.Username) })
 
 	return nil
 }

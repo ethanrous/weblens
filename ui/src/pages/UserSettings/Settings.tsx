@@ -29,14 +29,14 @@ import {
     useWeblensSocket,
     useWebsocketStore,
 } from '@weblens/api/Websocket'
-import { ApiKeyInfo, ServerInfo } from '@weblens/api/swag'
+import { ApiKeyInfo, ServerInfo } from '@weblens/api/swag/api'
 import HeaderBar, { ThemeToggleButton } from '@weblens/components/HeaderBar'
 import WeblensLoader from '@weblens/components/Loading'
 import RemoteStatus from '@weblens/components/RemoteStatus'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import { useKeyDown } from '@weblens/components/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
+import { useKeyDown } from '@weblens/lib/hooks'
 import { useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { useMessagesController } from '@weblens/store/MessagesController'
 import { ErrorHandler } from '@weblens/types/Types'
@@ -45,9 +45,9 @@ import User from '@weblens/types/user/User'
 import { FC, useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { BackupProgressT } from '../Backup/BackupLogic'
-import { historyDate } from '../FileBrowser/FileBrowserLogic'
-import { SettingsWebsocketHandler } from './SettingsLogic'
+import { BackupProgressT } from '../Backup/BackupLogic.js'
+import { historyDate } from '../FileBrowser/FileBrowserLogic.js'
+import { SettingsWebsocketHandler } from './SettingsLogic.js'
 import settingsStyle from './settingsStyle.module.scss'
 
 type settingsTab = {
@@ -99,7 +99,7 @@ const adminTabs: settingsTab[] = [
     },
 ]
 
-export function SettingsMenu() {
+export default function Settings() {
     const user = useSessionStore((state) => state.user)
     const setUser = useSessionStore((state) => state.setUser)
     const nav = useNavigate()
@@ -142,7 +142,7 @@ export function SettingsMenu() {
         <div className={settingsStyle.settingsMenu}>
             <HeaderBar />
             <div className="flex grow flex-col p-8">
-                <div className="mb-2 flex h-max w-full items-center gap-2 border-b-2 border-b-wl-border-color-primary pb-2">
+                <div className="border-b-color-border-primary mb-2 flex h-max w-full items-center gap-2 border-b-2 pb-2">
                     <IconUser size={25} />
                     <h3>{user.username}</h3>
                 </div>
@@ -275,11 +275,11 @@ function AccountTab() {
 function AppearanceTab() {
     return (
         <div className="flex flex-col gap-2">
-            <p className="w-max text-nowrap p-2 text-lg font-semibold">
+            <p className="w-max p-2 text-lg font-semibold text-nowrap">
                 Appearance
             </p>
             <ThemeToggleButton />
-            <p className="text-wl-text-color-secondary">
+            <p className="text-color-text-secondary">
                 Hint: Press [T] to toggle theme
             </p>
         </div>
@@ -337,7 +337,7 @@ function SecurityTab() {
         <div className="relative flex w-full flex-col gap-2">
             <div className={settingsStyle.settingsSection}>
                 {namingKey && (
-                    <div className="absolute z-10 flex h-full w-full scale-105 rounded backdrop-blur-sm">
+                    <div className="absolute z-10 flex h-full w-full scale-105 rounded-sm backdrop-blur-xs">
                         <div className="relative m-auto h-10 w-32">
                             <WeblensInput
                                 placeholder="New Key Name"
@@ -382,7 +382,7 @@ function SecurityTab() {
                         })}
                 </div>
                 {!isLoading && !keys && (
-                    <p className="w-full text-center text-wl-text-color-primary">
+                    <p className="text-color-text-primary w-full text-center">
                         You have no API keys
                     </p>
                 )}
@@ -434,12 +434,12 @@ function ApiKeyRow({
     return (
         <div
             key={keyInfo.id}
-            className="relative -my-[1px] flex h-max w-full flex-row items-center border-2 border-wl-border-color-primary p-4 first:rounded-t-md last:rounded-b-md"
+            className="border-color-border-primary relative -my-[1px] flex h-max w-full flex-row items-center border-2 p-4 first:rounded-t-md last:rounded-b-md"
         >
             <div className="mx-6 flex flex-col items-center">
                 <IconKey size={50} />
                 {keyInfo.remoteUsing !== '' && (
-                    <span className="select-none text-wl-text-color-primary">
+                    <span className="text-color-text-primary select-none">
                         Linked to{' '}
                         {
                             remotes.find((r) => r.id === keyInfo.remoteUsing)
@@ -448,7 +448,7 @@ function ApiKeyRow({
                     </span>
                 )}
                 {keyInfo.remoteUsing === '' && (
-                    <span className="select-none text-wl-text-color-primary">
+                    <span className="text-color-text-primary select-none">
                         Personal
                     </span>
                 )}
@@ -457,20 +457,20 @@ function ApiKeyRow({
                 <h4 className="theme-text w-full truncate text-nowrap">
                     {keyInfo.name}
                 </h4>
-                <code className="theme-text mb-2 w-full select-none truncate text-nowrap">
+                <code className="theme-text mb-2 w-full truncate text-nowrap select-none">
                     {keyInfo.key.slice(0, 4)}
                     {stars}
                 </code>
-                <span className="text-wl-text-color-secondary">
+                <span className="text-color-text-secondary">
                     Added on {historyDate(keyInfo.createdTime, true)}
                 </span>
                 {keyInfo.lastUsedTime === 0 && (
-                    <span className="select-none text-wl-text-color-secondary">
+                    <span className="text-color-text-secondary select-none">
                         Never Used
                     </span>
                 )}
                 {keyInfo.lastUsedTime !== 0 && (
-                    <span className="select-none text-wl-text-color-secondary">
+                    <span className="text-color-text-secondary select-none">
                         {historyDate(keyInfo.lastUsedTime)}
                     </span>
                 )}
@@ -540,12 +540,12 @@ function ServersTab() {
     }, [lastMessage])
 
     return (
-        <div className="flex w-full flex-col items-center gap-2 overflow-scroll rounded p-2">
+        <div className="flex w-full flex-col items-center gap-2 overflow-scroll rounded-sm p-2">
             {remotes.length === 0 && (
                 <div className="mt-16 flex flex-col items-center">
                     <IconServer />
                     <h2 className="text-center">No remote servers</h2>
-                    <div className="mt-2 flex flex-row items-center text-wl-text-color-primary">
+                    <div className="text-color-text-primary mt-2 flex flex-row items-center">
                         <span>After you set up a {''}</span>
                         <a
                             href="https://github.com/ethanrous/weblens?tab=readme-ov-file#weblens-backup"
@@ -596,7 +596,7 @@ function UsersTab() {
             const users = await UsersApi.getUsers().then((res) =>
                 res.data.map((info) => new User(info))
             )
-			users.sort((a, b) => a.username.localeCompare(b.username))
+            users.sort((a, b) => a.username.localeCompare(b.username))
             return users
         },
     })
@@ -605,7 +605,7 @@ function UsersTab() {
         <div className="flex h-full w-full flex-col">
             <h3>Users</h3>
             <div className="mt-3 flex h-full w-full flex-row gap-4">
-                <div className="mr-2 h-full w-1/2 border-r border-wl-border-color-primary pr-6">
+                <div className="border-color-border-primary mr-2 h-full w-1/2 border-r pr-6">
                     {isLoading && <WeblensLoader />}
                     {!isLoading && (
                         <UsersTable
@@ -632,8 +632,8 @@ function UsersTable({
     const user = useSessionStore((state) => state.user)
 
     return (
-        <table className="h-max w-full caption-bottom border-collapse align-top text-wl-text-color-primary">
-            <thead className="table-header-group h-9 border-b border-wl-border-color-primary align-top">
+        <table className="text-color-text-primary h-max w-full caption-bottom border-collapse align-top">
+            <thead className="border-color-border-primary table-header-group h-9 border-b align-top">
                 <tr>
                     <th className="text-left text-lg">Full Name</th>
                     <th className="text-left text-lg">Username</th>
@@ -647,7 +647,7 @@ function UsersTable({
                     : users.map((rowUser) => (
                           <tr
                               key={rowUser.username}
-                              className="h-12 hover:bg-wl-background-color-secondary"
+                              className="hover:bg-background-secondary h-12"
                           >
                               <td className="p-2">{rowUser.fullName}</td>
                               <td>{rowUser.username}</td>
@@ -836,6 +836,7 @@ function CreateUserBox({
 function DeveloperTab() {
     return (
         <div className="flex w-max flex-col gap-2">
+			<span className='text-danger'>Here be dragons</span>
             <WeblensButton
                 label="Clear Media"
                 danger

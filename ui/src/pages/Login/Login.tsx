@@ -95,8 +95,8 @@ const Login = () => {
                         // setButtonRef={setButtonRef}
                     />
                 </div>
-                <div className="flex items-center justify-center gap-2 border-t-[1px] border-wl-border-color-primary p-2">
-                    <span className="ml-auto text-wl-text-color-primary">
+                <div className="flex items-center justify-center gap-2 border-t-[1px] border-color-border-primary p-2">
+                    <span className="ml-auto text-color-text-primary">
                         New Here?
                     </span>
                     <a href="/signup">Request an Account</a>

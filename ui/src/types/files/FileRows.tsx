@@ -14,7 +14,7 @@ import {
     visitFile,
 } from '@weblens/types/files/FileDragLogic'
 import filesStyle from '@weblens/types/files/filesStyle.module.scss'
-import { useResize } from 'components/hooks'
+import { useResize } from '@weblens/lib/hooks'
 import { CSSProperties, MouseEvent, useRef, useState } from 'react'
 import { FixedSizeList as WindowList } from 'react-window'
 
@@ -136,7 +136,7 @@ function FileRow({
                 }
             >
                 <div className={filesStyle.fileRowBox}>
-                    <div className="m-1 flex aspect-square h-full shrink-0 items-center justify-center overflow-hidden rounded">
+                    <div className="m-1 flex aspect-square h-full shrink-0 items-center justify-center overflow-hidden rounded-sm">
                         <FileVisual file={file} allowMedia={true} />
                     </div>
                     <div className="flex h-full grow flex-col">

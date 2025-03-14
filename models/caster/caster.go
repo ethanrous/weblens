@@ -6,11 +6,12 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/fileTree"
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/models/rest"
 	"github.com/ethanrous/weblens/task"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 var _ models.Broadcaster = (*SimpleCaster)(nil)
@@ -21,6 +22,7 @@ type SimpleCaster struct {
 	flushLock sync.RWMutex
 	enabled   atomic.Bool
 	global    atomic.Bool
+	log       *zerolog.Logger
 }
 
 func (c *SimpleCaster) DisableAutoFlush() {
@@ -32,14 +34,14 @@ func (c *SimpleCaster) AutoFlushEnable() {
 }
 
 func (c *SimpleCaster) Flush() {
-	log.Trace.Println("Caster flushing message queue")
+	log.Trace().Msg("Caster flushing message queue")
 	c.flushLock.Lock()
 	for len(c.msgChan) != 0 {
-		log.Trace.Println("Caster waiting for message queue to be empty...")
+		log.Trace().Msg("Caster waiting for message queue to be empty...")
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	log.Trace.Println("Caster flush complete")
+	log.Trace().Msg("Caster flush complete")
 	c.flushLock.Unlock()
 }
 
@@ -57,10 +59,11 @@ func (c *SimpleCaster) Close() {
 	c.msgChan <- models.WsResponseInfo{}
 }
 
-func NewSimpleCaster(cm models.ClientManager) *SimpleCaster {
+func NewSimpleCaster(cm models.ClientManager, log *zerolog.Logger) *SimpleCaster {
 	newCaster := &SimpleCaster{
 		cm:      cm,
 		msgChan: make(chan models.WsResponseInfo, 100),
+		log:     log,
 	}
 
 	newCaster.enabled.Store(true)
@@ -95,13 +98,13 @@ func (c *SimpleCaster) msgWorker(cm models.ClientManager) {
 		cm.Send(msg)
 	}
 
-	log.Trace.Println("Caster message worker exiting")
+	log.Trace().Msg("Caster message worker exiting")
 
 	close(c.msgChan)
 }
 
 func (c *SimpleCaster) addToQueue(msg models.WsResponseInfo) {
-	log.Trace.Printf("Caster adding message with event [%s] to queue", msg.EventTag)
+	c.log.Trace().Func(func(e *zerolog.Event) { e.Str("websocket_event", msg.EventTag).Msg("Caster adding message to queue") })
 	c.flushLock.RLock()
 	defer c.flushLock.RUnlock()
 	c.msgChan <- (msg)
@@ -151,7 +154,7 @@ func (c *SimpleCaster) PushPoolUpdate(
 	}
 
 	if pool.IsGlobal() {
-		log.Warning.Println("Not pushing update on global pool")
+		log.Warn().Msg("Not pushing update on global pool")
 		return
 	}
 
@@ -370,7 +373,7 @@ func (c *SimpleCaster) FolderSubToTask(folder fileTree.FileId, taskId task.Id) {
 	for _, s := range subs {
 		_, _, err := c.cm.Subscribe(s, taskId, models.TaskSubscribe, time.Now(), nil)
 		if err != nil {
-			log.ShowErr(err)
+			c.log.Error().Stack().Err(err).Msg("")
 		}
 	}
 }

@@ -1,6 +1,17 @@
-import { MantineProvider } from '@mantine/core'
-import '@mantine/core/styles.css'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import MediaApi from '@weblens/api/MediaApi'
+import ErrorBoundary from '@weblens/components/Error'
+import Logo from '@weblens/components/Logo'
+import Messages from '@weblens/components/Messages'
+import useR, { useSessionStore } from '@weblens/components/UserInfo'
+import { useKeyDown } from '@weblens/lib/hooks'
+import Fourohfour from '@weblens/pages/404/fourohfour'
+import Backup from '@weblens/pages/Backup/Backup'
+import Signup from '@weblens/pages/Signup/Signup'
+import StartUp from '@weblens/pages/Startup/StartupPage'
+import { ThemeStateEnum, useWlTheme } from '@weblens/store/ThemeControl'
+import { ErrorHandler } from '@weblens/types/Types'
+import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import axios from 'axios'
 import React, { Suspense, useCallback, useEffect } from 'react'
 import {
@@ -10,25 +21,15 @@ import {
     useRoutes,
 } from 'react-router-dom'
 
-import MediaApi from './api/MediaApi'
-import ErrorBoundary from './components/Error'
-import Logo from './components/Logo'
-import Messages from './components/Messages'
-import useR, { useSessionStore } from './components/UserInfo'
-import { useKeyDown } from './components/hooks'
-import Fourohfour from './pages/404/fourohfour'
-import Backup from './pages/Backup/Backup'
-import Signup from './pages/Signup/Signup'
-import StartUp from './pages/Startup/StartupPage'
-import { SettingsMenu } from './pages/UserSettings/Settings'
-import { ThemeStateEnum, useWlTheme } from './store/ThemeControl'
-import { ErrorHandler } from './types/Types'
-import { useMediaStore } from './types/media/MediaStateControl'
-
-const Gallery = React.lazy(() => import('./pages/Gallery/Gallery'))
-const FileBrowser = React.lazy(() => import('./pages/FileBrowser/FileBrowser'))
-const Login = React.lazy(() => import('./pages/Login/Login'))
-const Setup = React.lazy(() => import('./pages/Setup/Setup'))
+const Gallery = React.lazy(() => import('@weblens/pages/Gallery/Gallery'))
+const FileBrowser = React.lazy(
+    () => import('@weblens/pages/FileBrowser/FileBrowser')
+)
+const Login = React.lazy(() => import('@weblens/pages/Login/Login'))
+const Setup = React.lazy(() => import('@weblens/pages/Setup/Setup'))
+const SettingsMenu = React.lazy(
+    () => import('@weblens/pages/UserSettings/Settings')
+)
 
 axios.defaults.withCredentials = true
 
@@ -104,7 +105,10 @@ const WeblensRoutes = () => {
     useEffect(() => {
         const theme = localStorage.getItem('theme')
         if (theme === 'dark') {
-            document.documentElement.classList.toggle('dark')
+            document.documentElement.style.setProperty(
+                'color-scheme',
+                ThemeStateEnum.DARK
+            )
         }
     }, [])
 
@@ -253,12 +257,12 @@ function App() {
     useKeyDown('t', toggleThemeCb)
 
     return (
-        <MantineProvider defaultColorScheme="dark">
+        <>
             <Messages />
             <Router>
                 <WeblensRoutes />
             </Router>
-        </MantineProvider>
+        </>
     )
 }
 

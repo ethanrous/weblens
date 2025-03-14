@@ -20,9 +20,9 @@ import (
 	"github.com/barasher/go-exiftool"
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal"
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
+	"github.com/rs/zerolog"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 	"github.com/viccon/sturdyc"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -57,7 +57,7 @@ type MediaServiceImpl struct {
 
 	doImageRecog bool
 
-	log log.Bundle
+	log *zerolog.Logger
 
 	mediaLock sync.RWMutex
 
@@ -88,13 +88,13 @@ func init() {
 		panic(err)
 	}
 
-	vips.Startup(&vips.Config{})
 	vips.LoggingSettings(nil, vips.LogLevelWarning)
+	vips.Startup(&vips.Config{})
 }
 
 func NewMediaService(
 	fileService models.FileService, mediaTypeServ models.MediaTypeService, albumService models.AlbumService,
-	col *mongo.Collection, logger log.Bundle,
+	col *mongo.Collection, logger *zerolog.Logger,
 ) (*MediaServiceImpl, error) {
 	ms := &MediaServiceImpl{
 		mediaMap:     make(map[models.ContentId]*models.Media),
@@ -164,7 +164,7 @@ func (ms *MediaServiceImpl) Add(m *models.Media) error {
 	}
 
 	if m.Width == 0 || m.Height == 0 {
-		log.Debug.Printf("Media %s has height %d and width %d", m.ID(), m.Height, m.Width)
+		ms.log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Media %s has height %d and width %d", m.ID(), m.Height, m.Width) })
 		return werror.ErrMediaNoDimensions
 	}
 
@@ -680,7 +680,7 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 		go func() {
 			err := ms.GetImageTags(m, thumb)
 			if err != nil {
-				ms.log.ErrTrace(err)
+				ms.log.Error().Stack().Err(err).Msg("")
 			}
 		}()
 	}
@@ -701,7 +701,7 @@ func (ms *MediaServiceImpl) RecursiveGetMedia(folders ...*fileTree.WeblensFileIm
 
 	for _, f := range folders {
 		if f == nil {
-			log.Warning.Println("Skipping recursive media lookup for non-existent folder")
+			ms.log.Warn().Msg("Skipping recursive media lookup for non-existent folder")
 			continue
 		}
 		if !f.IsDir() {
@@ -725,7 +725,7 @@ func (ms *MediaServiceImpl) RecursiveGetMedia(folders ...*fileTree.WeblensFileIm
 			},
 		)
 		if err != nil {
-			log.ShowErr(err)
+			ms.log.Error().Stack().Err(err).Msg("")
 		}
 	}
 
@@ -733,7 +733,7 @@ func (ms *MediaServiceImpl) RecursiveGetMedia(folders ...*fileTree.WeblensFileIm
 }
 
 func (ms *MediaServiceImpl) handleCacheCreation(m *models.Media, file *fileTree.WeblensFileImpl) (thumbBytes []byte, err error) {
-	sw := internal.NewStopwatch("Cache Create")
+	sw := internal.NewStopwatch("Cache Create", ms.log)
 
 	mType := ms.GetMediaType(m)
 	sw.Lap("Get media type")
@@ -785,7 +785,9 @@ func (ms *MediaServiceImpl) handleCacheCreation(m *models.Media, file *fileTree.
 				thumbHeight = ThumbMaxSize
 				thumbWidth = uint(float64(ThumbMaxSize) / float64(m.Height) * float64(m.Width))
 			}
-			log.Trace.Printf("Resizing %s thumb image to %dx%d", file.Filename(), thumbWidth, thumbHeight)
+			ms.log.Trace().Func(func(e *zerolog.Event) {
+				e.Msgf("Resizing %s thumb image to %dx%d", file.Filename(), thumbWidth, thumbHeight)
+			})
 			err = img.Resize(float64(thumbHeight)/float64(m.Height), vips.KernelAuto)
 			if err != nil {
 				return nil, werror.WithStack(err)
@@ -887,7 +889,7 @@ func (ms *MediaServiceImpl) getFetchMediaCacheImage(ctx context.Context) (data [
 		return nil, werror.Errorf("This should never happen... file is nil in GetFetchMediaCacheImage")
 	}
 
-	log.Trace.Printf("Reading image cache for media [%s]", m.ID())
+	ms.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Reading image cache for media [%s]", m.ID()) })
 
 	data, err = f.ReadAll()
 	if err != nil {
@@ -1003,7 +1005,7 @@ func (ms *MediaServiceImpl) GetImageTags(m *models.Media, imageBytes []byte) err
 	defer cancel()
 	doneChan := make(chan struct{})
 	err = ms.ollama.Generate(ctx, req, func(resp ollama.GenerateResponse) error {
-		ms.log.Trace.Println("Got recognition response", resp.Response)
+		ms.log.Trace().Msgf("Got recognition response %s", resp.Response)
 		tagsString = resp.Response
 
 		if resp.Done {

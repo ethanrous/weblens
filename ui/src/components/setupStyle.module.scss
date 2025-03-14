@@ -16,7 +16,7 @@
 	height: 700px;
 	z-index: inherit;
 	background-color: var(--wl-barely-visible);
-	border: 1px solid var(--wl-theme-color-tertiary);
+	border: 1px solid var(--color-theme-tertiary);
 	box-shadow: rgba(0, 0, 0, 0.1) 0 4px 30px;
 	border-radius: 10px;
 	margin-bottom: auto;
@@ -38,7 +38,7 @@
 	flex-shrink: 0;
 	transition-property: transform, opacity;
 	transition-duration: 200ms;
-	transition-timing-function: var(--wl-transition-func);
+	transition-timing-function: var(--ease-wl-default);
 	gap: 10px;
 	pointer-events: none;
 

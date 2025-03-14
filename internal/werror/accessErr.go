@@ -29,14 +29,16 @@ var ErrKeyNotFound = ClientSafeErr{
 	statusCode: http.StatusNotFound,
 }
 
-var ErrInvalidToken  = ClientSafeErr{
+var ErrInvalidToken = ClientSafeErr{
 	safeErr:    errors.New("session token is invalid"),
 	statusCode: http.StatusUnauthorized,
+	skipTrace:  true,
 }
 
 var ErrTokenExpired = ClientSafeErr{
 	safeErr:    errors.New("session token is expired"),
 	statusCode: http.StatusUnauthorized,
+	skipTrace:  true,
 }
 
 var ErrKeyAlreadyExists = errors.New("api key already exists")

@@ -32,7 +32,7 @@ function NewCoreMenu({ closeNewCore }: { closeNewCore: () => void }) {
     const [apiKey, setApiKey] = useState('')
 
     return (
-        <div className="absolute z-10 h-screen w-screen p-20 backdrop-blur">
+        <div className="absolute z-10 h-screen w-screen p-20 backdrop-blur-sm">
             <div className="bg-wl-background flex h-max flex-col p-10 wl-outline">
                 <div className="mb-8 flex items-center gap-5">
                     <WeblensButton

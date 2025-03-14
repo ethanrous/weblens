@@ -1,8 +1,8 @@
-import { Loader } from '@mantine/core'
 import { IconBrandGithub } from '@tabler/icons-react'
 import UsersApi from '@weblens/api/UserApi'
+import WeblensLoader from '@weblens/components/Loading'
 import WeblensLogo from '@weblens/components/Logo'
-// import { useKeyDown } from '@weblens/components/hooks'
+// import { useKeyDown } from '@weblens/lib/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import { ErrorHandler } from '@weblens/types/Types'
@@ -150,9 +150,7 @@ export function SignupInputForm({
                 />
             </div>
             <div className="my-2">
-                {usernameValid === null && validateLoading && (
-                    <Loader size={14} color="var(--wl-text-color-primary)" />
-                )}
+                {usernameValid === null && validateLoading && <WeblensLoader />}
 
                 <span className="text-red-500">{usernameValidationError}</span>
             </div>
@@ -218,7 +216,7 @@ function Signup() {
             <form
                 id="login"
                 action="#"
-                className="mx-auto mt-8 flex w-96 min-w-0 max-w-full flex-col gap-3 px-4"
+                className="mx-auto mt-8 flex w-96 max-w-full min-w-0 flex-col gap-3 px-4"
                 onSubmit={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
@@ -227,7 +225,7 @@ function Signup() {
                     )
                 }}
             >
-                <h4 className="border-b-2 border-wl-border-color-primary">
+                <h4 className="border-color-border-primary border-b-2">
                     Create an Account
                 </h4>
 
@@ -278,8 +276,8 @@ function Signup() {
                                 type="submit"
                             />
                         </div>
-                        <div className="flex items-center justify-center gap-2 border-t-[1px] border-wl-border-color-primary p-2">
-                            <span className="ml-auto text-wl-text-color-primary">
+                        <div className="border-color-border-primary flex items-center justify-center gap-2 border-t-[1px] p-2">
+                            <span className="text-color-text-primary ml-auto">
                                 Already have an account?
                             </span>
                             <a href="/login">Login</a>
@@ -289,7 +287,7 @@ function Signup() {
             </form>
             <a
                 href="https://github.com/ethanrous/weblens"
-                className="absolute bottom-0 right-0 m-4 flex flex-row bg-transparent"
+                className="absolute right-0 bottom-0 m-4 flex flex-row bg-transparent"
                 target="_blank"
             >
                 <IconBrandGithub />

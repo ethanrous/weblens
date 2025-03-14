@@ -8,7 +8,6 @@ fi
 mkdir -p ./build/bin
 mkdir -p ./build/logs
 
-restart=false
 trace=false
 docs=false
 detach=false
@@ -31,9 +30,6 @@ while [ "${1:-}" != "" ]; do
         ;;
     "--ui")
         build_ui=true
-        ;;
-    "-r" | "--restart")
-        restart=true
         ;;
     "--docs")
         docs=true
@@ -61,92 +57,51 @@ if [[ $trace == true ]]; then
 fi
 printf "\n"
 
-# Allow for easy restarts while debugging. If you send a SIGQUIT (Ctrl+\),
-# it will re[build/start] the server when $restart is true (cmd line option -r).
-trap "" SIGQUIT
-
-while true; do
-    if [[ $docs == true ]]; then
-        printf "Building Docs..."
-        if ! ./scripts/swaggo &>./build/logs/docs-build.log; then
-            printf " FAILED\n"
-            cat ./build/logs/docs-build.log
-            echo "Aborting Weblens startup. Failed to build docs"
-            exit 1
-        else
-            printf " DONE\n"
-        fi
-
+if [[ $docs == true ]]; then
+    printf "Building Docs..."
+    if ! ./scripts/swaggo &>./build/logs/docs-build.log; then
+        printf " FAILED\n"
+        cat ./build/logs/docs-build.log
+        echo "Aborting Weblens startup. Failed to build docs"
+        exit 1
+    else
+        printf " DONE\n"
     fi
 
-    if [[ $build_ui == true ]]; then
-        cd ./ui || exit
-        printf "Building UI..."
-        if [[ ! -d ./node_modules ]]; then
-            npm install &>/dev/null
-        fi
-        export VITE_APP_BUILD_TAG="DEV-BUILD"
-        export VITE_BUILD=true
+fi
 
-        if ! npm run build &>../build/logs/ui-build.log; then
-            printf " FAILED\n"
-            cat ../build/logs/ui-build.log
-            echo "Aborting Weblens startup. Ensure \`npm run build\` completes successfully before starting Weblens."
-            exit 1
-        else
-            printf " DONE\n"
-        fi
+if [[ $build_ui == true ]]; then
+    cd ./ui || exit
+    printf "Building UI..."
+    if [[ ! -d ./node_modules ]]; then
+        npm install &>/dev/null
+    fi
+    export VITE_APP_BUILD_TAG="DEV-BUILD"
+    export VITE_BUILD=true
 
-        cd ..
+    if ! npm run build &>../build/logs/ui-build.log; then
+        printf " FAILED\n"
+        cat ../build/logs/ui-build.log
+        echo "Aborting Weblens startup. Ensure \`npm run build\` completes successfully before starting Weblens."
+        exit 1
+    else
+        printf " DONE\n"
     fi
 
-    printf "Building Weblens binary..."
-    rm -f ./build/bin/weblens
+    cd ..
+fi
 
-    pwd=$(pwd)
+printf "Building Weblens binary..."
+rm -f ./build/bin/weblens
 
-    export GORACE="halt_on_error=1"
-    export CGO_CFLAGS_ALLOW='-Xpreprocessor'
-    export APP_ROOT=$pwd
-    export CONFIG_NAME=$config_name
+pwd=$(pwd)
 
-    air --build.cmd "go build -gcflags=\"all=-N -l\" -race -o ./build/bin/weblens ./cmd/weblens/main.go" --build.bin "./build/bin/weblens" --build.exclude_dir "ui,build"
+export GORACE="halt_on_error=1"
+export CGO_CFLAGS_ALLOW='-Xpreprocessor'
+export APP_ROOT=$pwd
+export CONFIG_NAME=$config_name
+export LOG_FORMAT="dev"
 
-    # if [[ ! -e ./build/bin/weblens ]]; then
-    #     printf " FAILED\n"
-    #     cat ./build/logs/weblens-build.log
-    #     echo "Failed to build Weblens, exiting..."
-    #     exit 1
-    # fi
-    # printf " DONE\n"
-    #
-    # pkill -f exiftool
-    #
-    # if [[ $detach == true ]]; then
-    #     printf "Starting Weblens and detaching..."
-    #     APP_ROOT="$(pwd)" CONFIG_NAME="$config_name" nohup ./build/bin/weblens &>"$log_file" &
-    #     weblens_pid=$!
-    #     echo "$weblens_pid" >./build/logs/weblens.pid
-    #     printf " RUNNING\n"
-    #     exit 0
-    # fi
-    #
-    # if [[ -n "$log_file" ]]; then
-    #     echo "Logging from now on to $log_file"
-    #     exec &>"$log_file" # Redirect both stdout and stderr to the log file
-    # fi
-    # APP_ROOT=$(pwd) CONFIG_NAME=$config_name ./build/bin/weblens
-    # exit=$?
-    #
-    # if [[ $restart != true ]]; then
-    #     break
-    # fi
-    #
-    # if [[ $exit != 0 ]] && [[ $exit != 137 ]]; then
-    #     echo "Got exit status $exit, exiting..."
-    #     exit 1
-    # fi
-    # clear
-    break
-
-done
+# Build and launch the binary, automatically restarting on changes
+go build -gcflags="all=-N -l" -race -o ./build/bin/weblens ./cmd/weblens
+# air

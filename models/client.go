@@ -9,11 +9,11 @@ import (
 
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal"
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/task"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/rs/zerolog"
 )
 
 type ClientId = string
@@ -29,11 +29,15 @@ type WsClient struct {
 	updateMu      sync.Mutex
 	subsMu        sync.Mutex
 	Active        atomic.Bool
+
+	log *zerolog.Logger
 }
 
-func NewClient(conn *websocket.Conn, socketUser SocketUser) *WsClient {
+func NewClient(conn *websocket.Conn, socketUser SocketUser, logger *zerolog.Logger) *WsClient {
+	clientId := uuid.New().String()
+
 	newClient := &WsClient{
-		connId:   ClientId(uuid.New().String()),
+		connId:   ClientId(clientId),
 		conn:     conn,
 		updateMu: sync.Mutex{},
 		subsMu:   sync.Mutex{},
@@ -45,6 +49,11 @@ func NewClient(conn *websocket.Conn, socketUser SocketUser) *WsClient {
 	} else if socketUser.SocketType() == "serverClient" {
 		newClient.remote = socketUser.(*Instance)
 	}
+
+	newLogger := logger.With().Str("client_id", newClient.getClientName()).Str("websocket_id", newClient.GetClientId()).Logger()
+	newClient.log = &newLogger
+
+	newClient.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("New client connected") })
 
 	return newClient
 }
@@ -84,9 +93,10 @@ func (wsc *WsClient) ReadOne() (int, []byte, error) {
 }
 
 func (wsc *WsClient) Error(err error) {
-	safe, _ := log.TrySafeErr(err)
-	err = wsc.Send(WsResponseInfo{EventTag: "error", Error: safe.Error()})
-	log.ErrTrace(err)
+
+	safe, _ := werror.GetSafeErr(err)
+	err = wsc.Send(WsResponseInfo{EventTag: ErrorEvent, Error: safe.Error()})
+	wsc.log.Error().Stack().Err(err).Msg("")
 }
 
 func (wsc *WsClient) PushWeblensEvent(eventTag string, content ...WsC) {
@@ -101,7 +111,10 @@ func (wsc *WsClient) PushWeblensEvent(eventTag string, content ...WsC) {
 		msg.Content = content[0]
 	}
 
-	log.ErrTrace(wsc.Send(msg))
+	err := wsc.Send(msg)
+	if err != nil {
+		wsc.log.Error().Stack().Err(err).Msg("Failed to send event")
+	}
 }
 
 func (wsc *WsClient) PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, media *Media) {
@@ -113,7 +126,10 @@ func (wsc *WsClient) PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, media
 		SentTime:      time.Now().UnixMilli(),
 	}
 
-	log.ErrTrace(wsc.Send(msg))
+	err := wsc.Send(msg)
+	if err != nil {
+		wsc.log.Error().Stack().Err(err).Msg("Failed to send file update")
+	}
 }
 
 func (wsc *WsClient) PushTaskUpdate(task *task.Task, event string, result task.TaskResult) {
@@ -126,12 +142,15 @@ func (wsc *WsClient) PushTaskUpdate(task *task.Task, event string, result task.T
 		SentTime:      time.Now().UnixMilli(),
 	}
 
-	log.ErrTrace(wsc.Send(msg))
+	err := wsc.Send(msg)
+	if err != nil {
+		wsc.log.Error().Stack().Err(err).Msg("")
+	}
 }
 
 func (wsc *WsClient) PushPoolUpdate(pool task.Pool, event string, result task.TaskResult) {
 	if pool.IsGlobal() {
-		log.Warning.Println("Not pushing update on global pool")
+		wsc.log.Warn().Msg("Not pushing update on global pool")
 		return
 	}
 
@@ -143,7 +162,8 @@ func (wsc *WsClient) PushPoolUpdate(pool task.Pool, event string, result task.Ta
 		BroadcastType: TaskSubscribe,
 	}
 
-	log.ErrTrace(wsc.Send(msg))
+	err := wsc.Send(msg)
+	wsc.log.Error().Stack().Err(err).Msg("")
 }
 
 func (wsc *WsClient) GetSubscriptions() iter.Seq[Subscription] {
@@ -156,17 +176,21 @@ func (wsc *WsClient) AddSubscription(sub Subscription) {
 	wsc.updateMu.Lock()
 	defer wsc.updateMu.Unlock()
 	wsc.subscriptions = append(wsc.subscriptions, sub)
+
+	wsc.log.Debug().Func(func(e *zerolog.Event) { e.Str("websocket_subscribe_key", sub.Key).Msg("Added Subscription") })
 }
 
 func (wsc *WsClient) RemoveSubscription(key SubId) {
 	wsc.updateMu.Lock()
+	defer wsc.updateMu.Unlock()
+
 	subIndex := slices.IndexFunc(wsc.subscriptions, func(s Subscription) bool { return s.Key == key })
 	if subIndex == -1 {
-		wsc.updateMu.Unlock()
 		return
 	}
 	wsc.subscriptions, _ = internal.Yoink(wsc.subscriptions, subIndex)
-	wsc.updateMu.Unlock()
+
+	wsc.log.Debug().Func(func(e *zerolog.Event) { e.Str("websocket_subscribe_key", key).Msg("Removed Subscription") })
 }
 
 func (wsc *WsClient) Raw(msg any) error {
@@ -190,7 +214,7 @@ func (wsc *WsClient) Send(msg WsResponseInfo) error {
 		wsc.updateMu.Lock()
 		defer wsc.updateMu.Unlock()
 
-		log.Trace.Func(func(l log.Logger) { l.Printf("Sending [%s] event to client [%s]", msg.EventTag, wsc.getClientName()) })
+		wsc.log.Trace().Func(func(e *zerolog.Event) { e.Str("websocket_event", msg.EventTag).Msg("Sending websocket message") })
 
 		err := wsc.conn.WriteJSON(msg)
 		if err != nil {
@@ -209,12 +233,18 @@ func (wsc *WsClient) Disconnect() {
 	wsc.updateMu.Lock()
 	err := wsc.conn.Close()
 	if err != nil {
-		log.ShowErr(err)
+		wsc.log.Error().Stack().Err(err).Msg("")
 		return
 	}
 	wsc.updateMu.Unlock()
 
-	log.Trace.Func(func(l log.Logger) { l.Printf("Disconnected %s client [%s]", wsc.getClientType(), wsc.getClientName()) })
+	wsc.log.Trace().Func(func(e *zerolog.Event) {
+		e.Msgf("Disconnected %s client [%s]", wsc.getClientType(), wsc.getClientName())
+	})
+}
+
+func (wsc *WsClient) Log() *zerolog.Logger {
+	return wsc.log
 }
 
 func (wsc *WsClient) getClientName() string {

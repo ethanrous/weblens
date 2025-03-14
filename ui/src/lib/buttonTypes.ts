@@ -15,7 +15,7 @@ export type ButtonActionHandler = (
 export type ButtonFlavor = 'default' | 'outline' | 'light'
 export type ButtonSize = 'default' | 'tiny' | 'jumbo' | 'small' | 'large'
 
-export type buttonProps = {
+export type ButtonProps = {
     label?: string
     tooltip?: string
     showSuccess?: boolean
