@@ -293,7 +293,7 @@ func (t *Task) error(err error) {
 		return
 	}
 
-	wp.log.Error().Stack().Err(err).Msg("Task encountered an error")
+	wp.log.Error().CallerSkipFrame(2).Stack().Err(err).Msg("Task encountered an error")
 
 	t.err = err
 	t.queueState = Exited

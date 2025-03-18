@@ -6,6 +6,7 @@ import (
 
 	"github.com/ethanrous/weblens/internal"
 	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
 
@@ -30,8 +31,7 @@ func NewLifetime(createAction *FileAction) (*Lifetime, error) {
 	}
 
 	if !createAction.file.IsDir() && createAction.file.GetContentId() == "" && createAction.file.Size() != 0 {
-		log.Error().Msgf("No content file: %s", createAction.OriginPath)
-		return nil, werror.Errorf("cannot create regular file lifetime without content id")
+		return nil, errors.Errorf("trying to create a regular file lifetime without expected content id: [%s]", createAction.OriginPath)
 	}
 
 	return &Lifetime{

@@ -44,7 +44,7 @@ func (mfs *MockFileService) PathToFile(searchPath string) (*fileTree.WeblensFile
 	panic("implement me")
 }
 
-func (mfs *MockFileService) CreateFile(parent *fileTree.WeblensFileImpl, filename string, event *fileTree.FileEvent, caster models.FileCaster) (
+func (mfs *MockFileService) CreateFile(parent *fileTree.WeblensFileImpl, filename string, event *fileTree.FileEvent, caster models.FileCaster, data ...[]byte) (
 	*fileTree.WeblensFileImpl, error,
 ) {
 
@@ -92,8 +92,8 @@ func (mfs *MockFileService) GetFileSafe(
 	return nil, nil
 }
 
-func (mfs *MockFileService) GetFileTreeByName(treeName string) fileTree.FileTree {
-	return nil
+func (mfs *MockFileService) GetFileTreeByName(treeName string) (fileTree.FileTree, error) {
+	return mfs.trees[treeName], nil
 }
 
 func (mfs *MockFileService) GetFileOwner(file *fileTree.WeblensFileImpl) (*models.User, error) {

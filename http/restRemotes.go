@@ -9,8 +9,10 @@ import (
 
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/jobs"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/models/rest"
+	"github.com/ethanrous/weblens/service"
 	"github.com/ethanrous/weblens/service/mock"
 	"github.com/go-chi/chi/v5"
 )
@@ -113,6 +115,8 @@ func attachRemote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	pack.Log.Debug().Msgf("Attaching remote %s server %s with key %s", params.Role, params.Id, params.UsingKey)
+
 	if params.Role == models.CoreServerRole {
 		newCore, err := pack.InstanceService.AttachRemoteCore(params.CoreAddress, params.UsingKey)
 		if SafeErrorAndExit(err, w) {
@@ -135,8 +139,7 @@ func attachRemote(w http.ResponseWriter, r *http.Request) {
 		coreInfo := rest.InstanceToServerInfo(newCore)
 
 		writeJson(w, http.StatusCreated, coreInfo)
-		w.WriteHeader(http.StatusOK)
-	} else {
+	} else if params.Role == models.BackupServerRole {
 		newRemote := models.NewInstance(params.Id, params.Name, params.UsingKey, models.BackupServerRole, false, "", local.ServerId())
 
 		err = pack.InstanceService.Add(newRemote)
@@ -146,7 +149,7 @@ func attachRemote(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			pack.Log.Error().Stack().Err(err).Msg("")
+			pack.Log.Error().Stack().Err(err).Msg("Failed to add remote instance")
 			writeJson(w, http.StatusInternalServerError, rest.WeblensErrorInfo{Error: err.Error()})
 			return
 		}
@@ -159,7 +162,67 @@ func attachRemote(w http.ResponseWriter, r *http.Request) {
 		localInfo := rest.InstanceToServerInfo(pack.InstanceService.GetLocal())
 
 		writeJson(w, http.StatusCreated, localInfo)
+	} else {
+		writeError(w, http.StatusBadRequest, werror.Errorf("'%s' is an invalid role. Must be 'core' or 'backup'", params.Role))
+		return
 	}
+
+	jobs.RegisterJobs(pack.TaskService, pack.InstanceService.GetLocal().Role)
+}
+
+// UpdateRemote godoc
+//
+//	@ID			UpdateRemote
+//
+//	@Summary	Update a remote
+//	@Tags		Servers
+//
+//	@Security	SessionAuth[admin]
+//	@Security	ApiKeyAuth[admin]
+//
+//	@Param		serverId	path	string			true	"Server Id to update"
+//	@Param		request		body	rest.UpdateServerParams	true	"Server Params"
+//	@Success	200
+//	@Success	400
+//	@Success	404
+//	@Router		/servers/{serverId} [patch]
+func updateRemote(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	remoteId := chi.URLParam(r, "serverId")
+	if remoteId == "" {
+		writeError(w, http.StatusBadRequest, werror.ErrNoServerId)
+		return
+	}
+
+	remote := pack.InstanceService.GetByInstanceId(remoteId)
+	if remote == nil {
+		SafeErrorAndExit(werror.ErrNoInstance, w)
+		return
+	}
+
+	params, err := readCtxBody[rest.UpdateServerParams](w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+
+	if params.Name != "" {
+		remote.Name = params.Name
+	}
+
+	if params.UsingKey != "" {
+		remote.UsingKey = params.UsingKey
+	}
+
+	if params.CoreAddress != "" {
+		remote.Address = params.CoreAddress
+	}
+
+	err = pack.InstanceService.Update(remote)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 // DeleteRemote godoc
@@ -288,7 +351,7 @@ func initializeServer(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Initialize the server as backup
-		err = pack.InstanceService.InitBackup(initBody.Name, initBody.CoreAddress, initBody.CoreKey)
+		err = service.InitBackup(pack, initBody.Name, initBody.CoreAddress, initBody.CoreKey)
 		if err != nil {
 			pack.InstanceService.GetLocal().SetRole(models.InitServerRole)
 			pack.Log.Error().Stack().Err(err).Msg("")
@@ -319,7 +382,16 @@ func initializeServer(w http.ResponseWriter, r *http.Request) {
 		hasherFactory := func() fileTree.Hasher {
 			return models.NewHasher(pack.TaskService, pack.Caster)
 		}
-		journal, err := fileTree.NewJournal(pack.Db.Collection("fileHistory"), initBody.LocalId, false, hasherFactory, pack.Log)
+
+		journalConfig := fileTree.JournalConfig{
+			Collection:    pack.Db.Collection("fileHistory"),
+			ServerId:      initBody.LocalId,
+			IgnoreLocal:   false,
+			HasherFactory: hasherFactory,
+			Logger:        pack.Log,
+		}
+
+		journal, err := fileTree.NewJournal(journalConfig)
 		if SafeErrorAndExit(err, w) {
 			return
 		}
@@ -345,7 +417,7 @@ func initializeServer(w http.ResponseWriter, r *http.Request) {
 
 // ResetServer godoc
 //
-//	@ID		ResetServer
+//	@ID			ResetServer
 //
 //	@Security	SessionAuth[admin]
 //	@Security	ApiKeyAuth[admin]

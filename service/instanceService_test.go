@@ -39,7 +39,7 @@ func TestInstanceServiceImpl_Add(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	defer col.Drop(context.Background())
+	defer tests.CheckDropCol(col, logger)
 
 	is, err := NewInstanceService(col, logger)
 	require.NoError(t, err)
@@ -111,7 +111,7 @@ func TestInstanceServiceImpl_InitCore(t *testing.T) {
 		logger.Error().Stack().Err(err).Msg("")
 		t.Fatal(err)
 	}
-	defer col.Drop(context.Background())
+	defer tests.CheckDropCol(col, logger)
 
 	is, err := NewInstanceService(col, logger)
 	require.NoError(t, err)
@@ -152,10 +152,11 @@ func TestInstanceServiceImpl_InitBackup(t *testing.T) {
 	t.Parallel()
 
 	logger := log.NewZeroLogger()
+	nop := zerolog.Nop()
 
 	coreServices, err := tests.NewWeblensTestInstance(t.Name(), env.Config{
 		Role: string(models.CoreServerRole),
-	})
+	}, &nop)
 
 	require.NoError(t, err)
 
@@ -184,7 +185,7 @@ func TestInstanceServiceImpl_InitBackup(t *testing.T) {
 	if err = col.Drop(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	defer col.Drop(context.Background())
+	defer tests.CheckDropCol(col, logger)
 
 	is, err := NewInstanceService(col, logger)
 	require.NoError(t, err)
@@ -194,7 +195,7 @@ func TestInstanceServiceImpl_InitBackup(t *testing.T) {
 	}
 	assert.Equal(t, models.InitServerRole, is.GetLocal().GetRole())
 
-	err = is.InitBackup("My backup server", coreAddress, coreApiKey)
+	_, err = is.InitBackup("My backup server", coreAddress, coreApiKey)
 	require.NoError(t, err)
 
 	assert.Equal(t, models.BackupServerRole, is.GetLocal().GetRole())

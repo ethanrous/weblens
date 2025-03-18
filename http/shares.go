@@ -212,9 +212,9 @@ func setSharePublic(w http.ResponseWriter, r *http.Request) {
 //	@Summary	Update a share's accessors list
 //	@Tags		Share
 //	@Produce	json
-//	@Param		shareId	path	string				true	"Share Id"
-//	@Param		request	body	rest.UserListBody	true	"Share Accessors"
-//	@Success	200 	{object}	rest.ShareInfo
+//	@Param		shareId	path		string				true	"Share Id"
+//	@Param		request	body		rest.UserListBody	true	"Share Accessors"
+//	@Success	200		{object}	rest.ShareInfo
 //	@Failure	404
 //	@Router		/share/{shareId}/accessors [patch]
 func setShareAccessors(w http.ResponseWriter, r *http.Request) {

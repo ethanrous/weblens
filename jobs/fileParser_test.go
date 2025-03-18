@@ -54,7 +54,7 @@ func TestScanFile(t *testing.T) {
 	}
 	defer func() { _ = col.Drop(context.Background()) }()
 
-	testMediaTree, err := fileTree.NewFileTree(env.GetTestMediaPath(), "TEST_MEDIA", mock.NewHollowJournalService(), false, logger)
+	testMediaTree, err := fileTree.NewFileTree(env.GetTestMediaPath(), "TEST_MEDIA", mock.NewHollowJournalService(), true, logger)
 	if err != nil {
 		panic(err)
 	}
@@ -106,10 +106,12 @@ func TestScanDirectory(t *testing.T) {
 	wp.RegisterJob(models.ScanFileTask, ScanFile)
 	wp.RegisterJob(models.ScanDirectoryTask, ScanDirectory)
 
-	testMediaTree, err := fileTree.NewFileTree(env.GetTestMediaPath(), "TEST_MEDIA", mock.NewHollowJournalService(), false, logger)
+	testMediaTree, err := fileTree.NewFileTree(env.GetTestMediaPath(), "TEST_MEDIA", mock.NewHollowJournalService(), true, logger)
 	if err != nil {
 		panic(err)
 	}
+
+	logger.Debug().Msgf("test media tree: %s", testMediaTree.GetRoot().AbsPath())
 
 	if len(testMediaTree.GetRoot().GetChildren()) == 0 {
 		t.Fatal("no test files found")

@@ -72,6 +72,7 @@ func GetConfig(configName string, withOverrides bool) (Config, error) {
 func GetConfigName() string {
 	configName := os.Getenv("CONFIG_NAME")
 	if configName != "" {
+		log.Debug().Msgf("Using config [%s]", configName)
 		return configName
 	}
 	return "PROD"
@@ -116,6 +117,7 @@ func GetAppRootDir() string {
 		appRoot = "/app"
 	}
 
+	log.Debug().Msgf("AppRoot: %s", appRoot)
 	return appRoot
 }
 

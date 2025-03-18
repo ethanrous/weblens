@@ -30,6 +30,7 @@ function SingleFile({ file }: { file: WeblensFile }) {
                 link="/files/home"
                 setNotFound={() => {}}
                 error={404}
+				notFound={true}
             />
         )
     }
@@ -96,6 +97,7 @@ function DirView({
                 resourceType="Folder"
                 link="/files/home"
                 setNotFound={setFilesError}
+				notFound={true}
             />
         )
     } else if (

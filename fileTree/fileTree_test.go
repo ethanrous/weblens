@@ -132,8 +132,12 @@ func TestFileTreeImpl_Move(t *testing.T) {
 	assert.Equal(t, newDir2, newFile.GetParent())
 
 	// Create file with the same name as the first
-	newFile2, err := tree.Touch(root, "file", nil)
+	ev := tree.GetJournal().NewEvent()
+	newFile2, err := tree.Touch(root, "file", ev)
 	require.NoError(t, err)
+
+	tree.GetJournal().LogEvent(ev)
+	require.NoError(t, ev.Wait())
 
 	// Move should fail because we are not allowing overwrite of the previous file with the same name
 	_, err = tree.Move(newFile2, newDir2, newFile2.Filename(), false, nil)
@@ -150,10 +154,7 @@ func TestFileTreeImpl_Delete(t *testing.T) {
 
 	root := tree.GetRoot()
 
-	j := mock.NewHollowJournalService()
-	event := j.NewEvent()
-
-	err = tree.Delete(root.ID(), event)
+	err = tree.Delete(root.ID(), nil)
 	assert.ErrorIs(t, err, werror.ErrRootFolder)
 
 	newDir, err := tree.MkDir(root, "newDir", nil)
@@ -162,8 +163,11 @@ func TestFileTreeImpl_Delete(t *testing.T) {
 	_, err = os.Stat(newDir.AbsPath())
 	require.NoError(t, err)
 
-	err = tree.Delete(newDir.ID(), event)
+	deleteEvent1 := tree.GetJournal().NewEvent()
+	err = tree.Delete(newDir.ID(), deleteEvent1)
 	assert.NoError(t, err)
+
+	tree.GetJournal().LogEvent(deleteEvent1)
 
 	_, err = os.Stat(newDir.AbsPath())
 	assert.Error(t, err)
@@ -174,12 +178,15 @@ func TestFileTreeImpl_Delete(t *testing.T) {
 	newDir3, err := tree.MkDir(newDir2, "newDir3", nil)
 	require.NoError(t, err)
 
-	err = tree.Delete(newDir2.ID(), event)
+	deleteEvent2 := tree.GetJournal().NewEvent()
+	err = tree.Delete(newDir2.ID(), deleteEvent2)
 	assert.Error(t, err)
 
-	err = tree.Delete(newDir3.ID(), event)
+	err = tree.Delete(newDir3.ID(), deleteEvent2)
 	assert.NoError(t, err)
 
-	err = tree.Delete(newDir2.ID(), event)
+	err = tree.Delete(newDir2.ID(), deleteEvent2)
 	assert.NoError(t, err)
+
+	tree.GetJournal().LogEvent(deleteEvent2)
 }

@@ -13,6 +13,11 @@ var ErrNoLifetime = ClientSafeErr{
 	statusCode: 404,
 }
 
+var ErrLifetimeAlreadyExists = ClientSafeErr{
+	realError:  errors.New("lifetime already exists"),
+	statusCode: 404,
+}
+
 var ErrBadTimestamp = ClientSafeErr{
 	realError:  errors.New("a positive timestamp query param is required"),
 	safeErr:    nil,

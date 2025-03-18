@@ -46,6 +46,9 @@ func WebsocketToCore(core *models.Instance, pack *models.ServicePack) error {
 
 	authHeader := http.Header{}
 	authHeader.Add("Authorization", "Bearer "+string(core.GetUsingKey()))
+	authHeader.Add("Wl-Server-Id", pack.InstanceService.GetLocal().ServerId())
+
+	log.Debug().Msgf("Connecting to core server using %s", core.GetUsingKey())
 	var conn *models.WsClient
 	go func() {
 		for {
@@ -128,7 +131,7 @@ func wsCoreClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Ser
 		return
 	}
 
-	c.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Got wsmsg from R[%s]: %v", c.GetRemote().GetName(), msg) })
+	c.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Got wsmsg from R[%s]: %v", c.GetInstance().GetName(), msg) })
 
 	switch msg.EventTag {
 	case "do_backup":
@@ -175,10 +178,11 @@ func wsCoreClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Ser
 			c.Error(werror.Errorf("Invalid role in weblens_loaded message: %v", roleI))
 		}
 
-		c.GetRemote().SetReportedRole(role)
+		pack.Log.Debug().Msgf("Setting server [%s] reported role to [%s]", c.GetInstance().ServerId(), role)
+		c.GetInstance().SetReportedRole(role)
 
 		// Launch backup task whenever we reconnect to the core server
-		_, err = jobs.BackupOne(c.GetRemote(), pack)
+		_, err = jobs.BackupOne(c.GetInstance(), pack)
 		if err != nil {
 			pack.Log.Error().Stack().Err(err).Msg("")
 		}

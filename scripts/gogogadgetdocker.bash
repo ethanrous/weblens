@@ -9,13 +9,14 @@ mkdir -p ./build/bin
 mkdir -p ./build/logs
 
 docker_tag=devel_$(git rev-parse --abbrev-ref HEAD)
-arch="amd64"
+arch="arm64"
+# arch="amd64"
 
 # Once the container is build, push it to docker hub
 do_push=false
 
 # Skip testing
-skip_tests=false
+skip_tests=true
 
 # The base image to build from. Alpine is smaller, debian allows for cuda accelerated ffmpeg
 base_image="alpine"

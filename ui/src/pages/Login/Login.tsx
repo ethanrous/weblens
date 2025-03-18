@@ -54,7 +54,7 @@ const Login = () => {
             <form
                 id="login"
                 action="#"
-                className="mx-auto mt-8 flex w-96 min-w-0 max-w-full flex-col gap-3 px-4"
+                className="mx-auto mt-8 flex w-96 max-w-full min-w-0 flex-col gap-3 px-4"
                 onSubmit={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
@@ -95,8 +95,8 @@ const Login = () => {
                         // setButtonRef={setButtonRef}
                     />
                 </div>
-                <div className="flex items-center justify-center gap-2 border-t-[1px] border-color-border-primary p-2">
-                    <span className="ml-auto text-color-text-primary">
+                <div className="border-color-border-primary flex items-center justify-center gap-2 border-t-[1px] p-2">
+                    <span className="text-color-text-primary ml-auto">
                         New Here?
                     </span>
                     <a href="/signup">Request an Account</a>
@@ -104,8 +104,9 @@ const Login = () => {
             </form>
             <a
                 href="https://github.com/ethanrous/weblens"
-                className="absolute bottom-0 right-0 m-4 flex flex-row bg-transparent"
+                className="absolute right-0 bottom-0 m-4 flex flex-row bg-transparent"
                 target="_blank"
+                rel="noreferrer"
             >
                 <IconBrandGithub />
                 GitHub

@@ -39,6 +39,11 @@ func doFullBackup(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
 	instance := getInstanceFromCtx(r)
 
+	if instance == nil {
+		SafeErrorAndExit(werror.ErrNoInstance, w)
+		return
+	}
+
 	millisString := r.URL.Query().Get("timestamp")
 	if millisString == "" {
 		SafeErrorAndExit(werror.ErrBadTimestamp, w)

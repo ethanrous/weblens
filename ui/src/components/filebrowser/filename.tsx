@@ -49,7 +49,7 @@ export function PathFmt({
                         className="flex w-max min-w-0 shrink items-center"
                     >
                         <IconSlash className="shrink-0" size={16} />
-                        <span className="font-[inherit] [font-weight:inherit] text-nowrap truncate">
+                        <span className="truncate font-[inherit] [font-weight:inherit] text-nowrap">
                             {part}
                         </span>
                     </div>
@@ -90,3 +90,4 @@ export function FileFmt({
         </div>
     )
 }
+

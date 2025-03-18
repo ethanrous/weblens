@@ -1,14 +1,20 @@
 package log
 
 import (
+	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"os"
+	"runtime"
 	"runtime/debug"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/opensearch-project/opensearch-go/v4"
 	"github.com/rs/zerolog"
+	zlog "github.com/rs/zerolog/log"
 	"github.com/rs/zerolog/pkgerrors"
 )
 
@@ -17,7 +23,16 @@ var Error *log.Logger
 
 var OpenSearchClient *opensearch.Client
 
+var projectPackagePrefix string
+
 func init() {
+
+	_, filename, _, _ := runtime.Caller(0)
+	projectPackagePrefix = strings.TrimSuffix(filename, "internal/log/loggers.go")
+	if projectPackagePrefix == filename {
+		// in case the source code file is moved, we can not trim the suffix, the code above should also be updated.
+		panic("unable to detect correct package prefix, please update file: " + filename)
+	}
 
 	// Error writes logs in the color red with "ERROR: " as prefix
 	Error = log.New(os.Stdout, "\u001b[31m[ERROR] \u001b[0m", log.LstdFlags|log.Lshortfile)
@@ -37,26 +52,39 @@ func init() {
 	zerolog.TimestampFieldName = "@timestamp"
 	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
 	zerolog.ErrorStackFieldName = "traceback"
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 }
 
-// Run(e *Event, level Level, message string)
+var logger *zerolog.Logger
 
+func NopLogger() *zerolog.Logger {
+	// nop := zerolog.Nop()
+	// return &nop
+
+	if logger != nil {
+		return logger
+	}
+	return NewZeroLogger()
+
+}
 func NewZeroLogger() *zerolog.Logger {
-	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	if logger != nil {
+		return logger
+	}
 
 	var localLogger io.Writer
 	if os.Getenv("LOG_FORMAT") == "dev" {
-		localLogger = zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}
+		localLogger = WLConsoleLogger{}
 	} else {
 		localLogger = os.Stdout
 	}
 
-	loggers := []io.Writer{localLogger}
+	writers := []io.Writer{localLogger}
 
 	osIndex := os.Getenv("OPENSEARCH_INDEX")
 	if OpenSearchClient != nil {
 		oLog := NewOpensearchLogger(OpenSearchClient, osIndex)
-		loggers = append(loggers, oLog)
+		writers = append(writers, oLog)
 	}
 
 	wl_version := os.Getenv("WEBLENS_BUILD_VERSION")
@@ -74,8 +102,100 @@ func NewZeroLogger() *zerolog.Logger {
 		}
 	}
 
-	multi := zerolog.MultiLevelWriter(loggers...)
-	log := zerolog.New(multi).With().Timestamp().Caller().Str("weblens_build_version", wl_version).Logger()
+	multi := zerolog.MultiLevelWriter(writers...)
+	log := zerolog.New(multi).Level(zerolog.DebugLevel).With().Timestamp().Caller().Str("weblens_build_version", wl_version).Logger()
+	logger = &log
+	zlog.Logger = log
 
 	return &log
+}
+
+type WLConsoleLogger struct {
+}
+
+func (l WLConsoleLogger) Write(p []byte) (n int, err error) {
+	var target map[string]any
+	err = json.Unmarshal(p, &target)
+	if err != nil {
+		return
+	}
+
+	var caller string
+	pc, filename, line, ok := runtime.Caller(6)
+	if ok {
+		fn := runtime.FuncForPC(pc)
+		var fnName string
+		if fn != nil {
+			fnName = fn.Name()
+			fnName = strings.ReplaceAll(fnName, "[...]", "") + "()" // generic function names are "foo[...]"
+
+			slash := strings.LastIndex(fnName, "/") + 1
+			dot := strings.LastIndex(fnName[slash:], ".") + 1
+
+			fnName = fnName[slash+dot:]
+		}
+		filename = strings.TrimPrefix(filename, projectPackagePrefix)
+		caller = fmt.Sprintf("%s:%d:%s", filename, line, fnName)
+	}
+
+	level, _ := target["level"].(string)
+	msgErr, _ := target["error"].(string)
+	logMsg, _ := target["message"].(string)
+	traceback, _ := target["traceback"].([]any)
+
+	ignoredKeys := []string{"level", "error", "message", "weblens_build_version", "caller", "@timestamp", "traceback", "instance"}
+
+	extras := ""
+	for k, v := range target {
+		if slices.Contains(ignoredKeys, k) {
+			continue
+		}
+		extras += fmt.Sprintf("%s%s%s: %v ", blue, k, reset, v)
+	}
+	if extras != "" {
+		logMsg += "\n\t" + extras
+	}
+
+	var stackStr string
+	if len(traceback) != 0 {
+		stackStr = "\n"
+		for _, block := range traceback {
+			blockMap, ok := block.(map[string]any)
+			if !ok {
+				continue
+			}
+
+			source, okSource := blockMap["source"].(string)
+			line, _ := blockMap["line"].(string)
+			function, _ := blockMap["func"].(string)
+			if okSource {
+				source = strings.TrimPrefix(source, projectPackagePrefix)
+				fileAndLine := source + ":" + line
+				function += "()"
+				stackStr += fmt.Sprintf("\t%s%-25s %s%30s\n", blue, fileAndLine, reset, function)
+			}
+		}
+	}
+
+	var levelColor string
+	switch level {
+	case "trace":
+		levelColor = reset
+	case "debug":
+		levelColor = orange
+	case "info":
+		levelColor = blue
+	case "warn":
+		levelColor = yellow
+	case "error", "fatal":
+		levelColor = red
+	}
+
+	timeStr := time.Now().Format(time.DateTime)
+	msg := fmt.Sprintf("%s%s %s%s %s[%s] %s%s %s%s%s%s\n", orange, timeStr, blue, caller, levelColor, level, reset, logMsg, red, msgErr, stackStr, reset)
+	_, err = os.Stdout.Write([]byte(msg))
+	if err != nil {
+		return
+	}
+	return len(p), nil
 }

@@ -6,11 +6,13 @@ import { useSessionStore } from './UserInfo'
 
 function FilesErrorDisplay({
     error,
+    notFound,
     resourceType,
     link,
     setNotFound,
 }: {
     error: number
+    notFound: boolean
     resourceType: string
     link: string
     setNotFound: (b: number) => void
@@ -19,7 +21,7 @@ function FilesErrorDisplay({
     const nav = useNavigate()
 
     let preText = ''
-    if (error === 404) {
+    if (notFound) {
         preText = `Could not find ${resourceType}`
     } else {
         console.error(error)
@@ -28,8 +30,8 @@ function FilesErrorDisplay({
 
     return (
         <div className="flex h-full w-full flex-col items-center justify-center">
-            <div className="bg-wl-barely-visible outline-main-accent mb-[40vh] flex h-max w-[360px] flex-col items-center justify-center rounded-sm p-12 outline">
-                <div className="flex items-center gap-1">
+            <div className="bg-wl-barely-visible mb-[40vh] flex h-max w-[360px] flex-col items-center justify-center rounded-sm border p-12">
+                <div className="mb-4 flex items-center gap-1">
                     <p className="w-max text-2xl font-bold">{preText}</p>
                     <IconExclamationCircle size={32} className="text-red-500" />
                 </div>

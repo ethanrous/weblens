@@ -52,8 +52,9 @@ export const PresentationContainer = ({
             className="bg-background-primary/85 absolute top-0 left-0 z-50 flex h-full w-full items-center justify-center gap-6 p-6 backdrop-blur-sm"
             onMouseMove={onMouseMove}
             onClick={onClick}
-            children={children}
-        />
+        >
+            {children}
+        </div>
     )
 }
 

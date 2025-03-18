@@ -584,7 +584,7 @@ export const historyDate = (timestamp: number, short: boolean = false) => {
 
 export function filenameFromPath(pathName: string): {
     nameText: string
-    StartIcon: FC<{ className: string }>
+    StartIcon: FC<{ className?: string }>
 } {
     if (!pathName) {
         return { nameText: null, StartIcon: null }

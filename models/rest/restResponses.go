@@ -98,7 +98,11 @@ func WeblensFileToFileInfo(f *fileTree.WeblensFileImpl, pack *models.ServicePack
 		if err == nil {
 			hasRestoreMedia = true
 		} else {
-			restoreTree := pack.FileService.GetFileTreeByName(service.RestoreTreeKey)
+			restoreTree, err := pack.FileService.GetFileTreeByName(service.RestoreTreeKey)
+			if err != nil {
+				return FileInfo{}, err
+			}
+
 			_, err = restoreTree.GetRoot().GetChild(f.GetContentId())
 			hasRestoreMedia = err == nil
 		}

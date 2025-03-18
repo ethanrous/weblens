@@ -374,7 +374,7 @@
     }
 
     code {
-        font-family: source-code-pro;
+        font-family: 'Source Code Pro';
     }
 
     body {
@@ -396,6 +396,7 @@
     }
 
     h3 {
+		@apply line-clamp-none;
         font-size: 1.5rem;
         font-weight: 600;
         color: var(--color-text-primary);
@@ -420,6 +421,7 @@
     }
 
     span {
+		@apply line-clamp-none;
         font-family: 'Noto Sans', sans-serif;
         font-size: 0.875rem;
         font-weight: 400;
@@ -473,6 +475,7 @@
         color: var(--color-button-text-disabled);
         cursor: not-allowed;
         outline: 1px solid rgb(from var(--color-button) r g b / 0%);
+        box-shadow: none;
     }
 
     button:active:not(:disabled) {

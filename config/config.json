@@ -72,6 +72,17 @@
 		"dataRoot": "./build/fs/core/data",
 		"cachesRoot": "./build/fs/core/caches"
 	},
+	"DEBUG-CORE-CONTAINER": {
+		"mongodbName": "weblens-core",
+		"mongodbUri": "mongodb://weblens-mongo:27017",
+		"logLevel": "debug",
+		"detachUi": false,
+		"routerHost": "0.0.0.0",
+		"routerPort": 8080,
+		"proxyAddress": "http://local.weblens.io:8080",
+		"dataRoot": "/data",
+		"cachesRoot": "/cache"
+	},
 	"DEBUG-CORE-RESTORE": {
 		"mongodbName": "weblens-core-restore",
 		"mongodbUri": "mongodb://localhost:27017",

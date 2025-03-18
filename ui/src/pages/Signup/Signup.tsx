@@ -289,6 +289,7 @@ function Signup() {
                 href="https://github.com/ethanrous/weblens"
                 className="absolute right-0 bottom-0 m-4 flex flex-row bg-transparent"
                 target="_blank"
+                rel="noreferrer"
             >
                 <IconBrandGithub />
                 GitHub

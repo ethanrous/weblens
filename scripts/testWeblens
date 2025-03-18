@@ -175,6 +175,8 @@ while true; do
         export CONFIG_PATH=$PWD/config
         export CONFIG_NAME=TEST
         export APP_ROOT=$PWD
+        export LOG_FORMAT=dev
+        export WEBLENS_BUILD_VERSION=test
         if [[ $coverage == true ]]; then
             if ! (
                 set -o pipefail

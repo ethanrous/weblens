@@ -96,11 +96,10 @@ rm -f ./build/bin/weblens
 
 pwd=$(pwd)
 
-export GORACE="halt_on_error=1"
-export CGO_CFLAGS_ALLOW='-Xpreprocessor'
-export APP_ROOT=$pwd
-export CONFIG_NAME=$config_name
-export LOG_FORMAT="dev"
+# export GORACE="halt_on_error=1"
+# export CGO_CFLAGS_ALLOW='-Xpreprocessor'
+# export APP_ROOT=$pwd
+# export CONFIG_NAME=$config_name
 
 # Build and launch the binary, automatically restarting on changes
 go build -gcflags="all=-N -l" -race -o ./build/bin/weblens ./cmd/weblens

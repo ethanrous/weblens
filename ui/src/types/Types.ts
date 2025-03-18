@@ -79,8 +79,7 @@ export function ErrorHandler(err: Error, note?: string) {
     note = note ?? ''
     let errMsg = err.message ?? new Error('Unknown error')
     if (err instanceof AxiosError) {
-        console.log('ErrorHandler 1')
-        errMsg = err.message + note
+        errMsg = err.response.data.error + note
     } else {
         console.log('ErrorHandler 2')
         errMsg = err.message + note
@@ -88,7 +87,7 @@ export function ErrorHandler(err: Error, note?: string) {
     console.log('ErrorHandler 3')
 
     useMessagesController.getState().addMessage({
-		title: 'ErrorHandler caught an error',
+        title: 'ErrorHandler caught an error',
         text: errMsg,
         duration: 5000,
         severity: 'error',

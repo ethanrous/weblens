@@ -75,7 +75,9 @@ func launchBackup(w http.ResponseWriter, r *http.Request) {
 		)
 		if err != nil {
 			pack.Log.Error().Stack().Err(err).Msg("")
-			w.WriteHeader(http.StatusInternalServerError)
+
+			// We don't return an error status code here, because the backup is still running, but the user won't get updates
+			writeError(w, http.StatusOK, err)
 			return
 		}
 	}

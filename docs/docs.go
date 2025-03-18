@@ -1495,6 +1495,54 @@ const docTemplate = `{
                         "description": "Not Found"
                     }
                 }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "tags": [
+                    "Servers"
+                ],
+                "summary": "Update a remote",
+                "operationId": "UpdateRemote",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Server Id to update",
+                        "name": "serverId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Server Params",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/UpdateServerParams"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
             }
         },
         "/servers/{serverId}/backup": {
@@ -3227,6 +3275,20 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "newParentId": {
+                    "type": "string"
+                }
+            }
+        },
+        "UpdateServerParams": {
+            "type": "object",
+            "properties": {
+                "coreAddress": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "usingKey": {
                     "type": "string"
                 }
             }

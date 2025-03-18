@@ -81,6 +81,7 @@ func wsMain(c *models.WsClient, pack *models.ServicePack) {
 	} else {
 		switchboard = wsServerClientSwitchboard
 		if pack.Loaded.Load() {
+			pack.Log.Debug().Msgf("Server connected: %s -- local role is: %s", c.GetInstance().ServerId(), pack.InstanceService.GetLocal().GetRole())
 			c.PushWeblensEvent(models.WeblensLoadedEvent, models.WsC{"role": pack.InstanceService.GetLocal().GetRole()})
 		}
 	}
@@ -271,7 +272,7 @@ func wsServerClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.S
 	}
 
 	sentTime := time.UnixMilli(msg.SentTime)
-	relaySourceId := c.GetRemote().ServerId()
+	relaySourceId := c.GetInstance().ServerId()
 
 	switch msg.EventTag {
 	case models.ServerGoingDownEvent:
@@ -298,6 +299,8 @@ func wsServerClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.S
 
 	msg.RelaySource = relaySourceId
 	pack.Caster.Relay(msg)
+
+	pack.Log.Debug().Msgf("Relaying message [%s] from server [%s]", msg.EventTag, relaySourceId)
 
 	return nil
 }

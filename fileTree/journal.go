@@ -2,17 +2,16 @@ package fileTree
 
 import (
 	"context"
-	"errors"
 	"path/filepath"
 	"slices"
 	"sync"
 	"time"
 
 	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/viccon/sturdyc"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -40,20 +39,28 @@ type JournalImpl struct {
 	cache *sturdyc.Client[*Lifetime]
 }
 
-func NewJournal(col *mongo.Collection, serverId string, ignoreLocal bool, hasherFactory func() Hasher, logger *zerolog.Logger) (
+type JournalConfig struct {
+	Collection    *mongo.Collection
+	ServerId      string
+	IgnoreLocal   bool
+	HasherFactory func() Hasher
+	Logger        *zerolog.Logger
+}
+
+func NewJournal(cnf JournalConfig) (
 	*JournalImpl, error,
 ) {
-	newLogger := logger.With().Str("service", "journal").Logger()
-	if hasherFactory == nil {
+	newLogger := cnf.Logger.With().Str("service", "journal").Logger()
+	if cnf.HasherFactory == nil {
 		return nil, errors.New("Hasher factory cannot be nil")
 	}
 
 	j := &JournalImpl{
 		eventStream:   make(chan *FileEvent, 10),
-		col:           col,
-		serverId:      serverId,
-		ignoreLocal:   ignoreLocal,
-		hasherFactory: hasherFactory,
+		col:           cnf.Collection,
+		serverId:      cnf.ServerId,
+		ignoreLocal:   cnf.IgnoreLocal,
+		hasherFactory: cnf.HasherFactory,
 		log:           &newLogger,
 		flushCond:     sync.NewCond(&sync.Mutex{}),
 		cache:         sturdyc.New[*Lifetime](10000, 10, time.Hour*2, 10),
@@ -81,7 +88,7 @@ func NewJournal(col *mongo.Collection, serverId string, ignoreLocal bool, hasher
 			},
 		},
 	}
-	_, err := col.Indexes().CreateMany(context.Background(), indexModel)
+	_, err := j.col.Indexes().CreateMany(context.Background(), indexModel)
 	if err != nil {
 		return nil, err
 	}
@@ -89,17 +96,17 @@ func NewJournal(col *mongo.Collection, serverId string, ignoreLocal bool, hasher
 	var lifetimes []*Lifetime
 
 	start := time.Now()
-	lifetimes, err = getAllLifetimes(j.col, serverId)
+	lifetimes, err = getAllLifetimes(j.col, cnf.ServerId)
 	if err != nil {
 		return nil, err
 	}
-	logger.Trace().Func(func(e *zerolog.Event) { e.Msgf("Get all lifetimes in %s", time.Since(start)) })
+	j.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Get all lifetimes in %s", time.Since(start)) })
 	start = time.Now()
 
 	for _, lt := range lifetimes {
 		j.cache.Set(lt.ID(), lt)
 	}
-	logger.Trace().Func(func(e *zerolog.Event) { e.Msgf("Add lifetimes to map in %s", time.Since(start)) })
+	j.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Add lifetimes to map in %s", time.Since(start)) })
 
 	go j.EventWorker()
 
@@ -108,22 +115,13 @@ func NewJournal(col *mongo.Collection, serverId string, ignoreLocal bool, hasher
 
 func (j *JournalImpl) NewEvent() *FileEvent {
 	hasher := j.hasherFactory()
-	j.log.Debug().Msgf("Hasher ???? %v", hasher)
 
 	if hasher == nil {
 		j.log.Error().Msgf("Hasher is nil trying to create new file event")
 		return nil
 	}
 
-	return &FileEvent{
-		EventId:    FileEventId(primitive.NewObjectID().Hex()),
-		EventBegin: time.Now(),
-		journal:    j,
-		ServerId:   j.serverId,
-		hasher:     hasher,
-
-		LoggedChan: make(chan struct{}),
-	}
+	return NewFileEvent(j, j.serverId, hasher)
 }
 
 func (j *JournalImpl) SetFileTree(ft *FileTreeImpl) {
@@ -139,7 +137,7 @@ func (j *JournalImpl) SetIgnoreLocal(ignore bool) {
 }
 
 func (j *JournalImpl) GetActiveLifetimes() []*Lifetime {
-	filter := bson.M{"actions.actionType": bson.M{"$ne": "fileDelete"}}
+	filter := bson.M{"actions.actionType": bson.M{"$ne": "fileDelete"}, "serverId": j.serverId}
 	res, err := j.col.Find(context.Background(), filter)
 	if err != nil {
 		j.log.Error().Stack().Err(err).Msg("")
@@ -401,6 +399,7 @@ func (j *JournalImpl) Get(lId FileId) *Lifetime {
 
 func (j *JournalImpl) fetchLifetime(ctx context.Context) (*Lifetime, error) {
 	lId := ctx.Value("lifetimeId")
+	j.log.Trace().Stack().Err(errors.New("")).Msgf("Cache miss on lifetime [%s]", lId)
 	filter := bson.M{"_id": lId}
 	res := j.col.FindOne(ctx, filter)
 	if err := res.Err(); err != nil {
@@ -525,7 +524,8 @@ func (j *JournalImpl) handleFileEvent(event *FileEvent) error {
 		})
 
 		actionType := action.GetActionType()
-		if actionType == FileCreate || actionType == FileRestore {
+		switch actionType {
+		case FileCreate, FileRestore:
 			if action.Size == -1 {
 				_, err := action.file.LoadStat()
 				if err != nil {
@@ -539,17 +539,12 @@ func (j *JournalImpl) handleFileEvent(event *FileEvent) error {
 				return err
 			}
 
-			if newL == nil {
-				return werror.Errorf("failed to create new lifetime")
-			}
-
 			existing := j.Get(newL.ID())
 			if existing != nil {
-				panic(werror.Errorf("trying to add create action to already existing lifetime %s", newL.ID()))
-				return werror.Errorf("trying to add create action to already existing lifetime: %s", newL.ID())
+				return errors.Wrapf(werror.ErrLifetimeAlreadyExists, "Trying to add create action for [%s -- %s]", newL.GetLatestPath(), newL.ID())
 			}
 			updated = append(updated, newL)
-		} else if actionType == FileDelete || actionType == FileMove || actionType == FileSizeChange {
+		case FileDelete, FileMove, FileSizeChange:
 			existing := j.Get(action.LifeId)
 			if existing == nil {
 				j.log.Error().Stack().Err(werror.WithStack(werror.ErrNoLifetime.WithArg(action.LifeId))).Msg("")
@@ -558,7 +553,7 @@ func (j *JournalImpl) handleFileEvent(event *FileEvent) error {
 			existing.Add(action)
 
 			updated = append(updated, existing)
-		} else {
+		default:
 			return werror.Errorf("unknown file action type %s", actionType)
 		}
 	}
@@ -596,16 +591,6 @@ func upsertLifetime(lt *Lifetime, col *mongo.Collection) error {
 	return err
 }
 
-func upsertLifetimes(lts []*Lifetime, col *mongo.Collection) error {
-	many := []mongo.WriteModel{mongo.NewUpdateManyModel().SetFilter(bson.M{}).SetUpdate(lts).SetUpsert(true)}
-	_, err := col.BulkWrite(context.Background(), many)
-	if err != nil {
-		return werror.WithStack(err)
-	}
-
-	return nil
-}
-
 func (j *JournalImpl) getChildrenAtTime(parentId FileId, time time.Time) ([]*FileAction, error) {
 	pipe := bson.A{
 		bson.D{{Key: "$match", Value: bson.D{{Key: "actions.parentId", Value: parentId}}}},
@@ -621,14 +606,6 @@ func (j *JournalImpl) getChildrenAtTime(parentId FileId, time time.Time) ([]*Fil
 		bson.D{{Key: "$replaceRoot", Value: bson.D{{Key: "newRoot", Value: "$latest"}}}},
 		bson.D{{Key: "$match", Value: bson.D{{Key: "parentId", Value: parentId}}}},
 	}
-
-	// pipe := bson.A{
-	// 	bson.D{{Key: "$match", Value: bson.D{{Key: "serverId", Value: j.serverId}}}},
-	// 	bson.D{{Key: "$unwind", Value: bson.D{{Key: "path", Value: "$actions"}}}},
-	// 	bson.D{{Key: "$match", Value: bson.D{{Key: "$and", Value: bson.A{bson.D{{Key: "actions.parentId", Value: parentId}}, bson.D{{Key: "actions.timestamp", Value: bson.D{{Key: "$lt", Value: time}}}}}}}}},
-	// 	bson.D{{Key: "$replaceRoot", Value: bson.D{{Key: "newRoot", Value: "$actions"}}}},
-	// 	bson.D{{Key: "$sort", Value: bson.D{{Key: "timestamp", Value: -1}}}},
-	// }
 
 	ret, err := j.col.Aggregate(context.Background(), pipe)
 	if err != nil {
@@ -708,7 +685,6 @@ type Journal interface {
 	Get(id FileId) *Lifetime
 	Add(lifetime ...*Lifetime) error
 
-	SetFileTree(ft *FileTreeImpl)
 	IgnoreLocal() bool
 	SetIgnoreLocal(ignore bool)
 

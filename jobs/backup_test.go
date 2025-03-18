@@ -16,6 +16,7 @@ import (
 	"github.com/ethanrous/weblens/service/mock"
 	"github.com/ethanrous/weblens/service/proxy"
 	"github.com/ethanrous/weblens/task"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,9 +30,10 @@ func TestBackupCore(t *testing.T) {
 
 	logger := log.NewZeroLogger()
 
+	nop := zerolog.Nop()
 	coreServices, err := tests.NewWeblensTestInstance(t.Name(), env.Config{
 		Role: string(models.CoreServerRole),
-	})
+	}, &nop)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,6 +87,7 @@ func TestBackupCore(t *testing.T) {
 	journal := mock.NewHollowJournalService()
 	coreTree := mock.NewMemFileTree(core.Id)
 	coreTree.SetJournal(journal)
+
 	fileService := mock.NewMockFileService()
 	fileService.AddTree(coreTree)
 

@@ -99,7 +99,7 @@ func (ft *MemFileTree) Move(
 }
 
 func (ft *MemFileTree) Touch(
-	parentFolder *fileTree.WeblensFileImpl, newFileName string, event *fileTree.FileEvent,
+	parentFolder *fileTree.WeblensFileImpl, newFileName string, event *fileTree.FileEvent, data ...[]byte,
 ) (*fileTree.WeblensFileImpl, error) {
 
 	panic("implement me")

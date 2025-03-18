@@ -9,19 +9,18 @@ import (
 	"github.com/ethanrous/weblens/database"
 	"github.com/ethanrous/weblens/http"
 	"github.com/ethanrous/weblens/internal/env"
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/setup"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 // Create a new instance of the weblens application to test against
-func NewWeblensTestInstance(testName string, cnf env.Config) (*models.ServicePack, error) {
+func NewWeblensTestInstance(testName string, cnf env.Config, log *zerolog.Logger) (*models.ServicePack, error) {
 	var server *http.Server
-
-	// log.SetLogLevel(log.DEBUG, "")
 
 	cnf.RouterHost = env.GetRouterHost()
 	cnf.RouterPort = rand.IntN(2000) + 8090
@@ -32,15 +31,12 @@ func NewWeblensTestInstance(testName string, cnf env.Config) (*models.ServicePac
 	cnf.CachesRoot = filepath.Join(env.GetBuildDir(), "fs/test", testName+"-auto", "cache")
 	cnf.UiPath = env.GetUIPath()
 
-	logger := log.NewZeroLogger()
-
 	var services = &models.ServicePack{
 		Cnf: cnf,
-		Log: logger,
-		// Log: log.NewLogPackage(filepath.Join(env.GetBuildDir(), "logs", testName+"-auto.log"), cnf.LogLevel),
+		Log: log,
 	}
 
-	mondb, err := database.ConnectToMongo(cnf.MongodbUri, cnf.MongodbName, logger)
+	mondb, err := database.ConnectToMongo(cnf.MongodbUri, cnf.MongodbName, log)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +85,7 @@ func NewWeblensTestInstance(testName string, cnf env.Config) (*models.ServicePac
 			return nil, err
 		}
 	} else if models.ServerRole(cnf.Role) == models.BackupServerRole {
-		err = services.InstanceService.InitBackup(testName+"-backup", cnf.CoreAddress, cnf.CoreApiKey)
+		_, err = services.InstanceService.InitBackup(testName+"-backup", cnf.CoreAddress, cnf.CoreApiKey)
 		if err != nil {
 			return nil, err
 		}
@@ -119,5 +115,12 @@ func waitForStartup(startupChan chan bool) error {
 		case <-time.After(time.Second * 10):
 			return werror.Errorf("Startup timeout")
 		}
+	}
+}
+
+func CheckDropCol(col *mongo.Collection, logger *zerolog.Logger) {
+	if err := col.Drop(context.Background()); err != nil {
+		err = errors.Wrap(err, "Failed to drop collection")
+		logger.Error().Stack().Err(err).Msg("Failed to drop collection")
 	}
 }

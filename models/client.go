@@ -67,6 +67,9 @@ func (wsc *WsClient) GetClientId() ClientId {
 }
 
 func (wsc *WsClient) ClientType() ClientType {
+	if wsc.remote != nil {
+		return InstanceClient
+	}
 	return WebClient
 }
 
@@ -81,7 +84,7 @@ func (wsc *WsClient) GetUser() *User {
 	return wsc.user
 }
 
-func (wsc *WsClient) GetRemote() *Instance {
+func (wsc *WsClient) GetInstance() *Instance {
 	return wsc.remote
 }
 
@@ -96,7 +99,9 @@ func (wsc *WsClient) Error(err error) {
 
 	safe, _ := werror.GetSafeErr(err)
 	err = wsc.Send(WsResponseInfo{EventTag: ErrorEvent, Error: safe.Error()})
-	wsc.log.Error().Stack().Err(err).Msg("")
+	if err != nil {
+		wsc.log.Error().Stack().Err(err).Msg("")
+	}
 }
 
 func (wsc *WsClient) PushWeblensEvent(eventTag string, content ...WsC) {
@@ -280,7 +285,7 @@ type Client interface {
 	AddSubscription(sub Subscription)
 
 	GetUser() *User
-	GetRemote() *Instance
+	GetInstance() *Instance
 
 	Error(error)
 }

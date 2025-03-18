@@ -57,6 +57,12 @@ func BackupOne(core *models.Instance, pack *models.ServicePack) (*task.Task, err
 func DoBackup(t *task.Task) {
 	meta := t.GetMeta().(models.BackupMeta)
 
+	if meta.Core.Role != models.CoreServerRole || (meta.Core.GetReportedRole() != "" && meta.Core.GetReportedRole() != models.CoreServerRole) {
+		t.Fail(werror.Errorf("Remote role is [%s -- %s], expected core", meta.Core.Role, meta.Core.GetReportedRole()))
+	}
+
+	t.Log.Debug().Msgf("Starting backup of [%s] with adddress [%s] with key [%s]", meta.Core.Name, meta.Core.Address, meta.Core.UsingKey)
+
 	t.OnResult(
 		func(r task.TaskResult) {
 			meta.Caster.PushTaskUpdate(t, models.BackupProgressEvent, r)
@@ -99,16 +105,16 @@ func DoBackup(t *task.Task) {
 	t.SetResult(task.TaskResult{"stages": stages, "coreId": meta.Core.ServerId()})
 
 	// Read core server info and check if it is really a core server
-	req := proxy.NewCoreRequest(meta.Core, "GET", "/info")
-	infoRes, err := proxy.CallHomeStruct[rest.ServerInfo](req)
-	if err != nil {
-		t.ReqNoErr(err)
-	}
-
-	meta.Core.SetReportedRole(infoRes.Role)
-	if infoRes.Role != models.CoreServerRole {
-		t.ReqNoErr(werror.Errorf("Remote role is [%s] expected core", infoRes.Role))
-	}
+	// req := proxy.NewCoreRequest(meta.Core, "GET", "/info")
+	// infoRes, err := proxy.CallHomeStruct[rest.ServerInfo](req)
+	// if err != nil {
+	// 	t.ReqNoErr(err)
+	// }
+	//
+	// meta.Core.SetReportedRole(infoRes.Role)
+	// if infoRes.Role != models.CoreServerRole {
+	// 	t.ReqNoErr(werror.Errorf("Remote role is [%s] expected core", infoRes.Role))
+	// }
 
 	// Find most recent action timestamp
 	latest, err := meta.FileService.GetJournalByTree(meta.Core.Id).GetLatestAction()
@@ -126,7 +132,7 @@ func DoBackup(t *task.Task) {
 	stages.StartStage("fetching_backup_data")
 	t.SetResult(task.TaskResult{"stages": stages})
 
-	backupRq := proxy.NewCoreRequest(meta.Core, "GET", "/servers/backup").WithQuery("timestamp", strconv.FormatInt(latestTime.UnixMilli(), 10))
+	backupRq := proxy.NewCoreRequest(meta.Core, "GET", "/servers/backup").WithQuery("timestamp", strconv.FormatInt(latestTime.UnixMilli(), 10)).WithHeader("Wl-Server-Id", meta.InstanceService.GetLocal().ServerId())
 	backupResponse, err := proxy.CallHomeStruct[rest.BackupInfo](backupRq)
 	t.ReqNoErr(err)
 
@@ -163,6 +169,7 @@ func DoBackup(t *task.Task) {
 	// Write instances to access service
 	for _, serverInfo := range backupResponse.Instances {
 		instance := rest.ServerInfoToInstance(serverInfo)
+		instance.CreatedBy = meta.Core.ServerId()
 		if err := meta.InstanceService.Get(instance.ServerId()); err == nil {
 			continue
 		}
@@ -308,8 +315,12 @@ func DoBackup(t *task.Task) {
 	stages.FinishStage("sync_fs")
 	t.SetResult(task.TaskResult{"stages": stages})
 
-	root, err := meta.FileService.GetFileByTree("ROOT", meta.Core.ServerId())
-	t.ReqNoErr(err)
+	coreTree, err := meta.FileService.GetFileTreeByName(meta.Core.ServerId())
+	if err != nil {
+		t.Fail(err)
+	}
+
+	root := coreTree.GetRoot()
 
 	err = meta.FileService.ResizeDown(root, nil, meta.Caster)
 	t.ReqNoErr(err)

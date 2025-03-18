@@ -122,12 +122,12 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 
 // CheckUsernameUnique godoc
 //
-//	@ID		CheckUsernameUnique
+//	@ID			CheckUsernameUnique
 //
 //	@Summary	Check if username is unique
 //	@Tags		Users
 //	@Produce	json
-//	@Param		username	query		string	true	"Username to check"
+//	@Param		username	query	string	true	"Username to check"
 //	@Success	200
 //	@Failure	400
 //	@Failure	409
@@ -252,13 +252,15 @@ func getUserInfo(w http.ResponseWriter, r *http.Request) {
 
 	res := rest.UserToUserInfo(u)
 
-	trash, err := pack.FileService.GetFileSafe(u.TrashId, u, nil)
-	if SafeErrorAndExit(err, w) {
-		return
-	}
+	if pack.InstanceService.GetLocal().GetRole() != models.BackupServerRole {
+		trash, err := pack.FileService.GetFileSafe(u.TrashId, u, nil)
+		if SafeErrorAndExit(err, w) {
+			return
+		}
 
-	res.TrashSize = trash.Size()
-	res.HomeSize = trash.GetParent().Size()
+		res.TrashSize = trash.Size()
+		res.HomeSize = trash.GetParent().Size()
+	}
 
 	writeJson(w, http.StatusOK, res)
 }
@@ -419,7 +421,7 @@ func activateUser(w http.ResponseWriter, r *http.Request) {
 
 // ChangeFullName godoc
 //
-//	@ID		ChangeFullName
+//	@ID			ChangeFullName
 //
 //	@Security	SessionAuth
 //	@Security	ApiKeyAuth
@@ -432,8 +434,8 @@ func activateUser(w http.ResponseWriter, r *http.Request) {
 //	@Param		newFullName	query	string	true	"New full name of user"
 //	@Success	200
 //	@Failure	400	{object}	rest.WeblensErrorInfo
-//	@Failure	401 {object}	rest.WeblensErrorInfo
-//	@Failure	404 {object}	rest.WeblensErrorInfo
+//	@Failure	401	{object}	rest.WeblensErrorInfo
+//	@Failure	404	{object}	rest.WeblensErrorInfo
 //	@Router		/users/{username}/fullName [patch]
 func changeFullName(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)

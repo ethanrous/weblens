@@ -6,8 +6,10 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type FileEventId = string
@@ -31,8 +33,19 @@ type FileEvent struct {
 	Logged     atomic.Bool   `bson:"-"`
 }
 
-func (fe *FileEvent) SetJournal(j Journal) {
-	fe.journal = j
+func NewFileEvent(journal Journal, serverId string, hasher Hasher) *FileEvent {
+	return &FileEvent{
+		EventBegin: time.Now(),
+		EventId:    FileEventId(primitive.NewObjectID().Hex()),
+		ServerId:   serverId,
+		hasher:     hasher,
+		journal:    journal,
+
+		Actions:     make([]*FileAction, 0),
+		actionsLock: sync.RWMutex{},
+
+		LoggedChan: make(chan struct{}),
+	}
 }
 
 func (fe *FileEvent) addAction(a *FileAction) {
@@ -110,18 +123,16 @@ func (fe *FileEvent) SetLogged() {
 	close(fe.LoggedChan)
 }
 
-func (fe *FileEvent) NewMoveAction(lifeId FileId, file *WeblensFileImpl) *FileAction {
+func (fe *FileEvent) NewMoveAction(lifeId FileId, file *WeblensFileImpl) (*FileAction, error) {
 	if fe.journal == nil {
-		return nil
+		return nil, errors.Wrap(werror.ErrNoJournal, "journal not set on move action")
 	}
 
 	fe.journal.Flush()
 
 	lt := fe.journal.Get(lifeId)
 	if lt == nil {
-		err := werror.Errorf("Cannot find existing lifetime for %s", lifeId)
-		log.Error().Stack().Err(err).Msg("")
-		return nil
+		return nil, errors.Wrapf(werror.ErrNoLifetime, "Moving [%s] to [%s]", lifeId, file.GetPortablePath())
 	}
 	latest := lt.GetLatestAction()
 
@@ -140,7 +151,7 @@ func (fe *FileEvent) NewMoveAction(lifeId FileId, file *WeblensFileImpl) *FileAc
 
 	fe.addAction(newAction)
 
-	return newAction
+	return newAction, nil
 }
 
 func (fe *FileEvent) NewDeleteAction(lifeId FileId) (*FileAction, error) {
@@ -152,8 +163,7 @@ func (fe *FileEvent) NewDeleteAction(lifeId FileId) (*FileAction, error) {
 
 	lt := fe.journal.Get(lifeId)
 	if lt == nil {
-		err := werror.Errorf("Cannot find existing lifetime for %s", lifeId)
-		return nil, err
+		return nil, errors.Wrapf(werror.ErrNoLifetime, "Deleting [%s]", lifeId)
 	}
 
 	for _, action := range fe.GetActions() {

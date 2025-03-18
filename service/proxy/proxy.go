@@ -103,6 +103,8 @@ func (r Request) Call() (*http.Response, error) {
 	}
 
 	req.Header.Add("Authorization", "Bearer "+string(r.remote.UsingKey))
+	// req.Header.Add("Wl-Server-Id", LocalInstance.ServerId())
+	log.Debug().Msgf("Calling home to %s [%s %s] with key [%s]", r.remote.Id, r.method, req.URL.String(), r.remote.UsingKey)
 	cli := &http.Client{}
 	resp, err := cli.Do(req)
 	if err != nil {

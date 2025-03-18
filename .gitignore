@@ -44,3 +44,5 @@ media_proc/
 /weblens
 
 go.work.sum
+
+scripts/docker-compose.yml

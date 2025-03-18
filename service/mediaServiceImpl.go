@@ -164,7 +164,7 @@ func (ms *MediaServiceImpl) Add(m *models.Media) error {
 	}
 
 	if m.Width == 0 || m.Height == 0 {
-		ms.log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Media %s has height %d and width %d", m.ID(), m.Height, m.Width) })
+		ms.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Media %s has height %d and width %d", m.ID(), m.Height, m.Width) })
 		return werror.ErrMediaNoDimensions
 	}
 
@@ -465,9 +465,9 @@ func (ms *MediaServiceImpl) Drop() error {
 		return werror.WithStack(err)
 	}
 
-	cacheTree := ms.fileService.GetFileTreeByName(CachesTreeKey)
-	if cacheTree == nil {
-		return werror.WithStack(werror.ErrNoFileTree)
+	cacheTree, err := ms.fileService.GetFileTreeByName(CachesTreeKey)
+	if err != nil {
+		return err
 	}
 
 	thumbsDir, err := cacheTree.GetRoot().GetChild(ThumbsDirName)

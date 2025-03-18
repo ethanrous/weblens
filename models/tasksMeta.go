@@ -12,6 +12,7 @@ import (
 	"github.com/ethanrous/weblens/internal"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/task"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
 
@@ -58,7 +59,9 @@ func (m ScanMeta) MetaString() string {
 	}
 	bs, err := json.Marshal(data)
 	if err != nil {
+		err = errors.WithStack(err)
 		log.Error().Stack().Err(err).Msg("Could not marshal scan metadata")
+		return ""
 	}
 
 	return string(bs)
@@ -110,7 +113,11 @@ func (m ZipMeta) MetaString() string {
 
 	slices.Sort(ids)
 	idsString, err := json.Marshal(ids)
-	log.Error().Stack().Err(err).Msg("")
+	if err != nil {
+		err = errors.WithStack(err)
+		log.Error().Stack().Err(err).Msg("could not marshal zip metadata")
+		return ""
+	}
 
 	var shareBit string
 	if m.Share != nil {
@@ -173,7 +180,11 @@ func (m MoveMeta) MetaString() string {
 		"NewFileName": m.NewFilename,
 	}
 	bs, err := json.Marshal(data)
-	log.Error().Stack().Err(err).Msg("")
+	if err != nil {
+		err = errors.WithStack(err)
+		log.Error().Stack().Err(err).Msg("could not marshal move metadata")
+		return ""
+	}
 
 	return string(bs)
 }
@@ -260,7 +271,11 @@ func (m FsStatMeta) MetaString() string {
 		"RootFolder": m.RootDir.ID(),
 	}
 	bs, err := json.Marshal(data)
-	log.Error().Stack().Err(err).Msg("")
+	if err != nil {
+		err = errors.WithStack(err)
+		log.Error().Stack().Err(err).Msg("could not marshal fs stat metadata")
+		return ""
+	}
 
 	return string(bs)
 }
@@ -301,7 +316,11 @@ func (m BackupMeta) MetaString() string {
 		"remoteId": m.Core,
 	}
 	bs, err := json.Marshal(data)
-	log.Error().Stack().Err(err).Msg("")
+	if err != nil {
+		err = errors.WithStack(err)
+		log.Error().Stack().Err(err).Msg("could not marshal backup metadata")
+		return ""
+	}
 
 	return string(bs)
 }
@@ -347,7 +366,10 @@ func (m HashFileMeta) MetaString() string {
 		"fileId":  m.File.ID(),
 	}
 	bs, err := json.Marshal(data)
-	log.Error().Stack().Err(err).Msg("")
+	if err != nil {
+		err = errors.WithStack(err)
+		log.Error().Stack().Err(err).Msg("Could not marshal hasher metadata")
+	}
 
 	return string(bs)
 }
@@ -380,7 +402,11 @@ func (m BackupCoreFileMeta) MetaString() string {
 	}
 
 	bs, err := json.Marshal(data)
-	log.Error().Stack().Err(err).Msg("")
+	if err != nil {
+		err = errors.WithStack(err)
+		log.Error().Stack().Err(err).Msg("could not marshal backup core metadata")
+		return ""
+	}
 
 	return string(bs)
 }
@@ -419,7 +445,11 @@ func (m RestoreCoreMeta) MetaString() string {
 	}
 
 	bs, err := json.Marshal(data)
-	log.Error().Stack().Err(err).Msg("")
+	if err != nil {
+		err = errors.WithStack(err)
+		log.Error().Stack().Err(err).Msg("could not marshal restore core metadata")
+		return ""
+	}
 
 	return string(bs)
 }

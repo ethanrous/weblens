@@ -545,7 +545,7 @@ function PastFileMenu({
 
     return (
         <div
-            className="no-scrollbar grid grid-flow-row grid-cols-2 items-center justify-center justify-items-center pb-4"
+            className="no-scrollbar grid grid-flow-row grid-cols-2 items-center justify-center justify-items-center pb-4 pt-1 px-1"
             data-visible={menuMode === FbMenuModeT.Default}
         >
             <WeblensButton

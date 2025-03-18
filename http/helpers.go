@@ -2,7 +2,6 @@ package http
 
 import (
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"time"
@@ -12,6 +11,7 @@ import (
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/models/rest"
 	"github.com/go-chi/chi/v5"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -45,16 +45,23 @@ func getServices(r *http.Request) *models.ServicePack {
 // response writer the correct http code and json error response. It returns
 // true if there is an error and the http request should be terminated, and
 // false if the error is nil
-func SafeErrorAndExit(err error, w http.ResponseWriter, log ...*zerolog.Logger) (shouldExit bool) {
+func SafeErrorAndExit(err error, w http.ResponseWriter, logger ...*zerolog.Logger) (shouldExit bool) {
 	if err == nil {
 		return false
 	}
 
 	safe, code := werror.GetSafeErr(err)
 	writeError(w, code, safe)
-	if len(log) > 0 && log[0] != nil {
-		log[0].Error().CallerSkipFrame(1).Stack().Err(err).Msg("")
+
+	var l *zerolog.Logger
+	if len(logger) > 0 && logger[0] != nil {
+		l = logger[0]
+	} else {
+		l = &log.Logger
 	}
+
+	l.Error().CallerSkipFrame(1).Stack().Err(err).Msg("")
+
 	return true
 }
 
@@ -112,16 +119,16 @@ func readRespBodyRaw(resp *http.Response) (bodyB []byte, err error) {
 }
 
 func getUserFromCtx(r *http.Request, allowPublic bool) (*models.User, error) {
-	userI := r.Context().Value(UserKey)
+	userI := r.Context().Value(UserContextKey)
 	if userI == nil {
 		return nil, werror.ErrCtxMissingUser
 	}
 
 	u, _ := userI.(*models.User)
 
-	if u.IsPublic() && (!allowPublic && (r.Context().Value(AllowPublicKey) == nil && r.Context().Value(ServerKey) == nil)) {
-		return nil, werror.WithStack(werror.ErrNoPublicUser)
-	}
+	// if u.IsPublic() && (!allowPublic && (r.Context().Value(AllowPublicKey) == nil && r.Context().Value(ServerKey) == nil)) {
+	// 	return nil, werror.WithStack(werror.ErrNoPublicUser)
+	// }
 	return u, nil
 }
 

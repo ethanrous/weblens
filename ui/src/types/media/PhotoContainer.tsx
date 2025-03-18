@@ -16,7 +16,6 @@ import Hls from 'hls.js'
 import {
     CSSProperties,
     MouseEvent,
-    memo,
     useCallback,
     useEffect,
     useMemo,
@@ -190,193 +189,158 @@ function toggleFullScreen(div: HTMLDivElement) {
     }
 }
 
-const VideoInterface = memo(
-    ({
-        videoLength,
-        volume,
-        setVolume,
-        playtime,
-        setPlaytime,
-        isPlaying,
-        showUi,
-        videoRef,
-        containerRef,
-    }: {
-        videoLength: number
-        volume: number
-        setVolume: (v: number) => void
-        playtime: number
-        setPlaytime: (v: number) => void
-        isPlaying: boolean
-        showUi: boolean
-        videoRef: HTMLVideoElement
-        containerRef: HTMLDivElement
-    }) => {
-        const size = useResize(containerRef)
-        const [wasPlaying, setWasPlaying] = useState(false)
+function VideoInterface({
+    videoLength,
+    volume,
+    setVolume,
+    playtime,
+    setPlaytime,
+    isPlaying,
+    showUi,
+    videoRef,
+    containerRef,
+}: {
+    videoLength: number
+    volume: number
+    setVolume: (v: number) => void
+    playtime: number
+    setPlaytime: (v: number) => void
+    isPlaying: boolean
+    showUi: boolean
+    videoRef: HTMLVideoElement
+    containerRef: HTMLDivElement
+}) {
+    const size = useResize(containerRef)
+    const [wasPlaying, setWasPlaying] = useState(false)
 
-        const VolumeIcon = useMemo(() => {
-            if (volume === 0) {
-                return IconVolume3
-            } else {
-                return IconVolume
-            }
-        }, [volume])
+    const VolumeIcon = useMemo(() => {
+        if (volume === 0) {
+            return IconVolume3
+        } else {
+            return IconVolume
+        }
+    }, [volume])
 
-        const buffered = useMemo(() => {
-            const buffered = videoRef?.buffered.length
-                ? (videoRef.buffered.end(videoRef.buffered.length - 1) /
-                      videoRef.duration) *
-                  100
-                : 0
+    const buffered = useMemo(() => {
+        const buffered = videoRef?.buffered.length
+            ? (videoRef.buffered.end(videoRef.buffered.length - 1) /
+                  videoRef.duration) *
+              100
+            : 0
 
-            return buffered
-        }, [videoRef?.buffered])
+        return buffered
+    }, [videoRef?.buffered])
 
-        const PlayIcon = isPlaying
-            ? IconPlayerPauseFilled
-            : IconPlayerPlayFilled
+    const PlayIcon = isPlaying ? IconPlayerPauseFilled : IconPlayerPlayFilled
 
-        return (
+    return (
+        <div
+            className="absolute flex items-end justify-center p-2"
+            style={{
+                width: size.width,
+                height: size.height,
+                opacity: showUi ? 1 : 0,
+            }}
+        >
+            <div className="relative flex h-full w-full items-center justify-center">
+                <PlayIcon
+                    className="absolute z-50 h-6 w-6 cursor-pointer text-white"
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        if (isPlaying) {
+                            videoRef.pause()
+                        } else {
+                            videoRef
+                                .play()
+                                .catch((e) =>
+                                    console.error('Failed to play video', e)
+                                )
+                        }
+                    }}
+                />
+            </div>
             <div
-                className="absolute flex items-end justify-center p-2"
-                style={{
-                    width: size.width,
-                    height: size.height,
-                    opacity: showUi ? 1 : 0,
+                className="absolute z-10 flex h-max w-full flex-row items-center justify-around gap-2 p-2"
+                onClick={(e) => {
+                    e.stopPropagation()
                 }}
             >
-                <div className="relative flex h-full w-full items-center justify-center">
-                    <PlayIcon
-                        className="absolute z-50 h-6 w-6 cursor-pointer text-white"
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            if (isPlaying) {
-                                videoRef.pause()
-                            } else {
-                                videoRef
-                                    .play()
-                                    .catch((e) =>
-                                        console.error('Failed to play video', e)
-                                    )
+                <div
+                    className="flex h-max w-max justify-center gap-1 text-nowrap select-none"
+                    style={{
+                        minWidth: `${videoLength < 3600 ? 6.5 : 10}rem`,
+                    }}
+                >
+                    <span className={mediaStyle.videoTimeText}>
+                        {secondsToVideoTime(playtime, videoLength > 3600)}
+                    </span>
+                    <span className={mediaStyle.videoTimeText}>{' / '}</span>
+                    <span className={mediaStyle.videoTimeText}>
+                        {secondsToVideoTime(videoLength)}
+                    </span>
+                </div>
+                <div className="relative grow">
+                    <WeblensProgress
+                        height={12}
+                        value={(playtime * 100) / videoLength}
+                        secondaryValue={buffered}
+                        seekCallback={(v, seeking) => {
+                            if (videoRef) {
+                                const newTime = videoLength * (v / 100)
+
+                                if (!videoRef.paused && !wasPlaying) {
+                                    videoRef.pause()
+                                    if (seeking) {
+                                        setWasPlaying(true)
+                                    }
+                                }
+
+                                videoRef.currentTime = newTime
+                                setPlaytime(newTime)
+
+                                if (!seeking && (wasPlaying || isPlaying)) {
+                                    videoRef.play().catch(ErrorHandler)
+                                    setWasPlaying(false)
+                                }
                             }
                         }}
                     />
                 </div>
-                <div
-                    className="absolute z-10 flex h-max w-full flex-row items-center justify-around gap-2 p-2"
-                    onClick={(e) => {
-                        e.stopPropagation()
-                    }}
-                >
-                    <div
-                        className="flex h-max w-max justify-center gap-1 text-nowrap select-none"
-                        style={{
-                            minWidth: `${videoLength < 3600 ? 6.5 : 10}rem`,
-                        }}
-                    >
-                        <span className={mediaStyle.videoTimeText}>
-                            {secondsToVideoTime(playtime, videoLength > 3600)}
-                        </span>
-                        <span className={mediaStyle.videoTimeText}>
-                            {' / '}
-                        </span>
-                        <span className={mediaStyle.videoTimeText}>
-                            {secondsToVideoTime(videoLength)}
-                        </span>
-                    </div>
-                    <div className="relative grow">
-                        <WeblensProgress
-                            height={12}
-                            value={(playtime * 100) / videoLength}
-                            secondaryValue={buffered}
-                            seekCallback={(v, seeking) => {
-                                if (videoRef) {
-                                    const newTime = videoLength * (v / 100)
-
-                                    if (!videoRef.paused && !wasPlaying) {
-                                        videoRef.pause()
-                                        if (seeking) {
-                                            setWasPlaying(true)
-                                        }
-                                    }
-
-                                    videoRef.currentTime = newTime
-                                    setPlaytime(newTime)
-
-                                    if (!seeking && (wasPlaying || isPlaying)) {
-                                        videoRef.play().catch(ErrorHandler)
-                                        setWasPlaying(false)
-                                    }
-                                }
-                            }}
-                        />
-                    </div>
-                    <div className="relative mx-4 flex w-[12%] items-center justify-center gap-2">
-                        <VolumeIcon
-                            className="z-10 h-4 w-4 shrink-0 cursor-pointer text-white"
-                            onClick={() => {
-                                if (volume === 0) {
-                                    const volume =
-                                        localStorage.getItem('volume')
-                                    if (volume) {
-                                        setVolume(Number(volume))
-                                    } else {
-                                        setVolume(100)
-                                    }
+                <div className="relative mx-4 flex w-[12%] items-center justify-center gap-2">
+                    <VolumeIcon
+                        className="z-10 h-4 w-4 shrink-0 cursor-pointer text-white"
+                        onClick={() => {
+                            if (volume === 0) {
+                                const volume = localStorage.getItem('volume')
+                                if (volume) {
+                                    setVolume(Number(volume))
                                 } else {
-                                    setVolume(0)
+                                    setVolume(100)
                                 }
-                            }}
-                        />
-                        <WeblensProgress
-                            height={12}
-                            value={volume}
-                            seekCallback={(v) => {
-                                setVolume(v)
-                            }}
-                        />
-                    </div>
-                    <IconMaximize
-                        className="pointer-events-auto relative z-100 h-5 w-5 cursor-pointer text-white"
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            toggleFullScreen(containerRef)
+                            } else {
+                                setVolume(0)
+                            }
+                        }}
+                    />
+                    <WeblensProgress
+                        height={12}
+                        value={volume}
+                        seekCallback={(v) => {
+                            setVolume(v)
                         }}
                     />
                 </div>
+                <IconMaximize
+                    className="pointer-events-auto relative z-100 h-5 w-5 cursor-pointer text-white"
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        toggleFullScreen(containerRef)
+                    }}
+                />
             </div>
-        )
-    },
-    (prev, next) => {
-        if (!prev.containerRef) {
-            return false
-        }
-
-        if (
-            !next.showUi &&
-            !prev.showUi &&
-            prev.containerRef === next.containerRef
-        ) {
-            return true
-        }
-
-        if (prev.showUi !== next.showUi) {
-            return false
-        } else if (prev.playtime !== next.playtime) {
-            return false
-        } else if (prev.volume !== next.volume) {
-            return false
-        } else if (prev.isPlaying !== next.isPlaying) {
-            return false
-        } else if (prev.videoRef !== next.videoRef) {
-            return false
-        } else if (prev.containerRef !== next.containerRef) {
-            return false
-        }
-        return true
-    }
-)
+        </div>
+    )
+}
 
 function VideoWrapper({
     url,

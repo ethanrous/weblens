@@ -154,12 +154,13 @@ type InstanceService interface {
 	GetAllByOriginServer(serverId InstanceId) []*Instance
 	GetByInstanceId(serverId InstanceId) *Instance
 	Add(instance *Instance) error
+	Update(instance *Instance) error
 	Del(dbId primitive.ObjectID) error
 	GetLocal() *Instance
 	GetCores() []*Instance
 	GetRemotes() []*Instance
 	InitCore(serverName string) error
-	InitBackup(name, coreAddr string, key WeblensApiKey) error
+	InitBackup(name, coreAddr string, key WeblensApiKey) (*Instance, error)
 	SetLastBackup(id InstanceId, time time.Time) error
 	AttachRemoteCore(coreAddr string, key string) (*Instance, error)
 	ResetAll() error

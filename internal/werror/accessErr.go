@@ -44,6 +44,11 @@ var ErrTokenExpired = ClientSafeErr{
 var ErrKeyAlreadyExists = errors.New("api key already exists")
 var ErrKeyNoServer = errors.New("api key is not associated with a server")
 
+var ErrNotAuthenticated = ClientSafeErr{
+	safeErr:    errors.New("user must be logged-in to access this resource"),
+	statusCode: http.StatusUnauthorized,
+}
+
 var ErrNotAdmin = ClientSafeErr{
 	safeErr:    errors.New("user must be admin to access this resource"),
 	statusCode: http.StatusForbidden,
@@ -52,11 +57,6 @@ var ErrNotAdmin = ClientSafeErr{
 var ErrNotOwner = ClientSafeErr{
 	safeErr:    errors.New("user must be server owner to access this resource"),
 	statusCode: http.StatusForbidden,
-}
-
-var ErrNoPublicUser = ClientSafeErr{
-	safeErr:    errors.New("user must be logged in to access this resource"),
-	statusCode: http.StatusUnauthorized,
 }
 
 var ErrNoServerInContext = ClientSafeErr{

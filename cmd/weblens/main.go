@@ -9,14 +9,12 @@ import (
 	"github.com/ethanrous/weblens/internal/setup"
 	"github.com/ethanrous/weblens/models"
 	"github.com/rs/zerolog"
-	zlog "github.com/rs/zerolog/log"
 )
 
 func main() {
 	var server *http.Server
 
 	logger := log.NewZeroLogger()
-	zlog.Logger = *logger
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 
 	cnf, err := env.GetConfig(env.GetConfigName(), true)

@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ServersApi } from '@weblens/api/ServersApi'
 import {
     HandleWebsocketMessage,
+    useWeblensSocket,
     useWebsocketStore,
 } from '@weblens/api/Websocket'
 import { ServerInfo } from '@weblens/api/swag'
@@ -31,9 +32,12 @@ function NewCoreMenu({ closeNewCore }: { closeNewCore: () => void }) {
     const [coreAddress, setCoreAddress] = useState('')
     const [apiKey, setApiKey] = useState('')
 
+    const addressIsValid =
+        coreAddress.match('^http(s)?:\\/\\/[^:]+(:\\d{2,5})?/?$') !== null
+
     return (
         <div className="absolute z-10 h-screen w-screen p-20 backdrop-blur-sm">
-            <div className="bg-wl-background flex h-max flex-col p-10 wl-outline">
+            <div className="bg-wl-background wl-outline flex h-max flex-col p-10">
                 <div className="mb-8 flex items-center gap-5">
                     <WeblensButton
                         Left={IconX}
@@ -49,12 +53,7 @@ function NewCoreMenu({ closeNewCore }: { closeNewCore: () => void }) {
                 <WeblensInput
                     placeholder={'https://myremoteweblens.net/'}
                     valueCallback={setCoreAddress}
-                    valid={
-                        coreAddress &&
-                        coreAddress.match(
-                            '^http(s)?:\\/\\/[^:]+(:\\d{2,5})?/?$'
-                        ) === null
-                    }
+                    valid={coreAddress === '' || addressIsValid ? null : false}
                 />
 
                 <p className="body-text m-2">API Key</p>
@@ -66,15 +65,19 @@ function NewCoreMenu({ closeNewCore }: { closeNewCore: () => void }) {
 
                 <WeblensButton
                     label="Attach to Core"
+                    className="mt-2"
                     squareSize={40}
                     Left={IconRocket}
                     disabled={coreAddress === '' || apiKey === ''}
                     doSuper
-                    onClick={() => {
+                    onClick={async () => {
                         ServersApi.createRemote({
+                            role: 'core',
                             coreAddress: coreAddress,
                             usingKey: apiKey,
-                        }).catch(ErrorHandler)
+                        })
+                            .then(() => closeNewCore())
+                            .catch(ErrorHandler)
                     }}
                 />
             </div>
@@ -87,9 +90,13 @@ export default function Backup() {
         queryKey: ['remotes'],
         initialData: [],
         queryFn: async () => {
-            return ServersApi.getRemotes().then((res) => res.data)
+            return ServersApi.getRemotes().then((res) =>
+                res.data.filter((r) => r.role === 'core')
+            )
         },
     })
+
+    useWeblensSocket()
     const lastMessage = useWebsocketStore((state) => state.lastMessage)
     const [restoreStage, setRestoreStage] = useState<RestoreProgress>(
         {} as RestoreProgress
@@ -121,7 +128,7 @@ export default function Backup() {
     }, [])
 
     const [newCoreMenu, setNewCoreMenu] = useState(false)
-    //const local = useSessionStore((state) => state.server)
+
     if (server.role !== 'backup') {
         return <></>
     }

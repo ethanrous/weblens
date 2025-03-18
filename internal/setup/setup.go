@@ -115,7 +115,7 @@ func Startup(cnf env.Config, pack *models.ServicePack) {
 		setupAlbumService(pack, db)
 
 		pack.Log.Info().Msgf(
-			"Weblens loaded in %s. %s in files, %d medias, and %d users\n", time.Since(start),
+			"Weblens loaded in %s. %s in files, %d medias, and %d users", time.Since(start),
 			internal.ByteCountSI(pack.FileService.(*service.FileServiceImpl).Size("USERS")),
 			pack.MediaService.Size(), pack.UserService.Size(),
 		)
@@ -166,18 +166,7 @@ func setupTaskService(workerCount int, pack *models.ServicePack, logger *zerolog
 	// so we have to start the pool first
 	workerPool := task.NewWorkerPool(workerCount, logger)
 
-	workerPool.RegisterJob(models.ScanDirectoryTask, jobs.ScanDirectory)
-	workerPool.RegisterJob(models.ScanFileTask, jobs.ScanFile)
-	workerPool.RegisterJob(models.UploadFilesTask, jobs.HandleFileUploads, task.TaskOptions{Persistent: true, Unique: true})
-	workerPool.RegisterJob(models.CreateZipTask, jobs.CreateZip)
-	workerPool.RegisterJob(models.GatherFsStatsTask, jobs.GatherFilesystemStats)
-	if pack.InstanceService.GetLocal().Role == models.BackupServerRole {
-		workerPool.RegisterJob(models.BackupTask, jobs.DoBackup)
-		workerPool.RegisterJob(models.CopyFileFromCoreTask, jobs.CopyFileFromCore)
-		workerPool.RegisterJob(models.RestoreCoreTask, jobs.RestoreCore)
-	} else if pack.InstanceService.GetLocal().Role == models.CoreServerRole {
-		workerPool.RegisterJob(models.HashFileTask, jobs.HashFile)
-	}
+	jobs.RegisterJobs(workerPool, pack.InstanceService.GetLocal().Role)
 
 	pack.TaskService = workerPool
 	workerPool.Run()
@@ -186,70 +175,76 @@ func setupTaskService(workerCount int, pack *models.ServicePack, logger *zerolog
 func setupFileService(dataRootPath, cachesRootPath string, pack *models.ServicePack) {
 	pack.AddStartupTask("file_services", "Setting up File Services")
 
-	sw := internal.NewStopwatch("Setup File Service", pack.Log)
-
 	/* Hasher */
 	hasherFactory := func() fileTree.Hasher {
 		return models.NewHasher(pack.TaskService, pack.GetCaster())
 	}
-	sw.Lap("New Hasher")
 
 	localRole := pack.InstanceService.GetLocal().Role
 
 	/* Journal Service */
-	var ignoreLocal bool
-	if localRole == models.BackupServerRole || localRole == models.InitServerRole {
-		ignoreLocal = true
+	journalConfig := fileTree.JournalConfig{
+		Collection:    pack.Db.Collection(string(database.FileHistoryCollectionKey)),
+		ServerId:      pack.InstanceService.GetLocal().ServerId(),
+		HasherFactory: hasherFactory,
+		Logger:        pack.Log,
 	}
-	mediaJournal, err := fileTree.NewJournal(pack.Db.Collection(string(database.FileHistoryCollectionKey)), pack.InstanceService.GetLocal().ServerId(), ignoreLocal, hasherFactory, pack.Log)
+
+	if localRole == models.BackupServerRole || localRole == models.InitServerRole {
+		journalConfig.IgnoreLocal = true
+	}
+
+	mediaJournal, err := fileTree.NewJournal(journalConfig)
 	if err != nil {
 		panic(err)
 	}
-	sw.Lap("Init Media Journal")
 
 	var trees []fileTree.FileTree
 	hollowJournal := mock.NewHollowJournalService()
 
 	/* Restore FileTree */
 	restoreFileTree, err := fileTree.NewFileTree(
-		filepath.Join(dataRootPath, ".restore"), "RESTORE", hollowJournal, !ignoreLocal, pack.Log,
+		filepath.Join(dataRootPath, ".restore"), "RESTORE", hollowJournal, !journalConfig.IgnoreLocal, pack.Log,
 	)
 	if err != nil {
 		panic(err)
 	}
-	sw.Lap("Init Restore Tree")
 
 	if localRole == models.CoreServerRole {
 		/* Users FileTree */
 		usersFileTree, err := fileTree.NewFileTree(
-			filepath.Join(dataRootPath, "users"), "USERS", mediaJournal, !ignoreLocal, pack.Log,
+			filepath.Join(dataRootPath, "users"), "USERS", mediaJournal, !journalConfig.IgnoreLocal, pack.Log,
 		)
 		if err != nil {
 			panic(err)
 		}
-		sw.Lap("Init Users Tree")
 
-		cachesTree, err := fileTree.NewFileTree(cachesRootPath, "CACHES", hollowJournal, !ignoreLocal, pack.Log)
+		cachesTree, err := fileTree.NewFileTree(cachesRootPath, "CACHES", hollowJournal, !journalConfig.IgnoreLocal, pack.Log)
 		if err != nil {
 			panic(err)
 		}
-		sw.Lap("Init Caches Tree")
 		_, err = cachesTree.MkDir(cachesTree.GetRoot(), "takeout", &fileTree.FileEvent{})
 		if err != nil && !errors.Is(err, werror.ErrDirAlreadyExists) {
 			panic(err)
 		}
-		sw.Lap("Init Caches Takeout Dir")
 		_, err = cachesTree.MkDir(cachesTree.GetRoot(), "thumbs", &fileTree.FileEvent{})
 		if err != nil && !errors.Is(err, werror.ErrDirAlreadyExists) {
 			panic(err)
 		}
-		sw.Lap("Init Caches Thumbs Dir")
 
 		trees = []fileTree.FileTree{usersFileTree, cachesTree, restoreFileTree}
 
 	} else if localRole == models.BackupServerRole {
 		for _, core := range pack.InstanceService.GetCores() {
-			newJournal, err := fileTree.NewJournal(pack.Db.Collection(string(database.FileHistoryCollectionKey)), core.ServerId(), true, hasherFactory, pack.Log)
+			journalConfig := fileTree.JournalConfig{
+				IgnoreLocal:   true,
+				Collection:    pack.Db.Collection(string(database.FileHistoryCollectionKey)),
+				ServerId:      core.ServerId(),
+				HasherFactory: hasherFactory,
+				Logger:        pack.Log,
+			}
+
+			newJournal, err := fileTree.NewJournal(journalConfig)
 			if err != nil {
 				panic(err)
 			}
@@ -263,8 +258,18 @@ func setupFileService(dataRootPath, cachesRootPath string, pack *models.ServiceP
 
 			trees = append(trees, newTree)
 		}
+		if len(trees) == 0 {
+			panic(werror.Errorf("No core servers found in database"))
+		}
+
 		trees = append(trees, restoreFileTree)
 	}
+
+	treeNames := make([]string, len(trees))
+	for i, tree := range trees {
+		treeNames[i] = tree.GetRoot().Filename()
+	}
+	pack.Log.Debug().Msgf("File trees: %v", treeNames)
 
 	fileService, err := service.NewFileService(
 		pack.Log,
@@ -278,7 +283,6 @@ func setupFileService(dataRootPath, cachesRootPath string, pack *models.ServiceP
 	if err != nil {
 		panic(err)
 	}
-	sw.Lap("Create File Service")
 
 	pack.SetFileService(fileService)
 
@@ -288,7 +292,6 @@ func setupFileService(dataRootPath, cachesRootPath string, pack *models.ServiceP
 			panic(err)
 		}
 	}
-	sw.Lap("Resize Trees")
 
 	if localRole == models.CoreServerRole {
 		event := pack.FileService.GetJournalByTree("USERS").NewEvent()
@@ -321,11 +324,7 @@ func setupFileService(dataRootPath, cachesRootPath string, pack *models.ServiceP
 		}
 
 		pack.FileService.GetJournalByTree("USERS").LogEvent(event)
-		sw.Lap("Verify User Directories")
 	}
-	sw.Stop()
-	sw.PrintResults(false)
-
 	pack.RemoveStartupTask("file_services")
 }
 

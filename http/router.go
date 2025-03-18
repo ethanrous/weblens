@@ -135,28 +135,27 @@ func (s *Server) UseApi() *chi.Mux {
 	r.Use(Recoverer, CORSMiddleware(env.GetProxyAddress(s.services.Cnf)), WithServices(s.services), WeblensAuth)
 
 	r.Group(func(r chi.Router) {
-		r.Use(AllowPublic)
 		r.Get("/info", getServerInfo)
 		r.Get("/ws", wsConnect)
 	})
 
 	// Media
 	r.Route("/media", func(r chi.Router) {
-		r.Get("/", getMediaBatch)
-		r.Get("/{mediaId}/file", getMediaFile)
-		r.Post("/cleanup", cleanupMedia)
-		r.Post("/drop", dropMedia)
-		r.Patch("/{mediaId}/liked", setMediaLiked)
-		r.Patch("/visibility", hideMedia)
-		r.Patch("/date", adjustMediaDate)
+		r.Get("/types", getMediaTypes)
+		r.Get("/{mediaId}/info", getMediaInfo)
+		r.Get("/{mediaId}.{extension}", getMediaImage)
+		r.Get("/{mediaId}/stream", streamVideo)
+		r.Get("/{mediaId}/{chunkName}", streamVideo)
 
 		r.Group(func(r chi.Router) {
-			r.Use(AllowPublic)
-			r.Get("/types", getMediaTypes)
-			r.Get("/{mediaId}/info", getMediaInfo)
-			r.Get("/{mediaId}.{extension}", getMediaImage)
-			r.Get("/{mediaId}/stream", streamVideo)
-			r.Get("/{mediaId}/{chunkName}", streamVideo)
+			r.Use(RequireSignIn)
+			r.Get("/", getMediaBatch)
+			r.Get("/{mediaId}/file", getMediaFile)
+			r.Post("/cleanup", cleanupMedia)
+			r.Post("/drop", dropMedia)
+			r.Patch("/{mediaId}/liked", setMediaLiked)
+			r.Patch("/visibility", hideMedia)
+			r.Patch("/date", adjustMediaDate)
 		})
 	})
 
@@ -169,25 +168,26 @@ func (s *Server) UseApi() *chi.Mux {
 		r.Get("/{fileId}/history", getFolderHistory)
 		r.Get("/search", searchByFilename)
 		r.Get("/autocomplete", autocompletePath)
-		r.Get("/shared", getSharedFiles)
 
-		r.Post("/restore", restoreFiles)
-
-		r.Patch("/{fileId}", updateFile)
-		r.Patch("/", moveFiles)
-		// r.Patch("/trash", trashFiles)
-		r.Patch("/untrash", unTrashFiles)
-		r.Delete("/", deleteFiles)
+		r.Group(func(r chi.Router) {
+			r.Use(RequireSignIn)
+			r.Patch("/", moveFiles)
+			r.Delete("/", deleteFiles)
+			r.Patch("/untrash", unTrashFiles)
+			r.Post("/restore", restoreFiles)
+			r.Patch("/{fileId}", updateFile)
+			r.Get("/shared", getSharedFiles)
+		})
 	})
 
 	// Folder
 	r.Route("/folder", func(r chi.Router) {
-		r.Post("/", createFolder)
-		r.Patch("/{folderId}/cover", setFolderCover)
+		r.Get("/{folderId}", getFolder)
 
 		r.Group(func(r chi.Router) {
-			r.Use(AllowPublic)
-			r.Get("/{folderId}", getFolder)
+			r.Use(RequireSignIn)
+			r.Post("/", createFolder)
+			r.Patch("/{folderId}/cover", setFolderCover)
 		})
 	})
 
@@ -198,6 +198,7 @@ func (s *Server) UseApi() *chi.Mux {
 
 	// Upload
 	r.Route("/upload", func(r chi.Router) {
+		r.Use(RequireSignIn)
 		r.Get("/{uploadId}", getUploadResult)
 		r.Post("/", newUploadTask)
 		r.Post("/{uploadId}", newFileUpload)
@@ -209,24 +210,27 @@ func (s *Server) UseApi() *chi.Mux {
 
 	// Users
 	r.Route("/users", func(r chi.Router) {
-		r.Get("/", getUsers)
-		r.Get("/me", getUserInfo)
-		r.Get("/search", searchUsers)
-		r.Post("/", createUser)
+		r.Post("/auth", loginUser)
+		r.Get("/unique", checkUsernameUnique)
 
 		// Must not use weblens auth here, as the user is not logged in yet
 		r.Group(func(r chi.Router) {
-			r.Use(AllowPublic)
-			r.Post("/auth", loginUser)
-			r.Get("/unique", checkUsernameUnique)
+			r.Use(RequireSignIn)
+			r.Get("/", getUsers)
+			r.Post("/", createUser)
+			r.Get("/me", getUserInfo)
+			r.Get("/search", searchUsers)
+			r.Post("/logout", logoutUser)
+
+			r.Route("/{username}", func(r chi.Router) {
+				r.Patch("/password", updateUserPassword)
+				r.Patch("/admin", setUserAdmin)
+				r.Patch("/active", activateUser)
+				r.Patch("/fullName", changeFullName)
+				r.Delete("/", deleteUser)
+			})
 		})
 
-		r.Post("/logout", logoutUser)
-		r.Patch("/{username}/password", updateUserPassword)
-		r.Patch("/{username}/admin", setUserAdmin)
-		r.Patch("/{username}/active", activateUser)
-		r.Patch("/{username}/fullName", changeFullName)
-		r.Delete("/{username}", deleteUser)
 	})
 
 	// Share
@@ -261,7 +265,6 @@ func (s *Server) UseApi() *chi.Mux {
 		r.Group(func(r chi.Router) {
 			r.Use(AllowPublic)
 			r.Post("/init", initializeServer)
-			r.Post("/reset", resetServer)
 		})
 
 		r.Group(func(r chi.Router) {
@@ -271,8 +274,12 @@ func (s *Server) UseApi() *chi.Mux {
 
 			r.Get("/backup", doFullBackup)
 
+
+			r.Post("/reset", resetServer)
+
 			r.Post("/{serverId}/backup", launchBackup)
 			r.Post("/{serverId}/restore", restoreToCore)
+			r.Patch("/{serverId}", updateRemote)
 			r.Delete("/{serverId}", removeRemote)
 
 		})

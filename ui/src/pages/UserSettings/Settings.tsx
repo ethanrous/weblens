@@ -552,6 +552,7 @@ function ServersTab() {
                             target="_blank"
                             className="ml-1 inline-flex items-center"
                             data-subtle
+                            rel="noreferrer"
                         >
                             backup server
                             <IconExternalLink size={18} />
@@ -836,7 +837,7 @@ function CreateUserBox({
 function DeveloperTab() {
     return (
         <div className="flex w-max flex-col gap-2">
-			<span className='text-danger'>Here be dragons</span>
+            <span className="text-danger">Here be dragons</span>
             <WeblensButton
                 label="Clear Media"
                 danger

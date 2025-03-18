@@ -1,5 +1,4 @@
 import {
-    IconArrowRight,
     IconCaretDown,
     IconCaretRight,
     IconChevronLeft,
@@ -21,7 +20,10 @@ import { useSessionStore } from '@weblens/components/UserInfo'
 import historyStyle from '@weblens/components/filebrowser/historyStyle.module.scss'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import { useResize, useResizeDrag, useWindowSize } from '@weblens/lib/hooks'
-import { historyDateTime } from '@weblens/pages/FileBrowser/FileBrowserLogic'
+import {
+    filenameFromPath,
+    historyDateTime,
+} from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { FbActionT } from '@weblens/pages/FileBrowser/FileBrowserTypes'
 import fbStyle from '@weblens/pages/FileBrowser/style/fileBrowserStyle.module.scss'
 import { FbModeT, useFileBrowserStore } from '@weblens/store/FBStateControl'
@@ -33,9 +35,7 @@ import {
     Dispatch,
     FC,
     ReactElement,
-    ReactNode,
     SetStateAction,
-    memo,
     useEffect,
     useMemo,
     useState,
@@ -241,7 +241,8 @@ function ActionRow({
         return { fromNode, toNode, moveOut }
     }, [action])
 
-    let ActionIcon: FC<{ size?: number; color?: string; className?: string }> = IconFile
+    let ActionIcon: FC<{ size?: number; color?: string; className?: string }> =
+        IconFile
     let actionColor: string
     if (action.actionType === FbActionT.FileMove.valueOf()) {
         if (moveOut) {
@@ -429,7 +430,7 @@ function ExpandableEventRow({
         >
             <div className="flex h-[28px] w-full shrink-0 cursor-pointer items-center">
                 <div
-                    className="text-text-secondary hover:text-text-primary hover:bg-background-secondary rounded-md border transition hover:border-text-primary"
+                    className="text-text-secondary hover:text-text-primary hover:bg-background-secondary hover:border-text-primary rounded-md border transition"
                     onClick={(e) => {
                         e.stopPropagation()
                         setOpen(!open)
@@ -469,151 +470,131 @@ function ExpandableEventRow({
     )
 }
 
-const HistoryEventRow = memo(
-    ({
-        event,
-        folderPath,
-        previousSize,
-        open,
-        setOpen,
-        showResize,
-    }: {
-        event: FileActionInfo[]
-        folderPath: string
-        previousSize: number
-        open: boolean
-        setOpen: Dispatch<SetStateAction<boolean>>
-        showResize: boolean
-    }) => {
-        const pastTime = useFileBrowserStore((state) => state.pastTime)
-        const contentId = useFileBrowserStore((state) => state.contentId)
-        const folderInfo = useFileBrowserStore((state) => state.folderInfo)
-        const setLocation = useFileBrowserStore(
-            (state) => state.setLocationState
-        )
+function HistoryEventRow({
+    event,
+    folderPath,
+    previousSize,
+    open,
+    setOpen,
+    showResize,
+}: {
+    event: FileActionInfo[]
+    folderPath: string
+    previousSize: number
+    open: boolean
+    setOpen: Dispatch<SetStateAction<boolean>>
+    showResize: boolean
+}) {
+    const pastTime = useFileBrowserStore((state) => state.pastTime)
+    const contentId = useFileBrowserStore((state) => state.contentId)
+    const folderInfo = useFileBrowserStore((state) => state.folderInfo)
+    const setLocation = useFileBrowserStore((state) => state.setLocationState)
 
-        const folderName = portableToFileName(folderPath)
+    const folderName = portableToFileName(folderPath)
 
-        const date = historyDateTime(event[0].timestamp, true)
+    // const date = historyDateTime(event[0].timestamp, true)
 
-        let isSelected = false
-        if (pastTime.getTime() === event[0].timestamp) {
-            isSelected = true
-        }
+    let isSelected = false
+    if (pastTime.getTime() === event[0].timestamp) {
+        isSelected = true
+    }
 
-        if (
-            !showResize &&
-            event[0].actionType === FbActionT.FileSizeChange.valueOf()
-        ) {
-            return null
-        }
+    if (
+        !showResize &&
+        event[0].actionType === FbActionT.FileSizeChange.valueOf()
+    ) {
+        return null
+    }
 
-        let content: JSX.Element
-        if (
-            event.length === 1 &&
-            event[0].actionType === FbActionT.FileSizeChange.valueOf()
-        ) {
-            content = (
-                <div className="flex max-h-[48px] w-full flex-row items-center justify-between gap-2 rounded-sm">
-                    <div className={historyStyle.sizeChangeDivider}>
-                        <FileFmt pathName={event[0].destinationPath} />
-                        <p>
-                            {humanFileSize(previousSize)}
-                            {' -> '}
-                            {humanFileSize(event[0].size)}
-                        </p>
-                    </div>
-                </div>
-            )
-        } else if (
-            event.length === 1 &&
-            event[0].destinationPath === folderInfo?.portablePath
-        ) {
-            content = (
-                <>
+    let content: JSX.Element
+    if (
+        event.length === 1 &&
+        event[0].actionType === FbActionT.FileSizeChange.valueOf()
+    ) {
+        content = (
+            <div className="flex max-h-[48px] w-full flex-row items-center justify-between gap-2 rounded-sm">
+                <div className={historyStyle.sizeChangeDivider}>
                     <FileFmt pathName={event[0].destinationPath} />
-                    <span className={historyStyle.fileActionText}>
-                        Folder {event[0].actionType.slice(4)}d
-                    </span>
-                </>
-            )
-        } else if (event.length === 1) {
-            content = (
-                <ActionRow
-                    action={event[0]}
-                    folderName={folderInfo?.GetFilename()}
-                    isSelected={isSelected}
-                />
-            )
-        } else {
-            content = (
-                <ExpandableEventRow
-                    event={event}
-                    folderName={folderName}
-                    open={open}
-                    setOpen={setOpen}
-                    showResize={showResize}
-                />
-            )
-        }
-
-        return (
-            <div
-                className="data-selected:border-text-secondary data-selected:bg-background-secondary hover:bg-background-secondary my-1 flex h-full w-full cursor-pointer items-center justify-center gap-1 rounded border p-1"
-                data-resize={
-                    event[0].actionType === FbActionT.FileSizeChange.valueOf()
-                }
-                data-selected={isSelected ? true : undefined}
-                onClick={(e) => {
-                    e.stopPropagation()
-                    if (
-                        event[0].actionType ===
-                        FbActionT.FileSizeChange.valueOf()
-                    ) {
-                        return
-                    }
-
-                    if (isSelected) {
-                        setLocation({
-                            contentId: contentId,
-                            pastTime: new Date(0),
-                        })
-                        return
-                    }
-
-                    let newDate = new Date(0)
-                    const timestamp = Math.max(...event.map((a) => a.timestamp))
-                    newDate = new Date(timestamp)
-                    console.log('NEW DATE', newDate)
-
-                    if (newDate !== pastTime) {
-                        setLocation({
-                            contentId: contentId,
-                            pastTime: newDate,
-                        })
-                    }
-                }}
-            >
-                {content}
+                    <p>
+                        {humanFileSize(previousSize)}
+                        {' -> '}
+                        {humanFileSize(event[0].size)}
+                    </p>
+                </div>
             </div>
         )
-    },
-    (prev, next) => {
-        if (prev.event !== next.event) {
-            return false
-        } else if (prev.open !== next.open) {
-            return false
-        } else if (prev.setOpen !== next.setOpen) {
-            return false
-        } else if (prev.folderPath !== next.folderPath) {
-            return false
-        } else if (prev.previousSize !== next.previousSize) {
-            return false
-        }
-
-        return true
+    } else if (
+        event.length === 1 &&
+        event[0].destinationPath === folderInfo?.portablePath
+    ) {
+        content = (
+            <>
+                <FileFmt pathName={event[0].destinationPath} />
+                <span className={historyStyle.fileActionText}>
+                    Folder {event[0].actionType.slice(4)}d
+                </span>
+            </>
+        )
+    } else if (event.length === 1) {
+        content = (
+            <ActionRow
+                action={event[0]}
+                folderName={folderInfo?.GetFilename()}
+                isSelected={isSelected}
+            />
+        )
+    } else {
+        content = (
+            <ExpandableEventRow
+                event={event}
+                folderName={folderName}
+                open={open}
+                setOpen={setOpen}
+                showResize={showResize}
+            />
+        )
     }
-)
+
+    return (
+        <div
+            className="data-selected:border-text-secondary data-selected:bg-background-secondary hover:bg-background-secondary my-1 flex h-full w-full cursor-pointer items-center justify-center gap-1 rounded border p-1"
+            data-resize={
+                event[0].actionType === FbActionT.FileSizeChange.valueOf()
+            }
+            data-selected={isSelected ? true : undefined}
+            onClick={(e) => {
+                e.stopPropagation()
+                if (
+                    event[0].actionType === FbActionT.FileSizeChange.valueOf()
+                ) {
+                    return
+                }
+
+                if (isSelected) {
+                    setLocation({
+                        contentId: contentId,
+                        pastTime: new Date(0),
+                    })
+                    return
+                }
+
+                let newDate = new Date(0)
+                const timestamp = Math.max(...event.map((a) => a.timestamp))
+                newDate = new Date(timestamp)
+                console.log('NEW DATE', newDate)
+
+                if (newDate !== pastTime) {
+                    setLocation({
+                        contentId: contentId,
+                        pastTime: newDate,
+                    })
+                }
+            }}
+        >
+            {content}
+        </div>
+    )
+}
 
 function getEventHeight(
     events: FileActionInfo[][],
@@ -654,6 +635,8 @@ function FileHistoryFooter({
         createTimeString = historyDateTime(epoch.timestamp)
     }
 
+    const { nameText, StartIcon } = filenameFromPath(epoch?.destinationPath)
+
     return (
         <div className="flex w-full flex-col justify-around p-2">
             <WeblensButton
@@ -661,11 +644,13 @@ function FileHistoryFooter({
                 label={'Size Changes'}
                 toggleOn={showResize}
                 onClick={() => setShowResize((r) => !r)}
+				className='hidden'
             />
             <div className="border-t-color-border-primary mt-4 flex flex-col items-center border-t pt-2">
-                <div className="flex flex-row items-center gap-2">
-                    <FileFmt pathName={epoch?.destinationPath} />
-                    <p className="h-max text-xl select-none">History</p>
+                <div className="flex flex-row items-center">
+                    {StartIcon && <StartIcon />}
+                    <h4>{nameText}</h4>
+                    <p className="ml-2 h-max text-xl select-none">History</p>
                 </div>
                 <p className="text-nowrap select-none">
                     Created {createTimeString}
@@ -803,7 +788,7 @@ function FileHistory() {
                     </div>
                 </div>
             )}
-            {epoch && (
+            {epoch && !error && (
                 <div
                     ref={setBoxRef}
                     className="relative flex h-1 w-full grow flex-col pt-1"

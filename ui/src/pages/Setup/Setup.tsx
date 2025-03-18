@@ -13,13 +13,12 @@ import {
     HandleWebsocketMessage,
     useWebsocketStore,
 } from '@weblens/api/Websocket'
-import { ThemeToggleButton } from '@weblens/components/HeaderBar'
 import Logo from '@weblens/components/Logo'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import { useKeyDown } from '@weblens/lib/hooks'
 import setupStyle from '@weblens/components/setupStyle.module.scss'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
+import { useKeyDown } from '@weblens/lib/hooks'
 import User from '@weblens/types/user/User'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -316,6 +315,10 @@ const Backup = ({
     } else if (page === 'landing' || page === 'core') {
         onDeck = 'next'
     }
+
+    const addressIsValid =
+        coreAddress.match('^http(s)?:\\/\\/[^:]+(:\\d{2,5})?/?$') !== null
+
     return (
         <div className={setupStyle.setupContentBox} data-on-deck={onDeck}>
             <div className="absolute w-[90%]">
@@ -342,12 +345,7 @@ const Backup = ({
                 <WeblensInput
                     placeholder={'https://myremoteweblens.net/'}
                     valueCallback={setCoreAddress}
-                    valid={
-                        coreAddress &&
-                        coreAddress.match(
-                            '^http(s)?:\\/\\/[^:]+(:\\d{2,5})?/?$'
-                        ) === null
-                    }
+                    valid={coreAddress === "" || addressIsValid ? null : false}
                 />
             </div>
 
@@ -460,18 +458,20 @@ const Landing = ({
     return (
         <div className={setupStyle.setupContentBox} data-on-deck={onDeck}>
             <h3>Welcome to Weblens!</h3>
-            <h5>Choose how you'd like to set up this new server</h5>
-            <WeblensButton
-                label="Set Up Weblens Core"
-                Left={IconPackage}
-                centerContent
-                onClick={() => setPage('core')}
-                className="my-auto h-20 max-w-96 justify-center"
-                size="jumbo"
-                fillWidth
-            />
+            <h5>Choose how to set up this server</h5>
+            <div className="my-auto flex w-full">
+                <WeblensButton
+                    label="Set Up Weblens Core"
+                    Left={IconPackage}
+                    centerContent
+                    onClick={() => setPage('core')}
+                    className="mx-auto h-20 max-w-96 justify-center"
+                    size="jumbo"
+                    fillWidth
+                />
+            </div>
             <div className="bg-border-primary h-[1px] w-[90%]" />
-            <div className="my-auto flex flex-row gap-2">
+            <div className="my-auto flex h-[10%] flex-row gap-2">
                 <WeblensButton
                     label="Set Up As Backup"
                     Left={IconDatabase}
@@ -523,9 +523,6 @@ const Setup = () => {
                 />
                 <Backup page={page} setPage={setPage} />
                 <Restore page={page} setPage={setPage} />
-            </div>
-            <div className="absolute right-4 bottom-4">
-                <ThemeToggleButton />
             </div>
         </div>
     )

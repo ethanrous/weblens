@@ -102,6 +102,12 @@ type NewServerParams struct {
 	UsingKey    models.WeblensApiKey `json:"usingKey"`
 } // @name NewServerParams
 
+type UpdateServerParams struct {
+	Name        string               `json:"name"`
+	CoreAddress string               `json:"coreAddress"`
+	UsingKey    models.WeblensApiKey `json:"usingKey"`
+} // @name UpdateServerParams
+
 type NewCoreBody struct {
 	CoreAddress string               `json:"coreAddress"`
 	UsingKey    models.WeblensApiKey `json:"usingKey"`

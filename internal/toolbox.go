@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
 
@@ -77,9 +78,11 @@ func RecoverPanic(preText string) {
 
 	err, ok := r.(error)
 	if !ok {
-		log.Error().Msgf(preText, identifyPanic(), r)
+		err = errors.Errorf("Unknown panic in panic handler: %v", r)
+		log.Error().Stack().Err(err).Msg(preText)
 	} else {
-		log.Error().Stack().Err(err).Msg("")
+		err = errors.WithStack(err)
+		log.Error().Stack().Err(err).Msg(preText)
 	}
 
 }

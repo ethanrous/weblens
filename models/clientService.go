@@ -89,8 +89,8 @@ const (
 )
 
 const (
-	WebClient    ClientType = "webClient"
-	RemoteClient ClientType = "remoteClient"
+	WebClient      ClientType = "webClient"
+	InstanceClient ClientType = "remoteClient"
 )
 
 type Subscription struct {

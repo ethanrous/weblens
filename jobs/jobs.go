@@ -18,6 +18,7 @@ import (
 	"github.com/ethanrous/weblens/service"
 	"github.com/ethanrous/weblens/task"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/saracen/fastzip"
 )
 
@@ -501,4 +502,21 @@ func HashFile(t *task.Task) {
 	)
 
 	t.Success()
+}
+
+func RegisterJobs(workerPool task.TaskService, role models.ServerRole) {
+	log.Debug().Msgf("Registering jobs for %s", role)
+
+	workerPool.RegisterJob(models.ScanDirectoryTask, ScanDirectory)
+	workerPool.RegisterJob(models.ScanFileTask, ScanFile)
+	workerPool.RegisterJob(models.UploadFilesTask, HandleFileUploads, task.TaskOptions{Persistent: true, Unique: true})
+	workerPool.RegisterJob(models.CreateZipTask, CreateZip)
+	workerPool.RegisterJob(models.GatherFsStatsTask, GatherFilesystemStats)
+	workerPool.RegisterJob(models.BackupTask, DoBackup)
+	workerPool.RegisterJob(models.CopyFileFromCoreTask, CopyFileFromCore)
+	workerPool.RegisterJob(models.RestoreCoreTask, RestoreCore)
+	workerPool.RegisterJob(models.HashFileTask, HashFile)
+	// if role == models.BackupServerRole {
+	// } else if role == models.CoreServerRole {
+	// }
 }

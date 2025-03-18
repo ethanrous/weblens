@@ -462,6 +462,15 @@ definitions:
       newParentId:
         type: string
     type: object
+  UpdateServerParams:
+    properties:
+      coreAddress:
+        type: string
+      name:
+        type: string
+      usingKey:
+        type: string
+    type: object
   UserInfo:
     properties:
       admin:
@@ -1473,6 +1482,35 @@ paths:
       - ApiKeyAuth:
         - admin
       summary: Delete a remote
+      tags:
+      - Servers
+    patch:
+      operationId: UpdateRemote
+      parameters:
+      - description: Server Id to update
+        in: path
+        name: serverId
+        required: true
+        type: string
+      - description: Server Params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/UpdateServerParams'
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Update a remote
       tags:
       - Servers
   /servers/{serverId}/backup:

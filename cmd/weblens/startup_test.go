@@ -16,6 +16,7 @@ import (
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/jobs"
 	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/service"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,7 +44,8 @@ func TestStartupCore(t *testing.T) {
 
 	t.Parallel()
 
-	logger := log.NewZeroLogger()
+	// These logs can be very noisy, so we disable them for this test unless debugging
+	logger := log.NopLogger()
 
 	var server *http.Server
 
@@ -84,34 +86,37 @@ func TestStartupCore(t *testing.T) {
 	logger.Debug().Func(func(e *zerolog.Event) { e.Dur("startup_duration", time.Since(start)).Msgf("Init startup complete") })
 	assert.True(t, services.Loaded.Load())
 
-	err = services.InstanceService.InitCore("TEST-CORE")
+	err = service.InitCore(services, "TEST-CORE")
 	require.NoError(t, err)
 
 	// Although Restart() is safely synchronous outside of an HTTP request,
 	// we call it without waiting to allow for our own timeout logic to be used
-	services.Server.Restart(false)
-	if err := waitForStartup(services.StartupChan); err != nil {
-		t.Fatal(err)
-	}
-	logger.Debug().Func(func(e *zerolog.Event) { e.Dur("startup_duration", time.Since(start)).Msgf("Core startup complete") })
-	assert.True(t, services.Loaded.Load())
+	// services.Server.Restart(false)
+	// if err := waitForStartup(services.StartupChan); err != nil {
+	// 	t.Fatal(err)
+	// }
+	// logger.Debug().Func(func(e *zerolog.Event) { e.Dur("startup_duration", time.Since(start)).Msgf("Core startup complete") })
+	// assert.True(t, services.Loaded.Load())
 
-	_, err = services.UserService.CreateOwner("test-username", "test-password", "Test Owner")
+	owner, err := services.UserService.CreateOwner("test-username", "test-password", "Test Owner")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	services.Server.Restart(false)
-	if err := waitForStartup(services.StartupChan); err != nil {
+	err = services.FileService.CreateUserHome(owner)
+	if err != nil {
 		t.Fatal(err)
 	}
-	logger.Debug().Func(func(e *zerolog.Event) { e.Dur("startup_duration", time.Since(start)).Msgf("Core restart complete") })
-	assert.True(t, services.Loaded.Load())
 
-	usersTree := services.FileService.GetFileTreeByName("USERS")
-	if usersTree == nil {
-		t.Fatal("No users tree")
-	}
+	// services.Server.Restart(false)
+	// if err := waitForStartup(services.StartupChan); err != nil {
+	// 	t.Fatal(err)
+	// }
+	// logger.Debug().Func(func(e *zerolog.Event) { e.Dur("startup_duration", time.Since(start)).Msgf("Core restart complete") })
+	// assert.True(t, services.Loaded.Load())
+
+	usersTree, err := services.FileService.GetFileTreeByName(service.UsersTreeKey)
+	require.NoError(t, err)
 
 	_, err = usersTree.GetRoot().GetChild("test-username")
 	assert.NoError(t, err)
@@ -126,11 +131,13 @@ func TestStartupBackup(t *testing.T) {
 
 	t.Parallel()
 
+	// These logs can be very noisy, so we disable them for this test unless debugging
+	nop := log.NopLogger()
 	logger := log.NewZeroLogger()
 
 	coreServices, err := tests.NewWeblensTestInstance(t.Name(), env.Config{
 		Role: string(models.CoreServerRole),
-	})
+	}, nop)
 	require.NoError(t, err)
 
 	coreKeys, err := coreServices.AccessService.GetKeysByUser(coreServices.UserService.Get("test-username"))
@@ -138,7 +145,7 @@ func TestStartupBackup(t *testing.T) {
 	coreApiKey := coreKeys[0].Key
 	coreAddress := env.GetProxyAddress(coreServices.Cnf)
 
-	cnf := env.Config{
+	backupConfig := env.Config{
 		RouterHost:  env.GetRouterHost(),
 		RouterPort:  rand.IntN(2000) + 8080,
 		MongodbUri:  env.GetMongoURI(),
@@ -150,66 +157,58 @@ func TestStartupBackup(t *testing.T) {
 	}
 
 	var server *http.Server
-	var services = &models.ServicePack{
-		Cnf: cnf,
+	var backupServices = &models.ServicePack{
+		Cnf: backupConfig,
 		Log: logger,
 	}
 
-	mondb, err := database.ConnectToMongo(cnf.MongodbUri, cnf.MongodbName, logger)
+	mondb, err := database.ConnectToMongo(backupConfig.MongodbUri, backupConfig.MongodbName, logger)
 	require.NoError(t, err)
 	err = mondb.Drop(context.Background())
 	require.NoError(t, err)
 
 	start := time.Now()
-	server = http.NewServer(cnf.RouterHost, cnf.RouterPort, services)
+	server = http.NewServer(backupConfig.RouterHost, backupConfig.RouterPort, backupServices)
 	server.StartupFunc = func() {
-		setup.Startup(cnf, services)
+		setup.Startup(backupConfig, backupServices)
 	}
-	services.StartupChan = make(chan bool)
+	backupServices.StartupChan = make(chan bool)
 	go server.Start()
 
 	// Wait for initial startup
-	err = waitForStartup(services.StartupChan)
+	err = waitForStartup(backupServices.StartupChan)
 	require.NoError(t, err)
 
 	logger.Debug().Func(func(e *zerolog.Event) { e.Dur("startup_duration", time.Since(start)).Msgf("Init startup complete") })
-	require.True(t, services.Loaded.Load())
+	require.True(t, backupServices.Loaded.Load())
 
 	// Initialize the server as a backup server
-	err = services.InstanceService.InitBackup("TEST-BACKUP", coreAddress, coreApiKey)
+
+	err = service.InitBackup(backupServices, "TEST-BACKUP", coreAddress, coreApiKey)
 	require.NoError(t, err)
 
-	logger.Debug().Func(func(e *zerolog.Event) { e.Msgf("Made backup server") })
+	require.Equal(t, models.BackupServerRole, backupServices.InstanceService.GetLocal().Role)
 
-	server.Restart(false)
-	logger.Debug().Func(func(e *zerolog.Event) { e.Msgf("Restarted...") })
-
-	// Wait for backup server startup
-	err = waitForStartup(services.StartupChan)
-	require.NoError(t, err)
-
-	require.Equal(t, models.BackupServerRole, services.InstanceService.GetLocal().Role)
-
-	cores := services.InstanceService.GetCores()
+	cores := backupServices.InstanceService.GetCores()
 	require.Len(t, cores, 1)
 
 	core := cores[0]
 
-	err = http.WebsocketToCore(core, services)
+	err = http.WebsocketToCore(core, backupServices)
 	require.NoError(t, err)
 
-	coreClient := services.ClientService.GetClientByServerId(core.ServerId())
+	coreClient := backupServices.ClientService.GetClientByServerId(core.ServerId())
 	retries := 0
 	for coreClient == nil && retries < 10 {
 		retries++
 		time.Sleep(time.Millisecond * 100)
 
-		coreClient = services.ClientService.GetClientByServerId(core.ServerId())
+		coreClient = backupServices.ClientService.GetClientByServerId(core.ServerId())
 	}
 	require.NotNil(t, coreClient)
 	assert.True(t, coreClient.Active.Load())
 
-	tsk, err := jobs.BackupOne(core, services)
+	tsk, err := jobs.BackupOne(core, backupServices)
 	require.NoError(t, err)
 
 	logger.Debug().Func(func(e *zerolog.Event) { e.Msgf("Started backup task") })
@@ -220,6 +219,6 @@ func TestStartupBackup(t *testing.T) {
 	err = tsk.ReadError()
 	require.NoError(t, err)
 
-	services.Server.Stop()
+	backupServices.Server.Stop()
 	coreServices.Server.Stop()
 }

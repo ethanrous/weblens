@@ -1,7 +1,6 @@
 package task
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -10,6 +9,7 @@ import (
 	"github.com/ethanrous/weblens/internal"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
 
@@ -229,6 +229,8 @@ func (wp *WorkerPool) DispatchJob(jobName string, meta TaskMetadata, pool *TaskP
 
 	wp.addTask(t)
 
+	wp.log.Trace().Stack().Err(errors.New("Task created")).Msgf("Task [%s] created", taskId)
+
 	if wp.exitFlag.Load() == 1 {
 		return nil, errors.New("not queuing task while worker pool is going down")
 	}
@@ -291,7 +293,8 @@ func (wp *WorkerPool) workerRecover(task *Task, workerId int64) {
 	recovered := recover()
 	if recovered != nil {
 		// Make sure what we got is an error
-		switch err := recovered.(type) {
+		var err error
+		switch e := recovered.(type) {
 		case error:
 			if errors.Is(err, werror.ErrTaskError) {
 				// wp.log.Error.Printf("Task [%s] exited with an error", task.TaskId())
@@ -300,14 +303,15 @@ func (wp *WorkerPool) workerRecover(task *Task, workerId int64) {
 			} else if errors.Is(err, werror.ErrTaskExit) {
 				return
 			}
+			err = errors.WithStack(e)
 		default:
-			recovered = werror.Errorf("%s", recovered)
+			err = errors.Errorf("%s", recovered)
 		}
 		// wp.log.Raw.Printf(
 		// 	"\n\tWorker %d recovered panic: \u001b[31m%s\u001B[0m\n\n%s\n", workerId, recovered,
 		// 	werror.GetStack(2).String(),
 		// )
-		task.error(recovered.(error))
+		task.error(err)
 	}
 }
 

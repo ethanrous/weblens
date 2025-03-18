@@ -24,10 +24,11 @@ func TestFiles(t *testing.T) {
 	t.Parallel()
 
 	logger := log.NewZeroLogger()
+	nop := zerolog.Nop()
 
 	coreServices, err := tests.NewWeblensTestInstance(t.Name(), env.Config{
 		Role: string(models.CoreServerRole),
-	})
+	}, &nop)
 
 	require.NoError(t, err)
 

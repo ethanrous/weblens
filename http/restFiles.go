@@ -735,7 +735,7 @@ func createTakeout(w http.ResponseWriter, r *http.Request) {
 	log := hlog.FromRequest(r)
 
 	u, err := getUserFromCtx(r, true)
-	if err != nil && !errors.Is(err, werror.ErrNoPublicUser) {
+	if err != nil && !errors.Is(err, werror.ErrNotAuthenticated) {
 		SafeErrorAndExit(err, w, log)
 		return
 	}
@@ -1242,7 +1242,7 @@ func newUploadTask(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
 	log := hlog.FromRequest(r)
 	u, err := getUserFromCtx(r, true)
-	if err != nil && !errors.Is(err, werror.ErrNoPublicUser) {
+	if err != nil && !errors.Is(err, werror.ErrNotAuthenticated) {
 		SafeErrorAndExit(err, w, log)
 		return
 	} else if err != nil {

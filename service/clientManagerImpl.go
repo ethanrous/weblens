@@ -107,8 +107,8 @@ func (cm *ClientManager) ClientDisconnect(c *models.WsClient) {
 	defer cm.clientMu.Unlock()
 	if c.GetUser() != nil {
 		delete(cm.webClientMap, c.GetClientId())
-	} else if remote := c.GetRemote(); remote != nil {
-		delete(cm.remoteClientMap, c.GetRemote().ServerId())
+	} else if remote := c.GetInstance(); remote != nil {
+		delete(cm.remoteClientMap, c.GetInstance().ServerId())
 		cm.pack.Caster.PushWeblensEvent(models.RemoteConnectionChangedEvent, models.WsC{"remoteId": remote.ServerId(), "online": false})
 	}
 
@@ -119,7 +119,10 @@ func (cm *ClientManager) GetClientByUsername(username models.Username) *models.W
 	cm.clientMu.RLock()
 	defer cm.clientMu.RUnlock()
 
+	// FIXME: This is O(n) and should be better
+	cm.log.Debug().Msgf("Checking at most %d clients", len(cm.webClientMap))
 	for _, c := range cm.webClientMap {
+		cm.log.Debug().Msgf("Checking client [%s] against [%s]", c.GetUser().GetUsername(), username)
 		if c.GetUser().GetUsername() == username {
 			return c
 		}
@@ -360,8 +363,23 @@ func (cm *ClientManager) Send(msg models.WsResponseInfo) {
 		}
 	}
 
+	// Don't relay messages to the client that sent them
+	if msg.RelaySource != "" {
+		i := slices.IndexFunc(clients, func(c *models.WsClient) bool {
+			if c.ClientType() == models.InstanceClient {
+				return c.GetInstance().ServerId() == msg.RelaySource
+			} else if c.ClientType() == models.WebClient {
+				return c.GetUser().GetUsername() == msg.RelaySource
+			}
+			return false
+		})
+		if i != -1 {
+			clients = internal.Banish(clients, i)
+		}
+	}
+
 	if len(clients) != 0 {
-		cm.log.Debug().Str("websocket_event", msg.EventTag).Msgf("Sending websocket message to %d client(s)", len(clients))
+		cm.log.Trace().Str("websocket_event", msg.EventTag).Msgf("Sending [%s] websocket message to %d client(s)", msg.EventTag, len(clients))
 		for _, c := range clients {
 			err := c.Send(msg)
 			if err != nil {

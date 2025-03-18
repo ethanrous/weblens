@@ -7,9 +7,11 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/database"
+	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/service/mock"
 	"github.com/ethanrous/weblens/service/proxy"
 	"github.com/rs/zerolog"
 	"go.mongodb.org/mongo-driver/bson"
@@ -128,6 +130,23 @@ func (is *InstanceServiceImpl) Add(i *models.Instance) error {
 	return nil
 }
 
+func (is *InstanceServiceImpl) Update(i *models.Instance) error {
+	if i.DbId.IsZero() {
+		return werror.WithStack(werror.ErrNoDbId)
+	}
+
+	_, err := is.col.UpdateOne(context.Background(), bson.M{"_id": i.DbId}, bson.M{"$set": i})
+	if err != nil {
+		return werror.WithStack(err)
+	}
+
+	is.instanceMapLock.Lock()
+	defer is.instanceMapLock.Unlock()
+	is.instanceMap[i.DbId.Hex()] = i
+
+	return nil
+}
+
 // TODO - this belongs in the access service, not instance
 // func (is *InstanceServiceImpl) SetRemoteUsingKey(instance *WeblensInstance, key types.WeblensApiKey) error {
 // 	filter := bson.M{"key": key}
@@ -168,7 +187,8 @@ func (is *InstanceServiceImpl) GetByInstanceId(serverId models.InstanceId) *mode
 	}
 
 	for _, instance := range is.instanceMap {
-		if instance.Id == serverId && instance.CreatedBy == is.local.ServerId() {
+		if instance.Id == serverId {
+			// if instance.Id == serverId && instance.CreatedBy == is.local.ServerId() {
 			return instance
 		}
 	}
@@ -192,7 +212,6 @@ func (is *InstanceServiceImpl) GetCores() []*models.Instance {
 	defer is.instanceMapLock.RUnlock()
 
 	for _, i := range is.instanceMap {
-		is.log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Checking instance [%s] created by [%s]", i.ServerId(), i.CreatedBy) })
 		if i.IsCore() && i.CreatedBy == is.local.ServerId() {
 			cores = append(cores, i)
 		}
@@ -246,26 +265,26 @@ func (is *InstanceServiceImpl) InitCore(serverName string) error {
 
 func (is *InstanceServiceImpl) InitBackup(
 	name, coreAddr string, key models.WeblensApiKey,
-) error {
+) (*models.Instance, error) {
 	local := is.GetLocal()
 	if local == nil {
-		return werror.WithStack(werror.ErrNoLocal)
+		return nil, werror.WithStack(werror.ErrNoLocal)
 	}
 
 	local.Name = name
 	local.SetRole(models.BackupServerRole)
 
-	_, err := is.AttachRemoteCore(coreAddr, key)
+	core, err := is.AttachRemoteCore(coreAddr, key)
 	if err != nil {
 		// Revert name and role if db write fails
 		local.Name = ""
 		local.Role = models.InitServerRole
-		return err
+		return nil, err
 	}
 
 	err = is.Add(local)
 
-	return err
+	return core, err
 }
 
 func (is *InstanceServiceImpl) AttachRemoteCore(coreAddr string, key string) (*models.Instance, error) {
@@ -283,7 +302,7 @@ func (is *InstanceServiceImpl) AttachRemoteCore(coreAddr string, key string) (*m
 	}
 
 	body := newServerBody{Id: local.ServerId(), Role: models.BackupServerRole, Name: local.GetName(), UsingKey: key}
-	r := proxy.NewCoreRequest(core, http.MethodPost, "/servers").WithBody(body)
+	r := proxy.NewCoreRequest(core, http.MethodPost, "/servers").WithBody(body).WithHeader("Wl-Server-Id", local.ServerId())
 	newCore, err := proxy.CallHomeStruct[*models.Instance](r)
 	if err != nil {
 		return nil, err
@@ -347,6 +366,55 @@ func (is *InstanceServiceImpl) SetLastBackup(id models.InstanceId, lastBackup ti
 	}
 
 	instance.LastBackup = lastBackupMillis
+
+	return nil
+}
+
+func InitBackup(pack *models.ServicePack, name, coreAddr string, key models.WeblensApiKey) error {
+	core, err := pack.InstanceService.InitBackup(name, coreAddr, key)
+	if err != nil {
+		return err
+	}
+
+	backupTree, err := fileTree.NewFileTree(pack.Cnf.DataRoot, core.ServerId(), mock.NewHollowJournalService(), false, pack.Log)
+	if err != nil {
+		return err
+	}
+
+	pack.FileService.AddTree(backupTree)
+
+	return nil
+}
+
+func InitCore(pack *models.ServicePack, name string) error {
+	err := pack.InstanceService.InitCore(name)
+	if err != nil {
+		return err
+	}
+
+	hasherFactory := func() fileTree.Hasher {
+		return models.NewHasher(pack.TaskService, pack.GetCaster())
+	}
+
+	journalConfig := fileTree.JournalConfig{
+		Collection:    pack.Db.Collection(string(database.FileHistoryCollectionKey)),
+		ServerId:      pack.InstanceService.GetLocal().ServerId(),
+		IgnoreLocal:   false,
+		HasherFactory: hasherFactory,
+		Logger:        pack.Log,
+	}
+
+	mediaJournal, err := fileTree.NewJournal(journalConfig)
+	if err != nil {
+		return err
+	}
+
+	usersTree, err := fileTree.NewFileTree(pack.Cnf.DataRoot, UsersTreeKey, mediaJournal, false, pack.Log)
+	if err != nil {
+		return err
+	}
+
+	pack.FileService.AddTree(usersTree)
 
 	return nil
 }
