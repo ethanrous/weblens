@@ -44,7 +44,7 @@ jobs:
           exiftool \
           nodejs \
           npm \
-          autoconf pkg-config build-essential curl libpng-dev libjpeg-dev libwebp-dev libraw-dev libheif-dev ffmpeg libtiff-dev darktable ghostscript 
+          autoconf pkg-config build-essential curl libpng-dev libjpeg-dev libwebp-dev libraw-dev libheif-dev ffmpeg libtiff-dev darktable ghostscript libjasper-dev
 
           wget https://www.dechifro.org/dcraw/archive/dcraw-9.28.0.tar.gz ;
           tar -xzvf dcraw-*.tar.gz ;
@@ -124,6 +124,9 @@ jobs:
 
           echo $PKG_CONFIG_PATH
           echo $CFLAGS
+
+          echo "Flags:"
+          pkg-config --cflags vips
 
           ./scripts/testWeblens --all --show-logs
           exit $?
