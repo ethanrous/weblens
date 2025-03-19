@@ -937,7 +937,7 @@ func (ms *MediaServiceImpl) loadImageFromFile(f *fileTree.WeblensFileImpl, mType
 	// Sony RAWs do not play nice with govips. Should fall back to imagick but it thinks its a TIFF.
 	// The real libvips figures this out, adding an intermediary step using dcraw to convert to a real TIFF
 	// and continuing processing from there solves this issue, and is surprisingly fast. Everyone say "Thank you dcraw"
-	if strings.HasSuffix(filePath, "ARW") {
+	if strings.HasSuffix(filePath, "ARW") || strings.HasSuffix(filePath, "CR2") {
 		cmd := exec.Command("dcraw", "-T", "-w", "-h", "-c", filePath)
 		var stdb, errb bytes.Buffer
 		cmd.Stderr = &errb
