@@ -37,6 +37,9 @@ jobs:
         run: |
           wget -qO- https://www.mongodb.org/static/pgp/server-7.0.asc | sudo tee /etc/apt/trusted.gpg.d/server-7.0.asc
           echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+
+          sudo add-apt-repository "deb http://security.ubuntu.com/ubuntu noble-security main"
+
           sudo apt-get update
           sudo apt-get install -y \
           mongodb-mongosh \
@@ -124,6 +127,8 @@ jobs:
 
           echo $PKG_CONFIG_PATH
           echo $CFLAGS
+
+          export PKG_CONFIG_PATH=/opt/homebrew/lib/pkgconfig
 
           echo "Flags:"
           pkg-config --cflags vips
