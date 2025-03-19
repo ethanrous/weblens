@@ -44,21 +44,29 @@ jobs:
           exiftool \
           nodejs \
           npm \
-          autoconf pkg-config build-essential curl libpng-dev libjpeg-dev libwebp-dev libraw-dev libheif-dev libvips ffmpeg libtiff-dev darktable ghostscript 
+          autoconf pkg-config build-essential curl libpng-dev libjpeg-dev libwebp-dev libraw-dev libheif-dev ffmpeg libtiff-dev darktable ghostscript 
 
-          export IMAGEMAGICK_VERSION=7.1.1-41
+          wget https://www.dechifro.org/dcraw/archive/dcraw-9.28.0.tar.gz ; \
+          tar -xzvf dcraw-*.tar.gz ; \
+          cd /tmp/dcraw ; \
+          sed 's/-llcms2/-llcms2 -lintl/' <install >install.new && mv install.new install ; \
+          chmod 755 install ;
+          cd /tmp/dcraw; ./install
 
-          wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/${IMAGEMAGICK_VERSION}.tar.gz && \
-              tar xzf ${IMAGEMAGICK_VERSION}.tar.gz && \
-              rm ${IMAGEMAGICK_VERSION}.tar.gz
 
-          sh ./ImageMagick-${IMAGEMAGICK_VERSION}/configure \
-                  --without-magick-plus-plus \
-                  --without-perl \
-                  --disable-openmp \
-                  --with-gvc=no \
-                  --disable-docs && \
-              make -j$(nproc) && sudo make install && sudo ldconfig /usr/local/lib/
+          # export IMAGEMAGICK_VERSION=7.1.1-41
+
+          # wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/${IMAGEMAGICK_VERSION}.tar.gz && \
+          #     tar xzf ${IMAGEMAGICK_VERSION}.tar.gz && \
+          #     rm ${IMAGEMAGICK_VERSION}.tar.gz
+          #
+          # sh ./ImageMagick-${IMAGEMAGICK_VERSION}/configure \
+          #         --without-magick-plus-plus \
+          #         --without-perl \
+          #         --disable-openmp \
+          #         --with-gvc=no \
+          #         --disable-docs && \
+          #     make -j$(nproc) && sudo make install && sudo ldconfig /usr/local/lib/
 
       - name: Start MongoDB
         uses: supercharge/mongodb-github-action@1.11.0
@@ -102,7 +110,7 @@ jobs:
       - name: Install Deps
         run: |
           brew update
-          brew install vips exiftool node npm
+          brew install vips exiftool node npm imagemagick pkg-config libraw
       
           brew tap mongodb/brew
           brew install mongodb-community
@@ -114,7 +122,8 @@ jobs:
             export LOG_LEVEL=trace
           fi
 
-          export CGO_CFLAGS_ALLOW="-Xpreprocessor"
+          echo $PKG_CONFIG_PATH
+          echo $CFLAGS
 
           ./scripts/testWeblens --all --show-logs
           exit $?
