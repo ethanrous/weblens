@@ -46,12 +46,12 @@ jobs:
           npm \
           autoconf pkg-config build-essential curl libpng-dev libjpeg-dev libwebp-dev libraw-dev libheif-dev ffmpeg libtiff-dev darktable ghostscript 
 
-          wget https://www.dechifro.org/dcraw/archive/dcraw-9.28.0.tar.gz ; \
-          tar -xzvf dcraw-*.tar.gz ; \
-          cd /tmp/dcraw ; \
-          sed 's/-llcms2/-llcms2 -lintl/' <install >install.new && mv install.new install ; \
+          wget https://www.dechifro.org/dcraw/archive/dcraw-9.28.0.tar.gz ;
+          tar -xzvf dcraw-*.tar.gz ;
+          cd ./dcraw ;
+          sed 's/-llcms2/-llcms2 -lintl/' <install >install.new && mv install.new install ;
           chmod 755 install ;
-          cd /tmp/dcraw; ./install
+          ./install
 
 
           # export IMAGEMAGICK_VERSION=7.1.1-41
