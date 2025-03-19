@@ -4,7 +4,7 @@ import { HandleDrop } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { FileSquare } from '@weblens/types/files/FileSquare'
 import filesStyle from '@weblens/types/files/filesStyle.module.scss'
-import { useResize } from 'components/hooks'
+import { useResize } from '@weblens/lib/hooks'
 import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import { FixedSizeGrid as Grid } from 'react-window'
 
@@ -117,7 +117,7 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
     return (
         <div
             ref={setContainerRef}
-            className={filesStyle['files-grid']}
+            className={filesStyle.filesGrid}
             data-droppable={Boolean(
                 moveDest === folderInfo?.Id() &&
                     folderInfo?.modifiable &&
@@ -153,7 +153,7 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
             }}
         >
             {size.width !== -1 && (
-                <div className="flex relative w-full h-full items-center">
+                <div className="relative flex h-full w-full items-center">
                     {isLoading && (
                         <div className="m-auto p-2">
                             <WeblensLoader />

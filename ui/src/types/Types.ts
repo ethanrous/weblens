@@ -1,3 +1,4 @@
+import { useMessagesController } from '@weblens/store/MessagesController'
 import WeblensMedia from '@weblens/types/media/Media'
 import { AxiosError } from 'axios'
 
@@ -76,9 +77,19 @@ export type Dimensions = {
 
 export function ErrorHandler(err: Error, note?: string) {
     note = note ?? ''
+    let errMsg = err.message ?? new Error('Unknown error')
     if (err instanceof AxiosError) {
-        console.error(note, err.toJSON())
-        return
+        errMsg = err.response.data.error + note
+    } else {
+        console.log('ErrorHandler 2')
+        errMsg = err.message + note
     }
-    console.error('Caught:', typeof err, err)
+    console.log('ErrorHandler 3')
+
+    useMessagesController.getState().addMessage({
+        title: 'ErrorHandler caught an error',
+        text: errMsg,
+        duration: 5000,
+        severity: 'error',
+    })
 }

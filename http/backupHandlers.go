@@ -4,11 +4,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/jobs"
 	"github.com/ethanrous/weblens/models"
 	"github.com/go-chi/chi/v5"
+	"github.com/rs/zerolog"
 )
 
 // LaunchBackup godoc
@@ -45,7 +45,7 @@ func launchBackup(w http.ResponseWriter, r *http.Request) {
 		}
 		err := client.Send(msg)
 		if err != nil {
-			log.ErrTrace(err)
+			pack.Log.Error().Stack().Err(err).Msg("")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -58,7 +58,7 @@ func launchBackup(w http.ResponseWriter, r *http.Request) {
 
 		t, err := jobs.BackupOne(core, pack)
 		if err != nil {
-			log.ErrTrace(err)
+			pack.Log.Error().Stack().Err(err).Msg("")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -67,15 +67,17 @@ func launchBackup(w http.ResponseWriter, r *http.Request) {
 		if SafeErrorAndExit(err, w) {
 			return
 		}
-		log.Debug.Printf("User: %s", u.GetUsername())
+		pack.Log.Debug().Func(func(e *zerolog.Event) { e.Msgf("User: %s", u.GetUsername()) })
 		wsClient := pack.ClientService.GetClientByUsername(u.GetUsername())
 
 		_, _, err = pack.ClientService.Subscribe(
 			wsClient, t.TaskId(), models.TaskSubscribe, time.Now(), nil,
 		)
 		if err != nil {
-			log.ErrTrace(err)
-			w.WriteHeader(http.StatusInternalServerError)
+			pack.Log.Error().Stack().Err(err).Msg("")
+
+			// We don't return an error status code here, because the backup is still running, but the user won't get updates
+			writeError(w, http.StatusOK, err)
 			return
 		}
 	}

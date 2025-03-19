@@ -2,17 +2,18 @@ package http
 
 import (
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"time"
 
 	"github.com/ethanrous/weblens/internal"
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/models/rest"
 	"github.com/go-chi/chi/v5"
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 func writeJson(w http.ResponseWriter, status int, obj any) {
@@ -20,6 +21,7 @@ func writeJson(w http.ResponseWriter, status int, obj any) {
 	if err != nil {
 		panic(err)
 	}
+	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(status)
 	_, err = w.Write(bs)
 	if err != nil {
@@ -43,13 +45,23 @@ func getServices(r *http.Request) *models.ServicePack {
 // response writer the correct http code and json error response. It returns
 // true if there is an error and the http request should be terminated, and
 // false if the error is nil
-func SafeErrorAndExit(err error, w http.ResponseWriter) (shouldExit bool) {
+func SafeErrorAndExit(err error, w http.ResponseWriter, logger ...*zerolog.Logger) (shouldExit bool) {
 	if err == nil {
 		return false
 	}
 
-	safe, code := log.TrySafeErr(err)
+	safe, code := werror.GetSafeErr(err)
 	writeError(w, code, safe)
+
+	var l *zerolog.Logger
+	if len(logger) > 0 && logger[0] != nil {
+		l = logger[0]
+	} else {
+		l = &log.Logger
+	}
+
+	l.Error().CallerSkipFrame(1).Stack().Err(err).Msg("")
+
 	return true
 }
 
@@ -82,7 +94,7 @@ func readRespBody[T any](resp *http.Response) (obj T, err error) {
 	if resp.ContentLength == 0 {
 		return obj, werror.ErrNoBody
 	} else if resp.ContentLength == -1 {
-		log.Warning.Println("Reading body with unknown content length")
+		log.Warn().Msg("Reading body with unknown content length")
 		bodyB, err = io.ReadAll(resp.Body)
 	} else {
 		bodyB, err = internal.OracleReader(resp.Body, resp.ContentLength)
@@ -98,7 +110,7 @@ func readRespBodyRaw(resp *http.Response) (bodyB []byte, err error) {
 	if resp.ContentLength == 0 {
 		return nil, werror.ErrNoBody
 	} else if resp.ContentLength == -1 {
-		log.Warning.Println("Reading body with unknown content length")
+		log.Warn().Msg("Reading body with unknown content length")
 		bodyB, err = io.ReadAll(resp.Body)
 	} else {
 		bodyB, err = internal.OracleReader(resp.Body, resp.ContentLength)
@@ -107,16 +119,16 @@ func readRespBodyRaw(resp *http.Response) (bodyB []byte, err error) {
 }
 
 func getUserFromCtx(r *http.Request, allowPublic bool) (*models.User, error) {
-	userI := r.Context().Value(UserKey)
+	userI := r.Context().Value(UserContextKey)
 	if userI == nil {
 		return nil, werror.ErrCtxMissingUser
 	}
 
 	u, _ := userI.(*models.User)
 
-	if u.IsPublic() && (!allowPublic && (r.Context().Value(AllowPublicKey) == nil && r.Context().Value(ServerKey) == nil)) {
-		return nil, werror.WithStack(werror.ErrNoPublicUser)
-	}
+	// if u.IsPublic() && (!allowPublic && (r.Context().Value(AllowPublicKey) == nil && r.Context().Value(ServerKey) == nil)) {
+	// 	return nil, werror.WithStack(werror.ErrNoPublicUser)
+	// }
 	return u, nil
 }
 
@@ -145,7 +157,7 @@ func getShareFromCtx[T models.Share](w http.ResponseWriter, r *http.Request) (T,
 	sh := pack.ShareService.Get(shareId)
 	tsh, ok := sh.(T)
 	if sh != nil && ok {
-		pack.Log.Debug.Printf("Got share [%s]", tsh.ID())
+		pack.Log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Got share [%s]", tsh.ID()) })
 		return tsh, nil
 	}
 

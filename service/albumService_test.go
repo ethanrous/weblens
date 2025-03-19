@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/models"
 	. "github.com/ethanrous/weblens/service"
 	"github.com/ethanrous/weblens/service/mock"
@@ -12,6 +13,8 @@ import (
 
 func TestAlbumServiceImpl_Add(t *testing.T) {
 	t.Parallel()
+
+	logger := log.NewZeroLogger()
 
 	col := mondb.Collection(t.Name())
 	err := col.Drop(context.Background())
@@ -27,10 +30,10 @@ func TestAlbumServiceImpl_Add(t *testing.T) {
 	}
 	defer shareCol.Drop(context.Background())
 
-	ss, err := NewShareService(shareCol)
+	ss, err := NewShareService(shareCol, logger)
 	require.NoError(t, err)
 
-	billUser, err := models.NewUser("billcypher", "shakemyhand", false, true)
+	billUser, err := models.NewUser("billcypher", "shakemyhand", "Bill Cypher", false, true)
 	require.NoError(t, err)
 
 	albs := NewAlbumService(col, &mock.MockMediaService{}, ss)

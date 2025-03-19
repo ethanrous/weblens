@@ -1,25 +1,23 @@
-import { Divider, Text } from '@mantine/core'
 import WeblensFile from '@weblens/types/files/File'
 import { humanFileSize } from '@weblens/util'
 
 function FileInfo({ file }: { file: WeblensFile }) {
     const [size, units] = humanFileSize(file.GetSize())
     return (
-        <div className="flex flex-col w-max whitespace-nowrap justify-center max-w-full ml-1 gap-1 mb-2">
-            <p className="text-3xl font-semibold max-w-full">
+        <div className="mb-2 ml-1 flex w-max max-w-full flex-col justify-center gap-1 whitespace-nowrap">
+            <p className="max-w-full text-3xl font-semibold">
                 {file.GetFilename()}
             </p>
             {file.IsFolder() && (
-                <div className="flex flex-row h-max w-full items-center justify-center">
-                    <p className="text-sm max-w-full">
+                <div className="flex h-max w-full flex-row items-center justify-center">
+                    <p className="max-w-full text-sm">
                         {file.GetChildren().length} Item
                         {file.GetChildren().length !== 1 ? 's' : ''}
                     </p>
-                    <Divider orientation="vertical" size={2} mx={10} />
-                    <Text style={{ fontSize: '25px' }}>
+                    <span>
                         {size}
                         {units}
-                    </Text>
+                    </span>
                 </div>
             )}
             {!file.IsFolder() && (

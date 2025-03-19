@@ -2,7 +2,7 @@ import { QueryObserverResult } from '@tanstack/react-query'
 import { AxiosResponse } from 'axios'
 import { CSSProperties, FC } from 'react'
 
-export type ButtonIcon = FC<{ className: string }>
+export type ButtonIcon = FC<{ className?: string; size?: number }>
 
 export type ButtonActionPromiseReturn = Promise<
     void | boolean | AxiosResponse | QueryObserverResult
@@ -12,7 +12,10 @@ export type ButtonActionHandler = (
     e: React.MouseEvent<HTMLElement, MouseEvent>
 ) => void | ButtonActionPromiseReturn
 
-export type buttonProps = {
+export type ButtonFlavor = 'default' | 'outline' | 'light'
+export type ButtonSize = 'default' | 'tiny' | 'jumbo' | 'small' | 'large'
+
+export type ButtonProps = {
     label?: string
     tooltip?: string
     showSuccess?: boolean
@@ -31,6 +34,10 @@ export type buttonProps = {
     Left?: ButtonIcon
     Right?: ButtonIcon
 
+    type?: 'button' | 'submit' | 'reset'
+    flavor?: ButtonFlavor
+    size?: ButtonSize
+
     // Style
     squareSize?: number
     fontSize?: string
@@ -41,7 +48,8 @@ export type buttonProps = {
     onMouseOver?: ButtonActionHandler
     onMouseLeave?: ButtonActionHandler
     style?: CSSProperties
-    setButtonRef?: (ref: HTMLDivElement) => void
+    className?: string
+    setButtonRef?: (ref: HTMLButtonElement) => void
 }
 
 export type ButtonContentProps = {

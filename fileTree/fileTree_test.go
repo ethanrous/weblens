@@ -17,6 +17,8 @@ import (
 func NewTestFileTree() (FileTree, error) {
 	journal := mock.NewHollowJournalService()
 
+	logger := log.NewZeroLogger()
+
 	rootPath, err := os.MkdirTemp("", "weblens-test-*")
 	if err != nil {
 		return nil, err
@@ -25,9 +27,7 @@ func NewTestFileTree() (FileTree, error) {
 	// MkdirTemp does not add a trailing slash to directories, which the fileTree expects
 	rootPath += "/"
 
-	log.Trace.Func(func(l log.Logger) {l.Printf("Creating tmp root for FileTree test [%s]", rootPath)})
-
-	tree, err := NewFileTree(rootPath, "USERS", journal, false)
+	tree, err := NewFileTree(rootPath, "USERS", journal, false, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -36,6 +36,8 @@ func NewTestFileTree() (FileTree, error) {
 }
 
 func TestFileTree(t *testing.T) {
+	logger := log.NewZeroLogger()
+
 	tree, err := NewTestFileTree()
 	require.NoError(t, err)
 
@@ -60,7 +62,7 @@ func TestFileTree(t *testing.T) {
 	assert.False(t, newFile.IsDir())
 
 	// Given path is not allowed to be created on filesystem, so this call fails
-	_, err = NewFileTree("/this/file/cant/be/created", "ALIASNAME", nil, true)
+	_, err = NewFileTree("/this/file/cant/be/created", "ALIASNAME", nil, true, logger)
 	assert.Error(t, err)
 
 	// We know the root of the other tree already exists, so we can create a new tree as a child,
@@ -69,7 +71,7 @@ func TestFileTree(t *testing.T) {
 	_, err = os.Stat(newRootPath)
 	assert.Error(t, err)
 
-	_, err = NewFileTree(newRootPath, "ALIASNAME", &mock.HollowJournalService{}, true)
+	_, err = NewFileTree(newRootPath, "ALIASNAME", &mock.HollowJournalService{}, true, logger)
 	assert.NoError(t, err)
 
 	_, err = os.Stat(newRootPath)
@@ -130,8 +132,12 @@ func TestFileTreeImpl_Move(t *testing.T) {
 	assert.Equal(t, newDir2, newFile.GetParent())
 
 	// Create file with the same name as the first
-	newFile2, err := tree.Touch(root, "file", nil)
+	ev := tree.GetJournal().NewEvent()
+	newFile2, err := tree.Touch(root, "file", ev)
 	require.NoError(t, err)
+
+	tree.GetJournal().LogEvent(ev)
+	require.NoError(t, ev.Wait())
 
 	// Move should fail because we are not allowing overwrite of the previous file with the same name
 	_, err = tree.Move(newFile2, newDir2, newFile2.Filename(), false, nil)
@@ -148,8 +154,8 @@ func TestFileTreeImpl_Delete(t *testing.T) {
 
 	root := tree.GetRoot()
 
-	err = tree.Delete(root.ID(), &FileEvent{})
-	assert.Error(t, err)
+	err = tree.Delete(root.ID(), nil)
+	assert.ErrorIs(t, err, werror.ErrRootFolder)
 
 	newDir, err := tree.MkDir(root, "newDir", nil)
 	require.NoError(t, err)
@@ -157,8 +163,11 @@ func TestFileTreeImpl_Delete(t *testing.T) {
 	_, err = os.Stat(newDir.AbsPath())
 	require.NoError(t, err)
 
-	err = tree.Delete(newDir.ID(), &FileEvent{})
+	deleteEvent1 := tree.GetJournal().NewEvent()
+	err = tree.Delete(newDir.ID(), deleteEvent1)
 	assert.NoError(t, err)
+
+	tree.GetJournal().LogEvent(deleteEvent1)
 
 	_, err = os.Stat(newDir.AbsPath())
 	assert.Error(t, err)
@@ -169,12 +178,15 @@ func TestFileTreeImpl_Delete(t *testing.T) {
 	newDir3, err := tree.MkDir(newDir2, "newDir3", nil)
 	require.NoError(t, err)
 
-	err = tree.Delete(newDir2.ID(), &FileEvent{})
+	deleteEvent2 := tree.GetJournal().NewEvent()
+	err = tree.Delete(newDir2.ID(), deleteEvent2)
 	assert.Error(t, err)
 
-	err = tree.Delete(newDir3.ID(), &FileEvent{})
+	err = tree.Delete(newDir3.ID(), deleteEvent2)
 	assert.NoError(t, err)
 
-	err = tree.Delete(newDir2.ID(), &FileEvent{})
+	err = tree.Delete(newDir2.ID(), deleteEvent2)
 	assert.NoError(t, err)
+
+	tree.GetJournal().LogEvent(deleteEvent2)
 }

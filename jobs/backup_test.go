@@ -16,6 +16,7 @@ import (
 	"github.com/ethanrous/weblens/service/mock"
 	"github.com/ethanrous/weblens/service/proxy"
 	"github.com/ethanrous/weblens/task"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,9 +28,12 @@ func TestBackupCore(t *testing.T) {
 
 	t.Parallel()
 
+	logger := log.NewZeroLogger()
+
+	nop := zerolog.Nop()
 	coreServices, err := tests.NewWeblensTestInstance(t.Name(), env.Config{
 		Role: string(models.CoreServerRole),
-	})
+	}, &nop)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +50,7 @@ func TestBackupCore(t *testing.T) {
 		CachesRoot:  filepath.Join(env.GetBuildDir(), "fs/test", t.Name(), "cache"),
 	}
 
-	mondb, err := database.ConnectToMongo(cnf.MongodbUri, cnf.MongodbName)
+	mondb, err := database.ConnectToMongo(cnf.MongodbUri, cnf.MongodbName, logger)
 	require.NoError(t, err)
 	err = mondb.Drop(context.Background())
 	require.NoError(t, err)
@@ -61,10 +65,10 @@ func TestBackupCore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	wp := task.NewWorkerPool(2, log.NewEmptyLogPackage())
+	wp := task.NewWorkerPool(2, logger)
 	wp.RegisterJob(models.BackupTask, DoBackup)
 
-	instanceService, err := service.NewInstanceService(mondb.Collection("servers"))
+	instanceService, err := service.NewInstanceService(mondb.Collection("servers"), logger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,6 +87,7 @@ func TestBackupCore(t *testing.T) {
 	journal := mock.NewHollowJournalService()
 	coreTree := mock.NewMemFileTree(core.Id)
 	coreTree.SetJournal(journal)
+
 	fileService := mock.NewMockFileService()
 	fileService.AddTree(coreTree)
 

@@ -9,15 +9,20 @@ import {
 } from '@tabler/icons-react'
 import MediaApi from '@weblens/api/MediaApi'
 import WeblensLoader from '@weblens/components/Loading'
+import { useSessionStore } from '@weblens/components/UserInfo'
 import WeblensButton from '@weblens/lib/WeblensButton'
+import { useResize } from '@weblens/lib/hooks'
 import { useGalleryStore } from '@weblens/pages/Gallery/GalleryLogic'
 import { GalleryMenu } from '@weblens/pages/Gallery/GalleryMenu'
 import '@weblens/pages/Gallery/galleryStyle.scss'
+import {
+    ErrorHandler,
+    MediaWrapperProps,
+    PresentType,
+} from '@weblens/types/Types'
 import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
-import { useSessionStore } from 'components/UserInfo'
-import { useResize } from 'components/hooks'
 import React, {
     CSSProperties,
     MouseEvent,
@@ -29,8 +34,7 @@ import React, {
     useState,
 } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { VariableSizeList as WindowList } from 'react-window'
-import { ErrorHandler, MediaWrapperProps, PresentType } from 'types/Types'
+import { VariableSizeList } from 'react-window'
 
 const goToMediaFile = async (mediaId: string) => {
     return MediaApi.getMediaFile(mediaId).then((r) => {
@@ -90,7 +94,7 @@ function StyledIcon({ Icon, visible, onClick, label }: mediaTypeProps) {
         >
             <Icon className="shrink-0" />
             <p
-                className="font-semibold pl-1 text-nowrap select-none text-white"
+                className="pl-1 font-semibold text-nowrap text-white select-none"
                 ref={setTextRef}
             >
                 {label}
@@ -156,7 +160,7 @@ const MediaInfoDisplay = ({
                 />
             )}
             <div
-                className="hover-icon absolute bottom-0 right-0"
+                className="hover-icon absolute right-0 bottom-0"
                 data-show-anyway={liked || othersLiked}
                 onClick={(e) => {
                     e.stopPropagation()
@@ -341,7 +345,7 @@ export function BucketCards({
             return (
                 <div
                     key={`media-placeholder-${index}-${i}`}
-                    className="bg-gray-900 m-[2px]"
+                    className="m-[2px] bg-gray-900"
                     style={{ height: scale, width: widths[i] }}
                 />
             )
@@ -409,7 +413,7 @@ function GalleryRow({
     }, [data])
 
     return (
-        <div className="flex justify-center pl-4 pr-4" style={style}>
+        <div className="flex justify-center pr-4 pl-4" style={style}>
             <div style={{ width: data[index].rowWidth }}>
                 {data[index].items.length !== 0 && (
                     <BucketCards
@@ -428,10 +432,11 @@ function GalleryRow({
 
 const NoMediaDisplay = () => {
     const nav = useNavigate()
+
     return (
-        <div className="flex flex-col items-center w-full">
-            <div className="flex flex-col items-center mt-20 gap-2 w-[300px]">
-                <h2 className="font-bold text-3xl select-none">
+        <div className="flex w-full flex-col items-center">
+            <div className="mt-20 flex w-[300px] flex-col items-center gap-2">
+                <h2 className="text-3xl font-bold select-none">
                     No media to display
                 </h2>
                 <p className="select-none">
@@ -461,10 +466,9 @@ export function PhotoGallery({
     error: Error
 }) {
     const [viewRef, setViewRef] = useState<HTMLDivElement>(null)
-    const [windowRef, setWindowRef] = useState<WindowList>(null)
+    const [windowRef, setWindowRef] = useState<VariableSizeList>(null)
     const viewSize = useResize(viewRef)
 
-    const albumId = useGalleryStore((state) => state.albumId)
     const imageSize = useGalleryStore((state) => state.imageSize)
 
     const showHidden = useMediaStore((state) => state.showHidden)
@@ -478,10 +482,8 @@ export function PhotoGallery({
 
         let innerMedias = [...medias]
 
-        let sortDirection = 1
-        if (albumId) {
-            sortDirection = -1
-        }
+        const sortDirection = 1
+
         if (!showHidden) {
             innerMedias = innerMedias.filter((m) => !m.IsHidden())
         }
@@ -602,13 +604,13 @@ export function PhotoGallery({
             {rows.length === 0 && !loading && !error && <NoMediaDisplay />}
             {loading && <WeblensLoader />}
             {error && (
-                <div className="flex flex-row m-auto items-center p-2 gap-1 pb-40">
+                <div className="m-auto flex flex-row items-center gap-1 p-2 pb-40">
                     <IconExclamationCircle />
                     <h3>Failed to fetch media</h3>
                 </div>
             )}
             {rows.length !== 0 && viewSize.width !== -1 && (
-                <WindowList
+                <VariableSizeList
                     ref={setWindowRef}
                     height={viewSize.height}
                     width={viewSize.width}
@@ -617,7 +619,7 @@ export function PhotoGallery({
                     itemData={rows}
                 >
                     {GalleryRow}
-                </WindowList>
+                </VariableSizeList>
             )}
         </div>
     )

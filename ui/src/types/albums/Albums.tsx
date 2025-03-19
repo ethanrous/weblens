@@ -270,7 +270,7 @@
 //                     <p className="w-max text-xl text-nowrap">
 //                         No albums found with
 //                     </p>
-//                     <div className="flex flex-row items-center bg-dark-paper rounded pl-1 pr-1 pt-[1px] pb-[1px] gap-1">
+//                     <div className="flex flex-row items-center bg-dark-paper rounded-sm pl-1 pr-1 pt-[1px] pb-[1px] gap-1">
 //                         <IconSearch size={18} />
 //                         <p className="w-max text-xl text-nowrap">
 //                             {galleryState.searchContent}

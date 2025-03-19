@@ -1,31 +1,29 @@
-import { Divider, FileButton } from '@mantine/core'
 import {
+    IconFiles,
     IconFolderPlus,
+    IconFolders,
     IconHome,
     IconPlus,
     IconServer,
     IconTrash,
-    IconUpload,
     IconUsers,
 } from '@tabler/icons-react'
 import { FileApi, FolderApi } from '@weblens/api/FileBrowserApi'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import UsageInfo from '@weblens/components/filebrowser/usageInfo'
-import { useResizeDrag, useWindowSize } from '@weblens/components/hooks'
+import { useResizeDrag, useWindowSize } from '@weblens/lib/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
+import WeblensFileButton from '@weblens/lib/WeblensFileButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import { ButtonActionHandler } from '@weblens/lib/buttonTypes'
-import { HandleUploadButton } from '@weblens/pages/FileBrowser/FileBrowserLogic'
-import { TasksDisplay } from '@weblens/pages/FileBrowser/TaskProgress'
+import { TaskProgressMini } from '@weblens/pages/FileBrowser/TaskProgress'
 import UploadStatus from '@weblens/pages/FileBrowser/UploadStatus'
 import fbStyle from '@weblens/pages/FileBrowser/style/fileBrowserStyle.module.scss'
-import { ErrorHandler } from '@weblens/types/Types'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import WeblensFile from '@weblens/types/files/File'
 import { goToFile } from '@weblens/types/files/FileDragLogic'
-import filesStyle from '@weblens/types/files/filesStyle.module.scss'
 import { humanFileSize } from '@weblens/util'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import {
     FbModeT,
@@ -54,8 +52,14 @@ function FBSidebar() {
     const mode = useFileBrowserStore((state) => state.fbMode)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const shareId = useFileBrowserStore((state) => state.shareId)
+    const sidebarCollapsed = useFileBrowserStore(
+        (state) => state.sidebarCollapsed
+    )
 
     const setDragging = useFileBrowserStore((state) => state.setDragging)
+    const setSidebarCollapsed = useFileBrowserStore(
+        (state) => state.setSidebarCollapsed
+    )
     const setMoveDest = useFileBrowserStore((state) => state.setMoveDest)
     const setSelectedMoved = useFileBrowserStore(
         (state) => state.setSelectedMoved
@@ -75,6 +79,14 @@ function FBSidebar() {
         }
     }, [windowSize.width])
 
+    useEffect(() => {
+        if (resizeOffset < SIDEBAR_MIN_OPEN_WIDTH && !sidebarCollapsed) {
+            setSidebarCollapsed(true)
+        } else if (resizeOffset >= SIDEBAR_MIN_OPEN_WIDTH && sidebarCollapsed) {
+            setSidebarCollapsed(false)
+        }
+    }, [resizeOffset])
+
     const homeMouseOver = useCallback(() => {
         if (draggingState !== DraggingStateT.NoDrag) {
             setMoveDest('Home')
@@ -91,6 +103,7 @@ function FBSidebar() {
         async (e) => {
             e.stopPropagation()
             setMoveDest('')
+
             if (draggingState !== DraggingStateT.NoDrag) {
                 const selectedIds = Array.from(selected.keys())
                 setSelectedMoved(selectedIds)
@@ -165,21 +178,27 @@ function FBSidebar() {
 
     return (
         <div
-            className="flex flex-row items-start w-full h-full grow-0 shrink-0"
+            className="animate-fade-in flex h-full w-full shrink-0 grow-0 flex-row items-start"
             style={{
                 width: resizeOffset,
             }}
         >
             <div
-                className={fbStyle['sidebar-container']}
+                className={fbStyle.sidebarContainer}
                 data-mini={resizeOffset < SIDEBAR_MIN_OPEN_WIDTH}
             >
-                <div className={fbStyle['sidebar-upper-half']}>
-                    <div className="flex flex-col w-full gap-1 items-center">
+                <div className={fbStyle.sidebarUpperHalf}>
+                    <div className="flex w-full flex-col items-center gap-2">
                         <WeblensButton
                             label="Home"
                             fillWidth
                             squareSize={40}
+                            flavor={
+                                folderInfo?.Id() === user?.homeId &&
+                                mode === FbModeT.default
+                                    ? 'default'
+                                    : 'outline'
+                            }
                             toggleOn={
                                 folderInfo?.Id() === user?.homeId &&
                                 mode === FbModeT.default
@@ -199,6 +218,11 @@ function FBSidebar() {
                             label="Shared"
                             fillWidth
                             squareSize={40}
+                            flavor={
+                                mode === FbModeT.share && !shareId
+                                    ? 'default'
+                                    : 'outline'
+                            }
                             toggleOn={mode === FbModeT.share && !shareId}
                             disabled={
                                 draggingState !== DraggingStateT.NoDrag ||
@@ -213,6 +237,12 @@ function FBSidebar() {
                             label="Trash"
                             fillWidth
                             squareSize={40}
+                            flavor={
+                                folderInfo?.Id() === user?.trashId &&
+                                mode === FbModeT.default
+                                    ? 'default'
+                                    : 'outline'
+                            }
                             float={
                                 draggingState === DraggingStateT.InternalDrag
                             }
@@ -245,7 +275,7 @@ function FBSidebar() {
                                 allowRepeat={false}
                                 Left={IconServer}
                                 // disabled={draggingState !== DraggingStateT.NoDrag}
-								tooltip={'Coming Soon'}
+                                tooltip={'Coming Soon'}
                                 disabled={true}
                                 onClick={navToExternal}
                             />
@@ -286,63 +316,38 @@ function FBSidebar() {
                             />
                         )}
 
-                        <FileButton
-                            onChange={(files) => {
-                                HandleUploadButton(
-                                    files,
-                                    folderInfo.Id(),
-                                    false,
-                                    shareId
-                                ).catch(ErrorHandler)
+                        <WeblensFileButton
+                            folderId={folderInfo?.Id()}
+                            shareId={shareId}
+                            buttonProps={{
+                                fillWidth: true,
+                                label: 'Upload',
                             }}
-                            accept="file"
-                            multiple
-                        >
-                            {(props) => {
-                                return (
-                                    <WeblensButton
-                                        label="Upload"
-                                        squareSize={40}
-                                        fillWidth
-                                        showSuccess={false}
-                                        disabled={
-                                            draggingState !==
-                                                DraggingStateT.NoDrag ||
-                                            !folderInfo?.IsModifiable()
-                                        }
-                                        Left={IconUpload}
-                                        onClick={props.onClick}
-                                    />
-                                )
-                            }}
-                        </FileButton>
+                        />
                     </div>
-                    <Divider w={'100%'} my="md" size={1.5} />
                     <UsageInfo />
                 </div>
-                <TasksDisplay />
+                <SelectedBox />
+                <TaskProgressMini />
                 <UploadStatus />
             </div>
             <div
                 draggable={false}
-                className={fbStyle['resize-bar-wrapper']}
+                className={fbStyle.resizeBarWrapper}
                 onMouseDown={(e) => {
                     e.preventDefault()
                     setResizing(true)
                 }}
             >
-                <div className={fbStyle['resize-bar']} />
+                <div className={fbStyle.resizeBar} />
             </div>
         </div>
     )
 }
 
 function TrashSize() {
-    const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const trashSize = useFileBrowserStore((state) => state.trashDirSize)
-    const mode = useFileBrowserStore((state) => state.fbMode)
     const pastTime = useFileBrowserStore((state) => state.pastTime)
-    const user = useSessionStore((state) => state.user)
     if (trashSize <= 0) {
         return null
     }
@@ -353,19 +358,84 @@ function TrashSize() {
     }
 
     return (
-        <div
-            className={filesStyle['trash-size-box']}
-            data-selected={
-                folderInfo?.Id() === user?.trashId && mode === FbModeT.default
-                    ? 1
-                    : 0
+        <div className="z-20 ml-2 flex h-full w-max items-center contain-size">
+            <span className="">{`${trashSizeValue}${trashSizeUnit}`}</span>
+        </div>
+    )
+}
+
+function SelectedBox() {
+    const selected = useFileBrowserStore((state) => state.selected)
+    const selectedLength = selected.size
+
+    const [closed, setClosed] = useState(selected.size === 0)
+    const sidebarCollapsed = useFileBrowserStore(
+        (state) => state.sidebarCollapsed
+    )
+    const filesMap = useFileBrowserStore((state) => state.filesMap)
+
+    const { selectedFolderCount, selectedFileCount } = useMemo(() => {
+        if (selected.size !== 0) {
+            setClosed(false)
+        }
+
+        let selectedFolderCount = 0
+        let selectedFileCount = 0
+        Array.from(selected.keys()).forEach((fileId) => {
+            const f = filesMap.get(fileId)
+            if (!f) {
+                return
             }
+            if (f.IsFolder()) {
+                selectedFolderCount++
+            } else {
+                selectedFileCount++
+            }
+        })
+
+        return { selectedFolderCount, selectedFileCount }
+    }, [selected.size])
+
+    return (
+        <div
+            className="animate-popup bg-background-secondary mt-2 h-max w-full flex-row items-center justify-between rounded-lg p-2 transition"
+            onTransitionEnd={() => {
+                if (selectedLength === 0) {
+                    setClosed(true)
+                } else {
+                    setClosed(false)
+                }
+            }}
+            style={{
+                display: closed ? 'none' : 'flex',
+                opacity: selectedLength > 0 ? 100 : 0,
+                transform: selectedLength > 0 ? 'scale(1)' : 'scale(0.90)',
+                flexDirection: sidebarCollapsed ? 'column' : 'row',
+            }}
         >
-            <div className={filesStyle['file-size-box']}>
-                <p
-                    className={filesStyle['file-size-text']}
-                >{`${trashSizeValue}${trashSizeUnit}`}</p>
+            <div className="text-color-text-primary flex h-max w-min items-center">
+                <IconFiles />
+                <span className="p-1 select-none">{selectedFileCount}</span>
             </div>
+            {!sidebarCollapsed && (
+                <>
+                    <span className="text-color-text-secondary">Selected</span>
+                    <div className="text-color-text-primary flex h-max w-min items-center">
+                        <span className="p-1 select-none">
+                            {selectedFolderCount}
+                        </span>
+                        <IconFolders />
+                    </div>
+                </>
+            )}
+            {sidebarCollapsed && (
+                <div className="text-color-text-primary flex h-max w-min items-center">
+                    <IconFolders />
+                    <span className="p-1 select-none">
+                        {selectedFolderCount}
+                    </span>
+                </div>
+            )}
         </div>
     )
 }

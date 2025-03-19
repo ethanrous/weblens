@@ -343,13 +343,14 @@ definitions:
         type: boolean
       autoActivate:
         type: boolean
+      fullName:
+        type: string
       password:
         type: string
       username:
         type: string
     required:
-    - admin
-    - autoActivate
+    - fullName
     - password
     - username
     type: object
@@ -420,7 +421,7 @@ definitions:
     properties:
       accessors:
         items:
-          type: string
+          $ref: '#/definitions/UserInfo'
         type: array
       enabled:
         type: boolean
@@ -461,10 +462,21 @@ definitions:
       newParentId:
         type: string
     type: object
+  UpdateServerParams:
+    properties:
+      coreAddress:
+        type: string
+      name:
+        type: string
+      usingKey:
+        type: string
+    type: object
   UserInfo:
     properties:
       admin:
         type: boolean
+      fullName:
+        type: string
       homeId:
         type: string
       homeSize:
@@ -486,6 +498,8 @@ definitions:
         type: boolean
       admin:
         type: boolean
+      fullName:
+        type: string
       homeId:
         type: string
       homeSize:
@@ -539,6 +553,8 @@ definitions:
       coreAddress:
         type: string
       coreKey:
+        type: string
+      fullName:
         type: string
       localId:
         description: For restoring a server, remoind the core of its serverId and
@@ -713,6 +729,10 @@ paths:
       - description: Share Id
         in: query
         name: shareId
+        type: string
+      - description: File format conversion
+        in: query
+        name: format
         type: string
       - default: false
         description: Is this a takeout file
@@ -1226,9 +1246,7 @@ paths:
         name: page
         type: integer
       produces:
-      - image/webp
-      - ' image/png'
-      - ' image/jpeg'
+      - image/*
       responses:
         "200":
           description: image bytes
@@ -1334,6 +1352,27 @@ paths:
       - ApiKeyAuth:
         - admin
       summary: Make sure all media is correctly synced with the file system
+      tags:
+      - Media
+  /media/drop:
+    post:
+      operationId: DropMedia
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: DANGEROUS. Drop all computed media and clear thumbnail in-memory and
+        filesystem cache. Must be server owner.
       tags:
       - Media
   /media/types:
@@ -1445,6 +1484,35 @@ paths:
       summary: Delete a remote
       tags:
       - Servers
+    patch:
+      operationId: UpdateRemote
+      parameters:
+      - description: Server Id to update
+        in: path
+        name: serverId
+        required: true
+        type: string
+      - description: Server Params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/UpdateServerParams'
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Update a remote
+      tags:
+      - Servers
   /servers/{serverId}/backup:
     post:
       operationId: LaunchBackup
@@ -1516,10 +1584,32 @@ paths:
             items:
               $ref: '#/definitions/ServerInfo'
             type: array
+        "404":
+          description: Not Found
         "500":
           description: Internal Server Error
       security: []
       summary: Initialize the target server
+      tags:
+      - Servers
+  /servers/reset:
+    post:
+      operationId: ResetServer
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Reset server
       tags:
       - Servers
   /share/{shareId}:
@@ -1581,6 +1671,8 @@ paths:
       responses:
         "200":
           description: OK
+          schema:
+            $ref: '#/definitions/ShareInfo'
         "404":
           description: Not Found
       summary: Update a share's accessors list
@@ -1705,7 +1797,7 @@ paths:
         name: shareId
         type: string
       responses:
-        "200":
+        "201":
           description: Upload Info
           schema:
             $ref: '#/definitions/NewUploadInfo'
@@ -1763,7 +1855,7 @@ paths:
         schema:
           $ref: '#/definitions/NewFilesParams'
       responses:
-        "200":
+        "201":
           description: FileIds
           schema:
             $ref: '#/definitions/NewFilesInfo'
@@ -1894,7 +1986,7 @@ paths:
         name: username
         required: true
         type: string
-      - description: Target admin status
+      - description: Target activation status
         in: query
         name: setActive
         required: true
@@ -1949,6 +2041,43 @@ paths:
       - SessionAuth: []
       - ApiKeyAuth: []
       summary: Update admin status of user
+      tags:
+      - Users
+  /users/{username}/fullName:
+    patch:
+      operationId: ChangeFullName
+      parameters:
+      - description: Username of user to update
+        in: path
+        name: username
+        required: true
+        type: string
+      - description: New full name of user
+        in: query
+        name: newFullName
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/ErrorInfo'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorInfo'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/ErrorInfo'
+      security:
+      - SessionAuth: []
+      - ApiKeyAuth: []
+      summary: Update full name of user
       tags:
       - Users
   /users/{username}/password:
@@ -2070,6 +2199,27 @@ paths:
       security:
       - SessionAuth: []
       summary: Search for users by username
+      tags:
+      - Users
+  /users/unique:
+    get:
+      operationId: CheckUsernameUnique
+      parameters:
+      - description: Username to check
+        in: query
+        name: username
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+        "409":
+          description: Conflict
+      summary: Check if username is unique
       tags:
       - Users
 schemes:

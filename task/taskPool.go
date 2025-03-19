@@ -9,8 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/rs/zerolog"
 )
 
 type TaskPool struct {
@@ -41,6 +41,8 @@ type TaskPool struct {
 
 	treatAsGlobal  bool
 	hasQueueThread bool
+
+	log zerolog.Logger
 }
 
 func (tp *TaskPool) IsRoot() bool {
@@ -81,6 +83,7 @@ func (tp *TaskPool) handleTaskExit(replacementThread bool) (canContinue bool) {
 		// Even if we are out of tasks, if we have not been told all tasks
 		// were queued, we do not wake the waiters
 		if uncompletedTasks == 0 && tp.allQueuedFlag.Load() {
+			tp.log.Debug().Msg("All tasks completed, closing task pool")
 			close(tp.waiterGate)
 
 			// Check if all waiters have awoken before closing the queue, spin and sleep for 10ms if not
@@ -96,7 +99,7 @@ func (tp *TaskPool) handleTaskExit(replacementThread bool) (canContinue bool) {
 				func() {
 					defer func() {
 						if r := recover(); r != nil {
-							log.ShowErr(errors.New(fmt.Sprint(r)), "Failed to execute taskPool cleanup")
+							tp.log.Error().Stack().Err(errors.New(fmt.Sprint(r))).Msg("Failed to execute taskPool cleanup")
 						}
 					}()
 					tp.cleanupFn(tp)
@@ -183,13 +186,13 @@ func (tp *TaskPool) Wait(supplementWorker bool, task ...*Task) {
 		tp.workerPool.addReplacementWorker()
 	}
 
-	log.Trace.Func(func(l log.Logger) {
+	tp.log.Trace().Func(func(e *zerolog.Event) {
 		_, file, line, _ := runtime.Caller(2)
-		l.Printf("Parking on worker pool from %s:%d", file, line)
+		e.Msgf("Parking on worker pool from %s:%d", file, line)
 	})
 
 	if !tp.allQueuedFlag.Load() {
-		log.Warning.Println("Going to sleep on pool without allQueuedFlag set! This thread may never wake up!")
+		tp.log.Warn().Msg("Going to sleep on pool without allQueuedFlag set! This task pool may never wake up!")
 	}
 
 	tp.waiterCount.Add(1)
@@ -203,9 +206,9 @@ func (tp *TaskPool) Wait(supplementWorker bool, task ...*Task) {
 	}
 	tp.waiterCount.Add(-1)
 
-	log.Trace.Func(func(l log.Logger) {
+	tp.log.Trace().Func(func(e *zerolog.Event) {
 		_, file, line, _ := runtime.Caller(2)
-		l.Printf("Woke up, returning to %s:%d", file, line)
+		e.Msgf("Woke up, returning to %s:%d", file, line)
 	})
 
 	if supplementWorker {
@@ -264,11 +267,8 @@ func (tp *TaskPool) Cancel() {
 }
 
 func (tp *TaskPool) QueueTask(t *Task) (err error) {
-	noterr := werror.Errorf("QueueTask")
-	log.ErrTrace(noterr)
-
 	if tp.workerPool.exitFlag.Load() == 1 {
-		log.Warning.Println("Not queuing task while worker pool is going down")
+		tp.log.Warn().Msg("Not queuing task while worker pool is going down")
 		return
 	}
 
@@ -276,7 +276,7 @@ func (tp *TaskPool) QueueTask(t *Task) (err error) {
 		// Tasks that have failed will not be re-tried. If the errored task is removed from the
 		// task map, then it will be re-tried because the previous error was lost. This can be
 		// sometimes be useful, some tasks auto-remove themselves after they finish.
-		log.Warning.Println("Not re-queueing task that has error set, please restart weblens to try again")
+		tp.log.Warn().Msg("Not re-queueing task that has error set, please restart weblens to try again")
 		return
 	}
 
@@ -285,7 +285,7 @@ func (tp *TaskPool) QueueTask(t *Task) (err error) {
 		// We can call .ClearAndRecompute() on the task and it will queue it
 		// again, but it cannot be transferred
 		if t.taskPool != tp {
-			log.Warning.Printf("Attempted to re-queue a [%s] task that is already in a queue", t.jobName)
+			tp.log.Warn().Msgf("Attempted to re-queue a [%s] task that is already in a queue", t.jobName)
 			return
 		}
 		t.taskPool.tasks[t.taskId] = t
@@ -341,10 +341,10 @@ func (tp *TaskPool) CreatedInTask() *Task {
 
 func (tp *TaskPool) SignalAllQueued() {
 	if tp.treatAsGlobal {
-		log.Error.Println("Attempt to signal all queued for global queue")
+		tp.log.Error().Msg("Attempt to signal all queued for global queue")
 	}
 	if tp.allQueuedFlag.Load() {
-		log.Warning.Println("Trying to signal all queued on already all-queued task pool")
+		tp.log.Warn().Msg("Trying to signal all queued on already all-queued task pool")
 		return
 	}
 
@@ -355,9 +355,9 @@ func (tp *TaskPool) SignalAllQueued() {
 	if tp.completedTasks.Load() == tp.totalTasks.Load() {
 		close(tp.waiterGate)
 		tp.workerPool.removeTaskPool(tp.ID())
-		tp.GetWorkerPool().log.Trace.Println("Task Pool Already Complete in SignalAllQueued")
+		tp.log.Debug().Msg("Task pool already complete")
 	} else {
-		tp.GetWorkerPool().log.Trace.Println("Task Pool NOT Complete")
+		tp.log.Trace().Msg("Task Pool NOT Complete")
 	}
 	tp.allQueuedFlag.Store(true)
 	tp.exitLock.Unlock()

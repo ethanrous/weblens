@@ -11,7 +11,7 @@ import {
     IconSortDescending2,
     TablerIconsProps,
 } from '@tabler/icons-react'
-import { useResize } from '@weblens/components/hooks'
+import { useResize } from '@weblens/lib/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import dirViewHeaderStyle from '@weblens/pages/FileBrowser/style/dirViewHeader.module.scss'
 import { useEffect, useState } from 'react'
@@ -57,7 +57,7 @@ function FileSortBox() {
     return (
         <div
             ref={setSortRef}
-            className={dirViewHeaderStyle['file-sort-box']}
+            className={dirViewHeaderStyle.fileSortBox + ' ' + "wl-static-card"}
             data-open={open}
         >
             {isVertical && (
@@ -84,9 +84,9 @@ function FileSortBox() {
                 }
             />
 
-            <div className={dirViewHeaderStyle['file-sort-divider']} />
+            <div className={dirViewHeaderStyle.fileSortDivider} />
 
-            <div className={dirViewHeaderStyle['file-sort-group']}>
+            <div className={dirViewHeaderStyle.fileSortGroup}>
                 {fileSortTypes.map((v) => {
                     return (
                         <WeblensButton
@@ -104,9 +104,9 @@ function FileSortBox() {
                 })}
             </div>
 
-            <div className={dirViewHeaderStyle['file-sort-divider']} />
+            <div className={dirViewHeaderStyle.fileSortDivider} />
 
-            <div className={dirViewHeaderStyle['file-sort-group']}>
+            <div className={dirViewHeaderStyle.fileSortGroup}>
                 {dirViewModes.map((v) => {
                     return (
                         <WeblensButton

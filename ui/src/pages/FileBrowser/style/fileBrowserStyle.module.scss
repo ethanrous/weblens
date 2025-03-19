@@ -1,5 +1,3 @@
-@import "../../../components/theme.module";
-
 .sidebar-container {
 	display: flex;
 	height: 100%;
@@ -7,14 +5,14 @@
 	width: 100%;
 	flex-direction: column;
 	align-items: center;
-	justify-content: space-between;
+	// justify-content: space-between;
 	flex-shrink: 0;
-	padding: 10px 20px 5px 20px;
-	background-color: var(--wl-background);
+	padding: 1rem 1rem 0.5rem 1rem;
+	background-color: var(--color-background-primary);
 	z-index: 1;
 
 	&[data-mini='true'] {
-		padding: 10px 0px 5px 5px;
+		padding: 10px 0.5rem 0.5rem 0.5rem;
 	}
 }
 
@@ -95,8 +93,8 @@
 	gap: 4px;
 	max-width: 100%;
 
-	background-color: var(--wl-bottom-grey);
-	outline: 1px solid var(--wl-main-accent);
+	background-color: var(--color-background-primary);
+	outline: 1px solid var(--color-theme-primary);
 }
 
 
@@ -184,14 +182,14 @@
 	flex-direction: column;
 	padding: 10px;
 	background-color: var(--wl-barely-visible);
-	border-radius: 6px;
+	border-radius: 4px;
 	outline: 1px solid var(--wl-outline);
 }
 
 .file-info-pane {
 	display: flex;
 	flex-direction: row;
-	background-color: var(--wl-background);
+	background-color: var(--color-background-primary);
 	z-index: 4;
 
 	flex-direction: row;
@@ -234,7 +232,7 @@
 	justify-content: center;
 	width: 8px;
 	z-index: 1;
-	background-color: var(--wl-background);
+	background-color: var(--color-background-primary);
 	padding-left: 6px;
 	padding-right: 6px;
 	height: 100%;
@@ -257,7 +255,6 @@
 
 .file-info-pane[data-open='true'] .open-arrow-container {
 	transform: translateX(-8px);
-	//right: -20px;
 }
 
 
@@ -266,13 +263,13 @@
 	z-index: 1;
 	height: 100%;
 	flex-shrink: 0;
-	background-color: var(--wl-outline-subtle);
+	background-color: var(--color-border-primary);
 	transition: background-color 150ms ease-in-out;
 	transition-delay: 0ms;
 
 	:hover>& {
 		transition-delay: 100ms;
-		background-color: var(--wl-main-accent);
+		background-color: var(--color-theme-secondary);
 	}
 }
 
@@ -348,7 +345,7 @@
 	justify-content: center;
 	position: absolute;
 	bottom: 16px;
-	background-color: var(--dark-paper);
+	background-color: rgb(from var(--color-theme-secondary) r g b / 0.50);
 	border-radius: 6px;
 	z-index: 1;
 	padding: 8px;

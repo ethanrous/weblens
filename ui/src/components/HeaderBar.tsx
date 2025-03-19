@@ -6,28 +6,44 @@ import {
     IconSun,
 } from '@tabler/icons-react'
 import WeblensButton from '@weblens/lib/WeblensButton'
-import Admin from '@weblens/pages/AdminSettings/Admin'
 import { useFileBrowserStore } from '@weblens/store/FBStateControl'
+import { ThemeStateEnum, useWlTheme } from '@weblens/store/ThemeControl'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import { toggleLightTheme } from '@weblens/util'
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 import { useSessionStore } from './UserInfo'
 import headerBarStyle from './headerBarStyle.module.scss'
 
 export const ThemeToggleButton = () => {
-    const [isDarkTheme, setIsDarkTheme] = useState(
-        document.documentElement.classList.contains('dark')
-    )
+    const { theme, isOSControlled, changeTheme } = useWlTheme()
+
     return (
-        <WeblensButton
-            label="Theme"
-            Left={isDarkTheme ? IconMoon : IconSun}
-            onClick={() => {
-                setIsDarkTheme(toggleLightTheme())
-            }}
-        />
+        <>
+            <WeblensButton
+                label="Theme"
+                disabled={isOSControlled}
+                Left={theme === ThemeStateEnum.DARK ? IconMoon : IconSun}
+                onClick={() => {
+                    changeTheme(
+                        theme === ThemeStateEnum.DARK
+                            ? ThemeStateEnum.LIGHT
+                            : ThemeStateEnum.DARK
+                    )
+                }}
+            />
+            <WeblensButton
+                label="Os Theme"
+                centerContent
+                toggleOn={isOSControlled}
+                allowRepeat
+                onClick={() => {
+                    changeTheme(
+                        isOSControlled ? ThemeStateEnum.DARK : ThemeStateEnum.OS
+                    )
+                }}
+            />
+        </>
     )
 }
 
@@ -36,7 +52,6 @@ function HeaderBar() {
     const clearMedia = useMediaStore((state) => state.clear)
     const clearFiles = useFileBrowserStore((state) => state.clearFiles)
     const nav = useNavigate()
-    const [admin, setAdmin] = useState(false)
     const loc = useLocation()
 
     const navToTimeline = useCallback(() => {
@@ -55,21 +70,18 @@ function HeaderBar() {
 
     return (
         <div className="z-50 h-max w-screen">
-            {(admin || server.role === 'backup') && (
-                <Admin closeAdminMenu={() => setAdmin(false)} />
-            )}
-
-            <div className={headerBarStyle['header-bar']}>
-                <div className={headerBarStyle['nav-box']}>
+            <div className={headerBarStyle.headerBar}>
+                <div className={headerBarStyle.navBox}>
                     <div className="p-1" />
                     {user !== null && (
-                        <div className="flex flex-row items-center w-[140px] grow">
+                        <div className="flex w-[140px] grow flex-row items-center gap-2">
                             <WeblensButton
                                 label="Files"
-                                squareSize={36}
-                                textMin={60}
-                                centerContent
-                                toggleOn={loc.pathname.startsWith('/files')}
+                                flavor={
+                                    loc.pathname.startsWith('/files')
+                                        ? 'default'
+                                        : 'outline'
+                                }
                                 Left={IconFolder}
                                 onClick={navToFiles}
                             />
@@ -78,58 +90,41 @@ function HeaderBar() {
                                 squareSize={36}
                                 textMin={70}
                                 centerContent
-                                toggleOn={loc.pathname.startsWith('/timeline')}
+                                flavor={
+                                    loc.pathname.startsWith('/timeline')
+                                        ? 'default'
+                                        : 'outline'
+                                }
                                 Left={IconLibraryPhoto}
                                 onClick={navToTimeline}
                                 disabled={
                                     server.role === 'backup' || !user.isLoggedIn
                                 }
                             />
-                            {/* <WeblensButton */}
-                            {/*     label="Albums" */}
-                            {/*     squareSize={36} */}
-                            {/*     textMin={60} */}
-                            {/*     centerContent */}
-                            {/*     toggleOn={loc.pathname.startsWith( */}
-                            {/*         '/albums' */}
-                            {/*     )} */}
-                            {/*     Left={IconAlbum} */}
-                            {/*     onClick={navToAlbums} */}
-                            {/*     disabled={ */}
-                            {/*         server.role === 'backup' || */}
-                            {/*         !user.isLoggedIn */}
-                            {/*     } */}
-                            {/* /> */}
                         </div>
                     )}
                 </div>
-                <div className="flex grow" />
-
-                {/* {user?.admin && ( */}
-                {/*     <WeblensButton */}
-                {/*         Left={IconServerCog} */}
-                {/*         tooltip="Server Settings" */}
-                {/*         onClick={() => setAdmin(true)} */}
-                {/*     /> */}
-                {/* )} */}
-                <WeblensButton
-                    label={!user.isLoggedIn ? 'Login' : ''}
-                    tooltip={!user.isLoggedIn ? 'Login' : 'Settings'}
-                    Left={IconSettings}
-                    disabled={window.location.pathname.startsWith('/settings')}
-                    onClick={() => {
-                        if (user.isLoggedIn) {
-                            nav('/settings')
-                        } else {
-                            nav('/login', {
-                                state: {
-                                    returnTo: window.location.pathname,
-                                },
-                            })
-                        }
-                    }}
-                />
-
+                <div className="ml-auto">
+                    <WeblensButton
+                        label={!user.isLoggedIn ? 'Login' : ''}
+                        tooltip={!user.isLoggedIn ? 'Login' : 'Settings'}
+                        Left={IconSettings}
+                        disabled={window.location.pathname.startsWith(
+                            '/settings'
+                        )}
+                        onClick={() => {
+                            if (user.isLoggedIn) {
+                                nav('/settings')
+                            } else {
+                                nav('/login', {
+                                    state: {
+                                        returnTo: window.location.pathname,
+                                    },
+                                })
+                            }
+                        }}
+                    />
+                </div>
                 <div className="pr-4" />
             </div>
         </div>

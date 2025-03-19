@@ -1,5 +1,3 @@
-@import "@weblens/components/theme.module.scss";
-
 .timeline-controls {
 	display: flex;
 	flex-direction: row;
@@ -9,33 +7,6 @@
 	height: 56px;
 	width: 95%;
 	gap: 24px;
-}
-
-.options-dropdown {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-
-	padding: 10px;
-	background-color: var(--wl-bottom-grey);
-	z-index: 300;
-	height: max-content;
-	width: 300px;
-
-	opacity: 0;
-	scale: 0.75;
-	border-radius: 4px;
-	box-shadow: var(--wl-soft-shadow);
-	outline: 1px solid var(--wl-outline);
-	transition: all 150ms ease-in-out;
-	//   translate: -45px 162px;
-	pointer-events: none;
-
-	&[data-open='true'] {
-		pointer-events: all;
-		opacity: 100%;
-		scale: 1;
-	}
 }
 
 .preview-card-container {
@@ -49,12 +20,9 @@
 	overflow: hidden;
 	position: relative;
 
-	transition:
-		scale 150ms ease-in-out,
-		outline 150ms ease-in-out,
-		opacity 150ms ease-in-out,
-		border-radius 150ms ease-in-out,
-		box-shadow 150ms ease-in-out;
+	transition-property: scale, outline, opacity, border-radius, box-shadow;
+	transition-duration: 200ms;
+	transition-timing-function: var(--ease-wl-default);
 
 	&[data-selecting='true'] {
 		scale: 0.90;
@@ -109,13 +77,13 @@
 	height: 100%;
 	backdrop-filter: blur(0px);
 	pointer-events: none;
-	outline: 3px solid $dark-paper-transparent;
+	outline: 3px solid rgb(from var(--color-theme-secondary) r g b / 0.5);
 
 	transition: all 200ms;
 
 	&[data-open='true'] {
 		outline-offset: 0;
-		outline: 3px solid var(--dark-paper);
+		outline: 3px solid rgb(from var(--color-theme-secondary) r g b / 0.50);
 		background-color: #00000044;
 		pointer-events: all;
 		backdrop-filter: blur(6px);
@@ -131,15 +99,6 @@
 	flex-grow: 1;
 	width: 100%;
 	padding-bottom: 4px;
-}
-
-.gallery-scroll-fade {
-	position: absolute;
-	width: 100%;
-	height: 20px;
-	z-index: 30;
-	background: linear-gradient(to bottom, var(--wl-background) 0%, $background-transparent 100%);
-	/* W3C */
 }
 
 .gallery-image {

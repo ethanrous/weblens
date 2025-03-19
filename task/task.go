@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/internal"
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/rs/zerolog"
 )
 
 type Id = string
@@ -28,6 +28,8 @@ func (tr TaskResult) ToMap() map[string]any {
 }
 
 type Task struct {
+	Log *zerolog.Logger
+
 	timeout  time.Time
 	metadata TaskMetadata
 
@@ -107,6 +109,9 @@ func (t *Task) setTaskPoolInternal(pool *TaskPool) {
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
 	t.taskPool = pool
+	t.Log.UpdateContext(func(c zerolog.Context) zerolog.Context {
+		return c.Str("task_pool", pool.ID())
+	})
 }
 
 func (t *Task) GetChildTaskPool() *TaskPool {
@@ -134,13 +139,13 @@ func (t *Task) Status() (bool, TaskExitStatus) {
 // NewTask(...).Q(). Returns the given task to further support this
 func (t *Task) Q(tp *TaskPool) *Task {
 	if tp == nil {
-		log.Error.Println("nil task pool")
+		t.Log.Error().Msg("nil task pool")
 		return nil
 		// tp = GetGlobalQueue()
 	}
 	err := tp.QueueTask(t)
 	if err != nil {
-		log.ShowErr(err)
+		t.Log.Error().Stack().Err(err).Msg("")
 		return nil
 	}
 
@@ -171,7 +176,7 @@ func (t *Task) Wait() {
 // If a task finds itself not required to continue, success should
 // be returned
 func (t *Task) Cancel() {
-	log.Trace.Printf("Cancelling task T[%s]", t.taskId)
+	t.Log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Cancelling task T[%s]", t.taskId) })
 
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
@@ -223,7 +228,7 @@ func (t *Task) ClearAndRecompute() {
 	}
 
 	if t.err != nil {
-		log.Warning.Printf("Retrying task (%s) that has previous error: %v", t.TaskId(), t.err)
+		t.Log.Warn().Msgf("Retrying task that has previous error: %v", t.err)
 		t.err = nil
 	}
 
@@ -288,7 +293,7 @@ func (t *Task) error(err error) {
 		return
 	}
 
-	wp.log.ErrTrace(err)
+	wp.log.Error().CallerSkipFrame(2).Stack().Err(err).Msg("Task encountered an error")
 
 	t.err = err
 	t.queueState = Exited
@@ -374,7 +379,7 @@ func (t *Task) Success(msg ...any) {
 	t.queueState = Exited
 	t.exitStatus = TaskSuccess
 	if len(msg) != 0 {
-		log.Info.Println("Task succeeded with a message:", fmt.Sprint(msg...))
+		t.Log.Info().Msgf("Task succeeded with a message: %s", fmt.Sprint(msg...))
 	}
 
 	t.sw.Stop()
@@ -392,15 +397,14 @@ func (t *Task) SetTimeout(timeout time.Time) {
 	t.timeout = timeout
 	wp := t.GetTaskPool().GetWorkerPool()
 	wp.AddHit(timeout, t)
-	wp.log.Trace.Printf("Setting timeout for task [%s] to [%s]", t.TaskId(), timeout)
+	t.Log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Setting timeout for task [%s] to [%s]", t.TaskId(), timeout) })
 }
 
 func (t *Task) ClearTimeout() {
 	t.timerLock.Lock()
 	defer t.timerLock.Unlock()
 	t.timeout = time.Unix(0, 0)
-	wp := t.GetTaskPool().GetWorkerPool()
-	wp.log.Trace.Printf("Clearing timeout for task [%s]", t.TaskId())
+	t.Log.Trace().Func(func(e *zerolog.Event) { e.Msg("Clearing timeout") })
 }
 
 func (t *Task) GetTimeout() time.Time {

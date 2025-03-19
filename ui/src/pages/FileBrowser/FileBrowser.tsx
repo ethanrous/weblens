@@ -4,15 +4,15 @@ import { useSubscribe as useFolderSubscribe } from '@weblens/api/Websocket'
 import HeaderBar from '@weblens/components/HeaderBar'
 import { PresentationFile } from '@weblens/components/Presentation'
 import { useSessionStore } from '@weblens/components/UserInfo'
+import { FileContextMenu } from '@weblens/components/filebrowser/FileMenu'
 import DirectoryView from '@weblens/components/filebrowser/directoryView'
 import FBSidebar from '@weblens/components/filebrowser/filebrowserSidebar'
-import PasteDialogue from '@weblens/components/filebrowser/pasteDiologue'
+import PasteDialogue from '@weblens/components/filebrowser/pasteDialogue'
 import SearchDialogue from '@weblens/components/filebrowser/searchDialogue'
 import WebsocketStatus from '@weblens/components/filebrowser/websocketStatus'
 import { ErrorHandler } from '@weblens/types/Types'
 import WeblensFile from '@weblens/types/files/File'
 import { goToFile } from '@weblens/types/files/FileDragLogic'
-import { FileContextMenu } from '@weblens/types/files/FileMenu'
 import { useCallback, useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
@@ -138,6 +138,7 @@ function FileBrowser() {
     // Reset most of the state when we change folders
     useEffect(() => {
         if (contentId === null) {
+            console.debug('Content ID is null, refusing to sync state')
             return
         }
 
@@ -280,13 +281,13 @@ function FileBrowser() {
     }
 
     return (
-        <div className="h-screen flex flex-col">
+        <div className="flex h-screen flex-col">
             <HeaderBar />
             <DraggingCounter />
             <PresentationFile file={filesMap.get(presentingId)} />
             <PasteDialogue />
             {isSearching && (
-                <div className="flex items-center justify-center w-screen h-screen absolute z-50 backdrop-blur-sm bg-[#00000088] px-[30%] py-[10%]">
+                <div className="absolute z-40 flex h-screen w-screen items-center justify-center bg-[#00000088] px-[30%] py-[10%] backdrop-blur-xs">
                     <SearchDialogue text={''} visitFunc={searchVisitFunc} />
                 </div>
             )}
@@ -294,7 +295,7 @@ function FileBrowser() {
             <div className="absolute bottom-1 left-1">
                 <WebsocketStatus ready={readyState} />
             </div>
-            <div className="flex flex-row grow h-[90vh] items-start">
+            <div className="flex h-[90vh] grow flex-row items-start">
                 <FBSidebar />
                 <DirectoryView
                     filesError={filesFetchErr}

@@ -12,6 +12,7 @@ import (
 	"github.com/ethanrous/weblens/models"
 	. "github.com/ethanrous/weblens/service"
 	"github.com/ethanrous/weblens/service/mock"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -19,8 +20,9 @@ import (
 
 func init() {
 	if mondb == nil {
+		logger := log.NewZeroLogger()
 		var err error
-		mondb, err = database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName(env.Config{})+"-test")
+		mondb, err = database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName(env.Config{})+"-test", logger)
 		if err != nil {
 			panic(err)
 		}
@@ -30,14 +32,16 @@ func init() {
 func TestInstanceServiceImpl_Add(t *testing.T) {
 	t.Parallel()
 
+	logger := log.NewZeroLogger()
+
 	col := mondb.Collection(t.Name())
 	err := col.Drop(context.Background())
 	if err != nil {
 		panic(err)
 	}
-	defer col.Drop(context.Background())
+	defer tests.CheckDropCol(col, logger)
 
-	is, err := NewInstanceService(col)
+	is, err := NewInstanceService(col, logger)
 	require.NoError(t, err)
 
 	if !assert.NotNil(t, is.GetLocal()) {
@@ -95,19 +99,21 @@ func TestInstanceServiceImpl_Add(t *testing.T) {
 func TestInstanceServiceImpl_InitCore(t *testing.T) {
 	t.Parallel()
 
+	logger := log.NewZeroLogger()
+
 	col := mondb.Collection(t.Name())
 	err := col.Drop(context.Background())
 	if err != nil {
-		log.ErrTrace(err)
+		logger.Error().Stack().Err(err).Msg("")
 		t.Fatal(err)
 	}
 	if err = col.Drop(context.Background()); err != nil {
-		log.ErrTrace(err)
+		logger.Error().Stack().Err(err).Msg("")
 		t.Fatal(err)
 	}
-	defer col.Drop(context.Background())
+	defer tests.CheckDropCol(col, logger)
 
-	is, err := NewInstanceService(col)
+	is, err := NewInstanceService(col, logger)
 	require.NoError(t, err)
 
 	if !assert.NotNil(t, is.GetLocal()) {
@@ -121,7 +127,7 @@ func TestInstanceServiceImpl_InitCore(t *testing.T) {
 	assert.Equal(t, models.CoreServerRole, is.GetLocal().GetRole())
 
 	if err = col.Drop(context.Background()); err != nil {
-		log.ErrTrace(err)
+		logger.Error().Stack().Err(err).Msg("")
 		t.Fatal(err)
 	}
 
@@ -133,7 +139,7 @@ func TestInstanceServiceImpl_InitCore(t *testing.T) {
 		DeleteFail: false,
 	}
 
-	badIs, err := NewInstanceService(badMongo)
+	badIs, err := NewInstanceService(badMongo, logger)
 	require.NoError(t, err)
 
 	err = badIs.InitCore("My Core Server")
@@ -145,18 +151,21 @@ func TestInstanceServiceImpl_InitCore(t *testing.T) {
 func TestInstanceServiceImpl_InitBackup(t *testing.T) {
 	t.Parallel()
 
+	logger := log.NewZeroLogger()
+	nop := zerolog.Nop()
+
 	coreServices, err := tests.NewWeblensTestInstance(t.Name(), env.Config{
 		Role: string(models.CoreServerRole),
-	})
+	}, &nop)
 
 	require.NoError(t, err)
 
 	keys, err := coreServices.AccessService.GetKeysByUser(coreServices.UserService.Get("test-username"))
 	if err != nil {
-		log.ErrTrace(err)
+		logger.Error().Stack().Err(err).Msg("")
 		t.FailNow()
 	}
-	log.Debug.Println("Key count:", len(keys))
+	logger.Debug().Func(func(e *zerolog.Event) { e.Msgf("Key count: %d", len(keys)) })
 
 	coreAddress := env.GetProxyAddress(coreServices.Cnf)
 	coreApiKey := keys[0].Key
@@ -169,16 +178,16 @@ func TestInstanceServiceImpl_InitBackup(t *testing.T) {
 	col := mondb.Collection(t.Name())
 	err = col.Drop(context.Background())
 	if err != nil {
-		log.ErrTrace(err)
+		logger.Error().Stack().Err(err).Msg("")
 		t.FailNow()
 	}
 
 	if err = col.Drop(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	defer col.Drop(context.Background())
+	defer tests.CheckDropCol(col, logger)
 
-	is, err := NewInstanceService(col)
+	is, err := NewInstanceService(col, logger)
 	require.NoError(t, err)
 
 	if !assert.NotNil(t, is.GetLocal()) {
@@ -186,7 +195,7 @@ func TestInstanceServiceImpl_InitBackup(t *testing.T) {
 	}
 	assert.Equal(t, models.InitServerRole, is.GetLocal().GetRole())
 
-	err = is.InitBackup("My backup server", coreAddress, coreApiKey)
+	_, err = is.InitBackup("My backup server", coreAddress, coreApiKey)
 	require.NoError(t, err)
 
 	assert.Equal(t, models.BackupServerRole, is.GetLocal().GetRole())

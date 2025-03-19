@@ -5,12 +5,12 @@ import {
     IconEyeOff,
 } from '@tabler/icons-react'
 import MediaApi from '@weblens/api/MediaApi'
-import { useClick, useKeyDown } from '@weblens/components/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
+import { useClick, useKeyDown } from '@weblens/lib/hooks'
 import { TimeOffset, newTimeOffset } from '@weblens/types/Types'
 import WeblensMedia from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import { MouseEvent, memo, useCallback, useMemo, useState } from 'react'
+import { MouseEvent, useCallback, useMemo, useState } from 'react'
 
 import { useGalleryStore } from './GalleryLogic'
 
@@ -24,7 +24,7 @@ function TimeSlice({
     incDecFunc: (n: number) => void
 }) {
     return (
-        <div className="flex flex-col w-max h-max p-2 items-center">
+        <div className="flex h-max w-max flex-col items-center p-2">
             {isAnchor && (
                 <IconCaretUp
                     className="cursor-pointer"
@@ -34,7 +34,7 @@ function TimeSlice({
                     }}
                 />
             )}
-            <div className="flex flex-col w-max h-max p-2 rounded select-none bg-[#00000077] text-white">
+            <div className="flex h-max w-max flex-col rounded-sm bg-[#00000077] p-2 text-white select-none">
                 <p>{value}</p>
             </div>
             {isAnchor && (
@@ -150,8 +150,8 @@ function TimeDialogue({
     }
 
     return (
-        <div className="flex flex-col h-full items-center justify-evenly">
-            <div className="flex flex-col w-full items-center justify-around p-1">
+        <div className="flex h-full flex-col items-center justify-evenly">
+            <div className="flex w-full flex-col items-center justify-around p-1">
                 <div className="flex flex-row items-center justify-center">
                     {/* Month */}
                     <TimeSlice
@@ -228,180 +228,163 @@ function TimeDialogue({
     )
 }
 
-export const GalleryMenu = memo(
-    ({
-        media,
-        open,
-        setOpen,
-    }: {
-        media: WeblensMedia
-        open: boolean
-        setOpen: (o: boolean) => void
-    }) => {
-        const selecting = useGalleryStore((state) => state.selecting)
-        const menuTargetId = useGalleryStore((state) => state.menuTargetId)
-        // const albumId = useGalleryStore((state) => state.albumId)
-        const timeAdjustOffset = useGalleryStore(
-            (state) => state.timeAdjustOffset
-        )
-        const setSelecting = useGalleryStore((state) => state.setSelecting)
-        const setTimeOffset = useGalleryStore((state) => state.setTimeOffset)
-        const setMenuTarget = useGalleryStore((state) => state.setMenuTarget)
+export function GalleryMenu({
+    media,
+    open,
+    setOpen,
+}: {
+    media: WeblensMedia
+    open: boolean
+    setOpen: (o: boolean) => void
+}) {
+    const selecting = useGalleryStore((state) => state.selecting)
+    const menuTargetId = useGalleryStore((state) => state.menuTargetId)
+    // const albumId = useGalleryStore((state) => state.albumId)
+    const timeAdjustOffset = useGalleryStore((state) => state.timeAdjustOffset)
+    const setSelecting = useGalleryStore((state) => state.setSelecting)
+    const setTimeOffset = useGalleryStore((state) => state.setTimeOffset)
+    const setMenuTarget = useGalleryStore((state) => state.setMenuTarget)
 
-        const [menuRef, setMenuRef] = useState<HTMLDivElement>(null)
+    const [menuRef, setMenuRef] = useState<HTMLDivElement>(null)
 
-        useClick(
-            () => {
-                setOpen(false)
-                setTimeOffset(null)
-            },
-            menuRef,
-            !open || timeAdjustOffset !== null
-        )
+    useClick(
+        () => {
+            setOpen(false)
+            setTimeOffset(null)
+        },
+        menuRef,
+        !open || timeAdjustOffset !== null
+    )
 
-        useKeyDown('Escape', () => {
-            if (open) {
-                setOpen(false)
-                setTimeOffset(null)
+    useKeyDown('Escape', () => {
+        if (open) {
+            setOpen(false)
+            setTimeOffset(null)
+        }
+    })
+
+    const hide = useCallback(
+        async (e: MouseEvent, hidden: boolean) => {
+            e.stopPropagation()
+
+            let medias: string[] = []
+            if (selecting) {
+                medias = [...useMediaStore.getState().selectedMap.keys()]
             }
-        })
+            medias.push(media.Id())
+            const res = await MediaApi.setMediaVisibility(hidden, {
+                mediaIds: medias,
+            })
 
-        const hide = useCallback(
-            async (e: MouseEvent, hidden: boolean) => {
+            if (res.status !== 200) {
+                return false
+            }
+
+            useMediaStore.getState().hideMedias(medias, hidden)
+
+            setSelecting(false)
+            setMenuTarget('')
+
+            return true
+        },
+        [selecting]
+    )
+
+    // const adjustTime = useCallback(async () => {
+    //     console.error('adjust time not impl')
+    //     // const r = await adjustMediaTime(
+    //     //     media.Id(),
+    //     //     newDate,
+    //     //     mediaState.getAllSelectedIds(),
+    //     //     auth
+    //     // )
+    //     // galleryDispatch({
+    //     //     type: 'set_time_offset',
+    //     //     offset: null,
+    //     // })
+    //     //
+    //     // return r
+    //     return false
+    // }, [media])
+
+    const hideStyle = useMemo(() => {
+        return { opacity: open ? '100%' : '0%' }
+    }, [open])
+
+    return (
+        <div
+            ref={setMenuRef}
+            className="media-menu-container"
+            data-open={
+                open || (media.IsSelected() && timeAdjustOffset !== null)
+            }
+            onClick={(e) => {
                 e.stopPropagation()
-
-                let medias: string[] = []
-                if (selecting) {
-                    medias = [...useMediaStore.getState().selectedMap.keys()]
-                }
-                medias.push(media.Id())
-                const res = await MediaApi.setMediaVisibility(hidden, {
-                    mediaIds: medias,
-                })
-
-                if (res.status !== 200) {
-                    return false
-                }
-
-                useMediaStore.getState().hideMedias(medias, hidden)
-
-                setSelecting(false)
-                setMenuTarget('')
-
-                return true
-            },
-            [selecting]
-        )
-
-        // const adjustTime = useCallback(async () => {
-        //     console.error('adjust time not impl')
-        //     // const r = await adjustMediaTime(
-        //     //     media.Id(),
-        //     //     newDate,
-        //     //     mediaState.getAllSelectedIds(),
-        //     //     auth
-        //     // )
-        //     // galleryDispatch({
-        //     //     type: 'set_time_offset',
-        //     //     offset: null,
-        //     // })
-        //     //
-        //     // return r
-        //     return false
-        // }, [media])
-
-        const hideStyle = useMemo(() => {
-            return { opacity: open ? '100%' : '0%' }
-        }, [open])
-
-        return (
-            <div
-                ref={setMenuRef}
-                className="media-menu-container"
-                data-open={
-                    open || (media.IsSelected() && timeAdjustOffset !== null)
-                }
-                onClick={(e) => {
-                    e.stopPropagation()
-                    setOpen(false)
-                }}
-                onContextMenu={(e) => {
-                    e.stopPropagation()
-                    e.preventDefault()
-                    setOpen(false)
-                }}
-            >
-                {(media.IsSelected() || open) && timeAdjustOffset !== null && (
-                    <TimeDialogue
-                        media={media}
-                        isAnchor={media.Id() === menuTargetId}
-                        close={() => setTimeOffset(null)}
-                        adjustTime={(d: Date) =>
-                            new Promise(() => {
-                                console.error('Adjust time not impl', d)
-                                return false
-                            })
-                        }
-                        offset={timeAdjustOffset}
+                setOpen(false)
+            }}
+            onContextMenu={(e) => {
+                e.stopPropagation()
+                e.preventDefault()
+                setOpen(false)
+            }}
+        >
+            {(media.IsSelected() || open) && timeAdjustOffset !== null && (
+                <TimeDialogue
+                    media={media}
+                    isAnchor={media.Id() === menuTargetId}
+                    close={() => setTimeOffset(null)}
+                    adjustTime={(d: Date) =>
+                        new Promise(() => {
+                            console.error('Adjust time not impl', d)
+                            return false
+                        })
+                    }
+                    offset={timeAdjustOffset}
+                />
+            )}
+            {open && timeAdjustOffset === null && (
+                <div className="flex w-full max-w-[300px] flex-col items-center p-2">
+                    <WeblensButton
+                        squareSize={40}
+                        fillWidth
+                        Left={IconCalendarTime}
+                        label="Adjust Time"
+                        centerContent
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            setTimeOffset(newTimeOffset())
+                        }}
                     />
-                )}
-                {open && timeAdjustOffset === null && (
-                    <div className="flex flex-col items-center w-full max-w-[300px] p-2">
-                        <WeblensButton
-                            squareSize={40}
-                            fillWidth
-                            Left={IconCalendarTime}
-                            label="Adjust Time"
-                            centerContent
-                            onClick={(e) => {
-                                e.stopPropagation()
-                                setTimeOffset(newTimeOffset())
-                            }}
-                        />
-                        {/* <WeblensButton */}
-                        {/*     label="Set as Cover" */}
-                        {/*     centerContent */}
-                        {/*     fillWidth */}
-                        {/*     Left={IconPolaroid} */}
-                        {/*     squareSize={40} */}
-                        {/*     textMin={100} */}
-                        {/*     disabled={!albumId} */}
-                        {/*     style={{ opacity: open ? '100%' : '0%' }} */}
-                        {/*     onClick={(e) => { */}
-                        {/*         e.stopPropagation() */}
-                        {/*         return AlbumsApi.updateAlbum( */}
-                        {/*             albumId, */}
-                        {/*             media.Id() */}
-                        {/*         ) */}
-                        {/*     }} */}
-                        {/* /> */}
-                        <WeblensButton
-                            label={media.IsHidden() ? 'Unhide' : 'Hide'}
-                            centerContent
-                            danger
-                            fillWidth
-                            Left={IconEyeOff}
-                            squareSize={40}
-                            textMin={100}
-                            style={hideStyle}
-                            onClick={(e) => hide(e, !media.IsHidden())}
-                        />
-                    </div>
-                )}
-            </div>
-        )
-    },
-    (prev, next) => {
-        if (prev.media !== next.media) {
-            return false
-        }
-        if (prev.open !== next.open) {
-            return false
-        }
-        if (prev.setOpen !== next.setOpen) {
-            return false
-        }
-
-        return true
-    }
-)
+                    {/* <WeblensButton */}
+                    {/*     label="Set as Cover" */}
+                    {/*     centerContent */}
+                    {/*     fillWidth */}
+                    {/*     Left={IconPolaroid} */}
+                    {/*     squareSize={40} */}
+                    {/*     textMin={100} */}
+                    {/*     disabled={!albumId} */}
+                    {/*     style={{ opacity: open ? '100%' : '0%' }} */}
+                    {/*     onClick={(e) => { */}
+                    {/*         e.stopPropagation() */}
+                    {/*         return AlbumsApi.updateAlbum( */}
+                    {/*             albumId, */}
+                    {/*             media.Id() */}
+                    {/*         ) */}
+                    {/*     }} */}
+                    {/* /> */}
+                    <WeblensButton
+                        label={media.IsHidden() ? 'Unhide' : 'Hide'}
+                        centerContent
+                        danger
+                        fillWidth
+                        Left={IconEyeOff}
+                        squareSize={40}
+                        textMin={100}
+                        style={hideStyle}
+                        onClick={(e) => hide(e, !media.IsHidden())}
+                    />
+                </div>
+            )}
+        </div>
+    )
+}

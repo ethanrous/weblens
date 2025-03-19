@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/fileTree"
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -127,7 +126,6 @@ func (wi *Instance) SetReportedRole(role ServerRole) {
 	wi.updateMu.Lock()
 	defer wi.updateMu.Unlock()
 	wi.reportedRole = role
-	log.TraceCaller(1, "SetReportedRole %s", role)
 }
 
 func (wi *Instance) GetAddress() (string, error) {
@@ -156,12 +154,13 @@ type InstanceService interface {
 	GetAllByOriginServer(serverId InstanceId) []*Instance
 	GetByInstanceId(serverId InstanceId) *Instance
 	Add(instance *Instance) error
+	Update(instance *Instance) error
 	Del(dbId primitive.ObjectID) error
 	GetLocal() *Instance
 	GetCores() []*Instance
 	GetRemotes() []*Instance
 	InitCore(serverName string) error
-	InitBackup(name, coreAddr string, key WeblensApiKey) error
+	InitBackup(name, coreAddr string, key WeblensApiKey) (*Instance, error)
 	SetLastBackup(id InstanceId, time time.Time) error
 	AttachRemoteCore(coreAddr string, key string) (*Instance, error)
 	ResetAll() error

@@ -21,6 +21,10 @@ export function mouseMove(
     setSelected: (fileIds: string[]) => void,
     setDragging: (dragging: DraggingStateT) => void
 ) {
+    if (!e.shiftKey && useFileBrowserStore.getState().holdingShift) {
+        useFileBrowserStore.getState().setHoldingShift(false)
+    }
+
     if (
         mouseDown &&
         !draggingState &&

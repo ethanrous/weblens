@@ -42,7 +42,7 @@ WatcherLoop:
 		// 		break WatcherLoop
 		// 	}
 		//
-		// 	// util.Debug.Println("Got file event", event.Name)
+		// 	// util.Debug().Func(func(e *zerolog.Event) {e.Msgf("Got file event", event.Name)})
 		// 	if event.Has(fsnotify.Create) {
 		// 		// Move events show up as a distinct "Create" in the destination
 		// 		// followed by a "Rename" in the old location, so we hold on to
@@ -83,7 +83,7 @@ WatcherLoop:
 		// 	if !ok {
 		// 		break WatcherLoop
 		// 	}
-		// 	util.ShowErr(err, "File watcher error")
+		// 	util.Error().Stack().Err(err, "File watcher error").Msg("")
 		case _, ok := <-pathModChan:
 			if !ok {
 				break WatcherLoop

@@ -9,11 +9,12 @@ import (
 
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal"
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/models/rest"
 	"github.com/go-chi/chi/v5"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/hlog"
 )
 
 // GetMedia godoc
@@ -37,8 +38,9 @@ import (
 //	@Router		/media [get]
 func getMediaBatch(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
+	log := hlog.FromRequest(r)
 	u, err := getUserFromCtx(r, true)
-	if SafeErrorAndExit(err, w) {
+	if SafeErrorAndExit(err, w, log) {
 		return
 	}
 
@@ -46,11 +48,12 @@ func getMediaBatch(w http.ResponseWriter, r *http.Request) {
 	if folderIdsStr != "" {
 		var folderIds []fileTree.FileId
 		err := json.Unmarshal([]byte(folderIdsStr), &folderIds)
-		if SafeErrorAndExit(err, w) {
+		if SafeErrorAndExit(err, w, log) {
 			return
 		}
 
-		getMediaInFolders(pack, u, folderIds, w)
+		err = getMediaInFolders(pack, u, folderIds, w)
+		SafeErrorAndExit(err, w, log)
 		return
 	}
 
@@ -58,7 +61,7 @@ func getMediaBatch(w http.ResponseWriter, r *http.Request) {
 	if mediaIdsStr != "" {
 		var mediaIds []fileTree.FileId
 		err := json.Unmarshal([]byte(mediaIdsStr), &mediaIds)
-		if SafeErrorAndExit(err, w) {
+		if SafeErrorAndExit(err, w, log) {
 			return
 		}
 
@@ -86,7 +89,7 @@ func getMediaBatch(w http.ResponseWriter, r *http.Request) {
 	pageStr := r.URL.Query().Get("page")
 	if pageStr != "" {
 		page, err = strconv.ParseInt(pageStr, 10, 32)
-		if SafeErrorAndExit(err, w) {
+		if SafeErrorAndExit(err, w, log) {
 			return
 		}
 	} else {
@@ -97,7 +100,7 @@ func getMediaBatch(w http.ResponseWriter, r *http.Request) {
 	limitStr := r.URL.Query().Get("limit")
 	if limitStr != "" {
 		limit, err = strconv.ParseInt(limitStr, 10, 32)
-		if SafeErrorAndExit(err, w) {
+		if SafeErrorAndExit(err, w, log) {
 			return
 		}
 	} else {
@@ -108,7 +111,7 @@ func getMediaBatch(w http.ResponseWriter, r *http.Request) {
 	albumsStr := r.URL.Query().Get("albums")
 	if albumsStr != "" {
 		err = json.Unmarshal([]byte(albumsStr), &albumFilter)
-		if SafeErrorAndExit(err, w) {
+		if SafeErrorAndExit(err, w, log) {
 			return
 		}
 	}
@@ -120,7 +123,7 @@ func getMediaBatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ms, err := pack.MediaService.GetFilteredMedia(u, sort, 1, mediaFilter, raw, hidden, search)
-	if SafeErrorAndExit(err, w) {
+	if SafeErrorAndExit(err, w, log) {
 		return
 	}
 
@@ -167,12 +170,48 @@ func getMediaTypes(w http.ResponseWriter, r *http.Request) {
 //	@Tags		Media
 //	@Produce	json
 //	@Success	200
-//	@Success	500
+//	@Failure	500
 //	@Router		/media/cleanup  [post]
 func cleanupMedia(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
+	log := hlog.FromRequest(r)
 	err := pack.MediaService.Cleanup()
-	if SafeErrorAndExit(err, w) {
+	if SafeErrorAndExit(err, w, log) {
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+// DropMedia godoc
+//
+//	@ID			DropMedia
+//
+//	@Security	SessionAuth[admin]
+//	@Security	ApiKeyAuth[admin]
+//
+//	@Summary	DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
+//	@Tags		Media
+//	@Produce	json
+//	@Success	200
+//	@Failure	403
+//	@Failure	500
+//	@Router		/media/drop  [post]
+func dropMedia(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	log := hlog.FromRequest(r)
+	u, err := getUserFromCtx(r, false)
+	if SafeErrorAndExit(err, w, log) {
+		return
+	}
+
+	log.Debug().Func(func(e *zerolog.Event) { e.Msgf(u.Username, u.IsOwner()) })
+	if !u.IsOwner() {
+		SafeErrorAndExit(werror.ErrNotOwner, w)
+		return
+	}
+
+	err = pack.MediaService.Drop()
+	if SafeErrorAndExit(err, w, log) {
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -190,10 +229,11 @@ func cleanupMedia(w http.ResponseWriter, r *http.Request) {
 //	@Router		/media/{mediaId}/info [get]
 func getMediaInfo(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
+	log := hlog.FromRequest(r)
 	mediaId := chi.URLParam(r, "mediaId")
 	m := pack.MediaService.Get(mediaId)
 	if m == nil {
-		w.WriteHeader(http.StatusNotFound)
+		SafeErrorAndExit(werror.ErrNoMedia, w, log)
 		return
 	}
 
@@ -206,7 +246,7 @@ func getMediaInfo(w http.ResponseWriter, r *http.Request) {
 //
 //	@Summary	Get a media image bytes
 //	@Tags		Media
-//	@Produce	image/webp, image/png, image/jpeg
+//	@Produce	image/*
 //	@Param		mediaId		path		string	true	"Media Id"
 //	@Param		extension	path		string	true	"Extension"
 //	@Param		quality		query		string	true	"Image Quality"	Enums(thumbnail, fullres)
@@ -222,8 +262,9 @@ func getMediaImage(w http.ResponseWriter, r *http.Request) {
 
 func streamVideo(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
+	log := hlog.FromRequest(r)
 
-	pack.Log.Debug.Func(func(l log.Logger) { l.Println("Streaming video", chi.URLParam(r, "chunkName")) })
+	log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Streaming video %s", chi.URLParam(r, "chunkName")) })
 
 	sh, err := getShareFromCtx[*models.FileShare](w, r)
 	if err != nil {
@@ -241,38 +282,42 @@ func streamVideo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	streamer, err := pack.MediaService.StreamVideo(m, pack.UserService.GetRootUser(), sh)
-	if SafeErrorAndExit(err, w) {
+	if SafeErrorAndExit(err, w, log) {
 		return
 	}
 
 	chunkName := chi.URLParam(r, "chunkName")
 	if chunkName != "" {
 		chunkFile, err := streamer.GetChunk(chunkName)
-		if SafeErrorAndExit(err, w) {
+		if SafeErrorAndExit(err, w, log) {
 			return
 		}
 
-		pack.Log.Trace.Println("Serving chunk", chunkName)
+		log.Trace().Msgf("Serving chunk %s", chunkName)
 		wrote, err := io.Copy(w, chunkFile)
-		if SafeErrorAndExit(err, w) {
+		if SafeErrorAndExit(err, w, log) {
 			return
 		}
 
 		err = chunkFile.Close()
-		pack.Log.Trace.Println("Chunk [%s] wrote [%d] bytes", chunkName, wrote)
-		if SafeErrorAndExit(err, w) {
+		log.Trace().Msgf("Chunk [%s] wrote [%d] bytes", chunkName, wrote)
+		if SafeErrorAndExit(err, w, log) {
 			return
 		}
 		return
 	}
 
 	listFile, err := streamer.GetListFile()
-	if SafeErrorAndExit(err, w) {
+	if SafeErrorAndExit(err, w, log) {
 		return
 	}
 
+	// if !bytes.HasSuffix(listFile, []byte("#EXT-X-ENDLIST")) {
+	// 	listFile = append(listFile, []byte("#EXT-X-ENDLIST")...)
+	// }
+
 	_, err = w.Write(listFile)
-	SafeErrorAndExit(err, w)
+	SafeErrorAndExit(err, w, log)
 }
 
 // SetMediaVisibility godoc
@@ -290,6 +335,7 @@ func streamVideo(w http.ResponseWriter, r *http.Request) {
 //	@Router		/media/visibility [patch]
 func hideMedia(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
+	log := hlog.FromRequest(r)
 	body, err := readCtxBody[rest.MediaIdsParams](w, r)
 	if err != nil {
 		return
@@ -310,7 +356,7 @@ func hideMedia(w http.ResponseWriter, r *http.Request) {
 	for _, m := range medias {
 		err = pack.MediaService.HideMedia(m, hidden)
 		if err != nil {
-			pack.Log.ShowErr(err)
+			log.Error().Stack().Err(err).Msg("")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -321,6 +367,7 @@ func hideMedia(w http.ResponseWriter, r *http.Request) {
 
 func adjustMediaDate(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
+	log := hlog.FromRequest(r)
 	body, err := readCtxBody[rest.MediaTimeBody](w, r)
 	if err != nil {
 		return
@@ -337,7 +384,7 @@ func adjustMediaDate(w http.ResponseWriter, r *http.Request) {
 
 	err = pack.MediaService.AdjustMediaDates(anchor, body.NewTime, extras)
 	if err != nil {
-		pack.Log.ShowErr(err)
+		log.Error().Stack().Err(err).Msg("")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -364,8 +411,9 @@ func adjustMediaDate(w http.ResponseWriter, r *http.Request) {
 //	@Router		/media/{mediaId}/liked [patch]
 func setMediaLiked(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
+	log := hlog.FromRequest(r)
 	u, err := getUserFromCtx(r, true)
-	if SafeErrorAndExit(err, w) {
+	if SafeErrorAndExit(err, w, log) {
 		return
 	}
 
@@ -373,7 +421,7 @@ func setMediaLiked(w http.ResponseWriter, r *http.Request) {
 	liked := r.URL.Query().Get("liked") == "true"
 
 	err = pack.MediaService.SetMediaLiked(mediaId, liked, u.GetUsername())
-	if SafeErrorAndExit(err, w) {
+	if SafeErrorAndExit(err, w, log) {
 		return
 	}
 
@@ -397,8 +445,9 @@ func setMediaLiked(w http.ResponseWriter, r *http.Request) {
 //	@Router		/media/{mediaId}/file [get]
 func getMediaFile(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
+	log := hlog.FromRequest(r)
 	u, err := getUserFromCtx(r, true)
-	if SafeErrorAndExit(err, w) {
+	if SafeErrorAndExit(err, w, log) {
 		return
 	}
 
@@ -420,27 +469,25 @@ func getMediaFile(w http.ResponseWriter, r *http.Request) {
 
 	if f == nil {
 		f, err = pack.FileService.GetFileByContentId(m.ID())
-		if SafeErrorAndExit(err, w) {
+		if SafeErrorAndExit(err, w, log) {
 			return
 		}
 	}
 
 	fInfo, err := rest.WeblensFileToFileInfo(f, pack, false)
-	if SafeErrorAndExit(err, w) {
+	if SafeErrorAndExit(err, w, log) {
 		return
 	}
 	writeJson(w, http.StatusOK, fInfo)
 }
 
 // Helper function
-func getMediaInFolders(pack *models.ServicePack, u *models.User, folderIds []string, w http.ResponseWriter) {
+func getMediaInFolders(pack *models.ServicePack, u *models.User, folderIds []string, w http.ResponseWriter) error {
 	var folders []*fileTree.WeblensFileImpl
 	for _, folderId := range folderIds {
 		f, err := pack.FileService.GetFileSafe(folderId, u, nil)
 		if err != nil {
-			pack.Log.ShowErr(err)
-			w.WriteHeader(http.StatusNotFound)
-			return
+			return err
 		}
 		folders = append(folders, f)
 	}
@@ -449,13 +496,15 @@ func getMediaInFolders(pack *models.ServicePack, u *models.User, folderIds []str
 	batch := rest.NewMediaBatchInfo(ms)
 
 	writeJson(w, http.StatusOK, batch)
+	return nil
 }
 
 // Helper function
 func getProcessedMedia(q models.MediaQuality, format string, w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
+	log := hlog.FromRequest(r)
 	u, err := getUserFromCtx(r, true)
-	if SafeErrorAndExit(err, w) {
+	if SafeErrorAndExit(err, w, log) {
 		return
 	}
 	mediaId := chi.URLParam(r, "mediaId")
@@ -471,7 +520,7 @@ func getProcessedMedia(q models.MediaQuality, format string, w http.ResponseWrit
 		pageString := r.URL.Query().Get("page")
 		pageNum, err = strconv.Atoi(pageString)
 		if err != nil {
-			pack.Log.Debug.Println("Bad page number trying to get fullres multi-page image")
+			log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Bad page number trying to get fullres multi-page image") })
 			writeJson(w, http.StatusBadRequest, rest.WeblensErrorInfo{Error: "bad page number"})
 			return
 		}
@@ -487,7 +536,7 @@ func getProcessedMedia(q models.MediaQuality, format string, w http.ResponseWrit
 	if errors.Is(err, werror.ErrNoCache) {
 		files := m.GetFiles()
 		f, err := pack.FileService.GetFileSafe(files[len(files)-1], u, nil)
-		if SafeErrorAndExit(err, w) {
+		if SafeErrorAndExit(err, w, log) {
 			return
 		}
 
@@ -499,45 +548,27 @@ func getProcessedMedia(q models.MediaQuality, format string, w http.ResponseWrit
 			TaskSubber:   pack.ClientService,
 		}
 		_, err = pack.TaskService.DispatchJob(models.ScanDirectoryTask, meta, nil)
-		if SafeErrorAndExit(err, w) {
+		if SafeErrorAndExit(err, w, log) {
 			return
 		}
-		pack.Log.Debug.Printf("Image %s has no cache", m.ID())
+		log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Image %s has no cache", m.ID()) })
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
-	if SafeErrorAndExit(err, w) {
+	if SafeErrorAndExit(err, w, log) {
 		return
 	}
 
-	// This segfaults in the cgo part of GetImageBlob() (which takes down the whole process) when on alpine right now, and I don't know why...
-	// if format == "png" {
-	// 	mw := imagick.NewMagickWand()
-	// 	err = mw.ReadImageBlob(bs)
-	// 	if SafeErrorAndExit(err, w) {
-	// 		return
-	// 	}
-	// 	err = mw.SetImageFormat("png")
-	// 	if SafeErrorAndExit(err, w) {
-	// 		return
-	// 	}
-	//
-	// 	bs, err = mw.GetImageBlob()
-	// 	if SafeErrorAndExit(err, w) {
-	// 		return
-	// 	}
-	// }
-
 	// Instruct the client to cache images that are returned
 	w.Header().Set("Cache-Control", "max-age=3600")
-	w.Header().Set("Content-Type", "image/webp")
+	w.Header().Set("Content-Type", "image/"+format)
 
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(bs)
 
 	if err != nil {
-		pack.Log.ErrTrace(err)
+		log.Error().Stack().Err(err).Msg("")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

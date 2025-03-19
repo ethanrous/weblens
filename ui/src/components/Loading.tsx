@@ -1,5 +1,3 @@
-import { style } from '@weblens/components/style'
-
 import Logo from './Logo'
 
 export default function WeblensLoader({ loading }: { loading?: string[] }) {
@@ -13,7 +11,7 @@ export default function WeblensLoader({ loading }: { loading?: string[] }) {
                 console.log('Waiting on:', loading)
             }}
         >
-            <Logo className={style['fade-blink']} />
+            <Logo />
         </div>
     )
 }

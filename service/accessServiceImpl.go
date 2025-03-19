@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"maps"
 	"slices"
 	"strconv"
@@ -15,6 +14,7 @@ import (
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"

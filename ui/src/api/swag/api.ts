@@ -838,13 +838,19 @@ export interface NewUserParams {
      * @type {boolean}
      * @memberof NewUserParams
      */
-    'admin': boolean;
+    'admin'?: boolean;
     /**
      * 
      * @type {boolean}
      * @memberof NewUserParams
      */
-    'autoActivate': boolean;
+    'autoActivate'?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof NewUserParams
+     */
+    'fullName': string;
     /**
      * 
      * @type {string}
@@ -895,6 +901,12 @@ export interface RestInitServerParams {
      * @memberof RestInitServerParams
      */
     'coreKey'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RestInitServerParams
+     */
+    'fullName'?: string;
     /**
      * For restoring a server, remoind the core of its serverId and api key the remote last used
      * @type {string}
@@ -1112,10 +1124,10 @@ export interface ServerInfo {
 export interface ShareInfo {
     /**
      * 
-     * @type {Array<string>}
+     * @type {Array<UserInfo>}
      * @memberof ShareInfo
      */
-    'accessors'?: Array<string>;
+    'accessors'?: Array<UserInfo>;
     /**
      * 
      * @type {boolean}
@@ -1230,6 +1242,31 @@ export interface UpdateFileParams {
 /**
  * 
  * @export
+ * @interface UpdateServerParams
+ */
+export interface UpdateServerParams {
+    /**
+     * 
+     * @type {string}
+     * @memberof UpdateServerParams
+     */
+    'coreAddress'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof UpdateServerParams
+     */
+    'name'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof UpdateServerParams
+     */
+    'usingKey'?: string;
+}
+/**
+ * 
+ * @export
  * @interface UserInfo
  */
 export interface UserInfo {
@@ -1239,6 +1276,12 @@ export interface UserInfo {
      * @memberof UserInfo
      */
     'admin'?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof UserInfo
+     */
+    'fullName'?: string;
     /**
      * 
      * @type {string}
@@ -1300,6 +1343,12 @@ export interface UserInfoArchive {
      * @memberof UserInfoArchive
      */
     'admin'?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof UserInfoArchive
+     */
+    'fullName'?: string;
     /**
      * 
      * @type {string}
@@ -1766,11 +1815,12 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
          * @summary Download a file
          * @param {string} fileId File Id
          * @param {string} [shareId] Share Id
+         * @param {string} [format] File format conversion
          * @param {boolean} [isTakeout] Is this a takeout file
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        downloadFile: async (fileId: string, shareId?: string, isTakeout?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        downloadFile: async (fileId: string, shareId?: string, format?: string, isTakeout?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'fileId' is not null or undefined
             assertParamExists('downloadFile', 'fileId', fileId)
             const localVarPath = `/files/{fileId}/download`
@@ -1788,6 +1838,10 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
 
             if (shareId !== undefined) {
                 localVarQueryParameter['shareId'] = shareId;
+            }
+
+            if (format !== undefined) {
+                localVarQueryParameter['format'] = format;
             }
 
             if (isTakeout !== undefined) {
@@ -2347,12 +2401,13 @@ export const FilesApiFp = function(configuration?: Configuration) {
          * @summary Download a file
          * @param {string} fileId File Id
          * @param {string} [shareId] Share Id
+         * @param {string} [format] File format conversion
          * @param {boolean} [isTakeout] Is this a takeout file
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async downloadFile(fileId: string, shareId?: string, isTakeout?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.downloadFile(fileId, shareId, isTakeout, options);
+        async downloadFile(fileId: string, shareId?: string, format?: string, isTakeout?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.downloadFile(fileId, shareId, format, isTakeout, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['FilesApi.downloadFile']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -2581,12 +2636,13 @@ export const FilesApiFactory = function (configuration?: Configuration, basePath
          * @summary Download a file
          * @param {string} fileId File Id
          * @param {string} [shareId] Share Id
+         * @param {string} [format] File format conversion
          * @param {boolean} [isTakeout] Is this a takeout file
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        downloadFile(fileId: string, shareId?: string, isTakeout?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<string> {
-            return localVarFp.downloadFile(fileId, shareId, isTakeout, options).then((request) => request(axios, basePath));
+        downloadFile(fileId: string, shareId?: string, format?: string, isTakeout?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<string> {
+            return localVarFp.downloadFile(fileId, shareId, format, isTakeout, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -2784,13 +2840,14 @@ export class FilesApi extends BaseAPI {
      * @summary Download a file
      * @param {string} fileId File Id
      * @param {string} [shareId] Share Id
+     * @param {string} [format] File format conversion
      * @param {boolean} [isTakeout] Is this a takeout file
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof FilesApi
      */
-    public downloadFile(fileId: string, shareId?: string, isTakeout?: boolean, options?: RawAxiosRequestConfig) {
-        return FilesApiFp(this.configuration).downloadFile(fileId, shareId, isTakeout, options).then((request) => request(this.axios, this.basePath));
+    public downloadFile(fileId: string, shareId?: string, format?: string, isTakeout?: boolean, options?: RawAxiosRequestConfig) {
+        return FilesApiFp(this.configuration).downloadFile(fileId, shareId, format, isTakeout, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -3430,6 +3487,39 @@ export const MediaApiAxiosParamCreator = function (configuration?: Configuration
         },
         /**
          * 
+         * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        dropMedia: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/media/drop`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication ApiKeyAuth required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary Get paginated media
          * @param {boolean} [raw] Include raw files
          * @param {boolean} [hidden] Include hidden media
@@ -3762,6 +3852,18 @@ export const MediaApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async dropMedia(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.dropMedia(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['MediaApi.dropMedia']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Get paginated media
          * @param {boolean} [raw] Include raw files
          * @param {boolean} [hidden] Include hidden media
@@ -3884,6 +3986,15 @@ export const MediaApiFactory = function (configuration?: Configuration, basePath
         },
         /**
          * 
+         * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        dropMedia(options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.dropMedia(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary Get paginated media
          * @param {boolean} [raw] Include raw files
          * @param {boolean} [hidden] Include hidden media
@@ -3983,6 +4094,17 @@ export class MediaApi extends BaseAPI {
      */
     public cleanupMedia(options?: RawAxiosRequestConfig) {
         return MediaApiFp(this.configuration).cleanupMedia(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof MediaApi
+     */
+    public dropMedia(options?: RawAxiosRequestConfig) {
+        return MediaApiFp(this.configuration).dropMedia(options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -4319,6 +4441,39 @@ export const ServersApiAxiosParamCreator = function (configuration?: Configurati
         },
         /**
          * 
+         * @summary Reset server
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        resetServer: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/servers/reset`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication ApiKeyAuth required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary Restore target core server
          * @param {string} serverId Server Id
          * @param {RestoreCoreParams} request Restore Params
@@ -4340,6 +4495,49 @@ export const ServersApiAxiosParamCreator = function (configuration?: Configurati
             }
 
             const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication ApiKeyAuth required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Update a remote
+         * @param {string} serverId Server Id to update
+         * @param {UpdateServerParams} request Server Params
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateRemote: async (serverId: string, request: UpdateServerParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'serverId' is not null or undefined
+            assertParamExists('updateRemote', 'serverId', serverId)
+            // verify required parameter 'request' is not null or undefined
+            assertParamExists('updateRemote', 'request', request)
+            const localVarPath = `/servers/{serverId}`
+                .replace(`{${"serverId"}}`, encodeURIComponent(String(serverId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PATCH', ...baseOptions, ...options};
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
 
@@ -4448,6 +4646,18 @@ export const ServersApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary Reset server
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async resetServer(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.resetServer(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ServersApi.resetServer']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Restore target core server
          * @param {string} serverId Server Id
          * @param {RestoreCoreParams} request Restore Params
@@ -4458,6 +4668,20 @@ export const ServersApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.restoreCore(serverId, request, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['ServersApi.restoreCore']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Update a remote
+         * @param {string} serverId Server Id to update
+         * @param {UpdateServerParams} request Server Params
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async updateRemote(serverId: string, request: UpdateServerParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.updateRemote(serverId, request, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ServersApi.updateRemote']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
     }
@@ -4530,6 +4754,15 @@ export const ServersApiFactory = function (configuration?: Configuration, basePa
         },
         /**
          * 
+         * @summary Reset server
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        resetServer(options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.resetServer(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary Restore target core server
          * @param {string} serverId Server Id
          * @param {RestoreCoreParams} request Restore Params
@@ -4538,6 +4771,17 @@ export const ServersApiFactory = function (configuration?: Configuration, basePa
          */
         restoreCore(serverId: string, request: RestoreCoreParams, options?: RawAxiosRequestConfig): AxiosPromise<void> {
             return localVarFp.restoreCore(serverId, request, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Update a remote
+         * @param {string} serverId Server Id to update
+         * @param {UpdateServerParams} request Server Params
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateRemote(serverId: string, request: UpdateServerParams, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.updateRemote(serverId, request, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -4621,6 +4865,17 @@ export class ServersApi extends BaseAPI {
 
     /**
      * 
+     * @summary Reset server
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ServersApi
+     */
+    public resetServer(options?: RawAxiosRequestConfig) {
+        return ServersApiFp(this.configuration).resetServer(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @summary Restore target core server
      * @param {string} serverId Server Id
      * @param {RestoreCoreParams} request Restore Params
@@ -4630,6 +4885,19 @@ export class ServersApi extends BaseAPI {
      */
     public restoreCore(serverId: string, request: RestoreCoreParams, options?: RawAxiosRequestConfig) {
         return ServersApiFp(this.configuration).restoreCore(serverId, request, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Update a remote
+     * @param {string} serverId Server Id to update
+     * @param {UpdateServerParams} request Server Params
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ServersApi
+     */
+    public updateRemote(serverId: string, request: UpdateServerParams, options?: RawAxiosRequestConfig) {
+        return ServersApiFp(this.configuration).updateRemote(serverId, request, options).then((request) => request(this.axios, this.basePath));
     }
 }
 
@@ -4932,7 +5200,7 @@ export const ShareApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async setShareAccessors(shareId: string, request: RestUserListBody, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+        async setShareAccessors(shareId: string, request: RestUserListBody, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ShareInfo>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.setShareAccessors(shareId, request, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['ShareApi.setShareAccessors']?.[localVarOperationServerIndex]?.url;
@@ -5010,7 +5278,7 @@ export const ShareApiFactory = function (configuration?: Configuration, basePath
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        setShareAccessors(shareId: string, request: RestUserListBody, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+        setShareAccessors(shareId: string, request: RestUserListBody, options?: RawAxiosRequestConfig): AxiosPromise<ShareInfo> {
             return localVarFp.setShareAccessors(shareId, request, options).then((request) => request(axios, basePath));
         },
         /**
@@ -5121,7 +5389,7 @@ export const UsersApiAxiosParamCreator = function (configuration?: Configuration
          * 
          * @summary Update active status of user
          * @param {string} username Username of user to update
-         * @param {boolean} setActive Target admin status
+         * @param {boolean} setActive Target activation status
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -5148,6 +5416,87 @@ export const UsersApiAxiosParamCreator = function (configuration?: Configuration
 
             if (setActive !== undefined) {
                 localVarQueryParameter['setActive'] = setActive;
+            }
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Update full name of user
+         * @param {string} username Username of user to update
+         * @param {string} newFullName New full name of user
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        changeFullName: async (username: string, newFullName: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'username' is not null or undefined
+            assertParamExists('changeFullName', 'username', username)
+            // verify required parameter 'newFullName' is not null or undefined
+            assertParamExists('changeFullName', 'newFullName', newFullName)
+            const localVarPath = `/users/{username}/fullName`
+                .replace(`{${"username"}}`, encodeURIComponent(String(username)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PATCH', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication ApiKeyAuth required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+            if (newFullName !== undefined) {
+                localVarQueryParameter['newFullName'] = newFullName;
+            }
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Check if username is unique
+         * @param {string} username Username to check
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        checkUsernameUnique: async (username: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'username' is not null or undefined
+            assertParamExists('checkUsernameUnique', 'username', username)
+            const localVarPath = `/users/unique`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (username !== undefined) {
+                localVarQueryParameter['username'] = username;
             }
 
 
@@ -5501,7 +5850,7 @@ export const UsersApiFp = function(configuration?: Configuration) {
          * 
          * @summary Update active status of user
          * @param {string} username Username of user to update
-         * @param {boolean} setActive Target admin status
+         * @param {boolean} setActive Target activation status
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -5509,6 +5858,33 @@ export const UsersApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.activateUser(username, setActive, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['UsersApi.activateUser']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Update full name of user
+         * @param {string} username Username of user to update
+         * @param {string} newFullName New full name of user
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async changeFullName(username: string, newFullName: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.changeFullName(username, newFullName, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['UsersApi.changeFullName']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Check if username is unique
+         * @param {string} username Username to check
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async checkUsernameUnique(username: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.checkUsernameUnique(username, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['UsersApi.checkUsernameUnique']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -5641,12 +6017,33 @@ export const UsersApiFactory = function (configuration?: Configuration, basePath
          * 
          * @summary Update active status of user
          * @param {string} username Username of user to update
-         * @param {boolean} setActive Target admin status
+         * @param {boolean} setActive Target activation status
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
         activateUser(username: string, setActive: boolean, options?: RawAxiosRequestConfig): AxiosPromise<void> {
             return localVarFp.activateUser(username, setActive, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Update full name of user
+         * @param {string} username Username of user to update
+         * @param {string} newFullName New full name of user
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        changeFullName(username: string, newFullName: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.changeFullName(username, newFullName, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Check if username is unique
+         * @param {string} username Username to check
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        checkUsernameUnique(username: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.checkUsernameUnique(username, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -5751,13 +6148,38 @@ export class UsersApi extends BaseAPI {
      * 
      * @summary Update active status of user
      * @param {string} username Username of user to update
-     * @param {boolean} setActive Target admin status
+     * @param {boolean} setActive Target activation status
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof UsersApi
      */
     public activateUser(username: string, setActive: boolean, options?: RawAxiosRequestConfig) {
         return UsersApiFp(this.configuration).activateUser(username, setActive, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Update full name of user
+     * @param {string} username Username of user to update
+     * @param {string} newFullName New full name of user
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof UsersApi
+     */
+    public changeFullName(username: string, newFullName: string, options?: RawAxiosRequestConfig) {
+        return UsersApiFp(this.configuration).changeFullName(username, newFullName, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Check if username is unique
+     * @param {string} username Username to check
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof UsersApi
+     */
+    public checkUsernameUnique(username: string, options?: RawAxiosRequestConfig) {
+        return UsersApiFp(this.configuration).checkUsernameUnique(username, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

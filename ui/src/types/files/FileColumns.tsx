@@ -1,17 +1,16 @@
-import { clamp } from '@mantine/hooks'
 import { IconChevronRight, IconFile } from '@tabler/icons-react'
 import { GetFolderData } from '@weblens/api/FileBrowserApi'
 import WeblensLoader from '@weblens/components/Loading'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import FileVisual from '@weblens/components/filebrowser/fileVisual'
 import GetStartedCard from '@weblens/components/filebrowser/getStartedCard'
-import { useKeyDown, useResize, useResizeDrag } from '@weblens/components/hooks'
+import { useKeyDown, useResize, useResizeDrag } from '@weblens/lib/hooks'
 import { HandleDrop } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { DirViewModeT } from '@weblens/pages/FileBrowser/FileBrowserTypes'
 import fbStyle from '@weblens/pages/FileBrowser/style/fileBrowserStyle.module.scss'
 import { FbModeT, useFileBrowserStore } from '@weblens/store/FBStateControl'
 import filesStyle from '@weblens/types/files/filesStyle.module.scss'
-import { humanFileSize } from '@weblens/util'
+import { clamp, humanFileSize } from '@weblens/util'
 import {
     CSSProperties,
     MouseEvent,
@@ -119,7 +118,7 @@ function ColumnRow({
         <div
             ref={fileRef}
             key={file.Id()}
-            className={filesStyle['weblens-file'] + ' animate-fade'}
+            className={filesStyle.weblensFile + ' animate-fade'}
             data-column-row
             data-clickable={!draggingState || file.IsFolder()}
             data-hovering={selState & SelectedState.Hovering}
@@ -189,18 +188,16 @@ function ColumnRow({
                 )
             }
         >
-            <div className="flex items-center h-[40px] max-h-full gap-3 w-full">
-                <div className="flex shrink-0 justify-center items-center w-[40px] h-[40px] max-w-[40px] max-h-full">
+            <div className="flex h-[40px] max-h-full w-full items-center gap-3">
+                <div className="flex h-[40px] max-h-full w-[40px] max-w-[40px] shrink-0 items-center justify-center">
                     <FileVisual file={file} allowMedia={true} />
                 </div>
-                <div className={filesStyle['file-text-container']}>
-                    <p className={filesStyle['file-text']}>
-                        {file.GetFilename()}
-                    </p>
+                <div className={filesStyle.fileTextContainer}>
+                    <p className={filesStyle.fileText}>{file.GetFilename()}</p>
                 </div>
             </div>
             {file.IsFolder() && (
-                <IconChevronRight className="text-[--wl-file-text-color]" />
+                <IconChevronRight className="text-(--color-file-text)" />
             )}
         </div>
     )
@@ -224,13 +221,13 @@ function Preview({ file }: { file: WeblensFile }) {
 
     return (
         <div
-            className="flex flex-col w-full p-4"
+            className="flex w-full flex-col p-4"
             ref={setPreviewRef}
             onClick={(e) => e.stopPropagation()}
         >
             {file && !file.IsFolder() && (
                 <div className="h-full">
-                    <div className="flex justify-center items-center w-full p-4 h-[75%]">
+                    <div className="flex h-[75%] w-full items-center justify-center p-4">
                         {media && (
                             <MediaImage
                                 media={media}
@@ -385,7 +382,7 @@ function Column({
     return (
         <div
             ref={setBoxRef}
-            className={filesStyle['files-column']}
+            className={filesStyle.filesColumn}
             onClick={(e) => {
                 e.stopPropagation()
                 if (draggingState !== DraggingStateT.NoDrag) {
@@ -395,14 +392,14 @@ function Column({
             }}
         >
             {loading && (
-                <div className="flex grow justify-center items-center">
+                <div className="flex grow items-center justify-center">
                     <WeblensLoader />
                 </div>
             )}
             {!loading && (
-                <div className="flex grow w-1 p-1">
+                <div className="flex w-1 grow p-1">
                     <div
-                        className={filesStyle['files-column-inner']}
+                        className={filesStyle.filesColumnInner}
                         onDragOver={(e) => {
                             // https://stackoverflow.com/questions/50230048/react-ondrop-is-not-firing
                             e.preventDefault()
@@ -520,7 +517,7 @@ function ColumnResizer({
     return (
         <div
             draggable={false}
-            className={fbStyle['resize-bar-wrapper']}
+            className={fbStyle.resizeBarWrapper}
             onMouseDown={(e) => {
                 e.preventDefault()
                 setDragging(DraggingStateT.InterfaceDrag)
@@ -533,7 +530,7 @@ function ColumnResizer({
                 e.stopPropagation()
             }}
         >
-            <div className={fbStyle['resize-bar']} />
+            <div className={fbStyle.resizeBar} />
         </div>
     )
 }
@@ -755,7 +752,7 @@ function FileColumns() {
     return (
         <div
             ref={setContainerRef}
-            className="flex relative flex-row h-full w-full outline-0 overflow-x-scroll overflow-y-hidden gap-2"
+            className="relative flex h-full w-full flex-row gap-2 overflow-x-scroll overflow-y-hidden outline-0"
         >
             {emptyFolder && <GetStartedCard />}
             {!emptyFolder &&
@@ -791,7 +788,7 @@ function FileColumns() {
                     )
                 })}
             <div
-                className="flex shrink-0 grow w-[40vw]"
+                className="flex w-[40vw] shrink-0 grow"
                 // style={{ width: colWidths[lists.length + 1] ?? 300 }}
             >
                 <Preview file={lastSelected} />

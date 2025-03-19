@@ -20,7 +20,7 @@
 // import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 // import { MediaImage } from '@weblens/types/media/PhotoContainer'
 // import { useSessionStore } from 'components/UserInfo'
-// import { useKeyDown, useResize } from 'components/hooks'
+// import { useKeyDown, useResize } from '@weblens/lib/hooks'
 // import { useContext, useEffect, useMemo, useState } from 'react'
 // import { useNavigate } from 'react-router-dom'
 // import { FixedSizeList } from 'react-window'
@@ -75,8 +75,8 @@
 //                 e.stopPropagation()
 //             }}
 //         >
-//             <div className="flex flex-col h-full w-full items-center justify-between bg-bottom-grey rounded p-1 cursor-default">
-//                 <div className="flex flex-col w-full max-h-40 overflow-y-scroll rounded items-center p-2">
+//             <div className="flex flex-col h-full w-full items-center justify-between bg-bottom-grey rounded-sm p-1 cursor-default">
+//                 <div className="flex flex-col w-full max-h-40 overflow-y-scroll rounded-sm items-center p-2">
 //                     <div className="flex flex-row items-center h-10 w-48">
 //                         <WeblensInput
 //                             placeholder={'Search Users'}

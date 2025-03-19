@@ -19,101 +19,94 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.23'
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22.11.0
-          cache: 'npm'
-          cache-dependency-path: ui/package-lock.json
-
-      - run: cd ui && npm ci
+      # - name: Set up Go
+      #   uses: actions/setup-go@v4
+      #   with:
+      #     go-version: '1.24'
+      #
+      # - name: Set up Node
+      #   uses: actions/setup-node@v4
+      #   with:
+      #     node-version: 22.11.0
+      #     cache: 'npm'
+      #     cache-dependency-path: ui/package-lock.json
+      #
+      # - run: cd ui && npm ci
 
       - name: Install Deps
         run: |
-          wget -qO- https://www.mongodb.org/static/pgp/server-7.0.asc | sudo tee /etc/apt/trusted.gpg.d/server-7.0.asc
-          echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+          # Add Docker's official GPG key:
           sudo apt-get update
-          sudo apt-get install -y \
-          mongodb-mongosh \
-          libvips-dev \
-          exiftool \
-          nodejs \
-          npm \
-          autoconf pkg-config build-essential curl libpng-dev libjpeg-dev libwebp-dev libraw-dev libheif-dev libvips ffmpeg darktable ghostscript
+          sudo apt-get install ca-certificates curl
+          sudo install -m 0755 -d /etc/apt/keyrings
+          sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+          sudo chmod a+r /etc/apt/keyrings/docker.asc
 
-          export IMAGEMAGICK_VERSION=7.1.1-41
+          # Add the repository to Apt sources:
+          echo \
+            "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+            $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
+            sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+          sudo apt-get update
 
-          wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/${IMAGEMAGICK_VERSION}.tar.gz && \
-              tar xzf ${IMAGEMAGICK_VERSION}.tar.gz && \
-              rm ${IMAGEMAGICK_VERSION}.tar.gz
+          sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-          sh ./ImageMagick-${IMAGEMAGICK_VERSION}/configure \
-                  --without-magick-plus-plus \
-                  --without-perl \
-                  --disable-openmp \
-                  --with-gvc=no \
-                  --disable-docs && \
-              make -j$(nproc) && sudo make install && sudo ldconfig /usr/local/lib/
-
-      - name: Start MongoDB
-        uses: supercharge/mongodb-github-action@1.11.0
-        with:
-          mongodb-version: '7.0'
+      # - name: Start MongoDB
+      #   uses: supercharge/mongodb-github-action@1.11.0
+      #   with:
+      #     mongodb-version: '7.0'
 
       - name: Run Tests
         run: |
+          docker build -t ethrous/weblens-test --platform "linux/amd64" --build-arg ARCHITECTURE="amd64" --file ./docker/AlpineTester.Dockerfile .
 
-          if [[ $DO_TRACE == true ]]; then
-            export LOG_LEVEL=trace
-          fi
-          ./scripts/testWeblens --all --show-logs
-          exit $?
+          docker network create weblens-net
+
+          docker run --name=weblens-mongo -v ./mongo:/data/db -e MONGO_INITDB_ROOT_USERNAME=admin -e MONGO_INITDB_ROOT_PASSWORD=admin --network=weblens-net -d -- mongo
+          docker run --platform="linux/amd64" --network=weblens-net -v ./build/fs/test-container/data:/data -v ./build/fs/test-container/cache:/cache  ethrous/weblens-test
+
+          # if [[ $DO_TRACE == true ]]; then
+          #   export LOG_LEVEL=trace
+          # fi
+          # ./scripts/testWeblens --all --show-logs
+          # exit $?
         env:
           DO_TRACE: ${{ inputs.trace }}
 
-  test-macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Homebrew
-        id: set-up-homebrew
-        uses: homebrew/actions/setup-homebrew@master
-
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.23'
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22.11.0
-          cache: 'npm'
-          cache-dependency-path: ui/package-lock.json
-
-      - run: cd ui && npm ci
-
-      - name: Install Deps
-        run: |
-          brew update
-          brew install vips exiftool node npm
-      
-          brew tap mongodb/brew
-          brew install mongodb-community
-          brew services start mongodb-community
-
-      - name: Run Tests
-        run: |
-          if [[ $DO_TRACE == true ]]; then
-            export LOG_LEVEL=trace
-          fi
-          ./scripts/testWeblens --all --show-logs
-          exit $?
-        env:
-          DO_TRACE: ${{ inputs.trace }}
+  # test-macos:
+  #   runs-on: macos-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #
+  #     - name: Set up Homebrew
+  #       id: set-up-homebrew
+  #       uses: homebrew/actions/setup-homebrew@master
+  #
+  #     - name: Set up Go
+  #       uses: actions/setup-go@v4
+  #       with:
+  #         go-version: '1.24'
+  #
+  #     - name: Set up Node
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: 22.11.0
+  #         cache: 'npm'
+  #         cache-dependency-path: ui/package-lock.json
+  #
+  #     - run: cd ui && npm ci
+  #
+  #     - name: Install Deps
+  #       run: |
+  #         brew update
+  #         brew install vips exiftool node npm imagemagick pkg-config libraw
+  #
+  #         brew tap mongodb/brew
+  #         brew install mongodb-community
+  #         brew services start mongodb-community
+  #
+  #     - name: Run Tests
+  #       run: |
+  #         docker build --platform "linux/amd64" --build-arg ARCHITECTURE="amd64" --file ./docker/AlpineTester.Dockerfile .
+  #       env:
+  #         DO_TRACE: ${{ inputs.trace }}

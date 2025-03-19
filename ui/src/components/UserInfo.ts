@@ -1,6 +1,6 @@
 import { ServersApi } from '@weblens/api/ServersApi'
 import UsersApi from '@weblens/api/UserApi'
-import { ServerInfo } from '@weblens/api/swag'
+import { ServerInfo } from '@weblens/api/swag/api'
 import User from '@weblens/types/user/User'
 import { AxiosError } from 'axios'
 import { useEffect } from 'react'
@@ -34,7 +34,9 @@ const useR = () => {
                     setUser(new User({}, false))
                     if (
                         err.response.status === 401 &&
-                        !window.location.pathname.includes('share/')
+                        !window.location.pathname.includes('share/') &&
+                        !window.location.pathname.includes('login') &&
+                        !window.location.pathname.includes('signup')
                     ) {
                         console.debug('Going to login')
                         nav('/login', {

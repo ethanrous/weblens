@@ -7,15 +7,15 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/internal/env"
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/task"
 	"github.com/go-chi/chi/v5"
+	"github.com/rs/zerolog"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type ServicePack struct {
-	Log             log.Bundle
+	Log             *zerolog.Logger
 	FileService     FileService
 	MediaService    MediaService
 	AccessService   AccessService
@@ -32,7 +32,8 @@ type ServicePack struct {
 
 	Db *mongo.Database
 
-	startupTasks []StartupTask
+	startupTasks     []StartupTask
+	currentTaskStart time.Time
 
 	Cnf env.Config
 
@@ -54,10 +55,13 @@ func (pack *ServicePack) AddStartupTask(taskName, description string) {
 
 	pack.waitingOnLock.Lock()
 	pack.startupTasks = append(pack.startupTasks, t)
+	pack.currentTaskStart = time.Now()
 	pack.waitingOnLock.Unlock()
 
+	pack.GetStartupTasks()
 	pack.Caster.PushWeblensEvent(StartupProgressEvent, WsC{"waitingOn": pack.GetStartupTasks()})
-	log.Debug.Func(func(l log.Logger) { l.Printf("Beginning startup task: %s", taskName) })
+
+	pack.Log.Debug().Func(func(e *zerolog.Event) { e.Str("startup_task", taskName).Msg("Beginning startup task") })
 }
 
 func (pack *ServicePack) GetStartupTasks() []StartupTask {
@@ -86,7 +90,11 @@ func (pack *ServicePack) RemoveStartupTask(taskName string) {
 
 	pack.Caster.PushWeblensEvent(StartupProgressEvent, WsC{"waitingOn": pack.GetStartupTasks()})
 
-	log.Debug.Func(func(l log.Logger) { l.Printf("Finished startup task: %s", taskName) })
+	pack.Log.Debug().Func(func(e *zerolog.Event) {
+		pack.waitingOnLock.RLock()
+		defer pack.waitingOnLock.RUnlock()
+		e.Str("startup_task", taskName).Dur("startup_task_time", time.Since(pack.currentTaskStart)).Msg("Finished startup task")
+	})
 }
 
 func (pack *ServicePack) SetFileService(fs FileService) {

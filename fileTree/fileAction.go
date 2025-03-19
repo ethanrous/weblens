@@ -6,6 +6,15 @@ import (
 
 type FileActionType = string
 
+const (
+	FileCreate     FileActionType = "fileCreate"
+	FileMove       FileActionType = "fileMove"
+	FileSizeChange FileActionType = "fileSizeChange"
+	Backup         FileActionType = "backup"
+	FileDelete     FileActionType = "fileDelete"
+	FileRestore    FileActionType = "fileRestore"
+)
+
 type FileAction struct {
 	Timestamp time.Time `json:"timestamp" bson:"timestamp"`
 
@@ -67,46 +76,3 @@ func (fa *FileAction) GetActionType() FileActionType {
 func (fa *FileAction) GetParentId() FileId {
 	return fa.ParentId
 }
-
-// func (fa *FileAction) MarshalJSON() ([]byte, error) {
-// 	data := map[string]any{
-// 		"timestamp":       fa.Timestamp.UnixMilli(),
-// 		"actionType":      fa.ActionType,
-// 		"originPath":      fa.OriginPath,
-// 		"destinationPath": fa.DestinationPath,
-// 		"lifeId":          fa.LifeId,
-// 		"eventId":         fa.EventId,
-// 		"size":            fa.Size,
-// 		"parentId":        fa.ParentId,
-// 	}
-//
-// 	return json.Marshal(data)
-// }
-//
-// func (fa *FileAction) UnmarshalJSON(bs []byte) error {
-// 	data := map[string]any{}
-// 	err := json.Unmarshal(bs, &data)
-// 	if err != nil {
-// 		return werror.WithStack(err)
-// 	}
-//
-// 	fa.Timestamp = time.UnixMilli(int64(data["timestamp"].(float64)))
-// 	fa.ActionType = FileActionType(data["actionType"].(string))
-// 	fa.OriginPath = data["originPath"].(string)
-// 	fa.DestinationPath = data["destinationPath"].(string)
-// 	fa.LifeId = FileId(data["lifeId"].(string))
-// 	fa.EventId = FileEventId(data["eventId"].(string))
-// 	fa.Size = int64(data["size"].(float64))
-// 	fa.ParentId = FileId(data["parentId"].(string))
-//
-// 	return nil
-// }
-
-const (
-	FileCreate     FileActionType = "fileCreate"
-	FileMove       FileActionType = "fileMove"
-	FileSizeChange FileActionType = "fileSizeChange"
-	Backup         FileActionType = "backup"
-	FileDelete     FileActionType = "fileDelete"
-	FileRestore    FileActionType = "fileRestore"
-)

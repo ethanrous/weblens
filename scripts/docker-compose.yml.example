@@ -1,0 +1,20 @@
+services:
+  weblens:
+    image: ethrous/weblens:${WEBLENS_VERSION}
+	env_file: ".env"
+    volumes:
+      - ${HOST_DATA_DIR}:/media/users
+      - ${HOST_CACHE_DIR}:/media/cache
+    environment:
+      - MONGO_URI="mongodb://{MONGO_USER}:{MONGO_PASS}@${MONGO_CONTAINER_NAME}:${MONGO_PORT}"
+  mongo:
+	env_file: ".env"
+    container_name: ${MONGO_CONTAINER_NAME}
+    image: mongo:7.0
+    ports:
+      - "${MONGO_PORT}:${MONGO_PORT}"
+    volumes:
+      - ${HOST_MONGO_DATA_DIR}:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME={MONGO_USER}
+      - MONGO_INITDB_ROOT_PASSWORD={MONGO_PASS}

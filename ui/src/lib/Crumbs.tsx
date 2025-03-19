@@ -6,7 +6,7 @@ import {
     IconUsers,
 } from '@tabler/icons-react'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import { useClick, useResize } from '@weblens/components/hooks'
+import { useClick, useResize } from '@weblens/lib/hooks'
 import { filenameFromPath } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { ShareRoot, useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
@@ -38,22 +38,22 @@ const CrumbText = ({ crumb }: { crumb: Crumb }) => {
 
     if (crumb.id === usr.homeId) {
         return (
-            <div className={crumbStyle['crumb-icon']}>
-                <IconHome className="w-full h-full" />
+            <div className={crumbStyle.crumbIcon}>
+                <IconHome className="h-full w-full" />
             </div>
         )
     }
     if (crumb.id === 'shared') {
         return (
-            <div className={crumbStyle['crumb-icon']}>
-                <IconUsers className="w-full h-full" />
+            <div className={crumbStyle.crumbIcon}>
+                <IconUsers className="h-full w-full" />
             </div>
         )
     }
     if (crumb.id === usr.trashId) {
         return (
-            <div className={crumbStyle['crumb-icon']}>
-                <IconTrash className="w-full h-full" />
+            <div className={crumbStyle.crumbIcon}>
+                <IconTrash className="h-full w-full" />
             </div>
         )
     }
@@ -61,9 +61,7 @@ const CrumbText = ({ crumb }: { crumb: Crumb }) => {
     const { nameText } = filenameFromPath(crumb.path)
 
     return (
-        <p className={`${crumbStyle['crumb-text']} w-max max-w-full`}>
-            {nameText}
-        </p>
+        <p className={`${crumbStyle.crumbText} w-max max-w-full`}>{nameText}</p>
     )
 }
 
@@ -90,7 +88,7 @@ export const StyledBreadcrumb = ({
 
     return (
         <div
-            className={crumbStyle['crumb-box']}
+            className={crumbStyle.crumbBox}
             data-navigable={crumbInfo.navigable}
             data-compact={compact}
             data-dragging={dragging === DraggingStateT.InternalDrag}
@@ -165,12 +163,12 @@ function LoafOverflowMenu({
 }) {
     useClick(() => setOpen(false), reff, !open)
     return (
-        <div className={crumbStyle['overflow-menu']} data-open={open}>
+        <div className={crumbStyle.overflowMenu} data-open={open}>
             {crumbs.map((item, i: number) => {
                 return (
                     <div
                         key={`crumb-overflow-${i}`}
-                        className="flex flex-row items-center min-w-0"
+                        className="flex min-w-0 flex-row items-center"
                         style={{
                             paddingLeft: 12 + (i - 1) * 28,
                         }}
@@ -224,11 +222,11 @@ export const StyledLoaf = ({
     }
 
     return (
-        <div ref={setCrumbRef} className={crumbStyle['loaf']}>
+        <div ref={setCrumbRef} className={crumbStyle.loaf}>
             {crumbs.map((c, i) => (
                 <div
                     key={c.id}
-                    className="flex flex-row items-center min-w-[50px]"
+                    className="flex min-w-[50px] flex-row items-center"
                 >
                     <StyledBreadcrumb
                         crumbInfo={c}
@@ -246,7 +244,7 @@ export const StyledLoaf = ({
             {squished > 0 && (
                 <div
                     ref={setOverflowRef}
-                    className="flex flex-row items-center h-max w-max cursor-pointer"
+                    className="flex h-max w-max cursor-pointer flex-row items-center"
                     onClick={(e) => {
                         e.stopPropagation()
                         setOverflowMenu((o) => {
@@ -258,7 +256,7 @@ export const StyledLoaf = ({
                         style={{ width: '20px', minWidth: '20px' }}
                     />
                     <div>
-                        <p className={crumbStyle['crumb-text'] + 'trun'}>...</p>
+                        <p className={crumbStyle.crumbText + 'trun'}>...</p>
                         <LoafOverflowMenu
                             open={overflowMenu}
                             reff={overflowRef}

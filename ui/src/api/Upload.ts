@@ -3,7 +3,7 @@ import { ErrorHandler } from '@weblens/types/Types'
 import { AxiosProgressEvent } from 'axios'
 
 import { FileApi } from './FileBrowserApi'
-import { NewFileParams } from './swag'
+import { NewFileParams } from './swag/api.js'
 
 export type FileUploadMetadata = {
     file?: File
@@ -100,7 +100,7 @@ function queueChunks(
                 return
             }
 
-            console.log(
+            console.debug(
                 `Uplading file ${file.name} ${uploadMeta.fileId} of size ${file.size}`
             )
 
@@ -125,7 +125,7 @@ function queueChunks(
                 useUploadStatus.getState().setError(key, String(err))
                 ErrorHandler(err)
             })
-            console.log('Finished uploading', file.name)
+            console.debug('Finished uploading', file.name)
             useUploadStatus.getState().chunkComplete(key, thisChunkIndex)
         })
         chunkIndex++

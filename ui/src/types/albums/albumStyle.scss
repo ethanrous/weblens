@@ -100,7 +100,7 @@ $cover-size: 450px;
     height: $cover-size;
     z-index: 1;
     flex-shrink: 0;
-    background-color: var(--wl-background);
+    background-color: var(--color-background-primary);
     outline: 2px solid #22222200;
     position: fixed;
 
@@ -233,7 +233,7 @@ $cover-size: 450px;
     min-width: 128px;
     transition: all 200ms ease-in-out;
     cursor: pointer;
-    outline: 1px solid var(--dark-paper);
+    outline: 1px solid rgb(from var(--color-theme-secondary) r g b / 0.50);
     border-radius: 4px;
     overflow: hidden;
     transform: translateY(0);
@@ -247,13 +247,13 @@ $cover-size: 450px;
 
     &[data-included='true'] {
         font-weight: 700;
-        background-color: var(--dark-paper);
+        background-color: rgb(from var(--color-theme-secondary) r g b / 0.50);
     }
 
     &[data-disabled='true'] {
         pointer-events: none;
         filter: grayscale(100%);
-        color: var(--wl-text-color-dull);
+        color: var(--color-text-dull);
     }
 }
 

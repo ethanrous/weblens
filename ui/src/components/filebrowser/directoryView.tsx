@@ -4,6 +4,7 @@ import FilesErrorDisplay from '@weblens/components/NotFound'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import FileHistoryPane from '@weblens/components/filebrowser/historyPane'
 import Crumbs from '@weblens/lib/Crumbs'
+import { useKeyDown } from '@weblens/lib/hooks'
 import { TransferCard } from '@weblens/pages/FileBrowser/DropSpot'
 import { historyDateTime } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { DirViewModeT } from '@weblens/pages/FileBrowser/FileBrowserTypes'
@@ -15,6 +16,7 @@ import FileColumns from '@weblens/types/files/FileColumns'
 import FileGrid from '@weblens/types/files/FileGrid'
 import { FileRows } from '@weblens/types/files/FileRows'
 import { ReactElement, useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 import { FbModeT, useFileBrowserStore } from '../../store/FBStateControl'
 import { PresentationFile } from '../Presentation'
@@ -28,13 +30,14 @@ function SingleFile({ file }: { file: WeblensFile }) {
                 link="/files/home"
                 setNotFound={() => {}}
                 error={404}
+				notFound={true}
             />
         )
     }
 
     return (
-        <div className="flex flex-row w-full h-full justify-around pb-2">
-            <div className="flex justify-center items-center p-6 h-full w-full">
+        <div className="flex h-full w-full flex-row justify-around pb-2">
+            <div className="flex h-full w-full items-center justify-center p-6">
                 <PresentationFile file={file} />
             </div>
         </div>
@@ -49,7 +52,10 @@ function DirView({
     setFilesError: (err: number) => void
     searchFilter: string
 }) {
+    const nav = useNavigate()
+
     const [fullViewRef, setFullViewRef] = useState<HTMLDivElement>(null)
+    const [dragBoxRef, setDragBoxRef] = useState<HTMLDivElement>()
 
     const mode = useFileBrowserStore((state) => state.fbMode)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
@@ -60,11 +66,28 @@ function DirView({
     const setViewOptions = useFileBrowserStore((state) => state.setViewOptions)
     const setDragging = useFileBrowserStore((state) => state.setDragging)
     const setMoveDest = useFileBrowserStore((state) => state.setMoveDest)
-    const [dragBoxRef, setDragBoxRef] = useState<HTMLDivElement>()
 
     const user = useSessionStore((state) => state.user)
 
     const activeList = filesList.get(folderInfo?.Id()) || []
+
+    const isSingleSharedFile =
+        (mode === FbModeT.default || mode === FbModeT.share) &&
+        folderInfo?.Id() &&
+        !folderInfo.IsFolder()
+
+    // useEffect(() => {
+    //     if (isSingleSharedFile && presentingId !== folderInfo.Id()) {
+    //         setPresentingId(folderInfo.Id())
+    //     }
+    // }, [folderInfo])
+
+    useKeyDown('Escape', (e) => {
+        if (isSingleSharedFile) {
+            e.stopPropagation()
+            nav('/files/shared')
+        }
+    })
 
     let fileDisplay: ReactElement
     if (filesError) {
@@ -74,6 +97,7 @@ function DirView({
                 resourceType="Folder"
                 link="/files/home"
                 setNotFound={setFilesError}
+				notFound={true}
             />
         )
     } else if (
@@ -106,7 +130,7 @@ function DirView({
     }
 
     return (
-        <div className="flex flex-col h-full" ref={setFullViewRef}>
+        <div className="flex h-full flex-col" ref={setFullViewRef}>
             <DirViewHeader />
             <TransferCard
                 action={dropAction}
@@ -131,9 +155,9 @@ function DirView({
                     setDragging(DraggingStateT.NoDrag)
                 }}
             >
-                <div className="flex flex-col w-full h-full min-w-[20vw]">
-                    <div className="flex flex-row h-[200px] grow max-w-full">
-                        <div className="grow shrink w-0 p-1 ml-1">
+                <div className="flex h-full w-full min-w-[20vw] flex-col">
+                    <div className="flex h-[200px] max-w-full grow flex-row">
+                        <div className="ml-1 w-0 shrink grow p-1">
                             {fileDisplay}
                         </div>
                     </div>
@@ -184,8 +208,8 @@ function DirViewHeader() {
     }, [folderInfo])
 
     return (
-        <div className="flex flex-col h-max">
-            <div className={dirViewStyle['dir-view-header-wrapper']}>
+        <div className="flex h-max flex-col">
+            <div className={dirViewStyle.dirViewHeaderWrapper}>
                 {(mode === FbModeT.default || mode === FbModeT.share) && (
                     <Crumbs navOnLast={false} moveSelectedTo={moveSelectedTo} />
                 )}
@@ -193,7 +217,7 @@ function DirViewHeader() {
             </div>
             {pastTime && pastTime.getTime() !== 0 && (
                 <div
-                    className={dirViewStyle['past-time-box']}
+                    className={dirViewStyle.pastTimeBox}
                     onClick={(e) => {
                         e.stopPropagation()
                         setHoverTime(false)
@@ -212,7 +236,7 @@ function DirViewHeader() {
                     }}
                 >
                     <p
-                        className="crumb-text absolute pointer-events-none ml-2 text-xl"
+                        className="crumb-text pointer-events-none absolute ml-2 text-xl"
                         style={{ opacity: hoverTime ? 1 : 0 }}
                     >
                         Back to the future
@@ -248,7 +272,7 @@ function DirectoryView({
     return (
         <div
             draggable={false}
-            className="h-full shrink-0 grow w-0"
+            className="h-full w-0 shrink-0 grow"
             onDrag={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
@@ -274,7 +298,7 @@ function DirectoryView({
                 })
             }}
         >
-            <div className="w-full h-full p-2">
+            <div className="h-full w-full p-2">
                 <DirView
                     filesError={filesError}
                     setFilesError={setFilesError}

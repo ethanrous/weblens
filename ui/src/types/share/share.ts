@@ -1,11 +1,11 @@
 import SharesApi from '@weblens/api/SharesApi'
-import { ShareInfo } from '@weblens/api/swag'
+import { ShareInfo, UserInfo } from '@weblens/api/swag'
 
 import { ErrorHandler } from '../Types'
 
 export class WeblensShare {
     shareId: string
-    accessors: string[]
+    accessors: UserInfo[]
     expires: string
     public: boolean
     fileId: string
@@ -39,7 +39,7 @@ export class WeblensShare {
         return this.fileId
     }
 
-    GetAccessors(): string[] {
+    GetAccessors(): UserInfo[] {
         return this.accessors
     }
 
@@ -61,16 +61,20 @@ export class WeblensShare {
             this.public = isPublic
         }
 
-        const add = accessors.filter((x) => !this.accessors.includes(x))
-        const remove = this.accessors.filter((x) => !accessors.includes(x))
+        const add = accessors.filter(
+            (x) => !this.accessors.find((u) => u.username === x)
+        )
+        const remove = this.accessors.filter(
+            (x) => !accessors.includes(x.username)
+        )
 
         if (remove.length !== 0 || add.length !== 0) {
             await SharesApi.setShareAccessors(this.Id(), {
                 addUsers: add,
-                removeUsers: remove,
+                removeUsers: remove.map((u) => u.username),
             })
-                .then(() => {
-                    this.accessors = accessors
+                .then((res) => {
+                    this.accessors = res.data.accessors
                 })
                 .catch(ErrorHandler)
         }

@@ -11,7 +11,7 @@ type FileService interface {
 	Size(treeAlias string) int64
 
 	AddTree(tree fileTree.FileTree)
-	GetFileTreeByName(treeName string) fileTree.FileTree
+	GetFileTreeByName(treeName string) (fileTree.FileTree, error)
 
 	GetFileByTree(id fileTree.FileId, treeAlias string) (*fileTree.WeblensFileImpl, error)
 	GetFileByContentId(contentId ContentId) (*fileTree.WeblensFileImpl, error)
@@ -21,7 +21,7 @@ type FileService interface {
 	PathToFile(searchPath string) (*fileTree.WeblensFileImpl, error)
 	UserPathToFile(searchPath string, user *User) (*fileTree.WeblensFileImpl, error)
 
-	CreateFile(parent *fileTree.WeblensFileImpl, filename string, event *fileTree.FileEvent, caster FileCaster) (*fileTree.WeblensFileImpl, error)
+	CreateFile(parent *fileTree.WeblensFileImpl, filename string, event *fileTree.FileEvent, caster FileCaster, data ...[]byte) (*fileTree.WeblensFileImpl, error)
 	CreateFolder(parent *fileTree.WeblensFileImpl, folderName string, event *fileTree.FileEvent, caster FileCaster) (*fileTree.WeblensFileImpl, error)
 	CreateUserHome(user *User) error
 

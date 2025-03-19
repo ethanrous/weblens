@@ -1,6 +1,6 @@
-import { useMouse } from '@mantine/hooks'
 import { IconFile, IconFolder, IconFolderCancel } from '@tabler/icons-react'
 import { FileFmt } from '@weblens/components/filebrowser/filename'
+import { useMouse } from '@weblens/lib/hooks'
 import { ErrorHandler } from '@weblens/types/Types'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import WeblensFile from '@weblens/types/files/File'
@@ -45,13 +45,13 @@ export const TransferCard = ({
 
     return (
         <div
-            className={fbStyle['transfer-info-wrapper']}
+            className={fbStyle.transferInfoWrapper}
             style={{
                 width: width ? width : '100%',
                 left: left ? left : 0,
             }}
         >
-            <div className={fbStyle['transfer-info-box']}>
+            <div className={fbStyle.transferInfoBox}>
                 <p className="select-none">{action} to</p>
                 <FileFmt pathName={destFile.portablePath} />
             </div>
@@ -71,7 +71,7 @@ export const DropSpot = ({ parent }: { parent: WeblensFile }) => {
     return (
         <div
             draggable={false}
-            className={fbStyle['dropspot-wrapper']}
+            className={fbStyle.dropspotWrapper}
             style={{
                 // pointerEvents:
                 //     draggingState === DraggingStateT.ExternalDrag
@@ -88,7 +88,7 @@ export const DropSpot = ({ parent }: { parent: WeblensFile }) => {
         >
             {draggingState === DraggingStateT.ExternalDrag && (
                 <div
-                    className={fbStyle['dropbox']}
+                    className={fbStyle.dropbox}
                     onMouseLeave={() => {
                         if (draggingState === DraggingStateT.ExternalDrag) {
                             setDragging(DraggingStateT.NoDrag)
@@ -127,7 +127,7 @@ export const DropSpot = ({ parent }: { parent: WeblensFile }) => {
                     }}
                 >
                     {!parent.modifiable && (
-                        <div className="flex justify-center items-center relative cursor-no-drop w-max pointer-events-none">
+                        <div className="pointer-events-none relative flex w-max cursor-no-drop items-center justify-center">
                             <IconFolderCancel
                                 className="pointer-events-none"
                                 size={100}
@@ -175,7 +175,7 @@ export function DraggingCounter() {
 
     return (
         <div
-            className="fixed z-10 bg-wl-barely-visible wl-outline p-2"
+            className="wl-floating-card fixed z-10 p-2"
             style={{
                 top: position.y + 8,
                 left: position.x + 8,
@@ -185,13 +185,13 @@ export function DraggingCounter() {
             }}
         >
             {Boolean(files) && (
-                <div className="flex flex-row h-max text-[--wl-text-color] items-center">
+                <div className="flex h-max flex-row items-center text-(--color-text)">
                     <IconFile size={30} />
                     <p>{files}</p>
                 </div>
             )}
             {Boolean(folders) && (
-                <div className="flex flex-row h-max text-[--wl-text-color] items-center">
+                <div className="flex h-max flex-row items-center text-(--color-text)">
                     <IconFolder size={30} />
                     <p>{folders}</p>
                 </div>

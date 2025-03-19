@@ -89,8 +89,8 @@ const (
 )
 
 const (
-	WebClient    ClientType = "webClient"
-	RemoteClient ClientType = "remoteClient"
+	WebClient      ClientType = "webClient"
+	InstanceClient ClientType = "remoteClient"
 )
 
 type Subscription struct {
@@ -123,6 +123,7 @@ type WsR interface {
 	GetShare(ShareService) *FileShare
 }
 
+// All Websocket event tags. These are used to identify the type of content being sent to the client
 const (
 	BackupCompleteEvent          = "backupComplete"
 	BackupFailedEvent            = "backupFailed"
@@ -134,6 +135,7 @@ const (
 	FileCreatedEvent             = "fileCreated"
 	FileDeletedEvent             = "fileDeleted"
 	FileMovedEvent               = "fileMoved"
+	FileScanStartedEvent         = "fileScanStarted"
 	FileScanCompleteEvent        = "fileScanComplete"
 	FileUpdatedEvent             = "fileUpdated"
 	FilesDeletedEvent            = "filesDeleted"

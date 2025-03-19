@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/service"
 	"github.com/ethanrous/weblens/service/mock"
@@ -15,6 +16,8 @@ import (
 func TestShareServiceImpl_Add(t *testing.T) {
 	t.Parallel()
 
+	logger := log.NewZeroLogger()
+
 	col := mondb.Collection(t.Name())
 	err := col.Drop(context.Background())
 	if err != nil {
@@ -22,15 +25,15 @@ func TestShareServiceImpl_Add(t *testing.T) {
 	}
 	defer col.Drop(context.Background())
 
-	ss, err := service.NewShareService(col)
+	ss, err := service.NewShareService(col, logger)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	billUser, err := models.NewUser("billcypher", "shakemyhand", false, true)
+	billUser, err := models.NewUser("billcypher", "shakemyhand", "Bill Cypher", false, true)
 	require.NoError(t, err)
 
-	dipperUser, err := models.NewUser("dipperpines", "ivegotabook", false, true)
+	dipperUser, err := models.NewUser("dipperpines", "ivegotabook", "Dipper Pines", false, true)
 	require.NoError(t, err)
 
 	ft := mock.NewMemFileTree("USERS")
@@ -52,6 +55,8 @@ func TestShareServiceImpl_Add(t *testing.T) {
 func TestShareServiceImpl_Del(t *testing.T) {
 	t.Parallel()
 
+	logger := log.NewZeroLogger()
+
 	col := mondb.Collection(t.Name())
 	err := col.Drop(context.Background())
 	if err != nil {
@@ -59,12 +64,12 @@ func TestShareServiceImpl_Del(t *testing.T) {
 	}
 	defer col.Drop(context.Background())
 
-	ss, err := service.NewShareService(col)
+	ss, err := service.NewShareService(col, logger)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	billUser, err := models.NewUser("billcypher", "shakemyhand", false, true)
+	billUser, err := models.NewUser("billcypher", "shakemyhand", "Bill Cypher", false, true)
 	require.NoError(t, err)
 
 	ft := mock.NewMemFileTree("USERS")
@@ -96,6 +101,8 @@ func TestShareServiceImpl_Del(t *testing.T) {
 func TestShareServiceImpl_UpdateUsers(t *testing.T) {
 	t.Parallel()
 
+	logger := log.NewZeroLogger()
+
 	col := mondb.Collection(t.Name())
 	err := col.Drop(context.Background())
 	if err != nil {
@@ -103,15 +110,15 @@ func TestShareServiceImpl_UpdateUsers(t *testing.T) {
 	}
 	defer col.Drop(context.Background())
 
-	ss, err := service.NewShareService(col)
+	ss, err := service.NewShareService(col, logger)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	billUser, err := models.NewUser("billcypher", "shakemyhand", false, true)
+	billUser, err := models.NewUser("billcypher", "shakemyhand", "Bill Cypher", false, true)
 	require.NoError(t, err)
 
-	dipperUser, err := models.NewUser("dipperpines", "journalboy123", false, true)
+	dipperUser, err := models.NewUser("dipperpines", "journalboy123", "Dipper Pines", false, true)
 	require.NoError(t, err)
 
 	ft := mock.NewMemFileTree("USERS")

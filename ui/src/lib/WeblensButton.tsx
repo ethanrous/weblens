@@ -1,106 +1,100 @@
-import { Loader } from '@mantine/core'
-import { IconCheck, IconQuestionMark, IconX } from '@tabler/icons-react'
-import { useResize } from '@weblens/components/hooks'
+import { useResize } from '@weblens/lib/hooks'
 import { ErrorHandler } from '@weblens/types/Types'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { CSSProperties, useEffect, useState } from 'react'
 
-import {
-    ButtonActionHandler,
-    ButtonContentProps,
-    buttonProps as ButtonProps,
-} from './buttonTypes'
-import buttonStyle from './weblensButton.module.scss'
+import LoaderDots from './LoaderDots'
+import { ButtonActionHandler, ButtonProps } from './buttonTypes'
 
-function ButtonContent({
-    label,
-    Left,
-    Right,
-    staticTextWidth,
-    setTextWidth,
-    buttonWidth,
-    iconSize,
-    centerContent,
-    hidden,
-    labelOnHover,
-}: ButtonContentProps) {
-    const [textRef, setTextRef] = useState<HTMLParagraphElement>()
-    const { width: textWidth } = useResize(textRef)
-
-    useEffect(() => {
-        if (textWidth !== -1 && !staticTextWidth) {
-            setTextWidth(textWidth)
-        }
-    }, [textWidth])
-
-    const showText = useMemo(() => {
-        if (buttonWidth === -1 || textWidth === -1) {
-            return true
-        }
-        if (!label) {
-            return false
-        } else if (!Left && !Right) {
-            return true
-        }
-
-        return (
-            (Boolean(label) && !Left && !Right) ||
-            buttonWidth >= iconSize + textWidth ||
-            buttonWidth === 0
-        )
-    }, [buttonWidth, textWidth])
-
-    if (!iconSize) {
-        iconSize = 24
-    }
-
-    return (
-        <div
-            className={buttonStyle['button-content']}
-            data-center={centerContent || !showText}
-            data-hidden={hidden}
-            data-has-icon={Boolean(Left || Right)}
-        >
-            <div
-                className={buttonStyle['button-icon-box']}
-                data-has-icon={Boolean(Left)}
-                data-has-text={showText}
-                style={{
-                    height: iconSize,
-                    width: iconSize,
-                }}
-            >
-                {Left && <Left className={buttonStyle['button-icon']} />}
-            </div>
-            <div
-                className={buttonStyle['button-text-box']}
-                data-show-text={showText}
-                data-center={centerContent}
-                data-hover-only={labelOnHover}
-            >
-                <p
-                    className={buttonStyle['button-text']}
-                    ref={setTextRef}
-                    data-show-text={showText}
-                >
-                    {label}
-                </p>
-            </div>
-
-            <div
-                className={buttonStyle['button-icon-box']}
-                data-has-icon={Boolean(Right)}
-                data-has-text={showText}
-                data-icon-side={'right'}
-                style={{
-                    height: iconSize,
-                    // width: iconSize,
-                }}
-            >
-                {Right && <Right className={buttonStyle['button-icon']} />}
-            </div>
-        </div>
-    )
-}
+// function ButtonContent({
+//     label,
+//     Left,
+//     Right,
+//     staticTextWidth,
+//     setTextWidth,
+//     buttonWidth,
+//     iconSize,
+//     centerContent,
+//     hidden,
+//     labelOnHover,
+// }: ButtonContentProps) {
+//     const [textRef, setTextRef] = useState<HTMLParagraphElement>()
+//     const { width: textWidth } = useResize(textRef)
+//
+//     useEffect(() => {
+//         if (textWidth !== -1 && !staticTextWidth) {
+//             setTextWidth(textWidth)
+//         }
+//     }, [textWidth])
+//
+//     const showText = useMemo(() => {
+//         if (buttonWidth === -1 || textWidth === -1) {
+//             return true
+//         }
+//         if (!label) {
+//             return false
+//         } else if (!Left && !Right) {
+//             return true
+//         }
+//
+//         return (
+//             (Boolean(label) && !Left && !Right) ||
+//             buttonWidth >= iconSize + textWidth ||
+//             buttonWidth === 0
+//         )
+//     }, [buttonWidth, textWidth])
+//
+//     if (!iconSize) {
+//         iconSize = 24
+//     }
+//
+//     return (
+//         <div
+//             className={buttonStyle.buttonContent}
+//             data-center={centerContent || !showText}
+//             data-hidden={hidden}
+//             data-has-icon={Boolean(Left || Right)}
+//         >
+//             <div
+//                 className={buttonStyle.buttonIconBox}
+//                 data-has-icon={Boolean(Left)}
+//                 data-has-text={showText}
+//                 style={{
+//                     height: iconSize,
+//                     width: iconSize,
+//                 }}
+//             >
+//                 {Left && <Left className={buttonStyle.buttonIcon} />}
+//             </div>
+//             <div
+//                 className={buttonStyle.buttonTextBox}
+//                 data-show-text={showText}
+//                 data-center={centerContent}
+//                 data-hover-only={labelOnHover}
+//             >
+//                 <p
+//                     className={buttonStyle.buttonText}
+//                     ref={setTextRef}
+//                     data-show-text={showText}
+//                 >
+//                     {label}
+//                 </p>
+//             </div>
+//
+//             <div
+//                 className={buttonStyle.buttonIconBox}
+//                 data-has-icon={Boolean(Right)}
+//                 data-has-text={showText}
+//                 data-icon-side={'right'}
+//                 style={{
+//                     height: iconSize,
+//                     // width: iconSize,
+//                 }}
+//             >
+//                 {Right && <Right className={buttonStyle.buttonIcon} />}
+//             </div>
+//         </div>
+//     )
+// }
 
 const handleButtonEvent = async (
     e: React.MouseEvent<HTMLElement, MouseEvent>,
@@ -108,21 +102,28 @@ const handleButtonEvent = async (
     showSuccess: boolean,
     setLoading: (loading: boolean) => void,
     setSuccess: (success: boolean) => void,
-    setFail: (fail: boolean) => void
+    setFail: (fail: boolean) => void,
+    doLoading: boolean = false
 ) => {
     if (!handler) {
         return
     }
-    // Don't flash loading if handler returns instantly
-    const tm = setTimeout(() => {
-        setLoading(true)
-    }, 150)
+
+    let tm: NodeJS.Timeout
+    if (doLoading) {
+        // Don't flash loading if handler returns instantly
+        tm = setTimeout(() => {
+            setLoading(true)
+        }, 150)
+    }
 
     try {
         const res = await handler(e)
 
-        clearTimeout(tm)
-        setLoading(false)
+        if (doLoading) {
+            clearTimeout(tm)
+            setLoading(false)
+        }
         if (res && showSuccess) {
             setSuccess(true)
             setTimeout(() => setSuccess(false), 2000)
@@ -131,9 +132,11 @@ const handleButtonEvent = async (
             setTimeout(() => setFail(false), 2000)
         }
     } catch (e) {
-        clearTimeout(tm)
-        setLoading(false)
-        console.error(e)
+        if (doLoading) {
+            clearTimeout(tm)
+            setLoading(false)
+        }
+        ErrorHandler(Error(String(e)))
         if (showSuccess) {
             setSuccess(false)
             setFail(true)
@@ -144,151 +147,112 @@ const handleButtonEvent = async (
 
 function WeblensButton({
     label,
-    tooltip = '',
     showSuccess = true,
-    toggleOn = undefined,
-    subtle = false,
-    allowRepeat = false,
-    centerContent = false,
     disabled = false,
     danger = false,
-    doSuper = false,
-    labelOnHover = false,
     Left = null,
     Right = null,
     fillWidth = false,
-    allowShrink = true,
     onClick,
-    squareSize = 40,
-    float = false,
-    requireConfirm = false,
+
+    flavor = 'default',
+    size = 'default',
 
     onMouseUp,
-    onMouseOver,
     onMouseLeave,
-    style,
-    setButtonRef = () => {},
+    className,
 }: ButtonProps) {
     const [success, setSuccess] = useState(false)
     const [fail, setFail] = useState(false)
     const [loading, setLoading] = useState(false)
-    const [textWidth, setTextWidth] = useState<number>(null)
-    const [hovering, setHovering] = useState(false)
-    const [confirming, setConfirming] = useState(false)
 
-    const [sizeRef, setSizeRef] = useState<HTMLDivElement>(null)
-    const buttonSize = useResize(sizeRef)
+    // TODO: implement these
+    console.debug(success, fail, loading)
 
-    const iconSize = squareSize * 0.6
+    const [showLabel, setShowLabel] = useState(true)
+    const [buttonRef, setButtonRef] = useState<HTMLButtonElement>()
 
-    const targetWidth = useMemo(() => {
-        if (fillWidth) {
-            return '100%'
-        }
-        if (!label) {
-            return squareSize
+    const buttonSize = useResize(buttonRef)
+
+    useEffect(() => {
+        if (Left === null && Right === null) {
+            return
         }
 
-        if (!textWidth || textWidth === -1) {
-            return 'max-content'
+        if (buttonSize.width !== -1 && buttonSize.width < 60) {
+            setShowLabel(false)
+        } else if (buttonSize.width >= 60) {
+            setShowLabel(true)
         }
+    }, [buttonSize])
 
-        let returnWidth = 16
+    let buttonColor = '--color-button-primary'
+    let buttonHoverColor = '--color-button-primary-hover'
+    let buttonTextColor = '--color-button-text-primary'
+    if (danger) {
+        buttonColor = '--color-button-danger'
+        buttonHoverColor = '--color-button-danger-hover'
+    }
 
-        if (buttonSize.width > textWidth + squareSize || (!Left && !Right)) {
-            returnWidth += textWidth
-        }
+    switch (flavor) {
+        case 'default':
+            buttonTextColor = '--color-text-near-white'
+            break
+        case 'outline':
+            buttonTextColor = '--color-text-primary'
+            break
+        case 'light':
+            break
+    }
 
-        if (Left) {
-            returnWidth += squareSize
-        }
-        if (Right) {
-            returnWidth += squareSize
-        }
-
-        return returnWidth
-    }, [buttonSize, fillWidth, squareSize, label, textWidth, toggleOn])
-
-    const maxWidth = useMemo(() => {
-        if (fillWidth) {
-            return ''
-        }
-        if (!label) {
-            return squareSize
-        }
-
-        if (labelOnHover && !hovering) {
-            return squareSize
-        }
-
-        // return textWidth + squareSize + 16 + 1000
-        return 'max-content'
-    }, [fillWidth, squareSize, label, textWidth, hovering])
+    let iconSize = 24
+    let buttonSpacing = '0.5rem'
+    switch (size) {
+        case 'default':
+            break
+        case 'small':
+            iconSize = 20
+            buttonSpacing = '0.3rem'
+            break
+        case 'tiny':
+            iconSize = 16
+            buttonSpacing = '0.2rem'
+            break
+        case 'jumbo':
+            iconSize = 48
+            buttonSpacing = '0.75rem'
+            break
+    }
 
     return (
         <div
-            ref={setSizeRef}
-            className={buttonStyle['weblens-button-wrapper']}
-            data-fill-width={fillWidth}
-            data-text-on-hover={labelOnHover}
-            style={{
-                maxHeight: squareSize,
-                minWidth: squareSize,
-                width: targetWidth,
-                maxWidth: maxWidth,
-                height: squareSize,
-                flexShrink: Number(allowShrink),
-            }}
+            className="bg-background-primary flex h-max min-h-0 w-max rounded data-fill-width:w-full"
+            data-fill-width={fillWidth ? true : null}
         >
-            {(tooltip || confirming) && (
-                <div
-                    className={buttonStyle['button-tooltip']}
-                    style={{
-                        transform: `translateY(${squareSize / 2 + 20}px)`,
-                    }}
-                >
-                    <p
-                        className="flex text-white z-10 grow text-nowrap"
-                        style={{
-                            width: buttonSize.width * 2,
-                            maxWidth: 'max-content',
-                        }}
-                    >
-                        {confirming ? 'Really?' : tooltip}
-                    </p>
-                </div>
-            )}
-            <div
-                className={buttonStyle['weblens-button']}
+            <button
                 ref={setButtonRef}
-                data-disabled={disabled}
-                data-toggled={toggleOn}
-                data-repeat={allowRepeat}
-                data-success={success}
-                data-fail={fail}
-                data-loading={loading}
+                style={
+                    {
+                        '--color-button': `var(${buttonColor})`,
+                        '--color-button-hover': `var(${buttonHoverColor})`,
+                        '--color-button-text': `var(${buttonTextColor})`,
+                        '--wl-button-spacing': buttonSpacing,
+                    } as CSSProperties
+                }
                 data-fill-width={fillWidth}
-                data-center={centerContent}
-                data-subtle={subtle}
-                data-super={doSuper}
-                data-danger={danger}
-                data-float={float}
-                style={{ ...style, width: targetWidth }}
+                className={className}
+                data-flavor={flavor}
+                disabled={disabled || loading}
                 onClick={(e) => {
-                    if (!requireConfirm || confirming) {
-                        handleButtonEvent(
-                            e,
-                            onClick,
-                            showSuccess,
-                            setLoading,
-                            setSuccess,
-                            setFail
-                        ).catch(ErrorHandler)
-                        setConfirming(false)
-                    } else if (requireConfirm) {
-                        setConfirming(true)
-                        setTimeout(() => setConfirming(false), 2000)
-                    }
+                    handleButtonEvent(
+                        e,
+                        onClick,
+                        showSuccess,
+                        setLoading,
+                        setSuccess,
+                        setFail,
+                        true
+                    ).catch(ErrorHandler)
                 }}
                 onMouseUp={(e) => {
                     handleButtonEvent(
@@ -300,21 +264,7 @@ function WeblensButton({
                         setFail
                     ).catch(ErrorHandler)
                 }}
-                onMouseOver={(e) => {
-                    setHovering(true)
-                    {
-                        handleButtonEvent(
-                            e,
-                            onMouseOver,
-                            showSuccess,
-                            setLoading,
-                            setSuccess,
-                            setFail
-                        ).catch(ErrorHandler)
-                    }
-                }}
                 onMouseLeave={(e) => {
-                    setTimeout(() => setHovering(false), 200)
                     handleButtonEvent(
                         e,
                         onMouseLeave,
@@ -325,51 +275,35 @@ function WeblensButton({
                     ).catch(ErrorHandler)
                 }}
             >
-                {success && showSuccess && (
-                    <div
-                        className={buttonStyle['button-content'] + ' absolute'}
-                        data-center={true}
-                    >
-                        <IconCheck />
-                    </div>
-                )}
-                {fail && showSuccess && (
-                    <div
-                        className={buttonStyle['button-content'] + ' absolute'}
-                        data-center={true}
-                    >
-                        <IconX color="white" />
-                    </div>
-                )}
-                {loading && showSuccess && (
-                    <div
-                        className={
-                            buttonStyle['button-content'] + ' absolute h-full'
-                        }
-                        data-center={true}
-                    >
-                        <Loader size={squareSize / 2} color={'white'} />
-                    </div>
-                )}
-                {/* {!loading && !success && !fail && ( */}
-                <ButtonContent
-                    label={label}
-                    Left={confirming ? IconQuestionMark : Left}
-                    Right={Right}
-                    staticTextWidth={textWidth}
-                    setTextWidth={setTextWidth}
-                    buttonWidth={
-                        hovering && labelOnHover
-                            ? textWidth + squareSize
-                            : buttonSize.width
+                <span
+                    className={
+                        'text-button-text flex items-center justify-center data-[size=default]:h-6 data-[size=jumbo]:h-10 data-[size=jumbo]:text-2xl data-[size=small]:h-6 data-[size=small]:text-sm data-[size=tiny]:h-5 data-[size=tiny]:text-xs'
                     }
-                    iconSize={iconSize}
-                    centerContent={centerContent}
-                    hidden={success || fail || loading}
-                    labelOnHover={labelOnHover}
-                />
-                {/* )} */}
-            </div>
+                    data-size={size}
+                >
+                    {loading && <LoaderDots />}
+                    {!loading && (
+                        <>
+                            {Left && (
+                                <span className="me-(--wl-button-spacing) text-inherit only:me-0">
+                                    <Left size={iconSize} />
+                                </span>
+                            )}
+                            {label && showLabel && (
+                                <span className="text-[length:inherit] leading-none text-nowrap text-inherit">
+                                    {label}
+                                </span>
+                            )}
+
+                            {Right && (
+                                <span className="ms-(--wl-button-spacing) text-inherit only:ms-0">
+                                    <Right size={iconSize} />
+                                </span>
+                            )}
+                        </>
+                    )}
+                </span>
+            </button>
         </div>
     )
 }

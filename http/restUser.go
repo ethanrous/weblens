@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/models/rest"
 	"github.com/go-chi/chi/v5"
+	"github.com/rs/zerolog"
 )
 
 // CreateUser godoc
@@ -45,7 +45,7 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newUser, err := models.NewUser(userParams.Username, userParams.Password, userParams.Admin, userParams.AutoActivate)
+	newUser, err := models.NewUser(userParams.Username, userParams.Password, userParams.FullName, userParams.Admin, userParams.AutoActivate)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -88,19 +88,19 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !u.Activated {
-		log.Warning.Printf("[%s] attempted login but is not activated", u.Username)
+		pack.Log.Warn().Msgf("[%s] attempted login but is not activated", u.Username)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
 	if u.CheckLogin(userCredentials.Password) {
-		log.Debug.Printf("Valid login for [%s]", userCredentials.Username)
+		pack.Log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Valid login for [%s]", userCredentials.Username) })
 
 		var token string
 		var expires time.Time
 		token, expires, err = pack.AccessService.GenerateJwtToken(u)
 		if err != nil || token == "" {
-			log.ErrTrace(werror.Errorf("Could not get login token"))
+			pack.Log.Error().Stack().Err(werror.Errorf("Could not get login token")).Msg("")
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 
@@ -108,7 +108,7 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 
 		cookie := fmt.Sprintf("%s=%s;Path=/;Expires=%s;HttpOnly", SessionTokenCookie, token, expires.Format(time.RFC1123))
 
-		log.Trace.Println("Setting cookie", cookie)
+		pack.Log.Trace().Msgf("Setting cookie %s", cookie)
 		w.Header().Set("Set-Cookie", cookie)
 
 		userInfo.Token = token
@@ -118,6 +118,36 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+}
+
+// CheckUsernameUnique godoc
+//
+//	@ID			CheckUsernameUnique
+//
+//	@Summary	Check if username is unique
+//	@Tags		Users
+//	@Produce	json
+//	@Param		username	query	string	true	"Username to check"
+//	@Success	200
+//	@Failure	400
+//	@Failure	409
+//	@Router		/users/unique [get]
+func checkUsernameUnique(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+
+	username := r.URL.Query().Get("username")
+	if username == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	user := pack.UserService.Get(username)
+	if user != nil {
+		w.WriteHeader(http.StatusConflict)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 // LogoutUser godoc
@@ -131,6 +161,7 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 //	@Success	200
 //	@Router		/users/logout [post]
 func logoutUser(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
 	u, err := getUserFromCtx(r, true)
 	if SafeErrorAndExit(err, w) {
 		return
@@ -140,7 +171,7 @@ func logoutUser(w http.ResponseWriter, r *http.Request) {
 	}
 	if u == nil || u.IsPublic() {
 		// This should not happen. We must check for user before this point
-		log.Error.Panicln("Could not find user to logout")
+		pack.Log.Error().Msg("Could not find user to logout")
 	}
 
 	cookie := fmt.Sprintf("%s=;Path=/;Expires=Thu, 01 Jan 1970 00:00:00 GMT;HttpOnly", SessionTokenCookie)
@@ -205,7 +236,7 @@ func getUsers(w http.ResponseWriter, r *http.Request) {
 func getUserInfo(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
 	if pack.InstanceService.GetLocal().GetRole() == models.InitServerRole {
-		writeJson(w, http.StatusTemporaryRedirect, rest.WeblensErrorInfo{Error: "weblens not initialized"})
+		writeJson(w, http.StatusServiceUnavailable, rest.WeblensErrorInfo{Error: "weblens not initialized"})
 		return
 	}
 
@@ -221,13 +252,15 @@ func getUserInfo(w http.ResponseWriter, r *http.Request) {
 
 	res := rest.UserToUserInfo(u)
 
-	trash, err := pack.FileService.GetFileSafe(u.TrashId, u, nil)
-	if SafeErrorAndExit(err, w) {
-		return
-	}
+	if pack.InstanceService.GetLocal().GetRole() != models.BackupServerRole {
+		trash, err := pack.FileService.GetFileSafe(u.TrashId, u, nil)
+		if SafeErrorAndExit(err, w) {
+			return
+		}
 
-	res.TrashSize = trash.Size()
-	res.HomeSize = trash.GetParent().Size()
+		res.TrashSize = trash.Size()
+		res.HomeSize = trash.GetParent().Size()
+	}
 
 	writeJson(w, http.StatusOK, res)
 }
@@ -284,7 +317,7 @@ func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
-		log.ShowErr(err)
+		pack.Log.Error().Stack().Err(err).Msg("")
 		switch {
 		case errors.Is(err, werror.ErrBadPassword):
 			w.WriteHeader(http.StatusForbidden)
@@ -360,7 +393,7 @@ func setUserAdmin(w http.ResponseWriter, r *http.Request) {
 //	@Produce	json
 //
 //	@Param		username	path	string	true	"Username of user to update"
-//	@Param		setActive	query	boolean	true	"Target admin status"
+//	@Param		setActive	query	boolean	true	"Target activation status"
 //	@Success	200
 //	@Failure	400	{object}	rest.WeblensErrorInfo
 //	@Failure	401
@@ -379,6 +412,58 @@ func activateUser(w http.ResponseWriter, r *http.Request) {
 	setActive := setActiveStr == "true"
 
 	err := pack.UserService.ActivateUser(u, setActive)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// ChangeFullName godoc
+//
+//	@ID			ChangeFullName
+//
+//	@Security	SessionAuth
+//	@Security	ApiKeyAuth
+//
+//	@Summary	Update full name of user
+//	@Tags		Users
+//	@Produce	json
+//
+//	@Param		username	path	string	true	"Username of user to update"
+//	@Param		newFullName	query	string	true	"New full name of user"
+//	@Success	200
+//	@Failure	400	{object}	rest.WeblensErrorInfo
+//	@Failure	401	{object}	rest.WeblensErrorInfo
+//	@Failure	404	{object}	rest.WeblensErrorInfo
+//	@Router		/users/{username}/fullName [patch]
+func changeFullName(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	accessor, err := getUserFromCtx(r, true)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+
+	username := chi.URLParam(r, "username")
+
+	if accessor.Username != username {
+		writeError(w, http.StatusForbidden, werror.ErrUserNotAuthorized)
+		return
+	}
+
+	u := pack.UserService.Get(username)
+	if u == nil {
+		writeError(w, http.StatusNotFound, werror.ErrNoUser)
+		return
+	}
+
+	newFullName := r.URL.Query().Get("newFullName")
+	if newFullName == "" {
+		writeJson(w, http.StatusBadRequest, rest.WeblensErrorInfo{Error: "newFullName query parameter is required"})
+		return
+	}
+
+	err = pack.UserService.UpdateFullName(u, newFullName)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -463,7 +548,7 @@ func searchUsers(w http.ResponseWriter, r *http.Request) {
 
 	users, err := pack.UserService.SearchByUsername(search)
 	if err != nil {
-		log.ShowErr(err)
+		pack.Log.Error().Stack().Err(err).Msg("")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

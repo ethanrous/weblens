@@ -13,11 +13,12 @@ import (
 
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal"
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/service"
 	"github.com/ethanrous/weblens/task"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/saracen/fastzip"
 )
 
@@ -87,7 +88,7 @@ func CreateZip(t *task.Task) {
 	defer func(fp *os.File) {
 		err := fp.Close()
 		if err != nil {
-			log.ShowErr(err)
+			t.Log.Error().Stack().Err(err).Msg("")
 		}
 	}(fp)
 
@@ -105,7 +106,7 @@ func CreateZip(t *task.Task) {
 	defer func(a *fastzip.Archiver) {
 		err := a.Close()
 		if err != nil {
-			log.ShowErr(err)
+			t.Log.Error().Stack().Err(err).Msg("")
 		}
 	}(a)
 
@@ -223,18 +224,15 @@ func HandleFileUploads(t *task.Task) {
 		if fileEvent.Logged.Load() {
 			return
 		}
-		log.Trace.Println("Doing error cleanup journal log for upload")
+		t.Log.Trace().Msg("Doing error cleanup journal log for upload")
 		meta.FileService.GetJournalByTree("USERS").LogEvent(fileEvent)
 	})
 
 	// Cleanup routine. This must be run even if the upload fails
 	t.SetCleanup(func(t *task.Task) {
 
-		log.Debug.Func(func(l log.Logger) {
-			l.Printf("Upload fileMap has %d remaining and chunk stream has %d remaining", len(fileMap), len(meta.ChunkStream))
-			for _, f := range fileMap {
-				l.Printf("Waiting on File: %s", f.File.AbsPath())
-			}
+		t.Log.Debug().Func(func(e *zerolog.Event) {
+			e.Msgf("Upload fileMap has %d remaining and chunk stream has %d remaining", len(fileMap), len(meta.ChunkStream))
 		})
 
 		doingRootScan := false
@@ -259,7 +257,7 @@ func HandleFileUploads(t *task.Task) {
 					}
 					_, err = t.GetTaskPool().GetWorkerPool().DispatchJob(models.ScanDirectoryTask, scanMeta, newTp)
 					if err != nil {
-						log.ErrTrace(err)
+						t.Log.Error().Stack().Err(err).Msg("")
 						continue
 					}
 				}
@@ -273,7 +271,7 @@ func HandleFileUploads(t *task.Task) {
 				}
 				_, err = t.GetTaskPool().GetWorkerPool().DispatchJob(models.ScanDirectoryTask, scanMeta, newTp)
 				if err != nil {
-					log.ErrTrace(err)
+					t.Log.Error().Stack().Err(err).Msg("")
 					continue
 				}
 				doingRootScan = true
@@ -287,7 +285,7 @@ func HandleFileUploads(t *task.Task) {
 
 		err = meta.FileService.ResizeUp(rootFile, fileEvent, meta.Caster)
 		if err != nil {
-			log.ErrTrace(err)
+			t.Log.Error().Stack().Err(err).Msg("")
 		}
 
 		meta.FileService.GetJournalByTree("USERS").LogEvent(fileEvent)
@@ -340,7 +338,9 @@ WriterLoop:
 					func(a, b fileTree.FileId) int { return strings.Compare(string(a), string(b)) },
 				)
 
-				log.Trace.Printf("New upload [%s] of size [%d bytes]", chunk.NewFile.GetPortablePath(), total)
+				t.Log.Trace().Func(func(e *zerolog.Event) {
+					e.Msgf("New upload [%s] of size [%d bytes]", chunk.NewFile.GetPortablePath(), total)
+				})
 
 				continue WriterLoop
 			}
@@ -405,9 +405,9 @@ WriterLoop:
 				}
 				delete(fileMap, chunk.FileId)
 			}
-			log.Trace.Func(func(l log.Logger) {
+			t.Log.Trace().Func(func(e *zerolog.Event) {
 				if chnk.BytesWritten < chnk.FileSizeTotal {
-					l.Printf("%s has not finished uploading yet %d of %d", chnk.File.AbsPath(), chnk.BytesWritten, chnk.FileSizeTotal)
+					e.Msgf("%s has not finished uploading yet %d of %d", chnk.File.AbsPath(), chnk.BytesWritten, chnk.FileSizeTotal)
 				}
 			})
 
@@ -421,7 +421,7 @@ WriterLoop:
 		}
 	}
 
-	log.Debug.Printf("Finished writing upload files for %s", rootFile.GetPortablePath())
+	t.Log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Finished writing upload files for %s", rootFile.GetPortablePath()) })
 	t.Success()
 }
 
@@ -482,7 +482,7 @@ func HashFile(t *task.Task) {
 		t.Fail(werror.ErrNoContentId)
 	}
 
-	log.Trace.Func(func(l log.Logger) { l.Printf("Hashed file [%s] to [%s]", meta.File.GetPortablePath(), contentId) })
+	t.Log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Hashed file [%s] to [%s]", meta.File.GetPortablePath(), contentId) })
 
 	// TODO - sync database content id if this file is created before being added to db (i.e upload)
 	// err = dataStore.SetContentId(meta.file, contentId)
@@ -502,4 +502,21 @@ func HashFile(t *task.Task) {
 	)
 
 	t.Success()
+}
+
+func RegisterJobs(workerPool task.TaskService, role models.ServerRole) {
+	log.Debug().Msgf("Registering jobs for %s", role)
+
+	workerPool.RegisterJob(models.ScanDirectoryTask, ScanDirectory)
+	workerPool.RegisterJob(models.ScanFileTask, ScanFile)
+	workerPool.RegisterJob(models.UploadFilesTask, HandleFileUploads, task.TaskOptions{Persistent: true, Unique: true})
+	workerPool.RegisterJob(models.CreateZipTask, CreateZip)
+	workerPool.RegisterJob(models.GatherFsStatsTask, GatherFilesystemStats)
+	workerPool.RegisterJob(models.BackupTask, DoBackup)
+	workerPool.RegisterJob(models.CopyFileFromCoreTask, CopyFileFromCore)
+	workerPool.RegisterJob(models.RestoreCoreTask, RestoreCore)
+	workerPool.RegisterJob(models.HashFileTask, HashFile)
+	// if role == models.BackupServerRole {
+	// } else if role == models.CoreServerRole {
+	// }
 }

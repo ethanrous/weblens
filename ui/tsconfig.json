@@ -1,37 +1,37 @@
 {
-  "compilerOptions": {
-    "target": "es2023",
-    "lib": [
-      "DOM",
-      "DOM.Iterable",
-      "ESNext"
-    ],
-    "types": [
-      "node",
-      "vite/client"
-    ],
-    "allowJs": false,
-    "isolatedModules": true,
-    "jsx": "react-jsx",
-    "module": "ESNext",
-    "strict": false,
-    "moduleResolution": "node",
-    "allowSyntheticDefaultImports": true,
-    "baseUrl": "./src",
-    "paths": {
-      "@weblens/*": [
-        "./*"
-      ]
-    },
-    "noUnusedLocals": false,
-    "noUnusedParameters": false
-  },
-  "include": [
-    "**/*.tsx",
-    "**/*.ts",
-    "src"
-  ],
-  "exclude": [
-    "node_modules"
-  ]
+	"compilerOptions": {
+		"target": "es2023",
+		"lib": [
+			"DOM",
+			"DOM.Iterable",
+			"ESNext"
+		],
+		"types": [
+			"node",
+			"vite/client"
+		],
+		"allowJs": false,
+		"isolatedModules": true,
+		"jsx": "react-jsx",
+		"module": "esnext",
+		"strict": false,
+		"moduleResolution": "bundler",
+		"allowSyntheticDefaultImports": true,
+		"baseUrl": ".",
+		"paths": {
+			"@weblens/*": [
+				"src/*"
+			]
+		},
+		"noUnusedLocals": false
+	},
+	"include": [
+		"**/*.tsx",
+		"**/*.ts",
+		"src",
+		"eslint.config.js"
+	],
+	"exclude": [
+		"node_modules"
+	]
 }

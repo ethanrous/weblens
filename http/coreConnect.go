@@ -6,11 +6,12 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/jobs"
 	"github.com/ethanrous/weblens/models"
 	"github.com/gorilla/websocket"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 const retryInterval = time.Second * 10
@@ -45,18 +46,24 @@ func WebsocketToCore(core *models.Instance, pack *models.ServicePack) error {
 
 	authHeader := http.Header{}
 	authHeader.Add("Authorization", "Bearer "+string(core.GetUsingKey()))
+	authHeader.Add("Wl-Server-Id", pack.InstanceService.GetLocal().ServerId())
+
+	log.Debug().Msgf("Connecting to core server using %s", core.GetUsingKey())
 	var conn *models.WsClient
 	go func() {
 		for {
 			conn, err = dial(dialer, *coreUrl, authHeader, core, pack.ClientService)
 			if err != nil {
-				log.Error.Printf(
+				pack.Log.Error().Msgf(
 					"Failed to connect to core server at %s: %s Trying again in %s",
 					coreUrl.String(), err, retryInterval,
 				)
 				time.Sleep(retryInterval)
 				continue
 			}
+			pack.Log.Debug().Func(func(e *zerolog.Event) {
+				e.Msgf("Connection to core [%s] at [%s] successfully established", core.GetName(), coreUrl.String())
+			})
 
 			pack.Caster.PushWeblensEvent(
 				models.RemoteConnectionChangedEvent, models.WsC{
@@ -76,7 +83,7 @@ func WebsocketToCore(core *models.Instance, pack *models.ServicePack) error {
 			if pack.Closing.Load() {
 				return
 			}
-			log.Warning.Printf("Websocket connection to core [%s] closed, reconnecting...", core.GetName())
+			pack.Log.Warn().Msgf("Websocket connection to core [%s] closed, reconnecting...", core.GetName())
 		}
 	}()
 
@@ -89,7 +96,7 @@ func dial(
 ) (
 	*models.WsClient, error,
 ) {
-	log.Trace.Println("Dialing", host.String())
+	log.Trace().Msgf("Dialing %s", host.String())
 	conn, _, err := dialer.Dial(host.String(), authHeader)
 	if err != nil {
 		return nil, werror.WithStack(err)
@@ -97,7 +104,6 @@ func dial(
 
 	client := clientService.RemoteConnect(conn, core)
 
-	log.Debug.Printf("Connection to core [%s] at [%s] successfully established", core.GetName(), host.String())
 	return client, nil
 }
 
@@ -107,7 +113,7 @@ func coreWsHandler(c *models.WsClient, pack *models.ServicePack) {
 	for {
 		_, msgBuf, err := c.ReadOne()
 		if err != nil {
-			log.ShowErr(werror.WithStack(err))
+			pack.Log.Error().Stack().Err(werror.WithStack(err)).Msg("")
 			break
 		}
 
@@ -125,7 +131,7 @@ func wsCoreClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Ser
 		return
 	}
 
-	log.Trace.Func(func(l log.Logger) { l.Printf("Got wsmsg from R[%s]: %v", c.GetRemote().GetName(), msg) })
+	c.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Got wsmsg from R[%s]: %v", c.GetInstance().GetName(), msg) })
 
 	switch msg.EventTag {
 	case "do_backup":
@@ -145,7 +151,7 @@ func wsCoreClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Ser
 			return
 		}
 
-		log.Trace.Func(func(l log.Logger) { l.Printf("Backup requested by %s", core.GetName()) })
+		log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Backup requested by %s", core.GetName()) })
 		_, err = jobs.BackupOne(core, pack)
 		if err != nil {
 			c.Error(err)
@@ -172,17 +178,18 @@ func wsCoreClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Ser
 			c.Error(werror.Errorf("Invalid role in weblens_loaded message: %v", roleI))
 		}
 
-		c.GetRemote().SetReportedRole(role)
+		pack.Log.Debug().Msgf("Setting server [%s] reported role to [%s]", c.GetInstance().ServerId(), role)
+		c.GetInstance().SetReportedRole(role)
 
 		// Launch backup task whenever we reconnect to the core server
-		_, err = jobs.BackupOne(c.GetRemote(), pack)
+		_, err = jobs.BackupOne(c.GetInstance(), pack)
 		if err != nil {
-			log.ErrTrace(err)
+			pack.Log.Error().Stack().Err(err).Msg("")
 		}
 	case models.StartupProgressEvent, models.RemoteConnectionChangedEvent: // Do nothing
 	case "error":
-		log.Trace.Println(msg)
+		c.Log().Error().Interface("websocket_msg_content", msg)
 	default:
-		log.Error.Printf("Unknown ws event from %s: %s", c.GetRemote().GetName(), msg.EventTag)
+		c.Log().Error().Msgf("Unknown ws event %s", msg.EventTag)
 	}
 }

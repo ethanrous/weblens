@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/ethanrous/weblens/internal"
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/models/rest"
@@ -46,7 +45,7 @@ func createFileShare(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusConflict)
 		return
 	} else if !errors.Is(err, werror.ErrNoShare) {
-		log.ErrTrace(err)
+		pack.Log.Error().Stack().Err(err).Msg("")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -60,12 +59,12 @@ func createFileShare(w http.ResponseWriter, r *http.Request) {
 
 	err = pack.ShareService.Add(newShare)
 	if err != nil {
-		log.ShowErr(err)
+		pack.Log.Error().Stack().Err(err).Msg("")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	newShareInfo := rest.ShareToShareInfo(newShare)
+	newShareInfo := rest.ShareToShareInfo(newShare, pack.UserService)
 
 	writeJson(w, http.StatusCreated, newShareInfo)
 }
@@ -150,14 +149,14 @@ func getFileShare(w http.ResponseWriter, r *http.Request) {
 
 	fileShare, ok := share.(*models.FileShare)
 	if !ok {
-		log.Warning.Printf(
+		pack.Log.Warn().Msgf(
 			"%s tried to get share [%s] as a fileShare (is %s)", u.GetUsername(), shareId, share.GetShareType(),
 		)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	shareInfo := rest.ShareToShareInfo(fileShare)
+	shareInfo := rest.ShareToShareInfo(fileShare, pack.UserService)
 
 	writeJson(w, http.StatusOK, shareInfo)
 }
@@ -213,9 +212,9 @@ func setSharePublic(w http.ResponseWriter, r *http.Request) {
 //	@Summary	Update a share's accessors list
 //	@Tags		Share
 //	@Produce	json
-//	@Param		shareId	path	string				true	"Share Id"
-//	@Param		request	body	rest.UserListBody	true	"Share Accessors"
-//	@Success	200
+//	@Param		shareId	path		string				true	"Share Id"
+//	@Param		request	body		rest.UserListBody	true	"Share Accessors"
+//	@Success	200		{object}	rest.ShareInfo
 //	@Failure	404
 //	@Router		/share/{shareId}/accessors [patch]
 func setShareAccessors(w http.ResponseWriter, r *http.Request) {
@@ -237,7 +236,7 @@ func setShareAccessors(w http.ResponseWriter, r *http.Request) {
 
 	ub, err := readCtxBody[rest.UserListBody](w, r)
 	if err != nil {
-		log.ShowErr(err)
+		pack.Log.Error().Stack().Err(err).Msg("")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -265,7 +264,7 @@ func setShareAccessors(w http.ResponseWriter, r *http.Request) {
 	if len(addUsers) > 0 {
 		err = pack.ShareService.AddUsers(share, addUsers)
 		if err != nil {
-			log.ShowErr(err)
+			pack.Log.Error().Stack().Err(err).Msg("")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -274,13 +273,15 @@ func setShareAccessors(w http.ResponseWriter, r *http.Request) {
 	if len(removeUsers) > 0 {
 		err = pack.ShareService.RemoveUsers(share, removeUsers)
 		if err != nil {
-			log.ShowErr(err)
+			pack.Log.Error().Stack().Err(err).Msg("")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	}
 
-	w.WriteHeader(http.StatusOK)
+	shareInfo := rest.ShareToShareInfo(share, pack.UserService)
+
+	writeJson(w, http.StatusOK, shareInfo)
 }
 
 // DeleteFileShare godoc
@@ -305,7 +306,7 @@ func deleteShare(w http.ResponseWriter, r *http.Request) {
 	}
 	err := pack.ShareService.Del(s.ID())
 	if err != nil {
-		log.ErrTrace(err)
+		pack.Log.Error().Stack().Err(err).Msg("")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

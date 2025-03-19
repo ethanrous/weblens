@@ -9,6 +9,7 @@ export default class User {
     password?: string
     trashId?: string
     username?: string
+    fullName?: string
 
     homeSize?: number
     trashSize?: number

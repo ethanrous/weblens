@@ -1,12 +1,6 @@
-import {
-    IconFiles,
-    IconFolder,
-    IconFolders,
-    IconHome,
-} from '@tabler/icons-react'
+import { IconFiles, IconFolder, IconHome } from '@tabler/icons-react'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import { useResize } from '@weblens/components/hooks'
-import theme from '@weblens/components/theme.module.scss'
+import { useResize } from '@weblens/lib/hooks'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
 import { humanFileSize } from '@weblens/util'
 import { useMemo, useState } from 'react'
@@ -30,26 +24,14 @@ function UsageInfo() {
 
     const mode = useFileBrowserStore((state) => state.fbMode)
 
-    const { selectedFileSize, selectedFolderCount, selectedFileCount } =
-        useMemo(() => {
-            let selectedFileSize = 0
-            let selectedFolderCount = 0
-            let selectedFileCount = 0
-            Array.from(selected.keys()).forEach((fileId) => {
+    const selectedFileSize = useMemo(
+        () =>
+            Array.from(selected.keys()).reduce((acc, fileId) => {
                 const f = filesMap.get(fileId)
-                if (!f) {
-                    return
-                }
-                if (f.IsFolder()) {
-                    selectedFolderCount++
-                } else {
-                    selectedFileCount++
-                }
-                selectedFileSize += f.size || 0
-            })
-
-            return { selectedFileSize, selectedFolderCount, selectedFileCount }
-        }, [selectedLength])
+                return acc + f.size
+            }, 0),
+        [selectedLength]
+    )
 
     let displaySize = folderInfo?.GetSize() || 0
 
@@ -103,12 +85,12 @@ function UsageInfo() {
     return (
         <div
             ref={setBox}
-            className="flex flex-col h-max w-full gap-3 mb-2"
+            className="border-t-color-border-primary mt-4 mb-1 flex h-max w-full flex-col gap-3 border-t pt-4"
             style={{
                 alignItems: miniMode ? 'center' : 'flex-start',
             }}
         >
-            {miniMode && <StartIcon className={theme['background-icon']} />}
+            {miniMode && <StartIcon />}
             <div
                 className="relative h-max w-max"
                 style={{
@@ -123,50 +105,34 @@ function UsageInfo() {
                 />
             </div>
             <div
-                className="flex flex-row h-max justify-between items-center"
+                className="flex h-max flex-row items-center justify-between"
                 style={{
                     width: miniMode ? 'max-content' : '98%',
                 }}
             >
                 {folderInfo?.Id() !== 'shared' && !miniMode && (
                     <div className="flex flex-row items-center">
-                        {<StartIcon className={theme['background-icon']} />}
-                        <p
-                            className="select-none p-1"
+                        {<StartIcon />}
+                        <h6
+                            className="p-1 text-nowrap select-none"
                             style={{
                                 display: miniMode ? 'none' : 'block',
                             }}
                         >
                             {startSize}
-                        </p>
+                        </h6>
                     </div>
                 )}
-                <div className="flex flex-row justify-end w-max items-center">
-                    <p
-                        className="select-none p-1"
+                <div className="flex w-max flex-row items-center justify-end">
+                    <h6
+                        className="p-1 text-nowrap select-none"
                         style={{
                             display: miniMode ? 'none' : 'block',
                         }}
                     >
                         {endSize}
-                    </p>
-                    {<EndIcon className={theme['background-icon']} />}
-                </div>
-            </div>
-            <div
-                className="flex flex-row h-max justify-between items-center w-full bg-[--wl-barely-visible] rounded-lg p-2"
-                style={{
-                    display: selectedLength > 0 ? 'flex' : 'none',
-                    flexDirection: miniMode ? 'column' : 'row',
-                }}
-            >
-                <div className="flex h-max items-center text-[--wl-text-color] w-min">
-                    <IconFiles />
-                    <p className="select-none p-1">{selectedFileCount}</p>
-                </div>
-                <div className="flex h-max items-center text-[--wl-text-color] w-min">
-                    <IconFolders />
-                    <p className="select-none p-1">{selectedFolderCount}</p>
+                    </h6>
+                    {<EndIcon />}
                 </div>
             </div>
         </div>

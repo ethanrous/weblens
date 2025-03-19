@@ -1,5 +1,7 @@
+import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { fileURLToPath } from 'node:url'
+import path from 'node:path'
+import sass from 'sass'
 import { defineConfig, loadEnv } from 'vite'
 import viteTsconfigPaths from 'vite-tsconfig-paths'
 
@@ -22,7 +24,7 @@ export default ({ mode }: { mode: string }) => {
     return defineConfig({
         // depending on your application, base can also be "/"
         base: '/',
-        plugins: [react(), viteTsconfigPaths()],
+        plugins: [react(), viteTsconfigPaths(), tailwindcss()],
         mode: 'development',
         server: {
             // this ensures that the browser opens upon server start
@@ -43,14 +45,23 @@ export default ({ mode }: { mode: string }) => {
             },
         },
         resolve: {
-            alias: [
-                {
-                    find: '@weblens',
-                    replacement: fileURLToPath(
-                        new URL('./src', import.meta.url)
-                    ),
+            alias: { '@weblens': path.resolve(__dirname, './src') },
+            // {
+            //     find: '@weblens',
+            //     replacement: fileURLToPath(
+            //         new URL('./src', import.meta.url)
+            //     ),
+            // },
+        },
+        css: {
+            preprocessorOptions: {
+                scss: {
+                    implementation: sass,
                 },
-            ],
+            },
+            modules: {
+                localsConvention: 'camelCaseOnly',
+            },
         },
     })
 }

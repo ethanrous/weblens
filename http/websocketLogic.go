@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/internal"
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
 	gorilla "github.com/gorilla/websocket"
+	"github.com/rs/zerolog"
 )
 
 type WsAuthorize struct {
@@ -63,7 +63,7 @@ func wsConnect(w http.ResponseWriter, r *http.Request) {
 		client = pack.ClientService.ClientConnect(conn, u)
 	} else {
 		// this should not happen
-		log.Error.Println("Did not get valid websocket client")
+		pack.Log.Error().Msg("Did not get valid websocket client")
 		return
 	}
 
@@ -81,6 +81,7 @@ func wsMain(c *models.WsClient, pack *models.ServicePack) {
 	} else {
 		switchboard = wsServerClientSwitchboard
 		if pack.Loaded.Load() {
+			pack.Log.Debug().Msgf("Server connected: %s -- local role is: %s", c.GetInstance().ServerId(), pack.InstanceService.GetLocal().GetRole())
 			c.PushWeblensEvent(models.WeblensLoadedEvent, models.WsC{"role": pack.InstanceService.GetLocal().GetRole()})
 		}
 	}
@@ -112,10 +113,10 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 		return werror.WithStack(err)
 	}
 
-	log.Trace.Func(func(l log.Logger) { l.Printf("Got wsmsg from [%s]: %v", c.GetUser().GetUsername(), msg) })
+	c.Log().Trace().Func(func(e *zerolog.Event) { e.Interface("websocket_msg_content", msg).Msg("Got wsmsg from client") })
 
 	if msg.Action == models.ReportError {
-		log.ErrorCatcher.Printf("Web client caught unexpected error\n%s\n\n", msg.Content)
+		c.Log().Error().Msgf("Web client reported error: %s", msg.Content)
 		return nil
 	}
 
@@ -193,7 +194,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 		if err != nil && !errors.Is(err, werror.ErrSubscriptionNotFound) {
 			c.Error(err)
 		} else if err != nil {
-			log.Warning.Printf("Subscription [%s] not found in unsub task", key)
+			c.Log().Warn().Msgf("Subscription [%s] not found in unsub task", key)
 		}
 
 	case models.ScanDirectory:
@@ -271,7 +272,7 @@ func wsServerClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.S
 	}
 
 	sentTime := time.UnixMilli(msg.SentTime)
-	relaySourceId := c.GetRemote().ServerId()
+	relaySourceId := c.GetInstance().ServerId()
 
 	switch msg.EventTag {
 	case models.ServerGoingDownEvent:
@@ -298,6 +299,8 @@ func wsServerClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.S
 
 	msg.RelaySource = relaySourceId
 	pack.Caster.Relay(msg)
+
+	pack.Log.Debug().Msgf("Relaying message [%s] from server [%s]", msg.EventTag, relaySourceId)
 
 	return nil
 }

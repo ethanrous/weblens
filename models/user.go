@@ -11,14 +11,15 @@ import (
 )
 
 type User struct {
-
 	// non-database types
 	homeFolder  *fileTree.WeblensFileImpl
 	trashFolder *fileTree.WeblensFileImpl
-	Username    Username        `bson:"username"`
-	Password    string          `bson:"password"`
-	HomeId      fileTree.FileId `bson:"homeId"`
-	TrashId     fileTree.FileId `bson:"trashId"`
+
+	Username     Username        `bson:"username"` // Username is the unique identifier for the user
+	PasswordHash string          `bson:"password"` // PasswordHash is the bcrypt hash of the user's password
+	FullName     string          `bson:"fullName"`
+	HomeId       fileTree.FileId `bson:"homeId"`
+	TrashId      fileTree.FileId `bson:"trashId"`
 
 	// The id of the server instance that created this user
 	CreatedBy InstanceId `bson:"createdBy"`
@@ -30,7 +31,7 @@ type User struct {
 	SystemUser    bool
 }
 
-func NewUser(username Username, password string, isAdmin, autoActivate bool) (*User, error) {
+func NewUser(username Username, password, fullName string, isAdmin, autoActivate bool) (*User, error) {
 	if username == "" {
 		return nil, werror.Errorf("username is empty")
 	}
@@ -48,11 +49,12 @@ func NewUser(username Username, password string, isAdmin, autoActivate bool) (*U
 	passHash := string(passHashBytes)
 
 	newUser := &User{
-		Id:        primitive.NewObjectID(),
-		Username:  username,
-		Password:  passHash,
-		Admin:     isAdmin,
-		Activated: autoActivate,
+		Id:           primitive.NewObjectID(),
+		Username:     username,
+		PasswordHash: passHash,
+		FullName:     fullName,
+		Admin:        isAdmin,
+		Activated:    autoActivate,
 	}
 
 	return newUser, nil
@@ -60,6 +62,14 @@ func NewUser(username Username, password string, isAdmin, autoActivate bool) (*U
 
 func (u *User) GetUsername() Username {
 	return u.Username
+}
+
+func (u *User) GetFullName() string {
+	return u.FullName
+}
+
+func (u *User) SetFullName(fullName string) {
+	u.FullName = fullName
 }
 
 func (u *User) SetHomeFolder(f *fileTree.WeblensFileImpl) {
@@ -111,7 +121,7 @@ func (u *User) CheckLogin(password string) bool {
 		return false
 	}
 
-	return bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(password)) == nil
+	return bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password)) == nil
 }
 
 func (u *User) SocketType() string {
@@ -130,7 +140,7 @@ func (u *User) UnmarshalJSON(data []byte) error {
 	}
 
 	u.Username = obj["username"].(string)
-	u.Password = obj["password"].(string)
+	u.PasswordHash = obj["password"].(string)
 	u.Activated = obj["activated"].(bool)
 	u.Admin = obj["admin"].(bool)
 	u.IsServerOwner = obj["owner"].(bool)
@@ -149,13 +159,14 @@ type UserService interface {
 	Add(user *User) error
 	Del(id Username) error
 	GetAll() (iter.Seq[*User], error)
-	CreateOwner(username, password string) (*User, error)
+	CreateOwner(username, password, fullName string) (*User, error)
 	GetPublicUser() *User
 	SearchByUsername(searchString string) (iter.Seq[*User], error)
 	SetUserAdmin(*User, bool) error
 	ActivateUser(*User, bool) error
 	GetRootUser() *User
 	UpdateUserHome(u *User) error
+	UpdateFullName(u *User, newFullName string) error
 
 	UpdateUserPassword(username Username, oldPassword, newPassword string, allowEmptyOld bool) error
 }

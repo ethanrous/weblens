@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -18,10 +17,11 @@ import (
 
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal"
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/task"
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -53,7 +53,7 @@ type FileServiceImpl struct {
 
 	folderCoverCol *mongo.Collection
 
-	log log.Bundle
+	log *zerolog.Logger
 
 	treesLock sync.RWMutex
 
@@ -74,7 +74,7 @@ type FolderCoverPair struct {
 }
 
 func NewFileService(
-	logger log.Bundle,
+	logger *zerolog.Logger,
 	instanceService models.InstanceService,
 	userService models.UserService,
 	accessService models.AccessService,
@@ -82,6 +82,7 @@ func NewFileService(
 	folderCoverCol *mongo.Collection,
 	trees ...fileTree.FileTree,
 ) (*FileServiceImpl, error) {
+
 	fs := &FileServiceImpl{
 		log:             logger,
 		trees:           map[string]fileTree.FileTree{},
@@ -98,7 +99,7 @@ func NewFileService(
 		fs.trees[tree.GetRoot().GetPortablePath().RootName()] = tree
 	}
 
-	sw := internal.NewStopwatch("File Service Init")
+	sw := internal.NewStopwatch("File Service Init", logger)
 
 	if usersTree, ok := fs.trees[UsersTreeKey]; ok {
 		err := fs.ResizeDown(usersTree.GetRoot(), nil, nil)
@@ -135,10 +136,6 @@ func (fs *FileServiceImpl) Size(treeAlias string) int64 {
 		return -1
 	}
 
-	// total := 0
-	// for _, tree := range fs.trees {
-	// 	total += tree.Size()
-	// }
 	return tree.GetRoot().Size()
 }
 
@@ -177,13 +174,13 @@ func (fs *FileServiceImpl) GetFileByContentId(contentId models.ContentId) (*file
 	}
 	fs.contentIdLock.RUnlock()
 
-	return nil, werror.WithStack(werror.ErrNoFile)
+	return nil, errors.WithStack(werror.ErrNoFile)
 }
 
 func (fs *FileServiceImpl) GetFiles(ids []fileTree.FileId) ([]*fileTree.WeblensFileImpl, []fileTree.FileId, error) {
 	usersTree := fs.trees[UsersTreeKey]
 	if usersTree == nil {
-		return nil, nil, werror.WithStack(werror.ErrNoFileTree.WithArg(UsersTreeKey))
+		return nil, nil, errors.WithStack(werror.ErrNoFileTree.WithArg(UsersTreeKey))
 	}
 
 	var files []*fileTree.WeblensFileImpl
@@ -193,7 +190,7 @@ func (fs *FileServiceImpl) GetFiles(ids []fileTree.FileId) ([]*fileTree.WeblensF
 		if lt == nil {
 			lostFiles = append(lostFiles, id)
 			continue
-			// return nil, nil, werror.WithStack(werror.ErrNoLifetime.WithArg(id))
+			// return nil, nil, errors.WithStack(werror.ErrNoLifetime.WithArg(id))
 		}
 		if lt.GetLatestAction().ActionType == fileTree.FileDelete {
 			contentId := lt.GetContentId()
@@ -225,27 +222,32 @@ func (fs *FileServiceImpl) GetFileSafe(id fileTree.FileId, user *models.User, sh
 ) {
 	tree := fs.trees[UsersTreeKey]
 	if tree == nil {
-		return nil, werror.WithStack(werror.ErrNoFileTree)
+		return nil, errors.WithStack(werror.ErrNoFileTree)
 	}
 
 	f := tree.Get(id)
 	if f == nil {
-		return nil, werror.WithStack(werror.ErrNoFile.WithArg(id))
+		return nil, errors.WithStack(werror.ErrNoFile.WithArg(id))
 	}
 
 	if !fs.accessService.CanUserAccessFile(user, f, share) {
-		log.ErrTrace(werror.Errorf(
+		fs.log.Error().Stack().Err(werror.Errorf(
 			"User [%s] attempted to access file at %s [%s], but they do not have access",
 			user.GetUsername(), f.GetPortablePath(), f.ID(),
-		))
-		return nil, werror.WithStack(werror.ErrNoFileAccess)
+		)).Msg("")
+		return nil, errors.WithStack(werror.ErrNoFileAccess)
 	}
 
 	return f, nil
 }
 
-func (fs *FileServiceImpl) GetFileTreeByName(treeName string) fileTree.FileTree {
-	return fs.trees[treeName]
+func (fs *FileServiceImpl) GetFileTreeByName(treeName string) (fileTree.FileTree, error) {
+	tree := fs.trees[treeName]
+	if tree == nil {
+		return nil, errors.WithStack(werror.ErrNoFileTree.WithArg(treeName))
+	}
+
+	return tree, nil
 }
 
 func (fs *FileServiceImpl) GetMediaCacheByFilename(thumbFileName string) (*fileTree.WeblensFileImpl, error) {
@@ -281,10 +283,10 @@ func (fs *FileServiceImpl) DeleteCacheFile(f fileTree.WeblensFile) error {
 	return nil
 }
 
-func (fs *FileServiceImpl) CreateFile(parent *fileTree.WeblensFileImpl, filename string, event *fileTree.FileEvent, caster models.FileCaster) (
+func (fs *FileServiceImpl) CreateFile(parent *fileTree.WeblensFileImpl, filename string, event *fileTree.FileEvent, caster models.FileCaster, data ...[]byte) (
 	*fileTree.WeblensFileImpl, error,
 ) {
-	newF, err := fs.trees[UsersTreeKey].Touch(parent, filename, event)
+	newF, err := fs.trees[UsersTreeKey].Touch(parent, filename, event, data...)
 	if err != nil {
 		return nil, err
 	}
@@ -308,13 +310,18 @@ func (fs *FileServiceImpl) CreateFolder(parent *fileTree.WeblensFileImpl, folder
 }
 
 func (fs *FileServiceImpl) CreateUserHome(user *models.User) error {
-	home, err := fs.trees[UsersTreeKey].MkDir(fs.trees[UsersTreeKey].GetRoot(), user.GetUsername(), nil)
+	usersTree := fs.trees[UsersTreeKey]
+	if usersTree == nil {
+		return errors.WithStack(werror.ErrNoFileTree)
+	}
+
+	home, err := usersTree.MkDir(usersTree.GetRoot(), user.GetUsername(), nil)
 	if err != nil && !errors.Is(err, werror.ErrDirAlreadyExists) {
 		return err
 	}
 	user.SetHomeFolder(home)
 
-	trash, err := fs.trees[UsersTreeKey].MkDir(home, UserTrashDirName, nil)
+	trash, err := usersTree.MkDir(home, UserTrashDirName, nil)
 	if err != nil && !errors.Is(err, werror.ErrDirAlreadyExists) {
 		return err
 	}
@@ -355,11 +362,11 @@ func (fs *FileServiceImpl) MoveFilesToTrash(
 
 	tree := fs.trees[UsersTreeKey]
 	if tree == nil {
-		return werror.WithStack(werror.ErrNoFileTree)
+		return errors.WithStack(werror.ErrNoFileTree)
 	}
 	trash := tree.Get(owner.TrashId)
 	if trash == nil {
-		return werror.WithStack(errors.New("trash folder does not exist"))
+		return errors.WithStack(errors.New("trash folder does not exist"))
 	}
 
 	event := tree.GetJournal().NewEvent()
@@ -374,7 +381,7 @@ func (fs *FileServiceImpl) MoveFilesToTrash(
 			return werror.Errorf("Cannot move file (%s) to trash because it is already in trash", file.AbsPath())
 		}
 		if !fs.accessService.CanUserAccessFile(user, file, share) {
-			return werror.WithStack(werror.ErrNoFileAccess)
+			return errors.WithStack(werror.ErrNoFileAccess)
 		}
 
 		newFilename := MakeUniqueChildName(trash, file.Filename())
@@ -390,16 +397,19 @@ func (fs *FileServiceImpl) MoveFilesToTrash(
 
 	err = fs.ResizeUp(oldParent, event, caster)
 	if err != nil {
-		log.ErrTrace(err)
+		fs.log.Error().Stack().Err(err).Msg("")
 	}
 
 	err = fs.ResizeUp(trash, event, caster)
 	if err != nil {
-		log.ErrTrace(err)
+		fs.log.Error().Stack().Err(err).Msg("")
 	}
 
 	tree.GetJournal().LogEvent(event)
-	event.Wait()
+	err = event.Wait()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -412,7 +422,7 @@ func (fs *FileServiceImpl) ReturnFilesFromTrash(
 
 	tree := fs.trees[UsersTreeKey]
 	if tree == nil {
-		return werror.WithStack(werror.ErrNoFileTree)
+		return errors.WithStack(werror.ErrNoFileTree)
 	}
 	journal := tree.GetJournal()
 	event := journal.NewEvent()
@@ -464,12 +474,12 @@ func (fs *FileServiceImpl) DeleteFiles(
 ) error {
 	tree := fs.trees[treeName]
 	if tree == nil {
-		return werror.WithStack(werror.ErrNoFileTree)
+		return errors.WithStack(werror.ErrNoFileTree)
 	}
 
 	restoreTree := fs.trees[RestoreTreeKey]
 	if restoreTree == nil {
-		return werror.WithStack(werror.ErrNoFileTree)
+		return errors.WithStack(werror.ErrNoFileTree)
 	}
 
 	deleteEvent := tree.GetJournal().NewEvent()
@@ -490,8 +500,8 @@ func (fs *FileServiceImpl) DeleteFiles(
 	trash := files[0].GetParent()
 
 	var dirIds []fileTree.FileId
-
 	var deletedFiles []*fileTree.WeblensFileImpl
+
 	for _, file := range files {
 		err := file.RecursiveMap(
 			func(f *fileTree.WeblensFileImpl) error {
@@ -501,7 +511,7 @@ func (fs *FileServiceImpl) DeleteFiles(
 				contentId := f.GetContentId()
 				m := fs.mediaService.Get(contentId)
 
-				child, err := restoreTree.GetRoot().GetChild(f.ID())
+				child, err := restoreTree.GetRoot().GetChild(f.GetContentId())
 				if err == nil && child.Exists() {
 					err = tree.Delete(f.ID(), deleteEvent)
 					if err != nil {
@@ -537,28 +547,30 @@ func (fs *FileServiceImpl) DeleteFiles(
 						}
 					}
 
+					// Check if the file already exists in the restore tree
 					_, err = restoreTree.GetRoot().GetChild(contentId)
-
 					if err != nil {
 						// A non-nil error here means the file does not exist, so we must move it to the restore tree
 
 						// Add the delete for this file to the event
 						// We must do this before moving/deleting the file, or the action will not be able to find the file
-						deleteEvent.NewDeleteAction(f.ID())
+						_, err = deleteEvent.NewDeleteAction(f.ID())
+						if err != nil {
+							return err
+						}
 
+						moveEvent := tree.GetJournal().NewEvent()
 						// Move file from users tree to the restore tree. Files later can be hard-linked back
 						// from the restore tree to the users tree, but will not be moved back.
 						err = fileTree.MoveFileBetweenTrees(
 							f, restoreTree.GetRoot(), f.GetContentId(), tree, restoreTree,
-							&fileTree.FileEvent{},
+							moveEvent,
 						)
 						if err != nil {
 							return err
 						}
 
-						fs.log.Trace.Func(func(l log.Logger) {
-							l.Printf("File [%s] moved from users tree to restore tree", f.GetPortablePath())
-						})
+						fs.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("File [%s] moved from users tree to restore tree", f.GetPortablePath()) })
 
 					} else {
 						// If the file already is in the restore tree, we can just delete it from the users tree.
@@ -569,11 +581,8 @@ func (fs *FileServiceImpl) DeleteFiles(
 							return err
 						}
 
-						fs.log.Trace.Func(func(l log.Logger) {
-							l.Printf(
-								"File [%s] already exists in restore tree, deleting from users tree",
-								f.GetPortablePath(),
-							)
+						fs.log.Trace().Func(func(e *zerolog.Event) {
+							e.Msgf("File [%s] already exists in restore tree, deleting from users tree", f.GetPortablePath())
 						})
 					}
 				}
@@ -615,7 +624,12 @@ func (fs *FileServiceImpl) RestoreFiles(
 ) error {
 	usersTree := fs.trees[UsersTreeKey]
 	if usersTree == nil {
-		return werror.WithStack(werror.ErrNoFileTree.WithArg(UsersTreeKey))
+		return errors.WithStack(werror.ErrNoFileTree.WithArg(UsersTreeKey))
+	}
+
+	restoreTree := fs.trees[RestoreTreeKey]
+	if restoreTree == nil {
+		return errors.WithStack(werror.ErrNoFileTree.WithArg(RestoreTreeKey))
 	}
 
 	journal := usersTree.GetJournal()
@@ -650,10 +664,7 @@ func (fs *FileServiceImpl) RestoreFiles(
 
 		var childIds []fileTree.FileId
 		if pastFile.IsDir() {
-			children, err := journal.GetPastFolderChildren(pastFile, restoreTime)
-			if err != nil {
-				return err
-			}
+			children := pastFile.GetChildren()
 
 			childIds = internal.Map(
 				children, func(child *fileTree.WeblensFileImpl) fileTree.FileId {
@@ -663,6 +674,9 @@ func (fs *FileServiceImpl) RestoreFiles(
 		}
 
 		path := pastFile.GetPortablePath().ToPortable()
+		if path == "" {
+			return werror.Errorf("Got empty string for portable path on past file [%s]", pastFile.AbsPath())
+		}
 		// Paths of directory files will have an extra / on the end, so we need to remove it
 		if pastFile.IsDir() {
 			path = path[:len(path)-1]
@@ -677,11 +691,11 @@ func (fs *FileServiceImpl) RestoreFiles(
 
 			// File has been deleted, get the file from the restore tree
 			if liveF := usersTree.Get(toRestore.fileId); liveF == nil {
-				_, err = fs.trees[RestoreTreeKey].GetRoot().GetChild(toRestore.contentId)
+				_, err = restoreTree.GetRoot().GetChild(toRestore.contentId)
 				if err != nil {
 					return err
 				}
-				existingPath = filepath.Join(fs.trees[RestoreTreeKey].GetRoot().AbsPath(), toRestore.contentId)
+				existingPath = filepath.Join(restoreTree.GetRoot().AbsPath(), toRestore.contentId)
 			} else {
 				existingPath = liveF.AbsPath()
 			}
@@ -696,10 +710,10 @@ func (fs *FileServiceImpl) RestoreFiles(
 				return err
 			}
 
-			fs.log.Trace.Func(func(l log.Logger) { l.Printf("Restoring file [%s] to [%s]", existingPath, restoredF.AbsPath()) })
+			fs.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Restoring file [%s] to [%s]", existingPath, restoredF.AbsPath()) })
 			err = os.Link(existingPath, restoredF.AbsPath())
 			if err != nil {
-				return werror.WithStack(err)
+				return errors.WithStack(err)
 			}
 
 			if toRestore.newParent == newParent {
@@ -723,7 +737,7 @@ func (fs *FileServiceImpl) RestoreFiles(
 			for _, childId := range childIds {
 				childLt := journal.Get(childId)
 				if childLt == nil {
-					return werror.WithStack(werror.ErrNoFile)
+					return errors.WithStack(werror.ErrNoFile)
 				}
 				restorePairs = append(
 					restorePairs,
@@ -751,7 +765,10 @@ func (fs *FileServiceImpl) RestoreFiles(
 	}
 
 	journal.LogEvent(event)
-	event.Wait()
+	err := event.Wait()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -803,7 +820,7 @@ func (fs *FileServiceImpl) RestoreHistory(lifetimes []*fileTree.Lifetime) error 
 func (fs *FileServiceImpl) NewZip(zipName string, owner *models.User) (*fileTree.WeblensFileImpl, error) {
 	cacheTree := fs.trees[CachesTreeKey]
 	if cacheTree == nil {
-		return nil, werror.ErrNoFileTree
+		return nil, errors.WithStack(werror.ErrNoFileTree)
 	}
 
 	cacheRoot := cacheTree.GetRoot()
@@ -907,12 +924,12 @@ func (fs *FileServiceImpl) NewBackupFile(lt *fileTree.Lifetime) (*fileTree.Weble
 
 	tree := fs.trees[lt.ServerId]
 	if tree == nil {
-		return nil, werror.WithStack(werror.ErrNoFileTree.WithArg(lt.ServerId))
+		return nil, errors.Wrapf(werror.ErrNoFileTree, "no tree for remote with id [%s]", lt.ServerId)
 	}
 
 	restoreTree := fs.trees[RestoreTreeKey]
 	if restoreTree == nil {
-		return nil, werror.WithStack(werror.ErrNoFileTree.WithArg(RestoreTreeKey))
+		return nil, errors.WithStack(werror.ErrNoFileTree.WithArg(RestoreTreeKey))
 	}
 
 	if lt.GetIsDir() {
@@ -920,7 +937,7 @@ func (fs *FileServiceImpl) NewBackupFile(lt *fileTree.Lifetime) (*fileTree.Weble
 		// no need to create a directory that no longer exists, just so long as it is
 		// included in the history, which is now is.
 		if lt.GetLatestPath().RootName() == "" {
-			fs.log.Trace.Func(func(l log.Logger) { l.Printf("Skipping dir that has no dest path") })
+			fs.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Skipping dir that has no dest path") })
 			return nil, nil
 		}
 
@@ -929,7 +946,7 @@ func (fs *FileServiceImpl) NewBackupFile(lt *fileTree.Lifetime) (*fileTree.Weble
 		latestAction := lt.GetLatestAction()
 		parent := tree.Get(latestAction.ParentId)
 		if parent == nil {
-			return nil, werror.WithStack(werror.ErrNoFile.WithArg(fmt.Sprintf("looking for parent of [%s]: %s", latestAction.DestinationPath, latestAction.ParentId)))
+			return nil, errors.WithStack(werror.ErrNoFile.WithArg(fmt.Sprintf("looking for parent of [%s]: %s", latestAction.DestinationPath, latestAction.ParentId)))
 		}
 
 		// Create the directory object and add it to the tree
@@ -939,7 +956,7 @@ func (fs *FileServiceImpl) NewBackupFile(lt *fileTree.Lifetime) (*fileTree.Weble
 			return nil, err
 		}
 
-		fs.log.Trace.Println("Creating backup dir", newDir.GetPortablePath())
+		fs.log.Trace().Msgf("Creating backup dir %s", newDir.GetPortablePath())
 
 		// Create the directory on disk
 		err = newDir.CreateSelf()
@@ -950,7 +967,7 @@ func (fs *FileServiceImpl) NewBackupFile(lt *fileTree.Lifetime) (*fileTree.Weble
 	}
 
 	if lt.GetContentId() == "" && lt.GetLatestSize() != 0 {
-		return nil, werror.WithStack(werror.ErrNoContentId)
+		return nil, errors.WithStack(werror.ErrNoContentId)
 	} else if lt.GetContentId() == "" {
 		return nil, nil
 	}
@@ -966,7 +983,7 @@ func (fs *FileServiceImpl) NewBackupFile(lt *fileTree.Lifetime) (*fileTree.Weble
 	} else {
 		_, err := restoreFile.LoadStat()
 		if err != nil {
-			return nil, werror.WithStack(err)
+			return nil, errors.WithStack(err)
 		}
 	}
 
@@ -979,13 +996,15 @@ func (fs *FileServiceImpl) NewBackupFile(lt *fileTree.Lifetime) (*fileTree.Weble
 
 		latestMove := lt.GetLatestMove()
 		if latestMove == nil {
-			return nil, werror.WithStack(werror.ErrNoFileAction.WithArg("no latest move"))
+			return nil, errors.WithStack(werror.ErrNoFileAction.WithArg("no latest move"))
 		}
 
 		parent := tree.Get(latestMove.ParentId)
 		if parent == nil {
-			fs.log.Debug.Printf("Parent [%s] not found trying to get parent for [%s]", latestMove.ParentId, lt.Id)
-			return nil, werror.WithStack(werror.ErrNoFile.WithArg("trying to get " + latestMove.ParentId))
+			fs.log.Debug().Func(func(e *zerolog.Event) {
+				e.Msgf("Parent [%s] not found trying to get parent for [%s]", latestMove.ParentId, lt.Id)
+			})
+			return nil, errors.WithStack(werror.ErrNoFile.WithArg("trying to get " + latestMove.ParentId))
 		}
 
 		newF := fileTree.NewWeblensFile(lt.ID(), newPortable.Filename(), parent, false)
@@ -996,19 +1015,19 @@ func (fs *FileServiceImpl) NewBackupFile(lt *fileTree.Lifetime) (*fileTree.Weble
 		}
 
 		if newF.Exists() {
-			fs.log.Warning.Printf("File [%s] already exists, overwriting", newF.AbsPath())
+			fs.log.Warn().Msgf("File [%s] already exists, overwriting", newF.AbsPath())
 			err = os.Remove(newF.AbsPath())
 			if err != nil {
-				return nil, werror.WithStack(err)
+				return nil, errors.WithStack(err)
 			}
 		}
 
-		fs.log.Trace.Func(func(l log.Logger) {
-			l.Printf("Linking %s -> %s", restoreFile.GetPortablePath().ToPortable(), portable.ToPortable())
+		fs.log.Trace().Func(func(e *zerolog.Event) {
+			e.Msgf("Linking %s -> %s", restoreFile.GetPortablePath().ToPortable(), portable.ToPortable())
 		})
 		err = os.Link(restoreFile.AbsPath(), newF.AbsPath())
 		if err != nil {
-			return nil, werror.WithStack(err)
+			return nil, errors.WithStack(err)
 		}
 	}
 
@@ -1018,7 +1037,7 @@ func (fs *FileServiceImpl) NewBackupFile(lt *fileTree.Lifetime) (*fileTree.Weble
 func (fs *FileServiceImpl) GetJournalByTree(treeName string) fileTree.Journal {
 	tree := fs.trees[treeName]
 	if tree == nil {
-		fs.log.Error.Printf("No tree with name %s", treeName)
+		fs.log.Error().Msgf("No tree with name %s", treeName)
 		return nil
 	}
 	return tree.GetJournal()
@@ -1027,18 +1046,18 @@ func (fs *FileServiceImpl) GetJournalByTree(treeName string) fileTree.Journal {
 func (fs *FileServiceImpl) SetFolderCover(folderId fileTree.FileId, coverId models.ContentId) error {
 	tree := fs.trees[UsersTreeKey]
 	if tree == nil {
-		return werror.ErrNoFileTree
+		return errors.WithStack(werror.ErrNoFileTree)
 	}
 
 	folder := tree.Get(folderId)
 	if folder == nil {
-		return werror.ErrNoFile
+		return errors.WithStack(werror.ErrNoFile)
 	}
 
 	if coverId == "" {
 		_, err := fs.folderCoverCol.DeleteOne(context.Background(), bson.M{"folderId": folderId})
 		if err != nil {
-			return werror.WithStack(err)
+			return errors.WithStack(err)
 		}
 
 		delete(fs.folderMedia, folderId)
@@ -1050,12 +1069,12 @@ func (fs *FileServiceImpl) SetFolderCover(folderId fileTree.FileId, coverId mode
 			context.Background(), bson.M{"folderId": folderId}, bson.M{"$set": bson.M{"coverId": coverId}},
 		)
 		if err != nil {
-			return werror.WithStack(err)
+			return errors.WithStack(err)
 		}
 	} else {
 		_, err := fs.folderCoverCol.InsertOne(context.Background(), bson.M{"folderId": folderId, "coverId": coverId})
 		if err != nil {
-			return werror.WithStack(err)
+			return errors.WithStack(err)
 		}
 	}
 
@@ -1150,6 +1169,7 @@ func (fs *FileServiceImpl) GetTasks(f *fileTree.WeblensFileImpl) []*task.Task {
 }
 
 func (fs *FileServiceImpl) ResizeUp(f *fileTree.WeblensFileImpl, event *fileTree.FileEvent, caster models.FileCaster) error {
+	fs.log.Trace().Msgf("Resizing up [%s]", f.GetPortablePath())
 	tree := fs.trees[f.GetPortablePath().RootName()]
 	if tree == nil {
 		return nil
@@ -1169,9 +1189,10 @@ func (fs *FileServiceImpl) ResizeUp(f *fileTree.WeblensFileImpl, event *fileTree
 }
 
 func (fs *FileServiceImpl) ResizeDown(f *fileTree.WeblensFileImpl, event *fileTree.FileEvent, caster models.FileCaster) error {
+	fs.log.Trace().Msgf("Resizing down [%s]", f.GetPortablePath())
 	tree := fs.trees[f.GetPortablePath().RootName()]
 	if tree == nil {
-		return nil
+		return errors.WithStack(werror.ErrNoFileTree)
 	}
 
 	err := tree.ResizeDown(f, event, func(f *fileTree.WeblensFileImpl) {
@@ -1184,10 +1205,11 @@ func (fs *FileServiceImpl) ResizeDown(f *fileTree.WeblensFileImpl, event *fileTr
 		return err
 	}
 
-	fs.log.Trace.Func(func(l log.Logger) {
-		if event != nil {
-			l.Printf("Resizing down event: %d", len(event.Actions))
+	fs.log.Trace().Func(func(e *zerolog.Event) {
+		if event == nil {
+			return
 		}
+		e.Msgf("Resizing down event: %d", len(event.Actions))
 	})
 
 	return nil
@@ -1196,7 +1218,7 @@ func (fs *FileServiceImpl) ResizeDown(f *fileTree.WeblensFileImpl, event *fileTr
 func (fs *FileServiceImpl) GetThumbsDir() (*fileTree.WeblensFileImpl, error) {
 	cacheTree := fs.trees[CachesTreeKey]
 	if cacheTree == nil {
-		return nil, werror.WithStack(werror.ErrNoFileTree.WithArg(CachesTreeKey))
+		return nil, errors.WithStack(werror.ErrNoFileTree.WithArg(CachesTreeKey))
 	}
 	return cacheTree.GetRoot().GetChild(ThumbsDirName)
 }
@@ -1210,7 +1232,7 @@ func (fs *FileServiceImpl) getFileByIdAndRoot(id fileTree.FileId, rootAlias stri
 	f := tree.Get(id)
 
 	if f == nil {
-		return nil, werror.WithStack(werror.ErrNoFile)
+		return nil, errors.WithStack(werror.ErrNoFile)
 	}
 
 	return f, nil
@@ -1221,7 +1243,7 @@ func (fs *FileServiceImpl) loadContentIdCache() error {
 	defer fs.contentIdLock.Unlock()
 	fs.contentIdCache = make(map[models.ContentId]*fileTree.WeblensFileImpl)
 
-	fs.log.Trace.Println("Loading contentId cache")
+	fs.log.Trace().Msg("Loading contentId cache")
 
 	_ = fs.trees[RestoreTreeKey].GetRoot().LeafMap(
 		func(f *fileTree.WeblensFileImpl) error {
@@ -1265,7 +1287,7 @@ func GenerateContentId(f *fileTree.WeblensFileImpl) (models.ContentId, error) {
 	fileSize := f.Size()
 
 	if fileSize == 0 {
-		return "", werror.WithStack(werror.ErrEmptyFile.WithArg(f.AbsPath()))
+		return "", errors.WithStack(werror.ErrEmptyFile.WithArg(f.AbsPath()))
 	}
 
 	if f.GetContentId() != "" {
@@ -1283,10 +1305,10 @@ func GenerateContentId(f *fileTree.WeblensFileImpl) (models.ContentId, error) {
 
 	if closer, ok := fp.(io.Closer); ok {
 		defer func(fp io.Closer) {
-			err := fp.Close()
-			if err != nil {
-				log.ShowErr(err)
-			}
+			_ = fp.Close()
+			// if err != nil {
+			// 	fs.log.Error().Stack().Err(err).Msg("")
+			// }
 		}(closer)
 	}
 

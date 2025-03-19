@@ -16,22 +16,25 @@ import (
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/models/rest"
 	"github.com/ethanrous/weblens/service/proxy"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 )
 
 func TestFiles(t *testing.T) {
 	t.Parallel()
 
+	logger := log.NewZeroLogger()
+	nop := zerolog.Nop()
+
 	coreServices, err := tests.NewWeblensTestInstance(t.Name(), env.Config{
-		Role:     string(models.CoreServerRole),
-		LogLevel: log.DEBUG,
-	})
+		Role: string(models.CoreServerRole),
+	}, &nop)
 
 	require.NoError(t, err)
 
 	keys, err := coreServices.AccessService.GetKeysByUser(coreServices.UserService.Get("test-username"))
 	if err != nil {
-		log.ErrTrace(err)
+		logger.Error().Stack().Err(err).Msg("")
 		t.FailNow()
 	}
 
@@ -47,26 +50,26 @@ func TestFiles(t *testing.T) {
 
 	err = simpleCreate(localCoreInstance, owner)
 	if err != nil {
-		log.ErrTrace(err)
+		logger.Error().Stack().Err(err).Msg("")
 		t.FailNow()
 	}
 
-	err = uploadFile(localCoreInstance, owner)
+	err = uploadFile(localCoreInstance, owner, logger)
 	if err != nil {
-		log.ErrTrace(err)
+		logger.Error().Stack().Err(err).Msg("")
 		t.FailNow()
 	}
 
 	err = moveFiles(localCoreInstance, owner)
 	if err != nil {
-		log.ErrTrace(err)
+		logger.Error().Stack().Err(err).Msg("")
 		t.FailNow()
 	}
 
 	ownerHomeInfoRequest := proxy.NewCoreRequest(localCoreInstance, "GET", "/folder/"+owner.HomeId)
 	ownerHomeInfo, err := proxy.CallHomeStruct[rest.FolderInfoResponse](ownerHomeInfoRequest)
 	if err != nil {
-		log.ErrTrace(err)
+		logger.Error().Stack().Err(err).Msg("")
 		t.FailNow()
 	}
 
@@ -107,7 +110,7 @@ func simpleCreate(core *models.Instance, owner *models.User) error {
 	return nil
 }
 
-func uploadFile(core *models.Instance, owner *models.User) error {
+func uploadFile(core *models.Instance, owner *models.User, logger *zerolog.Logger) error {
 	randomBytes, fileSize, err := makeRandomFile()
 	if err != nil {
 		return err
@@ -157,7 +160,7 @@ func uploadFile(core *models.Instance, owner *models.User) error {
 	returnedSize := getFileInfo.Size
 	timeout := 10
 	for returnedSize != fileSize {
-		log.Debug.Println("Waiting for file upload to complete")
+		logger.Debug().Func(func(e *zerolog.Event) { e.Msgf("Waiting for file upload to complete") })
 		time.Sleep(100 * time.Millisecond)
 		timeout--
 		if timeout == 0 {
@@ -315,7 +318,6 @@ func makeRandomFile() ([]byte, int64, error) {
 		return nil, 0, err
 	}
 	fileSize := nBig.Int64()
-	log.Debug.Printf("Generating file of size %d bytes", fileSize)
 
 	randomBytes := make([]byte, fileSize)
 	_, err = rand.Read(randomBytes)

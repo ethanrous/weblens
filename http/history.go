@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models/rest"
 )
@@ -22,8 +21,7 @@ func getLifetimesSince(w http.ResponseWriter, r *http.Request) {
 
 	millis, err := strconv.ParseInt(millisString, 10, 64)
 	if err != nil || millis < 0 {
-		safe, code := log.TrySafeErr(err)
-		writeError(w, code, safe)
+		SafeErrorAndExit(werror.ErrBadTimestamp, w)
 		return
 	}
 
@@ -40,6 +38,11 @@ func getLifetimesSince(w http.ResponseWriter, r *http.Request) {
 func doFullBackup(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
 	instance := getInstanceFromCtx(r)
+
+	if instance == nil {
+		SafeErrorAndExit(werror.ErrNoInstance, w)
+		return
+	}
 
 	millisString := r.URL.Query().Get("timestamp")
 	if millisString == "" {

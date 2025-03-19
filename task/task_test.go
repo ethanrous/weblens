@@ -4,9 +4,9 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	. "github.com/ethanrous/weblens/task"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,9 +17,8 @@ var subpoolJobName = "Test Subpool Job"
 func TestWorkerPoolBasic(t *testing.T) {
 	t.Parallel()
 
-	wpLogger := log.NewEmptyLogPackage()
-
-	wp := NewWorkerPool(2, wpLogger)
+	wpLogger := zerolog.Nop()
+	wp := NewWorkerPool(2, &wpLogger)
 	wp.RegisterJob(jobName, testJob)
 
 	wp.Run()
@@ -41,9 +40,8 @@ func TestSubPool(t *testing.T) {
 
 	t.Parallel()
 
-	wpLogger := log.NewEmptyLogPackage()
-
-	wp := NewWorkerPool(2, wpLogger)
+	wpLogger := zerolog.Nop()
+	wp := NewWorkerPool(2, &wpLogger)
 	wp.RegisterJob(jobName, testJob)
 	wp.RegisterJob(subpoolJobName, testSubpoolJob)
 	wp.Run()
@@ -73,9 +71,8 @@ func TestSubPool(t *testing.T) {
 func TestFailedJob(t *testing.T) {
 	t.Parallel()
 
-	wpLogger := log.NewEmptyLogPackage()
-
-	wp := NewWorkerPool(2, wpLogger)
+	wpLogger := zerolog.Nop()
+	wp := NewWorkerPool(2, &wpLogger)
 	wp.RegisterJob(jobName, testJob)
 	wp.RegisterJob(subpoolJobName, testSubpoolJob)
 	wp.Run()
@@ -118,7 +115,7 @@ func (f fakeJobMeta) Verify() error {
 func testJob(t *Task) {
 	meta := t.GetMeta().(fakeJobMeta)
 	if meta.shouldFail {
-		t.ReqNoErr(werror.Errorf("oh no"))
+		t.ReqNoErr(werror.Errorf("test error"))
 	}
 
 	t.SetResult(TaskResult{"test": "passed", "taskNum": meta.taskNum})

@@ -1,5 +1,3 @@
-@import "../../../components/theme.module.scss";
-
 .dir-view-header-wrapper {
 	display: flex;
 	flex-direction: row;
@@ -16,33 +14,28 @@
 	flex-grow: 1;
 	flex-direction: row;
 	align-items: center;
-	border-radius: 4px;
-	background-color: var(--wl-barely-visible);
-
-	box-shadow: var(--wl-soft-shadow);
 	margin-right: auto;
 	width: max-content;
 	max-width: max-content;
 	height: 50px;
 	color: white;
 	z-index: 5;
-	padding: 2px;
-
 }
 
 .file-sort-group {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
+	gap: 0.5rem;
 }
 
 .file-sort-divider {
 	height: 100%;
 	width: 1px;
-	background-color: #333333;
+	background-color: var(--color-border-primary);
 	padding-top: 1px;
 	padding-bottom: 1px;
-	margin: 4px;
+	margin: 0 0.5rem;
 }
 
 @media screen and (max-width: 800px) {

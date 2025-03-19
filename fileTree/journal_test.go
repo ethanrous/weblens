@@ -16,12 +16,11 @@ import (
 )
 
 func TestJournalImplSimple(t *testing.T) {
-	mondb, err := database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName(env.Config{}))
+	logger := log.NewZeroLogger()
+	mondb, err := database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName(env.Config{}), logger)
 	if err != nil {
 		panic(err)
 	}
-
-	logger := log.NewLogPackage("", log.DEBUG)
 
 	hasherFactory := func() Hasher {
 		hasher := mock.NewMockHasher()
@@ -30,13 +29,14 @@ func TestJournalImplSimple(t *testing.T) {
 	}
 
 	col := mondb.Collection(t.Name())
-	journal, err := NewJournal(
-		col,
-		"weblens_test_server",
-		false,
-		hasherFactory,
-		logger,
-	)
+	journalConfig := JournalConfig{
+		Collection:    col,
+		ServerId:      "weblens_test_server",
+		IgnoreLocal:   false,
+		HasherFactory: hasherFactory,
+		Logger:        logger,
+	}
+	journal, err := NewJournal(journalConfig)
 	require.NoError(t, err)
 	defer journal.Close()
 	err = col.Drop(context.Background())
@@ -67,12 +67,12 @@ func TestJournalImplSimple(t *testing.T) {
 }
 
 func TestJournalImpl_GetPastFile(t *testing.T) {
-	mondb, err := database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName(env.Config{}))
+	logger := log.NewZeroLogger()
+
+	mondb, err := database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName(env.Config{}), logger)
 	if err != nil {
 		panic(err)
 	}
-
-	logger := log.NewLogPackage("", log.DEBUG)
 
 	hasherFactory := func() Hasher {
 		hasher := mock.NewMockHasher()
@@ -81,7 +81,14 @@ func TestJournalImpl_GetPastFile(t *testing.T) {
 	}
 
 	col := mondb.Collection(t.Name() + "-journal")
-	journal, err := NewJournal(col, "weblens_test_server", false, hasherFactory, logger)
+	journalConfig := JournalConfig{
+		Collection:    col,
+		ServerId:      "weblens_test_server",
+		IgnoreLocal:   false,
+		HasherFactory: hasherFactory,
+		Logger:        logger,
+	}
+	journal, err := NewJournal(journalConfig)
 	require.NoError(t, err)
 
 	defer journal.Close()
@@ -129,7 +136,7 @@ func TestJournalImpl_GetPastFile(t *testing.T) {
 				return f.Name()
 			},
 		)
-		log.Error.Println("Wrong children:", childNames)
+		logger.Error().Msgf("Wrong children: %v", childNames)
 		t.FailNow()
 	}
 

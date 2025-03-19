@@ -431,6 +431,12 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "description": "File format conversion",
+                        "name": "format",
+                        "in": "query"
+                    },
+                    {
                         "enum": [
                             true,
                             false
@@ -1020,6 +1026,41 @@ const docTemplate = `{
                 }
             }
         },
+        "/media/drop": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Media"
+                ],
+                "summary": "DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.",
+                "operationId": "DropMedia",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
         "/media/types": {
             "get": {
                 "produces": [
@@ -1088,9 +1129,7 @@ const docTemplate = `{
         "/media/{mediaId}.{extension}": {
             "get": {
                 "produces": [
-                    "image/webp",
-                    " image/png",
-                    " image/jpeg"
+                    "image/*"
                 ],
                 "tags": [
                     "Media"
@@ -1373,6 +1412,44 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/servers/reset": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Servers"
+                ],
+                "summary": "Reset server",
+                "operationId": "ResetServer",
+                "responses": {
+                    "202": {
+                        "description": "Accepted"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
                     "500": {
                         "description": "Internal Server Error"
                     }
@@ -1405,6 +1482,54 @@ const docTemplate = `{
                         "name": "serverId",
                         "in": "path",
                         "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "tags": [
+                    "Servers"
+                ],
+                "summary": "Update a remote",
+                "operationId": "UpdateRemote",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Server Id to update",
+                        "name": "serverId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Server Params",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/UpdateServerParams"
+                        }
                     }
                 ],
                 "responses": {
@@ -1665,7 +1790,10 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK"
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ShareInfo"
+                        }
                     },
                     "404": {
                         "description": "Not Found"
@@ -1794,7 +1922,7 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
+                    "201": {
                         "description": "Upload Info",
                         "schema": {
                             "$ref": "#/definitions/NewUploadInfo"
@@ -1884,7 +2012,7 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
+                    "201": {
                         "description": "FileIds",
                         "schema": {
                             "$ref": "#/definitions/NewFilesInfo"
@@ -2165,6 +2293,38 @@ const docTemplate = `{
                 }
             }
         },
+        "/users/unique": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Check if username is unique",
+                "operationId": "CheckUsernameUnique",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Username to check",
+                        "name": "username",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "409": {
+                        "description": "Conflict"
+                    }
+                }
+            }
+        },
         "/users/{username}": {
             "delete": {
                 "security": [
@@ -2240,7 +2400,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
-                        "description": "Target admin status",
+                        "description": "Target activation status",
                         "name": "setActive",
                         "in": "query",
                         "required": true
@@ -2314,6 +2474,65 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found"
+                    }
+                }
+            }
+        },
+        "/users/{username}/fullName": {
+            "patch": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Update full name of user",
+                "operationId": "ChangeFullName",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Username of user to update",
+                        "name": "username",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "New full name of user",
+                        "name": "newFullName",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorInfo"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorInfo"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorInfo"
+                        }
                     }
                 }
             }
@@ -2873,8 +3092,7 @@ const docTemplate = `{
         "NewUserParams": {
             "type": "object",
             "required": [
-                "admin",
-                "autoActivate",
+                "fullName",
                 "password",
                 "username"
             ],
@@ -2884,6 +3102,9 @@ const docTemplate = `{
                 },
                 "autoActivate": {
                     "type": "boolean"
+                },
+                "fullName": {
+                    "type": "string"
                 },
                 "password": {
                     "type": "string"
@@ -2995,7 +3216,7 @@ const docTemplate = `{
                 "accessors": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/UserInfo"
                     }
                 },
                 "enabled": {
@@ -3058,11 +3279,28 @@ const docTemplate = `{
                 }
             }
         },
+        "UpdateServerParams": {
+            "type": "object",
+            "properties": {
+                "coreAddress": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "usingKey": {
+                    "type": "string"
+                }
+            }
+        },
         "UserInfo": {
             "type": "object",
             "properties": {
                 "admin": {
                     "type": "boolean"
+                },
+                "fullName": {
+                    "type": "string"
                 },
                 "homeId": {
                     "type": "string"
@@ -3095,6 +3333,9 @@ const docTemplate = `{
                 },
                 "admin": {
                     "type": "boolean"
+                },
+                "fullName": {
+                    "type": "string"
                 },
                 "homeId": {
                     "type": "string"
@@ -3173,6 +3414,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "coreKey": {
+                    "type": "string"
+                },
+                "fullName": {
                     "type": "string"
                 },
                 "localId": {

@@ -1,4 +1,3 @@
-import { Divider } from '@mantine/core'
 import {
     IconChevronLeft,
     IconChevronRight,
@@ -14,7 +13,11 @@ import { FileApi } from '@weblens/api/FileBrowserApi'
 import MediaApi from '@weblens/api/MediaApi'
 import { useWebsocketStore } from '@weblens/api/Websocket'
 import WeblensButton from '@weblens/lib/WeblensButton'
-import { downloadSelected } from '@weblens/pages/FileBrowser/FileBrowserLogic'
+import { useKeyDown, useResize, useResizeDrag } from '@weblens/lib/hooks'
+import {
+    calculateShareId,
+    downloadSelected,
+} from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { ErrorHandler } from '@weblens/types/Types'
 import WeblensFile from '@weblens/types/files/File'
@@ -34,8 +37,6 @@ import { useNavigate } from 'react-router-dom'
 
 import { humanFileSize } from '../util'
 import { useSessionStore } from './UserInfo'
-import { useKeyDown, useResize, useResizeDrag } from './hooks'
-import presentationStyle from './presentationStyle.module.scss'
 
 export const PresentationContainer = ({
     onMouseMove,
@@ -48,12 +49,12 @@ export const PresentationContainer = ({
 }) => {
     return (
         <div
-            className="flex justify-center items-center top-0 left-0 p-6 h-full 
-                        w-full z-50 bg-bottom-grey bg-opacity-90 backdrop-blur absolute gap-6"
+            className="bg-background-primary/85 absolute top-0 left-0 z-50 flex h-full w-full items-center justify-center gap-6 p-6 backdrop-blur-sm"
             onMouseMove={onMouseMove}
             onClick={onClick}
-            children={children}
-        />
+        >
+            {children}
+        </div>
     )
 }
 
@@ -128,7 +129,7 @@ export const ContainerMedia = ({
             )
         }
         return (
-            <div className="flex flex-col no-scrollbar gap-1 h-full">
+            <div className="no-scrollbar flex h-full flex-col gap-1">
                 {pages.map((p) => p)}
             </div>
         )
@@ -180,7 +181,7 @@ function TextDisplay({
 
     return (
         <div
-            className="p-8 bg-[#282c34] rounded"
+            className="bg-background-secondary rounded-sm p-8"
             onClick={(e) => e.stopPropagation()}
         >
             <ReactCodeMirror
@@ -234,22 +235,22 @@ function MediaHeart({ mediaData }: { mediaData: WeblensMedia }) {
                 setLikedHover(false)
             }}
         >
-            <div className="flex flex-row h-max items-center justify-center relative">
+            <div className="relative flex h-max flex-row items-center justify-center">
                 <IconHeart
                     size={30}
                     fill={isLiked ? 'red' : ''}
                     color={isLiked ? 'red' : 'white'}
                 />
                 {mediaData.GetLikedBy()?.length !== 0 && (
-                    <p className="text-xs mt-auto">
+                    <p className="mt-auto text-xs">
                         {mediaData.GetLikedBy()?.length}
                     </p>
                 )}
             </div>
             {likedHover && otherLikes && (
-                <div className="flex flex-col bg-bottom-grey p-2 rounded items-center absolute bottom-7 right-0 w-max">
+                <div className="bg-background-secondary/75 absolute right-0 bottom-7 flex w-max flex-col items-center rounded-sm p-2">
                     <p>Likes</p>
-                    <div className="bg-raised-grey h-[1px] w-full m-1" />
+                    <div className="bg-raised-grey m-1 h-[1px] w-full" />
                     {mediaData.GetLikedBy().map((username: string) => {
                         return (
                             <p className="text-lg" key={username}>
@@ -268,7 +269,6 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
         state.mediaMap.get(file.GetContentId())
     )
     const user = useSessionStore((state) => state.user)
-    const shareId = useFileBrowserStore((state) => state.shareId)
 
     const wsSend = useWebsocketStore((state) => state.wsSend)
     const removeLoading = useFileBrowserStore((state) => state.removeLoading)
@@ -280,13 +280,13 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
     const [size, units] = humanFileSize(file.GetSize())
     return (
         <div
-            className={presentationStyle['file-info-box']}
+            className="text-color-text-primary relative mx-auto flex w-max"
             onClick={(e) => e.stopPropagation()}
         >
-            <div className="flex flex-col justify-center h-max max-w-full gap-2">
+            <div className="flex h-max max-w-full flex-col justify-center gap-2">
                 {file.IsFolder() && <IconFolder size={'1em'} />}
                 <h3 className="truncate font-bold">{file.GetFilename()}</h3>
-                <div className="flex flex-row text-white items-center">
+                <div className="flex flex-row items-center text-white">
                     <h4>{size}</h4>
                     <h4>{units}</h4>
                 </div>
@@ -299,21 +299,38 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
                         })}
                     </h4>
                 </div>
-                <WeblensButton
-                    label={'Download'}
-                    Left={IconDownload}
-                    onClick={() => {
-                        downloadSelected(
-                            [file],
-                            removeLoading,
-                            wsSend,
-                            shareId
-                        ).catch(ErrorHandler)
-                    }}
-                />
+                <div className="flex flex-row gap-2">
+                    <WeblensButton
+                        label={'Download'}
+                        Left={IconDownload}
+                        onClick={() => {
+                            const shareId = calculateShareId([file])
+                            downloadSelected(
+                                [file],
+                                removeLoading,
+                                wsSend,
+                                shareId
+                            ).catch(ErrorHandler)
+                        }}
+                    />
+                    {mediaData?.mediaType?.IsDisplayable && (
+                        <WeblensButton
+                            label={'Jpeg'}
+                            Left={IconDownload}
+                            onClick={() => {
+                                const shareId = calculateShareId([file])
+                                downloadSelected(
+                                    [file],
+                                    removeLoading,
+                                    wsSend,
+                                    shareId
+                                ).catch(ErrorHandler)
+                            }}
+                        />
+                    )}
+                </div>
                 {mediaData && (
                     <div>
-                        <Divider className="p-1" />
                         {!user.isLoggedIn && (
                             <div className="flex items-center">
                                 <WeblensButton
@@ -332,9 +349,9 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
                             </div>
                         )}
                         {user.isLoggedIn && (
-                            <div className="flex gap-1 items-center text-white">
+                            <div className="flex items-center gap-1 text-white">
                                 <IconPhoto className="shrink-0" />
-                                <p className="text-xl text-nowrap mr-4">
+                                <p className="mr-4 text-xl text-nowrap">
                                     {mediaData
                                         .GetCreateDate()
                                         .toLocaleDateString('en-us', {
@@ -389,10 +406,10 @@ export const PresentationVisual = ({
     }, [Element, splitSize, screenSize])
 
     return (
-        <div ref={setScreenRef} className="flex items-center h-full w-full">
+        <div ref={setScreenRef} className="flex h-full w-full items-center">
             {mediaData && (
                 <div
-                    className="flex items-center justify-center h-full"
+                    className="flex h-full items-center justify-center"
                     style={imgStyle}
                     ref={setContainerRef}
                 >
@@ -404,11 +421,11 @@ export const PresentationVisual = ({
             )}
             {mediaData && Element && (
                 <div
-                    className="flex h-1/6 w-4 cursor-pointer justify-center m-12"
+                    className="m-12 flex h-1/6 w-4 cursor-pointer justify-center"
                     onClick={(e) => e.stopPropagation()}
                     onMouseDown={() => setDragging(true)}
                 >
-                    <div className="h-full w-1/12 bg-[#666666] rounded" />
+                    <div className="h-full w-1/12 rounded-sm bg-[#666666]" />
                 </div>
             )}
             {Element && <Element />}
@@ -499,7 +516,7 @@ export function PresentationFile({ file }: { file: WeblensFile }) {
             <ContainerMedia mediaData={mediaData} containerRef={containerRef} />
         )
     } else if (file.IsFolder()) {
-        Visual = <IconFolder className="w-[50%] h-[50%]" />
+        Visual = <IconFolder className="h-[50%] w-[50%]" />
     } else {
         Visual = <TextDisplay file={file} shareId={shareId} />
     }
@@ -527,23 +544,31 @@ export function PresentationFile({ file }: { file: WeblensFile }) {
 
             <div
                 ref={setContainerRef}
-                className="flex grow justify-center items-center h-full"
-                style={{ maxWidth: fileInfoOpen ? '45%' : '98%' }}
+                className="mx-auto flex h-full max-w-full min-w-0 grow items-center justify-center"
             >
                 {Visual}
             </div>
-            <ToggleInfoIcon
-                className="cursor-pointer text-white shrink-0 max-4-[4%]"
+            <WeblensButton
+                flavor="outline"
+                Left={ToggleInfoIcon}
+                className="max-4-[4%] shrink-0"
                 onClick={(e) => {
                     e.stopPropagation()
                     setFileInfoOpen(!fileInfoOpen)
                 }}
             />
-            {fileInfoOpen && (
-                <div className="flex max-w-[48%] relative items-center grow">
-                    <FileInfo file={file} />
-                </div>
-            )}
+            {/* <ToggleInfoIcon */}
+            {/*     className="max-4-[4%] shrink-0 cursor-pointer text-white" */}
+            {/* /> */}
+            <div
+                className="relative flex w-max grow items-center transition-[max-width]"
+                style={{
+                    maxWidth: fileInfoOpen ? '40%' : 0,
+                    opacity: fileInfoOpen ? '100%' : 0,
+                }}
+            >
+                <FileInfo file={file} />
+            </div>
         </PresentationContainer>
     )
 }
@@ -602,7 +627,7 @@ function Presentation({ mediaId, element, setTarget }: PresentationProps) {
                 />
             </div>
             <div
-                className="presentation-icon bottom-4 right-4"
+                className="presentation-icon right-4 bottom-4"
                 data-shown={guiShown || isLiked}
                 onClick={(e) => {
                     e.stopPropagation()
@@ -619,9 +644,9 @@ function Presentation({ mediaId, element, setTarget }: PresentationProps) {
                     setLikedHover(false)
                 }}
             >
-                <div className="flex flex-col h-max items-center justify-center">
+                <div className="flex h-max flex-col items-center justify-center">
                     {mediaData.GetLikedBy()?.length !== 0 && (
-                        <p className="absolute text-xs right-0 -bottom-1">
+                        <p className="absolute right-0 -bottom-1 text-xs">
                             {mediaData.GetLikedBy()?.length}
                         </p>
                     )}
@@ -632,9 +657,9 @@ function Presentation({ mediaId, element, setTarget }: PresentationProps) {
                     />
                 </div>
                 {likedHover && otherLikes && (
-                    <div className="flex flex-col bg-bottom-grey p-2 rounded items-center absolute bottom-7 right-0 w-max">
+                    <div className="bg-background-secondary/75 absolute right-0 bottom-7 flex w-max flex-col items-center rounded-sm p-2">
                         <p>Likes</p>
-                        <div className="bg-raised-grey h-[1px] w-full m-1" />
+                        <div className="bg-raised-grey m-1 h-[1px] w-full" />
                         {mediaData.GetLikedBy().map((username: string) => {
                             return (
                                 <p className="text-lg" key={username}>

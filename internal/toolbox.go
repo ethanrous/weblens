@@ -10,7 +10,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/ethanrous/weblens/internal/log"
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
 type WeblensHash struct {
@@ -77,9 +78,11 @@ func RecoverPanic(preText string) {
 
 	err, ok := r.(error)
 	if !ok {
-		log.ErrorCatcher.Println(preText, identifyPanic(), r)
+		err = errors.Errorf("Unknown panic in panic handler: %v", r)
+		log.Error().Stack().Err(err).Msg(preText)
 	} else {
-		log.ErrTrace(err)
+		err = errors.WithStack(err)
+		log.Error().Stack().Err(err).Msg(preText)
 	}
 
 }

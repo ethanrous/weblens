@@ -1,10 +1,17 @@
 import { IconFolder, IconHome, IconSlash, IconTrash } from '@tabler/icons-react'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import historyStyle from '@weblens/components/filebrowser/historyStyle.module.scss'
 import { filenameFromPath } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { FC } from 'react'
 
-export function PathFmt({ pathName }: { pathName: string }) {
+export function PathFmt({
+    pathName,
+    excludeBasenameMatching,
+    className,
+}: {
+    pathName: string
+    excludeBasenameMatching?: string
+    className?: string
+}) {
     pathName = pathName.slice(pathName.indexOf(':') + 1)
     const parts = pathName.split('/')
 
@@ -12,7 +19,7 @@ export function PathFmt({ pathName }: { pathName: string }) {
         parts.pop()
     }
 
-    let StartIcon: FC<{ className: string }>
+    let StartIcon: FC<{ className: string; size?: number }>
     while (parts.includes('.user_trash')) {
         parts.shift()
         StartIcon = IconTrash
@@ -25,23 +32,26 @@ export function PathFmt({ pathName }: { pathName: string }) {
         StartIcon = IconHome
     }
 
+    if (parts[parts.length - 1] === excludeBasenameMatching) {
+        parts.pop()
+    }
+
     return (
         <div
-            className="flex items-center min-w-0"
+            className={'flex min-w-0 items-center ' + (className ?? '')}
             style={{ flexShrink: parts.length ? 1 : 0 }}
         >
-            <StartIcon className="shrink-0 text-[--wl-text-color]" />
+            <StartIcon className="shrink-0" size={16} />
             {parts.map((part) => {
                 return (
                     <div
                         key={part}
-                        className="flex w-max items-center shrink min-w-0"
+                        className="flex w-max min-w-0 shrink items-center"
                     >
-                        <IconSlash
-                            className="text-[--wl-text-color] shrink-0"
-                            size={18}
-                        />
-                        <p className={historyStyle['path-text']}>{part}</p>
+                        <IconSlash className="shrink-0" size={16} />
+                        <span className="truncate font-[inherit] [font-weight:inherit] text-nowrap">
+                            {part}
+                        </span>
                     </div>
                 )
             })}
@@ -49,9 +59,15 @@ export function PathFmt({ pathName }: { pathName: string }) {
     )
 }
 
-export function FileFmt({ pathName }: { pathName: string }) {
+export function FileFmt({
+    pathName,
+    className,
+}: {
+    pathName: string
+    className?: string
+}) {
     let nameText = '---'
-    let StartIcon: FC<{ className: string }> = IconFolder
+    let StartIcon: FC<{ className: string; size: number }> = IconFolder
     if (pathName) {
         const fname = filenameFromPath(pathName)
         nameText = fname.nameText
@@ -59,13 +75,19 @@ export function FileFmt({ pathName }: { pathName: string }) {
     }
 
     return (
-        <div className="flex items-center w-max min-w-0 max-w-full">
+        <div
+            className={
+                'flex w-max max-w-full min-w-0 items-center gap-1 ' +
+                (className ?? '')
+            }
+        >
             {StartIcon && (
-                <StartIcon className="theme-text m-1 shrink-0 text-[--wl-text-color]" />
+                <StartIcon className="theme-text shrink-0" size={16} />
             )}
-            <p className="theme-text select-none font-semibold text-lg text-nowrap truncate">
+            <span className="truncate font-[inherit] [font-weight:inherit] text-nowrap select-none">
                 {nameText}
-            </p>
+            </span>
         </div>
     )
 }
+

@@ -5,7 +5,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/ethanrous/weblens/internal/log"
+	"github.com/rs/zerolog"
 )
 
 type lap struct {
@@ -25,10 +25,15 @@ type sw struct {
 	stop  time.Time
 	name  string
 	laps  []lap
+	log   *zerolog.Logger
 }
 
-func NewStopwatch(name string) Stopwatch {
-	return &sw{name: name, start: time.Now()}
+func NewStopwatch(name string, log *zerolog.Logger) Stopwatch {
+	return &sw{
+		name:  name,
+		start: time.Now(),
+		log:   log,
+	}
 }
 
 func (s *sw) Stop() time.Duration {
@@ -71,65 +76,64 @@ var (
 )
 
 func (s *sw) PrintResults(firstLapIsStart bool) {
-	if log.GetLogLevel() != log.TRACE {
-		return
-	}
-
 	if s.stop.Unix() < 0 {
-		log.Error.Println("Stopwatch cannot provide results before being stopped")
+		s.log.Error().Stack().Msg("Stopwatch cannot provide results before being stopped")
 		return
 	}
 
-	var res = fmt.Sprintf("--- %s Stopwatch ---", s.name)
+	s.log.Trace().Func(func(e *zerolog.Event) {
+		var res = fmt.Sprintf("--- %s Stopwatch ---", s.name)
 
-	var startTime time.Time
-	if firstLapIsStart {
-		if len(s.laps) <= 1 {
-			return
-		}
-		startTime = s.laps[0].time
-	} else {
-		startTime = s.start
-	}
-
-	if len(s.laps) != 0 {
-		longestNameLen := len(slices.MaxFunc(s.laps, func(a, b lap) int { return len(a.tag) - len(b.tag) }).tag)
-		lapFmt := fmt.Sprintf("\t%%-%ds %%-15s (%%s since start -- %%s since creation)", longestNameLen+5)
-
-		var lapTimes []time.Duration
-		longestLap := time.Duration(0)
-
-		for i := range s.laps {
-			var sinceLast time.Duration
-			if i != 0 {
-				sinceLast = s.laps[i].time.Sub(s.laps[i-1].time)
-			} else {
-				sinceLast = s.laps[i].time.Sub(s.start)
+		var startTime time.Time
+		if firstLapIsStart {
+			if len(s.laps) <= 1 {
+				return
 			}
-			lapTimes = append(lapTimes, sinceLast)
-			if sinceLast > longestLap {
-				longestLap = sinceLast
-			}
+			startTime = s.laps[0].time
+		} else {
+			startTime = s.start
 		}
 
-		for i, sinceLast := range lapTimes {
-			l := s.laps[i]
-			if l.tag != "" {
-				color := ""
-				timeStr := sinceLast.String()
-				if float64(sinceLast) > float64(longestLap)*0.75 {
-					color = red
-				} else if float64(sinceLast) > float64(longestLap)*0.50 {
-					color = orange
+		if len(s.laps) != 0 {
+			longestNameLen := len(slices.MaxFunc(s.laps, func(a, b lap) int { return len(a.tag) - len(b.tag) }).tag)
+			lapFmt := fmt.Sprintf("\t%%-%ds %%-15s (%%s since start -- %%s since creation)", longestNameLen+5)
+
+			var lapTimes []time.Duration
+			longestLap := time.Duration(0)
+
+			for i := range s.laps {
+				var sinceLast time.Duration
+				if i != 0 {
+					sinceLast = s.laps[i].time.Sub(s.laps[i-1].time)
 				} else {
-					color = green
+					sinceLast = s.laps[i].time.Sub(s.start)
 				}
-				res = fmt.Sprintf(
-					"%s%s\n%s%s", res, color, fmt.Sprintf(lapFmt, l.tag, timeStr, l.time.Sub(startTime), l.time.Sub(s.start)), reset,
-				)
+				lapTimes = append(lapTimes, sinceLast)
+				if sinceLast > longestLap {
+					longestLap = sinceLast
+				}
+			}
+
+			for i, sinceLast := range lapTimes {
+				l := s.laps[i]
+				if l.tag != "" {
+					color := ""
+					timeStr := sinceLast.String()
+					if float64(sinceLast) > float64(longestLap)*0.75 {
+						color = red
+					} else if float64(sinceLast) > float64(longestLap)*0.50 {
+						color = orange
+					} else {
+						color = green
+					}
+					res = fmt.Sprintf(
+						"%s%s\n%s%s", res, color, fmt.Sprintf(lapFmt, l.tag, timeStr, l.time.Sub(startTime), l.time.Sub(s.start)), reset,
+					)
+				}
 			}
 		}
-	}
 
-	fmt.Printf("%s\n%s\n", res, fmt.Sprintf("Stopped at %s", s.stop.Sub(startTime)))
+		e.Msgf("%s\n%s\n", res, fmt.Sprintf("Stopped at %s", s.stop.Sub(startTime)))
+	})
+
 }

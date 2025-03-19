@@ -7,10 +7,9 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
-	"github.com/ethanrous/weblens/models/rest"
+	"github.com/rs/zerolog/log"
 )
 
 type Request struct {
@@ -27,7 +26,7 @@ type Request struct {
 func NewCoreRequest(remote *models.Instance, method, endpoint string) Request {
 	reqUrl, err := url.JoinPath(remote.Address, "/api", endpoint)
 	if err != nil {
-		log.ErrTrace(err)
+		log.Error().Stack().Err(err).Msg("")
 		return Request{}
 	}
 
@@ -47,7 +46,7 @@ func (r Request) WithHeader(key, val string) Request {
 func (r Request) OverwriteEndpoint(newEndpoint string) Request {
 	reqUrl, err := url.JoinPath(r.remote.Address, newEndpoint)
 	if err != nil {
-		log.ErrTrace(err)
+		log.Error().Stack().Err(err).Msg("")
 		return Request{}
 	}
 	r.url = reqUrl
@@ -67,6 +66,10 @@ func (r Request) WithBody(body any) Request {
 func (r Request) WithBodyBytes(bodyBytes []byte) Request {
 	r.body = bodyBytes
 	return r
+}
+
+type ErrorInfo struct {
+	Error string `json:"error"`
 }
 
 func (r Request) Call() (*http.Response, error) {
@@ -100,19 +103,19 @@ func (r Request) Call() (*http.Response, error) {
 	}
 
 	req.Header.Add("Authorization", "Bearer "+string(r.remote.UsingKey))
+	// req.Header.Add("Wl-Server-Id", LocalInstance.ServerId())
+	log.Debug().Msgf("Calling home to %s [%s %s] with key [%s]", r.remote.Id, r.method, req.URL.String(), r.remote.UsingKey)
 	cli := &http.Client{}
 	resp, err := cli.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	if resp.StatusCode >= 400 {
-		log.TraceCaller(2, "Call home failed from here")
-
 		defer resp.Body.Close()
-		target := rest.WeblensErrorInfo{}
+		target := ErrorInfo{}
 		bs, err := io.ReadAll(resp.Body)
 		if err != nil {
-			log.ErrTrace(err)
+			log.Error().Stack().Err(err).Msg("")
 			return nil, werror.Errorf("Failed to call home to [%s %s]: %s", r.method, req.URL.String(), resp.Status)
 		}
 

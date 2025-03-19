@@ -8,23 +8,23 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/fileTree"
-	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/models/rest"
 	"github.com/ethanrous/weblens/service/proxy"
 	"github.com/ethanrous/weblens/task"
+	"github.com/rs/zerolog"
 )
 
 func BackupD(interval time.Duration, pack *models.ServicePack) {
 	if pack.InstanceService.GetLocal().GetRole() != models.BackupServerRole {
-		log.Error.Println("Backup service cannot be run on non-backup instance")
+		pack.Log.Error().Msg("Backup service cannot be run on non-backup instance")
 		return
 	}
 	for {
 		now := time.Now()
 		sleepFor := now.Truncate(interval).Add(interval).Sub(now)
-		log.Debug.Println("BackupD going to sleep for", sleepFor)
+		pack.Log.Debug().Func(func(e *zerolog.Event) { e.Msgf("BackupD going to sleep for %s", sleepFor) })
 		time.Sleep(sleepFor)
 
 		for _, remote := range pack.InstanceService.GetRemotes() {
@@ -34,7 +34,7 @@ func BackupD(interval time.Duration, pack *models.ServicePack) {
 
 			_, err := BackupOne(remote, pack)
 			if err != nil {
-				log.ErrTrace(err)
+				pack.Log.Error().Stack().Err(err).Msg("")
 			}
 		}
 	}
@@ -57,6 +57,12 @@ func BackupOne(core *models.Instance, pack *models.ServicePack) (*task.Task, err
 func DoBackup(t *task.Task) {
 	meta := t.GetMeta().(models.BackupMeta)
 
+	if meta.Core.Role != models.CoreServerRole || (meta.Core.GetReportedRole() != "" && meta.Core.GetReportedRole() != models.CoreServerRole) {
+		t.Fail(werror.Errorf("Remote role is [%s -- %s], expected core", meta.Core.Role, meta.Core.GetReportedRole()))
+	}
+
+	t.Log.Debug().Msgf("Starting backup of [%s] with adddress [%s] with key [%s]", meta.Core.Name, meta.Core.Address, meta.Core.UsingKey)
+
 	t.OnResult(
 		func(r task.TaskResult) {
 			meta.Caster.PushTaskUpdate(t, models.BackupProgressEvent, r)
@@ -67,7 +73,7 @@ func DoBackup(t *task.Task) {
 		func(errTsk *task.Task) {
 			err := errTsk.ReadError()
 			if err == nil {
-				log.Error.Println("Trying to show error in backup task, but error is nil")
+				t.Log.Error().Msg("Trying to show error in backup task, but error is nil")
 				return
 			}
 
@@ -91,7 +97,7 @@ func DoBackup(t *task.Task) {
 	// 	t.Fail(werror.Errorf("Core websocket not connected"))
 	// }
 
-	// log.Debug.Printf("Starting backup of [%s]", coreClient.GetRemote().GetName())
+	// log.Debug().Func(func(e *zerolog.Event) {e.Msgf("Starting backup of [%s]", coreClient.GetRemote().GetName())})
 
 	stages := models.NewBackupTaskStages()
 
@@ -99,16 +105,16 @@ func DoBackup(t *task.Task) {
 	t.SetResult(task.TaskResult{"stages": stages, "coreId": meta.Core.ServerId()})
 
 	// Read core server info and check if it is really a core server
-	req := proxy.NewCoreRequest(meta.Core, "GET", "/info")
-	infoRes, err := proxy.CallHomeStruct[rest.ServerInfo](req)
-	if err != nil {
-		t.ReqNoErr(err)
-	}
-
-	meta.Core.SetReportedRole(infoRes.Role)
-	if infoRes.Role != models.CoreServerRole {
-		t.ReqNoErr(werror.Errorf("Remote role is [%s] expected core", infoRes.Role))
-	}
+	// req := proxy.NewCoreRequest(meta.Core, "GET", "/info")
+	// infoRes, err := proxy.CallHomeStruct[rest.ServerInfo](req)
+	// if err != nil {
+	// 	t.ReqNoErr(err)
+	// }
+	//
+	// meta.Core.SetReportedRole(infoRes.Role)
+	// if infoRes.Role != models.CoreServerRole {
+	// 	t.ReqNoErr(werror.Errorf("Remote role is [%s] expected core", infoRes.Role))
+	// }
 
 	// Find most recent action timestamp
 	latest, err := meta.FileService.GetJournalByTree(meta.Core.Id).GetLatestAction()
@@ -121,12 +127,12 @@ func DoBackup(t *task.Task) {
 		latestTime = latest.GetTimestamp()
 	}
 
-	log.Trace.Func(func(l log.Logger) { l.Printf("Backup latest action is %s", latestTime.String()) })
+	t.Log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Backup latest action is %s", latestTime.String()) })
 
 	stages.StartStage("fetching_backup_data")
 	t.SetResult(task.TaskResult{"stages": stages})
 
-	backupRq := proxy.NewCoreRequest(meta.Core, "GET", "/servers/backup").WithQuery("timestamp", strconv.FormatInt(latestTime.UnixMilli(), 10))
+	backupRq := proxy.NewCoreRequest(meta.Core, "GET", "/servers/backup").WithQuery("timestamp", strconv.FormatInt(latestTime.UnixMilli(), 10)).WithHeader("Wl-Server-Id", meta.InstanceService.GetLocal().ServerId())
 	backupResponse, err := proxy.CallHomeStruct[rest.BackupInfo](backupRq)
 	t.ReqNoErr(err)
 
@@ -163,6 +169,7 @@ func DoBackup(t *task.Task) {
 	// Write instances to access service
 	for _, serverInfo := range backupResponse.Instances {
 		instance := rest.ServerInfoToInstance(serverInfo)
+		instance.CreatedBy = meta.Core.ServerId()
 		if err := meta.InstanceService.Get(instance.ServerId()); err == nil {
 			continue
 		}
@@ -176,8 +183,8 @@ func DoBackup(t *task.Task) {
 	stages.StartStage("sync_journal")
 	t.SetResult(task.TaskResult{"stages": stages})
 
-	log.Trace.Func(func(l log.Logger) {
-		l.Printf("Backup got %d updated lifetimes from core", len(backupResponse.FileHistory))
+	t.Log.Trace().Func(func(e *zerolog.Event) {
+		e.Msgf("Backup got %d updated lifetimes from core", len(backupResponse.FileHistory))
 	})
 
 	stages.StartStage("sync_fs")
@@ -196,8 +203,8 @@ func DoBackup(t *task.Task) {
 	}
 
 	if len(journal.GetAllLifetimes()) < backupResponse.LifetimesCount {
-		log.Debug.Func(func(l log.Logger) {
-			l.Printf("Backup journal is missing %d lifetimes", backupResponse.LifetimesCount-len(journal.GetAllLifetimes()))
+		t.Log.Debug().Func(func(e *zerolog.Event) {
+			e.Msgf("Backup journal is missing %d lifetimes", backupResponse.LifetimesCount-len(journal.GetAllLifetimes()))
 		})
 
 		req := proxy.NewCoreRequest(meta.Core, "GET", "/journal").WithQuery("timestamp", "0")
@@ -227,7 +234,7 @@ func DoBackup(t *task.Task) {
 		latestMove := lt.GetLatestMove()
 
 		existingFile, err := meta.FileService.GetFileByTree(lt.ID(), meta.Core.ServerId())
-		log.Trace.Printf("File %s exists: %v", lt.GetLatestPath(), existingFile != nil)
+		t.Log.Trace().Func(func(e *zerolog.Event) { e.Msgf("File %s exists: %v", lt.GetLatestPath(), existingFile != nil) })
 
 		// If the file already exists, but is the wrong size, an earlier copy most likely failed. Delete it and copy it again.
 		if existingFile != nil && !existingFile.IsDir() && existingFile.Size() != lt.Actions[0].Size {
@@ -280,7 +287,7 @@ func DoBackup(t *task.Task) {
 			continue
 		}
 
-		log.Trace.Printf("Queuing copy file task for %s", restoreFile.GetPortablePath())
+		t.Log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Queuing copy file task for %s", restoreFile.GetPortablePath()) })
 
 		// Spawn subtask to copy the file from the core server
 		copyFileMeta := models.BackupCoreFileMeta{
@@ -296,7 +303,7 @@ func DoBackup(t *task.Task) {
 		t.ReqNoErr(err)
 	}
 
-	log.Debug.Printf("Waiting for %d copy file tasks", pool.Status().Total)
+	t.Log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Waiting for %d copy file tasks", pool.Status().Total) })
 
 	pool.SignalAllQueued()
 	pool.Wait(true)
@@ -308,8 +315,12 @@ func DoBackup(t *task.Task) {
 	stages.FinishStage("sync_fs")
 	t.SetResult(task.TaskResult{"stages": stages})
 
-	root, err := meta.FileService.GetFileByTree("ROOT", meta.Core.ServerId())
-	t.ReqNoErr(err)
+	coreTree, err := meta.FileService.GetFileTreeByName(meta.Core.ServerId())
+	if err != nil {
+		t.Fail(err)
+	}
+
+	root := coreTree.GetRoot()
 
 	err = meta.FileService.ResizeDown(root, nil, meta.Caster)
 	t.ReqNoErr(err)
@@ -331,7 +342,7 @@ func CopyFileFromCore(t *task.Task) {
 		meta.Caster.PushTaskUpdate(t, models.CopyFileFailedEvent, task.TaskResult{"filename": meta.Filename, "coreId": meta.Core.ServerId()})
 		rmErr := meta.FileService.DeleteFiles([]*fileTree.WeblensFileImpl{meta.File}, meta.Core.ServerId(), meta.Caster)
 		if rmErr != nil {
-			log.ErrTrace(rmErr)
+			t.Log.Error().Stack().Err(rmErr).Msg("")
 		}
 	})
 
@@ -346,7 +357,7 @@ func CopyFileFromCore(t *task.Task) {
 		},
 	)
 
-	log.Trace.Func(func(l log.Logger) { l.Printf("Copying file from core [%s]", meta.File.Filename()) })
+	t.Log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Copying file from core [%s]", meta.File.Filename()) })
 
 	if meta.File.GetContentId() == "" {
 		t.ReqNoErr(werror.WithStack(werror.ErrNoContentId))
@@ -471,11 +482,11 @@ func RestoreCore(t *task.Task) {
 
 		f, err := meta.Pack.FileService.GetFileByContentId(lt.GetContentId())
 		if err != nil {
-			log.ErrTrace(err)
+			t.Log.Error().Stack().Err(err).Msg("")
 			continue
 		}
 		if f == nil {
-			log.Error.Printf("File not found for contentId [%s]", lt.GetContentId())
+			t.Log.Error().Msgf("File not found for contentId [%s]", lt.GetContentId())
 			continue
 		}
 
