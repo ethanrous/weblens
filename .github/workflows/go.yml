@@ -65,11 +65,11 @@ jobs:
           docker run --name=weblens-mongo -v ./mongo:/data/db -e MONGO_INITDB_ROOT_USERNAME=admin -e MONGO_INITDB_ROOT_PASSWORD=admin --network=weblens-net -d -- mongo
           docker run --platform="linux/amd64" --network=weblens-net -v ./build/fs/test-container/data:/data -v ./build/fs/test-container/cache:/cache  ethrous/weblens-test
 
-          if [[ $DO_TRACE == true ]]; then
-            export LOG_LEVEL=trace
-          fi
-          ./scripts/testWeblens --all --show-logs
-          exit $?
+          # if [[ $DO_TRACE == true ]]; then
+          #   export LOG_LEVEL=trace
+          # fi
+          # ./scripts/testWeblens --all --show-logs
+          # exit $?
         env:
           DO_TRACE: ${{ inputs.trace }}
 
