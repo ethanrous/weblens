@@ -55,10 +55,11 @@ while [ "${1:-}" != "" ]; do
     shift
 done
 
+printf "Checking connection to docker..."
+
 sudo docker ps &>/dev/null
 docker_status=$?
 
-printf "Checking connection to docker..."
 if [ $docker_status != 0 ]; then
     printf " FAILED\n"
     echo "Aborting container build. Ensure docker is runnning"
@@ -79,10 +80,6 @@ if [ ! $skip_tests == true ]; then
     fi
 fi
 
-if [[ ! -e ./build/ffmpeg ]]; then
-    docker run --platform linux/amd64 -v ./scripts/buildFfmpeg.sh:/buildFfmpeg.sh -v ./build:/build --rm alpine /buildFfmpeg.sh
-fi
-
 df_path="./docker/Dockerfile"
 if [ "$base_image" == "debian" ]; then
     df_path="./docker/Debian.Dockerfile"
@@ -100,7 +97,7 @@ echo "Weblens build version: $WEBLENS_BUILD_VERSION"
 
 printf "Building Weblens container..."
 sudo docker rmi ethrous/weblens:"$full_tag" &>/dev/null
-sudo docker build --platform "linux/$arch" -t ethrous/weblens:"$full_tag" --build-arg WEBLENS_BUILD_VERSION="$WEBLENS_BUILD_VERSION" --build-arg ARCHITECTURE="$arch" -f $df_path .
+sudo docker build --platform "linux/$arch" -t ethrous/weblens:"$full_tag" --build-arg WEBLENS_BUILD_VERSION="$WEBLENS_BUILD_VERSION" --build-arg ARCHITECTURE="$arch" -f $df_path . || exit 1
 
 if [ $do_push == true ]; then
     sudo docker push ethrous/weblens:"$full_tag"
