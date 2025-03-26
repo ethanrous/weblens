@@ -9,8 +9,7 @@ mkdir -p ./build/bin
 mkdir -p ./build/logs
 
 docker_tag=devel_$(git rev-parse --abbrev-ref HEAD)
-arch="arm64"
-# arch="amd64"
+arch="amd64"
 
 # Once the container is build, push it to docker hub
 do_push=false
