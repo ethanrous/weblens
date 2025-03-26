@@ -8,7 +8,7 @@ import (
 )
 
 type LoginBody struct {
-	Username models.Username `json:"username"`
+	Username string `json:"username"`
 	Password string          `json:"password"`
 } // @name LoginBody
 
@@ -38,7 +38,7 @@ type MediaTimeBody struct {
 
 type NewUserParams struct {
 	FullName     string          `json:"fullName" validate:"required"`
-	Username     models.Username `json:"username" validate:"required"`
+	Username     string `json:"username" validate:"required"`
 	Password     string          `json:"password" validate:"required"`
 	Admin        bool            `json:"admin"`
 	AutoActivate bool            `json:"autoActivate"`
@@ -67,14 +67,14 @@ type PasswordUpdateParams struct {
 
 type FileShareParams struct {
 	FileId   fileTree.FileId   `json:"fileId"`
-	Users    []models.Username `json:"users"`
+	Users    []string `json:"users"`
 	Public   bool              `json:"public"`
 	Wormhole bool              `json:"wormhole"`
 } // @name FileShareParams
 
 type AlbumShareParams struct {
 	AlbumId fileTree.FileId   `json:"albumId"`
-	Users   []models.Username `json:"users"`
+	Users   []string `json:"users"`
 	Public  bool              `json:"public"`
 } // @name AlbumShareParams
 
@@ -82,7 +82,7 @@ type InitServerParams struct {
 	Name string            `json:"name"`
 	Role models.ServerRole `json:"role"`
 
-	Username    models.Username      `json:"username"`
+	Username    string      `json:"username"`
 	Password    string               `json:"password"`
 	FullName    string               `json:"fullName"`
 	CoreAddress string               `json:"coreAddress"`
@@ -142,8 +142,8 @@ type UpdateAlbumParams struct {
 	RemoveMedia []models.ContentId `json:"removeMedia"`
 	Cover       models.ContentId   `json:"cover"`
 	NewName     string             `json:"newName"`
-	Users       []models.Username  `json:"users"`
-	RemoveUsers []models.Username  `json:"removeUsers"`
+	Users       []string  `json:"users"`
+	RemoveUsers []string  `json:"removeUsers"`
 } // @name UpdateAlbumParams
 
 type CreateAlbumParams struct {
@@ -151,8 +151,8 @@ type CreateAlbumParams struct {
 } // @name CreateAlbumParams
 
 type UserListBody struct {
-	AddUsers    []models.Username `json:"addUsers"`
-	RemoveUsers []models.Username `json:"removeUsers"`
+	AddUsers    []string `json:"addUsers"`
+	RemoveUsers []string `json:"removeUsers"`
 }
 
 type SharePublicityBody struct {

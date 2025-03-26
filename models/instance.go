@@ -147,24 +147,24 @@ func (wi *Instance) SocketType() string {
 	return "serverClient"
 }
 
-type InstanceService interface {
-	Size() int
-
-	Get(dbId string) *Instance
-	GetAllByOriginServer(serverId InstanceId) []*Instance
-	GetByInstanceId(serverId InstanceId) *Instance
-	Add(instance *Instance) error
-	Update(instance *Instance) error
-	Del(dbId primitive.ObjectID) error
-	GetLocal() *Instance
-	GetCores() []*Instance
-	GetRemotes() []*Instance
-	InitCore(serverName string) error
-	InitBackup(name, coreAddr string, key WeblensApiKey) (*Instance, error)
-	SetLastBackup(id InstanceId, time time.Time) error
-	AttachRemoteCore(coreAddr string, key string) (*Instance, error)
-	ResetAll() error
-}
+// type InstanceService interface {
+// 	Size() int
+//
+// 	Get(dbId string) *Instance
+// 	GetAllByOriginServer(serverId InstanceId) []*Instance
+// 	GetByInstanceId(serverId InstanceId) *Instance
+// 	Add(instance *Instance) error
+// 	Update(instance *Instance) error
+// 	Del(dbId primitive.ObjectID) error
+// 	GetLocal() *Instance
+// 	GetCores() []*Instance
+// 	GetRemotes() []*Instance
+// 	InitCore(serverName string) error
+// 	InitBackup(name, coreAddr string, key WeblensApiKey) (*Instance, error)
+// 	SetLastBackup(id InstanceId, time time.Time) error
+// 	AttachRemoteCore(coreAddr string, key string) (*Instance, error)
+// 	ResetAll() error
+// }
 
 type WeblensApiKey = string
 
@@ -179,18 +179,18 @@ type ApiKey struct {
 	Id          primitive.ObjectID `bson:"_id"`
 }
 
-type AccessService interface {
-	GenerateJwtToken(user *User) (token string, expires time.Time, err error)
-	GetApiKey(key WeblensApiKey) (ApiKey, error)
-	AddApiKey(key ApiKey) error
-	GetUserFromToken(token string) (*User, error)
-	DeleteApiKey(key WeblensApiKey) error
-	GenerateApiKey(creator *User, local *Instance, keyName string) (ApiKey, error)
-	CanUserAccessFile(user *User, file *fileTree.WeblensFileImpl, share *FileShare) bool
-	CanUserModifyShare(user *User, share Share) bool
-	CanUserAccessAlbum(user *User, album *Album, share *AlbumShare) bool
-
-	GetKeysByUser(accessor *User) ([]ApiKey, error)
-	GetAllKeysByServer(accessor *User, serverId InstanceId) ([]ApiKey, error)
-	SetKeyUsedBy(key WeblensApiKey, server *Instance) error
-}
+// type AccessService interface {
+// 	GenerateJwtToken(user *User) (token string, expires time.Time, err error)
+// 	GetApiKey(key WeblensApiKey) (ApiKey, error)
+// 	AddApiKey(key ApiKey) error
+// 	GetUserFromToken(token string) (*User, error)
+// 	DeleteApiKey(key WeblensApiKey) error
+// 	GenerateApiKey(creator *User, local *Instance, keyName string) (ApiKey, error)
+// 	CanUserAccessFile(user *User, file *fileTree.WeblensFileImpl, share *FileShare) bool
+// 	CanUserModifyShare(user *User, share Share) bool
+// 	CanUserAccessAlbum(user *User, album *Album, share *AlbumShare) bool
+//
+// 	GetKeysByUser(accessor *User) ([]ApiKey, error)
+// 	GetAllKeysByServer(accessor *User, serverId InstanceId) ([]ApiKey, error)
+// 	SetKeyUsedBy(key WeblensApiKey, server *Instance) error
+// }

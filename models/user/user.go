@@ -1,0 +1,296 @@
+package user
+
+import (
+	"context"
+	"iter"
+
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/models/db"
+	"github.com/ethanrous/weblens/modules/crypto"
+	"github.com/pkg/errors"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+const UserCollectionKey = "users"
+
+type UserPermissions int
+
+const (
+	UserPermissionPublic UserPermissions = iota
+	UserPermissionBasic
+	UserPermissionAdmin
+	UserPermissionOwner
+	UserPermissionSystem
+)
+
+type User struct {
+	// Database id of the user
+	Id primitive.ObjectID `bson:"_id"`
+
+	// Username is the unique identifier for the user. can only contain alphanumeric characters, underscores, and hyphens
+	Username string `bson:"username"`
+
+	// DisplayName is the name shown in the gui for the user, typically the full name of the user
+	DisplayName string `bson:"fullName"`
+
+	// Password is the bcrypt hash of the user's password
+	Password string `bson:"password"`
+
+	// The id of the user's home folder
+	HomeId fileTree.FileId `bson:"homeId"`
+
+	// The id of the user's trash folder
+	TrashId fileTree.FileId `bson:"trashId"`
+
+	// The id of the server instance that created this user
+	CreatedBy string `bson:"createdBy"`
+
+	// Level of user permissions: basic, admin, or owner
+	UserPerms UserPermissions `bson:"userPerms"`
+
+	// Is the user activated
+	Activated bool `bson:"activated"`
+}
+
+func CreateUser(ctx context.Context, u *User) (err error) {
+	if err := validateUsername(u.Username); err != nil {
+		return err
+	}
+
+	if err := validatePassword(u.Password); err != nil {
+		return err
+	}
+
+	if u.Password, err = crypto.HashUserPassword(u.Password); err != nil {
+		return err
+	}
+
+	if col, dberr := db.GetCollection(ctx, UserCollectionKey); dberr == nil {
+		_, err = col.InsertOne(ctx, u)
+	} else {
+		return dberr
+	}
+
+	return
+}
+
+func GetUserByUsername(ctx context.Context, username string) (u *User, err error) {
+	col, err := db.GetCollection(ctx, UserCollectionKey)
+	if err != nil {
+		return
+	}
+
+	filter := bson.M{"username": username}
+	res := col.FindOne(ctx, filter)
+
+	if res.Err() != nil {
+		return nil, res.Err()
+	}
+
+	err = res.Decode(u)
+
+	return
+}
+
+func GetAllUsers(ctx context.Context) (us []*User, err error) {
+	col, err := db.GetCollection(ctx, UserCollectionKey)
+	if err != nil {
+		return
+	}
+
+	res, err := col.Find(ctx, bson.M{})
+	if err != nil {
+		return
+	}
+
+	err = res.All(ctx, us)
+
+	return
+}
+
+func (u *User) UpdatePassword(ctx context.Context, newPass string) (err error) {
+	if err = validatePassword(newPass); err != nil {
+		return
+	}
+
+	if u.Password, err = crypto.HashUserPassword(newPass); err != nil {
+		return err
+	}
+
+	col, err := db.GetCollection(ctx, UserCollectionKey)
+	if err != nil {
+		return
+	}
+
+	_, err = col.UpdateOne(ctx, bson.M{"_id": u.Id}, bson.M{"$set": bson.M{"password": u.Password}})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	return
+}
+
+func (u *User) UpdatePermissionLevel(ctx context.Context, newPermissionLevel UserPermissions) (err error) {
+	col, err := db.GetCollection(ctx, UserCollectionKey)
+	if err != nil {
+		return
+	}
+
+	_, err = col.UpdateOne(ctx, bson.M{"_id": u.Id}, bson.M{"$set": bson.M{"userPerms": newPermissionLevel}})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	return
+}
+
+func (u *User) UpdateActivationStatus(ctx context.Context, active bool) (err error) {
+	col, err := db.GetCollection(ctx, UserCollectionKey)
+	if err != nil {
+		return
+	}
+
+	_, err = col.UpdateOne(ctx, bson.M{"_id": u.Id}, bson.M{"$set": bson.M{"activated": active}})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	return
+}
+
+func (u *User) UpdateDisplayName(ctx context.Context, newName string) (err error) {
+	col, err := db.GetCollection(ctx, UserCollectionKey)
+	if err != nil {
+		return
+	}
+
+	_, err = col.UpdateOne(ctx, bson.M{"_id": u.Id}, bson.M{"$set": bson.M{"fullName": newName}})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	return
+}
+
+func (u *User) Delete(ctx context.Context) (err error) {
+	col, err := db.GetCollection(ctx, UserCollectionKey)
+	if err != nil {
+		return
+	}
+
+	_, err = col.DeleteOne(ctx, bson.M{"_id": u.Id})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	return
+}
+
+func SearchByUsername(ctx context.Context, partialUsername string) ([]*User, error) {
+	col, err := db.GetCollection(ctx, UserCollectionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	opts := options.Find().SetLimit(10)
+	ret, err := col.Find(context.Background(), bson.M{"username": bson.M{"$regex": partialUsername, "$options": "i"}}, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var users []*User
+	err = ret.All(ctx, &users)
+	if err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}
+
+func (u *User) GetUsername() string {
+	return u.Username
+}
+
+func (u *User) GetDisplayName() string {
+	return u.DisplayName
+}
+
+func (u *User) SetDisplayName(fullName string) {
+	u.DisplayName = fullName
+}
+
+func (u *User) SetHomeFolder(f *fileTree.WeblensFileImpl) {
+	if !f.IsDir() {
+		panic("home folder is not a directory")
+	}
+	if f.Filename() != u.Username {
+		panic("home folder filename does not match user")
+	}
+
+	u.HomeId = f.ID()
+}
+
+func (u *User) SetTrashFolder(f *fileTree.WeblensFileImpl) {
+	if !f.IsDir() {
+		panic("trash folder is not a directory")
+	}
+	if f.Filename() != ".user_trash" {
+		panic("trash folder filename is not correct")
+	}
+
+	u.TrashId = f.ID()
+}
+
+func (u *User) IsPublic() bool {
+	return u.UserPerms == UserPermissionPublic
+}
+
+func (u *User) IsAdmin() bool {
+	return u.UserPerms >= UserPermissionAdmin
+}
+
+func (u *User) IsOwner() bool {
+	return u.UserPerms >= UserPermissionOwner
+}
+
+func (u *User) IsSystemUser() bool {
+	return u.UserPerms >= UserPermissionSystem
+}
+
+func (u *User) IsActive() bool {
+	return u.Activated
+}
+
+func (u *User) CheckLogin(attempt string) bool {
+	if !u.Activated {
+		return false
+	}
+
+	return crypto.VerifyUserPassword(attempt, u.Password) == nil
+}
+
+var UserWebsocketType = "webClient"
+
+func (u *User) SocketType() string {
+	return UserWebsocketType
+}
+
+type UserService interface {
+	Size() int
+	Get(id string) *User
+	Add(user *User) error
+	Del(id string) error
+	GetAll() (iter.Seq[*User], error)
+	CreateOwner(username, password, fullName string) (*User, error)
+	GetPublicUser() *User
+	SearchByUsername(searchString string) (iter.Seq[*User], error)
+	SetUserAdmin(*User, bool) error
+	ActivateUser(*User, bool) error
+	GetRootUser() *User
+	UpdateUserHome(u *User) error
+	UpdateFullName(u *User, newFullName string) error
+
+	UpdateUserPassword(username string, oldPassword, newPassword string, allowEmptyOld bool) error
+}

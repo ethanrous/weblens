@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 
-	"github.com/ethanrous/weblens/http"
 	"github.com/ethanrous/weblens/internal/env"
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/setup"

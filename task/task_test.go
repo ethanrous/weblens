@@ -1,11 +1,10 @@
-package task_test
+package task
 
 import (
 	"math/rand"
 	"testing"
 
 	"github.com/ethanrous/weblens/internal/werror"
-	. "github.com/ethanrous/weblens/task"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

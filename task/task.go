@@ -9,8 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethanrous/weblens/internal"
 	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/services/context"
 	"github.com/rs/zerolog"
 )
 
@@ -28,14 +28,14 @@ func (tr TaskResult) ToMap() map[string]any {
 }
 
 type Task struct {
-	Log *zerolog.Logger
+	StartTime time.Time
+
+	Ctx context.NotifierContext
 
 	timeout  time.Time
 	metadata TaskMetadata
 
 	err error
-
-	sw internal.Stopwatch
 
 	taskPool      *TaskPool
 	childTaskPool *TaskPool
@@ -109,7 +109,7 @@ func (t *Task) setTaskPoolInternal(pool *TaskPool) {
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
 	t.taskPool = pool
-	t.Log.UpdateContext(func(c zerolog.Context) zerolog.Context {
+	t.Ctx.Log.UpdateContext(func(c zerolog.Context) zerolog.Context {
 		return c.Str("task_pool", pool.ID())
 	})
 }
@@ -139,13 +139,13 @@ func (t *Task) Status() (bool, TaskExitStatus) {
 // NewTask(...).Q(). Returns the given task to further support this
 func (t *Task) Q(tp *TaskPool) *Task {
 	if tp == nil {
-		t.Log.Error().Msg("nil task pool")
+		t.Ctx.Log.Error().Msg("nil task pool")
 		return nil
 		// tp = GetGlobalQueue()
 	}
 	err := tp.QueueTask(t)
 	if err != nil {
-		t.Log.Error().Stack().Err(err).Msg("")
+		t.Ctx.Log.Error().Stack().Err(err).Msg("")
 		return nil
 	}
 
@@ -176,7 +176,7 @@ func (t *Task) Wait() {
 // If a task finds itself not required to continue, success should
 // be returned
 func (t *Task) Cancel() {
-	t.Log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Cancelling task T[%s]", t.taskId) })
+	t.Ctx.Log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Cancelling task T[%s]", t.taskId) })
 
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
@@ -228,7 +228,7 @@ func (t *Task) ClearAndRecompute() {
 	}
 
 	if t.err != nil {
-		t.Log.Warn().Msgf("Retrying task that has previous error: %v", t.err)
+		t.Ctx.Log.Warn().Msgf("Retrying task that has previous error: %v", t.err)
 		t.err = nil
 	}
 
@@ -300,8 +300,6 @@ func (t *Task) error(err error) {
 	t.exitStatus = TaskError
 
 	t.updateMu.Unlock()
-	t.sw.Lap("Task exited due to error")
-	t.sw.Stop()
 }
 
 // ReqNoErr is a wrapper around t.Fail, but only fails if the error is not nil
@@ -379,10 +377,8 @@ func (t *Task) Success(msg ...any) {
 	t.queueState = Exited
 	t.exitStatus = TaskSuccess
 	if len(msg) != 0 {
-		t.Log.Info().Msgf("Task succeeded with a message: %s", fmt.Sprint(msg...))
+		t.Ctx.Log.Info().Msgf("Task succeeded with a message: %s", fmt.Sprint(msg...))
 	}
-
-	t.sw.Stop()
 }
 
 func (t *Task) QueueState() QueueState {
@@ -397,14 +393,14 @@ func (t *Task) SetTimeout(timeout time.Time) {
 	t.timeout = timeout
 	wp := t.GetTaskPool().GetWorkerPool()
 	wp.AddHit(timeout, t)
-	t.Log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Setting timeout for task [%s] to [%s]", t.TaskId(), timeout) })
+	t.Ctx.Log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Setting timeout for task [%s] to [%s]", t.TaskId(), timeout) })
 }
 
 func (t *Task) ClearTimeout() {
 	t.timerLock.Lock()
 	defer t.timerLock.Unlock()
 	t.timeout = time.Unix(0, 0)
-	t.Log.Trace().Func(func(e *zerolog.Event) { e.Msg("Clearing timeout") })
+	t.Ctx.Log.Trace().Func(func(e *zerolog.Event) { e.Msg("Clearing timeout") })
 }
 
 func (t *Task) GetTimeout() time.Time {
@@ -439,13 +435,10 @@ func (t *Task) SetResult(results TaskResult) {
 	t.updateMu.Unlock()
 }
 
-// Add a lap in the tasks stopwatch
-func (t *Task) SwLap(label string) {
-	t.sw.Lap(label)
-}
-
 func (t *Task) ExeTime() time.Duration {
-	return t.sw.GetTotalTime(true)
+	t.updateMu.RLock()
+	defer t.updateMu.RUnlock()
+	return time.Since(t.StartTime)
 }
 
 func globbyHash(charLimit int, dataToHash ...any) string {

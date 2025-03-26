@@ -17,27 +17,6 @@ type StackError interface {
 	Errorln() string
 }
 
-var (
-	red    = "\u001b[31m"
-	blue   = "\u001b[32m"
-	yellow = "\u001b[33m"
-	orange = "\u001b[36m"
-	reset  = "\u001B[0m"
-)
-
-func colorStatus(status int) string {
-	if status == 0 {
-		return fmt.Sprintf("\u001b[31m%d\u001B[0m", status)
-	} else if status < 400 {
-		return fmt.Sprintf("\u001b[32m%d\u001B[0m", status)
-	} else if status >= 400 && status < 500 {
-		return fmt.Sprintf("\u001b[33m%d\u001B[0m", status)
-	} else if status >= 500 {
-		return fmt.Sprintf("\u001b[31m%d\u001B[0m", status)
-	}
-	return fmt.Sprintf("\u001b[31m%s\u001B[0m", "BAD STATUS CODE")
-}
-
 func colorTime(dur time.Duration) string {
 	durString := dur.String()
 	lastDigitIndex := strings.LastIndexFunc(

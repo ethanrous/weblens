@@ -1,12 +1,10 @@
 package task
 
 import (
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/ethanrous/weblens/internal"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -222,7 +220,6 @@ func (wp *WorkerPool) DispatchJob(jobName string, meta TaskMetadata, pool *TaskP
 
 			waitChan: make(chan struct{}),
 
-			sw:  internal.NewStopwatch(fmt.Sprintf("%s Task [%s]", jobName, taskId), &logger),
 			Log: &logger,
 		}
 	}
