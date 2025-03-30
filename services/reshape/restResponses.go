@@ -6,7 +6,8 @@ package reshape
 import (
 	"encoding/json"
 
-	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/models/auth"
+	"github.com/ethanrous/weblens/modules/structs"
 )
 
 type Option[T any] struct {
@@ -36,33 +37,15 @@ type WeblensErrorInfo struct {
 	Error string `json:"error"`
 } // @name ErrorInfo
 
-type TakeoutInfo struct {
-	TakeoutId string `json:"takeoutId"`
-	TaskId    string `json:"taskId"`
-	Filename  string `json:"filename"`
-	Single    bool   `json:"single"`
-} // @name TakeoutInfo
-
 type DispatchInfo struct {
 	TaskId string `json:"taskId"`
 } // @name DispatchInfo
 
-type ApiKeyInfo struct {
-	Id           string               `json:"id" validate:"required"`
-	Name         string               `json:"name" validate:"required"`
-	Key          models.WeblensApiKey `json:"key" validate:"required"`
-	Owner        string               `json:"owner" validate:"required"`
-	RemoteUsing  models.InstanceId    `json:"remoteUsing" validate:"required"`
-	CreatedBy    models.InstanceId    `json:"createdBy" validate:"required"`
-	CreatedTime  int64                `json:"createdTime" validate:"required"`
-	LastUsedTime int64                `json:"lastUsedTime" validate:"required"`
-} // @name ApiKeyInfo
-
-func ApiKeyToApiKeyInfo(k models.ApiKey) ApiKeyInfo {
-	return ApiKeyInfo{
+func ApiKeyToApiKeyInfo(k auth.Token) structs.ApiKeyInfo {
+	return structs.ApiKeyInfo{
 		Id:           k.Id.Hex(),
-		Name:         k.Name,
-		Key:          k.Key,
+		Name:         k.Nickname,
+		Key:          string(k.Token[:]),
 		Owner:        k.Owner,
 		CreatedTime:  k.CreatedTime.UnixMilli(),
 		RemoteUsing:  k.RemoteUsing,
@@ -70,19 +53,3 @@ func ApiKeyToApiKeyInfo(k models.ApiKey) ApiKeyInfo {
 		LastUsedTime: k.LastUsed.UnixMilli(),
 	}
 }
-
-type NewUploadInfo struct {
-	UploadId string `json:"uploadId"`
-} // @name NewUploadInfo
-
-type NewFileInfo struct {
-	FileId string `json:"fileId"`
-} // @name NewFileInfo
-
-type NewFilesInfo struct {
-	FileIds []string `json:"fileIds"`
-} // @name NewFilesInfo
-
-type RestoreFilesInfo struct {
-	NewParentId string `json:"newParentId"`
-} //	@name	RestoreFilesInfo

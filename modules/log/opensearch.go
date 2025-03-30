@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/pkg/errors"
 	"github.com/opensearch-project/opensearch-go/v4"
 	opensearchapi "github.com/opensearch-project/opensearch-go/v4/opensearchapi"
 )

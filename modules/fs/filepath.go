@@ -3,6 +3,8 @@ package fs
 import (
 	"path/filepath"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 type Filepath struct {
@@ -10,7 +12,12 @@ type Filepath struct {
 	relPath   string
 }
 
-func NewFilePath(root, rootAlias, absolutePath string) Filepath {
+func NewFilePath(rootAlias, absolutePath string) (Filepath, error) {
+	var root string
+	if root = GetAbsolutePrefix(root); root == "" {
+		return Filepath{}, errors.Errorf("root alias %s not registered", rootAlias)
+	}
+
 	path := strings.TrimPrefix(absolutePath, root)
 	if len(path) != 0 && path[0] == '/' {
 		path = path[1:]
@@ -19,28 +26,20 @@ func NewFilePath(root, rootAlias, absolutePath string) Filepath {
 	return Filepath{
 		rootAlias: rootAlias,
 		relPath:   path,
-	}
+	}, nil
 }
 
-func ParsePortable(portablePath string) Filepath {
+func ParsePortable(portablePath string) (Filepath, error) {
 	colonIndex := strings.Index(portablePath, ":")
 	if colonIndex == -1 {
-		// util.ShowErr(
-		// 	types.WeblensErrorMsg(
-		// 		fmt.Sprintf(
-		// 			"could not get colon index parsing portable path [%s]",
-		// 			portablePath,
-		// 		),
-		// 	),
-		// )
-		return Filepath{}
+		return Filepath{}, errors.New("invalid portable path format: no colon found")
 	}
 	prefix := portablePath[:colonIndex]
 	postfix := portablePath[colonIndex+1:]
 	return Filepath{
 		rootAlias: prefix,
 		relPath:   postfix,
-	}
+	}, nil
 }
 
 func (wf Filepath) RootName() string {
@@ -75,6 +74,7 @@ func (wf Filepath) IsDir() bool {
 	return len(wf.relPath) == 0 || wf.relPath[len(wf.relPath)-1] == '/'
 }
 
+// Dir returns the filepath of the directory that the file is in.
 func (wf Filepath) Dir() Filepath {
 	dirPath := wf.relPath
 	if len(wf.relPath) != 0 && wf.relPath[len(wf.relPath)-1] == '/' {

@@ -6,9 +6,6 @@ import (
 	"fmt"
 	"hash"
 	"io"
-	"path/filepath"
-	"runtime"
-	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -43,31 +40,6 @@ func GlobbyHash(charLimit int, dataToHash ...any) string {
 	} else {
 		return h.Done(16)
 	}
-}
-
-func identifyPanic() string {
-	var name, file string
-	var line int
-	var pc [16]uintptr
-
-	n := runtime.Callers(3, pc[:])
-	for _, pc := range pc[:n] {
-		fn := runtime.FuncForPC(pc)
-		if fn == nil {
-			continue
-		}
-		file, line = fn.FileLine(pc)
-		name = fn.Name()
-		if !strings.HasPrefix(name, "runtime.") || strings.HasPrefix(name, "/opt/homebrew") {
-			break
-		}
-	}
-
-	if file != "" {
-		return fmt.Sprintf("%v:%v", filepath.Base(file), line)
-	}
-
-	return fmt.Sprintf("pc:%x", pc)
 }
 
 func RecoverPanic(preText string) {

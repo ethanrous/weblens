@@ -5,19 +5,21 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethanrous/weblens/fileTree"
-	"github.com/ethanrous/weblens/internal/werror"
+	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
-	"github.com/ethanrous/weblens/models/rest"
 	share_model "github.com/ethanrous/weblens/models/share"
-	"github.com/ethanrous/weblens/task"
+	"github.com/ethanrous/weblens/models/task"
+	"github.com/ethanrous/weblens/modules/structs"
+	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
+	"github.com/ethanrous/weblens/services/reshape"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
 type SimpleCaster struct {
 	// cm        ClientManager
-	msgChan   chan WsResponseInfo
+	msgChan   chan websocket_mod.WsResponseInfo
 	flushLock sync.RWMutex
 	enabled   atomic.Bool
 	global    atomic.Bool
@@ -50,17 +52,17 @@ func (c *SimpleCaster) Global() {
 
 func (c *SimpleCaster) Close() {
 	if !c.enabled.Load() {
-		panic(werror.Errorf("Caster double close"))
+		panic(errors.Errorf("Caster double close"))
 	} else if c.global.Load() {
 		return
 	}
 	c.enabled.Store(false)
-	c.msgChan <- WsResponseInfo{}
+	c.msgChan <- websocket_mod.WsResponseInfo{}
 }
 
 func NewSimpleCaster(log *zerolog.Logger) *SimpleCaster {
 	newCaster := &SimpleCaster{
-		msgChan: make(chan WsResponseInfo, 100),
+		msgChan: make(chan websocket_mod.WsResponseInfo, 100),
 		log:     log,
 	}
 
@@ -101,7 +103,7 @@ func (c *SimpleCaster) IsEnabled() bool {
 // 	close(c.msgChan)
 // }
 
-func (c *SimpleCaster) addToQueue(msg WsResponseInfo) {
+func (c *SimpleCaster) addToQueue(msg websocket_mod.WsResponseInfo) {
 	c.log.Trace().Func(func(e *zerolog.Event) {
 		e.Str("websocket_event", string(msg.EventTag)).Msg("Caster adding message to queue")
 	})
@@ -110,12 +112,12 @@ func (c *SimpleCaster) addToQueue(msg WsResponseInfo) {
 	c.msgChan <- (msg)
 }
 
-func (c *SimpleCaster) PushWeblensEvent(eventTag WsEvent, content ...WsC) {
+func (c *SimpleCaster) PushWeblensEvent(eventTag websocket_mod.WsEvent, content ...websocket_mod.WsData) {
 	if !c.enabled.Load() {
 		return
 	}
 
-	msg := WsResponseInfo{
+	msg := websocket_mod.WsResponseInfo{
 		EventTag:      eventTag,
 		SubscribeKey:  "WEBLENS",
 		BroadcastType: "serverEvent",
@@ -129,25 +131,86 @@ func (c *SimpleCaster) PushWeblensEvent(eventTag WsEvent, content ...WsC) {
 	c.addToQueue(msg)
 }
 
-func (c *SimpleCaster) PushTaskUpdate(task *task.Task, event WsEvent, result task.TaskResult) {
+func (c *SimpleCaster) PushTaskUpdate(task *task.Task, event websocket_mod.WsEvent, result task.TaskResult) {
 	if !c.enabled.Load() {
 		return
 	}
 
-	msg := WsResponseInfo{
+	msg := websocket_mod.WsResponseInfo{
 		EventTag:      event,
 		SubscribeKey:  task.TaskId(),
 		Content:       result.ToMap(),
 		TaskType:      task.JobName(),
-		BroadcastType: TaskSubscribe,
+		BroadcastType: websocket_mod.TaskSubscribe,
 		SentTime:      time.Now().Unix(),
 	}
 
 	c.addToQueue(msg)
 }
 
+func NewTaskNotification(task *task.Task, event websocket_mod.WsEvent, result task.TaskResult) websocket_mod.WsResponseInfo {
+	msg := websocket_mod.WsResponseInfo{
+		EventTag:      event,
+		SubscribeKey:  task.TaskId(),
+		Content:       result.ToMap(),
+		TaskType:      task.JobName(),
+		BroadcastType: websocket_mod.TaskSubscribe,
+	}
+
+	return msg
+}
+
+func NewPoolNotification(pool task.Pool, event websocket_mod.WsEvent, result task.TaskResult) websocket_mod.WsResponseInfo {
+	if pool.IsGlobal() {
+		log.Warn().Msg("Not pushing update on global pool")
+		return websocket_mod.WsResponseInfo{}
+	}
+
+	parentTask := pool.CreatedInTask()
+
+	msg := websocket_mod.WsResponseInfo{
+		EventTag:      event,
+		SubscribeKey:  parentTask.TaskId(),
+		Content:       result.ToMap(),
+		TaskType:      parentTask.JobName(),
+		BroadcastType: websocket_mod.TaskSubscribe,
+		SentTime:      time.Now().Unix(),
+	}
+
+	return msg
+}
+
+func NewFileNotification(file *file_model.WeblensFileImpl, event websocket_mod.WsEvent, media *media_model.Media) []websocket_mod.WsResponseInfo {
+	mediaInfo := structs.MediaInfo{}
+	if media != nil {
+		mediaInfo = reshape.MediaToMediaInfo(media)
+	}
+
+	msg := websocket_mod.WsResponseInfo{
+		EventTag:      websocket_mod.FileUpdatedEvent,
+		SubscribeKey:  file.ID(),
+		Content:       websocket_mod.WsData{"fileInfo": file, "mediaData": mediaInfo},
+		BroadcastType: websocket_mod.FolderSubscribe,
+		SentTime:      time.Now().Unix(),
+	}
+
+	if file.GetParent() == nil || file.GetParent().ID() == "ROOT" {
+		return []websocket_mod.WsResponseInfo{msg}
+	}
+
+	parentMsg := websocket_mod.WsResponseInfo{
+		EventTag:      websocket_mod.FileUpdatedEvent,
+		SubscribeKey:  file.GetParentId(),
+		Content:       websocket_mod.WsData{"fileInfo": file, "mediaData": mediaInfo},
+		BroadcastType: websocket_mod.FolderSubscribe,
+		SentTime:      time.Now().Unix(),
+	}
+
+	return []websocket_mod.WsResponseInfo{msg, parentMsg}
+}
+
 func (c *SimpleCaster) PushPoolUpdate(
-	pool task.Pool, event WsEvent, result task.TaskResult,
+	pool task.Pool, event websocket_mod.WsEvent, result task.TaskResult,
 ) {
 	if !c.enabled.Load() {
 		return
@@ -160,16 +223,16 @@ func (c *SimpleCaster) PushPoolUpdate(
 
 	parentTask := pool.CreatedInTask()
 
-	msg := WsResponseInfo{
+	msg := websocket_mod.WsResponseInfo{
 		EventTag:      event,
 		SubscribeKey:  parentTask.TaskId(),
 		Content:       result.ToMap(),
 		TaskType:      parentTask.JobName(),
-		BroadcastType: TaskSubscribe,
+		BroadcastType: websocket_mod.TaskSubscribe,
 		SentTime:      time.Now().Unix(),
 	}
 
-	// c.c.cm.Send(string(event), types.SubId(taskId), []types.WsC{types.WsC(result)})
+	// c.c.cm.Send(string(event), types.SubId(taskId), []types.websocket_mod.WsData{types.websocket_mod.WsData(result)})
 	c.addToQueue(msg)
 }
 
@@ -178,49 +241,49 @@ func (c *SimpleCaster) PushShareUpdate(username string, newShareInfo share_model
 		return
 	}
 
-	msg := WsResponseInfo{
-		EventTag:      ShareUpdatedEvent,
+	msg := websocket_mod.WsResponseInfo{
+		EventTag:      websocket_mod.ShareUpdatedEvent,
 		SubscribeKey:  username,
-		Content:       WsC{"newShareInfo": newShareInfo},
-		BroadcastType: UserSubscribe,
+		Content:       websocket_mod.WsData{"newShareInfo": newShareInfo},
+		BroadcastType: websocket_mod.UserSubscribe,
 		SentTime:      time.Now().Unix(),
 	}
 
 	c.addToQueue(msg)
 }
 
-func (c *SimpleCaster) PushFileCreate(newFile *fileTree.WeblensFileImpl) {
+func (c *SimpleCaster) PushFileCreate(newFile *file_model.WeblensFileImpl) {
 	if !c.enabled.Load() {
 		return
 	}
 
-	msg := WsResponseInfo{
-		EventTag:     FileCreatedEvent,
+	msg := websocket_mod.WsResponseInfo{
+		EventTag:     websocket_mod.FileCreatedEvent,
 		SubscribeKey: newFile.GetParentId(),
-		Content:      WsC{"fileInfo": newFile},
+		Content:      websocket_mod.WsData{"fileInfo": newFile},
 
-		BroadcastType: FolderSubscribe,
+		BroadcastType: websocket_mod.FolderSubscribe,
 		SentTime:      time.Now().Unix(),
 	}
 
 	c.addToQueue(msg)
 }
 
-func (c *SimpleCaster) PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, media *media_model.Media) {
+func (c *SimpleCaster) PushFileUpdate(updatedFile *file_model.WeblensFileImpl, media *media_model.Media) {
 	if !c.enabled.Load() {
 		return
 	}
 
-	mediaInfo := rest.MediaInfo{}
+	mediaInfo := structs.MediaInfo{}
 	if media != nil {
-		mediaInfo = rest.MediaToMediaInfo(media)
+		mediaInfo = reshape.MediaToMediaInfo(media)
 	}
 
-	msg := WsResponseInfo{
-		EventTag:      FileUpdatedEvent,
+	msg := websocket_mod.WsResponseInfo{
+		EventTag:      websocket_mod.FileUpdatedEvent,
 		SubscribeKey:  updatedFile.ID(),
-		Content:       WsC{"fileInfo": updatedFile, "mediaData": mediaInfo},
-		BroadcastType: FolderSubscribe,
+		Content:       websocket_mod.WsData{"fileInfo": updatedFile, "mediaData": mediaInfo},
+		BroadcastType: websocket_mod.FolderSubscribe,
 		SentTime:      time.Now().Unix(),
 	}
 
@@ -230,18 +293,18 @@ func (c *SimpleCaster) PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, med
 		return
 	}
 
-	msg = WsResponseInfo{
-		EventTag:      FileUpdatedEvent,
+	msg = websocket_mod.WsResponseInfo{
+		EventTag:      websocket_mod.FileUpdatedEvent,
 		SubscribeKey:  updatedFile.GetParentId(),
-		Content:       WsC{"fileInfo": updatedFile, "mediaData": mediaInfo},
-		BroadcastType: FolderSubscribe,
+		Content:       websocket_mod.WsData{"fileInfo": updatedFile, "mediaData": mediaInfo},
+		BroadcastType: websocket_mod.FolderSubscribe,
 		SentTime:      time.Now().Unix(),
 	}
 
 	c.addToQueue(msg)
 }
 
-func (c *SimpleCaster) PushFilesUpdate(updatedFiles []*fileTree.WeblensFileImpl, medias []*media_model.Media) {
+func (c *SimpleCaster) PushFilesUpdate(updatedFiles []*file_model.WeblensFileImpl, medias []*media_model.Media) {
 	if !c.enabled.Load() {
 		return
 	}
@@ -250,111 +313,111 @@ func (c *SimpleCaster) PushFilesUpdate(updatedFiles []*fileTree.WeblensFileImpl,
 		return
 	}
 
-	mediaInfos := make([]rest.MediaInfo, 0, len(medias))
+	mediaInfos := make([]structs.MediaInfo, 0, len(medias))
 	for _, m := range medias {
-		mediaInfos = append(mediaInfos, rest.MediaToMediaInfo(m))
+		mediaInfos = append(mediaInfos, reshape.MediaToMediaInfo(m))
 	}
 
-	msg := WsResponseInfo{
-		EventTag:      FilesUpdatedEvent,
+	msg := websocket_mod.WsResponseInfo{
+		EventTag:      websocket_mod.FilesUpdatedEvent,
 		SubscribeKey:  updatedFiles[0].GetParentId(),
-		Content:       WsC{"filesInfo": updatedFiles, "mediaDatas": mediaInfos},
-		BroadcastType: FolderSubscribe,
+		Content:       websocket_mod.WsData{"filesInfo": updatedFiles, "mediaDatas": mediaInfos},
+		BroadcastType: websocket_mod.FolderSubscribe,
 		SentTime:      time.Now().Unix(),
 	}
 
 	c.addToQueue(msg)
 }
 
-func (c *SimpleCaster) PushFileMove(preMoveFile *fileTree.WeblensFileImpl, postMoveFile *fileTree.WeblensFileImpl) {
+func (c *SimpleCaster) PushFileMove(preMoveFile *file_model.WeblensFileImpl, postMoveFile *file_model.WeblensFileImpl) {
 	if !c.enabled.Load() {
 		return
 	}
 
-	msg := WsResponseInfo{
-		EventTag:      FileMovedEvent,
+	msg := websocket_mod.WsResponseInfo{
+		EventTag:      websocket_mod.FileMovedEvent,
 		SubscribeKey:  preMoveFile.GetParentId(),
-		Content:       WsC{"fileInfo": postMoveFile},
+		Content:       websocket_mod.WsData{"fileInfo": postMoveFile},
 		Error:         "",
-		BroadcastType: FolderSubscribe,
+		BroadcastType: websocket_mod.FolderSubscribe,
 		SentTime:      time.Now().Unix(),
 	}
 	c.addToQueue(msg)
 
-	msg = WsResponseInfo{
-		EventTag:      FileMovedEvent,
+	msg = websocket_mod.WsResponseInfo{
+		EventTag:      websocket_mod.FileMovedEvent,
 		SubscribeKey:  postMoveFile.GetParentId(),
-		Content:       WsC{"fileInfo": postMoveFile},
+		Content:       websocket_mod.WsData{"fileInfo": postMoveFile},
 		Error:         "",
-		BroadcastType: FolderSubscribe,
+		BroadcastType: websocket_mod.FolderSubscribe,
 		SentTime:      time.Now().Unix(),
 	}
 	c.addToQueue(msg)
 }
 
-func (c *SimpleCaster) PushFilesMove(preMoveParentId, postMoveParentId fileTree.FileId, files []*fileTree.WeblensFileImpl) {
+func (c *SimpleCaster) PushFilesMove(preMoveParentId, postMoveParentId string, files []*file_model.WeblensFileImpl) {
 	if !c.enabled.Load() {
 		return
 	}
 
-	msg := WsResponseInfo{
-		EventTag:      FilesMovedEvent,
+	msg := websocket_mod.WsResponseInfo{
+		EventTag:      websocket_mod.FilesMovedEvent,
 		SubscribeKey:  preMoveParentId,
-		Content:       WsC{"filesInfo": files},
+		Content:       websocket_mod.WsData{"filesInfo": files},
 		Error:         "",
-		BroadcastType: FolderSubscribe,
+		BroadcastType: websocket_mod.FolderSubscribe,
 		SentTime:      time.Now().Unix(),
 	}
 	c.addToQueue(msg)
 
-	msg = WsResponseInfo{
-		EventTag:      FilesMovedEvent,
+	msg = websocket_mod.WsResponseInfo{
+		EventTag:      websocket_mod.FilesMovedEvent,
 		SubscribeKey:  postMoveParentId,
-		Content:       WsC{"filesInfo": files},
+		Content:       websocket_mod.WsData{"filesInfo": files},
 		Error:         "",
-		BroadcastType: FolderSubscribe,
+		BroadcastType: websocket_mod.FolderSubscribe,
 		SentTime:      time.Now().Unix(),
 	}
 	c.addToQueue(msg)
 }
 
-func (c *SimpleCaster) PushFileDelete(deletedFile *fileTree.WeblensFileImpl) {
+func (c *SimpleCaster) PushFileDelete(deletedFile *file_model.WeblensFileImpl) {
 	if !c.enabled.Load() {
 		return
 	}
 
-	msg := WsResponseInfo{
-		EventTag:      FileDeletedEvent,
+	msg := websocket_mod.WsResponseInfo{
+		EventTag:      websocket_mod.FileDeletedEvent,
 		SubscribeKey:  deletedFile.GetParent().ID(),
-		Content:       WsC{"fileId": deletedFile.ID()},
-		BroadcastType: FolderSubscribe,
+		Content:       websocket_mod.WsData{"fileId": deletedFile.ID()},
+		BroadcastType: websocket_mod.FolderSubscribe,
 		SentTime:      time.Now().Unix(),
 	}
 
 	c.addToQueue(msg)
 }
 
-func (c *SimpleCaster) PushFilesDelete(deletedFiles []*fileTree.WeblensFileImpl) {
+func (c *SimpleCaster) PushFilesDelete(deletedFiles []*file_model.WeblensFileImpl) {
 	if !c.enabled.Load() {
 		return
 	}
 
-	fileIds := make(map[string][]fileTree.FileId)
+	fileIds := make(map[string][]string)
 	for _, f := range deletedFiles {
 		list := fileIds[f.GetParentId()]
 		if list == nil {
-			fileIds[f.GetParentId()] = []fileTree.FileId{f.ID()}
+			fileIds[f.GetParentId()] = []string{f.ID()}
 		} else {
 			fileIds[f.GetParentId()] = append(list, f.ID())
 		}
 	}
 
 	for parentId, ids := range fileIds {
-		msg := WsResponseInfo{
-			EventTag:      FilesDeletedEvent,
+		msg := websocket_mod.WsResponseInfo{
+			EventTag:      websocket_mod.FilesDeletedEvent,
 			SubscribeKey:  parentId,
-			Content:       WsC{"fileIds": ids},
-			BroadcastType: FolderSubscribe,
+			Content:       websocket_mod.WsData{"fileIds": ids},
+			BroadcastType: websocket_mod.FolderSubscribe,
 			SentTime:      time.Now().Unix(),
 		}
 
@@ -363,7 +426,7 @@ func (c *SimpleCaster) PushFilesDelete(deletedFiles []*fileTree.WeblensFileImpl)
 
 }
 
-func (c *SimpleCaster) FolderSubToTask(folder fileTree.FileId, taskId task.Id) {
+func (c *SimpleCaster) FolderSubToTask(folder string, taskId task.Id) {
 	panic("not implemented")
 
 	// if !c.enabled.Load() {
@@ -380,7 +443,7 @@ func (c *SimpleCaster) FolderSubToTask(folder fileTree.FileId, taskId task.Id) {
 	// }
 }
 
-func (c *SimpleCaster) Relay(msg WsResponseInfo) {
+func (c *SimpleCaster) Relay(msg websocket_mod.WsResponseInfo) {
 	if !c.enabled.Load() {
 		return
 	}

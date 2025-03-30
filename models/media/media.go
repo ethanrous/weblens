@@ -1,16 +1,15 @@
 package media
 
 import (
-	"context"
 	"fmt"
 	"slices"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
+	"github.com/ethanrous/weblens/modules/context"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
@@ -18,6 +17,8 @@ import (
 )
 
 const MediaCollectionKey = "media"
+
+var ErrMediaNotFound = errors.New("media not found")
 
 type Media struct {
 	CreateDate time.Time `bson:"createDate"`
@@ -77,7 +78,7 @@ type Media struct {
 	imported bool
 }
 
-func GetMediaById(ctx context.Context, id ContentId) (*Media, error) {
+func GetMediaById(ctx context.DatabaseContext, id ContentId) (*Media, error) {
 	col, err := db.GetCollection(ctx, MediaCollectionKey)
 	if err != nil {
 		return nil, err
@@ -92,7 +93,7 @@ func GetMediaById(ctx context.Context, id ContentId) (*Media, error) {
 	return media, nil
 }
 
-func GetMediaByPath(ctx context.Context, path string) ([]*Media, error) {
+func GetMediaByPath(ctx context.DatabaseContext, path string) ([]*Media, error) {
 	// col, err := db.GetCollection(ctx, MediaCollectionKey)
 	// if err != nil {
 	// 	return nil, err
@@ -108,7 +109,7 @@ func GetMediaByPath(ctx context.Context, path string) ([]*Media, error) {
 	return nil, errors.New("not implemented")
 }
 
-func GetMedia(ctx context.Context, username string, sort string, sortDirection int, excludeIds []ContentId,
+func GetMedia(ctx context.DatabaseContext, username string, sort string, sortDirection int, excludeIds []ContentId,
 	allowRaw bool, allowHidden bool, search string) ([]*Media, error) {
 
 	slices.Sort(excludeIds)
@@ -143,19 +144,19 @@ func GetMedia(ctx context.Context, username string, sort string, sortDirection i
 
 	cur, err := col.Aggregate(ctx, pipe)
 	if err != nil {
-		return nil, werror.WithStack(err)
+		return nil, errors.WithStack(err)
 	}
 
 	medias := []*Media{}
 	err = cur.All(ctx, &medias)
 	if err != nil {
-		return nil, werror.WithStack(err)
+		return nil, errors.WithStack(err)
 	}
 
 	return medias, nil
 }
 
-func DropMediaCollection(ctx context.Context) error {
+func DropMediaCollection(ctx context.DatabaseContext) error {
 	col, err := db.GetCollection(ctx, MediaCollectionKey)
 	if err != nil {
 		return err
@@ -463,4 +464,20 @@ func CheckMediaQuality(quality string) (MediaQuality, bool) {
 		return MediaQuality(quality), true
 	}
 	return "", false
+}
+
+func RemoveFileFromMedia(ctx context.DatabaseContext, media *Media, fileId file_model.FileId) error {
+	col, err := db.GetCollection(ctx, MediaCollectionKey)
+	if err != nil {
+		return err
+	}
+
+	_, err = col.UpdateOne(ctx, bson.D{
+		{Key: "contentId", Value: media.ContentID},
+	}, bson.D{{Key: "$pull", Value: bson.D{{Key: "fileIds", Value: fileId}}}})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
 }

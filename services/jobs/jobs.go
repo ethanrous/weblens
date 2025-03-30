@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/fileTree"
-	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/pkg/errors"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/models/client"
 	file_model "github.com/ethanrous/weblens/models/file"

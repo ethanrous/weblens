@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/pkg/errors"
 	"github.com/ethanrous/weblens/jobs"
 	"github.com/ethanrous/weblens/models"
 	"github.com/gorilla/websocket"

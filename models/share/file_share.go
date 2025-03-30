@@ -1,13 +1,13 @@
 package share
 
 import (
+	"context"
 	"time"
 
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/models/db"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/slices"
-	"github.com/ethanrous/weblens/services/context"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -50,7 +50,7 @@ func NewFileShare(
 	}
 }
 
-func GetShareById(ctx context.RequestContext, shareId string) (*FileShare, error) {
+func GetShareById(ctx context.Context, shareId string) (*FileShare, error) {
 	collection, err := db.GetCollection(ctx, ShareCollectionKey)
 	if err != nil {
 		return nil, err
@@ -63,6 +63,10 @@ func GetShareById(ctx context.RequestContext, shareId string) (*FileShare, error
 	}
 
 	return &share, nil
+}
+
+func GetSharedWithUser(ctx context.Context, username string) ([]*FileShare, error) {
+	return nil, nil
 }
 
 func (s *FileShare) ID() string              { return s.ShareId }

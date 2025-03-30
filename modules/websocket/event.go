@@ -5,8 +5,8 @@ type WsEvent string
 type ClientType string
 
 const (
-	WebClient      ClientType = "webClient"
-	InstanceClient ClientType = "remoteClient"
+	WebClient   ClientType = "webClient"
+	TowerClient ClientType = "towerClient"
 )
 
 // All Websocket action tags. These are used to identify the type of content being sent *from* the client

@@ -7,13 +7,13 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/file_model"
-	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
 	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/task"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -245,7 +245,7 @@ func ScanFile_(ctx context.NotifierContext, meta models.ScanMeta, exitCheck func
 	}
 
 	ctx.Notify().PushFileUpdate(meta.File, meta.PartialMedia)
-	ctx.Log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Finished processing %s", meta.File.Filename()) })
+	ctx.Logger.Trace().Func(func(e *zerolog.Event) { e.Msgf("Finished processing %s", meta.File.Filename()) })
 
 	return nil
 }

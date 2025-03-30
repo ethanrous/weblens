@@ -4,8 +4,8 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/models/db"
+	"github.com/ethanrous/weblens/modules/context"
 	"github.com/ethanrous/weblens/modules/crypto"
-	"github.com/ethanrous/weblens/services/context"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -27,7 +27,7 @@ type Token struct {
 	Id          primitive.ObjectID `bson:"_id"`
 }
 
-func GenerateNewToken(ctx context.RequestContext, nickname, owner, createdBy string) (*Token, error) {
+func GenerateNewToken(ctx context.DatabaseContext, nickname, owner, createdBy string) (*Token, error) {
 	tok, err := crypto.RandomBytes(32)
 	if err != nil {
 		return nil, err
@@ -59,7 +59,21 @@ func GenerateNewToken(ctx context.RequestContext, nickname, owner, createdBy str
 	return token, nil
 }
 
-func GetTokensByUser(ctx context.RequestContext, username string) ([]*Token, error) {
+func SaveToken(ctx context.DatabaseContext, token *Token) error {
+	col, err := db.GetCollection(ctx, TokenCollectionKey)
+	if err != nil {
+		return err
+	}
+
+	_, err = col.InsertOne(ctx, token)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func GetTokensByUser(ctx context.DatabaseContext, username string) ([]*Token, error) {
 	col, err := db.GetCollection(ctx, TokenCollectionKey)
 	if err != nil {
 		return nil, err
@@ -84,28 +98,22 @@ func GetTokensByUser(ctx context.RequestContext, username string) ([]*Token, err
 
 }
 
-func GetTokenById(ctx context.RequestContext, tokenId primitive.ObjectID) (token *Token, err error) {
+func GetTokenById(ctx context.DatabaseContext, tokenId primitive.ObjectID) (token *Token, err error) {
 	col, err := db.GetCollection(ctx, TokenCollectionKey)
 	if err != nil {
 		return nil, err
 	}
 
-	ret := col.FindOne(ctx, bson.M{"_id": tokenId})
-	if ret.Err() != nil {
-		if errors.Is(ret.Err(), mongo.ErrNoDocuments) {
-			return nil, ErrTokenNotFound
-		}
-
-		return nil, ret.Err()
-	}
-
 	token = &Token{}
-	err = ret.Decode(token)
+	err = col.FindOne(ctx, bson.M{"_id": tokenId}).Decode(token)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, ErrTokenNotFound
+	}
 
 	return
 }
 
-func DeleteToken(ctx context.RequestContext, tokenId primitive.ObjectID) error {
+func DeleteToken(ctx context.DatabaseContext, tokenId primitive.ObjectID) error {
 	col, err := db.GetCollection(ctx, TokenCollectionKey)
 	if err != nil {
 		return err

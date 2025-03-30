@@ -1,7 +1,12 @@
 package reshape
 
-func FileActionToFileActionInfo(fa *fileTree.FileAction) FileActionInfo {
-	return FileActionInfo{
+import (
+	"github.com/ethanrous/weblens/models/history"
+	"github.com/ethanrous/weblens/modules/structs"
+)
+
+func FileActionToFileActionInfo(fa *history.FileAction) structs.FileActionInfo {
+	return structs.FileActionInfo{
 		Timestamp:       fa.Timestamp.UnixMilli(),
 		ActionType:      fa.ActionType,
 		OriginPath:      fa.OriginPath,

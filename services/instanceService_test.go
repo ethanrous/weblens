@@ -8,7 +8,7 @@ package services
 // 	"github.com/ethanrous/weblens/internal/env"
 // 	"github.com/ethanrous/weblens/internal/log"
 // 	"github.com/ethanrous/weblens/internal/tests"
-// 	"github.com/ethanrous/weblens/internal/werror"
+// 	"github.com/pkg/errors"
 // 	"github.com/ethanrous/weblens/models"
 // 	"github.com/ethanrous/weblens/service/mock"
 // 	"github.com/rs/zerolog"

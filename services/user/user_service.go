@@ -6,7 +6,7 @@ package user
 // 	"sync"
 //
 // 	"github.com/ethanrous/weblens/database"
-// 	"github.com/ethanrous/weblens/internal/werror"
+// 	"github.com/pkg/errors"
 // 	"github.com/ethanrous/weblens/models"
 // 	"go.mongodb.org/mongo-driver/bson"
 // 	"go.mongodb.org/mongo-driver/bson/primitive"

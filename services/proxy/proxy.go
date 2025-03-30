@@ -7,14 +7,14 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/ethanrous/weblens/internal/werror"
-	"github.com/ethanrous/weblens/models"
+	tower_model "github.com/ethanrous/weblens/models/tower"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
 
 type Request struct {
 	err     error
-	remote  *models.Instance
+	remote  *tower_model.Instance
 	req     *http.Request
 	method  string
 	url     string
@@ -23,7 +23,7 @@ type Request struct {
 	headers [][]string
 }
 
-func NewCoreRequest(remote *models.Instance, method, endpoint string) Request {
+func NewCoreRequest(remote *tower_model.Instance, method, endpoint string) Request {
 	reqUrl, err := url.JoinPath(remote.Address, "/api", endpoint)
 	if err != nil {
 		log.Error().Stack().Err(err).Msg("")
@@ -56,7 +56,7 @@ func (r Request) OverwriteEndpoint(newEndpoint string) Request {
 func (r Request) WithBody(body any) Request {
 	bs, err := json.Marshal(body)
 	if err != nil {
-		r.err = werror.WithStack(err)
+		r.err = errors.WithStack(err)
 		return r
 	}
 	r.body = bs
@@ -77,11 +77,11 @@ func (r Request) Call() (*http.Response, error) {
 		return nil, r.err
 	}
 
-	if r.remote.UsingKey == "" {
-		return nil, werror.Errorf("Trying to dial core without api key")
+	if r.remote.OutgoingKey == "" {
+		return nil, errors.Errorf("Trying to dial core without api key")
 	}
 	if len(r.url) == 0 {
-		return nil, werror.Errorf("Trying to dial core without endpoint")
+		return nil, errors.Errorf("Trying to dial core without endpoint")
 	}
 
 	buf := bytes.NewBuffer(r.body)
@@ -102,9 +102,9 @@ func (r Request) Call() (*http.Response, error) {
 		req.URL.RawQuery = q.Encode()
 	}
 
-	req.Header.Add("Authorization", "Bearer "+string(r.remote.UsingKey))
+	req.Header.Add("Authorization", "Bearer "+string(r.remote.OutgoingKey))
 	// req.Header.Add("Wl-Server-Id", LocalInstance.ServerId())
-	log.Debug().Msgf("Calling home to %s [%s %s] with key [%s]", r.remote.Id, r.method, req.URL.String(), r.remote.UsingKey)
+	log.Debug().Msgf("Calling home to %s [%s %s] with key [%s]", r.remote.TowerId, r.method, req.URL.String(), r.remote.OutgoingKey)
 	cli := &http.Client{}
 	resp, err := cli.Do(req)
 	if err != nil {
@@ -116,15 +116,15 @@ func (r Request) Call() (*http.Response, error) {
 		bs, err := io.ReadAll(resp.Body)
 		if err != nil {
 			log.Error().Stack().Err(err).Msg("")
-			return nil, werror.Errorf("Failed to call home to [%s %s]: %s", r.method, req.URL.String(), resp.Status)
+			return nil, errors.Errorf("Failed to call home to [%s %s]: %s", r.method, req.URL.String(), resp.Status)
 		}
 
 		err = json.Unmarshal(bs, &target)
 		if err != nil {
-			return nil, werror.Errorf("Failed to call home to [%s %s]: %s", r.method, req.URL.String(), resp.Status)
+			return nil, errors.Errorf("Failed to call home to [%s %s]: %s", r.method, req.URL.String(), resp.Status)
 		}
 
-		return nil, werror.Errorf("Failed to call home to [%s %s]: %s", r.method, req.URL.String(), target.Error)
+		return nil, errors.Errorf("Failed to call home to [%s %s]: %s", r.method, req.URL.String(), target.Error)
 	}
 
 	return resp, err
@@ -142,9 +142,9 @@ func CallHomeStruct[T any](req Request) (T, error) {
 
 	bs, err := io.ReadAll(res.Body)
 	if err != nil {
-		return target, werror.WithStack(err)
+		return target, errors.WithStack(err)
 	}
 
 	err = json.Unmarshal(bs, &target)
-	return target, werror.WithStack(err)
+	return target, errors.WithStack(err)
 }

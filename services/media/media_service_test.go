@@ -7,7 +7,7 @@ package media
 //
 // 	"github.com/ethanrous/weblens/fileTree"
 // 	"github.com/ethanrous/weblens/internal/log"
-// 	"github.com/ethanrous/weblens/internal/werror"
+// 	"github.com/pkg/errors"
 // 	"github.com/ethanrous/weblens/models"
 // 	. "github.com/ethanrous/weblens/service"
 // 	"github.com/ethanrous/weblens/service/mock"

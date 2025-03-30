@@ -7,14 +7,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethanrous/weblens/internal/werror"
-	file_model "github.com/ethanrous/weblens/models/file"
-	media_model "github.com/ethanrous/weblens/models/media"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
-	"github.com/ethanrous/weblens/task"
+	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
 
@@ -23,9 +21,9 @@ type ClientId = string
 type WsClient struct {
 	conn          *websocket.Conn
 	user          *user_model.User
-	tower        *tower_model.Instance
+	tower         *tower_model.Instance
 	connId        ClientId
-	subscriptions []Subscription
+	subscriptions []websocket_mod.Subscription
 	updateMu      sync.Mutex
 	subsMu        sync.Mutex
 	Active        atomic.Bool
@@ -44,9 +42,9 @@ func NewClient(conn *websocket.Conn, socketUser SocketUser, logger *zerolog.Logg
 	}
 	newClient.Active.Store(true)
 
-	if socketUser.SocketType() == "webClient" {
+	if socketUser.SocketType() == websocket_mod.WebClient {
 		newClient.user = socketUser.(*user_model.User)
-	} else if socketUser.SocketType() == "serverClient" {
+	} else if socketUser.SocketType() == websocket_mod.TowerClient {
 		newClient.tower = socketUser.(*tower_model.Instance)
 	}
 
@@ -66,11 +64,11 @@ func (wsc *WsClient) GetClientId() ClientId {
 	return wsc.connId
 }
 
-func (wsc *WsClient) ClientType() ClientType {
+func (wsc *WsClient) ClientType() websocket_mod.ClientType {
 	if wsc.tower != nil {
-		return InstanceClient
+		return websocket_mod.TowerClient
 	}
-	return WebClient
+	return websocket_mod.WebClient
 }
 
 func (wsc *WsClient) GetShortId() ClientId {
@@ -90,94 +88,25 @@ func (wsc *WsClient) GetInstance() *tower_model.Instance {
 
 func (wsc *WsClient) ReadOne() (int, []byte, error) {
 	if wsc.conn == nil || !wsc.Active.Load() {
-		return 0, nil, werror.Errorf("client is closed")
+		return 0, nil, errors.Errorf("client is closed")
 	}
 	return wsc.conn.ReadMessage()
 }
 
 func (wsc *WsClient) Error(err error) {
-
-	safe, _ := werror.GetSafeErr(err)
-	err = wsc.Send(WsResponseInfo{EventTag: ErrorEvent, Error: safe.Error()})
+	err = wsc.Send(websocket_mod.WsResponseInfo{EventTag: websocket_mod.ErrorEvent, Error: err.Error()})
 	if err != nil {
 		wsc.log.Error().Stack().Err(err).Msg("")
 	}
 }
 
-func (wsc *WsClient) PushWeblensEvent(eventTag WsEvent, content ...WsC) {
-	msg := WsResponseInfo{
-		EventTag:      eventTag,
-		SubscribeKey:  "WEBLENS",
-		BroadcastType: "serverEvent",
-		SentTime:      time.Now().UnixMilli(),
-	}
-
-	if len(content) != 0 {
-		msg.Content = content[0]
-	}
-
-	err := wsc.Send(msg)
-	if err != nil {
-		wsc.log.Error().Stack().Err(err).Msg("Failed to send event")
-	}
-}
-
-func (wsc *WsClient) PushFileUpdate(updatedFile *file_model.WeblensFileImpl, media *media_model.Media) {
-	msg := WsResponseInfo{
-		EventTag:      FileUpdatedEvent,
-		SubscribeKey:  updatedFile.ID(),
-		Content:       WsC{"fileInfo": updatedFile, "mediaData": media},
-		BroadcastType: FolderSubscribe,
-		SentTime:      time.Now().UnixMilli(),
-	}
-
-	err := wsc.Send(msg)
-	if err != nil {
-		wsc.log.Error().Stack().Err(err).Msg("Failed to send file update")
-	}
-}
-
-func (wsc *WsClient) PushTaskUpdate(task *task.Task, event WsEvent, result task.TaskResult) {
-	msg := WsResponseInfo{
-		EventTag:      event,
-		SubscribeKey:  task.TaskId(),
-		Content:       result.ToMap(),
-		TaskType:      task.JobName(),
-		BroadcastType: TaskSubscribe,
-		SentTime:      time.Now().UnixMilli(),
-	}
-
-	err := wsc.Send(msg)
-	if err != nil {
-		wsc.log.Error().Stack().Err(err).Msg("")
-	}
-}
-
-func (wsc *WsClient) PushPoolUpdate(pool task.Pool, event WsEvent, result task.TaskResult) {
-	if pool.IsGlobal() {
-		wsc.log.Warn().Msg("Not pushing update on global pool")
-		return
-	}
-
-	msg := WsResponseInfo{
-		EventTag:      event,
-		SubscribeKey:  pool.ID(),
-		Content:       result.ToMap(),
-		TaskType:      pool.CreatedInTask().JobName(),
-		BroadcastType: TaskSubscribe,
-	}
-
-	err := wsc.Send(msg)
-	wsc.log.Error().Stack().Err(err).Msg("")
-}
-
-func (wsc *WsClient) GetSubscriptions() iter.Seq[Subscription] {
+func (wsc *WsClient) GetSubscriptions() iter.Seq[websocket_mod.Subscription] {
 	wsc.updateMu.Lock()
 	defer wsc.updateMu.Unlock()
 	return slices.Values(wsc.subscriptions)
 }
 
-func (wsc *WsClient) AddSubscription(sub Subscription) {
+func (wsc *WsClient) AddSubscription(sub websocket_mod.Subscription) {
 	wsc.updateMu.Lock()
 	defer wsc.updateMu.Unlock()
 	wsc.subscriptions = append(wsc.subscriptions, sub)
@@ -189,7 +118,7 @@ func (wsc *WsClient) RemoveSubscription(key string) {
 	wsc.updateMu.Lock()
 	defer wsc.updateMu.Unlock()
 
-	subIndex := slices.IndexFunc(wsc.subscriptions, func(s Subscription) bool { return s.SubscriptionId == key })
+	subIndex := slices.IndexFunc(wsc.subscriptions, func(s websocket_mod.Subscription) bool { return s.SubscriptionId == key })
 	if subIndex == -1 {
 		return
 	}
@@ -210,7 +139,7 @@ func (wsc *WsClient) SubUnlock() {
 	wsc.subsMu.Unlock()
 }
 
-func (wsc *WsClient) Send(msg WsResponseInfo) error {
+func (wsc *WsClient) Send(msg websocket_mod.WsResponseInfo) error {
 	if msg.SentTime == 0 {
 		msg.SentTime = time.Now().UnixMilli()
 	}
@@ -225,10 +154,10 @@ func (wsc *WsClient) Send(msg WsResponseInfo) error {
 
 		err := wsc.conn.WriteJSON(msg)
 		if err != nil {
-			return werror.WithStack(err)
+			return errors.WithStack(err)
 		}
 	} else {
-		return werror.Errorf("trying to send to closed client")
+		return errors.Errorf("trying to send to closed client")
 	}
 
 	return nil
@@ -295,5 +224,5 @@ func (wsc *WsClient) getClientType() string {
 // }
 
 type SocketUser interface {
-	SocketType() string
+	SocketType() websocket_mod.ClientType
 }

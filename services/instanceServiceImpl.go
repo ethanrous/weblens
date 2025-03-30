@@ -10,7 +10,7 @@ package services
 // 	"github.com/ethanrous/weblens/database"
 // 	"github.com/ethanrous/weblens/fileTree"
 // 	"github.com/ethanrous/weblens/internal"
-// 	"github.com/ethanrous/weblens/internal/werror"
+// 	"github.com/pkg/errors"
 // 	"github.com/ethanrous/weblens/models"
 // 	"github.com/ethanrous/weblens/service/mock"
 // 	"github.com/ethanrous/weblens/service/proxy"

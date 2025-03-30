@@ -25,3 +25,19 @@ type FolderInfoResponse struct {
 	Medias   []MediaInfo `json:"medias"`
 	Self     FileInfo    `json:"self"`
 } // @name FolderInfo
+
+type NewUploadInfo struct {
+	UploadId string `json:"uploadId"`
+} // @name NewUploadInfo
+
+type NewFileInfo struct {
+	FileId string `json:"fileId"`
+} // @name NewFileInfo
+
+type NewFilesInfo struct {
+	FileIds []string `json:"fileIds"`
+} // @name NewFilesInfo
+
+type RestoreFilesInfo struct {
+	NewParentId string `json:"newParentId"`
+} //	@name	RestoreFilesInfo

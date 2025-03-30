@@ -1,8 +1,6 @@
 package notify
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -10,18 +8,22 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/internal"
-	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/models/client"
 	websocket_model "github.com/ethanrous/weblens/models/client"
 	file_model "github.com/ethanrous/weblens/models/file"
 	share_model "github.com/ethanrous/weblens/models/share"
+	task_model "github.com/ethanrous/weblens/models/task"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
+	"github.com/ethanrous/weblens/modules/context"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
-	"github.com/ethanrous/weblens/task"
-	task_model "github.com/ethanrous/weblens/task"
+	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
+
+var ErrSubscriptionNotFound = errors.New("subscription not found")
 
 type ClientManager struct {
 	webClientMap    map[string]*websocket_model.WsClient
@@ -78,7 +80,7 @@ func (cm *ClientManager) ClientConnect(conn *websocket.Conn, user *user_model.Us
 	return newClient
 }
 
-func (cm *ClientManager) RemoteConnect(ctx context.Context, conn *websocket.Conn, remote *tower_model.Instance) *websocket_model.WsClient {
+func (cm *ClientManager) RemoteConnect(ctx context.ContextZ, conn *websocket.Conn, remote *tower_model.Instance) *websocket_model.WsClient {
 	newClient := websocket_model.NewClient(conn, remote, cm.log)
 
 	cm.clientMu.Lock()
@@ -89,7 +91,7 @@ func (cm *ClientManager) RemoteConnect(ctx context.Context, conn *websocket.Conn
 		cm.core = newClient
 	}
 
-	cm.PushWeblensEvent(websocket_model.RemoteConnectionChangedEvent, websocket_model.WsC{"remoteId": remote.TowerId, "online": true})
+	cm.PushWeblensEvent(websocket_mod.RemoteConnectionChangedEvent, websocket_mod.WsData{"remoteId": remote.TowerId, "online": true})
 	return newClient
 }
 
@@ -110,7 +112,7 @@ func (cm *ClientManager) ClientDisconnect(c *websocket_model.WsClient) {
 		delete(cm.webClientMap, c.GetClientId())
 	} else if remote := c.GetInstance(); remote != nil {
 		delete(cm.remoteClientMap, c.GetInstance().TowerId)
-		cm.PushWeblensEvent(websocket_model.RemoteConnectionChangedEvent, websocket_model.WsC{"remoteId": remote.TowerId, "online": false})
+		cm.PushWeblensEvent(websocket_mod.RemoteConnectionChangedEvent, websocket_mod.WsData{"remoteId": remote.TowerId, "online": false})
 	}
 
 	c.Disconnect()
@@ -155,21 +157,21 @@ func (cm *ClientManager) GetConnectedAdmins() []*websocket_model.WsClient {
 	return admins
 }
 
-func (cm *ClientManager) GetSubscribers(st websocket_model.WsAction, key string) (clients []*websocket_model.WsClient) {
+func (cm *ClientManager) GetSubscribers(st websocket_mod.WsAction, key string) (clients []*websocket_model.WsClient) {
 	switch st {
-	case websocket_model.FolderSubscribe:
+	case websocket_mod.FolderSubscribe:
 		{
 			cm.folderMu.Lock()
 			clients = cm.folderSubs[key]
 			cm.folderMu.Unlock()
 		}
-	case websocket_model.TaskSubscribe:
+	case websocket_mod.TaskSubscribe:
 		{
 			cm.taskMu.Lock()
 			clients = cm.taskSubs[key]
 			cm.taskMu.Unlock()
 		}
-	case websocket_model.UserSubscribe:
+	case websocket_mod.UserSubscribe:
 		{
 			cm.clientMu.Lock()
 			allClients := slices.Collect(maps.Values(cm.webClientMap))
@@ -180,7 +182,7 @@ func (cm *ClientManager) GetSubscribers(st websocket_model.WsAction, key string)
 				},
 			)
 		}
-	case websocket_model.TaskTypeSubscribe:
+	case websocket_mod.TaskTypeSubscribe:
 		{
 			cm.taskTypeMu.Lock()
 			clients = cm.taskTypeSubs[key]
@@ -194,16 +196,17 @@ func (cm *ClientManager) GetSubscribers(st websocket_model.WsAction, key string)
 	return clients[:]
 }
 
-func (cm *ClientManager) SubscribeToFile(ctx context.RequestContext, c *websocket_model.Client, file file_model.WeblensFile, share *share_model.FileShare, subTime time.Time) error {
+func (cm *ClientManager) SubscribeToFile(ctx context.NotifierContext, c *client.WsClient, file *file_model.WeblensFileImpl, share *share_model.FileShare, subTime time.Time) error {
 
-	sub := websocket_model.Subscription{Type: websocket_model.FolderSubscribe, SubscriptionId: file.ID(), When: subTime}
+	sub := websocket_mod.Subscription{Type: websocket_mod.FolderSubscribe, SubscriptionId: file.ID(), When: subTime}
 
 	// TODO: Check if subscription is needed to be added to client
 	// c.AddSubscription(sub)
 
 	cm.addSubscription(sub, c)
 
-	c.PushFileUpdate(file, nil)
+	notifs := client.NewFileNotification(file, websocket_mod.FileUpdatedEvent, nil)
+	ctx.Notify(notifs...)
 
 	// for _, t := range cm.pack.GetFileService().GetTasks(folder) {
 	// 	// c.SubUnlock()
@@ -217,15 +220,17 @@ func (cm *ClientManager) SubscribeToFile(ctx context.RequestContext, c *websocke
 	return nil
 }
 
-func (cm *ClientManager) SubscribeToTask(ctx context.RequestContext, c *websocket_model.Client, task *task_model.Task, subTime time.Time) error {
+func (cm *ClientManager) SubscribeToTask(ctx context.NotifierContext, c *client.WsClient, task *task_model.Task, subTime time.Time) error {
 	if done, _ := task.Status(); done {
 		return nil
 	}
 
-	sub := websocket_model.Subscription{Type: websocket_model.TaskSubscribe, SubscriptionId: task.TaskId(), When: subTime}
+	sub := websocket_mod.Subscription{Type: websocket_mod.TaskSubscribe, SubscriptionId: task.TaskId(), When: subTime}
 
 	cm.addSubscription(sub, c)
-	c.PushTaskUpdate(task, websocket_model.TaskCreatedEvent, task.GetMeta().FormatToResult())
+
+	notif := client.NewTaskNotification(task, websocket_mod.TaskCreatedEvent, task.GetMeta().FormatToResult())
+	ctx.Notify(notif)
 
 	return nil
 }
@@ -235,13 +240,15 @@ func (cm *ClientManager) SubscribeToTask(ctx context.RequestContext, c *websocke
 //
 // Returns "true" and the results at meta.LookingFor if the task is completed, false and nil otherwise.
 // Subscriptions to types that represent ongoing events like FolderSubscribe never return a truthy completed
+//
+// Deprecated: Use specific subscription types instead of this generic one.
 func (cm *ClientManager) Subscribe(
-	c *websocket_model.WsClient, key string, action websocket_model.WsAction, subTime time.Time, share *share_model.FileShare,
-) (complete bool, results map[task.TaskResultKey]any, err error) {
-	var sub websocket_model.Subscription
+	c *websocket_model.WsClient, key string, action websocket_mod.WsAction, subTime time.Time, share *share_model.FileShare,
+) (complete bool, results map[*task_model.TaskResult]any, err error) {
+	var sub websocket_mod.Subscription
 
 	if c == nil {
-		return false, nil, werror.Errorf("Trying to subscribe nil client")
+		return false, nil, errors.New("Trying to subscribe nil client")
 	}
 
 	switch action {
@@ -267,7 +274,7 @@ func (cm *ClientManager) Subscribe(
 	// 			}
 	// 		}
 	//
-	// 		sub = websocket_model.Subscription{Type: websocket_model.TaskSubscribe, SubscriptionId: key, When: subTime}
+	// 		sub = websocket_mod.Subscription{Type: websocket_model.TaskSubscribe, SubscriptionId: key, When: subTime}
 	//
 	// 		c.PushTaskUpdate(t, websocket_model.TaskCreatedEvent, t.GetMeta().FormatToResult())
 	// 	}
@@ -275,7 +282,7 @@ func (cm *ClientManager) Subscribe(
 	// TODO: Move this to its own function
 	// case websocket_model.TaskTypeSubscribe:
 	// 	{
-	// 		sub = websocket_model.Subscription{Type: websocket_model.TaskTypeSubscribe, SubscriptionId: key, When: subTime}
+	// 		sub = websocket_mod.Subscription{Type: websocket_model.TaskTypeSubscribe, SubscriptionId: key, When: subTime}
 	// 	}
 	default:
 		{
@@ -296,7 +303,7 @@ func (cm *ClientManager) Unsubscribe(c *websocket_model.WsClient, key string, un
 	c.SubLock()
 	defer c.SubUnlock()
 
-	var sub websocket_model.Subscription
+	var sub websocket_mod.Subscription
 	for s := range c.GetSubscriptions() {
 		if s.SubscriptionId == key && !s.When.Before(unSubTime) {
 			cm.log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Ignoring unsubscribe request that happened before subscribe request") })
@@ -309,31 +316,31 @@ func (cm *ClientManager) Unsubscribe(c *websocket_model.WsClient, key string, un
 		}
 	}
 
-	if sub == (websocket_model.Subscription{}) {
-		return werror.WithStack(werror.ErrSubscriptionNotFound)
+	if sub == (websocket_mod.Subscription{}) {
+		return errors.WithStack(ErrSubscriptionNotFound)
 	}
 
 	c.RemoveSubscription(key)
 	return cm.removeSubscription(sub, c, false)
 }
 
-func (cm *ClientManager) FolderSubToTask(folderId file_model.FileId, taskId task.Id) {
-	subs := cm.GetSubscribers(websocket_model.FolderSubscribe, folderId)
+func (cm *ClientManager) FolderSubToTask(folderId file_model.FileId, taskId task_model.Id) {
+	subs := cm.GetSubscribers(websocket_mod.FolderSubscribe, folderId)
 
 	for _, s := range subs {
-		_, _, err := cm.Subscribe(s, taskId, websocket_model.TaskSubscribe, time.Now(), nil)
+		_, _, err := cm.Subscribe(s, taskId, websocket_mod.TaskSubscribe, time.Now(), nil)
 		if err != nil {
 			cm.log.Error().Stack().Err(err).Msg("")
 		}
 	}
 }
 
-func (cm *ClientManager) UnsubTask(taskId task.Id) {
-	subs := cm.GetSubscribers(websocket_model.TaskSubscribe, taskId)
+func (cm *ClientManager) UnsubTask(taskId task_model.Id) {
+	subs := cm.GetSubscribers(websocket_mod.TaskSubscribe, taskId)
 
 	for _, s := range subs {
 		err := cm.Unsubscribe(s, taskId, time.Now())
-		if err != nil && !errors.Is(err, werror.ErrSubscriptionNotFound) {
+		if err != nil && !errors.Is(err, ErrSubscriptionNotFound) {
 			cm.log.Error().Stack().Err(err).Msg("")
 		} else if err != nil {
 			cm.log.Warn().Msgf("Subscription [%s] not found in unsub task", taskId)
@@ -341,7 +348,7 @@ func (cm *ClientManager) UnsubTask(taskId task.Id) {
 	}
 }
 
-func (cm *ClientManager) Send(msg websocket_model.WsResponseInfo) {
+func (cm *ClientManager) Send(msg websocket_mod.WsResponseInfo) {
 	defer internal.RecoverPanic("Panic caught while broadcasting")
 
 	if msg.SubscribeKey == "" {
@@ -351,16 +358,16 @@ func (cm *ClientManager) Send(msg websocket_model.WsResponseInfo) {
 
 	var clients []*websocket_model.WsClient
 
-	if msg.BroadcastType == "serverEvent" || cm.pack.GetFileService() == nil || cm.pack.InstanceService.GetLocal().GetRole() == tower_model.BackupServerRole {
+	if msg.BroadcastType == "serverEvent" {
 		clients = cm.GetAllClients()
 	} else {
 		clients = cm.GetSubscribers(msg.BroadcastType, msg.SubscribeKey)
 		clients = slices_mod.OnlyUnique(clients)
 
-		if msg.BroadcastType == websocket_model.TaskSubscribe {
+		if msg.BroadcastType == websocket_mod.TaskSubscribe {
 			clients = append(
 				clients, cm.GetSubscribers(
-					websocket_model.TaskTypeSubscribe,
+					websocket_mod.TaskTypeSubscribe,
 					msg.TaskType,
 				)...,
 			)
@@ -370,9 +377,9 @@ func (cm *ClientManager) Send(msg websocket_model.WsResponseInfo) {
 	// Don't relay messages to the client that sent them
 	if msg.RelaySource != "" {
 		i := slices.IndexFunc(clients, func(c *websocket_model.WsClient) bool {
-			if c.ClientType() == websocket_model.InstanceClient {
-				return c.GetInstance().ServerId() == msg.RelaySource
-			} else if c.ClientType() == websocket_model.WebClient {
+			if c.ClientType() == websocket_mod.TowerClient {
+				return c.GetInstance().TowerId == msg.RelaySource
+			} else if c.ClientType() == websocket_mod.WebClient {
 				return c.GetUser().GetUsername() == msg.RelaySource
 			}
 			return false
@@ -383,7 +390,7 @@ func (cm *ClientManager) Send(msg websocket_model.WsResponseInfo) {
 	}
 
 	if len(clients) != 0 {
-		cm.log.Trace().Str("websocket_event", msg.EventTag).Msgf("Sending [%s] websocket message to %d client(s)", msg.EventTag, len(clients))
+		cm.log.Trace().Str("websocket_event", string(msg.EventTag)).Msgf("Sending [%s] websocket message to %d client(s)", msg.EventTag, len(clients))
 		for _, c := range clients {
 			err := c.Send(msg)
 			if err != nil {
@@ -398,33 +405,33 @@ func (cm *ClientManager) Send(msg websocket_model.WsResponseInfo) {
 	}
 }
 
-func (cm *ClientManager) Relay(msg websocket_model.WsResponseInfo) {
+func (cm *ClientManager) Relay(msg websocket_mod.WsResponseInfo) {
 
 }
 
-func (cm *ClientManager) PushWeblensEvent(event websocket_model.WsEvent, msg websocket_model.WsC) {
-	cm.Send(websocket_model.WsResponseInfo{
+func (cm *ClientManager) PushWeblensEvent(event websocket_mod.WsEvent, msg websocket_mod.WsData) {
+	cm.Send(websocket_mod.WsResponseInfo{
 		EventTag:      event,
 		Content:       msg,
 		BroadcastType: "serverEvent",
 	})
 }
 
-func (cm *ClientManager) addSubscription(subInfo websocket_model.Subscription, client *websocket_model.WsClient) {
+func (cm *ClientManager) addSubscription(subInfo websocket_mod.Subscription, client *websocket_model.WsClient) {
 	switch subInfo.Type {
-	case websocket_model.FolderSubscribe:
+	case websocket_mod.FolderSubscribe:
 		{
 			cm.folderMu.Lock()
 			addSub(cm.folderSubs, subInfo, client)
 			cm.folderMu.Unlock()
 		}
-	case websocket_model.TaskSubscribe:
+	case websocket_mod.TaskSubscribe:
 		{
 			cm.taskMu.Lock()
 			addSub(cm.taskSubs, subInfo, client)
 			cm.taskMu.Unlock()
 		}
-	case websocket_model.TaskTypeSubscribe:
+	case websocket_mod.TaskTypeSubscribe:
 		{
 			cm.taskTypeMu.Lock()
 			addSub(cm.taskTypeSubs, subInfo, client)
@@ -439,23 +446,23 @@ func (cm *ClientManager) addSubscription(subInfo websocket_model.Subscription, c
 }
 
 func (cm *ClientManager) removeSubscription(
-	subInfo websocket_model.Subscription, client *websocket_model.WsClient, removeAll bool,
+	subInfo websocket_mod.Subscription, client *websocket_model.WsClient, removeAll bool,
 ) error {
 	var err error
 	switch subInfo.Type {
-	case websocket_model.FolderSubscribe:
+	case websocket_mod.FolderSubscribe:
 		{
 			cm.folderMu.Lock()
 			err = removeSubs(cm.folderSubs, subInfo, client, removeAll)
 			cm.folderMu.Unlock()
 		}
-	case websocket_model.TaskSubscribe:
+	case websocket_mod.TaskSubscribe:
 		{
 			cm.taskMu.Lock()
 			err = removeSubs(cm.taskSubs, subInfo, client, removeAll)
 			cm.taskMu.Unlock()
 		}
-	case websocket_model.TaskTypeSubscribe:
+	case websocket_mod.TaskTypeSubscribe:
 		{
 			cm.taskTypeMu.Lock()
 			err = removeSubs(cm.taskTypeSubs, subInfo, client, removeAll)
@@ -463,14 +470,14 @@ func (cm *ClientManager) removeSubscription(
 		}
 	default:
 		{
-			return werror.Errorf("Trying to remove unknown subscription type [%s]", subInfo.Type)
+			return errors.Errorf("Trying to remove unknown subscription type [%s]", subInfo.Type)
 		}
 	}
 
 	return err
 }
 
-func addSub(subMap map[string][]*websocket_model.WsClient, subInfo websocket_model.Subscription, client *websocket_model.WsClient) {
+func addSub(subMap map[string][]*websocket_model.WsClient, subInfo websocket_mod.Subscription, client *websocket_model.WsClient) {
 	subs, ok := subMap[subInfo.SubscriptionId]
 
 	if !ok {
@@ -481,11 +488,11 @@ func addSub(subMap map[string][]*websocket_model.WsClient, subInfo websocket_mod
 }
 
 func removeSubs(
-	subMap map[string][]*websocket_model.WsClient, subInfo websocket_model.Subscription, client *websocket_model.WsClient, removeAll bool,
+	subMap map[string][]*websocket_model.WsClient, subInfo websocket_mod.Subscription, client *websocket_model.WsClient, removeAll bool,
 ) error {
 	subs, ok := subMap[subInfo.SubscriptionId]
 	if !ok {
-		return werror.Errorf("Tried to unsubscribe from non-existent key [%s]", subInfo.SubscriptionId)
+		return errors.Errorf("Tried to unsubscribe from non-existent key [%s]", subInfo.SubscriptionId)
 	}
 	if removeAll {
 		subs = slices_mod.Filter(subs, func(c *websocket_model.WsClient) bool { return c.GetClientId() != client.GetClientId() })

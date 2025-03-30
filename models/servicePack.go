@@ -7,7 +7,7 @@ package models
 // 	"time"
 //
 // 	"github.com/ethanrous/weblens/internal/env"
-// 	"github.com/ethanrous/weblens/internal/werror"
+// 	"github.com/pkg/errors"
 // 	"github.com/ethanrous/weblens/task"
 // 	"github.com/go-chi/chi/v5"
 // 	"github.com/rs/zerolog"

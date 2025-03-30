@@ -13,7 +13,7 @@ import (
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/setup"
 	"github.com/ethanrous/weblens/internal/tests"
-	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/pkg/errors"
 	"github.com/ethanrous/weblens/jobs"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/service"

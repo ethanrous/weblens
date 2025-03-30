@@ -3,21 +3,15 @@ package http
 import (
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"strconv"
 
 	"github.com/ethanrous/weblens/fileTree"
-	"github.com/ethanrous/weblens/internal"
-	"github.com/ethanrous/weblens/internal/werror"
-	"github.com/ethanrous/weblens/models"
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/models/rest"
 	"github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/reshape"
-	"github.com/go-chi/chi/v5"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/hlog"
+	"github.com/pkg/errors"
 )
 
 // GetMedia godoc
@@ -45,14 +39,14 @@ func GetMediaBatch(ctx context.RequestContext) {
 		var folderIds []fileTree.FileId
 		err := json.Unmarshal([]byte(folderIdsStr), &folderIds)
 		if err != nil {
-			ctx.Log.Error().Stack().Err(err).Msg("Failed to unmarshal folderIds")
+			ctx.Logger.Error().Stack().Err(err).Msg("Failed to unmarshal folderIds")
 			ctx.Error(http.StatusBadRequest, errors.New("Invalid folderIds format"))
 			return
 		}
 
 		media, err := getMediaInFolders(ctx, folderIds)
 		if err != nil {
-			ctx.Log.Error().Stack().Err(err).Msg("Failed to get media in folders")
+			ctx.Logger.Error().Stack().Err(err).Msg("Failed to get media in folders")
 			ctx.Error(http.StatusInternalServerError, err)
 		}
 
@@ -67,7 +61,7 @@ func GetMediaBatch(ctx context.RequestContext) {
 		var mediaIds []fileTree.FileId
 		err := json.Unmarshal([]byte(mediaIdsStr), &mediaIds)
 		if err != nil {
-			ctx.Log.Error().Stack().Err(err).Msg("Failed to unmarshal mediaIds")
+			ctx.Logger.Error().Stack().Err(err).Msg("Failed to unmarshal mediaIds")
 			ctx.Error(http.StatusBadRequest, errors.New("Invalid mediaIds format"))
 			return
 		}
@@ -76,7 +70,7 @@ func GetMediaBatch(ctx context.RequestContext) {
 		for _, mId := range mediaIds {
 			m, err := media_model.GetMediaById(ctx, mId)
 			if err != nil {
-				ctx.Log.Error().Stack().Err(err).Msg("Failed to get media by id")
+				ctx.Logger.Error().Stack().Err(err).Msg("Failed to get media by id")
 				ctx.Error(http.StatusInternalServerError, err)
 				return
 			}
@@ -103,7 +97,7 @@ func GetMediaBatch(ctx context.RequestContext) {
 	if pageStr != "" {
 		page, err = strconv.ParseInt(pageStr, 10, 32)
 		if err != nil {
-			ctx.Log.Error().Stack().Err(err).Msg("Failed to parse page number")
+			ctx.Logger.Error().Stack().Err(err).Msg("Failed to parse page number")
 			ctx.Error(http.StatusBadRequest, errors.New("Invalid page number"))
 			return
 		}
@@ -116,7 +110,7 @@ func GetMediaBatch(ctx context.RequestContext) {
 	if limitStr != "" {
 		limit, err = strconv.ParseInt(limitStr, 10, 32)
 		if err != nil {
-			ctx.Log.Error().Stack().Err(err).Msg("Failed to parse limit number")
+			ctx.Logger.Error().Stack().Err(err).Msg("Failed to parse limit number")
 			ctx.Error(http.StatusBadRequest, errors.New("Invalid limit number"))
 			return
 		}
@@ -127,7 +121,7 @@ func GetMediaBatch(ctx context.RequestContext) {
 	var mediaFilter []media_model.ContentId
 	ms, err := pack.MediaService.GetFilteredMedia(ctx.Requester, sort, 1, mediaFilter, raw, hidden, search)
 	if err != nil {
-		ctx.Log.Error().Stack().Err(err).Msg("Failed to get filtered media")
+		ctx.Logger.Error().Stack().Err(err).Msg("Failed to get filtered media")
 		ctx.Error(http.StatusInternalServerError, err)
 		return
 	}
@@ -197,7 +191,7 @@ func CleanupMedia(w http.ResponseWriter, r *http.Request) {
 func DropMedia(ctx context.RequestContext) {
 	err := media_model.DropMediaCollection(ctx)
 	if err != nil {
-		ctx.Log.Error().Stack().Err(err).Msg("Failed to drop media collection")
+		ctx.Logger.Error().Stack().Err(err).Msg("Failed to drop media collection")
 		ctx.Error(http.StatusInternalServerError, err)
 		return
 	}
@@ -218,7 +212,7 @@ func GetMediaInfo(ctx context.RequestContext) {
 	mediaId := ctx.Path("mediaId")
 	m, err := media_model.GetMediaById(ctx, mediaId)
 	if err != nil {
-		ctx.Log.Error().Stack().Err(err).Msg("Failed to get media by id")
+		ctx.Logger.Error().Stack().Err(err).Msg("Failed to get media by id")
 		ctx.Error(http.StatusInternalServerError, err)
 		return
 	}

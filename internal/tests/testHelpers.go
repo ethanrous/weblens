@@ -10,7 +10,7 @@ import (
 	"github.com/ethanrous/weblens/http"
 	"github.com/ethanrous/weblens/internal/env"
 	"github.com/ethanrous/weblens/internal/setup"
-	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/pkg/errors"
 	"github.com/ethanrous/weblens/models"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"

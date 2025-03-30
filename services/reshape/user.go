@@ -3,6 +3,7 @@ package reshape
 import (
 	"context"
 
+	"github.com/ethanrous/weblens/models/user"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/structs"
 )
@@ -21,33 +22,31 @@ func UserToUserInfo(ctx context.Context, u *user_model.User) structs.UserInfo {
 	}
 }
 
-func UserToUserInfoArchive(u *models.User) UserInfoArchive {
+func UserToUserInfoArchive(u *user.User) structs.UserInfoArchive {
 	if u == nil || u.IsSystemUser() {
-		return UserInfoArchive{}
+		return structs.UserInfoArchive{}
 	}
-	info := UserInfoArchive{
-		Password:  u.PasswordHash,
+	info := structs.UserInfoArchive{
+		Password:  u.Password,
 		Activated: u.IsActive(),
 	}
 	info.Username = u.GetUsername()
-	info.FullName = u.GetFullName()
-	info.Admin = u.IsAdmin()
-	info.Owner = u.IsOwner()
+	info.FullName = u.DisplayName
+	info.PermissionLevel = int(u.UserPerms)
 	info.HomeId = u.HomeId
 	info.TrashId = u.TrashId
 
 	return info
 }
 
-func UserInfoArchiveToUser(uInfo UserInfoArchive) *models.User {
-	u := &models.User{
-		Username:      uInfo.Username,
-		PasswordHash:  uInfo.Password,
-		Activated:     uInfo.Activated,
-		Admin:         uInfo.Admin,
-		IsServerOwner: uInfo.Owner,
-		HomeId:        uInfo.HomeId,
-		TrashId:       uInfo.TrashId,
+func UserInfoArchiveToUser(uInfo structs.UserInfoArchive) *user.User {
+	u := &user.User{
+		Username:  uInfo.Username,
+		Password:  uInfo.Password,
+		Activated: uInfo.Activated,
+		UserPerms: user_model.UserPermissions(uInfo.PermissionLevel),
+		HomeId:    uInfo.HomeId,
+		TrashId:   uInfo.TrashId,
 	}
 
 	return u

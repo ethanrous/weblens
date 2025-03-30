@@ -1,5 +1,10 @@
 package media
 
+import (
+	"github.com/ethanrous/weblens/models/media"
+	"github.com/pkg/errors"
+)
+
 // import (
 // 	"bytes"
 // 	"context"
@@ -20,7 +25,7 @@ package media
 // 	"github.com/barasher/go-exiftool"
 // 	"github.com/ethanrous/weblens/fileTree"
 // 	"github.com/ethanrous/weblens/internal"
-// 	"github.com/ethanrous/weblens/internal/werror"
+// 	"github.com/pkg/errors"
 // 	media_model "github.com/ethanrous/weblens/models/media"
 // 	wl_slices "github.com/ethanrous/weblens/modules/slices"
 // 	"github.com/rs/zerolog"
@@ -36,6 +41,10 @@ package media
 //
 // 	"github.com/davidbyttow/govips/v2/vips"
 // )
+
+func GetConverted(m *media.Media, format string) ([]byte, error) {
+	return nil, errors.New("not implemented")
+}
 
 // type MediaServiceImpl struct {
 // 	filesBuffer sync.Pool

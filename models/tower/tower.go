@@ -2,41 +2,44 @@ package tower
 
 import (
 	"context"
+	"time"
 
 	"github.com/ethanrous/weblens/models/db"
+	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-type ServerRole string
+type TowerRole string
 
 const TowerCollectionKey = "towers"
 
 const (
-	InitServerRole    ServerRole = "init"
-	CoreServerRole    ServerRole = "core"
-	BackupServerRole  ServerRole = "backup"
-	RestoreServerRole ServerRole = "restore"
+	InitServerRole    TowerRole = "init"
+	CoreServerRole    TowerRole = "core"
+	BackupServerRole  TowerRole = "backup"
+	RestoreServerRole TowerRole = "restore"
 )
 
+var ErrTowerNotFound = errors.New("no tower found")
+var ErrServerNotInitialized = errors.New("server not initialized")
+var ErrServerIsBackup = errors.New("server is a backup")
+
 // A "Tower" is a single Weblens server.
-// For clarity: Core vs Backup are absolute server roles, and each server
+// For clarity: Core and Backup are "absolute" server roles, and each server
 // will fit into one of these categories once initialized. Local vs Remote
-// are RELATIVE terms, meaning one core servers "remote" is the backup
-// servers "local".
+// are RELATIVE terms, meaning a core tower is "remote" to a backup tower, but
+// "local" to itself, and vice versa.
 type Instance struct {
 
 	// The public ID of the tower
 	TowerId string `bson:"towerId"`
 	Name    string `bson:"name"`
 
-	// Only applies to "core" server entries. This is the apiKey that remote server is using to connect to local,
-	// if local is core. If local is backup, then this is the key being used to connect to remote core
-	// UsingKey WeblensApiKey `bson:"usingKey"`
-
-	// Core or BackupServer
-	Role ServerRole `bson:"serverRole"`
+	// Core or Backup
+	Role TowerRole `bson:"serverRole"`
 
 	// Address of the remote server, only if the instance is a core.
 	// Not set for any remotes/backups on core server, as it IS the core
@@ -45,38 +48,56 @@ type Instance struct {
 	// The ID of the server in which this remote instance is in reference from
 	CreatedBy string `bson:"createdBy"`
 
-	// TODO: Move to structs package
-	// Role the server is currently reporting. This is used to determine if the server is online (and functional) or not
-	// reportedRole ServerRole
-
 	// The time of the latest backup, in milliseconds since epoch
 	LastBackup int64 `bson:"lastBackup"`
 
-	// The private ID of the server only in the local database
+	// The private ID of the tower only in the local database
 	DbId primitive.ObjectID `bson:"_id"`
 
-	// If this server info represents this local server
-	IsThisServer bool `bson:"isThisServer"`
+	// Only one of the following 2 will be set, depending on the role of the local tower
+
+	// The API Key the remote is expected to use to authenticate with the local tower
+	IncomingKey string `bson:"incomingKey"`
+	// The API Key the remote is expecting the local tower to use to authenticate with the remote tower
+	OutgoingKey string `bson:"outgoingKey"`
+
+	// If this tower instance represents the local tower
+	IsThisTower bool `bson:"isThisTower"`
+
+	// The role the tower is currently reporting. This is used to determine if the tower is online (and functional) or not
+	reportedRole TowerRole `bson:"-"`
 }
 
-func GetTowerById(ctx context.Context, towerId string) (*Instance, error) {
+func CreateTower(ctx context.Context, tower *Instance) error {
+	col, err := db.GetCollection(ctx, TowerCollectionKey)
+	if err != nil {
+		return err
+	}
+
+	_, err = col.InsertOne(ctx, tower)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
+}
+
+func GetTowerById(ctx context.Context, towerId string) (tower *Instance, err error) {
 	col, err := db.GetCollection(ctx, TowerCollectionKey)
 	if err != nil {
 		return nil, err
 	}
 
-	res := col.FindOne(ctx, bson.M{"towerId": towerId})
-	if res.Err() != nil {
-		return nil, res.Err()
-	}
-
-	tower := &Instance{}
-	err = res.Decode(tower)
+	tower = &Instance{}
+	err = col.FindOne(ctx, bson.M{"towerId": towerId}).Decode(tower)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, ErrTowerNotFound
+		}
+		return nil, errors.WithStack(err)
 	}
 
-	return tower, nil
+	return
 }
 
 func GetLocal(ctx context.Context) (*Instance, error) {
@@ -94,7 +115,7 @@ func GetLocal(ctx context.Context) (*Instance, error) {
 	return tower, nil
 }
 
-func SetLastBackup(ctx context.Context, towerId string, lastBackup int64) error {
+func SetLastBackup(ctx context.Context, towerId string, lastBackup time.Time) error {
 	col, err := db.GetCollection(ctx, TowerCollectionKey)
 	if err != nil {
 		return err
@@ -108,6 +129,18 @@ func SetLastBackup(ctx context.Context, towerId string, lastBackup int64) error 
 	return nil
 }
 
+func GetRemotes(ctx context.Context) ([]*Instance, error) {
+	return nil, nil
+}
+
 func (t *Instance) IsCore() bool {
 	return t.Role == CoreServerRole
+}
+
+func (t *Instance) GetReportedRole() TowerRole {
+	return t.reportedRole
+}
+
+func (t *Instance) SocketType() websocket_mod.ClientType {
+	return websocket_mod.TowerClient
 }

@@ -1,0 +1,83 @@
+package jobs
+
+import (
+	"errors"
+	"io"
+	"time"
+
+	"github.com/pkg/errors"
+	"github.com/ethanrous/weblens/models/client"
+	file_model "github.com/ethanrous/weblens/models/file"
+	"github.com/ethanrous/weblens/models/job"
+	task_model "github.com/ethanrous/weblens/models/task"
+	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
+	"github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/services/proxy"
+	"github.com/rs/zerolog"
+)
+
+func CopyFileFromCore(t *task_model.Task) {
+	meta := t.GetMeta().(job.BackupCoreFileMeta)
+
+	filerCtx, ok := t.Ctx.(context.FilerContext)
+	if !ok {
+		t.Fail(errors.New("Failed to cast context to FilerContext"))
+		return
+	}
+	fileService := filerCtx.FileService()
+
+	t.SetErrorCleanup(func(t *task_model.Task) {
+		failNotif := client.NewTaskNotification(t, websocket_mod.CopyFileFailedEvent, task_model.TaskResult{"filename": meta.Filename, "coreId": meta.Core.TowerId})
+		t.Ctx.Notify(failNotif)
+
+		rmErr := fileService.DeleteFiles(t.Ctx, []*file_model.WeblensFileImpl{meta.File}, meta.Core.TowerId)
+		if rmErr != nil {
+			t.Ctx.Log().Error().Stack().Err(rmErr).Msg("")
+		}
+	})
+
+	filename := meta.Filename
+	if filename == "" {
+		filename = meta.File.Filename()
+	}
+
+	t.Ctx.Notify(
+		client.NewPoolNotification(
+			t.GetTaskPool(),
+			websocket_mod.CopyFileStartedEvent,
+			task_model.TaskResult{"filename": filename, "coreId": meta.Core.TowerId, "timestamp": time.Now().UnixMilli()},
+		),
+	)
+
+	t.Ctx.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Copying file from core [%s]", meta.File.Filename()) })
+
+	if meta.File.GetContentId() == "" {
+		t.ReqNoErr(werror.WithStack(werror.ErrNoContentId))
+	}
+
+	writeFile, err := meta.File.Writeable()
+	if err != nil {
+		t.Fail(err)
+	}
+	defer writeFile.Close()
+
+	res, err := proxy.NewCoreRequest(meta.Core, "GET", "/files/"+meta.CoreFileId+"/download").Call()
+	if err != nil {
+		t.Fail(err)
+	}
+
+	defer res.Body.Close()
+
+	_, err = io.Copy(writeFile, res.Body)
+	if err != nil {
+		t.Fail(err)
+	}
+
+	poolProgress := getScanResult(t)
+	poolProgress["filename"] = filename
+	poolProgress["coreId"] = meta.Core.TowerId
+
+	t.Ctx.Notify(client.NewPoolNotification(t.GetTaskPool(), websocket_mod.CopyFileCompleteEvent, poolProgress))
+
+	t.Success()
+}

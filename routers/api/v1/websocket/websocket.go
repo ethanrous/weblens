@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/internal"
-	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
 	client_model "github.com/ethanrous/weblens/models/client"
 	share_model "github.com/ethanrous/weblens/models/share"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/services/context"
 	gorilla "github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
 
@@ -53,7 +53,7 @@ func Connect(ctx context.RequestContext) {
 
 	conn, err := upgrader.Upgrade(ctx.W, ctx.Req, nil)
 	if err != nil {
-		ctx.Log.Error().Err(err).Msg("Failed to upgrade connection to websocket")
+		ctx.Logger.Error().Err(err).Msg("Failed to upgrade connection to websocket")
 		return
 	}
 
@@ -311,7 +311,7 @@ func wsServerClientSwitchboard(ctx context.RequestContext, msgBuf []byte, c *cli
 	msg.RelaySource = relaySourceId
 	ctx.ClientService.Relay(msg)
 
-	ctx.Log.Debug().Msgf("Relaying message [%s] from server [%s]", msg.EventTag, relaySourceId)
+	ctx.Logger.Debug().Msgf("Relaying message [%s] from server [%s]", msg.EventTag, relaySourceId)
 
 	return nil
 }

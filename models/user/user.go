@@ -4,12 +4,13 @@ import (
 	"context"
 	"iter"
 
-	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/models/db"
 	"github.com/ethanrous/weblens/modules/crypto"
+	"github.com/ethanrous/weblens/modules/websocket"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -25,6 +26,8 @@ const (
 	UserPermissionSystem
 )
 
+var ErrUserNotFound = errors.New("user not found")
+
 type User struct {
 	// Database id of the user
 	Id primitive.ObjectID `bson:"_id"`
@@ -39,10 +42,10 @@ type User struct {
 	Password string `bson:"password"`
 
 	// The id of the user's home folder
-	HomeId fileTree.FileId `bson:"homeId"`
+	HomeId string `bson:"homeId"`
 
 	// The id of the user's trash folder
-	TrashId fileTree.FileId `bson:"trashId"`
+	TrashId string `bson:"trashId"`
 
 	// The id of the server instance that created this user
 	CreatedBy string `bson:"createdBy"`
@@ -82,14 +85,12 @@ func GetUserByUsername(ctx context.Context, username string) (u *User, err error
 		return
 	}
 
+	u = &User{}
 	filter := bson.M{"username": username}
-	res := col.FindOne(ctx, filter)
-
-	if res.Err() != nil {
-		return nil, res.Err()
+	err = col.FindOne(ctx, filter).Decode(u)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, ErrUserNotFound
 	}
-
-	err = res.Decode(u)
 
 	return
 }
@@ -106,6 +107,24 @@ func GetAllUsers(ctx context.Context) (us []*User, err error) {
 	}
 
 	err = res.All(ctx, us)
+
+	return
+}
+
+func GetServerOwner(ctx context.Context) (u *User, err error) {
+	col, err := db.GetCollection(ctx, UserCollectionKey)
+	if err != nil {
+		return
+	}
+
+	u = &User{}
+
+	// Find all users with Owner permissions
+	filter := bson.M{"userPerms": UserPermissionOwner}
+	err = col.FindOne(ctx, filter).Decode(u)
+	if err != nil {
+		return
+	}
 
 	return
 }
@@ -221,28 +240,6 @@ func (u *User) SetDisplayName(fullName string) {
 	u.DisplayName = fullName
 }
 
-func (u *User) SetHomeFolder(f *fileTree.WeblensFileImpl) {
-	if !f.IsDir() {
-		panic("home folder is not a directory")
-	}
-	if f.Filename() != u.Username {
-		panic("home folder filename does not match user")
-	}
-
-	u.HomeId = f.ID()
-}
-
-func (u *User) SetTrashFolder(f *fileTree.WeblensFileImpl) {
-	if !f.IsDir() {
-		panic("trash folder is not a directory")
-	}
-	if f.Filename() != ".user_trash" {
-		panic("trash folder filename is not correct")
-	}
-
-	u.TrashId = f.ID()
-}
-
 func (u *User) IsPublic() bool {
 	return u.UserPerms == UserPermissionPublic
 }
@@ -271,10 +268,8 @@ func (u *User) CheckLogin(attempt string) bool {
 	return crypto.VerifyUserPassword(attempt, u.Password) == nil
 }
 
-var UserWebsocketType = "webClient"
-
-func (u *User) SocketType() string {
-	return UserWebsocketType
+func (u *User) SocketType() websocket.ClientType {
+	return websocket.WebClient
 }
 
 type UserService interface {

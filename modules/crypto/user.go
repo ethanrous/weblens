@@ -1,10 +1,10 @@
 package crypto
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -25,7 +25,9 @@ type WlClaims struct {
 
 const SessionTokenCookie = "weblens-session-token"
 
-func GenerateJWTCookie(username string) (string, error) {
+var superSecretKey = []byte("weblens_super_secret_key")
+
+func GenerateJWT(username string) (string, time.Time, error) {
 	expires := time.Now().Add(time.Hour * 24 * 7).In(time.UTC)
 	claims := WlClaims{
 		username,
@@ -35,11 +37,33 @@ func GenerateJWTCookie(username string) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signedToken, err := token.SignedString([]byte("weblens_super_secret_key"))
+	signedToken, err := token.SignedString(superSecretKey)
 	if err != nil {
-		return "", err
+		return "", time.Time{}, err
 	}
 
-	cookie := fmt.Sprintf("%s=%s;Path=/;Expires=%s;HttpOnly", SessionTokenCookie, signedToken, expires.Format(time.RFC1123))
-	return cookie, nil
+	return signedToken, time.Time{}, nil
+}
+
+func GetUsernameFromToken(tokenStr string) (string, error) {
+	if tokenStr == "" {
+		return "", errors.New("no jwt provided")
+	}
+
+	jwtToken, err := jwt.ParseWithClaims(
+		tokenStr,
+		&WlClaims{},
+		func(token *jwt.Token) (any, error) {
+			return superSecretKey, nil
+		},
+	)
+	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return "", errors.New("jwt expired")
+		}
+		return "", errors.WithStack(err)
+	}
+
+	username := jwtToken.Claims.(*WlClaims).Username
+	return username, nil
 }

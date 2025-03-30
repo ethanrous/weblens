@@ -3,17 +3,19 @@ package reshape
 import (
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/models/file"
 	share_model "github.com/ethanrous/weblens/models/share"
 	"github.com/ethanrous/weblens/modules/structs"
 	"github.com/ethanrous/weblens/services"
+	"github.com/ethanrous/weblens/services/context"
 	"github.com/pkg/errors"
 )
 
-func WeblensFileToFileInfo(f *fileTree.WeblensFileImpl, pack *models.ServicePack, isPastFile bool) (structs.FileInfo, error) {
+func WeblensFileToFileInfo(ctx *context.RequestContext, f *file.WeblensFileImpl, isPastFile bool) (structs.FileInfo, error) {
 	// Some fields are only needed if the file is the parent file of the request,
 	// when the file is a child, these fields are not needed, and can be expensive to fetch,
 	// so we conditionally ignore them.
-	var children []fileTree.FileId
+	var children []string
 	owner, err := pack.FileService.GetFileOwner(f)
 	if err != nil {
 		return structs.FileInfo{}, err

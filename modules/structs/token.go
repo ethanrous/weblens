@@ -3,6 +3,7 @@ package structs
 import "time"
 
 type Token struct {
+	Id          string    `json:"id"`
 	CreatedTime time.Time `json:"createdTime"`
 	LastUsed    time.Time `json:"lastUsed"`
 	Nickname    string    `json:"nickname"`

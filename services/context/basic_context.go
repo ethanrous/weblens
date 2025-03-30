@@ -9,14 +9,18 @@ import (
 
 type BasicContext struct {
 	context.Context
-	Log *zerolog.Logger
+	Logger *zerolog.Logger
 }
 
-func (b BasicContext) WithTimeout(d time.Duration) (BasicContext, context.CancelFunc) {
+func (b *BasicContext) WithTimeout(d time.Duration) (*BasicContext, context.CancelFunc) {
 	ctx, cancel := context.WithTimeout(b.Context, d)
 
-	return BasicContext{
+	return &BasicContext{
 		Context: ctx,
-		Log:     b.Log,
+		Logger:  b.Logger,
 	}, cancel
+}
+
+func (b *BasicContext) Log() *zerolog.Logger {
+	return b.Logger
 }

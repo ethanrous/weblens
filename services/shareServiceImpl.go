@@ -8,7 +8,7 @@ package services
 //
 // 	"github.com/ethanrous/weblens/fileTree"
 // 	"github.com/ethanrous/weblens/internal"
-// 	"github.com/ethanrous/weblens/internal/werror"
+// 	"github.com/pkg/errors"
 // 	"github.com/ethanrous/weblens/models"
 // 	"github.com/rs/zerolog"
 // 	"go.mongodb.org/mongo-driver/bson"
