@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	auth_model "github.com/ethanrous/weblens/models/auth"
-	"github.com/ethanrous/weblens/models/rest"
 	"github.com/ethanrous/weblens/modules/net"
+	"github.com/ethanrous/weblens/modules/structs"
 	"github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/reshape"
 	"github.com/pkg/errors"
@@ -30,12 +30,12 @@ import (
 //	@Router		/keys [post]
 func CreateApiKey(ctx context.RequestContext) {
 
-	tokenParams, err := net.ReadRequestBody[rest.ApiKeyParams](ctx.Req)
+	tokenParams, err := net.ReadRequestBody[structs.ApiKeyParams](ctx.Req)
 	if err != nil {
 		return
 	}
 
-	token, err := auth_model.GenerateNewToken(ctx, tokenParams.Name, ctx.Requester.Username, ctx.TowerId)
+	token, err := auth_model.GenerateNewToken(ctx, tokenParams.Name, ctx.Requester.Username, ctx.LocalTowerId)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 		return

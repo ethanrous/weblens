@@ -3,7 +3,12 @@ package cover
 import (
 	"context"
 	"errors"
+
+	"github.com/ethanrous/weblens/models/db"
+	"go.mongodb.org/mongo-driver/bson"
 )
+
+var CoverPhotoCollectionKey = "coverPhoto"
 
 type CoverPhoto struct {
 	FolderId string `bson:"folderId"`
@@ -51,9 +56,13 @@ func DeleteCoverByFolderId(ctx context.Context, folderId string) error {
 }
 
 func UpsertCoverByFolderId(ctx context.Context, folderId, coverPhotoId string) error {
+	col, err := db.GetCollection(ctx, CoverPhotoCollectionKey)
+	if err != nil {
+		return err
+	}
 
-	_, err := fs.folderCoverCol.UpdateOne(
-		context.Background(), bson.M{"folderId": folderId}, bson.M{"$set": bson.M{"coverId": coverId}},
+	_, err = col.UpdateOne(
+		context.Background(), bson.M{"folderId": folderId}, bson.M{"$set": bson.M{"coverId": coverPhotoId}},
 	)
 	// 	_, err := fs.folderCoverCol.DeleteOne(context.Background(), bson.M{"folderId": folderId})
 	// if err != nil {

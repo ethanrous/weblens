@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/ethanrous/weblens/models/rest"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/crypto"
 	"github.com/ethanrous/weblens/modules/net"
 	"github.com/ethanrous/weblens/modules/structs"
+	auth_service "github.com/ethanrous/weblens/services/auth"
 	"github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/reshape"
 	"github.com/pkg/errors"
@@ -27,7 +27,7 @@ import (
 //	@Success	201
 //	@Failure	401
 //	@Router		/users [post]
-func Create(ctx context.RequestContext) {
+func Create(ctx *context.RequestContext) {
 	userParams, err := net.ReadRequestBody[structs.NewUserParams](ctx.Req)
 	if err != nil {
 		return
@@ -61,7 +61,7 @@ func Create(ctx context.RequestContext) {
 //	@Success	200			{object}	structs.User		"Logged-in users info"
 //	@Failure	401
 //	@Router		/users/auth [post]
-func Login(ctx context.RequestContext) {
+func Login(ctx *context.RequestContext) {
 	userCredentials, err := net.ReadRequestBody[structs.LoginParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusBadRequest, err)
@@ -82,7 +82,7 @@ func Login(ctx context.RequestContext) {
 		return
 	}
 
-	cookie, err := crypto.GenerateJWTCookie(u.Username)
+	cookie, err := auth_service.GenerateJWTCookie(u)
 	if err != nil {
 		ctx.Logger.Error().Stack().Err(err).Msg("Failed to generate JWT cookie")
 		ctx.Error(http.StatusInternalServerError, err)
@@ -103,7 +103,7 @@ func Login(ctx context.RequestContext) {
 //	@Failure	400
 //	@Failure	404
 //	@Router		/users/{username} [head]
-func CheckExists(ctx context.RequestContext) {
+func CheckExists(ctx *context.RequestContext) {
 	username := ctx.Path("username")
 	if username == "" {
 		ctx.W.WriteHeader(http.StatusBadRequest)
@@ -129,7 +129,7 @@ func CheckExists(ctx context.RequestContext) {
 //	@Tags		Users
 //	@Success	200
 //	@Router		/users/logout [post]
-func Logout(ctx context.RequestContext) {
+func Logout(ctx *context.RequestContext) {
 	if ctx.Requester == nil {
 		ctx.W.WriteHeader(http.StatusNotFound)
 		return
@@ -152,7 +152,7 @@ func Logout(ctx context.RequestContext) {
 //	@Success	200	{array}	rest.UserInfoArchive	"List of users"
 //	@Failure	401
 //	@Router		/users [get]
-func GetAll(ctx context.RequestContext) {
+func GetAll(ctx *context.RequestContext) {
 	users, err := user_model.GetAllUsers(ctx)
 
 	if err != nil {
@@ -161,7 +161,7 @@ func GetAll(ctx context.RequestContext) {
 		return
 	}
 
-	results := make([]*structs.UserInfo, 0, len(users))
+	results := make([]structs.UserInfo, 0, len(users))
 	for _, u := range users {
 		newU := reshape.UserToUserInfo(ctx, u)
 		results = append(results, newU)
@@ -184,7 +184,7 @@ func GetAll(ctx context.RequestContext) {
 //	@Failure	404
 //	@Failure	500
 //	@Router		/users/me [get]
-func GetMe(ctx context.RequestContext) {
+func GetMe(ctx *context.RequestContext) {
 	if !ctx.IsLoggedIn {
 		ctx.W.WriteHeader(http.StatusUnauthorized)
 		return
@@ -212,7 +212,7 @@ func GetMe(ctx context.RequestContext) {
 //	@Failure	403
 //	@Failure	404
 //	@Router		/users/{username}/password [patch]
-func UpdatePassword(ctx context.RequestContext) {
+func UpdatePassword(ctx *context.RequestContext) {
 	updateUsername := ctx.Path("username")
 	updateUser, err := user_model.GetUserByUsername(ctx, updateUsername)
 	if err != nil {
@@ -225,7 +225,7 @@ func UpdatePassword(ctx context.RequestContext) {
 		return
 	}
 
-	updateParams, err := net.ReadRequestBody[rest.PasswordUpdateParams](ctx.Req)
+	updateParams, err := net.ReadRequestBody[structs.PasswordUpdateParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusBadRequest, err)
 		return
@@ -262,7 +262,7 @@ func UpdatePassword(ctx context.RequestContext) {
 //	@Failure	403
 //	@Failure	404
 //	@Router		/users/{username}/admin [patch]
-func SetAdmin(ctx context.RequestContext) {
+func SetAdmin(ctx *context.RequestContext) {
 	if !ctx.Requester.IsOwner() {
 		ctx.W.WriteHeader(http.StatusForbidden)
 		return
@@ -314,7 +314,7 @@ func SetAdmin(ctx context.RequestContext) {
 //	@Failure	401
 //	@Failure	404
 //	@Router		/users/{username}/active [patch]
-func Activate(ctx context.RequestContext) {
+func Activate(ctx *context.RequestContext) {
 	if !ctx.Requester.IsAdmin() {
 		ctx.W.WriteHeader(http.StatusForbidden)
 		return
@@ -365,7 +365,7 @@ func Activate(ctx context.RequestContext) {
 //	@Failure	401	{object}	rest.WeblensErrorInfo
 //	@Failure	404	{object}	rest.WeblensErrorInfo
 //	@Router		/users/{username}/fullName [patch]
-func ChangeDisplayName(ctx context.RequestContext) {
+func ChangeDisplayName(ctx *context.RequestContext) {
 	username := ctx.Path("username")
 
 	newName := ctx.Query("newFullName")
@@ -411,7 +411,7 @@ func ChangeDisplayName(ctx context.RequestContext) {
 //	@Failure	404
 //	@Failure	500
 //	@Router		/users/{username} [delete]
-func Delete(ctx context.RequestContext) {
+func Delete(ctx *context.RequestContext) {
 	if !ctx.Requester.IsOwner() {
 		ctx.W.WriteHeader(http.StatusForbidden)
 		return
@@ -456,7 +456,7 @@ func Delete(ctx context.RequestContext) {
 //	@Failure	404
 //	@Failure	500
 //	@Router		/users/search [get]
-func Search(ctx context.RequestContext) {
+func Search(ctx *context.RequestContext) {
 	search := ctx.Query("search")
 	if len(search) < 2 {
 		ctx.Error(http.StatusBadRequest, errors.New("Username autocomplete must contain at least 2 characters"))
@@ -470,7 +470,7 @@ func Search(ctx context.RequestContext) {
 		return
 	}
 
-	usersInfo := []*structs.UserInfo{}
+	usersInfo := []structs.UserInfo{}
 	for _, user := range users {
 		if user.Username == ctx.Requester.Username {
 			continue

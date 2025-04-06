@@ -13,7 +13,6 @@ import (
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/job"
 	media_model "github.com/ethanrous/weblens/models/media"
-	"github.com/ethanrous/weblens/models/rest"
 	share_model "github.com/ethanrous/weblens/models/share"
 	"github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/net"
@@ -22,6 +21,7 @@ import (
 	"github.com/ethanrous/weblens/services/auth"
 	"github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/file"
+	file_service "github.com/ethanrous/weblens/services/file"
 	"github.com/ethanrous/weblens/services/journal"
 	media_service "github.com/ethanrous/weblens/services/media"
 	"github.com/ethanrous/weblens/services/reshape"
@@ -82,9 +82,9 @@ func checkFileAccessById(ctx *context.RequestContext, fileId string) (file *file
 //	@Summary	Get information about a file
 //	@Tags		Files
 //	@Produce	json
-//	@Param		fileId	path		string			true	"File Id"
-//	@Param		shareId	query		string			false	"Share Id"
-//	@Success	200		{object}	rest.FileInfo	"File Info"
+//	@Param		fileId	path		string				true	"File Id"
+//	@Param		shareId	query		string				false	"Share Id"
+//	@Success	200		{object}	structs.FileInfo	"File Info"
 //	@Failure	401
 //	@Failure	404
 //	@Router		/files/{fileId} [get]
@@ -94,7 +94,7 @@ func GetFile(ctx *context.RequestContext) {
 		return
 	}
 
-	fileInfo, err := reshape.WeblensFileToFileInfo(ctx, file, false)
+	fileInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, file, false)
 	ctx.JSON(http.StatusOK, fileInfo)
 }
 
@@ -163,12 +163,12 @@ func GetFileStats(ctx *context.RequestContext) {
 //	@Summary	Download a file
 //	@Tags		Files
 //	@Produce	octet-stream
-//	@Param		fileId		path		string					true	"File Id"
-//	@Param		shareId		query		string					false	"Share Id"
-//	@Param		format		query		string					false	"File format conversion"
-//	@Param		isTakeout	query		bool					false	"Is this a takeout file"	Enums(true, false)	default(false)
-//	@Success	200			{string}	binary					"File content"
-//	@Success	404			{object}	rest.WeblensErrorInfo	"Error Info"
+//	@Param		fileId		path		string						true	"File Id"
+//	@Param		shareId		query		string						false	"Share Id"
+//	@Param		format		query		string						false	"File format conversion"
+//	@Param		isTakeout	query		bool						false	"Is this a takeout file"	Enums(true, false)	default(false)
+//	@Success	200			{string}	binary						"File content"
+//	@Success	404			{object}	structs.WeblensErrorInfo	"Error Info"
 //	@Router		/files/{fileId}/download [get]
 func DownloadFile(ctx *context.RequestContext) {
 	file, err := checkFileAccess(ctx)
@@ -224,9 +224,9 @@ func DownloadFile(ctx *context.RequestContext) {
 //
 //	@Summary	Get actions of a folder at a given time
 //	@Tags		Folder
-//	@Param		fileId		path	string				true	"File Id"
-//	@Param		timestamp	query	int					true	"Past timestamp to view the folder at, in ms since epoch"
-//	@Success	200			{array}	rest.FileActionInfo	"File actions"
+//	@Param		fileId		path	string					true	"File Id"
+//	@Param		timestamp	query	int						true	"Past timestamp to view the folder at, in ms since epoch"
+//	@Success	200			{array}	structs.FileActionInfo	"File actions"
 //	@Failure	400
 //	@Failure	500
 //	@Router		/files/{fileId}/history [get]
@@ -247,7 +247,7 @@ func GetFolderHistory(ctx *context.RequestContext) {
 		pastTime = time.UnixMilli(millis)
 	}
 
-	pastFile, err := journal.GetPastFile(file.ID(), pastTime)
+	pastFile, err := journal.GetPastFile(ctx, file.GetPortablePath(), pastTime)
 	if err != nil {
 		ctx.Error(http.StatusNotFound, err)
 		return
@@ -276,9 +276,9 @@ func GetFolderHistory(ctx *context.RequestContext) {
 //	@Summary	Search for files by filename
 //	@Tags		Files
 //
-//	@Param		search			query	string			true	"Filename to search for"
-//	@Param		baseFolderId	query	string			false	"The folder to search in, defaults to the user's home folder"
-//	@Success	200				{array}	rest.FileInfo	"File Info"
+//	@Param		search			query	string				true	"Filename to search for"
+//	@Param		baseFolderId	query	string				false	"The folder to search in, defaults to the user's home folder"
+//	@Success	200				{array}	structs.FileInfo	"File Info"
 //	@Failure	400
 //	@Failure	401
 //	@Failure	500
@@ -335,7 +335,7 @@ func SearchByFilename(ctx *context.RequestContext) {
 			continue
 		}
 
-		fileInfo, err := reshape.WeblensFileToFileInfo(ctx, f, false)
+		fileInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, f, false)
 		if err != nil {
 			ctx.Logger.Error().Stack().Err(err).Msgf("Failed to convert file to FileInfo for file ID: %s", f.ID())
 			continue
@@ -358,12 +358,12 @@ func SearchByFilename(ctx *context.RequestContext) {
 //	@Tags		Folder
 //	@Accept		json
 //	@Produce	json
-//	@Param		request	body		rest.CreateFolderBody	true	"New folder body"
-//	@Param		shareId	query		string					false	"Share Id"
-//	@Success	200		{object}	rest.FileInfo			"File Info"
+//	@Param		request	body		structs.CreateFolderBody	true	"New folder body"
+//	@Param		shareId	query		string						false	"Share Id"
+//	@Success	200		{object}	structs.FileInfo			"File Info"
 //	@Router		/folder [post]
 func CreateFolder(ctx *context.RequestContext) {
-	body, err := net.ReadRequestBody[rest.CreateFolderBody](ctx.Req)
+	body, err := net.ReadRequestBody[structs.CreateFolderBody](ctx.Req)
 	if err != nil {
 		return
 	}
@@ -402,7 +402,7 @@ func CreateFolder(ctx *context.RequestContext) {
 	// 	return
 	// }
 
-	newDirInfo, err := reshape.WeblensFileToFileInfo(ctx, newDir, false)
+	newDirInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, newDir, false)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 		return
@@ -422,10 +422,10 @@ func CreateFolder(ctx *context.RequestContext) {
 //	@Tags		Folder
 //	@Accept		json
 //	@Produce	json
-//	@Param		folderId	path		string					true	"Folder Id"
-//	@Param		shareId		query		string					false	"Share Id"
-//	@Param		timestamp	query		int						false	"Past timestamp to view the folder at, in ms since epoch"
-//	@Success	200			{object}	rest.FolderInfoResponse	"Folder Info"
+//	@Param		folderId	path		string						true	"Folder Id"
+//	@Param		shareId		query		string						false	"Share Id"
+//	@Param		timestamp	query		int							false	"Past timestamp to view the folder at, in ms since epoch"
+//	@Success	200			{object}	structs.FolderInfoResponse	"Folder Info"
 //	@Router		/folder/{folderId} [get]
 func GetFolder(ctx *context.RequestContext) {
 	folder, err := checkFileAccess(ctx)
@@ -446,7 +446,7 @@ func GetFolder(ctx *context.RequestContext) {
 	}
 
 	if date.Unix() != 0 {
-		formatRespondPastFolderInfo(ctx, folder.ID(), date)
+		formatRespondPastFolderInfo(ctx, folder.GetPortablePath(), date)
 		return
 	}
 
@@ -509,8 +509,8 @@ func SetFolderCover(ctx *context.RequestContext) {
 //
 //	@Summary	Dispatch a folder scan
 //	@Tags		Folder
-//	@Param		shareId	query	string			false	"Share Id"
-//	@Param		request	body	rest.ScanBody	true	"Scan parameters"
+//	@Param		shareId	query	string				false	"Share Id"
+//	@Param		request	body	structs.ScanBody	true	"Scan parameters"
 //	@Success	200
 //	@Failure	404
 //	@Failure	500
@@ -526,7 +526,7 @@ func ScanDir(ctx *context.RequestContext) {
 	// 	w.WriteHeader(http.StatusInternalServerError)
 	// 	return
 	// }
-	// var scanInfo rest.ScanBody
+	// var scanInfo structs.ScanBody
 	// err = json.Unmarshal(body, &scanInfo)
 	// if err != nil {
 	// 	log.Error().Stack().Err(err).Msg("")
@@ -563,7 +563,7 @@ func ScanDir(ctx *context.RequestContext) {
 //
 //	@Summary	Get files shared with the logged in user
 //	@Tags		Files
-//	@Success	200	{object}	rest.FolderInfoResponse	"All the top-level files shared with the user"
+//	@Success	200	{object}	structs.FolderInfoResponse	"All the top-level files shared with the user"
 //	@Failure	404
 //	@Failure	500
 //	@Router		/files/shared [get]
@@ -586,7 +586,7 @@ func GetSharedFiles(ctx *context.RequestContext) {
 
 	childInfos := make([]structs.FileInfo, 0, len(children))
 	for _, child := range children {
-		fInfo, err := reshape.WeblensFileToFileInfo(ctx, child, false)
+		fInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, child, false)
 		if err != nil {
 			// If we can't convert the file to a FileInfo, log the error and continue
 			ctx.Error(http.StatusInternalServerError, errors.New("failed to convert file to FileInfo"))
@@ -648,15 +648,15 @@ func GetSharedFiles(ctx *context.RequestContext) {
 //	@Description	Dispatch a task to create a zip file of the given files, or get the id of a previously created zip file if it already exists
 //	@Tags			Files
 //	@Param			shareId	query		string					false	"Share Id"
-//	@Param			request	body		rest.FilesListParams	true	"File Ids"
-//	@Success		200		{object}	rest.TakeoutInfo		"Zip Takeout Info"
-//	@Success		202		{object}	rest.TakeoutInfo		"Task Dispatch Info"
+//	@Param			request	body		structs.FilesListParams	true	"File Ids"
+//	@Success		200		{object}	structs.TakeoutInfo		"Zip Takeout Info"
+//	@Success		202		{object}	structs.TakeoutInfo		"Task Dispatch Info"
 //	@Failure		400
 //	@Failure		404
 //	@Failure		500
 //	@Router			/takeout [post]
 func CreateTakeout(ctx *context.RequestContext) {
-	takeoutRequest, err := net.ReadRequestBody[rest.FilesListParams](ctx.Req)
+	takeoutRequest, err := net.ReadRequestBody[structs.FilesListParams](ctx.Req)
 	if err != nil {
 		return
 	}
@@ -720,7 +720,7 @@ func CreateTakeout(ctx *context.RequestContext) {
 //	@Summary	Get path completion suggestions
 //	@Tags		Files
 //	@Param		searchPath	query		string	true	"Search path"
-//	@Success	200			{object}	rest.FolderInfoResponse"Path info"
+//	@Success	200			{object}	structs.FolderInfoResponse"Path info"
 //	@Failure	500
 //	@Router		/files/autocomplete [get]
 func AutocompletePath(ctx *context.RequestContext) {
@@ -776,7 +776,7 @@ func AutocompletePath(ctx *context.RequestContext) {
 	for _, match := range matches {
 		f := children[match.OriginalIndex]
 
-		childInfo, err := reshape.WeblensFileToFileInfo(ctx, f, false)
+		childInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, f, false)
 		if err != nil {
 			ctx.Error(http.StatusInternalServerError, errors.New("failed to convert file to FileInfo"))
 			return
@@ -784,7 +784,7 @@ func AutocompletePath(ctx *context.RequestContext) {
 		childInfos = append(childInfos, childInfo)
 	}
 
-	selfInfo, err := reshape.WeblensFileToFileInfo(ctx, folder, false)
+	selfInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, folder, false)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, errors.New("failed to convert folder to FileInfo"))
 		return
@@ -800,18 +800,18 @@ func AutocompletePath(ctx *context.RequestContext) {
 //
 //	@Security	SessionAuth
 //
-//	@Summary	Restore files from some time in the past
+//	@Summary	structsore files from some time in the past
 //	@Tags		Files
 //	@Accept		json
 //	@Produce	json
-//	@Param		request	body		rest.RestoreFilesBody	true	"Restore files request body"
-//	@Success	200		{object}	rest.RestoreFilesInfo	"Restore files info"
+//	@Param		request	body		structs.RestoreFilesParams	true	"RestoreFiles files request body"
+//	@Success	200		{object}	structs.RestoreFilesInfo	"structsore files info"
 //	@Failure	400
 //	@Failure	404
 //	@Failure	500
-//	@Router		/files/restore [post]
+//	@Router		/files/structsore [post]
 func RestoreFiles(ctx *context.RequestContext) {
-	body, err := net.ReadRequestBody[rest.RestoreFilesBody](ctx.Req)
+	body, err := net.ReadRequestBody[structs.RestoreFilesParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, errors.New("Failed to read request body"))
 	}
@@ -821,7 +821,7 @@ func RestoreFiles(ctx *context.RequestContext) {
 		return
 	}
 	ctx.W.WriteHeader(http.StatusNotImplemented)
-	// restoreTime := time.UnixMilli(body.Timestamp)
+	// structsoreTime := time.UnixMilli(body.Timestamp)
 
 	// parentLt := ctx.FileService.GetJournalByTree("USERS").Get(body.NewParentId)
 	// if parentLt == nil {
@@ -829,7 +829,7 @@ func RestoreFiles(ctx *context.RequestContext) {
 	// 	return
 	// }
 	//
-	// // New parent folder is the folder it was in at the time we are restoring from, if
+	// // New parent folder is the folder it was in at the time we are structsoring from, if
 	// // it still exists, otherwise it is the users home folder
 	// var newParent *file_model.WeblensFileImpl
 	// if parentLt.GetLatestAction().GetActionType() == fileTree.FileDelete {
@@ -848,20 +848,20 @@ func RestoreFiles(ctx *context.RequestContext) {
 	//
 	// // actions := parentLt.GetActions()
 	// // for i, action := range actions {
-	// // 	if action.Timestamp.After(restoreTime) && (action.ActionType != fileTree.FileSizeChange || i == len(actions)-1) {
+	// // 	if action.Timestamp.After(structsoreTime) && (action.ActionType != fileTree.FileSizeChange || i == len(actions)-1) {
 	// // 		if i != 0 {
-	// // 			restoreTime = actions[i-1].Timestamp
+	// // 			structsoreTime = actions[i-1].Timestamp
 	// // 		}
 	// // 		break
 	// // 	}
 	// // }
 	//
-	// err = ctx.FileService.RestoreFiles(body.FileIds, newParent, restoreTime, pack.Caster)
+	// err = ctx.FileService.structsoreFiles(body.FileIds, newParent, structsoreTime, pack.Caster)
 	// if SafeErrorAndExit(err, w, log) {
 	// 	return
 	// }
 	//
-	// res := rest.RestoreFilesInfo{NewParentId: newParent.ID()}
+	// res := structs.structsoreFilesInfo{NewParentId: newParent.ID()}
 	//
 	// writeJson(w, http.StatusOK, res)
 }
@@ -876,9 +876,9 @@ func RestoreFiles(ctx *context.RequestContext) {
 //	@Summary	Update a File
 //	@Tags		Files
 //	@Accept		json
-//	@Param		fileId	path	string					true	"File Id"
-//	@Param		shareId	query	string					false	"Share Id"
-//	@Param		request	body	rest.UpdateFileParams	true	"Update file request body"
+//	@Param		fileId	path	string						true	"File Id"
+//	@Param		shareId	query	string						false	"Share Id"
+//	@Param		request	body	structs.UpdateFileParams	true	"Update file request body"
 //	@Success	200
 //	@Failure	403
 //	@Failure	404
@@ -890,12 +890,12 @@ func UpdateFile(ctx *context.RequestContext) {
 		return
 	}
 
-	if ctx.FileService.IsFileInTrash(file) {
+	if file_service.IsFileInTrash(file) {
 		ctx.Error(http.StatusForbidden, errors.New("cannot rename file in trash"))
 		return
 	}
 
-	updateInfo, err := net.ReadRequestBody[rest.UpdateFileParams](ctx.Req)
+	updateInfo, err := net.ReadRequestBody[structs.UpdateFileParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, errors.New("Failed to read request body"))
 		return
@@ -919,14 +919,14 @@ func UpdateFile(ctx *context.RequestContext) {
 //
 //	@Summary	Move a list of files to a new parent folder
 //	@Tags		Files
-//	@Param		request	body	rest.MoveFilesParams	true	"Move files request body"
+//	@Param		request	body	structs.MoveFilesParams	true	"Move files request body"
 //	@Param		shareId	query	string					false	"Share Id"
 //	@Success	200
 //	@Failure	404
 //	@Failure	500
 //	@Router		/files [patch]
 func MoveFiles(ctx *context.RequestContext) {
-	filesData, err := net.ReadRequestBody[rest.MoveFilesParams](ctx.Req)
+	filesData, err := net.ReadRequestBody[structs.MoveFilesParams](ctx.Req)
 	if err != nil {
 		return
 	}
@@ -966,7 +966,7 @@ func MoveFiles(ctx *context.RequestContext) {
 		files = append(files, f)
 	}
 
-	err = ctx.FileService.MoveFiles(files, newParent, "USERS")
+	err = ctx.FileService.MoveFiles(ctx, files, newParent, "USERS")
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 		return
@@ -981,16 +981,16 @@ func MoveFiles(ctx *context.RequestContext) {
 //
 //	@Security	SessionAuth
 //
-//	@Summary	Move a list of files out of the trash, restoring them to where they were before
+//	@Summary	Move a list of files out of the trash, structsoring them to where they were before
 //	@Tags		Files
-//	@Param		request	body	rest.FilesListParams	true	"Un-trash files request body"
+//	@Param		request	body	structs.FilesListParams	true	"Un-trash files request body"
 //	@Success	200
 //	@Failure	401
 //	@Failure	404
 //	@Failure	500
 //	@Router		/files/untrash [patch]
 func UnTrashFiles(ctx *context.RequestContext) {
-	params, err := net.ReadRequestBody[rest.FilesListParams](ctx.Req)
+	params, err := net.ReadRequestBody[structs.FilesListParams](ctx.Req)
 	if err != nil {
 		return
 	}
@@ -1007,7 +1007,7 @@ func UnTrashFiles(ctx *context.RequestContext) {
 		files = append(files, file)
 	}
 
-	err = ctx.FileService.ReturnFilesFromTrash(files)
+	err = ctx.FileService.ReturnFilesFromTrash(ctx, files)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "Failed to un-trash files"))
 	}
@@ -1023,7 +1023,7 @@ func UnTrashFiles(ctx *context.RequestContext) {
 //
 //	@Summary	Delete Files "permanently"
 //	@Tags		Files
-//	@Param		request		body	rest.FilesListParams	true	"Delete files request body"
+//	@Param		request		body	structs.FilesListParams	true	"Delete files request body"
 //	@Param		ignoreTrash	query	boolean					false	"Delete files even if they are not in the trash"
 //	@Success	200
 //	@Failure	401
@@ -1031,7 +1031,7 @@ func UnTrashFiles(ctx *context.RequestContext) {
 //	@Failure	500
 //	@Router		/files [delete]
 func deleteFiles(ctx *context.RequestContext) {
-	params, err := net.ReadRequestBody[rest.FilesListParams](ctx.Req)
+	params, err := net.ReadRequestBody[structs.FilesListParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 		return
@@ -1057,7 +1057,7 @@ func deleteFiles(ctx *context.RequestContext) {
 		files = append(files, file)
 	}
 
-	err = ctx.FileService.DeleteFiles(ctx, files, "USERS")
+	err = ctx.FileService.DeleteFiles(ctx, files)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "Failed to delete files"))
 		return
@@ -1075,15 +1075,15 @@ func deleteFiles(ctx *context.RequestContext) {
 //
 //	@Summary	Begin a new upload task
 //	@Tags		Files
-//	@Param		request	body		rest.NewUploadParams	true	"New upload request body"
+//	@Param		request	body		structs.NewUploadParams	true	"New upload request body"
 //	@Param		shareId	query		string					false	"Share Id"
-//	@Success	201		{object}	rest.NewUploadInfo		"Upload Info"
+//	@Success	201		{object}	structs.NewUploadInfo	"Upload Info"
 //	@Failure	401
 //	@Failure	404
 //	@Failure	500
 //	@Router		/upload [post]
 func NewUploadTask(ctx *context.RequestContext) {
-	upInfo, err := net.ReadRequestBody[rest.NewUploadParams](ctx.Req)
+	upInfo, err := net.ReadRequestBody[structs.NewUploadParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 		return
@@ -1124,17 +1124,17 @@ func NewUploadTask(ctx *context.RequestContext) {
 //
 //	@Summary	Add a file to an upload task
 //	@Tags		Files
-//	@Param		uploadId	path		string				true	"Upload Id"
-//	@Param		shareId		query		string				false	"Share Id"
-//	@Param		request		body		rest.NewFilesParams	true	"New file params"
-//	@Success	201			{object}	rest.NewFilesInfo	"FileIds"
+//	@Param		uploadId	path		string					true	"Upload Id"
+//	@Param		shareId		query		string					false	"Share Id"
+//	@Param		request		body		structs.NewFilesParams	true	"New file params"
+//	@Success	201			{object}	structs.NewFilesInfo	"FileIds"
 //	@Failure	401
 //	@Failure	404
 //	@Failure	500
 //	@Router		/upload/{uploadId} [post]
 func NewFileUpload(ctx *context.RequestContext) {
 	uploadTaskId := ctx.Path("uploadId")
-	params, err := net.ReadRequestBody[rest.NewFilesParams](ctx.Req)
+	params, err := net.ReadRequestBody[structs.NewFilesParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 		return
@@ -1322,20 +1322,21 @@ func getChildMedias(ctx *context.RequestContext, children []*file_model.WeblensF
 	var medias []*media_model.Media
 	for _, child := range children {
 		var m *media_model.Media
-		contentId := child.GetContentId()
-		if child.IsDir() && contentId == "" {
-			coverId, err := ctx.FileService.GetFolderCover(child)
+		if child.IsDir() && child.GetContentId() == "" {
+			cover, err := cover_model.GetCoverByFolderId(ctx, child.ID())
 			if err != nil {
-				return nil, err
+				ctx.Log().Error().Stack().Err(err).Msgf("Failed to get cover for folder [%s], skipping", child.ID())
+				continue
 			}
 
-			if coverId != "" {
-				child.SetContentId(coverId)
-				contentId = coverId
-			}
+			child.SetContentId(cover.CoverPhotoId)
 		}
 
-		m, err := media_model.GetMediaById(ctx, contentId)
+		if child.GetContentId() == "" {
+			continue
+		}
+
+		m, err := media_model.GetMediaById(ctx, child.GetContentId())
 		if err != nil {
 			ctx.Logger.Error().Stack().Err(err).Msgf("Failed to get media for file [%s]", child.ID())
 			continue
@@ -1354,14 +1355,14 @@ func formatRespondFolderInfo(ctx *context.RequestContext, dir *file_model.Weblen
 	var parentsInfo []structs.FileInfo
 	parent := dir.GetParent()
 
-	owner, err := ctx.FileService.GetFileOwner(parent)
+	owner, err := file_service.GetFileOwner(ctx, parent)
 	if err != nil {
 		return err
 	}
 
 	auth.CanUserAccessFile(ctx.Requester, parent, ctx.Share) // Check if the user has access to the parent folder
 	for parent.ID() != "ROOT" && auth.CanUserAccessFile(ctx.Requester, parent, ctx.Share) && !owner.IsSystemUser() {
-		parentInfo, err := reshape.WeblensFileToFileInfo(ctx, parent, false)
+		parentInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, parent, false)
 		if err != nil {
 			return err
 		}
@@ -1379,14 +1380,14 @@ func formatRespondFolderInfo(ctx *context.RequestContext, dir *file_model.Weblen
 
 	childInfos := make([]structs.FileInfo, 0, len(children))
 	for _, child := range children {
-		info, err := reshape.WeblensFileToFileInfo(ctx, child, false)
+		info, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, child, false)
 		if err != nil {
 			return err
 		}
 		childInfos = append(childInfos, info)
 	}
 
-	selfInfo, err := reshape.WeblensFileToFileInfo(ctx, dir, false)
+	selfInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, dir, false)
 	if err != nil {
 		return err
 	}
@@ -1402,36 +1403,33 @@ func formatRespondFolderInfo(ctx *context.RequestContext, dir *file_model.Weblen
 }
 
 // Helper Function
-func formatRespondPastFolderInfo(ctx *context.RequestContext, folderId string, pastTime time.Time) error {
-	ctx.Logger.Trace().Func(func(e *zerolog.Event) { e.Msgf("Getting past folder [%s] at time [%s]", folderId, pastTime) })
+func formatRespondPastFolderInfo(ctx *context.RequestContext, folderPath fs.Filepath, pastTime time.Time) error {
+	ctx.Logger.Trace().Func(func(e *zerolog.Event) { e.Msgf("Getting past folder [%s] at time [%s]", folderPath, pastTime) })
 
-	pastFile, err := journal.GetPastFile(folderId, pastTime)
+	pastFile, err := journal.GetPastFile(ctx, folderPath, pastTime)
 	if err != nil {
 		return err
 	}
-	pastFileInfo, err := reshape.WeblensFileToFileInfo(ctx, pastFile, true)
+	pastFileInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, pastFile, true)
 	if err != nil {
 		return err
 	}
 
 	var parentsInfo []structs.FileInfo
-	parentId := pastFile.GetParentId()
-	if parentId == "" {
-		return err
-	}
-	for parentId != "ROOT" {
-		pastParent, err := journal.GetPastFile(parentId, pastTime)
+	folderPath = folderPath.Dir()
+	for folderPath != file_service.UsersRootPath {
+		pastParent, err := journal.GetPastFile(ctx, folderPath, pastTime)
 		if err != nil {
 			return err
 		}
 
-		parentInfo, err := reshape.WeblensFileToFileInfo(ctx, pastParent, true)
+		parentInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, pastParent, true)
 		if err != nil {
 			return err
 		}
 
 		parentsInfo = append(parentsInfo, parentInfo)
-		parentId = pastParent.GetParentId()
+		folderPath = folderPath.Dir()
 	}
 
 	children := pastFile.GetChildren()
@@ -1441,7 +1439,7 @@ func formatRespondPastFolderInfo(ctx *context.RequestContext, folderId string, p
 			continue
 		}
 
-		childInfo, err := reshape.WeblensFileToFileInfo(ctx, child, true)
+		childInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, child, true)
 		if err != nil {
 			return err
 		}

@@ -1,7 +1,7 @@
 package media
 
 import (
-	"fmt"
+	"context"
 	"slices"
 	"strings"
 	"sync"
@@ -9,7 +9,6 @@ import (
 
 	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
-	"github.com/ethanrous/weblens/modules/context"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
@@ -19,6 +18,9 @@ import (
 const MediaCollectionKey = "media"
 
 var ErrMediaNotFound = errors.New("media not found")
+var ErrMediaAlreadyExists = errors.New("media already exists")
+var ErrNotDisplayable = errors.New("media is not displayable")
+var ErrMediaBadMimeType = errors.New("media has a bad mime type")
 
 type Media struct {
 	CreateDate time.Time `bson:"createDate"`
@@ -39,7 +41,7 @@ type Media struct {
 	Rotate string
 
 	// Slices of files whos content hash to the contentId
-	FileIDs []file_model.FileId `bson:"fileIds"`
+	FileIDs []string `bson:"fileIds"`
 
 	// Tags from the ML image scan so searching for particular objects in the images can be done
 	RecognitionTags []string `bson:"recognitionTags"`
@@ -78,7 +80,7 @@ type Media struct {
 	imported bool
 }
 
-func GetMediaById(ctx context.DatabaseContext, id ContentId) (*Media, error) {
+func GetMediaById(ctx context.Context, id ContentId) (*Media, error) {
 	col, err := db.GetCollection(ctx, MediaCollectionKey)
 	if err != nil {
 		return nil, err
@@ -93,7 +95,7 @@ func GetMediaById(ctx context.DatabaseContext, id ContentId) (*Media, error) {
 	return media, nil
 }
 
-func GetMediaByPath(ctx context.DatabaseContext, path string) ([]*Media, error) {
+func GetMediaByPath(ctx context.Context, path string) ([]*Media, error) {
 	// col, err := db.GetCollection(ctx, MediaCollectionKey)
 	// if err != nil {
 	// 	return nil, err
@@ -109,7 +111,7 @@ func GetMediaByPath(ctx context.DatabaseContext, path string) ([]*Media, error) 
 	return nil, errors.New("not implemented")
 }
 
-func GetMedia(ctx context.DatabaseContext, username string, sort string, sortDirection int, excludeIds []ContentId,
+func GetMedia(ctx context.Context, username string, sort string, sortDirection int, excludeIds []ContentId,
 	allowRaw bool, allowHidden bool, search string) ([]*Media, error) {
 
 	slices.Sort(excludeIds)
@@ -156,7 +158,7 @@ func GetMedia(ctx context.DatabaseContext, username string, sort string, sortDir
 	return medias, nil
 }
 
-func DropMediaCollection(ctx context.DatabaseContext) error {
+func DropMediaCollection(ctx context.Context) error {
 	col, err := db.GetCollection(ctx, MediaCollectionKey)
 	if err != nil {
 		return err
@@ -223,7 +225,7 @@ func (m *Media) GetOwner() string {
 	return m.Owner
 }
 
-func (m *Media) GetFiles() []file_model.FileId {
+func (m *Media) GetFiles() []string {
 	m.updateMu.RLock()
 	defer m.updateMu.RUnlock()
 	return m.FileIDs
@@ -235,11 +237,11 @@ func (m *Media) AddFile(f *file_model.WeblensFileImpl) {
 	m.FileIDs = slices_mod.AddToSet(m.FileIDs, f.ID())
 }
 
-func (m *Media) RemoveFile(fileIdToRemove file_model.FileId) {
+func (m *Media) RemoveFile(fileIdToRemove string) {
 	m.updateMu.Lock()
 	defer m.updateMu.Unlock()
 	m.FileIDs = slices_mod.Filter(
-		m.FileIDs, func(fId file_model.FileId) bool {
+		m.FileIDs, func(fId string) bool {
 			return fId != fileIdToRemove
 		},
 	)
@@ -313,16 +315,6 @@ func (m *Media) GetHighresCacheFiles(pageNum int) *file_model.WeblensFileImpl {
 	return m.highResCacheFiles[pageNum]
 }
 
-func (m *Media) FmtCacheFileName(quality MediaQuality, pageNum int) string {
-	var pageNumStr string
-	if m.PageCount > 1 && quality == HighRes {
-		pageNumStr = fmt.Sprintf("_%d", pageNum)
-	}
-	filename := fmt.Sprintf("%s-%s%s.cache", m.ID(), quality, pageNumStr)
-
-	return filename
-}
-
 const ThumbnailHeight float32 = 500
 
 // func (m *Media) UnmarshalBSON(bs []byte) error {
@@ -340,12 +332,12 @@ const ThumbnailHeight float32 = 500
 // 			return werror.WithStack(err)
 // 		}
 // 		m.FileIDs = slices.Map(
-// 			fileIdsRaw, func(e bson.RawValue) file_model.FileId {
-// 				return file_model.FileId(e.StringValue())
+// 			fileIdsRaw, func(e bson.RawValue) string {
+// 				return string(e.StringValue())
 // 			},
 // 		)
 // 	} else {
-// 		m.FileIDs = []file_model.FileId{}
+// 		m.FileIDs = []string{}
 // 	}
 //
 // 	m.PageCount = int(raw.Lookup("pageCount").Int32())
@@ -425,7 +417,7 @@ const ThumbnailHeight float32 = 500
 // 	AdjustMediaDates(anchor *Media, newTime time.Time, extraMedias []*Media) error
 //
 // 	LoadMediaFromFile(m *Media, file *file_model.WeblensFileImpl) error
-// 	RemoveFileFromMedia(media *Media, fileId file_model.FileId) error
+// 	RemoveFileFromMedia(media *Media, fileId string) error
 // 	Cleanup() error
 // 	Drop() error
 // 	AddFileToMedia(media *Media, file *file_model.WeblensFileImpl) error
@@ -466,7 +458,7 @@ func CheckMediaQuality(quality string) (MediaQuality, bool) {
 	return "", false
 }
 
-func RemoveFileFromMedia(ctx context.DatabaseContext, media *Media, fileId file_model.FileId) error {
+func RemoveFileFromMedia(ctx context.Context, media *Media, fileId string) error {
 	col, err := db.GetCollection(ctx, MediaCollectionKey)
 	if err != nil {
 		return err
@@ -475,6 +467,22 @@ func RemoveFileFromMedia(ctx context.DatabaseContext, media *Media, fileId file_
 	_, err = col.UpdateOne(ctx, bson.D{
 		{Key: "contentId", Value: media.ContentID},
 	}, bson.D{{Key: "$pull", Value: bson.D{{Key: "fileIds", Value: fileId}}}})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
+}
+
+func (media *Media) AddFileToMedia(ctx context.Context, fileId string) error {
+	col, err := db.GetCollection(ctx, MediaCollectionKey)
+	if err != nil {
+		return err
+	}
+
+	_, err = col.UpdateOne(ctx, bson.D{
+		{Key: "contentId", Value: media.ContentID},
+	}, bson.D{{Key: "$addToSet", Value: bson.D{{Key: "fileIds", Value: fileId}}}})
 	if err != nil {
 		return errors.WithStack(err)
 	}

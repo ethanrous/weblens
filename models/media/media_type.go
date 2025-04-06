@@ -170,6 +170,25 @@ const MediaTypeJson = `{
 }
 `
 
+var mimeMap = map[string]MediaType{}
+var extMap = map[string]MediaType{}
+
+func init() {
+	var marshMap map[string]MediaType
+	json.Unmarshal([]byte(MediaTypeJson), &marshMap)
+
+	for k, t := range marshMap {
+		t.Mime = k
+		mimeMap[k] = t
+	}
+
+	for _, mt := range mimeMap {
+		for _, ext := range mt.Extensions {
+			extMap[ext] = mt
+		}
+	}
+}
+
 type MediaType struct {
 	Mime            string   `json:"mime"`
 	Name            string   `json:"FriendlyName"`
@@ -182,64 +201,36 @@ type MediaType struct {
 	MultiPage       bool     `json:"MultiPage"`
 } // @name MediaType
 
-type typeService struct {
-	mimeMap map[string]MediaType
-	extMap  map[string]MediaType
-}
-
-func NewTypeService() MediaTypeService {
-	var marshMap map[string]MediaType
-	json.Unmarshal([]byte(MediaTypeJson), &marshMap)
-
-	ts := &typeService{
-		mimeMap: make(map[string]MediaType),
-		extMap:  make(map[string]MediaType),
-	}
-
-	for k, t := range marshMap {
-		t.Mime = k
-		ts.mimeMap[k] = t
-	}
-
-	for _, mt := range ts.mimeMap {
-		for _, ext := range mt.Extensions {
-			ts.extMap[ext] = mt
-		}
-	}
-
-	return ts
-}
-
 // ParseExtension Get a pointer to the weblens Media type of a file given the file extension
-func (ts *typeService) ParseExtension(ext string) MediaType {
+func ParseExtension(ext string) MediaType {
 	if len(ext) == 0 {
-		return ts.mimeMap["generic"]
+		return mimeMap["generic"]
 	}
 
 	if ext[0] == '.' {
 		ext = ext[1:]
 	}
-	mt, ok := ts.extMap[ext]
+	mt, ok := extMap[ext]
 	if !ok {
-		return ts.mimeMap["generic"]
+		return mimeMap["generic"]
 	}
 	return mt
 }
 
-func (ts *typeService) ParseMime(mime string) MediaType {
-	return ts.mimeMap[mime]
+func ParseMime(mime string) MediaType {
+	return mimeMap[mime]
 }
 
-func (ts *typeService) GetMaps() (map[string]MediaType, map[string]MediaType) {
-	return ts.mimeMap, ts.extMap
+func GetMaps() (map[string]MediaType, map[string]MediaType) {
+	return mimeMap, extMap
 }
 
-func (ts *typeService) Generic() MediaType {
-	return ts.mimeMap["generic"]
+func Generic() MediaType {
+	return mimeMap["generic"]
 }
 
-func (ts *typeService) Size() int {
-	return len(ts.mimeMap)
+func Size() int {
+	return len(mimeMap)
 }
 
 func (mt MediaType) IsMime(mime string) bool {
@@ -268,12 +259,4 @@ func (mt MediaType) GetThumbExifKey() string {
 
 func (mt MediaType) SupportsImgRecog() bool {
 	return mt.ImgRecog
-}
-
-type MediaTypeService interface {
-	GetMaps() (map[string]MediaType, map[string]MediaType)
-	ParseExtension(ext string) MediaType
-	ParseMime(mime string) MediaType
-	Generic() MediaType
-	Size() int
 }

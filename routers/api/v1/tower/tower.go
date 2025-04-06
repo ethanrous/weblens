@@ -17,14 +17,14 @@ import (
 //	@Produce	json
 //	@Success	200	{object}	rest.ServerInfo	"Server info"
 //	@Router		/info [get]
-func GetServerInfo(ctx context.RequestContext) {
-	tower, err := tower_model.GetTowerById(ctx, ctx.TowerId)
+func GetServerInfo(ctx *context.RequestContext) {
+	tower, err := tower_model.GetTowerById(ctx, ctx.LocalTowerId)
 	if err != nil {
 		ctx.Error(http.StatusNotFound, err)
 		return
 	}
 
-	towerInfo := reshape.TowerToTowerInfo(ctx, tower)
+	towerInfo := reshape.TowerToTowerInfo(tower)
 	ctx.JSON(http.StatusOK, towerInfo)
 }
 

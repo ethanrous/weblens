@@ -2,7 +2,6 @@ package context
 
 import (
 	"context"
-	"time"
 
 	"github.com/rs/zerolog"
 )
@@ -12,13 +11,11 @@ type BasicContext struct {
 	Logger *zerolog.Logger
 }
 
-func (b *BasicContext) WithTimeout(d time.Duration) (*BasicContext, context.CancelFunc) {
-	ctx, cancel := context.WithTimeout(b.Context, d)
-
+func NewBasicContext(ctx context.Context, logger *zerolog.Logger) *BasicContext {
 	return &BasicContext{
 		Context: ctx,
-		Logger:  b.Logger,
-	}, cancel
+		Logger:  logger,
+	}
 }
 
 func (b *BasicContext) Log() *zerolog.Logger {

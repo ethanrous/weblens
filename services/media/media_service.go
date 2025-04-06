@@ -1,8 +1,22 @@
 package media
 
 import (
-	"github.com/ethanrous/weblens/models/media"
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"os/exec"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/barasher/go-exiftool"
+	"github.com/davidbyttow/govips/v2/vips"
+	file_model "github.com/ethanrous/weblens/models/file"
+	media_model "github.com/ethanrous/weblens/models/media"
+	"github.com/ethanrous/weblens/services/context"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
+	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
 
 // import (
@@ -22,7 +36,6 @@ import (
 // 	"time"
 //
 // 	"github.com/EdlinOrg/prominentcolor"
-// 	"github.com/barasher/go-exiftool"
 // 	"github.com/ethanrous/weblens/fileTree"
 // 	"github.com/ethanrous/weblens/internal"
 // 	"github.com/pkg/errors"
@@ -42,1072 +55,1018 @@ import (
 // 	"github.com/davidbyttow/govips/v2/vips"
 // )
 
-func GetConverted(m *media.Media, format string) ([]byte, error) {
+func GetConverted(m *media_model.Media, format string) ([]byte, error) {
 	return nil, errors.New("not implemented")
 }
 
-// type MediaServiceImpl struct {
-// 	filesBuffer sync.Pool
+//	type MediaServiceImpl struct {
+//		filesBuffer sync.Pool
 //
-// 	typeService models.MediaTypeService
-// 	fileService models.FileService
+//		typeService models.MediaTypeService
+//		fileService models.FileService
 //
-// 	AlbumService models.AlbumService
-// 	mediaMap     map[models.ContentId]*models.Media
+//		AlbumService models.AlbumService
+//		mediaMap     map[models.ContentId]*models.Media
 //
-// 	streamerMap map[models.ContentId]*models.VideoStreamer
+//		streamerMap map[models.ContentId]*models.VideoStreamer
 //
-// 	mediaCache *sturdyc.Client[[]byte]
+//		mediaCache *sturdyc.Client[[]byte]
 //
-// 	collection *mongo.Collection
+//		collection *mongo.Collection
 //
-// 	ollama *ollama.Client
+//		ollama *ollama.Client
 //
-// 	doImageRecog bool
+//		doImageRecog bool
 //
-// 	log *zerolog.Logger
+//		log *zerolog.Logger
 //
-// 	mediaLock sync.RWMutex
+//		mediaLock sync.RWMutex
 //
-// 	streamerLock sync.RWMutex
-// }
+//		streamerLock sync.RWMutex
+//	}
+var exifd *exiftool.Exiftool
+
+type cacheKey string
+
+const (
+	CacheIdKey      cacheKey = "cacheId"
+	CacheQualityKey cacheKey = "cacheQuality"
+	CachePageKey    cacheKey = "cachePageNum"
+	CacheMediaKey   cacheKey = "cacheMedia"
+
+	HighresMaxSize = 2500
+	ThumbMaxSize   = 1000
+)
+
+//	func init() {
+//		var err error
+//		exif, err = exiftool.NewExiftool(
+//			exiftool.Api("largefilesupport"),
+//			exiftool.Buffer([]byte{}, 1000*100),
+//		)
+//		if err != nil {
+//			panic(err)
+//		}
 //
-// var exif *exiftool.Exiftool
-//
-// type cacheKey string
-//
-// const (
-// 	CacheIdKey      cacheKey = "cacheId"
-// 	CacheQualityKey cacheKey = "cacheQuality"
-// 	CachePageKey    cacheKey = "cachePageNum"
-// 	CacheMediaKey   cacheKey = "cacheMedia"
-//
-// 	HighresMaxSize = 2500
-// 	ThumbMaxSize   = 1000
-// )
-//
-// func init() {
-// 	var err error
-// 	exif, err = exiftool.NewExiftool(
-// 		exiftool.Api("largefilesupport"),
-// 		exiftool.Buffer([]byte{}, 1000*100),
-// 	)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-//
-// 	vips.LoggingSettings(nil, vips.LogLevelWarning)
-// 	vips.Startup(&vips.Config{})
-// }
+//		vips.LoggingSettings(nil, vips.LogLevelWarning)
+//		vips.Startup(&vips.Config{})
+//	}
 //
 // func NewMediaService(
-// 	fileService models.FileService, mediaTypeServ models.MediaTypeService, albumService models.AlbumService,
-// 	col *mongo.Collection, logger *zerolog.Logger,
-// ) (*MediaServiceImpl, error) {
-// 	ms := &MediaServiceImpl{
-// 		mediaMap:     make(map[models.ContentId]*models.Media),
-// 		streamerMap:  make(map[models.ContentId]*models.VideoStreamer),
-// 		typeService:  mediaTypeServ,
-// 		mediaCache:   sturdyc.New[[]byte](1500, 10, time.Hour, 10),
-// 		fileService:  fileService,
-// 		collection:   col,
-// 		AlbumService: albumService,
-// 		filesBuffer:  sync.Pool{New: func() any { return &[]byte{} }},
-// 		log:          logger,
-// 		doImageRecog: os.Getenv("OLLAMA_HOST") != "",
-// 	}
 //
-// 	client, err := ollama.ClientFromEnvironment()
-// 	if err != nil {
-// 		return nil, err
-// 	}
+//	fileService models.FileService, mediaTypeServ models.MediaTypeService, albumService models.AlbumService,
+//	col *mongo.Collection, logger *zerolog.Logger,
 //
-// 	ms.ollama = client
+//	) (*MediaServiceImpl, error) {
+//		ms := &MediaServiceImpl{
+//			mediaMap:     make(map[models.ContentId]*models.Media),
+//			streamerMap:  make(map[models.ContentId]*models.VideoStreamer),
+//			typeService:  mediaTypeServ,
+//			mediaCache:   sturdyc.New[[]byte](1500, 10, time.Hour, 10),
+//			fileService:  fileService,
+//			collection:   col,
+//			AlbumService: albumService,
+//			filesBuffer:  sync.Pool{New: func() any { return &[]byte{} }},
+//			log:          logger,
+//			doImageRecog: os.Getenv("OLLAMA_HOST") != "",
+//		}
 //
-// 	indexModel := mongo.IndexModel{
-// 		Keys:    bson.D{{Key: "contentId", Value: 1}},
-// 		Options: (&options.IndexOptions{}).SetUnique(true),
-// 	}
-// 	_, err = col.Indexes().CreateOne(context.Background(), indexModel)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+//		client, err := ollama.ClientFromEnvironment()
+//		if err != nil {
+//			return nil, err
+//		}
 //
-// 	ret, err := ms.collection.Find(context.Background(), bson.M{})
-// 	if err != nil {
-// 		return nil, werror.WithStack(err)
-// 	}
+//		ms.ollama = client
 //
-// 	ms.mediaLock.Lock()
-// 	defer ms.mediaLock.Unlock()
+//		indexModel := mongo.IndexModel{
+//			Keys:    bson.D{{Key: "contentId", Value: 1}},
+//			Options: (&options.IndexOptions{}).SetUnique(true),
+//		}
+//		_, err = col.Indexes().CreateOne(context.Background(), indexModel)
+//		if err != nil {
+//			return nil, err
+//		}
 //
-// 	cursorContext := context.Background()
-// 	for ret.Next(cursorContext) {
-// 		m := &models.Media{}
-// 		err = ret.Decode(m)
-// 		if err != nil {
-// 			return nil, werror.WithStack(err)
-// 		}
-// 		ms.mediaMap[m.ID()] = m
-// 	}
+//		ret, err := ms.collection.Find(context.Background(), bson.M{})
+//		if err != nil {
+//			return nil, errors.WithStack(err)
+//		}
 //
-// 	return ms, nil
-// }
+//		ms.mediaLock.Lock()
+//		defer ms.mediaLock.Unlock()
 //
-// func (ms *MediaServiceImpl) Size() int {
-// 	return len(ms.mediaMap)
-// }
+//		cursorContext := context.Background()
+//		for ret.Next(cursorContext) {
+//			m := &models.Media{}
+//			err = ret.Decode(m)
+//			if err != nil {
+//				return nil, errors.WithStack(err)
+//			}
+//			ms.mediaMap[m.ID()] = m
+//		}
 //
-// func (ms *MediaServiceImpl) Add(m *models.Media) error {
-// 	if m == nil {
-// 		return werror.ErrMediaNil
-// 	}
+//		return ms, nil
+//	}
 //
-// 	if m.ID() == "" {
-// 		return werror.ErrMediaNoId
-// 	}
+//	func (ms *MediaServiceImpl) Size() int {
+//		return len(ms.mediaMap)
+//	}
 //
-// 	if m.GetPageCount() == 0 {
-// 		return werror.ErrMediaNoPages
-// 	}
+//	func (ms *MediaServiceImpl) Add(m *models.Media) error {
+//		if m == nil {
+//			return errors.ErrMediaNil
+//		}
 //
-// 	if m.Width == 0 || m.Height == 0 {
-// 		ms.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Media %s has height %d and width %d", m.ID(), m.Height, m.Width) })
-// 		return werror.ErrMediaNoDimensions
-// 	}
+//		if m.ID() == "" {
+//			return errors.ErrMediaNoId
+//		}
 //
-// 	if len(m.FileIDs) == 0 {
-// 		return werror.ErrMediaNoFiles
-// 	}
+//		if m.GetPageCount() == 0 {
+//			return errors.ErrMediaNoPages
+//		}
 //
-// 	mt := ms.GetMediaType(m)
-// 	if mt.Mime == "" || mt.Mime == "generic" {
-// 		return werror.ErrMediaBadMime
-// 	}
+//		if m.Width == 0 || m.Height == 0 {
+//			ms.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Media %s has height %d and width %d", m.ID(), m.Height, m.Width) })
+//			return errors.ErrMediaNoDimensions
+//		}
 //
-// 	isVideo := mt.Video
-// 	if isVideo && m.Duration == 0 {
-// 		return werror.ErrMediaNoDuration
-// 	}
+//		if len(m.FileIDs) == 0 {
+//			return errors.ErrMediaNoFiles
+//		}
 //
-// 	if !isVideo && m.Duration != 0 {
-// 		return werror.ErrMediaHasDuration
-// 	}
+//		mt := ms.GetMediaType(m)
+//		if mt.Mime == "" || mt.Mime == "generic" {
+//			return errors.ErrMediaBadMime
+//		}
 //
-// 	ms.mediaLock.Lock()
-// 	defer ms.mediaLock.Unlock()
+//		isVideo := mt.Video
+//		if isVideo && m.Duration == 0 {
+//			return errors.ErrMediaNoDuration
+//		}
 //
-// 	if ms.mediaMap[m.ID()] != nil {
-// 		return werror.ErrMediaAlreadyExists
-// 	}
+//		if !isVideo && m.Duration != 0 {
+//			return errors.ErrMediaHasDuration
+//		}
 //
-// 	if !m.IsImported() {
-// 		m.SetImported(true)
-// 		m.MediaID = primitive.NewObjectID()
-// 		_, err := ms.collection.InsertOne(context.Background(), m)
-// 		if err != nil {
-// 			return werror.WithStack(err)
-// 		}
-// 	}
+//		ms.mediaLock.Lock()
+//		defer ms.mediaLock.Unlock()
 //
-// 	ms.mediaMap[m.ID()] = m
+//		if ms.mediaMap[m.ID()] != nil {
+//			return errors.ErrMediaAlreadyExists
+//		}
 //
-// 	return nil
-// }
+//		if !m.IsImported() {
+//			m.SetImported(true)
+//			m.MediaID = primitive.NewObjectID()
+//			_, err := ms.collection.InsertOne(context.Background(), m)
+//			if err != nil {
+//				return errors.WithStack(err)
+//			}
+//		}
 //
-// func (ms *MediaServiceImpl) TypeService() models.MediaTypeService {
-// 	return ms.typeService
-// }
+//		ms.mediaMap[m.ID()] = m
 //
-// func (ms *MediaServiceImpl) Get(mId models.ContentId) *models.Media {
-// 	if mId == "" {
-// 		return nil
-// 	}
+//		return nil
+//	}
 //
-// 	ms.mediaLock.RLock()
-// 	defer ms.mediaLock.RUnlock()
-// 	m := ms.mediaMap[mId]
+//	func (ms *MediaServiceImpl) TypeService() models.MediaTypeService {
+//		return ms.typeService
+//	}
 //
-// 	return m
-// }
+//	func (ms *MediaServiceImpl) Get(mId models.ContentId) *models.Media {
+//		if mId == "" {
+//			return nil
+//		}
 //
-// func (ms *MediaServiceImpl) GetAll() []*models.Media {
-// 	ms.mediaLock.RLock()
-// 	defer ms.mediaLock.RUnlock()
-// 	medias := wl_slices.MapToValues(ms.mediaMap)
-// 	return wl_slices.Convert[*models.Media](medias)
-// }
+//		ms.mediaLock.RLock()
+//		defer ms.mediaLock.RUnlock()
+//		m := ms.mediaMap[mId]
 //
-// func (ms *MediaServiceImpl) Del(cId models.ContentId) error {
-// 	m := ms.Get(cId)
-// 	err := ms.removeCacheFiles(m)
-// 	if err != nil && !errors.Is(err, werror.ErrNoCache) {
-// 		return err
-// 	}
+//		return m
+//	}
 //
-// 	err = ms.AlbumService.RemoveMediaFromAny(m.ID())
-// 	if err != nil {
-// 		return err
-// 	}
+//	func (ms *MediaServiceImpl) GetAll() []*models.Media {
+//		ms.mediaLock.RLock()
+//		defer ms.mediaLock.RUnlock()
+//		medias := wl_slices.MapToValues(ms.mediaMap)
+//		return wl_slices.Convert[*models.Media](medias)
+//	}
 //
-// 	filter := bson.M{"contentId": m.ID()}
-// 	_, err = ms.collection.DeleteOne(context.Background(), filter)
-// 	if err != nil {
-// 		return werror.WithStack(err)
-// 	}
+//	func (ms *MediaServiceImpl) Del(cId models.ContentId) error {
+//		m := ms.Get(cId)
+//		err := ms.removeCacheFiles(m)
+//		if err != nil && !errors.Is(err, errors.ErrNoCache) {
+//			return err
+//		}
 //
-// 	ms.mediaLock.Lock()
-// 	defer ms.mediaLock.Unlock()
-// 	delete(ms.mediaMap, m.ID())
+//		err = ms.AlbumService.RemoveMediaFromAny(m.ID())
+//		if err != nil {
+//			return err
+//		}
 //
-// 	return nil
-// }
+//		filter := bson.M{"contentId": m.ID()}
+//		_, err = ms.collection.DeleteOne(context.Background(), filter)
+//		if err != nil {
+//			return errors.WithStack(err)
+//		}
 //
-// func (ms *MediaServiceImpl) HideMedia(m *models.Media, hidden bool) error {
-// 	filter := bson.M{"contentId": m.ID()}
-// 	_, err := ms.collection.UpdateOne(context.Background(), filter, bson.M{"$set": bson.M{"hidden": hidden}})
-// 	if err != nil {
-// 		return werror.WithStack(err)
-// 	}
+//		ms.mediaLock.Lock()
+//		defer ms.mediaLock.Unlock()
+//		delete(ms.mediaMap, m.ID())
 //
-// 	m.Hidden = hidden
+//		return nil
+//	}
 //
-// 	return nil
-// }
+//	func (ms *MediaServiceImpl) HideMedia(m *models.Media, hidden bool) error {
+//		filter := bson.M{"contentId": m.ID()}
+//		_, err := ms.collection.UpdateOne(context.Background(), filter, bson.M{"$set": bson.M{"hidden": hidden}})
+//		if err != nil {
+//			return errors.WithStack(err)
+//		}
 //
-// func (ms *MediaServiceImpl) FetchCacheImg(m *models.Media, q models.MediaQuality, pageNum int) ([]byte, error) {
-// 	cacheId := m.ID() + string(q) + strconv.Itoa(pageNum)
+//		m.Hidden = hidden
 //
-// 	ctx := context.Background()
-// 	ctx = context.WithValue(ctx, CacheIdKey, cacheId)
-// 	ctx = context.WithValue(ctx, CacheQualityKey, q)
-// 	ctx = context.WithValue(ctx, CachePageKey, pageNum)
-// 	ctx = context.WithValue(ctx, CacheMediaKey, m)
+//		return nil
+//	}
 //
-// 	cache, err := ms.mediaCache.GetOrFetch(ctx, cacheId, ms.getFetchMediaCacheImage)
-// 	if err != nil {
-// 		return nil, werror.WithStack(err)
-// 	}
-// 	return cache, nil
-// }
+//	func (ms *MediaServiceImpl) FetchCacheImg(m *models.Media, q models.MediaQuality, pageNum int) ([]byte, error) {
+//		cacheId := m.ID() + string(q) + strconv.Itoa(pageNum)
 //
-// func (ms *MediaServiceImpl) StreamCacheVideo(m *models.Media, startByte, endByte int) ([]byte, error) {
-// 	return nil, werror.NotImplemented("StreamCacheVideo")
-// 	// cacheKey := fmt.Sprintf("%s-STREAM %d-%d", m.ID(), startByte, endByte)
+//		ctx := context.Background()
+//		ctx = context.WithValue(ctx, CacheIdKey, cacheId)
+//		ctx = context.WithValue(ctx, CacheQualityKey, q)
+//		ctx = context.WithValue(ctx, CachePageKey, pageNum)
+//		ctx = context.WithValue(ctx, CacheMediaKey, m)
 //
-// 	// ctx := context.Background()
-// 	// ctx = context.WithValue(ctx, "cacheKey", cacheKey)
-// 	// ctx = context.WithValue(ctx, "startByte", startByte)
-// 	// ctx = context.WithValue(ctx, "endByte", endByte)
-// 	// ctx = context.WithValue(ctx, "Media", m)
+//		cache, err := ms.mediaCache.GetOrFetch(ctx, cacheId, ms.getFetchMediaCacheImage)
+//		if err != nil {
+//			return nil, errors.WithStack(err)
+//		}
+//		return cache, nil
+//	}
 //
-// 	// video, err := fetchAndCacheVideo(m.(*Media), startByte, endByte)
-// 	// if err != nil {
-// 	// 	return nil, err
-// 	// }
-// 	// cache, err := mr.mediaCache.GetFetch(ctx, cacheKey, fetchAndCacheVideo)
-// 	// if err != nil {
-// 	// 	return nil, err
-// 	// }
-// 	// return cache, nil
-// }
+//	func (ms *MediaServiceImpl) StreamCacheVideo(m *models.Media, startByte, endByte int) ([]byte, error) {
+//		return nil, errors.NotImplemented("StreamCacheVideo")
+//		// cacheKey := fmt.Sprintf("%s-STREAM %d-%d", m.ID(), startByte, endByte)
 //
-// type justContentId struct {
-// 	Cid string `bson:"contentId"`
-// }
+//		// ctx := context.Background()
+//		// ctx = context.WithValue(ctx, "cacheKey", cacheKey)
+//		// ctx = context.WithValue(ctx, "startByte", startByte)
+//		// ctx = context.WithValue(ctx, "endByte", endByte)
+//		// ctx = context.WithValue(ctx, "Media", m)
 //
-// func (ms *MediaServiceImpl) GetFilteredMedia(
-// 	requester *models.User, sort string, sortDirection int, excludeIds []models.ContentId,
-// 	allowRaw bool, allowHidden bool, search string,
-// ) ([]*models.Media, error) {
-// 	slices.Sort(excludeIds)
+//		// video, err := fetchAndCacheVideo(m.(*Media), startByte, endByte)
+//		// if err != nil {
+//		// 	return nil, err
+//		// }
+//		// cache, err := mr.mediaCache.GetFetch(ctx, cacheKey, fetchAndCacheVideo)
+//		// if err != nil {
+//		// 	return nil, err
+//		// }
+//		// return cache, nil
+//	}
 //
-// 	pipe := bson.A{
-// 		bson.D{
-// 			{Key: "$match", Value: bson.D{
-// 				{Key: "owner", Value: requester.GetUsername()},
-// 				{Key: "fileIds", Value: bson.D{
-// 					{Key: "$exists", Value: true}, {Key: "$ne", Value: bson.A{}},
-// 				}}},
-// 			},
-// 		},
-// 	}
-//
-// 	if !allowHidden {
-// 		pipe = append(pipe, bson.D{{Key: "$match", Value: bson.D{{Key: "hidden", Value: false}}}})
-// 	}
-//
-// 	if search != "" {
-// 		search = strings.ToLower(search)
-// 		pipe = append(pipe, bson.D{{Key: "$match", Value: bson.D{{Key: "recognitionTags", Value: bson.D{{Key: "$regex", Value: search}}}}}})
-// 	}
-//
-// 	pipe = append(pipe, bson.D{{Key: "$sort", Value: bson.D{{Key: sort, Value: sortDirection}}}})
-// 	pipe = append(pipe, bson.D{{Key: "$project", Value: bson.D{{Key: "_id", Value: false}, {Key: "contentId", Value: true}}}})
-//
-// 	cur, err := ms.collection.Aggregate(context.Background(), pipe)
-// 	if err != nil {
-// 		return nil, werror.WithStack(err)
-// 	}
-//
-// 	allIds := []justContentId{}
-// 	err = cur.All(context.Background(), &allIds)
-// 	if err != nil {
-// 		return nil, werror.WithStack(err)
-// 	}
-//
-// 	medias := make([]*models.Media, 0, len(allIds))
-// 	for _, id := range allIds {
-// 		m := ms.Get(id.Cid)
-// 		if m != nil {
-// 			if m.MimeType == "application/pdf" {
-// 				continue
-// 			}
-// 			if !allowRaw {
-// 				mt := ms.GetMediaType(m)
-// 				if mt.Raw {
-// 					continue
-// 				}
-// 			}
-// 			medias = append(medias, m)
-// 		}
-// 	}
-//
-// 	return medias, nil
-// }
+//	type justContentId struct {
+//		Cid string `bson:"contentId"`
+//	}
 //
 // func (ms *MediaServiceImpl) AdjustMediaDates(
-// 	anchor *models.Media, newTime time.Time, extraMedias []*models.Media,
-// ) error {
-// 	offset := newTime.Sub(anchor.GetCreateDate())
 //
-// 	anchor.SetCreateDate(anchor.GetCreateDate().Add(offset))
+//	anchor *models.Media, newTime time.Time, extraMedias []*models.Media,
 //
-// 	for _, m := range extraMedias {
-// 		m.SetCreateDate(m.GetCreateDate().Add(offset))
-// 	}
+//	) error {
+//		offset := newTime.Sub(anchor.GetCreateDate())
 //
-// 	// TODO - update media date in DB
+//		anchor.SetCreateDate(anchor.GetCreateDate().Add(offset))
 //
-// 	return nil
-// }
+//		for _, m := range extraMedias {
+//			m.SetCreateDate(m.GetCreateDate().Add(offset))
+//		}
 //
-// func (ms *MediaServiceImpl) IsCached(m *models.Media) bool {
-// 	cacheFile, err := ms.getCacheFile(m, models.LowRes, 0)
-// 	return cacheFile != nil && err == nil
-// }
+//		// TODO - update media date in DB
 //
-// func (ms *MediaServiceImpl) IsFileDisplayable(f *fileTree.WeblensFileImpl) bool {
-// 	ext := filepath.Ext(f.Filename())
-// 	return ms.typeService.ParseExtension(ext).Displayable
-// }
+//		return nil
+//	}
 //
-// func (ms *MediaServiceImpl) AddFileToMedia(m *models.Media, f *fileTree.WeblensFileImpl) error {
-// 	if slices.ContainsFunc(
-// 		m.FileIDs, func(fId fileTree.FileId) bool {
-// 			return fId == f.ID()
-// 		},
-// 	) {
-// 		return nil
-// 	}
+//	func (ms *MediaServiceImpl) IsCached(m *models.Media) bool {
+//		cacheFile, err := ms.getCacheFile(m, models.LowRes, 0)
+//		return cacheFile != nil && err == nil
+//	}
 //
-// 	filter := bson.M{"contentId": m.ID()}
-// 	update := bson.M{"$addToSet": bson.M{"fileIds": f.ID()}}
-// 	_, err := ms.collection.UpdateOne(context.Background(), filter, update)
-// 	if err != nil {
-// 		return err
-// 	}
+//	func (ms *MediaServiceImpl) IsFileDisplayable(f *fileTree.WeblensFileImpl) bool {
+//		ext := filepath.Ext(f.Filename())
+//		return ms.typeService.ParseExtension(ext).Displayable
+//	}
 //
-// 	m.AddFile(f)
+//	func (ms *MediaServiceImpl) AddFileToMedia(m *models.Media, f *fileTree.WeblensFileImpl) error {
+//		if slices.ContainsFunc(
+//			m.FileIDs, func(fId fileTree.FileId) bool {
+//				return fId == f.ID()
+//			},
+//		) {
+//			return nil
+//		}
 //
-// 	return nil
-// }
+//		filter := bson.M{"contentId": m.ID()}
+//		update := bson.M{"$addToSet": bson.M{"fileIds": f.ID()}}
+//		_, err := ms.collection.UpdateOne(context.Background(), filter, update)
+//		if err != nil {
+//			return err
+//		}
 //
-// func (ms *MediaServiceImpl) RemoveFileFromMedia(media *models.Media, fileId fileTree.FileId) error {
-// 	filter := bson.M{"contentId": media.ID()}
-// 	update := bson.M{"$pull": bson.M{"fileIds": fileId}}
-// 	_, err := ms.collection.UpdateOne(context.Background(), filter, update)
-// 	if err != nil {
-// 		return err
-// 	}
+//		m.AddFile(f)
 //
-// 	media.RemoveFile(fileId)
+//		return nil
+//	}
 //
-// 	if len(media.FileIDs) == 1 && media.FileIDs[0] == fileId {
-// 		return ms.Del(media.ID())
-// 	}
+//	func (ms *MediaServiceImpl) RemoveFileFromMedia(media *models.Media, fileId fileTree.FileId) error {
+//		filter := bson.M{"contentId": media.ID()}
+//		update := bson.M{"$pull": bson.M{"fileIds": fileId}}
+//		_, err := ms.collection.UpdateOne(context.Background(), filter, update)
+//		if err != nil {
+//			return err
+//		}
 //
-// 	return nil
-// }
+//		media.RemoveFile(fileId)
 //
-// func (ms *MediaServiceImpl) Cleanup() error {
-// 	for _, m := range ms.mediaMap {
-// 		fs, missing, err := ms.fileService.GetFiles(m.FileIDs)
-// 		if err != nil {
-// 			return err
-// 		}
-// 		for _, f := range fs {
-// 			if f.GetPortablePath().RootName() != "USERS" {
-// 				missing = append(missing, f.ID())
-// 			}
-// 		}
+//		if len(media.FileIDs) == 1 && media.FileIDs[0] == fileId {
+//			return ms.Del(media.ID())
+//		}
 //
-// 		for _, fId := range missing {
-// 			err = ms.RemoveFileFromMedia(m, fId)
-// 			if err != nil {
-// 				return err
-// 			}
-// 		}
-// 	}
+//		return nil
+//	}
 //
-// 	return nil
-// }
+//	func (ms *MediaServiceImpl) Cleanup() error {
+//		for _, m := range ms.mediaMap {
+//			fs, missing, err := ms.fileService.GetFiles(m.FileIDs)
+//			if err != nil {
+//				return err
+//			}
+//			for _, f := range fs {
+//				if f.GetPortablePath().RootName() != "USERS" {
+//					missing = append(missing, f.ID())
+//				}
+//			}
 //
-// func (ms *MediaServiceImpl) Drop() error {
-// 	ms.mediaLock.Lock()
-// 	defer ms.mediaLock.Unlock()
+//			for _, fId := range missing {
+//				err = ms.RemoveFileFromMedia(m, fId)
+//				if err != nil {
+//					return err
+//				}
+//			}
+//		}
 //
-// 	// Drop media collection in mongo
-// 	err := ms.collection.Drop(context.Background())
-// 	if err != nil {
-// 		return werror.WithStack(err)
-// 	}
+//		return nil
+//	}
 //
-// 	cacheTree, err := ms.fileService.GetFileTreeByName(CachesTreeKey)
-// 	if err != nil {
-// 		return err
-// 	}
+//	func (ms *MediaServiceImpl) Drop() error {
+//		ms.mediaLock.Lock()
+//		defer ms.mediaLock.Unlock()
 //
-// 	thumbsDir, err := cacheTree.GetRoot().GetChild(ThumbsDirName)
-// 	if err != nil {
-// 		return werror.WithStack(err)
-// 	}
+//		// Drop media collection in mongo
+//		err := ms.collection.Drop(context.Background())
+//		if err != nil {
+//			return errors.WithStack(err)
+//		}
 //
-// 	// Delete all cache files on disk
-// 	thumbs := thumbsDir.GetChildren()
-// 	for _, thumb := range thumbs {
-// 		err = ms.fileService.DeleteCacheFile(thumb)
-// 		if err != nil {
-// 			return err
-// 		}
-// 	}
+//		cacheTree, err := ms.fileService.GetFileTreeByName(CachesTreeKey)
+//		if err != nil {
+//			return err
+//		}
 //
-// 	// Evict all keys from cache
-// 	for _, cacheKey := range ms.mediaCache.ScanKeys() {
-// 		ms.mediaCache.Delete(cacheKey)
-// 	}
+//		thumbsDir, err := cacheTree.GetRoot().GetChild(ThumbsDirName)
+//		if err != nil {
+//			return errors.WithStack(err)
+//		}
 //
-// 	ms.mediaMap = map[models.ContentId]*models.Media{}
+//		// Delete all cache files on disk
+//		thumbs := thumbsDir.GetChildren()
+//		for _, thumb := range thumbs {
+//			err = ms.fileService.DeleteCacheFile(thumb)
+//			if err != nil {
+//				return err
+//			}
+//		}
 //
-// 	return nil
-// }
+//		// Evict all keys from cache
+//		for _, cacheKey := range ms.mediaCache.ScanKeys() {
+//			ms.mediaCache.Delete(cacheKey)
+//		}
 //
-// func (ms *MediaServiceImpl) GetProminentColors(media *models.Media) (prom []string, err error) {
-// 	var i image.Image
-// 	thumbBytes, err := ms.FetchCacheImg(media, models.LowRes, 0)
-// 	if err != nil {
-// 		return
-// 	}
+//		ms.mediaMap = map[models.ContentId]*models.Media{}
 //
-// 	i, err = webp.Decode(bytes.NewBuffer(thumbBytes))
-// 	if err != nil {
-// 		return
-// 	}
+//		return nil
+//	}
 //
-// 	promColors, err := prominentcolor.Kmeans(i)
-// 	prom = wl_slices.Map(promColors, func(p prominentcolor.ColorItem) string { return p.AsString() })
-// 	return
-// }
+//	func (ms *MediaServiceImpl) GetProminentColors(media *models.Media) (prom []string, err error) {
+//		var i image.Image
+//		thumbBytes, err := ms.FetchCacheImg(media, models.LowRes, 0)
+//		if err != nil {
+//			return
+//		}
+//
+//		i, err = webp.Decode(bytes.NewBuffer(thumbBytes))
+//		if err != nil {
+//			return
+//		}
+//
+//		promColors, err := prominentcolor.Kmeans(i)
+//		prom = wl_slices.Map(promColors, func(p prominentcolor.ColorItem) string { return p.AsString() })
+//		return
+//	}
 //
 // func (ms *MediaServiceImpl) StreamVideo(
-// 	m *models.Media, u *models.User, share *models.FileShare,
-// ) (*models.VideoStreamer, error) {
-// 	if !ms.GetMediaType(m).Video {
-// 		return nil, werror.WithStack(werror.ErrMediaNotVideo)
-// 	}
 //
-// 	ms.streamerLock.Lock()
-// 	defer ms.streamerLock.Unlock()
+//	m *models.Media, u *models.User, share *models.FileShare,
 //
-// 	var streamer *models.VideoStreamer
-// 	var ok bool
-// 	if streamer, ok = ms.streamerMap[m.ID()]; !ok {
-// 		f, err := ms.fileService.GetFileByContentId(m.ContentID)
-// 		if err != nil {
-// 			return nil, err
-// 		}
+//	) (*models.VideoStreamer, error) {
+//		if !ms.GetMediaType(m).Video {
+//			return nil, errors.WithStack(errors.ErrMediaNotVideo)
+//		}
 //
-// 		thumbs, err := ms.fileService.GetThumbsDir()
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 		streamer = models.NewVideoStreamer(f, thumbs.AbsPath())
-// 		ms.streamerMap[m.ID()] = streamer
-// 	}
+//		ms.streamerLock.Lock()
+//		defer ms.streamerLock.Unlock()
 //
-// 	return streamer, nil
-// }
+//		var streamer *models.VideoStreamer
+//		var ok bool
+//		if streamer, ok = ms.streamerMap[m.ID()]; !ok {
+//			f, err := ms.fileService.GetFileByContentId(m.ContentID)
+//			if err != nil {
+//				return nil, err
+//			}
 //
-// func (ms *MediaServiceImpl) SetMediaLiked(mediaId models.ContentId, liked bool, username string) error {
-// 	m := ms.Get(mediaId)
-// 	if m == nil {
-// 		return werror.Errorf("Could not find media with id [%s] while trying to update liked array", mediaId)
-// 	}
+//			thumbs, err := ms.fileService.GetThumbsDir()
+//			if err != nil {
+//				return nil, err
+//			}
+//			streamer = models.NewVideoStreamer(f, thumbs.AbsPath())
+//			ms.streamerMap[m.ID()] = streamer
+//		}
 //
-// 	filter := bson.M{"contentId": mediaId}
-// 	var update bson.M
-// 	if liked && len(m.LikedBy) == 0 {
-// 		update = bson.M{"$set": bson.M{"likedBy": []string{username}}}
-// 	} else if liked && len(m.LikedBy) == 0 {
-// 		update = bson.M{"$addToSet": bson.M{"likedBy": username}}
-// 	} else {
-// 		update = bson.M{"$pull": bson.M{"likedBy": username}}
-// 	}
+//		return streamer, nil
+//	}
 //
-// 	_, err := ms.collection.UpdateOne(context.Background(), filter, update)
-// 	if err != nil {
-// 		return err
-// 	}
+//	func (ms *MediaServiceImpl) SetMediaLiked(mediaId models.ContentId, liked bool, username string) error {
+//		m := ms.Get(mediaId)
+//		if m == nil {
+//			return errors.Errorf("Could not find media with id [%s] while trying to update liked array", mediaId)
+//		}
 //
-// 	if liked {
-// 		m.LikedBy = wl_slices.AddToSet(m.LikedBy, username)
-// 	} else {
-// 		m.LikedBy = wl_slices.Filter(
-// 			m.LikedBy, func(u string) bool {
-// 				return u != username
-// 			},
-// 		)
-// 	}
+//		filter := bson.M{"contentId": mediaId}
+//		var update bson.M
+//		if liked && len(m.LikedBy) == 0 {
+//			update = bson.M{"$set": bson.M{"likedBy": []string{username}}}
+//		} else if liked && len(m.LikedBy) == 0 {
+//			update = bson.M{"$addToSet": bson.M{"likedBy": username}}
+//		} else {
+//			update = bson.M{"$pull": bson.M{"likedBy": username}}
+//		}
 //
-// 	return nil
-// }
+//		_, err := ms.collection.UpdateOne(context.Background(), filter, update)
+//		if err != nil {
+//			return err
+//		}
 //
-// func (ms *MediaServiceImpl) GetMediaConverted(m *models.Media, format string) ([]byte, error) {
-// 	f, err := ms.fileService.GetFileByTree(m.FileIDs[0], UsersTreeKey)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+//		if liked {
+//			m.LikedBy = wl_slices.AddToSet(m.LikedBy, username)
+//		} else {
+//			m.LikedBy = wl_slices.Filter(
+//				m.LikedBy, func(u string) bool {
+//					return u != username
+//				},
+//			)
+//		}
 //
-// 	img, err := ms.loadImageFromFile(f, ms.GetMediaType(m))
-// 	if err != nil {
-// 		return nil, err
-// 	}
+//		return nil
+//	}
 //
-// 	var blob []byte
-// 	switch format {
-// 	case "png":
-// 		blob, _, err = img.ExportPng(nil)
-// 	case "jpeg":
-// 		blob, _, err = img.ExportJpeg(nil)
-// 	default:
-// 		return nil, werror.Errorf("Unknown media convert format [%s]", format)
-// 	}
-// 	return blob, err
-// }
+//	func (ms *MediaServiceImpl) GetMediaConverted(m *models.Media, format string) ([]byte, error) {
+//		f, err := ms.fileService.GetFileByTree(m.FileIDs[0], UsersTreeKey)
+//		if err != nil {
+//			return nil, err
+//		}
 //
-// func (ms *MediaServiceImpl) removeCacheFiles(media *models.Media) error {
-// 	thumbCache, err := ms.getCacheFile(media, models.LowRes, 0)
-// 	if err != nil && !errors.Is(err, werror.ErrNoFile) {
-// 		return err
-// 	}
+//		img, err := ms.loadImageFromFile(f, ms.GetMediaType(m))
+//		if err != nil {
+//			return nil, err
+//		}
 //
-// 	if thumbCache != nil {
-// 		err = ms.fileService.DeleteCacheFile(thumbCache)
-// 		if err != nil {
-// 			return err
-// 		}
-// 	}
+//		var blob []byte
+//		switch format {
+//		case "png":
+//			blob, _, err = img.ExportPng(nil)
+//		case "jpeg":
+//			blob, _, err = img.ExportJpeg(nil)
+//		default:
+//			return nil, errors.Errorf("Unknown media convert format [%s]", format)
+//		}
+//		return blob, err
+//	}
 //
-// 	highresCacheFile, err := ms.getCacheFile(media, models.HighRes, 0)
-// 	if err != nil && !errors.Is(err, werror.ErrNoFile) {
-// 		return err
-// 	}
+//	func (ms *MediaServiceImpl) removeCacheFiles(media *models.Media) error {
+//		thumbCache, err := ms.getCacheFile(media, models.LowRes, 0)
+//		if err != nil && !errors.Is(err, errors.ErrNoFile) {
+//			return err
+//		}
 //
-// 	if highresCacheFile != nil {
-// 		err = ms.fileService.DeleteCacheFile(highresCacheFile)
-// 		if err != nil {
-// 			return err
-// 		}
-// 	}
+//		if thumbCache != nil {
+//			err = ms.fileService.DeleteCacheFile(thumbCache)
+//			if err != nil {
+//				return err
+//			}
+//		}
 //
-// 	return nil
-// }
+//		highresCacheFile, err := ms.getCacheFile(media, models.HighRes, 0)
+//		if err != nil && !errors.Is(err, errors.ErrNoFile) {
+//			return err
+//		}
 //
-// func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.WeblensFileImpl) error {
-// 	fileMetas := exif.ExtractMetadata(file.AbsPath())
+//		if highresCacheFile != nil {
+//			err = ms.fileService.DeleteCacheFile(highresCacheFile)
+//			if err != nil {
+//				return err
+//			}
+//		}
 //
-// 	for _, fileMeta := range fileMetas {
-// 		if fileMeta.Err != nil {
-// 			return fileMeta.Err
-// 		}
-// 	}
+//		return nil
+//	}
+func NewMediaFromFile(ctx *context.AppContext, file *file_model.WeblensFileImpl) (m *media_model.Media, err error) {
+	m, err = media_model.GetMediaById(ctx, file.GetContentId())
+	if err != nil {
+		m = &media_model.Media{}
+	}
+
+	fileMetas := exifd.ExtractMetadata(file.GetPortablePath().ToAbsolute())
+
+	for _, fileMeta := range fileMetas {
+		if fileMeta.Err != nil {
+			return nil, fileMeta.Err
+		}
+	}
+
+	if m.CreateDate.Unix() <= 0 {
+		createDate, err := getCreateDateFromExif(fileMetas[0].Fields, file)
+		if err != nil {
+			return nil, err
+		}
+		m.CreateDate = createDate
+	}
+
+	if m.MimeType == "" {
+		ext := file.GetPortablePath().Ext()
+		mType := media_model.ParseExtension(ext)
+		m.MimeType = mType.Mime
+
+		if media_model.ParseMime(m.MimeType).Video {
+			m.Width = int(fileMetas[0].Fields["ImageWidth"].(float64))
+			m.Height = int(fileMetas[0].Fields["ImageHeight"].(float64))
+
+			duration, err := getVideoDurationMs(file.GetPortablePath().ToAbsolute())
+			if err != nil {
+				return nil, err
+			}
+			m.Duration = duration
+		}
+	}
+
+	mType := GetMediaType(m)
+	if !mType.IsSupported() {
+		return nil, media_model.ErrMediaBadMimeType
+	}
+
+	if mType.IsMultiPage() {
+		m.PageCount = int(fileMetas[0].Fields["PageCount"].(float64))
+	} else {
+		m.PageCount = 1
+	}
+
+	_, err = handleCacheCreation(ctx, m, file)
+	if err != nil {
+		return
+	}
+
+	// if !mType.Video && ms.doImageRecog {
+	// 	go func() {
+	// 		err := ms.GetImageTags(m, thumb)
+	// 		if err != nil {
+	// 			ms.log.Error().Stack().Err(err).Msg("")
+	// 		}
+	// 	}()
+	// }
+
+	return
+}
+
+func GetMediaType(m *media_model.Media) media_model.MediaType {
+	return media_model.ParseMime(m.MimeType)
+}
+
+//	func (ms *MediaServiceImpl) GetMediaTypes() models.MediaTypeService {
+//		return ms.typeService
+//	}
 //
-// 	var err error
-// 	if m.CreateDate.Unix() <= 0 {
-// 		createDate, err := getCreateDateFromExif(fileMetas[0].Fields, file)
-// 		if err != nil {
-// 			return err
-// 		}
-// 		m.CreateDate = createDate
-// 	}
+//	func (ms *MediaServiceImpl) RecursiveGetMedia(folders ...*fileTree.WeblensFileImpl) []*models.Media {
+//		var medias []*models.Media
 //
-// 	if m.MimeType == "" {
-// 		ext := filepath.Ext(file.Filename())
-// 		mType := ms.typeService.ParseExtension(ext)
-// 		m.MimeType = mType.Mime
+//		for _, f := range folders {
+//			if f == nil {
+//				ms.log.Warn().Msg("Skipping recursive media lookup for non-existent folder")
+//				continue
+//			}
+//			if !f.IsDir() {
+//				if ms.IsFileDisplayable(f) {
+//					m := ms.Get(f.GetContentId())
+//					if m != nil {
+//						medias = append(medias, m)
+//					}
+//				}
+//				continue
+//			}
+//			err := f.RecursiveMap(
+//				func(f *fileTree.WeblensFileImpl) error {
+//					if !f.IsDir() && ms.IsFileDisplayable(f) {
+//						m := ms.Get(f.GetContentId())
+//						if m != nil {
+//							medias = append(medias, m)
+//						}
+//					}
+//					return nil
+//				},
+//			)
+//			if err != nil {
+//				ms.log.Error().Stack().Err(err).Msg("")
+//			}
+//		}
 //
-// 		if ms.typeService.ParseMime(m.MimeType).Video {
-// 			m.Width = int(fileMetas[0].Fields["ImageWidth"].(float64))
-// 			m.Height = int(fileMetas[0].Fields["ImageHeight"].(float64))
+//		return medias
+//	}
+func handleCacheCreation(ctx *context.AppContext, m *media_model.Media, file *file_model.WeblensFileImpl) (thumbBytes []byte, err error) {
+	mType := GetMediaType(m)
+
+	if !mType.Video {
+		img, err := loadImageFromFile(file, mType)
+		if err != nil {
+			return nil, err
+		}
+
+		m.PageCount = img.Pages()
+		// Read image dimensions
+		m.Height = img.Height()
+		m.Width = img.Width()
+
+		if mType.IsMultiPage() {
+			fullPdf, err := file.ReadAll()
+			if err != nil {
+				return nil, errors.WithStack(err)
+			}
+			for page := range m.PageCount {
+				vipsPage := vips.IntParameter{}
+				vipsPage.Set(page)
+				img, err := vips.LoadImageFromBuffer(fullPdf, &vips.ImportParams{Page: vipsPage})
+				if err != nil {
+					return nil, errors.WithStack(err)
+				}
+
+				err = handleNewHighRes(ctx, m, img, page)
+				if err != nil {
+					return nil, err
+				}
+			}
+		} else {
+			err = handleNewHighRes(ctx, m, img, 0)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// Resize thumb image if too big
+		if m.Width > ThumbMaxSize || m.Height > ThumbMaxSize {
+			var thumbWidth, thumbHeight uint
+			if m.Width > m.Height {
+				thumbWidth = ThumbMaxSize
+				thumbHeight = uint(float64(ThumbMaxSize) / float64(m.Width) * float64(m.Height))
+			} else {
+				thumbHeight = ThumbMaxSize
+				thumbWidth = uint(float64(ThumbMaxSize) / float64(m.Height) * float64(m.Width))
+			}
+			ctx.Logger.Trace().Func(func(e *zerolog.Event) {
+				e.Msgf("Resizing %s thumb image to %dx%d", file.GetPortablePath(), thumbWidth, thumbHeight)
+			})
+			err = img.Resize(float64(thumbHeight)/float64(m.Height), vips.KernelAuto)
+			if err != nil {
+				return nil, errors.WithStack(err)
+			}
+		}
+
+		// Create and write thumb cache file
+		thumb, err := ctx.FileService.NewCacheFile(m.ID(), string(media_model.LowRes), 0)
+		if err != nil && !errors.Is(err, file_model.ErrFileAlreadyExists) {
+			return nil, errors.WithStack(err)
+		} else if err == nil {
+			blob, _, err := img.ExportWebp(nil)
+			if err != nil {
+				return nil, errors.WithStack(err)
+			}
+			_, err = thumb.Write(blob)
+			if err != nil {
+				return nil, errors.WithStack(err)
+			}
+			m.SetLowresCacheFile(thumb)
+
+			thumbBytes = blob
+		}
+
+	} else {
+		thumb, err := ctx.FileService.NewCacheFile(m.ID(), string(media_model.LowRes), 0)
+		if err != nil && !errors.Is(err, file_model.ErrFileAlreadyExists) {
+			return nil, errors.WithStack(err)
+		} else if err == nil {
+			thumbBytes, err = generateVideoThumbnail(file.GetPortablePath().ToAbsolute())
+			if err != nil {
+				return nil, err
+			}
+			_, err = thumb.Write(thumbBytes)
+			if err != nil {
+				return nil, err
+			}
+			m.SetLowresCacheFile(thumb)
+		}
+
+	}
+
+	return thumbBytes, nil
+}
+
+func handleNewHighRes(ctx *context.AppContext, m *media_model.Media, img *vips.ImageRef, page int) error {
+	// Resize highres image if too big
+	if m.Width > HighresMaxSize || m.Height > HighresMaxSize {
+		var fullHeight int
+		if m.Width > m.Height {
+			// fullWidth = HighresMaxSize
+			fullHeight = HighresMaxSize * m.Height / m.Width
+		} else {
+			fullHeight = HighresMaxSize
+			// fullWidth = HighresMaxSize * m.Width / m.Height
+		}
+
+		err := img.Resize(float64(fullHeight)/float64(m.Height), vips.KernelAuto)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+	}
+
+	// Create and write highres cache file
+	highres, err := ctx.FileService.NewCacheFile(m.ID(), string(media_model.HighRes), page)
+	if err != nil && !errors.Is(err, file_model.ErrFileAlreadyExists) {
+		return errors.WithStack(err)
+	} else if err == nil {
+		blob, _, err := img.ExportWebp(nil)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		_, err = highres.Write(blob)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		m.SetHighresCacheFiles(highres, page)
+	}
+
+	return nil
+}
+
+//	func (ms *MediaServiceImpl) getFetchMediaCacheImage(ctx context.Context) (data []byte, err error) {
+//		defer internal.RecoverPanic("Fetching media image had panic")
 //
-// 			duration, err := getVideoDurationMs(file.AbsPath())
-// 			if err != nil {
-// 				return err
-// 			}
-// 			m.Duration = duration
-// 		}
-// 	}
+//		m := ctx.Value(CacheMediaKey).(*models.Media)
+//		q := ctx.Value(CacheQualityKey).(models.MediaQuality)
+//		pageNum, _ := ctx.Value(CachePageKey).(int)
 //
-// 	mType := ms.GetMediaType(m)
-// 	if !mType.IsSupported() {
-// 		return werror.ErrMediaBadMime
-// 	}
+//		f, err := ms.getCacheFile(m, q, pageNum)
+//		if err != nil {
+//			return nil, err
+//		}
 //
-// 	if mType.IsMultiPage() {
-// 		m.PageCount = int(fileMetas[0].Fields["PageCount"].(float64))
-// 	} else {
-// 		m.PageCount = 1
-// 	}
+//		if f == nil {
+//			return nil, errors.Errorf("This should never happen... file is nil in GetFetchMediaCacheImage")
+//		}
 //
-// 	thumb, err := ms.handleCacheCreation(m, file)
-// 	if err != nil {
-// 		return err
-// 	}
+//		ms.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Reading image cache for media [%s]", m.ID()) })
 //
-// 	if !mType.Video && ms.doImageRecog {
-// 		go func() {
-// 			err := ms.GetImageTags(m, thumb)
-// 			if err != nil {
-// 				ms.log.Error().Stack().Err(err).Msg("")
-// 			}
-// 		}()
-// 	}
+//		data, err = f.ReadAll()
+//		if err != nil {
+//			return nil, err
+//		}
+//		if len(data) == 0 {
+//			err = errors.Errorf("displayable bytes empty")
+//			return nil, err
+//		}
 //
-// 	return nil
-// }
-//
-// func (ms *MediaServiceImpl) GetMediaType(m *models.Media) models.MediaType {
-// 	return ms.typeService.ParseMime(m.MimeType)
-// }
-//
-// func (ms *MediaServiceImpl) GetMediaTypes() models.MediaTypeService {
-// 	return ms.typeService
-// }
-//
-// func (ms *MediaServiceImpl) RecursiveGetMedia(folders ...*fileTree.WeblensFileImpl) []*models.Media {
-// 	var medias []*models.Media
-//
-// 	for _, f := range folders {
-// 		if f == nil {
-// 			ms.log.Warn().Msg("Skipping recursive media lookup for non-existent folder")
-// 			continue
-// 		}
-// 		if !f.IsDir() {
-// 			if ms.IsFileDisplayable(f) {
-// 				m := ms.Get(f.GetContentId())
-// 				if m != nil {
-// 					medias = append(medias, m)
-// 				}
-// 			}
-// 			continue
-// 		}
-// 		err := f.RecursiveMap(
-// 			func(f *fileTree.WeblensFileImpl) error {
-// 				if !f.IsDir() && ms.IsFileDisplayable(f) {
-// 					m := ms.Get(f.GetContentId())
-// 					if m != nil {
-// 						medias = append(medias, m)
-// 					}
-// 				}
-// 				return nil
-// 			},
-// 		)
-// 		if err != nil {
-// 			ms.log.Error().Stack().Err(err).Msg("")
-// 		}
-// 	}
-//
-// 	return medias
-// }
-//
-// func (ms *MediaServiceImpl) handleCacheCreation(m *models.Media, file *fileTree.WeblensFileImpl) (thumbBytes []byte, err error) {
-//
-// 	mType := ms.GetMediaType(m)
-//
-// 	if !mType.Video {
-// 		img, err := ms.loadImageFromFile(file, mType)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-//
-// 		m.PageCount = img.Pages()
-// 		// Read image dimensions
-// 		m.Height = img.Height()
-// 		m.Width = img.Width()
-//
-// 		if mType.IsMultiPage() {
-// 			fullPdf, err := file.ReadAll()
-// 			if err != nil {
-// 				return nil, werror.WithStack(err)
-// 			}
-// 			for page := range m.PageCount {
-// 				vipsPage := vips.IntParameter{}
-// 				vipsPage.Set(page)
-// 				img, err := vips.LoadImageFromBuffer(fullPdf, &vips.ImportParams{Page: vipsPage})
-// 				if err != nil {
-// 					return nil, werror.WithStack(err)
-// 				}
-//
-// 				err = ms.handleNewHighRes(m, img, page)
-// 				if err != nil {
-// 					return nil, err
-// 				}
-// 			}
-// 		} else {
-// 			err = ms.handleNewHighRes(m, img, 0)
-// 			if err != nil {
-// 				return nil, err
-// 			}
-// 		}
-//
-// 		// Resize thumb image if too big
-// 		if m.Width > ThumbMaxSize || m.Height > ThumbMaxSize {
-// 			var thumbWidth, thumbHeight uint
-// 			if m.Width > m.Height {
-// 				thumbWidth = ThumbMaxSize
-// 				thumbHeight = uint(float64(ThumbMaxSize) / float64(m.Width) * float64(m.Height))
-// 			} else {
-// 				thumbHeight = ThumbMaxSize
-// 				thumbWidth = uint(float64(ThumbMaxSize) / float64(m.Height) * float64(m.Width))
-// 			}
-// 			ms.log.Trace().Func(func(e *zerolog.Event) {
-// 				e.Msgf("Resizing %s thumb image to %dx%d", file.Filename(), thumbWidth, thumbHeight)
-// 			})
-// 			err = img.Resize(float64(thumbHeight)/float64(m.Height), vips.KernelAuto)
-// 			if err != nil {
-// 				return nil, werror.WithStack(err)
-// 			}
-// 		}
-//
-// 		// Create and write thumb cache file
-// 		thumb, err := ms.fileService.NewCacheFile(m, models.LowRes, 0)
-// 		if err != nil && !errors.Is(err, werror.ErrFileAlreadyExists) {
-// 			return nil, werror.WithStack(err)
-// 		} else if err == nil {
-// 			blob, _, err := img.ExportWebp(nil)
-// 			if err != nil {
-// 				return nil, werror.WithStack(err)
-// 			}
-// 			_, err = thumb.Write(blob)
-// 			if err != nil {
-// 				return nil, werror.WithStack(err)
-// 			}
-// 			m.SetLowresCacheFile(thumb)
-//
-// 			thumbBytes = blob
-// 		}
-//
-// 	} else {
-// 		thumb, err := ms.fileService.NewCacheFile(m, models.LowRes, 0)
-// 		if err != nil && !errors.Is(err, werror.ErrFileAlreadyExists) {
-// 			return nil, werror.WithStack(err)
-// 		} else if err == nil {
-// 			thumbBytes, err = generateVideoThumbnail(file.AbsPath())
-// 			if err != nil {
-// 				return nil, err
-// 			}
-// 			_, err = thumb.Write(thumbBytes)
-// 			if err != nil {
-// 				return nil, err
-// 			}
-// 			m.SetLowresCacheFile(thumb)
-// 		}
-//
-// 	}
-//
-// 	return thumbBytes, nil
-// }
-//
-// func (ms *MediaServiceImpl) handleNewHighRes(m *models.Media, img *vips.ImageRef, page int) error {
-// 	// Resize highres image if too big
-// 	if m.Width > HighresMaxSize || m.Height > HighresMaxSize {
-// 		var fullHeight int
-// 		if m.Width > m.Height {
-// 			// fullWidth = HighresMaxSize
-// 			fullHeight = HighresMaxSize * m.Height / m.Width
-// 		} else {
-// 			fullHeight = HighresMaxSize
-// 			// fullWidth = HighresMaxSize * m.Width / m.Height
-// 		}
-//
-// 		err := img.Resize(float64(fullHeight)/float64(m.Height), vips.KernelAuto)
-// 		if err != nil {
-// 			return werror.WithStack(err)
-// 		}
-// 	}
-//
-// 	// Create and write highres cache file
-// 	highres, err := ms.fileService.NewCacheFile(m, models.HighRes, page)
-// 	if err != nil && !errors.Is(err, werror.ErrFileAlreadyExists) {
-// 		return werror.WithStack(err)
-// 	} else if err == nil {
-// 		blob, _, err := img.ExportWebp(nil)
-// 		if err != nil {
-// 			return werror.WithStack(err)
-// 		}
-// 		_, err = highres.Write(blob)
-// 		if err != nil {
-// 			return werror.WithStack(err)
-// 		}
-// 		m.SetHighresCacheFiles(highres, page)
-// 	}
-//
-// 	return nil
-// }
-//
-// func (ms *MediaServiceImpl) getFetchMediaCacheImage(ctx context.Context) (data []byte, err error) {
-// 	defer internal.RecoverPanic("Fetching media image had panic")
-//
-// 	m := ctx.Value(CacheMediaKey).(*models.Media)
-// 	q := ctx.Value(CacheQualityKey).(models.MediaQuality)
-// 	pageNum, _ := ctx.Value(CachePageKey).(int)
-//
-// 	f, err := ms.getCacheFile(m, q, pageNum)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-//
-// 	if f == nil {
-// 		return nil, werror.Errorf("This should never happen... file is nil in GetFetchMediaCacheImage")
-// 	}
-//
-// 	ms.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Reading image cache for media [%s]", m.ID()) })
-//
-// 	data, err = f.ReadAll()
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	if len(data) == 0 {
-// 		err = werror.Errorf("displayable bytes empty")
-// 		return nil, err
-// 	}
-//
-// 	return data, nil
-// }
+//		return data, nil
+//	}
 //
 // func (ms *MediaServiceImpl) getCacheFile(
-// 	m *models.Media, quality models.MediaQuality, pageNum int,
-// ) (*fileTree.WeblensFileImpl, error) {
-// 	if quality == models.LowRes && m.GetLowresCacheFile() != nil {
-// 		return m.GetLowresCacheFile(), nil
-// 	} else if quality == models.HighRes && m.GetHighresCacheFiles(pageNum) != nil {
-// 		return m.GetHighresCacheFiles(pageNum), nil
-// 	}
 //
-// 	filename := m.FmtCacheFileName(quality, pageNum)
-// 	cacheFile, err := ms.fileService.GetMediaCacheByFilename(filename)
-// 	if err != nil {
-// 		return nil, werror.WithStack(werror.ErrNoCache)
-// 	}
+//	m *models.Media, quality models.MediaQuality, pageNum int,
 //
-// 	if quality == models.LowRes {
-// 		m.SetLowresCacheFile(cacheFile)
-// 	} else if quality == models.HighRes {
-// 		m.SetHighresCacheFiles(cacheFile, pageNum)
-// 	} else {
-// 		return nil, werror.Errorf("Unknown media quality [%s]", quality)
-// 	}
+//	) (*fileTree.WeblensFileImpl, error) {
+//		if quality == models.LowRes && m.GetLowresCacheFile() != nil {
+//			return m.GetLowresCacheFile(), nil
+//		} else if quality == models.HighRes && m.GetHighresCacheFiles(pageNum) != nil {
+//			return m.GetHighresCacheFiles(pageNum), nil
+//		}
 //
-// 	return cacheFile, nil
-// }
+//		filename := m.FmtCacheFileName(quality, pageNum)
+//		cacheFile, err := ms.fileService.GetMediaCacheByFilename(filename)
+//		if err != nil {
+//			return nil, errors.WithStack(errors.ErrNoCache)
+//		}
 //
-// func (ms *MediaServiceImpl) loadImageFromFile(f *fileTree.WeblensFileImpl, mType models.MediaType) (*vips.ImageRef, error) {
-// 	filePath := f.AbsPath()
-// 	var img *vips.ImageRef
-// 	var err error
+//		if quality == models.LowRes {
+//			m.SetLowresCacheFile(cacheFile)
+//		} else if quality == models.HighRes {
+//			m.SetHighresCacheFiles(cacheFile, pageNum)
+//		} else {
+//			return nil, errors.Errorf("Unknown media quality [%s]", quality)
+//		}
 //
-// 	// Sony RAWs do not play nice with govips. Should fall back to imagick but it thinks its a TIFF.
-// 	// The real libvips figures this out, adding an intermediary step using dcraw to convert to a real TIFF
-// 	// and continuing processing from there solves this issue, and is surprisingly fast. Everyone say "Thank you dcraw"
-// 	if strings.HasSuffix(filePath, "ARW") || strings.HasSuffix(filePath, "CR2") {
-// 		cmd := exec.Command("dcraw", "-T", "-w", "-h", "-c", filePath)
-// 		var stdb, errb bytes.Buffer
-// 		cmd.Stderr = &errb
-// 		cmd.Stdout = &stdb
-//
-// 		err = cmd.Run()
-// 		if err != nil {
-// 			return nil, werror.WithStack(errors.New(err.Error() + "\n" + errb.String()))
-// 		}
-//
-// 		img, err = vips.NewImageFromReader(&stdb)
-// 	} else {
-// 		img, err = vips.NewImageFromFile(filePath)
-// 	}
-//
-// 	if err != nil {
-// 		return nil, werror.WithStack(err)
-// 	}
-//
-// 	// PDFs and HEIFs do not need to be rotated.
-// 	if !mType.IsMultiPage() && !mType.IsMime("image/heif") {
-// 		// Rotate image based on exif data
-// 		err = img.AutoRotate()
-// 		if err != nil {
-// 			return nil, werror.WithStack(err)
-// 		}
-// 	}
-//
-// 	return img, nil
-// }
-//
+//		return cacheFile, nil
+//	}
+func loadImageFromFile(f *file_model.WeblensFileImpl, mType media_model.MediaType) (*vips.ImageRef, error) {
+	filePath := f.GetPortablePath().ToAbsolute()
+	var img *vips.ImageRef
+	var err error
+
+	// Sony RAWs do not play nice with govips. Should fall back to imagick but it thinks its a TIFF.
+	// The real libvips figures this out, adding an intermediary step using dcraw to convert to a real TIFF
+	// and continuing processing from there solves this issue, and is surprisingly fast. Everyone say "Thank you dcraw"
+	if strings.HasSuffix(filePath, "ARW") || strings.HasSuffix(filePath, "CR2") {
+		cmd := exec.Command("dcraw", "-T", "-w", "-h", "-c", filePath)
+		var stdb, errb bytes.Buffer
+		cmd.Stderr = &errb
+		cmd.Stdout = &stdb
+
+		err = cmd.Run()
+		if err != nil {
+			return nil, errors.WithStack(errors.New(err.Error() + "\n" + errb.String()))
+		}
+
+		img, err = vips.NewImageFromReader(&stdb)
+	} else {
+		img, err = vips.NewImageFromFile(filePath)
+	}
+
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	// PDFs and HEIFs do not need to be rotated.
+	if !mType.IsMultiPage() && !mType.IsMime("image/heif") {
+		// Rotate image based on exif data
+		err = img.AutoRotate()
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+	}
+
+	return img, nil
+}
+
 // var recogLock sync.Mutex
 //
-// func (ms *MediaServiceImpl) GetImageTags(m *models.Media, imageBytes []byte) error {
-// 	if !ms.doImageRecog {
-// 		return nil
-// 	}
+//	func (ms *MediaServiceImpl) GetImageTags(m *models.Media, imageBytes []byte) error {
+//		if !ms.doImageRecog {
+//			return nil
+//		}
 //
-// 	recogLock.Lock()
-// 	defer recogLock.Unlock()
-// 	img, err := vips.NewImageFromBuffer(imageBytes)
-// 	if err != nil {
-// 		return werror.WithStack(err)
-// 	}
+//		recogLock.Lock()
+//		defer recogLock.Unlock()
+//		img, err := vips.NewImageFromBuffer(imageBytes)
+//		if err != nil {
+//			return errors.WithStack(err)
+//		}
 //
-// 	blob, _, err := img.ExportJpeg(nil)
-// 	if err != nil {
-// 		return werror.WithStack(err)
-// 	}
+//		blob, _, err := img.ExportJpeg(nil)
+//		if err != nil {
+//			return errors.WithStack(err)
+//		}
 //
-// 	stream := false
-// 	req := &ollama.GenerateRequest{
-// 		Model:  "llava:13b",
-// 		Prompt: "describe this image using a list of single words seperated only by commas. do not include any text other than these words",
-// 		Images: []ollama.ImageData{blob},
-// 		Stream: &stream,
-// 		Options: map[string]any{
-// 			"n_ctx":       1024,
-// 			"num_predict": 25,
-// 		},
-// 	}
+//		stream := false
+//		req := &ollama.GenerateRequest{
+//			Model:  "llava:13b",
+//			Prompt: "describe this image using a list of single words seperated only by commas. do not include any text other than these words",
+//			Images: []ollama.ImageData{blob},
+//			Stream: &stream,
+//			Options: map[string]any{
+//				"n_ctx":       1024,
+//				"num_predict": 25,
+//			},
+//		}
 //
-// 	tagsString := ""
-// 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
-// 	defer cancel()
-// 	doneChan := make(chan struct{})
-// 	err = ms.ollama.Generate(ctx, req, func(resp ollama.GenerateResponse) error {
-// 		ms.log.Trace().Msgf("Got recognition response %s", resp.Response)
-// 		tagsString = resp.Response
+//		tagsString := ""
+//		ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
+//		defer cancel()
+//		doneChan := make(chan struct{})
+//		err = ms.ollama.Generate(ctx, req, func(resp ollama.GenerateResponse) error {
+//			ms.log.Trace().Msgf("Got recognition response %s", resp.Response)
+//			tagsString = resp.Response
 //
-// 		if resp.Done {
-// 			close(doneChan)
-// 		}
+//			if resp.Done {
+//				close(doneChan)
+//			}
 //
-// 		return nil
-// 	})
+//			return nil
+//		})
 //
-// 	if err != nil {
-// 		return werror.WithStack(err)
-// 	}
+//		if err != nil {
+//			return errors.WithStack(err)
+//		}
 //
-// 	select {
-// 	case <-doneChan:
-// 	case <-ctx.Done():
-// 	}
+//		select {
+//		case <-doneChan:
+//		case <-ctx.Done():
+//		}
 //
-// 	if ctx.Err() != nil {
-// 		return werror.WithStack(ctx.Err())
-// 	}
+//		if ctx.Err() != nil {
+//			return errors.WithStack(ctx.Err())
+//		}
 //
-// 	tags := strings.Split(tagsString, ",")
-// 	for i, tag := range tags {
-// 		tags[i] = strings.ToLower(strings.ReplaceAll(tag, " ", ""))
-// 	}
+//		tags := strings.Split(tagsString, ",")
+//		for i, tag := range tags {
+//			tags[i] = strings.ToLower(strings.ReplaceAll(tag, " ", ""))
+//		}
 //
-// 	_, err = ms.collection.UpdateOne(context.Background(), bson.M{"contentId": m.ID()}, bson.M{"$set": bson.M{"recognitionTags": tags}})
-// 	if err != nil {
-// 		return err
-// 	}
-// 	m.SetRecognitionTags(tags)
+//		_, err = ms.collection.UpdateOne(context.Background(), bson.M{"contentId": m.ID()}, bson.M{"$set": bson.M{"recognitionTags": tags}})
+//		if err != nil {
+//			return err
+//		}
+//		m.SetRecognitionTags(tags)
 //
-// 	return nil
-// }
-//
-// func getCreateDateFromExif(exif map[string]any, file *fileTree.WeblensFileImpl) (createDate time.Time, err error) {
-// 	r, ok := exif["SubSecCreateDate"]
-// 	if !ok {
-// 		r, ok = exif["MediaCreateDate"]
-// 	}
-// 	if ok {
-// 		createDate, err = time.Parse("2006:01:02 15:04:05.000-07:00", r.(string))
-// 		if err != nil {
-// 			createDate, err = time.Parse("2006:01:02 15:04:05.00-07:00", r.(string))
-// 		}
-// 		if err != nil {
-// 			createDate, err = time.Parse("2006:01:02 15:04:05", r.(string))
-// 		}
-// 		if err != nil {
-// 			createDate, err = time.Parse("2006:01:02 15:04:05-07:00", r.(string))
-// 		}
-// 		if err != nil {
-// 			createDate = file.ModTime()
-// 		}
-// 	} else {
-// 		createDate = file.ModTime()
-// 	}
-//
-// 	return createDate, nil
-// }
-//
-// func generateVideoThumbnail(filepath string) ([]byte, error) {
-// 	const frameNum = 10
-//
-// 	buf := bytes.NewBuffer(nil)
-// 	errOut := bytes.NewBuffer(nil)
-//
-// 	// Get the 10th frame of the video and save it to the cache as the thumbnail
-// 	// "Highres" for video is the video itself
-// 	err := ffmpeg.Input(filepath).Filter(
-// 		"select", ffmpeg.Args{fmt.Sprintf("gte(n,%d)", frameNum)},
-// 	).Output(
-// 		"pipe:", ffmpeg.KwArgs{"frames:v": 1, "format": "image2", "vcodec": "mjpeg"},
-// 	).WithOutput(buf).WithErrorOutput(errOut).Run()
-// 	if err != nil {
-// 		return nil, werror.WithStack(errors.New(err.Error() + errOut.String()))
-// 	}
-//
-// 	return buf.Bytes(), nil
-// }
-//
-// func getVideoDurationMs(filepath string) (int, error) {
-// 	probeJson, err := ffmpeg.Probe(filepath)
-// 	if err != nil {
-// 		return 0, err
-// 	}
-// 	probeResult := map[string]any{}
-// 	err = json.Unmarshal([]byte(probeJson), &probeResult)
-// 	if err != nil {
-// 		return 0, err
-// 	}
-//
-// 	formatChunk, ok := probeResult["format"].(map[string]any)
-// 	if !ok {
-// 		return 0, werror.Errorf("invalid movie format")
-// 	}
-// 	duration, err := strconv.ParseFloat(formatChunk["duration"].(string), 32)
-// 	if err != nil {
-// 		return 0, err
-// 	}
-// 	return int(duration) * 1000, nil
-// }
+//		return nil
+//	}
+func getCreateDateFromExif(exif map[string]any, file *file_model.WeblensFileImpl) (createDate time.Time, err error) {
+	r, ok := exif["SubSecCreateDate"]
+	if !ok {
+		r, ok = exif["MediaCreateDate"]
+	}
+	if ok {
+		createDate, err = time.Parse("2006:01:02 15:04:05.000-07:00", r.(string))
+		if err != nil {
+			createDate, err = time.Parse("2006:01:02 15:04:05.00-07:00", r.(string))
+		}
+		if err != nil {
+			createDate, err = time.Parse("2006:01:02 15:04:05", r.(string))
+		}
+		if err != nil {
+			createDate, err = time.Parse("2006:01:02 15:04:05-07:00", r.(string))
+		}
+		if err != nil {
+			createDate = file.ModTime()
+		}
+	} else {
+		createDate = file.ModTime()
+	}
+
+	return createDate, nil
+}
+
+func generateVideoThumbnail(filepath string) ([]byte, error) {
+	const frameNum = 10
+
+	buf := bytes.NewBuffer(nil)
+	errOut := bytes.NewBuffer(nil)
+
+	// Get the 10th frame of the video and save it to the cache as the thumbnail
+	// "Highres" for video is the video itself
+	err := ffmpeg.Input(filepath).Filter(
+		"select", ffmpeg.Args{fmt.Sprintf("gte(n,%d)", frameNum)},
+	).Output(
+		"pipe:", ffmpeg.KwArgs{"frames:v": 1, "format": "image2", "vcodec": "mjpeg"},
+	).WithOutput(buf).WithErrorOutput(errOut).Run()
+	if err != nil {
+		return nil, errors.WithStack(errors.New(err.Error() + errOut.String()))
+	}
+
+	return buf.Bytes(), nil
+}
+
+func getVideoDurationMs(filepath string) (int, error) {
+	probeJson, err := ffmpeg.Probe(filepath)
+	if err != nil {
+		return 0, err
+	}
+	probeResult := map[string]any{}
+	err = json.Unmarshal([]byte(probeJson), &probeResult)
+	if err != nil {
+		return 0, err
+	}
+
+	formatChunk, ok := probeResult["format"].(map[string]any)
+	if !ok {
+		return 0, errors.Errorf("invalid movie format")
+	}
+	duration, err := strconv.ParseFloat(formatChunk["duration"].(string), 32)
+	if err != nil {
+		return 0, err
+	}
+	return int(duration) * 1000, nil
+}

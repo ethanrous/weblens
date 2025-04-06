@@ -115,24 +115,24 @@ type WeblensFileImpl struct {
 	memOnly bool
 }
 
-func NewWeblensFile(path file_system.Filepath, parent *WeblensFileImpl) *WeblensFileImpl {
+func NewWeblensFile(path file_system.Filepath) *WeblensFileImpl {
 	f := &WeblensFileImpl{
-		childrenMap: make(map[string]*WeblensFileImpl),
-		isDir:       option.Of(path.IsDir()),
-		parent:      parent,
+		portablePath: path,
+		childrenMap:  make(map[string]*WeblensFileImpl),
+		isDir:        option.Of(path.IsDir()),
 	}
-	if parent != nil {
-		f.parentId = parent.ID()
-		if f.parent.memOnly {
-			f.memOnly = true
-		}
-	} else {
-		var err error
-		f.portablePath, err = file_system.ParsePortable("USERS:")
-		if err != nil {
-			log.Error().Stack().Err(err).Msg("")
-		}
-	}
+	// if parent != nil {
+	// 	f.parentId = parent.ID()
+	// 	if f.parent.memOnly {
+	// 		f.memOnly = true
+	// 	}
+	// } else {
+	// 	var err error
+	// 	f.portablePath, err = file_system.ParsePortable("USERS:")
+	// 	if err != nil {
+	// 		log.Error().Stack().Err(err).Msg("")
+	// 	}
+	// }
 
 	return f
 }

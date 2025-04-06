@@ -115,32 +115,7 @@ package v1
 // }
 //
 // // newActionBody returns a structure to hold the correct version of the websocket request body
-// func newActionBody(msg models.WsRequestInfo) (models.WsR, error) {
-// 	switch msg.Action {
-// 	case models.FolderSubscribe:
-// 		target := &folderSubscribeMeta{}
-// 		err := json.Unmarshal([]byte(msg.Content), target)
-// 		return target, werror.WithStack(err)
-// 	case models.TaskSubscribe:
-// 		target := &taskSubscribeMeta{}
-// 		err := json.Unmarshal([]byte(msg.Content), target)
-// 		return target, werror.WithStack(err)
-// 	case models.Unsubscribe:
-// 		target := &unsubscribeMeta{}
-// 		err := json.Unmarshal([]byte(msg.Content), target)
-// 		return target, werror.WithStack(err)
-// 	case models.ScanDirectory:
-// 		target := &scanDirectoryMeta{}
-// 		err := json.Unmarshal([]byte(msg.Content), target)
-// 		return target, werror.WithStack(err)
-// 	case models.CancelTask:
-// 		target := &cancelTaskMeta{}
-// 		err := json.Unmarshal([]byte(msg.Content), target)
-// 		return target, werror.WithStack(err)
-// 	default:
-// 		return nil, werror.Errorf("did not recognize websocket action type [%s]", msg.Action)
-// 	}
-// }
+
 //
 // func (tsm taskSubscribeMeta) ResultKeys() []string {
 // 	return tsm.LookingFor

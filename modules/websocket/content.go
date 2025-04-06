@@ -7,14 +7,15 @@ import (
 type WsData map[string]any
 
 type WsResponseInfo struct {
-	EventTag      WsEvent  `json:"eventTag"`
-	SubscribeKey  string   `json:"subscribeKey"`
-	TaskType      string   `json:"taskType,omitempty"`
-	Content       WsData   `json:"content"`
-	Error         string   `json:"error,omitempty"`
-	BroadcastType WsAction `json:"broadcastType,omitempty"`
-	RelaySource   string   `json:"relaySource,omitempty"`
-	SentTime      int64    `json:"sentTime,omitempty"`
+	EventTag        WsEvent  `json:"eventTag"`
+	SubscribeKey    string   `json:"subscribeKey"`
+	TaskType        string   `json:"taskType,omitempty"`
+	Content         WsData   `json:"content"`
+	Error           string   `json:"error,omitempty"`
+	BroadcastType   WsAction `json:"broadcastType,omitempty"`
+	RelaySource     string   `json:"relaySource,omitempty"`
+	SentTime        int64    `json:"sentTime,omitempty"`
+	ConstructedTime int64    `json:"constructedTime,omitempty"`
 }
 
 type WsRequestInfo struct {
@@ -27,7 +28,7 @@ type WsRequestInfo struct {
 type WsR interface {
 	GetKey() string
 	Action() WsAction
-	// GetShare(ShareService) *FileShare
+	GetShareId() string
 }
 
 type Subscription struct {

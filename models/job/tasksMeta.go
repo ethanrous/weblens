@@ -23,9 +23,9 @@ import (
 )
 
 type TaskSubscriber interface {
-	FolderSubToTask(folderId file_model.FileId, taskId task.Id)
-	UnsubTask(taskId task.Id)
-	// TaskSubToPool(taskId task.Id, poolId task.Id)
+	FolderSubToTask(folderId string, taskId string)
+	UnsubTask(taskId string)
+	// TaskSubToPool(taskId string, poolId string)
 }
 
 type TaskDispatcher interface {
@@ -33,8 +33,6 @@ type TaskDispatcher interface {
 }
 
 type ScanMeta struct {
-	TaskService  TaskDispatcher
-	TaskSubber   TaskSubscriber
 	File         *file_model.WeblensFileImpl
 	PartialMedia *media_model.Media
 
@@ -59,7 +57,7 @@ func (m ScanMeta) MetaString() string {
 
 func (m ScanMeta) FormatToResult() task_mod.TaskResult {
 	return task_mod.TaskResult{
-		"filename": m.File.Filename(),
+		"filename": m.File.GetPortablePath(),
 	}
 }
 
@@ -88,7 +86,7 @@ type ZipMeta struct {
 
 func (m ZipMeta) MetaString() string {
 	ids := slices_mod.Map(
-		m.Files, func(f *file_model.WeblensFileImpl) file_model.FileId {
+		m.Files, func(f *file_model.WeblensFileImpl) string {
 			return f.ID()
 		},
 	)
@@ -114,7 +112,7 @@ func (m ZipMeta) FormatToResult() task_mod.TaskResult {
 	return task_mod.TaskResult{
 		"filenames": slices_mod.Map(
 			m.Files, func(f *file_model.WeblensFileImpl) string {
-				return f.Filename()
+				return f.GetPortablePath().ToPortable()
 			},
 		),
 	}
@@ -142,9 +140,9 @@ type MoveMeta struct {
 	FileEvent *history.FileEvent
 
 	User                *user_model.User
-	DestinationFolderId file_model.FileId
+	DestinationFolderId string
 	NewFilename         string
-	FileIds             []file_model.FileId
+	FileIds             []string
 }
 
 func (m MoveMeta) MetaString() string {
@@ -178,7 +176,7 @@ func (m MoveMeta) Verify() error {
 
 type FileChunk struct {
 	NewFile      *file_model.WeblensFileImpl
-	FileId       file_model.FileId
+	FileId       string
 	ContentRange string
 
 	Chunk []byte
@@ -193,7 +191,7 @@ type UploadFilesMeta struct {
 
 	User         *user_model.User
 	Share        *share_model.FileShare
-	RootFolderId file_model.FileId
+	RootFolderId string
 	ChunkSize    int64
 }
 

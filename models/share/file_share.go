@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/models/db"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/slices"
@@ -16,6 +15,7 @@ import (
 const ShareCollectionKey = "shares"
 
 var ErrShareNotFound = errors.New("share not found")
+var ErrShareAlreadyExists = errors.New("share already exists")
 
 type FileShare struct {
 	// Accessors is a list of users that have access to the share
@@ -31,12 +31,10 @@ type FileShare struct {
 	Wormhole  bool      `bson:"wormhole"`
 }
 
-func NewFileShare(
-	f *fileTree.WeblensFileImpl, owner *user_model.User, accessors []*user_model.User, public bool, wormhole bool,
-) *FileShare {
+func NewFileShare(ctx context.Context, fileId string, owner *user_model.User, accessors []*user_model.User, public bool, wormhole bool) (*FileShare, error) {
 	return &FileShare{
 		ShareId: primitive.NewObjectID().Hex(),
-		FileId:  f.ID(),
+		FileId:  fileId,
 		Owner:   owner.GetUsername(),
 		Accessors: slices.Map(
 			accessors, func(u *user_model.User) string {
@@ -47,7 +45,7 @@ func NewFileShare(
 		Wormhole: wormhole,
 		Enabled:  true,
 		Updated:  time.Now(),
-	}
+	}, nil
 }
 
 func GetShareById(ctx context.Context, shareId string) (*FileShare, error) {
@@ -65,37 +63,42 @@ func GetShareById(ctx context.Context, shareId string) (*FileShare, error) {
 	return &share, nil
 }
 
+func GetShareByFileId(ctx context.Context, fileId string) (*FileShare, error) {
+	return nil, errors.New("not implemented")
+}
+
 func GetSharedWithUser(ctx context.Context, username string) ([]*FileShare, error) {
 	return nil, nil
 }
 
+func DeleteShare(ctx context.Context, shareId string) error {
+	return errors.New("not implemented")
+}
+
+func (s *FileShare) SetPublic(ctx context.Context, pub bool) error {
+	return errors.New("not implemented")
+}
+
+func (s *FileShare) AddUsers(ctx context.Context, usernames []string) error {
+	return errors.New("not implemented")
+}
+
+func (s *FileShare) RemoveUsers(ctx context.Context, usernames []string) error {
+	return errors.New("not implemented")
+}
+
 func (s *FileShare) ID() string              { return s.ShareId }
 func (s *FileShare) GetItemId() string       { return string(s.FileId) }
-func (s *FileShare) SetItemId(fileId string) { s.FileId = fileTree.FileId(fileId) }
+func (s *FileShare) SetItemId(fileId string) { s.FileId = fileId }
 func (s *FileShare) GetAccessors() []string  { return s.Accessors }
-
-func (s *FileShare) AddUsers(usernames []string) {
-	s.Accessors = slices.AddToSet(s.Accessors, usernames...)
-}
 
 func (s *FileShare) SetAccessors(usernames []string) {
 	s.Accessors = usernames
 }
 
-func (s *FileShare) RemoveUsers(usernames []string) {
-	s.Accessors = slices.Filter(
-		s.Accessors, func(un string) bool {
-			return !slices.Contains(usernames, un)
-		},
-	)
-}
-
 func (s *FileShare) GetOwner() string { return s.Owner }
 func (s *FileShare) IsPublic() bool   { return s.Public }
 func (s *FileShare) IsWormhole() bool { return s.Wormhole }
-func (s *FileShare) SetPublic(pub bool) {
-	s.Public = pub
-}
 
 func (s *FileShare) IsEnabled() bool { return s.Enabled }
 func (s *FileShare) SetEnabled(enable bool) {

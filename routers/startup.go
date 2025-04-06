@@ -10,6 +10,7 @@ import (
 	"github.com/ethanrous/weblens/modules/config"
 	v1 "github.com/ethanrous/weblens/routers/api/v1"
 	"github.com/ethanrous/weblens/routers/router"
+	"github.com/ethanrous/weblens/routers/web"
 	context_service "github.com/ethanrous/weblens/services/context"
 )
 
@@ -38,20 +39,21 @@ func CaptureInterrupt() (context.Context, context.CancelFunc) {
 	return ctx, cancel
 }
 
-func Startup(ctx context_service.BasicContext, cnf config.ConfigProvider) error {
+func Startup(ctx *context_service.AppContext, cnf config.ConfigProvider) (*router.Router, error) {
 	r := router.NewRouter()
 
 	mongo, err := db.ConnectToMongo(ctx, cnf.MongoDBUri, cnf.MongoDBName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	r.Inject(router.Injection{
-		DB:  mongo,
-		Log: ctx.Logger,
-	})
+	ctx.DB = mongo
 
-	r.Mount("/api/v1/", v1.Routes())
+	r.WithAppContext(*ctx)
 
-	return nil
+	r.Mount("/api/v1/", v1.Routes)
+	r.Mount("/docs", v1.Docs)
+	r.Mount("/", web.UiRoutes(web.NewMemFs(ctx, cnf)))
+
+	return r, nil
 }

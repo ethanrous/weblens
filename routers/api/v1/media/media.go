@@ -2,13 +2,10 @@ package http
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"strconv"
 
-	"github.com/ethanrous/weblens/fileTree"
 	media_model "github.com/ethanrous/weblens/models/media"
-	"github.com/ethanrous/weblens/models/rest"
 	"github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/reshape"
 	"github.com/pkg/errors"
@@ -36,7 +33,7 @@ import (
 func GetMediaBatch(ctx context.RequestContext) {
 	folderIdsStr := ctx.Query("folderIds")
 	if folderIdsStr != "" {
-		var folderIds []fileTree.FileId
+		var folderIds []string
 		err := json.Unmarshal([]byte(folderIdsStr), &folderIds)
 		if err != nil {
 			ctx.Logger.Error().Stack().Err(err).Msg("Failed to unmarshal folderIds")
@@ -58,7 +55,7 @@ func GetMediaBatch(ctx context.RequestContext) {
 
 	mediaIdsStr := ctx.Query("mediaIds")
 	if mediaIdsStr != "" {
-		var mediaIds []fileTree.FileId
+		var mediaIds []string
 		err := json.Unmarshal([]byte(mediaIdsStr), &mediaIds)
 		if err != nil {
 			ctx.Logger.Error().Stack().Err(err).Msg("Failed to unmarshal mediaIds")
@@ -119,9 +116,8 @@ func GetMediaBatch(ctx context.RequestContext) {
 	}
 
 	var mediaFilter []media_model.ContentId
-	ms, err := pack.MediaService.GetFilteredMedia(ctx.Requester, sort, 1, mediaFilter, raw, hidden, search)
+	ms, err := media_model.GetMedia(ctx, ctx.Requester.Username, sort, 1, mediaFilter, raw, hidden, search)
 	if err != nil {
-		ctx.Logger.Error().Stack().Err(err).Msg("Failed to get filtered media")
 		ctx.Error(http.StatusInternalServerError, err)
 		return
 	}
@@ -133,7 +129,7 @@ func GetMediaBatch(ctx context.RequestContext) {
 		slicedMs = ms[(page)*limit : (page+1)*limit]
 	}
 
-	batch := rest.NewMediaBatchInfo(slicedMs)
+	batch := reshape.NewMediaBatchInfo(slicedMs)
 
 	ctx.JSON(http.StatusOK, batch)
 }

@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/ethanrous/weblens/services/context"
 	"github.com/go-chi/chi/v5"
 	"github.com/pkg/errors"
@@ -56,10 +55,12 @@ const (
 // 	return usr, nil
 // }
 
+var ErrNotAuthenticated = errors.New("not authenticated")
+
 func RequireSignIn() func(context.RequestContext) {
 	return func(ctx context.RequestContext) {
 		if !ctx.IsLoggedIn {
-			ctx.Error(http.StatusUnauthorized, werror.ErrNotAuthenticated)
+			ctx.Error(http.StatusUnauthorized, ErrNotAuthenticated)
 			return
 		}
 	}
@@ -68,7 +69,7 @@ func RequireSignIn() func(context.RequestContext) {
 func RequireAdmin() func(context.RequestContext) {
 	return func(ctx context.RequestContext) {
 		if ctx.Requester == nil || !ctx.Requester.IsAdmin() {
-			ctx.Error(http.StatusUnauthorized, werror.ErrNotAuthenticated)
+			ctx.Error(http.StatusUnauthorized, ErrNotAuthenticated)
 			return
 		}
 	}
@@ -77,7 +78,7 @@ func RequireAdmin() func(context.RequestContext) {
 func RequireOwner() func(context.RequestContext) {
 	return func(ctx context.RequestContext) {
 		if ctx.Requester == nil || !ctx.Requester.IsOwner() {
-			ctx.Error(http.StatusUnauthorized, werror.ErrNotAuthenticated)
+			ctx.Error(http.StatusUnauthorized, ErrNotAuthenticated)
 			return
 		}
 	}

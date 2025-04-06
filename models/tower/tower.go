@@ -129,6 +129,30 @@ func SetLastBackup(ctx context.Context, towerId string, lastBackup time.Time) er
 	return nil
 }
 
+func GetAllTowersByTowerId(ctx context.Context, towerId string) ([]*Instance, error) {
+	col, err := db.GetCollection(ctx, TowerCollectionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	cursor, err := col.Find(ctx, bson.M{"createdBy": towerId})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var towers []*Instance
+	for cursor.Next(ctx) {
+		var tower Instance
+		if err := cursor.Decode(&tower); err != nil {
+			return nil, err
+		}
+		towers = append(towers, &tower)
+	}
+
+	return towers, nil
+}
+
 func GetRemotes(ctx context.Context) ([]*Instance, error) {
 	return nil, nil
 }
@@ -137,8 +161,16 @@ func (t *Instance) IsCore() bool {
 	return t.Role == CoreServerRole
 }
 
+func (t *Instance) IsBackup() bool {
+	return t.Role == BackupServerRole
+}
+
 func (t *Instance) GetReportedRole() TowerRole {
 	return t.reportedRole
+}
+
+func (t *Instance) SetReportedRole(role TowerRole) {
+	t.reportedRole = role
 }
 
 func (t *Instance) SocketType() websocket_mod.ClientType {

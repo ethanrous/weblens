@@ -5,8 +5,8 @@ import (
 	"github.com/ethanrous/weblens/modules/structs"
 )
 
-func TowerToTowerInfo(tower *tower_model.Instance) *structs.TowerInfo {
-	return &structs.TowerInfo{
+func TowerToTowerInfo(tower *tower_model.Instance) structs.TowerInfo {
+	return structs.TowerInfo{
 		Id:   tower.TowerId,
 		Name: tower.Name,
 		// UsingKey:     tower.,

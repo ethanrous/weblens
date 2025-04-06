@@ -8,5 +8,5 @@ import (
 
 type DispatcherContext interface {
 	context.Context
-	DispatchJob(string, any) (task.Task, error)
+	DispatchJob(string, any, task.Pool) (task.Task, error)
 }

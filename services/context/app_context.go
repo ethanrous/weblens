@@ -15,13 +15,18 @@ var _ context.ContextZ = &AppContext{}
 type AppContext struct {
 	BasicContext
 
-	// TowerId is the id of the tower that the app is running on
-	TowerId string
+	// LocalTowerId is the id of the tower that the app is running on
+	LocalTowerId string
 
 	FileService   file.FileService
 	TaskService   task_model.TaskService
 	ClientService client.ClientManager
 	DB            *mongo.Database
+}
+
+func NewAppContext(ctx *BasicContext) *AppContext {
+
+	return &AppContext{BasicContext: *ctx}
 }
 
 func (c *AppContext) Notify(data ...websocket.WsResponseInfo) {
@@ -32,6 +37,6 @@ func (c *AppContext) Database() *mongo.Database {
 	return c.DB
 }
 
-func (c *AppContext) DispatchJob(string, any) (task_mod.Task, error) {
+func (c *AppContext) DispatchJob(string, any, task_mod.Pool) (task_mod.Task, error) {
 	return nil, nil
 }

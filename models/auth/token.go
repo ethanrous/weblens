@@ -1,10 +1,10 @@
 package auth
 
 import (
+	"context"
 	"time"
 
 	"github.com/ethanrous/weblens/models/db"
-	"github.com/ethanrous/weblens/modules/context"
 	"github.com/ethanrous/weblens/modules/crypto"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
@@ -27,7 +27,7 @@ type Token struct {
 	Id          primitive.ObjectID `bson:"_id"`
 }
 
-func GenerateNewToken(ctx context.DatabaseContext, nickname, owner, createdBy string) (*Token, error) {
+func GenerateNewToken(ctx context.Context, nickname, owner, createdBy string) (*Token, error) {
 	tok, err := crypto.RandomBytes(32)
 	if err != nil {
 		return nil, err
@@ -59,7 +59,7 @@ func GenerateNewToken(ctx context.DatabaseContext, nickname, owner, createdBy st
 	return token, nil
 }
 
-func SaveToken(ctx context.DatabaseContext, token *Token) error {
+func SaveToken(ctx context.Context, token *Token) error {
 	col, err := db.GetCollection(ctx, TokenCollectionKey)
 	if err != nil {
 		return err
@@ -73,7 +73,7 @@ func SaveToken(ctx context.DatabaseContext, token *Token) error {
 	return nil
 }
 
-func GetTokensByUser(ctx context.DatabaseContext, username string) ([]*Token, error) {
+func GetTokensByUser(ctx context.Context, username string) ([]*Token, error) {
 	col, err := db.GetCollection(ctx, TokenCollectionKey)
 	if err != nil {
 		return nil, err
@@ -98,7 +98,7 @@ func GetTokensByUser(ctx context.DatabaseContext, username string) ([]*Token, er
 
 }
 
-func GetTokenById(ctx context.DatabaseContext, tokenId primitive.ObjectID) (token *Token, err error) {
+func GetTokenById(ctx context.Context, tokenId primitive.ObjectID) (token *Token, err error) {
 	col, err := db.GetCollection(ctx, TokenCollectionKey)
 	if err != nil {
 		return nil, err
@@ -113,7 +113,26 @@ func GetTokenById(ctx context.DatabaseContext, tokenId primitive.ObjectID) (toke
 	return
 }
 
-func DeleteToken(ctx context.DatabaseContext, tokenId primitive.ObjectID) error {
+func GetAllTokensByTowerId(ctx context.Context, towerId string) (tokens []*Token, err error) {
+	col, err := db.GetCollection(ctx, TokenCollectionKey)
+	if err != nil {
+		return
+	}
+
+	res, err := col.Find(ctx, bson.M{"towerId": towerId})
+	if err != nil {
+		return
+	}
+
+	err = res.All(ctx, &tokens)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func DeleteToken(ctx context.Context, tokenId primitive.ObjectID) error {
 	col, err := db.GetCollection(ctx, TokenCollectionKey)
 	if err != nil {
 		return err

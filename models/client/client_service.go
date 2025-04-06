@@ -25,8 +25,8 @@ type ClientManager interface {
 	SubscribeToFile(ctx context.NotifierContext, c *WsClient, file *file_model.WeblensFileImpl, share *share_model.FileShare, subTime time.Time) error
 	SubscribeToTask(ctx context.NotifierContext, c *WsClient, task *task_model.Task, subTime time.Time) error
 	Unsubscribe(c *WsClient, key string, unSubTime time.Time) error
-	FolderSubToTask(folderId file_model.FileId, taskId task_model.Id)
-	UnsubTask(taskId task_model.Id)
+	FolderSubToTask(folderId string, taskId string)
+	UnsubTask(taskId string)
 	Send(msg websocket_mod.WsResponseInfo)
 	Relay(msg websocket_mod.WsResponseInfo)
 	PushWeblensEvent(event websocket_mod.WsEvent, msg websocket_mod.WsData)

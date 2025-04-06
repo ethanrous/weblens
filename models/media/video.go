@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethanrous/weblens/fileTree"
+	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
@@ -19,7 +19,7 @@ import (
 
 type VideoStreamer struct {
 	err           error
-	file          *fileTree.WeblensFileImpl
+	file          *file_model.WeblensFileImpl
 	streamDirPath string
 	listFileCache []byte
 	updateMu      sync.RWMutex
@@ -28,7 +28,7 @@ type VideoStreamer struct {
 	log *zerolog.Logger
 }
 
-func NewVideoStreamer(file *fileTree.WeblensFileImpl, thumbsPath string) *VideoStreamer {
+func NewVideoStreamer(file *file_model.WeblensFileImpl, thumbsPath string) *VideoStreamer {
 	destPath := fmt.Sprintf("%s/%s-stream/", thumbsPath, file.GetContentId())
 
 	return &VideoStreamer{
@@ -37,7 +37,7 @@ func NewVideoStreamer(file *fileTree.WeblensFileImpl, thumbsPath string) *VideoS
 	}
 }
 
-func (vs *VideoStreamer) transcodeChunks(f *fileTree.WeblensFileImpl, speed string) {
+func (vs *VideoStreamer) transcodeChunks(f *file_model.WeblensFileImpl, speed string) {
 	defer func() {
 		vs.encodingBegun.Store(false)
 		e := recover()
@@ -53,7 +53,9 @@ func (vs *VideoStreamer) transcodeChunks(f *fileTree.WeblensFileImpl, speed stri
 		vs.log.Error().Stack().Err(err).Msg("")
 	}()
 
-	vs.log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Transcoding video %s => %s", f.AbsPath(), vs.streamDirPath) })
+	vs.log.Debug().Func(func(e *zerolog.Event) {
+		e.Msgf("Transcoding video %s => %s", f.GetPortablePath().ToAbsolute(), vs.streamDirPath)
+	})
 
 	err := os.Mkdir(vs.streamDirPath, os.ModePerm)
 	if err != nil && !os.IsExist(err) {
@@ -89,7 +91,7 @@ func (vs *VideoStreamer) transcodeChunks(f *fileTree.WeblensFileImpl, speed stri
 	}
 
 	outErr := bytes.NewBuffer(nil)
-	err = ffmpeg.Input(f.AbsPath(), ffmpeg.KwArgs{"ss": 0}).Output(vs.streamDirPath+"%03d.ts", outputArgs).WithErrorOutput(outErr).Run()
+	err = ffmpeg.Input(f.GetPortablePath().ToAbsolute(), ffmpeg.KwArgs{"ss": 0}).Output(vs.streamDirPath+"%03d.ts", outputArgs).WithErrorOutput(outErr).Run()
 
 	if err != nil {
 		vs.log.Error().Msg(outErr.String())
@@ -99,7 +101,7 @@ func (vs *VideoStreamer) transcodeChunks(f *fileTree.WeblensFileImpl, speed stri
 	}
 }
 
-func (vs *VideoStreamer) Encode(f *fileTree.WeblensFileImpl) *VideoStreamer {
+func (vs *VideoStreamer) Encode(f *file_model.WeblensFileImpl) *VideoStreamer {
 	if !vs.encodingBegun.Load() {
 		vs.encodingBegun.Store(true)
 		go vs.transcodeChunks(f, "ultrafast")
@@ -179,9 +181,9 @@ func (vs *VideoStreamer) IsTranscoding() bool {
 	return vs.encodingBegun.Load()
 }
 
-func (vs *VideoStreamer) probeSourceBitrate(f *fileTree.WeblensFileImpl) (videoBitrate int64, audioBitrate int64, err error) {
-	vs.log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Probing %s", f.AbsPath()) })
-	probeJson, err := ffmpeg.Probe(f.AbsPath())
+func (vs *VideoStreamer) probeSourceBitrate(f *file_model.WeblensFileImpl) (videoBitrate int64, audioBitrate int64, err error) {
+	vs.log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Probing %s", f.GetPortablePath().ToAbsolute()) })
+	probeJson, err := ffmpeg.Probe(f.GetPortablePath().ToAbsolute())
 	if err != nil {
 		return 0, 0, err
 	}

@@ -27,10 +27,10 @@ func GetAbsolutePrefix(alias string) string {
 }
 
 func (wf Filepath) ToAbsolute() string {
-	if wf.rootAlias == "" {
+	if wf.RootAlias == "" {
 		return ""
 	}
 
-	absPrefix := GetAbsolutePrefix(wf.rootAlias)
-	return absPrefix + wf.relPath
+	absPrefix := GetAbsolutePrefix(wf.RootAlias)
+	return absPrefix + wf.RelPath
 }

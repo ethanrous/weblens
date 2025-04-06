@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethanrous/weblens/models/client"
 	share_model "github.com/ethanrous/weblens/models/share"
+	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/crypto"
 	"github.com/go-chi/chi/v5"
@@ -23,14 +24,10 @@ type RequestContext struct {
 	W   http.ResponseWriter
 
 	Requester  *user_model.User
+	Remote     *tower_model.Instance
 	IsLoggedIn bool
 
 	Share *share_model.FileShare
-}
-
-func GetFromHTTP(r *http.Request) *RequestContext {
-	ctx, _ := r.Context().(*RequestContext)
-	return ctx
 }
 
 // Path returns the value of a URL parameter, or an empty string if the parameter is not found.

@@ -2,27 +2,32 @@ package jobs
 
 import (
 	"archive/zip"
-	"context"
 	"maps"
 	"os"
 	"slices"
 	"strings"
 	"time"
 
-	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/models/client"
 	file_model "github.com/ethanrous/weblens/models/file"
+	"github.com/ethanrous/weblens/models/job"
+	"github.com/ethanrous/weblens/models/task"
 	"github.com/ethanrous/weblens/modules/crypto"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
-	"github.com/ethanrous/weblens/task"
+	task_mod "github.com/ethanrous/weblens/modules/task"
+	"github.com/ethanrous/weblens/modules/websocket"
+	"github.com/ethanrous/weblens/services/context"
 	"github.com/pkg/errors"
 	"github.com/saracen/fastzip"
 )
 
 var ErrEmptyZip = errors.New("zip file is empty")
 
-func CreateZip(t *task.Task) {
-	zipMeta := t.GetMeta().(models.ZipMeta)
+func CreateZip(tsk task_mod.Task) {
+	t := tsk.(*task.Task)
+
+	ctx := t.Ctx.(*context.AppContext)
+	zipMeta := t.GetMeta().(job.ZipMeta)
 
 	if len(zipMeta.Files) == 0 {
 		t.ReqNoErr(ErrEmptyZip)
@@ -35,11 +40,12 @@ func CreateZip(t *task.Task) {
 		func(file *file_model.WeblensFileImpl) error {
 			return file.RecursiveMap(
 				func(f *file_model.WeblensFileImpl) error {
-					stat, err := os.Stat(f.AbsPath())
+					fAbs := f.GetPortablePath().ToAbsolute()
+					stat, err := os.Stat(fAbs)
 					if err != nil {
 						t.ReqNoErr(err)
 					}
-					filesInfoMap[f.AbsPath()] = stat
+					filesInfoMap[fAbs] = stat
 					return nil
 				},
 			)
@@ -50,7 +56,7 @@ func CreateZip(t *task.Task) {
 
 	var takeoutKey string
 	if len(zipMeta.Files) == 1 {
-		takeoutKey = zipMeta.Files[0].Filename()
+		takeoutKey = zipMeta.Files[0].GetPortablePath().Filename()
 	} else {
 		takeoutKey = crypto.HashString(strings.Join(paths, ""))
 	}
@@ -62,7 +68,7 @@ func CreateZip(t *task.Task) {
 		zipName = zipName + ".zip"
 	}
 
-	zipFile, err := zipMeta.FileService.NewZip(zipName, zipMeta.Requester)
+	zipFile, err := ctx.FileService.NewZip(zipName, zipMeta.Requester)
 	if err != nil && strings.Contains(err.Error(), "file already exists") {
 		err = nil
 		zipExists = true
@@ -71,29 +77,32 @@ func CreateZip(t *task.Task) {
 	}
 
 	if zipExists {
-		t.SetResult(task.TaskResult{"takeoutId": zipFile.ID(), "filename": zipFile.Filename()})
+		t.SetResult(task_mod.TaskResult{"takeoutId": zipFile.ID(), "filename": zipFile.GetPortablePath().Filename()})
 		// Let any client subscribers know we are done
-		zipMeta.Caster.PushTaskUpdate(t, client.ZipCompleteEvent, t.GetResults())
+		notif := client.NewTaskNotification(t, websocket.ZipCompleteEvent, t.GetResults())
+		ctx.Notify(notif)
 		t.Success()
 		return
 	}
 
-	zipMeta.Caster.PushTaskUpdate(t, client.TaskCreatedEvent, task.TaskResult{"totalFiles": len(filesInfoMap)})
+	notif := client.NewTaskNotification(t, websocket.TaskCreatedEvent, task_mod.TaskResult{"totalFiles": len(filesInfoMap)})
+	ctx.Notify(notif)
+	t.Success()
 
-	fp, err := os.Create(zipFile.AbsPath())
+	fp, err := os.Create(zipFile.GetPortablePath().ToAbsolute())
 	if err != nil {
 		t.ReqNoErr(err)
 	}
 	defer func(fp *os.File) {
 		err := fp.Close()
 		if err != nil {
-			t.Log.Error().Stack().Err(err).Msg("")
+			t.Ctx.Log().Error().Stack().Err(err).Msg("")
 		}
 	}(fp)
 
 	a, err := fastzip.NewArchiver(
-		fp, zipMeta.Files[0].GetParent().AbsPath(),
-		fastzip.WithStageDirectory(zipFile.GetParent().AbsPath()),
+		fp, zipMeta.Files[0].GetParent().GetPortablePath().ToAbsolute(),
+		fastzip.WithStageDirectory(zipFile.GetParent().GetPortablePath().ToAbsolute()),
 		fastzip.WithArchiverBufferSize(1024*1024*1024),
 		fastzip.WithArchiverMethod(zip.Store),
 	)
@@ -105,7 +114,7 @@ func CreateZip(t *task.Task) {
 	defer func(a *fastzip.Archiver) {
 		err := a.Close()
 		if err != nil {
-			t.Log.Error().Stack().Err(err).Msg("")
+			t.Ctx.Log().Error().Stack().Err(err).Msg("")
 		}
 	}(a)
 
@@ -113,7 +122,7 @@ func CreateZip(t *task.Task) {
 
 	// Shove archive to child thread so we can send updates with main thread
 	go func() {
-		err := a.Archive(context.Background(), filesInfoMap)
+		err := a.Archive(t.Ctx, filesInfoMap)
 		if err != nil {
 			archiveErr = &err
 		}
@@ -145,14 +154,14 @@ func CreateZip(t *task.Task) {
 			byteDiff := bytes - prevBytes
 			timeNs := updateInterval * sinceUpdate
 
-			zipMeta.Caster.PushTaskUpdate(
-				t, client.ZipProgressEvent, task.TaskResult{
+			notif := client.NewTaskNotification(t, websocket.ZipProgressEvent,
+				task_mod.TaskResult{
 					"completedFiles": int(entries), "totalFiles": totalFiles,
 					"bytesSoFar": bytes,
 					"bytesTotal": bytesTotal,
 					"speedBytes": int((float64(byteDiff) / float64(timeNs)) * float64(time.Second)),
-				},
-			)
+				})
+			t.Ctx.Notify(notif)
 			prevBytes = bytes
 			sinceUpdate = 0
 		}
@@ -163,9 +172,10 @@ func CreateZip(t *task.Task) {
 		t.ReqNoErr(*archiveErr)
 	}
 
-	t.SetResult(task.TaskResult{"takeoutId": zipFile.ID(), "filename": zipFile.Filename()})
-	zipMeta.Caster.PushTaskUpdate(
-		t, models.ZipCompleteEvent, t.GetResults(),
-	) // Let any client subscribers know we are done
+	t.SetResult(task_mod.TaskResult{"takeoutId": zipFile.ID(), "filename": zipFile.GetPortablePath().Filename()})
+
+	notif = client.NewTaskNotification(t, websocket.ZipCompleteEvent, t.GetResults())
+	ctx.Notify(notif)
+
 	t.Success()
 }

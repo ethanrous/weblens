@@ -45,10 +45,10 @@ type Task struct {
 	exitStatus task_mod.TaskExitStatus // "success", "error" or "cancelled"
 
 	// Function to be run to clean up when the task completes, no matter the exit status
-	cleanups []TaskHandler
+	cleanups []task_mod.CleanupFunc
 
 	// Function to be run to clean up if the task errors
-	errorCleanup []TaskHandler
+	errorCleanup []task_mod.CleanupFunc
 
 	// signal is used for signaling a task to change behavior after it has been queued,
 	// to exit prematurely, for example. The signalChan serves the same purpose, but is
@@ -87,7 +87,7 @@ func (t *Task) JobName() string {
 	return t.jobName
 }
 
-func (t *Task) GetTaskPool() *TaskPool {
+func (t *Task) GetTaskPool() task_mod.Pool {
 	t.updateMu.RLock()
 	defer t.updateMu.RUnlock()
 	return t.taskPool
@@ -108,10 +108,10 @@ func (t *Task) GetChildTaskPool() *TaskPool {
 	return t.childTaskPool
 }
 
-func (t *Task) SetChildTaskPool(pool *TaskPool) {
+func (t *Task) SetChildTaskPool(pool task_mod.Pool) {
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
-	t.childTaskPool = pool
+	t.childTaskPool = pool.(*TaskPool)
 }
 
 // Status returns a boolean representing if a task has completed, and a string describing its exit type, if completed.
@@ -225,7 +225,7 @@ func (t *Task) ClearAndRecompute() {
 		return
 	}
 
-	t.GetTaskPool().GetWorkerPool().taskMap[t.taskId] = t
+	t.GetTaskPool().GetWorkerPool().(*WorkerPool).taskMap[t.taskId] = t
 }
 
 // TODO: get rid of one of these
@@ -260,7 +260,6 @@ func (t *Task) Manipulate(fn func(meta task_mod.TaskMetadata) error) error {
 // the error, as errors occurring inside the task body, after a task is cancelled, are not valid.
 // If an error has caused the task to be cancelled, t.Cancel() must be called after t.error()
 func (t *Task) error(err error) {
-	wp := t.GetTaskPool().GetWorkerPool()
 	t.updateMu.Lock()
 
 	// If we have already called cancel, do not set any error
@@ -272,7 +271,7 @@ func (t *Task) error(err error) {
 		return
 	}
 
-	wp.log.Error().CallerSkipFrame(2).Stack().Err(err).Msg("Task encountered an error")
+	t.Ctx.Log().Error().CallerSkipFrame(2).Stack().Err(err).Msg("Task encountered an error")
 
 	t.err = err
 	t.queueState = Exited
@@ -320,7 +319,7 @@ func (t *Task) SetPostAction(action func(task_mod.TaskResult)) {
 }
 
 // SetErrorCleanup works the same as t.SetCleanup(), but only runs if the task errors
-func (t *Task) SetErrorCleanup(cleanup TaskHandler) {
+func (t *Task) SetErrorCleanup(cleanup task_mod.CleanupFunc) {
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
 	t.errorCleanup = append(t.errorCleanup, cleanup)
@@ -332,7 +331,7 @@ func (t *Task) SetErrorCleanup(cleanup TaskHandler) {
 // Modifications to the task state should not be made in the cleanup functions (i.e. read-only), as the task has already completed, and may result in a deadlock.
 // If the task has already completed, this function will NOT be called. Therefore, it is only safe to call SetCleanup() from inside of a task handler.
 // If you want to register a function from outside the task handler, or to run after the task has completed successfully, use t.SetPostAction() instead.
-func (t *Task) SetCleanup(cleanup TaskHandler) {
+func (t *Task) SetCleanup(cleanup task_mod.CleanupFunc) {
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
 	t.cleanups = append(t.cleanups, cleanup)

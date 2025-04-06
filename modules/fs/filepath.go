@@ -8,8 +8,15 @@ import (
 )
 
 type Filepath struct {
-	rootAlias string
-	relPath   string
+	RootAlias string
+	RelPath   string
+}
+
+func BuildFilePath(rootAlias string, relPath ...string) Filepath {
+	return Filepath{
+		RootAlias: rootAlias,
+		RelPath:   filepath.Join(relPath...),
+	}
 }
 
 func NewFilePath(rootAlias, absolutePath string) (Filepath, error) {
@@ -24,8 +31,8 @@ func NewFilePath(rootAlias, absolutePath string) (Filepath, error) {
 	}
 
 	return Filepath{
-		rootAlias: rootAlias,
-		relPath:   path,
+		RootAlias: rootAlias,
+		RelPath:   path,
 	}, nil
 }
 
@@ -37,33 +44,37 @@ func ParsePortable(portablePath string) (Filepath, error) {
 	prefix := portablePath[:colonIndex]
 	postfix := portablePath[colonIndex+1:]
 	return Filepath{
-		rootAlias: prefix,
-		relPath:   postfix,
+		RootAlias: prefix,
+		RelPath:   postfix,
 	}, nil
 }
 
+func IsZeroFilepath(wf Filepath) bool {
+	return wf.RootAlias == "" && wf.RelPath == ""
+}
+
 func (wf Filepath) RootName() string {
-	return wf.rootAlias
+	return wf.RootAlias
 }
 
 func (wf Filepath) OverwriteRoot(newRoot string) Filepath {
-	wf.rootAlias = newRoot
+	wf.RootAlias = newRoot
 	return wf
 }
 
 func (wf Filepath) RelativePath() string {
-	return wf.relPath
+	return wf.RelPath
 }
 
 func (wf Filepath) ToPortable() string {
-	if wf.rootAlias == "" {
+	if wf.RootAlias == "" {
 		return ""
 	}
-	return wf.rootAlias + ":" + wf.relPath
+	return wf.RootAlias + ":" + wf.RelPath
 }
 
 func (wf Filepath) Filename() string {
-	filename := wf.relPath
+	filename := wf.RelPath
 	if len(filename) != 0 && filename[len(filename)-1] == '/' {
 		filename = filename[:len(filename)-1]
 	}
@@ -71,33 +82,54 @@ func (wf Filepath) Filename() string {
 }
 
 func (wf Filepath) IsDir() bool {
-	return len(wf.relPath) == 0 || wf.relPath[len(wf.relPath)-1] == '/'
+	return len(wf.RelPath) == 0 || wf.RelPath[len(wf.RelPath)-1] == '/'
 }
 
 // Dir returns the filepath of the directory that the file is in.
 func (wf Filepath) Dir() Filepath {
-	dirPath := wf.relPath
-	if len(wf.relPath) != 0 && wf.relPath[len(wf.relPath)-1] == '/' {
+	dirPath := wf.RelPath
+	if len(wf.RelPath) != 0 && wf.RelPath[len(wf.RelPath)-1] == '/' {
 		dirPath = dirPath[:len(dirPath)-1]
 	}
 
 	return Filepath{
-		rootAlias: wf.rootAlias,
-		relPath:   filepath.Dir(dirPath),
+		RootAlias: wf.RootAlias,
+		RelPath:   filepath.Dir(dirPath),
 	}
 }
 
 func (wf Filepath) Child(childName string, childIsDir bool) Filepath {
-	relPath := filepath.Join(wf.relPath, childName)
+	relPath := filepath.Join(wf.RelPath, childName)
 	if childIsDir {
 		relPath += "/"
 	}
 	return Filepath{
-		rootAlias: wf.rootAlias,
-		relPath:   relPath,
+		RootAlias: wf.RootAlias,
+		RelPath:   relPath,
 	}
+}
+
+func (wf Filepath) Ext() string {
+	if wf.IsDir() {
+		return ""
+	}
+	return filepath.Ext(wf.RelPath)
 }
 
 func (wf Filepath) String() string {
 	return wf.ToPortable()
+}
+func (wf Filepath) MarshalJSON() ([]byte, error) {
+	return []byte(wf.ToPortable()), nil
+}
+
+func (wf *Filepath) UnmarshalJSON(b []byte) error {
+	portable, err := ParsePortable(string(b))
+	if err != nil {
+		return err
+	}
+
+	*wf = portable
+
+	return nil
 }

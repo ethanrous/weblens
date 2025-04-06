@@ -1,14 +1,13 @@
 package file
 
 import (
-	"context"
 	"time"
 
+	share_model "github.com/ethanrous/weblens/models/share"
 	user_model "github.com/ethanrous/weblens/models/user"
+	"github.com/ethanrous/weblens/modules/context"
 	"github.com/ethanrous/weblens/modules/fs"
 )
-
-
 
 type FileService interface {
 	// Size returns the size of the specified file tree
@@ -17,11 +16,8 @@ type FileService interface {
 	// GetFileById retrieves a file by its ID
 	GetFileById(fileId string) (*WeblensFileImpl, error)
 
-	// GetFileById retrieves a file by its ID
+	// GetFileByFilepath retrieves a file by its filepath
 	GetFileByFilepath(path fs.Filepath) (*WeblensFileImpl, error)
-
-	// GetFileByTree retrieves a file by its ID from the specified tree
-	GetFileByTree(id string, treeAlias string) (*WeblensFileImpl, error)
 
 	// GetFileByContentId retrieves a file by its content ID
 	GetFileByContentId(contentId string) (*WeblensFileImpl, error)
@@ -30,10 +26,10 @@ type FileService interface {
 	GetFiles(ids []string) ([]*WeblensFileImpl, []string, error)
 
 	// PathToFile resolves a path to a file
-	PathToFile(searchPath string) (*WeblensFileImpl, error)
+	// PathToFile(searchPath string) (*WeblensFileImpl, error)
 
 	// UserPathToFile resolves a user path to a file
-	UserPathToFile(searchPath string, user *user_model.User) (*WeblensFileImpl, error)
+	// UserPathToFile(searchPath string, user *user_model.User) (*WeblensFileImpl, error)
 
 	// CreateFile creates a new file
 	CreateFile(parent *WeblensFileImpl, filename string, data ...[]byte) (*WeblensFileImpl, error)
@@ -42,31 +38,28 @@ type FileService interface {
 	CreateFolder(parent *WeblensFileImpl, folderName string) (*WeblensFileImpl, error)
 
 	// CreateUserHome creates a home directory for a user
-	CreateUserHome(user *user_model.User) error
-
-	// GetFileOwner retrieves the owner of a file
-	GetFileOwner(file *WeblensFileImpl) (*user_model.User, error)
+	CreateUserHome(ctx *context.ContextZ, user *user_model.User) error
 
 	// IsFileInTrash checks if a file is in the trash
-	IsFileInTrash(file *WeblensFileImpl) bool
+	// IsFileInTrash(file *WeblensFileImpl) bool
 
 	// MoveFiles moves files to a new location
-	MoveFiles(files []*WeblensFileImpl, destFolder *WeblensFileImpl, treeName string) error
+	MoveFiles(ctx context.ContextZ, files []*WeblensFileImpl, destFolder *WeblensFileImpl, treeName string) error
 
 	// RenameFile renames a file
 	RenameFile(file *WeblensFileImpl, newName string) error
 
 	// MoveFilesToTrash moves files to the trash
-	MoveFilesToTrash(files []*WeblensFileImpl, user *user_model.User) error
+	MoveFilesToTrash(ctx context.ContextZ, files []*WeblensFileImpl, user *user_model.User, share *share_model.FileShare) error
 
 	// ReturnFilesFromTrash restores files from the trash
-	ReturnFilesFromTrash(files []*WeblensFileImpl) error
+	ReturnFilesFromTrash(ctx context.ContextZ, trashFiles []*WeblensFileImpl) error
 
 	// DeleteFiles permanently deletes files
-	DeleteFiles(ctx context.Context, files []*WeblensFileImpl, treeName string) error
+	DeleteFiles(ctx context.ContextZ, files []*WeblensFileImpl) error
 
 	// RestoreFiles restores files from history
-	RestoreFiles(ids []string, newParent *WeblensFileImpl, restoreTime time.Time) error
+	RestoreFiles(ctx context.ContextZ, ids []string, newParent *WeblensFileImpl, restoreTime time.Time) error
 
 	// RestoreHistory restores file history
 	// RestoreHistory(lifetimes []*fileTree.Lifetime) error
@@ -75,16 +68,16 @@ type FileService interface {
 	GetMediaCacheByFilename(filename string) (*WeblensFileImpl, error)
 
 	// NewCacheFile creates a new cache file for media
-	// NewCacheFile(media *media_model.Media, quality media_model.MediaQuality, pageNum int) (*WeblensFileImpl, error)
+	NewCacheFile(mediaId, quality string, pageNum int) (*WeblensFileImpl, error)
 
 	// DeleteCacheFile deletes a cache file
-	DeleteCacheFile(file WeblensFileImpl) error
+	DeleteCacheFile(file *WeblensFileImpl) error
 
 	// GetFolderCover gets the cover for a folder
-	GetFolderCover(folder *WeblensFileImpl) (string, error)
+	// GetFolderCover(folder *WeblensFileImpl) (string, error)
 
 	// SetFolderCover sets the cover for a folder
-	SetFolderCover(folderId string, coverId string) error
+	// SetFolderCover(folderId string, coverId string) error
 
 	// AddTask adds a task to a file
 	// AddTask(f *WeblensFileImpl, t *task.Task) error
@@ -105,7 +98,7 @@ type FileService interface {
 	// ResizeUp(file *WeblensFileImpl, event *fileTree.FileEvent) error
 
 	// GetThumbsDir gets the thumbnails directory
-	GetThumbsDir() (*WeblensFileImpl, error)
+	// GetThumbsDir() (*WeblensFileImpl, error)
 
 	// NewZip creates a new zip file
 	NewZip(zipName string, owner *user_model.User) (*WeblensFileImpl, error)

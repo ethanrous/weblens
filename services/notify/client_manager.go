@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethanrous/weblens/internal"
 	"github.com/ethanrous/weblens/models/client"
+	client_model "github.com/ethanrous/weblens/models/client"
 	websocket_model "github.com/ethanrous/weblens/models/client"
 	file_model "github.com/ethanrous/weblens/models/file"
 	share_model "github.com/ethanrous/weblens/models/share"
@@ -17,6 +17,8 @@ import (
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/context"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
+	"github.com/ethanrous/weblens/modules/structs"
+	task_mod "github.com/ethanrous/weblens/modules/task"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
@@ -91,11 +93,13 @@ func (cm *ClientManager) RemoteConnect(ctx context.ContextZ, conn *websocket.Con
 		cm.core = newClient
 	}
 
-	cm.PushWeblensEvent(websocket_mod.RemoteConnectionChangedEvent, websocket_mod.WsData{"remoteId": remote.TowerId, "online": true})
+	notif := client_model.NewSystemNotification(websocket_mod.RemoteConnectionChangedEvent, websocket_mod.WsData{"remoteId": remote.TowerId, "online": true})
+	cm.Notify(notif)
+
 	return newClient
 }
 
-func (cm *ClientManager) ClientDisconnect(c *websocket_model.WsClient) {
+func (cm *ClientManager) ClientDisconnect(ctx context.ContextZ, c *websocket_model.WsClient) {
 	for s := range c.GetSubscriptions() {
 		err := cm.removeSubscription(s, c, true)
 
@@ -112,11 +116,15 @@ func (cm *ClientManager) ClientDisconnect(c *websocket_model.WsClient) {
 		delete(cm.webClientMap, c.GetClientId())
 	} else if remote := c.GetInstance(); remote != nil {
 		delete(cm.remoteClientMap, c.GetInstance().TowerId)
-		cm.PushWeblensEvent(websocket_mod.RemoteConnectionChangedEvent, websocket_mod.WsData{"remoteId": remote.TowerId, "online": false})
+		notif := client.NewSystemNotification(websocket_mod.RemoteConnectionChangedEvent, websocket_mod.WsData{"remoteId": remote.TowerId, "online": false})
+
+		ctx.Notify(notif)
 	}
 
 	c.Disconnect()
 }
+
+func (cm *ClientManager) Notify(msg ...websocket_mod.WsResponseInfo) {}
 
 func (cm *ClientManager) GetClientByUsername(username string) *websocket_model.WsClient {
 	cm.clientMu.RLock()
@@ -196,7 +204,7 @@ func (cm *ClientManager) GetSubscribers(st websocket_mod.WsAction, key string) (
 	return clients[:]
 }
 
-func (cm *ClientManager) SubscribeToFile(ctx context.NotifierContext, c *client.WsClient, file *file_model.WeblensFileImpl, share *share_model.FileShare, subTime time.Time) error {
+func (cm *ClientManager) SubscribeToFile(ctx context.NotifierContext, c *client_model.WsClient, file *file_model.WeblensFileImpl, share *share_model.FileShare, subTime time.Time) error {
 
 	sub := websocket_mod.Subscription{Type: websocket_mod.FolderSubscribe, SubscriptionId: file.ID(), When: subTime}
 
@@ -205,7 +213,7 @@ func (cm *ClientManager) SubscribeToFile(ctx context.NotifierContext, c *client.
 
 	cm.addSubscription(sub, c)
 
-	notifs := client.NewFileNotification(file, websocket_mod.FileUpdatedEvent, nil)
+	notifs := client_model.NewFileNotification(file, websocket_mod.FileUpdatedEvent, structs.MediaInfo{})
 	ctx.Notify(notifs...)
 
 	// for _, t := range cm.pack.GetFileService().GetTasks(folder) {
@@ -220,16 +228,16 @@ func (cm *ClientManager) SubscribeToFile(ctx context.NotifierContext, c *client.
 	return nil
 }
 
-func (cm *ClientManager) SubscribeToTask(ctx context.NotifierContext, c *client.WsClient, task *task_model.Task, subTime time.Time) error {
+func (cm *ClientManager) SubscribeToTask(ctx context.NotifierContext, c *client_model.WsClient, task *task_model.Task, subTime time.Time) error {
 	if done, _ := task.Status(); done {
 		return nil
 	}
 
-	sub := websocket_mod.Subscription{Type: websocket_mod.TaskSubscribe, SubscriptionId: task.TaskId(), When: subTime}
+	sub := websocket_mod.Subscription{Type: websocket_mod.TaskSubscribe, SubscriptionId: task.Id(), When: subTime}
 
 	cm.addSubscription(sub, c)
 
-	notif := client.NewTaskNotification(task, websocket_mod.TaskCreatedEvent, task.GetMeta().FormatToResult())
+	notif := client_model.NewTaskNotification(task, websocket_mod.TaskCreatedEvent, task.GetMeta().FormatToResult())
 	ctx.Notify(notif)
 
 	return nil
@@ -244,7 +252,7 @@ func (cm *ClientManager) SubscribeToTask(ctx context.NotifierContext, c *client.
 // Deprecated: Use specific subscription types instead of this generic one.
 func (cm *ClientManager) Subscribe(
 	c *websocket_model.WsClient, key string, action websocket_mod.WsAction, subTime time.Time, share *share_model.FileShare,
-) (complete bool, results map[*task_model.TaskResult]any, err error) {
+) (complete bool, results map[*task_mod.TaskResult]any, err error) {
 	var sub websocket_mod.Subscription
 
 	if c == nil {
@@ -324,7 +332,7 @@ func (cm *ClientManager) Unsubscribe(c *websocket_model.WsClient, key string, un
 	return cm.removeSubscription(sub, c, false)
 }
 
-func (cm *ClientManager) FolderSubToTask(folderId file_model.FileId, taskId task_model.Id) {
+func (cm *ClientManager) FolderSubToTask(folderId string, taskId string) {
 	subs := cm.GetSubscribers(websocket_mod.FolderSubscribe, folderId)
 
 	for _, s := range subs {
@@ -335,7 +343,7 @@ func (cm *ClientManager) FolderSubToTask(folderId file_model.FileId, taskId task
 	}
 }
 
-func (cm *ClientManager) UnsubTask(taskId task_model.Id) {
+func (cm *ClientManager) UnsubTask(taskId string) {
 	subs := cm.GetSubscribers(websocket_mod.TaskSubscribe, taskId)
 
 	for _, s := range subs {
@@ -348,8 +356,22 @@ func (cm *ClientManager) UnsubTask(taskId task_model.Id) {
 	}
 }
 
-func (cm *ClientManager) Send(msg websocket_mod.WsResponseInfo) {
-	defer internal.RecoverPanic("Panic caught while broadcasting")
+func wsRecover(ctx context.ContextZ) {
+	e := recover()
+	if e == nil {
+		return
+	}
+
+	err, ok := e.(error)
+	if !ok {
+		err = errors.Errorf("%v", e)
+	}
+
+	ctx.Log().Error().Stack().Err(err).Msg("Websocket send panicked")
+}
+
+func (cm *ClientManager) Send(ctx context.ContextZ, msg websocket_mod.WsResponseInfo) {
+	defer wsRecover(ctx)
 
 	if msg.SubscribeKey == "" {
 		cm.log.Error().Stack().Msg("Trying to broadcast on empty key")
@@ -409,13 +431,13 @@ func (cm *ClientManager) Relay(msg websocket_mod.WsResponseInfo) {
 
 }
 
-func (cm *ClientManager) PushWeblensEvent(event websocket_mod.WsEvent, msg websocket_mod.WsData) {
-	cm.Send(websocket_mod.WsResponseInfo{
-		EventTag:      event,
-		Content:       msg,
-		BroadcastType: "serverEvent",
-	})
-}
+// func (cm *ClientManager) PushWeblensEvent(event websocket_mod.WsEvent, msg websocket_mod.WsData) {
+// 	cm.Send(websocket_mod.WsResponseInfo{
+// 		EventTag:      event,
+// 		Content:       msg,
+// 		BroadcastType: "serverEvent",
+// 	})
+// }
 
 func (cm *ClientManager) addSubscription(subInfo websocket_mod.Subscription, client *websocket_model.WsClient) {
 	switch subInfo.Type {

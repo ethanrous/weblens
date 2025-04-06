@@ -1,8 +1,7 @@
-package http
+package web
 
 import (
 	"bytes"
-	"fmt"
 	"html/template"
 	"net/http"
 	"os"
@@ -11,9 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/services/context"
 	"github.com/pkg/errors"
-	"github.com/ethanrous/weblens/models"
 	"github.com/rs/zerolog/log"
 )
 
@@ -21,16 +19,16 @@ type InMemoryFS struct {
 	routes   map[string]*memFileReal
 	index    *memFileReal
 	routesMu *sync.RWMutex
-	Pack     *models.ServicePack
 
 	proxyAddress string
+	ctx          *context.AppContext
 }
 
 func (fs *InMemoryFS) loadIndex(uiDir string) string {
 	indexPath := filepath.Join(uiDir, "index.html")
 	fs.index = readFile(indexPath, fs)
 	if !fs.index.exists {
-		panic(werror.Errorf("Could not find index file at %s", indexPath))
+		panic(errors.Errorf("Could not find index file at %s", indexPath))
 	}
 
 	return indexPath
@@ -41,8 +39,9 @@ func (fs *InMemoryFS) Open(name string) (http.File, error) {
 	log.Trace().Msgf("MemFs Opening file: %s", name)
 
 	if name == "/index" {
-		return fs.Index("/index"), nil
+		return nil, errors.New("index.html should be provided through the template")
 	}
+
 	var f *memFileReal
 	var ok bool
 	name = filepath.Join("./ui/dist/", name)
@@ -64,7 +63,8 @@ func (fs *InMemoryFS) Open(name string) (http.File, error) {
 
 	// var err error
 	if f == nil || !f.exists {
-		return fs.Index(name), nil
+		log.Error().Msgf("File %s does not exist", name)
+		return nil, os.ErrNotExist
 	}
 	return newWrapFile(f), nil
 }
@@ -118,14 +118,14 @@ type indexFields struct {
 	VideoType   string
 }
 
-func (fs *InMemoryFS) Index(loc string) *MemFileWrap {
+func (fs *InMemoryFS) Index(ctx *context.RequestContext, loc string) *MemFileWrap {
 	index := newWrapFile(fs.index.Copy())
 	locIndex := strings.Index(loc, "ui/dist/")
 	if locIndex != -1 {
 		loc = loc[locIndex+len("ui/dist/"):]
 	}
 
-	fields := getIndexFields(loc, fs.proxyAddress, fs.Pack)
+	fields := getIndexFields(ctx, loc, fs.proxyAddress)
 
 	tmpl, err := template.New("index").Parse(string(index.realFile.data))
 	if err != nil {
@@ -143,93 +143,6 @@ func (fs *InMemoryFS) Index(loc string) *MemFileWrap {
 	index.realFile.data = buf.Bytes()
 
 	return index
-}
-
-func getIndexFields(path, proxyAddress string, pack *models.ServicePack) indexFields {
-	var fields indexFields
-	var hasImage bool
-
-	if path[0] == '/' {
-		path = path[1:]
-	}
-	fields.Url = fmt.Sprintf("%s/%s", proxyAddress, path)
-
-	if strings.HasPrefix(path, "files/share/") {
-		path = path[len("files/share/"):]
-		slashIndex := strings.Index(path, "/")
-		if slashIndex == -1 {
-			return fields
-		}
-
-		shareId := models.ShareId(path[:slashIndex])
-		share := pack.ShareService.Get(shareId)
-		if share != nil {
-			if !share.IsPublic() {
-				fields.Title = "Sign in to view"
-				fields.Description = "Private file share"
-				fields.Image = "/logo_1200.png"
-				return fields
-			}
-
-			f, err := pack.FileService.GetFileSafe(
-				fileTree.FileId(share.GetItemId()), pack.UserService.GetRootUser(), nil,
-			)
-			if err != nil {
-				log.Error().Stack().Err(err).Msg("")
-				return fields
-			}
-			m := pack.MediaService.Get(models.ContentId(f.GetContentId()))
-			if f != nil {
-				if f.IsDir() {
-					cover, err := pack.FileService.GetFolderCover(f)
-					if err != nil {
-						log.Error().Stack().Err(err).Msg("")
-						return fields
-					}
-					if cover != "" {
-						m = pack.MediaService.Get(cover)
-					} else {
-						imgUrl := fmt.Sprintf("%s/api/static/folder.png", proxyAddress)
-						hasImage = true
-						fields.Image = imgUrl
-					}
-				}
-
-				fields.Title = f.Filename()
-				fields.Description = "Weblens file share"
-
-				if m != nil {
-					if !pack.MediaService.GetMediaType(m).Video {
-						imgUrl := fmt.Sprintf(
-							"%s/api/media/%s.webp?quality=thumbnail&shareId=%s", proxyAddress,
-							f.GetContentId(), share.ID(),
-						)
-						hasImage = true
-						fields.Image = imgUrl
-					}
-				}
-			}
-		}
-	} else if strings.HasPrefix(path, "albums/") {
-		albumId := models.AlbumId(path[len("albums/"):])
-		album := pack.AlbumService.Get(albumId)
-		if album != nil {
-			media := pack.MediaService.Get(album.GetCover())
-			if media != nil {
-				imgUrl := fmt.Sprintf("%s/api/media/%s.png", proxyAddress, media.ID())
-				hasImage = true
-				fields.Image = imgUrl
-			}
-			fields.Title = album.GetName()
-			fields.Description = "Weblens album share"
-		}
-	}
-
-	if !hasImage {
-		fields.Image = "/logo_1200.png"
-	}
-
-	return fields
 }
 
 func readFile(filePath string, fs *InMemoryFS) *memFileReal {

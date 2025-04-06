@@ -1,36 +1,37 @@
 package jobs
 
 import (
-	"errors"
 	"io"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/ethanrous/weblens/models/client"
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/job"
 	task_model "github.com/ethanrous/weblens/models/task"
+	task_mod "github.com/ethanrous/weblens/modules/task"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/proxy"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
 
-func CopyFileFromCore(t *task_model.Task) {
+func CopyFileFromCore(tsk task_mod.Task) {
+	t := tsk.(*task_model.Task)
 	meta := t.GetMeta().(job.BackupCoreFileMeta)
 
-	filerCtx, ok := t.Ctx.(context.FilerContext)
+	ctx, ok := t.Ctx.(*context.AppContext)
 	if !ok {
 		t.Fail(errors.New("Failed to cast context to FilerContext"))
 		return
 	}
-	fileService := filerCtx.FileService()
 
-	t.SetErrorCleanup(func(t *task_model.Task) {
-		failNotif := client.NewTaskNotification(t, websocket_mod.CopyFileFailedEvent, task_model.TaskResult{"filename": meta.Filename, "coreId": meta.Core.TowerId})
+	t.SetErrorCleanup(func(tsk task_mod.Task) {
+		t := tsk.(*task_model.Task)
+		failNotif := client.NewTaskNotification(t, websocket_mod.CopyFileFailedEvent, task_mod.TaskResult{"filename": meta.Filename, "coreId": meta.Core.TowerId})
 		t.Ctx.Notify(failNotif)
 
-		rmErr := fileService.DeleteFiles(t.Ctx, []*file_model.WeblensFileImpl{meta.File}, meta.Core.TowerId)
+		rmErr := ctx.FileService.DeleteFiles(t.Ctx, []*file_model.WeblensFileImpl{meta.File})
 		if rmErr != nil {
 			t.Ctx.Log().Error().Stack().Err(rmErr).Msg("")
 		}
@@ -38,21 +39,21 @@ func CopyFileFromCore(t *task_model.Task) {
 
 	filename := meta.Filename
 	if filename == "" {
-		filename = meta.File.Filename()
+		filename = meta.File.GetPortablePath().Filename()
 	}
 
 	t.Ctx.Notify(
 		client.NewPoolNotification(
 			t.GetTaskPool(),
 			websocket_mod.CopyFileStartedEvent,
-			task_model.TaskResult{"filename": filename, "coreId": meta.Core.TowerId, "timestamp": time.Now().UnixMilli()},
+			task_mod.TaskResult{"filename": filename, "coreId": meta.Core.TowerId, "timestamp": time.Now().UnixMilli()},
 		),
 	)
 
-	t.Ctx.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Copying file from core [%s]", meta.File.Filename()) })
+	t.Ctx.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Copying file from core [%s]", meta.File.GetPortablePath().Filename()) })
 
 	if meta.File.GetContentId() == "" {
-		t.ReqNoErr(werror.WithStack(werror.ErrNoContentId))
+		t.ReqNoErr(errors.WithStack(file_model.ErrNoContentId))
 	}
 
 	writeFile, err := meta.File.Writeable()

@@ -16,8 +16,6 @@ var ErrTaskError = errors.New("task error")
 var ErrTaskExit = errors.New("task exit")
 var ErrTaskTimeout = errors.New("task timeout")
 
-type TaskHandler func(*Task)
-
 type hit struct {
 	time   time.Time
 	target *Task
@@ -27,9 +25,11 @@ type workChannel chan *Task
 type hitChannel chan hit
 
 type job struct {
-	handler TaskHandler
+	handler task_mod.CleanupFunc
 	opts    TaskOptions
 }
+
+var _ task_mod.WorkerPool = (*WorkerPool)(nil)
 
 type WorkerPool struct {
 	busyCount *atomic.Int64 // Number of workers currently executing a task
@@ -107,12 +107,13 @@ func NewWorkerPool(initWorkers int, logger *zerolog.Logger) *WorkerPool {
 // it possible for clients to subscribe to a single task, and get notified about
 // all of the sub-updates of that task
 // See taskPool.go
-func (wp *WorkerPool) NewTaskPool(replace bool, createdBy *Task) *TaskPool {
+func (wp *WorkerPool) NewTaskPool(replace bool, createdBy task_mod.Task) task_mod.Pool {
 	tp := wp.newTaskPoolInternal()
 	if createdBy != nil {
-		tp.createdBy = createdBy
+		t := createdBy.(*Task)
+		tp.createdBy = t
 		if !createdBy.GetTaskPool().IsGlobal() {
-			tp.createdBy = createdBy
+			tp.createdBy = t
 		}
 	}
 	if replace {
@@ -162,7 +163,7 @@ func (wp *WorkerPool) GetTaskPoolByJobName(jobName string) *TaskPool {
 }
 
 // RegisterJob adds a template for a repeatable job that can be called upon later in the program
-func (wp *WorkerPool) RegisterJob(jobName string, fn TaskHandler, opts ...TaskOptions) {
+func (wp *WorkerPool) RegisterJob(jobName string, fn task_mod.CleanupFunc, opts ...TaskOptions) {
 	wp.jobsMu.Lock()
 	defer wp.jobsMu.Unlock()
 
@@ -266,7 +267,7 @@ func (wp *WorkerPool) DispatchJob(ctx context.ContextZ, jobName string, meta tas
 	pool.totalTasks.Add(1)
 
 	if !pool.IsRoot() {
-		pool.GetRootPool().totalTasks.Add(1)
+		pool.GetRootPool().IncTaskCount(1)
 	}
 
 	// Set the tasks queue
@@ -332,8 +333,8 @@ func (wp *WorkerPool) safetyWork(task *Task, workerId int64) {
 
 }
 
-func (wp *WorkerPool) AddHit(time time.Time, target *Task) {
-	wp.hitStream <- hit{time: time, target: target}
+func (wp *WorkerPool) AddHit(time time.Time, target task_mod.Task) {
+	wp.hitStream <- hit{time: time, target: target.(*Task)}
 }
 
 // The reaper handles timed cancellation of tasks. If a task might
@@ -535,7 +536,7 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 					var canContinue bool
 					directParent := t.GetTaskPool()
 
-					directParent.completedTasks.Add(1)
+					directParent.IncCompletedTasks(1)
 
 					// Run the cleanup routine for errors, if any
 					if t.exitStatus == task_mod.TaskError || t.exitStatus == task_mod.TaskCanceled {
@@ -577,27 +578,27 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 						// Set values and notifications now that task has completed. Returns
 						// a bool that specifies if this thread should continue and grab another
 						// task, or if it should exit
-						canContinue = directParent.handleTaskExit(replacement)
+						canContinue = directParent.HandleTaskExit(replacement)
 
 						directParent.UnlockExit()
 					} else {
-						rootTaskPool.completedTasks.Add(1)
+						rootTaskPool.IncCompletedTasks(1)
 
 						// Must hold both locks (and must acquire root lock first) to enter a dual-update.
 						// Any other ordering will result in race conditions or deadlocks
 						rootTaskPool.LockExit()
 
 						directParent.LockExit()
-						uncompletedTasks := directParent.totalTasks.Load() - directParent.completedTasks.Load()
+						uncompletedTasks := directParent.GetTotalTaskCount() - directParent.GetCompletedTaskCount()
 						wp.log.Debug().Msgf(
 							"Uncompleted tasks on tp created by %s: %d",
 							directParent.CreatedInTask().Id(), uncompletedTasks-1,
 						)
-						canContinue = directParent.handleTaskExit(replacement)
+						canContinue = directParent.HandleTaskExit(replacement)
 
 						// We *should* get the same canContinue value from here, so we do not
 						// check it a second time. If we *don't* get the same value, we can safely ignore it
-						rootTaskPool.handleTaskExit(replacement)
+						rootTaskPool.HandleTaskExit(replacement)
 
 						directParent.UnlockExit()
 						rootTaskPool.UnlockExit()
@@ -643,7 +644,7 @@ func (wp *WorkerPool) newTaskPoolInternal() *TaskPool {
 		tasks:        map[string]*Task{},
 		workerPool:   wp,
 		createdAt:    time.Now(),
-		erroredTasks: make([]*Task, 0),
+		erroredTasks: make([]task_mod.Task, 0),
 		waiterGate:   make(chan struct{}),
 		log:          wp.log.With().Str("task_pool", tpId.String()).Logger(),
 	}
@@ -711,7 +712,7 @@ func (wp *WorkerPool) addToRetryBuffer(tasks ...*Task) {
 type TaskService interface {
 	context.Tasker
 
-	RegisterJob(jobName string, fn TaskHandler, opts ...TaskOptions)
+	RegisterJob(jobName string, fn task_mod.CleanupFunc, opts ...TaskOptions)
 	NewTaskPool(replace bool, createdBy *Task) *TaskPool
 	GetTaskPoolByJobName(jobName string) *TaskPool
 	GetTasksByJobName(jobName string) []*Task

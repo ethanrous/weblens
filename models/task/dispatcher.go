@@ -1,7 +1,11 @@
 package task
 
-import "context"
+import (
+	"context"
+
+	"github.com/ethanrous/weblens/modules/task"
+)
 
 type Dispatcher interface {
-	DispatchJob(ctx context.Context, jobName string, meta TaskMetadata) (*Task, error)
+	DispatchJob(ctx context.Context, jobName string, meta task.TaskMetadata) (*Task, error)
 }

@@ -1,9 +1,7 @@
-package rest
+package structs
 
 import (
 	"time"
-
-	"github.com/ethanrous/weblens/models"
 )
 
 type LoginBody struct {
@@ -34,14 +32,6 @@ type MediaTimeBody struct {
 	NewTime  time.Time `json:"newTime"`
 	MediaIds []string  `json:"mediaIds"`
 }
-
-type NewUserParams struct {
-	FullName     string `json:"fullName" validate:"required"`
-	Username     string `json:"username" validate:"required"`
-	Password     string `json:"password" validate:"required"`
-	Admin        bool   `json:"admin"`
-	AutoActivate bool   `json:"autoActivate"`
-} // @name NewUserParams
 
 type NewFileParams struct {
 	ParentFolderId string `json:"parentFolderId"`
@@ -78,46 +68,46 @@ type AlbumShareParams struct {
 } // @name AlbumShareParams
 
 type InitServerParams struct {
-	Name string            `json:"name"`
-	Role models.ServerRole `json:"role"`
+	Name string `json:"name"`
+	Role string `json:"role"`
 
-	Username    string               `json:"username"`
-	Password    string               `json:"password"`
-	FullName    string               `json:"fullName"`
-	CoreAddress string               `json:"coreAddress"`
-	CoreKey     models.WeblensApiKey `json:"coreKey"`
-	RemoteId    models.InstanceId    `json:"remoteId"`
+	Username    string `json:"username"`
+	Password    string `json:"password"`
+	FullName    string `json:"fullName"`
+	CoreAddress string `json:"coreAddress"`
+	CoreKey     string `json:"coreKey"`
+	RemoteId    string `json:"remoteId"`
 
 	// For restoring a server, remoind the core of its serverId and api key the remote last used
-	LocalId      models.InstanceId `json:"localId"`
-	UsingKeyInfo models.ApiKey     `json:"usingKeyInfo"`
+	LocalId      string `json:"localId"`
+	UsingKeyInfo string `json:"usingKeyInfo"`
 }
 
 type NewServerParams struct {
-	Id          models.InstanceId    `json:"serverId"`
-	Role        models.ServerRole    `json:"role"`
-	Name        string               `json:"name"`
-	CoreAddress string               `json:"coreAddress"`
-	UsingKey    models.WeblensApiKey `json:"usingKey"`
+	Id          string `json:"serverId"`
+	Role        string `json:"role"`
+	Name        string `json:"name"`
+	CoreAddress string `json:"coreAddress"`
+	UsingKey    string `json:"usingKey"`
 } // @name NewServerParams
 
 type UpdateServerParams struct {
-	Name        string               `json:"name"`
-	CoreAddress string               `json:"coreAddress"`
-	UsingKey    models.WeblensApiKey `json:"usingKey"`
+	Name        string `json:"name"`
+	CoreAddress string `json:"coreAddress"`
+	UsingKey    string `json:"usingKey"`
 } // @name UpdateServerParams
 
 type NewCoreBody struct {
-	CoreAddress string               `json:"coreAddress"`
-	UsingKey    models.WeblensApiKey `json:"usingKey"`
+	CoreAddress string `json:"coreAddress"`
+	UsingKey    string `json:"usingKey"`
 }
 
 type DeleteKeyBody struct {
-	Key models.WeblensApiKey `json:"key"`
+	Key string `json:"key"`
 }
 
 type DeleteRemoteBody struct {
-	RemoteId models.InstanceId `json:"remoteId"`
+	RemoteId string `json:"remoteId"`
 }
 
 type RestoreBody struct {
@@ -163,7 +153,7 @@ type ScanBody struct {
 	Filename string `json:"filename"`
 }
 
-type RestoreFilesBody struct {
+type RestoreFilesParams struct {
 	NewParentId string   `json:"newParentId"`
 	FileIds     []string `json:"fileIds"`
 	Timestamp   int64    `json:"timestamp"`
