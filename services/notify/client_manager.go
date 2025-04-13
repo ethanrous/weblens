@@ -42,21 +42,13 @@ type ClientManager struct {
 	// 		*client2,
 	//     ]
 	// }
-	folderSubs map[string][]*websocket_model.WsClient
-
-	taskSubs map[string][]*websocket_model.WsClient
-
+	folderSubs   map[string][]*websocket_model.WsClient
+	taskSubs     map[string][]*websocket_model.WsClient
 	taskTypeSubs map[string][]*websocket_model.WsClient
-
-	clientMu sync.RWMutex
-
-	folderMu sync.Mutex
-
-	taskMu sync.Mutex
-
-	taskTypeMu sync.Mutex
-
-	log *zerolog.Logger
+	clientMu     sync.RWMutex
+	folderMu     sync.Mutex
+	taskMu       sync.Mutex
+	taskTypeMu   sync.Mutex
 }
 
 func NewClientManager() *ClientManager {
@@ -72,8 +64,8 @@ func NewClientManager() *ClientManager {
 	return cm
 }
 
-func (cm *ClientManager) ClientConnect(conn *websocket.Conn, user *user_model.User) *websocket_model.WsClient {
-	newClient := websocket_model.NewClient(conn, user, cm.log)
+func (cm *ClientManager) ClientConnect(ctx context.ContextZ, conn *websocket.Conn, user *user_model.User) *websocket_model.WsClient {
+	newClient := websocket_model.NewClient(ctx, conn, user)
 
 	cm.clientMu.Lock()
 	cm.webClientMap[newClient.GetClientId()] = newClient
@@ -83,7 +75,7 @@ func (cm *ClientManager) ClientConnect(conn *websocket.Conn, user *user_model.Us
 }
 
 func (cm *ClientManager) RemoteConnect(ctx context.ContextZ, conn *websocket.Conn, remote *tower_model.Instance) *websocket_model.WsClient {
-	newClient := websocket_model.NewClient(conn, remote, cm.log)
+	newClient := websocket_model.NewClient(ctx, conn, remote)
 
 	cm.clientMu.Lock()
 	cm.remoteClientMap[remote.TowerId] = newClient
@@ -106,7 +98,7 @@ func (cm *ClientManager) ClientDisconnect(ctx context.ContextZ, c *websocket_mod
 		// Client is leaving anyway, no point returning an error from here
 		// just print it out
 		if err != nil {
-			cm.log.Error().Stack().Err(err).Msg("")
+			ctx.Log().Error().Stack().Err(err).Msg("")
 		}
 	}
 
@@ -131,9 +123,7 @@ func (cm *ClientManager) GetClientByUsername(username string) *websocket_model.W
 	defer cm.clientMu.RUnlock()
 
 	// FIXME: This is O(n) and should be better
-	cm.log.Debug().Msgf("Checking at most %d clients", len(cm.webClientMap))
 	for _, c := range cm.webClientMap {
-		cm.log.Debug().Msgf("Checking client [%s] against [%s]", c.GetUser().GetUsername(), username)
 		if c.GetUser().GetUsername() == username {
 			return c
 		}
@@ -165,7 +155,7 @@ func (cm *ClientManager) GetConnectedAdmins() []*websocket_model.WsClient {
 	return admins
 }
 
-func (cm *ClientManager) GetSubscribers(st websocket_mod.WsAction, key string) (clients []*websocket_model.WsClient) {
+func (cm *ClientManager) GetSubscribers(ctx context.ContextZ, st websocket_mod.WsAction, key string) (clients []*websocket_model.WsClient) {
 	switch st {
 	case websocket_mod.FolderSubscribe:
 		{
@@ -197,21 +187,21 @@ func (cm *ClientManager) GetSubscribers(st websocket_mod.WsAction, key string) (
 			cm.taskTypeMu.Unlock()
 		}
 	default:
-		cm.log.Error().Msgf("Unknown subscriber type: [%s]", st)
+		ctx.Log().Error().Msgf("Unknown subscriber type: [%s]", st)
 	}
 
 	// Copy clients to not modify reference in the map
 	return clients[:]
 }
 
-func (cm *ClientManager) SubscribeToFile(ctx context.NotifierContext, c *client_model.WsClient, file *file_model.WeblensFileImpl, share *share_model.FileShare, subTime time.Time) error {
+func (cm *ClientManager) SubscribeToFile(ctx context.ContextZ, c *client_model.WsClient, file *file_model.WeblensFileImpl, share *share_model.FileShare, subTime time.Time) error {
 
 	sub := websocket_mod.Subscription{Type: websocket_mod.FolderSubscribe, SubscriptionId: file.ID(), When: subTime}
 
 	// TODO: Check if subscription is needed to be added to client
 	// c.AddSubscription(sub)
 
-	cm.addSubscription(sub, c)
+	cm.addSubscription(ctx, sub, c)
 
 	notifs := client_model.NewFileNotification(file, websocket_mod.FileUpdatedEvent, structs.MediaInfo{})
 	ctx.Notify(notifs...)
@@ -228,14 +218,14 @@ func (cm *ClientManager) SubscribeToFile(ctx context.NotifierContext, c *client_
 	return nil
 }
 
-func (cm *ClientManager) SubscribeToTask(ctx context.NotifierContext, c *client_model.WsClient, task *task_model.Task, subTime time.Time) error {
+func (cm *ClientManager) SubscribeToTask(ctx context.ContextZ, c *client_model.WsClient, task *task_model.Task, subTime time.Time) error {
 	if done, _ := task.Status(); done {
 		return nil
 	}
 
 	sub := websocket_mod.Subscription{Type: websocket_mod.TaskSubscribe, SubscriptionId: task.Id(), When: subTime}
 
-	cm.addSubscription(sub, c)
+	cm.addSubscription(ctx, sub, c)
 
 	notif := client_model.NewTaskNotification(task, websocket_mod.TaskCreatedEvent, task.GetMeta().FormatToResult())
 	ctx.Notify(notif)
@@ -250,9 +240,7 @@ func (cm *ClientManager) SubscribeToTask(ctx context.NotifierContext, c *client_
 // Subscriptions to types that represent ongoing events like FolderSubscribe never return a truthy completed
 //
 // Deprecated: Use specific subscription types instead of this generic one.
-func (cm *ClientManager) Subscribe(
-	c *websocket_model.WsClient, key string, action websocket_mod.WsAction, subTime time.Time, share *share_model.FileShare,
-) (complete bool, results map[*task_mod.TaskResult]any, err error) {
+func (cm *ClientManager) Subscribe(ctx context.ContextZ, c *websocket_model.WsClient, key string, action websocket_mod.WsAction, subTime time.Time, share *share_model.FileShare) (complete bool, results map[*task_mod.TaskResult]any, err error) {
 	var sub websocket_mod.Subscription
 
 	if c == nil {
@@ -295,26 +283,26 @@ func (cm *ClientManager) Subscribe(
 	default:
 		{
 			err = fmt.Errorf("unknown subscription type %s", action)
-			cm.log.Error().Stack().Err(err).Msg("")
+			ctx.Log().Error().Stack().Err(err).Msg("")
 			c.Error(err)
 			return
 		}
 	}
 
 	c.AddSubscription(sub)
-	cm.addSubscription(sub, c)
+	cm.addSubscription(ctx, sub, c)
 
 	return
 }
 
-func (cm *ClientManager) Unsubscribe(c *websocket_model.WsClient, key string, unSubTime time.Time) error {
+func (cm *ClientManager) Unsubscribe(ctx context.ContextZ, c *websocket_model.WsClient, key string, unSubTime time.Time) error {
 	c.SubLock()
 	defer c.SubUnlock()
 
 	var sub websocket_mod.Subscription
 	for s := range c.GetSubscriptions() {
 		if s.SubscriptionId == key && !s.When.Before(unSubTime) {
-			cm.log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Ignoring unsubscribe request that happened before subscribe request") })
+			ctx.Log().Debug().Func(func(e *zerolog.Event) { e.Msgf("Ignoring unsubscribe request that happened before subscribe request") })
 			continue
 		}
 
@@ -332,26 +320,26 @@ func (cm *ClientManager) Unsubscribe(c *websocket_model.WsClient, key string, un
 	return cm.removeSubscription(sub, c, false)
 }
 
-func (cm *ClientManager) FolderSubToTask(folderId string, taskId string) {
-	subs := cm.GetSubscribers(websocket_mod.FolderSubscribe, folderId)
+func (cm *ClientManager) FolderSubToTask(ctx context.ContextZ, folderId string, taskId string) {
+	subs := cm.GetSubscribers(ctx, websocket_mod.FolderSubscribe, folderId)
 
 	for _, s := range subs {
-		_, _, err := cm.Subscribe(s, taskId, websocket_mod.TaskSubscribe, time.Now(), nil)
+		_, _, err := cm.Subscribe(ctx, s, taskId, websocket_mod.TaskSubscribe, time.Now(), nil)
 		if err != nil {
-			cm.log.Error().Stack().Err(err).Msg("")
+			ctx.Log().Error().Stack().Err(err).Msg("")
 		}
 	}
 }
 
-func (cm *ClientManager) UnsubTask(taskId string) {
-	subs := cm.GetSubscribers(websocket_mod.TaskSubscribe, taskId)
+func (cm *ClientManager) UnsubTask(ctx context.ContextZ, taskId string) {
+	subs := cm.GetSubscribers(ctx, websocket_mod.TaskSubscribe, taskId)
 
 	for _, s := range subs {
-		err := cm.Unsubscribe(s, taskId, time.Now())
+		err := cm.Unsubscribe(ctx, s, taskId, time.Now())
 		if err != nil && !errors.Is(err, ErrSubscriptionNotFound) {
-			cm.log.Error().Stack().Err(err).Msg("")
+			ctx.Log().Error().Stack().Err(err).Msg("")
 		} else if err != nil {
-			cm.log.Warn().Msgf("Subscription [%s] not found in unsub task", taskId)
+			ctx.Log().Warn().Msgf("Subscription [%s] not found in unsub task", taskId)
 		}
 	}
 }
@@ -374,7 +362,7 @@ func (cm *ClientManager) Send(ctx context.ContextZ, msg websocket_mod.WsResponse
 	defer wsRecover(ctx)
 
 	if msg.SubscribeKey == "" {
-		cm.log.Error().Stack().Msg("Trying to broadcast on empty key")
+		ctx.Log().Error().Stack().Msg("Trying to broadcast on empty key")
 		return
 	}
 
@@ -383,12 +371,13 @@ func (cm *ClientManager) Send(ctx context.ContextZ, msg websocket_mod.WsResponse
 	if msg.BroadcastType == "serverEvent" {
 		clients = cm.GetAllClients()
 	} else {
-		clients = cm.GetSubscribers(msg.BroadcastType, msg.SubscribeKey)
+		clients = cm.GetSubscribers(ctx, msg.BroadcastType, msg.SubscribeKey)
 		clients = slices_mod.OnlyUnique(clients)
 
 		if msg.BroadcastType == websocket_mod.TaskSubscribe {
 			clients = append(
 				clients, cm.GetSubscribers(
+					ctx,
 					websocket_mod.TaskTypeSubscribe,
 					msg.TaskType,
 				)...,
@@ -412,15 +401,15 @@ func (cm *ClientManager) Send(ctx context.ContextZ, msg websocket_mod.WsResponse
 	}
 
 	if len(clients) != 0 {
-		cm.log.Trace().Str("websocket_event", string(msg.EventTag)).Msgf("Sending [%s] websocket message to %d client(s)", msg.EventTag, len(clients))
+		ctx.Log().Trace().Str("websocket_event", string(msg.EventTag)).Msgf("Sending [%s] websocket message to %d client(s)", msg.EventTag, len(clients))
 		for _, c := range clients {
 			err := c.Send(msg)
 			if err != nil {
-				cm.log.Error().Stack().Err(err).Msg("")
+				ctx.Log().Error().Stack().Err(err).Msg("")
 			}
 		}
 	} else {
-		cm.log.Trace().Func(func(e *zerolog.Event) {
+		ctx.Log().Trace().Func(func(e *zerolog.Event) {
 			e.Msgf("No subscribers to [%s]. Trying to send [%s]", msg.SubscribeKey, msg.EventTag)
 		})
 		return
@@ -439,7 +428,7 @@ func (cm *ClientManager) Relay(msg websocket_mod.WsResponseInfo) {
 // 	})
 // }
 
-func (cm *ClientManager) addSubscription(subInfo websocket_mod.Subscription, client *websocket_model.WsClient) {
+func (cm *ClientManager) addSubscription(ctx context.ContextZ, subInfo websocket_mod.Subscription, client *websocket_model.WsClient) {
 	switch subInfo.Type {
 	case websocket_mod.FolderSubscribe:
 		{
@@ -461,7 +450,7 @@ func (cm *ClientManager) addSubscription(subInfo websocket_mod.Subscription, cli
 		}
 	default:
 		{
-			cm.log.Error().Msgf("Unknown subType: %s", subInfo.Type)
+			ctx.Log().Error().Msgf("Unknown subType: %s", subInfo.Type)
 			return
 		}
 	}

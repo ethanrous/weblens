@@ -183,8 +183,8 @@ type FileChunk struct {
 }
 
 type UploadFilesMeta struct {
-	TaskService task.TaskService
-	TaskSubber  TaskSubscriber
+	// TaskService *task.WorkerPool
+	// TaskSubber  TaskSubscriber
 	ChunkStream chan FileChunk
 
 	UploadEvent *history.FileEvent
@@ -214,10 +214,6 @@ func (m UploadFilesMeta) Verify() error {
 		return errors.New("no root folder in upload metadata")
 	} else if m.ChunkSize == 0 {
 		return errors.New("no chunk size in upload metadata")
-	} else if m.TaskService == nil {
-		return errors.New("no task service in upload metadata")
-	} else if m.TaskSubber == nil {
-		return errors.New("no task subscriber in upload metadata")
 	} else if m.User == nil {
 		return errors.New("no user in upload metadata")
 	}

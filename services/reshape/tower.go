@@ -17,8 +17,7 @@ func TowerToTowerInfo(tower *tower_model.Instance) structs.TowerInfo {
 		// BackupSize:   tower.back,
 		// UserCount:    tower.UserCount,
 		IsThisServer: tower.IsThisTower,
-		// Online:       tower.Online,
-		// Started:      tower.Started,
+		Started:      true,
 	}
 }
 

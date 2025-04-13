@@ -7,6 +7,7 @@ import (
 	"github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/modules/fs"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -54,6 +55,9 @@ func touch(filepath fs.Filepath) (f *file.WeblensFileImpl, err error) {
 func mkdir(filepath fs.Filepath) (f *file.WeblensFileImpl, err error) {
 	err = os.Mkdir(filepath.ToAbsolute(), os.ModePerm)
 	if err != nil {
+		if os.IsExist(err) {
+			return nil, errors.Wrap(file.ErrDirectoryAlreadyExists, filepath.ToAbsolute())
+		}
 		return
 	}
 
@@ -80,4 +84,19 @@ func rename(oldPath, newPath fs.Filepath) error {
 
 func remove(filepath fs.Filepath) error {
 	return os.Remove(filepath.ToAbsolute())
+}
+
+func getChildFilepaths(filepath fs.Filepath) ([]fs.Filepath, error) {
+	childs, err := os.ReadDir(filepath.ToAbsolute())
+	if err != nil {
+		return nil, err
+	}
+
+	childPaths := make([]fs.Filepath, 0, len(childs))
+	for _, child := range childs {
+		childPath := filepath.Child(child.Name(), child.IsDir())
+		childPaths = append(childPaths, childPath)
+	}
+
+	return childPaths, nil
 }

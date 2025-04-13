@@ -138,54 +138,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/files/restore": {
-            "post": {
-                "security": [
-                    {
-                        "SessionAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Files"
-                ],
-                "summary": "Restore files from some time in the past",
-                "operationId": "RestoreFiles",
-                "parameters": [
-                    {
-                        "description": "Restore files request body",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/RestoreFilesBody"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Restore files info",
-                        "schema": {
-                            "$ref": "#/definitions/RestoreFilesInfo"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request"
-                    },
-                    "404": {
-                        "description": "Not Found"
-                    },
-                    "500": {
-                        "description": "Internal Server Error"
-                    }
-                }
-            }
-        },
         "/files/search": {
             "get": {
                 "security": [
@@ -263,6 +215,54 @@ const docTemplate = `{
                 }
             }
         },
+        "/files/structsore": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Files"
+                ],
+                "summary": "structsore files from some time in the past",
+                "operationId": "RestoreFiles",
+                "parameters": [
+                    {
+                        "description": "RestoreFiles files request body",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/RestoreFilesBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "structsore files info",
+                        "schema": {
+                            "$ref": "#/definitions/RestoreFilesInfo"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
         "/files/untrash": {
             "patch": {
                 "security": [
@@ -273,11 +273,11 @@ const docTemplate = `{
                 "tags": [
                     "Files"
                 ],
-                "summary": "Move a list of files out of the trash, restoring them to where they were before",
+                "summary": "Move a list of files out of the trash, structsoring them to where they were before",
                 "operationId": "UnTrashFiles",
                 "parameters": [
                     {
-                        "description": "UnTrash files request body",
+                        "description": "Un-trash files request body",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -458,7 +458,7 @@ const docTemplate = `{
                     "404": {
                         "description": "Error Info",
                         "schema": {
-                            "$ref": "#/definitions/ErrorInfo"
+                            "$ref": "#/definitions/WeblensErrorInfo"
                         }
                     }
                 }
@@ -658,7 +658,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/rest.ScanBody"
+                            "$ref": "#/definitions/structs.ScanBody"
                         }
                     }
                 ],
@@ -774,7 +774,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Servers"
+                    "Towers"
                 ],
                 "summary": "Get server info",
                 "operationId": "GetServerInfo",
@@ -782,7 +782,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Server info",
                         "schema": {
-                            "$ref": "#/definitions/ServerInfo"
+                            "$ref": "#/definitions/TowerInfo"
                         }
                     }
                 }
@@ -805,11 +805,11 @@ const docTemplate = `{
                 "operationId": "GetApiKeys",
                 "responses": {
                     "200": {
-                        "description": "Api keys info",
+                        "description": "Tokens",
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/ApiKeyInfo"
+                                "$ref": "#/definitions/TokenInfo"
                             }
                         }
                     },
@@ -837,7 +837,7 @@ const docTemplate = `{
                 "operationId": "CreateApiKey",
                 "parameters": [
                     {
-                        "description": "The new key params",
+                        "description": "The new token params",
                         "name": "params",
                         "in": "body",
                         "required": true,
@@ -848,9 +848,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "The new api key info",
+                        "description": "The new token",
                         "schema": {
-                            "$ref": "#/definitions/ApiKeyInfo"
+                            "$ref": "#/definitions/TokenInfo"
                         }
                     },
                     "403": {
@@ -862,7 +862,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/keys/{keyId}": {
+        "/keys/{tokenId}": {
             "delete": {
                 "security": [
                     {
@@ -883,7 +883,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "Api key id",
-                        "name": "keyId",
+                        "name": "tokenId",
                         "in": "path",
                         "required": true
                     }
@@ -1307,179 +1307,29 @@ const docTemplate = `{
                 }
             }
         },
-        "/servers": {
+        "/media/{mediaId}/video": {
             "get": {
                 "security": [
                     {
-                        "SessionAuth": [
-                            "admin"
-                        ]
+                        "SessionAuth": []
                     },
                     {
-                        "ApiKeyAuth": [
-                            "admin"
-                        ]
-                    }
-                ],
-                "tags": [
-                    "Servers"
-                ],
-                "summary": "Get all remotes",
-                "operationId": "GetRemotes",
-                "responses": {
-                    "200": {
-                        "description": "Server Info",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/ServerInfo"
-                            }
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "SessionAuth": [
-                            "admin"
-                        ]
-                    },
-                    {
-                        "ApiKeyAuth": [
-                            "admin"
-                        ]
-                    }
-                ],
-                "tags": [
-                    "Servers"
-                ],
-                "summary": "Create a new remote",
-                "operationId": "CreateRemote",
-                "parameters": [
-                    {
-                        "description": "New Server Params",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/NewServerParams"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "New Server Info",
-                        "schema": {
-                            "$ref": "#/definitions/ServerInfo"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request"
-                    }
-                }
-            }
-        },
-        "/servers/init": {
-            "post": {
-                "security": [],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Servers"
-                ],
-                "summary": "Initialize the target server",
-                "operationId": "InitializeServer",
-                "parameters": [
-                    {
-                        "description": "Server initialization body",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/rest.InitServerParams"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "New server info",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/ServerInfo"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found"
-                    },
-                    "500": {
-                        "description": "Internal Server Error"
-                    }
-                }
-            }
-        },
-        "/servers/reset": {
-            "post": {
-                "security": [
-                    {
-                        "SessionAuth": [
-                            "admin"
-                        ]
-                    },
-                    {
-                        "ApiKeyAuth": [
-                            "admin"
-                        ]
+                        "ApiKeyAuth": []
                     }
                 ],
                 "produces": [
-                    "application/json"
+                    "application/octet-stream"
                 ],
                 "tags": [
-                    "Servers"
+                    "Media"
                 ],
-                "summary": "Reset server",
-                "operationId": "ResetServer",
-                "responses": {
-                    "202": {
-                        "description": "Accepted"
-                    },
-                    "404": {
-                        "description": "Not Found"
-                    },
-                    "500": {
-                        "description": "Internal Server Error"
-                    }
-                }
-            }
-        },
-        "/servers/{serverId}": {
-            "delete": {
-                "security": [
-                    {
-                        "SessionAuth": [
-                            "admin"
-                        ]
-                    },
-                    {
-                        "ApiKeyAuth": [
-                            "admin"
-                        ]
-                    }
-                ],
-                "tags": [
-                    "Servers"
-                ],
-                "summary": "Delete a remote",
-                "operationId": "DeleteRemote",
+                "summary": "Stream a video",
+                "operationId": "StreamVideo",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Server Id to delete",
-                        "name": "serverId",
+                        "description": "Id of media",
+                        "name": "mediaId",
                         "in": "path",
                         "required": true
                     }
@@ -1488,59 +1338,11 @@ const docTemplate = `{
                     "200": {
                         "description": "OK"
                     },
-                    "400": {
-                        "description": "Bad Request"
-                    },
                     "404": {
                         "description": "Not Found"
-                    }
-                }
-            },
-            "patch": {
-                "security": [
-                    {
-                        "SessionAuth": [
-                            "admin"
-                        ]
                     },
-                    {
-                        "ApiKeyAuth": [
-                            "admin"
-                        ]
-                    }
-                ],
-                "tags": [
-                    "Servers"
-                ],
-                "summary": "Update a remote",
-                "operationId": "UpdateRemote",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Server Id to update",
-                        "name": "serverId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Server Params",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/UpdateServerParams"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    },
-                    "400": {
-                        "description": "Bad Request"
-                    },
-                    "404": {
-                        "description": "Not Found"
+                    "500": {
+                        "description": "Internal Server Error"
                     }
                 }
             }
@@ -1576,93 +1378,6 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "OK"
-                    }
-                }
-            }
-        },
-        "/servers/{serverId}/restore": {
-            "post": {
-                "security": [
-                    {
-                        "SessionAuth": [
-                            "admin"
-                        ]
-                    },
-                    {
-                        "ApiKeyAuth": [
-                            "admin"
-                        ]
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Servers"
-                ],
-                "summary": "Restore target core server",
-                "operationId": "RestoreCore",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Server Id",
-                        "name": "serverId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Restore Params",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/RestoreCoreParams"
-                        }
-                    }
-                ],
-                "responses": {
-                    "202": {
-                        "description": "Accepted"
-                    },
-                    "404": {
-                        "description": "Not Found"
-                    },
-                    "500": {
-                        "description": "Internal Server Error"
-                    }
-                }
-            }
-        },
-        "/share/album": {
-            "post": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Share"
-                ],
-                "summary": "Share an album",
-                "operationId": "CreateAlbumShare",
-                "parameters": [
-                    {
-                        "description": "New Album Share Params",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/AlbumShareParams"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "New Album Share",
-                        "schema": {
-                            "$ref": "#/definitions/ShareInfo"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict"
                     }
                 }
             }
@@ -1784,7 +1499,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/rest.UserListBody"
+                            "$ref": "#/definitions/structs.UserListBody"
                         }
                     }
                 ],
@@ -1882,6 +1597,79 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/tower": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "tags": [
+                    "Towers"
+                ],
+                "summary": "Get all remotes",
+                "operationId": "GetRemotes",
+                "responses": {
+                    "200": {
+                        "description": "Tower Info",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/TowerInfo"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/tower/init": {
+            "post": {
+                "security": [],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Towers"
+                ],
+                "summary": "Initialize the target server",
+                "operationId": "InitializeTower",
+                "parameters": [
+                    {
+                        "description": "Server initialization body",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/structs.InitServerParams"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "New server info",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/TowerInfo"
+                            }
+                        }
                     },
                     "404": {
                         "description": "Not Found"
@@ -2278,7 +2066,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Username autocomplete must contain at least 2 characters",
                         "schema": {
-                            "$ref": "#/definitions/ErrorInfo"
+                            "$ref": "#/definitions/WeblensErrorInfo"
                         }
                     },
                     "401": {
@@ -2289,38 +2077,6 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error"
-                    }
-                }
-            }
-        },
-        "/users/unique": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Users"
-                ],
-                "summary": "Check if username is unique",
-                "operationId": "CheckUsernameUnique",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Username to check",
-                        "name": "username",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    },
-                    "400": {
-                        "description": "Bad Request"
-                    },
-                    "409": {
-                        "description": "Conflict"
                     }
                 }
             }
@@ -2370,6 +2126,36 @@ const docTemplate = `{
                         "description": "Internal Server Error"
                     }
                 }
+            },
+            "head": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Check if username is already taken",
+                "operationId": "CheckExists",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Username of user to check",
+                        "name": "username",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
             }
         },
         "/users/{username}/active": {
@@ -2413,7 +2199,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/ErrorInfo"
+                            "$ref": "#/definitions/WeblensErrorInfo"
                         }
                     },
                     "401": {
@@ -2466,7 +2252,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/ErrorInfo"
+                            "$ref": "#/definitions/WeblensErrorInfo"
                         }
                     },
                     "403": {
@@ -2494,8 +2280,8 @@ const docTemplate = `{
                 "tags": [
                     "Users"
                 ],
-                "summary": "Update full name of user",
-                "operationId": "ChangeFullName",
+                "summary": "Update display name of a user",
+                "operationId": "ChangeDisplayName",
                 "parameters": [
                     {
                         "type": "string",
@@ -2519,19 +2305,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/ErrorInfo"
+                            "$ref": "#/definitions/WeblensErrorInfo"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/ErrorInfo"
+                            "$ref": "#/definitions/WeblensErrorInfo"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/ErrorInfo"
+                            "$ref": "#/definitions/WeblensErrorInfo"
                         }
                     }
                 }
@@ -2580,7 +2366,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Both oldPassword and newPassword fields are required",
                         "schema": {
-                            "$ref": "#/definitions/ErrorInfo"
+                            "$ref": "#/definitions/WeblensErrorInfo"
                         }
                     },
                     "403": {
@@ -2594,62 +2380,6 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "AlbumShareParams": {
-            "type": "object",
-            "properties": {
-                "albumId": {
-                    "type": "string"
-                },
-                "public": {
-                    "type": "boolean"
-                },
-                "users": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "ApiKeyInfo": {
-            "type": "object",
-            "required": [
-                "createdBy",
-                "createdTime",
-                "id",
-                "key",
-                "lastUsedTime",
-                "name",
-                "owner",
-                "remoteUsing"
-            ],
-            "properties": {
-                "createdBy": {
-                    "type": "string"
-                },
-                "createdTime": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "key": {
-                    "type": "string"
-                },
-                "lastUsedTime": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "owner": {
-                    "type": "string"
-                },
-                "remoteUsing": {
-                    "type": "string"
-                }
-            }
-        },
         "ApiKeyParams": {
             "type": "object",
             "required": [
@@ -2682,26 +2412,15 @@ const docTemplate = `{
                 }
             }
         },
-        "ErrorInfo": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "type": "string"
-                }
-            }
-        },
         "FileActionInfo": {
             "type": "object",
             "required": [
                 "actionType",
-                "destinationPath",
                 "eventId",
-                "lifeId",
-                "originPath",
                 "parentId",
-                "serverId",
                 "size",
-                "timestamp"
+                "timestamp",
+                "towerId"
             ],
             "properties": {
                 "actionType": {
@@ -2713,7 +2432,7 @@ const docTemplate = `{
                 "eventId": {
                     "type": "string"
                 },
-                "lifeId": {
+                "filepath": {
                     "type": "string"
                 },
                 "originPath": {
@@ -2722,14 +2441,14 @@ const docTemplate = `{
                 "parentId": {
                     "type": "string"
                 },
-                "serverId": {
-                    "type": "string"
-                },
                 "size": {
                     "type": "integer"
                 },
                 "timestamp": {
                     "type": "integer"
+                },
+                "towerId": {
+                    "type": "string"
                 }
             }
         },
@@ -2845,6 +2564,10 @@ const docTemplate = `{
         },
         "LoginBody": {
             "type": "object",
+            "required": [
+                "password",
+                "username"
+            ],
             "properties": {
                 "password": {
                     "type": "string"
@@ -2945,55 +2668,16 @@ const docTemplate = `{
                 }
             }
         },
-        "MediaType": {
-            "type": "object",
-            "properties": {
-                "FileExtension": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "FriendlyName": {
-                    "type": "string"
-                },
-                "IsDisplayable": {
-                    "type": "boolean"
-                },
-                "IsRaw": {
-                    "type": "boolean"
-                },
-                "IsVideo": {
-                    "type": "boolean"
-                },
-                "MultiPage": {
-                    "type": "boolean"
-                },
-                "RawThumbExifKey": {
-                    "type": "string"
-                },
-                "SupportsImgRecog": {
-                    "type": "boolean"
-                },
-                "mime": {
-                    "type": "string"
-                }
-            }
-        },
         "MediaTypeInfo": {
             "type": "object",
             "properties": {
                 "extMap": {
                     "type": "object",
-                    "additionalProperties": {
-                        "$ref": "#/definitions/MediaType"
-                    }
+                    "additionalProperties": {}
                 },
                 "mimeMap": {
                     "type": "object",
-                    "additionalProperties": {
-                        "$ref": "#/definitions/MediaType"
-                    }
+                    "additionalProperties": {}
                 }
             }
         },
@@ -3047,26 +2731,6 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/NewFileParams"
                     }
-                }
-            }
-        },
-        "NewServerParams": {
-            "type": "object",
-            "properties": {
-                "coreAddress": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "role": {
-                    "$ref": "#/definitions/models.ServerRole"
-                },
-                "serverId": {
-                    "type": "string"
-                },
-                "usingKey": {
-                    "type": "string"
                 }
             }
         },
@@ -3128,17 +2792,6 @@ const docTemplate = `{
                 }
             }
         },
-        "RestoreCoreParams": {
-            "type": "object",
-            "properties": {
-                "restoreId": {
-                    "type": "string"
-                },
-                "restoreUrl": {
-                    "type": "string"
-                }
-            }
-        },
         "RestoreFilesBody": {
             "type": "object",
             "properties": {
@@ -3161,52 +2814,6 @@ const docTemplate = `{
             "properties": {
                 "newParentId": {
                     "type": "string"
-                }
-            }
-        },
-        "ServerInfo": {
-            "type": "object",
-            "properties": {
-                "backupSize": {
-                    "type": "integer"
-                },
-                "coreAddress": {
-                    "description": "Address of the remote server, only if the instance is a core.\nNot set for any remotes/backups on core server, as it IS the core",
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "lastBackup": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "online": {
-                    "type": "boolean"
-                },
-                "reportedRole": {
-                    "description": "Role the server is currently reporting. This is used to determine if the server is online (and functional) or not",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.ServerRole"
-                        }
-                    ]
-                },
-                "role": {
-                    "description": "Core or Backup",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.ServerRole"
-                        }
-                    ]
-                },
-                "started": {
-                    "type": "boolean"
-                },
-                "userCount": {
-                    "type": "integer"
                 }
             }
         },
@@ -3268,6 +2875,76 @@ const docTemplate = `{
                 }
             }
         },
+        "TokenInfo": {
+            "type": "object",
+            "properties": {
+                "createdBy": {
+                    "type": "string"
+                },
+                "createdTime": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "lastUsed": {
+                    "type": "integer"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "remoteUsing": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "TowerInfo": {
+            "type": "object",
+            "properties": {
+                "backupSize": {
+                    "type": "integer"
+                },
+                "coreAddress": {
+                    "description": "Address of the remote server, only if the instance is a core.\nNot set for any remotes/backups on core server, as it IS the core",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "lastBackup": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "online": {
+                    "type": "boolean"
+                },
+                "reportedRole": {
+                    "description": "Role the server is currently reporting. This is used to determine if the server is online (and functional) or not",
+                    "type": "string"
+                },
+                "role": {
+                    "description": "Core or Backup",
+                    "type": "string"
+                },
+                "started": {
+                    "type": "boolean"
+                },
+                "userCount": {
+                    "type": "integer"
+                }
+            }
+        },
         "UpdateFileParams": {
             "type": "object",
             "properties": {
@@ -3279,26 +2956,9 @@ const docTemplate = `{
                 }
             }
         },
-        "UpdateServerParams": {
-            "type": "object",
-            "properties": {
-                "coreAddress": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "usingKey": {
-                    "type": "string"
-                }
-            }
-        },
         "UserInfo": {
             "type": "object",
             "properties": {
-                "admin": {
-                    "type": "boolean"
-                },
                 "fullName": {
                     "type": "string"
                 },
@@ -3308,8 +2968,8 @@ const docTemplate = `{
                 "homeSize": {
                     "type": "integer"
                 },
-                "owner": {
-                    "type": "boolean"
+                "permissionLevel": {
+                    "type": "integer"
                 },
                 "token": {
                     "type": "string"
@@ -3331,9 +2991,6 @@ const docTemplate = `{
                 "activated": {
                     "type": "boolean"
                 },
-                "admin": {
-                    "type": "boolean"
-                },
                 "fullName": {
                     "type": "string"
                 },
@@ -3343,11 +3000,11 @@ const docTemplate = `{
                 "homeSize": {
                     "type": "integer"
                 },
-                "owner": {
-                    "type": "boolean"
-                },
                 "password": {
                     "type": "string"
+                },
+                "permissionLevel": {
+                    "type": "integer"
                 },
                 "token": {
                     "type": "string"
@@ -3363,51 +3020,15 @@ const docTemplate = `{
                 }
             }
         },
-        "models.ApiKey": {
+        "WeblensErrorInfo": {
             "type": "object",
             "properties": {
-                "createdBy": {
-                    "type": "string"
-                },
-                "createdTime": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "key": {
-                    "type": "string"
-                },
-                "lastUsed": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "owner": {
-                    "type": "string"
-                },
-                "remoteUsing": {
+                "error": {
                     "type": "string"
                 }
             }
         },
-        "models.ServerRole": {
-            "type": "string",
-            "enum": [
-                "init",
-                "core",
-                "backup",
-                "restore"
-            ],
-            "x-enum-varnames": [
-                "InitServerRole",
-                "CoreServerRole",
-                "BackupServerRole",
-                "RestoreServerRole"
-            ]
-        },
-        "rest.InitServerParams": {
+        "structs.InitServerParams": {
             "type": "object",
             "properties": {
                 "coreAddress": {
@@ -3433,17 +3054,17 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "role": {
-                    "$ref": "#/definitions/models.ServerRole"
+                    "type": "string"
                 },
                 "username": {
                     "type": "string"
                 },
                 "usingKeyInfo": {
-                    "$ref": "#/definitions/models.ApiKey"
+                    "type": "string"
                 }
             }
         },
-        "rest.ScanBody": {
+        "structs.ScanBody": {
             "type": "object",
             "properties": {
                 "filename": {
@@ -3454,7 +3075,7 @@ const docTemplate = `{
                 }
             }
         },
-        "rest.UserListBody": {
+        "structs.UserListBody": {
             "type": "object",
             "properties": {
                 "addUsers": {
@@ -3493,7 +3114,7 @@ const docTemplate = `{
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
 	Host:             "localhost:8080",
-	BasePath:         "/api/",
+	BasePath:         "/api/v1/",
 	Schemes:          []string{"http", "https"},
 	Title:            "Weblens API",
 	Description:      "Programmatic access to the Weblens server",

@@ -19,18 +19,21 @@ type AppContext struct {
 	LocalTowerId string
 
 	FileService   file.FileService
-	TaskService   task_model.TaskService
+	TaskService   *task_model.WorkerPool
 	ClientService client.ClientManager
 	DB            *mongo.Database
 }
 
 func NewAppContext(ctx *BasicContext) *AppContext {
-
 	return &AppContext{BasicContext: *ctx}
 }
 
-func (c *AppContext) Notify(data ...websocket.WsResponseInfo) {
+func (c *AppContext) WithMongoSession(session mongo.SessionContext) {}
 
+func (c *AppContext) GetMongoSession() mongo.SessionContext { return nil }
+
+func (c *AppContext) Notify(data ...websocket.WsResponseInfo) {
+	c.Log().Debug().Msgf("TODO Notify %v", data)
 }
 
 func (c *AppContext) Database() *mongo.Database {
@@ -39,4 +42,8 @@ func (c *AppContext) Database() *mongo.Database {
 
 func (c *AppContext) DispatchJob(string, any, task_mod.Pool) (task_mod.Task, error) {
 	return nil, nil
+}
+
+func (c *AppContext) GetFileService() file.FileService {
+	return c.FileService
 }

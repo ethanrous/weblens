@@ -42,7 +42,7 @@ func GenerateJWT(username string) (string, time.Time, error) {
 		return "", time.Time{}, err
 	}
 
-	return signedToken, time.Time{}, nil
+	return signedToken, expires, nil
 }
 
 func GetUsernameFromToken(tokenStr string) (string, error) {

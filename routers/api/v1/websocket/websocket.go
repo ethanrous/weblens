@@ -10,7 +10,6 @@ import (
 	client_model "github.com/ethanrous/weblens/models/client"
 	"github.com/ethanrous/weblens/models/job"
 	share_model "github.com/ethanrous/weblens/models/share"
-	task_model "github.com/ethanrous/weblens/models/task"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/modules/context"
 	"github.com/ethanrous/weblens/modules/websocket"
@@ -61,7 +60,7 @@ func Connect(ctx *context_service.RequestContext) {
 		return
 	}
 
-	client := ctx.ClientService.ClientConnect(conn, ctx.Requester)
+	client := ctx.ClientService.ClientConnect(ctx, conn, ctx.Requester)
 
 	// var client *models.WsClient
 	// if server != nil {
@@ -78,7 +77,7 @@ func Connect(ctx *context_service.RequestContext) {
 }
 
 func wsMain(ctx *context_service.RequestContext, c *client_model.WsClient) {
-	defer ctx.ClientService.ClientDisconnect(c)
+	defer ctx.ClientService.ClientDisconnect(ctx, c)
 	defer wsRecover(ctx, c)
 	var switchboard func(*context_service.RequestContext, []byte, *client_model.WsClient) error
 
@@ -195,7 +194,7 @@ func wsWebClientSwitchboard(ctx *context_service.RequestContext, msgBuf []byte, 
 			key = key[3:]
 		}
 
-		err = ctx.ClientService.Unsubscribe(c, key, time.UnixMilli(msg.SentAt))
+		err = ctx.ClientService.Unsubscribe(ctx, c, key, time.UnixMilli(msg.SentAt))
 		if err != nil && !errors.Is(err, notify.ErrSubscriptionNotFound) {
 			c.Error(err)
 		} else if err != nil {
@@ -209,8 +208,8 @@ func wsWebClientSwitchboard(ctx *context_service.RequestContext, msgBuf []byte, 
 				return err
 			}
 
-			if local.Role == tower_model.BackupServerRole {
-				return tower_model.ErrServerIsBackup
+			if local.Role == tower_model.BackupTowerRole {
+				return tower_model.ErrTowerIsBackup
 			}
 
 			share, err := share_model.GetShareById(ctx, subInfo.GetShareId())
@@ -243,7 +242,7 @@ func wsWebClientSwitchboard(ctx *context_service.RequestContext, msgBuf []byte, 
 				return err
 			}
 
-			err = ctx.ClientService.SubscribeToTask(ctx, c, t.(*task_model.Task), time.UnixMilli(msg.SentAt))
+			err = ctx.ClientService.SubscribeToTask(ctx, c, t, time.UnixMilli(msg.SentAt))
 
 			if err != nil {
 				return err

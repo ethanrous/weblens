@@ -18,15 +18,18 @@ type CoverPhoto struct {
 }
 
 func GetCoverByFolderId(ctx context.Context, folderId string) (*CoverPhoto, error) {
-	// This function would typically query a database to retrieve the cover photo
-	// based on the folder ID present in the context.
-	// For now, let's return a placeholder value.
+	col, err := db.GetCollection(ctx, CoverPhotoCollectionKey)
+	if err != nil {
+		return nil, err
+	}
 
-	// Placeholder return
-	return &CoverPhoto{
-		FolderId:     "exampleFolderId",
-		CoverPhotoId: "exampleCoverPhotoId",
-	}, nil
+	var coverPhoto CoverPhoto
+	err = col.FindOne(ctx, bson.M{"folderId": folderId}).Decode(&coverPhoto)
+	if err != nil {
+		return nil, db.WrapError(err, "failed to get cover photo by folder ID %s", folderId)
+	}
+
+	return &coverPhoto, nil
 
 }
 

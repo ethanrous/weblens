@@ -4,6 +4,6 @@ type BackupInfo struct {
 	FileHistory    []FileActionInfo
 	Users          []UserInfoArchive
 	Instances      []TowerInfo
-	Tokens         []Token
+	Tokens         []TokenInfo
 	LifetimesCount int
 }

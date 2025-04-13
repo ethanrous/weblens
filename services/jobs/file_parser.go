@@ -65,13 +65,13 @@ func ScanDirectory(tsk task_mod.Task) {
 	// 	}
 	// }()
 
-	ctx.ClientService.FolderSubToTask(meta.File.ID(), t.Id())
-	ctx.ClientService.FolderSubToTask(meta.File.GetParentId(), t.Id())
+	ctx.ClientService.FolderSubToTask(ctx, meta.File.ID(), t.Id())
+	ctx.ClientService.FolderSubToTask(ctx, meta.File.GetParentId(), t.Id())
 	t.SetCleanup(func(tsk task_mod.Task) {
 		// Make sure we finish sending any messages to the client
 		// before we close unsubscribe from the task
 		// meta.Caster.Flush()
-		ctx.ClientService.UnsubTask(tsk.Id())
+		ctx.ClientService.UnsubTask(ctx, tsk.Id())
 		// meta.Caster.Close()
 	})
 

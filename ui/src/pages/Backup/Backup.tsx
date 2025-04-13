@@ -5,13 +5,13 @@ import {
     IconX,
 } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
-import { ServersApi } from '@weblens/api/ServersApi'
+import { TowersApi } from '@weblens/api/ServersApi'
 import {
     HandleWebsocketMessage,
     useWeblensSocket,
     useWebsocketStore,
 } from '@weblens/api/Websocket'
-import { ServerInfo } from '@weblens/api/swag'
+import { TowerInfo } from '@weblens/api/swag'
 import { ThemeToggleButton } from '@weblens/components/HeaderBar'
 import Logo from '@weblens/components/Logo'
 import RemoteStatus from '@weblens/components/RemoteStatus'
@@ -71,7 +71,7 @@ function NewCoreMenu({ closeNewCore }: { closeNewCore: () => void }) {
                     disabled={coreAddress === '' || apiKey === ''}
                     doSuper
                     onClick={async () => {
-                        ServersApi.createRemote({
+                        TowersApi.createRemote({
                             role: 'core',
                             coreAddress: coreAddress,
                             usingKey: apiKey,
@@ -86,11 +86,11 @@ function NewCoreMenu({ closeNewCore }: { closeNewCore: () => void }) {
 }
 
 export default function Backup() {
-    const { data: remotes, refetch } = useQuery<ServerInfo[]>({
+    const { data: remotes, refetch } = useQuery<TowerInfo[]>({
         queryKey: ['remotes'],
         initialData: [],
         queryFn: async () => {
-            return ServersApi.getRemotes().then((res) =>
+            return TowersApi.getRemotes().then((res) =>
                 res.data.filter((r) => r.role === 'core')
             )
         },

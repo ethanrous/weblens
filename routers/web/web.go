@@ -10,9 +10,13 @@ import (
 	"github.com/ethanrous/weblens/services/context"
 )
 
-func CacheMiddleware(ctx *context.RequestContext) {
-	ctx.W.Header().Set("Cache-Control", "public, max-age=3600")
-	ctx.W.Header().Set("Content-Encoding", "gzip")
+func CacheMiddleware(next router.Handler) router.Handler {
+	return router.HandlerFunc(func(ctx *context.RequestContext) {
+		ctx.W.Header().Set("Cache-Control", "public, max-age=3600")
+		ctx.W.Header().Set("Content-Encoding", "gzip")
+
+		next.ServeHTTP(ctx)
+	})
 }
 
 func NewMemFs(ctx *context.AppContext, cnf config.ConfigProvider) *InMemoryFS {
@@ -34,15 +38,14 @@ func UiRoutes(memFs *InMemoryFS) func() *router.Router {
 		r.NotFound(
 			func(ctx *context.RequestContext) {
 				if !strings.HasPrefix(ctx.Req.RequestURI, "/api") {
-					ctx.Log().Info().Msg("Writing index")
-					index := memFs.Index(ctx, ctx.Req.RequestURI)
+					index := memFs.Index(ctx)
 					_, err := ctx.W.Write(index.realFile.data)
 					if err != nil {
-						ctx.Error(http.StatusInternalServerError, err)
+						ctx.Status(http.StatusInternalServerError)
 						return
 					}
 				} else {
-					ctx.Error(http.StatusNotFound, nil)
+					ctx.Status(http.StatusNotFound)
 					return
 				}
 			},

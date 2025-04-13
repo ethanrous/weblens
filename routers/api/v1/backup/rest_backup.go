@@ -84,5 +84,5 @@ func launchBackup(ctx *context.RequestContext) {
 		}
 	}
 
-	ctx.W.WriteHeader(http.StatusOK)
+	ctx.Status(http.StatusOK)
 }

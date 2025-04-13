@@ -26,7 +26,7 @@ func NewBackupInfo(ctx context.Context, fileHistory []*history.FileAction, users
 		serverInfos = append(serverInfos, TowerToTowerInfo(i))
 	}
 
-	var tokenInfos []structs.Token
+	var tokenInfos []structs.TokenInfo
 	for _, k := range tokens {
 		tokenInfos = append(tokenInfos, TokenToTokenInfo(ctx, k))
 	}

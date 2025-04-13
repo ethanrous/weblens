@@ -9,8 +9,8 @@ import {
     IconTrash,
     IconX,
 } from '@tabler/icons-react'
-import { ServersApi } from '@weblens/api/ServersApi'
-import { ServerInfo } from '@weblens/api/swag'
+import { TowersApi } from '@weblens/api/ServersApi'
+import { TowerInfo } from '@weblens/api/swag'
 import LoaderDots from '@weblens/lib/LoaderDots'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
@@ -37,7 +37,7 @@ export default function RemoteStatus({
     backupProgress,
     setBackupProgress,
 }: {
-    remoteInfo: ServerInfo
+    remoteInfo: TowerInfo
     refetchRemotes: () => void
     restoreProgress: RestoreProgress
     backupProgress: BackupProgressT
@@ -77,8 +77,8 @@ export default function RemoteStatus({
                         <WeblensButton
                             Left={IconX}
                             tooltip="Close"
-							size='small'
-							flavor='outline'
+                            size="small"
+                            flavor="outline"
                             onClick={() => setBackupProgress(null)}
                         />
                     </div>
@@ -158,7 +158,7 @@ export default function RemoteStatus({
                             <WeblensButton
                                 Left={IconArrowRight}
                                 onClick={() => {
-                                    ServersApi.updateRemote(remoteInfo.id, {
+                                    TowersApi.updateRemote(remoteInfo.id, {
                                         usingKey: newApiKey,
                                     }).catch(ErrorHandler)
                                     setNewApiKey('')
@@ -175,7 +175,7 @@ export default function RemoteStatus({
                         Left={IconReload}
                         disabled={!canSync}
                         onClick={async () => {
-                            return ServersApi.launchBackup(remoteInfo.id).catch(
+                            return TowersApi.launchBackup(remoteInfo.id).catch(
                                 ErrorHandler
                             )
                         }}
@@ -199,7 +199,7 @@ export default function RemoteStatus({
                         danger
                         requireConfirm
                         onClick={() => {
-                            ServersApi.deleteRemote(remoteInfo.id)
+                            TowersApi.deleteRemote(remoteInfo.id)
                                 .then(() => refetchRemotes())
                                 .catch(ErrorHandler)
                         }}
@@ -222,7 +222,7 @@ export default function RemoteStatus({
                             Left={IconRestore}
                             disabled={canSync}
                             onClick={() =>
-                                ServersApi.restoreCore(remoteInfo.id, {
+                                TowersApi.restoreCore(remoteInfo.id, {
                                     restoreId: remoteInfo.id,
                                     restoreUrl: restoreUrl,
                                 })

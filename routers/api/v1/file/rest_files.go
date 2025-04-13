@@ -10,6 +10,7 @@ import (
 	"time"
 
 	cover_model "github.com/ethanrous/weblens/models/cover"
+	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/job"
 	media_model "github.com/ethanrous/weblens/models/media"
@@ -150,7 +151,7 @@ func GetFileStats(ctx *context.RequestContext) {
 		return
 	}
 
-	ctx.W.WriteHeader(http.StatusNotImplemented)
+	ctx.Status(http.StatusNotImplemented)
 }
 
 // DownloadFile godoc
@@ -391,7 +392,7 @@ func CreateFolder(ctx *context.RequestContext) {
 	// 	}
 	// }
 
-	newDir, err := ctx.FileService.CreateFolder(parentFolder, body.NewFolderName)
+	newDir, err := ctx.FileService.CreateFolder(ctx, parentFolder, body.NewFolderName)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 		return
@@ -450,7 +451,10 @@ func GetFolder(ctx *context.RequestContext) {
 		return
 	}
 
-	formatRespondFolderInfo(ctx, folder)
+	err = formatRespondFolderInfo(ctx, folder)
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, err)
+	}
 }
 
 // SetFolderCover godoc
@@ -497,7 +501,7 @@ func SetFolderCover(ctx *context.RequestContext) {
 	// TODO: Add websocket notification to clients that the cover has been updated
 	// pack.Caster.PushFileUpdate(folder, media)
 
-	ctx.W.WriteHeader(http.StatusOK)
+	ctx.Status(http.StatusOK)
 }
 
 // ScanFolder godoc
@@ -600,7 +604,7 @@ func GetSharedFiles(ctx *context.RequestContext) {
 		var media *media_model.Media
 		if child.IsDir() {
 			cover, err := cover_model.GetCoverByFolderId(ctx, child.ID()) // This will return the cover media if it exists
-			if errors.Is(err, media_model.ErrMediaNotFound) {
+			if db.IsNotFound(err) {
 				continue
 			} else if err != nil {
 				// If there was an error retrieving the cover media, log the error and continue
@@ -694,7 +698,7 @@ func CreateTakeout(ctx *context.RequestContext) {
 	// TODO: Allow context to dispatch jobs
 	t, err := ctx.TaskService.DispatchJob(ctx, job.CreateZipTask, meta, nil)
 
-	ctx.W.WriteHeader(http.StatusNotImplemented)
+	ctx.Status(http.StatusNotImplemented)
 
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "Failed to dispatch zip task"))
@@ -741,7 +745,7 @@ func AutocompletePath(ctx *context.RequestContext) {
 	childName := searchPath[lastSlashI+1:]
 	searchPath = searchPath[:lastSlashI] + "/"
 
-	folder, err := ctx.FileService.GetFileByFilepath(filepath)
+	folder, err := ctx.FileService.GetFileByFilepath(ctx, filepath)
 	if err != nil {
 		ctx.Error(http.StatusNotFound, err)
 		return
@@ -820,7 +824,7 @@ func RestoreFiles(ctx *context.RequestContext) {
 		ctx.Error(http.StatusBadRequest, errors.New("Missing body parameter 'timestamp'"))
 		return
 	}
-	ctx.W.WriteHeader(http.StatusNotImplemented)
+	ctx.Status(http.StatusNotImplemented)
 	// structsoreTime := time.UnixMilli(body.Timestamp)
 
 	// parentLt := ctx.FileService.GetJournalByTree("USERS").Get(body.NewParentId)
@@ -907,7 +911,7 @@ func UpdateFile(ctx *context.RequestContext) {
 		return
 	}
 
-	ctx.W.WriteHeader(http.StatusOK)
+	ctx.Status(http.StatusOK)
 }
 
 // MoveFiles godoc
@@ -972,7 +976,7 @@ func MoveFiles(ctx *context.RequestContext) {
 		return
 	}
 
-	ctx.W.WriteHeader(http.StatusOK)
+	ctx.Status(http.StatusOK)
 }
 
 // UnTrashFiles godoc
@@ -1012,7 +1016,7 @@ func UnTrashFiles(ctx *context.RequestContext) {
 		ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "Failed to un-trash files"))
 	}
 
-	ctx.W.WriteHeader(http.StatusOK)
+	ctx.Status(http.StatusOK)
 }
 
 // DeleteFiles godoc
@@ -1030,7 +1034,7 @@ func UnTrashFiles(ctx *context.RequestContext) {
 //	@Failure	404
 //	@Failure	500
 //	@Router		/files [delete]
-func deleteFiles(ctx *context.RequestContext) {
+func DeleteFiles(ctx *context.RequestContext) {
 	params, err := net.ReadRequestBody[structs.FilesListParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
@@ -1063,7 +1067,7 @@ func deleteFiles(ctx *context.RequestContext) {
 		return
 	}
 
-	ctx.W.WriteHeader(http.StatusOK)
+	ctx.Status(http.StatusOK)
 }
 
 // StartUpload godoc
@@ -1173,7 +1177,7 @@ func NewFileUpload(ctx *context.RequestContext) {
 				uploadMeta := meta.(job.UploadFilesMeta)
 				var newF *file_model.WeblensFileImpl
 				if newFInfo.IsDir {
-					newF, err = ctx.FileService.CreateFolder(parent, newFInfo.NewFileName)
+					newF, err = ctx.FileService.CreateFolder(ctx, parent, newFInfo.NewFileName)
 					if err != nil {
 						return err
 					}
@@ -1282,7 +1286,7 @@ func HandleUploadChunk(ctx *context.RequestContext) {
 		return
 	}
 
-	ctx.W.WriteHeader(http.StatusOK)
+	ctx.Status(http.StatusOK)
 }
 
 // GetUploadResult godoc
@@ -1314,7 +1318,7 @@ func GetUploadResult(ctx *context.RequestContext) {
 	}
 
 	t.Wait()
-	ctx.W.WriteHeader(http.StatusOK)
+	ctx.Status(http.StatusOK)
 }
 
 // Helper Function
@@ -1324,8 +1328,11 @@ func getChildMedias(ctx *context.RequestContext, children []*file_model.WeblensF
 		var m *media_model.Media
 		if child.IsDir() && child.GetContentId() == "" {
 			cover, err := cover_model.GetCoverByFolderId(ctx, child.ID())
-			if err != nil {
-				ctx.Log().Error().Stack().Err(err).Msgf("Failed to get cover for folder [%s], skipping", child.ID())
+			if db.IsNotFound(err) {
+				// No cover for this folder, skip it
+				continue
+			} else if err != nil {
+				ctx.Log().Error().Stack().Err(err).Msgf("failed to get child media")
 				continue
 			}
 
@@ -1338,7 +1345,7 @@ func getChildMedias(ctx *context.RequestContext, children []*file_model.WeblensF
 
 		m, err := media_model.GetMediaById(ctx, child.GetContentId())
 		if err != nil {
-			ctx.Logger.Error().Stack().Err(err).Msgf("Failed to get media for file [%s]", child.ID())
+			// ctx.Logger.Error().Stack().Err(err).Msgf("Failed to get media for file [%s]", child.ID())
 			continue
 		}
 
@@ -1355,7 +1362,7 @@ func formatRespondFolderInfo(ctx *context.RequestContext, dir *file_model.Weblen
 	var parentsInfo []structs.FileInfo
 	parent := dir.GetParent()
 
-	owner, err := file_service.GetFileOwner(ctx, parent)
+	owner, err := file_service.GetFileOwner(ctx, dir)
 	if err != nil {
 		return err
 	}

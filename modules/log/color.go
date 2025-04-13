@@ -14,7 +14,7 @@ var (
 	RESET  = "\u001B[0m"
 )
 
-func colorStatus(status int) string {
+func ColorStatus(status int) string {
 	if status == 0 {
 		return RED + strconv.Itoa(status) + RESET
 	} else if status < 400 {
@@ -27,7 +27,7 @@ func colorStatus(status int) string {
 	return RED + strconv.Itoa(status) + RESET + " UNKNOWN STATUS CODE"
 }
 
-func colorTime(dur time.Duration) string {
+func ColorTime(dur time.Duration) string {
 	durString := dur.String()
 	lastDigitIndex := strings.LastIndexFunc(
 		durString, func(r rune) bool {

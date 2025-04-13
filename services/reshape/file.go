@@ -1,12 +1,12 @@
 package reshape
 
 import (
+	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
 	share_model "github.com/ethanrous/weblens/models/share"
 	"github.com/ethanrous/weblens/modules/structs"
 	"github.com/ethanrous/weblens/services/context"
 	file_service "github.com/ethanrous/weblens/services/file"
-	"github.com/pkg/errors"
 )
 
 func WeblensFileToFileInfo(ctx *context.AppContext, f *file_model.WeblensFileImpl, isPastFile bool) (structs.FileInfo, error) {
@@ -25,7 +25,7 @@ func WeblensFileToFileInfo(ctx *context.AppContext, f *file_model.WeblensFileImp
 	}
 
 	share, err := share_model.GetShareByFileId(ctx, f.ID())
-	if err != nil && !errors.Is(err, share_model.ErrShareNotFound) {
+	if err != nil && !db.IsNotFound(err) {
 		return structs.FileInfo{}, err
 	}
 	var shareId string
@@ -36,9 +36,9 @@ func WeblensFileToFileInfo(ctx *context.AppContext, f *file_model.WeblensFileImp
 	if f.IsDir() && f.GetContentId() == "" {
 		// TODO: check if the folder has a cover
 		// cover, err := cover_model.GetCoverByFolderId(ctx, f.ID())
-		if err != nil {
-			return structs.FileInfo{}, err
-		}
+		// if err != nil {
+		// 	return structs.FileInfo{}, err
+		// }
 
 		// cover.CoverPhotoId
 	}

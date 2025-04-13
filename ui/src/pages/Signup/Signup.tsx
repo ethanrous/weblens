@@ -80,21 +80,23 @@ export function SignupInputForm({
             const timer = setTimeout(() => {
                 setValidateLoading(true)
             }, 200)
-            UsersApi.checkUsernameUnique(userInput)
+            UsersApi.checkExists(userInput)
                 .then(() => {
                     if (!alive) {
-                        console.log('Canceling')
-                        return
-                    }
-                    setUsernameValid(true)
-                })
-                .catch(() => {
-                    if (!alive) {
-                        console.log('Canceling')
                         return
                     }
                     setUsernameValidationError('Username is taken')
                     setUsernameValid(false)
+                })
+                .catch((e: AxiosError) => {
+                    if (!alive) {
+                        return
+                    }
+                    if (e.status === 404) {
+                        setUsernameValid(true)
+                        return
+                    }
+                    console.error(e)
                 })
                 .finally(() => {
                     clearTimeout(timer)
@@ -111,9 +113,9 @@ export function SignupInputForm({
 
     return (
         <div>
-            <label htmlFor="name">
+            <label className='flex items-center mb-1' htmlFor="name">
                 <span>Full Name</span>
-                <sup className="text-red-500">*</sup>
+                <sup className="text-red-500 h-max">*</sup>
             </label>
 
             <WeblensInput
@@ -155,9 +157,9 @@ export function SignupInputForm({
                 <span className="text-red-500">{usernameValidationError}</span>
             </div>
 
-            <label htmlFor="new-password">
+            <label className='flex items-center mb-1' htmlFor="new-password">
                 <span>Password</span>
-                <sup className="text-red-500">*</sup>
+                <sup className="text-red-500 h-max">*</sup>
             </label>
             <WeblensInput
                 placeholder="*******"

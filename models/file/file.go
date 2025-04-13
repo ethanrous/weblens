@@ -55,6 +55,7 @@ var ErrFileAlreadyExists = errors.New("file already exists")
 var _ http.File = (*WeblensFileImpl)(nil)
 
 type WeblensFileImpl struct {
+	id string
 
 	// The most recent time that this file was changes on the real filesystem
 	ModifyDate time.Time
@@ -168,7 +169,15 @@ func (f *WeblensFileImpl) Freeze() *WeblensFileImpl {
 // ID returns the unique identifier the file, which is the
 // portable path of the file.
 func (f *WeblensFileImpl) ID() string {
-	return f.portablePath.ToPortable()
+	f.updateLock.RLock()
+	defer f.updateLock.RUnlock()
+	return f.id
+}
+
+func (f *WeblensFileImpl) SetId(id string) {
+	f.updateLock.Lock()
+	defer f.updateLock.Unlock()
+	f.id = id
 }
 
 // Name returns the filename of the file
@@ -459,6 +468,31 @@ func (f *WeblensFileImpl) AddChild(child *WeblensFileImpl) error {
 	return nil
 }
 
+func (f *WeblensFileImpl) RemoveChild(child string) error {
+	if len(f.childrenMap) == 0 {
+		return errors.WithStack(ErrNoChildren)
+	}
+
+	f.childLock.Lock()
+	defer f.childLock.Unlock()
+
+	if _, ok := f.childrenMap[strings.ToLower(child)]; !ok {
+		return errors.WithStack(ErrFileNotFound)
+	}
+
+	delete(f.childrenMap, strings.ToLower(child))
+
+	f.modifiedNow()
+
+	return nil
+}
+
+func (f *WeblensFileImpl) SetParent(p *WeblensFileImpl) {
+	f.updateLock.Lock()
+	defer f.updateLock.Unlock()
+	f.parent = p
+}
+
 func (f *WeblensFileImpl) GetParent() *WeblensFileImpl {
 	f.updateLock.RLock()
 	defer f.updateLock.RUnlock()
@@ -694,6 +728,12 @@ func (f *WeblensFileImpl) IsReadOnly() bool {
 func (f *WeblensFileImpl) LoadStat() (newSize int64, err error) {
 	origSize := f.size.Load()
 
+	stat, err := os.Stat(f.portablePath.ToAbsolute())
+	if err != nil {
+		return -1, errors.WithStack(err)
+	}
+	f.ModifyDate = stat.ModTime()
+
 	if f.IsDir() {
 		for _, child := range f.GetChildren() {
 			newSize += child.size.Load()
@@ -702,12 +742,7 @@ func (f *WeblensFileImpl) LoadStat() (newSize int64, err error) {
 		if origSize > 0 {
 			return -1, nil
 		}
-		stat, err := os.Stat(f.portablePath.ToAbsolute())
-		if err != nil {
-			return -1, errors.WithStack(err)
-		}
 		f.updateLock.Lock()
-		f.ModifyDate = stat.ModTime()
 		f.updateLock.Unlock()
 
 		newSize = stat.Size()
@@ -737,25 +772,6 @@ func (f *WeblensFileImpl) setParentInternal(parent *WeblensFileImpl) {
 	defer f.updateLock.Unlock()
 	f.parentId = parent.ID()
 	f.parent = parent
-}
-
-func (f *WeblensFileImpl) removeChild(child *WeblensFileImpl) error {
-	if len(f.childrenMap) == 0 {
-		return errors.WithStack(ErrNoChildren)
-	}
-
-	f.childLock.Lock()
-	defer f.childLock.Unlock()
-
-	if _, ok := f.childrenMap[strings.ToLower(child.portablePath.Filename())]; !ok {
-		return errors.WithStack(ErrFileNotFound)
-	}
-
-	delete(f.childrenMap, strings.ToLower(child.portablePath.Filename()))
-
-	f.modifiedNow()
-
-	return nil
 }
 
 func (f *WeblensFileImpl) modifiedNow() {

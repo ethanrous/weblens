@@ -64,7 +64,18 @@ func GetShareById(ctx context.Context, shareId string) (*FileShare, error) {
 }
 
 func GetShareByFileId(ctx context.Context, fileId string) (*FileShare, error) {
-	return nil, errors.New("not implemented")
+	collection, err := db.GetCollection(ctx, ShareCollectionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	var share FileShare
+	err = collection.FindOne(ctx, bson.M{"fileId": fileId}).Decode(&share)
+	if err != nil {
+		return nil, db.WrapError(errors.WithStack(err), "failed to get share by fileId "+fileId)
+	}
+
+	return &share, nil
 }
 
 func GetSharedWithUser(ctx context.Context, username string) ([]*FileShare, error) {

@@ -14,7 +14,6 @@ import (
 	job_model "github.com/ethanrous/weblens/models/job"
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/models/task"
-	tower_model "github.com/ethanrous/weblens/models/tower"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
 	"github.com/ethanrous/weblens/modules/structs"
 	task_mod "github.com/ethanrous/weblens/modules/task"
@@ -24,7 +23,6 @@ import (
 	"github.com/ethanrous/weblens/services/reshape"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
 func parseRangeHeader(contentRange string) (min, max, total int64, err error) {
@@ -166,6 +164,9 @@ WriterLoop:
 			if chunk.NewFile != nil {
 
 				tmpFile := chunk.NewFile
+				if tmpFile == nil {
+					t.Fail(errors.New("chunk.NewFile is nil"))
+				}
 				for tmpFile.GetParent() != rootFile {
 					tmpFile = tmpFile.GetParent()
 				}
@@ -364,8 +365,7 @@ func HashFile(tsk task_mod.Task) {
 	t.Success()
 }
 
-func RegisterJobs(workerPool task.TaskService, role tower_model.TowerRole) {
-	log.Debug().Msgf("Registering jobs for %s", role)
+func RegisterJobs(workerPool *task.WorkerPool) {
 
 	workerPool.RegisterJob(job_model.ScanDirectoryTask, ScanDirectory)
 	workerPool.RegisterJob(job_model.ScanFileTask, ScanFile)

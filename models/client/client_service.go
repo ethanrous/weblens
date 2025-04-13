@@ -14,20 +14,20 @@ import (
 )
 
 type ClientManager interface {
-	ClientConnect(conn *websocket.Conn, user *user_model.User) *WsClient
+	ClientConnect(ctx context.ContextZ, conn *websocket.Conn, user *user_model.User) *WsClient
 	RemoteConnect(ctx context.ContextZ, conn *websocket.Conn, remote *tower_model.Instance) *WsClient
-	ClientDisconnect(c *WsClient)
+	ClientDisconnect(ctx context.ContextZ, c *WsClient)
 	GetClientByUsername(username string) *WsClient
 	GetClientByServerId(instanceId string) *WsClient
 	GetAllClients() []*WsClient
 	GetConnectedAdmins() []*WsClient
-	GetSubscribers(st websocket_mod.WsAction, key string) (clients []*WsClient)
-	SubscribeToFile(ctx context.NotifierContext, c *WsClient, file *file_model.WeblensFileImpl, share *share_model.FileShare, subTime time.Time) error
-	SubscribeToTask(ctx context.NotifierContext, c *WsClient, task *task_model.Task, subTime time.Time) error
-	Unsubscribe(c *WsClient, key string, unSubTime time.Time) error
-	FolderSubToTask(folderId string, taskId string)
-	UnsubTask(taskId string)
-	Send(msg websocket_mod.WsResponseInfo)
+	GetSubscribers(ctx context.ContextZ, st websocket_mod.WsAction, key string) (clients []*WsClient)
+	SubscribeToFile(ctx context.ContextZ, c *WsClient, file *file_model.WeblensFileImpl, share *share_model.FileShare, subTime time.Time) error
+	SubscribeToTask(ctx context.ContextZ, c *WsClient, task *task_model.Task, subTime time.Time) error
+	Unsubscribe(ctx context.ContextZ, c *WsClient, key string, unSubTime time.Time) error
+	FolderSubToTask(ctx context.ContextZ, folderId string, taskId string)
+	UnsubTask(ctx context.ContextZ, taskId string)
+	Send(ctx context.ContextZ, msg websocket_mod.WsResponseInfo)
 	Relay(msg websocket_mod.WsResponseInfo)
-	PushWeblensEvent(event websocket_mod.WsEvent, msg websocket_mod.WsData)
+	// PushWeblensEvent(event websocket_mod.WsEvent, msg websocket_mod.WsData)
 }

@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/bsontype"
 )
 
 type Filepath struct {
@@ -21,7 +23,7 @@ func BuildFilePath(rootAlias string, relPath ...string) Filepath {
 
 func NewFilePath(rootAlias, absolutePath string) (Filepath, error) {
 	var root string
-	if root = GetAbsolutePrefix(root); root == "" {
+	if root = getAbsolutePrefix(root); root == "" {
 		return Filepath{}, errors.Errorf("root alias %s not registered", rootAlias)
 	}
 
@@ -39,7 +41,7 @@ func NewFilePath(rootAlias, absolutePath string) (Filepath, error) {
 func ParsePortable(portablePath string) (Filepath, error) {
 	colonIndex := strings.Index(portablePath, ":")
 	if colonIndex == -1 {
-		return Filepath{}, errors.New("invalid portable path format: no colon found")
+		return Filepath{}, errors.New("invalid portable path format: no colon found: " + portablePath)
 	}
 	prefix := portablePath[:colonIndex]
 	postfix := portablePath[colonIndex+1:]
@@ -50,6 +52,10 @@ func ParsePortable(portablePath string) (Filepath, error) {
 }
 
 func IsZeroFilepath(wf Filepath) bool {
+	return wf.RootAlias == "" && wf.RelPath == ""
+}
+
+func (wf Filepath) IsZero() bool {
 	return wf.RootAlias == "" && wf.RelPath == ""
 }
 
@@ -92,9 +98,16 @@ func (wf Filepath) Dir() Filepath {
 		dirPath = dirPath[:len(dirPath)-1]
 	}
 
+	dirPath = filepath.Dir(dirPath)
+	if dirPath == "." {
+		dirPath = ""
+	} else {
+		dirPath += "/"
+	}
+
 	return Filepath{
 		RootAlias: wf.RootAlias,
-		RelPath:   filepath.Dir(dirPath),
+		RelPath:   dirPath,
 	}
 }
 
@@ -125,6 +138,30 @@ func (wf Filepath) MarshalJSON() ([]byte, error) {
 
 func (wf *Filepath) UnmarshalJSON(b []byte) error {
 	portable, err := ParsePortable(string(b))
+	if err != nil {
+		return err
+	}
+
+	*wf = portable
+
+	return nil
+}
+
+func (wf Filepath) MarshalBSONValue() (bsontype.Type, []byte, error) {
+	if wf.IsZero() {
+		return bson.TypeNull, nil, nil
+	}
+
+	portable := wf.ToPortable()
+	return bson.MarshalValue(portable)
+}
+
+func (wf *Filepath) UnmarshalBSONValue(_ bsontype.Type, data []byte) error {
+	if len(data) == 0 {
+		return nil
+	}
+
+	portable, err := ParsePortable(string(data))
 	if err != nil {
 		return err
 	}

@@ -8,7 +8,6 @@ import (
 	"github.com/ethanrous/weblens/modules/crypto"
 	"github.com/ethanrous/weblens/modules/net"
 	"github.com/ethanrous/weblens/modules/structs"
-	auth_service "github.com/ethanrous/weblens/services/auth"
 	"github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/reshape"
 	"github.com/pkg/errors"
@@ -23,7 +22,7 @@ import (
 //	@Summary	Create a new user
 //	@Tags		Users
 //	@Produce	json
-//	@Param		newUserParams	body	rest.NewUserParams	true	"New user params"
+//	@Param		newUserParams	body	structs.NewUserParams	true	"New user params"
 //	@Success	201
 //	@Failure	401
 //	@Router		/users [post]
@@ -47,7 +46,7 @@ func Create(ctx *context.RequestContext) {
 		return
 	}
 
-	ctx.W.WriteHeader(http.StatusCreated)
+	ctx.Status(http.StatusCreated)
 }
 
 // LoginUser godoc
@@ -58,7 +57,7 @@ func Create(ctx *context.RequestContext) {
 //	@Tags		Users
 //	@Produce	json
 //	@Param		loginParams	body		structs.LoginParams	true	"Login params"
-//	@Success	200			{object}	structs.User		"Logged-in users info"
+//	@Success	200			{object}	structs.UserInfo	"Logged-in users info"
 //	@Failure	401
 //	@Router		/users/auth [post]
 func Login(ctx *context.RequestContext) {
@@ -82,14 +81,8 @@ func Login(ctx *context.RequestContext) {
 		return
 	}
 
-	cookie, err := auth_service.GenerateJWTCookie(u)
-	if err != nil {
-		ctx.Logger.Error().Stack().Err(err).Msg("Failed to generate JWT cookie")
-		ctx.Error(http.StatusInternalServerError, err)
-		return
-	}
-
-	ctx.W.Header().Set("Set-Cookie", cookie)
+	ctx.SetSessionToken()
+	ctx.Status(http.StatusOK)
 }
 
 // CheckExists godoc
@@ -99,6 +92,7 @@ func Login(ctx *context.RequestContext) {
 //	@Summary	Check if username is already taken
 //	@Tags		Users
 //	@Produce	json
+//	@Param		username	path	string	true	"Username of user to check"
 //	@Success	200
 //	@Failure	400
 //	@Failure	404
@@ -106,17 +100,17 @@ func Login(ctx *context.RequestContext) {
 func CheckExists(ctx *context.RequestContext) {
 	username := ctx.Path("username")
 	if username == "" {
-		ctx.W.WriteHeader(http.StatusBadRequest)
+		ctx.Status(http.StatusBadRequest)
 		return
 	}
 
 	_, err := user_model.GetUserByUsername(ctx, username)
 	if err != nil {
-		ctx.W.WriteHeader(http.StatusNotFound)
+		ctx.Status(http.StatusNotFound)
 		return
 	}
 
-	ctx.W.WriteHeader(http.StatusOK)
+	ctx.Status(http.StatusOK)
 }
 
 // LogoutUser godoc
@@ -131,13 +125,13 @@ func CheckExists(ctx *context.RequestContext) {
 //	@Router		/users/logout [post]
 func Logout(ctx *context.RequestContext) {
 	if ctx.Requester == nil {
-		ctx.W.WriteHeader(http.StatusNotFound)
+		ctx.Status(http.StatusNotFound)
 		return
 	}
 
 	cookie := fmt.Sprintf("%s=;Path=/;Expires=Thu, 01 Jan 1970 00:00:00 GMT;HttpOnly", crypto.SessionTokenCookie)
 	ctx.W.Header().Set("Set-Cookie", cookie)
-	ctx.W.WriteHeader(http.StatusOK)
+	ctx.Status(http.StatusOK)
 }
 
 // GetUsers godoc
@@ -149,7 +143,7 @@ func Logout(ctx *context.RequestContext) {
 //	@Summary	Get all users, including (possibly) sensitive information like password hashes
 //	@Tags		Users
 //	@Produce	json
-//	@Success	200	{array}	rest.UserInfoArchive	"List of users"
+//	@Success	200	{array}	structs.UserInfoArchive	"List of users"
 //	@Failure	401
 //	@Router		/users [get]
 func GetAll(ctx *context.RequestContext) {
@@ -179,14 +173,14 @@ func GetAll(ctx *context.RequestContext) {
 //	@Summary	Gets the user based on the auth token
 //	@Tags		Users
 //	@Produce	json
-//	@Success	200	{object}	rest.UserInfo	"Logged-in users info"
+//	@Success	200	{object}	structs.UserInfo	"Logged-in users info"
 //	@Failure	401
 //	@Failure	404
 //	@Failure	500
 //	@Router		/users/me [get]
 func GetMe(ctx *context.RequestContext) {
 	if !ctx.IsLoggedIn {
-		ctx.W.WriteHeader(http.StatusUnauthorized)
+		ctx.Status(http.StatusUnauthorized)
 		return
 	}
 
@@ -205,10 +199,10 @@ func GetMe(ctx *context.RequestContext) {
 //	@Tags		Users
 //	@Produce	json
 //
-//	@Param		username				path	string						true	"Username of user to update"
-//	@Param		passwordUpdateParams	body	rest.PasswordUpdateParams	true	"Password update params"
+//	@Param		username				path	string							true	"Username of user to update"
+//	@Param		passwordUpdateParams	body	structs.PasswordUpdateParams	true	"Password update params"
 //	@Success	200
-//	@Failure	400	{object}	rest.WeblensErrorInfo	"Both oldPassword and newPassword fields are required"
+//	@Failure	400	{object}	structs.WeblensErrorInfo	"Both oldPassword and newPassword fields are required"
 //	@Failure	403
 //	@Failure	404
 //	@Router		/users/{username}/password [patch]
@@ -216,12 +210,12 @@ func UpdatePassword(ctx *context.RequestContext) {
 	updateUsername := ctx.Path("username")
 	updateUser, err := user_model.GetUserByUsername(ctx, updateUsername)
 	if err != nil {
-		ctx.W.WriteHeader(http.StatusNotFound)
+		ctx.Status(http.StatusNotFound)
 		return
 	}
 
 	if updateUser.Username != ctx.Requester.Username && !ctx.Requester.IsOwner() {
-		ctx.W.WriteHeader(http.StatusForbidden)
+		ctx.Status(http.StatusForbidden)
 		return
 	}
 
@@ -258,19 +252,19 @@ func UpdatePassword(ctx *context.RequestContext) {
 //	@Param		username	path	string	true	"Username of user to update"
 //	@Param		setAdmin	query	bool	true	"Target admin status"
 //	@Success	200
-//	@Failure	400	{object}	rest.WeblensErrorInfo
+//	@Failure	400	{object}	structs.WeblensErrorInfo
 //	@Failure	403
 //	@Failure	404
 //	@Router		/users/{username}/admin [patch]
 func SetAdmin(ctx *context.RequestContext) {
 	if !ctx.Requester.IsOwner() {
-		ctx.W.WriteHeader(http.StatusForbidden)
+		ctx.Status(http.StatusForbidden)
 		return
 	}
 
 	adminStr := ctx.Query("setAdmin")
 	if adminStr == "" {
-		ctx.W.WriteHeader(http.StatusBadRequest)
+		ctx.Status(http.StatusBadRequest)
 		return
 	}
 
@@ -282,7 +276,7 @@ func SetAdmin(ctx *context.RequestContext) {
 	username := ctx.Path("username")
 	user, err := user_model.GetUserByUsername(ctx, username)
 	if err != nil {
-		ctx.W.WriteHeader(http.StatusNotFound)
+		ctx.Status(http.StatusNotFound)
 		return
 	}
 
@@ -293,7 +287,7 @@ func SetAdmin(ctx *context.RequestContext) {
 		return
 	}
 
-	ctx.W.WriteHeader(http.StatusOK)
+	ctx.Status(http.StatusOK)
 }
 
 // ActivateUser godoc
@@ -310,19 +304,19 @@ func SetAdmin(ctx *context.RequestContext) {
 //	@Param		username	path	string	true	"Username of user to update"
 //	@Param		setActive	query	boolean	true	"Target activation status"
 //	@Success	200
-//	@Failure	400	{object}	rest.WeblensErrorInfo
+//	@Failure	400	{object}	structs.WeblensErrorInfo
 //	@Failure	401
 //	@Failure	404
 //	@Router		/users/{username}/active [patch]
 func Activate(ctx *context.RequestContext) {
 	if !ctx.Requester.IsAdmin() {
-		ctx.W.WriteHeader(http.StatusForbidden)
+		ctx.Status(http.StatusForbidden)
 		return
 	}
 
 	activeStr := ctx.Query("setActive")
 	if activeStr == "" {
-		ctx.W.WriteHeader(http.StatusBadRequest)
+		ctx.Status(http.StatusBadRequest)
 		return
 	}
 
@@ -334,7 +328,7 @@ func Activate(ctx *context.RequestContext) {
 	username := ctx.Path("username")
 	user, err := user_model.GetUserByUsername(ctx, username)
 	if err != nil {
-		ctx.W.WriteHeader(http.StatusNotFound)
+		ctx.Status(http.StatusNotFound)
 		return
 	}
 
@@ -344,7 +338,7 @@ func Activate(ctx *context.RequestContext) {
 		ctx.Error(http.StatusInternalServerError, err)
 		return
 	}
-	ctx.W.WriteHeader(http.StatusOK)
+	ctx.Status(http.StatusOK)
 }
 
 // ChangeDisplayName godoc
@@ -361,27 +355,27 @@ func Activate(ctx *context.RequestContext) {
 //	@Param		username	path	string	true	"Username of user to update"
 //	@Param		newFullName	query	string	true	"New full name of user"
 //	@Success	200
-//	@Failure	400	{object}	rest.WeblensErrorInfo
-//	@Failure	401	{object}	rest.WeblensErrorInfo
-//	@Failure	404	{object}	rest.WeblensErrorInfo
+//	@Failure	400	{object}	structs.WeblensErrorInfo
+//	@Failure	401	{object}	structs.WeblensErrorInfo
+//	@Failure	404	{object}	structs.WeblensErrorInfo
 //	@Router		/users/{username}/fullName [patch]
 func ChangeDisplayName(ctx *context.RequestContext) {
 	username := ctx.Path("username")
 
 	newName := ctx.Query("newFullName")
 	if newName == "" {
-		ctx.W.WriteHeader(http.StatusBadRequest)
+		ctx.Status(http.StatusBadRequest)
 		return
 	}
 
 	u, err := user_model.GetUserByUsername(ctx, username)
 	if err != nil {
-		ctx.W.WriteHeader(http.StatusNotFound)
+		ctx.Status(http.StatusNotFound)
 		return
 	}
 
 	if u.Username != ctx.Requester.Username && !ctx.Requester.IsAdmin() {
-		ctx.W.WriteHeader(http.StatusForbidden)
+		ctx.Status(http.StatusForbidden)
 		return
 	}
 
@@ -391,7 +385,7 @@ func ChangeDisplayName(ctx *context.RequestContext) {
 		ctx.Error(http.StatusInternalServerError, err)
 		return
 	}
-	ctx.W.WriteHeader(http.StatusOK)
+	ctx.Status(http.StatusOK)
 }
 
 // DeleteUser godoc
@@ -413,19 +407,19 @@ func ChangeDisplayName(ctx *context.RequestContext) {
 //	@Router		/users/{username} [delete]
 func Delete(ctx *context.RequestContext) {
 	if !ctx.Requester.IsOwner() {
-		ctx.W.WriteHeader(http.StatusForbidden)
+		ctx.Status(http.StatusForbidden)
 		return
 	}
 
 	username := ctx.Path("username")
 	if username == "" {
-		ctx.W.WriteHeader(http.StatusBadRequest)
+		ctx.Status(http.StatusBadRequest)
 		return
 	}
 
 	u, err := user_model.GetUserByUsername(ctx, username)
 	if err != nil {
-		ctx.W.WriteHeader(http.StatusNotFound)
+		ctx.Status(http.StatusNotFound)
 		return
 	}
 
@@ -436,7 +430,7 @@ func Delete(ctx *context.RequestContext) {
 		return
 	}
 
-	ctx.W.WriteHeader(http.StatusOK)
+	ctx.Status(http.StatusOK)
 }
 
 // SearchUsers godoc
@@ -449,9 +443,9 @@ func Delete(ctx *context.RequestContext) {
 //	@Tags		Users
 //	@Produce	json
 //
-//	@Param		search	query		string					true	"Partial username to search for"
-//	@Success	200		{array}		rest.UserInfo			"List of users"
-//	@Failure	400		{object}	rest.WeblensErrorInfo	"Username autocomplete must contain at least 2 characters"
+//	@Param		search	query		string						true	"Partial username to search for"
+//	@Success	200		{array}		structs.UserInfo			"List of users"
+//	@Failure	400		{object}	structs.WeblensErrorInfo	"Username autocomplete must contain at least 2 characters"
 //	@Failure	401
 //	@Failure	404
 //	@Failure	500

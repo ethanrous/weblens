@@ -86,12 +86,12 @@ package jobs
 // 	fileService.AddTree(coreTree)
 //
 // 	userRequest := proxy.NewCoreRequest(core, "GET", "/users/me")
-// 	user, err := proxy.CallHomeStruct[rest.UserInfo](userRequest)
+// 	user, err := proxy.CallHomeStruct[structs.UserInfo](userRequest)
 // 	if err != nil {
 // 		t.Fatal(err)
 // 	}
 //
-// 	_, err = proxy.NewCoreRequest(core, "POST", "/folder").WithBody(rest.CreateFolderBody{ParentFolderId: user.HomeId, NewFolderName: "newFolder"}).Call()
+// 	_, err = proxy.NewCoreRequest(core, "POST", "/folder").WithBody(structs.CreateFolderBody{ParentFolderId: user.HomeId, NewFolderName: "newFolder"}).Call()
 // 	if err != nil {
 // 		t.Fatal(err)
 // 	}

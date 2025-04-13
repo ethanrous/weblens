@@ -1,4 +1,4 @@
 import API_ENDPOINT from './ApiEndpoint.js'
-import { ServersApiFactory } from './swag/api.js'
+import { TowersApiFactory } from './swag/api.js'
 
-export const ServersApi = ServersApiFactory(null, API_ENDPOINT)
+export const TowersApi = TowersApiFactory(null, API_ENDPOINT)

@@ -22,7 +22,7 @@ const (
 	FileRestore    FileActionType = "fileRestore"
 )
 
-var ErrFileActionNotFound = db.NewNotFoundError("file action")
+const fileActionErrorLabel = "file action"
 
 type FileAction struct {
 	Id primitive.ObjectID `json:"id" bson:"_id"`
@@ -35,7 +35,8 @@ type FileAction struct {
 	DestinationPath fs.Filepath    `json:"destinationPath" bson:"destinationPath,omitempty"`
 	EventId         string         `json:"eventId" bson:"eventId"`
 	TowerId         string         `json:"serverId" bson:"serverId"`
-	ContentId       string         `json:"contentId" bson:"contentId"`
+	ContentId       string         `json:"contentId" bson:"contentId,omitempty"`
+	FileId          string         `json:"fileId" bson:"fileId"`
 
 	Size int64 `json:"size" bson:"size"`
 }
@@ -81,6 +82,18 @@ func (fa *FileAction) GetActionType() FileActionType {
 }
 
 const FileActionCollectionKey = "fileHistory"
+
+func NewCreateAction(filepath fs.Filepath, size int64, towerId string) *FileAction {
+	return &FileAction{
+		Id:         primitive.NewObjectID(),
+		Timestamp:  time.Now(),
+		ActionType: FileCreate,
+		Filepath:   filepath,
+		TowerId:    towerId,
+		Size:       size,
+		FileId:     primitive.NewObjectID().Hex(),
+	}
+}
 
 // SaveAction saves a FileAction to the database.
 // It returns an error if the operation fails.
@@ -176,4 +189,20 @@ func GetActionsByTowerId(ctx context.DatabaseContext, towerId string) ([]*FileAc
 	}
 
 	return actions, nil
+}
+
+func GetActionAtFilepath(ctx context.DatabaseContext, filepath fs.Filepath) (*FileAction, error) {
+	col, err := db.GetCollection(ctx, FileActionCollectionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	filter := bson.M{"filepath": filepath.ToPortable()}
+	action := &FileAction{}
+	err = col.FindOne(ctx, filter, options.FindOne().SetSort(bson.M{"timestamp": -1})).Decode(action)
+	if err != nil {
+		return nil, db.WrapError(err, "GetActionAtFilepath looking for %s", filepath)
+	}
+
+	return action, nil
 }

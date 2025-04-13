@@ -10,3 +10,7 @@ type ContextZ interface {
 	LoggerContext
 	NotifierContext
 }
+
+type AppContexter interface {
+	AppCtx() ContextZ
+}

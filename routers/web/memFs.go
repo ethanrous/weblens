@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -21,6 +20,7 @@ type InMemoryFS struct {
 	routesMu *sync.RWMutex
 
 	proxyAddress string
+	uiPath       string
 	ctx          *context.AppContext
 }
 
@@ -30,6 +30,8 @@ func (fs *InMemoryFS) loadIndex(uiDir string) string {
 	if !fs.index.exists {
 		panic(errors.Errorf("Could not find index file at %s", indexPath))
 	}
+
+	fs.uiPath = uiDir
 
 	return indexPath
 }
@@ -118,14 +120,9 @@ type indexFields struct {
 	VideoType   string
 }
 
-func (fs *InMemoryFS) Index(ctx *context.RequestContext, loc string) *MemFileWrap {
+func (fs *InMemoryFS) Index(ctx *context.RequestContext) *MemFileWrap {
 	index := newWrapFile(fs.index.Copy())
-	locIndex := strings.Index(loc, "ui/dist/")
-	if locIndex != -1 {
-		loc = loc[locIndex+len("ui/dist/"):]
-	}
-
-	fields := getIndexFields(ctx, loc, fs.proxyAddress)
+	fields := getIndexFields(ctx, fs.proxyAddress)
 
 	tmpl, err := template.New("index").Parse(string(index.realFile.data))
 	if err != nil {

@@ -22,9 +22,9 @@ import (
 //	@Tags		ApiKeys
 //	@Produce	json
 //
-//	@Param		params	body		rest.ApiKeyParams	true	"The new token params"
+//	@Param		params	body		structs.ApiKeyParams	true	"The new token params"
 //
-//	@Success	200		{object}	structs.Token		"The new token"
+//	@Success	200		{object}	structs.TokenInfo			"The new token"
 //	@Failure	403
 //	@Failure	500
 //	@Router		/keys [post]
@@ -55,7 +55,7 @@ func CreateApiKey(ctx context.RequestContext) {
 //	@Tags		ApiKeys
 //	@Produce	json
 //
-//	@Success	200	{array}	structs.Token	"Tokens"
+//	@Success	200	{array}	structs.TokenInfo	"Tokens"
 //	@Failure	403
 //	@Failure	500
 //	@Router		/keys [get]
@@ -79,7 +79,7 @@ func GetMyTokens(ctx context.RequestContext) {
 //	@Tags		ApiKeys
 //	@Produce	json
 //
-//	@Param		keyId	path	string	true	"Api key id"
+//	@Param		tokenId	path	string	true	"Api key id"
 //
 //	@Success	200
 //	@Failure	403
@@ -99,7 +99,7 @@ func DeleteToken(ctx context.RequestContext) {
 	_, err = auth_model.GetTokenById(ctx, objToken)
 	if err != nil {
 		if errors.Is(err, auth_model.ErrTokenNotFound) {
-			ctx.W.WriteHeader(http.StatusNotFound)
+			ctx.Status(http.StatusNotFound)
 			return
 		}
 
@@ -114,5 +114,5 @@ func DeleteToken(ctx context.RequestContext) {
 		return
 	}
 
-	ctx.W.WriteHeader(http.StatusOK)
+	ctx.Status(http.StatusOK)
 }

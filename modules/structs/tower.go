@@ -30,4 +30,4 @@ type TowerInfo struct {
 	Online bool `json:"online"`
 
 	Started bool `json:"started"`
-} // @name ServerInfo
+} // @name TowerInfo

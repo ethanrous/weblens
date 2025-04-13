@@ -9,6 +9,7 @@ import (
 
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
+	"github.com/ethanrous/weblens/modules/context"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -31,7 +32,7 @@ type WsClient struct {
 	log *zerolog.Logger
 }
 
-func NewClient(conn *websocket.Conn, socketUser SocketUser, logger *zerolog.Logger) *WsClient {
+func NewClient(ctx context.ContextZ, conn *websocket.Conn, socketUser SocketUser) *WsClient {
 	clientId := uuid.New().String()
 
 	newClient := &WsClient{
@@ -48,7 +49,7 @@ func NewClient(conn *websocket.Conn, socketUser SocketUser, logger *zerolog.Logg
 		newClient.tower = socketUser.(*tower_model.Instance)
 	}
 
-	newLogger := logger.With().Str("client_id", newClient.getClientName()).Str("websocket_id", newClient.GetClientId()).Logger()
+	newLogger := ctx.Log().With().Str("client_id", newClient.getClientName()).Str("websocket_id", newClient.GetClientId()).Logger()
 	newClient.log = &newLogger
 
 	newClient.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("New client connected") })

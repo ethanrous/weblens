@@ -10,6 +10,8 @@ import (
 )
 
 type FileService interface {
+	AddFile(context context.ContextZ, file ...*WeblensFileImpl) error
+
 	// Size returns the size of the specified file tree
 	Size(treeAlias string) int64
 
@@ -17,7 +19,7 @@ type FileService interface {
 	GetFileById(fileId string) (*WeblensFileImpl, error)
 
 	// GetFileByFilepath retrieves a file by its filepath
-	GetFileByFilepath(path fs.Filepath) (*WeblensFileImpl, error)
+	GetFileByFilepath(ctx context.ContextZ, path fs.Filepath) (*WeblensFileImpl, error)
 
 	// GetFileByContentId retrieves a file by its content ID
 	GetFileByContentId(contentId string) (*WeblensFileImpl, error)
@@ -35,10 +37,10 @@ type FileService interface {
 	CreateFile(parent *WeblensFileImpl, filename string, data ...[]byte) (*WeblensFileImpl, error)
 
 	// CreateFolder creates a new folder
-	CreateFolder(parent *WeblensFileImpl, folderName string) (*WeblensFileImpl, error)
+	CreateFolder(ctx context.ContextZ, parent *WeblensFileImpl, folderName string) (*WeblensFileImpl, error)
 
 	// CreateUserHome creates a home directory for a user
-	CreateUserHome(ctx *context.ContextZ, user *user_model.User) error
+	CreateUserHome(ctx context.ContextZ, user *user_model.User) error
 
 	// IsFileInTrash checks if a file is in the trash
 	// IsFileInTrash(file *WeblensFileImpl) bool

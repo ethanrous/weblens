@@ -2,7 +2,6 @@ package user
 
 import (
 	"context"
-	"iter"
 
 	"github.com/ethanrous/weblens/models/db"
 	"github.com/ethanrous/weblens/modules/crypto"
@@ -89,7 +88,7 @@ func GetUserByUsername(ctx context.Context, username string) (u *User, err error
 	filter := bson.M{"username": username}
 	err = col.FindOne(ctx, filter).Decode(u)
 	if errors.Is(err, mongo.ErrNoDocuments) {
-		return nil, ErrUserNotFound
+		return nil, errors.WithStack(ErrUserNotFound)
 	}
 
 	return
@@ -123,7 +122,7 @@ func GetServerOwner(ctx context.Context) (u *User, err error) {
 	filter := bson.M{"userPerms": UserPermissionOwner}
 	err = col.FindOne(ctx, filter).Decode(u)
 	if err != nil {
-		return
+		return nil, db.WrapError(err, "failed to get server owner")
 	}
 
 	return
@@ -228,6 +227,20 @@ func SearchByUsername(ctx context.Context, partialUsername string) ([]*User, err
 	return users, nil
 }
 
+func DeleteAllUsers(ctx context.Context) (err error) {
+	col, err := db.GetCollection(ctx, UserCollectionKey)
+	if err != nil {
+		return
+	}
+
+	_, err = col.DeleteMany(ctx, bson.M{})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	return
+}
+
 func (u *User) GetUsername() string {
 	return u.Username
 }
@@ -270,22 +283,4 @@ func (u *User) CheckLogin(attempt string) bool {
 
 func (u *User) SocketType() websocket.ClientType {
 	return websocket.WebClient
-}
-
-type UserService interface {
-	Size() int
-	Get(id string) *User
-	Add(user *User) error
-	Del(id string) error
-	GetAll() (iter.Seq[*User], error)
-	CreateOwner(username, password, fullName string) (*User, error)
-	GetPublicUser() *User
-	SearchByUsername(searchString string) (iter.Seq[*User], error)
-	SetUserAdmin(*User, bool) error
-	ActivateUser(*User, bool) error
-	GetRootUser() *User
-	UpdateUserHome(u *User) error
-	UpdateFullName(u *User, newFullName string) error
-
-	UpdateUserPassword(username string, oldPassword, newPassword string, allowEmptyOld bool) error
 }

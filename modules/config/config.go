@@ -35,23 +35,36 @@ type ConfigProvider struct {
 	MongoDBName string
 
 	InitRole string
+
+	DataPath  string
+	CachePath string
+
+	DoFileDiscovery bool
+
+	WorkerCount int
 }
 
 func getDefaultConfig() ConfigProvider {
 	return ConfigProvider{
 		Host:              "localhost",
 		Port:              "8080",
-		MongoDBUri:        "mongodb://localhost:27017",
+		MongoDBUri:        "mongodb://localhost:27017/?replicaSet=rs0",
 		MongoDBName:       "weblensDB",
 		UIPath:            "/web",
 		StaticContentPath: "/web/static",
+
+		DataPath:  "/data",
+		CachePath: "/cahhe",
+
+		WorkerCount: runtime.NumCPU(),
 	}
 }
 
-func GetConfig() ConfigProvider {
-	cnf := getDefaultConfig()
-	getEnvOverride(&cnf)
-	return cnf
+func handlePath(path string) string {
+	if path[0] == '.' {
+		path = filepath.Join(projectPackagePrefix, path)
+	}
+	return path
 }
 
 func getEnvOverride(config *ConfigProvider) {
@@ -65,10 +78,7 @@ func getEnvOverride(config *ConfigProvider) {
 		config.ProxyAddress = proxyAddress
 	}
 	if uiPath := os.Getenv("WEBLENS_UI_PATH"); uiPath != "" {
-		if uiPath[0] == '.' {
-			uiPath = filepath.Join(projectPackagePrefix, uiPath)
-		}
-		config.UIPath = uiPath
+		config.UIPath = handlePath(uiPath)
 	}
 	if staticContentPath := os.Getenv("WEBLENS_STATIC_CONTENT_PATH"); staticContentPath != "" {
 		config.StaticContentPath = staticContentPath
@@ -82,4 +92,21 @@ func getEnvOverride(config *ConfigProvider) {
 	if initRole := os.Getenv("WEBLENS_INIT_ROLE"); initRole != "" {
 		config.InitRole = initRole
 	}
+	if dataPath := os.Getenv("WEBLENS_DATA_PATH"); dataPath != "" {
+		config.DataPath = handlePath(dataPath)
+	}
+	if cachePath := os.Getenv("WEBLENS_CACHE_PATH"); cachePath != "" {
+		config.CachePath = handlePath(cachePath)
+	}
+}
+
+func GetConfig() ConfigProvider {
+	cnf := getDefaultConfig()
+	getEnvOverride(&cnf)
+	return cnf
+}
+
+func GetMongoDBUri() string {
+	cnf := GetConfig()
+	return cnf.MongoDBUri
 }

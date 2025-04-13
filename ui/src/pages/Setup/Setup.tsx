@@ -7,7 +7,7 @@ import {
     IconRocket,
 } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
-import { ServersApi } from '@weblens/api/ServersApi'
+import { TowersApi } from '@weblens/api/ServersApi'
 import UsersApi from '@weblens/api/UserApi'
 import {
     HandleWebsocketMessage,
@@ -146,7 +146,7 @@ const Core = ({
 
     return (
         <div className={setupStyle.setupContentBox} data-on-deck={onDeck}>
-            <div className="absolute w-[90%]">
+            <div className="absolute w-[90%] mb-10">
                 <WeblensButton
                     Left={IconArrowLeft}
                     squareSize={35}
@@ -157,7 +157,7 @@ const Core = ({
                 <h1 className="text-4xl font-bold">Core</h1>
             </div>
             {users.length === 0 && (
-                <div className="border-color-border-primary flex w-full flex-col rounded-md border p-4">
+                <div className="border-color-border-primary flex w-full flex-col rounded-md border p-4 mt-6">
                     <h4 className="mb-4">Create an Owner Account</h4>
                     <SignupInputForm
                         setFullName={setFullName}
@@ -194,9 +194,12 @@ const Core = ({
             )}
             {!existingName && (
                 <>
-                    <label htmlFor="serverName" className="mr-auto">
+                    <label
+                        className="mb-1 mt-8 flex items-center mr-auto"
+                        htmlFor="serverName"
+                    >
                         <span>Server Name</span>
-                        <sup className="text-red-500">*</sup>
+                        <sup className="h-max text-red-500 ">*</sup>
                     </label>
 
                     <WeblensInput
@@ -208,7 +211,7 @@ const Core = ({
                     />
                 </>
             )}
-            <label htmlFor="serverAddress" className="mt-4 mr-auto">
+            <label htmlFor="serverAddress" className="mt-4 mb-1 mr-auto">
                 <span>Server Address</span>
             </label>
 
@@ -216,6 +219,7 @@ const Core = ({
                 squareSize={50}
                 value={location.origin}
                 autoComplete="serverAddress"
+				className='mb-6'
             />
 
             <WeblensButton
@@ -228,7 +232,7 @@ const Core = ({
                 }
                 doSuper
                 onClick={async () => {
-                    const res = await ServersApi.initializeServer({
+                    const res = await TowersApi.initializeTower({
                         name: serverName,
                         role: 'core',
                         username: username,
@@ -321,7 +325,7 @@ const Backup = ({
 
     return (
         <div className={setupStyle.setupContentBox} data-on-deck={onDeck}>
-            <div className="absolute w-[90%]">
+            <div className="absolute w-[90%] mb-10">
                 <WeblensButton
                     Left={IconArrowLeft}
                     squareSize={35}
@@ -345,7 +349,7 @@ const Backup = ({
                 <WeblensInput
                     placeholder={'https://myremoteweblens.net/'}
                     valueCallback={setCoreAddress}
-                    valid={coreAddress === "" || addressIsValid ? null : false}
+                    valid={coreAddress === '' || addressIsValid ? null : false}
                 />
             </div>
 
@@ -369,7 +373,7 @@ const Backup = ({
                 }
                 doSuper
                 onClick={async () => {
-                    const res = await ServersApi.initializeServer({
+                    const res = await TowersApi.initializeTower({
                         name: serverName,
                         role: 'backup',
                         coreAddress: coreAddress,
@@ -419,7 +423,7 @@ const Restore = ({
 
     return (
         <div className={setupStyle.setupContentBox} data-on-deck={onDeck}>
-            <div className="absolute w-[90%]">
+            <div className="absolute w-[90%] mb-10">
                 <WeblensButton
                     Left={IconArrowLeft}
                     squareSize={35}

@@ -4,11 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
-	context_service "github.com/ethanrous/weblens/services/context"
-
 	"github.com/ethanrous/weblens/models/db"
+	"github.com/ethanrous/weblens/modules/config"
+	"github.com/stretchr/testify/assert"
 )
 
 var username = "bob"
@@ -24,9 +22,13 @@ func TestUserPassword(t *testing.T) {
 		DisplayName: fullName,
 	}
 
-	ctx := NewDBContext(t.Name())
+	mongodb, err := db.ConnectToMongo(context.Background(), config.GetMongoDBUri(), "weblensTestDB")
+	if err != nil {
+		t.Error(err)
+	}
+	ctx := context.WithValue(context.Background(), db.DatabaseContextKey, mongodb)
 
-	err := CreateUser(ctx, u)
+	err = CreateUser(ctx, u)
 	if !assert.NoError(t, err) {
 		t.FailNow()
 	}
@@ -43,16 +45,4 @@ func TestUserPassword(t *testing.T) {
 	u.Activated = true
 	rightPassCheck := u.CheckLogin(password)
 	assert.True(t, rightPassCheck)
-}
-
-func NewDBContext(dbName string) context_service.AppContext {
-	ctx := context_service.BasicContext{
-		Context: context.Background(),
-	}
-
-	db.ConnectToMongo(ctx, "", dbName)
-
-	return context_service.AppContext{
-		BasicContext: ctx, DB: nil,
-	}
 }

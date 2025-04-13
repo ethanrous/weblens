@@ -4,15 +4,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"regexp"
 
 	"github.com/ethanrous/weblens/models/client"
 	share_model "github.com/ethanrous/weblens/models/share"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
+	"github.com/ethanrous/weblens/modules/context"
 	"github.com/ethanrous/weblens/modules/crypto"
+	auth_service "github.com/ethanrous/weblens/services/auth"
 	"github.com/go-chi/chi/v5"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 const BaseContextKey = "context"
@@ -28,11 +33,32 @@ type RequestContext struct {
 	IsLoggedIn bool
 
 	Share *share_model.FileShare
+
+	mongoSession mongo.SessionContext
+}
+
+func (c *RequestContext) WithMongoSession(session mongo.SessionContext) {
+	c.mongoSession = session
+}
+
+func (c *RequestContext) GetMongoSession() mongo.SessionContext {
+	return c.mongoSession
+}
+
+func (c *RequestContext) AppCtx() context.ContextZ {
+	return &c.AppContext
 }
 
 // Path returns the value of a URL parameter, or an empty string if the parameter is not found.
 func (c *RequestContext) Path(paramName string) string {
-	return chi.URLParam(c.Req, paramName)
+	q, err := url.QueryUnescape(chi.URLParam(c.Req, paramName))
+	if err != nil {
+		c.Log().Error().Err(err).Msgf("Failed to unescape URL parameter '%s'", paramName)
+		return ""
+	} else {
+		c.Log().Trace().Msgf("URL parameter '%s' found with value: %s", paramName, q)
+	}
+	return q
 }
 
 // Query returns the value of a query parameter, or an empty string if the parameter is not found.
@@ -41,15 +67,52 @@ func (c *RequestContext) Query(paramName string) string {
 }
 
 func (c *RequestContext) Error(code int, err error) {
-	err = errors.WithStack(err)
-	c.Logger.Error().Stack().Err(err).Msg("API Error")
+	if err == nil {
+		err = errors.New("error is nil")
+		c.Logger.Error().Stack().Err(err).Msg("")
+		c.W.WriteHeader(code)
+		return
+	}
+
+	var e *zerolog.Event
+	if code >= 500 {
+		e = c.Logger.Error().Stack()
+	} else {
+		e = c.Logger.Warn()
+	}
+
+	e.CallerSkipFrame(1).Caller().Err(err).Msgf("API Error %d %s -", code, http.StatusText(code))
 
 	c.JSON(code, map[string]string{"error": err.Error()})
+}
+
+func (c *RequestContext) SetSessionToken() error {
+	if c.Requester == nil {
+		return errors.New("requester is nil")
+	}
+	cookie, err := auth_service.GenerateJWTCookie(c.Requester)
+	if err != nil {
+		return err
+	}
+
+	c.W.Header().Set("Set-Cookie", cookie)
+	return nil
 }
 
 func (c *RequestContext) ExpireCookie() {
 	cookie := fmt.Sprintf("%s=;Path=/;Expires=Thu, 01 Jan 1970 00:00:00 GMT;HttpOnly", crypto.SessionTokenCookie)
 	c.W.Header().Set("Set-Cookie", cookie)
+}
+
+func (c *RequestContext) GetCookie(cookieName string) (string, error) {
+	// Get the value of a specific cookie from the request.
+	// This will return an empty string and non-nil error if the cookie is not present.
+	cookie, err := c.Req.Cookie(cookieName)
+	if err != nil {
+		return "", err
+	}
+
+	return cookie.Value, nil
 }
 
 func (c *RequestContext) Header(headerName string) string {
@@ -65,6 +128,11 @@ func (c *RequestContext) Header(headerName string) string {
 	}
 
 	return headerValue
+}
+
+// Set the HTTP status code for the response.
+func (c *RequestContext) Status(code int) {
+	c.W.WriteHeader(code)
 }
 
 var rangeMatchR = regexp.MustCompile("^bytes=[0-9]+-[0-9]+/[0-9]+$")
@@ -105,6 +173,7 @@ func (c *RequestContext) JSON(code int, data any) {
 	}
 
 	c.W.WriteHeader(code)
+	c.W.Header().Set("Content-Type", "application/json")
 	c.W.Write(bs)
 }
 

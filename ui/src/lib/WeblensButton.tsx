@@ -167,7 +167,7 @@ function WeblensButton({
     const [loading, setLoading] = useState(false)
 
     // TODO: implement these
-    console.debug(success, fail, loading)
+    // console.debug(success, fail, loading)
 
     const [showLabel, setShowLabel] = useState(true)
     const [buttonRef, setButtonRef] = useState<HTMLButtonElement>()

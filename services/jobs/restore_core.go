@@ -64,7 +64,7 @@ func RestoreCore(tsk task_mod.Task) {
 	}
 
 	initParams := restoreInitParams{
-		Name: meta.Core.Name, Role: tower_model.RestoreServerRole, Key: token, RemoteId: meta.Local.TowerId,
+		Name: meta.Core.Name, Role: tower_model.RestoreTowerRole, Key: token, RemoteId: meta.Local.TowerId,
 		LocalId: meta.Core.TowerId,
 	}
 
@@ -166,7 +166,7 @@ func RestoreCore(tsk task_mod.Task) {
 		t.ReqNoErr(err)
 	}
 
-	meta.Core.SetReportedRole(tower_model.CoreServerRole)
+	meta.Core.SetReportedRole(tower_model.CoreTowerRole)
 	t.Ctx.Notify(client.NewTaskNotification(t, websocket_mod.RestoreCompleteEvent, nil))
 
 	// Disconnect the core client to force a reconnection

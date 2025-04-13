@@ -6,7 +6,7 @@ if [[ ! -e ./scripts ]]; then
 fi
 
 printf "Generating swagger docs..."
-if ! swag init --pd -g router.go -d ./http -q &>./build/logs/swag.log; then
+if ! swag init --pd -g router.go -d './routers/router,./routers/api/v1' -q &>./build/logs/swag.log; then
     echo "FAILED"
     cat ./build/logs/swag.log
     echo "########## ^ Swag Init Logs ^ ##########"

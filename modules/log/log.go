@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"slices"
@@ -14,20 +15,19 @@ import (
 	"github.com/opensearch-project/opensearch-go/v4"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
-	"github.com/rs/zerolog/pkgerrors"
 )
 
 // Deprecated: Use json logger instead.
 
 var OpenSearchClient *opensearch.Client
 
-var projectPackagePrefix string
+var projectPrefix string
 
 func init() {
 
 	_, filename, _, _ := runtime.Caller(0)
-	projectPackagePrefix = strings.TrimSuffix(filename, "modules/log/log.go")
-	if projectPackagePrefix == filename {
+	projectPrefix = strings.TrimSuffix(filename, "modules/log/log.go")
+	if projectPrefix == filename {
 		// in case the source code file is moved, we can not trim the suffix, the code above should also be updated.
 		panic("weblens logger unable to detect correct package prefix, please update file: " + filename)
 	}
@@ -45,7 +45,7 @@ func init() {
 	}
 
 	zerolog.TimestampFieldName = "@timestamp"
-	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
+	zerolog.ErrorStackMarshaler = MarshalStack
 	zerolog.ErrorStackFieldName = "traceback"
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 }
@@ -105,8 +105,7 @@ func NewZeroLogger() *zerolog.Logger {
 	return &log
 }
 
-type WLConsoleLogger struct {
-}
+type WLConsoleLogger struct{}
 
 func (l WLConsoleLogger) Write(p []byte) (n int, err error) {
 	var target map[string]any
@@ -115,40 +114,47 @@ func (l WLConsoleLogger) Write(p []byte) (n int, err error) {
 		return
 	}
 
-	var caller string
-	pc, filename, line, ok := runtime.Caller(6)
+	callerI, ok := target["caller"]
+	caller := "[NO CALLER]"
 	if ok {
-		fn := runtime.FuncForPC(pc)
-		var fnName string
-		if fn != nil {
-			fnName = fn.Name()
-			fnName = strings.ReplaceAll(fnName, "[...]", "") + "()" // generic function names are "foo[...]"
-
-			slash := strings.LastIndex(fnName, "/") + 1
-			dot := strings.LastIndex(fnName[slash:], ".") + 1
-
-			fnName = fnName[slash+dot:]
-		}
-		filename = strings.TrimPrefix(filename, projectPackagePrefix)
-		caller = fmt.Sprintf("%s:%d:%s", filename, line, fnName)
+		caller = callerI.(string)
+		caller = strings.TrimPrefix(caller, projectPrefix)
 	}
+	// pc, filename, line, ok := runtime.Caller(6)
+	// if ok {
+	// 	fn := runtime.FuncForPC(pc)
+	// 	var fnName string
+	// 	if fn != nil {
+	// 		fnName = fn.Name()
+	// 		fnName = strings.ReplaceAll(fnName, "[...]", "") + "()" // generic function names are "foo[...]"
+	//
+	// 		slash := strings.LastIndex(fnName, "/") + 1
+	// 		dot := strings.LastIndex(fnName[slash:], ".") + 1
+	//
+	// 		fnName = fnName[slash+dot:]
+	// 	}
+	// 	filename = strings.TrimPrefix(filename, projectPackagePrefix)
+	// 	caller = fmt.Sprintf("%s:%d:%s", filename, line, fnName)
+	// }
 
 	level, _ := target["level"].(string)
 	msgErr, _ := target["error"].(string)
 	logMsg, _ := target["message"].(string)
 	traceback, _ := target["traceback"].([]any)
 
-	ignoredKeys := []string{"level", "error", "message", "weblens_build_version", "caller", "@timestamp", "traceback", "instance"}
-
-	extras := ""
-	for k, v := range target {
-		if slices.Contains(ignoredKeys, k) {
-			continue
+	if false {
+		ignoredKeys := []string{"level", "error", "message", "weblens_build_version", "caller", "@timestamp", "traceback", "instance"}
+		extras := ""
+		for k, v := range target {
+			if slices.Contains(ignoredKeys, k) {
+				continue
+			}
+			extras += fmt.Sprintf("%s%s%s: %v ", BLUE, k, RESET, v)
 		}
-		extras += fmt.Sprintf("%s%s%s: %v ", BLUE, k, RESET, v)
-	}
-	if extras != "" {
-		logMsg += "\n\t" + extras
+		if extras != "" {
+			logMsg += "\n\t" + extras
+		}
+
 	}
 
 	var stackStr string
@@ -160,14 +166,22 @@ func (l WLConsoleLogger) Write(p []byte) (n int, err error) {
 				continue
 			}
 
+			function, _ := blockMap["func"].(string)
+			if strings.HasSuffix(function, "ServeHTTP") {
+				break
+			}
+
 			source, okSource := blockMap["source"].(string)
 			line, _ := blockMap["line"].(string)
-			function, _ := blockMap["func"].(string)
 			if okSource {
-				source = strings.TrimPrefix(source, projectPackagePrefix)
+				if strings.HasPrefix(source, projectPrefix) {
+					source = strings.TrimPrefix(source, projectPrefix)
+				} else {
+					source = ".../" + filepath.Base(source)
+				}
 				fileAndLine := source + ":" + line
 				function += "()"
-				stackStr += fmt.Sprintf("\t%s%-25s %s%30s\n", BLUE, fileAndLine, RESET, function)
+				stackStr += fmt.Sprintf("\t%s%-30s %s%30s\n", BLUE, fileAndLine, RESET, function)
 			}
 		}
 	}

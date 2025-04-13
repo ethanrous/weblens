@@ -33,7 +33,7 @@ func BackupD(ctx context_mod.ContextZ, interval time.Duration) {
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to get local instance for backup service")
 		return
 	}
-	if local.Role != tower_model.BackupServerRole {
+	if local.Role != tower_model.BackupTowerRole {
 		ctx.Log().Error().Msg("Backup service cannot be run on non-backup instance")
 		return
 	}
@@ -74,7 +74,7 @@ func DoBackup(tsk task_mod.Task) {
 		return
 	}
 
-	if meta.Core.Role != tower_model.CoreServerRole || (meta.Core.GetReportedRole() != "" && meta.Core.GetReportedRole() != tower_model.CoreServerRole) {
+	if meta.Core.Role != tower_model.CoreTowerRole || (meta.Core.GetReportedRole() != "" && meta.Core.GetReportedRole() != tower_model.CoreTowerRole) {
 		t.Fail(errors.Errorf("Remote role is [%s -- %s], expected core", meta.Core.Role, meta.Core.GetReportedRole()))
 	}
 
@@ -99,10 +99,10 @@ func DoBackup(tsk task_mod.Task) {
 	if err != nil {
 		t.Fail(err)
 	}
-	if local.Role == tower_model.InitServerRole {
-		t.ReqNoErr(tower_model.ErrServerNotInitialized)
-	} else if local.Role != tower_model.BackupServerRole {
-		t.ReqNoErr(tower_model.ErrServerIsBackup)
+	if local.Role == tower_model.InitTowerRole {
+		t.ReqNoErr(tower_model.ErrTowerNotInitialized)
+	} else if local.Role != tower_model.BackupTowerRole {
+		t.ReqNoErr(tower_model.ErrTowerNotFound)
 	}
 
 	stages := ""
@@ -114,7 +114,7 @@ func DoBackup(tsk task_mod.Task) {
 		t.Fail(err)
 	}
 
-	t.Ctx.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Backup latest action is %s", latestTime) })
+	t.Ctx.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Backup latest action is %s", latestTime.Timestamp) })
 
 	// stages.StartStage("fetching_backup_data")
 	t.SetResult(task_mod.TaskResult{"stages": stages})
@@ -235,7 +235,7 @@ func DoBackup(tsk task_mod.Task) {
 
 	// Check if the file already exists on the server and copy it if it doesn't
 	for _, a := range actions {
-		existingFile, err := ctx.FileService.GetFileByFilepath(a.GetRelevantPath())
+		existingFile, err := ctx.FileService.GetFileByFilepath(ctx, a.GetRelevantPath())
 		t.Ctx.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("File %s exists: %v", a.GetRelevantPath(), existingFile != nil) })
 
 		// If the file already exists, but is the wrong size, an earlier copy most likely failed. Delete it and copy it again.

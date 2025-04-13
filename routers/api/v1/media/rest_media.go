@@ -1,10 +1,11 @@
-package http
+package media
 
 import (
 	"encoding/json"
 	"net/http"
 	"strconv"
 
+	_ "github.com/ethanrous/weblens/docs"
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/reshape"
@@ -18,19 +19,19 @@ import (
 //	@Summary	Get paginated media
 //	@Tags		Media
 //	@Produce	json
-//	@Param		raw			query		bool				false	"Include raw files"		Enums(true, false)	default(false)
-//	@Param		hidden		query		bool				false	"Include hidden media"	Enums(true, false)	default(false)
-//	@Param		sort		query		string				false	"Sort by field"			Enums(createDate)	default(createDate)
-//	@Param		search		query		string				false	"Search string"
-//	@Param		page		query		int					false	"Page of medias to get"
-//	@Param		limit		query		int					false	"Number of medias to get"
-//	@Param		folderIds	query		string				false	"Search only in given folders"			SchemaExample([fId1, fId2])
-//	@Param		mediaIds	query		string				false	"Get only media with the provided ids"	SchemaExample([mId1, id2])
-//	@Success	200			{object}	rest.MediaBatchInfo	"Media Batch"
+//	@Param		raw			query		bool					false	"Include raw files"		Enums(true, false)	default(false)
+//	@Param		hidden		query		bool					false	"Include hidden media"	Enums(true, false)	default(false)
+//	@Param		sort		query		string					false	"Sort by field"			Enums(createDate)	default(createDate)
+//	@Param		search		query		string					false	"Search string"
+//	@Param		page		query		int						false	"Page of medias to get"
+//	@Param		limit		query		int						false	"Number of medias to get"
+//	@Param		folderIds	query		string					false	"Search only in given folders"			SchemaExample([fId1, fId2])
+//	@Param		mediaIds	query		string					false	"Get only media with the provided ids"	SchemaExample([mId1, id2])
+//	@Success	200			{object}	structs.MediaBatchInfo	"Media Batch"
 //	@Success	400
 //	@Success	500
 //	@Router		/media [get]
-func GetMediaBatch(ctx context.RequestContext) {
+func GetMediaBatch(ctx *context.RequestContext) {
 	folderIdsStr := ctx.Query("folderIds")
 	if folderIdsStr != "" {
 		var folderIds []string
@@ -141,9 +142,9 @@ func GetMediaBatch(ctx context.RequestContext) {
 //	@Summary	Get media type dictionary
 //	@Tags		Media
 //	@Produce	json
-//	@Success	200	{object}	rest.MediaTypeInfo	"Media types"
+//	@Success	200	{object}	structs.MediaTypeInfo	"Media types"
 //	@Router		/media/types  [get]
-func GetMediaTypes(ctx context.RequestContext) {
+func GetMediaTypes(ctx *context.RequestContext) {
 	ctx.W.Write([]byte(media_model.MediaTypeJson))
 }
 
@@ -160,14 +161,14 @@ func GetMediaTypes(ctx context.RequestContext) {
 //	@Success	200
 //	@Failure	500
 //	@Router		/media/cleanup  [post]
-func CleanupMedia(w http.ResponseWriter, r *http.Request) {
+func CleanupMedia(ctx *context.RequestContext) {
 	// pack := getServices(r)
 	// log := hlog.FromRequest(r)
 	// err := pack.MediaService.Cleanup()
 	// if SafeErrorAndExit(err, w, log) {
 	// 	return
 	// }
-	w.WriteHeader(http.StatusNotImplemented)
+	ctx.Status(http.StatusNotImplemented)
 }
 
 // DropMedia godoc
@@ -184,14 +185,14 @@ func CleanupMedia(w http.ResponseWriter, r *http.Request) {
 //	@Failure	403
 //	@Failure	500
 //	@Router		/media/drop  [post]
-func DropMedia(ctx context.RequestContext) {
+func DropMedia(ctx *context.RequestContext) {
 	err := media_model.DropMediaCollection(ctx)
 	if err != nil {
 		ctx.Logger.Error().Stack().Err(err).Msg("Failed to drop media collection")
 		ctx.Error(http.StatusInternalServerError, err)
 		return
 	}
-	ctx.W.WriteHeader(http.StatusOK)
+	ctx.Status(http.StatusOK)
 }
 
 // GetMediaInfo godoc
@@ -201,10 +202,10 @@ func DropMedia(ctx context.RequestContext) {
 //	@Summary	Get media info
 //	@Tags		Media
 //	@Produce	json
-//	@Param		mediaId	path		string			true	"Media Id"
-//	@Success	200		{object}	rest.MediaInfo	"Media Info"
+//	@Param		mediaId	path		string				true	"Media Id"
+//	@Success	200		{object}	structs.MediaInfo	"Media Info"
 //	@Router		/media/{mediaId}/info [get]
-func GetMediaInfo(ctx context.RequestContext) {
+func GetMediaInfo(ctx *context.RequestContext) {
 	mediaId := ctx.Path("mediaId")
 	m, err := media_model.GetMediaById(ctx, mediaId)
 	if err != nil {
@@ -230,7 +231,7 @@ func GetMediaInfo(ctx context.RequestContext) {
 //	@Success	200			{string}	binary	"image bytes"
 //	@Success	500
 //	@Router		/media/{mediaId}.{extension} [get]
-func GetMediaImage(ctx context.RequestContext) {
+func GetMediaImage(ctx *context.RequestContext) {
 	quality, ok := media_model.CheckMediaQuality(ctx.Query("quality"))
 	if !ok {
 		ctx.Error(http.StatusBadRequest, errors.New("Invalid quality parameter"))
@@ -307,17 +308,17 @@ func GetMediaImage(ctx context.RequestContext) {
 //	@Summary	Set media visibility
 //	@Tags		Media
 //	@Produce	json
-//	@Param		hidden		query	bool				true	"Set the media visibility"	Enums(true, false)
-//	@Param		mediaIds	body	rest.MediaIdsParams	true	"MediaIds to change visibility of"
+//	@Param		hidden		query	bool					true	"Set the media visibility"	Enums(true, false)
+//	@Param		mediaIds	body	structs.MediaIdsParams	true	"MediaIds to change visibility of"
 //	@Success	200
 //	@Success	404
 //	@Success	500
 //	@Router		/media/visibility [patch]
-func HideMedia(ctx context.RequestContext) {
-	ctx.W.WriteHeader(http.StatusNotImplemented)
+func HideMedia(ctx *context.RequestContext) {
+	ctx.Status(http.StatusNotImplemented)
 	// pack := getServices(r)
 	// log := hlog.FromRequest(r)
-	// body, err := readCtxBody[rest.MediaIdsParams](w, r)
+	// body, err := readCtxBody[structs.MediaIdsParams](w, r)
 	// if err != nil {
 	// 	return
 	// }
@@ -346,12 +347,12 @@ func HideMedia(ctx context.RequestContext) {
 	// w.WriteHeader(http.StatusOK)
 }
 
-func AdjustMediaDate(ctx context.RequestContext) {
-	ctx.W.WriteHeader(http.StatusNotImplemented)
+func AdjustMediaDate(ctx *context.RequestContext) {
+	ctx.Status(http.StatusNotImplemented)
 
 	// pack := getServices(r)
 	// log := hlog.FromRequest(r)
-	// body, err := readCtxBody[rest.MediaTimeBody](w, r)
+	// body, err := readCtxBody[structs.MediaTimeBody](w, r)
 	// if err != nil {
 	// 	return
 	// }
@@ -392,8 +393,8 @@ func AdjustMediaDate(ctx context.RequestContext) {
 //	@Failure	404
 //	@Failure	500
 //	@Router		/media/{mediaId}/liked [patch]
-func SetMediaLiked(ctx context.RequestContext) {
-	ctx.W.WriteHeader(http.StatusNotImplemented)
+func SetMediaLiked(ctx *context.RequestContext) {
+	ctx.Status(http.StatusNotImplemented)
 
 	// pack := getServices(r)
 	// log := hlog.FromRequest(r)
@@ -423,13 +424,13 @@ func SetMediaLiked(ctx context.RequestContext) {
 //	@Summary	Get file of media by id
 //	@Tags		Media
 //	@Produce	json
-//	@Param		mediaId	path		string			true	"Id of media"
-//	@Success	200		{object}	rest.FileInfo	"File info of file media was created from"
+//	@Param		mediaId	path		string				true	"Id of media"
+//	@Success	200		{object}	structs.FileInfo	"File info of file media was created from"
 //	@Success	404
 //	@Success	500
 //	@Router		/media/{mediaId}/file [get]
-func GetMediaFile(ctx context.RequestContext) {
-	ctx.W.WriteHeader(http.StatusNotImplemented)
+func GetMediaFile(ctx *context.RequestContext) {
+	ctx.Status(http.StatusNotImplemented)
 
 	// pack := getServices(r)
 	// log := hlog.FromRequest(r)
@@ -461,15 +462,43 @@ func GetMediaFile(ctx context.RequestContext) {
 	// 	}
 	// }
 	//
-	// fInfo, err := rest.WeblensFileToFileInfo(f, pack, false)
+	// fInfo, err := structs.WeblensFileToFileInfo(f, pack, false)
 	// if SafeErrorAndExit(err, w, log) {
 	// 	return
 	// }
 	// writeJson(w, http.StatusOK, fInfo)
 }
 
+// StreamVideo godoc
+//
+//	@Id			StreamVideo
+//
+//	@Security	SessionAuth
+//	@Security	ApiKeyAuth
+//
+//	@Summary	Stream a video
+//	@Tags		Media
+//	@Produce	octet-stream
+//	@Param		mediaId	path	string	true	"Id of media"
+//	@Success	200
+//	@Success	404
+//	@Success	500
+//	@Router		/media/{mediaId}/video [get]
+func StreamVideo(ctx *context.RequestContext) {
+	ctx.Status(http.StatusNotImplemented)
+
+	// pack := getServices(r)
+	// log := hlog.FromRequest(r)
+	// u, err := getUserFromCtx(r, true)
+	// if SafeErrorAndExit(err, w, log) {
+	// 	return
+	// }
+	//
+	// streamVideo(w, r)
+}
+
 // Helper function
-func getMediaInFolders(ctx context.RequestContext, folderIds []string) ([]*media_model.Media, error) {
+func getMediaInFolders(ctx *context.RequestContext, folderIds []string) ([]*media_model.Media, error) {
 	// var folders []*fileTree.WeblensFileImpl
 	// for _, folderId := range folderIds {
 	// 	f, err := pack.FileService.GetFileSafe(folderId, u, nil)
@@ -480,23 +509,23 @@ func getMediaInFolders(ctx context.RequestContext, folderIds []string) ([]*media
 	// }
 	//
 	// ms := pack.MediaService.RecursiveGetMedia(folders...)
-	// batch := rest.NewMediaBatchInfo(ms)
+	// batch := structs.NewMediaBatchInfo(ms)
 	//
 	// writeJson(w, http.StatusOK, batch)
 
-	ctx.W.WriteHeader(http.StatusNotImplemented)
+	ctx.Status(http.StatusNotImplemented)
 	return nil, nil
 }
 
 // Helper function
-func getProcessedMedia(ctx context.RequestContext, q media_model.MediaQuality, format string) {
-	ctx.W.WriteHeader(http.StatusNotImplemented)
+func getProcessedMedia(ctx *context.RequestContext, q media_model.MediaQuality, format string) {
+	ctx.Status(http.StatusNotImplemented)
 
 	// mediaId := chi.URLParam(r, "mediaId")
 	//
 	// m := pack.MediaService.Get(mediaId)
 	// if m == nil {
-	// 	writeJson(w, http.StatusNotFound, rest.WeblensErrorInfo{Error: "Media with given ID not found"})
+	// 	writeJson(w, http.StatusNotFound, structs.WeblensErrorInfo{Error: "Media with given ID not found"})
 	// 	return
 	// }
 	//
@@ -506,13 +535,13 @@ func getProcessedMedia(ctx context.RequestContext, q media_model.MediaQuality, f
 	// 	pageNum, err = strconv.Atoi(pageString)
 	// 	if err != nil {
 	// 		log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Bad page number trying to get fullres multi-page image") })
-	// 		writeJson(w, http.StatusBadRequest, rest.WeblensErrorInfo{Error: "bad page number"})
+	// 		writeJson(w, http.StatusBadRequest, structs.WeblensErrorInfo{Error: "bad page number"})
 	// 		return
 	// 	}
 	// }
 	//
 	// if q == models.Video && !pack.MediaService.GetMediaType(m).Video {
-	// 	writeJson(w, http.StatusBadRequest, rest.WeblensErrorInfo{Error: "media type is not video"})
+	// 	writeJson(w, http.StatusBadRequest, structs.WeblensErrorInfo{Error: "media type is not video"})
 	// 	return
 	// }
 	//

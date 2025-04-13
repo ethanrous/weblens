@@ -166,7 +166,7 @@ func wsCoreClientSwitchboard(ctx *context.AppContext, msgBuf []byte, c *client_m
 
 		var role tower_model.TowerRole
 		switch tower_model.TowerRole(roleStr) {
-		case tower_model.CoreServerRole, tower_model.BackupServerRole, tower_model.InitServerRole:
+		case tower_model.CoreTowerRole, tower_model.BackupTowerRole, tower_model.InitTowerRole:
 			role = tower_model.TowerRole(roleStr)
 		default:
 			c.Error(errors.Errorf("Invalid role in weblens_loaded message: %v", roleI))

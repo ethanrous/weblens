@@ -12,8 +12,9 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func getIndexFields(ctx *context.RequestContext, path, proxyAddress string) (fields indexFields) {
+func getIndexFields(ctx *context.RequestContext, proxyAddress string) (fields indexFields) {
 	var hasImage bool
+	path := ctx.Req.URL.Path
 
 	if path[0] == '/' {
 		path = path[1:]

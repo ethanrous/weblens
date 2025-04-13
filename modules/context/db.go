@@ -9,4 +9,6 @@ import (
 type DatabaseContext interface {
 	context.Context
 	Database() *mongo.Database
+	WithMongoSession(mongo.SessionContext)
+	GetMongoSession() mongo.SessionContext
 }

@@ -181,7 +181,7 @@ func SetSharePublic(ctx *context.RequestContext) {
 		return
 	}
 
-	ctx.W.WriteHeader(http.StatusOK)
+	ctx.Status(http.StatusOK)
 }
 
 // SetShareAccessors godoc
