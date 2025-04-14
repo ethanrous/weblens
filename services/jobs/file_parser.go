@@ -4,7 +4,6 @@ import (
 	"slices"
 	"time"
 
-	"github.com/ethanrous/weblens/models/client"
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/job"
 	media_model "github.com/ethanrous/weblens/models/media"
@@ -14,6 +13,7 @@ import (
 	"github.com/ethanrous/weblens/services/context"
 	file_service "github.com/ethanrous/weblens/services/file"
 	media_service "github.com/ethanrous/weblens/services/media"
+	"github.com/ethanrous/weblens/services/notify"
 	"github.com/ethanrous/weblens/services/reshape"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -27,13 +27,13 @@ func ScanDirectory(tsk task_mod.Task) {
 
 	t.SetErrorCleanup(func(tsk task_mod.Task) {
 		err := t.ReadError()
-		notif := client.NewTaskNotification(tsk.(*task.Task), websocket.TaskFailedEvent, task_mod.TaskResult{"error": err.Error()})
+		notif := notify.NewTaskNotification(tsk.(*task.Task), websocket.TaskFailedEvent, task_mod.TaskResult{"error": err.Error()})
 		t.Ctx.Notify(notif)
 	})
 
 	if file_service.IsFileInTrash(meta.File) {
 		// Let any client subscribers know we are done
-		notif := client.NewTaskNotification(t, websocket.FolderScanCompleteEvent, task_mod.TaskResult{"executionTime": t.ExeTime()})
+		notif := notify.NewTaskNotification(t, websocket.FolderScanCompleteEvent, task_mod.TaskResult{"executionTime": t.ExeTime()})
 		t.Ctx.Notify(notif)
 		t.Success("No media to scan")
 		return
@@ -65,8 +65,8 @@ func ScanDirectory(tsk task_mod.Task) {
 	// 	}
 	// }()
 
-	ctx.ClientService.FolderSubToTask(ctx, meta.File.ID(), t.Id())
-	ctx.ClientService.FolderSubToTask(ctx, meta.File.GetParentId(), t.Id())
+	ctx.ClientService.FolderSubToTask(ctx, meta.File.ID(), t)
+	ctx.ClientService.FolderSubToTask(ctx, meta.File.GetParentId(), t)
 	t.SetCleanup(func(tsk task_mod.Task) {
 		// Make sure we finish sending any messages to the client
 		// before we close unsubscribe from the task
@@ -120,7 +120,8 @@ func ScanDirectory(tsk task_mod.Task) {
 				File: mf,
 			}
 			log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Dispatching scanFile job for [%s]", mf.GetPortablePath()) })
-			newT, err := t.Ctx.DispatchJob(job.ScanFileTask, subMeta, pool)
+
+			newT, err := (&(*t.Ctx.(*context.AppContext))).WithLogger(&log.Logger).DispatchJob(job.ScanFileTask, subMeta, pool)
 			if err != nil {
 				return err
 			}
@@ -143,7 +144,7 @@ func ScanDirectory(tsk task_mod.Task) {
 		for i := range alreadyFiles {
 
 			mediaInfo := reshape.MediaToMediaInfo(alreadyMedia[i])
-			updates = append(updates, client.NewFileNotification(alreadyFiles[i], websocket.FileUpdatedEvent, mediaInfo)...)
+			updates = append(updates, notify.NewFileNotification(ctx, alreadyFiles[i], websocket.FileUpdatedEvent, mediaInfo)...)
 		}
 
 		t.Ctx.Notify(updates...)
@@ -168,10 +169,10 @@ func ScanDirectory(tsk task_mod.Task) {
 		result := task_mod.TaskResult{
 			"failedCount": len(errs),
 		}
-		taskNotif := client.NewTaskNotification(t, websocket.TaskFailedEvent, result)
+		taskNotif := notify.NewTaskNotification(t, websocket.TaskFailedEvent, result)
 		t.Ctx.Notify(taskNotif)
 
-		poolNotif := client.NewPoolNotification(pool, websocket.TaskFailedEvent, result)
+		poolNotif := notify.NewPoolNotification(pool, websocket.TaskFailedEvent, result)
 		t.Ctx.Notify(poolNotif)
 
 		t.Fail(errors.WithStack(task_mod.ErrChildTaskFailed))
@@ -181,7 +182,7 @@ func ScanDirectory(tsk task_mod.Task) {
 
 	// Let any client subscribers know we are done
 	result := getScanResult(t)
-	notif := client.NewPoolNotification(pool.GetRootPool(), websocket.FolderScanCompleteEvent, result)
+	notif := notify.NewPoolNotification(pool.GetRootPool(), websocket.FolderScanCompleteEvent, result)
 	t.Ctx.Notify(notif)
 
 	t.Ctx.Log().Debug().Func(func(e *zerolog.Event) { e.Msgf("Finished directory scan for %s", meta.File.GetPortablePath()) })
@@ -259,7 +260,7 @@ func ScanFile_(ctx *context.AppContext, meta job.ScanMeta) error {
 	// }
 
 	mediaInfo := reshape.MediaToMediaInfo(media)
-	notif := client.NewFileNotification(meta.File, websocket.FileUpdatedEvent, mediaInfo)
+	notif := notify.NewFileNotification(ctx, meta.File, websocket.FileUpdatedEvent, mediaInfo)
 	ctx.Notify(notif...)
 
 	return nil
@@ -275,9 +276,9 @@ func reportSubscanStatus(t task_mod.Task) {
 
 	var notif websocket.WsResponseInfo
 	if t.GetTaskPool().IsGlobal() {
-		notif = client.NewTaskNotification(tsk, event, getScanResult(tsk))
+		notif = notify.NewTaskNotification(tsk, event, getScanResult(tsk))
 	} else {
-		notif = client.NewPoolNotification(tsk.GetTaskPool(), event, getScanResult(tsk))
+		notif = notify.NewPoolNotification(tsk.GetTaskPool(), event, getScanResult(tsk))
 	}
 	tsk.Ctx.Notify(notif)
 }

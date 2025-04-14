@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/rs/zerolog"
 )
 
 var projectPackagePrefix string
@@ -27,6 +29,8 @@ type ConfigProvider struct {
 	Port string
 
 	ProxyAddress string
+
+	LogLevel zerolog.Level
 
 	UIPath            string
 	StaticContentPath string
@@ -55,6 +59,8 @@ func getDefaultConfig() ConfigProvider {
 
 		DataPath:  "/data",
 		CachePath: "/cahhe",
+
+		LogLevel: zerolog.InfoLevel,
 
 		WorkerCount: runtime.NumCPU(),
 	}
@@ -97,6 +103,12 @@ func getEnvOverride(config *ConfigProvider) {
 	}
 	if cachePath := os.Getenv("WEBLENS_CACHE_PATH"); cachePath != "" {
 		config.CachePath = handlePath(cachePath)
+	}
+	if logLevel := os.Getenv("WEBLENS_LOG_LEVEL"); logLevel != "" {
+		config.LogLevel, _ = zerolog.ParseLevel(logLevel)
+		if config.LogLevel == zerolog.NoLevel {
+			config.LogLevel = zerolog.InfoLevel
+		}
 	}
 }
 

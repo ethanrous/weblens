@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/models/auth"
-	"github.com/ethanrous/weblens/models/client"
 	"github.com/ethanrous/weblens/models/job"
 	"github.com/ethanrous/weblens/models/task"
 	task_model "github.com/ethanrous/weblens/models/task"
@@ -15,6 +14,7 @@ import (
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/journal"
+	"github.com/ethanrous/weblens/services/notify"
 	"github.com/ethanrous/weblens/services/proxy"
 	"github.com/ethanrous/weblens/services/reshape"
 	"github.com/pkg/errors"
@@ -43,13 +43,13 @@ func RestoreCore(tsk task_mod.Task) {
 	// Notify client of restore failure, if any
 	t.SetErrorCleanup(
 		func(errTsk task_mod.Task) {
-			t.Ctx.Notify(client.NewTaskNotification(errTsk.(*task_model.Task), websocket_mod.RestoreFailedEvent, task_mod.TaskResult{"error": errTsk.ReadError().Error()}))
+			t.Ctx.Notify(notify.NewTaskNotification(errTsk.(*task_model.Task), websocket_mod.RestoreFailedEvent, task_mod.TaskResult{"error": errTsk.ReadError().Error()}))
 		},
 	)
 
 	// Prime server to be restored. This will fail if the server is already initialized
 
-	t.Ctx.Notify(client.NewTaskNotification(
+	t.Ctx.Notify(notify.NewTaskNotification(
 		t, websocket_mod.RestoreProgressEvent, task_mod.TaskResult{"stage": "Connecting to remote", "timestamp": time.Now().UnixMilli()},
 	))
 
@@ -75,7 +75,7 @@ func RestoreCore(tsk task_mod.Task) {
 
 	// Restore journal
 	t.Ctx.Notify(
-		client.NewTaskNotification(t, websocket_mod.RestoreProgressEvent, task_mod.TaskResult{"stage": "Restoring file history", "timestamp": time.Now().UnixMilli()}),
+		notify.NewTaskNotification(t, websocket_mod.RestoreProgressEvent, task_mod.TaskResult{"stage": "Restoring file history", "timestamp": time.Now().UnixMilli()}),
 	)
 
 	actions, err := journal.GetAllActionsByTowerId(ctx, meta.Core.TowerId)
@@ -86,7 +86,7 @@ func RestoreCore(tsk task_mod.Task) {
 	t.ReqNoErr(err)
 
 	// Restore users
-	t.Ctx.Notify(client.NewTaskNotification(t, websocket_mod.RestoreProgressEvent, task_mod.TaskResult{"stage": "Restoring users", "timestamp": time.Now().UnixMilli()}))
+	t.Ctx.Notify(notify.NewTaskNotification(t, websocket_mod.RestoreProgressEvent, task_mod.TaskResult{"stage": "Restoring users", "timestamp": time.Now().UnixMilli()}))
 
 	users, err := user_model.GetAllUsers(t.Ctx)
 	if err != nil {
@@ -101,7 +101,7 @@ func RestoreCore(tsk task_mod.Task) {
 	t.ReqNoErr(err)
 
 	// Restore keys
-	t.Ctx.Notify(client.NewTaskNotification(t, websocket_mod.RestoreProgressEvent, task_mod.TaskResult{"stage": "Restoring api keys", "timestamp": time.Now().UnixMilli()}))
+	t.Ctx.Notify(notify.NewTaskNotification(t, websocket_mod.RestoreProgressEvent, task_mod.TaskResult{"stage": "Restoring api keys", "timestamp": time.Now().UnixMilli()}))
 
 	tokens, err := auth.GetAllTokensByTowerId(ctx, meta.Core.TowerId)
 	if err != nil {
@@ -112,7 +112,7 @@ func RestoreCore(tsk task_mod.Task) {
 	t.ReqNoErr(err)
 
 	// Restore instances
-	t.Ctx.Notify(client.NewTaskNotification(
+	t.Ctx.Notify(notify.NewTaskNotification(
 		t, websocket_mod.RestoreProgressEvent, task_mod.TaskResult{"stage": "Restoring api keys", "timestamp": time.Now().UnixMilli()},
 	))
 
@@ -124,7 +124,7 @@ func RestoreCore(tsk task_mod.Task) {
 	t.ReqNoErr(err)
 
 	// Restore files
-	// t.Ctx.Notify(client.NewTaskNotification(
+	// t.Ctx.Notify(notify.NewTaskNotification(
 	// 	t, websocket_mod.RestoreProgressEvent, task_mod.TaskResult{"stage": "Restoring files", "timestamp": time.Now().UnixMilli()},
 	// ))
 	// for i, lt := range lts {
@@ -158,7 +158,7 @@ func RestoreCore(tsk task_mod.Task) {
 	// 		t.ReqNoErr(err)
 	// 	}
 	//
-	// 	t.Ctx.Notify(client.NewTaskNotification(t, websocket_mod.RestoreProgressEvent, task_mod.TaskResult{"filesTotal": len(lts), "filesRestored": i}))
+	// 	t.Ctx.Notify(notify.NewTaskNotification(t, websocket_mod.RestoreProgressEvent, task_mod.TaskResult{"filesTotal": len(lts), "filesRestored": i}))
 	// }
 
 	_, err = proxy.NewCoreRequest(meta.Core, "POST", "/restore/complete").Call()
@@ -167,7 +167,7 @@ func RestoreCore(tsk task_mod.Task) {
 	}
 
 	meta.Core.SetReportedRole(tower_model.CoreTowerRole)
-	t.Ctx.Notify(client.NewTaskNotification(t, websocket_mod.RestoreCompleteEvent, nil))
+	t.Ctx.Notify(notify.NewTaskNotification(t, websocket_mod.RestoreCompleteEvent, nil))
 
 	// Disconnect the core client to force a reconnection
 	// coreClient := meta.Pack.ClientService.GetClientByServerId(meta.Core.TowerId)

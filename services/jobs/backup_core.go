@@ -6,7 +6,6 @@ import (
 	"time"
 
 	token_model "github.com/ethanrous/weblens/models/auth"
-	"github.com/ethanrous/weblens/models/client"
 	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
 	history_model "github.com/ethanrous/weblens/models/history"
@@ -21,6 +20,7 @@ import (
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/services/context"
 	file_service "github.com/ethanrous/weblens/services/file"
+	"github.com/ethanrous/weblens/services/notify"
 	"github.com/ethanrous/weblens/services/proxy"
 	"github.com/ethanrous/weblens/services/reshape"
 	"github.com/pkg/errors"
@@ -82,7 +82,7 @@ func DoBackup(tsk task_mod.Task) {
 
 	t.OnResult(
 		func(r task_mod.TaskResult) {
-			notif := client.NewTaskNotification(t, websocket_mod.BackupCompleteEvent, r)
+			notif := notify.NewTaskNotification(t, websocket_mod.BackupCompleteEvent, r)
 			t.Ctx.Notify(notif)
 		},
 	)
@@ -90,7 +90,7 @@ func DoBackup(tsk task_mod.Task) {
 	t.SetErrorCleanup(
 		func(errTsk task_mod.Task) {
 			err := errTsk.ReadError()
-			notif := client.NewTaskNotification(t, websocket_mod.BackupFailedEvent, task_mod.TaskResult{"coreId": meta.Core.TowerId, "error": err.Error()})
+			notif := notify.NewTaskNotification(t, websocket_mod.BackupFailedEvent, task_mod.TaskResult{"coreId": meta.Core.TowerId, "error": err.Error()})
 			t.Ctx.Notify(notif)
 		},
 	)
@@ -278,7 +278,7 @@ func DoBackup(tsk task_mod.Task) {
 			}
 		}
 
-		restoreFile, err := ctx.FileService.CreateFile(restoreRoot, a.ContentId)
+		restoreFile, err := ctx.FileService.CreateFile(ctx, restoreRoot, a.ContentId)
 		if err != nil {
 			t.Fail(err)
 		}
@@ -336,7 +336,7 @@ func DoBackup(tsk task_mod.Task) {
 		"totalTime":  t.ExeTime(),
 	})
 
-	endNotif := client.NewTaskNotification(t, websocket_mod.BackupCompleteEvent, t.GetResults())
+	endNotif := notify.NewTaskNotification(t, websocket_mod.BackupCompleteEvent, t.GetResults())
 	t.Ctx.Notify(endNotif)
 
 	t.Success()

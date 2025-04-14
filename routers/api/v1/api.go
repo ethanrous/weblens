@@ -76,6 +76,14 @@ func Routes() *router.Router {
 
 	// Files
 	r.Group("/files", func() {
+		r.Patch("", file_api.MoveFiles)
+		r.Delete("", file_api.DeleteFiles)
+		r.Get("/search", file_api.SearchByFilename)
+		r.Get("/autocomplete", file_api.AutocompletePath)
+		r.Patch("/untrash", file_api.UnTrashFiles)
+		r.Post("/restore", file_api.RestoreFiles)
+		r.Get("/shared", file_api.GetSharedFiles)
+
 		r.Group("/{fileId}", func() {
 			r.Get("", file_api.GetFile)
 			r.Patch("", file_api.UpdateFile)
@@ -84,14 +92,6 @@ func Routes() *router.Router {
 			r.Get("/download", file_api.DownloadFile)
 			r.Get("/history", file_api.GetFolderHistory)
 		})
-
-		r.Patch("", file_api.MoveFiles)
-		r.Delete("", file_api.DeleteFiles)
-		r.Get("/search", file_api.SearchByFilename)
-		r.Get("/autocomplete", file_api.AutocompletePath)
-		r.Patch("/untrash", file_api.UnTrashFiles)
-		r.Post("/restore", file_api.RestoreFiles)
-		r.Get("/shared", file_api.GetSharedFiles)
 	})
 
 	// Folder

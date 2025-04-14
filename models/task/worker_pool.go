@@ -340,6 +340,41 @@ func (wp *WorkerPool) safetyWork(task *Task, workerId int64) {
 
 }
 
+func (wp *WorkerPool) cleanup(task *Task, workerId int64) {
+	defer wp.workerRecover(task, workerId)
+
+	// Run the cleanup routine for errors, if any
+	if task.exitStatus == task_mod.TaskError || task.exitStatus == task_mod.TaskCanceled {
+		task.Ctx.Log().Trace().Msgf("Running error cleanup")
+		for _, ecf := range task.errorCleanup {
+			ecf(task)
+		}
+		task.Ctx.Log().Trace().Msgf("Finished error cleanup")
+	}
+
+	// We want the pool completed and error count to reflect the task has completed
+	// when we are doing cleanup. Cleanup is intended to execute "after" the task
+	// has finished, so we must inc the completed tasks counter (above) before cleanup
+	task.Ctx.Log().Trace().Msgf("Running cleanup(s)")
+	task.updateMu.RLock()
+	cleanups := task.cleanups
+	task.updateMu.RUnlock()
+	for _, cf := range cleanups {
+		cf(task)
+	}
+	task.Ctx.Log().Trace().Msgf("Finished cleanup")
+
+	// The post action is intended to run after the task has completed, and after
+	// the cleanup has run. This is useful for tasks that need to use the result of
+	// the task to do something else, but don't want to block until the task is done
+	if task.postAction != nil && task.exitStatus == task_mod.TaskSuccess {
+		task.Ctx.Log().Trace().Msg("Running task post-action")
+		task.postAction(task.result)
+		task.Ctx.Log().Trace().Msg("Finished task post-action")
+	}
+
+}
+
 func (wp *WorkerPool) AddHit(time time.Time, target task_mod.Task) {
 	wp.hitStream <- hit{time: time, target: target.(*Task)}
 }
@@ -545,35 +580,7 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 
 					directParent.IncCompletedTasks(1)
 
-					// Run the cleanup routine for errors, if any
-					if t.exitStatus == task_mod.TaskError || t.exitStatus == task_mod.TaskCanceled {
-						t.Ctx.Log().Trace().Msgf("Running error cleanup")
-						for _, ecf := range t.errorCleanup {
-							ecf(t)
-						}
-						t.Ctx.Log().Trace().Msgf("Finished error cleanup")
-					}
-
-					// We want the pool completed and error count to reflect the task has completed
-					// when we are doing cleanup. Cleanup is intended to execute "after" the task
-					// has finished, so we must inc the completed tasks counter (above) before cleanup
-					t.Ctx.Log().Trace().Msgf("Running cleanup(s)")
-					t.updateMu.RLock()
-					cleanups := t.cleanups
-					t.updateMu.RUnlock()
-					for _, cf := range cleanups {
-						cf(t)
-					}
-					t.Ctx.Log().Trace().Msgf("Finished cleanup")
-
-					// The post action is intended to run after the task has completed, and after
-					// the cleanup has run. This is useful for tasks that need to use the result of
-					// the task to do something else, but don't want to block until the task is done
-					if t.postAction != nil && t.exitStatus == task_mod.TaskSuccess {
-						t.Ctx.Log().Trace().Msg("Running task post-action")
-						t.postAction(t.result)
-						t.Ctx.Log().Trace().Msg("Finished task post-action")
-					}
+					wp.cleanup(t, workerId)
 
 					if directParent.IsRoot() {
 						// Updating the number of workers and then checking it's value is dangerous

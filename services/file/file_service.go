@@ -229,30 +229,35 @@ func (fs *FileServiceImpl) DeleteCacheFile(f *file_model.WeblensFileImpl) error 
 	return remove(f.GetPortablePath())
 }
 
-func (fs *FileServiceImpl) CreateFile(parent *file_model.WeblensFileImpl, filename string, data ...[]byte) (
+func (fs *FileServiceImpl) CreateFile(ctx context_mod.ContextZ, parent *file_model.WeblensFileImpl, filename string, data ...[]byte) (
 	*file_model.WeblensFileImpl, error,
 ) {
 	childPath := parent.GetPortablePath().Child(filename, false)
 
-	child, err := touch(childPath)
+	newF, err := touch(childPath)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, d := range data {
-		_, err = child.Write(d)
+		_, err = newF.Write(d)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	child.SetParent(parent)
-	err = parent.AddChild(child)
+	newF.SetParent(parent)
+	err = parent.AddChild(newF)
 	if err != nil {
 		return nil, err
 	}
 
-	return child, nil
+	action := history.NewCreateAction(childPath, 0, "")
+	history.SaveAction(ctx, action)
+
+	newF.SetId(action.FileId)
+
+	return newF, nil
 }
 
 func (fs *FileServiceImpl) CreateFolder(ctx context_mod.ContextZ, parent *file_model.WeblensFileImpl, folderName string) (*file_model.WeblensFileImpl, error) {
@@ -727,10 +732,10 @@ func (fs *FileServiceImpl) MoveFiles(ctx context_mod.ContextZ, files []*file_mod
 	}
 
 	// prevParent := files[0].GetParent()
-	moveUpdates := map[string][]*file_model.WeblensFileImpl{}
+	// moveUpdates := map[string][]*file_model.WeblensFileImpl{}
 
 	for _, file := range files {
-		preFile := file.Freeze()
+		// preFile := file.Freeze()
 		newFilename, err := MakeUniqueChildName(destFolder.GetPortablePath(), file.GetPortablePath().Filename())
 
 		err = rename(file.GetPortablePath(), newFilename)
@@ -738,12 +743,18 @@ func (fs *FileServiceImpl) MoveFiles(ctx context_mod.ContextZ, files []*file_mod
 			return err
 		}
 
-		key := preFile.GetParentId() + "->" + file.GetParentId()
-		if moveUpdates[key] == nil {
-			moveUpdates[key] = []*file_model.WeblensFileImpl{file}
-		} else {
-			moveUpdates[key] = append(moveUpdates[key], file)
-		}
+		// Remove the file from the old parent
+		oldParent := file.GetParent()
+		oldParent.RemoveChild(file.GetPortablePath().Filename())
+		// Add the file to the new parent
+		destFolder.AddChild(file)
+
+		// key := preFile.GetParentId() + "->" + file.GetParentId()
+		// if moveUpdates[key] == nil {
+		// 	moveUpdates[key] = []*file_model.WeblensFileImpl{file}
+		// } else {
+		// 	moveUpdates[key] = append(moveUpdates[key], file)
+		// }
 	}
 
 	// TODO: Implelement caster calls

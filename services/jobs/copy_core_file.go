@@ -4,13 +4,13 @@ import (
 	"io"
 	"time"
 
-	"github.com/ethanrous/weblens/models/client"
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/job"
 	task_model "github.com/ethanrous/weblens/models/task"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/services/notify"
 	"github.com/ethanrous/weblens/services/proxy"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -28,7 +28,7 @@ func CopyFileFromCore(tsk task_mod.Task) {
 
 	t.SetErrorCleanup(func(tsk task_mod.Task) {
 		t := tsk.(*task_model.Task)
-		failNotif := client.NewTaskNotification(t, websocket_mod.CopyFileFailedEvent, task_mod.TaskResult{"filename": meta.Filename, "coreId": meta.Core.TowerId})
+		failNotif := notify.NewTaskNotification(t, websocket_mod.CopyFileFailedEvent, task_mod.TaskResult{"filename": meta.Filename, "coreId": meta.Core.TowerId})
 		t.Ctx.Notify(failNotif)
 
 		rmErr := ctx.FileService.DeleteFiles(t.Ctx, []*file_model.WeblensFileImpl{meta.File})
@@ -43,7 +43,7 @@ func CopyFileFromCore(tsk task_mod.Task) {
 	}
 
 	t.Ctx.Notify(
-		client.NewPoolNotification(
+		notify.NewPoolNotification(
 			t.GetTaskPool(),
 			websocket_mod.CopyFileStartedEvent,
 			task_mod.TaskResult{"filename": filename, "coreId": meta.Core.TowerId, "timestamp": time.Now().UnixMilli()},
@@ -78,7 +78,7 @@ func CopyFileFromCore(tsk task_mod.Task) {
 	poolProgress["filename"] = filename
 	poolProgress["coreId"] = meta.Core.TowerId
 
-	t.Ctx.Notify(client.NewPoolNotification(t.GetTaskPool(), websocket_mod.CopyFileCompleteEvent, poolProgress))
+	t.Ctx.Notify(notify.NewPoolNotification(t.GetTaskPool(), websocket_mod.CopyFileCompleteEvent, poolProgress))
 
 	t.Success()
 }

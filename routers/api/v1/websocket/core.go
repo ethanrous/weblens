@@ -11,6 +11,7 @@ import (
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/jobs"
+	"github.com/ethanrous/weblens/services/notify"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -63,7 +64,7 @@ func WebsocketToCore(ctx *context.RequestContext, core *tower_model.Instance) er
 				e.Msgf("Connection to core [%s] at [%s] successfully established", core.Name, coreUrl.String())
 			})
 
-			notif := client_model.NewSystemNotification(
+			notif := notify.NewSystemNotification(
 				websocket_mod.RemoteConnectionChangedEvent, websocket_mod.WsData{
 					"serverId": core.TowerId,
 					"online":   true,
@@ -72,7 +73,7 @@ func WebsocketToCore(ctx *context.RequestContext, core *tower_model.Instance) er
 			ctx.Notify(notif)
 
 			coreWsHandler(&ctx.AppContext, client)
-			notif = client_model.NewSystemNotification(
+			notif = notify.NewSystemNotification(
 				websocket_mod.RemoteConnectionChangedEvent, websocket_mod.WsData{
 					"serverId": core.TowerId,
 					"online":   false,

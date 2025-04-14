@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethanrous/weblens/models/client"
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/job"
 	"github.com/ethanrous/weblens/models/task"
@@ -17,6 +16,7 @@ import (
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/services/notify"
 	"github.com/pkg/errors"
 	"github.com/saracen/fastzip"
 )
@@ -79,13 +79,13 @@ func CreateZip(tsk task_mod.Task) {
 	if zipExists {
 		t.SetResult(task_mod.TaskResult{"takeoutId": zipFile.ID(), "filename": zipFile.GetPortablePath().Filename()})
 		// Let any client subscribers know we are done
-		notif := client.NewTaskNotification(t, websocket.ZipCompleteEvent, t.GetResults())
+		notif := notify.NewTaskNotification(t, websocket.ZipCompleteEvent, t.GetResults())
 		ctx.Notify(notif)
 		t.Success()
 		return
 	}
 
-	notif := client.NewTaskNotification(t, websocket.TaskCreatedEvent, task_mod.TaskResult{"totalFiles": len(filesInfoMap)})
+	notif := notify.NewTaskNotification(t, websocket.TaskCreatedEvent, task_mod.TaskResult{"totalFiles": len(filesInfoMap)})
 	ctx.Notify(notif)
 	t.Success()
 
@@ -154,7 +154,7 @@ func CreateZip(tsk task_mod.Task) {
 			byteDiff := bytes - prevBytes
 			timeNs := updateInterval * sinceUpdate
 
-			notif := client.NewTaskNotification(t, websocket.ZipProgressEvent,
+			notif := notify.NewTaskNotification(t, websocket.ZipProgressEvent,
 				task_mod.TaskResult{
 					"completedFiles": int(entries), "totalFiles": totalFiles,
 					"bytesSoFar": bytes,
@@ -174,7 +174,7 @@ func CreateZip(tsk task_mod.Task) {
 
 	t.SetResult(task_mod.TaskResult{"takeoutId": zipFile.ID(), "filename": zipFile.GetPortablePath().Filename()})
 
-	notif = client.NewTaskNotification(t, websocket.ZipCompleteEvent, t.GetResults())
+	notif = notify.NewTaskNotification(t, websocket.ZipCompleteEvent, t.GetResults())
 	ctx.Notify(notif)
 
 	t.Success()

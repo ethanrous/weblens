@@ -144,9 +144,12 @@ func wsWebClientSwitchboard(ctx *context_service.RequestContext, msgBuf []byte, 
 				return errors.WithStack(err)
 			}
 
-			share, err := share_model.GetShareById(ctx, subInfo.GetShareId())
-			if err != nil {
-				return errors.WithStack(err)
+			var share *share_model.FileShare
+			if subInfo.GetShareId() != "" {
+				share, err = share_model.GetShareById(ctx, subInfo.GetShareId())
+				if err != nil {
+					return errors.WithStack(err)
+				}
 			}
 
 			f, err := ctx.FileService.GetFileById(subInfo.GetKey())
@@ -169,7 +172,7 @@ func wsWebClientSwitchboard(ctx *context_service.RequestContext, msgBuf []byte, 
 
 			complete, _ := t.Status()
 			if complete {
-				notif := client_model.NewTaskNotification(t, websocket_mod.TaskCompleteEvent, t.GetResults())
+				notif := notify.NewTaskNotification(t, websocket_mod.TaskCompleteEvent, t.GetResults())
 				err = c.Send(notif)
 				if err != nil {
 					return errors.WithStack(err)
@@ -212,9 +215,12 @@ func wsWebClientSwitchboard(ctx *context_service.RequestContext, msgBuf []byte, 
 				return tower_model.ErrTowerIsBackup
 			}
 
-			share, err := share_model.GetShareById(ctx, subInfo.GetShareId())
-			if err != nil {
-				return err
+			var share *share_model.FileShare
+			if subInfo.GetShareId() != "" {
+				share, err = share_model.GetShareById(ctx, subInfo.GetShareId())
+				if err != nil {
+					return err
+				}
 			}
 
 			folder, err := ctx.FileService.GetFileById(subInfo.GetKey())
@@ -257,7 +263,7 @@ func wsWebClientSwitchboard(ctx *context_service.RequestContext, msgBuf []byte, 
 			}
 
 			task.Cancel()
-			notif := client_model.NewTaskNotification(task, websocket_mod.TaskCanceledEvent, nil)
+			notif := notify.NewTaskNotification(task, websocket_mod.TaskCanceledEvent, nil)
 			ctx.Notify(notif)
 		}
 
@@ -340,7 +346,7 @@ func onWebConnect(ctx *context_service.RequestContext, c *client_model.WsClient)
 			if len(r) == 0 {
 				continue
 			}
-			notif := client_model.NewTaskNotification(backupTask, websocket_mod.BackupProgressEvent, r)
+			notif := notify.NewTaskNotification(backupTask, websocket_mod.BackupProgressEvent, r)
 			err = c.Send(notif)
 		}
 	}
@@ -363,5 +369,5 @@ func wsRecover(ctx context.LoggerContext, c *client_model.WsClient) {
 		name = u.GetUsername()
 	}
 
-	ctx.Log().Error().Stack().Err(err).Msgf("Websocket connection for user %s panicked: %v", name, err)
+	ctx.Log().Error().Stack().Err(errors.WithStack(err)).Msgf("Websocket connection for user %s panicked: %v", name, err)
 }

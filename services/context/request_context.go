@@ -132,6 +132,10 @@ func (c *RequestContext) Header(headerName string) string {
 
 // Set the HTTP status code for the response.
 func (c *RequestContext) Status(code int) {
+	if code >= 400 {
+		c.Log().Trace().CallerSkipFrame(1).Caller().Msgf("Setting response code [%d]", code)
+	}
+
 	c.W.WriteHeader(code)
 }
 

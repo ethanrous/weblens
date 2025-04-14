@@ -34,7 +34,7 @@ type FileService interface {
 	// UserPathToFile(searchPath string, user *user_model.User) (*WeblensFileImpl, error)
 
 	// CreateFile creates a new file
-	CreateFile(parent *WeblensFileImpl, filename string, data ...[]byte) (*WeblensFileImpl, error)
+	CreateFile(ctx context.ContextZ, parent *WeblensFileImpl, filename string, data ...[]byte) (*WeblensFileImpl, error)
 
 	// CreateFolder creates a new folder
 	CreateFolder(ctx context.ContextZ, parent *WeblensFileImpl, folderName string) (*WeblensFileImpl, error)

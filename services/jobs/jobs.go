@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethanrous/weblens/models/client"
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/job"
 	job_model "github.com/ethanrous/weblens/models/job"
@@ -20,12 +19,15 @@ import (
 	"github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/services/context"
 	file_service "github.com/ethanrous/weblens/services/file"
+	"github.com/ethanrous/weblens/services/notify"
 	"github.com/ethanrous/weblens/services/reshape"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
 
 func parseRangeHeader(contentRange string) (min, max, total int64, err error) {
+	contentRange = strings.TrimPrefix(contentRange, "bytes=")
+
 	rangeAndSize := strings.Split(contentRange, "/")
 	rangeParts := strings.Split(rangeAndSize[0], "-")
 
@@ -131,7 +133,7 @@ func HandleFileUploads(tsk task_mod.Task) {
 			media, _ := media_model.GetMediaById(ctx, tl.GetContentId())
 			if tl.IsDir() {
 				mediaInfo := reshape.MediaToMediaInfo(media)
-				notif := client.NewFileNotification(tl, websocket.FileUpdatedEvent, mediaInfo)
+				notif := notify.NewFileNotification(ctx, tl, websocket.FileUpdatedEvent, mediaInfo)
 				ctx.Notify(notif...)
 			}
 		}
@@ -240,7 +242,7 @@ WriterLoop:
 				}
 
 				if !chnk.File.IsDir() {
-					notif := client.NewFileNotification(chnk.File, websocket.FileCreatedEvent, structs.MediaInfo{})
+					notif := notify.NewFileNotification(ctx, chnk.File, websocket.FileCreatedEvent, structs.MediaInfo{})
 					ctx.Notify(notif...)
 				}
 
@@ -353,7 +355,7 @@ func HashFile(tsk task_mod.Task) {
 	t.SetResult(task_mod.TaskResult{"contentId": contentId})
 
 	poolStatus := t.GetTaskPool().Status()
-	notif := client.NewTaskNotification(
+	notif := notify.NewTaskNotification(
 		t, websocket.TaskCompleteEvent, task_mod.TaskResult{
 			"filename":      meta.File.GetPortablePath().Filename(),
 			"tasksTotal":    poolStatus.Total,

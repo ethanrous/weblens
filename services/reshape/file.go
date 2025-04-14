@@ -4,12 +4,13 @@ import (
 	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
 	share_model "github.com/ethanrous/weblens/models/share"
+	context_mod "github.com/ethanrous/weblens/modules/context"
 	"github.com/ethanrous/weblens/modules/structs"
-	"github.com/ethanrous/weblens/services/context"
 	file_service "github.com/ethanrous/weblens/services/file"
 )
 
-func WeblensFileToFileInfo(ctx *context.AppContext, f *file_model.WeblensFileImpl, isPastFile bool) (structs.FileInfo, error) {
+func WeblensFileToFileInfo(ctx context_mod.ContextZ, f *file_model.WeblensFileImpl, isPastFile bool) (structs.FileInfo, error) {
+
 	// Some fields are only needed if the file is the parent file of the request,
 	// when the file is a child, these fields are not needed, and can be expensive to fetch,
 	// so we conditionally ignore them.
@@ -49,7 +50,7 @@ func WeblensFileToFileInfo(ctx *context.AppContext, f *file_model.WeblensFileImp
 	if !isPastFile || f.IsDir() || f.Exists() {
 		hasRestoreMedia = true
 	} else {
-		ctx.FileService.GetFileById(f.ID())
+		// ctx.(context_mod.AppContexter).AppCtx().(*context.AppContext).FileService.GetFileById(f.ID())
 		// TODO: check if the file is in the restore media tree
 		if err == nil {
 			hasRestoreMedia = true

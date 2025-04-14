@@ -13,7 +13,7 @@ tmp_dir = "tmp"
   exclude_regex = ["_test.go"]
   exclude_unchanged = false
   follow_symlink = false
-  full_bin = "LOG_FORMAT=dev APP_ROOT=$PWD GORACE='halt_on_error=1' CGO_CFLAGS_ALLOW='-Xpreprocessor' WEBLENS_UI_PATH=./ui/dist/ WEBLENS_DATA_PATH=./build/fs/core/data/ ./build/bin/weblens"
+  full_bin = "LOG_FORMAT=dev APP_ROOT=$PWD GORACE='halt_on_error=1' CGO_CFLAGS_ALLOW='-Xpreprocessor' WEBLENS_LOG_LEVEL=trace WEBLENS_UI_PATH=./ui/dist/ WEBLENS_DATA_PATH=./build/fs/core/data/ ./build/bin/weblens"
   include_dir = []
   include_ext = ["go", "tpl", "tmpl", "html"]
   include_file = []

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethanrous/weblens/modules/config"
 	"github.com/opensearch-project/opensearch-go/v4"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
@@ -97,10 +98,16 @@ func NewZeroLogger() *zerolog.Logger {
 		}
 	}
 
+	logLevel := config.GetConfig().LogLevel
+	zerolog.SetGlobalLevel(logLevel)
+
 	multi := zerolog.MultiLevelWriter(writers...)
-	log := zerolog.New(multi).Level(zerolog.DebugLevel).With().Timestamp().Caller().Str("weblens_build_version", wl_version).Logger()
+	log := zerolog.New(multi).Level(logLevel).With().Timestamp().Caller().Str("weblens_build_version", wl_version).Logger()
 	logger = &log
 	zlog.Logger = log
+
+	log.Info().Msgf("Weblens logger initialized [%s]", log.GetLevel())
+	log.Trace().Msgf("Weblens logger initialized [%s]", logLevel.String())
 
 	return &log
 }
@@ -120,29 +127,13 @@ func (l WLConsoleLogger) Write(p []byte) (n int, err error) {
 		caller = callerI.(string)
 		caller = strings.TrimPrefix(caller, projectPrefix)
 	}
-	// pc, filename, line, ok := runtime.Caller(6)
-	// if ok {
-	// 	fn := runtime.FuncForPC(pc)
-	// 	var fnName string
-	// 	if fn != nil {
-	// 		fnName = fn.Name()
-	// 		fnName = strings.ReplaceAll(fnName, "[...]", "") + "()" // generic function names are "foo[...]"
-	//
-	// 		slash := strings.LastIndex(fnName, "/") + 1
-	// 		dot := strings.LastIndex(fnName[slash:], ".") + 1
-	//
-	// 		fnName = fnName[slash+dot:]
-	// 	}
-	// 	filename = strings.TrimPrefix(filename, projectPackagePrefix)
-	// 	caller = fmt.Sprintf("%s:%d:%s", filename, line, fnName)
-	// }
 
 	level, _ := target["level"].(string)
 	msgErr, _ := target["error"].(string)
 	logMsg, _ := target["message"].(string)
 	traceback, _ := target["traceback"].([]any)
 
-	if false {
+	if level == zerolog.TraceLevel.String() {
 		ignoredKeys := []string{"level", "error", "message", "weblens_build_version", "caller", "@timestamp", "traceback", "instance"}
 		extras := ""
 		for k, v := range target {

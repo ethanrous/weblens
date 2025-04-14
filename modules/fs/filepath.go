@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"strings"
 
@@ -57,6 +58,10 @@ func IsZeroFilepath(wf Filepath) bool {
 
 func (wf Filepath) IsZero() bool {
 	return wf.RootAlias == "" && wf.RelPath == ""
+}
+
+func (wf Filepath) IsRoot() bool {
+	return wf.RootAlias != "" && wf.RelPath == ""
 }
 
 func (wf Filepath) RootName() string {
@@ -133,7 +138,7 @@ func (wf Filepath) String() string {
 	return wf.ToPortable()
 }
 func (wf Filepath) MarshalJSON() ([]byte, error) {
-	return []byte(wf.ToPortable()), nil
+	return json.Marshal([]byte(wf.ToPortable()))
 }
 
 func (wf *Filepath) UnmarshalJSON(b []byte) error {

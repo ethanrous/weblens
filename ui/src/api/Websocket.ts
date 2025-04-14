@@ -271,6 +271,7 @@ function filebrowserWebsocketHandler(
 					msgData.content.fileInfo.contentId = newM.Id()
 				}
 
+				console.log("FILE INFO", msgData.content.fileInfo)
 				useFileBrowserStore
 					.getState()
 					.updateFile(msgData.content.fileInfo)

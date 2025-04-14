@@ -32,7 +32,7 @@ type WsClient struct {
 	log *zerolog.Logger
 }
 
-func NewClient(ctx context.ContextZ, conn *websocket.Conn, socketUser SocketUser) *WsClient {
+func NewClient(ctx context.LoggerContext, conn *websocket.Conn, socketUser SocketUser) *WsClient {
 	clientId := uuid.New().String()
 
 	newClient := &WsClient{
@@ -95,10 +95,10 @@ func (wsc *WsClient) ReadOne() (int, []byte, error) {
 }
 
 func (wsc *WsClient) Error(err error) {
-	err = wsc.Send(websocket_mod.WsResponseInfo{EventTag: websocket_mod.ErrorEvent, Error: err.Error()})
 	if err != nil {
-		wsc.log.Error().Stack().Err(err).Msg("")
+		wsc.log.Error().Stack().Err(err).Msg("Websocket error")
 	}
+	err = wsc.Send(websocket_mod.WsResponseInfo{EventTag: websocket_mod.ErrorEvent, Error: err.Error()})
 }
 
 func (wsc *WsClient) GetSubscriptions() iter.Seq[websocket_mod.Subscription] {
@@ -112,7 +112,7 @@ func (wsc *WsClient) AddSubscription(sub websocket_mod.Subscription) {
 	defer wsc.updateMu.Unlock()
 	wsc.subscriptions = append(wsc.subscriptions, sub)
 
-	wsc.log.Debug().Func(func(e *zerolog.Event) { e.Str("websocket_subscribe_key", sub.SubscriptionId).Msg("Added Subscription") })
+	wsc.log.Trace().Func(func(e *zerolog.Event) { e.Str("websocket_subscribe_key", sub.SubscriptionId).Msg("Added Subscription") })
 }
 
 func (wsc *WsClient) RemoveSubscription(key string) {

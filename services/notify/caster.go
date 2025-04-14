@@ -1,4 +1,4 @@
-package client
+package notify
 
 import (
 	"sync"
@@ -8,9 +8,11 @@ import (
 	file_model "github.com/ethanrous/weblens/models/file"
 	share_model "github.com/ethanrous/weblens/models/share"
 	task_model "github.com/ethanrous/weblens/models/task"
+	"github.com/ethanrous/weblens/modules/context"
 	"github.com/ethanrous/weblens/modules/structs"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
+	"github.com/ethanrous/weblens/services/reshape"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -191,23 +193,29 @@ func NewSystemNotification(event websocket_mod.WsEvent, data websocket_mod.WsDat
 	return msg
 }
 
-func NewFileNotification(file *file_model.WeblensFileImpl, event websocket_mod.WsEvent, mediaInfo structs.MediaInfo) []websocket_mod.WsResponseInfo {
+func NewFileNotification(ctx context.ContextZ, file *file_model.WeblensFileImpl, event websocket_mod.WsEvent, mediaInfo structs.MediaInfo) []websocket_mod.WsResponseInfo {
+	fileInfo, err := reshape.WeblensFileToFileInfo(ctx, file, false)
+	if err != nil {
+		ctx.Log().Error().Stack().Err(err).Msg("Failed to create new file notification")
+		return []websocket_mod.WsResponseInfo{}
+	}
+
 	msg := websocket_mod.WsResponseInfo{
 		EventTag:      websocket_mod.FileUpdatedEvent,
 		SubscribeKey:  file.ID(),
-		Content:       websocket_mod.WsData{"fileInfo": file, "mediaData": mediaInfo},
+		Content:       websocket_mod.WsData{"fileInfo": fileInfo, "mediaData": mediaInfo},
 		BroadcastType: websocket_mod.FolderSubscribe,
 		SentTime:      time.Now().Unix(),
 	}
 
-	if file.GetParent() == nil || file.GetParent().ID() == "ROOT" {
+	if file.GetParent() == nil || file.GetParent().GetPortablePath().IsRoot() {
 		return []websocket_mod.WsResponseInfo{msg}
 	}
 
 	parentMsg := websocket_mod.WsResponseInfo{
 		EventTag:      websocket_mod.FileUpdatedEvent,
-		SubscribeKey:  file.GetParentId(),
-		Content:       websocket_mod.WsData{"fileInfo": file, "mediaData": mediaInfo},
+		SubscribeKey:  file.GetParent().ID(),
+		Content:       websocket_mod.WsData{"fileInfo": fileInfo, "mediaData": mediaInfo},
 		BroadcastType: websocket_mod.FolderSubscribe,
 		SentTime:      time.Now().Unix(),
 	}
