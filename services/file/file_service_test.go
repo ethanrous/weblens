@@ -42,7 +42,7 @@ package file
 // 	return tree, nil
 // }
 //
-// func NewTestFileService(name string, logger *zerolog.Logger) (*models.ServicePack, error) {
+// func NewTestFileService(name string, logger zerolog.Logger) (*models.ServicePack, error) {
 // 	mondb, err := database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName(env.Config{}), logger)
 // 	if err != nil {
 // 		return nil, err
@@ -447,7 +447,7 @@ package file
 // 	return int(nBig.Int64()), nil
 // }
 //
-// func generateRandomFilesystem(fileService models.FileService, rootFile *fileTree.WeblensFileImpl, event *fileTree.FileEvent, logger *zerolog.Logger) error {
+// func generateRandomFilesystem(fileService models.FileService, rootFile *fileTree.WeblensFileImpl, event *fileTree.FileEvent, logger zerolog.Logger) error {
 //
 // 	caster := &mock.MockCaster{}
 //

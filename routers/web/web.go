@@ -11,7 +11,7 @@ import (
 )
 
 func CacheMiddleware(next router.Handler) router.Handler {
-	return router.HandlerFunc(func(ctx *context.RequestContext) {
+	return router.HandlerFunc(func(ctx context.RequestContext) {
 		ctx.W.Header().Set("Cache-Control", "public, max-age=3600")
 		ctx.W.Header().Set("Content-Encoding", "gzip")
 
@@ -19,7 +19,7 @@ func CacheMiddleware(next router.Handler) router.Handler {
 	})
 }
 
-func NewMemFs(ctx *context.AppContext, cnf config.ConfigProvider) *InMemoryFS {
+func NewMemFs(ctx context.AppContext, cnf config.ConfigProvider) *InMemoryFS {
 	memFs := &InMemoryFS{routes: make(map[string]*memFileReal, 10), routesMu: &sync.RWMutex{}, proxyAddress: cnf.ProxyAddress, ctx: ctx}
 	memFs.loadIndex(cnf.UIPath)
 
@@ -36,7 +36,7 @@ func UiRoutes(memFs *InMemoryFS) func() *router.Router {
 		})
 
 		r.NotFound(
-			func(ctx *context.RequestContext) {
+			func(ctx context.RequestContext) {
 				if !strings.HasPrefix(ctx.Req.RequestURI, "/api") {
 					index := memFs.Index(ctx)
 					_, err := ctx.W.Write(index.realFile.data)

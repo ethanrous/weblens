@@ -103,7 +103,7 @@ const FileHistoryCollectionKey = "fileHistory"
 //
 // 	flushCond *sync.Cond
 //
-// 	log *zerolog.Logger
+// 	log zerolog.Logger
 //
 // 	serverId string
 //
@@ -119,7 +119,7 @@ const FileHistoryCollectionKey = "fileHistory"
 // 	ServerId      string
 // 	IgnoreLocal   bool
 // 	HasherFactory func() Hasher
-// 	Logger        *zerolog.Logger
+// 	Logger        zerolog.Logger
 // }
 //
 // func NewJournal(cnf JournalConfig) (

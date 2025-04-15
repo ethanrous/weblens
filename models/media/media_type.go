@@ -196,7 +196,7 @@ type MediaType struct {
 	Extensions      []string `json:"FileExtension"`
 	Displayable     bool     `json:"IsDisplayable"`
 	Raw             bool     `json:"IsRaw"`
-	Video           bool     `json:"IsVideo"`
+	IsVideo         bool     `json:"IsVideo"`
 	ImgRecog        bool     `json:"SupportsImgRecog"`
 	MultiPage       bool     `json:"MultiPage"`
 } // @name MediaType

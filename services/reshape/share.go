@@ -7,7 +7,7 @@ import (
 	"github.com/ethanrous/weblens/services/context"
 )
 
-func ShareToShareInfo(ctx *context.RequestContext, s *share_model.FileShare) structs.ShareInfo {
+func ShareToShareInfo(ctx context.RequestContext, s *share_model.FileShare) structs.ShareInfo {
 	accessors := make([]structs.UserInfo, 0, len(s.Accessors))
 	for _, a := range s.Accessors {
 		u, err := user_model.GetUserByUsername(ctx, a)

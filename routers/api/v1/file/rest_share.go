@@ -24,7 +24,7 @@ import (
 //	@Success	200		{object}	structs.ShareInfo		"New File Share"
 //	@Success	409
 //	@Router		/share/file [post]
-func CreateFileShare(ctx *context.RequestContext) {
+func CreateFileShare(ctx context.RequestContext) {
 	shareInfo, err := net.ReadRequestBody[structs.FileShareParams](ctx.Req)
 	if err != nil {
 		return
@@ -88,7 +88,7 @@ func CreateFileShare(ctx *context.RequestContext) {
 //	@Success	200		{object}	structs.ShareInfo			"New Album Share"
 //	@Success	409
 //	@Router		/share/album [post]
-// func CreateAlbumShare(ctx *context.RequestContext) {
+// func CreateAlbumShare(ctx context.RequestContext) {
 // 	shareParams, err := net.ReadRequestBody[structs.AlbumShareParams](ctx.Req)
 // 	if err != nil {
 // 		return
@@ -135,7 +135,7 @@ func CreateFileShare(ctx *context.RequestContext) {
 //	@Success	200		{object}	structs.ShareInfo	"File Share"
 //	@Failure	404
 //	@Router		/share/{shareId} [get]
-func GetFileShare(ctx *context.RequestContext) {
+func GetFileShare(ctx context.RequestContext) {
 	shareId := ctx.Path("shareId")
 	share, err := share_model.GetShareById(ctx, shareId)
 	if err != nil {
@@ -161,7 +161,7 @@ func GetFileShare(ctx *context.RequestContext) {
 //	@Success	200
 //	@Failure	404
 //	@Router		/share/{shareId}/public [patch]
-func SetSharePublic(ctx *context.RequestContext) {
+func SetSharePublic(ctx context.RequestContext) {
 	shareId := ctx.Path("shareId")
 	share, err := share_model.GetShareById(ctx, shareId)
 	if err != nil {
@@ -196,7 +196,7 @@ func SetSharePublic(ctx *context.RequestContext) {
 //	@Success	200		{object}	structs.ShareInfo
 //	@Failure	404
 //	@Router		/share/{shareId}/accessors [patch]
-func SetShareAccessors(ctx *context.RequestContext) {
+func SetShareAccessors(ctx context.RequestContext) {
 	shareId := ctx.Path("shareId")
 	share, err := share_model.GetShareById(ctx, shareId)
 	if err != nil {
@@ -267,7 +267,7 @@ func SetShareAccessors(ctx *context.RequestContext) {
 //	@Success	200
 //	@Failure	404
 //	@Router		/share/{shareId} [delete]
-func DeleteShare(ctx *context.RequestContext) {
+func DeleteShare(ctx context.RequestContext) {
 	shareId := ctx.Path("shareId")
 	err := share_model.DeleteShare(ctx, shareId)
 	if err != nil {

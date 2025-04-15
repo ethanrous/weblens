@@ -80,19 +80,37 @@ type Media struct {
 	imported bool
 }
 
-func GetMediaById(ctx context.Context, id ContentId) (*Media, error) {
+func SaveMedia(ctx context.Context, media *Media) error {
+	if media.MediaID.IsZero() {
+		media.MediaID = primitive.NewObjectID()
+	}
+
+	col, err := db.GetCollection(ctx, MediaCollectionKey)
+	if err != nil {
+		return err
+	}
+
+	_, err = col.InsertOne(ctx, media)
+	if err != nil {
+		return db.WrapError(err, "insert media")
+	}
+
+	return nil
+}
+
+func GetMediaByContentId(ctx context.Context, contentId ContentId) (*Media, error) {
 	col, err := db.GetCollection(ctx, MediaCollectionKey)
 	if err != nil {
 		return nil, err
 	}
 
-	media := &Media{}
-	err = col.FindOne(ctx, Media{ContentID: id}).Decode(&media)
+	media := Media{}
+	err = col.FindOne(ctx, bson.M{"contentId": contentId}).Decode(&media)
 	if err != nil {
-		return nil, err
+		return nil, db.WrapError(err, "get media by content id")
 	}
 
-	return media, nil
+	return &media, nil
 }
 
 func GetMediaByPath(ctx context.Context, path string) ([]*Media, error) {

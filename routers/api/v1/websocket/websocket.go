@@ -10,6 +10,7 @@ import (
 	client_model "github.com/ethanrous/weblens/models/client"
 	"github.com/ethanrous/weblens/models/job"
 	share_model "github.com/ethanrous/weblens/models/share"
+	"github.com/ethanrous/weblens/models/task"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/modules/context"
 	"github.com/ethanrous/weblens/modules/websocket"
@@ -36,7 +37,7 @@ var upgrader = gorilla.Upgrader{
 	},
 }
 
-func Connect(ctx *context_service.RequestContext) {
+func Connect(ctx context_service.RequestContext) {
 	// if ctx.Query(IsTowerQueryKey) == "true" {
 	// } else {
 	// }
@@ -60,7 +61,11 @@ func Connect(ctx *context_service.RequestContext) {
 		return
 	}
 
-	client := ctx.ClientService.ClientConnect(ctx, conn, ctx.Requester)
+	client, err := ctx.ClientService.ClientConnect(ctx, conn, ctx.Requester)
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, err)
+		return
+	}
 
 	// var client *models.WsClient
 	// if server != nil {
@@ -76,10 +81,11 @@ func Connect(ctx *context_service.RequestContext) {
 	go wsMain(ctx, client)
 }
 
-func wsMain(ctx *context_service.RequestContext, c *client_model.WsClient) {
-	defer ctx.ClientService.ClientDisconnect(ctx, c)
+func wsMain(ctx context_service.RequestContext, c *client_model.WsClient) {
 	defer wsRecover(ctx, c)
-	var switchboard func(*context_service.RequestContext, []byte, *client_model.WsClient) error
+	defer ctx.ClientService.ClientDisconnect(ctx, c)
+
+	var switchboard func(context_service.RequestContext, []byte, *client_model.WsClient) error
 
 	if c.GetUser() != nil {
 		switchboard = wsWebClientSwitchboard
@@ -107,7 +113,7 @@ func wsMain(ctx *context_service.RequestContext, c *client_model.WsClient) {
 	}
 }
 
-func wsWebClientSwitchboard(ctx *context_service.RequestContext, msgBuf []byte, c *client_model.WsClient) error {
+func wsWebClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte, c *client_model.WsClient) error {
 	// localTower, err := tower_model.GetLocal(ctx)
 	// if err != nil {
 	// 	return err
@@ -248,7 +254,7 @@ func wsWebClientSwitchboard(ctx *context_service.RequestContext, msgBuf []byte, 
 				return err
 			}
 
-			err = ctx.ClientService.SubscribeToTask(ctx, c, t, time.UnixMilli(msg.SentAt))
+			err = ctx.ClientService.SubscribeToTask(ctx, c, t.(*task.Task), time.UnixMilli(msg.SentAt))
 
 			if err != nil {
 				return err
@@ -276,7 +282,7 @@ func wsWebClientSwitchboard(ctx *context_service.RequestContext, msgBuf []byte, 
 	return nil
 }
 
-func wsServerClientSwitchboard(ctx *context_service.RequestContext, msgBuf []byte, c *client_model.WsClient) error {
+func wsServerClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte, c *client_model.WsClient) error {
 	defer wsRecover(ctx, c)
 
 	var msg websocket.WsResponseInfo
@@ -328,7 +334,7 @@ func wsServerClientSwitchboard(ctx *context_service.RequestContext, msgBuf []byt
 	return nil
 }
 
-func onWebConnect(ctx *context_service.RequestContext, c *client_model.WsClient) error {
+func onWebConnect(ctx context_service.RequestContext, c *client_model.WsClient) error {
 	// if !pack.Loaded.Load() {
 	// 	c.PushWeblensEvent(client_model.StartupProgressEvent, client_model.WsC{"waitingOn": pack.GetStartupTasks()})
 	// 	return

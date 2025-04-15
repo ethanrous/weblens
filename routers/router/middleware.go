@@ -61,7 +61,7 @@ const (
 
 var ErrNotAuthenticated = errors.New("not authenticated")
 
-func RequireSignIn(ctx *context.RequestContext) {
+func RequireSignIn(ctx context.RequestContext) {
 	if !ctx.IsLoggedIn {
 		ctx.Error(http.StatusUnauthorized, ErrNotAuthenticated)
 		return
@@ -87,7 +87,7 @@ func RequireOwner() func(context.RequestContext) {
 }
 
 func WeblensAuth(next Handler) Handler {
-	return HandlerFunc(func(ctx *context.RequestContext) {
+	return HandlerFunc(func(ctx context.RequestContext) {
 		local, err := tower_model.GetLocal(ctx)
 		if err != nil {
 			ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "failed to get local instance"))
@@ -202,7 +202,7 @@ func CORSMiddleware(proxyAddress string) func(http.Handler) http.Handler {
 }
 
 func Recoverer(next Handler) Handler {
-	return HandlerFunc(func(ctx *context.RequestContext) {
+	return HandlerFunc(func(ctx context.RequestContext) {
 		defer func() {
 			if rvr := recover(); rvr != nil {
 				if rvr == http.ErrAbortHandler {
@@ -210,13 +210,11 @@ func Recoverer(next Handler) Handler {
 					// to the client is aborted, this should not be logged
 					panic(rvr)
 				}
-				log := hlog.FromRequest(ctx.Req)
 				err, ok := rvr.(error)
 				if !ok {
 					err = errors.Errorf("Non-error panic in request handler: %v", rvr)
 				}
 				err = errors.WithStack(err)
-				log.Error().Stack().Err(err).Msg("Recovered from panic in request handler")
 				if ctx.Header("Connection") != "Upgrade" {
 					ctx.Error(http.StatusInternalServerError, err)
 				}

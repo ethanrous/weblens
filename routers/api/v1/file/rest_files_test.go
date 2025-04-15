@@ -114,7 +114,7 @@ func simpleCreate(core *tower_model.Instance, owner *user.User) error {
 	return nil
 }
 
-func uploadFile(core *tower_model.Instance, owner *user.User, logger *zerolog.Logger) error {
+func uploadFile(core *tower_model.Instance, owner *user.User, logger zerolog.Logger) error {
 	randomBytes, fileSize, err := makeRandomFile()
 	if err != nil {
 		return err

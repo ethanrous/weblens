@@ -122,6 +122,7 @@ func NewWeblensFile(path file_system.Filepath) *WeblensFileImpl {
 		childrenMap:  make(map[string]*WeblensFileImpl),
 		isDir:        option.Of(path.IsDir()),
 	}
+	f.size.Store(-1)
 	// if parent != nil {
 	// 	f.parentId = parent.ID()
 	// 	if f.parent.memOnly {
@@ -199,6 +200,12 @@ func (f *WeblensFileImpl) GetPortablePath() file_system.Filepath {
 	return f.portablePath
 }
 
+func (f *WeblensFileImpl) SetPortablePath(path file_system.Filepath) {
+	f.updateLock.Lock()
+	defer f.updateLock.Unlock()
+	f.portablePath = path
+}
+
 func (f *WeblensFileImpl) GetPastId() string {
 	f.updateLock.RLock()
 	defer f.updateLock.RUnlock()
@@ -246,6 +253,12 @@ func (f *WeblensFileImpl) Stat() (fs.FileInfo, error) {
 }
 
 func (f *WeblensFileImpl) Size() int64 {
+	if f.size.Load() == -1 {
+		_, err := f.LoadStat()
+		if err != nil {
+			log.Error().Stack().Err(err).Msg("")
+		}
+	}
 	return f.size.Load()
 }
 
@@ -736,7 +749,11 @@ func (f *WeblensFileImpl) LoadStat() (newSize int64, err error) {
 
 	if f.IsDir() {
 		for _, child := range f.GetChildren() {
-			newSize += child.size.Load()
+			chsz := child.Size()
+			if chsz == -1 {
+				continue
+			}
+			newSize += chsz
 		}
 	} else {
 		if origSize > 0 {

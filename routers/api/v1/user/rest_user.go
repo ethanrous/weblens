@@ -26,7 +26,7 @@ import (
 //	@Success	201
 //	@Failure	401
 //	@Router		/users [post]
-func Create(ctx *context.RequestContext) {
+func Create(ctx context.RequestContext) {
 	userParams, err := net.ReadRequestBody[structs.NewUserParams](ctx.Req)
 	if err != nil {
 		return
@@ -60,7 +60,7 @@ func Create(ctx *context.RequestContext) {
 //	@Success	200			{object}	structs.UserInfo	"Logged-in users info"
 //	@Failure	401
 //	@Router		/users/auth [post]
-func Login(ctx *context.RequestContext) {
+func Login(ctx context.RequestContext) {
 	userCredentials, err := net.ReadRequestBody[structs.LoginParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusBadRequest, err)
@@ -97,7 +97,7 @@ func Login(ctx *context.RequestContext) {
 //	@Failure	400
 //	@Failure	404
 //	@Router		/users/{username} [head]
-func CheckExists(ctx *context.RequestContext) {
+func CheckExists(ctx context.RequestContext) {
 	username := ctx.Path("username")
 	if username == "" {
 		ctx.Status(http.StatusBadRequest)
@@ -123,7 +123,7 @@ func CheckExists(ctx *context.RequestContext) {
 //	@Tags		Users
 //	@Success	200
 //	@Router		/users/logout [post]
-func Logout(ctx *context.RequestContext) {
+func Logout(ctx context.RequestContext) {
 	if ctx.Requester == nil {
 		ctx.Status(http.StatusNotFound)
 		return
@@ -146,7 +146,7 @@ func Logout(ctx *context.RequestContext) {
 //	@Success	200	{array}	structs.UserInfoArchive	"List of users"
 //	@Failure	401
 //	@Router		/users [get]
-func GetAll(ctx *context.RequestContext) {
+func GetAll(ctx context.RequestContext) {
 	users, err := user_model.GetAllUsers(ctx)
 
 	if err != nil {
@@ -178,7 +178,7 @@ func GetAll(ctx *context.RequestContext) {
 //	@Failure	404
 //	@Failure	500
 //	@Router		/users/me [get]
-func GetMe(ctx *context.RequestContext) {
+func GetMe(ctx context.RequestContext) {
 	if !ctx.IsLoggedIn {
 		ctx.Status(http.StatusUnauthorized)
 		return
@@ -206,7 +206,7 @@ func GetMe(ctx *context.RequestContext) {
 //	@Failure	403
 //	@Failure	404
 //	@Router		/users/{username}/password [patch]
-func UpdatePassword(ctx *context.RequestContext) {
+func UpdatePassword(ctx context.RequestContext) {
 	updateUsername := ctx.Path("username")
 	updateUser, err := user_model.GetUserByUsername(ctx, updateUsername)
 	if err != nil {
@@ -256,7 +256,7 @@ func UpdatePassword(ctx *context.RequestContext) {
 //	@Failure	403
 //	@Failure	404
 //	@Router		/users/{username}/admin [patch]
-func SetAdmin(ctx *context.RequestContext) {
+func SetAdmin(ctx context.RequestContext) {
 	if !ctx.Requester.IsOwner() {
 		ctx.Status(http.StatusForbidden)
 		return
@@ -308,7 +308,7 @@ func SetAdmin(ctx *context.RequestContext) {
 //	@Failure	401
 //	@Failure	404
 //	@Router		/users/{username}/active [patch]
-func Activate(ctx *context.RequestContext) {
+func Activate(ctx context.RequestContext) {
 	if !ctx.Requester.IsAdmin() {
 		ctx.Status(http.StatusForbidden)
 		return
@@ -359,7 +359,7 @@ func Activate(ctx *context.RequestContext) {
 //	@Failure	401	{object}	structs.WeblensErrorInfo
 //	@Failure	404	{object}	structs.WeblensErrorInfo
 //	@Router		/users/{username}/fullName [patch]
-func ChangeDisplayName(ctx *context.RequestContext) {
+func ChangeDisplayName(ctx context.RequestContext) {
 	username := ctx.Path("username")
 
 	newName := ctx.Query("newFullName")
@@ -405,7 +405,7 @@ func ChangeDisplayName(ctx *context.RequestContext) {
 //	@Failure	404
 //	@Failure	500
 //	@Router		/users/{username} [delete]
-func Delete(ctx *context.RequestContext) {
+func Delete(ctx context.RequestContext) {
 	if !ctx.Requester.IsOwner() {
 		ctx.Status(http.StatusForbidden)
 		return
@@ -450,7 +450,7 @@ func Delete(ctx *context.RequestContext) {
 //	@Failure	404
 //	@Failure	500
 //	@Router		/users/search [get]
-func Search(ctx *context.RequestContext) {
+func Search(ctx context.RequestContext) {
 	search := ctx.Query("search")
 	if len(search) < 2 {
 		ctx.Error(http.StatusBadRequest, errors.New("Username autocomplete must contain at least 2 characters"))

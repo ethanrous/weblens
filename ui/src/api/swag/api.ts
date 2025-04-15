@@ -444,16 +444,77 @@ export interface MediaInfo {
 export interface MediaTypeInfo {
     /**
      * 
-     * @type {{ [key: string]: object; }}
+     * @type {Array<string>}
      * @memberof MediaTypeInfo
      */
-    'extMap'?: { [key: string]: object; };
+    'FileExtension'?: Array<string>;
     /**
      * 
-     * @type {{ [key: string]: object; }}
+     * @type {string}
      * @memberof MediaTypeInfo
      */
-    'mimeMap'?: { [key: string]: object; };
+    'FriendlyName'?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof MediaTypeInfo
+     */
+    'IsDisplayable'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof MediaTypeInfo
+     */
+    'IsRaw'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof MediaTypeInfo
+     */
+    'IsVideo'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof MediaTypeInfo
+     */
+    'MultiPage'?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof MediaTypeInfo
+     */
+    'RawThumbExifKey'?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof MediaTypeInfo
+     */
+    'SupportsImgRecog'?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof MediaTypeInfo
+     */
+    'mime'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface MediaTypesInfo
+ */
+export interface MediaTypesInfo {
+    /**
+     * 
+     * @type {{ [key: string]: MediaTypeInfo; }}
+     * @memberof MediaTypesInfo
+     */
+    'extMap'?: { [key: string]: MediaTypeInfo; };
+    /**
+     * 
+     * @type {{ [key: string]: MediaTypeInfo; }}
+     * @memberof MediaTypesInfo
+     */
+    'mimeMap'?: { [key: string]: MediaTypeInfo; };
 }
 /**
  * 
@@ -3711,7 +3772,7 @@ export const MediaApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getMediaTypes(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MediaTypeInfo>> {
+        async getMediaTypes(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MediaTypesInfo>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.getMediaTypes(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['MediaApi.getMediaTypes']?.[localVarOperationServerIndex]?.url;
@@ -3843,7 +3904,7 @@ export const MediaApiFactory = function (configuration?: Configuration, basePath
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getMediaTypes(options?: RawAxiosRequestConfig): AxiosPromise<MediaTypeInfo> {
+        getMediaTypes(options?: RawAxiosRequestConfig): AxiosPromise<MediaTypesInfo> {
             return localVarFp.getMediaTypes(options).then((request) => request(axios, basePath));
         },
         /**

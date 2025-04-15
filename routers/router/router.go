@@ -49,11 +49,11 @@ func (r *Router) Mount(prefix string, fn func() *Router) {
 
 const requestContextKey = "requestContext"
 
-func (r *Router) WithAppContext(ctx context_service.AppContext) {
+func (r Router) WithAppContext(ctx context_service.AppContext) {
 	r.chi.Use(
 		func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				reqContext := &context_service.RequestContext{
+				reqContext := context_service.RequestContext{
 					AppContext: ctx,
 					Req:        r,
 					W:          w,

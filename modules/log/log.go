@@ -51,20 +51,23 @@ func init() {
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 }
 
-var logger *zerolog.Logger
+type ErrUnwrapHook struct{}
 
-func NopLogger() *zerolog.Logger {
-	// nop := zerolog.Nop()
-	// return &nop
-
-	if logger != nil {
-		return logger
-	}
-	return NewZeroLogger()
-
+func (h ErrUnwrapHook) Run(e *zerolog.Event, level zerolog.Level, msg string) {
+	fmt.Println("ErrUnwrapHook", e, level, msg)
 }
-func NewZeroLogger() *zerolog.Logger {
-	if logger != nil {
+
+var logger zerolog.Logger = zerolog.Nop()
+
+func NopLogger() zerolog.Logger {
+	nop := zerolog.Nop()
+	return nop
+
+	// return NewZeroLogger()
+}
+
+func NewZeroLogger() zerolog.Logger {
+	if logger.GetLevel() != zerolog.Disabled {
 		return logger
 	}
 
@@ -103,13 +106,13 @@ func NewZeroLogger() *zerolog.Logger {
 
 	multi := zerolog.MultiLevelWriter(writers...)
 	log := zerolog.New(multi).Level(logLevel).With().Timestamp().Caller().Str("weblens_build_version", wl_version).Logger()
-	logger = &log
+	logger = log
 	zlog.Logger = log
 
 	log.Info().Msgf("Weblens logger initialized [%s]", log.GetLevel())
 	log.Trace().Msgf("Weblens logger initialized [%s]", logLevel.String())
 
-	return &log
+	return log
 }
 
 type WLConsoleLogger struct{}

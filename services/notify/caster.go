@@ -24,7 +24,7 @@ type SimpleCaster struct {
 	flushLock sync.RWMutex
 	enabled   atomic.Bool
 	global    atomic.Bool
-	log       *zerolog.Logger
+	log       zerolog.Logger
 }
 
 func (c *SimpleCaster) DisableAutoFlush() {
@@ -61,7 +61,7 @@ func (c *SimpleCaster) Close() {
 	c.msgChan <- websocket_mod.WsResponseInfo{}
 }
 
-func NewSimpleCaster(log *zerolog.Logger) *SimpleCaster {
+func NewSimpleCaster(log zerolog.Logger) *SimpleCaster {
 	newCaster := &SimpleCaster{
 		msgChan: make(chan websocket_mod.WsResponseInfo, 100),
 		log:     log,

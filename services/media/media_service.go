@@ -13,7 +13,8 @@ import (
 	"github.com/davidbyttow/govips/v2/vips"
 	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
-	"github.com/ethanrous/weblens/services/context"
+	context_service "github.com/ethanrous/weblens/services/context"
+	file_service "github.com/ethanrous/weblens/services/file"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
@@ -78,7 +79,7 @@ func GetConverted(m *media_model.Media, format string) ([]byte, error) {
 //
 //		doImageRecog bool
 //
-//		log *zerolog.Logger
+//		log zerolog.Logger
 //
 //		mediaLock sync.RWMutex
 //
@@ -98,24 +99,25 @@ const (
 	ThumbMaxSize   = 1000
 )
 
-//	func init() {
-//		var err error
-//		exif, err = exiftool.NewExiftool(
-//			exiftool.Api("largefilesupport"),
-//			exiftool.Buffer([]byte{}, 1000*100),
-//		)
-//		if err != nil {
-//			panic(err)
-//		}
-//
-//		vips.LoggingSettings(nil, vips.LogLevelWarning)
-//		vips.Startup(&vips.Config{})
-//	}
-//
+func init() {
+	var err error
+	exifd, err = exiftool.NewExiftool(
+		exiftool.Api("largefilesupport"),
+		// 					    	100 KB
+		exiftool.Buffer([]byte{}, 1000*100),
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	vips.LoggingSettings(nil, vips.LogLevelWarning)
+	vips.Startup(&vips.Config{})
+}
+
 // func NewMediaService(
 //
 //	fileService models.FileService, mediaTypeServ models.MediaTypeService, albumService models.AlbumService,
-//	col *mongo.Collection, logger *zerolog.Logger,
+//	col *mongo.Collection, logger zerolog.Logger,
 //
 //	) (*MediaServiceImpl, error) {
 //		ms := &MediaServiceImpl{
@@ -288,22 +290,30 @@ const (
 //
 //		return nil
 //	}
-//
-//	func (ms *MediaServiceImpl) FetchCacheImg(m *models.Media, q models.MediaQuality, pageNum int) ([]byte, error) {
-//		cacheId := m.ID() + string(q) + strconv.Itoa(pageNum)
-//
-//		ctx := context.Background()
-//		ctx = context.WithValue(ctx, CacheIdKey, cacheId)
-//		ctx = context.WithValue(ctx, CacheQualityKey, q)
-//		ctx = context.WithValue(ctx, CachePageKey, pageNum)
-//		ctx = context.WithValue(ctx, CacheMediaKey, m)
-//
-//		cache, err := ms.mediaCache.GetOrFetch(ctx, cacheId, ms.getFetchMediaCacheImage)
-//		if err != nil {
-//			return nil, errors.WithStack(err)
-//		}
-//		return cache, nil
-//	}
+
+func FetchCacheImg(ctx context_service.AppContext, m *media_model.Media, q media_model.MediaQuality, pageNum int) ([]byte, error) {
+	f, err := getCacheFile(ctx, m, q, pageNum)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return f.ReadAll()
+
+	// cacheId := m.ID() + string(q) + strconv.Itoa(pageNum)
+	//
+	// c := context.WithValue(ctx, CacheIdKey, cacheId)
+	// c = context.WithValue(ctx, CacheQualityKey, q)
+	// c = context.WithValue(ctx, CachePageKey, pageNum)
+	// c = context.WithValue(ctx, CacheMediaKey, m)
+	//
+	// cache, err := ms.mediaCache.GetOrFetch(c, cacheId, ms.getFetchMediaCacheImage)
+	// if err != nil {
+	// 	return nil, errors.WithStack(err)
+	// }
+	// return cache, nil
+}
+
 //
 //	func (ms *MediaServiceImpl) StreamCacheVideo(m *models.Media, startByte, endByte int) ([]byte, error) {
 //		return nil, errors.NotImplemented("StreamCacheVideo")
@@ -590,13 +600,37 @@ const (
 //
 //		return nil
 //	}
-func NewMediaFromFile(ctx *context.AppContext, file *file_model.WeblensFileImpl) (m *media_model.Media, err error) {
-	m, err = media_model.GetMediaById(ctx, file.GetContentId())
+
+func newMedia(ctx context_service.AppContext, f *file_model.WeblensFileImpl) (*media_model.Media, error) {
+	ownerName, err := file_service.GetFileOwnerName(ctx, f)
 	if err != nil {
-		m = &media_model.Media{}
+		return nil, err
 	}
 
-	fileMetas := exifd.ExtractMetadata(file.GetPortablePath().ToAbsolute())
+	return &media_model.Media{
+		ContentID:       f.GetContentId(),
+		Owner:           ownerName,
+		FileIDs:         []string{f.ID()},
+		RecognitionTags: []string{},
+		LikedBy:         []string{},
+		Enabled:         true,
+	}, nil
+}
+
+func NewMediaFromFile(ctx context_service.AppContext, f *file_model.WeblensFileImpl) (m *media_model.Media, err error) {
+	if f.GetContentId() == "" {
+		return nil, errors.WithStack(file_model.ErrNoContentId)
+	}
+
+	m, err = media_model.GetMediaByContentId(ctx, f.GetContentId())
+	if err != nil {
+		m, err = newMedia(ctx, f)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	fileMetas := exifd.ExtractMetadata(f.GetPortablePath().ToAbsolute())
 
 	for _, fileMeta := range fileMetas {
 		if fileMeta.Err != nil {
@@ -605,7 +639,7 @@ func NewMediaFromFile(ctx *context.AppContext, file *file_model.WeblensFileImpl)
 	}
 
 	if m.CreateDate.Unix() <= 0 {
-		createDate, err := getCreateDateFromExif(fileMetas[0].Fields, file)
+		createDate, err := getCreateDateFromExif(fileMetas[0].Fields, f)
 		if err != nil {
 			return nil, err
 		}
@@ -613,15 +647,15 @@ func NewMediaFromFile(ctx *context.AppContext, file *file_model.WeblensFileImpl)
 	}
 
 	if m.MimeType == "" {
-		ext := file.GetPortablePath().Ext()
+		ext := f.GetPortablePath().Ext()
 		mType := media_model.ParseExtension(ext)
 		m.MimeType = mType.Mime
 
-		if media_model.ParseMime(m.MimeType).Video {
+		if media_model.ParseMime(m.MimeType).IsVideo {
 			m.Width = int(fileMetas[0].Fields["ImageWidth"].(float64))
 			m.Height = int(fileMetas[0].Fields["ImageHeight"].(float64))
 
-			duration, err := getVideoDurationMs(file.GetPortablePath().ToAbsolute())
+			duration, err := getVideoDurationMs(f.GetPortablePath().ToAbsolute())
 			if err != nil {
 				return nil, err
 			}
@@ -640,19 +674,10 @@ func NewMediaFromFile(ctx *context.AppContext, file *file_model.WeblensFileImpl)
 		m.PageCount = 1
 	}
 
-	_, err = handleCacheCreation(ctx, m, file)
+	_, err = handleCacheCreation(ctx, m, f)
 	if err != nil {
 		return
 	}
-
-	// if !mType.Video && ms.doImageRecog {
-	// 	go func() {
-	// 		err := ms.GetImageTags(m, thumb)
-	// 		if err != nil {
-	// 			ms.log.Error().Stack().Err(err).Msg("")
-	// 		}
-	// 	}()
-	// }
 
 	return
 }
@@ -700,10 +725,10 @@ func GetMediaType(m *media_model.Media) media_model.MediaType {
 //
 //		return medias
 //	}
-func handleCacheCreation(ctx *context.AppContext, m *media_model.Media, file *file_model.WeblensFileImpl) (thumbBytes []byte, err error) {
+func handleCacheCreation(ctx context_service.AppContext, m *media_model.Media, file *file_model.WeblensFileImpl) (thumbBytes []byte, err error) {
 	mType := GetMediaType(m)
 
-	if !mType.Video {
+	if !mType.IsVideo {
 		img, err := loadImageFromFile(file, mType)
 		if err != nil {
 			return nil, err
@@ -797,7 +822,7 @@ func handleCacheCreation(ctx *context.AppContext, m *media_model.Media, file *fi
 	return thumbBytes, nil
 }
 
-func handleNewHighRes(ctx *context.AppContext, m *media_model.Media, img *vips.ImageRef, page int) error {
+func handleNewHighRes(ctx context_service.AppContext, m *media_model.Media, img *vips.ImageRef, page int) error {
 	// Resize highres image if too big
 	if m.Width > HighresMaxSize || m.Height > HighresMaxSize {
 		var fullHeight int
@@ -818,7 +843,7 @@ func handleNewHighRes(ctx *context.AppContext, m *media_model.Media, img *vips.I
 	// Create and write highres cache file
 	highres, err := ctx.FileService.NewCacheFile(m.ID(), string(media_model.HighRes), page)
 	if err != nil && !errors.Is(err, file_model.ErrFileAlreadyExists) {
-		return errors.WithStack(err)
+		return err
 	} else if err == nil {
 		blob, _, err := img.ExportWebp(nil)
 		if err != nil {
@@ -826,7 +851,7 @@ func handleNewHighRes(ctx *context.AppContext, m *media_model.Media, img *vips.I
 		}
 		_, err = highres.Write(blob)
 		if err != nil {
-			return errors.WithStack(err)
+			return err
 		}
 		m.SetHighresCacheFiles(highres, page)
 	}
@@ -863,34 +888,39 @@ func handleNewHighRes(ctx *context.AppContext, m *media_model.Media, img *vips.I
 //
 //		return data, nil
 //	}
-//
-// func (ms *MediaServiceImpl) getCacheFile(
-//
-//	m *models.Media, quality models.MediaQuality, pageNum int,
-//
-//	) (*fileTree.WeblensFileImpl, error) {
-//		if quality == models.LowRes && m.GetLowresCacheFile() != nil {
-//			return m.GetLowresCacheFile(), nil
-//		} else if quality == models.HighRes && m.GetHighresCacheFiles(pageNum) != nil {
-//			return m.GetHighresCacheFiles(pageNum), nil
-//		}
-//
-//		filename := m.FmtCacheFileName(quality, pageNum)
-//		cacheFile, err := ms.fileService.GetMediaCacheByFilename(filename)
-//		if err != nil {
-//			return nil, errors.WithStack(errors.ErrNoCache)
-//		}
-//
-//		if quality == models.LowRes {
-//			m.SetLowresCacheFile(cacheFile)
-//		} else if quality == models.HighRes {
-//			m.SetHighresCacheFiles(cacheFile, pageNum)
-//		} else {
-//			return nil, errors.Errorf("Unknown media quality [%s]", quality)
-//		}
-//
-//		return cacheFile, nil
-//	}
+func getCacheFile(ctx context_service.AppContext, m *media_model.Media, quality media_model.MediaQuality, pageNum int) (*file_model.WeblensFileImpl, error) {
+	if quality == media_model.LowRes && m.GetLowresCacheFile() != nil {
+		return m.GetLowresCacheFile(), nil
+	} else if quality == media_model.HighRes && m.GetHighresCacheFiles(pageNum) != nil {
+		return m.GetHighresCacheFiles(pageNum), nil
+	}
+
+	filename := fmtCacheFileName(m, quality, pageNum)
+	cacheFile, err := ctx.FileService.GetMediaCacheByFilename(ctx, filename)
+	if err != nil {
+		return nil, err
+	}
+
+	if quality == media_model.LowRes {
+		m.SetLowresCacheFile(cacheFile)
+	} else if quality == media_model.HighRes {
+		m.SetHighresCacheFiles(cacheFile, pageNum)
+	} else {
+		return nil, errors.Errorf("Unknown media quality [%s]", quality)
+	}
+
+	return cacheFile, nil
+}
+
+func fmtCacheFileName(m *media_model.Media, quality media_model.MediaQuality, pageNum int) string {
+	var pageNumStr string
+	if pageNum > 1 && quality == media_model.HighRes {
+		pageNumStr = fmt.Sprintf("_%d", pageNum)
+	}
+	filename := fmt.Sprintf("%s-%s%s.cache", m.ID(), quality, pageNumStr)
+
+	return filename
+}
 func loadImageFromFile(f *file_model.WeblensFileImpl, mType media_model.MediaType) (*vips.ImageRef, error) {
 	filePath := f.GetPortablePath().ToAbsolute()
 	var img *vips.ImageRef

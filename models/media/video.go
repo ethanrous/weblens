@@ -25,7 +25,7 @@ type VideoStreamer struct {
 	updateMu      sync.RWMutex
 	encodingBegun atomic.Bool
 
-	log *zerolog.Logger
+	log zerolog.Logger
 }
 
 func NewVideoStreamer(file *file_model.WeblensFileImpl, thumbsPath string) *VideoStreamer {

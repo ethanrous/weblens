@@ -345,6 +345,10 @@ func (tp *TaskPool) IsGlobal() bool {
 }
 
 func (tp *TaskPool) CreatedInTask() task_mod.Task {
+	if tp.createdBy == nil {
+		return nil
+	}
+
 	return tp.createdBy
 }
 

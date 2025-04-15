@@ -25,7 +25,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func startupRecover(l *zerolog.Logger) {
+func startupRecover(l zerolog.Logger) {
 	if r := recover(); r != nil {
 		err := errors.Errorf("%v", r)
 		l.Fatal().Stack().Err(err).Msgf("Startup failed:")
@@ -57,12 +57,14 @@ func CaptureInterrupt() (context.Context, context.CancelFunc) {
 	return ctx, cancel
 }
 
-func Startup(ctx *context_service.AppContext, cnf config.ConfigProvider) (*router.Router, error) {
+func Startup(ctx context_service.AppContext, cnf config.ConfigProvider) (*router.Router, error) {
 	defer startupRecover(ctx.Logger)
 
 	r := router.NewRouter()
 
 	fs.RegisterAbsolutePrefix(file_service.UsersTreeKey, filepath.Join(cnf.DataPath, "users"))
+	fs.RegisterAbsolutePrefix(file_service.RestoreTreeKey, filepath.Join(cnf.DataPath, ".restore"))
+	fs.RegisterAbsolutePrefix(file_service.CachesTreeKey, cnf.CachePath)
 
 	mongo, err := db.ConnectToMongo(ctx, cnf.MongoDBUri, cnf.MongoDBName)
 	if err != nil {
@@ -71,7 +73,7 @@ func Startup(ctx *context_service.AppContext, cnf config.ConfigProvider) (*route
 
 	ctx.DB = mongo
 
-	fileService, err := file_service.NewFileService(nil, nil)
+	fileService, err := file_service.NewFileService(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -95,9 +97,9 @@ func Startup(ctx *context_service.AppContext, cnf config.ConfigProvider) (*route
 		return nil, err
 	}
 
-	r.WithAppContext(*ctx)
+	r.WithAppContext(ctx)
 
-	for _, lm := range router.LoggerMiddlewares(*ctx.Logger) {
+	for _, lm := range router.LoggerMiddlewares(ctx.Logger) {
 		r.Use(router.WrapHandlerProvider(lm))
 	}
 
@@ -110,7 +112,7 @@ func Startup(ctx *context_service.AppContext, cnf config.ConfigProvider) (*route
 	return r, nil
 }
 
-func loadState(ctx *context_service.AppContext) error {
+func loadState(ctx context_service.AppContext) error {
 	local, err := tower_model.GetLocal(ctx)
 	if err != nil {
 		ctx.Log().Info().Msgf("No local instance found, creating new one")
@@ -138,6 +140,6 @@ func loadState(ctx *context_service.AppContext) error {
 	return nil
 }
 
-func loadFs(ctx *context_service.AppContext) {
+func loadFs(ctx context_service.AppContext) {
 
 }

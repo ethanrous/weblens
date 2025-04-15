@@ -12,7 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func getIndexFields(ctx *context.RequestContext, proxyAddress string) (fields indexFields) {
+func getIndexFields(ctx context.RequestContext, proxyAddress string) (fields indexFields) {
 	var hasImage bool
 	path := ctx.Req.URL.Path
 
@@ -56,7 +56,7 @@ func getIndexFields(ctx *context.RequestContext, proxyAddress string) (fields in
 				if f.IsDir() {
 					cover, err := cover_model.GetCoverByFolderId(ctx, f.ID())
 					if err == nil {
-						m, _ = media_model.GetMediaById(ctx, cover.CoverPhotoId)
+						m, _ = media_model.GetMediaByContentId(ctx, cover.CoverPhotoId)
 					} else {
 						imgUrl := fmt.Sprintf("%s/api/static/folder.png", proxyAddress)
 						hasImage = true
@@ -64,7 +64,7 @@ func getIndexFields(ctx *context.RequestContext, proxyAddress string) (fields in
 					}
 
 				} else {
-					m, _ = media_model.GetMediaById(ctx, f.GetContentId())
+					m, _ = media_model.GetMediaByContentId(ctx, f.GetContentId())
 				}
 
 				if m != nil && !hasImage {

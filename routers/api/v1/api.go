@@ -194,12 +194,12 @@ func Routes() *router.Router {
 func Docs() *router.Router {
 	r := router.NewRouter()
 
-	r.Get("/", func(ctx *api_ctx.RequestContext) {
+	r.Get("/", func(ctx api_ctx.RequestContext) {
 		http.Redirect(ctx.W, ctx.Req, "/docs/", http.StatusMovedPermanently)
 	})
 
 	// Kinda hacky, but allows for docs to be served from /docs/ instead of /docs/index.html
-	r.Get("/*", func(ctx *api_ctx.RequestContext) {
+	r.Get("/", func(ctx api_ctx.RequestContext) {
 		if ctx.Req.RequestURI == "/docs/" {
 			ctx.Req.RequestURI = "/docs/index.html"
 		}
@@ -211,7 +211,7 @@ func Docs() *router.Router {
 
 var staticDir = ""
 
-func serveStaticContent(ctx *api_ctx.RequestContext) {
+func serveStaticContent(ctx api_ctx.RequestContext) {
 	filename := ctx.Path("filename")
 
 	cnf := config.GetConfig()

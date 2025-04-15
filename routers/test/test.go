@@ -7,8 +7,8 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func NewWeblensTestInstance(testName string, cnf config.ConfigProvider, log *zerolog.Logger) (*context.AppContext, error) {
-	return nil, errors.New("not implemented")
+func NewWeblensTestInstance(testName string, cnf config.ConfigProvider, log zerolog.Logger) (context.AppContext, error) {
+	return context.AppContext{}, errors.New("not implemented")
 	// var server *http.Server
 	//
 	// cnf.RouterHost = env.GetRouterHost()

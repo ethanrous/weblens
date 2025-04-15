@@ -68,7 +68,7 @@ func DoBackup(tsk task_mod.Task) {
 
 	meta := t.GetMeta().(job.BackupMeta)
 
-	ctx, ok := t.Ctx.(*context.AppContext)
+	ctx, ok := t.Ctx.(context.AppContext)
 	if !ok {
 		t.Fail(errors.New("Failed to cast context to FilerContext"))
 		return

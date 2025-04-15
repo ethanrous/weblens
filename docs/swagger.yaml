@@ -202,11 +202,36 @@ definitions:
     type: object
   MediaTypeInfo:
     properties:
+      FileExtension:
+        items:
+          type: string
+        type: array
+      FriendlyName:
+        type: string
+      IsDisplayable:
+        type: boolean
+      IsRaw:
+        type: boolean
+      IsVideo:
+        type: boolean
+      MultiPage:
+        type: boolean
+      RawThumbExifKey:
+        type: string
+      SupportsImgRecog:
+        type: boolean
+      mime:
+        type: string
+    type: object
+  MediaTypesInfo:
+    properties:
       extMap:
-        additionalProperties: {}
+        additionalProperties:
+          $ref: '#/definitions/MediaTypeInfo'
         type: object
       mimeMap:
-        additionalProperties: {}
+        additionalProperties:
+          $ref: '#/definitions/MediaTypeInfo'
         type: object
     type: object
   MoveFilesParams:
@@ -1299,7 +1324,7 @@ paths:
         "200":
           description: Media types
           schema:
-            $ref: '#/definitions/MediaTypeInfo'
+            $ref: '#/definitions/MediaTypesInfo'
       summary: Get media type dictionary
       tags:
       - Media

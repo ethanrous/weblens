@@ -16,7 +16,7 @@ import (
 
 type ClientManager interface {
 	Notify(msg ...websocket_mod.WsResponseInfo)
-	ClientConnect(ctx context.LoggerContext, conn *websocket.Conn, user *user_model.User) *WsClient
+	ClientConnect(ctx context.LoggerContext, conn *websocket.Conn, user *user_model.User) (*WsClient, error)
 	RemoteConnect(ctx context.LoggerContext, conn *websocket.Conn, remote *tower_model.Instance) *WsClient
 	ClientDisconnect(ctx context.LoggerContext, c *WsClient)
 	GetClientByUsername(username string) *WsClient

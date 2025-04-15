@@ -57,7 +57,7 @@ func parseRangeHeader(contentRange string) (min, max, total int64, err error) {
 func HandleFileUploads(tsk task_mod.Task) {
 	t := tsk.(*task.Task)
 
-	ctx := t.Ctx.(*context.AppContext)
+	ctx := t.Ctx.(context.AppContext)
 	meta := t.GetMeta().(job.UploadFilesMeta)
 
 	t.ExitIfSignaled()
@@ -92,7 +92,7 @@ func HandleFileUploads(tsk task_mod.Task) {
 	// Cleanup routine. This must be run even if the upload fails
 	t.SetCleanup(func(tsk task_mod.Task) {
 		t := tsk.(*task.Task)
-		ctx := t.Ctx.(*context.AppContext)
+		ctx := t.Ctx.(context.AppContext)
 		t.Ctx.Log().Debug().Func(func(e *zerolog.Event) {
 			e.Msgf("Upload fileMap has %d remaining and chunk stream has %d remaining", len(fileMap), len(meta.ChunkStream))
 		})
@@ -130,7 +130,7 @@ func HandleFileUploads(tsk task_mod.Task) {
 				}
 				doingRootScan = true
 			}
-			media, _ := media_model.GetMediaById(ctx, tl.GetContentId())
+			media, _ := media_model.GetMediaByContentId(ctx, tl.GetContentId())
 			if tl.IsDir() {
 				mediaInfo := reshape.MediaToMediaInfo(media)
 				notif := notify.NewFileNotification(ctx, tl, websocket.FileUpdatedEvent, mediaInfo)

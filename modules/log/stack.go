@@ -47,19 +47,21 @@ func MarshalStack(err error) any {
 	type stackTracer interface {
 		StackTrace() errors.StackTrace
 	}
+
 	var sterr stackTracer
 	var ok bool
 	for err != nil {
-		sterr, ok = err.(stackTracer)
+		var tmpStacker stackTracer
+		tmpStacker, ok = err.(stackTracer)
 		if ok {
-			break
+			sterr = tmpStacker
 		}
 
 		u, ok := err.(interface {
 			Unwrap() error
 		})
 		if !ok {
-			return nil
+			break
 		}
 
 		err = u.Unwrap()

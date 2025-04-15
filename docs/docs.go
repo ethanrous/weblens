@@ -1075,7 +1075,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Media types",
                         "schema": {
-                            "$ref": "#/definitions/MediaTypeInfo"
+                            "$ref": "#/definitions/MediaTypesInfo"
                         }
                     }
                 }
@@ -2671,13 +2671,52 @@ const docTemplate = `{
         "MediaTypeInfo": {
             "type": "object",
             "properties": {
+                "FileExtension": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "FriendlyName": {
+                    "type": "string"
+                },
+                "IsDisplayable": {
+                    "type": "boolean"
+                },
+                "IsRaw": {
+                    "type": "boolean"
+                },
+                "IsVideo": {
+                    "type": "boolean"
+                },
+                "MultiPage": {
+                    "type": "boolean"
+                },
+                "RawThumbExifKey": {
+                    "type": "string"
+                },
+                "SupportsImgRecog": {
+                    "type": "boolean"
+                },
+                "mime": {
+                    "type": "string"
+                }
+            }
+        },
+        "MediaTypesInfo": {
+            "type": "object",
+            "properties": {
                 "extMap": {
                     "type": "object",
-                    "additionalProperties": {}
+                    "additionalProperties": {
+                        "$ref": "#/definitions/MediaTypeInfo"
+                    }
                 },
                 "mimeMap": {
                     "type": "object",
-                    "additionalProperties": {}
+                    "additionalProperties": {
+                        "$ref": "#/definitions/MediaTypeInfo"
+                    }
                 }
             }
         },

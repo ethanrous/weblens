@@ -29,7 +29,7 @@ type WsClient struct {
 	subsMu        sync.Mutex
 	Active        atomic.Bool
 
-	log *zerolog.Logger
+	log zerolog.Logger
 }
 
 func NewClient(ctx context.LoggerContext, conn *websocket.Conn, socketUser SocketUser) *WsClient {
@@ -50,7 +50,7 @@ func NewClient(ctx context.LoggerContext, conn *websocket.Conn, socketUser Socke
 	}
 
 	newLogger := ctx.Log().With().Str("client_id", newClient.getClientName()).Str("websocket_id", newClient.GetClientId()).Logger()
-	newClient.log = &newLogger
+	newClient.log = newLogger
 
 	newClient.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("New client connected") })
 
@@ -181,15 +181,16 @@ func (wsc *WsClient) Disconnect() {
 }
 
 func (wsc *WsClient) Log() *zerolog.Logger {
-	return wsc.log
+	return &wsc.log
 }
 
 func (wsc *WsClient) getClientName() string {
 	if wsc.tower != nil {
 		return wsc.tower.Name
-	} else {
+	} else if wsc.user != nil {
 		return wsc.user.Username
 	}
+	return "unknown"
 }
 
 func (wsc *WsClient) getClientType() string {

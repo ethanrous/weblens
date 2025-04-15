@@ -28,6 +28,8 @@ func (n *noplogger) Log() *zerolog.Logger {
 	return &log.Logger
 }
 
+func (n *noplogger) WithLogger(zerolog.Logger) {}
+
 func Background() LoggerContext {
 	return &noplogger{context.Background()}
 }

@@ -3,7 +3,6 @@ package file
 import (
 	"time"
 
-	share_model "github.com/ethanrous/weblens/models/share"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/context"
 	"github.com/ethanrous/weblens/modules/fs"
@@ -51,9 +50,6 @@ type FileService interface {
 	// RenameFile renames a file
 	RenameFile(file *WeblensFileImpl, newName string) error
 
-	// MoveFilesToTrash moves files to the trash
-	MoveFilesToTrash(ctx context.ContextZ, files []*WeblensFileImpl, user *user_model.User, share *share_model.FileShare) error
-
 	// ReturnFilesFromTrash restores files from the trash
 	ReturnFilesFromTrash(ctx context.ContextZ, trashFiles []*WeblensFileImpl) error
 
@@ -67,7 +63,7 @@ type FileService interface {
 	// RestoreHistory(lifetimes []*fileTree.Lifetime) error
 
 	// GetMediaCacheByFilename retrieves media cache by filename
-	GetMediaCacheByFilename(filename string) (*WeblensFileImpl, error)
+	GetMediaCacheByFilename(ctx context.ContextZ, filename string) (*WeblensFileImpl, error)
 
 	// NewCacheFile creates a new cache file for media
 	NewCacheFile(mediaId, quality string, pageNum int) (*WeblensFileImpl, error)

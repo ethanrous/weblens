@@ -20,6 +20,7 @@ const (
 )
 
 var UsersRootPath = fs.Filepath{RootAlias: UsersTreeKey}
+var CacheRootPath = fs.Filepath{RootAlias: CachesTreeKey}
 var ThumbsDirPath = fs.Filepath{RootAlias: CachesTreeKey, RelPath: ThumbsDirName}
 var RestoreDirPath = fs.Filepath{RootAlias: RestoreTreeKey}
 
@@ -40,12 +41,12 @@ func cacheFilename(mId, quality string, pageNum int) string {
 func touch(filepath fs.Filepath) (f *file.WeblensFileImpl, err error) {
 	osf, err := os.Create(filepath.ToAbsolute())
 	if err != nil {
-		return
+		return nil, errors.WithStack(err)
 	}
 
 	err = osf.Close()
 	if err != nil {
-		return
+		return nil, errors.WithStack(err)
 	}
 
 	f = file.NewWeblensFile(filepath)

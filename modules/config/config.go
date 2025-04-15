@@ -58,7 +58,7 @@ func getDefaultConfig() ConfigProvider {
 		StaticContentPath: "/web/static",
 
 		DataPath:  "/data",
-		CachePath: "/cahhe",
+		CachePath: "/cache",
 
 		LogLevel: zerolog.InfoLevel,
 

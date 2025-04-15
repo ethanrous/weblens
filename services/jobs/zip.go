@@ -26,7 +26,7 @@ var ErrEmptyZip = errors.New("zip file is empty")
 func CreateZip(tsk task_mod.Task) {
 	t := tsk.(*task.Task)
 
-	ctx := t.Ctx.(*context.AppContext)
+	ctx := t.Ctx.(context.AppContext)
 	zipMeta := t.GetMeta().(job.ZipMeta)
 
 	if len(zipMeta.Files) == 0 {

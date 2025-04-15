@@ -1,11 +1,12 @@
 package task
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/ethanrous/weblens/modules/context"
+	context_mod "github.com/ethanrous/weblens/modules/context"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -33,7 +34,7 @@ type job struct {
 var _ task_mod.WorkerPool = (*WorkerPool)(nil)
 
 type WorkerPool struct {
-	ctx context.ContextZ
+	ctx context_mod.ContextZ
 
 	busyCount *atomic.Int64 // Number of workers currently executing a task
 
@@ -64,7 +65,7 @@ type WorkerPool struct {
 	taskBufferMu sync.Mutex
 }
 
-func NewWorkerPool(ctx context.ContextZ, initWorkers int) *WorkerPool {
+func NewWorkerPool(ctx context_mod.ContextZ, initWorkers int) *WorkerPool {
 	if initWorkers == 0 {
 		initWorkers = 1
 	}
@@ -173,7 +174,7 @@ func (wp *WorkerPool) RegisterJob(jobName string, fn task_mod.CleanupFunc, opts 
 	wp.registeredJobs[jobName] = job{handler: fn, opts: o}
 }
 
-func (wp *WorkerPool) DispatchJob(ctx context.ContextZ, jobName string, meta task_mod.TaskMetadata, pool *TaskPool) (*Task, error) {
+func (wp *WorkerPool) DispatchJob(c context.Context, jobName string, meta task_mod.TaskMetadata, pool task_mod.Pool) (task_mod.Task, error) {
 	if meta.JobName() != jobName {
 		return nil, errors.Errorf("job name does not match task metadata")
 	}
@@ -206,12 +207,14 @@ func (wp *WorkerPool) DispatchJob(ctx context.ContextZ, jobName string, meta tas
 		taskId = globbyHash(8, metaStr)
 	}
 
+	ctx := c.(context_mod.ContextZ)
+
 	t := wp.GetTask(taskId)
 	ctx.Log().UpdateContext(func(c zerolog.Context) zerolog.Context {
 		return c.Str("task_id", taskId).Str("job_name", jobName)
 	})
 
-	appCtx, ok := ctx.(context.AppContexter)
+	appCtx, ok := ctx.(context_mod.AppContexter)
 	if !ok {
 		return nil, errors.New("context is not an AppContexter")
 	} else {
@@ -255,30 +258,32 @@ func (wp *WorkerPool) DispatchJob(ctx context.ContextZ, jobName string, meta tas
 		return nil, errors.New("Not re-queueing task that has error set")
 	}
 
-	if t.taskPool != nil && (t.taskPool != pool || t.queueState != PreQueued) {
+	tpool := pool.(*TaskPool)
+
+	if t.taskPool != nil && (t.taskPool != tpool || t.queueState != PreQueued) {
 		// Task is already queued, we are not allowed to move it to another queue.
 		// We can call .ClearAndRecompute() on the task and it will queue it
 		// again, but it cannot be transferred
-		if t.taskPool != pool {
+		if t.taskPool != tpool {
 			return nil, errors.Errorf("Attempted to re-queue a [%s] task that is already in another queue", t.jobName)
 		}
-		pool.addTask(t)
+		tpool.addTask(t)
 		return t, nil
 	}
 
-	if pool.allQueuedFlag.Load() {
+	if tpool.allQueuedFlag.Load() {
 		// We cannot add tasks to a queue that has been closed
-		return nil, errors.Errorf("attempting to add task [%s] to closed task queue [pool created by %s]", t.JobName(), pool.ID())
+		return nil, errors.Errorf("attempting to add task [%s] to closed task queue [pool created by %s]", t.JobName(), tpool.ID())
 	}
 
-	pool.totalTasks.Add(1)
+	tpool.totalTasks.Add(1)
 
-	if !pool.IsRoot() {
-		pool.GetRootPool().IncTaskCount(1)
+	if !tpool.IsRoot() {
+		tpool.GetRootPool().IncTaskCount(1)
 	}
 
 	// Set the tasks queue
-	t.setTaskPoolInternal(pool)
+	t.setTaskPoolInternal(tpool)
 
 	wp.lifetimeQueuedCount.Add(1)
 
@@ -290,7 +295,7 @@ func (wp *WorkerPool) DispatchJob(ctx context.ContextZ, jobName string, meta tas
 		wp.taskStream <- t
 	}
 
-	pool.addTask(t)
+	tpool.addTask(t)
 
 	return t, nil
 }
@@ -335,7 +340,9 @@ func (wp *WorkerPool) safetyWork(task *Task, workerId int64) {
 	if task.exitStatus != task_mod.TaskNoStatus {
 		task.Ctx.Log().Trace().Msgf("Task [%s] already has exit status [%s], not running", task.taskId, task.exitStatus)
 	} else {
+		task.StartTime = time.Now()
 		task.work.handler(task)
+		task.FinishTime = time.Now()
 	}
 
 }
@@ -519,9 +526,7 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 						wp.addToRetryBuffer(tBuf...)
 					}
 
-					t.Ctx.Log().UpdateContext(func(c zerolog.Context) zerolog.Context {
-						return c.Int("worker_id", int(workerId))
-					})
+					t.Ctx.WithLogger(t.Ctx.Log().With().Int("worker_id", int(workerId)).Logger())
 
 					// Inc tasks being processed
 					wp.busyCount.Add(1)

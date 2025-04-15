@@ -30,7 +30,7 @@ package file_tree
 // 	rootAlias string
 //
 // 	fsTreeLock sync.RWMutex
-// 	log        *zerolog.Logger
+// 	log        zerolog.Logger
 // }
 //
 // type MoveInfo struct {
@@ -42,7 +42,7 @@ package file_tree
 // 	return &b
 // }
 //
-// func NewFileTree(rootPath, rootAlias string, journal *history.JournalImpl, doFileDiscovery bool, log *zerolog.Logger) (*FileTreeImpl, error) {
+// func NewFileTree(rootPath, rootAlias string, journal *history.JournalImpl, doFileDiscovery bool, log zerolog.Logger) (*FileTreeImpl, error) {
 // 	if journal == nil {
 // 		return nil, errors.Errorf("Got nil journal trying to create new FileTree")
 // 	}

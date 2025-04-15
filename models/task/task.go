@@ -16,7 +16,8 @@ import (
 )
 
 type Task struct {
-	StartTime time.Time
+	StartTime  time.Time
+	FinishTime time.Time
 
 	Ctx context.ContextZ
 
@@ -416,7 +417,11 @@ func (t *Task) SetResult(results task_mod.TaskResult) {
 func (t *Task) ExeTime() time.Duration {
 	t.updateMu.RLock()
 	defer t.updateMu.RUnlock()
-	return time.Since(t.StartTime)
+	if t.FinishTime.IsZero() {
+		return time.Since(t.StartTime)
+
+	}
+	return t.FinishTime.Sub(t.StartTime)
 }
 
 func globbyHash(charLimit int, dataToHash ...any) string {

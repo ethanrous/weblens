@@ -64,7 +64,11 @@ func NewClientManager() *ClientManager {
 	return cm
 }
 
-func (cm *ClientManager) ClientConnect(ctx context.LoggerContext, conn *websocket.Conn, user *user_model.User) *websocket_model.WsClient {
+func (cm *ClientManager) ClientConnect(ctx context.LoggerContext, conn *websocket.Conn, user *user_model.User) (*websocket_model.WsClient, error) {
+	if user == nil {
+		return nil, errors.New("user is nil")
+	}
+
 	newClient := websocket_model.NewClient(ctx, conn, user)
 
 	cm.clientMu.Lock()
@@ -73,7 +77,7 @@ func (cm *ClientManager) ClientConnect(ctx context.LoggerContext, conn *websocke
 
 	ctx.Log().Debug().Msgf("Client [%s] connected", user.Username)
 
-	return newClient
+	return newClient, nil
 }
 
 func (cm *ClientManager) RemoteConnect(ctx context.LoggerContext, conn *websocket.Conn, remote *tower_model.Instance) *websocket_model.WsClient {

@@ -21,7 +21,7 @@ type InMemoryFS struct {
 
 	proxyAddress string
 	uiPath       string
-	ctx          *context.AppContext
+	ctx          context.AppContext
 }
 
 func (fs *InMemoryFS) loadIndex(uiDir string) string {
@@ -120,7 +120,7 @@ type indexFields struct {
 	VideoType   string
 }
 
-func (fs *InMemoryFS) Index(ctx *context.RequestContext) *MemFileWrap {
+func (fs InMemoryFS) Index(ctx context.RequestContext) *MemFileWrap {
 	index := newWrapFile(fs.index.Copy())
 	fields := getIndexFields(ctx, fs.proxyAddress)
 

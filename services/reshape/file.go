@@ -50,7 +50,7 @@ func WeblensFileToFileInfo(ctx context_mod.ContextZ, f *file_model.WeblensFileIm
 	if !isPastFile || f.IsDir() || f.Exists() {
 		hasRestoreMedia = true
 	} else {
-		// ctx.(context_mod.AppContexter).AppCtx().(*context.AppContext).FileService.GetFileById(f.ID())
+		// ctx.(context_mod.AppContexter).AppCtx().(context.AppContext).FileService.GetFileById(f.ID())
 		// TODO: check if the file is in the restore media tree
 		if err == nil {
 			hasRestoreMedia = true

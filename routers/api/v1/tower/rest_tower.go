@@ -23,7 +23,7 @@ import (
 //	@Produce	json
 //	@Success	200	{object}	structs.TowerInfo	"Server info"
 //	@Router		/info [get]
-func GetServerInfo(ctx *context_service.RequestContext) {
+func GetServerInfo(ctx context_service.RequestContext) {
 
 	tower, err := tower_model.GetLocal(ctx)
 	if err != nil {
@@ -47,7 +47,7 @@ func GetServerInfo(ctx *context_service.RequestContext) {
 //
 //	@Success	200	{array}	structs.TowerInfo	"Tower Info"
 //	@Router		/tower [get]
-func GetRemotes(ctx *context_service.RequestContext) {
+func GetRemotes(ctx context_service.RequestContext) {
 	remotes, err := tower_model.GetRemotes(ctx)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
@@ -266,7 +266,7 @@ func GetRemotes(ctx *context_service.RequestContext) {
 //	@Failure	404
 //	@Failure	500
 //	@Router		/tower/init [post]
-func InitializeTower(ctx *context_service.RequestContext) {
+func InitializeTower(ctx context_service.RequestContext) {
 	// Retrieve the local tower instance
 	local, err := tower_model.GetLocal(ctx)
 	if err != nil {
@@ -325,7 +325,7 @@ func initializeCoreServer(ctx context_mod.ContextZ, initBody structs.InitServerP
 		return errors.New("missing required fields for core server initialization")
 	}
 
-	rqCtx := ctx.(*context_service.RequestContext)
+	rqCtx := ctx.(context_service.RequestContext)
 
 	// Remove existing users and create a new owner
 	user_model.DeleteAllUsers(rqCtx)
@@ -415,7 +415,7 @@ func initializeBackupServer(ctx context_mod.ContextZ, initBody structs.InitServe
 	// return nil
 }
 
-// func initializeRestoreServer(ctx *context.RequestContext, initBody structs.InitServerParams) error {
+// func initializeRestoreServer(ctx context.RequestContext, initBody structs.InitServerParams) error {
 // 	local := ctx.InstanceService.GetLocal()
 // 	if local.Role == models.RestoreServerRole {
 // 		return nil

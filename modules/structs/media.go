@@ -44,9 +44,21 @@ type MediaInfo struct {
 } // @Name MediaInfo
 
 type MediaTypeInfo struct {
-	MimeMap map[string]any `json:"mimeMap"`
-	ExtMap  map[string]any `json:"extMap"`
+	Mime            string   `json:"mime"`
+	Name            string   `json:"FriendlyName"`
+	RawThumbExifKey string   `json:"RawThumbExifKey"`
+	Extensions      []string `json:"FileExtension"`
+	Displayable     bool     `json:"IsDisplayable"`
+	Raw             bool     `json:"IsRaw"`
+	Video           bool     `json:"IsVideo"`
+	ImgRecog        bool     `json:"SupportsImgRecog"`
+	MultiPage       bool     `json:"MultiPage"`
 } // @name MediaTypeInfo
+
+type MediaTypesInfo struct {
+	MimeMap map[string]MediaTypeInfo `json:"mimeMap"`
+	ExtMap  map[string]MediaTypeInfo `json:"extMap"`
+} // @name MediaTypesInfo
 
 type MediaBatchInfo struct {
 	Media      []MediaInfo `json:"Media"`

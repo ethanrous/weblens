@@ -1,4 +1,4 @@
-import { MediaTypeInfo } from '@weblens/api/swag'
+import { MediaTypesInfo } from '@weblens/api/swag'
 import WeblensMedia from '@weblens/types/media/Media'
 import Media from '@weblens/types/media/Media'
 import { create } from 'zustand'
@@ -14,7 +14,7 @@ export interface MediaStateT {
     showRaw: boolean
     showHidden: boolean
 
-    mediaTypeMap: MediaTypeInfo
+    mediaTypeMap: MediaTypesInfo
 
     addMedias: (medias: Media[]) => void
     setShowingRaw: (showRaw: boolean) => void
@@ -24,8 +24,8 @@ export interface MediaStateT {
     setHovering: (hoveringId: string) => void
     setSelected: (mediaId: string, selected: boolean) => void
     setLiked: (mediaId: string, likedBy: string) => void
-    setTypeMap: (typeMap: MediaTypeInfo) => void
-    getTypeMap: () => MediaTypeInfo
+    setTypeMap: (typeMap: MediaTypesInfo) => void
+    getTypeMap: () => MediaTypesInfo
     getMedia: (mediaId: string) => WeblensMedia
     clear: () => void
 }
@@ -146,7 +146,7 @@ export const useMediaStore = create<MediaStateT>()(
             })
         },
 
-        setTypeMap: (typeMap: MediaTypeInfo) => {
+        setTypeMap: (typeMap: MediaTypesInfo) => {
             set({ mediaTypeMap: typeMap })
         },
 

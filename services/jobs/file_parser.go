@@ -22,7 +22,7 @@ import (
 
 func ScanDirectory(tsk task_mod.Task) {
 	t := tsk.(*task.Task)
-	ctx := t.Ctx.(*context.AppContext)
+	ctx := t.Ctx.(context.AppContext)
 	meta := t.GetMeta().(job.ScanMeta)
 
 	t.SetErrorCleanup(func(tsk task_mod.Task) {
@@ -99,9 +99,9 @@ func ScanDirectory(tsk task_mod.Task) {
 				return nil
 			}
 
-			media_model.GetMediaById(ctx, mf.GetContentId())
+			media_model.GetMediaByContentId(ctx, mf.GetContentId())
 
-			m, err := media_model.GetMediaById(ctx, mf.GetContentId())
+			m, err := media_model.GetMediaByContentId(ctx, mf.GetContentId())
 			if m != nil && m.IsImported() {
 				if !slices.ContainsFunc(m.FileIDs, func(fId string) bool { return fId == mf.ID() }) {
 					err = m.AddFileToMedia(ctx, mf.GetPortablePath().ToPortable())
@@ -121,7 +121,7 @@ func ScanDirectory(tsk task_mod.Task) {
 			}
 			log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Dispatching scanFile job for [%s]", mf.GetPortablePath()) })
 
-			newT, err := (&(*t.Ctx.(*context.AppContext))).WithLogger(&log.Logger).DispatchJob(job.ScanFileTask, subMeta, pool)
+			newT, err := t.Ctx.DispatchJob(job.ScanFileTask, subMeta, pool)
 			if err != nil {
 				return err
 			}
@@ -196,7 +196,7 @@ func ScanFile(tsk task_mod.Task) {
 	reportSubscanStatus(t)
 
 	meta := t.GetMeta().(job.ScanMeta)
-	err := ScanFile_(t.Ctx.(*context.AppContext), meta)
+	err := ScanFile_(t.Ctx.(context.AppContext), meta)
 	if err != nil {
 		t.Ctx.Log().Error().Msgf("Failed to scan file %s: %s", meta.File.GetPortablePath(), err)
 		t.Fail(err)
@@ -205,10 +205,8 @@ func ScanFile(tsk task_mod.Task) {
 	t.Success()
 }
 
-func ScanFile_(ctx *context.AppContext, meta job.ScanMeta) error {
-	ctx.Log().UpdateContext(func(c zerolog.Context) zerolog.Context {
-		return c.Str("portable_file_path", meta.File.GetPortablePath().String()).Str("file_id", meta.File.ID())
-	})
+func ScanFile_(ctx context.AppContext, meta job.ScanMeta) error {
+	ctx.WithLogger(ctx.Log().With().Str("file_id", meta.File.ID()).Str("portable_file_path", meta.File.GetPortablePath().String()).Logger())
 
 	if !media_model.ParseExtension(meta.File.GetPortablePath().Ext()).Displayable {
 		return media_model.ErrNotDisplayable
@@ -243,6 +241,11 @@ func ScanFile_(ctx *context.AppContext, meta job.ScanMeta) error {
 	// meta.PartialMedia.Owner = username
 
 	media, err := media_service.NewMediaFromFile(ctx, meta.File)
+	if err != nil {
+		return err
+	}
+
+	err = media_model.SaveMedia(ctx, media)
 	if err != nil {
 		return err
 	}
@@ -297,8 +300,10 @@ func getScanResult(t *task.Task) task_mod.TaskResult {
 			"filename": meta.File.GetPortablePath().Filename(),
 			"fileId":   meta.File.ID(),
 		}
-		if tp != nil && tp.CreatedInTask() != nil {
-			result["taskJobTarget"] = tp.CreatedInTask().GetMeta().(job.ScanMeta).File.GetPortablePath().Filename()
+
+		createdIn := tp.CreatedInTask()
+		if tp != nil && createdIn != nil {
+			result["taskJobTarget"] = createdIn.GetMeta().(job.ScanMeta).File.GetPortablePath().Filename()
 		} else if tp == nil {
 			result["taskJobTarget"] = meta.File.GetPortablePath().Filename()
 		}

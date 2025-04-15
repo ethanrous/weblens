@@ -16,7 +16,6 @@ import (
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/history"
 	media_model "github.com/ethanrous/weblens/models/media"
-	share_model "github.com/ethanrous/weblens/models/share"
 	task_model "github.com/ethanrous/weblens/models/task"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
@@ -57,7 +56,6 @@ type FolderCoverPair struct {
 
 func NewFileService(
 	ctx context_mod.ContextZ,
-	logger *zerolog.Logger,
 ) (*FileServiceImpl, error) {
 
 	fs := &FileServiceImpl{
@@ -65,14 +63,15 @@ func NewFileService(
 		files:        make(map[string]*file_model.WeblensFileImpl),
 	}
 
-	userRoot := file_model.NewWeblensFile(UsersRootPath)
-	if !userRoot.Exists() {
-		err := userRoot.CreateSelf()
-		if err != nil {
-			return nil, errors.WithStack(err)
-		}
+	if err := fs.makeRoot(UsersRootPath); err != nil {
+		return nil, err
 	}
-	fs.files[UsersTreeKey] = userRoot
+	if err := fs.makeRoot(CacheRootPath); err != nil {
+		return nil, err
+	}
+	if err := fs.makeRoot(ThumbsDirPath); err != nil {
+		return nil, err
+	}
 
 	return fs, nil
 }
@@ -196,15 +195,13 @@ func (fs *FileServiceImpl) GetFiles(ids []string) ([]*file_model.WeblensFileImpl
 	return nil, nil, errors.New("not implemented")
 }
 
-func (fs *FileServiceImpl) GetMediaCacheByFilename(thumbFileName string) (*file_model.WeblensFileImpl, error) {
-	// cachePath := ThumbsDirPath.Child(thumbFileName, false)
-	//
-	// cacheFile, ok := fs.files[cachePath]
-	// if ok {
-	// 	return cacheFile, nil
-	// }
+func (fs *FileServiceImpl) GetMediaCacheByFilename(ctx context_mod.ContextZ, thumbFileName string) (*file_model.WeblensFileImpl, error) {
+	f := file_model.NewWeblensFile(ThumbsDirPath.Child(thumbFileName, false))
+	if !f.Exists() {
+		return nil, errors.WithStack(file_model.ErrFileNotFound)
+	}
 
-	return nil, errors.WithStack(file_model.ErrFileNotFound)
+	return f, nil
 }
 
 func (fs *FileServiceImpl) NewCacheFile(mediaId, quality string, pageNum int) (*file_model.WeblensFileImpl, error) {
@@ -253,7 +250,10 @@ func (fs *FileServiceImpl) CreateFile(ctx context_mod.ContextZ, parent *file_mod
 	}
 
 	action := history.NewCreateAction(childPath, 0, "")
-	history.SaveAction(ctx, action)
+	err = history.SaveAction(ctx, action)
+	if err != nil {
+		return nil, err
+	}
 
 	newF.SetId(action.FileId)
 
@@ -261,82 +261,30 @@ func (fs *FileServiceImpl) CreateFile(ctx context_mod.ContextZ, parent *file_mod
 }
 
 func (fs *FileServiceImpl) CreateFolder(ctx context_mod.ContextZ, parent *file_model.WeblensFileImpl, folderName string) (*file_model.WeblensFileImpl, error) {
-	childPath := parent.GetPortablePath().Child(folderName, false)
+	childPath := parent.GetPortablePath().Child(folderName, true)
 
 	dir, err := mkdir(childPath)
 	if err != nil {
 		return nil, err
 	}
 
+	dir.SetParent(parent)
+	parent.AddChild(dir)
+
 	action := history.NewCreateAction(childPath, 0, "")
-	history.SaveAction(ctx, action)
+	err = history.SaveAction(ctx, action)
+	if err != nil {
+		return nil, err
+	}
 
 	dir.SetId(action.FileId)
 
+	err = fs.AddFile(ctx, dir)
+	if err != nil {
+		return nil, err
+	}
+
 	return dir, nil
-}
-
-func (fs *FileServiceImpl) MoveFilesToTrash(ctx context_mod.ContextZ, files []*file_model.WeblensFileImpl, user *user_model.User, share *share_model.FileShare) error {
-	if len(files) == 0 {
-		return nil
-	}
-
-	owner, err := GetFileOwner(ctx, files[0])
-	if err != nil {
-		return err
-	}
-
-	trashPath := file_system.BuildFilePath(UsersTreeKey, owner.Username, UserTrashDirName)
-	trash, err := fs.GetFileByFilepath(ctx, trashPath)
-	if err != nil {
-		return err
-	}
-
-	// event := journal.NewEvent()
-	// oldParent := files[0].GetParent()
-
-	for _, file := range files {
-		if !file.Exists() {
-			return errors.WithStack(file_model.ErrFileNotFound)
-		}
-		if IsFileInTrash(file) {
-			return errors.Wrapf(file_model.ErrFileAlreadyExists, "Cannot move file [%s] to trash because it is already in trash", file.GetPortablePath())
-		}
-
-		filename := file.GetPortablePath().Filename()
-
-		childPath, err := MakeUniqueChildName(trashPath, file.GetPortablePath().Filename())
-		if err != nil {
-			return err
-		}
-
-		err = rename(file.GetPortablePath(), childPath)
-		if err != nil {
-			return err
-		}
-
-		parent := file.GetParent()
-		parent.RemoveChild(filename)
-		trash.AddChild(file)
-	}
-
-	// err = fs.ResizeUp(ctx, oldParent, event)
-	// if err != nil {
-	// 	ctx.Log().Error().Stack().Err(err).Msg("")
-	// }
-	//
-	// err = fs.ResizeUp(ctx, trash, event)
-	// if err != nil {
-	// 	ctx.Log().Error().Stack().Err(err).Msg("")
-	// }
-	//
-	// tree.GetJournal().LogEvent(event)
-	// err = event.Wait()
-	// if err != nil {
-	// 	return err
-	// }
-
-	return nil
 }
 
 func (fs *FileServiceImpl) ReturnFilesFromTrash(ctx context_mod.ContextZ, trashFiles []*file_model.WeblensFileImpl) error {
@@ -423,12 +371,9 @@ func (fs *FileServiceImpl) DeleteFiles(ctx context_mod.ContextZ, files []*file_m
 				// Freeze the file before it is deleted
 				preDeleteFile := f.Freeze()
 				contentId := f.GetContentId()
-				m, err := media_model.GetMediaById(ctx, contentId)
-				if err != nil {
-					return err
-				}
+				m, err := media_model.GetMediaByContentId(ctx, contentId)
 				// Remove the file from the media, if it exists
-				if m != nil {
+				if err == nil {
 					err = media_model.RemoveFileFromMedia(ctx, m, f.ID())
 					if err != nil {
 						return err
@@ -746,6 +691,8 @@ func (fs *FileServiceImpl) MoveFiles(ctx context_mod.ContextZ, files []*file_mod
 		// Remove the file from the old parent
 		oldParent := file.GetParent()
 		oldParent.RemoveChild(file.GetPortablePath().Filename())
+
+		file.SetPortablePath(newFilename)
 		// Add the file to the new parent
 		destFolder.AddChild(file)
 
@@ -1036,10 +983,6 @@ func GenerateContentId(f *file_model.WeblensFileImpl) (string, error) {
 		return "", errors.WithStack(file_model.ErrEmptyFile)
 	}
 
-	if f.GetContentId() != "" {
-		return f.GetContentId(), nil
-	}
-
 	// Read up to 1MB at a time
 	bufSize := math.Min(float64(fileSize), 1000*1000)
 	buf := make([]byte, int64(bufSize))
@@ -1174,7 +1117,7 @@ func loadFs(ctx context_mod.ContextZ, cnf config.ConfigProvider) error {
 }
 
 func loadFsTransaction(c context_mod.ContextZ, cnf config.ConfigProvider) error {
-	ctx, ok := c.(*context.AppContext)
+	ctx, ok := c.(context.AppContext)
 	if !ok {
 		return errors.New("not an app context")
 	}
@@ -1212,7 +1155,7 @@ func loadFsTransaction(c context_mod.ContextZ, cnf config.ConfigProvider) error 
 
 		var fp file_system.Filepath
 		fp, searchFiles = searchFiles[0], searchFiles[1:]
-		ctx.Log().Debug().Msgf("Loading file %s", fp.ToAbsolute())
+		ctx.Log().Trace().Msgf("Loading file %s", fp.ToAbsolute())
 
 		action, err := history.GetActionAtFilepath(ctx, fp)
 		if db.IsNotFound(err) {
@@ -1225,32 +1168,53 @@ func loadFsTransaction(c context_mod.ContextZ, cnf config.ConfigProvider) error 
 			return err
 		}
 
-		file := file_model.NewWeblensFile(fp)
-		file.SetId(action.FileId)
+		f := file_model.NewWeblensFile(fp)
+		f.SetId(action.FileId)
+		f.SetContentId(action.ContentId)
 
-		_, err = file.LoadStat()
-		if err != nil {
-			return err
+		// _, err = f.LoadStat()
+		// if err != nil {
+		// 	return err
+		// }
+
+		if !f.IsDir() && f.Size() != 0 && f.GetContentId() == "" {
+			_, err = GenerateContentId(f)
+			if err != nil {
+				return err
+			}
 		}
 
 		parent, err := ctx.FileService.GetFileByFilepath(ctx, fp.Dir())
 		if err != nil {
 			return err
 		}
-		file.SetParent(parent)
-		parent.AddChild(file)
+		f.SetParent(parent)
+		parent.AddChild(f)
 
-		ctx.FileService.AddFile(ctx, file)
+		ctx.FileService.AddFile(ctx, f)
 
-		if file.IsDir() {
+		if f.IsDir() {
 			children, err := getChildFilepaths(fp)
 			if err != nil {
 				return err
 			}
-			ctx.Log().Debug().Msgf("Found %d children for %s", len(children), fp.ToAbsolute())
+			ctx.Log().Trace().Msgf("Found %d children for %s", len(children), fp.ToAbsolute())
 			searchFiles = append(searchFiles, children...)
 		}
 	}
+
+	usersRoot, err := ctx.FileService.GetFileById(UsersTreeKey)
+	if err != nil {
+		return err
+	}
+
+	ctx.Log().Trace().Func(func(e *zerolog.Event) {
+		e.Msgf("fs load of %s complete in %s", UsersRootPath, time.Since(start))
+	})
+
+	start = time.Now()
+	usersRoot.LoadStat()
+	ctx.Log().Trace().Msgf("Computed tree size in %s", time.Since(start))
 
 	// for len(toLoad) != 0 {
 	// 	var fileToLoad *file_model.WeblensFileImpl
@@ -1316,9 +1280,25 @@ func loadFsTransaction(c context_mod.ContextZ, cnf config.ConfigProvider) error 
 	// 	return err
 	// }
 
-	ctx.Log().Trace().Func(func(e *zerolog.Event) {
-		e.Msgf("fs load of %s complete in %s", UsersRootPath, time.Since(start))
-	})
+	return nil
+}
+
+func (fs *FileServiceImpl) makeRoot(rootPath file_system.Filepath) error {
+	var f *file_model.WeblensFileImpl
+	var err error
+	if !exists(rootPath) {
+		f, err = mkdir(rootPath)
+	} else {
+		f = file_model.NewWeblensFile(rootPath)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if rootPath.RelPath == "" {
+		fs.files[rootPath.RootName()] = f
+	}
 
 	return nil
 }

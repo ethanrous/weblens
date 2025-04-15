@@ -27,7 +27,7 @@ import (
 //
 //	@Success	200
 //	@Router		/servers/{serverId}/backup [post]
-func launchBackup(ctx *context.RequestContext) {
+func launchBackup(ctx context.RequestContext) {
 	serverId := ctx.Path("serverId")
 
 	if serverId == "" {

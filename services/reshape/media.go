@@ -41,3 +41,17 @@ func NewMediaBatchInfo(m []*media_model.Media) structs.MediaBatchInfo {
 		MediaCount: len(m),
 	}
 }
+
+func MediaTypeToMediaTypeInfo(mt media_model.MediaType) structs.MediaTypeInfo {
+	return structs.MediaTypeInfo{
+		Mime:            mt.Mime,
+		Name:            mt.Name,
+		RawThumbExifKey: mt.RawThumbExifKey,
+		Extensions:      mt.Extensions,
+		Displayable:     mt.Displayable,
+		Raw:             mt.Raw,
+		Video:           mt.IsVideo,
+		ImgRecog:        mt.ImgRecog,
+		MultiPage:       mt.MultiPage,
+	}
+}

@@ -22,6 +22,8 @@ import (
 
 const BaseContextKey = "context"
 
+var _ context.ContextZ = RequestContext{}
+
 type RequestContext struct {
 	AppContext
 
@@ -37,20 +39,20 @@ type RequestContext struct {
 	mongoSession mongo.SessionContext
 }
 
-func (c *RequestContext) WithMongoSession(session mongo.SessionContext) {
+func (c RequestContext) WithMongoSession(session mongo.SessionContext) {
 	c.mongoSession = session
 }
 
-func (c *RequestContext) GetMongoSession() mongo.SessionContext {
+func (c RequestContext) GetMongoSession() mongo.SessionContext {
 	return c.mongoSession
 }
 
-func (c *RequestContext) AppCtx() context.ContextZ {
-	return &c.AppContext
+func (c RequestContext) AppCtx() context.ContextZ {
+	return c.AppContext
 }
 
 // Path returns the value of a URL parameter, or an empty string if the parameter is not found.
-func (c *RequestContext) Path(paramName string) string {
+func (c RequestContext) Path(paramName string) string {
 	q, err := url.QueryUnescape(chi.URLParam(c.Req, paramName))
 	if err != nil {
 		c.Log().Error().Err(err).Msgf("Failed to unescape URL parameter '%s'", paramName)
@@ -62,11 +64,11 @@ func (c *RequestContext) Path(paramName string) string {
 }
 
 // Query returns the value of a query parameter, or an empty string if the parameter is not found.
-func (c *RequestContext) Query(paramName string) string {
+func (c RequestContext) Query(paramName string) string {
 	return c.Req.URL.Query().Get(paramName)
 }
 
-func (c *RequestContext) Error(code int, err error) {
+func (c RequestContext) Error(code int, err error) {
 	if err == nil {
 		err = errors.New("error is nil")
 		c.Logger.Error().Stack().Err(err).Msg("")
@@ -86,7 +88,7 @@ func (c *RequestContext) Error(code int, err error) {
 	c.JSON(code, map[string]string{"error": err.Error()})
 }
 
-func (c *RequestContext) SetSessionToken() error {
+func (c RequestContext) SetSessionToken() error {
 	if c.Requester == nil {
 		return errors.New("requester is nil")
 	}
@@ -99,12 +101,12 @@ func (c *RequestContext) SetSessionToken() error {
 	return nil
 }
 
-func (c *RequestContext) ExpireCookie() {
+func (c RequestContext) ExpireCookie() {
 	cookie := fmt.Sprintf("%s=;Path=/;Expires=Thu, 01 Jan 1970 00:00:00 GMT;HttpOnly", crypto.SessionTokenCookie)
 	c.W.Header().Set("Set-Cookie", cookie)
 }
 
-func (c *RequestContext) GetCookie(cookieName string) (string, error) {
+func (c RequestContext) GetCookie(cookieName string) (string, error) {
 	// Get the value of a specific cookie from the request.
 	// This will return an empty string and non-nil error if the cookie is not present.
 	cookie, err := c.Req.Cookie(cookieName)
@@ -115,7 +117,7 @@ func (c *RequestContext) GetCookie(cookieName string) (string, error) {
 	return cookie.Value, nil
 }
 
-func (c *RequestContext) Header(headerName string) string {
+func (c RequestContext) Header(headerName string) string {
 	// Get the value of a specific header from the request.
 	// This will return an empty string if the header is not present.
 	headerValue := c.Req.Header.Get(headerName)
@@ -130,8 +132,12 @@ func (c *RequestContext) Header(headerName string) string {
 	return headerValue
 }
 
+func (c RequestContext) SetHeader(headerName, headerValue string) {
+	c.W.Header().Add(headerName, headerValue)
+}
+
 // Set the HTTP status code for the response.
-func (c *RequestContext) Status(code int) {
+func (c RequestContext) Status(code int) {
 	if code >= 400 {
 		c.Log().Trace().CallerSkipFrame(1).Caller().Msgf("Setting response code [%d]", code)
 	}
@@ -141,7 +147,7 @@ func (c *RequestContext) Status(code int) {
 
 var rangeMatchR = regexp.MustCompile("^bytes=[0-9]+-[0-9]+/[0-9]+$")
 
-func (c *RequestContext) ContentRange() (start, end, total int, err error) {
+func (c RequestContext) ContentRange() (start, end, total int, err error) {
 	// Get the "Range" header from the request.
 	rangeHeader := c.Header("Content-Range")
 
@@ -166,21 +172,25 @@ func (c *RequestContext) ContentRange() (start, end, total int, err error) {
 	return start, end, total, nil
 }
 
-func (c *RequestContext) JSON(code int, data any) {
+func (c RequestContext) JSON(code int, data any) {
 	bs, err := json.Marshal(data)
 	if err != nil {
-		err = errors.WithStack(err)
-		c.Logger.Error().Stack().Err(err).Msg("Failed to marshal JSON")
-
-		c.W.WriteHeader(http.StatusInternalServerError)
+		c.Error(http.StatusInternalServerError, errors.WithStack(err))
 		return
 	}
 
-	c.W.WriteHeader(code)
-	c.W.Header().Set("Content-Type", "application/json")
-	c.W.Write(bs)
+	c.SetHeader("Content-Type", "application/json")
+	c.Bytes(code, bs)
 }
 
-func (c *RequestContext) Client() *client.WsClient {
+func (c RequestContext) Bytes(code int, data []byte) {
+	c.Status(code)
+	_, err := c.W.Write(data)
+	if err != nil {
+		c.Error(http.StatusInternalServerError, errors.WithStack(err))
+	}
+}
+
+func (c RequestContext) Client() *client.WsClient {
 	return c.ClientService.GetClientByUsername(c.Requester.Username)
 }

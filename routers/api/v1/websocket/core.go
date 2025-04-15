@@ -20,7 +20,7 @@ import (
 
 const retryInterval = time.Second * 10
 
-func WebsocketToCore(ctx *context.RequestContext, core *tower_model.Instance) error {
+func WebsocketToCore(ctx context.RequestContext, core *tower_model.Instance) error {
 	coreUrl, err := url.Parse(core.Address)
 	if err != nil {
 		return errors.WithStack(err)
@@ -72,7 +72,7 @@ func WebsocketToCore(ctx *context.RequestContext, core *tower_model.Instance) er
 			)
 			ctx.Notify(notif)
 
-			coreWsHandler(&ctx.AppContext, client)
+			coreWsHandler(ctx.AppContext, client)
 			notif = notify.NewSystemNotification(
 				websocket_mod.RemoteConnectionChangedEvent, websocket_mod.WsData{
 					"serverId": core.TowerId,
@@ -91,7 +91,7 @@ func WebsocketToCore(ctx *context.RequestContext, core *tower_model.Instance) er
 	return nil
 }
 
-func dial(ctx *context.RequestContext, dialer *websocket.Dialer, host url.URL, authHeader http.Header, core *tower_model.Instance) (*client_model.WsClient, error) {
+func dial(ctx context.RequestContext, dialer *websocket.Dialer, host url.URL, authHeader http.Header, core *tower_model.Instance) (*client_model.WsClient, error) {
 	log.Trace().Msgf("Dialing %s", host.String())
 	conn, _, err := dialer.Dial(host.String(), authHeader)
 	if err != nil {
@@ -102,7 +102,7 @@ func dial(ctx *context.RequestContext, dialer *websocket.Dialer, host url.URL, a
 	return client, nil
 }
 
-func coreWsHandler(ctx *context.AppContext, c *client_model.WsClient) {
+func coreWsHandler(ctx context.AppContext, c *client_model.WsClient) {
 	defer func() { c.Disconnect() }()
 
 	for {
@@ -116,7 +116,7 @@ func coreWsHandler(ctx *context.AppContext, c *client_model.WsClient) {
 	}
 }
 
-func wsCoreClientSwitchboard(ctx *context.AppContext, msgBuf []byte, c *client_model.WsClient) {
+func wsCoreClientSwitchboard(ctx context.AppContext, msgBuf []byte, c *client_model.WsClient) {
 	defer wsRecover(ctx, c)
 
 	var msg websocket_mod.WsResponseInfo

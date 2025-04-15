@@ -20,7 +20,7 @@ func CopyFileFromCore(tsk task_mod.Task) {
 	t := tsk.(*task_model.Task)
 	meta := t.GetMeta().(job.BackupCoreFileMeta)
 
-	ctx, ok := t.Ctx.(*context.AppContext)
+	ctx, ok := t.Ctx.(context.AppContext)
 	if !ok {
 		t.Fail(errors.New("Failed to cast context to FilerContext"))
 		return

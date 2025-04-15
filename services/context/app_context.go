@@ -7,11 +7,10 @@ import (
 	"github.com/ethanrous/weblens/modules/context"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/ethanrous/weblens/modules/websocket"
-	"github.com/rs/zerolog"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-var _ context.ContextZ = &AppContext{}
+var _ context.ContextZ = AppContext{}
 
 type AppContext struct {
 	BasicContext
@@ -25,37 +24,30 @@ type AppContext struct {
 	DB            *mongo.Database
 }
 
-func NewAppContext(ctx *BasicContext) *AppContext {
-	return &AppContext{BasicContext: *ctx}
+func NewAppContext(ctx BasicContext) AppContext {
+	return AppContext{BasicContext: ctx}
 }
 
-func (c *AppContext) AppCtx() context.ContextZ {
+func (c AppContext) AppCtx() context.ContextZ {
 	return c
 }
 
-func (c *AppContext) WithLogger(l *zerolog.Logger) *AppContext {
-	newL := l.With().Logger()
-	c.Logger = &newL
-	return c
-}
+func (c AppContext) WithMongoSession(session mongo.SessionContext) {}
 
-func (c *AppContext) WithMongoSession(session mongo.SessionContext) {}
+func (c AppContext) GetMongoSession() mongo.SessionContext { return nil }
 
-func (c *AppContext) GetMongoSession() mongo.SessionContext { return nil }
-
-func (c *AppContext) Notify(data ...websocket.WsResponseInfo) {
+func (c AppContext) Notify(data ...websocket.WsResponseInfo) {
 	c.ClientService.Notify(data...)
 }
 
-func (c *AppContext) Database() *mongo.Database {
+func (c AppContext) Database() *mongo.Database {
 	return c.DB
 }
 
-func (c *AppContext) DispatchJob(jobName string, meta task_mod.TaskMetadata, pool task_mod.Pool) (task_mod.Task, error) {
-	c.TaskService.DispatchJob(c, jobName, meta, pool.(*task_model.TaskPool))
-	return nil, nil
+func (c AppContext) DispatchJob(jobName string, meta task_mod.TaskMetadata, pool task_mod.Pool) (task_mod.Task, error) {
+	return c.TaskService.DispatchJob(c, jobName, meta, pool.(*task_model.TaskPool))
 }
 
-func (c *AppContext) GetFileService() file.FileService {
+func (c AppContext) GetFileService() file.FileService {
 	return c.FileService
 }
