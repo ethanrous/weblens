@@ -120,11 +120,48 @@ function queueChunks(
                             .updateProgress(key, thisChunkIndex, e.loaded)
                     },
                 }
-            ).catch((err: Error) => {
-                taskQueue.cancelQueue()
-                useUploadStatus.getState().setError(key, String(err))
-                ErrorHandler(err)
-            })
+            ).catch(async (err: Error) => {
+                if (err.response?.status >= 500 && err.response?.status < 600) {
+                    console.warn(`Retrying chunk upload for ${key}, chunk ${thisChunkIndex}`);
+                    let retries = 3;
+                    while (retries > 0) {
+                        try {
+                            await FileApi.uploadFileChunk(
+                                uploadId,
+                                uploadMeta.fileId,
+                                file.slice(chunkLowByte, chunkHighByte) as File,
+                                shareId,
+                                {
+                                    headers: {
+                                        'Content-Range': `${chunkLowByte}-${chunkHighByte - 1}/${file.size}`,
+                                        'Content-Type': 'application/octet-stream',
+                                    },
+                                    onUploadProgress: (e: AxiosProgressEvent) => {
+                                        useUploadStatus
+                                            .getState()
+                                            .updateProgress(key, thisChunkIndex, e.loaded)
+                                    },
+                                }
+                            );
+                            console.debug(`Retry successful for ${key}, chunk ${thisChunkIndex}`);
+                            return;
+                        } catch (retryErr) {
+                            retries--;
+                            if (retries === 0) {
+                                console.error(`Failed to upload chunk after retries: ${key}, chunk ${thisChunkIndex}`);
+                                taskQueue.cancelQueue();
+                                useUploadStatus.getState().setError(key, String(retryErr));
+                                ErrorHandler(retryErr);
+                                return;
+                            }
+                        }
+                    }
+                } else {
+                    taskQueue.cancelQueue();
+                    useUploadStatus.getState().setError(key, String(err));
+                    ErrorHandler(err);
+                }
+            });
             console.debug('Finished uploading', file.name)
             useUploadStatus.getState().chunkComplete(key, thisChunkIndex)
         })
