@@ -113,6 +113,20 @@ func GetTokenById(ctx context.Context, tokenId primitive.ObjectID) (token *Token
 	return
 }
 
+func GetToken(ctx context.Context, tokenBytes [32]byte) (token Token, err error) {
+	col, err := db.GetCollection(ctx, TokenCollectionKey)
+	if err != nil {
+		return
+	}
+
+	err = col.FindOne(ctx, bson.M{"token": tokenBytes}).Decode(&token)
+	if err != nil {
+		return token, db.WrapError(err, "failed to find token")
+	}
+
+	return
+}
+
 func GetAllTokensByTowerId(ctx context.Context, towerId string) (tokens []*Token, err error) {
 	col, err := db.GetCollection(ctx, TokenCollectionKey)
 	if err != nil {

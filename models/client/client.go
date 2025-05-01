@@ -2,6 +2,7 @@ package client
 
 import (
 	"iter"
+	"net"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -168,15 +169,16 @@ func (wsc *WsClient) Disconnect() {
 	wsc.Active.Store(false)
 
 	wsc.updateMu.Lock()
+	defer wsc.updateMu.Unlock()
+
 	err := wsc.conn.Close()
-	if err != nil {
+	if err != nil && !errors.Is(err, net.ErrClosed) {
 		wsc.log.Error().Stack().Err(err).Msg("")
 		return
 	}
-	wsc.updateMu.Unlock()
 
 	wsc.log.Trace().Func(func(e *zerolog.Event) {
-		e.Msgf("Disconnected %s client [%s]", wsc.getClientType(), wsc.getClientName())
+		e.Msgf("Disconnected %s client %s [%s]", wsc.getClientType(), wsc.getClientName(), wsc.GetClientId())
 	})
 }
 

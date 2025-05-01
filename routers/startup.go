@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/ethanrous/weblens/models/db"
+	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/task"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
@@ -21,8 +22,10 @@ import (
 	file_service "github.com/ethanrous/weblens/services/file"
 	"github.com/ethanrous/weblens/services/jobs"
 	"github.com/ethanrous/weblens/services/notify"
+	_ "github.com/ethanrous/weblens/services/user"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 func startupRecover(l zerolog.Logger) {
@@ -34,6 +37,7 @@ func startupRecover(l zerolog.Logger) {
 
 func CaptureInterrupt() (context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithCancel(context.Background())
+
 	go func() {
 		// install notify
 		signalChannel := make(chan os.Signal, 1)
@@ -48,9 +52,10 @@ func CaptureInterrupt() (context.Context, context.CancelFunc) {
 		)
 		select {
 		case <-signalChannel:
+			log.Info().Msg("Received interrupt signal, shutting down...")
+			cancel()
 		case <-ctx.Done():
 		}
-		cancel()
 		signal.Reset()
 	}()
 
@@ -62,9 +67,20 @@ func Startup(ctx context_service.AppContext, cnf config.ConfigProvider) (*router
 
 	r := router.NewRouter()
 
-	fs.RegisterAbsolutePrefix(file_service.UsersTreeKey, filepath.Join(cnf.DataPath, "users"))
-	fs.RegisterAbsolutePrefix(file_service.RestoreTreeKey, filepath.Join(cnf.DataPath, ".restore"))
-	fs.RegisterAbsolutePrefix(file_service.CachesTreeKey, cnf.CachePath)
+	err := fs.RegisterAbsolutePrefix(file_model.UsersTreeKey, filepath.Join(cnf.DataPath, "users"))
+	if err != nil {
+		return nil, err
+	}
+
+	err = fs.RegisterAbsolutePrefix(file_model.RestoreTreeKey, filepath.Join(cnf.DataPath, ".restore"))
+	if err != nil {
+		return nil, err
+	}
+
+	err = fs.RegisterAbsolutePrefix(file_model.CachesTreeKey, cnf.CachePath)
+	if err != nil {
+		return nil, err
+	}
 
 	mongo, err := db.ConnectToMongo(ctx, cnf.MongoDBUri, cnf.MongoDBName)
 	if err != nil {
@@ -88,23 +104,32 @@ func Startup(ctx context_service.AppContext, cnf config.ConfigProvider) (*router
 	taskService.Run()
 	ctx.TaskService = taskService
 
-	if err := loadState(ctx); err != nil {
+	var local tower_model.Instance
+
+	if local, err = loadState(ctx); err != nil {
 		ctx.Log().Fatal().Stack().Err(err).Msg("Failed to load initial state")
 	}
 
+	ctx.LocalTowerId = local.TowerId
+	ctx = ctx.WithValue("towerId", local.TowerId)
+
+	// Run setup functions for various services
 	err = startup.RunStartups(ctx, cnf)
 	if err != nil {
 		return nil, err
 	}
 
-	r.WithAppContext(ctx)
+	// Install middlewares
+	r.Use(
+		context_service.AppContexter(ctx),
+		router.LoggerMiddlewares(ctx.Logger),
+		router.Recoverer,
+		router.CORSMiddleware,
+		router.WeblensAuth,
+		router.ShareInjector,
+	)
 
-	for _, lm := range router.LoggerMiddlewares(ctx.Logger) {
-		r.Use(router.WrapHandlerProvider(lm))
-	}
-
-	r.Use(router.Recoverer, router.WeblensAuth)
-
+	// Install routes
 	r.Mount("/api/v1", v1.Routes)
 	r.Mount("/docs", v1.Docs)
 	r.Mount("/", web.UiRoutes(web.NewMemFs(ctx, cnf)))
@@ -112,34 +137,30 @@ func Startup(ctx context_service.AppContext, cnf config.ConfigProvider) (*router
 	return r, nil
 }
 
-func loadState(ctx context_service.AppContext) error {
-	local, err := tower_model.GetLocal(ctx)
+func loadState(ctx context_service.AppContext) (local tower_model.Instance, err error) {
+	local, err = tower_model.GetLocal(ctx)
 	if err != nil {
 		ctx.Log().Info().Msgf("No local instance found, creating new one")
 		local, err = tower_model.CreateLocal(ctx)
+
 		if err != nil {
-			return errors.Wrap(err, "Failed to create local instance")
+			return local, errors.Wrap(err, "Failed to create local instance")
 		}
 	}
+
 	ctx.Log().Info().Msgf("Local instance found: %s -- %s", local.TowerId, local.Role)
 
-	if local.Role == tower_model.CoreTowerRole {
+	if local.Role != tower_model.RoleInit {
 		_, err := user_model.GetServerOwner(ctx)
 		if err != nil {
 			ctx.Log().Warn().Err(err).Msgf("No server owner found, reverting to server init state")
 			local, err = tower_model.ResetLocal(ctx)
+
 			if err != nil {
-				return errors.Wrap(err, "Failed to reset local instance")
+				return local, errors.Wrap(err, "Failed to reset local instance")
 			}
 		}
-
 	}
 
-	ctx.LocalTowerId = local.TowerId
-
-	return nil
-}
-
-func loadFs(ctx context_service.AppContext) {
-
+	return local, nil
 }

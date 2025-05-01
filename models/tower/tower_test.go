@@ -34,7 +34,7 @@ func TestCreateLocal(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, tower)
-		assert.Equal(t, InitTowerRole, tower.Role)
+		assert.Equal(t, RoleInit, tower.Role)
 		assert.True(t, tower.IsThisTower)
 	})
 }
@@ -52,10 +52,10 @@ func TestCreateTower(t *testing.T) {
 		tower := &Instance{
 			DbId:    primitive.NewObjectID(),
 			TowerId: primitive.NewObjectID().Hex(),
-			Role:    CoreTowerRole,
+			Role:    RoleCore,
 		}
 
-		err := CreateTower(ctx, tower)
+		err := SaveTower(ctx, tower)
 
 		assert.NoError(t, err)
 	})
@@ -75,7 +75,7 @@ func TestGetTowerById(t *testing.T) {
 		// Insert a mock tower document
 		_, err := mongodb.Collection(t.Name()).InsertOne(ctx, bson.D{
 			{Key: KeyTowerId, Value: towerId},
-			{Key: KeyTowerRole, Value: string(CoreTowerRole)},
+			{Key: KeyTowerRole, Value: string(RoleCore)},
 		})
 		assert.NoError(t, err)
 
@@ -109,7 +109,7 @@ func TestGetLocal(t *testing.T) {
 		// Insert a mock tower document
 		_, err := mongodb.Collection(t.Name()).InsertOne(ctx, bson.D{
 			{Key: KeyIsThisTower, Value: true},
-			{Key: KeyTowerRole, Value: string(CoreTowerRole)},
+			{Key: KeyTowerRole, Value: string(RoleCore)},
 		})
 		assert.NoError(t, err)
 
@@ -166,7 +166,7 @@ func TestGetAllTowersByTowerId(t *testing.T) {
 		// Insert a mock tower document
 		_, err := mongodb.Collection(t.Name()).InsertOne(ctx, bson.D{
 			{Key: KeyCreatedBy, Value: towerId},
-			{Key: KeyTowerRole, Value: string(CoreTowerRole)},
+			{Key: KeyTowerRole, Value: string(RoleCore)},
 		})
 		assert.NoError(t, err)
 

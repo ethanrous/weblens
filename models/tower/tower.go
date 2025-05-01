@@ -12,21 +12,22 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-type TowerRole string
+type Role string
 
 const TowerCollectionKey = "towers"
 
 const (
-	InitTowerRole    TowerRole = "init"
-	CoreTowerRole    TowerRole = "core"
-	BackupTowerRole  TowerRole = "backup"
-	RestoreTowerRole TowerRole = "restore"
+	RoleInit    Role = "init"
+	RoleCore    Role = "core"
+	RoleBackup  Role = "backup"
+	RoleRestore Role = "restore"
 )
 
 var ErrTowerNotFound = errors.New("no tower found")
 var ErrTowerNotInitialized = errors.New("tower not initialized")
 var ErrTowerAlreadyInitialized = errors.New("tower is already initialized")
 var ErrTowerIsBackup = errors.New("tower is a backup")
+var ErrNotCore = errors.New("tower was expected to be a core tower, but is not")
 
 // A "Tower" is a single Weblens tower.
 // For clarity: Core and Backup are "absolute" tower roles, and each tower
@@ -40,7 +41,7 @@ type Instance struct {
 	Name    string `bson:"name"`
 
 	// Core or Backup
-	Role TowerRole `bson:"towerRole"`
+	Role Role `bson:"towerRole"`
 
 	// Address of the remote tower, only if the instance is a core.
 	// Not set for any remotes/backups on core tower, as it IS the core
@@ -66,46 +67,55 @@ type Instance struct {
 	IsThisTower bool `bson:"isThisTower"`
 
 	// The role the tower is currently reporting. This is used to determine if the tower is online (and functional) or not
-	reportedRole TowerRole `bson:"-"`
+	reportedRole Role `bson:"-"`
 }
 
-func CreateLocal(ctx context.Context) (*Instance, error) {
-	tower := &Instance{
+func CreateLocal(ctx context.Context) (t Instance, err error) {
+	t = Instance{
 		DbId:        primitive.NewObjectID(),
 		TowerId:     primitive.NewObjectID().Hex(),
-		Role:        InitTowerRole,
+		Role:        RoleInit,
 		IsThisTower: true,
 	}
 
 	col, err := db.GetCollection(ctx, TowerCollectionKey)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return t, errors.WithStack(err)
 	}
 
-	_, err = col.InsertOne(ctx, tower)
+	_, err = col.InsertOne(ctx, t)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return t, errors.WithStack(err)
 	}
 
-	return tower, nil
+	return t, nil
 }
 
-func ResetLocal(ctx context.Context) (*Instance, error) {
+func ResetLocal(ctx context.Context) (t Instance, err error) {
 	col, err := db.GetCollection(ctx, TowerCollectionKey)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return t, errors.WithStack(err)
 	}
 
 	_, err = col.DeleteMany(ctx, bson.M{"isThisTower": true})
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return t, errors.WithStack(err)
 	}
 
 	return CreateLocal(ctx)
 }
 
-func CreateTower(ctx context.Context, tower *Instance) error {
+func SaveTower(ctx context.Context, tower *Instance) error {
 	col, err := db.GetCollection(ctx, TowerCollectionKey)
+	if err != nil {
+		return err
+	}
+
+	if tower.DbId.IsZero() {
+		tower.DbId = primitive.NewObjectID()
+	}
+
+	err = validateNewTower(ctx, tower)
 	if err != nil {
 		return err
 	}
@@ -118,34 +128,49 @@ func CreateTower(ctx context.Context, tower *Instance) error {
 	return nil
 }
 
-func GetTowerById(ctx context.Context, towerId string) (tower *Instance, err error) {
+func GetTowerById(ctx context.Context, towerId string) (tower Instance, err error) {
 	col, err := db.GetCollection(ctx, TowerCollectionKey)
 	if err != nil {
-		return nil, err
+		return tower, err
 	}
 
-	tower = &Instance{}
-	err = col.FindOne(ctx, bson.M{"towerId": towerId}).Decode(tower)
+	err = col.FindOne(ctx, bson.M{"towerId": towerId}).Decode(&tower)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return nil, ErrTowerNotFound
+			return tower, ErrTowerNotFound
 		}
-		return nil, errors.WithStack(err)
+
+		return tower, errors.WithStack(err)
 	}
 
 	return
 }
 
-func GetLocal(ctx context.Context) (*Instance, error) {
+func DeleteTowerById(ctx context.Context, towerId string) error {
 	col, err := db.GetCollection(ctx, TowerCollectionKey)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	tower := &Instance{}
-	err = col.FindOne(ctx, bson.M{"isThisTower": true}).Decode(tower)
+	_, err = col.DeleteOne(ctx, bson.M{"towerId": towerId})
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return db.WrapError(err, "failed to delete tower")
+	}
+
+	return nil
+}
+
+func GetLocal(ctx context.Context) (t Instance, err error) {
+	col, err := db.GetCollection(ctx, TowerCollectionKey)
+	if err != nil {
+		return t, err
+	}
+
+	tower := Instance{}
+
+	err = col.FindOne(ctx, bson.M{"isThisTower": true}).Decode(&tower)
+	if err != nil {
+		return t, errors.WithStack(err)
 	}
 
 	return tower, nil
@@ -183,7 +208,7 @@ func UpdateTower(ctx context.Context, tower *Instance) error {
 	return nil
 }
 
-func GetAllTowersByTowerId(ctx context.Context, towerId string) ([]*Instance, error) {
+func GetAllTowersByTowerId(ctx context.Context, towerId string) ([]Instance, error) {
 	col, err := db.GetCollection(ctx, TowerCollectionKey)
 	if err != nil {
 		return nil, err
@@ -195,35 +220,48 @@ func GetAllTowersByTowerId(ctx context.Context, towerId string) ([]*Instance, er
 	}
 	defer cursor.Close(ctx)
 
-	var towers []*Instance
-	for cursor.Next(ctx) {
-		var tower Instance
-		if err := cursor.Decode(&tower); err != nil {
-			return nil, err
-		}
-		towers = append(towers, &tower)
+	var towers []Instance
+	if err := cursor.All(ctx, &towers); err != nil {
+		return nil, err
 	}
 
 	return towers, nil
 }
 
-func GetRemotes(ctx context.Context) ([]*Instance, error) {
-	return nil, nil
+func GetRemotes(ctx context.Context) ([]Instance, error) {
+	col, err := db.GetCollection(ctx, TowerCollectionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	cursor, err := col.Find(ctx, bson.M{"isThisTower": false})
+	if err != nil {
+		return nil, err
+	}
+
+	var remotes []Instance
+
+	err = cursor.All(ctx, &remotes)
+	if err != nil {
+		return nil, err
+	}
+
+	return remotes, nil
 }
 
 func (t *Instance) IsCore() bool {
-	return t.Role == CoreTowerRole
+	return t.Role == RoleCore
 }
 
 func (t *Instance) IsBackup() bool {
-	return t.Role == BackupTowerRole
+	return t.Role == RoleBackup
 }
 
-func (t *Instance) GetReportedRole() TowerRole {
+func (t *Instance) GetReportedRole() Role {
 	return t.reportedRole
 }
 
-func (t *Instance) SetReportedRole(role TowerRole) {
+func (t *Instance) SetReportedRole(role Role) {
 	t.reportedRole = role
 }
 

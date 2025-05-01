@@ -1,11 +1,11 @@
 package router
 
 import (
-	"context"
 	"net/http"
 
-	context_service "github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/services/context"
 	"github.com/go-chi/chi/v5"
+	"github.com/pkg/errors"
 )
 
 var _ http.Handler = &Router{}
@@ -44,48 +44,32 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 func (r *Router) Mount(prefix string, fn func() *Router) {
 	r.prefix = prefix
-	r.chi.Mount(prefix, fn())
+	r.chi.With(r.middlewares...).Mount(prefix, fn())
 }
 
 const requestContextKey = "requestContext"
 
-func (r Router) WithAppContext(ctx context_service.AppContext) {
-	r.chi.Use(
-		func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				reqContext := context_service.RequestContext{
-					AppContext: ctx,
-					Req:        r,
-					W:          w,
-				}
-
-				r = r.WithContext(context.WithValue(r.Context(), requestContextKey, reqContext))
-
-				reqContext.Req = r
-
-				next.ServeHTTP(w, r)
-			})
-		},
-	)
+func (r *Router) Method(method, path string, h ...any) {
+	r.chi.With(r.middlewares...).With(parseMiddlewares(h[:len(h)-1]...)...).Method(method, r.prefix+path, parseHandlerFunc(h[len(h)-1]))
 }
 
-func (r *Router) Get(path string, h ...HandlerFunc) {
-	r.chi.With(r.middlewares...).With(wrapManyHandlers(h[:len(h)-1]...)...).Get(r.prefix+path, toStdHandlerFunc(h[len(h)-1]))
+func (r *Router) Get(path string, h ...any) {
+	r.Method(http.MethodGet, path, h...)
 }
-func (r *Router) Post(path string, h ...HandlerFunc) {
-	r.chi.With(r.middlewares...).With(wrapManyHandlers(h[:len(h)-1]...)...).Post(r.prefix+path, toStdHandlerFunc(h[len(h)-1]))
+func (r *Router) Post(path string, h ...any) {
+	r.Method(http.MethodPost, path, h...)
 }
-func (r *Router) Put(path string, h HandlerFunc) {
-	r.chi.Put(r.prefix+path, toStdHandlerFunc(h))
+func (r *Router) Put(path string, h ...any) {
+	r.Method(http.MethodPut, path, h...)
 }
-func (r *Router) Patch(path string, h ...HandlerFunc) {
-	r.chi.With(r.middlewares...).With(wrapManyHandlers(h[:len(h)-1]...)...).Patch(r.prefix+path, toStdHandlerFunc(h[len(h)-1]))
+func (r *Router) Patch(path string, h ...any) {
+	r.Method(http.MethodPatch, path, h...)
 }
-func (r *Router) Head(path string, h HandlerFunc) {
-	r.chi.Head(r.prefix+path, toStdHandlerFunc(h))
+func (r *Router) Head(path string, h ...any) {
+	r.Method(http.MethodHead, path, h...)
 }
-func (r *Router) Delete(path string, h HandlerFunc) {
-	r.chi.Delete(r.prefix+path, toStdHandlerFunc(h))
+func (r *Router) Delete(path string, h ...any) {
+	r.Method(http.MethodDelete, path, h...)
 }
 
 func (r *Router) Route(pattern string, fn func(r *Router)) *Router {
@@ -95,13 +79,11 @@ func (r *Router) Route(pattern string, fn func(r *Router)) *Router {
 	return r
 }
 
-func (r *Router) Group(path string, fn func(), middlewares ...HandlerFunc) {
+func (r *Router) Group(path string, fn func(), middlewares ...any) {
 	previousGroupPrefix := r.prefix
 	previousMiddlewares := r.middlewares
 
-	for _, m := range middlewares {
-		r.middlewares = append(r.middlewares, middlewareWrapper(m))
-	}
+	r.middlewares = append(r.middlewares, parseMiddlewares(middlewares...)...)
 	r.prefix += path
 
 	fn()
@@ -110,16 +92,70 @@ func (r *Router) Group(path string, fn func(), middlewares ...HandlerFunc) {
 	r.middlewares = previousMiddlewares
 }
 
-func (r *Router) Handle(pattern string, h http.Handler) { r.chi.Handle(pattern, h) }
+func (r *Router) Handle(pattern string, h http.Handler) {
+	r.chi.With(r.middlewares...).Handle(pattern, h)
+}
 
 func (r *Router) NotFound(h HandlerFunc) {
 	r.chi.NotFound(toStdHandlerFunc(h))
 }
 
-func (r *Router) Use(middlewares ...PassthroughHandler) {
-	for _, m := range middlewares {
-		if m != nil {
-			r.chi.Use(mdlwToStd(m))
+func (r *Router) Use(middlewares ...any) {
+	r.middlewares = append(r.middlewares, parseMiddlewares(middlewares)...)
+
+	// for _, m := range middlewares {
+	// 	if m != nil {
+	// 		switch m := m.(type) {
+	// 		case func(http.Handler) http.Handler:
+	// 			r.middlewares = append(r.middlewares, m)
+	// 		case PassthroughHandler:
+	// 			r.middlewares = append(r.middlewares, mdlwToStd(m))
+	// 		case func(Handler) Handler:
+	// 			r.middlewares = append(r.middlewares, mdlwToStd(m))
+	// 		case []func(http.Handler) http.Handler:
+	// 			for _, mw := range m {
+	// 				r.middlewares = append(r.middlewares, mw)
+	// 			}
+	// 		default:
+	// 			panic(errors.Errorf("middleware must be a function or a PassthroughHandler but got %T", m))
+	// 		}
+	// 	}
+	// }
+	// log.Debug().Msgf("Registering %d middlewares", len(r.middlewares))
+}
+
+func parseHandlerFunc(h any) http.HandlerFunc {
+	switch h := h.(type) {
+	case http.HandlerFunc:
+		return h
+	case func(context.RequestContext):
+		return toStdHandlerFunc(HandlerFunc(h))
+	default:
+		panic(errors.Errorf("handler is not a valid function: %T", h))
+	}
+}
+
+func parseMiddlewares(middlewares ...any) []func(http.Handler) http.Handler {
+	parsedMiddlewares := make([]func(http.Handler) http.Handler, 0, len(middlewares))
+	for _, mw := range middlewares {
+		switch mw := mw.(type) {
+		case func(http.Handler) http.Handler:
+			parsedMiddlewares = append(parsedMiddlewares, mw)
+		case PassthroughHandler:
+			parsedMiddlewares = append(parsedMiddlewares, mdlwToStd(mw))
+		case func(Handler) Handler:
+			parsedMiddlewares = append(parsedMiddlewares, mdlwToStd(mw))
+		case []func(http.Handler) http.Handler:
+			for _, m := range mw {
+				parsedMiddlewares = append(parsedMiddlewares, m)
+			}
+		case []any:
+			parsedMiddlewares = append(parsedMiddlewares, parseMiddlewares(mw...)...)
+		case func(context.RequestContext):
+			parsedMiddlewares = append(parsedMiddlewares, middlewareWrapper(HandlerFunc(mw)))
+		default:
+			panic(errors.Errorf("middleware is not a valid function: %T", mw))
 		}
 	}
+	return parsedMiddlewares
 }

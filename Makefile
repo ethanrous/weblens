@@ -3,7 +3,11 @@ TS_SOURCE=$(shell find ./ui/src/ -iname "*.ts*")
 
 all: run
 
+# WEBLENS_ENV_PATH=./scripts/.env ./build/bin/weblens
 run: gen-ui gen-go
+	./build/bin/weblens
+
+run\:go: gen-go
 	./build/bin/weblens
 
 gen-go: $(GO_SOURCE)

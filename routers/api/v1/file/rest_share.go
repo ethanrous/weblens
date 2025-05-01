@@ -3,6 +3,7 @@ package file
 import (
 	"net/http"
 
+	"github.com/ethanrous/weblens/models/db"
 	share_model "github.com/ethanrous/weblens/models/share"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/net"
@@ -33,43 +34,61 @@ func CreateFileShare(ctx context.RequestContext) {
 	file, err := ctx.FileService.GetFileById(shareInfo.FileId)
 	if err != nil {
 		ctx.Error(http.StatusNotFound, err)
+
 		return
 	}
 
 	owner, err := file_service.GetFileOwner(ctx, file)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
 	if owner.GetUsername() != ctx.Requester.GetUsername() {
 		// TODO: Obfuscate error message so that it doesn't leak information about existing files
 		ctx.Error(http.StatusNotFound, errors.New("you are not the owner of this file"))
+
 		return
 	}
 
 	_, err = share_model.GetShareByFileId(ctx, shareInfo.FileId)
-	if !errors.Is(err, share_model.ErrShareAlreadyExists) {
-		ctx.Error(http.StatusConflict, err)
-		return
-	} else if err != nil {
-		ctx.Error(http.StatusInternalServerError, err)
+	if err == nil {
+		ctx.Error(http.StatusConflict, share_model.ErrShareAlreadyExists)
+
 		return
 	}
 
-	var accessors []*user_model.User
+	if !db.IsNotFound(err) {
+		ctx.Error(http.StatusInternalServerError, err)
+
+		return
+	}
+
+	accessors := make([]*user_model.User, 0, len(shareInfo.Users))
+
 	for _, un := range shareInfo.Users {
 		u, err := user_model.GetUserByUsername(ctx, un)
 		if err != nil {
 			ctx.Error(http.StatusNotFound, err)
+
 			return
 		}
+
 		accessors = append(accessors, u)
 	}
 
 	newShare, err := share_model.NewFileShare(ctx, file.ID(), ctx.Requester, accessors, shareInfo.Public, shareInfo.Wormhole)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
+
+		return
+	}
+
+	err = share_model.SaveFileShare(ctx, newShare)
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
@@ -140,6 +159,7 @@ func GetFileShare(ctx context.RequestContext) {
 	share, err := share_model.GetShareById(ctx, shareId)
 	if err != nil {
 		ctx.Error(http.StatusNotFound, err)
+
 		return
 	}
 
@@ -166,18 +186,21 @@ func SetSharePublic(ctx context.RequestContext) {
 	share, err := share_model.GetShareById(ctx, shareId)
 	if err != nil {
 		ctx.Error(http.StatusNotFound, err)
+
 		return
 	}
 
 	publicStr := ctx.Query("public")
 	if publicStr != "true" && publicStr != "false" {
 		ctx.Error(http.StatusBadRequest, errors.New("public query parameter must be 'true' or 'false'"))
+
 		return
 	}
 
 	err = share.SetPublic(ctx, publicStr == "true")
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
@@ -201,12 +224,14 @@ func SetShareAccessors(ctx context.RequestContext) {
 	share, err := share_model.GetShareById(ctx, shareId)
 	if err != nil {
 		ctx.Error(http.StatusNotFound, err)
+
 		return
 	}
 
 	usersBody, err := net.ReadRequestBody[structs.UserListBody](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
@@ -215,6 +240,7 @@ func SetShareAccessors(ctx context.RequestContext) {
 		u, err := user_model.GetUserByUsername(ctx, un)
 		if err != nil {
 			ctx.Error(http.StatusNotFound, err)
+
 			return
 		}
 		addUsers = append(addUsers, u.Username)
@@ -225,6 +251,7 @@ func SetShareAccessors(ctx context.RequestContext) {
 		u, err := user_model.GetUserByUsername(ctx, un)
 		if err != nil {
 			ctx.Error(http.StatusNotFound, err)
+
 			return
 		}
 		removeUsers = append(removeUsers, u.Username)
@@ -234,6 +261,7 @@ func SetShareAccessors(ctx context.RequestContext) {
 		err = share.AddUsers(ctx, addUsers)
 		if err != nil {
 			ctx.Error(http.StatusInternalServerError, err)
+
 			return
 		}
 	}
@@ -242,6 +270,7 @@ func SetShareAccessors(ctx context.RequestContext) {
 		err = share.RemoveUsers(ctx, addUsers)
 		if err != nil {
 			ctx.Error(http.StatusInternalServerError, err)
+
 			return
 		}
 	}
@@ -249,6 +278,7 @@ func SetShareAccessors(ctx context.RequestContext) {
 	share, err = share_model.GetShareById(ctx, shareId)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
@@ -272,6 +302,7 @@ func DeleteShare(ctx context.RequestContext) {
 	err := share_model.DeleteShare(ctx, shareId)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 }

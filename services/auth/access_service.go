@@ -2,34 +2,31 @@ package auth
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+	"net/http"
 	"slices"
-	"strings"
 	"time"
 
+	auth_model "github.com/ethanrous/weblens/models/auth"
 	file_model "github.com/ethanrous/weblens/models/file"
 	share_model "github.com/ethanrous/weblens/models/share"
 	user_model "github.com/ethanrous/weblens/models/user"
+	context_mod "github.com/ethanrous/weblens/modules/context"
 	"github.com/ethanrous/weblens/modules/crypto"
+	"github.com/ethanrous/weblens/modules/werror"
+	"github.com/pkg/errors"
 )
 
-func CanUserAccessFile(
-	user *user_model.User, file *file_model.WeblensFileImpl, share *share_model.FileShare,
-) bool {
-	if user == nil || user.IsPublic() {
-		return share != nil && share.IsPublic()
-	}
+var ErrBadAuthHeader = errors.New("invalid auth header format")
 
-	if getFileOwnerName(file) == user.GetUsername() {
-		return true
-	}
-
-	if user.IsSystemUser() && user.Username == "WEBLENS" {
-		return true
-	}
-
-	if share == nil || !share.Enabled || (!share.Public && !slices.Contains(share.Accessors, user.GetUsername())) {
+func doesSharePermitFile(ctx context.Context, file *file_model.WeblensFileImpl, share *share_model.FileShare) bool {
+	if share == nil || !share.Enabled || file.IsPastFile() {
 		return false
+	}
+
+	if share.FileId == file.ID() {
+		return true
 	}
 
 	tmpFile := file
@@ -37,8 +34,49 @@ func CanUserAccessFile(
 		if tmpFile.ID() == share.FileId {
 			return true
 		}
+
 		tmpFile = tmpFile.GetParent()
 	}
+
+	return false
+}
+
+func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_model.WeblensFileImpl, share *share_model.FileShare) bool {
+	sharePermitsFile := doesSharePermitFile(ctx, file, share)
+
+	if user == nil || user.IsPublic() {
+		return share != nil && share.IsPublic() && sharePermitsFile
+	}
+
+	ownerName, err := file_model.GetFileOwnerName(ctx, file)
+	if err != nil {
+		context_mod.ToZ(ctx).Log().Error().Stack().Err(err).Msg("Failed to get file owner name")
+
+		return false
+	}
+
+	if ownerName == user.GetUsername() {
+		return true
+	}
+
+	if user.IsSystemUser() && user.Username == "WEBLENS" {
+		return true
+	}
+
+	if !sharePermitsFile {
+		// If the share does not permit access to the file, we cannot access it now we know
+		// the user is not the owner of the file
+		return false
+	} else if share.Public {
+		// If the share is public, and allows access to the specific file we want, we can access it regardless of the accessors list
+		return true
+	}
+
+	// Share is now not public, but the share does allow access to the file. We need to check if the user is in the accessors list.
+	if slices.Contains(share.Accessors, user.GetUsername()) {
+		return true
+	}
+
 	return false
 }
 
@@ -53,8 +91,8 @@ func GenerateJWTCookie(user *user_model.User) (string, error) {
 	}
 
 	cookie := fmt.Sprintf("%s=%s;Path=/;Expires=%s;HttpOnly", crypto.SessionTokenCookie, token, expires.Format(time.RFC1123))
-	return cookie, nil
 
+	return cookie, nil
 }
 
 func GetUserFromJWT(ctx context.Context, tokenStr string) (*user_model.User, error) {
@@ -64,6 +102,38 @@ func GetUserFromJWT(ctx context.Context, tokenStr string) (*user_model.User, err
 	}
 
 	u, err := user_model.GetUserByUsername(ctx, username)
+	if err != nil {
+		return nil, err
+	}
+
+	return u, nil
+}
+
+func GetUserFromAuthHeader(ctx context.Context, authHeader string) (*user_model.User, error) {
+	if len(authHeader) < 7 || authHeader[:7] != "Bearer " {
+		return nil, werror.WrapStatus(http.StatusBadRequest, ErrBadAuthHeader)
+	}
+
+	_, err := fmt.Sscanf(authHeader, "Bearer %s", &authHeader)
+	if err != nil {
+		return nil, werror.WrapStatus(http.StatusInternalServerError, err)
+	}
+
+	tokenByteSlice, err := base64.StdEncoding.DecodeString(authHeader)
+	if err != nil {
+		return nil, werror.WrapStatus(http.StatusInternalServerError, err)
+	}
+
+	var tokenBytes [32]byte
+
+	copy(tokenBytes[:], tokenByteSlice)
+
+	token, err := auth_model.GetToken(ctx, tokenBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	u, err := user_model.GetUserByUsername(ctx, token.Owner)
 	if err != nil {
 		return nil, err
 	}
@@ -103,19 +173,3 @@ func GetUserFromJWT(ctx context.Context, tokenStr string) (*user_model.User, err
 //
 // 	return nil
 // }
-
-func getFileOwnerName(file *file_model.WeblensFileImpl) string {
-	portable := file.GetPortablePath()
-	if portable.RootName() != "USERS" {
-		return "WEBLENS"
-	}
-	slashIndex := strings.Index(portable.RelativePath(), "/")
-	var username string
-	if slashIndex == -1 {
-		username = string(portable.RelativePath())
-	} else {
-		username = string(portable.RelativePath()[:slashIndex])
-	}
-
-	return username
-}

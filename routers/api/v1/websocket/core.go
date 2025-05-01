@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/url"
@@ -8,10 +9,12 @@ import (
 
 	client_model "github.com/ethanrous/weblens/models/client"
 	tower_model "github.com/ethanrous/weblens/models/tower"
+	"github.com/ethanrous/weblens/modules/config"
+	"github.com/ethanrous/weblens/modules/startup"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
-	"github.com/ethanrous/weblens/services/context"
+	context_service "github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/jobs"
-	"github.com/ethanrous/weblens/services/notify"
+	tower_service "github.com/ethanrous/weblens/services/tower"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -19,8 +22,56 @@ import (
 )
 
 const retryInterval = time.Second * 10
+const timeout = time.Second * 10
 
-func WebsocketToCore(ctx context.RequestContext, core *tower_model.Instance) error {
+func init() {
+	startup.RegisterStartup(connectToCores)
+}
+
+func connectToCores(c context.Context, cnf config.ConfigProvider) error {
+	ctx, ok := context_service.FromContext(c)
+	if !ok {
+		return errors.New("Failed to get context from context")
+	}
+
+	context.AfterFunc(ctx, func() {
+		ctx.ClientService.DisconnectAll(ctx)
+	})
+
+	local, err := tower_model.GetLocal(ctx)
+	if err != nil {
+		return err
+	}
+
+	if local.Role != tower_model.RoleBackup {
+		return nil
+	}
+
+	remotes, err := tower_model.GetRemotes(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, remote := range remotes {
+		if remote.Role != tower_model.RoleCore {
+			continue
+		}
+
+		err = ConnectCore(ctx, &remote)
+		if err != nil {
+			ctx.Log().Error().Stack().Err(err).Msgf("Failed to connect to core %s [%s]", remote.Name, remote.TowerId)
+		}
+	}
+
+	return nil
+}
+
+func ConnectCore(c context.Context, core *tower_model.Instance) error {
+	ctx, ok := context_service.FromContext(c)
+	if !ok {
+		return errors.New("Failed to get context from context")
+	}
+
 	coreUrl, err := url.Parse(core.Address)
 	if err != nil {
 		return errors.WithStack(err)
@@ -36,20 +87,19 @@ func WebsocketToCore(ctx context.RequestContext, core *tower_model.Instance) err
 		coreUrl.Scheme = "ws"
 	}
 
-	coreUrl.Path = "/api/ws"
-	q := coreUrl.Query()
-	q.Add("server", "true")
-	coreUrl.RawQuery = q.Encode()
+	coreUrl.Path = "/api/v1/ws"
 
-	dialer := &websocket.Dialer{Proxy: http.ProxyFromEnvironment, HandshakeTimeout: 10 * time.Second}
+	dialer := &websocket.Dialer{Proxy: http.ProxyFromEnvironment, HandshakeTimeout: timeout}
 
 	authHeader := http.Header{}
 	authHeader.Add("Authorization", "Bearer "+string(core.OutgoingKey))
-	authHeader.Add("Wl-Server-Id", ctx.LocalTowerId)
+	authHeader.Add(tower_service.TowerIdHeader, ctx.LocalTowerId)
 
-	log.Debug().Msgf("Connecting to core server using %s", core.OutgoingKey)
+	log.Debug().Msgf("Websocket connecting to core \"%s\" [%s] using %s", core.Name, core.TowerId, core.OutgoingKey)
+
 	var client *client_model.WsClient
-	go func() {
+
+	dialWithRetry := func() {
 		for {
 			client, err = dial(ctx, dialer, *coreUrl, authHeader, core)
 			if err != nil {
@@ -58,96 +108,109 @@ func WebsocketToCore(ctx context.RequestContext, core *tower_model.Instance) err
 					coreUrl.String(), err, retryInterval,
 				)
 				time.Sleep(retryInterval)
+
 				continue
 			}
+
 			ctx.Log().Debug().Func(func(e *zerolog.Event) {
 				e.Msgf("Connection to core [%s] at [%s] successfully established", core.Name, coreUrl.String())
 			})
 
-			notif := notify.NewSystemNotification(
-				websocket_mod.RemoteConnectionChangedEvent, websocket_mod.WsData{
-					"serverId": core.TowerId,
-					"online":   true,
-				},
-			)
-			ctx.Notify(notif)
+			err = coreWsHandler(ctx, client)
 
-			coreWsHandler(ctx.AppContext, client)
-			notif = notify.NewSystemNotification(
-				websocket_mod.RemoteConnectionChangedEvent, websocket_mod.WsData{
-					"serverId": core.TowerId,
-					"online":   false,
-				},
-			)
-			ctx.Notify(notif)
+			select {
+			case <-c.Done():
+				return
+			default:
+			}
 
-			// if pack.Closing.Load() {
-			// 	return
-			// }
+			if err != nil {
+				ctx.Log().Error().Stack().Err(err).Msg("Error in core websocket handler")
+			}
+
 			ctx.Log().Warn().Msgf("Websocket connection to core [%s] closed, reconnecting...", core.Name)
 		}
-	}()
+	}
+
+	go dialWithRetry()
 
 	return nil
 }
 
-func dial(ctx context.RequestContext, dialer *websocket.Dialer, host url.URL, authHeader http.Header, core *tower_model.Instance) (*client_model.WsClient, error) {
+func dial(ctx context_service.AppContext, dialer *websocket.Dialer, host url.URL, authHeader http.Header, core *tower_model.Instance) (*client_model.WsClient, error) {
 	log.Trace().Msgf("Dialing %s", host.String())
+
 	conn, _, err := dialer.Dial(host.String(), authHeader)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
 	client := ctx.ClientService.RemoteConnect(ctx, conn, core)
+
 	return client, nil
 }
 
-func coreWsHandler(ctx context.AppContext, c *client_model.WsClient) {
-	defer func() { c.Disconnect() }()
+func coreWsHandler(ctx context_service.AppContext, c *client_model.WsClient) error {
+	defer func() { ctx.ClientService.ClientDisconnect(ctx, c) }()
 
 	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+		}
+
 		_, msgBuf, err := c.ReadOne()
 		if err != nil {
-			ctx.Log().Error().Stack().Err(errors.WithStack(err)).Msg("")
-			break
+			return errors.WithStack(err)
 		}
 
 		wsCoreClientSwitchboard(ctx, msgBuf, c)
 	}
 }
 
-func wsCoreClientSwitchboard(ctx context.AppContext, msgBuf []byte, c *client_model.WsClient) {
+func wsCoreClientSwitchboard(ctx context_service.AppContext, msgBuf []byte, c *client_model.WsClient) {
 	defer wsRecover(ctx, c)
 
 	var msg websocket_mod.WsResponseInfo
+
 	err := json.Unmarshal(msgBuf, &msg)
 	if err != nil {
 		c.Error(err)
+
 		return
 	}
 
-	c.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Got wsmsg from R[%s]: %v", c.GetInstance().Name, msg) })
+	c.Log().Trace().Func(func(e *zerolog.Event) {
+		e.Msgf("Got wsmsg from %s [%s]: %v", c.GetInstance().Name, c.GetInstance().TowerId, msg)
+	})
 
 	switch msg.EventTag {
 	case "do_backup":
 		coreIdI, ok := msg.Content["coreId"]
 		if !ok {
 			c.Error(errors.Errorf("Missing coreId in do_backup message"))
+
 			return
 		}
+
 		coreId, ok := coreIdI.(string)
 		if !ok {
 			c.Error(errors.Errorf("Invalid coreId in do_backup message: %v", coreIdI))
+
 			return
 		}
+
 		coreTower, err := tower_model.GetTowerById(ctx, coreId)
 		if err != nil {
 			c.Error(errors.Wrapf(err, "Invalid coreId in do_backup message: %s", coreId))
+
 			return
 		}
 
 		log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Backup requested for %s", coreTower.Name) })
-		_, err = jobs.BackupOne(ctx, c.GetInstance())
+
+		_, err = jobs.BackupOne(ctx, *c.GetInstance())
 		if err != nil {
 			c.Error(err)
 		}
@@ -156,19 +219,22 @@ func wsCoreClientSwitchboard(ctx context.AppContext, msgBuf []byte, c *client_mo
 		roleI, ok := msg.Content["role"]
 		if !ok {
 			c.Error(errors.Errorf("Missing role in weblens_loaded message"))
+
 			return
 		}
 
 		roleStr, ok := roleI.(string)
 		if !ok {
 			c.Error(errors.Errorf("Invalid role in weblens_loaded message: %v", roleI))
+
 			return
 		}
 
-		var role tower_model.TowerRole
-		switch tower_model.TowerRole(roleStr) {
-		case tower_model.CoreTowerRole, tower_model.BackupTowerRole, tower_model.InitTowerRole:
-			role = tower_model.TowerRole(roleStr)
+		var role tower_model.Role
+
+		switch tower_model.Role(roleStr) {
+		case tower_model.RoleCore, tower_model.RoleBackup, tower_model.RoleInit:
+			role = tower_model.Role(roleStr)
 		default:
 			c.Error(errors.Errorf("Invalid role in weblens_loaded message: %v", roleI))
 		}
@@ -177,7 +243,7 @@ func wsCoreClientSwitchboard(ctx context.AppContext, msgBuf []byte, c *client_mo
 		c.GetInstance().SetReportedRole(role)
 
 		// Launch backup task whenever we reconnect to the core server
-		_, err = jobs.BackupOne(ctx, c.GetInstance())
+		_, err = jobs.BackupOne(ctx, *c.GetInstance())
 		if err != nil {
 			ctx.Log().Error().Stack().Err(err).Msg("")
 		}

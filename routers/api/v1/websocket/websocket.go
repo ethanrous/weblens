@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -12,12 +13,13 @@ import (
 	share_model "github.com/ethanrous/weblens/models/share"
 	"github.com/ethanrous/weblens/models/task"
 	tower_model "github.com/ethanrous/weblens/models/tower"
-	"github.com/ethanrous/weblens/modules/context"
+	context_mod "github.com/ethanrous/weblens/modules/context"
 	"github.com/ethanrous/weblens/modules/websocket"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/services/auth"
 	context_service "github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/notify"
+	"github.com/ethanrous/weblens/services/reshape"
 	gorilla "github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -38,23 +40,6 @@ var upgrader = gorilla.Upgrader{
 }
 
 func Connect(ctx context_service.RequestContext) {
-	// if ctx.Query(IsTowerQueryKey) == "true" {
-	// } else {
-	// }
-
-	// if getServer {
-	// 	server = getInstanceFromCtx(r)
-	// 	if server == nil {
-	// 		SafeErrorAndExit(errors.WithStack(errors.ErrNoServerInContext), w)
-	// 		return
-	// 	}
-	// } else {
-	// 	u, err = getUserFromCtx(r, true)
-	// 	if SafeErrorAndExit(err, w) {
-	// 		return
-	// 	}
-	// }
-
 	conn, err := upgrader.Upgrade(ctx.W, ctx.Req, nil)
 	if err != nil {
 		ctx.Logger.Error().Err(err).Msg("Failed to upgrade connection to websocket")
@@ -63,20 +48,9 @@ func Connect(ctx context_service.RequestContext) {
 
 	client, err := ctx.ClientService.ClientConnect(ctx, conn, ctx.Requester)
 	if err != nil {
-		ctx.Error(http.StatusInternalServerError, err)
+		ctx.Logger.Error().Stack().Err(err).Msg("Failed to connect client")
 		return
 	}
-
-	// var client *models.WsClient
-	// if server != nil {
-	// 	client = pack.ClientService.RemoteConnect(conn, server)
-	// } else if u != nil {
-	// 	client = pack.ClientService.ClientConnect(conn, u)
-	// } else {
-	// 	// this should not happen
-	// 	pack.Log.Error().Msg("Did not get valid websocket client")
-	// 	return
-	// }
 
 	go wsMain(ctx, client)
 }
@@ -92,11 +66,11 @@ func wsMain(ctx context_service.RequestContext, c *client_model.WsClient) {
 		onWebConnect(ctx, c)
 	} else {
 		switchboard = wsServerClientSwitchboard
-		// if pack.Loaded.Load() {
-		// 	pack.Log.Debug().Msgf("Server connected: %s -- local role is: %s", c.GetInstance().ServerId(), pack.InstanceService.GetLocal().GetRole())
-		// 	c.PushWeblensEvent(models.WeblensLoadedEvent, models.WsC{"role": pack.InstanceService.GetLocal().GetRole()})
-		// }
 	}
+
+	defer context.AfterFunc(ctx, func() {
+		c.Disconnect()
+	})()
 
 	for {
 		_, buf, err := c.ReadOne()
@@ -124,9 +98,10 @@ func wsWebClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte, c
 	// 	return errors.ErrServerNotInitialized
 	// }
 
-	var msg websocket_mod.WsRequestInfo
+	var msg websocket_mod.WsResponseInfo
 	err := json.Unmarshal(msgBuf, &msg)
 	if err != nil {
+		ctx.Log().Error().Msgf("Failed to unmarshal websocket message: %s", string(msgBuf))
 		return errors.WithStack(err)
 	}
 
@@ -137,104 +112,105 @@ func wsWebClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte, c
 		return nil
 	}
 
-	subInfo, err := newActionBody(msg)
-	if err != nil {
-		return err
-	}
-
-	switch subInfo.Action() {
-	case websocket_mod.FolderSubscribe:
+	switch msg.Action {
+	case websocket_mod.ActionSubscribe:
 		{
-			err = json.Unmarshal([]byte(msg.Content), &subInfo)
-			if err != nil {
-				return errors.WithStack(err)
-			}
+			subscription := reshape.GetSubscribeInfo(msg)
 
-			var share *share_model.FileShare
-			if subInfo.GetShareId() != "" {
-				share, err = share_model.GetShareById(ctx, subInfo.GetShareId())
-				if err != nil {
-					return errors.WithStack(err)
+			switch subscription.Type {
+			case websocket_mod.FolderSubscribe:
+				{
+					var share *share_model.FileShare
+					if subscription.ShareId != "" {
+						share, err = share_model.GetShareById(ctx, subscription.ShareId)
+						if err != nil {
+							return errors.WithStack(err)
+						}
+					}
+
+					f, err := ctx.FileService.GetFileById(subscription.SubscriptionId)
+
+					err = ctx.ClientService.SubscribeToFile(ctx, c, f, share, time.UnixMilli(msg.SentTime))
+					if err != nil {
+						return errors.WithStack(err)
+					}
 				}
-			}
+			case websocket_mod.TaskSubscribe:
+				key := subscription.SubscriptionId
+				if strings.HasPrefix(key, "TID#") {
+					key = key[4:]
 
-			f, err := ctx.FileService.GetFileById(subInfo.GetKey())
+					t := ctx.TaskService.GetTask(key)
+					err = ctx.ClientService.SubscribeToTask(ctx, c, t, time.UnixMilli(msg.SentTime))
+					if err != nil {
+						return errors.WithStack(err)
+					}
 
-			err = ctx.ClientService.SubscribeToFile(ctx, c, f, share, time.UnixMilli(msg.SentAt))
-			if err != nil {
-				return errors.WithStack(err)
-			}
-		}
-	case websocket_mod.TaskSubscribe:
-		key := subInfo.GetKey()
-		if strings.HasPrefix(key, "TID#") {
-			key = key[4:]
+					complete, _ := t.Status()
+					if complete {
+						notif := notify.NewTaskNotification(t, websocket_mod.TaskCompleteEvent, t.GetResults())
+						err = c.Send(notif)
+						if err != nil {
+							return errors.WithStack(err)
+						}
 
-			t := ctx.TaskService.GetTask(key)
-			err = ctx.ClientService.SubscribeToTask(ctx, c, t, time.UnixMilli(msg.SentAt))
-			if err != nil {
-				return errors.WithStack(err)
-			}
-
-			complete, _ := t.Status()
-			if complete {
-				notif := notify.NewTaskNotification(t, websocket_mod.TaskCompleteEvent, t.GetResults())
-				err = c.Send(notif)
-				if err != nil {
-					return errors.WithStack(err)
+					}
+				} else if strings.HasPrefix(key, "TT#") {
+					// key = key[3:]
+					//
+					// _, _, err := ctx.ClientService.SubscribeToTask(c, key, client_model.TaskTypeSubscribe, time.Now(), nil)
+					// if err != nil {
+					// 	c.Error(err)
+					// }
 				}
-
+			default:
+				return errors.Errorf("unknown subscription type: %s", msg.BroadcastType)
 			}
-		} else if strings.HasPrefix(key, "TT#") {
-			// key = key[3:]
-			//
-			// _, _, err := ctx.ClientService.SubscribeToTask(c, key, client_model.TaskTypeSubscribe, time.Now(), nil)
-			// if err != nil {
-			// 	c.Error(err)
-			// }
 		}
 
-	case websocket_mod.Unsubscribe:
-		key := subInfo.GetKey()
+	case websocket_mod.ActionUnsubscribe:
+		subscription := reshape.GetSubscribeInfo(msg)
 
-		if strings.HasPrefix(key, "TID#") {
-			key = key[4:]
-		} else if strings.HasPrefix(key, "TT#") {
-			key = key[3:]
+		if strings.HasPrefix(subscription.SubscriptionId, "TID#") {
+			subscription.SubscriptionId = subscription.SubscriptionId[4:]
+		} else if strings.HasPrefix(subscription.SubscriptionId, "TT#") {
+			subscription.SubscriptionId = subscription.SubscriptionId[3:]
 		}
 
-		err = ctx.ClientService.Unsubscribe(ctx, c, key, time.UnixMilli(msg.SentAt))
+		err = ctx.ClientService.Unsubscribe(ctx, c, subscription.SubscriptionId, time.UnixMilli(msg.SentTime))
 		if err != nil && !errors.Is(err, notify.ErrSubscriptionNotFound) {
 			c.Error(err)
 		} else if err != nil {
-			c.Log().Warn().Msgf("Subscription [%s] not found in unsub task", key)
+			c.Log().Warn().Msgf("Subscription [%s] not found in unsub task", subscription.SubscriptionId)
 		}
 
 	case websocket_mod.ScanDirectory:
 		{
+			scanInfo := reshape.GetScanInfo(msg)
+
 			local, err := tower_model.GetLocal(ctx)
 			if err != nil {
 				return err
 			}
 
-			if local.Role == tower_model.BackupTowerRole {
+			if local.Role == tower_model.RoleBackup {
 				return tower_model.ErrTowerIsBackup
 			}
 
 			var share *share_model.FileShare
-			if subInfo.GetShareId() != "" {
-				share, err = share_model.GetShareById(ctx, subInfo.GetShareId())
+			if scanInfo.ShareId != "" {
+				share, err = share_model.GetShareById(ctx, scanInfo.ShareId)
 				if err != nil {
 					return err
 				}
 			}
 
-			folder, err := ctx.FileService.GetFileById(subInfo.GetKey())
+			folder, err := ctx.FileService.GetFileById(scanInfo.FileId)
 			if err != nil {
 				return errors.Errorf("could not find directory to scan")
 			}
 
-			if !auth.CanUserAccessFile(c.GetUser(), folder, share) {
+			if !auth.CanUserAccessFile(ctx, c.GetUser(), folder, share) {
 				return errors.Errorf("user does not have access to directory")
 			}
 
@@ -254,7 +230,7 @@ func wsWebClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte, c
 				return err
 			}
 
-			err = ctx.ClientService.SubscribeToTask(ctx, c, t.(*task.Task), time.UnixMilli(msg.SentAt))
+			err = ctx.ClientService.SubscribeToTask(ctx, c, t.(*task.Task), time.UnixMilli(msg.SentTime))
 
 			if err != nil {
 				return err
@@ -263,16 +239,18 @@ func wsWebClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte, c
 
 	case websocket_mod.CancelTask:
 		{
-			task := ctx.TaskService.GetTask(subInfo.GetKey())
+			cancelInfo := reshape.GetCancelInfo(msg)
+			task := ctx.TaskService.GetTask(cancelInfo.TaskId)
 			if task == nil {
-				return errors.Errorf("could not find task T[%s] to cancel", subInfo.GetKey())
+				return errors.Errorf("could not find task T[%s] to cancel", cancelInfo.TaskId)
 			}
 
 			task.Cancel()
 			notif := notify.NewTaskNotification(task, websocket_mod.TaskCanceledEvent, nil)
-			ctx.Notify(notif)
+			ctx.Notify(ctx, notif)
 		}
 
+	case "":
 	default:
 		{
 			c.Error(fmt.Errorf("unknown websocket request type: %s", string(msg.Action)))
@@ -360,7 +338,7 @@ func onWebConnect(ctx context_service.RequestContext, c *client_model.WsClient) 
 	return nil
 }
 
-func wsRecover(ctx context.LoggerContext, c *client_model.WsClient) {
+func wsRecover(ctx context_mod.LoggerContext, c *client_model.WsClient) {
 	e := recover()
 	if e == nil {
 		return

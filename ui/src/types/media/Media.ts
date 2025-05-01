@@ -98,7 +98,6 @@ class WeblensMedia implements MediaInfo {
 	GetMediaType(): MediaTypeInfo {
 		if (!this.mediaType && this.mimeType) {
 			const typeMap = useMediaStore.getState().mediaTypeMap
-			console.log("HUH??", typeMap)
 			if (typeMap?.mimeMap) {
 				const mediaType = typeMap.mimeMap[this.mimeType]
 				if (!mediaType) {

@@ -57,7 +57,7 @@ RUN cd /tmp/dcraw; ./install
 RUN rm -r /tmp/*
 
 WORKDIR /app
-COPY --from=web /ui/dist /app/ui/dist
+COPY --from=web /ui/dist /app/web/
 COPY --from=backend /server/weblens /app/weblens
 COPY config/ /app/config
 COPY images/brand /app/static

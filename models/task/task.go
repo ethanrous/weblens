@@ -85,12 +85,14 @@ func (t *Task) Id() string {
 func (t *Task) JobName() string {
 	t.updateMu.RLock()
 	defer t.updateMu.RUnlock()
+
 	return t.jobName
 }
 
 func (t *Task) GetTaskPool() task_mod.Pool {
 	t.updateMu.RLock()
 	defer t.updateMu.RUnlock()
+
 	return t.taskPool
 }
 
@@ -106,6 +108,7 @@ func (t *Task) setTaskPoolInternal(pool *TaskPool) {
 func (t *Task) GetChildTaskPool() *TaskPool {
 	t.updateMu.RLock()
 	defer t.updateMu.RUnlock()
+
 	return t.childTaskPool
 }
 
@@ -119,6 +122,7 @@ func (t *Task) SetChildTaskPool(pool task_mod.Pool) {
 func (t *Task) Status() (bool, task_mod.TaskExitStatus) {
 	t.updateMu.RLock()
 	defer t.updateMu.RUnlock()
+
 	return t.queueState == Exited, t.exitStatus
 }
 
@@ -129,12 +133,14 @@ func (t *Task) Status() (bool, task_mod.TaskExitStatus) {
 func (t *Task) Q(tp *TaskPool) *Task {
 	if tp == nil {
 		t.Ctx.Log().Error().Msg("nil task pool")
+
 		return nil
 		// tp = GetGlobalQueue()
 	}
 	err := tp.QueueTask(t)
 	if err != nil {
 		t.Ctx.Log().Error().Stack().Err(err).Msg("")
+
 		return nil
 	}
 
@@ -240,6 +246,7 @@ func (t *Task) GetResults() task_mod.TaskResult {
 	if t.result == nil {
 		t.result = task_mod.TaskResult{}
 	}
+
 	return maps.Clone(t.result)
 }
 
@@ -262,6 +269,7 @@ func (t *Task) Manipulate(fn func(meta task_mod.TaskMetadata) error) error {
 // If an error has caused the task to be cancelled, t.Cancel() must be called after t.error()
 func (t *Task) error(err error) {
 	t.updateMu.Lock()
+	t.Ctx.Log().Error().CallerSkipFrame(2).Stack().Err(err).Msg("Task encountered an error")
 
 	// If we have already called cancel, do not set any error
 	// E.g. A file is being moved, so we cancel all tasks on it,
@@ -269,10 +277,9 @@ func (t *Task) error(err error) {
 	// and throws this error. Now we are here and we realize the task was canceled, so that error is not valid
 	if t.queueState == Exited {
 		t.updateMu.Unlock()
+
 		return
 	}
-
-	t.Ctx.Log().Error().CallerSkipFrame(2).Stack().Err(err).Msg("Task encountered an error")
 
 	t.err = err
 	t.queueState = Exited
@@ -341,10 +348,13 @@ func (t *Task) SetCleanup(cleanup task_mod.CleanupFunc) {
 func (t *Task) ReadError() error {
 	switch t.err.(type) {
 	case nil:
+
 		return nil
 	case error:
+
 		return t.err
 	default:
+
 		return errors.Errorf("%s", t.err)
 	}
 }
@@ -363,6 +373,7 @@ func (t *Task) Success(msg ...any) {
 func (t *Task) QueueState() QueueState {
 	t.updateMu.RLock()
 	defer t.updateMu.RUnlock()
+
 	return t.queueState
 }
 
@@ -385,10 +396,11 @@ func (t *Task) ClearTimeout() {
 func (t *Task) GetTimeout() time.Time {
 	t.timerLock.RLock()
 	defer t.timerLock.RUnlock()
+
 	return t.timeout
 }
 
-// OnResult takes a function to be run when the task result changes
+// OnResult installs a callback function that is called every time the task result is set
 func (t *Task) OnResult(callback func(task_mod.TaskResult)) {
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
@@ -400,15 +412,14 @@ func (t *Task) SetResult(results task_mod.TaskResult) {
 	if t.result == nil {
 		t.result = results
 	} else {
-		for k, v := range results {
-			t.result[k] = v
-		}
+		maps.Copy(t.result, results)
 	}
 
 	if t.resultsCallback != nil {
 		resultClone := maps.Clone(t.result)
 		t.updateMu.Unlock()
 		t.resultsCallback(resultClone)
+
 		return
 	}
 	t.updateMu.Unlock()
@@ -417,10 +428,11 @@ func (t *Task) SetResult(results task_mod.TaskResult) {
 func (t *Task) ExeTime() time.Duration {
 	t.updateMu.RLock()
 	defer t.updateMu.RUnlock()
+
 	if t.FinishTime.IsZero() {
 		return time.Since(t.StartTime)
-
 	}
+
 	return t.FinishTime.Sub(t.StartTime)
 }
 

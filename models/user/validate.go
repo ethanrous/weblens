@@ -1,27 +1,31 @@
 package user
 
 import (
+	"net/http"
 	"regexp"
 	"slices"
 
-	"github.com/pkg/errors"
+	"github.com/ethanrous/weblens/modules/werror"
 )
 
 var (
-	// ErrUsernameTooShort is returned when the username is too short
-	ErrUsernameTooShort     = errors.New("username is too short")
-	ErrUsernameInvalidChars = errors.New("username contains invalid characters, only alphanumeric, _ and - are allowed")
-	ErrUsernameNotAllowed   = errors.New("username is not allowed")
+	// ErrUsernameTooShort is returned when the username is too short.
+	ErrUsernameTooShort     = werror.Statusf(http.StatusBadRequest, "username is too short")
+	ErrUsernameInvalidChars = werror.Statusf(http.StatusBadRequest, "username contains invalid characters, only alphanumeric, _ and - are allowed")
+	ErrUsernameNotAllowed   = werror.Statusf(http.StatusBadRequest, "username is not allowed")
 
-	ErrPasswordTooShort = errors.New("password is too short")
+	ErrPasswordTooShort = werror.Statusf(http.StatusBadRequest, "password is too short")
 )
 
 var disallowedUsernames = []string{"PUBLIC", "WEBLENS"}
 
 var thing = regexp.MustCompile(`^[a-zA-Z0-9_\-]+$`)
 
+const minUsernameLength = 3
+const minPasswordLength = 6
+
 func validateUsername(username string) error {
-	if len(username) < 3 {
+	if len(username) < minUsernameLength {
 		return ErrUsernameTooShort
 	}
 
@@ -37,7 +41,7 @@ func validateUsername(username string) error {
 }
 
 func validatePassword(password string) error {
-	if len(password) < 6 {
+	if len(password) < minPasswordLength {
 		return ErrPasswordTooShort
 	}
 

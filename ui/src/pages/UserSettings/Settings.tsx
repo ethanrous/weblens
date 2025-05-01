@@ -41,7 +41,7 @@ import { useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { useMessagesController } from '@weblens/store/MessagesController'
 import { ErrorHandler } from '@weblens/types/Types'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import User from '@weblens/types/user/User'
+import User, { UserPermissions } from '@weblens/types/user/User'
 import { FC, useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -119,7 +119,7 @@ export default function Settings() {
 
     const ActivePage = useMemo(() => {
         const allTabs = [...tabs]
-        if (user.admin) {
+        if (user.permissionLevel >= UserPermissions.Admin) {
             allTabs.push(...adminTabs)
         }
 
@@ -172,12 +172,12 @@ export default function Settings() {
                                     </li>
                                 )
                             })}
-                            {user.admin && (
+                            {user.permissionLevel >= UserPermissions.Admin && (
                                 <p className={settingsStyle.settingsTabsGroup}>
                                     Admin
                                 </p>
                             )}
-                            {user.admin &&
+                            {user.permissionLevel >= UserPermissions.Admin &&
                                 adminTabs.map((tab) => {
                                     return (
                                         <li key={tab.id}>
@@ -654,7 +654,9 @@ function UsersTable({
                           >
                               <td className="p-2">{rowUser.fullName}</td>
                               <td>{rowUser.username}</td>
-                              <td>{rowUser.admin ? 'Admin' : 'Basic'}</td>
+                              <td>
+                                  {UserPermissions[rowUser.permissionLevel]}
+                              </td>
                               <td className="p-2">
                                   <UserRowActions
                                       rowUser={rowUser}
@@ -693,17 +695,18 @@ function UserRowActions({
                     }}
                 />
             )}
-            {!changingPass && accessor.owner && (
-                <WeblensButton
-                    tooltip="Change Password"
-                    size="small"
-                    Left={IconLockOpen}
-                    disabled={!rowUser.activated}
-                    onClick={() => {
-                        setChangingPass(true)
-                    }}
-                />
-            )}
+            {!changingPass &&
+                accessor.permissionLevel >= UserPermissions.Owner && (
+                    <WeblensButton
+                        tooltip="Change Password"
+                        size="small"
+                        Left={IconLockOpen}
+                        disabled={!rowUser.activated}
+                        onClick={() => {
+                            setChangingPass(true)
+                        }}
+                    />
+                )}
             {changingPass && (
                 <WeblensInput
                     placeholder="New Password"
@@ -724,31 +727,34 @@ function UserRowActions({
                     }}
                 />
             )}
-            {!rowUser.admin && accessor.owner && (
-                <WeblensButton
-                    tooltip="Make Admin"
-                    Left={IconUserUp}
-                    size="small"
-                    labelOnHover={true}
-                    onClick={() => {
-                        UsersApi.setUserAdmin(rowUser.username, true)
-                            .then(() => refetchUsers())
-                            .catch(ErrorHandler)
-                    }}
-                />
-            )}
-            {!rowUser.owner && rowUser.admin && accessor.owner && (
-                <WeblensButton
-                    tooltip="Remove Admin"
-                    Left={IconUserMinus}
-                    size="small"
-                    onClick={() => {
-                        UsersApi.setUserAdmin(rowUser.username, false)
-                            .then(() => refetchUsers())
-                            .catch(ErrorHandler)
-                    }}
-                />
-            )}
+            {rowUser.permissionLevel < UserPermissions.Admin &&
+                accessor.permissionLevel >= UserPermissions.Owner && (
+                    <WeblensButton
+                        tooltip="Make Admin"
+                        Left={IconUserUp}
+                        size="small"
+                        labelOnHover={true}
+                        onClick={() => {
+                            UsersApi.setUserAdmin(rowUser.username, true)
+                                .then(() => refetchUsers())
+                                .catch(ErrorHandler)
+                        }}
+                    />
+                )}
+            {rowUser.permissionLevel < UserPermissions.Owner &&
+                rowUser.permissionLevel >= UserPermissions.Admin &&
+                accessor.permissionLevel >= UserPermissions.Owner && (
+                    <WeblensButton
+                        tooltip="Remove Admin"
+                        Left={IconUserMinus}
+                        size="small"
+                        onClick={() => {
+                            UsersApi.setUserAdmin(rowUser.username, false)
+                                .then(() => refetchUsers())
+                                .catch(ErrorHandler)
+                        }}
+                    />
+                )}
 
             <WeblensButton
                 squareSize={35}
@@ -758,7 +764,8 @@ function UserRowActions({
                 danger
                 requireConfirm
                 disabled={
-                    (rowUser.admin && !accessor.owner) ||
+                    (rowUser.permissionLevel >= UserPermissions.Admin &&
+                        accessor.permissionLevel < UserPermissions.Owner) ||
                     accessor.username === rowUser.username
                 }
                 onClick={() =>
@@ -853,12 +860,13 @@ function DeveloperTab() {
                     )
                 }
             />
-            <WeblensButton label="Reset Server" danger />
+            <WeblensButton
+                label="Reset Server"
+                danger
+                onClick={() => {
+                    TowersApi.resetTower().then(() => window.location.reload())
+                }}
+            />
         </div>
     )
-
-    // onClick={() => {
-    // 	TODO:
-    // 	TowersApi.resetServer().then(() => window.location.reload())
-    // }
 }

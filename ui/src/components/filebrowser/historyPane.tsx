@@ -143,6 +143,14 @@ function FileHistoryPane() {
     )
 }
 
+const relevantOrigin = (action: FileActionInfo) => {
+    return action.originPath ?? action.filepath
+}
+
+const relevantDestination = (action: FileActionInfo) => {
+    return action.destinationPath ?? action.filepath
+}
+
 const portableToFolderName = (path: string) => {
     if (path.endsWith('/')) {
         path = path.substring(0, path.length - 1)
@@ -176,23 +184,23 @@ function ActionRow({
     isSelected: boolean
 }) {
     const { fromNode, toNode, moveOut } = useMemo(() => {
-        const fromFolder = portableToFolderName(action.originPath)
-        const toFolder = portableToFolderName(action.destinationPath)
-        const originName = portableToFileName(action.originPath)
+        const fromFolder = portableToFolderName(relevantOrigin(action))
+        const toFolder = portableToFolderName(relevantDestination(action))
+        const originName = portableToFileName(relevantOrigin(action))
 
         let fromNode: ReactElement
         if (action.actionType === FbActionT.FileMove.valueOf()) {
             if (folderName === fromFolder) {
                 fromNode = (
                     <FileFmt
-                        pathName={action.originPath}
+                        pathName={relevantOrigin(action)}
                         className="font-semibold"
                     />
                 )
             } else {
                 fromNode = (
                     <PathFmt
-                        pathName={action.originPath}
+                        pathName={relevantOrigin(action)}
                         className="font-semibold"
                     />
                 )
@@ -203,14 +211,14 @@ function ActionRow({
         ) {
             fromNode = (
                 <FileFmt
-                    pathName={action.destinationPath}
+                    pathName={relevantDestination(action)}
                     className="font-semibold"
                 />
             )
         } else if (action.actionType === FbActionT.FileDelete.valueOf()) {
             fromNode = (
                 <FileFmt
-                    pathName={action.originPath}
+                    pathName={relevantOrigin(action)}
                     className="font-semibold"
                 />
             )
@@ -223,7 +231,7 @@ function ActionRow({
                 moveOut = true
                 toNode = (
                     <PathFmt
-                        pathName={action.destinationPath}
+                        pathName={relevantDestination(action)}
                         className="font-semibold"
                         excludeBasenameMatching={originName}
                     />
@@ -231,7 +239,7 @@ function ActionRow({
             } else {
                 toNode = (
                     <FileFmt
-                        pathName={action.destinationPath}
+                        pathName={relevantDestination(action)}
                         className="font-semibold"
                     />
                 )
@@ -246,7 +254,7 @@ function ActionRow({
     let actionColor: string
     if (action.actionType === FbActionT.FileMove.valueOf()) {
         if (moveOut) {
-            if (action.destinationPath.includes('.user_trash')) {
+            if (relevantDestination(action).includes('.user_trash')) {
                 ActionIcon = IconTrash
                 actionColor = 'var(--color-danger)'
             } else {
@@ -320,7 +328,7 @@ function HistoryRowWrapper({
             while (index + backCounter < data.events.length) {
                 backCounter++
                 i = data.events[index + backCounter].findIndex((v) => {
-                    if (v.lifeId === data.events[index][0].lifeId) {
+                    if (v.fileId === data.events[index][0].fileId) {
                         return true
                     }
                 })
@@ -332,6 +340,12 @@ function HistoryRowWrapper({
         }
         return previousSize
     }, [data])
+
+    if (!data.events[index]) {
+        return null
+    }
+
+    const thisEvent = data.events[index]
 
     return (
         <div
@@ -345,9 +359,11 @@ function HistoryRowWrapper({
             }}
         >
             <HistoryEventRow
-                key={data.events[index][0].eventId}
-                event={data.events[index]}
-                folderPath={data.events[index][0].destinationPath}
+                key={thisEvent[0].eventId}
+                event={thisEvent}
+                folderPath={
+                    thisEvent[0].filepath ?? thisEvent[0].destinationPath
+                }
                 previousSize={previousSize}
                 open={data.openEvents[index]}
                 setOpen={(o: boolean) =>
@@ -644,7 +660,7 @@ function FileHistoryFooter({
                 label={'Size Changes'}
                 toggleOn={showResize}
                 onClick={() => setShowResize((r) => !r)}
-				className='hidden'
+                className="hidden"
             />
             <div className="border-t-color-border-primary mt-4 flex flex-col items-center border-t pt-2">
                 <div className="flex flex-row items-center">
@@ -714,11 +730,11 @@ function FileHistory() {
         // let lastSizeChangeIndex = -1
 
         fileHistory.forEach((a: FileActionInfo) => {
-            if (a.lifeId === contentId) {
+            if (a.fileId === contentId) {
                 epoch = a
                 return
             }
-            if (a.lifeId === user.trashId) {
+            if (a.fileId === user.trashId) {
                 return
             }
 

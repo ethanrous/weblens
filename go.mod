@@ -9,6 +9,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
+	github.com/joho/godotenv v1.5.1
 	github.com/lithammer/fuzzysearch v1.1.8
 	github.com/opensearch-project/opensearch-go/v4 v4.4.0
 	github.com/pkg/errors v0.9.1
@@ -18,6 +19,7 @@ require (
 	github.com/swaggo/http-swagger/v2 v2.0.2
 	github.com/swaggo/swag v1.16.4
 	github.com/u2takey/ffmpeg-go v0.5.0
+	github.com/viccon/sturdyc v1.1.5
 	go.mongodb.org/mongo-driver v1.17.2
 	golang.org/x/crypto v0.32.0
 	golang.org/x/net v0.34.0
@@ -26,6 +28,7 @@ require (
 require (
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/aws/aws-sdk-go v1.55.6 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-openapi/jsonpointer v0.21.0 // indirect
 	github.com/go-openapi/jsonreference v0.21.0 // indirect

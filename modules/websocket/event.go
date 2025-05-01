@@ -3,29 +3,36 @@ package websocket
 type WsAction string
 type WsEvent string
 type ClientType string
+type SubscriptionType string
 
 const (
 	WebClient   ClientType = "webClient"
 	TowerClient ClientType = "towerClient"
 )
 
-// All Websocket action tags. These are used to identify the type of content being sent *from* the client
+// All Websocket action tags. These are used to identify the type of content being sent *from* the client.
 const (
 	CancelTask    WsAction = "cancelTask"
 	ReportError   WsAction = "showWebError"
 	ScanDirectory WsAction = "scanDirectory"
 
-	// UserSubscribe does not actually get "subscribed" to, it is automatically tracked for every websocket
-	// connection made, and only sends updates to that specific user when needed
-	UserSubscribe     WsAction = "userSubscribe"
-	FolderSubscribe   WsAction = "folderSubscribe"
-	TaskSubscribe     WsAction = "taskSubscribe"
-	TaskTypeSubscribe WsAction = "taskTypeSubscribe"
+	ActionSubscribe   WsAction = "subscribe"
+	ActionUnsubscribe WsAction = "unsubscribe"
 
-	Unsubscribe WsAction = "unsubscribe"
+	/* UserSubscribe does not actually get "subscribed" to, it is automatically tracked for every websocket
+	connection made, and only sends updates to that specific user when needed */
+	UserSubscribe SubscriptionType = "userSubscribe"
+
+	SystemSubscribe SubscriptionType = "systemSubscribe"
+
+	FolderSubscribe   SubscriptionType = "folderSubscribe"
+	TaskSubscribe     SubscriptionType = "taskSubscribe"
+	TaskTypeSubscribe SubscriptionType = "taskTypeSubscribe"
 )
 
-// All Websocket event tags. These are used to identify the type of content being sent *to* the client
+const SystemSubscriberKey = "WEBLENS"
+
+// All Websocket event tags. These are used to identify the type of content being sent *to* the client.
 const (
 	BackupCompleteEvent          WsEvent = "backupComplete"
 	BackupFailedEvent            WsEvent = "backupFailed"

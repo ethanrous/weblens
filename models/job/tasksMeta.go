@@ -9,7 +9,6 @@ import (
 	"time"
 
 	file_model "github.com/ethanrous/weblens/models/file"
-	"github.com/ethanrous/weblens/models/history"
 	media_model "github.com/ethanrous/weblens/models/media"
 	share_model "github.com/ethanrous/weblens/models/share"
 	"github.com/ethanrous/weblens/models/task"
@@ -137,8 +136,6 @@ func (m ZipMeta) Verify() error {
 }
 
 type MoveMeta struct {
-	FileEvent *history.FileEvent
-
 	User                *user_model.User
 	DestinationFolderId string
 	NewFilename         string
@@ -186,8 +183,6 @@ type UploadFilesMeta struct {
 	// TaskService *task.WorkerPool
 	// TaskSubber  TaskSubscriber
 	ChunkStream chan FileChunk
-
-	UploadEvent *history.FileEvent
 
 	User         *user_model.User
 	Share        *share_model.FileShare
@@ -260,7 +255,7 @@ type FileUploadProgress struct {
 }
 
 type BackupMeta struct {
-	Core *tower.Instance
+	Core tower.Instance
 }
 
 func (m BackupMeta) MetaString() string {
@@ -287,8 +282,8 @@ func (m BackupMeta) JobName() string {
 }
 
 func (m BackupMeta) Verify() error {
-	if m.Core == nil {
-		return errors.New("no core in backup metadata")
+	if m.Core.TowerId == "" {
+		return errors.New("no core id in backup metadata")
 	}
 
 	return nil
@@ -327,7 +322,7 @@ func (m HashFileMeta) Verify() error {
 type BackupCoreFileMeta struct {
 	CoreFileId string
 	File       *file_model.WeblensFileImpl
-	Core       *tower.Instance
+	Core       tower.Instance
 	Filename   string
 }
 
@@ -356,9 +351,10 @@ func (m BackupCoreFileMeta) JobName() string {
 }
 
 func (m BackupCoreFileMeta) Verify() error {
-	if m.Core == nil {
-		return errors.New("no core in backup core metadata")
+	if m.Core.TowerId == "" {
+		return errors.New("no core id in backup core metadata")
 	}
+
 	if m.File == nil {
 		return errors.New("no file in backup core metadata")
 	}

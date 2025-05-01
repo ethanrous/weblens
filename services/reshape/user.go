@@ -3,6 +3,7 @@ package reshape
 import (
 	"context"
 
+	openapi "github.com/ethanrous/weblens/api"
 	"github.com/ethanrous/weblens/models/user"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/structs"
@@ -15,10 +16,7 @@ func UserToUserInfo(ctx context.Context, u *user_model.User) structs.UserInfo {
 		HomeId:          u.HomeId,
 		TrashId:         u.TrashId,
 		PermissionLevel: int(u.UserPerms),
-
-		// TODO: Add these fields
-		// HomeSize:  u.HomeSize,
-		// TrashSize: u.TrashSize,
+		Activated:       u.Activated,
 	}
 }
 
@@ -26,6 +24,7 @@ func UserToUserInfoArchive(u *user.User) structs.UserInfoArchive {
 	if u == nil || u.IsSystemUser() {
 		return structs.UserInfoArchive{}
 	}
+
 	info := structs.UserInfoArchive{
 		Password:  u.Password,
 		Activated: u.IsActive(),
@@ -39,10 +38,10 @@ func UserToUserInfoArchive(u *user.User) structs.UserInfoArchive {
 	return info
 }
 
-func UserInfoArchiveToUser(uInfo structs.UserInfoArchive) *user.User {
+func UserInfoArchiveToUser(uInfo openapi.UserInfoArchive) *user.User {
 	u := &user.User{
 		Username:  uInfo.Username,
-		Password:  uInfo.Password,
+		Password:  uInfo.GetPassword(),
 		Activated: uInfo.Activated,
 		UserPerms: user_model.UserPermissions(uInfo.PermissionLevel),
 		HomeId:    uInfo.HomeId,

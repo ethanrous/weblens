@@ -7,6 +7,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+var ToZ func(c context.Context) ContextZ
+
+type zkey struct{}
+
 // ContextZ is a context that consolidates all other context interfaces.
 type ContextZ interface {
 	context.Context
@@ -14,6 +18,9 @@ type ContextZ interface {
 	DispatcherContext
 	LoggerContext
 	NotifierContext
+
+	GetTowerId() string
+	ClearCache()
 }
 
 type AppContexter interface {

@@ -162,8 +162,8 @@ function WeblensButton({
     onMouseLeave,
     className,
 }: ButtonProps) {
-    const [success, setSuccess] = useState(false)
-    const [fail, setFail] = useState(false)
+    const [, setSuccess] = useState(false)
+    const [, setFail] = useState(false)
     const [loading, setLoading] = useState(false)
 
     // TODO: implement these

@@ -1,10 +1,10 @@
 import WeblensLoader from '@weblens/components/Loading'
 import GetStartedCard from '@weblens/components/filebrowser/getStartedCard'
+import { useResize } from '@weblens/lib/hooks'
 import { HandleDrop } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { FileSquare } from '@weblens/types/files/FileSquare'
 import filesStyle from '@weblens/types/files/filesStyle.module.scss'
-import { useResize } from '@weblens/lib/hooks'
 import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import { FixedSizeGrid as Grid } from 'react-window'
 

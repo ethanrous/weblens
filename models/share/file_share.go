@@ -33,9 +33,8 @@ type FileShare struct {
 
 func NewFileShare(ctx context.Context, fileId string, owner *user_model.User, accessors []*user_model.User, public bool, wormhole bool) (*FileShare, error) {
 	return &FileShare{
-		ShareId: primitive.NewObjectID().Hex(),
-		FileId:  fileId,
-		Owner:   owner.GetUsername(),
+		FileId: fileId,
+		Owner:  owner.GetUsername(),
 		Accessors: slices.Map(
 			accessors, func(u *user_model.User) string {
 				return u.GetUsername()
@@ -48,6 +47,24 @@ func NewFileShare(ctx context.Context, fileId string, owner *user_model.User, ac
 	}, nil
 }
 
+func SaveFileShare(ctx context.Context, share *FileShare) error {
+	collection, err := db.GetCollection(ctx, ShareCollectionKey)
+	if err != nil {
+		return err
+	}
+
+	if share.ShareId == "" {
+		share.ShareId = primitive.NewObjectID().Hex()
+	}
+
+	_, err = collection.InsertOne(ctx, share)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
+}
+
 func GetShareById(ctx context.Context, shareId string) (*FileShare, error) {
 	collection, err := db.GetCollection(ctx, ShareCollectionKey)
 	if err != nil {
@@ -55,6 +72,7 @@ func GetShareById(ctx context.Context, shareId string) (*FileShare, error) {
 	}
 
 	var share FileShare
+
 	err = collection.FindOne(ctx, bson.M{"_id": shareId}).Decode(&share)
 	if err != nil {
 		return nil, errors.WithStack(ErrShareNotFound)
@@ -71,8 +89,9 @@ func GetShareByFileId(ctx context.Context, fileId string) (*FileShare, error) {
 
 	var share FileShare
 	err = collection.FindOne(ctx, bson.M{"fileId": fileId}).Decode(&share)
+
 	if err != nil {
-		return nil, db.WrapError(errors.WithStack(err), "failed to get share by fileId "+fileId)
+		return nil, db.WrapError(errors.WithStack(err), "failed to get share by fileId [%s]", fileId)
 	}
 
 	return &share, nil
@@ -83,19 +102,75 @@ func GetSharedWithUser(ctx context.Context, username string) ([]*FileShare, erro
 }
 
 func DeleteShare(ctx context.Context, shareId string) error {
-	return errors.New("not implemented")
+	collection, err := db.GetCollection(ctx, ShareCollectionKey)
+	if err != nil {
+		return err
+	}
+
+	_, err = collection.DeleteOne(ctx, bson.M{"_id": shareId})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
 }
 
 func (s *FileShare) SetPublic(ctx context.Context, pub bool) error {
-	return errors.New("not implemented")
+	collection, err := db.GetCollection(ctx, ShareCollectionKey)
+	if err != nil {
+		return err
+	}
+
+	s.Public = pub
+
+	_, err = collection.UpdateOne(ctx, bson.M{"_id": s.ShareId}, bson.M{"$set": bson.M{"public": pub}})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
 }
 
 func (s *FileShare) AddUsers(ctx context.Context, usernames []string) error {
-	return errors.New("not implemented")
+	collection, err := db.GetCollection(ctx, ShareCollectionKey)
+	if err != nil {
+		return err
+	}
+
+	// Add new users to the Accessors list
+	for _, username := range usernames {
+		if !slices.Contains(s.Accessors, username) {
+			s.Accessors = append(s.Accessors, username)
+		}
+	}
+
+	// Update the database with the new Accessors list
+	_, err = collection.UpdateOne(ctx, bson.M{"_id": s.ShareId}, bson.M{"$set": bson.M{"accessors": s.Accessors}})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
 }
 
 func (s *FileShare) RemoveUsers(ctx context.Context, usernames []string) error {
-	return errors.New("not implemented")
+	collection, err := db.GetCollection(ctx, ShareCollectionKey)
+	if err != nil {
+		return err
+	}
+
+	// Remove specified users from the Accessors list
+	s.Accessors = slices.Filter(s.Accessors, func(accessor string) bool {
+		return !slices.Contains(usernames, accessor)
+	})
+
+	// Update the database with the new Accessors list
+	_, err = collection.UpdateOne(ctx, bson.M{"_id": s.ShareId}, bson.M{"$set": bson.M{"accessors": s.Accessors}})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
 }
 
 func (s *FileShare) ID() string              { return s.ShareId }

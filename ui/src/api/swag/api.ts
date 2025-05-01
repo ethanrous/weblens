@@ -39,6 +39,43 @@ export interface ApiKeyParams {
 /**
  * 
  * @export
+ * @interface BackupInfo
+ */
+export interface BackupInfo {
+    /**
+     * 
+     * @type {Array<FileActionInfo>}
+     * @memberof BackupInfo
+     */
+    'fileHistory'?: Array<FileActionInfo>;
+    /**
+     * 
+     * @type {Array<TowerInfo>}
+     * @memberof BackupInfo
+     */
+    'instances'?: Array<TowerInfo>;
+    /**
+     * 
+     * @type {number}
+     * @memberof BackupInfo
+     */
+    'lifetimesCount'?: number;
+    /**
+     * 
+     * @type {Array<TokenInfo>}
+     * @memberof BackupInfo
+     */
+    'tokens'?: Array<TokenInfo>;
+    /**
+     * 
+     * @type {Array<UserInfoArchive>}
+     * @memberof BackupInfo
+     */
+    'users'?: Array<UserInfoArchive>;
+}
+/**
+ * 
+ * @export
  * @interface CreateFolderBody
  */
 export interface CreateFolderBody {
@@ -85,6 +122,12 @@ export interface FileActionInfo {
      * @memberof FileActionInfo
      */
     'eventId': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof FileActionInfo
+     */
+    'fileId': string;
     /**
      * 
      * @type {string}
@@ -146,12 +189,6 @@ export interface FileInfo {
      * @memberof FileInfo
      */
     'currentId'?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof FileInfo
-     */
-    'filename'?: string;
     /**
      * 
      * @type {boolean}
@@ -595,6 +632,43 @@ export interface NewFilesParams {
 /**
  * 
  * @export
+ * @interface NewServerParams
+ */
+export interface NewServerParams {
+    /**
+     * 
+     * @type {string}
+     * @memberof NewServerParams
+     */
+    'coreAddress'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof NewServerParams
+     */
+    'name'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof NewServerParams
+     */
+    'role'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof NewServerParams
+     */
+    'serverId'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof NewServerParams
+     */
+    'usingKey'?: string;
+}
+/**
+ * 
+ * @export
  * @interface NewUploadInfo
  */
 export interface NewUploadInfo {
@@ -938,49 +1012,49 @@ export interface TokenInfo {
      * @type {string}
      * @memberof TokenInfo
      */
-    'createdBy'?: string;
+    'createdBy': string;
     /**
      * 
      * @type {number}
      * @memberof TokenInfo
      */
-    'createdTime'?: number;
+    'createdTime': number;
     /**
      * 
      * @type {string}
      * @memberof TokenInfo
      */
-    'id'?: string;
+    'id': string;
     /**
      * 
      * @type {number}
      * @memberof TokenInfo
      */
-    'lastUsed'?: number;
+    'lastUsed': number;
     /**
      * 
      * @type {string}
      * @memberof TokenInfo
      */
-    'nickname'?: string;
+    'nickname': string;
     /**
      * 
      * @type {string}
      * @memberof TokenInfo
      */
-    'owner'?: string;
+    'owner': string;
     /**
      * 
      * @type {string}
      * @memberof TokenInfo
      */
-    'remoteUsing'?: string;
+    'remoteUsing': string;
     /**
      * 
-     * @type {Array<number>}
+     * @type {string}
      * @memberof TokenInfo
      */
-    'token'?: Array<number>;
+    'token': string;
 }
 /**
  * 
@@ -993,61 +1067,61 @@ export interface TowerInfo {
      * @type {number}
      * @memberof TowerInfo
      */
-    'backupSize'?: number;
+    'backupSize': number;
     /**
      * Address of the remote server, only if the instance is a core. Not set for any remotes/backups on core server, as it IS the core
      * @type {string}
      * @memberof TowerInfo
      */
-    'coreAddress'?: string;
+    'coreAddress': string;
     /**
      * 
      * @type {string}
      * @memberof TowerInfo
      */
-    'id'?: string;
+    'id': string;
     /**
      * 
      * @type {number}
      * @memberof TowerInfo
      */
-    'lastBackup'?: number;
+    'lastBackup': number;
     /**
      * 
      * @type {string}
      * @memberof TowerInfo
      */
-    'name'?: string;
+    'name': string;
     /**
      * 
      * @type {boolean}
      * @memberof TowerInfo
      */
-    'online'?: boolean;
+    'online': boolean;
     /**
      * Role the server is currently reporting. This is used to determine if the server is online (and functional) or not
      * @type {string}
      * @memberof TowerInfo
      */
-    'reportedRole'?: string;
+    'reportedRole': string;
     /**
      * Core or Backup
      * @type {string}
      * @memberof TowerInfo
      */
-    'role'?: string;
+    'role': string;
     /**
      * 
      * @type {boolean}
      * @memberof TowerInfo
      */
-    'started'?: boolean;
+    'started': boolean;
     /**
      * 
      * @type {number}
      * @memberof TowerInfo
      */
-    'userCount'?: number;
+    'userCount': number;
 }
 /**
  * 
@@ -1076,28 +1150,28 @@ export interface UpdateFileParams {
 export interface UserInfo {
     /**
      * 
-     * @type {string}
+     * @type {boolean}
      * @memberof UserInfo
      */
-    'fullName'?: string;
+    'activated': boolean;
     /**
      * 
      * @type {string}
      * @memberof UserInfo
      */
-    'homeId'?: string;
+    'fullName': string;
     /**
      * 
+     * @type {string}
+     * @memberof UserInfo
+     */
+    'homeId': string;
+    /**
+     * HomeSize        int64  `json:\"homeSize\" validate:\"required\"`
      * @type {number}
      * @memberof UserInfo
      */
-    'homeSize'?: number;
-    /**
-     * 
-     * @type {number}
-     * @memberof UserInfo
-     */
-    'permissionLevel'?: number;
+    'permissionLevel': number;
     /**
      * 
      * @type {string}
@@ -1109,19 +1183,13 @@ export interface UserInfo {
      * @type {string}
      * @memberof UserInfo
      */
-    'trashId'?: string;
+    'trashId': string;
     /**
-     * 
-     * @type {number}
-     * @memberof UserInfo
-     */
-    'trashSize'?: number;
-    /**
-     * 
+     * TrashSize       int64  `json:\"trashSize\" validate:\"required\"`
      * @type {string}
      * @memberof UserInfo
      */
-    'username'?: string;
+    'username': string;
 }
 /**
  * 
@@ -1134,25 +1202,19 @@ export interface UserInfoArchive {
      * @type {boolean}
      * @memberof UserInfoArchive
      */
-    'activated'?: boolean;
+    'activated': boolean;
     /**
      * 
      * @type {string}
      * @memberof UserInfoArchive
      */
-    'fullName'?: string;
+    'fullName': string;
     /**
      * 
      * @type {string}
      * @memberof UserInfoArchive
      */
-    'homeId'?: string;
-    /**
-     * 
-     * @type {number}
-     * @memberof UserInfoArchive
-     */
-    'homeSize'?: number;
+    'homeId': string;
     /**
      * 
      * @type {string}
@@ -1160,11 +1222,11 @@ export interface UserInfoArchive {
      */
     'password'?: string;
     /**
-     * 
+     * HomeSize        int64  `json:\"homeSize\" validate:\"required\"`
      * @type {number}
      * @memberof UserInfoArchive
      */
-    'permissionLevel'?: number;
+    'permissionLevel': number;
     /**
      * 
      * @type {string}
@@ -1176,19 +1238,13 @@ export interface UserInfoArchive {
      * @type {string}
      * @memberof UserInfoArchive
      */
-    'trashId'?: string;
+    'trashId': string;
     /**
-     * 
-     * @type {number}
-     * @memberof UserInfoArchive
-     */
-    'trashSize'?: number;
-    /**
-     * 
+     * TrashSize       int64  `json:\"trashSize\" validate:\"required\"`
      * @type {string}
      * @memberof UserInfoArchive
      */
-    'username'?: string;
+    'username': string;
 }
 /**
  * 
@@ -4622,6 +4678,122 @@ export const TowersApiAxiosParamCreator = function (configuration?: Configuratio
     return {
         /**
          * 
+         * @summary Create a new remote
+         * @param {NewServerParams} request New Server Params
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createRemote: async (request: NewServerParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'request' is not null or undefined
+            assertParamExists('createRemote', 'request', request)
+            const localVarPath = `/tower/remote`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication ApiKeyAuth required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Delete a remote
+         * @param {string} serverId Server Id to delete
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteRemote: async (serverId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'serverId' is not null or undefined
+            assertParamExists('deleteRemote', 'serverId', serverId)
+            const localVarPath = `/tower/{serverId}`
+                .replace(`{${"serverId"}}`, encodeURIComponent(String(serverId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication ApiKeyAuth required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Get information about a file
+         * @param {string} timestamp Timestamp in milliseconds since epoch
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getBackupInfo: async (timestamp: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'timestamp' is not null or undefined
+            assertParamExists('getBackupInfo', 'timestamp', timestamp)
+            const localVarPath = `/tower/backup`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication ApiKeyAuth required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+            if (timestamp !== undefined) {
+                localVarQueryParameter['timestamp'] = timestamp;
+            }
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary Get all remotes
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -4719,6 +4891,39 @@ export const TowersApiAxiosParamCreator = function (configuration?: Configuratio
                 options: localVarRequestOptions,
             };
         },
+        /**
+         * 
+         * @summary Reset tower
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        resetTower: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/tower/reset`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication ApiKeyAuth required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
     }
 };
 
@@ -4729,6 +4934,45 @@ export const TowersApiAxiosParamCreator = function (configuration?: Configuratio
 export const TowersApiFp = function(configuration?: Configuration) {
     const localVarAxiosParamCreator = TowersApiAxiosParamCreator(configuration)
     return {
+        /**
+         * 
+         * @summary Create a new remote
+         * @param {NewServerParams} request New Server Params
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async createRemote(request: NewServerParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TowerInfo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.createRemote(request, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TowersApi.createRemote']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Delete a remote
+         * @param {string} serverId Server Id to delete
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async deleteRemote(serverId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteRemote(serverId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TowersApi.deleteRemote']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Get information about a file
+         * @param {string} timestamp Timestamp in milliseconds since epoch
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getBackupInfo(timestamp: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<BackupInfo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getBackupInfo(timestamp, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TowersApi.getBackupInfo']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
         /**
          * 
          * @summary Get all remotes
@@ -4766,6 +5010,18 @@ export const TowersApiFp = function(configuration?: Configuration) {
             const localVarOperationServerBasePath = operationServerMap['TowersApi.initializeTower']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
+        /**
+         * 
+         * @summary Reset tower
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async resetTower(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.resetTower(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TowersApi.resetTower']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
     }
 };
 
@@ -4776,6 +5032,36 @@ export const TowersApiFp = function(configuration?: Configuration) {
 export const TowersApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
     const localVarFp = TowersApiFp(configuration)
     return {
+        /**
+         * 
+         * @summary Create a new remote
+         * @param {NewServerParams} request New Server Params
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createRemote(request: NewServerParams, options?: RawAxiosRequestConfig): AxiosPromise<TowerInfo> {
+            return localVarFp.createRemote(request, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Delete a remote
+         * @param {string} serverId Server Id to delete
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteRemote(serverId: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.deleteRemote(serverId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Get information about a file
+         * @param {string} timestamp Timestamp in milliseconds since epoch
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getBackupInfo(timestamp: string, options?: RawAxiosRequestConfig): AxiosPromise<BackupInfo> {
+            return localVarFp.getBackupInfo(timestamp, options).then((request) => request(axios, basePath));
+        },
         /**
          * 
          * @summary Get all remotes
@@ -4804,6 +5090,15 @@ export const TowersApiFactory = function (configuration?: Configuration, basePat
         initializeTower(request: StructsInitServerParams, options?: RawAxiosRequestConfig): AxiosPromise<Array<TowerInfo>> {
             return localVarFp.initializeTower(request, options).then((request) => request(axios, basePath));
         },
+        /**
+         * 
+         * @summary Reset tower
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        resetTower(options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.resetTower(options).then((request) => request(axios, basePath));
+        },
     };
 };
 
@@ -4814,6 +5109,42 @@ export const TowersApiFactory = function (configuration?: Configuration, basePat
  * @extends {BaseAPI}
  */
 export class TowersApi extends BaseAPI {
+    /**
+     * 
+     * @summary Create a new remote
+     * @param {NewServerParams} request New Server Params
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof TowersApi
+     */
+    public createRemote(request: NewServerParams, options?: RawAxiosRequestConfig) {
+        return TowersApiFp(this.configuration).createRemote(request, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Delete a remote
+     * @param {string} serverId Server Id to delete
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof TowersApi
+     */
+    public deleteRemote(serverId: string, options?: RawAxiosRequestConfig) {
+        return TowersApiFp(this.configuration).deleteRemote(serverId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Get information about a file
+     * @param {string} timestamp Timestamp in milliseconds since epoch
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof TowersApi
+     */
+    public getBackupInfo(timestamp: string, options?: RawAxiosRequestConfig) {
+        return TowersApiFp(this.configuration).getBackupInfo(timestamp, options).then((request) => request(this.axios, this.basePath));
+    }
+
     /**
      * 
      * @summary Get all remotes
@@ -4846,6 +5177,17 @@ export class TowersApi extends BaseAPI {
      */
     public initializeTower(request: StructsInitServerParams, options?: RawAxiosRequestConfig) {
         return TowersApiFp(this.configuration).initializeTower(request, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Reset tower
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof TowersApi
+     */
+    public resetTower(options?: RawAxiosRequestConfig) {
+        return TowersApiFp(this.configuration).resetTower(options).then((request) => request(this.axios, this.basePath));
     }
 }
 

@@ -124,17 +124,16 @@ func (tp *TaskPool) HandleTaskExit(replacementThread bool) (canContinue bool) {
 		return false
 	}
 
-	// If we have already began running the task,
+	// If we have already begun running the task,
 	// we must finish and clean up before checking exitFlag again here.
 	// The task *could* be cancelled to speed things up, but that
 	// is not our job.
-	if tp.workerPool.exitFlag.Load() == 1 {
-		// Dec alive workers
-		// tp.workerPool.currentWorkers.Add(-1)
+	select {
+	case <-tp.workerPool.ctx.Done():
 		return false
+	default:
+		return true
 	}
-
-	return true
 }
 
 func (tp *TaskPool) GetRootPool() task_mod.Pool {
@@ -276,9 +275,11 @@ func (tp *TaskPool) Cancel() {
 func (tp *TaskPool) QueueTask(task task_mod.Task) (err error) {
 	t := task.(*Task)
 
-	if tp.workerPool.exitFlag.Load() == 1 {
+	select {
+	case <-tp.workerPool.ctx.Done():
 		tp.log.Warn().Msg("Not queuing task while worker pool is going down")
 		return
+	default:
 	}
 
 	if t.err != nil {

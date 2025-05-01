@@ -4,7 +4,6 @@ package structs
 type FileInfo struct {
 	Id              string   `json:"id"`
 	PortablePath    string   `json:"portablePath"`
-	Filename        string   `json:"filename"`
 	ParentId        string   `json:"parentId"`
 	ContentId       string   `json:"contentId"`
 	Owner           string   `json:"owner"`

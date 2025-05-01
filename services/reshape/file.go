@@ -1,53 +1,56 @@
 package reshape
 
 import (
+	"context"
+
+	cover_model "github.com/ethanrous/weblens/models/cover"
 	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
 	share_model "github.com/ethanrous/weblens/models/share"
-	context_mod "github.com/ethanrous/weblens/modules/context"
 	"github.com/ethanrous/weblens/modules/structs"
-	file_service "github.com/ethanrous/weblens/services/file"
 )
 
-func WeblensFileToFileInfo(ctx context_mod.ContextZ, f *file_model.WeblensFileImpl, isPastFile bool) (structs.FileInfo, error) {
-
-	// Some fields are only needed if the file is the parent file of the request,
-	// when the file is a child, these fields are not needed, and can be expensive to fetch,
-	// so we conditionally ignore them.
-	var children []string
-
-	ownerName, err := file_service.GetFileOwnerName(ctx, f)
+func WeblensFileToFileInfo(ctx context.Context, f *file_model.WeblensFileImpl, isPastFile bool) (structs.FileInfo, error) {
+	ownerName, err := file_model.GetFileOwnerName(ctx, f)
 	if err != nil {
 		return structs.FileInfo{}, err
 	}
 
-	for _, c := range f.GetChildren() {
-		children = append(children, c.ID())
+	children := f.GetChildren()
+
+	childrenIds := make([]string, 0, len(children))
+	for _, c := range children {
+		childrenIds = append(childrenIds, c.ID())
 	}
 
 	share, err := share_model.GetShareByFileId(ctx, f.ID())
 	if err != nil && !db.IsNotFound(err) {
 		return structs.FileInfo{}, err
 	}
-	var shareId string
+
+	shareId := ""
 	if share != nil {
 		shareId = share.ID()
 	}
 
-	if f.IsDir() && f.GetContentId() == "" {
-		// TODO: check if the folder has a cover
-		// cover, err := cover_model.GetCoverByFolderId(ctx, f.ID())
-		// if err != nil {
-		// 	return structs.FileInfo{}, err
-		// }
+	contentId := f.GetContentId()
 
-		// cover.CoverPhotoId
+	if f.IsDir() && contentId == "" {
+		// Check if the folder has a cover photo, and use that as the content id if it does
+		cover, err := cover_model.GetCoverByFolderId(ctx, f.ID())
+		if err != nil && !db.IsNotFound(err) {
+			return structs.FileInfo{}, err
+		} else if err == nil {
+			contentId = cover.CoverPhotoId
+		}
 	}
 
-	modifiable := !isPastFile && !file_service.IsFileInTrash(f)
+	exists := f.Exists()
+
+	modifiable := !isPastFile && !file_model.IsFileInTrash(f) && exists
 
 	var hasRestoreMedia bool
-	if !isPastFile || f.IsDir() || f.Exists() {
+	if exists || !isPastFile || f.IsDir() {
 		hasRestoreMedia = true
 	} else {
 		// ctx.(context_mod.AppContexter).AppCtx().(context.AppContext).FileService.GetFileById(f.ID())
@@ -65,22 +68,34 @@ func WeblensFileToFileInfo(ctx context_mod.ContextZ, f *file_model.WeblensFileIm
 		}
 	}
 
+	size := int64(0)
+	if exists {
+		size = f.Size()
+	}
+
+	portablePath := f.GetPortablePath()
+	// if !exists {
+	// 	portablePath = fs.Filepath{}
+	// }
+	parentId := ""
+	if f.GetParent() != nil {
+		parentId = f.GetParent().ID()
+	}
+
 	return structs.FileInfo{
+		Children:        childrenIds,
+		ContentId:       contentId,
+		HasRestoreMedia: hasRestoreMedia,
 		Id:              f.ID(),
-		PortablePath:    f.GetPortablePath().ToPortable(),
-		Filename:        f.GetPortablePath().Filename(),
-		Size:            f.Size(),
 		IsDir:           f.IsDir(),
 		ModTime:         f.ModTime().UnixMilli(),
-		ParentId:        f.GetParentId(),
-		ContentId:       f.GetContentId(),
-		ShareId:         shareId,
 		Modifiable:      modifiable,
+		Owner:           ownerName,
+		ParentId:        parentId,
 		PastFile:        isPastFile,
-		HasRestoreMedia: hasRestoreMedia,
 		PastId:          f.GetPastId(),
-
-		Owner:    ownerName,
-		Children: children,
+		PortablePath:    portablePath.String(),
+		ShareId:         shareId,
+		Size:            size,
 	}, nil
 }

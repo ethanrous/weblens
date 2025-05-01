@@ -11,6 +11,7 @@ import (
 
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/models/user"
+	"github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/structs"
 	"github.com/ethanrous/weblens/services/proxy"
 	"github.com/pkg/errors"
@@ -102,8 +103,13 @@ func simpleCreate(core *tower_model.Instance, owner *user.User) error {
 		return err
 	}
 
-	if getFolderInfo.Filename != "test-folder" {
-		return errors.Errorf("Folder name mismatch %s != %s", getFolderInfo.Filename, "test-folder")
+	folderPath, err := fs.ParsePortable(getFolderInfo.PortablePath)
+	if err != nil {
+		return err
+	}
+
+	if folderPath.Filename() != "test-folder" {
+		return errors.Errorf("Folder name mismatch %s != %s", folderPath.Filename(), "test-folder")
 	}
 
 	_, err = proxy.NewCoreRequest(core, "DELETE", "/files").WithQuery("ignore_trash", "true").WithBody(structs.FilesListParams{FileIds: []string{getFolderInfo.Id}}).Call()
@@ -154,22 +160,31 @@ func uploadFile(core *tower_model.Instance, owner *user.User, logger zerolog.Log
 		return err
 	}
 
-	if getFileInfo.Filename != "test-file.txt" {
-		return errors.Errorf("File name mismatch %s != %s", getFileInfo.Filename, "test-file.txt")
+	filePath, err := fs.ParsePortable(getFileInfo.PortablePath)
+	if err != nil {
+		return err
 	}
+
+	if filePath.Filename() != "test-file.txt" {
+		return errors.Errorf("File name mismatch %s != %s", filePath.Filename(), "test-file.txt")
+	}
+
 	if getFileInfo.ParentId != owner.HomeId {
 		return errors.Errorf("Parent folder mismatch %s != %s", getFileInfo.ParentId, owner.HomeId)
 	}
 
 	returnedSize := getFileInfo.Size
 	timeout := 10
+
 	for returnedSize != fileSize {
 		logger.Debug().Func(func(e *zerolog.Event) { e.Msgf("Waiting for file upload to complete") })
 		time.Sleep(100 * time.Millisecond)
+
 		timeout--
 		if timeout == 0 {
 			return errors.Errorf("Did not receive expected file size %d != %d", returnedSize, fileSize)
 		}
+
 		getFileRequest := proxy.NewCoreRequest(core, "GET", "/files/"+newFilesInfo.FileIds[0])
 		getFileInfo, err := proxy.CallHomeStruct[structs.FileInfo](getFileRequest)
 		if err != nil {

@@ -10,7 +10,7 @@ import (
 	"github.com/ethanrous/weblens/modules/structs"
 )
 
-func NewBackupInfo(ctx context.Context, fileHistory []*history.FileAction, users []*user.User, instances []*tower.Instance, tokens []*auth.Token) structs.BackupInfo {
+func NewBackupInfo(ctx context.Context, fileHistory []history.FileAction, users []*user.User, instances []tower.Instance, tokens []*auth.Token) structs.BackupInfo {
 	var fileActionInfos []structs.FileActionInfo
 	for _, a := range fileHistory {
 		fileActionInfos = append(fileActionInfos, FileActionToFileActionInfo(a))
@@ -23,7 +23,7 @@ func NewBackupInfo(ctx context.Context, fileHistory []*history.FileAction, users
 
 	var serverInfos []structs.TowerInfo
 	for _, i := range instances {
-		serverInfos = append(serverInfos, TowerToTowerInfo(i))
+		serverInfos = append(serverInfos, TowerToTowerInfo(ctx, i))
 	}
 
 	var tokenInfos []structs.TokenInfo

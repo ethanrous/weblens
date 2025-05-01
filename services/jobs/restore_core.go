@@ -33,23 +33,23 @@ func RestoreCore(tsk task_mod.Task) {
 	}
 
 	type restoreInitParams struct {
-		Name     string                `json:"name"`
-		Role     tower_model.TowerRole `json:"role"`
-		RemoteId string                `json:"remoteId"`
-		LocalId  string                `json:"localId"`
-		Key      *auth.Token           `json:"usingKeyInfo"`
+		Name     string           `json:"name"`
+		Role     tower_model.Role `json:"role"`
+		RemoteId string           `json:"remoteId"`
+		LocalId  string           `json:"localId"`
+		Key      *auth.Token      `json:"usingKeyInfo"`
 	}
 
 	// Notify client of restore failure, if any
 	t.SetErrorCleanup(
 		func(errTsk task_mod.Task) {
-			t.Ctx.Notify(notify.NewTaskNotification(errTsk.(*task_model.Task), websocket_mod.RestoreFailedEvent, task_mod.TaskResult{"error": errTsk.ReadError().Error()}))
+			t.Ctx.Notify(ctx, notify.NewTaskNotification(errTsk.(*task_model.Task), websocket_mod.RestoreFailedEvent, task_mod.TaskResult{"error": errTsk.ReadError().Error()}))
 		},
 	)
 
 	// Prime server to be restored. This will fail if the server is already initialized
 
-	t.Ctx.Notify(notify.NewTaskNotification(
+	t.Ctx.Notify(ctx, notify.NewTaskNotification(
 		t, websocket_mod.RestoreProgressEvent, task_mod.TaskResult{"stage": "Connecting to remote", "timestamp": time.Now().UnixMilli()},
 	))
 
@@ -64,7 +64,7 @@ func RestoreCore(tsk task_mod.Task) {
 	}
 
 	initParams := restoreInitParams{
-		Name: meta.Core.Name, Role: tower_model.RestoreTowerRole, Key: token, RemoteId: meta.Local.TowerId,
+		Name: meta.Core.Name, Role: tower_model.RoleRestore, Key: token, RemoteId: meta.Local.TowerId,
 		LocalId: meta.Core.TowerId,
 	}
 
@@ -74,7 +74,7 @@ func RestoreCore(tsk task_mod.Task) {
 	}
 
 	// Restore journal
-	t.Ctx.Notify(
+	t.Ctx.Notify(ctx, 
 		notify.NewTaskNotification(t, websocket_mod.RestoreProgressEvent, task_mod.TaskResult{"stage": "Restoring file history", "timestamp": time.Now().UnixMilli()}),
 	)
 
@@ -86,7 +86,7 @@ func RestoreCore(tsk task_mod.Task) {
 	t.ReqNoErr(err)
 
 	// Restore users
-	t.Ctx.Notify(notify.NewTaskNotification(t, websocket_mod.RestoreProgressEvent, task_mod.TaskResult{"stage": "Restoring users", "timestamp": time.Now().UnixMilli()}))
+	t.Ctx.Notify(ctx, notify.NewTaskNotification(t, websocket_mod.RestoreProgressEvent, task_mod.TaskResult{"stage": "Restoring users", "timestamp": time.Now().UnixMilli()}))
 
 	users, err := user_model.GetAllUsers(t.Ctx)
 	if err != nil {
@@ -101,7 +101,7 @@ func RestoreCore(tsk task_mod.Task) {
 	t.ReqNoErr(err)
 
 	// Restore keys
-	t.Ctx.Notify(notify.NewTaskNotification(t, websocket_mod.RestoreProgressEvent, task_mod.TaskResult{"stage": "Restoring api keys", "timestamp": time.Now().UnixMilli()}))
+	t.Ctx.Notify(ctx, notify.NewTaskNotification(t, websocket_mod.RestoreProgressEvent, task_mod.TaskResult{"stage": "Restoring api keys", "timestamp": time.Now().UnixMilli()}))
 
 	tokens, err := auth.GetAllTokensByTowerId(ctx, meta.Core.TowerId)
 	if err != nil {
@@ -112,7 +112,7 @@ func RestoreCore(tsk task_mod.Task) {
 	t.ReqNoErr(err)
 
 	// Restore instances
-	t.Ctx.Notify(notify.NewTaskNotification(
+	t.Ctx.Notify(ctx, notify.NewTaskNotification(
 		t, websocket_mod.RestoreProgressEvent, task_mod.TaskResult{"stage": "Restoring api keys", "timestamp": time.Now().UnixMilli()},
 	))
 
@@ -124,7 +124,7 @@ func RestoreCore(tsk task_mod.Task) {
 	t.ReqNoErr(err)
 
 	// Restore files
-	// t.Ctx.Notify(notify.NewTaskNotification(
+	// t.Ctx.Notify(ctx, notify.NewTaskNotification(
 	// 	t, websocket_mod.RestoreProgressEvent, task_mod.TaskResult{"stage": "Restoring files", "timestamp": time.Now().UnixMilli()},
 	// ))
 	// for i, lt := range lts {
@@ -158,7 +158,7 @@ func RestoreCore(tsk task_mod.Task) {
 	// 		t.ReqNoErr(err)
 	// 	}
 	//
-	// 	t.Ctx.Notify(notify.NewTaskNotification(t, websocket_mod.RestoreProgressEvent, task_mod.TaskResult{"filesTotal": len(lts), "filesRestored": i}))
+	// 	t.Ctx.Notify(ctx, notify.NewTaskNotification(t, websocket_mod.RestoreProgressEvent, task_mod.TaskResult{"filesTotal": len(lts), "filesRestored": i}))
 	// }
 
 	_, err = proxy.NewCoreRequest(meta.Core, "POST", "/restore/complete").Call()
@@ -166,8 +166,8 @@ func RestoreCore(tsk task_mod.Task) {
 		t.ReqNoErr(err)
 	}
 
-	meta.Core.SetReportedRole(tower_model.CoreTowerRole)
-	t.Ctx.Notify(notify.NewTaskNotification(t, websocket_mod.RestoreCompleteEvent, nil))
+	meta.Core.SetReportedRole(tower_model.RoleCore)
+	t.Ctx.Notify(ctx, notify.NewTaskNotification(t, websocket_mod.RestoreCompleteEvent, nil))
 
 	// Disconnect the core client to force a reconnection
 	// coreClient := meta.Pack.ClientService.GetClientByServerId(meta.Core.TowerId)

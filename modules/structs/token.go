@@ -1,14 +1,14 @@
 package structs
 
 type TokenInfo struct {
-	Id          string   `json:"id"`
-	CreatedTime int64    `json:"createdTime"`
-	LastUsed    int64    `json:"lastUsed"`
-	Nickname    string   `json:"nickname"`
-	Owner       string   `json:"owner"`
-	RemoteUsing string   `json:"remoteUsing"`
-	CreatedBy   string   `json:"createdBy"`
-	Token       [32]byte `json:"token"`
+	Id          string `json:"id" validate:"required"`
+	CreatedTime int64  `json:"createdTime" validate:"required" format:"int64"`
+	LastUsed    int64  `json:"lastUsed" validate:"required" format:"int64"`
+	Nickname    string `json:"nickname" validate:"required"`
+	Owner       string `json:"owner" validate:"required"`
+	RemoteUsing string `json:"remoteUsing" validate:"required"`
+	CreatedBy   string `json:"createdBy" validate:"required"`
+	Token       string `json:"token" validate:"required"`
 } // @name TokenInfo
 
 // type ApiKeyInfo struct {

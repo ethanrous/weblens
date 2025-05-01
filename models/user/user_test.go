@@ -28,7 +28,7 @@ func TestUserPassword(t *testing.T) {
 	}
 	ctx := context.WithValue(context.Background(), db.DatabaseContextKey, mongodb)
 
-	err = CreateUser(ctx, u)
+	err = SaveUser(ctx, u)
 	if !assert.NoError(t, err) {
 		t.FailNow()
 	}

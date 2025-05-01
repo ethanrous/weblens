@@ -17,6 +17,7 @@ import (
 var ErrTaskError = errors.New("task error")
 var ErrTaskExit = errors.New("task exit")
 var ErrTaskTimeout = errors.New("task timeout")
+var ErrTaskCancelled = errors.New("task cancelled")
 
 type hit struct {
 	time   time.Time
@@ -47,15 +48,11 @@ type WorkerPool struct {
 	taskStream workChannel
 	hitStream  hitChannel
 
-	exitSignal chan bool
-
 	retryBuffer    []*Task
 	maxWorkers     atomic.Int64 // Max allowed worker count
 	currentWorkers atomic.Int64 // Current total of workers on the pool
 
 	lifetimeQueuedCount atomic.Int64
-
-	exitFlag atomic.Int64
 
 	jobsMu sync.RWMutex
 
@@ -82,11 +79,7 @@ func NewWorkerPool(ctx context_mod.ContextZ, initWorkers int) *WorkerPool {
 		retryBuffer: []*Task{},
 
 		hitStream: make(hitChannel, initWorkers*2),
-
-		exitSignal: make(chan bool),
 	}
-	// Worker pool starts disabled
-	newWp.exitFlag.Store(1)
 
 	newWp.maxWorkers.Store(int64(initWorkers))
 
@@ -204,22 +197,24 @@ func (wp *WorkerPool) DispatchJob(c context.Context, jobName string, meta task_m
 		if job.opts.Unique {
 			metaStr += time.Now().String()
 		}
+
 		taskId = globbyHash(8, metaStr)
 	}
 
-	ctx := c.(context_mod.ContextZ)
+	ctx := context_mod.ToZ(c)
 
 	t := wp.GetTask(taskId)
+
 	ctx.Log().UpdateContext(func(c zerolog.Context) zerolog.Context {
 		return c.Str("task_id", taskId).Str("job_name", jobName)
 	})
 
-	appCtx, ok := ctx.(context_mod.AppContexter)
-	if !ok {
-		return nil, errors.New("context is not an AppContexter")
-	} else {
-		ctx = appCtx.AppCtx()
-	}
+	// appCtx, ok := ctx.(context_mod.AppContexter)
+	// if !ok {
+	// 	return nil, errors.New("context is not an AppContexter")
+	// } else {
+	// 	ctx = appCtx.AppCtx()
+	// }
 
 	if t != nil {
 		ctx.Log().Trace().Msgf("Task [%s] already exists, not launching again", taskId)
@@ -244,10 +239,14 @@ func (wp *WorkerPool) DispatchJob(c context.Context, jobName string, meta task_m
 
 	wp.addTask(t)
 
-	ctx.Log().Trace().Stack().Err(errors.New("Task created")).Msgf("Task [%s] created", taskId)
+	ctx.Log().Trace().Stack().Msgf("Task [%s] created", taskId)
 
-	if wp.exitFlag.Load() == 1 {
-		return nil, errors.New("not queuing task while worker pool is going down")
+	select {
+	case _, ok := <-ctx.Done():
+		if !ok {
+			return nil, errors.New("not queuing task while worker pool is going down")
+		}
+	default:
 	}
 
 	if t.err != nil {
@@ -258,7 +257,10 @@ func (wp *WorkerPool) DispatchJob(c context.Context, jobName string, meta task_m
 		return nil, errors.New("Not re-queueing task that has error set")
 	}
 
-	tpool := pool.(*TaskPool)
+	tpool, ok := pool.(*TaskPool)
+	if !ok {
+		return nil, errors.Errorf("Task pool is not a TaskPool")
+	}
 
 	if t.taskPool != nil && (t.taskPool != tpool || t.queueState != PreQueued) {
 		// Task is already queued, we are not allowed to move it to another queue.
@@ -353,6 +355,7 @@ func (wp *WorkerPool) cleanup(task *Task, workerId int64) {
 	// Run the cleanup routine for errors, if any
 	if task.exitStatus == task_mod.TaskError || task.exitStatus == task_mod.TaskCanceled {
 		task.Ctx.Log().Trace().Msgf("Running error cleanup")
+
 		for _, ecf := range task.errorCleanup {
 			ecf(task)
 		}
@@ -366,9 +369,11 @@ func (wp *WorkerPool) cleanup(task *Task, workerId int64) {
 	task.updateMu.RLock()
 	cleanups := task.cleanups
 	task.updateMu.RUnlock()
+
 	for _, cf := range cleanups {
 		cf(task)
 	}
+
 	task.Ctx.Log().Trace().Msgf("Finished cleanup")
 
 	// The post action is intended to run after the task has completed, and after
@@ -391,9 +396,9 @@ func (wp *WorkerPool) AddHit(time time.Time, target task_mod.Task) {
 // the reaper so it doesn't hang forever
 func (wp *WorkerPool) reaper() {
 	timerStream := make(chan *Task)
-	for wp.exitFlag.Load() == 0 {
+	for {
 		select {
-		case _, ok := <-wp.exitSignal:
+		case _, ok := <-wp.ctx.Done():
 			if !ok {
 				log.Debug().Msg("Task reaper exiting")
 				return
@@ -418,8 +423,6 @@ func (wp *WorkerPool) reaper() {
 
 // Run launches the standard threads for this worker pool
 func (wp *WorkerPool) Run() {
-	wp.exitFlag.Store(0)
-
 	// Spawn the timeout checker
 	go wp.reaper()
 
@@ -435,15 +438,6 @@ func (wp *WorkerPool) Run() {
 		// so they are NOT replacement workers. See wp.execWorker
 		// for more info
 		wp.execWorker(false)
-	}
-}
-
-func (wp *WorkerPool) Stop() {
-	wp.exitFlag.Store(1)
-	close(wp.exitSignal)
-	for wp.currentWorkers.Load() > 0 {
-		log.Debug().Msgf("Waiting for %d workers to exit", wp.currentWorkers.Load())
-		time.Sleep(100 * time.Millisecond)
 	}
 }
 
@@ -490,20 +484,12 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 		// WorkLoop:
 		for {
 			select {
-			case _, ok := <-wp.exitSignal:
+			case _, ok := <-wp.ctx.Done():
 				if !ok {
 					return
 				}
 			case t := <-wp.taskStream:
 				{
-					// Even if we get a new task, but the wp is marked for exit, we just exit
-					if wp.exitFlag.Load() == 1 {
-						// We don't care about the exitLock here, since the whole wp
-						// is going down anyway.
-
-						return
-					}
-
 					// Replacement workers are not allowed to do "scan_directory" tasks
 					// TODO - generalize
 					if replacement && t.jobName == "scan_directory" && t.exitStatus == task_mod.TaskNoStatus {
@@ -689,37 +675,54 @@ func (wp *WorkerPool) Status() (int, int, int, int, int) {
 
 func (wp *WorkerPool) statusReporter() {
 	var lastCount int
-	var waitTime time.Duration = 1
-	for wp.exitFlag.Load() == 0 {
-		time.Sleep(time.Second * waitTime)
-		remaining, total, busy, alive, retrySize := wp.Status()
-		if lastCount != remaining {
-			lastCount = remaining
-			waitTime = 1
-			wp.ctx.Log().Debug().Int("queue_remaining", remaining).Int("queue_total", total).Int("queue_buffered", retrySize).Int("busy_workers", busy).Int("alive_workers", alive).Msg(
-				"Worker pool status",
-			)
-		} else if waitTime < time.Second*10 {
-			waitTime += 1
+
+	ticker := time.NewTicker(time.Second * 10)
+	defer func() {
+		wp.ctx.Log().Debug().Msg("status reporter exiting")
+	}()
+
+	for {
+		select {
+		case _, ok := <-wp.ctx.Done():
+			if !ok {
+				return
+			}
+		case <-ticker.C:
+			remaining, total, busy, alive, retrySize := wp.Status()
+			if lastCount != remaining {
+				lastCount = remaining
+				wp.ctx.Log().Debug().Int("queue_remaining", remaining).Int("queue_total", total).Int("queue_buffered", retrySize).Int("busy_workers", busy).Int("alive_workers", alive).Msg(
+					"Worker pool status",
+				)
+			}
 		}
 	}
-	wp.ctx.Log().Warn().Msg("status reporter exited")
 }
 
 func (wp *WorkerPool) bufferDrainer() {
-	for wp.exitFlag.Load() == 0 {
-		wp.taskBufferMu.Lock()
-		if len(wp.retryBuffer) != 0 && len(wp.taskStream) == 0 {
-			for _, t := range wp.retryBuffer {
-				wp.taskStream <- t
-			}
-			wp.retryBuffer = []*Task{}
-		}
-		wp.taskBufferMu.Unlock()
-		time.Sleep(time.Second * 10)
-	}
+	ticker := time.NewTicker(time.Second * 10)
+	defer func() {
+		wp.ctx.Log().Debug().Msg("buffer drainer exiting")
+	}()
 
-	wp.ctx.Log().Debug().Msg("buffer drainer exited")
+	for {
+		select {
+		case _, ok := <-wp.ctx.Done():
+			if !ok {
+				return
+			}
+			wp.ctx.Log().Warn().Msg("buffer drainer not exiting?")
+		case <-ticker.C:
+			wp.taskBufferMu.Lock()
+			if len(wp.retryBuffer) != 0 && len(wp.taskStream) == 0 {
+				for _, t := range wp.retryBuffer {
+					wp.taskStream <- t
+				}
+				wp.retryBuffer = []*Task{}
+			}
+			wp.taskBufferMu.Unlock()
+		}
+	}
 }
 
 func (wp *WorkerPool) addToRetryBuffer(tasks ...*Task) {

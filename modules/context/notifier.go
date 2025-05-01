@@ -7,7 +7,7 @@ import (
 )
 
 type Notifier interface {
-	Notify(data ...websocket.WsResponseInfo)
+	Notify(ctx context.Context, data ...websocket.WsResponseInfo)
 }
 
 type NotifierContext interface {

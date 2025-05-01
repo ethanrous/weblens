@@ -6,15 +6,19 @@ import { CSSProperties } from 'react'
 
 export default function Messages() {
     const messages = useMessagesController((state) => state.messages)
+    if (messages.size === 0) {
+        return null
+    }
+    const sortedMsgs = messages
+        .values()
+        .toArray()
+        .sort((a, b) => a.queueTime - b.queueTime)
+
     return (
         <div className="absolute right-4 bottom-4 z-50 w-max">
-            {messages
-                .values()
-                .toArray()
-                .sort((a, b) => a.queueTime - b.queueTime)
-                .map((m, i) => (
-                    <SingleMessage key={i} message={m} />
-                ))}
+            {sortedMsgs.map((m, i) => (
+                <SingleMessage key={i} message={m} />
+            ))}
         </div>
     )
 }

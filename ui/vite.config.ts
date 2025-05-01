@@ -24,7 +24,11 @@ export default ({ mode }: { mode: string }) => {
 	return defineConfig({
 		// depending on your application, base can also be "/"
 		base: '/',
-		plugins: [react(), viteTsconfigPaths(), tailwindcss()],
+		plugins: [react({
+			babel: {
+				plugins: [['babel-plugin-react-compiler', { target: '18' }]],
+			},
+		}), viteTsconfigPaths(), tailwindcss()],
 		mode: 'development',
 		server: {
 			// this ensures that the browser opens upon server start

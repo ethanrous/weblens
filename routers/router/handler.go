@@ -1,7 +1,6 @@
 package router
 
 import (
-	"context"
 	"net/http"
 
 	context_service "github.com/ethanrous/weblens/services/context"
@@ -20,10 +19,21 @@ func (f HandlerFunc) ServeHTTP(ctx context_service.RequestContext) {
 }
 
 func getFromHTTP(w http.ResponseWriter, r *http.Request) context_service.RequestContext {
-	ctx, _ := r.Context().Value(requestContextKey).(context_service.RequestContext)
-	ctx.Req = r
-	ctx.W = w
-	return ctx
+	reqCtx, ok := context_service.ReqFromContext(r.Context())
+	if !ok {
+		panic("request context not found in request")
+	}
+
+	reqCtx.ReqCtx = r.Context()
+	r.WithContext(reqCtx)
+	reqCtx.Req = r
+	reqCtx.W = w
+
+	return reqCtx
+	// ctx, _ := r.Context().Value(requestContextKey).(context_service.RequestContext)
+	// ctx.Req = r
+	// ctx.W = w
+	// return ctx
 }
 
 func toStdHandlerFunc(h Handler) http.HandlerFunc {
@@ -35,8 +45,10 @@ func toStdHandlerFunc(h Handler) http.HandlerFunc {
 
 func FromStdHandler(h http.Handler) HandlerFunc {
 	return func(ctx context_service.RequestContext) {
-		ctx.Req = ctx.Req.WithContext(context.WithValue(ctx.Req.Context(), requestContextKey, ctx))
-		h.ServeHTTP(ctx.W, ctx.Req)
+		r := ctx.Req
+		r = r.WithContext(ctx)
+		// ctx.Req = ctx.Req.WithContext(context.WithValue(ctx.Req.Context(), requestContextKey, ctx))
+		h.ServeHTTP(ctx.W, r)
 	}
 }
 
@@ -52,6 +64,7 @@ func mdlwToStd(h PassthroughHandler) func(http.Handler) http.Handler {
 func WrapHandlerProvider(hp func(http.Handler) http.Handler) PassthroughHandler {
 	return func(next Handler) Handler {
 		h := hp(toStdHandlerFunc(next))
+
 		return FromStdHandler(h)
 	}
 }
@@ -71,5 +84,6 @@ func wrapManyHandlers(hs ...HandlerFunc) []func(http.Handler) http.Handler {
 	for i := range hs {
 		newHs[i] = middlewareWrapper(hs[i])
 	}
+
 	return newHs
 }

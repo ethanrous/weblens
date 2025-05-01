@@ -1,11 +1,15 @@
 package history
 
 import (
+	"context"
+	"regexp"
 	"time"
 
 	"github.com/ethanrous/weblens/models/db"
-	"github.com/ethanrous/weblens/modules/context"
+	file_model "github.com/ethanrous/weblens/models/file"
+	context_mod "github.com/ethanrous/weblens/modules/context"
 	"github.com/ethanrous/weblens/modules/fs"
+	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -25,20 +29,127 @@ const (
 const fileActionErrorLabel = "file action"
 
 type FileAction struct {
-	Id primitive.ObjectID `json:"id" bson:"_id"`
+	Id primitive.ObjectID `bson:"_id" json:"id"`
 
-	Timestamp time.Time `json:"timestamp" bson:"timestamp"`
+	Timestamp time.Time `bson:"timestamp" json:"timestamp"`
 
-	ActionType      FileActionType `json:"actionType" bson:"actionType"`
-	Filepath        fs.Filepath    `json:"filepath" bson:"filepath,omitempty"`
-	OriginPath      fs.Filepath    `json:"originPath" bson:"originPath,omitempty"`
-	DestinationPath fs.Filepath    `json:"destinationPath" bson:"destinationPath,omitempty"`
-	EventId         string         `json:"eventId" bson:"eventId"`
-	TowerId         string         `json:"serverId" bson:"serverId"`
-	ContentId       string         `json:"contentId" bson:"contentId,omitempty"`
-	FileId          string         `json:"fileId" bson:"fileId"`
+	ActionType      FileActionType `bson:"actionType" json:"actionType"`
+	Filepath        fs.Filepath    `bson:"filepath,omitempty" json:"filepath"`
+	OriginPath      fs.Filepath    `bson:"originPath,omitempty" json:"originPath"`
+	DestinationPath fs.Filepath    `bson:"destinationPath,omitempty" json:"destinationPath"`
+	EventId         string         `bson:"eventId" json:"eventId"`
+	TowerId         string         `bson:"towerId" json:"towerId"`
+	ContentId       string         `bson:"contentId,omitempty" json:"contentId"`
+	FileId          string         `bson:"fileId" json:"fileId"`
 
-	Size int64 `json:"size" bson:"size"`
+	Size int64 `bson:"size" json:"size"`
+
+	file *file_model.WeblensFileImpl `bson:"-" json:"-"`
+}
+
+type FileLifetime struct {
+	Id      string       `bson:"_id"`
+	Actions []FileAction `bson:"actions"`
+}
+
+func NewCreateAction(ctx context.Context, file *file_model.WeblensFileImpl) FileAction {
+	towerId := ctx.Value("towerId").(string)
+
+	eventId := ""
+	eventTime := time.Now()
+
+	event, ok := FileEventFromContext(ctx)
+	if ok {
+		eventId = event.EventId
+		eventTime = event.StartTime
+	} else {
+		eventId = primitive.NewObjectID().Hex()
+	}
+
+	fileId := file.ID()
+	if fileId == "" {
+		fileId = primitive.NewObjectID().Hex()
+	}
+
+	return FileAction{
+		ActionType: FileCreate,
+		ContentId:  file.GetContentId(),
+		EventId:    eventId,
+		FileId:     fileId,
+		Filepath:   file.GetPortablePath(),
+		Size:       file.Size(),
+		Timestamp:  eventTime,
+		TowerId:    towerId,
+
+		file: file,
+	}
+}
+
+func NewMoveAction(ctx context.Context, originPath, destinationPath fs.Filepath, file *file_model.WeblensFileImpl) FileAction {
+	// if destinationPath != file.GetPortablePath() {
+	// 	panic(errors.New("destination path does not match file path"))
+	// }
+
+	towerId := ctx.Value("towerId").(string)
+
+	eventId := ""
+	eventTime := time.Now()
+
+	event, ok := FileEventFromContext(ctx)
+	if ok {
+		eventId = event.EventId
+		eventTime = event.StartTime
+	} else {
+		eventId = primitive.NewObjectID().Hex()
+	}
+
+	return FileAction{
+		ActionType:      FileMove,
+		DestinationPath: destinationPath,
+		EventId:         eventId,
+		FileId:          file.ID(),
+		OriginPath:      originPath,
+		Size:            file.Size(),
+		Timestamp:       eventTime,
+		TowerId:         towerId,
+	}
+}
+
+func NewDeleteAction(ctx context.Context, file *file_model.WeblensFileImpl) FileAction {
+	towerId := ctx.Value("towerId").(string)
+
+	eventId := ""
+	eventTime := time.Now()
+
+	event, ok := FileEventFromContext(ctx)
+	if ok {
+		eventId = event.EventId
+		eventTime = event.StartTime
+	} else {
+		eventId = primitive.NewObjectID().Hex()
+	}
+
+	return FileAction{
+		ActionType: FileDelete,
+		ContentId:  file.GetContentId(),
+		EventId:    eventId,
+		FileId:     file.ID(),
+		Filepath:   file.GetPortablePath(),
+		Size:       file.Size(),
+		Timestamp:  eventTime,
+		TowerId:    towerId,
+	}
+}
+
+func (fa *FileAction) MarshalBSON() ([]byte, error) {
+	if fa.Size < 1 && fa.file != nil {
+		fa.Size = fa.file.Size()
+	}
+
+	// Don't call this on the FileAction struct itself, as it will cause an infinite loop.
+	type actionAlias FileAction
+
+	return bson.Marshal((*actionAlias)(fa))
 }
 
 // GetTimestamp returns the timestamp of the file action.
@@ -58,11 +169,19 @@ func (fa *FileAction) GetSize() int64 {
 
 // GetOriginPath returns the origin path of the file action.
 func (fa *FileAction) GetOriginPath() fs.Filepath {
+	if fa.OriginPath.IsZero() {
+		return fa.Filepath
+	}
+
 	return fa.OriginPath
 }
 
 // GetDestinationPath returns the destination path of the file action.
 func (fa *FileAction) GetDestinationPath() fs.Filepath {
+	if fa.DestinationPath.IsZero() {
+		return fa.Filepath
+	}
+
 	return fa.DestinationPath
 }
 
@@ -70,10 +189,16 @@ func (fa *FileAction) GetDestinationPath() fs.Filepath {
 // If the action type is FileDelete, it returns the origin path;
 // otherwise, it returns the destination path.
 func (fa *FileAction) GetRelevantPath() fs.Filepath {
-	if fa.GetActionType() == FileDelete {
+	switch fa.ActionType {
+	case FileCreate:
+		return fa.Filepath
+	case FileMove:
+		return fa.DestinationPath
+	case FileDelete:
 		return fa.OriginPath
+	default:
+		return fs.Filepath{}
 	}
-	return fa.DestinationPath
 }
 
 // GetActionType returns the action type of the file action.
@@ -81,31 +206,56 @@ func (fa *FileAction) GetActionType() FileActionType {
 	return fa.ActionType
 }
 
-const FileActionCollectionKey = "fileHistory"
-
-func NewCreateAction(filepath fs.Filepath, size int64, towerId string) *FileAction {
-	return &FileAction{
-		Id:         primitive.NewObjectID(),
-		Timestamp:  time.Now(),
-		ActionType: FileCreate,
-		Filepath:   filepath,
-		TowerId:    towerId,
-		Size:       size,
-		FileId:     primitive.NewObjectID().Hex(),
-	}
+func (fa *FileAction) SetFile(file *file_model.WeblensFileImpl) {
+	fa.file = file
 }
+
+const FileActionCollectionKey = "fileHistory"
 
 // SaveAction saves a FileAction to the database.
 // It returns an error if the operation fails.
-func SaveAction(ctx context.DatabaseContext, action *FileAction) error {
+func SaveAction(ctx context.Context, action *FileAction) error {
 	col, err := db.GetCollection(ctx, FileActionCollectionKey)
 	if err != nil {
 		return err
 	}
 
+	if action.TowerId == "" {
+		return errors.New("towerId is empty")
+	}
+
+	if action.Id.IsZero() {
+		action.Id = primitive.NewObjectID()
+	}
+
 	_, err = col.InsertOne(ctx, action)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func SaveActions(ctx context.Context, actions []FileAction) error {
+	col, err := db.GetCollection(ctx, FileActionCollectionKey)
+	if err != nil {
+		return err
+	}
+
+	for i, a := range actions {
+		if a.Id.IsZero() {
+			actions[i].Id = primitive.NewObjectID()
+		}
+	}
+
+	anyActions := make([]any, len(actions))
+	for i, a := range actions {
+		anyActions[i] = a
+	}
+
+	_, err = col.InsertMany(ctx, anyActions)
+	if err != nil {
+		return db.WrapError(err, "failed to SaveActions")
 	}
 
 	return nil
@@ -123,25 +273,9 @@ func ActionSorter(a, b *FileAction) int {
 	return len(a.DestinationPath.RelPath) - len(b.DestinationPath.RelPath)
 }
 
-// SaveFileAction saves a FileAction to the database.
-// It returns an error if the operation fails.
-func SaveFileAction(ctx context.DatabaseContext, action *FileAction) error {
-	col, err := db.GetCollection(ctx, FileActionCollectionKey)
-	if err != nil {
-		return err
-	}
-
-	_, err = col.InsertOne(ctx, action)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // GetLatestAction retrieves the latest FileAction from the database.
 // It returns the latest FileAction and an error if the operation fails.
-func GetLatestAction(ctx context.DatabaseContext) (*FileAction, error) {
+func GetLatestAction(ctx context_mod.DatabaseContext) (*FileAction, error) {
 	col, err := db.GetCollection(ctx, FileActionCollectionKey)
 	if err != nil {
 		return nil, err
@@ -169,20 +303,140 @@ func GetLatestAction(ctx context.DatabaseContext) (*FileAction, error) {
 // Returns:
 //   - A slice of FileActions associated with the specified towerId.
 //   - An error if the operation fails.
-func GetActionsByTowerId(ctx context.DatabaseContext, towerId string) ([]*FileAction, error) {
+func GetActionsByTowerId(ctx context_mod.DatabaseContext, towerId string) ([]*FileAction, error) {
 	col, err := db.GetCollection(ctx, FileActionCollectionKey)
 	if err != nil {
 		return nil, err
 	}
 
-	filter := bson.M{"serverId": towerId}
+	filter := bson.M{"towerId": towerId}
+	cursor, err := col.Find(ctx, filter)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer cursor.Close(ctx)
+
+	var actions []*FileAction
+	err = cursor.All(ctx, &actions)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return actions, nil
+}
+
+func GetActionAtFilepath(ctx context.Context, filepath fs.Filepath) (*FileAction, error) {
+	col, err := db.GetCollection(ctx, FileActionCollectionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	filter := bson.M{"$or": bson.A{bson.M{"filepath": filepath.ToPortable()}, bson.M{"destinationPath": filepath.ToPortable()}}}
+	action := &FileAction{}
+	err = col.FindOne(ctx, filter, options.FindOne().SetSort(bson.M{"timestamp": -1})).Decode(action)
+
+	if err != nil {
+		return nil, db.WrapError(err, "GetActionAtFilepath looking for %s", filepath)
+	}
+
+	return action, nil
+}
+
+func GetLastActionByFileIdBefore(ctx context.Context, fileId string, ts time.Time) (action FileAction, err error) {
+	col, err := db.GetCollection(ctx, FileActionCollectionKey)
+	if err != nil {
+		return
+	}
+
+	filter := bson.M{"fileId": fileId, "timestamp": bson.M{"$lte": ts}}
+
+	err = col.FindOne(ctx, filter, options.FindOne().SetSort(bson.M{"timestamp": -1})).Decode(&action)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func GetLifetimes(ctx context.Context, activeOnly bool) ([]FileLifetime, error) {
+	col, err := db.GetCollection(ctx, FileActionCollectionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	towerId := ctx.Value("towerId").(string)
+
+	activeFilter := bson.M{}
+	if activeOnly {
+		activeFilter = bson.M{"$match": bson.M{"actions.actionType": bson.M{"$ne": "fileDelete"}}}
+	}
+
+	pipe := bson.A{
+		bson.M{"$match": bson.M{"towerId": towerId}},
+		bson.M{
+			"$group": bson.M{
+				"_id":     "$fileId",
+				"actions": bson.M{"$push": "$$ROOT"},
+			},
+		},
+		activeFilter,
+		bson.M{"$sort": bson.M{"actions.timestamp": 1}},
+	}
+
+	cur, err := col.Aggregate(ctx, pipe)
+	if err != nil {
+		return nil, err
+	}
+
+	var lifetimes []FileLifetime
+	err = cur.All(ctx, &lifetimes)
+
+	if err != nil {
+		return nil, db.WrapError(err, "GetLifetimes")
+	}
+
+	return lifetimes, nil
+}
+
+func UpdateAction(ctx context.Context, action *FileAction) error {
+	if action.Id.IsZero() {
+		return errors.New("cannot update action with zero ID")
+	}
+
+	col, err := db.GetCollection(ctx, FileActionCollectionKey)
+	if err != nil {
+		return err
+	}
+
+	filter := bson.M{"_id": action.Id}
+	update := bson.M{"$set": action}
+
+	_, err = col.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return db.WrapError(err, "UpdateAction")
+	}
+
+	return nil
+}
+
+func GetActionsAfter(ctx context.Context, timestamp time.Time) ([]FileAction, error) {
+	col, err := db.GetCollection(ctx, FileActionCollectionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	filter := bson.M{"timestamp": bson.M{"$gt": timestamp}}
+
 	cursor, err := col.Find(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(ctx)
 
-	var actions []*FileAction
+	var actions []FileAction
+
 	err = cursor.All(ctx, &actions)
 	if err != nil {
 		return nil, err
@@ -191,18 +445,42 @@ func GetActionsByTowerId(ctx context.DatabaseContext, towerId string) ([]*FileAc
 	return actions, nil
 }
 
-func GetActionAtFilepath(ctx context.DatabaseContext, filepath fs.Filepath) (*FileAction, error) {
+func GetActionsAtPathBefore(ctx context.Context, path fs.Filepath, timestamp time.Time, includeChildren bool) ([]FileAction, error) {
 	col, err := db.GetCollection(ctx, FileActionCollectionKey)
 	if err != nil {
 		return nil, err
 	}
 
-	filter := bson.M{"filepath": filepath.ToPortable()}
-	action := &FileAction{}
-	err = col.FindOne(ctx, filter, options.FindOne().SetSort(bson.M{"timestamp": -1})).Decode(action)
-	if err != nil {
-		return nil, db.WrapError(err, "GetActionAtFilepath looking for %s", filepath)
+	pathRe := regexp.QuoteMeta(path.ToPortable())
+
+	if includeChildren {
+		pathRe += `[^/]*/?`
 	}
 
-	return action, nil
+	pathRe += `$`
+
+	filter := bson.M{
+		"$or": bson.A{
+			bson.M{"filepath": bson.M{"$regex": pathRe}},
+			bson.M{"originPath": bson.M{"$regex": pathRe}},
+			bson.M{"destinationPath": bson.M{"$regex": pathRe}},
+		},
+		"timestamp": bson.M{"$lte": timestamp},
+	}
+
+	opts := options.Find().SetSort(bson.M{"timestamp": -1})
+
+	cursor, err := col.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var actions []FileAction
+
+	err = cursor.All(ctx, &actions)
+	if err != nil {
+		return nil, err
+	}
+
+	return actions, nil
 }

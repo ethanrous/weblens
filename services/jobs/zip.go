@@ -80,13 +80,13 @@ func CreateZip(tsk task_mod.Task) {
 		t.SetResult(task_mod.TaskResult{"takeoutId": zipFile.ID(), "filename": zipFile.GetPortablePath().Filename()})
 		// Let any client subscribers know we are done
 		notif := notify.NewTaskNotification(t, websocket.ZipCompleteEvent, t.GetResults())
-		ctx.Notify(notif)
+		ctx.Notify(ctx, notif)
 		t.Success()
 		return
 	}
 
 	notif := notify.NewTaskNotification(t, websocket.TaskCreatedEvent, task_mod.TaskResult{"totalFiles": len(filesInfoMap)})
-	ctx.Notify(notif)
+	ctx.Notify(ctx, notif)
 	t.Success()
 
 	fp, err := os.Create(zipFile.GetPortablePath().ToAbsolute())
@@ -161,7 +161,7 @@ func CreateZip(tsk task_mod.Task) {
 					"bytesTotal": bytesTotal,
 					"speedBytes": int((float64(byteDiff) / float64(timeNs)) * float64(time.Second)),
 				})
-			t.Ctx.Notify(notif)
+			t.Ctx.Notify(ctx, notif)
 			prevBytes = bytes
 			sinceUpdate = 0
 		}
@@ -175,7 +175,7 @@ func CreateZip(tsk task_mod.Task) {
 	t.SetResult(task_mod.TaskResult{"takeoutId": zipFile.ID(), "filename": zipFile.GetPortablePath().Filename()})
 
 	notif = notify.NewTaskNotification(t, websocket.ZipCompleteEvent, t.GetResults())
-	ctx.Notify(notif)
+	ctx.Notify(ctx, notif)
 
 	t.Success()
 }

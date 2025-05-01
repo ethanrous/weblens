@@ -18,7 +18,12 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { FbModeT, useFileBrowserStore } from '../../store/FBStateControl'
 import { DraggingCounter } from './DropSpot'
-import { getRealId, useKeyDownFileBrowser, usePaste } from './FileBrowserLogic'
+import {
+    filenameFromPath,
+    getRealId,
+    useKeyDownFileBrowser,
+    usePaste,
+} from './FileBrowserLogic'
 import { DirViewModeT } from './FileBrowserTypes'
 
 function useSearch() {
@@ -227,6 +232,9 @@ function FileBrowser() {
                     mediaData: fileData.medias,
                 })
 
+                document.title =
+                    filenameFromPath(fileData.self.portablePath).nameText +
+                    ' - Weblens'
                 folder?.SetFetching(false)
             }
 

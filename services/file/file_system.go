@@ -4,41 +4,26 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ethanrous/weblens/models/file"
+	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/modules/fs"
 	"github.com/pkg/errors"
 )
 
-const (
-	UsersTreeKey   = "USERS"
-	RestoreTreeKey = "RESTORE"
-	CachesTreeKey  = "CACHES"
-
-	UserTrashDirName = ".user_trash"
-	ThumbsDirName    = "thumbs"
-)
-
-var UsersRootPath = fs.Filepath{RootAlias: UsersTreeKey}
-var CacheRootPath = fs.Filepath{RootAlias: CachesTreeKey}
-var ThumbsDirPath = fs.Filepath{RootAlias: CachesTreeKey, RelPath: ThumbsDirName}
-var RestoreDirPath = fs.Filepath{RootAlias: RestoreTreeKey}
-
 func isCacheFile(filepath fs.Filepath) bool {
-	return filepath.RootAlias == CachesTreeKey
+	return filepath.RootAlias == file_model.CachesTreeKey
 }
 
-func cacheFilename(mId, quality string, pageNum int) string {
+func getCacheFilename(mId, quality string, pageNum int) string {
 	var pageNumStr string
 	if pageNum > 1 && quality == string(media_model.HighRes) {
 		pageNumStr = fmt.Sprintf("_%d", pageNum)
 	}
-	filename := fmt.Sprintf("%s-%s%s.cache", mId, quality, pageNumStr)
 
-	return filename
+	return fmt.Sprintf("%s-%s%s.cache", mId, quality, pageNumStr)
 }
 
-func touch(filepath fs.Filepath) (f *file.WeblensFileImpl, err error) {
+func touch(filepath fs.Filepath) (f *file_model.WeblensFileImpl, err error) {
 	osf, err := os.Create(filepath.ToAbsolute())
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -49,20 +34,23 @@ func touch(filepath fs.Filepath) (f *file.WeblensFileImpl, err error) {
 		return nil, errors.WithStack(err)
 	}
 
-	f = file.NewWeblensFile(filepath)
+	f = file_model.NewWeblensFile(file_model.NewFileOptions{Path: filepath})
+
 	return
 }
 
-func mkdir(filepath fs.Filepath) (f *file.WeblensFileImpl, err error) {
+func mkdir(filepath fs.Filepath) (f *file_model.WeblensFileImpl, err error) {
 	err = os.Mkdir(filepath.ToAbsolute(), os.ModePerm)
 	if err != nil {
 		if os.IsExist(err) {
-			return nil, errors.Wrap(file.ErrDirectoryAlreadyExists, filepath.ToAbsolute())
+			return nil, errors.Wrap(file_model.ErrDirectoryAlreadyExists, filepath.ToAbsolute())
 		}
+
 		return
 	}
 
-	f = file.NewWeblensFile(filepath)
+	f = file_model.NewWeblensFile(file_model.NewFileOptions{Path: filepath})
+
 	return
 }
 
@@ -80,11 +68,11 @@ func exists(filepath fs.Filepath) bool {
 }
 
 func rename(oldPath, newPath fs.Filepath) error {
-	return os.Rename(oldPath.ToAbsolute(), newPath.ToAbsolute())
+	return errors.WithStack(os.Rename(oldPath.ToAbsolute(), newPath.ToAbsolute()))
 }
 
 func remove(filepath fs.Filepath) error {
-	return os.Remove(filepath.ToAbsolute())
+	return errors.WithStack(os.RemoveAll(filepath.ToAbsolute()))
 }
 
 func getChildFilepaths(filepath fs.Filepath) ([]fs.Filepath, error) {
@@ -94,6 +82,7 @@ func getChildFilepaths(filepath fs.Filepath) ([]fs.Filepath, error) {
 	}
 
 	childPaths := make([]fs.Filepath, 0, len(childs))
+
 	for _, child := range childs {
 		childPath := filepath.Child(child.Name(), child.IsDir())
 		childPaths = append(childPaths, childPath)

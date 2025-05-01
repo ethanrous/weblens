@@ -16,8 +16,10 @@ func WrapError(err error, format string, a ...any) error {
 
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return errors.WithStack(&NotFoundError{msg})
+	} else if errors.Is(err, mongo.ErrNilCursor) {
+		return errors.WithStack(&AlreadyExistsError{msg})
 	} else {
-		return fmt.Errorf("unknown database error: %s: %w", msg, err)
+		return errors.WithStack(fmt.Errorf("unknown database error: %s: %w", msg, err))
 	}
 }
 
@@ -59,4 +61,12 @@ func (e *AlreadyExistsError) Error() string {
 // NewAlreadyExistsError creates a new AlreadyExistsError with the given message.
 func NewAlreadyExistsError(message string) error {
 	return &AlreadyExistsError{Message: message}
+}
+
+func IsAlreadyExists(err error) bool {
+	var alreadyExistsErr *AlreadyExistsError
+	if errors.As(err, &alreadyExistsErr) {
+		return true
+	}
+	return false
 }

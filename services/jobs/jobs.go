@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"maps"
 	"slices"
 	"strconv"
@@ -9,18 +10,16 @@ import (
 	"time"
 
 	file_model "github.com/ethanrous/weblens/models/file"
+	"github.com/ethanrous/weblens/models/history"
 	"github.com/ethanrous/weblens/models/job"
 	job_model "github.com/ethanrous/weblens/models/job"
-	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/models/task"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
-	"github.com/ethanrous/weblens/modules/structs"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/ethanrous/weblens/modules/websocket"
-	"github.com/ethanrous/weblens/services/context"
+	context_service "github.com/ethanrous/weblens/services/context"
 	file_service "github.com/ethanrous/weblens/services/file"
 	"github.com/ethanrous/weblens/services/notify"
-	"github.com/ethanrous/weblens/services/reshape"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
@@ -45,6 +44,7 @@ func parseRangeHeader(contentRange string) (min, max, total int64, err error) {
 	if err != nil {
 		return
 	}
+
 	return
 }
 
@@ -56,8 +56,13 @@ func parseRangeHeader(contentRange string) (min, max, total int64, err error) {
 // of the upload
 func HandleFileUploads(tsk task_mod.Task) {
 	t := tsk.(*task.Task)
+	ctx, ok := context_service.FromContext(t.Ctx)
+	if !ok {
+		t.Fail(errors.New("failed to get context"))
 
-	ctx := t.Ctx.(context.AppContext)
+		return
+	}
+
 	meta := t.GetMeta().(job.UploadFilesMeta)
 
 	t.ExitIfSignaled()
@@ -70,41 +75,44 @@ func HandleFileUploads(tsk task_mod.Task) {
 	// This map will only be accessed by this task and by this 1 thread,
 	// so we do not need any synchronization here
 	fileMap := map[string]*job_model.FileUploadProgress{}
-
-	// meta.Caster.DisableAutoFlush()
-	var usingFiles []string
-	var topLevels []*file_model.WeblensFileImpl
-
-	fileEvent := meta.UploadEvent
-
+	usingFiles := []string{}
+	topLevels := []*file_model.WeblensFileImpl{}
 	timeout := false
 
-	t.SetErrorCleanup(func(tsk task_mod.Task) {
-		t := tsk.(*task.Task)
-		if fileEvent.Logged.Load() {
-			return
-		}
-		t.Ctx.Log().Trace().Msg("Doing error cleanup journal log for upload")
-		// TODO: log event
-		// ctx.FileService.GetJournalByTree("USERS").LogEvent(fileEvent)
-	})
+	// t.SetErrorCleanup(func(tsk task_mod.Task) {
+	// 	t := tsk.(*task.Task)
+	// 	t.Ctx.Log().Trace().Msg("Doing error cleanup journal log for upload")
+	// 	// TODO: log event
+	// 	// ctx.FileService.GetJournalByTree("USERS").LogEvent(fileEvent)
+	// })
 
 	// Cleanup routine. This must be run even if the upload fails
 	t.SetCleanup(func(tsk task_mod.Task) {
 		t := tsk.(*task.Task)
-		ctx := t.Ctx.(context.AppContext)
-		t.Ctx.Log().Debug().Func(func(e *zerolog.Event) {
+		ctx, ok := context_service.FromContext(t.Ctx)
+		if !ok {
+			t.Fail(errors.New("failed to get context"))
+
+			return
+		}
+
+		ctx.Log().Debug().Func(func(e *zerolog.Event) {
 			e.Msgf("Upload fileMap has %d remaining and chunk stream has %d remaining", len(fileMap), len(meta.ChunkStream))
 		})
 
-		doingRootScan := false
+		rootFile.Size()
+		notifs := notify.NewFileNotification(ctx, rootFile, websocket.FileUpdatedEvent)
 
+		doingRootScan := false
 		// Do not report that this task pool was created by this task, we want to detach
 		// and allow these scans to take place independently
 		newTp := t.GetTaskPool().GetWorkerPool().NewTaskPool(false, nil)
+
 		for _, tl := range topLevels {
+			notif := notify.NewFileNotification(ctx, tl, websocket.FileUpdatedEvent)
+			notifs = append(notifs, notif...)
+
 			if tl.IsDir() {
-				// err = ctx.FileService.ResizeDown(tl, fileEvent, meta.Caster)
 				if err != nil {
 					t.ReqNoErr(err)
 				}
@@ -116,6 +124,7 @@ func HandleFileUploads(tsk task_mod.Task) {
 					_, err = t.Ctx.DispatchJob(job_model.ScanDirectoryTask, scanMeta, newTp)
 					if err != nil {
 						t.Ctx.Log().Error().Stack().Err(err).Msg("")
+
 						continue
 					}
 				}
@@ -126,45 +135,35 @@ func HandleFileUploads(tsk task_mod.Task) {
 				_, err = t.Ctx.DispatchJob(job_model.ScanDirectoryTask, scanMeta, newTp)
 				if err != nil {
 					ctx.Log().Error().Stack().Err(err).Msg("")
+
 					continue
 				}
 				doingRootScan = true
 			}
-			media, _ := media_model.GetMediaByContentId(ctx, tl.GetContentId())
-			if tl.IsDir() {
-				mediaInfo := reshape.MediaToMediaInfo(media)
-				notif := notify.NewFileNotification(ctx, tl, websocket.FileUpdatedEvent, mediaInfo)
-				ctx.Notify(notif...)
-			}
 		}
+		ctx.Notify(ctx, notifs...)
 		newTp.SignalAllQueued()
-
-		// err = meta.FileService.ResizeUp(rootFile, fileEvent, meta.Caster)
-		if err != nil {
-			t.Ctx.Log().Error().Stack().Err(err).Msg("")
-		}
-
-		// ctx.FileService.GetJournalByTree("USERS").LogEvent(fileEvent)
-		// fileEvent.Wait()
 	})
+
+	timeoutTicker := time.NewTicker(time.Minute)
 
 WriterLoop:
 	for {
-		t.SetTimeout(time.Now().Add(time.Second * 60))
+		timeoutTicker.Reset(time.Minute)
 		select {
-		case signal := <-t.GetSignalChan(): // Listen for cancellation
-			if signal == 1 {
-				timeout = true
-				break WriterLoop
-			}
+		case <-ctx.Done(): // Listen for cancellation
+			t.Ctx.Log().Debug().Func(func(e *zerolog.Event) { e.Msgf("Context done, exiting upload task") })
+			t.Fail(task.ErrTaskCancelled)
+			return
+		case <-timeoutTicker.C:
+			t.Ctx.Log().Debug().Func(func(e *zerolog.Event) { e.Msgf("Timeout, exiting upload task") })
+			t.Fail(task.ErrTaskTimeout)
+			return
 		case chunk := <-meta.ChunkStream:
-			t.ClearTimeout()
-
 			bottom, top, total, err := parseRangeHeader(chunk.ContentRange)
 			t.ReqNoErr(err)
 
 			if chunk.NewFile != nil {
-
 				tmpFile := chunk.NewFile
 				if tmpFile == nil {
 					t.Fail(errors.New("chunk.NewFile is nil"))
@@ -173,15 +172,8 @@ WriterLoop:
 					tmpFile = tmpFile.GetParent()
 				}
 
-				if tmpFile.GetParent() == rootFile {
-					if _, ok := slices.BinarySearchFunc(
-						topLevels,
-						string(tmpFile.ID()),
-						// TODO: Make sure that this is comparing in the correct order
-						func(f *file_model.WeblensFileImpl, t string) int { return strings.Compare(t, f.ID()) },
-					); ok {
-						topLevels = append(topLevels, tmpFile)
-					}
+				if !slices.ContainsFunc(topLevels, func(tl *file_model.WeblensFileImpl) bool { return tl.ID() == tmpFile.ID() }) {
+					topLevels = append(topLevels, tmpFile)
 				}
 
 				fileMap[chunk.NewFile.ID()] = &job_model.FileUploadProgress{
@@ -204,6 +196,7 @@ WriterLoop:
 			// the specific file has had an error or been canceled, and should be removed.
 			if total == -1 {
 				delete(fileMap, chunk.FileId)
+
 				continue
 			}
 
@@ -232,24 +225,22 @@ WriterLoop:
 
 			// When file is finished writing
 			if chnk.BytesWritten >= chnk.FileSizeTotal {
-
-				// Hash file content to get content ID. Must do this before attaching the file,
-				// or the journal worker will beat us to it, which could break if importing
-				// the file media shortly after uploading here.
-				chnk.File.SetContentId(file_service.ContentIdFromHash(chnk.Hash))
+				// Hash file content to get content ID.
+				chnk.File.SetContentId(base64.URLEncoding.EncodeToString(chnk.Hash.Sum(nil))[:20])
 				if chnk.File.GetContentId() == "" {
 					t.Fail(errors.Errorf("failed to generate contentId for file upload [%s]", chnk.File.GetPortablePath()))
 				}
 
-				if !chnk.File.IsDir() {
-					notif := notify.NewFileNotification(ctx, chnk.File, websocket.FileCreatedEvent, structs.MediaInfo{})
-					ctx.Notify(notif...)
+				newAction := history.NewCreateAction(ctx, chnk.File)
+				err = history.SaveAction(ctx, &newAction)
+				if err != nil {
+					t.Fail(err)
+
+					return
 				}
 
-				newAction := fileEvent.NewCreateAction(chnk.File.GetPortablePath())
-				if newAction == nil {
-					t.Fail(errors.Errorf("failed to create new file action on upload for [%s]", chnk.File.GetPortablePath()))
-				}
+				notif := notify.NewFileNotification(ctx, chnk.File, websocket.FileCreatedEvent)
+				ctx.Notify(ctx, notif...)
 
 				// Remove the file from our local map
 				i, e := slices.BinarySearchFunc(
@@ -273,6 +264,7 @@ WriterLoop:
 				break WriterLoop
 			}
 			t.ExitIfSignaled()
+
 			continue WriterLoop
 		}
 	}
@@ -301,6 +293,7 @@ func GatherFilesystemStats(tsk task_mod.Task) {
 	sizeFunc := func(wf *file_model.WeblensFileImpl) error {
 		if wf.IsDir() {
 			folderCount++
+
 			return nil
 		}
 		filename := wf.GetPortablePath().Filename()
@@ -337,7 +330,7 @@ func HashFile(tsk task_mod.Task) {
 
 	meta := t.GetMeta().(job.HashFileMeta)
 
-	contentId, err := file_service.GenerateContentId(meta.File)
+	contentId, err := file_service.GenerateContentId(t.Ctx, meta.File)
 	t.ReqNoErr(err)
 
 	if contentId == "" && meta.File.Size() != 0 {
@@ -362,7 +355,7 @@ func HashFile(tsk task_mod.Task) {
 			"tasksComplete": poolStatus.Complete,
 		},
 	)
-	t.Ctx.Notify(notif)
+	t.Ctx.Notify(t.Ctx, notif)
 
 	t.Success()
 }

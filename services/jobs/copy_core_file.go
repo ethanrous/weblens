@@ -29,7 +29,7 @@ func CopyFileFromCore(tsk task_mod.Task) {
 	t.SetErrorCleanup(func(tsk task_mod.Task) {
 		t := tsk.(*task_model.Task)
 		failNotif := notify.NewTaskNotification(t, websocket_mod.CopyFileFailedEvent, task_mod.TaskResult{"filename": meta.Filename, "coreId": meta.Core.TowerId})
-		t.Ctx.Notify(failNotif)
+		t.Ctx.Notify(ctx, failNotif)
 
 		rmErr := ctx.FileService.DeleteFiles(t.Ctx, []*file_model.WeblensFileImpl{meta.File})
 		if rmErr != nil {
@@ -42,7 +42,7 @@ func CopyFileFromCore(tsk task_mod.Task) {
 		filename = meta.File.GetPortablePath().Filename()
 	}
 
-	t.Ctx.Notify(
+	t.Ctx.Notify(ctx, 
 		notify.NewPoolNotification(
 			t.GetTaskPool(),
 			websocket_mod.CopyFileStartedEvent,
@@ -60,9 +60,10 @@ func CopyFileFromCore(tsk task_mod.Task) {
 	if err != nil {
 		t.Fail(err)
 	}
+
 	defer writeFile.Close()
 
-	res, err := proxy.NewCoreRequest(meta.Core, "GET", "/files/"+meta.CoreFileId+"/download").Call()
+	res, err := proxy.NewCoreRequest(&meta.Core, "GET", "/files/"+meta.CoreFileId+"/download").Call()
 	if err != nil {
 		t.Fail(err)
 	}
@@ -78,7 +79,7 @@ func CopyFileFromCore(tsk task_mod.Task) {
 	poolProgress["filename"] = filename
 	poolProgress["coreId"] = meta.Core.TowerId
 
-	t.Ctx.Notify(notify.NewPoolNotification(t.GetTaskPool(), websocket_mod.CopyFileCompleteEvent, poolProgress))
+	t.Ctx.Notify(ctx, notify.NewPoolNotification(t.GetTaskPool(), websocket_mod.CopyFileCompleteEvent, poolProgress))
 
 	t.Success()
 }

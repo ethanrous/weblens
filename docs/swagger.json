@@ -1637,6 +1637,51 @@
                 }
             }
         },
+        "/tower/backup": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Towers"
+                ],
+                "summary": "Get information about a file",
+                "operationId": "GetBackupInfo",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Timestamp in milliseconds since epoch",
+                        "name": "timestamp",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Backup Info",
+                        "schema": {
+                            "$ref": "#/definitions/BackupInfo"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
         "/tower/init": {
             "post": {
                 "security": [],
@@ -1674,6 +1719,125 @@
                     },
                     "500": {
                         "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/tower/remote": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "tags": [
+                    "Towers"
+                ],
+                "summary": "Create a new remote",
+                "operationId": "CreateRemote",
+                "parameters": [
+                    {
+                        "description": "New Server Params",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/NewServerParams"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "New Server Info",
+                        "schema": {
+                            "$ref": "#/definitions/TowerInfo"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    }
+                }
+            }
+        },
+        "/tower/reset": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Towers"
+                ],
+                "summary": "Reset tower",
+                "operationId": "ResetTower",
+                "responses": {
+                    "202": {
+                        "description": "Accepted"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/tower/{serverId}": {
+            "delete": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "tags": [
+                    "Towers"
+                ],
+                "summary": "Delete a remote",
+                "operationId": "DeleteRemote",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Server Id to delete",
+                        "name": "serverId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "description": "Not Found"
                     }
                 }
             }
@@ -2389,6 +2553,38 @@
                 }
             }
         },
+        "BackupInfo": {
+            "type": "object",
+            "properties": {
+                "fileHistory": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/FileActionInfo"
+                    }
+                },
+                "instances": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/TowerInfo"
+                    }
+                },
+                "lifetimesCount": {
+                    "type": "integer"
+                },
+                "tokens": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/TokenInfo"
+                    }
+                },
+                "users": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/UserInfoArchive"
+                    }
+                }
+            }
+        },
         "CreateFolderBody": {
             "type": "object",
             "required": [
@@ -2415,6 +2611,7 @@
             "required": [
                 "actionType",
                 "eventId",
+                "fileId",
                 "parentId",
                 "size",
                 "timestamp",
@@ -2430,6 +2627,9 @@
                 "eventId": {
                     "type": "string"
                 },
+                "fileId": {
+                    "type": "string"
+                },
                 "filepath": {
                     "type": "string"
                 },
@@ -2440,10 +2640,12 @@
                     "type": "string"
                 },
                 "size": {
-                    "type": "integer"
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "timestamp": {
-                    "type": "integer"
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "towerId": {
                     "type": "string"
@@ -2463,9 +2665,6 @@
                     "type": "string"
                 },
                 "currentId": {
-                    "type": "string"
-                },
-                "filename": {
                     "type": "string"
                 },
                 "hasRestoreMedia": {
@@ -2771,6 +2970,26 @@
                 }
             }
         },
+        "NewServerParams": {
+            "type": "object",
+            "properties": {
+                "coreAddress": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "serverId": {
+                    "type": "string"
+                },
+                "usingKey": {
+                    "type": "string"
+                }
+            }
+        },
         "NewUploadInfo": {
             "type": "object",
             "properties": {
@@ -2914,18 +3133,30 @@
         },
         "TokenInfo": {
             "type": "object",
+            "required": [
+                "createdBy",
+                "createdTime",
+                "id",
+                "lastUsed",
+                "nickname",
+                "owner",
+                "remoteUsing",
+                "token"
+            ],
             "properties": {
                 "createdBy": {
                     "type": "string"
                 },
                 "createdTime": {
-                    "type": "integer"
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "id": {
                     "type": "string"
                 },
                 "lastUsed": {
-                    "type": "integer"
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "nickname": {
                     "type": "string"
@@ -2937,18 +3168,28 @@
                     "type": "string"
                 },
                 "token": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
+                    "type": "string"
                 }
             }
         },
         "TowerInfo": {
             "type": "object",
+            "required": [
+                "backupSize",
+                "coreAddress",
+                "id",
+                "lastBackup",
+                "name",
+                "online",
+                "reportedRole",
+                "role",
+                "started",
+                "userCount"
+            ],
             "properties": {
                 "backupSize": {
-                    "type": "integer"
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "coreAddress": {
                     "description": "Address of the remote server, only if the instance is a core.\nNot set for any remotes/backups on core server, as it IS the core",
@@ -2958,7 +3199,8 @@
                     "type": "string"
                 },
                 "lastBackup": {
-                    "type": "integer"
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "name": {
                     "type": "string"
@@ -2995,35 +3237,14 @@
         },
         "UserInfo": {
             "type": "object",
-            "properties": {
-                "fullName": {
-                    "type": "string"
-                },
-                "homeId": {
-                    "type": "string"
-                },
-                "homeSize": {
-                    "type": "integer"
-                },
-                "permissionLevel": {
-                    "type": "integer"
-                },
-                "token": {
-                    "type": "string"
-                },
-                "trashId": {
-                    "type": "string"
-                },
-                "trashSize": {
-                    "type": "integer"
-                },
-                "username": {
-                    "type": "string"
-                }
-            }
-        },
-        "UserInfoArchive": {
-            "type": "object",
+            "required": [
+                "activated",
+                "fullName",
+                "homeId",
+                "permissionLevel",
+                "trashId",
+                "username"
+            ],
             "properties": {
                 "activated": {
                     "type": "boolean"
@@ -3034,13 +3255,8 @@
                 "homeId": {
                     "type": "string"
                 },
-                "homeSize": {
-                    "type": "integer"
-                },
-                "password": {
-                    "type": "string"
-                },
                 "permissionLevel": {
+                    "description": "HomeSize        int64  `json:\"homeSize\" validate:\"required\"`",
                     "type": "integer"
                 },
                 "token": {
@@ -3049,10 +3265,47 @@
                 "trashId": {
                     "type": "string"
                 },
-                "trashSize": {
+                "username": {
+                    "description": "TrashSize       int64  `json:\"trashSize\" validate:\"required\"`",
+                    "type": "string"
+                }
+            }
+        },
+        "UserInfoArchive": {
+            "type": "object",
+            "required": [
+                "activated",
+                "fullName",
+                "homeId",
+                "permissionLevel",
+                "trashId",
+                "username"
+            ],
+            "properties": {
+                "activated": {
+                    "type": "boolean"
+                },
+                "fullName": {
+                    "type": "string"
+                },
+                "homeId": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "permissionLevel": {
+                    "description": "HomeSize        int64  `json:\"homeSize\" validate:\"required\"`",
                     "type": "integer"
                 },
+                "token": {
+                    "type": "string"
+                },
+                "trashId": {
+                    "type": "string"
+                },
                 "username": {
+                    "description": "TrashSize       int64  `json:\"trashSize\" validate:\"required\"`",
                     "type": "string"
                 }
             }

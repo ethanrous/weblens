@@ -19,7 +19,8 @@ import setupStyle from '@weblens/components/setupStyle.module.scss'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import { useKeyDown } from '@weblens/lib/hooks'
-import User from '@weblens/types/user/User'
+import { TowerRole } from '@weblens/types/tower/tower'
+import User, { UserPermissions } from '@weblens/types/user/User'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -130,7 +131,9 @@ const Core = ({
     })
 
     const owner = useMemo(() => {
-        const owner: User = users.filter((u) => u.owner)[0]
+        const owner: User = users.filter(
+            (u) => u.permissionLevel >= UserPermissions.Owner
+        )[0]
         if (owner) {
             setUsername(owner.username)
         }
@@ -146,7 +149,7 @@ const Core = ({
 
     return (
         <div className={setupStyle.setupContentBox} data-on-deck={onDeck}>
-            <div className="absolute w-[90%] mb-10">
+            <div className="absolute mb-10 w-[90%]">
                 <WeblensButton
                     Left={IconArrowLeft}
                     squareSize={35}
@@ -157,7 +160,7 @@ const Core = ({
                 <h1 className="text-4xl font-bold">Core</h1>
             </div>
             {users.length === 0 && (
-                <div className="border-color-border-primary flex w-full flex-col rounded-md border p-4 mt-6">
+                <div className="border-color-border-primary mt-6 flex w-full flex-col rounded-md border p-4">
                     <h4 className="mb-4">Create an Owner Account</h4>
                     <SignupInputForm
                         setFullName={setFullName}
@@ -195,11 +198,11 @@ const Core = ({
             {!existingName && (
                 <>
                     <label
-                        className="mb-1 mt-8 flex items-center mr-auto"
+                        className="mt-8 mr-auto mb-1 flex items-center"
                         htmlFor="serverName"
                     >
                         <span>Server Name</span>
-                        <sup className="h-max text-red-500 ">*</sup>
+                        <sup className="h-max text-red-500">*</sup>
                     </label>
 
                     <WeblensInput
@@ -211,7 +214,7 @@ const Core = ({
                     />
                 </>
             )}
-            <label htmlFor="serverAddress" className="mt-4 mb-1 mr-auto">
+            <label htmlFor="serverAddress" className="mt-4 mr-auto mb-1">
                 <span>Server Address</span>
             </label>
 
@@ -219,7 +222,7 @@ const Core = ({
                 squareSize={50}
                 value={location.origin}
                 autoComplete="serverAddress"
-				className='mb-6'
+                className="mb-6"
             />
 
             <WeblensButton
@@ -305,6 +308,9 @@ const Backup = ({
     page: string
     setPage: (page: string) => void
 }) => {
+    const [username, setUsername] = useState('')
+    const [password, setPassword] = useState('')
+    const [fullName, setFullName] = useState('')
     const [serverName, setServerName] = useState('')
     const [coreAddress, setCoreAddress] = useState('')
     const [apiKey, setApiKey] = useState('')
@@ -325,7 +331,7 @@ const Backup = ({
 
     return (
         <div className={setupStyle.setupContentBox} data-on-deck={onDeck}>
-            <div className="absolute w-[90%] mb-10">
+            <div className="absolute mb-10 w-[90%]">
                 <WeblensButton
                     Left={IconArrowLeft}
                     squareSize={35}
@@ -336,62 +342,83 @@ const Backup = ({
                 <h1 className="text-4xl font-bold">Backup</h1>
             </div>
 
-            <div className="h-14 w-full">
-                <p className="m-2">Server Name *</p>
-                <WeblensInput
-                    placeholder={'My Rad Backup Server'}
-                    valueCallback={setServerName}
-                />
+            <div className="mt-2 flex h-full w-full flex-col items-center gap-1">
+                <div className="border-color-border-primary mt-6 flex w-full flex-col rounded-md border p-4">
+                    <h4 className="mb-4">Create an Owner Account</h4>
+                    <SignupInputForm
+                        setFullName={setFullName}
+                        setUsername={setUsername}
+                        setPassword={setPassword}
+                        setError={() => {}}
+                        disabled={false}
+                    />
+                </div>
+
+                <div className="flex h-max w-full flex-col">
+                    <p className="m-2">Server Name *</p>
+                    <WeblensInput
+                        placeholder={'My Rad Backup Server'}
+                        valueCallback={setServerName}
+                    />
+                </div>
+
+                <div className="flex h-max w-full flex-col">
+                    <p className="m-2">Core Server Address *</p>
+                    <WeblensInput
+                        placeholder={'https://myremoteweblens.net/'}
+                        valueCallback={setCoreAddress}
+                        valid={
+                            coreAddress === '' || addressIsValid ? null : false
+                        }
+                    />
+                </div>
+
+                <div className="flex h-max w-full flex-col">
+                    <p className="m-2">Core API Key *</p>
+                    <WeblensInput
+                        placeholder={'RUH8gHMH4EgQvw_n2...'}
+                        valueCallback={setApiKey}
+                        password
+                    />
+                </div>
+
+                <div className="mt-auto">
+                    <WeblensButton
+                        label="Attach to Core"
+                        squareSize={40}
+                        Left={IconRocket}
+                        disabled={
+                            serverName === '' ||
+                            coreAddress === '' ||
+                            apiKey === ''
+                        }
+                        doSuper
+                        onClick={async () => {
+                            const res = await TowersApi.initializeTower({
+                                username: username,
+                                password: password,
+                                name: serverName,
+
+                                coreAddress: coreAddress,
+                                coreKey: apiKey,
+                                fullName: fullName,
+                                role: TowerRole.Backup,
+                            })
+                            if (res.status !== 201) {
+                                console.error(res.statusText)
+                                return false
+                            }
+
+                            await new Promise((r) => setTimeout(r, 200))
+
+                            await fetchServerInfo()
+                            nav('/backup')
+
+                            return true
+                        }}
+                    />
+                </div>
             </div>
-
-            <div className="h-14 w-full">
-                <p className="m-2">Core Server Address *</p>
-                <WeblensInput
-                    placeholder={'https://myremoteweblens.net/'}
-                    valueCallback={setCoreAddress}
-                    valid={coreAddress === '' || addressIsValid ? null : false}
-                />
-            </div>
-
-            <div className="h-14 w-full">
-                <p className="m-2">Core API Key *</p>
-                <WeblensInput
-                    placeholder={'RUH8gHMH4EgQvw_n2...'}
-                    valueCallback={setApiKey}
-                    password
-                />
-            </div>
-
-            <div />
-
-            <WeblensButton
-                label="Attach to Core"
-                squareSize={40}
-                Left={IconRocket}
-                disabled={
-                    serverName === '' || coreAddress === '' || apiKey === ''
-                }
-                doSuper
-                onClick={async () => {
-                    const res = await TowersApi.initializeTower({
-                        name: serverName,
-                        role: 'backup',
-                        coreAddress: coreAddress,
-                        coreKey: apiKey,
-                    })
-                    if (res.status !== 201) {
-                        console.error(res.statusText)
-                        return false
-                    }
-
-                    await new Promise((r) => setTimeout(r, 200))
-
-                    await fetchServerInfo()
-                    nav('/backup')
-
-                    return true
-                }}
-            />
         </div>
     )
 }
@@ -423,7 +450,7 @@ const Restore = ({
 
     return (
         <div className={setupStyle.setupContentBox} data-on-deck={onDeck}>
-            <div className="absolute w-[90%] mb-10">
+            <div className="absolute mb-10 w-[90%]">
                 <WeblensButton
                     Left={IconArrowLeft}
                     squareSize={35}
@@ -519,14 +546,20 @@ const Setup = () => {
                 <h1 className="mt-auto">EBLENS</h1>
             </div>
             <div className={setupStyle.setupContentPane}>
-                <Landing page={page} setPage={setPage} />
-                <Core
-                    page={page}
-                    setPage={setPage}
-                    existingName={server.name}
-                />
-                <Backup page={page} setPage={setPage} />
-                <Restore page={page} setPage={setPage} />
+                {page === 'landing' && (
+                    <Landing page={page} setPage={setPage} />
+                )}
+                {page === 'core' && (
+                    <Core
+                        page={page}
+                        setPage={setPage}
+                        existingName={server.name}
+                    />
+                )}
+                {page === 'backup' && <Backup page={page} setPage={setPage} />}
+                {page === 'restore' && (
+                    <Restore page={page} setPage={setPage} />
+                )}
             </div>
         </div>
     )

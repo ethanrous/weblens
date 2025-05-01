@@ -134,6 +134,18 @@ func (wf Filepath) Ext() string {
 	return filepath.Ext(wf.RelPath)
 }
 
+func (wf Filepath) ReplacePrefix(prefixPath, newPrefix Filepath) (Filepath, error) {
+	if !strings.HasPrefix(wf.RelPath, prefixPath.RelPath) {
+		return Filepath{}, errors.Errorf("prefix %s not found in path %s", prefixPath, wf)
+	}
+
+	newRelPath := newPrefix.RelPath + strings.TrimPrefix(wf.RelPath, prefixPath.RelPath)
+	return Filepath{
+		RootAlias: newPrefix.RootAlias,
+		RelPath:   newRelPath,
+	}, nil
+}
+
 func (wf Filepath) String() string {
 	return wf.ToPortable()
 }
@@ -166,7 +178,13 @@ func (wf *Filepath) UnmarshalBSONValue(_ bsontype.Type, data []byte) error {
 		return nil
 	}
 
-	portable, err := ParsePortable(string(data))
+	var target string
+	err := bson.UnmarshalValue(bson.TypeString, data, &target)
+	if err != nil {
+		return err
+	}
+
+	portable, err := ParsePortable(target)
 	if err != nil {
 		return err
 	}

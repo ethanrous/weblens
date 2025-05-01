@@ -22,6 +22,12 @@ func (b BasicContext) Log() *zerolog.Logger {
 	return &b.Logger
 }
 
+func (b BasicContext) WithValue(key, value any) BasicContext {
+	b.Context = context.WithValue(b.Context, key, value)
+
+	return b
+}
+
 func (b BasicContext) WithLogger(l zerolog.Logger) {
 	b.Logger = l
 }

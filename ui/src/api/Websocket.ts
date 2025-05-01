@@ -259,22 +259,23 @@ function filebrowserWebsocketHandler(
 	return (msgData: wsMsgInfo) => {
 		switch (msgData.eventTag) {
 			case WsMsgEvent.FileCreatedEvent: {
-				dispatch.addFile(msgData.content.fileInfo)
+				const fileInfo = msgData.content.fileInfo as FileInfo
+				dispatch.addFile(fileInfo)
 				break
 			}
 
 			case WsMsgEvent.FileMovedEvent:
 			case WsMsgEvent.FileUpdatedEvent: {
+				const fileInfo = msgData.content.fileInfo as FileInfo
 				if (msgData.content.mediaData) {
 					const newM = new WeblensMedia(msgData.content.mediaData)
 					useMediaStore.getState().addMedias([newM])
-					msgData.content.fileInfo.contentId = newM.Id()
+					fileInfo.contentId = newM.Id()
 				}
 
-				console.log("FILE INFO", msgData.content.fileInfo)
 				useFileBrowserStore
 					.getState()
-					.updateFile(msgData.content.fileInfo)
+					.updateFile(fileInfo)
 				break
 			}
 
@@ -307,12 +308,13 @@ function filebrowserWebsocketHandler(
 			}
 
 			case WsMsgEvent.FileDeletedEvent: {
-				if (msgData.content.fileId === undefined) {
+				const fileInfo = msgData.content.fileInfo as FileInfo
+				if (fileInfo.id === undefined) {
 					console.error('FileDeletedEvent missing fileId')
 					break
 				}
 
-				dispatch.deleteFile(msgData.content.fileId)
+				dispatch.deleteFile(fileInfo.id)
 				break
 			}
 

@@ -1,9 +1,12 @@
 package log
 
 import (
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/go-chi/chi/v5"
 )
 
 var (
@@ -45,4 +48,14 @@ func ColorTime(dur time.Duration) string {
 	} else {
 		return RED + durString + RESET
 	}
+}
+
+func RouteColor(r *http.Request) string {
+	route := chi.RouteContext(r.Context()).RoutePattern()
+
+	if route == "/api/v1/*" {
+		route = RED + "?" + r.URL.Path + RESET
+	}
+
+	return route
 }

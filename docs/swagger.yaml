@@ -7,6 +7,27 @@ definitions:
     required:
     - name
     type: object
+  BackupInfo:
+    properties:
+      fileHistory:
+        items:
+          $ref: '#/definitions/FileActionInfo'
+        type: array
+      instances:
+        items:
+          $ref: '#/definitions/TowerInfo'
+        type: array
+      lifetimesCount:
+        type: integer
+      tokens:
+        items:
+          $ref: '#/definitions/TokenInfo'
+        type: array
+      users:
+        items:
+          $ref: '#/definitions/UserInfoArchive'
+        type: array
+    type: object
   CreateFolderBody:
     properties:
       children:
@@ -29,6 +50,8 @@ definitions:
         type: string
       eventId:
         type: string
+      fileId:
+        type: string
       filepath:
         type: string
       originPath:
@@ -36,14 +59,17 @@ definitions:
       parentId:
         type: string
       size:
+        format: int64
         type: integer
       timestamp:
+        format: int64
         type: integer
       towerId:
         type: string
     required:
     - actionType
     - eventId
+    - fileId
     - parentId
     - size
     - timestamp
@@ -58,8 +84,6 @@ definitions:
       contentId:
         type: string
       currentId:
-        type: string
-      filename:
         type: string
       hasRestoreMedia:
         type: boolean
@@ -268,6 +292,19 @@ definitions:
           $ref: '#/definitions/NewFileParams'
         type: array
     type: object
+  NewServerParams:
+    properties:
+      coreAddress:
+        type: string
+      name:
+        type: string
+      role:
+        type: string
+      serverId:
+        type: string
+      usingKey:
+        type: string
+    type: object
   NewUploadInfo:
     properties:
       uploadId:
@@ -365,10 +402,12 @@ definitions:
       createdBy:
         type: string
       createdTime:
+        format: int64
         type: integer
       id:
         type: string
       lastUsed:
+        format: int64
         type: integer
       nickname:
         type: string
@@ -377,13 +416,21 @@ definitions:
       remoteUsing:
         type: string
       token:
-        items:
-          type: integer
-        type: array
+        type: string
+    required:
+    - createdBy
+    - createdTime
+    - id
+    - lastUsed
+    - nickname
+    - owner
+    - remoteUsing
+    - token
     type: object
   TowerInfo:
     properties:
       backupSize:
+        format: int64
         type: integer
       coreAddress:
         description: |-
@@ -393,6 +440,7 @@ definitions:
       id:
         type: string
       lastBackup:
+        format: int64
         type: integer
       name:
         type: string
@@ -409,6 +457,17 @@ definitions:
         type: boolean
       userCount:
         type: integer
+    required:
+    - backupSize
+    - coreAddress
+    - id
+    - lastBackup
+    - name
+    - online
+    - reportedRole
+    - role
+    - started
+    - userCount
     type: object
   UpdateFileParams:
     properties:
@@ -419,22 +478,29 @@ definitions:
     type: object
   UserInfo:
     properties:
+      activated:
+        type: boolean
       fullName:
         type: string
       homeId:
         type: string
-      homeSize:
-        type: integer
       permissionLevel:
+        description: HomeSize        int64  `json:"homeSize" validate:"required"`
         type: integer
       token:
         type: string
       trashId:
         type: string
-      trashSize:
-        type: integer
       username:
+        description: TrashSize       int64  `json:"trashSize" validate:"required"`
         type: string
+    required:
+    - activated
+    - fullName
+    - homeId
+    - permissionLevel
+    - trashId
+    - username
     type: object
   UserInfoArchive:
     properties:
@@ -444,20 +510,25 @@ definitions:
         type: string
       homeId:
         type: string
-      homeSize:
-        type: integer
       password:
         type: string
       permissionLevel:
+        description: HomeSize        int64  `json:"homeSize" validate:"required"`
         type: integer
       token:
         type: string
       trashId:
         type: string
-      trashSize:
-        type: integer
       username:
+        description: TrashSize       int64  `json:"trashSize" validate:"required"`
         type: string
+    required:
+    - activated
+    - fullName
+    - homeId
+    - permissionLevel
+    - trashId
+    - username
     type: object
   WeblensErrorInfo:
     properties:
@@ -1544,6 +1615,58 @@ paths:
       summary: Get all remotes
       tags:
       - Towers
+  /tower/{serverId}:
+    delete:
+      operationId: DeleteRemote
+      parameters:
+      - description: Server Id to delete
+        in: path
+        name: serverId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Delete a remote
+      tags:
+      - Towers
+  /tower/backup:
+    get:
+      operationId: GetBackupInfo
+      parameters:
+      - description: Timestamp in milliseconds since epoch
+        in: query
+        name: timestamp
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Backup Info
+          schema:
+            $ref: '#/definitions/BackupInfo'
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - ApiKeyAuth:
+        - admin
+      summary: Get information about a file
+      tags:
+      - Towers
   /tower/init:
     post:
       operationId: InitializeTower
@@ -1569,6 +1692,51 @@ paths:
           description: Internal Server Error
       security: []
       summary: Initialize the target server
+      tags:
+      - Towers
+  /tower/remote:
+    post:
+      operationId: CreateRemote
+      parameters:
+      - description: New Server Params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/NewServerParams'
+      responses:
+        "201":
+          description: New Server Info
+          schema:
+            $ref: '#/definitions/TowerInfo'
+        "400":
+          description: Bad Request
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Create a new remote
+      tags:
+      - Towers
+  /tower/reset:
+    post:
+      operationId: ResetTower
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Reset tower
       tags:
       - Towers
   /upload:

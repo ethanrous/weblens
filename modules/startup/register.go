@@ -1,11 +1,13 @@
 package startup
 
 import (
+	"context"
+
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/context"
+	"github.com/pkg/errors"
 )
 
-type StartupFunc func(context.ContextZ, config.ConfigProvider) error
+type StartupFunc func(context.Context, config.ConfigProvider) error
 
 var startups []StartupFunc
 
@@ -13,11 +15,23 @@ func RegisterStartup(f StartupFunc) {
 	startups = append(startups, f)
 }
 
-func RunStartups(ctx context.ContextZ, cnf config.ConfigProvider) error {
-	for _, startup := range startups {
+var ErrDeferStartup = errors.New("defer startup")
+
+func RunStartups(ctx context.Context, cnf config.ConfigProvider) error {
+	for len(startups) != 0 {
+		var startup StartupFunc
+
+		startup, startups = startups[0], startups[1:]
 		if err := startup(ctx, cnf); err != nil {
+			if errors.Is(err, ErrDeferStartup) {
+				startups = append(startups, startup)
+
+				continue
+			}
+
 			return err
 		}
 	}
+
 	return nil
 }

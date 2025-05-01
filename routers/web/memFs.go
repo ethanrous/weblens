@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/services/context"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -46,7 +47,7 @@ func (fs *InMemoryFS) Open(name string) (http.File, error) {
 
 	var f *memFileReal
 	var ok bool
-	name = filepath.Join("./ui/dist/", name)
+	name = filepath.Join(config.GetConfig().UIPath, name)
 	fs.routesMu.RLock()
 	if f, ok = fs.routes[name]; ok && f.exists {
 		fs.routesMu.RUnlock()

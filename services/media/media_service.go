@@ -14,7 +14,6 @@ import (
 	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
 	context_service "github.com/ethanrous/weblens/services/context"
-	file_service "github.com/ethanrous/weblens/services/file"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
@@ -602,7 +601,7 @@ func FetchCacheImg(ctx context_service.AppContext, m *media_model.Media, q media
 //	}
 
 func newMedia(ctx context_service.AppContext, f *file_model.WeblensFileImpl) (*media_model.Media, error) {
-	ownerName, err := file_service.GetFileOwnerName(ctx, f)
+	ownerName, err := file_model.GetFileOwnerName(ctx, f)
 	if err != nil {
 		return nil, err
 	}

@@ -1,15 +1,15 @@
 package file
 
 import (
+	"context"
 	"time"
 
 	user_model "github.com/ethanrous/weblens/models/user"
-	"github.com/ethanrous/weblens/modules/context"
 	"github.com/ethanrous/weblens/modules/fs"
 )
 
 type FileService interface {
-	AddFile(context context.ContextZ, file ...*WeblensFileImpl) error
+	AddFile(context context.Context, file ...*WeblensFileImpl) error
 
 	// Size returns the size of the specified file tree
 	Size(treeAlias string) int64
@@ -18,7 +18,7 @@ type FileService interface {
 	GetFileById(fileId string) (*WeblensFileImpl, error)
 
 	// GetFileByFilepath retrieves a file by its filepath
-	GetFileByFilepath(ctx context.ContextZ, path fs.Filepath) (*WeblensFileImpl, error)
+	GetFileByFilepath(ctx context.Context, path fs.Filepath) (*WeblensFileImpl, error)
 
 	// GetFileByContentId retrieves a file by its content ID
 	GetFileByContentId(contentId string) (*WeblensFileImpl, error)
@@ -26,44 +26,38 @@ type FileService interface {
 	// GetFiles retrieves multiple files by their IDs
 	GetFiles(ids []string) ([]*WeblensFileImpl, []string, error)
 
-	// PathToFile resolves a path to a file
-	// PathToFile(searchPath string) (*WeblensFileImpl, error)
-
-	// UserPathToFile resolves a user path to a file
-	// UserPathToFile(searchPath string, user *user_model.User) (*WeblensFileImpl, error)
-
 	// CreateFile creates a new file
-	CreateFile(ctx context.ContextZ, parent *WeblensFileImpl, filename string, data ...[]byte) (*WeblensFileImpl, error)
+	CreateFile(ctx context.Context, parent *WeblensFileImpl, filename string, data ...[]byte) (*WeblensFileImpl, error)
 
 	// CreateFolder creates a new folder
-	CreateFolder(ctx context.ContextZ, parent *WeblensFileImpl, folderName string) (*WeblensFileImpl, error)
+	CreateFolder(ctx context.Context, parent *WeblensFileImpl, folderName string) (*WeblensFileImpl, error)
 
 	// CreateUserHome creates a home directory for a user
-	CreateUserHome(ctx context.ContextZ, user *user_model.User) error
+	CreateUserHome(ctx context.Context, user *user_model.User) error
 
 	// IsFileInTrash checks if a file is in the trash
 	// IsFileInTrash(file *WeblensFileImpl) bool
 
 	// MoveFiles moves files to a new location
-	MoveFiles(ctx context.ContextZ, files []*WeblensFileImpl, destFolder *WeblensFileImpl, treeName string) error
+	MoveFiles(ctx context.Context, files []*WeblensFileImpl, destFolder *WeblensFileImpl) error
 
 	// RenameFile renames a file
 	RenameFile(file *WeblensFileImpl, newName string) error
 
 	// ReturnFilesFromTrash restores files from the trash
-	ReturnFilesFromTrash(ctx context.ContextZ, trashFiles []*WeblensFileImpl) error
+	ReturnFilesFromTrash(ctx context.Context, trashFiles []*WeblensFileImpl) error
 
 	// DeleteFiles permanently deletes files
-	DeleteFiles(ctx context.ContextZ, files []*WeblensFileImpl) error
+	DeleteFiles(ctx context.Context, files []*WeblensFileImpl) error
 
 	// RestoreFiles restores files from history
-	RestoreFiles(ctx context.ContextZ, ids []string, newParent *WeblensFileImpl, restoreTime time.Time) error
+	RestoreFiles(ctx context.Context, ids []string, newParent *WeblensFileImpl, restoreTime time.Time) error
 
 	// RestoreHistory restores file history
 	// RestoreHistory(lifetimes []*fileTree.Lifetime) error
 
 	// GetMediaCacheByFilename retrieves media cache by filename
-	GetMediaCacheByFilename(ctx context.ContextZ, filename string) (*WeblensFileImpl, error)
+	GetMediaCacheByFilename(ctx context.Context, filename string) (*WeblensFileImpl, error)
 
 	// NewCacheFile creates a new cache file for media
 	NewCacheFile(mediaId, quality string, pageNum int) (*WeblensFileImpl, error)

@@ -49,9 +49,9 @@ func launchBackup(ctx context.RequestContext) {
 			return
 		}
 
-		proxy.NewCoreRequest(remote, http.MethodPost, "/backup").Call()
+		proxy.NewCoreRequest(&remote, http.MethodPost, "/backup").Call()
 
-		client := ctx.ClientService.GetClientByServerId(serverId)
+		client := ctx.ClientService.GetClientByTowerId(serverId)
 		msg := websocket.WsResponseInfo{
 			EventTag: "do_backup",
 			Content:  websocket.WsData{"coreId": local.TowerId},

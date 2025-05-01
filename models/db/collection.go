@@ -3,8 +3,11 @@ package db
 import (
 	"context"
 
+	"github.com/ethanrous/weblens/modules/config"
 	context_mod "github.com/ethanrous/weblens/modules/context"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -22,19 +25,66 @@ type ContextualizedCollection struct {
 }
 
 func (c *ContextualizedCollection) InsertOne(_ context.Context, document any, opts ...*options.InsertOneOptions) (*mongo.InsertOneResult, error) {
+	ctx := context_mod.ToZ(c.ctx)
+	ctx.Log().Trace().Msgf("Insert on collection [%s] with document %v", c.collection.Name(), document)
+
+	if config.GetConfig().DoCache {
+		cache := ctx.GetCache(c.collection.Name())
+		for _, key := range cache.ScanKeys() {
+			cache.Delete(key)
+		}
+	}
+
 	return c.collection.InsertOne(c.ctx, document, opts...)
 }
 
+func (c *ContextualizedCollection) InsertMany(_ context.Context, documents []any, opts ...*options.InsertManyOptions) (*mongo.InsertManyResult, error) {
+	context_mod.ToZ(c.ctx).Log().Trace().Msgf("Insert many on collection [%s] with %d documents", c.collection.Name(), len(documents))
+
+	return c.collection.InsertMany(c.ctx, documents, opts...)
+}
+
 func (c *ContextualizedCollection) UpdateOne(_ context.Context, filter, update any, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error) {
+	ctx := context_mod.ToZ(c.ctx)
+	ctx.Log().Trace().Msgf("UpdateOne on collection [%s] with filter %v", c.collection.Name(), filter)
+
+	if config.GetConfig().DoCache {
+		cache := ctx.GetCache(c.collection.Name())
+		for _, key := range cache.ScanKeys() {
+			cache.Delete(key)
+		}
+	}
+
 	return c.collection.UpdateOne(c.ctx, filter, update, opts...)
 }
 
-func (c *ContextualizedCollection) FindOne(_ context.Context, filter any, opts ...*options.FindOneOptions) *mongo.SingleResult {
+func (c *ContextualizedCollection) FindOne(_ context.Context, filter any, opts ...*options.FindOneOptions) Decoder {
+	if config.GetConfig().DoCache {
+		cache := context_mod.ToZ(c.ctx).GetCache(c.collection.Name())
+
+		filterStr, err := bson.Marshal(filter)
+		if err != nil {
+			return &errDecoder{err}
+		}
+
+		v, ok := cache.Get(string(filterStr))
+		if ok {
+			context_mod.ToZ(c.ctx).Log().Trace().Msgf("Cache hit for collection [%s] with filter %v", c.collection.Name(), filter)
+
+			return &decoder{ctx: c.ctx, value: v}
+		}
+
+		context_mod.ToZ(c.ctx).Log().Trace().Msgf("FindOne on collection [%s] with filter %v", c.collection.Name(), filter)
+	}
+
 	ret := c.collection.FindOne(c.ctx, filter, opts...)
-	return ret
+
+	return &mongoDecoder{ctx: c.ctx, res: ret, filter: filter, col: c.collection.Name()}
 }
 
 func (c *ContextualizedCollection) Find(_ context.Context, filter any, opts ...*options.FindOptions) (*mongo.Cursor, error) {
+	context_mod.ToZ(c.ctx).Log().Trace().Msgf("Find on collection [%s] with filter %v", c.collection.Name(), filter)
+
 	return c.collection.Find(c.ctx, filter, opts...)
 }
 
@@ -59,11 +109,6 @@ func getDbFromContext(ctx context.Context) (*mongo.Database, error) {
 		return nil, errors.WithStack(ErrNoDatabase)
 	}
 
-	dbCtx, ok := ctx.(context_mod.DatabaseContext)
-	if ok {
-		return dbCtx.Database(), nil
-	}
-
 	dbAny := ctx.Value(DatabaseContextKey)
 	if dbAny == nil {
 		return nil, errors.WithStack(ErrNoDatabase)
@@ -77,75 +122,26 @@ func getDbFromContext(ctx context.Context) (*mongo.Database, error) {
 	return nil, errors.WithStack(ErrNoDatabase)
 }
 
-func hasTransaction(ctx context.Context) bool {
-	if ctx == nil {
-		return false
-	}
-	dbCtx, ok := ctx.(context_mod.DatabaseContext)
-	if !ok {
-		return false
-	}
-
-	seshCtx := dbCtx.GetMongoSession()
-	return seshCtx != nil
-}
-
 func GetCollection(ctx context.Context, collectionName string) (*ContextualizedCollection, error) {
 	db, err := getDbFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var seshCtx context.Context = ctx.(context_mod.DatabaseContext).GetMongoSession()
-	if seshCtx == nil {
-		seshCtx = ctx
-	} else {
-		ctx.(context_mod.ContextZ).Log().Debug().Msg("Using session context!")
-	}
-
-	// For tests
 	ctxColName, ok := ctx.Value(CollectionContextKey).(string)
 	if ok {
-		return &ContextualizedCollection{seshCtx, db.Collection(ctxColName)}, nil
-	}
-	return &ContextualizedCollection{seshCtx, db.Collection(collectionName)}, nil
-}
-
-func WithTransaction(ctx context_mod.ContextZ, fn func(ctx context_mod.ContextZ) error) error {
-	db, err := getDbFromContext(ctx)
-	if err != nil {
-		return err
+		collectionName = ctxColName
 	}
 
-	if hasTransaction(ctx) {
-		ctx.Log().Debug().Msg("Already in a transaction, skipping straight to callback function")
-		return fn(ctx)
-	}
+	s := mongo.SessionFromContext(ctx)
 
-	session, err := db.Client().StartSession()
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	defer session.EndSession(ctx)
-
-	ctx.Log().Info().Msg("Starting transaction!")
-	_, err = session.WithTransaction(ctx, func(sessCtx mongo.SessionContext) (any, error) {
-		// TODO: copy the context to avoid duplicate transactions
-		ctx.(context_mod.DatabaseContext).WithMongoSession(sessCtx)
-		err := fn(ctx)
-		if err != nil {
-			return nil, err
+	context_mod.ToZ(ctx).Log().Trace().Func(func(e *zerolog.Event) {
+		if s == nil {
+			e.Msgf("GetCollection [%s] without session", collectionName)
+		} else {
+			e.Msgf("GetCollection [%s] with session %s", collectionName, s.ID())
 		}
-
-		ctx.Log().Debug().Msg("Transaction complete, committing!")
-		err = sessCtx.CommitTransaction(sessCtx)
-		if err != nil {
-			return nil, errors.WithStack(err)
-		}
-
-		return nil, nil
 	})
 
-	return err
+	return &ContextualizedCollection{ctx, db.Collection(collectionName)}, nil
 }

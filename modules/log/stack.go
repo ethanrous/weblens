@@ -48,12 +48,19 @@ func MarshalStack(err error) any {
 		StackTrace() errors.StackTrace
 	}
 
+	s := &state{}
+
 	var sterr stackTracer
 	var ok bool
 	for err != nil {
 		var tmpStacker stackTracer
 		tmpStacker, ok = err.(stackTracer)
 		if ok {
+			tmpStacker.StackTrace()[0].Format(s, 'n')
+			if string(s.b) == "init" {
+				break
+			}
+
 			sterr = tmpStacker
 		}
 
@@ -71,7 +78,6 @@ func MarshalStack(err error) any {
 	}
 
 	st := sterr.StackTrace()
-	s := &state{}
 	out := make([]map[string]string, 0, len(st))
 	for _, frame := range st {
 		out = append(out, map[string]string{

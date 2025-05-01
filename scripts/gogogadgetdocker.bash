@@ -18,9 +18,6 @@ do_push=false
 # Skip testing
 skip_tests=true
 
-# The base image to build from. Alpine is smaller, debian allows for cuda accelerated ffmpeg
-base_image="alpine"
-
 usage="TODO"
 
 while [ "${1:-}" != "" ]; do
@@ -38,10 +35,6 @@ while [ "${1:-}" != "" ]; do
         ;;
     "-s" | "--skip-tests")
         skip_tests=true
-        ;;
-    "--base-image")
-        shift
-        base_image=$1
         ;;
     "-h" | "--help")
         echo "$usage"
@@ -84,12 +77,7 @@ if [[ ! -e ./build/ffmpeg ]]; then
     docker run --platform linux/amd64 -v ./scripts/buildFfmpeg.sh:/buildFfmpeg.sh -v ./build:/build --rm alpine /buildFfmpeg.sh
 fi
 
-df_path="./docker/Dockerfile"
-if [ "$base_image" == "debian" ]; then
-    df_path="./docker/Debian.Dockerfile"
-fi
-
-full_tag="${docker_tag}-${base_image}-${arch}"
+full_tag="${docker_tag}-${arch}"
 echo "Using tag: $full_tag"
 
 base_version=$(git rev-parse --short HEAD)
@@ -101,7 +89,7 @@ echo "Weblens build version: $WEBLENS_BUILD_VERSION"
 
 printf "Building Weblens container..."
 sudo docker rmi ethrous/weblens:"$full_tag" &>/dev/null
-sudo docker build --platform "linux/$arch" -t ethrous/weblens:"$full_tag" --build-arg WEBLENS_BUILD_VERSION="$WEBLENS_BUILD_VERSION" --build-arg ARCHITECTURE="$arch" -f $df_path .
+sudo docker build --platform "linux/$arch" -t ethrous/weblens:"$full_tag" --build-arg WEBLENS_BUILD_VERSION="$WEBLENS_BUILD_VERSION" --build-arg ARCHITECTURE="$arch" -f "./docker/Dockerfile" .
 
 if [ $do_push == true ]; then
     sudo docker push ethrous/weblens:"$full_tag"

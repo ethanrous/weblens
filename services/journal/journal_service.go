@@ -12,14 +12,85 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-func NewEvent() *history.FileEvent {
-	return &history.FileEvent{}
+func GetPastFileById(ctx context.Context, fileId string, time time.Time) (*file_model.WeblensFileImpl, error) {
+	lastAction, err := history.GetLastActionByFileIdBefore(ctx, fileId, time)
+	if err != nil {
+		return nil, err
+	}
+
+	return GetPastFileByPath(ctx, lastAction.GetRelevantPath(), time)
 }
 
-//	func GetActiveLifetimesByTowerId(ctx context.Context, towerId string) ([]*history.Lifetime, error) {
-//		return nil, nil
-//	}
-func GetPastFile(ctx context.Context, id fs.Filepath, time time.Time) (*file_model.WeblensFileImpl, error) {
+func GetPastFileByPath(ctx context.Context, path fs.Filepath, time time.Time) (*file_model.WeblensFileImpl, error) {
+	actions, err := history.GetActionsAtPathBefore(ctx, path, time, true)
+	if err != nil {
+		return nil, err
+	}
+
+	fileId := ""
+	children := make(map[fs.Filepath]history.FileAction)
+
+	for _, action := range actions {
+		if action.GetRelevantPath() == path {
+			fileId = action.FileId
+
+			continue
+		}
+
+		pathKey := action.GetRelevantPath()
+		if action.ActionType == history.FileMove && action.OriginPath.Dir() == path {
+			pathKey = action.OriginPath
+		}
+
+		if _, ok := children[pathKey]; !ok {
+			children[pathKey] = action
+		}
+	}
+
+	newFile := file_model.NewWeblensFile(file_model.NewFileOptions{Path: path, FileId: fileId, IsPastFile: true})
+
+	parentActions, err := history.GetActionsAtPathBefore(ctx, path.Dir(), time, false)
+	if err != nil {
+		return nil, err
+	}
+
+	lastParentAction := parentActions[len(parentActions)-1]
+	parent := file_model.NewWeblensFile(file_model.NewFileOptions{Path: path.Dir(), FileId: lastParentAction.FileId})
+
+	err = newFile.SetParent(parent)
+	if err != nil {
+		return nil, err
+	}
+
+	for pathKey, action := range children {
+		destPath := action.GetRelevantPath()
+
+		// If the destination is not the same as the path we are looking for, skip it
+		if pathKey != destPath {
+			continue
+		}
+
+		child := file_model.NewWeblensFile(file_model.NewFileOptions{
+			Path:       destPath,
+			FileId:     action.FileId,
+			IsPastFile: true,
+			Size:       action.Size,
+			ContentId:  action.ContentId,
+		})
+
+		err = child.SetParent(newFile)
+		if err != nil {
+			return nil, err
+		}
+
+		err = newFile.AddChild(child)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return newFile, nil
+
 	// actions, err := getActionsByPath(ctx, id, false)
 	// if err != nil {
 	// 	return nil, err
@@ -70,7 +141,7 @@ func GetPastFile(ctx context.Context, id fs.Filepath, time time.Time) (*file_mod
 	// 	return nil, errors.Errorf("Got empty DestinationPath trying to get past file [%s] from journal", id)
 	// }
 	//
-	// f := file_model.NewWeblensFile(relevantAction.DestinationPath)
+	// f := file_model.NewWeblensFile(file_model.NewFileOptions{Path: relevantAction.DestinationPath})
 	// // f.parentId = relevantAction.ParentId
 	// // f.portablePath = path
 	// // f.pastFile = true
@@ -91,7 +162,6 @@ func GetPastFile(ctx context.Context, id fs.Filepath, time time.Time) (*file_mod
 	// }
 	//
 	// return f, nil
-	return nil, errors.New("not implemented")
 }
 
 func GetPastFolderChildren(folder *file_model.WeblensFileImpl, time time.Time) (

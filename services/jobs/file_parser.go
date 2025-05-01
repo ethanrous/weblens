@@ -11,7 +11,6 @@ import (
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/services/context"
-	file_service "github.com/ethanrous/weblens/services/file"
 	media_service "github.com/ethanrous/weblens/services/media"
 	"github.com/ethanrous/weblens/services/notify"
 	"github.com/ethanrous/weblens/services/reshape"
@@ -22,20 +21,26 @@ import (
 
 func ScanDirectory(tsk task_mod.Task) {
 	t := tsk.(*task.Task)
-	ctx := t.Ctx.(context.AppContext)
+	ctx, ok := context.FromContext(t.Ctx)
+	if !ok {
+		t.Fail(errors.New("failed to get context"))
+
+		return
+	}
 	meta := t.GetMeta().(job.ScanMeta)
 
 	t.SetErrorCleanup(func(tsk task_mod.Task) {
 		err := t.ReadError()
 		notif := notify.NewTaskNotification(tsk.(*task.Task), websocket.TaskFailedEvent, task_mod.TaskResult{"error": err.Error()})
-		t.Ctx.Notify(notif)
+		t.Ctx.Notify(ctx, notif)
 	})
 
-	if file_service.IsFileInTrash(meta.File) {
+	if file_model.IsFileInTrash(meta.File) {
 		// Let any client subscribers know we are done
 		notif := notify.NewTaskNotification(t, websocket.FolderScanCompleteEvent, task_mod.TaskResult{"executionTime": t.ExeTime()})
-		t.Ctx.Notify(notif)
+		t.Ctx.Notify(ctx, notif)
 		t.Success("No media to scan")
+
 		return
 	}
 
@@ -66,7 +71,7 @@ func ScanDirectory(tsk task_mod.Task) {
 	// }()
 
 	ctx.ClientService.FolderSubToTask(ctx, meta.File.ID(), t)
-	ctx.ClientService.FolderSubToTask(ctx, meta.File.GetParentId(), t)
+	ctx.ClientService.FolderSubToTask(ctx, meta.File.GetParent().ID(), t)
 	t.SetCleanup(func(tsk task_mod.Task) {
 		// Make sure we finish sending any messages to the client
 		// before we close unsubscribe from the task
@@ -86,11 +91,13 @@ func ScanDirectory(tsk task_mod.Task) {
 		func(mf *file_model.WeblensFileImpl) error {
 			if mf.IsDir() {
 				log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Skipping file %s, not regular file", mf.GetPortablePath()) })
+
 				return nil
 			}
 
-			if file_service.IsFileInTrash(mf) {
+			if file_model.IsFileInTrash(mf) {
 				log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Skipping file %s, file is in trash", mf.GetPortablePath()) })
+
 				return nil
 			}
 
@@ -98,11 +105,14 @@ func ScanDirectory(tsk task_mod.Task) {
 			if !mt.Displayable {
 				return nil
 			}
+			if mf.GetContentId() == "" {
+				log.Error().Msgf("Skipping file %s, no content id", mf.GetPortablePath())
 
-			media_model.GetMediaByContentId(ctx, mf.GetContentId())
+				return nil
+			}
 
 			m, err := media_model.GetMediaByContentId(ctx, mf.GetContentId())
-			if m != nil && m.IsImported() {
+			if err == nil {
 				if !slices.ContainsFunc(m.FileIDs, func(fId string) bool { return fId == mf.ID() }) {
 					err = m.AddFileToMedia(ctx, mf.GetPortablePath().ToPortable())
 					if err != nil {
@@ -112,13 +122,16 @@ func ScanDirectory(tsk task_mod.Task) {
 					alreadyFiles = append(alreadyFiles, mf)
 					alreadyMedia = append(alreadyMedia, m)
 				}
+
 				log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Skipping file %s, already imported", mf.GetPortablePath()) })
+
 				return nil
 			}
 
 			subMeta := job.ScanMeta{
 				File: mf,
 			}
+
 			log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Dispatching scanFile job for [%s]", mf.GetPortablePath()) })
 
 			newT, err := t.Ctx.DispatchJob(job.ScanFileTask, subMeta, pool)
@@ -140,14 +153,15 @@ func ScanDirectory(tsk task_mod.Task) {
 	// that may be waiting for these files to be processed, but since we won't be
 	// adding those via the media service, we need to update the clients now
 	if len(alreadyFiles) > 0 {
-		updates := make([]websocket.WsResponseInfo, len(alreadyFiles))
-		for i := range alreadyFiles {
+		updates := make([]websocket.WsResponseInfo, 0, len(alreadyFiles))
 
+		for i := range alreadyFiles {
 			mediaInfo := reshape.MediaToMediaInfo(alreadyMedia[i])
-			updates = append(updates, notify.NewFileNotification(ctx, alreadyFiles[i], websocket.FileUpdatedEvent, mediaInfo)...)
+			o := notify.FileNotificationOptions{MediaInfo: mediaInfo}
+			updates = append(updates, notify.NewFileNotification(ctx, alreadyFiles[i], websocket.FileUpdatedEvent, o)...)
 		}
 
-		t.Ctx.Notify(updates...)
+		t.Ctx.Notify(ctx, updates...)
 	}
 
 	if err != nil {
@@ -170,10 +184,10 @@ func ScanDirectory(tsk task_mod.Task) {
 			"failedCount": len(errs),
 		}
 		taskNotif := notify.NewTaskNotification(t, websocket.TaskFailedEvent, result)
-		t.Ctx.Notify(taskNotif)
+		t.Ctx.Notify(ctx, taskNotif)
 
 		poolNotif := notify.NewPoolNotification(pool, websocket.TaskFailedEvent, result)
-		t.Ctx.Notify(poolNotif)
+		t.Ctx.Notify(ctx, poolNotif)
 
 		t.Fail(errors.WithStack(task_mod.ErrChildTaskFailed))
 
@@ -183,7 +197,7 @@ func ScanDirectory(tsk task_mod.Task) {
 	// Let any client subscribers know we are done
 	result := getScanResult(t)
 	notif := notify.NewPoolNotification(pool.GetRootPool(), websocket.FolderScanCompleteEvent, result)
-	t.Ctx.Notify(notif)
+	t.Ctx.Notify(ctx, notif)
 
 	t.Ctx.Log().Debug().Func(func(e *zerolog.Event) { e.Msgf("Finished directory scan for %s", meta.File.GetPortablePath()) })
 
@@ -198,7 +212,7 @@ func ScanFile(tsk task_mod.Task) {
 	meta := t.GetMeta().(job.ScanMeta)
 	err := ScanFile_(t.Ctx.(context.AppContext), meta)
 	if err != nil {
-		t.Ctx.Log().Error().Msgf("Failed to scan file %s: %s", meta.File.GetPortablePath(), err)
+		t.Ctx.Log().Error().Stack().Err(err).Msgf("Failed to scan file %s", meta.File.GetPortablePath())
 		t.Fail(err)
 	}
 
@@ -209,7 +223,7 @@ func ScanFile_(ctx context.AppContext, meta job.ScanMeta) error {
 	ctx.WithLogger(ctx.Log().With().Str("file_id", meta.File.ID()).Str("portable_file_path", meta.File.GetPortablePath().String()).Logger())
 
 	if !media_model.ParseExtension(meta.File.GetPortablePath().Ext()).Displayable {
-		return media_model.ErrNotDisplayable
+		return errors.WithStack(media_model.ErrNotDisplayable)
 	}
 
 	// contentId := meta.File.GetContentId()
@@ -263,8 +277,10 @@ func ScanFile_(ctx context.AppContext, meta job.ScanMeta) error {
 	// }
 
 	mediaInfo := reshape.MediaToMediaInfo(media)
-	notif := notify.NewFileNotification(ctx, meta.File, websocket.FileUpdatedEvent, mediaInfo)
-	ctx.Notify(notif...)
+
+	o := notify.FileNotificationOptions{MediaInfo: mediaInfo}
+	notif := notify.NewFileNotification(ctx, meta.File, websocket.FileUpdatedEvent, o)
+	ctx.Notify(ctx, notif...)
 
 	return nil
 }
@@ -283,7 +299,8 @@ func reportSubscanStatus(t task_mod.Task) {
 	} else {
 		notif = notify.NewPoolNotification(tsk.GetTaskPool(), event, getScanResult(tsk))
 	}
-	tsk.Ctx.Notify(notif)
+
+	tsk.Ctx.Notify(tsk.Ctx, notif)
 }
 
 func getScanResult(t *task.Task) task_mod.TaskResult {
@@ -294,6 +311,7 @@ func getScanResult(t *task.Task) task_mod.TaskResult {
 	}
 
 	var result = task_mod.TaskResult{}
+
 	meta, ok := t.GetMeta().(job.ScanMeta)
 	if ok {
 		result = task_mod.TaskResult{
@@ -316,6 +334,7 @@ func getScanResult(t *task.Task) task_mod.TaskResult {
 		result["tasksFailed"] = status.Failed
 		result["tasksTotal"] = status.Total
 		result["runtime"] = t.ExeTime()
+
 		if tp.CreatedInTask() != nil {
 			result["taskJobName"] = tp.CreatedInTask().JobName()
 		}

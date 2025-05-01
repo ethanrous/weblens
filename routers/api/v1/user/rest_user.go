@@ -37,11 +37,17 @@ func Create(ctx context.RequestContext) {
 		Password:    userParams.Password,
 		DisplayName: userParams.FullName,
 		Activated:   userParams.AutoActivate,
+		UserPerms:   user_model.UserPermissionBasic,
 	}
 
-	err = user_model.CreateUser(ctx, newUser)
+	err = ctx.GetFileService().CreateUserHome(ctx, newUser)
 	if err != nil {
-		ctx.Logger.Error().Stack().Err(err).Msg("Failed to create user")
+		ctx.Error(http.StatusInternalServerError, err)
+		return
+	}
+
+	err = user_model.SaveUser(ctx, newUser)
+	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 		return
 	}
@@ -81,8 +87,15 @@ func Login(ctx context.RequestContext) {
 		return
 	}
 
-	ctx.SetSessionToken()
-	ctx.Status(http.StatusOK)
+	ctx.Requester = u
+
+	err = ctx.SetSessionToken()
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, reshape.UserToUserInfo(ctx, u))
 }
 
 // CheckExists godoc
@@ -156,6 +169,7 @@ func GetAll(ctx context.RequestContext) {
 	}
 
 	results := make([]structs.UserInfo, 0, len(users))
+
 	for _, u := range users {
 		newU := reshape.UserToUserInfo(ctx, u)
 		results = append(results, newU)
@@ -208,6 +222,7 @@ func GetMe(ctx context.RequestContext) {
 //	@Router		/users/{username}/password [patch]
 func UpdatePassword(ctx context.RequestContext) {
 	updateUsername := ctx.Path("username")
+
 	updateUser, err := user_model.GetUserByUsername(ctx, updateUsername)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
@@ -274,6 +289,7 @@ func SetAdmin(ctx context.RequestContext) {
 	}
 
 	username := ctx.Path("username")
+
 	user, err := user_model.GetUserByUsername(ctx, username)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
@@ -326,6 +342,7 @@ func Activate(ctx context.RequestContext) {
 	}
 
 	username := ctx.Path("username")
+
 	user, err := user_model.GetUserByUsername(ctx, username)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
@@ -338,6 +355,7 @@ func Activate(ctx context.RequestContext) {
 		ctx.Error(http.StatusInternalServerError, err)
 		return
 	}
+
 	ctx.Status(http.StatusOK)
 }
 
@@ -385,6 +403,7 @@ func ChangeDisplayName(ctx context.RequestContext) {
 		ctx.Error(http.StatusInternalServerError, err)
 		return
 	}
+
 	ctx.Status(http.StatusOK)
 }
 
@@ -433,6 +452,8 @@ func Delete(ctx context.RequestContext) {
 	ctx.Status(http.StatusOK)
 }
 
+var minSearchLength = 2
+
 // SearchUsers godoc
 //
 //	@ID			SearchUsers
@@ -452,7 +473,7 @@ func Delete(ctx context.RequestContext) {
 //	@Router		/users/search [get]
 func Search(ctx context.RequestContext) {
 	search := ctx.Query("search")
-	if len(search) < 2 {
+	if len(search) < minSearchLength {
 		ctx.Error(http.StatusBadRequest, errors.New("Username autocomplete must contain at least 2 characters"))
 		return
 	}
@@ -465,10 +486,12 @@ func Search(ctx context.RequestContext) {
 	}
 
 	usersInfo := []structs.UserInfo{}
+
 	for _, user := range users {
 		if user.Username == ctx.Requester.Username {
 			continue
 		}
+
 		usersInfo = append(usersInfo, reshape.UserToUserInfo(ctx, user))
 	}
 

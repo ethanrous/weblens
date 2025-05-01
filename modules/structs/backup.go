@@ -6,4 +6,4 @@ type BackupInfo struct {
 	Instances      []TowerInfo
 	Tokens         []TokenInfo
 	LifetimesCount int
-}
+} // @name BackupInfo

@@ -1,26 +1,31 @@
 import { UserInfo } from '@weblens/api/swag'
 
-export default class User {
-    activated?: boolean
-    admin?: boolean
-    homeId?: string
-    isSystemUser?: boolean
-    owner?: boolean
-    password?: string
-    trashId?: string
-    username?: string
-    fullName?: string
+export enum UserPermissions {
+	Public = 0,
+	Basic = 1,
+	Admin = 2,
+	Owner = 3,
+	System = 4,
+}
 
-    homeSize?: number
-    trashSize?: number
+export default class User implements UserInfo {
+	fullName: string;
+	homeId: string;
+	homeSize: number;
+	permissionLevel: number;
+	token?: string;
+	trashId: string;
+	trashSize: number;
+	username: string;
+	activated: boolean;
 
-    isLoggedIn: boolean
+	isLoggedIn: boolean
 
-    constructor(info?: UserInfo, isLoggedIn?: boolean) {
-        if (info) {
-            Object.assign(this, info)
-        }
+	constructor(info?: UserInfo, isLoggedIn?: boolean) {
+		if (info) {
+			Object.assign(this, info)
+		}
 
-        this.isLoggedIn = isLoggedIn || false
-    }
+		this.isLoggedIn = isLoggedIn || false
+	}
 }

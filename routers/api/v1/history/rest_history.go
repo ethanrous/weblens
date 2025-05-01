@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/models/auth"
+	"github.com/ethanrous/weblens/models/history"
 	"github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/services/context"
@@ -24,6 +25,7 @@ func GetLifetimesSince(ctx context.RequestContext) {
 	millis, err := strconv.ParseInt(millisString, 10, 64)
 	if err != nil || millis < 0 {
 		ctx.Error(http.StatusBadRequest, errors.New("invalid timestamp"))
+
 		return
 	}
 
@@ -32,47 +34,68 @@ func GetLifetimesSince(ctx context.RequestContext) {
 	actions, err := journal.GetActionsSince(ctx, date)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "failed to get lifetimes"))
+
 		return
 	}
 
 	ctx.JSON(http.StatusNotImplemented, actions)
 }
 
+// GetBackupInfo godoc
+//
+//	@ID			GetBackupInfo
+//	@Security	ApiKeyAuth[admin]
+//
+//	@Summary	Get information about a file
+//	@Tags		Towers
+//	@Produce	json
+//	@Param		timestamp	query		string				true	"Timestamp in milliseconds since epoch"
+//	@Success	200			{object}	structs.BackupInfo	"Backup Info"
+//	@Failure	400
+//	@Failure	404
+//	@Failure	500
+//	@Router		/tower/backup [get]
 func DoFullBackup(ctx context.RequestContext) {
-	if ctx.Remote == nil {
+	if ctx.Remote.TowerId == "" {
 		ctx.Error(http.StatusUnauthorized, errors.New("missing tower in request context"))
+
 		return
 	}
 
 	millisString := ctx.Query("timestamp")
 	if millisString == "" {
 		ctx.Error(http.StatusBadRequest, errors.New("missing timestamp"))
+
 		return
 	}
 
 	millis, err := strconv.ParseInt(millisString, 10, 64)
 	if err != nil || millis < 0 {
 		ctx.Error(http.StatusBadRequest, errors.New("invalid timestamp"))
+
 		return
 	}
 
 	since := time.UnixMilli(millis)
 
-	fileActions, err := journal.GetActionsSince(ctx, since)
+	fileActions, err := history.GetActionsAfter(ctx, since)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "failed to get actions"))
+
 		return
 	}
 
 	users, err := user.GetAllUsers(ctx)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "failed to get users"))
+
 		return
 	}
 
 	towers, err := tower.GetAllTowersByTowerId(ctx, ctx.LocalTowerId)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "failed to get towers"))
+
 		return
 	}
 

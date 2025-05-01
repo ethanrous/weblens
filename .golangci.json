@@ -1,32 +1,16 @@
 {
+	"version": 2,
 	"linters": {
+		"default": "fast",
 		"enable": [
-			"govet",
-			"gosec"
+			"errcheck"
 		],
 		"disable": [
-			"exhaustruct",
 			"depguard",
-			"nonamedreturns"
+			"dogsled",
+			"lll",
+			"funlen",
+			"gochecknoinits"
 		]
-	},
-	"linters-settings": {
-		"govet": {
-			"enable": [
-				"fieldalignment"
-			],
-			"disable": [
-				"deadcode",
-				"exhaustivestruct",
-				"golint",
-				"ifshort",
-				"interfacer",
-				"maligned",
-				"nosnakecase",
-				"scopelint",
-				"structcheck",
-				"varcheck"
-			]
-		}
 	}
 }

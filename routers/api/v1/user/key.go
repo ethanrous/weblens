@@ -24,7 +24,7 @@ import (
 //
 //	@Param		params	body		structs.ApiKeyParams	true	"The new token params"
 //
-//	@Success	200		{object}	structs.TokenInfo			"The new token"
+//	@Success	200		{object}	structs.TokenInfo		"The new token"
 //	@Failure	403
 //	@Failure	500
 //	@Router		/keys [post]
@@ -38,6 +38,7 @@ func CreateApiKey(ctx context.RequestContext) {
 	token, err := auth_model.GenerateNewToken(ctx, tokenParams.Name, ctx.Requester.Username, ctx.LocalTowerId)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 

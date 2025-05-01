@@ -105,6 +105,7 @@ func GetMediaByContentId(ctx context.Context, contentId ContentId) (*Media, erro
 	}
 
 	media := Media{}
+
 	err = col.FindOne(ctx, bson.M{"contentId": contentId}).Decode(&media)
 	if err != nil {
 		return nil, db.WrapError(err, "get media by content id")

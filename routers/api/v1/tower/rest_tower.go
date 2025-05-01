@@ -1,17 +1,19 @@
 package http
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
 	"github.com/ethanrous/weblens/models/db"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
-	context_mod "github.com/ethanrous/weblens/modules/context"
 	"github.com/ethanrous/weblens/modules/net"
 	"github.com/ethanrous/weblens/modules/structs"
+	"github.com/ethanrous/weblens/routers/api/v1/websocket"
 	context_service "github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/reshape"
+	tower_service "github.com/ethanrous/weblens/services/tower"
 )
 
 // GetServerInfo godoc
@@ -24,14 +26,14 @@ import (
 //	@Success	200	{object}	structs.TowerInfo	"Server info"
 //	@Router		/info [get]
 func GetServerInfo(ctx context_service.RequestContext) {
-
 	tower, err := tower_model.GetLocal(ctx)
 	if err != nil {
 		ctx.Error(http.StatusNotFound, err)
+
 		return
 	}
 
-	towerInfo := reshape.TowerToTowerInfo(tower)
+	towerInfo := reshape.TowerToTowerInfo(ctx, tower)
 	ctx.JSON(http.StatusOK, towerInfo)
 }
 
@@ -40,7 +42,7 @@ func GetServerInfo(ctx context_service.RequestContext) {
 //	@ID			GetRemotes
 //
 //	@Summary	Get all remotes
-//	@Tags Towers
+//	@Tags		Towers
 //
 //	@Security	SessionAuth[admin]
 //	@Security	ApiKeyAuth[admin]
@@ -51,106 +53,165 @@ func GetRemotes(ctx context_service.RequestContext) {
 	remotes, err := tower_model.GetRemotes(ctx)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
-	// localRole := pack.InstanceService.GetLocal().GetRole()
-
-	var serverInfos []structs.TowerInfo = []structs.TowerInfo{}
+	serverInfos := make([]structs.TowerInfo, 0, len(remotes))
 	for _, r := range remotes {
-		// addr, _ := r.Address
-		// client := pack.ClientService.GetClientByServerId(r.ServerId())
-		// online := client != nil && client.Active.Load()
-		//
-		// var backupSize int64 = -1
-		// if localRole == tower_model.BackupTowerRole {
-		// 	backupSize = ctx.FileService.Size(r.TowerId)
-		// }
-
-		serverInfos = append(serverInfos, reshape.TowerToTowerInfo(r))
+		serverInfos = append(serverInfos, reshape.TowerToTowerInfo(ctx, r))
 	}
 
 	ctx.JSON(http.StatusOK, serverInfos)
 }
 
-// // AttachRemote godoc
-// //
-// //	@ID			CreateRemote
-// //
-// //	@Summary	Create a new remote
-// //	@Tags Towers
-// //
-// //	@Security	SessionAuth[admin]
-// //	@Security	ApiKeyAuth[admin]
-// //
-// //	@Param		request	body		structs.NewServerParams	true	"New Server Params"
-// //	@Success	201		{object}	structs.TowerInfo			"New Server Info"
-// //	@Success	400
-// //	@Router		/tower [post]
-// func attachRemote(w http.ResponseWriter, r *http.Request) {
-// 	pack := getServices(r)
-// 	local := pack.InstanceService.GetLocal()
+// AttachRemote godoc
 //
-// 	params, err := readCtxBody[structs.NewServerParams](w, r)
-// 	if err != nil {
-// 		return
-// 	}
+//	@ID			CreateRemote
 //
-// 	pack.Log.Debug().Msgf("Attaching remote %s server %s with key %s", params.Role, params.Id, params.UsingKey)
+//	@Summary	Create a new remote
+//	@Tags		Towers
 //
-// 	if params.Role == models.CoreServerRole {
-// 		newCore, err := pack.InstanceService.AttachRemoteCore(params.CoreAddress, params.UsingKey)
-// 		if SafeErrorAndExit(err, w) {
-// 			return
-// 		}
+//	@Security	SessionAuth[admin]
+//	@Security	ApiKeyAuth[admin]
 //
-// 		mockJournal := mock.NewHollowJournalService()
-// 		newTree, err := fileTree.NewFileTree(filepath.Join(pack.Cnf.DataRoot, newCore.ServerId()), newCore.ServerId(), mockJournal, false, pack.Log)
-// 		if SafeErrorAndExit(err, w) {
-// 			return
-// 		}
-//
-// 		pack.FileService.AddTree(newTree)
-//
-// 		err = WebsocketToCore(newCore, pack)
-// 		if SafeErrorAndExit(err, w) {
-// 			return
-// 		}
-//
-// 		coreInfo := structs.InstanceToServerInfo(newCore)
-//
-// 		writeJson(w, http.StatusCreated, coreInfo)
-// 	} else if params.Role == models.BackupServerRole {
-// 		newRemote := models.NewInstance(params.Id, params.Name, params.UsingKey, models.BackupServerRole, false, "", local.ServerId())
-//
-// 		err = pack.InstanceService.Add(newRemote)
-// 		if err != nil {
-// 			if errors.Is(err, werror.ErrKeyInUse) {
-// 				w.WriteHeader(http.StatusConflict)
-// 				return
-// 			}
-//
-// 			pack.Log.Error().Stack().Err(err).Msg("Failed to add remote instance")
-// 			writeJson(w, http.StatusInternalServerError, structs.WeblensErrorInfo{Error: err.Error()})
-// 			return
-// 		}
-//
-// 		err = pack.AccessService.SetKeyUsedBy(params.UsingKey, newRemote)
-// 		if SafeErrorAndExit(err, w) {
-// 			return
-// 		}
-//
-// 		localInfo := structs.InstanceToServerInfo(pack.InstanceService.GetLocal())
-//
-// 		writeJson(w, http.StatusCreated, localInfo)
-// 	} else {
-// 		writeError(w, http.StatusBadRequest, werror.Errorf("'%s' is an invalid role. Must be 'core' or 'backup'", params.Role))
-// 		return
-// 	}
-//
-// 	jobs.RegisterJobs(pack.TaskService, pack.InstanceService.GetLocal().Role)
-// }
-//
+//	@Param		request	body		structs.NewServerParams	true	"New Server Params"
+//	@Success	201		{object}	structs.TowerInfo		"New Server Info"
+//	@Success	400
+//	@Router		/tower/remote [post]
+func AttachRemote(ctx context_service.RequestContext) {
+	params, err := net.ReadRequestBody[structs.NewServerParams](ctx.Req)
+	if err != nil {
+		return
+	}
+
+	newRole := tower_model.Role(params.Role)
+
+	switch newRole {
+	case tower_model.RoleCore:
+		{
+			core := tower_model.Instance{Address: params.CoreAddress, OutgoingKey: params.UsingKey}
+
+			err = tower_service.AttachToCore(ctx, core)
+			if err != nil {
+				ctx.Error(http.StatusInternalServerError, err)
+
+				return
+			}
+
+			towerInfo, err := tower_service.Ping(ctx, core)
+			if err != nil {
+				ctx.Error(http.StatusBadRequest, err)
+
+				return
+			}
+
+			core = reshape.ApiTowerInfoToTower(*towerInfo)
+			core.Address = params.CoreAddress
+			core.OutgoingKey = params.UsingKey
+
+			err = tower_model.SaveTower(ctx, &core)
+			if err != nil {
+				ctx.Error(http.StatusInternalServerError, err)
+
+				return
+			}
+
+			err = websocket.ConnectCore(ctx, &core)
+			if err != nil {
+				ctx.Error(http.StatusInternalServerError, err)
+
+				return
+			}
+		}
+	case tower_model.RoleBackup:
+		{
+			newRemote := tower_model.Instance{
+				TowerId:     params.Id,
+				Name:        params.Name,
+				IncomingKey: params.UsingKey,
+				Role:        tower_model.RoleBackup,
+				CreatedBy:   ctx.LocalTowerId,
+			}
+
+			err = tower_model.SaveTower(ctx, &newRemote)
+			if err != nil {
+				if db.IsAlreadyExists(err) {
+					ctx.Error(http.StatusConflict, err)
+
+					return
+				}
+
+				ctx.Error(http.StatusInternalServerError, err)
+
+				return
+			}
+		}
+	default:
+		ctx.Error(http.StatusBadRequest, errors.New("invalid role"))
+
+		return
+	}
+
+	ctx.Status(http.StatusCreated)
+
+	// reshape.TowerInfoToTower(params)
+	//
+	// pack.Log.Debug().Msgf("Attaching remote %s server %s with key %s", params.Role, params.Id, params.UsingKey)
+	//
+	// if params.Role == models.CoreServerRole {
+	// 	newCore, err := pack.InstanceService.AttachRemoteCore(params.CoreAddress, params.UsingKey)
+	// 	if SafeErrorAndExit(err, w) {
+	// 		return
+	// 	}
+	//
+	// 	mockJournal := mock.NewHollowJournalService()
+	// 	newTree, err := fileTree.NewFileTree(filepath.Join(pack.Cnf.DataRoot, newCore.ServerId()), newCore.ServerId(), mockJournal, false, pack.Log)
+	// 	if SafeErrorAndExit(err, w) {
+	// 		return
+	// 	}
+	//
+	// 	pack.FileService.AddTree(newTree)
+	//
+	// 	err = WebsocketToCore(newCore, pack)
+	// 	if SafeErrorAndExit(err, w) {
+	// 		return
+	// 	}
+	//
+	// 	coreInfo := structs.InstanceToServerInfo(newCore)
+	//
+	// 	writeJson(w, http.StatusCreated, coreInfo)
+	// } else if params.Role == models.BackupServerRole {
+	// 	newRemote := models.NewInstance(params.Id, params.Name, params.UsingKey, models.BackupServerRole, false, "", local.ServerId())
+	//
+	// 	err = pack.InstanceService.Add(newRemote)
+	// 	if err != nil {
+	// 		if errors.Is(err, werror.ErrKeyInUse) {
+	// 			w.WriteHeader(http.StatusConflict)
+	// 			return
+	// 		}
+	//
+	// 		pack.Log.Error().Stack().Err(err).Msg("Failed to add remote instance")
+	// 		writeJson(w, http.StatusInternalServerError, structs.WeblensErrorInfo{Error: err.Error()})
+	// 		return
+	// 	}
+	//
+	// 	err = pack.AccessService.SetKeyUsedBy(params.UsingKey, newRemote)
+	// 	if SafeErrorAndExit(err, w) {
+	// 		return
+	// 	}
+	//
+	// 	localInfo := structs.InstanceToServerInfo(pack.InstanceService.GetLocal())
+	//
+	// 	writeJson(w, http.StatusCreated, localInfo)
+	// } else {
+	// 	writeError(w, http.StatusBadRequest, werror.Errorf("'%s' is an invalid role. Must be 'core' or 'backup'", params.Role))
+	// 	return
+	// }
+	//
+	// jobs.RegisterJobs(pack.TaskService, pack.InstanceService.GetLocal().Role)
+}
+
 // // UpdateRemote godoc
 // //
 // //	@ID			UpdateRemote
@@ -205,54 +266,45 @@ func GetRemotes(ctx context_service.RequestContext) {
 //
 // 	w.WriteHeader(http.StatusOK)
 // }
+
+// DeleteRemote godoc
 //
-// // DeleteRemote godoc
-// //
-// //	@ID			DeleteRemote
-// //
-// //	@Summary	Delete a remote
-// //	@Tags Towers
-// //
-// //	@Security	SessionAuth[admin]
-// //	@Security	ApiKeyAuth[admin]
-// //
-// //	@Param		serverId	path	string	true	"Server Id to delete"
-// //	@Success	200
-// //	@Success	400
-// //	@Success	404
-// //	@Router		/tower/{serverId} [delete]
-// func removeRemote(w http.ResponseWriter, r *http.Request) {
-// 	pack := getServices(r)
-// 	remoteId := chi.URLParam(r, "serverId")
-// 	if remoteId == "" {
-// 		w.WriteHeader(http.StatusBadRequest)
-// 		return
-// 	}
+//	@ID			DeleteRemote
 //
-// 	remote := pack.InstanceService.GetByInstanceId(remoteId)
-// 	if remote == nil {
-// 		SafeErrorAndExit(werror.ErrNoInstance, w)
-// 		return
-// 	}
+//	@Summary	Delete a remote
+//	@Tags		Towers
 //
-// 	err := pack.InstanceService.Del(remote.DbId)
-// 	if SafeErrorAndExit(err, w) {
-// 		return
-// 	}
+//	@Security	SessionAuth[admin]
+//	@Security	ApiKeyAuth[admin]
 //
-// 	if key := remote.GetUsingKey(); key != "" {
-// 		err = pack.AccessService.SetKeyUsedBy(key, nil)
-// 		if SafeErrorAndExit(err, w) {
-// 			return
-// 		}
-// 	}
-//
-// 	w.WriteHeader(http.StatusOK)
-// }
+//	@Param		serverId	path	string	true	"Server Id to delete"
+//	@Success	200
+//	@Success	400
+//	@Success	404
+//	@Router		/tower/{serverId} [delete]
+func DeleteRemote(ctx context_service.RequestContext) {
+	remoteId := ctx.Path("serverId")
+
+	_, err := tower_model.GetTowerById(ctx, remoteId)
+	if err != nil {
+		ctx.Error(http.StatusNotFound, err)
+
+		return
+	}
+
+	err = tower_model.DeleteTowerById(ctx, remoteId)
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, err)
+
+		return
+	}
+
+	ctx.Status(http.StatusOK)
+}
 
 // InitializeTower godoc
 //
-//	@ID InitializeTower
+//	@ID	InitializeTower
 //
 //	@Security
 //
@@ -271,12 +323,14 @@ func InitializeTower(ctx context_service.RequestContext) {
 	local, err := tower_model.GetLocal(ctx)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
 	// Check if the server is already initialized
-	if local.Role != tower_model.InitTowerRole {
+	if local.Role != tower_model.RoleInit {
 		ctx.Error(http.StatusConflict, tower_model.ErrTowerAlreadyInitialized)
+
 		return
 	}
 
@@ -284,26 +338,28 @@ func InitializeTower(ctx context_service.RequestContext) {
 	initBody, err := net.ReadRequestBody[structs.InitServerParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusBadRequest, err)
+
 		return
 	}
 
-	err = db.WithTransaction(ctx, func(sessionCtx context_mod.ContextZ) error {
+	err = db.WithTransaction(ctx, func(sessionCtx context.Context) error {
 		// Initialize the server based on the specified role
-		switch tower_model.TowerRole(initBody.Role) {
-		case tower_model.CoreTowerRole:
+		switch tower_model.Role(initBody.Role) {
+		case tower_model.RoleCore:
 			if err := initializeCoreServer(sessionCtx, initBody); err != nil {
 				return err
 			}
-		case tower_model.BackupTowerRole:
+		case tower_model.RoleBackup:
 			if err := initializeBackupServer(sessionCtx, initBody); err != nil {
 				return err
 			}
-		case tower_model.RestoreTowerRole:
+		case tower_model.RoleRestore:
 			{
 				return errors.New("restore server initialization not implemented")
 			}
 		default:
 			err = errors.New("invalid server role")
+
 			return err
 		}
 
@@ -312,24 +368,16 @@ func InitializeTower(ctx context_service.RequestContext) {
 
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
 	// Respond with the local server information
-	localInfo := reshape.TowerToTowerInfo(local)
+	localInfo := reshape.TowerToTowerInfo(ctx, local)
 	ctx.JSON(http.StatusCreated, localInfo)
 }
 
-func initializeCoreServer(ctx context_mod.ContextZ, initBody structs.InitServerParams) error {
-	if initBody.Name == "" || initBody.Username == "" || initBody.Password == "" {
-		return errors.New("missing required fields for core server initialization")
-	}
-
-	rqCtx := ctx.(context_service.RequestContext)
-
-	// Remove existing users and create a new owner
-	user_model.DeleteAllUsers(rqCtx)
-
+func newOwner(ctx context.Context, initBody structs.InitServerParams) (*user_model.User, error) {
 	owner := &user_model.User{
 		Username:    initBody.Username,
 		Password:    initBody.Password,
@@ -338,81 +386,108 @@ func initializeCoreServer(ctx context_mod.ContextZ, initBody structs.InitServerP
 		Activated:   true,
 	}
 
-	// Create user home directory
-	err := rqCtx.FileService.CreateUserHome(ctx, owner)
-	if err != nil {
-		return err
+	rqCtx, ok := context_service.ReqFromContext(ctx)
+	if !ok {
+		return nil, errors.New("failed to get request context")
 	}
 
-	err = user_model.CreateUser(ctx, owner)
-	if err != nil {
-		return err
+	if tower_model.Role(initBody.Role) == tower_model.RoleCore {
+		// Create user home directory
+		err := rqCtx.FileService.CreateUserHome(ctx, owner)
+		if err != nil {
+			return nil, err
+		}
+
+		if owner.HomeId == "" {
+			return nil, errors.New("failed to create user home directory")
+		}
 	}
 
-	local, err := tower_model.GetLocal(ctx)
-	local.Role = tower_model.CoreTowerRole
-	local.Name = initBody.Name
-	local.Address = initBody.CoreAddress
-
-	err = tower_model.UpdateTower(ctx, local)
+	err := user_model.SaveUser(ctx, owner)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	rqCtx.Requester = owner
+
 	err = rqCtx.SetSessionToken()
 	if err != nil {
 		rqCtx.Error(http.StatusInternalServerError, err)
 	}
 
+	return owner, nil
+}
+
+func initializeCoreServer(ctx context.Context, initBody structs.InitServerParams) error {
+	if initBody.Name == "" || initBody.Username == "" || initBody.Password == "" {
+		return errors.New("missing required fields for core server initialization")
+	}
+
+	local, err := tower_model.GetLocal(ctx)
+	if err != nil {
+		return err
+	}
+
+	local.Role = tower_model.RoleCore
+	local.Name = initBody.Name
+	local.Address = initBody.CoreAddress
+
+	err = tower_model.UpdateTower(ctx, &local)
+	if err != nil {
+		return err
+	}
+
+	_, err = newOwner(ctx, initBody)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func initializeBackupServer(ctx context_mod.ContextZ, initBody structs.InitServerParams) error {
-	return errors.New("backup server initialization not implemented")
+func initializeBackupServer(ctx context.Context, initBody structs.InitServerParams) error {
+	local, err := tower_model.GetLocal(ctx)
+	if err != nil {
+		return err
+	}
 
-	// if initBody.Name == "" || initBody.Username == "" || initBody.Password == "" {
-	// 	return errors.New("missing required fields for core server initialization")
-	// }
-	//
-	// local, err := tower_model.GetLocal(ctx)
-	// local.Role = tower_model.CoreTowerRole
-	// local.Name = initBody.Name
-	// local.Address = initBody.CoreAddress
-	//
-	// err = tower_model.UpdateTower(ctx, local)
-	// if err != nil {
-	// 	return err
-	// }
-	//
-	// // Remove existing users and create a new owner
-	// user_model.DeleteAllUsers(ctx)
-	//
-	// owner := &user_model.User{
-	// 	Username:    initBody.Username,
-	// 	Password:    initBody.Password,
-	// 	DisplayName: initBody.FullName,
-	// 	UserPerms:   user_model.UserPermissionOwner,
-	// }
-	//
-	// err = user_model.CreateUser(ctx, owner)
-	// if err != nil {
-	// 	return err
-	// }
-	//
-	// // Create user home directory
-	// err = ctx.FileService.CreateUserHome(ctx, owner)
-	// if err != nil {
-	// 	return err
-	// }
-	//
-	// ctx.Requester = owner
-	// err = ctx.SetSessionToken()
-	// if err != nil {
-	// 	ctx.Error(http.StatusInternalServerError, err)
-	// }
-	//
-	// return nil
+	local.Role = tower_model.RoleBackup
+	local.Name = initBody.Name
+
+	err = tower_model.UpdateTower(ctx, &local)
+	if err != nil {
+		return err
+	}
+
+	core := tower_model.Instance{
+		Role:        tower_model.RoleCore,
+		Address:     initBody.CoreAddress,
+		OutgoingKey: initBody.CoreKey,
+	}
+
+	coreInfo, err := tower_service.Ping(ctx, core)
+	if err != nil {
+		return err
+	}
+
+	if tower_model.Role(coreInfo.GetRole()) != tower_model.RoleCore {
+		return tower_model.ErrNotCore
+	}
+
+	core.TowerId = coreInfo.GetId()
+	core.Name = coreInfo.GetName()
+
+	err = tower_model.SaveTower(ctx, &core)
+	if err != nil {
+		return err
+	}
+
+	_, err = newOwner(ctx, initBody)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // func initializeRestoreServer(ctx context.RequestContext, initBody structs.InitServerParams) error {
@@ -456,54 +531,46 @@ func initializeBackupServer(ctx context_mod.ContextZ, initBody structs.InitServe
 // 	return nil
 // }
 
+// ResetTower godoc
 //
-// // ResetServer godoc
-// //
-// //	@ID			ResetServer
-// //
-// //	@Security	SessionAuth[admin]
-// //	@Security	ApiKeyAuth[admin]
-// //
-// //	@Summary	Reset server
-// //	@Tags Towers
-// //	@Produce	json
-// //
-// //	@Success	202
-// //	@Failure	404
-// //	@Failure	500
-// //	@Router		/tower/reset [post]
-// func resetServer(w http.ResponseWriter, r *http.Request) {
-// 	pack := getServices(r)
-// 	u, err := getUserFromCtx(r, false)
-// 	if SafeErrorAndExit(err, w) {
-// 		return
-// 	}
+//	@ID			ResetTower
 //
-// 	if !u.IsOwner() {
-// 		writeError(w, http.StatusForbidden, werror.ErrNotOwner)
-// 		return
-// 	}
+//	@Security	SessionAuth[admin]
+//	@Security	ApiKeyAuth[admin]
 //
-// 	// Can't reset server if not initialized
-// 	role := pack.InstanceService.GetLocal().GetRole()
-// 	if role == models.InitServerRole {
-// 		writeError(w, http.StatusNotFound, werror.ErrServerNotInitialized)
-// 		return
-// 	}
+//	@Summary	Reset tower
+//	@Tags		Towers
+//	@Produce	json
 //
-// 	err = pack.InstanceService.ResetAll()
-// 	if SafeErrorAndExit(err, w) {
-// 		return
-// 	}
-//
-// 	err = pack.UserService.Del(u.GetUsername())
-// 	if SafeErrorAndExit(err, w) {
-// 		return
-// 	}
-//
-// 	w.WriteHeader(http.StatusOK)
-// }
-//
+//	@Success	202
+//	@Failure	404
+//	@Failure	500
+//	@Router		/tower/reset [post]
+func ResetServer(ctx context_service.RequestContext) {
+	local, err := tower_model.GetLocal(ctx)
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, err)
+
+		return
+	}
+
+	// Can't reset server if not initialized
+	if local.Role == tower_model.RoleRestore {
+		ctx.Error(http.StatusBadRequest, tower_model.ErrTowerNotInitialized)
+
+		return
+	}
+
+	err = tower_service.ResetTower(ctx)
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, err)
+
+		return
+	}
+
+	ctx.Status(http.StatusOK)
+}
+
 // // RestoreCore godoc
 // //
 // //	@ID			RestoreCore

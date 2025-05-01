@@ -3,12 +3,12 @@ package context
 import (
 	"context"
 
+	"github.com/viccon/sturdyc"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type DatabaseContext interface {
 	context.Context
 	Database() *mongo.Database
-	WithMongoSession(mongo.SessionContext)
-	GetMongoSession() mongo.SessionContext
+	GetCache(cacheName string) *sturdyc.Client[any]
 }
