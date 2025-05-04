@@ -1,7 +1,6 @@
 package jobs
 
 import (
-	"io"
 	"time"
 
 	file_model "github.com/ethanrous/weblens/models/file"
@@ -11,7 +10,7 @@ import (
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/notify"
-	"github.com/ethanrous/weblens/services/proxy"
+	tower_service "github.com/ethanrous/weblens/services/tower"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
@@ -42,7 +41,7 @@ func CopyFileFromCore(tsk task_mod.Task) {
 		filename = meta.File.GetPortablePath().Filename()
 	}
 
-	t.Ctx.Notify(ctx, 
+	t.Ctx.Notify(ctx,
 		notify.NewPoolNotification(
 			t.GetTaskPool(),
 			websocket_mod.CopyFileStartedEvent,
@@ -63,23 +62,23 @@ func CopyFileFromCore(tsk task_mod.Task) {
 
 	defer writeFile.Close()
 
-	res, err := proxy.NewCoreRequest(&meta.Core, "GET", "/files/"+meta.CoreFileId+"/download").Call()
+	err = tower_service.DownloadFileFromCore(ctx, meta.Core, meta.CoreFileId, writeFile)
 	if err != nil {
 		t.Fail(err)
-	}
 
-	defer res.Body.Close()
-
-	_, err = io.Copy(writeFile, res.Body)
-	if err != nil {
-		t.Fail(err)
+		return
 	}
 
 	poolProgress := getScanResult(t)
 	poolProgress["filename"] = filename
 	poolProgress["coreId"] = meta.Core.TowerId
 
-	t.Ctx.Notify(ctx, notify.NewPoolNotification(t.GetTaskPool(), websocket_mod.CopyFileCompleteEvent, poolProgress))
+	notif := notify.NewPoolNotification(t.GetTaskPool(), websocket_mod.CopyFileCompleteEvent, poolProgress)
+	if notif.SubscribeKey == "" {
+		ctx.Log().Error().Msg("Failed to get subscribe key for pool notification")
+	}
+
+	t.Ctx.Notify(ctx, notif)
 
 	t.Success()
 }

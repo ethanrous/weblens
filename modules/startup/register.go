@@ -24,6 +24,11 @@ func RunStartups(ctx context.Context, cnf config.ConfigProvider) error {
 		startup, startups = startups[0], startups[1:]
 		if err := startup(ctx, cnf); err != nil {
 			if errors.Is(err, ErrDeferStartup) {
+				if len(startups) == 0 {
+					return errors.New("startup requested to be defered, but there are no more startups to run")
+				}
+
+				// Defer the startup
 				startups = append(startups, startup)
 
 				continue

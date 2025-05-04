@@ -20,6 +20,7 @@ func FileActionToFileActionInfo(fa history.FileAction) structs.FileActionInfo {
 		Size:            fa.Size,
 		Timestamp:       fa.Timestamp.UnixMilli(),
 		TowerId:         fa.TowerId,
+		ContentId:       fa.ContentId,
 	}
 }
 
@@ -38,5 +39,6 @@ func FileActionInfoToFileAction(info openapi.FileActionInfo) *history.FileAction
 		Size:            info.Size,
 		Timestamp:       time.UnixMilli(info.Timestamp),
 		TowerId:         info.TowerId,
+		ContentId:       info.GetContentId(),
 	}
 }

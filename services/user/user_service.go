@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	file_model "github.com/ethanrous/weblens/models/file"
+	tower_model "github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/startup"
@@ -17,6 +18,17 @@ func init() {
 
 func loadUserService(c context.Context, cnf config.ConfigProvider) error {
 	ctx := c.(context_service.AppContext)
+
+	local, err := tower_model.GetLocal(ctx)
+	if err != nil {
+		return err
+	}
+
+	if local.Role != tower_model.RoleCore {
+		ctx.Log().Debug().Msg("Not a core tower, skipping user service load")
+
+		return nil
+	}
 
 	userRoot, err := ctx.FileService.GetFileById(file_model.UsersTreeKey)
 	if err != nil {
@@ -39,6 +51,8 @@ func loadUserService(c context.Context, cnf config.ConfigProvider) error {
 
 			homeFolder, err = ctx.FileService.GetFileByFilepath(ctx, homePath)
 			if err != nil {
+				ctx.Log().Debug().Msgf("Home folder [%s][%s] not found, creating for user %s", u.HomeId, homePath, u.Username)
+
 				homeFolder, err = ctx.FileService.CreateFolder(ctx, userRoot, u.Username)
 				if err != nil {
 					return err
@@ -57,6 +71,8 @@ func loadUserService(c context.Context, cnf config.ConfigProvider) error {
 
 			trashFolder, err := ctx.FileService.GetFileByFilepath(ctx, trashPath)
 			if err != nil {
+				ctx.Log().Debug().Msgf("Trash folder not found, creating for user %s", u.Username)
+
 				trashFolder, err = ctx.FileService.CreateFolder(ctx, homeFolder, file_model.UserTrashDirName)
 				if err != nil {
 					return err

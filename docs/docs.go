@@ -1347,41 +1347,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/servers/{serverId}/backup": {
-            "post": {
-                "security": [
-                    {
-                        "SessionAuth": [
-                            "admin"
-                        ]
-                    },
-                    {
-                        "ApiKeyAuth": [
-                            "admin"
-                        ]
-                    }
-                ],
-                "tags": [
-                    "Servers"
-                ],
-                "summary": "Launch backup on a server",
-                "operationId": "LaunchBackup",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Server ID",
-                        "name": "serverId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    }
-                }
-            }
-        },
         "/share/file": {
             "post": {
                 "produces": [
@@ -1840,6 +1805,41 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found"
+                    }
+                }
+            }
+        },
+        "/tower/{serverId}/backup": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "tags": [
+                    "Towers"
+                ],
+                "summary": "Launch backup on a tower",
+                "operationId": "LaunchBackup",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Server ID",
+                        "name": "serverId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
                     }
                 }
             }
@@ -2621,6 +2621,9 @@ const docTemplate = `{
             ],
             "properties": {
                 "actionType": {
+                    "type": "string"
+                },
+                "contentId": {
                     "type": "string"
                 },
                 "destinationPath": {

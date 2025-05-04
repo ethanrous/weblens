@@ -2,8 +2,9 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import path from 'node:path'
 import sass from 'sass'
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig, loadEnv, type PluginOption } from 'vite'
 import viteTsconfigPaths from 'vite-tsconfig-paths'
+import { visualizer } from "rollup-plugin-visualizer";
 
 export default ({ mode }: { mode: string }) => {
 	process.env = { ...process.env, ...loadEnv(mode, process.cwd()) }
@@ -28,7 +29,7 @@ export default ({ mode }: { mode: string }) => {
 			babel: {
 				plugins: [['babel-plugin-react-compiler', { target: '18' }]],
 			},
-		}), viteTsconfigPaths(), tailwindcss()],
+		}), viteTsconfigPaths(), tailwindcss(), visualizer() as PluginOption],
 		mode: 'development',
 		server: {
 			// this ensures that the browser opens upon server start
@@ -60,6 +61,7 @@ export default ({ mode }: { mode: string }) => {
 		css: {
 			preprocessorOptions: {
 				scss: {
+					api: 'modern',
 					implementation: sass,
 				},
 			},

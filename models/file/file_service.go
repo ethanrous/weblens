@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/fs"
 )
@@ -35,6 +36,7 @@ type FileService interface {
 	// CreateUserHome creates a home directory for a user
 	CreateUserHome(ctx context.Context, user *user_model.User) error
 
+	InitBackupDirectory(ctx context.Context, tower tower_model.Instance) (*WeblensFileImpl, error)
 	// IsFileInTrash checks if a file is in the trash
 	// IsFileInTrash(file *WeblensFileImpl) bool
 

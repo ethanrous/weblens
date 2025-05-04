@@ -46,6 +46,8 @@ definitions:
     properties:
       actionType:
         type: string
+      contentId:
+        type: string
       destinationPath:
         type: string
       eventId:
@@ -1429,26 +1431,6 @@ paths:
       summary: Set media visibility
       tags:
       - Media
-  /servers/{serverId}/backup:
-    post:
-      operationId: LaunchBackup
-      parameters:
-      - description: Server ID
-        in: path
-        name: serverId
-        required: true
-        type: string
-      responses:
-        "200":
-          description: OK
-      security:
-      - SessionAuth:
-        - admin
-      - ApiKeyAuth:
-        - admin
-      summary: Launch backup on a server
-      tags:
-      - Servers
   /share/{shareId}:
     delete:
       operationId: DeleteFileShare
@@ -1637,6 +1619,26 @@ paths:
       - ApiKeyAuth:
         - admin
       summary: Delete a remote
+      tags:
+      - Towers
+  /tower/{serverId}/backup:
+    post:
+      operationId: LaunchBackup
+      parameters:
+      - description: Server ID
+        in: path
+        name: serverId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Launch backup on a tower
       tags:
       - Towers
   /tower/backup:

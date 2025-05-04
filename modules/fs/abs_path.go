@@ -6,12 +6,15 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
 var absPathMap = make(map[string]string)
 var pathMapLock = sync.RWMutex{}
 
 func RegisterAbsolutePrefix(alias, path string) error {
+	log.Debug().Msgf("Registering absolute path alias: %s -> %s", alias, path)
+
 	if !strings.HasPrefix(path, "/") {
 		return errors.New("absolute path must start with /")
 	}
@@ -31,6 +34,7 @@ func RegisterAbsolutePrefix(alias, path string) error {
 
 	pathMapLock.Lock()
 	defer pathMapLock.Unlock()
+
 	absPathMap[alias] = path
 
 	return nil

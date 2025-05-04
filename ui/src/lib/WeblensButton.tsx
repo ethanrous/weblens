@@ -5,97 +5,6 @@ import React, { CSSProperties, useEffect, useState } from 'react'
 import LoaderDots from './LoaderDots'
 import { ButtonActionHandler, ButtonProps } from './buttonTypes'
 
-// function ButtonContent({
-//     label,
-//     Left,
-//     Right,
-//     staticTextWidth,
-//     setTextWidth,
-//     buttonWidth,
-//     iconSize,
-//     centerContent,
-//     hidden,
-//     labelOnHover,
-// }: ButtonContentProps) {
-//     const [textRef, setTextRef] = useState<HTMLParagraphElement>()
-//     const { width: textWidth } = useResize(textRef)
-//
-//     useEffect(() => {
-//         if (textWidth !== -1 && !staticTextWidth) {
-//             setTextWidth(textWidth)
-//         }
-//     }, [textWidth])
-//
-//     const showText = useMemo(() => {
-//         if (buttonWidth === -1 || textWidth === -1) {
-//             return true
-//         }
-//         if (!label) {
-//             return false
-//         } else if (!Left && !Right) {
-//             return true
-//         }
-//
-//         return (
-//             (Boolean(label) && !Left && !Right) ||
-//             buttonWidth >= iconSize + textWidth ||
-//             buttonWidth === 0
-//         )
-//     }, [buttonWidth, textWidth])
-//
-//     if (!iconSize) {
-//         iconSize = 24
-//     }
-//
-//     return (
-//         <div
-//             className={buttonStyle.buttonContent}
-//             data-center={centerContent || !showText}
-//             data-hidden={hidden}
-//             data-has-icon={Boolean(Left || Right)}
-//         >
-//             <div
-//                 className={buttonStyle.buttonIconBox}
-//                 data-has-icon={Boolean(Left)}
-//                 data-has-text={showText}
-//                 style={{
-//                     height: iconSize,
-//                     width: iconSize,
-//                 }}
-//             >
-//                 {Left && <Left className={buttonStyle.buttonIcon} />}
-//             </div>
-//             <div
-//                 className={buttonStyle.buttonTextBox}
-//                 data-show-text={showText}
-//                 data-center={centerContent}
-//                 data-hover-only={labelOnHover}
-//             >
-//                 <p
-//                     className={buttonStyle.buttonText}
-//                     ref={setTextRef}
-//                     data-show-text={showText}
-//                 >
-//                     {label}
-//                 </p>
-//             </div>
-//
-//             <div
-//                 className={buttonStyle.buttonIconBox}
-//                 data-has-icon={Boolean(Right)}
-//                 data-has-text={showText}
-//                 data-icon-side={'right'}
-//                 style={{
-//                     height: iconSize,
-//                     // width: iconSize,
-//                 }}
-//             >
-//                 {Right && <Right className={buttonStyle.buttonIcon} />}
-//             </div>
-//         </div>
-//     )
-// }
-
 const handleButtonEvent = async (
     e: React.MouseEvent<HTMLElement, MouseEvent>,
     handler: ButtonActionHandler,
@@ -154,6 +63,8 @@ function WeblensButton({
     Right = null,
     fillWidth = false,
     onClick,
+
+    tooltip,
 
     flavor = 'default',
     size = 'default',
@@ -226,7 +137,7 @@ function WeblensButton({
 
     return (
         <div
-            className="bg-background-primary flex h-max min-h-0 w-max rounded data-fill-width:w-full"
+            className="bg-background-primary group relative flex h-max min-h-0 w-max rounded data-fill-width:w-full"
             data-fill-width={fillWidth ? true : null}
         >
             <button
@@ -304,6 +215,13 @@ function WeblensButton({
                     )}
                 </span>
             </button>
+            {tooltip && (
+                <div
+                    className="bg-background-secondary text-color-text-primary pointer-events-none absolute -bottom-[90%] z-50 w-max translate-x-[-20%] rounded-md p-1 opacity-0 shadow-lg transition group-hover:block group-hover:opacity-100 border"
+                >
+                    <span className="">{tooltip}</span>
+                </div>
+            )}
         </div>
     )
 }

@@ -11,4 +11,5 @@ type FileActionInfo struct {
 	TowerId         string `json:"towerId" validate:"required"`
 	Timestamp       int64  `json:"timestamp" validate:"required" format:"int64"`
 	Size            int64  `json:"size" validate:"required" format:"int64"`
+	ContentId       string `json:"contentId,omitempty"`
 } // @name FileActionInfo

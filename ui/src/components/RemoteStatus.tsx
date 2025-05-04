@@ -6,6 +6,7 @@ import {
     IconFile,
     IconReload,
     IconRestore,
+    IconServer,
     IconTrash,
     IconX,
 } from '@tabler/icons-react'
@@ -28,7 +29,8 @@ import { humanFileSize, nsToHumanTime } from '@weblens/util'
 import { useEffect, useMemo, useState } from 'react'
 
 import WeblensLoader from './Loading'
-import WebsocketStatus from './filebrowser/websocketStatus'
+import { useSessionStore } from './UserInfo'
+import { WebsocketStatusCard } from './filebrowser/websocketStatus'
 
 export default function RemoteStatus({
     remoteInfo,
@@ -47,6 +49,8 @@ export default function RemoteStatus({
     const [newApiKey, setNewApiKey] = useState('')
     const [restoreUrl, setRestoreUrl] = useState(remoteInfo.coreAddress)
     const { elapsedTime } = useTimer(restoreProgress?.timestamp)
+
+    const serverInfo = useSessionStore((state) => state.server)
 
     const roleMismatch =
         remoteInfo.role === 'core' &&
@@ -98,112 +102,139 @@ export default function RemoteStatus({
     return (
         <div
             key={remoteInfo.id}
-            className="bg-background-secondary data-[restoring=true]-h-[400px] flex w-full flex-col overflow-hidden rounded-md border p-4 transition"
+            className="bg-background-secondary data-[restoring=true]-h-[400px] flex w-full flex-col rounded-md border p-2 transition"
             data-restoring={restoring}
             data-backup={backupProgress !== null}
         >
-            <div className="flex w-full flex-row">
-                <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-1">
-                        <WebsocketStatus ready={remoteInfo.online ? 1 : -1} />
-                        <WeblensTooltip
-                            label={
-                                <div className="flex flex-row">
-                                    <IconClipboard />
-                                    <p>{remoteInfo.id}</p>
-                                </div>
-                            }
-                        >
-                            <h3
-                                className="theme-text-dark-bg mb-1 ml-1 cursor-pointer truncate text-center select-none"
-                                onClick={() => {
-                                    navigator.clipboard
-                                        .writeText(remoteInfo.id)
-                                        .catch(ErrorHandler)
-                                }}
-                            >
-                                {remoteInfo.name}
-                            </h3>
-                        </WeblensTooltip>
+            <div className="mb-2 flex flex-row items-center justify-between">
+                <span className="flex w-max items-center gap-1 text-lg">
+                    <IconServer />
+                    {remoteInfo.name}
+                </span>
+                {remoteInfo.id !== serverInfo.id && (
+                    <WebsocketStatusCard ready={remoteInfo.online ? 1 : -1} />
+                )}
+                {remoteInfo.id === serverInfo.id && (
+                    <div className="bg-amethyst-600 flex w-max items-center gap-2 rounded p-1">
+                        <span className="text-xs">This Tower</span>
                     </div>
+                )}
+            </div>
+
+            <div className="flex w-full gap-6">
+                <div className="flex flex-col">
+                    <span className="text-text-secondary flex items-center gap-1 text-nowrap">
+                        <IconClockHour4 size={14} />
+                        Last Backup
+                    </span>
                     <div className="flex h-max gap-1">
-                        <IconClockHour4 />
-                        <span className="theme-text-dark-bg">
+                        <span className="theme-text-dark-bg text-nowrap">
                             {remoteInfo.lastBackup
                                 ? historyDateTime(remoteInfo.lastBackup)
                                 : 'Never'}
                         </span>
-                        {remoteInfo.backupSize != -1 && (
-                            <div className="flex">
-                                <div className="h-min-1 m-1 w-[1px] bg-(--wl-outline-subtle)" />
-                                <p className="text-white">
-                                    {humanFileSize(remoteInfo.backupSize)}
-                                </p>
-                            </div>
-                        )}
                     </div>
                 </div>
-                {roleMismatch && (
-                    <div className="flex flex-col items-center gap-1">
-                        <span className="text-red-500">
-                            Server is not initialized
+
+                {remoteInfo.backupSize != -1 && (
+                    <div className="flex w-max flex-col">
+                        <span className="text-text-secondary text-nowrap">
+                            Backup size
                         </span>
-                        <p>Restore recommended</p>
-                        <div className="flex gap-2">
-                            <WeblensInput
-                                value={newApiKey}
-                                placeholder="New Api Key"
-                                valueCallback={setNewApiKey}
-                            />
-                            <WeblensButton
-                                Left={IconArrowRight}
-                                onClick={() => {
-                                    TowersApi.updateRemote(remoteInfo.id, {
-                                        usingKey: newApiKey,
-                                    }).catch(ErrorHandler)
-                                    setNewApiKey('')
-                                }}
-                            />
-                        </div>
+                        <span className="text-white">
+                            {humanFileSize(remoteInfo.backupSize)}
+                        </span>
                     </div>
                 )}
-                <div className="ml-auto flex max-w-full flex-row gap-2">
-                    <WeblensButton
-                        squareSize={40}
-                        labelOnHover
-                        tooltip={canSync ? 'Sync now' : 'Sync unavailable'}
-                        Left={IconReload}
-                        disabled={!canSync}
-                        onClick={async () => {
-                            return TowersApi.launchBackup(remoteInfo.id).catch(
-                                ErrorHandler
-                            )
-                        }}
-                    />
-                    {remoteInfo.role === 'core' && (
-                        <WeblensButton
-                            tooltip={
-                                canSync
-                                    ? 'Restore'
-                                    : 'Server is already initialized'
-                            }
-                            requireConfirm
-                            Left={IconRestore}
-                            squareSize={40}
-                            disabled={canSync}
-                            onClick={() => setRestoring((p) => !p)}
-                        />
+
+                <div className="mr-6 flex flex-col">
+                    <span className="text-text-secondary">Tower Id</span>
+                    <WeblensTooltip
+                        label={
+                            <div className="flex flex-row">
+                                <IconClipboard />
+                                <p>{remoteInfo.id}</p>
+                            </div>
+                        }
+                        className="w-max"
+                    >
+                        <h5
+                            className="cursor-pointer truncate text-center leading-none select-none"
+                            onClick={() => {
+                                navigator.clipboard
+                                    .writeText(remoteInfo.id)
+                                    .catch(ErrorHandler)
+                            }}
+                        >
+                            {remoteInfo.id}
+                        </h5>
+                    </WeblensTooltip>
+                </div>
+
+                <div className="flex w-full flex-row">
+                    {roleMismatch && (
+                        <div className="flex flex-col items-center gap-1">
+                            <span className="text-red-500">
+                                Server is not initialized
+                            </span>
+                            <p>Restore recommended</p>
+                            <div className="flex gap-2">
+                                <WeblensInput
+                                    value={newApiKey}
+                                    placeholder="New Api Key"
+                                    valueCallback={setNewApiKey}
+                                />
+                                <WeblensButton
+                                    Left={IconArrowRight}
+                                    onClick={() => {
+                                        TowersApi.updateRemote(remoteInfo.id, {
+                                            usingKey: newApiKey,
+                                        }).catch(ErrorHandler)
+                                        setNewApiKey('')
+                                    }}
+                                />
+                            </div>
+                        </div>
                     )}
-                    <WeblensButton
-                        Left={IconTrash}
-                        danger
-                        requireConfirm
-                        onClick={() => {
-                            TowersApi.deleteRemote(remoteInfo.id)
-                                .then(() => refetchRemotes())
-                                .catch(ErrorHandler)
-                        }}
-                    />
+                    <div className="ml-auto flex max-w-full flex-row gap-2">
+                        <WeblensButton
+                            squareSize={40}
+                            labelOnHover
+                            tooltip={canSync ? 'Sync now' : 'Sync unavailable'}
+                            Left={IconReload}
+                            disabled={!canSync}
+                            onClick={async () => {
+                                return TowersApi.launchBackup(
+                                    remoteInfo.id
+                                ).catch(ErrorHandler)
+                            }}
+                        />
+                        {remoteInfo.role === 'core' && (
+                            <WeblensButton
+                                tooltip={
+                                    canSync
+                                        ? 'Restore'
+                                        : 'Server is already initialized'
+                                }
+                                requireConfirm
+                                Left={IconRestore}
+                                squareSize={40}
+                                disabled={canSync}
+                                onClick={() => setRestoring((p) => !p)}
+                            />
+                        )}
+                        <WeblensButton
+                            Left={IconTrash}
+                            danger
+                            requireConfirm
+                            tooltip="Delete remote"
+                            onClick={() => {
+                                TowersApi.deleteRemote(remoteInfo.id)
+                                    .then(() => refetchRemotes())
+                                    .catch(ErrorHandler)
+                            }}
+                        />
+                    </div>
                 </div>
             </div>
             {restoring && (

@@ -8,10 +8,8 @@ import {
     IconUser,
     IconX,
 } from '@tabler/icons-react'
-import ReactCodeMirror from '@uiw/react-codemirror'
 import { FileApi } from '@weblens/api/FileBrowserApi'
 import MediaApi from '@weblens/api/MediaApi'
-import { useWebsocketStore } from '@weblens/api/Websocket'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import { useKeyDown, useResize, useResizeDrag } from '@weblens/lib/hooks'
 import {
@@ -184,14 +182,14 @@ function TextDisplay({
             className="bg-background-secondary rounded-sm p-8"
             onClick={(e) => e.stopPropagation()}
         >
-            <ReactCodeMirror
-                value={content}
-                theme={'dark'}
-                basicSetup={{ lineNumbers: false, foldGutter: false }}
-                minHeight={'100%'}
-                minWidth={'100%'}
-                editable={false}
-            />
+            {/* <ReactCodeMirror */}
+            {/*     value={content} */}
+            {/*     theme={'dark'} */}
+            {/*     basicSetup={{ lineNumbers: false, foldGutter: false }} */}
+            {/*     minHeight={'100%'} */}
+            {/*     minWidth={'100%'} */}
+            {/*     editable={false} */}
+            {/* /> */}
         </div>
     )
 }
@@ -270,7 +268,6 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
     )
     const user = useSessionStore((state) => state.user)
 
-    const wsSend = useWebsocketStore((state) => state.wsSend)
     const removeLoading = useFileBrowserStore((state) => state.removeLoading)
     const nav = useNavigate()
 
@@ -308,7 +305,6 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
                             downloadSelected(
                                 [file],
                                 removeLoading,
-                                wsSend,
                                 shareId
                             ).catch(ErrorHandler)
                         }}
@@ -322,7 +318,6 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
                                 downloadSelected(
                                     [file],
                                     removeLoading,
-                                    wsSend,
                                     shareId
                                 ).catch(ErrorHandler)
                             }}

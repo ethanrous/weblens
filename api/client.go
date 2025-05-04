@@ -57,8 +57,6 @@ type APIClient struct {
 
 	MediaAPI *MediaAPIService
 
-	ServersAPI *ServersAPIService
-
 	ShareAPI *ShareAPIService
 
 	TowersAPI *TowersAPIService
@@ -86,7 +84,6 @@ func NewAPIClient(cfg *Configuration) *APIClient {
 	c.FilesAPI = (*FilesAPIService)(&c.common)
 	c.FolderAPI = (*FolderAPIService)(&c.common)
 	c.MediaAPI = (*MediaAPIService)(&c.common)
-	c.ServersAPI = (*ServersAPIService)(&c.common)
 	c.ShareAPI = (*ShareAPIService)(&c.common)
 	c.TowersAPI = (*TowersAPIService)(&c.common)
 	c.UsersAPI = (*UsersAPIService)(&c.common)

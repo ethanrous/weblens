@@ -21,9 +21,11 @@ done
 docker stop weblens-quick-core
 docker rm weblens-quick-core
 
-if ! docker image ls | grep quick-core-arm64; then
+arch=$(uname -m)
+
+if ! docker image ls | grep "quick-core-$arch"; then
     echo "Container does not exist, building..."
-    if ! ./scripts/gogogadgetdocker.bash -t "quick-core" -a "arm64"; then
+    if ! ./scripts/gogogadgetdocker.bash -t "quick-core" -a "$arch"; then
         echo "Failed to build container"
         exit 1
     fi
@@ -54,16 +56,15 @@ if ! docker ps | grep weblens-quick-core-mongo; then
     done
 fi
 
-# --rm \
-# -d \
 docker run \
+    --rm \
     --name weblens-quick-core \
     -p 8089:8080 \
-    -v ./build/fs/core-container/data:/data, \
+    -v ./build/fs/core-container/data:/data \
     -v ./build/fs/core-container/cache:/cache \
     -e WEBLENS_MONGODB_URI=mongodb://weblens-quick-core-mongo:27017/?replicaSet=rs0 \
     -e WEBLENS_MONGODB_NAME=weblens-quick-core \
-    -e WEBLENS_LOG_LEVEL=trace \
+    -e WEBLENS_LOG_LEVEL=debug \
     -e LOG_FORMAT=dev \
     --network weblens-net \
-    ethrous/weblens:quick-core-arm64
+    ethrous/weblens:quick-core-"$arch"

@@ -16,10 +16,9 @@ import {
     IconUsers,
     IconUsersPlus,
 } from '@tabler/icons-react'
-import { FileApi, FolderApi } from '@weblens/api/FileBrowserApi'
+import { FileApi, FolderApi, ScanDirectory } from '@weblens/api/FileBrowserApi'
 import SharesApi from '@weblens/api/SharesApi'
 import UsersApi from '@weblens/api/UserApi'
-import { useWebsocketStore } from '@weblens/api/Websocket'
 import { UserInfo } from '@weblens/api/swag'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import { FileFmt } from '@weblens/components/filebrowser/filename'
@@ -311,7 +310,6 @@ function StandardFileMenu({
     activeItems: { items: WeblensFile[] }
 }) {
     const user = useSessionStore((state) => state.user)
-    const wsSend = useWebsocketStore((state) => state.wsSend)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const menuTarget = useFileBrowserStore((state) => state.menuTargetId)
     const menuMode = useFileBrowserStore((state) => state.menuMode)
@@ -383,7 +381,6 @@ function StandardFileMenu({
                     return await downloadSelected(
                         activeItems.items,
                         removeLoading,
-                        wsSend,
                         dlShareId
                     )
                         .then(() =>
@@ -493,9 +490,7 @@ function StandardFileMenu({
                 onMouseLeave={() => setFooterNote({ hint: '', danger: false })}
                 onClick={(e) => {
                     e.stopPropagation()
-                    activeItems.items.forEach((i) =>
-                        wsSend('scanDirectory', { folderId: i.Id() })
-                    )
+                    activeItems.items.forEach(ScanDirectory)
                     setMenu({ menuState: FbMenuModeT.Closed })
                 }}
             />
@@ -545,7 +540,7 @@ function PastFileMenu({
 
     return (
         <div
-            className="no-scrollbar grid grid-flow-row grid-cols-2 items-center justify-center justify-items-center pb-4 pt-1 px-1"
+            className="no-scrollbar grid grid-flow-row grid-cols-2 items-center justify-center justify-items-center px-1 pt-1 pb-4"
             data-visible={menuMode === FbMenuModeT.Default}
         >
             <WeblensButton
@@ -1214,8 +1209,6 @@ function BackdropDefaultItems({
     const menuMode = useFileBrowserStore((state) => state.menuMode)
     const menuTarget = useFileBrowserStore((state) => state.menuTargetId)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
-    const shareId = useFileBrowserStore((state) => state.shareId)
-    const wsSend = useWebsocketStore((state) => state.wsSend)
 
     const setMenu = useFileBrowserStore((state) => state.setMenu)
 
@@ -1273,10 +1266,7 @@ function BackdropDefaultItems({
                 onMouseLeave={() => setFooterNote({ hint: '', danger: false })}
                 onClick={(e) => {
                     e.stopPropagation()
-                    wsSend('scanDirectory', {
-                        folderId: folderInfo.Id(),
-                        shareId: shareId,
-                    })
+                    ScanDirectory(folderInfo)
                 }}
             />
         </div>

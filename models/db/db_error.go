@@ -40,10 +40,15 @@ func NewNotFoundError(message string) error {
 }
 
 func IsNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+
 	var notFoundErr *NotFoundError
 	if errors.As(err, &notFoundErr) {
 		return true
 	}
+
 	return false
 }
 

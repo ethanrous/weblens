@@ -10,6 +10,7 @@ Method | HTTP request | Description
 [**GetRemotes**](TowersAPI.md#GetRemotes) | **Get** /tower | Get all remotes
 [**GetServerInfo**](TowersAPI.md#GetServerInfo) | **Get** /info | Get server info
 [**InitializeTower**](TowersAPI.md#InitializeTower) | **Post** /tower/init | Initialize the target server
+[**LaunchBackup**](TowersAPI.md#LaunchBackup) | **Post** /tower/{serverId}/backup | Launch backup on a tower
 [**ResetTower**](TowersAPI.md#ResetTower) | **Post** /tower/reset | Reset tower
 
 
@@ -384,6 +385,72 @@ No authorization required
 
 - **Content-Type**: Not defined
 - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
+
+
+## LaunchBackup
+
+> LaunchBackup(ctx, serverId).Execute()
+
+Launch backup on a tower
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/ethanrous/weblens/api"
+)
+
+func main() {
+	serverId := "serverId_example" // string | Server ID
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	r, err := apiClient.TowersAPI.LaunchBackup(context.Background(), serverId).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `TowersAPI.LaunchBackup``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+}
+```
+
+### Path Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+**ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
+**serverId** | **string** | Server ID | 
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiLaunchBackupRequest struct via the builder pattern
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+
+
+### Return type
+
+ (empty response body)
+
+### Authorization
+
+[ApiKeyAuth](../README.md#ApiKeyAuth)
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: Not defined
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
 [[Back to Model list]](../README.md#documentation-for-models)

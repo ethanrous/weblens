@@ -1,5 +1,5 @@
 import { IconChevronDown, IconChevronLeft } from '@tabler/icons-react'
-import { WsMsgEvent, useWebsocketStore } from '@weblens/api/Websocket'
+import { WsAction, useWebsocketStore } from '@weblens/api/Websocket'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import { Component, ReactNode, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -31,9 +31,12 @@ class ErrorBoundary extends Component<
         const wsSend = useWebsocketStore.getState().wsSend
         this.setState({ error: error.message })
         if (wsSend != null && error.message != null) {
-            wsSend(WsMsgEvent.ErrorEvent, {
-                action: 'show_web_error',
-                content: error.message,
+            wsSend({
+                action: WsAction.ReportError,
+                content: {
+                    action: 'show_web_error',
+                    content: error.message,
+                },
             })
         }
     }

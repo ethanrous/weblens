@@ -116,6 +116,9 @@ func wsWebClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte, c
 	case websocket_mod.ActionSubscribe:
 		{
 			subscription := reshape.GetSubscribeInfo(msg)
+			if subscription.SubscriptionId == "" {
+				return errors.Errorf("missing subscription id")
+			}
 
 			switch subscription.Type {
 			case websocket_mod.FolderSubscribe:
@@ -129,6 +132,9 @@ func wsWebClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte, c
 					}
 
 					f, err := ctx.FileService.GetFileById(subscription.SubscriptionId)
+					if err != nil {
+						return errors.WithStack(err)
+					}
 
 					err = ctx.ClientService.SubscribeToFile(ctx, c, f, share, time.UnixMilli(msg.SentTime))
 					if err != nil {
@@ -155,14 +161,9 @@ func wsWebClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte, c
 						}
 
 					}
-				} else if strings.HasPrefix(key, "TT#") {
-					// key = key[3:]
-					//
-					// _, _, err := ctx.ClientService.SubscribeToTask(c, key, client_model.TaskTypeSubscribe, time.Now(), nil)
-					// if err != nil {
-					// 	c.Error(err)
-					// }
 				}
+			case websocket_mod.TaskTypeSubscribe:
+				ctx.Log().Error().Msgf("Task type subscription not implemented: %s", subscription.SubscriptionId)
 			default:
 				return errors.Errorf("unknown subscription type: %s", msg.BroadcastType)
 			}

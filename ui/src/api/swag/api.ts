@@ -115,6 +115,12 @@ export interface FileActionInfo {
      * @type {string}
      * @memberof FileActionInfo
      */
+    'contentId'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof FileActionInfo
+     */
     'destinationPath'?: string;
     /**
      * 
@@ -4155,117 +4161,6 @@ export type GetMediaImageQualityEnum = typeof GetMediaImageQualityEnum[keyof typ
 
 
 /**
- * ServersApi - axios parameter creator
- * @export
- */
-export const ServersApiAxiosParamCreator = function (configuration?: Configuration) {
-    return {
-        /**
-         * 
-         * @summary Launch backup on a server
-         * @param {string} serverId Server ID
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        launchBackup: async (serverId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'serverId' is not null or undefined
-            assertParamExists('launchBackup', 'serverId', serverId)
-            const localVarPath = `/servers/{serverId}/backup`
-                .replace(`{${"serverId"}}`, encodeURIComponent(String(serverId)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            // authentication ApiKeyAuth required
-            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
-
-
-    
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-    }
-};
-
-/**
- * ServersApi - functional programming interface
- * @export
- */
-export const ServersApiFp = function(configuration?: Configuration) {
-    const localVarAxiosParamCreator = ServersApiAxiosParamCreator(configuration)
-    return {
-        /**
-         * 
-         * @summary Launch backup on a server
-         * @param {string} serverId Server ID
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async launchBackup(serverId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.launchBackup(serverId, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['ServersApi.launchBackup']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-    }
-};
-
-/**
- * ServersApi - factory interface
- * @export
- */
-export const ServersApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
-    const localVarFp = ServersApiFp(configuration)
-    return {
-        /**
-         * 
-         * @summary Launch backup on a server
-         * @param {string} serverId Server ID
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        launchBackup(serverId: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.launchBackup(serverId, options).then((request) => request(axios, basePath));
-        },
-    };
-};
-
-/**
- * ServersApi - object-oriented interface
- * @export
- * @class ServersApi
- * @extends {BaseAPI}
- */
-export class ServersApi extends BaseAPI {
-    /**
-     * 
-     * @summary Launch backup on a server
-     * @param {string} serverId Server ID
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof ServersApi
-     */
-    public launchBackup(serverId: string, options?: RawAxiosRequestConfig) {
-        return ServersApiFp(this.configuration).launchBackup(serverId, options).then((request) => request(this.axios, this.basePath));
-    }
-}
-
-
-
-/**
  * ShareApi - axios parameter creator
  * @export
  */
@@ -4893,6 +4788,43 @@ export const TowersApiAxiosParamCreator = function (configuration?: Configuratio
         },
         /**
          * 
+         * @summary Launch backup on a tower
+         * @param {string} serverId Server ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        launchBackup: async (serverId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'serverId' is not null or undefined
+            assertParamExists('launchBackup', 'serverId', serverId)
+            const localVarPath = `/tower/{serverId}/backup`
+                .replace(`{${"serverId"}}`, encodeURIComponent(String(serverId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication ApiKeyAuth required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary Reset tower
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -5012,6 +4944,19 @@ export const TowersApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary Launch backup on a tower
+         * @param {string} serverId Server ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async launchBackup(serverId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.launchBackup(serverId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TowersApi.launchBackup']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Reset tower
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -5089,6 +5034,16 @@ export const TowersApiFactory = function (configuration?: Configuration, basePat
          */
         initializeTower(request: StructsInitServerParams, options?: RawAxiosRequestConfig): AxiosPromise<Array<TowerInfo>> {
             return localVarFp.initializeTower(request, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Launch backup on a tower
+         * @param {string} serverId Server ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        launchBackup(serverId: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.launchBackup(serverId, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -5177,6 +5132,18 @@ export class TowersApi extends BaseAPI {
      */
     public initializeTower(request: StructsInitServerParams, options?: RawAxiosRequestConfig) {
         return TowersApiFp(this.configuration).initializeTower(request, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Launch backup on a tower
+     * @param {string} serverId Server ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof TowersApi
+     */
+    public launchBackup(serverId: string, options?: RawAxiosRequestConfig) {
+        return TowersApiFp(this.configuration).launchBackup(serverId, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

@@ -28,6 +28,7 @@ fi
 echo "DONE"
 
 printf "Generating go api..."
+rm ./api/*.go
 if ! openapi-generator generate -i docs/swagger.json -g go --git-user-id ethanrous --git-repo-id weblens/api -o ./api/ >>./build/logs/swag-go.log; then
     echo "FAILED"
     cat ./build/logs/swag-go.log

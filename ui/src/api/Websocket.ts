@@ -49,11 +49,19 @@ export function useWeblensSocket() {
 		})
 
 	useEffect(() => {
-		const send = (action: string, content: object) => {
+		const send: WsSendFunc = ({
+			action,
+			subscriptionType,
+			subscribeKey,
+			content
+		}: WsSendProps) => {
 			const msg = {
+				// TODO: Add a type for this
 				action: action,
+				broadcastType: subscriptionType,
 				sentAt: Date.now(),
-				content: JSON.stringify(content),
+				subscribeKey: subscribeKey,
+				content: content,
 			}
 			// console.debug('WSSend', msg)
 			sendMessage(JSON.stringify(msg))
@@ -75,7 +83,14 @@ export function useWeblensSocket() {
 	}
 }
 
-export type WsSendT = (action: string, content: object) => void
+export type WsSendProps = {
+	action: WsAction,
+	subscriptionType?: WsSubscriptionType,
+	subscribeKey?: string,
+	content: object,
+}
+
+export type WsSendFunc = (props: WsSendProps) => void
 
 export const useSubscribe = () => {
 	const folderInfo = useFileBrowserStore((state) => state.folderInfo)
@@ -137,7 +152,7 @@ export const useSubscribe = () => {
 }
 
 export interface wsMsgInfo {
-	eventTag: WsMsgEvent
+	eventTag: WsEvent
 	subscribeKey: string
 	content: wsMsgContent
 
@@ -209,7 +224,7 @@ export interface FBSubscribeDispatchT {
 	deleteFile: (fileId: string) => void
 }
 
-export enum WsMsgEvent {
+export enum WsEvent {
 	BackupCompleteEvent = 'backupComplete',
 	BackupFailedEvent = 'backupFailed',
 	BackupProgressEvent = 'backupProgress',
@@ -248,8 +263,19 @@ export enum WsMsgEvent {
 	ZipProgressEvent = 'createZipProgress',
 }
 
-export enum WsMsgAction {
-	CancelTaskAction = 'cancelTask',
+export enum WsAction {
+	CancelTask = 'cancelTask',
+	ReportError = "showWebError",
+	ScanDirectory = "scanDirectory",
+	Subscribe = "subscribe",
+	Unsubscribe = "unsubscribe",
+}
+export enum WsSubscriptionType {
+	Folder = "folderSubscribe",
+	System = "systemSubscribe",
+	Task = "taskSubscribe",
+	TaskType = "taskTypeSubscribe",
+	User = "userSubscribe",
 }
 
 function filebrowserWebsocketHandler(
@@ -258,14 +284,14 @@ function filebrowserWebsocketHandler(
 ) {
 	return (msgData: wsMsgInfo) => {
 		switch (msgData.eventTag) {
-			case WsMsgEvent.FileCreatedEvent: {
+			case WsEvent.FileCreatedEvent: {
 				const fileInfo = msgData.content.fileInfo as FileInfo
 				dispatch.addFile(fileInfo)
 				break
 			}
 
-			case WsMsgEvent.FileMovedEvent:
-			case WsMsgEvent.FileUpdatedEvent: {
+			case WsEvent.FileMovedEvent:
+			case WsEvent.FileUpdatedEvent: {
 				const fileInfo = msgData.content.fileInfo as FileInfo
 				if (msgData.content.mediaData) {
 					const newM = new WeblensMedia(msgData.content.mediaData)
@@ -279,8 +305,8 @@ function filebrowserWebsocketHandler(
 				break
 			}
 
-			case WsMsgEvent.FilesMovedEvent:
-			case WsMsgEvent.FilesUpdatedEvent: {
+			case WsEvent.FilesMovedEvent:
+			case WsEvent.FilesUpdatedEvent: {
 				if (msgData.content.mediaDatas) {
 					const newMs: WeblensMedia[] = []
 					for (const mediaData of msgData.content.mediaDatas) {
@@ -307,7 +333,7 @@ function filebrowserWebsocketHandler(
 				break
 			}
 
-			case WsMsgEvent.FileDeletedEvent: {
+			case WsEvent.FileDeletedEvent: {
 				const fileInfo = msgData.content.fileInfo as FileInfo
 				if (fileInfo.id === undefined) {
 					console.error('FileDeletedEvent missing fileId')
@@ -318,10 +344,10 @@ function filebrowserWebsocketHandler(
 				break
 			}
 
-			case WsMsgEvent.FilesDeletedEvent: {
+			case WsEvent.FilesDeletedEvent: {
 				if (msgData.content.fileIds === undefined) {
 					console.error(
-						WsMsgEvent.FilesDeletedEvent + ' missing fileIds'
+						WsEvent.FilesDeletedEvent + ' missing fileIds'
 					)
 					break
 				}
@@ -333,7 +359,7 @@ function filebrowserWebsocketHandler(
 				break
 			}
 
-			case WsMsgEvent.TaskCreatedEvent: {
+			case WsEvent.TaskCreatedEvent: {
 				// if (msgData.content.totalFiles === undefined) {
 				//     console.error('TaskCreatedEvent missing totalFiles')
 				//     break
@@ -363,7 +389,7 @@ function filebrowserWebsocketHandler(
 				break
 			}
 
-			case WsMsgEvent.FolderScanCompleteEvent: {
+			case WsEvent.FolderScanCompleteEvent: {
 				useTaskState
 					.getState()
 					.handleTaskCompete(
@@ -374,14 +400,14 @@ function filebrowserWebsocketHandler(
 				break
 			}
 
-			case WsMsgEvent.TaskFailedEvent: {
+			case WsEvent.TaskFailedEvent: {
 				useTaskState
 					.getState()
 					.handleTaskFailure(msgData.subscribeKey, msgData.error)
 				break
 			}
 
-			case WsMsgEvent.ZipProgressEvent: {
+			case WsEvent.ZipProgressEvent: {
 				if (
 					msgData.content.bytesSoFar === undefined ||
 					msgData.content.bytesTotal === undefined
@@ -408,7 +434,7 @@ function filebrowserWebsocketHandler(
 				break
 			}
 
-			case WsMsgEvent.FileScanCompleteEvent: {
+			case WsEvent.FileScanCompleteEvent: {
 				useTaskState
 					.getState()
 					.updateTaskProgress(msgData.subscribeKey, {
@@ -421,7 +447,7 @@ function filebrowserWebsocketHandler(
 				break
 			}
 
-			case WsMsgEvent.FileScanStartedEvent: {
+			case WsEvent.FileScanStartedEvent: {
 				useTaskState
 					.getState()
 					.updateTaskProgress(msgData.subscribeKey, {
@@ -434,7 +460,7 @@ function filebrowserWebsocketHandler(
 				break
 			}
 
-			case WsMsgEvent.ScanDirectoryProgressEvent: {
+			case WsEvent.ScanDirectoryProgressEvent: {
 				useTaskState
 					.getState()
 					.updateTaskProgress(msgData.subscribeKey, {
@@ -447,7 +473,7 @@ function filebrowserWebsocketHandler(
 				break
 			}
 
-			case WsMsgEvent.ZipCompleteEvent: {
+			case WsEvent.ZipCompleteEvent: {
 				if (msgData.taskType !== 'create_zip') {
 					break
 				}
@@ -476,40 +502,40 @@ function filebrowserWebsocketHandler(
 				break
 			}
 
-			case WsMsgEvent.TaskCompleteEvent:
-			case WsMsgEvent.PoolCompleteEvent: {
+			case WsEvent.TaskCompleteEvent:
+			case WsEvent.PoolCompleteEvent: {
 				useTaskState
 					.getState()
 					.handleTaskCompete(msgData.subscribeKey, -1, '')
 				break
 			}
 
-			case WsMsgEvent.TaskCanceledEvent:
-			case WsMsgEvent.PoolCancelledEvent: {
+			case WsEvent.TaskCanceledEvent:
+			case WsEvent.PoolCancelledEvent: {
 				useTaskState.getState().handleTaskCancel(msgData.subscribeKey)
 				break
 			}
 
-			case WsMsgEvent.ServerGoingDownEvent: {
+			case WsEvent.ServerGoingDownEvent: {
 				useWebsocketStore.getState().setReadyState(-1)
 				setTimeout(() => location.reload(), 5000)
 				break
 			}
 
-			case WsMsgEvent.WeblensLoadedEvent:
-			case WsMsgEvent.BackupProgressEvent:
-			case WsMsgEvent.StartupProgressEvent:
-			case WsMsgEvent.BackupCompleteEvent:
-			case WsMsgEvent.PoolCreatedEvent:
-			case WsMsgEvent.RestoreStartedEvent:
-			case WsMsgEvent.CopyFileStartedEvent:
-			case WsMsgEvent.CopyFileCompleteEvent:
-			case WsMsgEvent.RemoteConnectionChangedEvent: {
+			case WsEvent.WeblensLoadedEvent:
+			case WsEvent.BackupProgressEvent:
+			case WsEvent.StartupProgressEvent:
+			case WsEvent.BackupCompleteEvent:
+			case WsEvent.PoolCreatedEvent:
+			case WsEvent.RestoreStartedEvent:
+			case WsEvent.CopyFileStartedEvent:
+			case WsEvent.CopyFileCompleteEvent:
+			case WsEvent.RemoteConnectionChangedEvent: {
 				// NoOp
 				return
 			}
 
-			case WsMsgEvent.ErrorEvent: {
+			case WsEvent.ErrorEvent: {
 				useMessagesController.getState().addMessage({ title: "Websocket Error", text: msgData.error, duration: 5000, severity: 'error' })
 				console.error(msgData.error)
 				return
@@ -528,11 +554,11 @@ function filebrowserWebsocketHandler(
 }
 
 export interface WebsocketControlT {
-	wsSend: WsSendT
+	wsSend: WsSendFunc
 	readyState: number
 	lastMessage: wsMsgInfo
 
-	setSender: (sender: WsSendT) => void
+	setSender: (sender: WsSendFunc) => void
 	setReadyState: (readyState: number) => void
 	setLastMessage: (msg: wsMsgInfo) => void
 }
@@ -544,7 +570,7 @@ const WebsocketControl: StateCreator<WebsocketControlT, [], []> = (set) => ({
 	readyState: 0,
 	lastMessage: null,
 
-	setSender: (sender: WsSendT) => {
+	setSender: (sender: WsSendFunc) => {
 		set({
 			wsSend: sender,
 		})

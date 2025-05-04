@@ -107,7 +107,12 @@ func ConnectCore(c context.Context, core *tower_model.Instance) error {
 					"Failed to connect to core server at %s: %s Trying again in %s",
 					coreUrl.String(), err, retryInterval,
 				)
-				time.Sleep(retryInterval)
+
+				select {
+				case <-c.Done():
+					return
+				case <-time.After(retryInterval):
+				}
 
 				continue
 			}

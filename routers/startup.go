@@ -4,16 +4,13 @@ import (
 	"context"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 
 	"github.com/ethanrous/weblens/models/db"
-	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/task"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/startup"
 	v1 "github.com/ethanrous/weblens/routers/api/v1"
 	"github.com/ethanrous/weblens/routers/router"
@@ -67,21 +64,6 @@ func Startup(ctx context_service.AppContext, cnf config.ConfigProvider) (*router
 
 	r := router.NewRouter()
 
-	err := fs.RegisterAbsolutePrefix(file_model.UsersTreeKey, filepath.Join(cnf.DataPath, "users"))
-	if err != nil {
-		return nil, err
-	}
-
-	err = fs.RegisterAbsolutePrefix(file_model.RestoreTreeKey, filepath.Join(cnf.DataPath, ".restore"))
-	if err != nil {
-		return nil, err
-	}
-
-	err = fs.RegisterAbsolutePrefix(file_model.CachesTreeKey, cnf.CachePath)
-	if err != nil {
-		return nil, err
-	}
-
 	mongo, err := db.ConnectToMongo(ctx, cnf.MongoDBUri, cnf.MongoDBName)
 	if err != nil {
 		return nil, err
@@ -113,6 +95,10 @@ func Startup(ctx context_service.AppContext, cnf config.ConfigProvider) (*router
 	ctx.LocalTowerId = local.TowerId
 	ctx = ctx.WithValue("towerId", local.TowerId)
 
+	if cnf.InitRole == "" {
+		cnf.InitRole = string(local.Role)
+	}
+
 	// Run setup functions for various services
 	err = startup.RunStartups(ctx, cnf)
 	if err != nil {
@@ -122,16 +108,14 @@ func Startup(ctx context_service.AppContext, cnf config.ConfigProvider) (*router
 	// Install middlewares
 	r.Use(
 		context_service.AppContexter(ctx),
-		router.LoggerMiddlewares(ctx.Logger),
-		router.Recoverer,
 		router.CORSMiddleware,
-		router.WeblensAuth,
-		router.ShareInjector,
 	)
 
 	// Install routes
-	r.Mount("/api/v1", v1.Routes)
-	r.Mount("/docs", v1.Docs)
+	r.Mount("/api/v1/", router.LoggerMiddlewares(ctx.Logger), router.Recoverer, v1.Routes(ctx))
+
+	r.Use(router.Recoverer)
+	r.Mount("/docs", v1.Docs())
 	r.Mount("/", web.UiRoutes(web.NewMemFs(ctx, cnf)))
 
 	return r, nil

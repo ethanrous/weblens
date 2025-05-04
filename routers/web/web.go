@@ -11,15 +11,12 @@ import (
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/routers/router"
 	"github.com/ethanrous/weblens/services/context"
-	"github.com/rs/zerolog/log"
 )
 
 func CacheMiddleware(next router.Handler) router.Handler {
 	return router.HandlerFunc(func(ctx context.RequestContext) {
 		ctx.W.Header().Set("Cache-Control", "public, max-age=3600")
 		ctx.W.Header().Set("Content-Encoding", "gzip")
-
-		log.Debug().Msg("CacheMiddleware: Setting Cache-Control header")
 
 		next.ServeHTTP(ctx)
 	})
@@ -32,32 +29,30 @@ func NewMemFs(ctx context.AppContext, cnf config.ConfigProvider) *InMemoryFS {
 	return memFs
 }
 
-func UiRoutes(memFs *InMemoryFS) func() *router.Router {
-	return func() *router.Router {
-		r := router.NewRouter()
+func UiRoutes(memFs *InMemoryFS) *router.Router {
+	r := router.NewRouter()
 
-		r.Use(CacheMiddleware)
+	r.Use(CacheMiddleware)
 
-		r.Handle("/assets/*", http.FileServer(memFs))
-		r.Get("/static/{filename}", serveStaticContent)
+	r.Handle("/assets/*", http.FileServer(memFs))
+	r.Get("/static/{filename}", serveStaticContent)
 
-		r.NotFound(
-			func(ctx context.RequestContext) {
-				if !strings.HasPrefix(ctx.Req.RequestURI, "/api") {
-					index := memFs.Index(ctx)
-					_, err := ctx.W.Write(index.realFile.data)
-					if err != nil {
-						ctx.Status(http.StatusInternalServerError)
-						return
-					}
-				} else {
-					ctx.Status(http.StatusNotFound)
+	r.NotFound(
+		func(ctx context.RequestContext) {
+			if !strings.HasPrefix(ctx.Req.RequestURI, "/api") {
+				index := memFs.Index(ctx)
+				_, err := ctx.W.Write(index.realFile.data)
+				if err != nil {
+					ctx.Status(http.StatusInternalServerError)
 					return
 				}
-			},
-		)
-		return r
-	}
+			} else {
+				ctx.Status(http.StatusNotFound)
+				return
+			}
+		},
+	)
+	return r
 }
 
 var staticDir = ""

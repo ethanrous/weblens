@@ -42,9 +42,10 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.chi.ServeHTTP(w, req)
 }
 
-func (r *Router) Mount(prefix string, fn func() *Router) {
-	r.prefix = prefix
-	r.chi.With(r.middlewares...).Mount(prefix, fn())
+func (r *Router) Mount(prefix string, h ...any) {
+	subRouter := h[len(h)-1].(*Router)
+
+	r.chi.With(r.middlewares...).With(parseMiddlewares(h[:len(h)-1]...)...).Mount(r.prefix+prefix, subRouter)
 }
 
 const requestContextKey = "requestContext"
@@ -76,6 +77,7 @@ func (r *Router) Route(pattern string, fn func(r *Router)) *Router {
 	r.chi.Route(r.prefix+pattern, func(r chi.Router) {
 		fn(&Router{chi: r})
 	})
+
 	return r
 }
 

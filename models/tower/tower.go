@@ -146,6 +146,20 @@ func GetTowerById(ctx context.Context, towerId string) (tower Instance, err erro
 	return
 }
 
+func GetBackupTowerById(ctx context.Context, towerId string, remoteId string) (tower Instance, err error) {
+	col, err := db.GetCollection(ctx, TowerCollectionKey)
+	if err != nil {
+		return tower, err
+	}
+
+	err = col.FindOne(ctx, bson.M{"towerId": towerId, "createdBy": remoteId}).Decode(&tower)
+	if err != nil {
+		return tower, db.WrapError(err, "failed to get backup tower")
+	}
+
+	return
+}
+
 func DeleteTowerById(ctx context.Context, towerId string) error {
 	col, err := db.GetCollection(ctx, TowerCollectionKey)
 	if err != nil {
@@ -182,7 +196,7 @@ func SetLastBackup(ctx context.Context, towerId string, lastBackup time.Time) er
 		return err
 	}
 
-	_, err = col.UpdateOne(ctx, bson.M{"towerId": towerId}, bson.M{"$set": bson.M{"lastBackup": lastBackup}})
+	_, err = col.UpdateOne(ctx, bson.M{"towerId": towerId}, bson.M{"$set": bson.M{"lastBackup": lastBackup.UnixMilli()}})
 	if err != nil {
 		return err
 	}

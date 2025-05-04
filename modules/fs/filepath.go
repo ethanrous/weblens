@@ -44,8 +44,10 @@ func ParsePortable(portablePath string) (Filepath, error) {
 	if colonIndex == -1 {
 		return Filepath{}, errors.New("invalid portable path format: no colon found: " + portablePath)
 	}
+
 	prefix := portablePath[:colonIndex]
 	postfix := portablePath[colonIndex+1:]
+
 	return Filepath{
 		RootAlias: prefix,
 		RelPath:   postfix,
@@ -70,6 +72,7 @@ func (wf Filepath) RootName() string {
 
 func (wf Filepath) OverwriteRoot(newRoot string) Filepath {
 	wf.RootAlias = newRoot
+
 	return wf
 }
 
@@ -81,6 +84,7 @@ func (wf Filepath) ToPortable() string {
 	if wf.RootAlias == "" {
 		return ""
 	}
+
 	return wf.RootAlias + ":" + wf.RelPath
 }
 
@@ -89,6 +93,7 @@ func (wf Filepath) Filename() string {
 	if len(filename) != 0 && filename[len(filename)-1] == '/' {
 		filename = filename[:len(filename)-1]
 	}
+
 	return filepath.Base(filename)
 }
 
@@ -121,6 +126,7 @@ func (wf Filepath) Child(childName string, childIsDir bool) Filepath {
 	if childIsDir {
 		relPath += "/"
 	}
+
 	return Filepath{
 		RootAlias: wf.RootAlias,
 		RelPath:   relPath,
@@ -131,6 +137,7 @@ func (wf Filepath) Ext() string {
 	if wf.IsDir() {
 		return ""
 	}
+
 	return filepath.Ext(wf.RelPath)
 }
 
@@ -140,6 +147,7 @@ func (wf Filepath) ReplacePrefix(prefixPath, newPrefix Filepath) (Filepath, erro
 	}
 
 	newRelPath := newPrefix.RelPath + strings.TrimPrefix(wf.RelPath, prefixPath.RelPath)
+
 	return Filepath{
 		RootAlias: newPrefix.RootAlias,
 		RelPath:   newRelPath,
@@ -170,6 +178,7 @@ func (wf Filepath) MarshalBSONValue() (bsontype.Type, []byte, error) {
 	}
 
 	portable := wf.ToPortable()
+
 	return bson.MarshalValue(portable)
 }
 
@@ -179,6 +188,7 @@ func (wf *Filepath) UnmarshalBSONValue(_ bsontype.Type, data []byte) error {
 	}
 
 	var target string
+
 	err := bson.UnmarshalValue(bson.TypeString, data, &target)
 	if err != nil {
 		return err

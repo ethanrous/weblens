@@ -4,11 +4,11 @@ import {
     IconExclamationCircle,
     IconX,
 } from '@tabler/icons-react'
-import { WsMsgAction, useWebsocketStore } from '@weblens/api/Websocket'
-import { useClick } from '@weblens/lib/hooks'
+import { CancelTask } from '@weblens/api/FileBrowserApi'
 import LoaderDots from '@weblens/lib/LoaderDots'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
+import { useClick } from '@weblens/lib/hooks'
 import { useMessagesController } from '@weblens/store/MessagesController'
 import { msToHumanTime } from '@weblens/util'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -149,7 +149,6 @@ function TaskProgTimers({ prog }: { prog: TaskProgress }) {
 
 const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
     const removeTask = useTaskState((state) => state.removeTask)
-    const wsSend = useWebsocketStore((state) => state.wsSend)
 
     const [cancelWarning, setCancelWarning] = useState(false)
 
@@ -192,11 +191,9 @@ const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
                                     return
                                 }
                                 if (cancelWarning) {
-                                    wsSend(WsMsgAction.CancelTaskAction, {
-                                        taskPoolId: prog.poolId
-                                            ? prog.poolId
-                                            : prog.taskId,
-                                    })
+                                    CancelTask(
+                                        prog.poolId ? prog.poolId : prog.taskId
+                                    )
 
                                     setCancelWarning(false)
                                 } else {

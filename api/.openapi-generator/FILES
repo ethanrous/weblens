@@ -6,7 +6,6 @@ api_api_keys.go
 api_files.go
 api_folder.go
 api_media.go
-api_servers.go
 api_share.go
 api_towers.go
 api_users.go
@@ -41,7 +40,6 @@ docs/NewUserParams.md
 docs/PasswordUpdateParams.md
 docs/RestoreFilesBody.md
 docs/RestoreFilesInfo.md
-docs/ServersAPI.md
 docs/ShareAPI.md
 docs/ShareInfo.md
 docs/StructsInitServerParams.md

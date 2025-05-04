@@ -4,7 +4,7 @@ import {
     useWebsocketStore,
 } from '@weblens/api/Websocket'
 import Logo from '@weblens/components/Logo'
-import WebsocketStatus from '@weblens/components/filebrowser/websocketStatus'
+import WebsocketStatusDot from '@weblens/components/filebrowser/websocketStatus'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
 import { useEffect, useState } from 'react'
 
@@ -31,7 +31,7 @@ export default function StartUp() {
         <div className="theme-background flex h-screen w-screen flex-col items-center justify-center">
             <Logo size={150} />
             <div className="absolute bottom-1 left-1">
-                <WebsocketStatus ready={readyState} />
+                <WebsocketStatusDot ready={readyState} />
             </div>
             {setupProgress !== 0 && (
                 <div className="relative mt-16 flex h-14 w-[670px] max-w-full flex-col gap-2 p-2">

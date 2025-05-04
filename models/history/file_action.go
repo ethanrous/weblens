@@ -287,7 +287,7 @@ func GetLatestAction(ctx context_mod.DatabaseContext) (*FileAction, error) {
 
 	err = col.FindOne(ctx, filter, opts).Decode(action)
 	if err != nil {
-		return nil, err
+		return nil, db.WrapError(err, "failed to GetLatestAction")
 	}
 
 	return action, nil

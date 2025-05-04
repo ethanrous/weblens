@@ -9,7 +9,7 @@ import DirectoryView from '@weblens/components/filebrowser/directoryView'
 import FBSidebar from '@weblens/components/filebrowser/filebrowserSidebar'
 import PasteDialogue from '@weblens/components/filebrowser/pasteDialogue'
 import SearchDialogue from '@weblens/components/filebrowser/searchDialogue'
-import WebsocketStatus from '@weblens/components/filebrowser/websocketStatus'
+import WebsocketStatusDot from '@weblens/components/filebrowser/websocketStatus'
 import { ErrorHandler } from '@weblens/types/Types'
 import WeblensFile from '@weblens/types/files/File'
 import { goToFile } from '@weblens/types/files/FileDragLogic'
@@ -301,7 +301,7 @@ function FileBrowser() {
             )}
             <FileContextMenu />
             <div className="absolute bottom-1 left-1">
-                <WebsocketStatus ready={readyState} />
+                <WebsocketStatusDot ready={readyState} />
             </div>
             <div className="flex h-[90vh] grow flex-row items-start">
                 <FBSidebar />

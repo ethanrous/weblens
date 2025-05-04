@@ -126,7 +126,9 @@ func (wsc *WsClient) RemoveSubscription(key string) {
 	}
 	wsc.subscriptions = slices.Delete(wsc.subscriptions, subIndex, subIndex+1)
 
-	wsc.log.Debug().Func(func(e *zerolog.Event) { e.Str("websocket_subscribe_key", key).Msg("Removed Subscription") })
+	wsc.log.Debug().Func(func(e *zerolog.Event) {
+		e.Str("websocket_subscribe_key", key).Msgf("Removed Subscription from %s", wsc.getClientName())
+	})
 }
 
 func (wsc *WsClient) Raw(msg any) error {

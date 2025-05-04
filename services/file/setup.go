@@ -3,11 +3,13 @@ package file
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"time"
 
 	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/history"
+	tower_model "github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/modules/config"
 	file_system "github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/startup"
@@ -45,17 +47,69 @@ func (fs *FileServiceImpl) makeRoot(rootPath file_system.Filepath) error {
 }
 
 func loadFs(ctx context.Context, cnf config.ConfigProvider) error {
-	return db.WithTransaction(ctx, func(ctx context.Context) error {
-		err := loadFsTransaction(ctx, cnf)
+	appCtx, ok := context_service.FromContext(ctx)
+	if !ok {
+		return errors.New("not an app context")
+	}
+
+	err := file_system.RegisterAbsolutePrefix(file_model.RestoreTreeKey, filepath.Join(cnf.DataPath, ".restore"))
+	if err != nil {
+		return err
+	}
+
+	err = file_system.RegisterAbsolutePrefix(file_model.CachesTreeKey, cnf.CachePath)
+	if err != nil {
+		return err
+	}
+
+	for _, root := range []file_system.Filepath{file_model.CacheRootPath, file_model.ThumbsDirPath, file_model.RestoreDirPath} {
+		if err := appCtx.FileService.(*FileServiceImpl).makeRoot(root); err != nil {
+			return err
+		}
+	}
+
+	if tower_model.Role(cnf.InitRole) == tower_model.RoleCore {
+		err := file_system.RegisterAbsolutePrefix(file_model.UsersTreeKey, filepath.Join(cnf.DataPath, "users"))
 		if err != nil {
 			return err
 		}
 
-		return nil
-	})
+		if err := appCtx.FileService.(*FileServiceImpl).makeRoot(file_model.UsersRootPath); err != nil {
+			return err
+		}
+
+		return db.WithTransaction(ctx, func(ctx context.Context) error {
+			err := loadFsTransaction(ctx)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+	} else if tower_model.Role(cnf.InitRole) == tower_model.RoleBackup {
+		err := file_system.RegisterAbsolutePrefix(file_model.BackupTreeKey, filepath.Join(cnf.DataPath, "backup"))
+		if err != nil {
+			return err
+		}
+
+		if err := appCtx.FileService.(*FileServiceImpl).makeRoot(file_model.BackupRootPath); err != nil {
+			return err
+		}
+
+		return db.WithTransaction(ctx, func(ctx context.Context) error {
+			err := loadFsTransactionBackup(ctx)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+	}
+
+	return nil
 }
 
-func loadFsTransaction(ctx context.Context, cnf config.ConfigProvider) error {
+func loadFsTransaction(ctx context.Context) error {
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
 		return errors.New("not an app context")
@@ -64,12 +118,6 @@ func loadFsTransaction(ctx context.Context, cnf config.ConfigProvider) error {
 	appCtx.Log().Debug().Msg("Loading file system")
 
 	start := time.Now()
-
-	for _, root := range []file_system.Filepath{file_model.UsersRootPath, file_model.CacheRootPath, file_model.ThumbsDirPath} {
-		if err := appCtx.FileService.(*FileServiceImpl).makeRoot(root); err != nil {
-			return err
-		}
-	}
 
 	lifetimes, err := history.GetLifetimes(ctx, true)
 	if err != nil {
@@ -92,7 +140,13 @@ func loadFsTransaction(ctx context.Context, cnf config.ConfigProvider) error {
 		fpMap[a.GetRelevantPath()] = a
 	}
 
-	searchFiles := []file_system.Filepath{file_model.UsersRootPath}
+	root, err := appCtx.FileService.GetFileById(file_model.UsersTreeKey)
+	if err != nil {
+		return err
+	}
+
+	searchFiles := []file_system.Filepath{root.GetPortablePath()}
+
 	for len(searchFiles) != 0 {
 		var fp file_system.Filepath
 		fp, searchFiles = searchFiles[0], searchFiles[1:]
@@ -142,6 +196,8 @@ func loadFsTransaction(ctx context.Context, cnf config.ConfigProvider) error {
 		parentId := ""
 		if fp.Dir() == file_model.UsersRootPath {
 			parentId = file_model.UsersTreeKey
+		} else if fp.Dir() == file_model.BackupRootPath {
+			parentId = file_model.BackupTreeKey
 		} else {
 			parentAction := fpMap[fp.Dir()]
 			parentId = parentAction.FileId
@@ -184,20 +240,85 @@ func loadFsTransaction(ctx context.Context, cnf config.ConfigProvider) error {
 		appCtx.Log().Trace().Msgf("Loaded file %s in %s", fp.ToAbsolute(), time.Since(start))
 	}
 
-	usersRoot, err := appCtx.FileService.GetFileById(file_model.UsersTreeKey)
-	if err != nil {
-		return err
-	}
-
 	appCtx.Log().Debug().Msgf("fs load of %s complete in %s", file_model.UsersRootPath, time.Since(start))
 	start = time.Now()
 
-	_, err = usersRoot.LoadStat()
+	_, err = root.LoadStat()
 	if err != nil {
 		return err
 	}
 
 	appCtx.Log().Trace().Msgf("Computed tree size in %s", time.Since(start))
+
+	return nil
+}
+
+func loadFsTransactionBackup(ctx context.Context) error {
+	appCtx, ok := context_service.FromContext(ctx)
+	if !ok {
+		return errors.New("not an app context")
+	}
+
+	appCtx.Log().Debug().Msg("Loading backup file system")
+
+	backupRoot, err := appCtx.FileService.GetFileById(file_model.BackupTreeKey)
+	if err != nil {
+		return err
+	}
+
+	remotes, err := tower_model.GetRemotes(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, remote := range remotes {
+		if remote.Role != tower_model.RoleCore {
+			continue
+		}
+
+		remoteDir, err := appCtx.FileService.CreateFolder(ctx, backupRoot, remote.TowerId)
+		if err != nil && !errors.Is(err, file_model.ErrDirectoryAlreadyExists) {
+			return err
+		} else if err != nil {
+			remoteDir = file_model.NewWeblensFile(file_model.NewFileOptions{
+				Path:   backupRoot.GetPortablePath().Child(remote.TowerId, true),
+				FileId: remote.TowerId,
+			})
+
+			err = remoteDir.SetParent(backupRoot)
+			if err != nil {
+				return err
+			}
+
+			err = appCtx.FileService.AddFile(ctx, remoteDir)
+			if err != nil {
+				return err
+			}
+		}
+
+		children, err := getChildFilepaths(remoteDir.GetPortablePath())
+		if err != nil {
+			return err
+		}
+
+		for _, childPath := range children {
+			f := file_model.NewWeblensFile(file_model.NewFileOptions{
+				FileId:    childPath.Filename(),
+				ContentId: childPath.Filename(),
+				Path:      childPath,
+			})
+
+			err = f.SetParent(remoteDir)
+			if err != nil {
+				return err
+			}
+
+			err = appCtx.FileService.AddFile(ctx, f)
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	return nil
 }

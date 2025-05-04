@@ -67,6 +67,25 @@ func RequireOwner(next Handler) Handler {
 	})
 }
 
+func RequireCoreTower(next Handler) Handler {
+	return HandlerFunc(func(ctx context.RequestContext) {
+		local, err := tower_model.GetLocal(ctx)
+		if err != nil {
+			ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "failed to get local instance"))
+
+			return
+		}
+
+		if local.Role != tower_model.RoleCore {
+			ctx.Error(http.StatusUnauthorized, errors.New("endpoint is not allowed when not a core tower"))
+
+			return
+		}
+
+		next.ServeHTTP(ctx)
+	})
+}
+
 func ShareInjector(next Handler) Handler {
 	return HandlerFunc(func(ctx context.RequestContext) {
 		shareId := ctx.Query("shareId")

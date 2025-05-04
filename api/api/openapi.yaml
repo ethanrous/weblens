@@ -954,28 +954,6 @@ paths:
       summary: Stream a video
       tags:
       - Media
-  /servers/{serverId}/backup:
-    post:
-      operationId: LaunchBackup
-      parameters:
-      - description: Server ID
-        in: path
-        name: serverId
-        required: true
-        schema:
-          type: string
-      responses:
-        "200":
-          content: {}
-          description: OK
-      security:
-      - SessionAuth:
-        - admin
-      - ApiKeyAuth:
-        - admin
-      summary: Launch backup on a server
-      tags:
-      - Servers
   /share/file:
     post:
       operationId: CreateFileShare
@@ -1303,6 +1281,28 @@ paths:
       - ApiKeyAuth:
         - admin
       summary: Delete a remote
+      tags:
+      - Towers
+  /tower/{serverId}/backup:
+    post:
+      operationId: LaunchBackup
+      parameters:
+      - description: Server ID
+        in: path
+        name: serverId
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content: {}
+          description: OK
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Launch backup on a tower
       tags:
       - Towers
   /upload:
@@ -1835,6 +1835,7 @@ components:
           filepath: filepath
           originPath: originPath
           size: 0
+          contentId: contentId
           destinationPath: destinationPath
           towerId: towerId
           parentId: parentId
@@ -1845,6 +1846,7 @@ components:
           filepath: filepath
           originPath: originPath
           size: 0
+          contentId: contentId
           destinationPath: destinationPath
           towerId: towerId
           parentId: parentId
@@ -1953,6 +1955,7 @@ components:
         filepath: filepath
         originPath: originPath
         size: 0
+        contentId: contentId
         destinationPath: destinationPath
         towerId: towerId
         parentId: parentId
@@ -1960,6 +1963,8 @@ components:
         timestamp: 6
       properties:
         actionType:
+          type: string
+        contentId:
           type: string
         destinationPath:
           type: string

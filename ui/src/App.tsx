@@ -70,9 +70,10 @@ const WeblensRoutes = () => {
         } else if (
             server.role === 'backup' &&
             loc.pathname !== '/backup' &&
+            !loc.pathname.startsWith('/settings') &&
             user?.isLoggedIn
         ) {
-            console.debug('Nav backup page')
+            console.debug('Nav backup page from', loc.pathname)
             nav('/backup')
         } else if (loc.pathname === '/login' && user?.isLoggedIn) {
             const state = loc.state as {
@@ -257,12 +258,12 @@ function App() {
     useKeyDown('t', toggleThemeCb)
 
     return (
-        <>
+        <div className="h-screen w-screen">
             <Messages />
             <Router>
                 <WeblensRoutes />
             </Router>
-        </>
+        </div>
     )
 }
 

@@ -5,6 +5,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **ActionType** | **string** |  | 
+**ContentId** | Pointer to **string** |  | [optional] 
 **DestinationPath** | Pointer to **string** |  | [optional] 
 **EventId** | **string** |  | 
 **FileId** | **string** |  | 
@@ -53,6 +54,31 @@ and a boolean to check if the value has been set.
 
 SetActionType sets ActionType field to given value.
 
+
+### GetContentId
+
+`func (o *FileActionInfo) GetContentId() string`
+
+GetContentId returns the ContentId field if non-nil, zero value otherwise.
+
+### GetContentIdOk
+
+`func (o *FileActionInfo) GetContentIdOk() (*string, bool)`
+
+GetContentIdOk returns a tuple with the ContentId field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetContentId
+
+`func (o *FileActionInfo) SetContentId(v string)`
+
+SetContentId sets ContentId field to given value.
+
+### HasContentId
+
+`func (o *FileActionInfo) HasContentId() bool`
+
+HasContentId returns a boolean if a field has been set.
 
 ### GetDestinationPath
 

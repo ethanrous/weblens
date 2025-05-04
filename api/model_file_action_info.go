@@ -22,6 +22,7 @@ var _ MappedNullable = &FileActionInfo{}
 // FileActionInfo struct for FileActionInfo
 type FileActionInfo struct {
 	ActionType string `json:"actionType"`
+	ContentId *string `json:"contentId,omitempty"`
 	DestinationPath *string `json:"destinationPath,omitempty"`
 	EventId string `json:"eventId"`
 	FileId string `json:"fileId"`
@@ -81,6 +82,38 @@ func (o *FileActionInfo) GetActionTypeOk() (*string, bool) {
 // SetActionType sets field value
 func (o *FileActionInfo) SetActionType(v string) {
 	o.ActionType = v
+}
+
+// GetContentId returns the ContentId field value if set, zero value otherwise.
+func (o *FileActionInfo) GetContentId() string {
+	if o == nil || IsNil(o.ContentId) {
+		var ret string
+		return ret
+	}
+	return *o.ContentId
+}
+
+// GetContentIdOk returns a tuple with the ContentId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *FileActionInfo) GetContentIdOk() (*string, bool) {
+	if o == nil || IsNil(o.ContentId) {
+		return nil, false
+	}
+	return o.ContentId, true
+}
+
+// HasContentId returns a boolean if a field has been set.
+func (o *FileActionInfo) HasContentId() bool {
+	if o != nil && !IsNil(o.ContentId) {
+		return true
+	}
+
+	return false
+}
+
+// SetContentId gets a reference to the given string and assigns it to the ContentId field.
+func (o *FileActionInfo) SetContentId(v string) {
+	o.ContentId = &v
 }
 
 // GetDestinationPath returns the DestinationPath field value if set, zero value otherwise.
@@ -334,6 +367,9 @@ func (o FileActionInfo) MarshalJSON() ([]byte, error) {
 func (o FileActionInfo) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["actionType"] = o.ActionType
+	if !IsNil(o.ContentId) {
+		toSerialize["contentId"] = o.ContentId
+	}
 	if !IsNil(o.DestinationPath) {
 		toSerialize["destinationPath"] = o.DestinationPath
 	}

@@ -10,14 +10,22 @@ import (
 )
 
 func TowerToTowerInfo(ctx context.Context, tower tower_model.Instance) structs.TowerInfo {
+	appCtx, ok := context_service.FromContext(ctx)
+	if !ok {
+		panic("not an app context")
+	}
+
 	online := false
+	backupSize := int64(0)
 	if tower.IsThisTower {
 		online = true
 	} else {
-		appCtx, ok := context_service.FromContext(ctx)
-		if ok {
-			client := appCtx.ClientService.GetClientByTowerId(tower.TowerId)
-			online = client != nil
+		client := appCtx.ClientService.GetClientByTowerId(tower.TowerId)
+		online = client != nil
+
+		towerBackupDir, err := appCtx.FileService.GetFileById(tower.TowerId)
+		if err == nil {
+			backupSize = towerBackupDir.Size()
 		}
 	}
 
@@ -29,6 +37,7 @@ func TowerToTowerInfo(ctx context.Context, tower tower_model.Instance) structs.T
 		LastBackup:   tower.LastBackup,
 		IsThisServer: tower.IsThisTower,
 		Started:      true,
+		BackupSize:   backupSize,
 
 		// TODO: Get real reported role
 		ReportedRole: string(tower.Role),

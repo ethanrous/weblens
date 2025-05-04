@@ -79,23 +79,25 @@ func GetTokensByUser(ctx context.Context, username string) ([]*Token, error) {
 		return nil, err
 	}
 
-	cursor, err := col.Find(ctx, bson.M{"owner": username})
+	localTowerId := ctx.Value("towerId").(string)
+
+	cursor, err := col.Find(ctx, bson.M{"owner": username, "createdBy": localTowerId})
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(ctx)
 
 	var tokens []*Token
+
 	for cursor.Next(ctx) {
 		var token Token
 		if err := cursor.Decode(&token); err != nil {
 			return nil, err
 		}
+
 		tokens = append(tokens, &token)
 	}
 
 	return tokens, nil
-
 }
 
 func GetTokenById(ctx context.Context, tokenId primitive.ObjectID) (token *Token, err error) {
@@ -105,6 +107,7 @@ func GetTokenById(ctx context.Context, tokenId primitive.ObjectID) (token *Token
 	}
 
 	token = &Token{}
+
 	err = col.FindOne(ctx, bson.M{"_id": tokenId}).Decode(token)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, ErrTokenNotFound

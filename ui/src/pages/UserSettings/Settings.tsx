@@ -26,6 +26,8 @@ import { TowersApi } from '@weblens/api/ServersApi.js'
 import UsersApi from '@weblens/api/UserApi'
 import {
     HandleWebsocketMessage,
+    WsAction,
+    WsSubscriptionType,
     useWeblensSocket,
     useWebsocketStore,
 } from '@weblens/api/Websocket'
@@ -99,6 +101,40 @@ const adminTabs: settingsTab[] = [
     },
 ]
 
+function TabGroup({
+    tabs,
+    activeTab,
+    setActiveTab,
+}: {
+    tabs: settingsTab[]
+    activeTab: string
+    setActiveTab: (tab: string) => void
+}) {
+    return (
+        <div>
+            {tabs.map((tab) => {
+                return (
+                    <li key={tab.id}>
+                        <a
+                            data-active={activeTab === tab.id}
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                e.preventDefault()
+                                setActiveTab(tab.id)
+                            }}
+                        >
+                            <span className={settingsStyle.tabIcon}>
+                                <tab.icon size={20} />
+                            </span>
+                            <span>{tab.name}</span>
+                        </a>
+                    </li>
+                )
+            })}
+        </div>
+    )
+}
+
 export default function Settings() {
     const user = useSessionStore((state) => state.user)
     const setUser = useSessionStore((state) => state.setUser)
@@ -149,60 +185,23 @@ export default function Settings() {
                 <div className="flex grow">
                     <div className={settingsStyle.sidebar}>
                         <ul className="flex h-full flex-col">
-                            {tabs.map((tab) => {
-                                return (
-                                    <li key={tab.id}>
-                                        <a
-                                            data-active={activeTab === tab.id}
-                                            onClick={(e) => {
-                                                e.stopPropagation()
-                                                e.preventDefault()
-                                                setActiveTab(tab.id)
-                                            }}
-                                        >
-                                            <span
-                                                className={
-                                                    settingsStyle.tabIcon
-                                                }
-                                            >
-                                                <tab.icon size={20} />
-                                            </span>
-                                            <span>{tab.name}</span>
-                                        </a>
-                                    </li>
-                                )
-                            })}
+                            <TabGroup
+                                tabs={tabs}
+                                activeTab={activeTab}
+                                setActiveTab={setActiveTab}
+                            />
                             {user.permissionLevel >= UserPermissions.Admin && (
                                 <p className={settingsStyle.settingsTabsGroup}>
                                     Admin
                                 </p>
                             )}
-                            {user.permissionLevel >= UserPermissions.Admin &&
-                                adminTabs.map((tab) => {
-                                    return (
-                                        <li key={tab.id}>
-                                            <a
-                                                data-active={
-                                                    activeTab === tab.id
-                                                }
-                                                onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    e.preventDefault()
-                                                    setActiveTab(tab.id)
-                                                }}
-                                            >
-                                                <span
-                                                    className={
-                                                        settingsStyle.tabIcon
-                                                    }
-                                                >
-                                                    <tab.icon size={16} />
-                                                </span>
-                                                <span>{tab.name}</span>
-                                            </a>
-                                        </li>
-                                    )
-                                })}
+                            {user.permissionLevel >= UserPermissions.Admin && (
+                                <TabGroup
+                                    tabs={adminTabs}
+                                    activeTab={activeTab}
+                                    setActiveTab={setActiveTab}
+                                />
+                            )}
                             <li className="mt-auto">
                                 <WeblensButton
                                     label={'Logout'}
@@ -528,8 +527,17 @@ function ServersTab() {
             return
         }
 
-        wsSend('taskSubscribe', { taskType: 'do_backup' })
-        return () => wsSend('unsubscribe', { taskType: 'do_backup' })
+        wsSend({
+            action: WsAction.Subscribe,
+            subscriptionType: WsSubscriptionType.TaskType,
+            content: { taskType: 'do_backup' },
+        })
+
+        return () =>
+            wsSend({
+                action: WsAction.Unsubscribe,
+                content: { taskType: 'do_backup' },
+            })
     }, [readyState])
 
     useEffect(() => {

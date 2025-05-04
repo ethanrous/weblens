@@ -1,4 +1,4 @@
-package http
+package backup
 
 import (
 	"net/http"
@@ -17,8 +17,8 @@ import (
 //
 //	@ID			LaunchBackup
 //
-//	@Summary	Launch backup on a server
-//	@Tags		Servers
+//	@Summary	Launch backup on a tower
+//	@Tags		Towers
 //
 //	@Security	SessionAuth[admin]
 //	@Security	ApiKeyAuth[admin]
@@ -26,18 +26,20 @@ import (
 //	@Param		serverId	path	string	true	"Server ID"
 //
 //	@Success	200
-//	@Router		/servers/{serverId}/backup [post]
-func launchBackup(ctx context.RequestContext) {
+//	@Router		/tower/{serverId}/backup [post]
+func LaunchBackup(ctx context.RequestContext) {
 	serverId := ctx.Path("serverId")
 
 	if serverId == "" {
 		ctx.Error(http.StatusBadRequest, errors.New("Server ID is required"))
+
 		return
 	}
 
 	local, err := tower_model.GetLocal(ctx)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
@@ -46,10 +48,16 @@ func launchBackup(ctx context.RequestContext) {
 		remote, err := tower_model.GetTowerById(ctx, serverId)
 		if err != nil {
 			ctx.Error(http.StatusNotFound, err)
+
 			return
 		}
 
-		proxy.NewCoreRequest(&remote, http.MethodPost, "/backup").Call()
+		_, err = proxy.NewCoreRequest(&remote, http.MethodPost, "/backup").Call()
+		if err != nil {
+			ctx.Error(http.StatusInternalServerError, err)
+
+			return
+		}
 
 		client := ctx.ClientService.GetClientByTowerId(serverId)
 		msg := websocket.WsResponseInfo{
@@ -61,18 +69,21 @@ func launchBackup(ctx context.RequestContext) {
 
 		if err != nil {
 			ctx.Error(http.StatusInternalServerError, err)
+
 			return
 		}
 	} else {
 		core, err := tower_model.GetTowerById(ctx, serverId)
 		if err != nil {
 			ctx.Error(http.StatusNotFound, err)
+
 			return
 		}
 
 		t, err := jobs.BackupOne(ctx, core)
 		if err != nil {
 			ctx.Error(http.StatusInternalServerError, err)
+
 			return
 		}
 
@@ -80,6 +91,7 @@ func launchBackup(ctx context.RequestContext) {
 		if err != nil {
 			// TODO: Return situational error here because the task still was created, but the client was not subscribed
 			ctx.Error(http.StatusInternalServerError, err)
+
 			return
 		}
 	}

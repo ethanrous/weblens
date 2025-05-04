@@ -77,7 +77,7 @@ func AttachToCore(ctx context.Context, core tower_model.Instance) error {
 		return err
 	}
 
-	delete(client.GetConfig().DefaultHeader, "TowerId")
+	delete(client.GetConfig().DefaultHeader, TowerIdHeader)
 
 	local, err := tower_model.GetLocal(ctx)
 	if err != nil {

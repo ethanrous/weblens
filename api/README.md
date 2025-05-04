@@ -113,7 +113,6 @@ Class | Method | HTTP request | Description
 *MediaAPI* | [**SetMediaLiked**](docs/MediaAPI.md#setmedialiked) | **Patch** /media/{mediaId}/liked | Like a media
 *MediaAPI* | [**SetMediaVisibility**](docs/MediaAPI.md#setmediavisibility) | **Patch** /media/visibility | Set media visibility
 *MediaAPI* | [**StreamVideo**](docs/MediaAPI.md#streamvideo) | **Get** /media/{mediaId}/video | Stream a video
-*ServersAPI* | [**LaunchBackup**](docs/ServersAPI.md#launchbackup) | **Post** /servers/{serverId}/backup | Launch backup on a server
 *ShareAPI* | [**CreateFileShare**](docs/ShareAPI.md#createfileshare) | **Post** /share/file | Share a file
 *ShareAPI* | [**DeleteFileShare**](docs/ShareAPI.md#deletefileshare) | **Delete** /share/{shareId} | Delete a file share
 *ShareAPI* | [**GetFileShare**](docs/ShareAPI.md#getfileshare) | **Get** /share/{shareId} | Get a file share
@@ -125,6 +124,7 @@ Class | Method | HTTP request | Description
 *TowersAPI* | [**GetRemotes**](docs/TowersAPI.md#getremotes) | **Get** /tower | Get all remotes
 *TowersAPI* | [**GetServerInfo**](docs/TowersAPI.md#getserverinfo) | **Get** /info | Get server info
 *TowersAPI* | [**InitializeTower**](docs/TowersAPI.md#initializetower) | **Post** /tower/init | Initialize the target server
+*TowersAPI* | [**LaunchBackup**](docs/TowersAPI.md#launchbackup) | **Post** /tower/{serverId}/backup | Launch backup on a tower
 *TowersAPI* | [**ResetTower**](docs/TowersAPI.md#resettower) | **Post** /tower/reset | Reset tower
 *UsersAPI* | [**ActivateUser**](docs/UsersAPI.md#activateuser) | **Patch** /users/{username}/active | Update active status of user
 *UsersAPI* | [**ChangeDisplayName**](docs/UsersAPI.md#changedisplayname) | **Patch** /users/{username}/fullName | Update display name of a user

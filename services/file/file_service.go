@@ -4,10 +4,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
-	"fmt"
 	"io"
 	"math"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,6 +24,7 @@ import (
 	context_service "github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/notify"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
 )
 
 var _ file_model.FileService = &FileServiceImpl{}
@@ -64,7 +65,12 @@ func (fs *FileServiceImpl) Size(treeAlias string) int64 {
 	return -1
 }
 
-func (fs *FileServiceImpl) AddFile(ctx context.Context, file ...*file_model.WeblensFileImpl) (err error) {
+func (fs *FileServiceImpl) AddFile(c context.Context, file ...*file_model.WeblensFileImpl) (err error) {
+	ctx, ok := context_service.FromContext(c)
+	if !ok {
+		return errors.New("failed to get context from context")
+	}
+
 	for _, f := range file {
 		newId := f.ID()
 		if newId == "" {
@@ -79,12 +85,17 @@ func (fs *FileServiceImpl) AddFile(ctx context.Context, file ...*file_model.Webl
 		}
 
 		if _, err = p.GetChild(f.GetPortablePath().Filename()); err != nil {
-			return errors.WithStack(file_model.ErrNotChild)
+			err = p.AddChild(f)
+			if err != nil {
+				return err
+			}
 		}
 
 		fs.treeLock.Lock()
 		fs.files[f.ID()] = f
 		fs.treeLock.Unlock()
+
+		ctx.Log().Trace().Msgf("Added file [%s] to file service", f.GetPortablePath())
 	}
 
 	return nil
@@ -100,21 +111,25 @@ func (fs *FileServiceImpl) GetFileById(id string) (*file_model.WeblensFileImpl, 
 }
 
 func (fs *FileServiceImpl) GetFileByFilepath(ctx context.Context, filepath file_system.Filepath) (*file_model.WeblensFileImpl, error) {
-	if filepath == file_model.UsersRootPath {
-		return fs.GetFileById(file_model.UsersTreeKey)
-	}
-
-	action, err := history.GetActionAtFilepath(ctx, filepath)
+	root, err := fs.GetFileById(filepath.RootName())
 	if err != nil {
 		return nil, err
 	}
 
-	file, err := fs.GetFileById(action.FileId)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get file [%s] by filepath: %w", filepath, err)
+	var childFile *file_model.WeblensFileImpl
+
+	for child := range strings.SplitSeq(filepath.RelPath, "/") {
+		if child == "" {
+			continue
+		}
+
+		childFile, err = root.GetChild(child)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return file, nil
+	return childFile, nil
 }
 
 func (fs *FileServiceImpl) GetFileByContentId(contentId string) (*file_model.WeblensFileImpl, error) {
@@ -578,6 +593,20 @@ func (fs *FileServiceImpl) RenameFile(file *file_model.WeblensFileImpl, newName 
 	return nil
 }
 
+func (fs *FileServiceImpl) InitBackupDirectory(ctx context.Context, tower tower_model.Instance) (*file_model.WeblensFileImpl, error) {
+	backupRoot, err := fs.GetFileById(file_model.BackupTreeKey)
+	if err != nil {
+		return nil, err
+	}
+
+	backupDir, err := backupRoot.GetChild(tower.TowerId)
+	if err == nil {
+		return backupDir, nil
+	}
+
+	return mkdir(backupRoot.GetPortablePath().Child(tower.TowerId, true))
+}
+
 func (fs *FileServiceImpl) NewBackupFile(ctx context.Context, lt *history.FileAction) (*file_model.WeblensFileImpl, error) {
 	// filename := lt.GetLatestPath().Filename()
 	//
@@ -913,36 +942,7 @@ func (fs *FileServiceImpl) CreateUserHome(ctx context.Context, user *user_model.
 	return nil
 }
 
-func GetFileOwner(ctx context.Context, file *file_model.WeblensFileImpl) (*user_model.User, error) {
-	username, err := file_model.GetFileOwnerName(ctx, file)
-	if err != nil {
-		return nil, err
-	}
-
-	return user_model.GetUserByUsername(ctx, username)
-}
-
-func MakeUniqueChildName(parent file_system.Filepath, childName string, childIsDir bool) (childPath file_system.Filepath, err error) {
-	dupeCount := 0
-
-	if !exists(parent) {
-		return childPath, errors.New("parent does not exist")
-	}
-
-	// Check if the child already exists
-	childPath = parent.Child(childName, childIsDir)
-	for exists(childPath) {
-		dupeCount++
-		tmpName := fmt.Sprintf("%s (%d)", childName, dupeCount)
-		childPath = parent.Child(tmpName, childIsDir)
-
-		if dupeCount > 100 {
-			return childPath, errors.New("too many duplicates")
-		}
-	}
-
-	return childPath, nil
-}
+const SkipJournalKey = "skipJournal"
 
 func (fs *FileServiceImpl) createCommon(ctx context.Context, newF, parent *file_model.WeblensFileImpl) error {
 	err := newF.SetParent(parent)
@@ -957,7 +957,7 @@ func (fs *FileServiceImpl) createCommon(ctx context.Context, newF, parent *file_
 
 	action := history.NewCreateAction(ctx, newF)
 
-	_, ok := ctx.Value("skip_journal").(bool)
+	_, ok := ctx.Value(SkipJournalKey).(bool)
 	if !ok {
 		err = history.SaveAction(ctx, &action)
 		if err != nil {
@@ -979,6 +979,10 @@ func (fs *FileServiceImpl) createCommon(ctx context.Context, newF, parent *file_
 
 	notif := notify.NewFileNotification(ctx, newF, websocket_mod.FileCreatedEvent)
 	notifier.Notify(ctx, notif...)
+
+	context_mod.ToZ(ctx).Log().Trace().Func(func(e *zerolog.Event) {
+		e.Msgf("Created file at [%s] with id [%s]", newF.GetPortablePath().ToAbsolute(), newF.ID())
+	})
 
 	return nil
 }

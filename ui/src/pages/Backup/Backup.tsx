@@ -2,6 +2,7 @@ import {
     IconDatabaseImport,
     IconPlus,
     IconRocket,
+    IconSettings,
     IconX,
 } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
@@ -12,7 +13,6 @@ import {
     useWebsocketStore,
 } from '@weblens/api/Websocket'
 import { TowerInfo } from '@weblens/api/swag'
-import { ThemeToggleButton } from '@weblens/components/HeaderBar'
 import Logo from '@weblens/components/Logo'
 import RemoteStatus from '@weblens/components/RemoteStatus'
 import { useSessionStore } from '@weblens/components/UserInfo'
@@ -86,6 +86,9 @@ function NewCoreMenu({ closeNewCore }: { closeNewCore: () => void }) {
 }
 
 export default function Backup() {
+    const serverInfo = useSessionStore((state) => state.server)
+    const user = useSessionStore((state) => state.user)
+
     const { data: remotes, refetch } = useQuery<TowerInfo[]>({
         queryKey: ['remotes'],
         initialData: [],
@@ -138,14 +141,37 @@ export default function Backup() {
             {newCoreMenu && (
                 <NewCoreMenu closeNewCore={() => setNewCoreMenu(false)} />
             )}
-            <div className="flex w-full items-center justify-between">
+            <div className="flex w-full items-center justify-between border-b pb-2">
                 <div className="flex flex-row gap-2">
                     <Logo />
                     <h1 className="text-3xl">Backup</h1>
                 </div>
-                <ThemeToggleButton />
+
+                <div className="ml-auto flex items-center gap-3">
+                    <h4>{serverInfo.name}</h4>
+                    <WeblensButton
+                        label={!user.isLoggedIn ? 'Login' : ''}
+                        tooltip={!user.isLoggedIn ? 'Login' : 'Settings'}
+                        Left={IconSettings}
+                        disabled={window.location.pathname.startsWith(
+                            '/settings'
+                        )}
+                        onClick={() => {
+                            if (user.isLoggedIn) {
+                                nav('/settings')
+                            } else {
+                                nav('/login', {
+                                    state: {
+                                        returnTo: window.location.pathname,
+                                    },
+                                })
+                            }
+                        }}
+                    />
+                </div>
+                {/* <ThemeToggleButton /> */}
             </div>
-            <div className="mb-10 flex w-full gap-1 pt-4">
+            <div className="mb-auto flex w-full gap-1 pt-4">
                 {remotes.map((remote) => {
                     return (
                         <RemoteStatus
@@ -168,6 +194,7 @@ export default function Backup() {
                 })}
             </div>
             <WeblensButton
+                className="mt-auto"
                 label="Add Core"
                 Left={IconPlus}
                 onClick={() => setNewCoreMenu(true)}
