@@ -21,6 +21,7 @@ type ContextZ interface {
 
 	GetTowerId() string
 	ClearCache()
+	WithContext(ctx context.Context) context.Context
 }
 
 type AppContexter interface {

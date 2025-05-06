@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"time"
 
 	context_mod "github.com/ethanrous/weblens/modules/context"
 	"github.com/pkg/errors"
@@ -26,10 +27,10 @@ func WithTransaction(ctx context.Context, fn func(ctx context.Context) error) er
 		return err
 	}
 
-	l := context_mod.ToZ(ctx)
+	appCtx := context_mod.ToZ(ctx)
 
 	if hasTransaction(ctx) {
-		l.Log().Debug().Msg("Already in a transaction, skipping straight to callback function")
+		appCtx.Log().Debug().Msg("Already in a transaction, skipping straight to callback function")
 
 		return fn(ctx)
 	}
@@ -41,23 +42,27 @@ func WithTransaction(ctx context.Context, fn func(ctx context.Context) error) er
 
 	defer session.EndSession(ctx)
 
-	l.Log().Debug().Msg("Starting transaction")
+	appCtx.Log().Debug().CallerSkipFrame(1).Msg("Starting transaction")
 
 	_, err = session.WithTransaction(ctx, func(sessCtx mongo.SessionContext) (any, error) {
+		ctx = appCtx.WithContext(sessCtx)
+
 		var ctx context.Context = sessCtx
 
 		for _, hook := range transactionHooks {
 			ctx = hook(ctx)
 		}
 
+		start := time.Now()
+
 		err := fn(ctx)
 		if err != nil {
-			l.Log().Debug().Msg("Transaction func returned error, aborting")
+			appCtx.Log().Debug().Msg("Transaction func returned error, aborting")
 
 			return nil, err
 		}
 
-		l.Log().Debug().Msg("Transaction complete, committing")
+		appCtx.Log().Debug().Msgf("Transaction complete in %s, committing", time.Since(start))
 
 		err = sessCtx.CommitTransaction(sessCtx)
 		if err != nil {

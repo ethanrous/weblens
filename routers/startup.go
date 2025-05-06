@@ -95,6 +95,10 @@ func Startup(ctx context_service.AppContext, cnf config.ConfigProvider) (*router
 	ctx.LocalTowerId = local.TowerId
 	ctx = ctx.WithValue("towerId", local.TowerId)
 
+	if local.Role == tower_model.RoleBackup {
+		ctx = ctx.WithValue(file_service.SkipJournalKey, true)
+	}
+
 	if cnf.InitRole == "" {
 		cnf.InitRole = string(local.Role)
 	}

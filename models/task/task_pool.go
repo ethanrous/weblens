@@ -204,11 +204,15 @@ func (tp *TaskPool) Wait(supplementWorker bool, task ...task_mod.Task) {
 	tp.waiterCount.Add(1)
 	if len(task) != 0 {
 		select {
+		case <-tp.createdBy.Ctx.Done():
 		case <-task[0].(*Task).signalChan:
 		case <-tp.waiterGate:
 		}
 	} else {
-		<-tp.waiterGate
+		select {
+		case <-tp.createdBy.Ctx.Done():
+		case <-tp.waiterGate:
+		}
 	}
 	tp.waiterCount.Add(-1)
 

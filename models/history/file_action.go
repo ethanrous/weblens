@@ -112,6 +112,7 @@ func NewMoveAction(ctx context.Context, originPath, destinationPath fs.Filepath,
 		Size:            file.Size(),
 		Timestamp:       eventTime,
 		TowerId:         towerId,
+		ContentId:       file.GetContentId(),
 	}
 }
 
@@ -167,7 +168,7 @@ func (fa *FileAction) GetSize() int64 {
 	return fa.Size
 }
 
-// GetOriginPath returns the origin path of the file action.
+// GetOriginPath returns the origin path of the file action, or the Filepath if no OriginPath is present.
 func (fa *FileAction) GetOriginPath() fs.Filepath {
 	if fa.OriginPath.IsZero() {
 		return fa.Filepath
@@ -176,7 +177,7 @@ func (fa *FileAction) GetOriginPath() fs.Filepath {
 	return fa.OriginPath
 }
 
-// GetDestinationPath returns the destination path of the file action.
+// GetDestinationPath returns the destination path of the file action, or the Filepath if no DestinationPath is present.
 func (fa *FileAction) GetDestinationPath() fs.Filepath {
 	if fa.DestinationPath.IsZero() {
 		return fa.Filepath
@@ -224,6 +225,10 @@ func SaveAction(ctx context.Context, action *FileAction) error {
 		return errors.New("towerId is empty")
 	}
 
+	if action.ContentId == "" && !action.GetRelevantPath().IsDir() {
+		return errors.Errorf("action for [%s]s contentId is empty", action.GetRelevantPath())
+	}
+
 	if action.Id.IsZero() {
 		action.Id = primitive.NewObjectID()
 	}
@@ -237,12 +242,20 @@ func SaveAction(ctx context.Context, action *FileAction) error {
 }
 
 func SaveActions(ctx context.Context, actions []FileAction) error {
+	if len(actions) == 0 {
+		return nil
+	}
+
 	col, err := db.GetCollection(ctx, FileActionCollectionKey)
 	if err != nil {
 		return err
 	}
 
 	for i, a := range actions {
+		if a.ContentId == "" && !a.GetRelevantPath().IsDir() {
+			return errors.Errorf("action for [%s]s contentId is empty", a.GetRelevantPath())
+		}
+
 		if a.Id.IsZero() {
 			actions[i].Id = primitive.NewObjectID()
 		}
@@ -263,14 +276,14 @@ func SaveActions(ctx context.Context, actions []FileAction) error {
 
 // ActionSorter sorts two FileActions based on their timestamps.
 // If the timestamps are equal, it sorts by the path length.
-func ActionSorter(a, b *FileAction) int {
+func ActionSorter(a, b FileAction) int {
 	timeDiff := a.GetTimestamp().Sub(b.GetTimestamp())
 	if timeDiff != 0 {
 		return int(timeDiff)
 	}
 
 	// If the creation time is the same, sort by the path length. This is to ensure parent directories are created before their children.
-	return len(a.DestinationPath.RelPath) - len(b.DestinationPath.RelPath)
+	return len(a.GetRelevantPath().RelPath) - len(b.GetRelevantPath().RelPath)
 }
 
 // GetLatestAction retrieves the latest FileAction from the database.
@@ -361,13 +374,11 @@ func GetLastActionByFileIdBefore(ctx context.Context, fileId string, ts time.Tim
 	return
 }
 
-func GetLifetimes(ctx context.Context, activeOnly bool) ([]FileLifetime, error) {
+func GetLifetimesByTowerId(ctx context.Context, towerId string, activeOnly bool) ([]FileLifetime, error) {
 	col, err := db.GetCollection(ctx, FileActionCollectionKey)
 	if err != nil {
 		return nil, err
 	}
-
-	towerId := ctx.Value("towerId").(string)
 
 	activeFilter := bson.M{}
 	if activeOnly {
@@ -412,9 +423,8 @@ func UpdateAction(ctx context.Context, action *FileAction) error {
 	}
 
 	filter := bson.M{"_id": action.Id}
-	update := bson.M{"$set": action}
 
-	_, err = col.UpdateOne(ctx, filter, update)
+	_, err = col.ReplaceOne(ctx, filter, action)
 	if err != nil {
 		return db.WrapError(err, "UpdateAction")
 	}

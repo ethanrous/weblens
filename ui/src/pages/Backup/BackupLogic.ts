@@ -85,7 +85,7 @@ export function backupPageWebsocketHandler(
 			}
 
 			case WsEvent.BackupCompleteEvent: {
-				const stages: TaskStageT[] = msgData.content.stages
+				const stages: TaskStageT[] = msgData.content.stages || []
 				setBackupProgress((p) => {
 					let prog = p.get(msgData.content.coreId)
 					if (!prog) {

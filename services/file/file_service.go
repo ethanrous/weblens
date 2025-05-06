@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"math"
 	"slices"
@@ -113,17 +114,17 @@ func (fs *FileServiceImpl) GetFileById(id string) (*file_model.WeblensFileImpl, 
 func (fs *FileServiceImpl) GetFileByFilepath(ctx context.Context, filepath file_system.Filepath) (*file_model.WeblensFileImpl, error) {
 	root, err := fs.GetFileById(filepath.RootName())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get root file [%s]: %w", filepath.RootName(), err)
 	}
 
-	var childFile *file_model.WeblensFileImpl
+	childFile := root
 
 	for child := range strings.SplitSeq(filepath.RelPath, "/") {
 		if child == "" {
 			continue
 		}
 
-		childFile, err = root.GetChild(child)
+		childFile, err = childFile.GetChild(child)
 		if err != nil {
 			return nil, err
 		}
@@ -604,126 +605,11 @@ func (fs *FileServiceImpl) InitBackupDirectory(ctx context.Context, tower tower_
 		return backupDir, nil
 	}
 
-	return mkdir(backupRoot.GetPortablePath().Child(tower.TowerId, true))
-}
+	if !exists(backupRoot.GetPortablePath().Child(tower.TowerId, true)) {
+		return mkdir(backupRoot.GetPortablePath().Child(tower.TowerId, true))
+	}
 
-func (fs *FileServiceImpl) NewBackupFile(ctx context.Context, lt *history.FileAction) (*file_model.WeblensFileImpl, error) {
-	// filename := lt.GetLatestPath().Filename()
-	//
-	// tree := fs.trees[lt.ServerId]
-	// if tree == nil {
-	// 	return nil, errors.Wrapf(file_model.ErrFileTreeNotFound, "no tree for remote with id [%s]", lt.ServerId)
-	// }
-	//
-	// restoreTree := fs.trees[file_model.RestoreTreeKey]
-	// if restoreTree == nil {
-	// 	return nil, errors.Wrap(file_model.ErrFileTreeNotFound, "no restore file tree")
-	// }
-	//
-	// if lt.GetIsDir() {
-	// 	// If there is no path (i.e. the dir has been deleted), skip as there is
-	// 	// no need to create a directory that no longer exists, just so long as it is
-	// 	// included in the history, which is now is.
-	// 	if lt.GetLatestPath().RootName() == "" {
-	// 		return nil, nil
-	// 	}
-	//
-	// 	// Find the directory's parent. This should already exist since we always create
-	// 	// the backup file structure in order from parent to child.
-	// 	latestAction := lt.GetLatestAction()
-	// 	parent := tree.Get(latestAction.ParentId)
-	// 	if parent == nil {
-	// 		return nil, errors.Wrapf(file_model.ErrFileNotFound, "looking for parent of [%s]: %s", latestAction.DestinationPath, latestAction.ParentId)
-	// 	}
-	//
-	// 	// Create the directory object and add it to the tree
-	// 	newDir := file_model.NewWeblensFile(file_model.NewFileOptions{Path: lt.ID(}), filename, parent, true)
-	// 	err := tree.Add(newDir)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	//
-	// 	ctx.Log().Trace().Msgf("Creating backup dir %s", newDir.GetPortablePath())
-	//
-	// 	// Create the directory on disk
-	// 	err = newDir.CreateSelf()
-	// 	if err != nil && !errors.Is(err, file_model.ErrFileAlreadyExists) {
-	// 		return nil, err
-	// 	}
-	// 	return nil, nil
-	// }
-	//
-	// if lt.GetContentId() == "" && lt.GetLatestSize() != 0 {
-	// 	return nil, errors.WithStack(file_model.ErrNoContentId)
-	// } else if lt.GetContentId() == "" {
-	// 	return nil, nil
-	// }
-	//
-	// var restoreFile *file_model.WeblensFileImpl
-	// if restoreFile, _ = restoreTree.GetRoot().GetChild(lt.GetContentId()); restoreFile == nil {
-	// 	var err error
-	// 	restoreFile, err = restoreTree.Touch(restoreTree.GetRoot(), lt.GetContentId(), nil)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	restoreFile.SetContentId(lt.GetContentId())
-	// } else {
-	// 	_, err := restoreFile.LoadStat()
-	// 	if err != nil {
-	// 		return nil, errors.WithStack(err)
-	// 	}
-	// }
-	//
-	// if lt.GetLatestAction().ActionType != history.FileDelete {
-	// 	portable, err := file_system.ParsePortable(lt.GetLatestAction().DestinationPath)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	//
-	// 	// Translate from the portable path to expand the absolute path
-	// 	// with the new backup tree
-	// 	newPortable := portable.OverwriteRoot(lt.ServerId)
-	//
-	// 	latestMove := lt.GetLatestMove()
-	// 	if latestMove == nil {
-	// 		return nil, errors.WithStack(file_model.ErrFileNotFound)
-	// 	}
-	//
-	// 	parent := tree.Get(latestMove.ParentId)
-	// 	if parent == nil {
-	// 		ctx.Log().Debug().Func(func(e *zerolog.Event) {
-	// 			e.Msgf("Parent [%s] not found trying to get parent for [%s]", latestMove.ParentId, lt.Id)
-	// 		})
-	// 		return nil, errors.Wrapf(file_model.ErrFileNotFound, "trying to get %s", latestMove.ParentId)
-	// 	}
-	//
-	// 	newF := file_model.NewWeblensFile(file_model.NewFileOptions{Path: lt.ID(}), newPortable.Filename(), parent, false)
-	//
-	// 	err = tree.Add(newF)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	//
-	// 	if newF.Exists() {
-	// 		ctx.Log().Warn().Msgf("File [%s] already exists, overwriting", newF.AbsPath())
-	// 		err = newF.Remove()
-	// 		if err != nil {
-	// 			return nil, errors.WithStack(err)
-	// 		}
-	// 	}
-	//
-	// 	ctx.Log().Trace().Func(func(e *zerolog.Event) {
-	// 		e.Msgf("Linking %s -> %s", restoreFile.GetPortablePath().ToPortable(), portable.ToPortable())
-	// 	})
-	// 	err = os.Link(restoreFile.AbsPath(), newF.AbsPath())
-	// 	if err != nil {
-	// 		return nil, errors.WithStack(err)
-	// 	}
-	// }
-	//
-	// return restoreFile, nil
-
-	return nil, errors.New("not implemented")
+	return file_model.NewWeblensFile(file_model.NewFileOptions{Path: backupRoot.GetPortablePath().Child(tower.TowerId, true)}), nil
 }
 
 func (fs *FileServiceImpl) AddTask(f *file_model.WeblensFileImpl, t *task_model.Task) error {
@@ -1016,6 +902,8 @@ func (fs *FileServiceImpl) moveFilesWithTransaction(ctx context.Context, files [
 
 		actions := []history.FileAction{}
 
+		_, skipJournal := ctx.Value(SkipJournalKey).(bool)
+
 		err = file.RecursiveMap(func(wfi *file_model.WeblensFileImpl) error {
 			if wfi == file {
 				file.SetPortablePath(newPath)
@@ -1030,8 +918,10 @@ func (fs *FileServiceImpl) moveFilesWithTransaction(ctx context.Context, files [
 				return err
 			}
 
-			action := history.NewMoveAction(ctx, descendantOldPath, descendantNewPath, wfi)
-			actions = append(actions, action)
+			if !skipJournal {
+				action := history.NewMoveAction(ctx, descendantOldPath, descendantNewPath, wfi)
+				actions = append(actions, action)
+			}
 
 			wfi.SetPortablePath(descendantNewPath)
 
@@ -1042,12 +932,14 @@ func (fs *FileServiceImpl) moveFilesWithTransaction(ctx context.Context, files [
 			return err
 		}
 
-		action := history.NewMoveAction(ctx, oldPath, newPath, file)
-		actions = append(actions, action)
+		if !skipJournal {
+			action := history.NewMoveAction(ctx, oldPath, newPath, file)
+			actions = append(actions, action)
 
-		err = history.SaveActions(ctx, actions)
-		if err != nil {
-			return err
+			err = history.SaveActions(ctx, actions)
+			if err != nil {
+				return err
+			}
 		}
 
 		err = rename(oldPath, newPath)

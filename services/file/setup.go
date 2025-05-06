@@ -109,6 +109,115 @@ func loadFs(ctx context.Context, cnf config.ConfigProvider) error {
 	return nil
 }
 
+func handleFileCreation(ctx context_service.AppContext, filepath file_system.Filepath, pathMap map[file_system.Filepath]history.FileAction, doFileCreation bool) (*file_model.WeblensFileImpl, error) {
+	f := file_model.NewWeblensFile(file_model.NewFileOptions{Path: filepath})
+	action, ok := pathMap[filepath]
+
+	if !doFileCreation && !ok {
+		ctx.Log().Warn().Msgf("File [%s] not found in history, and doFileDiscovery is false", filepath)
+
+		return f, nil
+	}
+
+	if !ok {
+		ctx.Log().Trace().Msgf("File [%s] not found in history, creating new file", filepath)
+
+		if needsContentId(f) {
+			_, err := GenerateContentId(ctx, f)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		action = history.NewCreateAction(ctx, f)
+
+		err := history.SaveAction(ctx, &action)
+		if err != nil {
+			return nil, err
+		}
+
+		pathMap[filepath] = action
+	} else if doFileCreation && action.ContentId == "" && needsContentId(f) {
+		newContentId, err := GenerateContentId(ctx, f)
+		if err != nil {
+			return nil, err
+		}
+
+		action.ContentId = newContentId
+
+		ctx.Log().Debug().Msgf("File [%s] found in history, but contentId is empty, generating new one: %s", filepath, newContentId)
+
+		err = history.UpdateAction(ctx, &action)
+		if err != nil {
+			return nil, err
+		}
+
+		pathMap[filepath] = action
+	}
+
+	f.SetId(action.FileId)
+	f.SetContentId(action.ContentId)
+
+	return f, nil
+}
+
+func loadFilesFromPath(ctx context_service.AppContext, rootPath file_system.Filepath, pathMap map[file_system.Filepath]history.FileAction, doFileCreation bool) error {
+	searchFiles := []file_system.Filepath{rootPath}
+
+	for len(searchFiles) != 0 {
+		var fp file_system.Filepath
+		fp, searchFiles = searchFiles[0], searchFiles[1:]
+		ctx.Log().Trace().Msgf("Loading file %s", fp.ToAbsolute())
+
+		start := time.Now()
+
+		f, err := handleFileCreation(ctx, fp, pathMap, doFileCreation)
+		if err != nil {
+			return err
+		}
+
+		parent, err := ctx.FileService.GetFileByFilepath(ctx, f.GetPortablePath().Dir())
+		if err != nil {
+			return fmt.Errorf("Failed to find parent directory [%s]: %w", fp.Dir(), err)
+		}
+
+		if parent == nil {
+			return fmt.Errorf("Parent directory [%s] not found", fp.Dir())
+		}
+
+		err = f.SetParent(parent)
+		if err != nil {
+			return err
+		}
+
+		err = parent.AddChild(f)
+		if err != nil {
+			return err
+		}
+
+		if f.ID() != "" {
+			err = ctx.FileService.AddFile(ctx, f)
+			if err != nil {
+				return err
+			}
+		}
+
+		if f.IsDir() {
+			children, err := getChildFilepaths(fp)
+			if err != nil {
+				return err
+			}
+
+			ctx.Log().Trace().Msgf("Found %d children for %s", len(children), fp.ToAbsolute())
+			searchFiles = append(searchFiles, children...)
+		}
+
+		ctx.Log().Trace().Msgf("Loaded file %s in %s", fp.ToAbsolute(), time.Since(start))
+	}
+
+	return nil
+}
+
 func loadFsTransaction(ctx context.Context) error {
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
@@ -119,7 +228,7 @@ func loadFsTransaction(ctx context.Context) error {
 
 	start := time.Now()
 
-	lifetimes, err := history.GetLifetimes(ctx, true)
+	lifetimes, err := history.GetLifetimesByTowerId(ctx, appCtx.LocalTowerId, true)
 	if err != nil {
 		return err
 	}
@@ -145,99 +254,9 @@ func loadFsTransaction(ctx context.Context) error {
 		return err
 	}
 
-	searchFiles := []file_system.Filepath{root.GetPortablePath()}
-
-	for len(searchFiles) != 0 {
-		var fp file_system.Filepath
-		fp, searchFiles = searchFiles[0], searchFiles[1:]
-		appCtx.Log().Trace().Msgf("Loading file %s", fp.ToAbsolute())
-
-		start := time.Now()
-		f := file_model.NewWeblensFile(file_model.NewFileOptions{Path: fp})
-
-		action, ok := fpMap[fp]
-		if !ok {
-			appCtx.Log().Trace().Msgf("File [%s] not found in history, creating new file", fp)
-
-			if needsContentId(f) {
-				_, err = GenerateContentId(ctx, f)
-				if err != nil {
-					return err
-				}
-			}
-
-			action = history.NewCreateAction(ctx, f)
-
-			err = history.SaveAction(ctx, &action)
-			if err != nil {
-				return err
-			}
-
-			fpMap[fp] = action
-		} else if action.ContentId == "" && needsContentId(f) {
-			newContentId, err := GenerateContentId(ctx, f)
-			if err != nil {
-				return err
-			}
-
-			action.ContentId = newContentId
-
-			err = history.UpdateAction(ctx, &action)
-			if err != nil {
-				return err
-			}
-
-			fpMap[fp] = action
-		}
-
-		f.SetId(action.FileId)
-		f.SetContentId(action.ContentId)
-
-		parentId := ""
-		if fp.Dir() == file_model.UsersRootPath {
-			parentId = file_model.UsersTreeKey
-		} else if fp.Dir() == file_model.BackupRootPath {
-			parentId = file_model.BackupTreeKey
-		} else {
-			parentAction := fpMap[fp.Dir()]
-			parentId = parentAction.FileId
-		}
-
-		parent, err := appCtx.FileService.GetFileById(parentId)
-		if err != nil {
-			return fmt.Errorf("Failed to find parent directory [%s]: %w", fp.Dir(), err)
-		}
-
-		if parent == nil {
-			return fmt.Errorf("Parent directory [%s] not found", fp.Dir())
-		}
-
-		err = f.SetParent(parent)
-		if err != nil {
-			return err
-		}
-
-		err = parent.AddChild(f)
-		if err != nil {
-			return err
-		}
-
-		err = appCtx.FileService.AddFile(ctx, f)
-		if err != nil {
-			return err
-		}
-
-		if f.IsDir() {
-			children, err := getChildFilepaths(fp)
-			if err != nil {
-				return err
-			}
-
-			appCtx.Log().Trace().Msgf("Found %d children for %s", len(children), fp.ToAbsolute())
-			searchFiles = append(searchFiles, children...)
-		}
-
-		appCtx.Log().Trace().Msgf("Loaded file %s in %s", fp.ToAbsolute(), time.Since(start))
+	err = loadFilesFromPath(appCtx, root.GetPortablePath(), fpMap, true)
+	if err != nil {
+		return err
 	}
 
 	appCtx.Log().Debug().Msgf("fs load of %s complete in %s", file_model.UsersRootPath, time.Since(start))
@@ -249,76 +268,6 @@ func loadFsTransaction(ctx context.Context) error {
 	}
 
 	appCtx.Log().Trace().Msgf("Computed tree size in %s", time.Since(start))
-
-	return nil
-}
-
-func loadFsTransactionBackup(ctx context.Context) error {
-	appCtx, ok := context_service.FromContext(ctx)
-	if !ok {
-		return errors.New("not an app context")
-	}
-
-	appCtx.Log().Debug().Msg("Loading backup file system")
-
-	backupRoot, err := appCtx.FileService.GetFileById(file_model.BackupTreeKey)
-	if err != nil {
-		return err
-	}
-
-	remotes, err := tower_model.GetRemotes(ctx)
-	if err != nil {
-		return err
-	}
-
-	for _, remote := range remotes {
-		if remote.Role != tower_model.RoleCore {
-			continue
-		}
-
-		remoteDir, err := appCtx.FileService.CreateFolder(ctx, backupRoot, remote.TowerId)
-		if err != nil && !errors.Is(err, file_model.ErrDirectoryAlreadyExists) {
-			return err
-		} else if err != nil {
-			remoteDir = file_model.NewWeblensFile(file_model.NewFileOptions{
-				Path:   backupRoot.GetPortablePath().Child(remote.TowerId, true),
-				FileId: remote.TowerId,
-			})
-
-			err = remoteDir.SetParent(backupRoot)
-			if err != nil {
-				return err
-			}
-
-			err = appCtx.FileService.AddFile(ctx, remoteDir)
-			if err != nil {
-				return err
-			}
-		}
-
-		children, err := getChildFilepaths(remoteDir.GetPortablePath())
-		if err != nil {
-			return err
-		}
-
-		for _, childPath := range children {
-			f := file_model.NewWeblensFile(file_model.NewFileOptions{
-				FileId:    childPath.Filename(),
-				ContentId: childPath.Filename(),
-				Path:      childPath,
-			})
-
-			err = f.SetParent(remoteDir)
-			if err != nil {
-				return err
-			}
-
-			err = appCtx.FileService.AddFile(ctx, f)
-			if err != nil {
-				return err
-			}
-		}
-	}
 
 	return nil
 }

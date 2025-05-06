@@ -58,6 +58,20 @@ func (c *ContextualizedCollection) UpdateOne(_ context.Context, filter, update a
 	return c.collection.UpdateOne(c.ctx, filter, update, opts...)
 }
 
+func (c *ContextualizedCollection) ReplaceOne(_ context.Context, filter, replacement any, opts ...*options.ReplaceOptions) (*mongo.UpdateResult, error) {
+	ctx := context_mod.ToZ(c.ctx)
+	ctx.Log().Trace().Msgf("ReplaceOne on collection [%s] with filter %v", c.collection.Name(), filter)
+
+	if config.GetConfig().DoCache {
+		cache := ctx.GetCache(c.collection.Name())
+		for _, key := range cache.ScanKeys() {
+			cache.Delete(key)
+		}
+	}
+
+	return c.collection.ReplaceOne(c.ctx, filter, replacement, opts...)
+}
+
 func (c *ContextualizedCollection) FindOne(_ context.Context, filter any, opts ...*options.FindOneOptions) Decoder {
 	if config.GetConfig().DoCache {
 		cache := context_mod.ToZ(c.ctx).GetCache(c.collection.Name())
@@ -137,9 +151,9 @@ func GetCollection(ctx context.Context, collectionName string) (*ContextualizedC
 
 	context_mod.ToZ(ctx).Log().Trace().Func(func(e *zerolog.Event) {
 		if s == nil {
-			e.Msgf("GetCollection [%s] without session", collectionName)
+			e.CallerSkipFrame(4).Msgf("GetCollection [%s] without session", collectionName)
 		} else {
-			e.Msgf("GetCollection [%s] with session %s", collectionName, s.ID())
+			e.CallerSkipFrame(4).Msgf("GetCollection [%s] with session %s", collectionName, s.ID())
 		}
 	})
 

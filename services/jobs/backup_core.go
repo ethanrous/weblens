@@ -2,12 +2,14 @@ package jobs
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"time"
 
 	token_model "github.com/ethanrous/weblens/models/auth"
 	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
+	"github.com/ethanrous/weblens/models/history"
 	history_model "github.com/ethanrous/weblens/models/history"
 	"github.com/ethanrous/weblens/models/job"
 	"github.com/ethanrous/weblens/models/task"
@@ -15,7 +17,7 @@ import (
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/config"
 	context_mod "github.com/ethanrous/weblens/modules/context"
-	"github.com/ethanrous/weblens/modules/fs"
+	"github.com/ethanrous/weblens/modules/set"
 	"github.com/ethanrous/weblens/modules/startup"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
@@ -92,7 +94,6 @@ func BackupOne(ctx context_mod.DispatcherContext, core tower_model.Instance) (ta
 
 func DoBackup(tsk task_mod.Task) {
 	t := tsk.(*task.Task)
-
 	meta := t.GetMeta().(job.BackupMeta)
 
 	ctx, ok := t.Ctx.(context_service.AppContext)
@@ -110,7 +111,7 @@ func DoBackup(tsk task_mod.Task) {
 
 	t.OnResult(
 		func(r task_mod.TaskResult) {
-			notif := notify.NewTaskNotification(t, websocket_mod.BackupCompleteEvent, r)
+			notif := notify.NewTaskNotification(t, websocket_mod.BackupProgressEvent, r)
 			t.Ctx.Notify(ctx, notif)
 		},
 	)
@@ -128,14 +129,11 @@ func DoBackup(tsk task_mod.Task) {
 		t.Fail(err)
 	}
 
-	if local.Role == tower_model.RoleInit {
-		t.ReqNoErr(tower_model.ErrTowerNotInitialized)
-	} else if local.Role != tower_model.RoleBackup {
-		t.ReqNoErr(tower_model.ErrTowerNotFound)
-	}
+	if local.Role != tower_model.RoleBackup {
+		t.Fail(tower_model.ErrTowerNotBackup)
 
-	stages := ""
-	t.SetResult(task_mod.TaskResult{"stages": stages, "coreId": meta.Core.TowerId})
+		return
+	}
 
 	// Find most recent action timestamp
 	latestTime := time.UnixMilli(0)
@@ -149,9 +147,6 @@ func DoBackup(tsk task_mod.Task) {
 
 	t.Ctx.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Backup latest action is %s", latestTime) })
 
-	// stages.StartStage("fetching_backup_data")
-	t.SetResult(task_mod.TaskResult{"stages": stages})
-
 	backupResponse, err := tower_service.GetBackup(t.Ctx, meta.Core, latestTime)
 	if err != nil {
 		t.Fail(err)
@@ -159,13 +154,23 @@ func DoBackup(tsk task_mod.Task) {
 		return
 	}
 
-	// stages.StartStage("writing_users")
-	t.SetResult(task_mod.TaskResult{"stages": stages})
-
 	err = db.WithTransaction(ctx, func(ctx context.Context) error {
+		appCtx, ok := context_service.FromContext(ctx)
+		if !ok {
+			return errors.New("Failed to cast context to AppContext")
+		}
+
+		appCtx.Log().Trace().Msgf("Got %d users from core", len(backupResponse.Users))
 		// Write new the users to db
 		for _, userInfo := range backupResponse.Users {
 			u := reshape.UserInfoArchiveToUser(userInfo)
+
+			_, err = user_model.GetUserByUsername(t.Ctx, u.Username)
+			if err == nil {
+				continue
+			}
+
+			u.CreatedBy = meta.Core.TowerId
 
 			err = user_model.SaveUser(t.Ctx, u)
 			if err != nil {
@@ -173,9 +178,7 @@ func DoBackup(tsk task_mod.Task) {
 			}
 		}
 
-		// stages.StartStage("writing_keys")
-		t.SetResult(task_mod.TaskResult{"stages": stages})
-
+		appCtx.Log().Trace().Msgf("Got %d tokens from core", len(backupResponse.Tokens))
 		// Write new keys to db
 		for _, key := range backupResponse.Tokens {
 			token, err := reshape.TokenInfoToToken(t.Ctx, key)
@@ -199,9 +202,7 @@ func DoBackup(tsk task_mod.Task) {
 			}
 		}
 
-		// stages.StartStage("writing_instances")
-		t.SetResult(task_mod.TaskResult{"stages": stages})
-
+		appCtx.Log().Trace().Msgf("Got %d towers from core", len(backupResponse.Instances))
 		// Write new towers to db
 		for _, serverInfo := range backupResponse.Instances {
 			// Check if we already have this tower
@@ -221,41 +222,38 @@ func DoBackup(tsk task_mod.Task) {
 			}
 		}
 
-		// stages.StartStage("sync_journal")
-		t.SetResult(task_mod.TaskResult{"stages": stages})
+		appCtx.Log().Trace().Msgf("Got %d actions from core", len(backupResponse.FileHistory))
 
-		t.Ctx.Log().Trace().Func(func(e *zerolog.Event) {
-			e.Msgf("Backup got %d updated actions from core", len(backupResponse.FileHistory))
-		})
+		actions := make([]history_model.FileAction, 0, len(backupResponse.FileHistory))
 
-		// stages.StartStage("sync_fs")
-		t.SetResult(task_mod.TaskResult{"stages": stages})
-
-		actions := make([]*history_model.FileAction, 0, len(backupResponse.FileHistory))
 		for _, action := range backupResponse.FileHistory {
-			actions = append(actions, reshape.FileActionInfoToFileAction(action))
+			newAction := reshape.FileActionInfoToFileAction(action)
+			newAction.TowerId = meta.Core.TowerId
+			actions = append(actions, newAction)
 		}
 
-		// Sort lifetimes so that files created or moved most recently are updated last.
-		slices.SortFunc(actions, history_model.ActionSorter)
-
-		// Get all lifetimes we currently know about and find which files are new
-		// and therefore need to be created or copied from the core
-		// actions, err = history_model.GetActionsByTowerId(t.Ctx, meta.Core.TowerId)
-		// if err != nil {
-		// 	return err
-		// }
-
-		pool := t.GetTaskPool().GetWorkerPool().NewTaskPool(true, t)
-		t.SetChildTaskPool(pool)
+		err = history.SaveActions(t.Ctx, actions)
+		if err != nil {
+			return err
+		}
 
 		// Sort lifetimes so that files created or moved most recently are updated last.
 		// This is to make sure parent directories are created before their children
 		slices.SortFunc(actions, history_model.ActionSorter)
 
-		appCtx, ok := context_service.FromContext(ctx)
-		if !ok {
-			return errors.New("Failed to cast context to AppContext")
+		filteredActions := make([]history_model.FileAction, 0, len(actions))
+		events := set.New[string]()
+
+		for _, a := range actions {
+			if a.ActionType == history_model.FileMove {
+				if events.Has(a.EventId) {
+					continue
+				}
+
+				events.Add(a.EventId)
+			}
+
+			filteredActions = append(filteredActions, a)
 		}
 
 		appCtx.WithValue(file_service.SkipJournalKey, true)
@@ -265,9 +263,12 @@ func DoBackup(tsk task_mod.Task) {
 			return err
 		}
 
-		// Check if the file already exists on the server and copy it if it doesn't
-		for _, a := range actions {
-			err = handleFileAction(appCtx, a, remoteDataDir, meta.Core, pool)
+		pool := appCtx.TaskService.NewTaskPool(true, t)
+		t.SetChildTaskPool(pool)
+
+		for _, a := range filteredActions {
+			// Check if the file already exists on the server and copy/move/delete it if it is in the wrong place
+			err = handleFileAction(appCtx, a, meta.Core, pool)
 			if err != nil {
 				return err
 			}
@@ -275,6 +276,7 @@ func DoBackup(tsk task_mod.Task) {
 
 		t.Ctx.Log().Debug().Func(func(e *zerolog.Event) { e.Msgf("Waiting for %d copy file tasks", pool.Status().Total) })
 
+		// Wait for all copy file tasks to finish
 		pool.SignalAllQueued()
 		pool.Wait(true)
 
@@ -282,27 +284,21 @@ func DoBackup(tsk task_mod.Task) {
 			return errors.Errorf("%d of %d backup file copies have failed", len(pool.Errors()), pool.Status().Total)
 		}
 
-		// stages.FinishStage("sync_fs")
-		t.SetResult(task_mod.TaskResult{"stages": stages})
-
-		// coreTree, err := ctx.FileService.GetFileTreeByName(meta.Core.TowerId)
-		// if err != nil {
-		// 	return err
-		// }
-		//
-		// root := coreTree.GetRoot()
-		//
-		// err = ctx.FileService.ResizeDown(root, nil)
-		// t.ReqNoErr(err)
-
-		tower_model.SetLastBackup(t.Ctx, meta.Core.TowerId, time.Now())
-		t.ReqNoErr(err)
+		err = tower_model.SetLastBackup(t.Ctx, meta.Core.TowerId, time.Now())
+		if err != nil {
+			return err
+		}
 
 		// Don't broadcast this last event set
 		t.OnResult(nil)
+
+		_, err = remoteDataDir.LoadStat()
+		if err != nil {
+			return err
+		}
+
 		t.SetResult(task_mod.TaskResult{
-			// "backupSize": root.GetSize(),
-			"backupSize": -1,
+			"backupSize": remoteDataDir.Size(),
 			"totalTime":  t.ExeTime(),
 		})
 
@@ -321,23 +317,8 @@ func DoBackup(tsk task_mod.Task) {
 	t.Success()
 }
 
-func translatePath(ctx context_service.AppContext, path fs.Filepath, core tower_model.Instance) (fs.Filepath, error) {
-	if path.RootName() != file_model.UsersTreeKey {
-		return fs.Filepath{}, errors.Errorf("Path %s is not a user path", path)
-	}
-
-	newPath, err := path.ReplacePrefix(file_model.UsersRootPath, file_model.BackupRootPath.Child(core.TowerId, true))
-	if err != nil {
-		return fs.Filepath{}, err
-	}
-
-	ctx.Log().Trace().Msgf("Translating path %s to %s", path, newPath)
-
-	return newPath, nil
-}
-
-func getExistingFile(ctx context_service.AppContext, a *history_model.FileAction, core tower_model.Instance) (*file_model.WeblensFileImpl, error) {
-	path, err := translatePath(ctx, a.GetRelevantPath(), core)
+func getExistingFile(ctx context_service.AppContext, a history_model.FileAction, core tower_model.Instance) (*file_model.WeblensFileImpl, error) {
+	path, err := file_service.TranslateBackupPath(ctx, a.GetOriginPath(), core)
 	if err != nil {
 		return nil, err
 	}
@@ -362,8 +343,13 @@ func getExistingFile(ctx context_service.AppContext, a *history_model.FileAction
 	return existingFile, nil
 }
 
-func handleFileAction(ctx context_service.AppContext, a *history_model.FileAction, remoteDataDir *file_model.WeblensFileImpl, core tower_model.Instance, pool task_mod.Pool) error {
+func handleFileAction(ctx context_service.AppContext, a history_model.FileAction, core tower_model.Instance, pool task_mod.Pool) error {
 	existingFile, err := getExistingFile(ctx, a, core)
+	if err != nil {
+		return err
+	}
+
+	backupFilePath, err := file_service.TranslateBackupPath(ctx, a.GetDestinationPath(), core)
 	if err != nil {
 		return err
 	}
@@ -373,37 +359,33 @@ func handleFileAction(ctx context_service.AppContext, a *history_model.FileActio
 			return ctx.FileService.DeleteFiles(ctx, []*file_model.WeblensFileImpl{existingFile})
 		}
 
-		destPath, err := translatePath(ctx, a.GetRelevantPath(), core)
-		if err != nil {
-			return err
-		}
-
-		if destPath != existingFile.GetPortablePath() {
-			newParent, err := ctx.FileService.GetFileByFilepath(ctx, destPath.Dir())
+		if backupFilePath != existingFile.GetPortablePath() {
+			newParent, err := ctx.FileService.GetFileByFilepath(ctx, backupFilePath.Dir())
 			if err != nil {
 				return err
 			}
 
-			err = ctx.FileService.MoveFiles(ctx, []*file_model.WeblensFileImpl{existingFile}, newParent)
-
-			return err
+			return ctx.FileService.MoveFiles(ctx, []*file_model.WeblensFileImpl{existingFile}, newParent)
 		}
 
 		return nil
 	}
 
-	if a.ActionType == history_model.FileDelete {
-		path := a.GetRelevantPath()
-		if path.IsDir() {
-			return nil
+	if backupFilePath.IsDir() && a.ActionType == history_model.FileCreate {
+		parent, err := ctx.FileService.GetFileByFilepath(ctx, backupFilePath.Dir())
+		if err != nil {
+			return fmt.Errorf("failed to get new backup directory parent [%s]: %w", backupFilePath.Dir(), err)
 		}
 
-		f, err := ctx.FileService.GetFileByContentId(a.ContentId)
-		if err == nil && f.Size() == a.Size {
-			return nil
-		} else if !errors.Is(err, file_model.ErrFileNotFound) {
+		// If the file is a directory, create it and return
+		_, err = ctx.FileService.CreateFolder(ctx, parent, backupFilePath.Filename())
+		if err != nil && !errors.Is(err, file_model.ErrDirectoryAlreadyExists) {
 			return err
 		}
+
+		ctx.Log().Trace().Msgf("Created backup directory [%s]", backupFilePath)
+
+		return nil
 	}
 
 	if a.ContentId == "" {
@@ -412,16 +394,11 @@ func handleFileAction(ctx context_service.AppContext, a *history_model.FileActio
 		return nil
 	}
 
-	restoreFile, err := ctx.FileService.CreateFile(ctx, remoteDataDir, a.ContentId)
-	if err != nil {
-		return err
-	}
-
-	if restoreFile == nil || restoreFile.Size() != 0 {
-		return nil
-	}
-
-	restoreFile.SetContentId(a.ContentId)
+	restoreFile := file_model.NewWeblensFile(file_model.NewFileOptions{
+		FileId:    a.FileId,
+		Path:      backupFilePath,
+		ContentId: a.ContentId,
+	})
 
 	ctx.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Queuing copy file task for %s", restoreFile.GetPortablePath()) })
 
@@ -430,7 +407,7 @@ func handleFileAction(ctx context_service.AppContext, a *history_model.FileActio
 		File:       restoreFile,
 		Core:       core,
 		CoreFileId: a.FileId,
-		Filename:   a.GetRelevantPath().Filename(),
+		Filename:   backupFilePath.Filename(),
 	}
 
 	_, err = ctx.DispatchJob(job.CopyFileFromCoreTask, copyFileMeta, pool)

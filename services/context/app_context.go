@@ -80,6 +80,14 @@ func (c AppContext) WithValue(key, value any) AppContext {
 	return c
 }
 
+func (c AppContext) WithContext(ctx context.Context) context.Context {
+	c.BasicContext = BasicContext{
+		Context: ctx,
+		Logger:  c.Logger,
+	}
+	return c
+}
+
 func (c AppContext) Value(key any) any {
 	if key == (appContextKey{}) {
 		return c

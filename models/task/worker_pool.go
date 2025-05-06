@@ -313,23 +313,19 @@ func (wp *WorkerPool) workerRecover(task *Task, workerId int64) {
 	if recovered != nil {
 		// Make sure what we got is an error
 		var err error
+
 		switch e := recovered.(type) {
 		case error:
-			if errors.Is(err, ErrTaskError) {
-				// wp.ctx.Log().Error.Printf("Task [%s] exited with an error", task.TaskId())
-				// wp.ctx.Log().Error().Stack().Err(task.err).Msg("")
+			if errors.Is(e, ErrTaskError) {
 				return
-			} else if errors.Is(err, ErrTaskExit) {
+			} else if errors.Is(e, ErrTaskExit) {
 				return
 			}
 			err = errors.WithStack(e)
 		default:
 			err = errors.Errorf("%s", recovered)
 		}
-		// wp.ctx.Log().Raw.Printf(
-		// 	"\n\tWorker %d recovered panic: \u001b[31m%s\u001B[0m\n\n%s\n", workerId, recovered,
-		// 	werror.GetStack(2).String(),
-		// )
+
 		task.error(err)
 	}
 }

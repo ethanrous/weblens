@@ -253,12 +253,7 @@ func (f *WeblensFileImpl) Size() int64 {
 	}
 
 	if f.IsDir() {
-		_, err := f.LoadStat()
-		if err != nil {
-			log.Error().Stack().Err(err).Msg("")
-
-			return -1
-		}
+		f.size.Store(f.dirComputeSize())
 	}
 
 	return f.size.Load()
@@ -341,7 +336,7 @@ func (f *WeblensFileImpl) Readable() (io.Reader, error) {
 	return os.Open(path)
 }
 
-func (f *WeblensFileImpl) Writeable() (*os.File, error) {
+func (f *WeblensFileImpl) Writer() (io.WriteCloser, error) {
 	if f.IsDir() {
 		return nil, fmt.Errorf("attempt to read from directory")
 	}
@@ -765,14 +760,7 @@ func (f *WeblensFileImpl) LoadStat() (newSize int64, err error) {
 	f.modifyDate = stat.ModTime()
 
 	if f.IsDir() {
-		for _, child := range f.GetChildren() {
-			chsz := child.Size()
-			if chsz == -1 {
-				continue
-			}
-
-			newSize += chsz
-		}
+		newSize = f.dirComputeSize()
 	} else {
 		if origSize > 0 {
 			return -1, nil
@@ -814,6 +802,20 @@ func (f *WeblensFileImpl) getModifyDate() time.Time {
 	defer f.updateLock.RUnlock()
 
 	return f.modifyDate
+}
+
+func (f *WeblensFileImpl) dirComputeSize() int64 {
+	size := int64(0)
+	for _, child := range f.GetChildren() {
+		chsz := child.Size()
+		if chsz == -1 {
+			continue
+		}
+
+		size += chsz
+	}
+
+	return size
 }
 
 func (f *WeblensFileImpl) setModifyDate(newModifyDate time.Time) {

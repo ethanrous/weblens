@@ -24,12 +24,12 @@ func FileActionToFileActionInfo(fa history.FileAction) structs.FileActionInfo {
 	}
 }
 
-func FileActionInfoToFileAction(info openapi.FileActionInfo) *history.FileAction {
+func FileActionInfoToFileAction(info openapi.FileActionInfo) history.FileAction {
 	filepath, _ := fs.ParsePortable(info.GetFilepath())
 	originPath, _ := fs.ParsePortable(info.GetOriginPath())
 	destinationPath, _ := fs.ParsePortable(info.GetDestinationPath())
 
-	return &history.FileAction{
+	return history.FileAction{
 		ActionType:      info.ActionType,
 		DestinationPath: destinationPath,
 		EventId:         info.EventId,

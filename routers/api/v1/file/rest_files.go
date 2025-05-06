@@ -1231,7 +1231,7 @@ func NewFileUpload(ctx context_service.RequestContext) {
 				} else {
 					// We must not pass the event in here, as it will attempt to generate the contentId for the
 					// file before the file has content.
-					newF, err = ctx.FileService.CreateFile(ctx.WithValue("skip_journal", true), parent, newFInfo.NewFileName, nil)
+					newF, err = ctx.FileService.CreateFile(ctx.WithValue(file_service.SkipJournalKey, true), parent, newFInfo.NewFileName, nil)
 					if err != nil {
 						return err
 					}

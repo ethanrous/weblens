@@ -27,6 +27,7 @@ var ErrTowerNotFound = errors.New("no tower found")
 var ErrTowerNotInitialized = errors.New("tower not initialized")
 var ErrTowerAlreadyInitialized = errors.New("tower is already initialized")
 var ErrTowerIsBackup = errors.New("tower is a backup")
+var ErrTowerNotBackup = errors.New("tower was expected to be a backup tower, but is not")
 var ErrNotCore = errors.New("tower was expected to be a core tower, but is not")
 
 // A "Tower" is a single Weblens tower.
