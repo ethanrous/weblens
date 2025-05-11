@@ -41,7 +41,7 @@ while :; do
 			members: [
 			{ _id: 0, host: 'weblens-test-mongo' }
 			]
-		})" &>/dev/null; then
+		})" 1>/dev/null; then
         if ! docker ps | grep weblens-test-mongo; then
             echo "MongoDB container is not running, exiting..."
             docker logs weblens-test-mongo
