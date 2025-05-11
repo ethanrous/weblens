@@ -27,7 +27,6 @@ rm -rf ./build/fs/test-mongo-container/db
 echo "Starting MongoDB container..."
 docker run \
     -d \
-    --rm \
     --name weblens-test-mongo \
     --network weblens-net \
     -v ./build/fs/test-mongo-container/db:/data/db \
@@ -43,7 +42,14 @@ while :; do
 			{ _id: 0, host: 'weblens-test-mongo' }
 			]
 		})" &>/dev/null; then
+        if ! docker ps | grep weblens-test-mongo; then
+            echo "MongoDB container is not running, exiting..."
+            docker logs weblens-test-mongo
+            exit 1
+        fi
+
         echo "Waiting for MongoDB to be ready..."
+
         sleep 1
     else
         break
