@@ -35,8 +35,10 @@ docker run \
 
 echo "MongoDB container started, waiting for it to be ready..."
 
-while :; do
-    if ! docker exec -it weblens-test-mongo mongosh --eval "rs.initiate({
+retries=0
+while [ $retries -lt 10 ]; do
+    retries=$((retries + 1))
+    if ! docker exec weblens-test-mongo mongosh --eval "rs.initiate({
 			_id: 'rs0',
 			members: [
 			{ _id: 0, host: 'weblens-test-mongo' }
