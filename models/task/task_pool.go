@@ -8,8 +8,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ethanrous/weblens/modules/errors"
 	task_mod "github.com/ethanrous/weblens/modules/task"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
 
@@ -205,7 +205,7 @@ func (tp *TaskPool) Wait(supplementWorker bool, task ...task_mod.Task) {
 	if len(task) != 0 {
 		select {
 		case <-tp.createdBy.Ctx.Done():
-		case <-task[0].(*Task).signalChan:
+		case <-task[0].(*Task).Ctx.Done():
 		case <-tp.waiterGate:
 		}
 	} else {

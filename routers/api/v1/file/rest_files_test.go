@@ -14,7 +14,7 @@ import (
 	"github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/structs"
 	"github.com/ethanrous/weblens/services/proxy"
-	"github.com/pkg/errors"
+	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/rs/zerolog"
 )
 

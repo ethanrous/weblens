@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/opensearch-project/opensearch-go/v4"
 	opensearchapi "github.com/opensearch-project/opensearch-go/v4/opensearchapi"
-	"github.com/pkg/errors"
 )
 
 type LogMessage struct {
@@ -118,7 +118,7 @@ func (l *OpensearchLogger) worker() {
 	for msg := range l.msgQueue {
 		err := l.send(msg)
 		if err != nil {
-			fmt.Printf("Error sending log message to OpenSearch: %v\n", err)
+			NewZeroLogger(LogOpts{NoOpenSearch: true}).Error().Stack().Err(err).Msgf("failed sending log message to OpenSearch: %s", string(msg))
 		}
 	}
 }

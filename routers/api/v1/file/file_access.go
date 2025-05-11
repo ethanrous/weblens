@@ -8,7 +8,7 @@ import (
 	"github.com/ethanrous/weblens/services/auth"
 	context_service "github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/journal"
-	"github.com/pkg/errors"
+	"github.com/ethanrous/weblens/modules/errors"
 )
 
 func checkFileAccess(ctx context_service.RequestContext) (file *file_model.WeblensFileImpl, err error) {

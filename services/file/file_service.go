@@ -20,11 +20,11 @@ import (
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
 	context_mod "github.com/ethanrous/weblens/modules/context"
+	"github.com/ethanrous/weblens/modules/errors"
 	file_system "github.com/ethanrous/weblens/modules/fs"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	context_service "github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/notify"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
 
@@ -339,7 +339,7 @@ func (fs *FileServiceImpl) MoveFiles(ctx context.Context, files []*file_model.We
 }
 
 // DeleteFiles removes files being pointed to from the tree and moves them to the restore tree.
-func (fs *FileServiceImpl) DeleteFiles(ctx context.Context, files []*file_model.WeblensFileImpl) error {
+func (fs *FileServiceImpl) DeleteFiles(ctx context.Context, files ...*file_model.WeblensFileImpl) error {
 	err := db.WithTransaction(ctx, func(ctx context.Context) error {
 		return fs.deleteFilesWithTransaction(ctx, files)
 	})

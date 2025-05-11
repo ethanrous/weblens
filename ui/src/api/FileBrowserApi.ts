@@ -1,7 +1,7 @@
 import { FbModeT, useFileBrowserStore } from '@weblens/store/FBStateControl'
 
 import API_ENDPOINT from './ApiEndpoint.js'
-import { WsAction, WsSendFunc, WsSubscriptionType, useWebsocketStore } from './Websocket'
+import { WsAction, WsSubscriptionType, useWebsocketStore } from './Websocket'
 import {
 	FilesApiAxiosParamCreator,
 	FilesApiFactory,
@@ -13,13 +13,15 @@ import WeblensFile from '@weblens/types/files/File.js'
 export const FileApi = FilesApiFactory(null, API_ENDPOINT)
 export const FolderApi = FolderApiFactory(null, API_ENDPOINT)
 
-export function SubToFolder(subId: string, shareId: string, wsSend: WsSendFunc) {
+export function SubToFolder(subId: string, shareId: string) {
 	if (subId === '') {
 		console.trace('Empty subId')
 		return
 	} else if (subId === 'shared') {
 		return
 	}
+
+	const wsSend = useWebsocketStore.getState().wsSend
 
 	wsSend({
 		action: WsAction.Subscribe, subscriptionType: WsSubscriptionType.Folder, subscribeKey: subId, content: {
@@ -54,11 +56,15 @@ export function CancelTask(taskId: string) {
 	wsSend({ action: WsAction.CancelTask, content: { taskId: taskId } })
 }
 
-export function UnsubFromFolder(subId: string, wsSend: WsSendFunc) {
+export function UnsubFromFolder(subId: string) {
 	if (!subId || useWebsocketStore.getState().readyState < 1) {
 		return
 	}
-	wsSend({ action: WsAction.Unsubscribe, content: { subscribeKey: subId } })
+
+	useWebsocketStore.getState().wsSend({
+		action: WsAction.Unsubscribe,
+		subscribeKey: subId
+	})
 }
 
 export async function GetFolderData(

@@ -5,13 +5,14 @@ import (
 
 	"github.com/ethanrous/weblens/models/db"
 	"github.com/ethanrous/weblens/modules/config"
+	"github.com/ethanrous/weblens/modules/tests"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 )
 
 func TestConnectToMongo(t *testing.T) {
-	ctx := context.TODO()
+	defer tests.Recover(t)
+	ctx := tests.Setup(t)
 
 	cnf := config.GetConfig()
 

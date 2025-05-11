@@ -319,6 +319,7 @@ function FBSidebar() {
                         <WeblensFileButton
                             folderId={folderInfo?.Id()}
                             shareId={shareId}
+                            multiple={true}
                             buttonProps={{
                                 fillWidth: true,
                                 label: 'Upload',

@@ -7,11 +7,11 @@ import (
 	"time"
 
 	context_mod "github.com/ethanrous/weblens/modules/context"
+	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/log"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
 var ErrTaskError = errors.New("task error")
@@ -167,7 +167,7 @@ func (wp *WorkerPool) RegisterJob(jobName string, fn task_mod.CleanupFunc, opts 
 	wp.registeredJobs[jobName] = job{handler: fn, opts: o}
 }
 
-func (wp *WorkerPool) DispatchJob(c context.Context, jobName string, meta task_mod.TaskMetadata, pool task_mod.Pool) (task_mod.Task, error) {
+func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta task_mod.TaskMetadata, pool task_mod.Pool) (task_mod.Task, error) {
 	if meta.JobName() != jobName {
 		return nil, errors.Errorf("job name does not match task metadata")
 	}
@@ -201,25 +201,20 @@ func (wp *WorkerPool) DispatchJob(c context.Context, jobName string, meta task_m
 		taskId = globbyHash(8, metaStr)
 	}
 
-	ctx := context_mod.ToZ(c)
-
 	t := wp.GetTask(taskId)
 
-	ctx.Log().UpdateContext(func(c zerolog.Context) zerolog.Context {
-		return c.Str("task_id", taskId).Str("job_name", jobName)
-	})
-
-	// appCtx, ok := ctx.(context_mod.AppContexter)
-	// if !ok {
-	// 	return nil, errors.New("context is not an AppContexter")
-	// } else {
-	// 	ctx = appCtx.AppCtx()
-	// }
-
 	if t != nil {
-		ctx.Log().Trace().Msgf("Task [%s] already exists, not launching again", taskId)
+		t.Log().Trace().Msgf("Task [%s] already exists, not launching again", taskId)
 		return t, nil
 	} else {
+		newl := log.FromContext(ctx).With().
+			Str("task_id", taskId).
+			Str("job_name", jobName).
+			Logger()
+		ctx = log.WithContext(ctx, &newl)
+
+		ctx, cancel := context.WithCancelCause(ctx)
+
 		t = &Task{
 			taskId:   taskId,
 			jobName:  jobName,
@@ -229,20 +224,19 @@ func (wp *WorkerPool) DispatchJob(c context.Context, jobName string, meta task_m
 			queueState: PreQueued,
 
 			// signal chan must be buffered so caller doesn't block trying to close many tasks
-			signalChan: make(chan int, 1),
-
 			waitChan: make(chan struct{}),
 
-			Ctx: ctx,
+			Ctx:        ctx,
+			cancelFunc: cancel,
 		}
 	}
 
 	wp.addTask(t)
 
-	ctx.Log().Trace().Stack().Msgf("Task [%s] created", taskId)
+	t.Log().Trace().Stack().Msgf("Task [%s] created", taskId)
 
 	select {
-	case _, ok := <-ctx.Done():
+	case _, ok := <-t.Ctx.Done():
 		if !ok {
 			return nil, errors.New("not queuing task while worker pool is going down")
 		}
@@ -336,7 +330,7 @@ func (wp *WorkerPool) safetyWork(task *Task, workerId int64) {
 	defer wp.workerRecover(task, workerId)
 
 	if task.exitStatus != task_mod.TaskNoStatus {
-		task.Ctx.Log().Trace().Msgf("Task [%s] already has exit status [%s], not running", task.taskId, task.exitStatus)
+		log.FromContext(task.Ctx).Trace().Msgf("Task [%s] already has exit status [%s], not running", task.taskId, task.exitStatus)
 	} else {
 		task.StartTime = time.Now()
 		task.work.handler(task)
@@ -350,18 +344,18 @@ func (wp *WorkerPool) cleanup(task *Task, workerId int64) {
 
 	// Run the cleanup routine for errors, if any
 	if task.exitStatus == task_mod.TaskError || task.exitStatus == task_mod.TaskCanceled {
-		task.Ctx.Log().Trace().Msgf("Running error cleanup")
+		log.FromContext(task.Ctx).Trace().Msgf("Running error cleanup")
 
 		for _, ecf := range task.errorCleanup {
 			ecf(task)
 		}
-		task.Ctx.Log().Trace().Msgf("Finished error cleanup")
+		log.FromContext(task.Ctx).Trace().Msgf("Finished error cleanup")
 	}
 
 	// We want the pool completed and error count to reflect the task has completed
 	// when we are doing cleanup. Cleanup is intended to execute "after" the task
 	// has finished, so we must inc the completed tasks counter (above) before cleanup
-	task.Ctx.Log().Trace().Msgf("Running cleanup(s)")
+	log.FromContext(task.Ctx).Trace().Msgf("Running cleanup(s)")
 	task.updateMu.RLock()
 	cleanups := task.cleanups
 	task.updateMu.RUnlock()
@@ -370,15 +364,15 @@ func (wp *WorkerPool) cleanup(task *Task, workerId int64) {
 		cf(task)
 	}
 
-	task.Ctx.Log().Trace().Msgf("Finished cleanup")
+	log.FromContext(task.Ctx).Trace().Msgf("Finished cleanup")
 
 	// The post action is intended to run after the task has completed, and after
 	// the cleanup has run. This is useful for tasks that need to use the result of
 	// the task to do something else, but don't want to block until the task is done
 	if task.postAction != nil && task.exitStatus == task_mod.TaskSuccess {
-		task.Ctx.Log().Trace().Msg("Running task post-action")
+		log.FromContext(task.Ctx).Trace().Msg("Running task post-action")
 		task.postAction(task.result)
-		task.Ctx.Log().Trace().Msg("Finished task post-action")
+		log.FromContext(task.Ctx).Trace().Msg("Finished task post-action")
 	}
 
 }
@@ -396,10 +390,10 @@ func (wp *WorkerPool) reaper() {
 		select {
 		case _, ok := <-wp.ctx.Done():
 			if !ok {
-				log.Debug().Msg("Task reaper exiting")
+				log.GlobalLogger().Debug().Msg("Task reaper exiting")
 				return
 			}
-			log.Warn().Msg("Reaper not exiting?")
+			log.GlobalLogger().Warn().Msg("Reaper not exiting?")
 		case newHit := <-wp.hitStream:
 			go func(h hit) { time.Sleep(time.Until(h.time)); timerStream <- h.target }(newHit)
 		case task := <-timerStream:
@@ -409,7 +403,7 @@ func (wp *WorkerPool) reaper() {
 			// has not already finished
 			timeout := task.GetTimeout()
 			if task.QueueState() != Exited && time.Until(timeout) <= 0 && timeout.Unix() != 0 {
-				log.Warn().Msgf("Sending timeout signal to T[%s]\n", task.taskId)
+				log.GlobalLogger().Warn().Msgf("Sending timeout signal to T[%s]\n", task.taskId)
 				task.Cancel()
 				task.error(ErrTaskTimeout)
 			}
@@ -508,16 +502,21 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 						wp.addToRetryBuffer(tBuf...)
 					}
 
-					t.Ctx.WithLogger(t.Ctx.Log().With().Int("worker_id", int(workerId)).Logger())
+					newl := log.FromContext(t.Ctx).With().
+						Int("worker_id", int(workerId)).
+						Logger()
+
+					t.Ctx = log.WithContext(t.Ctx, &newl)
+					l := log.FromContext(t.Ctx)
 
 					// Inc tasks being processed
 					wp.busyCount.Add(1)
-					t.Ctx.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Starting task") })
+					l.Trace().Func(func(e *zerolog.Event) { e.Msgf("Starting task") })
 					wp.safetyWork(t, workerId)
-					t.Ctx.Log().Trace().Func(func(e *zerolog.Event) {
+					l.Trace().Func(func(e *zerolog.Event) {
 						t.updateMu.RLock()
 						defer t.updateMu.RUnlock()
-						e.Dur("task_duration", t.ExeTime()).Str("exit_status", string(t.exitStatus)).Msg("Task finished")
+						e.Dur("task_duration_ms", t.ExeTime()).Str("exit_status", string(t.exitStatus)).Msg("Task finished")
 					})
 
 					// Dec tasks being processed

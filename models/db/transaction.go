@@ -5,7 +5,7 @@ import (
 	"time"
 
 	context_mod "github.com/ethanrous/weblens/modules/context"
-	"github.com/pkg/errors"
+	"github.com/ethanrous/weblens/modules/errors"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 

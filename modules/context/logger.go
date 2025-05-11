@@ -9,5 +9,4 @@ import (
 type LoggerContext interface {
 	context.Context
 	Log() *zerolog.Logger
-	WithLogger(zerolog.Logger)
 }

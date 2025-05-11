@@ -5,7 +5,7 @@ import (
 
 	"github.com/ethanrous/weblens/services/context"
 	"github.com/go-chi/chi/v5"
-	"github.com/pkg/errors"
+	"github.com/ethanrous/weblens/modules/errors"
 )
 
 var _ http.Handler = &Router{}

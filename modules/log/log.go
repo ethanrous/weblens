@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
-	"slices"
 	"strings"
 	"time"
 
@@ -18,8 +17,6 @@ import (
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
 )
-
-// Deprecated: Use json logger instead.
 
 var OpenSearchClient *opensearch.Client
 
@@ -61,16 +58,31 @@ func (h ErrUnwrapHook) Run(e *zerolog.Event, level zerolog.Level, msg string) {
 
 var logger zerolog.Logger = zerolog.Nop()
 
+type LogOpts struct {
+	NoOpenSearch bool
+}
+
+func compileLogOpts(o ...LogOpts) LogOpts {
+	opts := LogOpts{}
+	for _, opt := range o {
+		if opt.NoOpenSearch {
+			opts.NoOpenSearch = true
+		}
+	}
+	return opts
+}
+
 func NopLogger() zerolog.Logger {
 	nop := zerolog.Nop()
 	return nop
-
-	// return NewZeroLogger()
 }
 
-func NewZeroLogger() zerolog.Logger {
-	if logger.GetLevel() != zerolog.Disabled {
-		return logger
+func NewZeroLogger(opts ...LogOpts) *zerolog.Logger {
+	o := compileLogOpts(opts...)
+
+	if logger.GetLevel() != zerolog.Disabled && len(opts) == 0 {
+		l := logger.With().Logger()
+		return &l
 	}
 
 	var localLogger io.Writer
@@ -82,9 +94,9 @@ func NewZeroLogger() zerolog.Logger {
 
 	writers := []io.Writer{localLogger}
 
-	osIndex := os.Getenv("OPENSEARCH_INDEX")
-	if OpenSearchClient != nil {
-		oLog := NewOpensearchLogger(OpenSearchClient, osIndex)
+	if !o.NoOpenSearch && OpenSearchClient != nil {
+		opnsIndex := os.Getenv("OPENSEARCH_INDEX")
+		oLog := NewOpensearchLogger(OpenSearchClient, opnsIndex)
 		writers = append(writers, oLog)
 	}
 
@@ -112,14 +124,22 @@ func NewZeroLogger() zerolog.Logger {
 	zlog.Logger = log
 
 	log.Info().Msgf("Weblens logger initialized [%s]", log.GetLevel())
-	log.Trace().Msgf("Weblens logger initialized [%s]", logLevel.String())
 
-	return log
+	return &log
+}
+
+func GlobalLogger() *zerolog.Logger {
+	l := logger
+	if logger.GetLevel() == zerolog.Disabled {
+		l = NopLogger()
+	}
+
+	return &l
 }
 
 type loggerContextKey struct{}
 
-func WithContext(ctx context.Context, l zerolog.Logger) context.Context {
+func WithContext(ctx context.Context, l *zerolog.Logger) context.Context {
 	if ctx == nil {
 		return ctx
 	}
@@ -129,9 +149,17 @@ func WithContext(ctx context.Context, l zerolog.Logger) context.Context {
 	return ctx
 }
 
-func FromContext(ctx context.Context) (zerolog.Logger, bool) {
-	l, ok := ctx.Value(loggerContextKey{}).(zerolog.Logger)
+func FromContext(ctx context.Context) *zerolog.Logger {
+	l, ok := ctx.Value(loggerContextKey{}).(*zerolog.Logger)
+	if !ok {
+		return GlobalLogger()
+	}
 
+	return l
+}
+
+func FromContextOk(ctx context.Context) (*zerolog.Logger, bool) {
+	l, ok := ctx.Value(loggerContextKey{}).(*zerolog.Logger)
 	return l, ok
 }
 
@@ -158,12 +186,14 @@ func (l WLConsoleLogger) Write(p []byte) (n int, err error) {
 	logMsg, _ := target["message"].(string)
 	traceback, _ := target["traceback"].([]any)
 
-	if level == zerolog.TraceLevel.String() {
-		ignoredKeys := []string{"level", "error", "message", "weblens_build_version", "caller", "@timestamp", "traceback", "instance"}
+	if level == zerolog.TraceLevel.String() || true {
+		// ignoredKeys := []string{"level", "error", "message", "weblens_build_version", "caller", "@timestamp", "traceback", "instance"}
+		allowedKeys := []string{"task_id"}
 		extras := ""
 
-		for k, v := range target {
-			if slices.Contains(ignoredKeys, k) {
+		for _, k := range allowedKeys {
+			v, ok := target[k]
+			if !ok {
 				continue
 			}
 

@@ -7,7 +7,7 @@ import (
 	"github.com/ethanrous/weblens/models/db"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/slices"
-	"github.com/pkg/errors"
+	"github.com/ethanrous/weblens/modules/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )

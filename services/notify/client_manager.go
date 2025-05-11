@@ -15,11 +15,11 @@ import (
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
 	context_mod "github.com/ethanrous/weblens/modules/context"
+	"github.com/ethanrous/weblens/modules/errors"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	"github.com/gorilla/websocket"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
 
@@ -221,8 +221,15 @@ func (cm *ClientManager) GetSubscribers(ctx context_mod.LoggerContext, st websoc
 		ctx.Log().Error().Stack().Err(err).Msgf("Failed to get subscribers for key [%s]", key)
 	}
 
+	for c := range slices.Values(clients) {
+		if c != nil {
+			continue
+		}
+		ctx.Log().Error().Msgf("Client is nil!")
+	}
+
 	// Copy clients to not modify reference in the map
-	return clients[:]
+	return slices.Clone(clients)
 }
 
 func (cm *ClientManager) SubscribeToFile(ctx context_mod.ContextZ, c *client_model.WsClient, file *file_model.WeblensFileImpl, share *share_model.FileShare, subTime time.Time) error {

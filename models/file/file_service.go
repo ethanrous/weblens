@@ -52,7 +52,7 @@ type FileService interface {
 	ReturnFilesFromTrash(ctx context.Context, trashFiles []*WeblensFileImpl) error
 
 	// DeleteFiles permanently deletes files
-	DeleteFiles(ctx context.Context, files []*WeblensFileImpl) error
+	DeleteFiles(ctx context.Context, files ...*WeblensFileImpl) error
 
 	// RestoreFiles restores files from history
 	RestoreFiles(ctx context.Context, ids []string, newParent *WeblensFileImpl, restoreTime time.Time) error

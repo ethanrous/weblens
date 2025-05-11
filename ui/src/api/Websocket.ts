@@ -37,11 +37,11 @@ export function useWeblensSocket() {
 				console.debug('WS Connected')
 				setGivenUp(false)
 			},
-			reconnectAttempts: 50,
+			reconnectAttempts: 5,
 			reconnectInterval: (last) => {
 				return ((last + 1) ^ 2) * 1000
 			},
-			shouldReconnect: () => user?.username !== '',
+			shouldReconnect: () => user?.username !== '' && givenUp === false,
 			onReconnectStop: () => {
 				console.debug('WS Reconnect stopped')
 				setGivenUp(true)
@@ -78,6 +78,17 @@ export function useWeblensSocket() {
 		setReadyState(givenUp ? -1 : readyState)
 	}, [readyState, givenUp])
 
+	useEffect(() => {
+		const fn = () => {
+			if (user?.username !== '' && givenUp) {
+				setGivenUp(false)
+			}
+		}
+
+		window.addEventListener('focus', fn)
+		return () => { window.removeEventListener('focus', fn) }
+	})
+
 	return {
 		lastJsonMessage,
 	}
@@ -87,7 +98,7 @@ export type WsSendProps = {
 	action: WsAction,
 	subscriptionType?: WsSubscriptionType,
 	subscribeKey?: string,
-	content: object,
+	content?: object,
 }
 
 export type WsSendFunc = (props: WsSendProps) => void
@@ -99,10 +110,14 @@ export const useSubscribe = () => {
 	const pastTime = useFileBrowserStore((state) => state.pastTime)
 	const { lastJsonMessage } = useWeblensSocket()
 	const readyState = useWebsocketStore((state) => state.readyState)
-	const wsSend = useWebsocketStore((state) => state.wsSend)
 	const user = useSessionStore((state) => state.user)
 
 	useEffect(() => {
+		if (readyState !== 1) {
+			console.log('Websocket not ready, not subscribing')
+			return
+		}
+
 		// If we don't have a folderInfo, or we are viewing the past,
 		// we can't subscribe to anything
 		if (!folderInfo || pastTime.getTime() !== 0) {
@@ -131,15 +146,16 @@ export const useSubscribe = () => {
 
 		for (const folderId of folderIds) {
 			console.debug('Subscribing to', folderId)
-			SubToFolder(folderId, shareId, wsSend)
+			SubToFolder(folderId, shareId)
 		}
 
 		return () => {
-			for (const folder of folderIds) {
-				UnsubFromFolder(folder, wsSend)
+			for (const folderId of folderIds) {
+				console.debug('Unsubscribeing from', folderId)
+				UnsubFromFolder(folderId)
 			}
 		}
-	}, [folderInfo, shareId, viewMode, pastTime])
+	}, [folderInfo, shareId, viewMode, pastTime, readyState])
 
 	// Listen for incoming websocket messages
 	useEffect(() => {

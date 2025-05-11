@@ -8,7 +8,7 @@ import (
 
 func getSafeString(content websocket_mod.WsData, key string) (val string) {
 	if content != nil {
-		if id, ok := content["shareId"]; ok {
+		if id, ok := content[key]; ok {
 			val = id.(string)
 		}
 	}
@@ -32,8 +32,13 @@ func GetCancelInfo(msg websocket_mod.WsResponseInfo) websocket_mod.CancelInfo {
 }
 
 func GetScanInfo(msg websocket_mod.WsResponseInfo) websocket_mod.ScanInfo {
+	id := getSafeString(msg.Content, "folderId")
+	if id == "" {
+		id = getSafeString(msg.Content, "fileId")
+	}
+
 	return websocket_mod.ScanInfo{
-		FileId:  getSafeString(msg.Content, "fileId"),
+		FileId:  id,
 		ShareId: getSafeString(msg.Content, "shareId"),
 	}
 }

@@ -3,7 +3,7 @@ package tower
 import (
 	"context"
 
-	"github.com/pkg/errors"
+	"github.com/ethanrous/weblens/modules/errors"
 )
 
 var (

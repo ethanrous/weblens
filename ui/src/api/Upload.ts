@@ -1,5 +1,4 @@
 import { useUploadStatus } from '@weblens/store/UploadStateControl'
-import { ErrorHandler } from '@weblens/types/Types'
 import { AxiosProgressEvent } from 'axios'
 
 import { FileApi } from './FileBrowserApi'
@@ -70,6 +69,7 @@ class PromiseQueue<T> {
 
 export const UPLOAD_CHUNK_SIZE: number = 51200000
 const CONCURRENT_UPLOAD_COUNT = 4
+const MAX_RETRIES = 3
 
 function queueChunks(
 	uploadMeta: FileUploadMetadata,
@@ -94,9 +94,13 @@ function queueChunks(
 			.getState()
 			.createChunk(key, thisChunkIndex, chunkHighByte - chunkLowByte)
 
+		const headers = {
+			'Content-Range': `bytes=${chunkLowByte}-${chunkHighByte - 1}/${file.size}`,
+			'Content-Type': 'application/octet-stream',
+		}
+
 		chunkTasks.push(async () => {
 			if (useUploadStatus.getState().readError(key)) {
-				console.warn(`Skipping upload with error: ${key}`)
 				return
 			}
 
@@ -104,29 +108,51 @@ function queueChunks(
 				`Uplading file ${file.name} ${uploadMeta.fileId} of size ${file.size}`
 			)
 
-			await FileApi.uploadFileChunk(
-				uploadId,
-				uploadMeta.fileId,
-				file.slice(chunkLowByte, chunkHighByte) as File,
-				shareId,
-				{
-					headers: {
-						'Content-Range': `bytes=${chunkLowByte}-${chunkHighByte - 1}/${file.size}`,
-						'Content-Type': 'application/octet-stream',
-					},
-					onUploadProgress: (e: AxiosProgressEvent) => {
-						useUploadStatus
-							.getState()
-							.updateProgress(key, thisChunkIndex, e.loaded)
-					},
+			let retries = MAX_RETRIES
+
+			while (retries > 0) {
+				if (useUploadStatus.getState().readError(key)) {
+					return
 				}
-			).catch((err: Error) => {
-				taskQueue.cancelQueue()
-				useUploadStatus.getState().setError(key, String(err))
-				ErrorHandler(err)
-			})
-			console.debug('Finished uploading', file.name)
-			useUploadStatus.getState().chunkComplete(key, thisChunkIndex)
+
+				try {
+					const res = await FileApi.uploadFileChunk(
+						uploadId,
+						uploadMeta.fileId,
+						file.slice(chunkLowByte, chunkHighByte) as File,
+						shareId,
+						{
+							headers: headers,
+							onUploadProgress: (e: AxiosProgressEvent) => {
+								useUploadStatus
+									.getState()
+									.updateProgress(key, thisChunkIndex, e.loaded)
+							},
+						}
+					)
+
+					if (res.status === 200) {
+						console.debug(`Chunk ${thisChunkIndex} of ${file.name} uploaded`)
+						useUploadStatus.getState().chunkComplete(key, thisChunkIndex)
+						return
+					} else {
+						throw new Error(`Failed to upload chunk ${thisChunkIndex} of ${file.name}: ${res.status}`)
+					}
+				}
+				catch (err) {
+					if (useUploadStatus.getState().readError(key)) {
+						return
+					}
+					retries--
+					if (retries === 0) {
+						useUploadStatus.getState().setError(key, String(err))
+						throw err
+					}
+					console.warn(
+						`Retrying upload of ${file.name} chunk ${thisChunkIndex} (${retries} retries left)`
+					)
+				}
+			}
 		})
 		chunkIndex++
 	}
@@ -185,7 +211,7 @@ async function Upload(
 		if (meta.isTopLevel) {
 			const name = meta.file?.name ?? meta.entry.name
 			const key: string = meta.folderId || meta.parentId + name
-			newUpload(key, name, meta.isDir, meta.isDir ? 0 : meta.file.size)
+			newUpload(key, uploadId, name, meta.isDir, meta.isDir ? 0 : meta.file.size)
 			if (meta.isDir) {
 				topDirs.push(meta.folderId)
 			}
@@ -257,6 +283,7 @@ async function Upload(
 			const key: string = meta.folderId || meta.parentId + name
 			newUpload(
 				key,
+				uploadId,
 				name,
 				meta.isDir,
 				meta.isDir ? 0 : meta.file.size,

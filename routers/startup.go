@@ -11,6 +11,7 @@ import (
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/config"
+	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/startup"
 	v1 "github.com/ethanrous/weblens/routers/api/v1"
 	"github.com/ethanrous/weblens/routers/router"
@@ -20,7 +21,6 @@ import (
 	"github.com/ethanrous/weblens/services/jobs"
 	"github.com/ethanrous/weblens/services/notify"
 	_ "github.com/ethanrous/weblens/services/user"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -60,7 +60,7 @@ func CaptureInterrupt() (context.Context, context.CancelFunc) {
 }
 
 func Startup(ctx context_service.AppContext, cnf config.ConfigProvider) (*router.Router, error) {
-	defer startupRecover(ctx.Logger)
+	defer startupRecover(*ctx.Log())
 
 	r := router.NewRouter()
 
@@ -116,7 +116,7 @@ func Startup(ctx context_service.AppContext, cnf config.ConfigProvider) (*router
 	)
 
 	// Install routes
-	r.Mount("/api/v1/", router.LoggerMiddlewares(ctx.Logger), router.Recoverer, v1.Routes(ctx))
+	r.Mount("/api/v1/", router.LoggerMiddlewares(*ctx.Log()), router.Recoverer, v1.Routes(ctx))
 
 	r.Use(router.Recoverer)
 	r.Mount("/docs", v1.Docs())

@@ -95,6 +95,7 @@ function GetStartedCard() {
                         <WeblensFileButton
                             folderId={folderInfo.Id()}
                             shareId={shareId}
+                            multiple={true}
                             buttonProps={{ size: 'jumbo' }}
                         />
                         <WeblensButton

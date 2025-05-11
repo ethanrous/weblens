@@ -12,12 +12,12 @@ import (
 	"github.com/ethanrous/weblens/models/job"
 	"github.com/ethanrous/weblens/models/task"
 	"github.com/ethanrous/weblens/modules/crypto"
+	"github.com/ethanrous/weblens/modules/errors"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/notify"
-	"github.com/pkg/errors"
 	"github.com/saracen/fastzip"
 )
 
@@ -96,7 +96,7 @@ func CreateZip(tsk task_mod.Task) {
 	defer func(fp *os.File) {
 		err := fp.Close()
 		if err != nil {
-			t.Ctx.Log().Error().Stack().Err(err).Msg("")
+			t.Log().Error().Stack().Err(err).Msg("")
 		}
 	}(fp)
 
@@ -114,7 +114,7 @@ func CreateZip(tsk task_mod.Task) {
 	defer func(a *fastzip.Archiver) {
 		err := a.Close()
 		if err != nil {
-			t.Ctx.Log().Error().Stack().Err(err).Msg("")
+			t.Log().Error().Stack().Err(err).Msg("")
 		}
 	}(a)
 
@@ -161,7 +161,7 @@ func CreateZip(tsk task_mod.Task) {
 					"bytesTotal": bytesTotal,
 					"speedBytes": int((float64(byteDiff) / float64(timeNs)) * float64(time.Second)),
 				})
-			t.Ctx.Notify(ctx, notif)
+			ctx.Notify(ctx, notif)
 			prevBytes = bytes
 			sinceUpdate = 0
 		}

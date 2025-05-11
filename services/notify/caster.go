@@ -10,7 +10,7 @@ import (
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	context_service "github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/reshape"
-	"github.com/pkg/errors"
+	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/rs/zerolog/log"
 )
 

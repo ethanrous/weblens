@@ -1,6 +1,7 @@
 package client
 
 import (
+	"encoding/json"
 	"iter"
 	"net"
 	"slices"
@@ -11,10 +12,10 @@ import (
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/context"
+	"github.com/ethanrous/weblens/modules/errors"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
 
@@ -33,6 +34,13 @@ type WsClient struct {
 	log zerolog.Logger
 }
 
+const (
+	subscribeKeyLogKey            = "websocket_subscribe_key"
+	clientIdLogKey                = "client_id"
+	websocketIdLogKey             = "websocket_id"
+	websocketMessageContentLogKey = "websocket_message_content"
+)
+
 func NewClient(ctx context.LoggerContext, conn *websocket.Conn, socketUser SocketUser) *WsClient {
 	clientId := uuid.New().String()
 
@@ -50,7 +58,7 @@ func NewClient(ctx context.LoggerContext, conn *websocket.Conn, socketUser Socke
 		newClient.tower = socketUser.(*tower_model.Instance)
 	}
 
-	newLogger := ctx.Log().With().Str("client_id", newClient.getClientName()).Str("websocket_id", newClient.GetClientId()).Logger()
+	newLogger := ctx.Log().With().Str(clientIdLogKey, newClient.getClientName()).Str(websocketIdLogKey, newClient.GetClientId()).Logger()
 	newClient.log = newLogger
 
 	newClient.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("New client connected") })
@@ -113,7 +121,7 @@ func (wsc *WsClient) AddSubscription(sub websocket_mod.Subscription) {
 	defer wsc.updateMu.Unlock()
 	wsc.subscriptions = append(wsc.subscriptions, sub)
 
-	wsc.log.Trace().Func(func(e *zerolog.Event) { e.Str("websocket_subscribe_key", sub.SubscriptionId).Msg("Added Subscription") })
+	wsc.log.Trace().Func(func(e *zerolog.Event) { e.Str(subscribeKeyLogKey, sub.SubscriptionId).Msg("Added Subscription") })
 }
 
 func (wsc *WsClient) RemoveSubscription(key string) {
@@ -126,8 +134,8 @@ func (wsc *WsClient) RemoveSubscription(key string) {
 	}
 	wsc.subscriptions = slices.Delete(wsc.subscriptions, subIndex, subIndex+1)
 
-	wsc.log.Debug().Func(func(e *zerolog.Event) {
-		e.Str("websocket_subscribe_key", key).Msgf("Removed Subscription from %s", wsc.getClientName())
+	wsc.log.Trace().Func(func(e *zerolog.Event) {
+		e.Str(subscribeKeyLogKey, key).Msgf("Removed Subscription from %s", wsc.getClientName())
 	})
 }
 
@@ -153,7 +161,11 @@ func (wsc *WsClient) Send(msg websocket_mod.WsResponseInfo) error {
 		defer wsc.updateMu.Unlock()
 
 		wsc.log.Trace().Func(func(e *zerolog.Event) {
-			e.Str("websocket_event", string(msg.EventTag)).Msg("Sending websocket message")
+			msgbs, err := json.Marshal(msg)
+			if err != nil {
+				return
+			}
+			e.Str("websocket_event", string(msg.EventTag)).Str(websocketMessageContentLogKey, string(msgbs)).Msg("Sending websocket message")
 		})
 
 		err := wsc.conn.WriteJSON(msg)

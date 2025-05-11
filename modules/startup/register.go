@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/pkg/errors"
+	"github.com/ethanrous/weblens/modules/errors"
 )
 
 type StartupFunc func(context.Context, config.ConfigProvider) error

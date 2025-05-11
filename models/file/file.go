@@ -18,7 +18,7 @@ import (
 	file_system "github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/option"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
-	"github.com/pkg/errors"
+	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/rs/zerolog/log"
 )
 

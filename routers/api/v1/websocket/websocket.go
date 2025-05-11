@@ -14,6 +14,7 @@ import (
 	"github.com/ethanrous/weblens/models/task"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	context_mod "github.com/ethanrous/weblens/modules/context"
+	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/websocket"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/services/auth"
@@ -21,7 +22,6 @@ import (
 	"github.com/ethanrous/weblens/services/notify"
 	"github.com/ethanrous/weblens/services/reshape"
 	gorilla "github.com/gorilla/websocket"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
 
@@ -42,13 +42,13 @@ var upgrader = gorilla.Upgrader{
 func Connect(ctx context_service.RequestContext) {
 	conn, err := upgrader.Upgrade(ctx.W, ctx.Req, nil)
 	if err != nil {
-		ctx.Logger.Error().Err(err).Msg("Failed to upgrade connection to websocket")
+		ctx.Log().Error().Err(err).Msg("Failed to upgrade connection to websocket")
 		return
 	}
 
 	client, err := ctx.ClientService.ClientConnect(ctx, conn, ctx.Requester)
 	if err != nil {
-		ctx.Logger.Error().Stack().Err(err).Msg("Failed to connect client")
+		ctx.Log().Error().Stack().Err(err).Msg("Failed to connect client")
 		return
 	}
 
@@ -208,7 +208,8 @@ func wsWebClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte, c
 
 			folder, err := ctx.FileService.GetFileById(scanInfo.FileId)
 			if err != nil {
-				return errors.Errorf("could not find directory to scan")
+				ctx.Log().Error().Stack().Err(err).Msgf("Failed to get file by id: %s", scanInfo.FileId)
+				return errors.Errorf("could not find directory to scan: %w", err)
 			}
 
 			if !auth.CanUserAccessFile(ctx, c.GetUser(), folder, share) {
@@ -308,7 +309,7 @@ func wsServerClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte
 	msg.RelaySource = relaySourceId
 	ctx.ClientService.Relay(msg)
 
-	ctx.Logger.Debug().Msgf("Relaying message [%s] from server [%s]", msg.EventTag, relaySourceId)
+	ctx.Log().Debug().Msgf("Relaying message [%s] from server [%s]", msg.EventTag, relaySourceId)
 
 	return nil
 }

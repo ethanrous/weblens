@@ -9,13 +9,13 @@ import (
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/config"
+	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/log"
 	auth_service "github.com/ethanrous/weblens/services/auth"
-	"github.com/ethanrous/weblens/services/context"
+	context_service "github.com/ethanrous/weblens/services/context"
 	tower_service "github.com/ethanrous/weblens/services/tower"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/hlog"
 )
@@ -35,7 +35,7 @@ const (
 var ErrNotAuthenticated = errors.New("not authenticated")
 var ErrNotAuthorized = errors.New("not authorized")
 
-func RequireSignIn(ctx context.RequestContext) {
+func RequireSignIn(ctx context_service.RequestContext) {
 	if !ctx.IsLoggedIn {
 		ctx.Error(http.StatusUnauthorized, ErrNotAuthenticated)
 
@@ -44,7 +44,7 @@ func RequireSignIn(ctx context.RequestContext) {
 }
 
 func RequireAdmin(next Handler) Handler {
-	return HandlerFunc(func(ctx context.RequestContext) {
+	return HandlerFunc(func(ctx context_service.RequestContext) {
 		if ctx.Requester == nil || !ctx.Requester.IsAdmin() {
 			ctx.Error(http.StatusUnauthorized, errors.Wrap(ErrNotAuthorized, "not an admin"))
 
@@ -56,7 +56,7 @@ func RequireAdmin(next Handler) Handler {
 }
 
 func RequireOwner(next Handler) Handler {
-	return HandlerFunc(func(ctx context.RequestContext) {
+	return HandlerFunc(func(ctx context_service.RequestContext) {
 		if ctx.Requester == nil || !ctx.Requester.IsOwner() {
 			ctx.Error(http.StatusUnauthorized, errors.Wrap(ErrNotAuthorized, "not an owner"))
 
@@ -68,7 +68,7 @@ func RequireOwner(next Handler) Handler {
 }
 
 func RequireCoreTower(next Handler) Handler {
-	return HandlerFunc(func(ctx context.RequestContext) {
+	return HandlerFunc(func(ctx context_service.RequestContext) {
 		local, err := tower_model.GetLocal(ctx)
 		if err != nil {
 			ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "failed to get local instance"))
@@ -87,7 +87,7 @@ func RequireCoreTower(next Handler) Handler {
 }
 
 func ShareInjector(next Handler) Handler {
-	return HandlerFunc(func(ctx context.RequestContext) {
+	return HandlerFunc(func(ctx context_service.RequestContext) {
 		shareId := ctx.Query("shareId")
 		if shareId != "" {
 			share, err := share_model.GetShareById(ctx, shareId)
@@ -105,7 +105,7 @@ func ShareInjector(next Handler) Handler {
 }
 
 func WeblensAuth(next Handler) Handler {
-	return HandlerFunc(func(ctx context.RequestContext) {
+	return HandlerFunc(func(ctx context_service.RequestContext) {
 		local, err := tower_model.GetLocal(ctx)
 		if err != nil {
 			ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "failed to get local instance"))
@@ -168,6 +168,13 @@ func WeblensAuth(next Handler) Handler {
 
 			ctx.Requester = usr
 			ctx.IsLoggedIn = true
+
+			log.FromContext(ctx).UpdateContext(func(c zerolog.Context) zerolog.Context {
+				return c.Str("requester", usr.Username)
+			})
+
+			// ctx = ctx.WithContext(logCtx).(context_service.RequestContext)
+
 			next.ServeHTTP(ctx)
 
 			return
@@ -181,7 +188,7 @@ func WeblensAuth(next Handler) Handler {
 func CORSMiddleware(next Handler) Handler {
 	proxyAddress := config.GetConfig().ProxyAddress
 
-	return HandlerFunc(func(ctx context.RequestContext) {
+	return HandlerFunc(func(ctx context_service.RequestContext) {
 		ctx.SetHeader("Access-Control-Allow-Origin", proxyAddress)
 		ctx.SetHeader("Access-Control-Allow-Credentials", "true")
 		ctx.SetHeader(
@@ -201,7 +208,7 @@ func CORSMiddleware(next Handler) Handler {
 }
 
 func Recoverer(next Handler) Handler {
-	return HandlerFunc(func(ctx context.RequestContext) {
+	return HandlerFunc(func(ctx context_service.RequestContext) {
 		defer func() {
 			if rvr := recover(); rvr != nil {
 				if rvr == http.ErrAbortHandler {
@@ -290,15 +297,6 @@ func HeaderHandler(fieldKey string) func(next http.Handler) http.Handler {
 func LoggerMiddlewares(logger zerolog.Logger) []func(http.Handler) http.Handler {
 	return []func(http.Handler) http.Handler{
 		hlog.NewHandler(logger),
-		// hlog.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
-		// 	hlog.FromRequest(r).Info().
-		// 		Str("method", r.Method).
-		// 		Stringer("url", r.URL).
-		// 		Int("status", status).
-		// 		Int("size", size).
-		// 		Dur("duration_ms", duration).
-		// 		Msg("")
-		// }),
 		URLGroupHandler("url_group"),
 		QueryParamHandler("query"),
 		HeaderHandler("header"),
@@ -310,12 +308,14 @@ func LoggerMiddlewares(logger zerolog.Logger) []func(http.Handler) http.Handler 
 				start := time.Now()
 
 				ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+				l := hlog.FromRequest(r).With().Logger()
+				r = r.WithContext(log.WithContext(r.Context(), &l))
 
 				next.ServeHTTP(ww, r)
 
 				status := ww.Status()
 				if status == 0 && r.Header.Get("Upgrade") == "websocket" {
-					status = 101
+					status = http.StatusSwitchingProtocols
 				}
 
 				remote := r.RemoteAddr
@@ -324,7 +324,6 @@ func LoggerMiddlewares(logger zerolog.Logger) []func(http.Handler) http.Handler 
 
 				route := log.RouteColor(r)
 
-				l := hlog.FromRequest(r)
 				l.Info().Msgf("\u001B[0m[%s][%7s][%s %s][%s]", remote, log.ColorTime(timeTotal), method, route, log.ColorStatus(status))
 			})
 		}}

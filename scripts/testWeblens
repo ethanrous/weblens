@@ -1,5 +1,62 @@
 #!/bin/bash
 
+while [ "${1:-}" != "" ]; do
+    case "$1" in
+    "-n" | "--native")
+        /usr/local/go/bin/go test -v ./...
+        exit $?
+        ;;
+    *)
+        "Unknown argument: $1"
+        echo "$usage"
+        exit 1
+        ;;
+    esac
+    shift
+done
+
+arch=$(uname -m)
+
+docker build -t ethrous/weblens-test --build-arg ARCHITECTURE="$arch" --file ./docker/AlpineTester.Dockerfile .
+
+docker network create weblens-net &>/dev/null
+docker stop weblens-test-mongo &>/dev/null
+docker rm weblens-test-mongo &>/dev/null
+rm -rf ./build/fs/test-mongo-container/db
+
+echo "Starting MongoDB container..."
+docker run \
+    -d \
+    --rm \
+    --name weblens-test-mongo \
+    --network weblens-net \
+    -v ./build/fs/test-mongo-container/db:/data/db \
+    mongo \
+    mongod --replSet rs0
+
+echo "MongoDB container started, waiting for it to be ready..."
+
+while :; do
+    if ! docker exec -it weblens-test-mongo mongosh --eval "rs.initiate({
+			_id: 'rs0',
+			members: [
+			{ _id: 0, host: 'weblens-test-mongo' }
+			]
+		})" &>/dev/null; then
+        echo "Waiting for MongoDB to be ready..."
+        sleep 1
+    else
+        break
+    fi
+done
+
+echo "MongoDB is ready, starting test container..."
+
+rm -rf ./build/fs/test-container
+docker run --rm --platform="linux/$arch" --network=weblens-net -v ./build/fs/test-container/data:/data -v ./build/fs/test-container/cache:/cache -v ./build/cache/test/go/pkg:/go/pkg/mod -v ./build/cache/test/go/build:/tmp/go-cache ethrous/weblens-test
+
+exit $?
+
 if [[ ! -e ./ui ]]; then
     echo "ERR Could not find ./ui directory, are you at the root of the repo? i.e. ~/repos/weblens and not ~/repos/weblens/scripts"
     exit 1

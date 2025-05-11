@@ -5,7 +5,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/pkg/errors"
+	"github.com/ethanrous/weblens/modules/errors"
 )
 
 // ReadRequestBody reads the body of a http request and unmarshal it into the given generic type.

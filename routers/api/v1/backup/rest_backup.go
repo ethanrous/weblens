@@ -10,7 +10,7 @@ import (
 	"github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/jobs"
 	"github.com/ethanrous/weblens/services/proxy"
-	"github.com/pkg/errors"
+	"github.com/ethanrous/weblens/modules/errors"
 )
 
 // LaunchBackup godoc

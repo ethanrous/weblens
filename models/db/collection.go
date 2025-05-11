@@ -5,7 +5,8 @@ import (
 
 	"github.com/ethanrous/weblens/modules/config"
 	context_mod "github.com/ethanrous/weblens/modules/context"
-	"github.com/pkg/errors"
+	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/log"
 	"github.com/rs/zerolog"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -25,11 +26,10 @@ type ContextualizedCollection struct {
 }
 
 func (c *ContextualizedCollection) InsertOne(_ context.Context, document any, opts ...*options.InsertOneOptions) (*mongo.InsertOneResult, error) {
-	ctx := context_mod.ToZ(c.ctx)
-	ctx.Log().Trace().Msgf("Insert on collection [%s] with document %v", c.collection.Name(), document)
+	log.FromContext(c.ctx).Trace().Msgf("Insert on collection [%s] with document %v", c.collection.Name(), document)
 
 	if config.GetConfig().DoCache {
-		cache := ctx.GetCache(c.collection.Name())
+		cache := context_mod.ToZ(c.ctx).GetCache(c.collection.Name())
 		for _, key := range cache.ScanKeys() {
 			cache.Delete(key)
 		}
@@ -39,17 +39,16 @@ func (c *ContextualizedCollection) InsertOne(_ context.Context, document any, op
 }
 
 func (c *ContextualizedCollection) InsertMany(_ context.Context, documents []any, opts ...*options.InsertManyOptions) (*mongo.InsertManyResult, error) {
-	context_mod.ToZ(c.ctx).Log().Trace().Msgf("Insert many on collection [%s] with %d documents", c.collection.Name(), len(documents))
+	log.FromContext(c.ctx).Trace().Msgf("Insert many on collection [%s] with %d documents", c.collection.Name(), len(documents))
 
 	return c.collection.InsertMany(c.ctx, documents, opts...)
 }
 
 func (c *ContextualizedCollection) UpdateOne(_ context.Context, filter, update any, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error) {
-	ctx := context_mod.ToZ(c.ctx)
-	ctx.Log().Trace().Msgf("UpdateOne on collection [%s] with filter %v", c.collection.Name(), filter)
+	log.FromContext(c.ctx).Trace().Msgf("UpdateOne on collection [%s] with filter %v", c.collection.Name(), filter)
 
 	if config.GetConfig().DoCache {
-		cache := ctx.GetCache(c.collection.Name())
+		cache := context_mod.ToZ(c.ctx).GetCache(c.collection.Name())
 		for _, key := range cache.ScanKeys() {
 			cache.Delete(key)
 		}
@@ -59,11 +58,10 @@ func (c *ContextualizedCollection) UpdateOne(_ context.Context, filter, update a
 }
 
 func (c *ContextualizedCollection) ReplaceOne(_ context.Context, filter, replacement any, opts ...*options.ReplaceOptions) (*mongo.UpdateResult, error) {
-	ctx := context_mod.ToZ(c.ctx)
-	ctx.Log().Trace().Msgf("ReplaceOne on collection [%s] with filter %v", c.collection.Name(), filter)
+	log.FromContext(c.ctx).Trace().Msgf("ReplaceOne on collection [%s] with filter %v", c.collection.Name(), filter)
 
 	if config.GetConfig().DoCache {
-		cache := ctx.GetCache(c.collection.Name())
+		cache := context_mod.ToZ(c.ctx).GetCache(c.collection.Name())
 		for _, key := range cache.ScanKeys() {
 			cache.Delete(key)
 		}
@@ -83,12 +81,12 @@ func (c *ContextualizedCollection) FindOne(_ context.Context, filter any, opts .
 
 		v, ok := cache.Get(string(filterStr))
 		if ok {
-			context_mod.ToZ(c.ctx).Log().Trace().Msgf("Cache hit for collection [%s] with filter %v", c.collection.Name(), filter)
+			log.FromContext(c.ctx).Trace().Msgf("Cache hit for collection [%s] with filter %v", c.collection.Name(), filter)
 
 			return &decoder{ctx: c.ctx, value: v}
 		}
 
-		context_mod.ToZ(c.ctx).Log().Trace().Msgf("FindOne on collection [%s] with filter %v", c.collection.Name(), filter)
+		log.FromContext(c.ctx).Trace().Msgf("FindOne on collection [%s] with filter %v", c.collection.Name(), filter)
 	}
 
 	ret := c.collection.FindOne(c.ctx, filter, opts...)
@@ -97,7 +95,7 @@ func (c *ContextualizedCollection) FindOne(_ context.Context, filter any, opts .
 }
 
 func (c *ContextualizedCollection) Find(_ context.Context, filter any, opts ...*options.FindOptions) (*mongo.Cursor, error) {
-	context_mod.ToZ(c.ctx).Log().Trace().Msgf("Find on collection [%s] with filter %v", c.collection.Name(), filter)
+	log.FromContext(c.ctx).Trace().Msgf("Find on collection [%s] with filter %v", c.collection.Name(), filter)
 
 	return c.collection.Find(c.ctx, filter, opts...)
 }
@@ -149,7 +147,7 @@ func GetCollection(ctx context.Context, collectionName string) (*ContextualizedC
 
 	s := mongo.SessionFromContext(ctx)
 
-	context_mod.ToZ(ctx).Log().Trace().Func(func(e *zerolog.Event) {
+	log.FromContext(ctx).Trace().Func(func(e *zerolog.Event) {
 		if s == nil {
 			e.CallerSkipFrame(4).Msgf("GetCollection [%s] without session", collectionName)
 		} else {

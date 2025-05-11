@@ -5,6 +5,7 @@ go 1.24
 require (
 	github.com/barasher/go-exiftool v1.10.0
 	github.com/davidbyttow/govips/v2 v2.16.0
+	github.com/ethanrous/weblens/api v0.0.0-00010101000000-000000000000
 	github.com/go-chi/chi/v5 v5.2.0
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
@@ -12,7 +13,6 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/lithammer/fuzzysearch v1.1.8
 	github.com/opensearch-project/opensearch-go/v4 v4.4.0
-	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.33.0
 	github.com/saracen/fastzip v0.1.11
 	github.com/stretchr/testify v1.10.0
@@ -22,8 +22,9 @@ require (
 	github.com/viccon/sturdyc v1.1.5
 	go.mongodb.org/mongo-driver v1.17.2
 	golang.org/x/crypto v0.32.0
-	golang.org/x/net v0.34.0
 )
+
+replace github.com/ethanrous/weblens/api => ./api/
 
 require (
 	github.com/KyleBanks/depth v1.2.1 // indirect
@@ -53,6 +54,7 @@ require (
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	golang.org/x/image v0.24.0 // indirect
+	golang.org/x/net v0.34.0 // indirect
 	golang.org/x/sync v0.11.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/text v0.22.0 // indirect

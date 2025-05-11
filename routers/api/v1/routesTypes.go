@@ -4,7 +4,7 @@ package v1
 // 	"encoding/json"
 // 	"fmt"
 //
-// 	"github.com/pkg/errors"
+// 	"github.com/ethanrous/weblens/modules/errors"
 // 	"github.com/ethanrous/weblens/models"
 // )
 //

@@ -18,6 +18,7 @@ import (
 	"github.com/ethanrous/weblens/models/job"
 	media_model "github.com/ethanrous/weblens/models/media"
 	share_model "github.com/ethanrous/weblens/models/share"
+	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/net"
 	"github.com/ethanrous/weblens/modules/structs"
@@ -28,7 +29,6 @@ import (
 	media_service "github.com/ethanrous/weblens/services/media"
 	"github.com/ethanrous/weblens/services/reshape"
 	"github.com/lithammer/fuzzysearch/fuzzy"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
 
@@ -180,9 +180,10 @@ func DownloadFile(ctx context_service.RequestContext) {
 		return
 	}
 
-	ctx.Logger.Debug().Func(func(e *zerolog.Event) { e.Msgf("Downloading file %s", file.GetPortablePath()) })
+	ctx.Log().Debug().Func(func(e *zerolog.Event) { e.Msgf("Downloading file %s", file.GetPortablePath()) })
 
-	http.ServeFile(ctx.W, ctx.Req, file.GetPortablePath().ToAbsolute())
+	filePath := file.GetPortablePath().ToAbsolute()
+	http.ServeFile(ctx.W, ctx.Req, filePath)
 }
 
 // GetFolderHistory godoc
@@ -305,7 +306,7 @@ func SearchByFilename(ctx context_service.RequestContext) {
 	for _, match := range matches {
 		f, err := ctx.FileService.GetFileById(fileIds[match.OriginalIndex])
 		if err != nil {
-			ctx.Logger.Error().Stack().Err(err).Msgf("Failed to get file by ID: %s", fileIds[match.OriginalIndex])
+			ctx.Log().Error().Stack().Err(err).Msgf("Failed to get file by ID: %s", fileIds[match.OriginalIndex])
 
 			continue
 		}
@@ -316,7 +317,7 @@ func SearchByFilename(ctx context_service.RequestContext) {
 
 		fileInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, f, false)
 		if err != nil {
-			ctx.Logger.Error().Stack().Err(err).Msgf("Failed to convert file to FileInfo for file ID: %s", f.ID())
+			ctx.Log().Error().Stack().Err(err).Msgf("Failed to convert file to FileInfo for file ID: %s", f.ID())
 
 			continue
 		}
@@ -577,7 +578,7 @@ func GetSharedFiles(ctx context_service.RequestContext) {
 		f, err := ctx.FileService.GetFileById(share.FileId)
 		if err != nil {
 			if errors.Is(err, file_model.ErrFileNotFound) {
-				ctx.Logger.Error().Stack().Err(err).Msg("Could not find file acompanying a file share")
+				ctx.Log().Error().Stack().Err(err).Msg("Could not find file acompanying a file share")
 
 				continue
 			}
@@ -614,14 +615,14 @@ func GetSharedFiles(ctx context_service.RequestContext) {
 				continue
 			} else if err != nil {
 				// If there was an error retrieving the cover media, log the error and continue
-				ctx.Logger.Error().Stack().Err(err).Msg("Failed to get cover media for folder")
+				ctx.Log().Error().Stack().Err(err).Msg("Failed to get cover media for folder")
 
 				continue
 			}
 
 			media, err = media_model.GetMediaByContentId(ctx, cover.CoverPhotoId) // This will ensure we have the media object to send back to the client
 			if err != nil {
-				ctx.Logger.Error().Stack().Err(err).Msg("Failed to get media for cover photo")
+				ctx.Log().Error().Stack().Err(err).Msg("Failed to get media for cover photo")
 
 				continue
 			}
@@ -1097,7 +1098,7 @@ func DeleteFiles(ctx context_service.RequestContext) {
 		files = append(files, file)
 	}
 
-	err = ctx.FileService.DeleteFiles(ctx, files)
+	err = ctx.FileService.DeleteFiles(ctx, files...)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, fmt.Errorf("Failed to delete files: %w", err))
 
@@ -1295,14 +1296,11 @@ func HandleUploadChunk(ctx context_service.RequestContext) {
 
 	chunk := make([]byte, ctx.Req.ContentLength)
 
-	_, err := io.ReadAtLeast(ctx.Req.Body, chunk, int(ctx.Req.ContentLength))
+	readBs, err := io.ReadAtLeast(ctx.Req.Body, chunk, int(ctx.Req.ContentLength))
 	if err != nil {
-		ctx.Logger.Error().Stack().Err(err).Msg("")
-		// err = t.AddChunkToStream(fileId, nil, "0-0/-1")
-		// if err != nil {
-		// 	util.Error().Stack().Err(err).Msg("")
-		// }
-		ctx.Error(http.StatusInternalServerError, errors.New("Failed to read request body"))
+		err = fmt.Errorf("expected to read exactly %d bytes, but read %d: %w", ctx.Req.ContentLength, readBs, err)
+		ctx.Log().Error().Stack().Err(err).Msgf("")
+		ctx.Error(http.StatusBadRequest, err)
 
 		return
 	}
@@ -1485,7 +1483,7 @@ func formatRespondFolderInfo(ctx context_service.RequestContext, dir *file_model
 }
 
 func formatRespondPastFolderInfo(ctx context_service.RequestContext, folder *file_model.WeblensFileImpl, pastTime time.Time) error {
-	ctx.Logger.Trace().Func(func(e *zerolog.Event) {
+	ctx.Log().Trace().Func(func(e *zerolog.Event) {
 		e.Msgf("Getting past folder [%s] at time [%s]", folder.GetPortablePath(), pastTime)
 	})
 

@@ -24,16 +24,12 @@ func getFromHTTP(w http.ResponseWriter, r *http.Request) context_service.Request
 		panic("request context not found in request")
 	}
 
-	reqCtx.ReqCtx = r.Context()
+	reqCtx = reqCtx.WithContext(r.Context()).(context_service.RequestContext)
 	r.WithContext(reqCtx)
 	reqCtx.Req = r
 	reqCtx.W = w
 
 	return reqCtx
-	// ctx, _ := r.Context().Value(requestContextKey).(context_service.RequestContext)
-	// ctx.Req = r
-	// ctx.W = w
-	// return ctx
 }
 
 func toStdHandlerFunc(h Handler) http.HandlerFunc {
@@ -73,6 +69,7 @@ func middlewareWrapper(h Handler) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := getFromHTTP(w, r)
+
 			h.ServeHTTP(ctx)
 			next.ServeHTTP(w, r)
 		})

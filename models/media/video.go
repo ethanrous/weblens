@@ -12,7 +12,7 @@ import (
 	"time"
 
 	file_model "github.com/ethanrous/weblens/models/file"
-	"github.com/pkg/errors"
+	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/rs/zerolog"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 )

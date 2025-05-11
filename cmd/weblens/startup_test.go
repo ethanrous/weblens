@@ -15,7 +15,7 @@ package main
 // 	"github.com/ethanrous/weblens/models"
 // 	"github.com/ethanrous/weblens/modules/config"
 // 	"github.com/ethanrous/weblens/service"
-// 	"github.com/pkg/errors"
+// 	"github.com/ethanrous/weblens/modules/errors"
 // 	"github.com/rs/zerolog"
 // 	"github.com/stretchr/testify/assert"
 // 	"github.com/stretchr/testify/require"

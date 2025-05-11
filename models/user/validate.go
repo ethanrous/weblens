@@ -5,16 +5,16 @@ import (
 	"regexp"
 	"slices"
 
-	"github.com/ethanrous/weblens/modules/werror"
+	"github.com/ethanrous/weblens/modules/errors"
 )
 
 var (
 	// ErrUsernameTooShort is returned when the username is too short.
-	ErrUsernameTooShort     = werror.Statusf(http.StatusBadRequest, "username is too short")
-	ErrUsernameInvalidChars = werror.Statusf(http.StatusBadRequest, "username contains invalid characters, only alphanumeric, _ and - are allowed")
-	ErrUsernameNotAllowed   = werror.Statusf(http.StatusBadRequest, "username is not allowed")
+	ErrUsernameTooShort     = errors.Statusf(http.StatusBadRequest, "username is too short")
+	ErrUsernameInvalidChars = errors.Statusf(http.StatusBadRequest, "username contains invalid characters, only alphanumeric, _ and - are allowed")
+	ErrUsernameNotAllowed   = errors.Statusf(http.StatusBadRequest, "username is not allowed")
 
-	ErrPasswordTooShort = werror.Statusf(http.StatusBadRequest, "password is too short")
+	ErrPasswordTooShort = errors.Statusf(http.StatusBadRequest, "password is too short")
 )
 
 var disallowedUsernames = []string{"PUBLIC", "WEBLENS"}

@@ -8,8 +8,8 @@ import (
 	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
 	context_mod "github.com/ethanrous/weblens/modules/context"
+	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/fs"
-	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -213,6 +213,14 @@ func (fa *FileAction) SetFile(file *file_model.WeblensFileImpl) {
 
 const FileActionCollectionKey = "fileHistory"
 
+func missingContentId(ctx context.Context, action *FileAction) error {
+	if action.ContentId == "" && action.Size > 0 && !action.GetRelevantPath().IsDir() {
+		return errors.Errorf("action for [%s]s contentId is empty", action.GetRelevantPath())
+	}
+
+	return nil
+}
+
 // SaveAction saves a FileAction to the database.
 // It returns an error if the operation fails.
 func SaveAction(ctx context.Context, action *FileAction) error {
@@ -225,8 +233,8 @@ func SaveAction(ctx context.Context, action *FileAction) error {
 		return errors.New("towerId is empty")
 	}
 
-	if action.ContentId == "" && !action.GetRelevantPath().IsDir() {
-		return errors.Errorf("action for [%s]s contentId is empty", action.GetRelevantPath())
+	if err = missingContentId(ctx, action); err != nil {
+		return err
 	}
 
 	if action.Id.IsZero() {
@@ -252,8 +260,8 @@ func SaveActions(ctx context.Context, actions []FileAction) error {
 	}
 
 	for i, a := range actions {
-		if a.ContentId == "" && !a.GetRelevantPath().IsDir() {
-			return errors.Errorf("action for [%s]s contentId is empty", a.GetRelevantPath())
+		if err = missingContentId(ctx, &a); err != nil {
+			return err
 		}
 
 		if a.Id.IsZero() {

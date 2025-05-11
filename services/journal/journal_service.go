@@ -8,7 +8,7 @@ import (
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/history"
 	"github.com/ethanrous/weblens/modules/fs"
-	"github.com/pkg/errors"
+	"github.com/ethanrous/weblens/modules/errors"
 	"go.mongodb.org/mongo-driver/bson"
 )
 

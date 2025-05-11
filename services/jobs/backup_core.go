@@ -17,6 +17,7 @@ import (
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/config"
 	context_mod "github.com/ethanrous/weblens/modules/context"
+	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/set"
 	"github.com/ethanrous/weblens/modules/startup"
 	task_mod "github.com/ethanrous/weblens/modules/task"
@@ -26,7 +27,6 @@ import (
 	"github.com/ethanrous/weblens/services/notify"
 	"github.com/ethanrous/weblens/services/reshape"
 	tower_service "github.com/ethanrous/weblens/services/tower"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
 
@@ -96,7 +96,7 @@ func DoBackup(tsk task_mod.Task) {
 	t := tsk.(*task.Task)
 	meta := t.GetMeta().(job.BackupMeta)
 
-	ctx, ok := t.Ctx.(context_service.AppContext)
+	ctx, ok := context_service.FromContext(t.Ctx)
 	if !ok {
 		t.Fail(errors.New("Failed to cast context to FilerContext"))
 
@@ -107,12 +107,12 @@ func DoBackup(tsk task_mod.Task) {
 		t.Fail(errors.Errorf("Remote role is [%s -- %s], expected core", meta.Core.Role, meta.Core.GetReportedRole()))
 	}
 
-	t.Ctx.Log().Debug().Msgf("Starting backup of [%s] with adddress [%s] using key [%s]", meta.Core.Name, meta.Core.Address, meta.Core.OutgoingKey)
+	t.Log().Debug().Msgf("Starting backup of [%s] with adddress [%s] using key [%s]", meta.Core.Name, meta.Core.Address, meta.Core.OutgoingKey)
 
 	t.OnResult(
 		func(r task_mod.TaskResult) {
 			notif := notify.NewTaskNotification(t, websocket_mod.BackupProgressEvent, r)
-			t.Ctx.Notify(ctx, notif)
+			ctx.Notify(ctx, notif)
 		},
 	)
 
@@ -120,7 +120,7 @@ func DoBackup(tsk task_mod.Task) {
 		func(errTsk task_mod.Task) {
 			err := errTsk.ReadError()
 			notif := notify.NewTaskNotification(t, websocket_mod.BackupFailedEvent, task_mod.TaskResult{"coreId": meta.Core.TowerId, "error": err.Error()})
-			t.Ctx.Notify(ctx, notif)
+			ctx.Notify(ctx, notif)
 		},
 	)
 
@@ -135,19 +135,26 @@ func DoBackup(tsk task_mod.Task) {
 		return
 	}
 
+	// Check if the core is reachable
+	_, err = tower_service.Ping(ctx, meta.Core)
+	if err != nil {
+		t.Fail(err)
+		return
+	}
+
 	// Find most recent action timestamp
 	latestTime := time.UnixMilli(0)
 
-	latestAction, err := history_model.GetLatestAction(t.Ctx)
+	latestAction, err := history_model.GetLatestAction(ctx)
 	if err != nil && !db.IsNotFound(err) {
 		t.Fail(err)
 	} else if err == nil {
 		latestTime = latestAction.Timestamp
 	}
 
-	t.Ctx.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Backup latest action is %s", latestTime) })
+	t.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Backup latest action is %s", latestTime) })
 
-	backupResponse, err := tower_service.GetBackup(t.Ctx, meta.Core, latestTime)
+	backupResponse, err := tower_service.GetBackup(ctx, meta.Core, latestTime)
 	if err != nil {
 		t.Fail(err)
 
@@ -274,7 +281,7 @@ func DoBackup(tsk task_mod.Task) {
 			}
 		}
 
-		t.Ctx.Log().Debug().Func(func(e *zerolog.Event) { e.Msgf("Waiting for %d copy file tasks", pool.Status().Total) })
+		t.Log().Debug().Func(func(e *zerolog.Event) { e.Msgf("Waiting for %d copy file tasks", pool.Status().Total) })
 
 		// Wait for all copy file tasks to finish
 		pool.SignalAllQueued()
@@ -303,7 +310,7 @@ func DoBackup(tsk task_mod.Task) {
 		})
 
 		endNotif := notify.NewTaskNotification(t, websocket_mod.BackupCompleteEvent, t.GetResults())
-		t.Ctx.Notify(ctx, endNotif)
+		appCtx.Notify(ctx, endNotif)
 
 		return nil
 	})
@@ -332,7 +339,7 @@ func getExistingFile(ctx context_service.AppContext, a history_model.FileAction,
 
 	// If the file already exists, but is the wrong size, an earlier copy most likely failed. Delete it and copy it again.
 	if existingFile != nil && !existingFile.IsDir() && existingFile.Size() != a.Size {
-		err = ctx.FileService.DeleteFiles(ctx, []*file_model.WeblensFileImpl{existingFile})
+		err = ctx.FileService.DeleteFiles(ctx, existingFile)
 		if err != nil {
 			return nil, err
 		}
@@ -356,7 +363,7 @@ func handleFileAction(ctx context_service.AppContext, a history_model.FileAction
 
 	if existingFile != nil {
 		if a.ActionType == history_model.FileDelete {
-			return ctx.FileService.DeleteFiles(ctx, []*file_model.WeblensFileImpl{existingFile})
+			return ctx.FileService.DeleteFiles(ctx, existingFile)
 		}
 
 		if backupFilePath != existingFile.GetPortablePath() {

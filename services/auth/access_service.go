@@ -14,8 +14,7 @@ import (
 	user_model "github.com/ethanrous/weblens/models/user"
 	context_mod "github.com/ethanrous/weblens/modules/context"
 	"github.com/ethanrous/weblens/modules/crypto"
-	"github.com/ethanrous/weblens/modules/werror"
-	"github.com/pkg/errors"
+	"github.com/ethanrous/weblens/modules/errors"
 )
 
 var ErrBadAuthHeader = errors.New("invalid auth header format")
@@ -111,17 +110,17 @@ func GetUserFromJWT(ctx context.Context, tokenStr string) (*user_model.User, err
 
 func GetUserFromAuthHeader(ctx context.Context, authHeader string) (*user_model.User, error) {
 	if len(authHeader) < 7 || authHeader[:7] != "Bearer " {
-		return nil, werror.WrapStatus(http.StatusBadRequest, ErrBadAuthHeader)
+		return nil, errors.WrapStatus(http.StatusBadRequest, ErrBadAuthHeader)
 	}
 
 	_, err := fmt.Sscanf(authHeader, "Bearer %s", &authHeader)
 	if err != nil {
-		return nil, werror.WrapStatus(http.StatusInternalServerError, err)
+		return nil, errors.WrapStatus(http.StatusInternalServerError, err)
 	}
 
 	tokenByteSlice, err := base64.StdEncoding.DecodeString(authHeader)
 	if err != nil {
-		return nil, werror.WrapStatus(http.StatusInternalServerError, err)
+		return nil, errors.WrapStatus(http.StatusInternalServerError, err)
 	}
 
 	var tokenBytes [32]byte

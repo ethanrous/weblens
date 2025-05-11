@@ -6,9 +6,9 @@ import (
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/history"
 	tower_model "github.com/ethanrous/weblens/models/tower"
+	"github.com/ethanrous/weblens/modules/errors"
 	file_system "github.com/ethanrous/weblens/modules/fs"
 	context_service "github.com/ethanrous/weblens/services/context"
-	"github.com/pkg/errors"
 )
 
 func (fs *FileServiceImpl) NewBackupRestoreFile(ctx context.Context, contentId, remoteTowerId string) (*file_model.WeblensFileImpl, error) {

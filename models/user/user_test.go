@@ -6,6 +6,8 @@ import (
 
 	"github.com/ethanrous/weblens/models/db"
 	"github.com/ethanrous/weblens/modules/config"
+	"github.com/ethanrous/weblens/modules/log"
+	"github.com/ethanrous/weblens/modules/tests"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -14,7 +16,10 @@ var password = "b0bz!23"
 var fullName = "Bob Smith"
 
 func TestUserPassword(t *testing.T) {
+	defer tests.Recover(t)
 	t.Parallel()
+
+	log.NewZeroLogger()
 
 	u := &User{
 		Username:    username,

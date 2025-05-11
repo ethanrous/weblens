@@ -7,12 +7,12 @@ import (
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/job"
 	task_model "github.com/ethanrous/weblens/models/task"
+	"github.com/ethanrous/weblens/modules/errors"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	context_service "github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/notify"
 	tower_service "github.com/ethanrous/weblens/services/tower"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
 
@@ -30,11 +30,11 @@ func CopyFileFromCore(tsk task_mod.Task) {
 	t.SetErrorCleanup(func(tsk task_mod.Task) {
 		t := tsk.(*task_model.Task)
 		failNotif := notify.NewTaskNotification(t, websocket_mod.CopyFileFailedEvent, task_mod.TaskResult{"filename": meta.Filename, "coreId": meta.Core.TowerId})
-		t.Ctx.Notify(ctx, failNotif)
+		ctx.Notify(ctx, failNotif)
 
-		rmErr := ctx.FileService.DeleteFiles(t.Ctx, []*file_model.WeblensFileImpl{meta.File})
+		rmErr := ctx.FileService.DeleteFiles(t.Ctx, meta.File)
 		if rmErr != nil {
-			t.Ctx.Log().Error().Stack().Err(rmErr).Msg("")
+			t.Log().Error().Stack().Err(rmErr).Msg("")
 		}
 	})
 
@@ -49,7 +49,7 @@ func CopyFileFromCore(tsk task_mod.Task) {
 		return
 	}
 
-	t.Ctx.Notify(ctx,
+	ctx.Notify(ctx,
 		notify.NewPoolNotification(
 			t.GetTaskPool(),
 			websocket_mod.CopyFileStartedEvent,
@@ -57,7 +57,7 @@ func CopyFileFromCore(tsk task_mod.Task) {
 		),
 	)
 
-	t.Ctx.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Copying file from core [%s]", meta.File.GetPortablePath().Filename()) })
+	t.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Copying file from core [%s]", meta.File.GetPortablePath().Filename()) })
 
 	restoreFile, err := ctx.FileService.NewBackupRestoreFile(ctx, meta.File.GetContentId(), meta.Core.TowerId)
 	if err != nil {
@@ -98,7 +98,7 @@ func CopyFileFromCore(tsk task_mod.Task) {
 		ctx.Log().Error().Msg("Failed to get subscribe key for pool notification")
 	}
 
-	t.Ctx.Notify(ctx, notif)
+	ctx.Notify(ctx, notif)
 
 	t.Success()
 }

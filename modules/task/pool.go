@@ -3,7 +3,7 @@ package task
 import (
 	"time"
 
-	"github.com/pkg/errors"
+	"github.com/ethanrous/weblens/modules/errors"
 )
 
 var ErrChildTaskFailed = errors.New("child task failed")

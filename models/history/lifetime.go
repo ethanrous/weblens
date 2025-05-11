@@ -5,7 +5,7 @@ package history
 // 	"sync"
 //
 // 	"github.com/ethanrous/weblens/modules/fs"
-// 	"github.com/pkg/errors"
+// 	"github.com/ethanrous/weblens/modules/errors"
 // 	"github.com/rs/zerolog/log"
 // )
 //

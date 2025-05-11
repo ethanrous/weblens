@@ -11,10 +11,11 @@ import (
 	"github.com/ethanrous/weblens/models/history"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/modules/config"
+	"github.com/ethanrous/weblens/modules/errors"
 	file_system "github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/startup"
 	context_service "github.com/ethanrous/weblens/services/context"
-	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
 func init() {
@@ -22,6 +23,7 @@ func init() {
 }
 
 func needsContentId(f *file_model.WeblensFileImpl) bool {
+	log.Trace().Msgf("Checking if file %s needs contentId. Size: %d", f.GetPortablePath(), f.Size())
 	return !f.IsDir() && f.Size() != 0 && f.GetContentId() == ""
 }
 

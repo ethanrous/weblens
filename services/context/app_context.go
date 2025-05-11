@@ -10,6 +10,7 @@ import (
 	"github.com/ethanrous/weblens/models/file"
 	task_model "github.com/ethanrous/weblens/models/task"
 	context_mod "github.com/ethanrous/weblens/modules/context"
+	"github.com/ethanrous/weblens/modules/log"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/ethanrous/weblens/modules/websocket"
 	"github.com/viccon/sturdyc"
@@ -81,10 +82,12 @@ func (c AppContext) WithValue(key, value any) AppContext {
 }
 
 func (c AppContext) WithContext(ctx context.Context) context.Context {
-	c.BasicContext = BasicContext{
-		Context: ctx,
-		Logger:  c.Logger,
+	l, ok := log.FromContextOk(ctx)
+	if !ok {
+		l = log.FromContext(c)
 	}
+
+	c.BasicContext = NewBasicContext(ctx, l)
 	return c
 }
 

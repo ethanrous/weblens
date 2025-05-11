@@ -6,7 +6,7 @@ import (
 
 	"github.com/ethanrous/weblens/models/db"
 	"github.com/ethanrous/weblens/modules/crypto"
-	"github.com/pkg/errors"
+	"github.com/ethanrous/weblens/modules/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -60,6 +60,10 @@ func GenerateNewToken(ctx context.Context, nickname, owner, createdBy string) (*
 }
 
 func SaveToken(ctx context.Context, token *Token) error {
+	if token.Token == [32]byte{} {
+		return errors.New("token is empty")
+	}
+
 	col, err := db.GetCollection(ctx, TokenCollectionKey)
 	if err != nil {
 		return err
@@ -136,7 +140,7 @@ func GetAllTokensByTowerId(ctx context.Context, towerId string) (tokens []*Token
 		return
 	}
 
-	res, err := col.Find(ctx, bson.M{"towerId": towerId})
+	res, err := col.Find(ctx, bson.M{"createdBy": towerId})
 	if err != nil {
 		return
 	}

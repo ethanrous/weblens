@@ -1,6 +1,8 @@
-package werror
+package errors
 
-import "github.com/pkg/errors"
+import (
+	"errors"
+)
 
 type statusError struct {
 	code int
@@ -33,7 +35,7 @@ func AsStatus(err error, defaultStatus int) (int, error) {
 }
 
 func Statusf(code int, format string, args ...any) error {
-	err := errors.Errorf(format, args...)
+	err := Errorf(format, args...)
 
 	return &statusError{
 		code: code,

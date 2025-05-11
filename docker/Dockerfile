@@ -21,10 +21,9 @@ RUN pnpm run build
 FROM --platform=linux/${ARCHITECTURE} golang:${GO_VERSION}-alpine AS backend
 
 # Install dependencies
-RUN apk upgrade --no-cache
-RUN apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community --repository http://dl-3.alpinelinux.org/alpine/edge/main vips-dev vips-poppler
-RUN apk add --no-cache bash build-base pkgconfig
-RUN apk add --no-cache tiff-dev libraw-dev libpng-dev libwebp-dev libheif 
+COPY scripts/install-deps.sh /tmp/install-deps.sh
+RUN chmod +x /tmp/install-deps.sh
+RUN /tmp/install-deps.sh
 
 WORKDIR /src
 COPY . .
@@ -35,12 +34,9 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
 #
 FROM --platform=linux/${ARCHITECTURE} alpine:latest
 
-RUN apk upgrade --no-cache
-RUN apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community --repository http://dl-3.alpinelinux.org/alpine/edge/main vips-poppler
-RUN apk add --no-cache ffmpeg tiff libraw libpng libwebp libheif libjpeg exiftool 
-
-# Build deps
-RUN apk add --no-cache build-base gcc jasper-dev libjpeg-turbo-dev lcms2-dev gettext gettext-dev gnu-libiconv-dev 
+COPY scripts/install-deps.sh /tmp/install-deps.sh
+RUN chmod +x /tmp/install-deps.sh
+RUN /tmp/install-deps.sh
 
 WORKDIR /tmp
 RUN wget https://www.dechifro.org/dcraw/archive/dcraw-9.28.0.tar.gz ; \

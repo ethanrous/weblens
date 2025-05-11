@@ -12,7 +12,7 @@ import (
 	"github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/journal"
 	"github.com/ethanrous/weblens/services/reshape"
-	"github.com/pkg/errors"
+	"github.com/ethanrous/weblens/modules/errors"
 )
 
 func GetLifetimesSince(ctx context.RequestContext) {

@@ -11,10 +11,11 @@ package openapi
 
 import (
 	"context"
+	"testing"
+
+	openapiclient "github.com/ethanrous/weblens/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
-	openapiclient "github.com/ethanrous/weblens/api"
 )
 
 func Test_openapi_ServersAPIService(t *testing.T) {
@@ -24,11 +25,11 @@ func Test_openapi_ServersAPIService(t *testing.T) {
 
 	t.Run("Test ServersAPIService LaunchBackup", func(t *testing.T) {
 
-		t.Skip("skip test")  // remove to run test
+		t.Skip("skip test") // remove to run test
 
 		var serverId string
 
-		httpRes, err := apiClient.ServersAPI.LaunchBackup(context.Background(), serverId).Execute()
+		httpRes, err := apiClient.TowersAPI.LaunchBackup(context.Background(), serverId).Execute()
 
 		require.Nil(t, err)
 		assert.Equal(t, 200, httpRes.StatusCode)

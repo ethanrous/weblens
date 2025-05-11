@@ -8,7 +8,7 @@ import (
 	"net/url"
 
 	tower_model "github.com/ethanrous/weblens/models/tower"
-	"github.com/pkg/errors"
+	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/rs/zerolog/log"
 )
 

@@ -3,7 +3,7 @@ package user
 import (
 	"github.com/ethanrous/weblens/modules/crypto"
 	"github.com/ethanrous/weblens/modules/websocket"
-	"github.com/pkg/errors"
+	"github.com/ethanrous/weblens/modules/errors"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 

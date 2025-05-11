@@ -16,11 +16,11 @@ import (
 	user_model "github.com/ethanrous/weblens/models/user"
 	context_mod "github.com/ethanrous/weblens/modules/context"
 	"github.com/ethanrous/weblens/modules/crypto"
+	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/net"
-	"github.com/ethanrous/weblens/modules/werror"
 	auth_service "github.com/ethanrous/weblens/services/auth"
 	"github.com/go-chi/chi/v5"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -76,6 +76,16 @@ func (c RequestContext) Value(key any) any {
 	return c.ReqCtx.Value(key)
 }
 
+func (c RequestContext) WithContext(ctx context.Context) context.Context {
+	l, ok := log.FromContextOk(ctx)
+	if !ok {
+		l = log.FromContext(c)
+	}
+
+	c.BasicContext = NewBasicContext(ctx, l)
+	return c
+}
+
 // Path returns the value of a URL parameter, or an empty string if the parameter is not found.
 func (c RequestContext) Path(paramName string) string {
 	q, err := url.QueryUnescape(chi.URLParam(c.Req, paramName))
@@ -98,19 +108,19 @@ func (c RequestContext) Query(paramName string) string {
 func (c RequestContext) Error(code int, err error) {
 	if err == nil {
 		err = errors.New("error is nil")
-		c.Logger.Error().Stack().Err(err).Msg("")
+		c.Log().Error().Stack().Err(err).Msg("")
 		c.W.WriteHeader(code)
 
 		return
 	}
 
-	code, _ = werror.AsStatus(err, code)
+	code, _ = errors.AsStatus(err, code)
 
 	var e *zerolog.Event
 	if code >= http.StatusInternalServerError {
-		e = c.Logger.Error().Stack()
+		e = c.Log().Error().Stack()
 	} else {
-		e = c.Logger.Warn()
+		e = c.Log().Warn()
 	}
 
 	e.CallerSkipFrame(1).Caller().Err(err).Msgf("API Error %d %s -", code, http.StatusText(code))
@@ -155,9 +165,9 @@ func (c RequestContext) Header(headerName string) string {
 
 	// If you want to log or process the header value, you can do it here.
 	if headerValue == "" {
-		c.Logger.Trace().Msgf("Header '%s' not found", headerName)
+		c.Log().Trace().Msgf("Header '%s' not found", headerName)
 	} else {
-		c.Logger.Trace().Msgf("Header '%s' found with value: %s", headerName, headerValue)
+		c.Log().Trace().Msgf("Header '%s' found with value: %s", headerName, headerValue)
 	}
 
 	return headerValue

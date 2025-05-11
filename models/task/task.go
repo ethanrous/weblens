@@ -1,17 +1,17 @@
 package task
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"maps"
 	"sync"
-	"sync/atomic"
 	"time"
 
-	"github.com/ethanrous/weblens/modules/context"
+	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/log"
 	task_mod "github.com/ethanrous/weblens/modules/task"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
 
@@ -19,7 +19,8 @@ type Task struct {
 	StartTime  time.Time
 	FinishTime time.Time
 
-	Ctx context.ContextZ
+	Ctx        context.Context
+	cancelFunc context.CancelCauseFunc
 
 	timeout  time.Time
 	metadata task_mod.TaskMetadata
@@ -37,8 +38,6 @@ type Task struct {
 	// Function to run whenever the task results update
 	resultsCallback func(result task_mod.TaskResult)
 
-	signalChan chan int
-
 	taskId     string
 	jobName    string
 	queueState QueueState
@@ -50,12 +49,6 @@ type Task struct {
 
 	// Function to be run to clean up if the task errors
 	errorCleanup []task_mod.CleanupFunc
-
-	// signal is used for signaling a task to change behavior after it has been queued,
-	// to exit prematurely, for example. The signalChan serves the same purpose, but is
-	// used when a task might block waiting for another channel.
-	// Key: 1 is exit,
-	signal atomic.Int64
 
 	updateMu sync.RWMutex
 
@@ -82,6 +75,10 @@ func (t *Task) Id() string {
 	return t.taskId
 }
 
+func (t *Task) Log() *zerolog.Logger {
+	return log.FromContext(t.Ctx)
+}
+
 func (t *Task) JobName() string {
 	t.updateMu.RLock()
 	defer t.updateMu.RUnlock()
@@ -100,7 +97,7 @@ func (t *Task) setTaskPoolInternal(pool *TaskPool) {
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
 	t.taskPool = pool
-	t.Ctx.Log().UpdateContext(func(c zerolog.Context) zerolog.Context {
+	t.Log().UpdateContext(func(c zerolog.Context) zerolog.Context {
 		return c.Str("task_pool", pool.ID())
 	})
 }
@@ -132,14 +129,14 @@ func (t *Task) Status() (bool, task_mod.TaskExitStatus) {
 // NewTask(...).Q(). Returns the given task to further support this
 func (t *Task) Q(tp *TaskPool) *Task {
 	if tp == nil {
-		t.Ctx.Log().Error().Msg("nil task pool")
+		t.Log().Error().Msg("nil task pool")
 
 		return nil
 		// tp = GetGlobalQueue()
 	}
 	err := tp.QueueTask(t)
 	if err != nil {
-		t.Ctx.Log().Error().Stack().Err(err).Msg("")
+		t.Log().Error().Stack().Err(err).Msg("")
 
 		return nil
 	}
@@ -171,16 +168,12 @@ func (t *Task) Wait() {
 // If a task finds itself not required to continue, success should
 // be returned
 func (t *Task) Cancel() {
-	t.Ctx.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Cancelling task T[%s]", t.taskId) })
+	t.Log().Debug().Msgf("Cancelling task T[%s]", t.taskId)
+	t.cancelFunc(nil)
 
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
 
-	if t.queueState == Exited || t.signal.Load() != 0 {
-		return
-	}
-	t.signal.Store(1)
-	t.signalChan <- 1
 	if t.exitStatus == task_mod.TaskNoStatus {
 		t.queueState = Exited
 		t.exitStatus = task_mod.TaskCanceled
@@ -194,25 +187,12 @@ func (t *Task) Cancel() {
 	// t.queueState = Exited
 }
 
-// ExitIfSignaled should be used intermittently to check if the task should exit.
-// If the task should exit, it panics back to the top of safety work
-func (t *Task) ExitIfSignaled() {
-	if t.CheckExit() {
-		panic(ErrTaskExit)
-	}
-}
-
-func (t *Task) CheckExit() bool {
-	return t.signal.Load() != 0
-}
-
 func (t *Task) ClearAndRecompute() {
 	t.Cancel()
 	t.Wait()
 
 	t.updateMu.Lock()
 	t.exitStatus = task_mod.TaskNoStatus
-	t.signal.Store(0)
 	t.queueState = PreQueued
 	t.updateMu.Unlock()
 
@@ -223,7 +203,7 @@ func (t *Task) ClearAndRecompute() {
 	}
 
 	if t.err != nil {
-		t.Ctx.Log().Warn().Msgf("Retrying task that has previous error: %v", t.err)
+		t.Log().Warn().Msgf("Retrying task that has previous error: %v", t.err)
 		t.err = nil
 	}
 
@@ -269,7 +249,7 @@ func (t *Task) Manipulate(fn func(meta task_mod.TaskMetadata) error) error {
 // If an error has caused the task to be cancelled, t.Cancel() must be called after t.error()
 func (t *Task) error(err error) {
 	t.updateMu.Lock()
-	t.Ctx.Log().Error().CallerSkipFrame(2).Stack().Err(err).Msg("Task encountered an error")
+	t.Log().Error().CallerSkipFrame(2).Stack().Err(err).Msg("Task encountered an error")
 
 	// If we have already called cancel, do not set any error
 	// E.g. A file is being moved, so we cancel all tasks on it,
@@ -280,6 +260,8 @@ func (t *Task) error(err error) {
 
 		return
 	}
+
+	t.cancelFunc(err)
 
 	t.err = err
 	t.queueState = Exited
@@ -306,10 +288,6 @@ func (t *Task) Fail(err error) {
 
 	t.error(err)
 	panic(ErrTaskError)
-}
-
-func (t *Task) GetSignalChan() chan int {
-	return t.signalChan
 }
 
 // SetPostAction takes a function to be run after the task has successfully completed
@@ -366,7 +344,7 @@ func (t *Task) Success(msg ...any) {
 	t.queueState = Exited
 	t.exitStatus = task_mod.TaskSuccess
 	if len(msg) != 0 {
-		t.Ctx.Log().Info().Msgf("Task succeeded with a message: %s", fmt.Sprint(msg...))
+		t.Log().Info().Msgf("Task succeeded with a message: %s", fmt.Sprint(msg...))
 	}
 }
 
@@ -383,14 +361,14 @@ func (t *Task) SetTimeout(timeout time.Time) {
 	t.timeout = timeout
 	wp := t.GetTaskPool().GetWorkerPool()
 	wp.AddHit(timeout, t)
-	t.Ctx.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Setting timeout for task [%s] to [%s]", t.Id(), timeout) })
+	t.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Setting timeout for task [%s] to [%s]", t.Id(), timeout) })
 }
 
 func (t *Task) ClearTimeout() {
 	t.timerLock.Lock()
 	defer t.timerLock.Unlock()
 	t.timeout = time.Unix(0, 0)
-	t.Ctx.Log().Trace().Func(func(e *zerolog.Event) { e.Msg("Clearing timeout") })
+	t.Log().Trace().Func(func(e *zerolog.Event) { e.Msg("Clearing timeout") })
 }
 
 func (t *Task) GetTimeout() time.Time {

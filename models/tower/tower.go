@@ -6,7 +6,7 @@ import (
 
 	"github.com/ethanrous/weblens/models/db"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
-	"github.com/pkg/errors"
+	"github.com/ethanrous/weblens/modules/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"

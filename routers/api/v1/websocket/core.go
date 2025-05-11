@@ -10,18 +10,18 @@ import (
 	client_model "github.com/ethanrous/weblens/models/client"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/modules/config"
+	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/startup"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	context_service "github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/jobs"
 	tower_service "github.com/ethanrous/weblens/services/tower"
 	"github.com/gorilla/websocket"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
-const retryInterval = time.Second * 10
+const retryInterval = time.Minute
 const timeout = time.Second * 10
 
 func init() {
@@ -104,7 +104,7 @@ func ConnectCore(c context.Context, core *tower_model.Instance) error {
 			client, err = dial(ctx, dialer, *coreUrl, authHeader, core)
 			if err != nil {
 				ctx.Log().Error().Msgf(
-					"Failed to connect to core server at %s: %s Trying again in %s",
+					"Failed to connect to core server at %s: %s. Trying again in %s",
 					coreUrl.String(), err, retryInterval,
 				)
 

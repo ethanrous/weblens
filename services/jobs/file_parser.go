@@ -8,20 +8,20 @@ import (
 	"github.com/ethanrous/weblens/models/job"
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/models/task"
+	"github.com/ethanrous/weblens/modules/errors"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/ethanrous/weblens/modules/websocket"
-	"github.com/ethanrous/weblens/services/context"
+	context_service "github.com/ethanrous/weblens/services/context"
 	media_service "github.com/ethanrous/weblens/services/media"
 	"github.com/ethanrous/weblens/services/notify"
 	"github.com/ethanrous/weblens/services/reshape"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
 func ScanDirectory(tsk task_mod.Task) {
 	t := tsk.(*task.Task)
-	ctx, ok := context.FromContext(t.Ctx)
+	ctx, ok := context_service.FromContext(t.Ctx)
 	if !ok {
 		t.Fail(errors.New("failed to get context"))
 
@@ -32,13 +32,13 @@ func ScanDirectory(tsk task_mod.Task) {
 	t.SetErrorCleanup(func(tsk task_mod.Task) {
 		err := t.ReadError()
 		notif := notify.NewTaskNotification(tsk.(*task.Task), websocket.TaskFailedEvent, task_mod.TaskResult{"error": err.Error()})
-		t.Ctx.Notify(ctx, notif)
+		ctx.Notify(ctx, notif)
 	})
 
 	if file_model.IsFileInTrash(meta.File) {
 		// Let any client subscribers know we are done
 		notif := notify.NewTaskNotification(t, websocket.FolderScanCompleteEvent, task_mod.TaskResult{"executionTime": t.ExeTime()})
-		t.Ctx.Notify(ctx, notif)
+		ctx.Notify(ctx, notif)
 		t.Success("No media to scan")
 
 		return
@@ -80,7 +80,7 @@ func ScanDirectory(tsk task_mod.Task) {
 		// meta.Caster.Close()
 	})
 
-	t.Ctx.Log().Debug().Func(func(e *zerolog.Event) {
+	t.Log().Debug().Func(func(e *zerolog.Event) {
 		e.Msgf("Beginning directory scan for %s (%s)", meta.File.GetPortablePath(), meta.File.ID())
 	})
 
@@ -90,13 +90,13 @@ func ScanDirectory(tsk task_mod.Task) {
 	err := meta.File.LeafMap(
 		func(mf *file_model.WeblensFileImpl) error {
 			if mf.IsDir() {
-				log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Skipping file %s, not regular file", mf.GetPortablePath()) })
+				t.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Skipping file %s, not regular file", mf.GetPortablePath()) })
 
 				return nil
 			}
 
 			if file_model.IsFileInTrash(mf) {
-				log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Skipping file %s, file is in trash", mf.GetPortablePath()) })
+				t.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Skipping file %s, file is in trash", mf.GetPortablePath()) })
 
 				return nil
 			}
@@ -106,7 +106,7 @@ func ScanDirectory(tsk task_mod.Task) {
 				return nil
 			}
 			if mf.GetContentId() == "" {
-				log.Error().Msgf("Skipping file %s, no content id", mf.GetPortablePath())
+				t.Log().Error().Msgf("Skipping file %s, no content id", mf.GetPortablePath())
 
 				return nil
 			}
@@ -123,7 +123,7 @@ func ScanDirectory(tsk task_mod.Task) {
 					alreadyMedia = append(alreadyMedia, m)
 				}
 
-				log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Skipping file %s, already imported", mf.GetPortablePath()) })
+				t.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Skipping file %s, already imported", mf.GetPortablePath()) })
 
 				return nil
 			}
@@ -132,9 +132,9 @@ func ScanDirectory(tsk task_mod.Task) {
 				File: mf,
 			}
 
-			log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Dispatching scanFile job for [%s]", mf.GetPortablePath()) })
+			t.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Dispatching scanFile job for [%s]", mf.GetPortablePath()) })
 
-			newT, err := t.Ctx.DispatchJob(job.ScanFileTask, subMeta, pool)
+			newT, err := ctx.DispatchJob(job.ScanFileTask, subMeta, pool)
 			if err != nil {
 				return err
 			}
@@ -161,7 +161,7 @@ func ScanDirectory(tsk task_mod.Task) {
 			updates = append(updates, notify.NewFileNotification(ctx, alreadyFiles[i], websocket.FileUpdatedEvent, o)...)
 		}
 
-		t.Ctx.Notify(ctx, updates...)
+		ctx.Notify(ctx, updates...)
 	}
 
 	if err != nil {
@@ -184,10 +184,10 @@ func ScanDirectory(tsk task_mod.Task) {
 			"failedCount": len(errs),
 		}
 		taskNotif := notify.NewTaskNotification(t, websocket.TaskFailedEvent, result)
-		t.Ctx.Notify(ctx, taskNotif)
+		ctx.Notify(ctx, taskNotif)
 
 		poolNotif := notify.NewPoolNotification(pool, websocket.TaskFailedEvent, result)
-		t.Ctx.Notify(ctx, poolNotif)
+		ctx.Notify(ctx, poolNotif)
 
 		t.Fail(errors.WithStack(task_mod.ErrChildTaskFailed))
 
@@ -197,9 +197,9 @@ func ScanDirectory(tsk task_mod.Task) {
 	// Let any client subscribers know we are done
 	result := getScanResult(t)
 	notif := notify.NewPoolNotification(pool.GetRootPool(), websocket.FolderScanCompleteEvent, result)
-	t.Ctx.Notify(ctx, notif)
+	ctx.Notify(ctx, notif)
 
-	t.Ctx.Log().Debug().Func(func(e *zerolog.Event) { e.Msgf("Finished directory scan for %s", meta.File.GetPortablePath()) })
+	t.Log().Debug().Func(func(e *zerolog.Event) { e.Msgf("Finished directory scan for %s", meta.File.GetPortablePath()) })
 
 	t.Success()
 }
@@ -210,49 +210,25 @@ func ScanFile(tsk task_mod.Task) {
 	reportSubscanStatus(t)
 
 	meta := t.GetMeta().(job.ScanMeta)
-	err := ScanFile_(t.Ctx.(context.AppContext), meta)
+	ctx, ok := context_service.FromContext(t.Ctx)
+	if !ok {
+		t.Fail(errors.New("failed to get context"))
+		return
+	}
+
+	err := ScanFile_(ctx, meta)
 	if err != nil {
-		t.Ctx.Log().Error().Stack().Err(err).Msgf("Failed to scan file %s", meta.File.GetPortablePath())
+		t.Log().Error().Stack().Err(err).Msgf("Failed to scan file %s", meta.File.GetPortablePath())
 		t.Fail(err)
 	}
 
 	t.Success()
 }
 
-func ScanFile_(ctx context.AppContext, meta job.ScanMeta) error {
-	ctx.WithLogger(ctx.Log().With().Str("file_id", meta.File.ID()).Str("portable_file_path", meta.File.GetPortablePath().String()).Logger())
-
+func ScanFile_(ctx context_service.AppContext, meta job.ScanMeta) error {
 	if !media_model.ParseExtension(meta.File.GetPortablePath().Ext()).Displayable {
 		return errors.WithStack(media_model.ErrNotDisplayable)
 	}
-
-	// contentId := meta.File.GetContentId()
-	// if contentId == "" {
-	// 	return errors.Errorf("trying to scan file with no content id: %s", meta.File.GetPortablePath())
-	// }
-	//
-	// media := media_model.Media{ContentID: contentId}
-	// if slices.ContainsFunc(
-	// 	media.GetFiles(), func(fId string) bool {
-	// 		return fId == meta.File.ID()
-	// 	},
-	// ) {
-	// 	ctx.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Media already exists for %s", meta.File.GetPortablePath()) })
-	// 	return nil
-	// }
-	//
-	// if meta.PartialMedia == nil {
-	// 	meta.PartialMedia = &media_model.Media{}
-	// }
-	//
-	// meta.PartialMedia.ContentID = meta.File.GetContentId()
-	// meta.PartialMedia.FileIDs = []string{meta.File.ID()}
-	//
-	// username, err := user.GetFileOwnerName(ctx, meta.File)
-	// if err != nil {
-	// 	return err
-	// }
-	// meta.PartialMedia.Owner = username
 
 	media, err := media_service.NewMediaFromFile(ctx, meta.File)
 	if err != nil {
@@ -263,18 +239,6 @@ func ScanFile_(ctx context.AppContext, meta job.ScanMeta) error {
 	if err != nil {
 		return err
 	}
-
-	// existingMedia := meta.MediaService.Get(meta.PartialMedia.ID())
-	// if existingMedia == nil || existingMedia.Height != meta.PartialMedia.Height || existingMedia.
-	// 	Width != meta.PartialMedia.Width || len(existingMedia.FileIDs) != len(meta.PartialMedia.FileIDs) {
-	// 	err = meta.MediaService.Add(meta.PartialMedia)
-	// 	if err != nil && !errors.Is(err, media_model.ErrMediaAlreadyExists) {
-	// 		return err
-	// 	}
-	// 	logger.Trace().Func(func(e *zerolog.Event) { e.Msgf("Added %s to media service", meta.File.Filename()) })
-	// } else {
-	// 	logger.Debug().Func(func(e *zerolog.Event) { e.Msgf("Media already exists for %s", meta.File.Filename()) })
-	// }
 
 	mediaInfo := reshape.MediaToMediaInfo(media)
 
@@ -300,7 +264,14 @@ func reportSubscanStatus(t task_mod.Task) {
 		notif = notify.NewPoolNotification(tsk.GetTaskPool(), event, getScanResult(tsk))
 	}
 
-	tsk.Ctx.Notify(tsk.Ctx, notif)
+	ctx, ok := context_service.FromContext(tsk.Ctx)
+	if !ok {
+		tsk.Fail(errors.New("failed to get context"))
+
+		return
+	}
+
+	ctx.Notify(ctx, notif)
 }
 
 func getScanResult(t *task.Task) task_mod.TaskResult {

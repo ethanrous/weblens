@@ -7,7 +7,7 @@ import (
 	file_model "github.com/ethanrous/weblens/models/file"
 	user_model "github.com/ethanrous/weblens/models/user"
 	file_system "github.com/ethanrous/weblens/modules/fs"
-	"github.com/pkg/errors"
+	"github.com/ethanrous/weblens/modules/errors"
 )
 
 func GetFileOwner(ctx context.Context, file *file_model.WeblensFileImpl) (*user_model.User, error) {

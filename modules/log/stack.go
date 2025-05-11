@@ -1,6 +1,6 @@
 package log
 
-import "github.com/pkg/errors"
+import "github.com/ethanrous/weblens/modules/errors"
 
 var (
 	StackSourceFileName     = "source"

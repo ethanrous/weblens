@@ -52,6 +52,16 @@ type ConfigProvider struct {
 	DoFileDiscovery bool
 }
 
+func envBool(key string) (val bool, ok bool) {
+	if value, exists := os.LookupEnv(key); exists {
+		if value == "true" {
+			return true, true
+		}
+		return false, true
+	}
+	return false, false
+}
+
 func getDefaultConfig() ConfigProvider {
 	return ConfigProvider{
 		Host:              "0.0.0.0",
@@ -89,7 +99,7 @@ func getEnvOverride(config *ConfigProvider) {
 
 	err := godotenv.Load(env)
 	if err != nil {
-		log.Debug().Msgf("No .env file found, using default config: %s", err.Error())
+		log.Trace().Msgf("No .env file found, using default config: %s", err.Error())
 	}
 
 	if host := os.Getenv("WEBLENS_HOST"); host != "" {
@@ -130,6 +140,10 @@ func getEnvOverride(config *ConfigProvider) {
 
 	if cachePath := os.Getenv("WEBLENS_CACHE_PATH"); cachePath != "" {
 		config.CachePath = handlePath(cachePath)
+	}
+
+	if doCache, ok := envBool("WEBLENS_DO_CACHE"); ok {
+		config.DoCache = doCache
 	}
 
 	if logLevel := os.Getenv("WEBLENS_LOG_LEVEL"); logLevel != "" {

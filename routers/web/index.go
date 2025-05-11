@@ -7,8 +7,8 @@ import (
 	cover_model "github.com/ethanrous/weblens/models/cover"
 	media_model "github.com/ethanrous/weblens/models/media"
 	share_model "github.com/ethanrous/weblens/models/share"
+	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/services/context"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
 

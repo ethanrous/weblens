@@ -13,8 +13,8 @@ import (
 	"github.com/davidbyttow/govips/v2/vips"
 	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
+	"github.com/ethanrous/weblens/modules/errors"
 	context_service "github.com/ethanrous/weblens/services/context"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
@@ -38,7 +38,7 @@ import (
 // 	"github.com/EdlinOrg/prominentcolor"
 // 	"github.com/ethanrous/weblens/fileTree"
 // 	"github.com/ethanrous/weblens/internal"
-// 	"github.com/pkg/errors"
+// 	"github.com/ethanrous/weblens/modules/errors"
 // 	media_model "github.com/ethanrous/weblens/models/media"
 // 	wl_slices "github.com/ethanrous/weblens/modules/slices"
 // 	"github.com/rs/zerolog"
@@ -773,7 +773,7 @@ func handleCacheCreation(ctx context_service.AppContext, m *media_model.Media, f
 				thumbHeight = ThumbMaxSize
 				thumbWidth = uint(float64(ThumbMaxSize) / float64(m.Height) * float64(m.Width))
 			}
-			ctx.Logger.Trace().Func(func(e *zerolog.Event) {
+			ctx.Log().Trace().Func(func(e *zerolog.Event) {
 				e.Msgf("Resizing %s thumb image to %dx%d", file.GetPortablePath(), thumbWidth, thumbHeight)
 			})
 			err = img.Resize(float64(thumbHeight)/float64(m.Height), vips.KernelAuto)

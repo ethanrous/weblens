@@ -3,7 +3,7 @@ package test
 import (
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/services/context"
-	"github.com/pkg/errors"
+	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/rs/zerolog"
 )
 

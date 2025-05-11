@@ -6,11 +6,11 @@ import (
 
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/crypto"
+	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/net"
 	"github.com/ethanrous/weblens/modules/structs"
 	"github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/reshape"
-	"github.com/pkg/errors"
 )
 
 // CreateUser godoc
@@ -75,13 +75,13 @@ func Login(ctx context.RequestContext) {
 
 	u, err := user_model.GetUserByUsername(ctx, userCredentials.Username)
 	if err != nil {
-		ctx.Logger.Error().Stack().Err(err).Msg("Failed to get user")
+		ctx.Log().Error().Stack().Err(err).Msg("Failed to get user")
 		ctx.Error(http.StatusNotFound, err)
 		return
 	}
 
 	if !u.CheckLogin(userCredentials.Password) {
-		ctx.Logger.Debug().Msgf("Invalid login for [%s]", userCredentials.Username)
+		ctx.Log().Debug().Msgf("Invalid login for [%s]", userCredentials.Username)
 
 		ctx.Error(http.StatusUnauthorized, errors.New("invalid login"))
 		return
@@ -163,7 +163,7 @@ func GetAll(ctx context.RequestContext) {
 	users, err := user_model.GetAllUsers(ctx)
 
 	if err != nil {
-		ctx.Logger.Error().Stack().Err(err).Msg("Failed to get all users")
+		ctx.Log().Error().Stack().Err(err).Msg("Failed to get all users")
 		ctx.Error(http.StatusInternalServerError, err)
 		return
 	}
@@ -247,7 +247,7 @@ func UpdatePassword(ctx context.RequestContext) {
 
 	err = updateUser.UpdatePassword(ctx, updateParams.NewPass)
 	if err != nil {
-		ctx.Logger.Error().Stack().Err(err).Msg("Failed to update user password")
+		ctx.Log().Error().Stack().Err(err).Msg("Failed to update user password")
 		ctx.Error(http.StatusInternalServerError, err)
 		return
 	}
@@ -298,7 +298,7 @@ func SetAdmin(ctx context.RequestContext) {
 
 	err = user.UpdatePermissionLevel(ctx, permissionLevel)
 	if err != nil {
-		ctx.Logger.Error().Stack().Err(err).Msg("Failed to update user permission level")
+		ctx.Log().Error().Stack().Err(err).Msg("Failed to update user permission level")
 		ctx.Error(http.StatusInternalServerError, err)
 		return
 	}
@@ -351,7 +351,7 @@ func Activate(ctx context.RequestContext) {
 
 	err = user.UpdateActivationStatus(ctx, active)
 	if err != nil {
-		ctx.Logger.Error().Stack().Err(err).Msg("Failed to update user activation status")
+		ctx.Log().Error().Stack().Err(err).Msg("Failed to update user activation status")
 		ctx.Error(http.StatusInternalServerError, err)
 		return
 	}
@@ -399,7 +399,7 @@ func ChangeDisplayName(ctx context.RequestContext) {
 
 	err = u.UpdateDisplayName(ctx, newName)
 	if err != nil {
-		ctx.Logger.Error().Stack().Err(err).Msg("Failed to update user full name")
+		ctx.Log().Error().Stack().Err(err).Msg("Failed to update user full name")
 		ctx.Error(http.StatusInternalServerError, err)
 		return
 	}
@@ -444,7 +444,7 @@ func Delete(ctx context.RequestContext) {
 
 	err = u.Delete(ctx)
 	if err != nil {
-		ctx.Logger.Error().Stack().Err(err).Msg("Failed to delete user")
+		ctx.Log().Error().Stack().Err(err).Msg("Failed to delete user")
 		ctx.Error(http.StatusInternalServerError, err)
 		return
 	}
@@ -480,7 +480,7 @@ func Search(ctx context.RequestContext) {
 
 	users, err := user_model.SearchByUsername(ctx, search)
 	if err != nil {
-		ctx.Logger.Error().Stack().Err(err).Msg("Failed to search users by username")
+		ctx.Log().Error().Stack().Err(err).Msg("Failed to search users by username")
 		ctx.Error(http.StatusInternalServerError, err)
 		return
 	}
