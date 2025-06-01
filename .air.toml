@@ -4,7 +4,6 @@ tmp_dir = "tmp"
 
 [build]
   args_bin = []
-  # cmd = "./scripts/startWeblens"
   cmd = "CGO_ENABLED=1 go build -gcflags=\"all=-N -l\" -race -o ./build/bin/weblens ./cmd/weblens"
   full_bin = "GORACE='halt_on_error=1' CGO_CFLAGS_ALLOW='-Xpreprocessor' ./build/bin/weblens"
   delay = 1000

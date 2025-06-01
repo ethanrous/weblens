@@ -20,7 +20,7 @@ devel_weblens_locally() {
 }
 
 ensure_repl_set() {
-    if ! docker exec -t "$mongoName" mongosh --eval "rs.status()"; then
+    if ! docker exec -t "$mongoName" mongosh --eval "rs.status()" &>/dev/null; then
         echo "MongoDB replica set is not initialized, initializing..."
         docker exec -t "$mongoName" mongosh --eval "rs.initiate({_id: 'rs0', members: [ { _id: 0, host: '\"$mongoName\":27017' } ]})"
         return $?
@@ -28,6 +28,13 @@ ensure_repl_set() {
 }
 
 launch_mongo() {
+    mountPath=$(docker inspect "$mongoName" | jq -r '.[].Mounts[] | select(.Type=="bind") | .Source')
+    if [[ "$mountPath" != "$PWD/build/fs/$fsName/db" ]]; then
+        echo "MongoDB mount path does not match, removing old container..."
+        echo "Should be: $mountPath -- but found: $PWD/build/fs/$fsName/db"
+        docker stop "$mongoName" 2>/dev/null || :
+    fi
+
     mongoWaitCount=0
     if ! docker ps | grep "$mongoName"; then
         echo "Starting MongoDB container [$mongoName] ..."
