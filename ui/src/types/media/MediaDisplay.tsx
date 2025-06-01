@@ -1,16 +1,16 @@
 import {
+    Icon,
     IconExclamationCircle,
     IconFolder,
     IconHeart,
     IconMovie,
     IconPhoto,
     IconPhotoScan,
-    TablerIconsProps,
 } from '@tabler/icons-react'
 import MediaApi from '@weblens/api/MediaApi'
-import WeblensLoader from '@weblens/components/Loading'
+import WeblensLoader from '@weblens/components/Loading.tsx'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import WeblensButton from '@weblens/lib/WeblensButton'
+import WeblensButton from '@weblens/lib/WeblensButton.tsx'
 import { useResize } from '@weblens/lib/hooks'
 import { useGalleryStore } from '@weblens/pages/Gallery/GalleryLogic'
 import { GalleryMenu } from '@weblens/pages/Gallery/GalleryMenu'
@@ -26,7 +26,6 @@ import { MediaImage } from '@weblens/types/media/PhotoContainer'
 import React, {
     CSSProperties,
     MouseEvent,
-    ReactElement,
     useCallback,
     useEffect,
     useMemo,
@@ -45,7 +44,8 @@ const goToMediaFile = async (mediaId: string) => {
 }
 
 const TypeIcon = (mediaData: WeblensMedia) => {
-    let icon: (p: TablerIconsProps) => ReactElement
+    let icon: Icon
+    // let icon: ForwardRefExoticComponent<IconProps & RefAttributes<Icon>>
 
     if (mediaData.GetMediaType()?.IsRaw) {
         icon = IconPhotoScan
@@ -58,7 +58,7 @@ const TypeIcon = (mediaData: WeblensMedia) => {
 }
 
 type mediaTypeProps = {
-    Icon: (p: TablerIconsProps) => ReactElement
+    Icon: Icon
     label: string
     visible: boolean
 
@@ -67,7 +67,7 @@ type mediaTypeProps = {
 
 function StyledIcon({ Icon, visible, onClick, label }: mediaTypeProps) {
     const [hover, setHover] = useState(false)
-    const [textRef, setTextRef] = useState<HTMLParagraphElement>(null)
+    const textRef = useRef<HTMLParagraphElement>(null)
     const textSize = useResize(textRef)
 
     const style = useMemo(() => {
@@ -95,7 +95,7 @@ function StyledIcon({ Icon, visible, onClick, label }: mediaTypeProps) {
             <Icon className="shrink-0" />
             <p
                 className="pl-1 font-semibold text-nowrap text-white select-none"
-                ref={setTextRef}
+                ref={textRef}
             >
                 {label}
             </p>
@@ -189,7 +189,7 @@ function MediaWrapper({
     width,
     showMedia,
 }: MediaWrapperProps) {
-    const ref = useRef()
+    const ref = useRef<HTMLDivElement>(null)
 
     const presentingId = useGalleryStore((state) => state.presentingMediaId)
     const presentingMode = useGalleryStore((state) => state.presentingMode)
@@ -465,8 +465,8 @@ export function PhotoGallery({
     loading: boolean
     error: Error
 }) {
-    const [viewRef, setViewRef] = useState<HTMLDivElement>(null)
-    const [windowRef, setWindowRef] = useState<VariableSizeList>(null)
+    const viewRef = useRef<HTMLDivElement>(null)
+    const windowRef = useRef<VariableSizeList>(null)
     const viewSize = useResize(viewRef)
 
     const imageSize = useGalleryStore((state) => state.imageSize)
@@ -594,13 +594,13 @@ export function PhotoGallery({
     }, [medias, imageSize, viewSize, showHidden])
 
     useEffect(() => {
-        if (windowRef) {
-            windowRef.resetAfterIndex(0, true)
+        if (windowRef.current) {
+            windowRef.current.resetAfterIndex(0, true)
         }
     }, [rows])
 
     return (
-        <div className="gallery-wrapper no-scrollbar" ref={setViewRef}>
+        <div className="gallery-wrapper no-scrollbar" ref={viewRef}>
             {rows.length === 0 && !loading && !error && <NoMediaDisplay />}
             {loading && <WeblensLoader />}
             {error && (
@@ -611,7 +611,7 @@ export function PhotoGallery({
             )}
             {rows.length !== 0 && viewSize.width !== -1 && (
                 <VariableSizeList
-                    ref={setWindowRef}
+                    ref={windowRef}
                     height={viewSize.height}
                     width={viewSize.width}
                     itemSize={(i) => rows[i].rowScale + MARGIN_SIZE}

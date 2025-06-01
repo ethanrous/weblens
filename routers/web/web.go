@@ -1,7 +1,6 @@
 package web
 
 import (
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -10,20 +9,25 @@ import (
 
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/routers/router"
-	"github.com/ethanrous/weblens/services/context"
+	context_service "github.com/ethanrous/weblens/services/context"
 )
 
-func CacheMiddleware(next router.Handler) router.Handler {
-	return router.HandlerFunc(func(ctx context.RequestContext) {
-		ctx.W.Header().Set("Cache-Control", "public, max-age=3600")
-		ctx.W.Header().Set("Content-Encoding", "gzip")
+func CacheMiddleware(addGzip bool) router.PassthroughHandler {
+	return func(next router.Handler) router.Handler {
+		return router.HandlerFunc(func(ctx context_service.RequestContext) {
+			ctx.W.Header().Set("Cache-Control", "public, max-age=3600")
 
-		next.ServeHTTP(ctx)
-	})
+			if addGzip {
+				ctx.W.Header().Set("Content-Encoding", "gzip")
+			}
+
+			next.ServeHTTP(ctx)
+		})
+	}
 }
 
-func NewMemFs(ctx context.AppContext, cnf config.ConfigProvider) *InMemoryFS {
-	memFs := &InMemoryFS{routes: make(map[string]*memFileReal, 10), routesMu: &sync.RWMutex{}, proxyAddress: cnf.ProxyAddress, ctx: ctx}
+func NewMemFs(ctx context_service.AppContext, cnf config.ConfigProvider) *InMemoryFS {
+	memFs := &InMemoryFS{routes: make(map[string]*memFileReal), routesMu: &sync.RWMutex{}, proxyAddress: cnf.ProxyAddress, ctx: ctx}
 	memFs.loadIndex(cnf.UIPath)
 
 	return memFs
@@ -32,13 +36,14 @@ func NewMemFs(ctx context.AppContext, cnf config.ConfigProvider) *InMemoryFS {
 func UiRoutes(memFs *InMemoryFS) *router.Router {
 	r := router.NewRouter()
 
-	r.Use(CacheMiddleware)
-
-	r.Handle("/assets/*", http.FileServer(memFs))
-	r.Get("/static/{filename}", serveStaticContent)
+	r.Handle("/assets/*", CacheMiddleware(true), http.FileServer(memFs))
+	r.Get("/static/{filename}", CacheMiddleware(false), serveStaticContent)
+	r.Get("/docs", func(ctx context_service.RequestContext) {
+		http.Redirect(ctx.W, ctx.Req, "/docs/", http.StatusMovedPermanently)
+	})
 
 	r.NotFound(
-		func(ctx context.RequestContext) {
+		func(ctx context_service.RequestContext) {
 			if !strings.HasPrefix(ctx.Req.RequestURI, "/api") {
 				index := memFs.Index(ctx)
 				_, err := ctx.W.Write(index.realFile.data)
@@ -57,13 +62,13 @@ func UiRoutes(memFs *InMemoryFS) *router.Router {
 
 var staticDir = ""
 
-func serveStaticContent(ctx context.RequestContext) {
+func serveStaticContent(ctx context_service.RequestContext) {
 	filename := ctx.Path("filename")
 
 	cnf := config.GetConfig()
 
 	if staticDir == "" {
-		testDir := filepath.Join(cnf.StaticContentPath, "/static")
+		testDir := cnf.StaticContentPath
 		_, err := os.Stat(testDir)
 
 		if err != nil {
@@ -74,21 +79,24 @@ func serveStaticContent(ctx context.RequestContext) {
 	}
 
 	fullPath := filepath.Join(staticDir, filename)
+	ctx.Log().Debug().Msgf("Serving static content: %s", fullPath)
 
-	f, err := os.Open(fullPath)
-	if err != nil {
-		ctx.Error(http.StatusNotFound, err)
+	http.ServeFile(ctx.W, ctx.Req, fullPath)
 
-		return
-	}
-	defer f.Close()
-
-	_, err = io.Copy(ctx.W, f)
-	if err != nil {
-		ctx.Error(http.StatusInternalServerError, err)
-
-		return
-	}
-
-	ctx.Status(http.StatusOK)
+	// f, err := os.Open(fullPath)
+	// if err != nil {
+	// 	ctx.Error(http.StatusNotFound, err)
+	//
+	// 	return
+	// }
+	// defer f.Close()
+	//
+	// _, err = io.Copy(ctx.W, f)
+	// if err != nil {
+	// 	ctx.Error(http.StatusInternalServerError, err)
+	//
+	// 	return
+	// }
+	//
+	// ctx.Status(http.StatusOK)
 }

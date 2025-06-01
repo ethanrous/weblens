@@ -1,235 +1,220 @@
-package tower
+package tower_test
 
 import (
-	"context"
 	"testing"
 	"time"
 
 	"github.com/ethanrous/weblens/models/db"
-	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/log"
-	"github.com/ethanrous/weblens/modules/tests"
 	"github.com/stretchr/testify/assert"
-	"go.mongodb.org/mongo-driver/bson"
+	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+
+	. "github.com/ethanrous/weblens/models/tower"
 )
 
-// BSON keys
 const (
-	KeyTowerId     = "towerId"
-	KeyTowerRole   = "towerRole"
-	KeyIsThisTower = "isThisTower"
-	KeyCreatedBy   = "createdBy"
+	testTowerName = "Test Tower"
 )
 
-func initLocalTower(t *testing.T, ctx context.Context) Instance {
-	i, err := CreateLocal(ctx)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+func TestTower_Creation(t *testing.T) {
+	ctx := db.SetupTestDB(t, TowerCollectionKey)
 
-	return i
-}
-
-func TestCreateLocal(t *testing.T) {
-	t.Parallel()
-
-	mongodb, err := db.ConnectToMongo(t.Context(), config.GetMongoDBUri(), "weblensTestDB")
-	if err != nil {
-		t.Error(err)
-	}
-
-	t.Run("success", func(t *testing.T) {
-		defer tests.Recover(t)
-		ctx := context.WithValue(t.Context(), db.DatabaseContextKey, mongodb)
+	t.Run("CreateLocal", func(t *testing.T) {
 		tower, err := CreateLocal(ctx)
-
 		assert.NoError(t, err)
 		assert.NotNil(t, tower)
 		assert.Equal(t, RoleInit, tower.Role)
 		assert.True(t, tower.IsThisTower)
+
+		// Verify tower was saved to database
+		savedTower, err := GetTowerById(ctx, tower.TowerId)
+		assert.NoError(t, err)
+		assert.Equal(t, tower.TowerId, savedTower.TowerId)
 	})
-}
 
-func TestCreateTower(t *testing.T) {
-	defer tests.Recover(t)
-	t.Parallel()
-	log.NewZeroLogger()
-
-	mongodb, err := db.ConnectToMongo(t.Context(), config.GetMongoDBUri(), "weblensTestDB")
-	if err != nil {
-		t.Error(err)
-	}
-
-	t.Run("success", func(t *testing.T) {
-		defer tests.Recover(t)
-		ctx := context.WithValue(t.Context(), db.DatabaseContextKey, mongodb)
-
-		initLocalTower(t, ctx)
-
+	t.Run("CreateTower", func(t *testing.T) {
 		tower := &Instance{
-			Name:    "Test Tower",
-			DbId:    primitive.NewObjectID(),
 			TowerId: primitive.NewObjectID().Hex(),
+			Name:    testTowerName,
 			Role:    RoleCore,
 		}
 
 		err := SaveTower(ctx, tower)
-
 		assert.NoError(t, err)
+
+		// Verify tower was saved
+		savedTower, err := GetTowerById(ctx, tower.TowerId)
+		assert.NoError(t, err)
+		assert.Equal(t, tower.TowerId, savedTower.TowerId)
+		assert.Equal(t, testTowerName, savedTower.Name)
 	})
 
-	t.Run("bad tower", func(t *testing.T) {
-		defer tests.Recover(t)
-		ctx := context.WithValue(t.Context(), db.DatabaseContextKey, mongodb)
-
-		initLocalTower(t, ctx)
-
+	t.Run("CreateInvalidTower", func(t *testing.T) {
 		tower := &Instance{
-			DbId:    primitive.NewObjectID(),
 			TowerId: primitive.NewObjectID().Hex(),
+			Role:    RoleCore,
+			// Missing Name
+		}
+
+		err := SaveTower(ctx, tower)
+		assert.Error(t, err)
+	})
+}
+
+func TestTower_Retrieval(t *testing.T) {
+	ctx := db.SetupTestDB(t, TowerCollectionKey)
+
+	t.Run("GetTowerById", func(t *testing.T) {
+		tower := &Instance{
+			TowerId: primitive.NewObjectID().Hex(),
+			Name:    testTowerName,
 			Role:    RoleCore,
 		}
 
 		err := SaveTower(ctx, tower)
+		require.NoError(t, err)
 
+		retrieved, err := GetTowerById(ctx, tower.TowerId)
+		assert.NoError(t, err)
+		assert.Equal(t, tower.TowerId, retrieved.TowerId)
+		assert.Equal(t, tower.Name, retrieved.Name)
+		assert.Equal(t, tower.Role, retrieved.Role)
+	})
+
+	t.Run("GetNonexistentTower", func(t *testing.T) {
+		_, err := GetTowerById(ctx, "nonexistent")
 		assert.Error(t, err)
-	})
-}
-
-func TestGetTowerById(t *testing.T) {
-	mongodb, err := db.ConnectToMongo(t.Context(), config.GetMongoDBUri(), "weblensTestDB")
-	if err != nil {
-		t.Error(err)
-	}
-
-	t.Run("found", func(t *testing.T) {
-		defer tests.Recover(t)
-		ctx := context.WithValue(t.Context(), db.DatabaseContextKey, mongodb)
-
-		local := initLocalTower(t, ctx)
-
-		tower, err := GetTowerById(ctx, local.TowerId)
-
-		assert.NoError(t, err)
-		assert.NotNil(t, tower)
-		assert.Equal(t, local.TowerId, tower.TowerId)
+		assert.ErrorIs(t, err, ErrTowerNotFound)
 	})
 
-	t.Run("not found", func(t *testing.T) {
-		defer tests.Recover(t)
-		ctx := context.WithValue(t.Context(), db.DatabaseContextKey, mongodb)
-		tower, err := GetTowerById(ctx, "nonexistent")
-
-		assert.Error(t, err)
-		assert.Equal(t, Instance{}, tower)
-		assert.Equal(t, ErrTowerNotFound, err)
-	})
-}
-
-func TestGetLocal(t *testing.T) {
-	mongodb, err := db.ConnectToMongo(t.Context(), config.GetMongoDBUri(), "weblensTestDB")
-	if err != nil {
-		t.Error(err)
-	}
-
-	t.Run("found", func(t *testing.T) {
-		defer tests.Recover(t)
-		ctx := context.WithValue(t.Context(), db.DatabaseContextKey, mongodb)
-
-		initLocalTower(t, ctx)
-
-		tower, err := GetLocal(ctx)
-
-		assert.NoError(t, err)
-		assert.NotNil(t, tower)
-		assert.True(t, tower.IsThisTower)
-	})
-
-	t.Run("not found", func(t *testing.T) {
-		defer tests.Recover(t)
-		ctx := context.WithValue(t.Context(), db.DatabaseContextKey, mongodb)
-		mongodb.Collection(TowerCollectionKey).Drop(ctx)
-
-		tower, err := GetLocal(ctx)
-
-		assert.Error(t, err)
-		assert.Equal(t, Instance{}, tower)
-	})
-}
-
-func TestSetLastBackup(t *testing.T) {
-	mongodb, err := db.ConnectToMongo(t.Context(), config.GetMongoDBUri(), "weblensTestDB")
-	if err != nil {
-		t.Error(err)
-	}
-
-	t.Run("success", func(t *testing.T) {
-		defer tests.Recover(t)
-		ctx := context.WithValue(t.Context(), db.DatabaseContextKey, mongodb)
-		initLocalTower(t, ctx)
-		// Insert a mock tower document
-		towerId := "someTowerId"
-		_, err := mongodb.Collection(t.Name()).InsertOne(ctx, bson.D{
-			{Key: KeyTowerId, Value: towerId},
-		})
-		assert.NoError(t, err)
-
-		err = SetLastBackup(ctx, towerId, time.Now())
-
-		assert.NoError(t, err)
-	})
-}
-
-func TestGetAllTowersByTowerId(t *testing.T) {
-
-	mongodb, err := db.ConnectToMongo(t.Context(), config.GetMongoDBUri(), "weblensTestDB")
-	if err != nil {
-		t.Error(err)
-	}
-
-	t.Run("found", func(t *testing.T) {
-		defer tests.Recover(t)
-		ctx := context.WithValue(t.Context(), db.DatabaseContextKey, mongodb)
-
-		local := initLocalTower(t, ctx)
-
-		towerToFind := []Instance{
-			{
-				Name:      "Test Tower",
-				CreatedBy: local.TowerId,
-				TowerId:   "towerId1",
-				Role:      RoleCore,
-			},
-			{
-				Name:      "Test Tower2",
-				CreatedBy: local.TowerId,
-				TowerId:   "towerId2",
-				Role:      RoleCore,
-			},
+	t.Run("GetLocal", func(t *testing.T) {
+		tower := &Instance{
+			TowerId:     primitive.NewObjectID().Hex(),
+			Name:        testTowerName,
+			Role:        RoleCore,
+			IsThisTower: true,
 		}
 
-		// Insert mock tower documents
-		for _, tower := range towerToFind {
-			err = SaveTower(ctx, &tower)
-			if !assert.NoError(t, err) {
-				t.FailNow()
+		err := SaveTower(ctx, tower)
+		require.NoError(t, err)
+
+		local, err := GetLocal(ctx)
+		assert.NoError(t, err)
+		assert.NotNil(t, local)
+		assert.True(t, local.IsThisTower)
+		assert.Equal(t, tower.TowerId, local.TowerId)
+	})
+
+	t.Run("GetAllTowersByTowerId", func(t *testing.T) {
+		creatorId := primitive.NewObjectID().Hex()
+		numTowers := 3
+
+		// Create multiple towers with same creator
+		for i := 0; i < numTowers; i++ {
+			tower := &Instance{
+				TowerId:   primitive.NewObjectID().Hex(),
+				Name:      testTowerName,
+				Role:      RoleCore,
+				CreatedBy: creatorId,
 			}
+			err := SaveTower(ctx, tower)
+			require.NoError(t, err)
 		}
 
-		towers, err := GetAllTowersByTowerId(ctx, local.TowerId)
+		// Create a tower with different creator
+		otherTower := &Instance{
+			TowerId:   primitive.NewObjectID().Hex(),
+			Name:      testTowerName,
+			Role:      RoleCore,
+			CreatedBy: "different_creator",
+		}
+		err := SaveTower(ctx, otherTower)
+		require.NoError(t, err)
 
+		// Test retrieval
+		towers, err := GetAllTowersByTowerId(ctx, creatorId)
 		assert.NoError(t, err)
-		assert.NotNil(t, towers)
-		assert.Len(t, towers, 2)
+		assert.Len(t, towers, numTowers)
+
+		for _, tower := range towers {
+			assert.Equal(t, creatorId, tower.CreatedBy)
+		}
+	})
+}
+
+func TestTower_Updates(t *testing.T) {
+	ctx := db.SetupTestDB(t, TowerCollectionKey)
+
+	t.Run("SetLastBackup", func(t *testing.T) {
+		tower := &Instance{
+			TowerId: primitive.NewObjectID().Hex(),
+			Name:    testTowerName,
+			Role:    RoleCore,
+		}
+
+		err := SaveTower(ctx, tower)
+		require.NoError(t, err)
+
+		backupTime := time.Now()
+		err = SetLastBackup(ctx, tower.TowerId, backupTime)
+		assert.NoError(t, err)
+
+		// Verify update
+		updated, err := GetTowerById(ctx, tower.TowerId)
+		assert.NoError(t, err)
+		assert.Equal(t, backupTime.UnixMilli(), updated.LastBackup)
 	})
 
-	t.Run("not found", func(t *testing.T) {
-		defer tests.Recover(t)
-		ctx := context.WithValue(t.Context(), db.DatabaseContextKey, mongodb)
-		towers, err := GetAllTowersByTowerId(ctx, "nonexistent")
+	t.Run("UpdateRole", func(t *testing.T) {
+		tower := &Instance{
+			TowerId: primitive.NewObjectID().Hex(),
+			Name:    testTowerName,
+			Role:    RoleInit,
+		}
 
+		err := SaveTower(ctx, tower)
+		require.NoError(t, err)
+
+		tower.Role = RoleCore
+		err = SaveTower(ctx, tower)
 		assert.NoError(t, err)
-		assert.Empty(t, towers)
+
+		// Verify update
+		updated, err := GetTowerById(ctx, tower.TowerId)
+		assert.NoError(t, err)
+		assert.Equal(t, RoleCore, updated.Role)
+	})
+}
+
+func TestTower_RoleChecks(t *testing.T) {
+	ctx := db.SetupTestDB(t, TowerCollectionKey)
+
+	t.Run("RoleValidation", func(t *testing.T) {
+		tower := &Instance{
+			TowerId: primitive.NewObjectID().Hex(),
+			Name:    testTowerName,
+			Role:    RoleCore,
+		}
+
+		err := SaveTower(ctx, tower)
+		require.NoError(t, err)
+
+		assert.True(t, tower.IsCore())
+		assert.False(t, tower.IsBackup())
+
+		tower.Role = RoleBackup
+		assert.False(t, tower.IsCore())
+		assert.True(t, tower.IsBackup())
+	})
+
+	t.Run("ReportedRole", func(t *testing.T) {
+		tower := &Instance{
+			TowerId: primitive.NewObjectID().Hex(),
+			Name:    testTowerName,
+			Role:    RoleCore,
+		}
+
+		tower.SetReportedRole(RoleBackup)
+		assert.Equal(t, RoleBackup, tower.GetReportedRole())
 	})
 }

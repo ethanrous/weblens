@@ -16,22 +16,19 @@ type FileService interface {
 	Size(treeAlias string) int64
 
 	// GetFileById retrieves a file by its ID
-	GetFileById(fileId string) (*WeblensFileImpl, error)
+	GetFileById(ctx context.Context, fileId string) (*WeblensFileImpl, error)
 
 	// GetFileByFilepath retrieves a file by its filepath
 	GetFileByFilepath(ctx context.Context, path fs.Filepath) (*WeblensFileImpl, error)
-
-	// GetFileByContentId retrieves a file by its content ID
-	GetFileByContentId(contentId string) (*WeblensFileImpl, error)
-
-	// GetFiles retrieves multiple files by their IDs
-	GetFiles(ids []string) ([]*WeblensFileImpl, []string, error)
 
 	// CreateFile creates a new file
 	CreateFile(ctx context.Context, parent *WeblensFileImpl, filename string, data ...[]byte) (*WeblensFileImpl, error)
 
 	// CreateFolder creates a new folder
 	CreateFolder(ctx context.Context, parent *WeblensFileImpl, folderName string) (*WeblensFileImpl, error)
+
+	// CreateFolder creates a new folder
+	GetChildren(ctx context.Context, folder *WeblensFileImpl) ([]*WeblensFileImpl, error)
 
 	// CreateUserHome creates a home directory for a user
 	CreateUserHome(ctx context.Context, user *user_model.User) error
@@ -97,8 +94,8 @@ type FileService interface {
 	// GetThumbsDir() (*WeblensFileImpl, error)
 
 	// NewZip creates a new zip file
-	NewZip(zipName string, owner *user_model.User) (*WeblensFileImpl, error)
+	NewZip(ctx context.Context, zipName string, owner *user_model.User) (*WeblensFileImpl, error)
 
 	// GetZip retrieves a zip file by ID
-	GetZip(id string) (*WeblensFileImpl, error)
+	GetZip(ctx context.Context, id string) (*WeblensFileImpl, error)
 }

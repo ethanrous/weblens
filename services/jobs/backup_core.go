@@ -84,12 +84,17 @@ func BackupD(ctx context_mod.ContextZ, interval time.Duration) {
 	}
 }
 
-func BackupOne(ctx context_mod.DispatcherContext, core tower_model.Instance) (task_mod.Task, error) {
+func BackupOne(ctx context.Context, core tower_model.Instance) (task_mod.Task, error) {
 	meta := job.BackupMeta{
 		Core: core,
 	}
 
-	return ctx.DispatchJob(job.BackupTask, meta, nil)
+	appCtx, ok := context_service.FromContext(ctx)
+	if !ok {
+		return nil, errors.New("Failed to cast context to AppContext")
+	}
+
+	return appCtx.DispatchJob(job.BackupTask, meta, nil)
 }
 
 func DoBackup(tsk task_mod.Task) {

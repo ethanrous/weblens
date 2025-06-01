@@ -1,15 +1,26 @@
 package crypto
 
 import (
+	"context"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func HashUserPassword(password string) (string, error) {
-	passHashBytes, err := bcrypt.GenerateFromPassword([]byte(password), 11)
+const BcryptDifficultyCtxKey = "bcryptDifficulty"
+const bcryptDefaultDifficulty = 11
+
+func HashUserPassword(ctx context.Context, password string) (string, error) {
+	// For testing, we can set the bcrypt difficulty in the context
+	bcryptDifficultyI := ctx.Value(BcryptDifficultyCtxKey)
+	bcryptDifficulty, ok := bcryptDifficultyI.(int)
+	if !ok {
+		bcryptDifficulty = bcryptDefaultDifficulty
+	}
+
+	passHashBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcryptDifficulty)
 
 	return string(passHashBytes), err
 }

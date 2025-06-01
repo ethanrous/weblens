@@ -8,7 +8,6 @@ import Upload, {
 	FileUploadMetadata,
 	UPLOAD_CHUNK_SIZE,
 } from '@weblens/api/Upload'
-import { WsSendFunc } from '@weblens/api/Websocket'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import { FbModeT, useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { ErrorHandler } from '@weblens/types/Types'
@@ -297,7 +296,6 @@ export async function downloadSelected(
 				res.data.filename,
 				true,
 				shareId,
-				null
 			).catch(ErrorHandler)
 		} else if (res.status === 202) {
 			SubToTask(res.data.taskId, ['takeoutId'])

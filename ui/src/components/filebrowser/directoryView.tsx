@@ -1,9 +1,9 @@
 import { IconArrowLeft, IconClock } from '@tabler/icons-react'
 import { FileApi } from '@weblens/api/FileBrowserApi'
-import FilesErrorDisplay from '@weblens/components/NotFound'
+import FilesErrorDisplay from '@weblens/components/NotFound.tsx'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import FileHistoryPane from '@weblens/components/filebrowser/historyPane'
-import Crumbs from '@weblens/lib/Crumbs'
+import FileHistoryPane from '@weblens/components/filebrowser/historyPane.tsx'
+import Crumbs from '@weblens/lib/Crumbs.tsx'
 import { useKeyDown } from '@weblens/lib/hooks'
 import { TransferCard } from '@weblens/pages/FileBrowser/DropSpot'
 import { historyDateTime } from '@weblens/pages/FileBrowser/FileBrowserLogic'
@@ -15,7 +15,7 @@ import WeblensFile, { FbMenuModeT } from '@weblens/types/files/File'
 import FileColumns from '@weblens/types/files/FileColumns'
 import FileGrid from '@weblens/types/files/FileGrid'
 import { FileRows } from '@weblens/types/files/FileRows'
-import { ReactElement, useCallback, useEffect, useState } from 'react'
+import { ReactElement, useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { FbModeT, useFileBrowserStore } from '../../store/FBStateControl'
@@ -54,8 +54,8 @@ function DirView({
 }) {
     const nav = useNavigate()
 
-    const [fullViewRef, setFullViewRef] = useState<HTMLDivElement>(null)
-    const [dragBoxRef, setDragBoxRef] = useState<HTMLDivElement>()
+    const fullViewRef = useRef<HTMLDivElement>(null)
+    const dragBoxRef = useRef<HTMLDivElement>(null)
 
     const mode = useFileBrowserStore((state) => state.fbMode)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
@@ -130,7 +130,7 @@ function DirView({
     }
 
     return (
-        <div className="flex h-full flex-col" ref={setFullViewRef}>
+        <div className="flex h-full flex-col" ref={fullViewRef}>
             <DirViewHeader />
             <TransferCard
                 action={dropAction}
@@ -139,7 +139,7 @@ function DirView({
             />
             <div
                 className="flex h-0 w-full grow"
-                ref={setDragBoxRef}
+                ref={dragBoxRef}
                 onDragEnter={(e) => {
                     e.stopPropagation()
                     e.preventDefault()
@@ -149,9 +149,11 @@ function DirView({
                 onDragOver={(e) => e.preventDefault()}
                 onDragLeave={(e) => {
                     e.stopPropagation()
-                    if (dragBoxRef.contains(e.relatedTarget as Node)) {
+
+                    if (dragBoxRef.current?.contains(e.relatedTarget as Node)) {
                         return
                     }
+
                     setDragging(DraggingStateT.NoDrag)
                 }}
             >
@@ -196,7 +198,7 @@ function DirViewHeader() {
                 newParentId: folderId,
             }).catch(ErrorHandler)
         },
-        [selected, folderInfo?.Id()]
+        [selected, folderInfo?.id, setDragging, setSelectedMoved]
     )
 
     useEffect(() => {

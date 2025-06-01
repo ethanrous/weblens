@@ -26,6 +26,37 @@ import { BASE_PATH, COLLECTION_FORMATS, BaseAPI, RequiredError, operationServerM
 /**
  * 
  * @export
+ * @interface AddUserParams
+ */
+export interface AddUserParams {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof AddUserParams
+     */
+    'canDelete'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof AddUserParams
+     */
+    'canDownload'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof AddUserParams
+     */
+    'canEdit'?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof AddUserParams
+     */
+    'username': string;
+}
+/**
+ * 
+ * @export
  * @interface ApiKeyParams
  */
 export interface ApiKeyParams {
@@ -763,6 +794,56 @@ export interface PasswordUpdateParams {
 /**
  * 
  * @export
+ * @interface PermissionsInfo
+ */
+export interface PermissionsInfo {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof PermissionsInfo
+     */
+    'canDelete'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof PermissionsInfo
+     */
+    'canDownload'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof PermissionsInfo
+     */
+    'canEdit'?: boolean;
+}
+/**
+ * 
+ * @export
+ * @interface PermissionsParams
+ */
+export interface PermissionsParams {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof PermissionsParams
+     */
+    'canDelete'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof PermissionsParams
+     */
+    'canDownload'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof PermissionsParams
+     */
+    'canEdit'?: boolean;
+}
+/**
+ * 
+ * @export
  * @interface RestoreFilesBody
  */
 export interface RestoreFilesBody {
@@ -834,6 +915,12 @@ export interface ShareInfo {
      * @memberof ShareInfo
      */
     'owner'?: string;
+    /**
+     * 
+     * @type {{ [key: string]: PermissionsInfo; }}
+     * @memberof ShareInfo
+     */
+    'permissions'?: { [key: string]: PermissionsInfo; };
     /**
      * 
      * @type {boolean}
@@ -956,25 +1043,6 @@ export interface StructsScanBody {
      * @memberof StructsScanBody
      */
     'folderId'?: string;
-}
-/**
- * 
- * @export
- * @interface StructsUserListBody
- */
-export interface StructsUserListBody {
-    /**
-     * 
-     * @type {Array<string>}
-     * @memberof StructsUserListBody
-     */
-    'addUsers'?: Array<string>;
-    /**
-     * 
-     * @type {Array<string>}
-     * @memberof StructsUserListBody
-     */
-    'removeUsers'?: Array<string>;
 }
 /**
  * 
@@ -4168,6 +4236,46 @@ export const ShareApiAxiosParamCreator = function (configuration?: Configuration
     return {
         /**
          * 
+         * @summary Add a user to a file share
+         * @param {string} shareId Share Id
+         * @param {AddUserParams} request Share Accessors
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        addUserToShare: async (shareId: string, request: AddUserParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'shareId' is not null or undefined
+            assertParamExists('addUserToShare', 'shareId', shareId)
+            // verify required parameter 'request' is not null or undefined
+            assertParamExists('addUserToShare', 'request', request)
+            const localVarPath = `/share/{shareId}/accessors`
+                .replace(`{${"shareId"}}`, encodeURIComponent(String(shareId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary Share a file
          * @param {FileShareParams} request New File Share Params
          * @param {*} [options] Override http request option.
@@ -4272,19 +4380,20 @@ export const ShareApiAxiosParamCreator = function (configuration?: Configuration
         },
         /**
          * 
-         * @summary Update a share\'s accessors list
+         * @summary Remove a user from a file share
          * @param {string} shareId Share Id
-         * @param {StructsUserListBody} request Share Accessors
+         * @param {string} username Username
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        setShareAccessors: async (shareId: string, request: StructsUserListBody, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        removeUserFromShare: async (shareId: string, username: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'shareId' is not null or undefined
-            assertParamExists('setShareAccessors', 'shareId', shareId)
-            // verify required parameter 'request' is not null or undefined
-            assertParamExists('setShareAccessors', 'request', request)
-            const localVarPath = `/share/{shareId}/accessors`
-                .replace(`{${"shareId"}}`, encodeURIComponent(String(shareId)));
+            assertParamExists('removeUserFromShare', 'shareId', shareId)
+            // verify required parameter 'username' is not null or undefined
+            assertParamExists('removeUserFromShare', 'username', username)
+            const localVarPath = `/share/{shareId}/accessors/{username}`
+                .replace(`{${"shareId"}}`, encodeURIComponent(String(shareId)))
+                .replace(`{${"username"}}`, encodeURIComponent(String(username)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -4292,18 +4401,15 @@ export const ShareApiAxiosParamCreator = function (configuration?: Configuration
                 baseOptions = configuration.baseOptions;
             }
 
-            const localVarRequestOptions = { method: 'PATCH', ...baseOptions, ...options};
+            const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
 
 
     
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -4351,6 +4457,50 @@ export const ShareApiAxiosParamCreator = function (configuration?: Configuration
                 options: localVarRequestOptions,
             };
         },
+        /**
+         * 
+         * @summary Update a share\'s user permissions
+         * @param {string} shareId Share Id
+         * @param {string} username Username
+         * @param {PermissionsParams} request Share Permissions Params
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateShareAccessorPermissions: async (shareId: string, username: string, request: PermissionsParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'shareId' is not null or undefined
+            assertParamExists('updateShareAccessorPermissions', 'shareId', shareId)
+            // verify required parameter 'username' is not null or undefined
+            assertParamExists('updateShareAccessorPermissions', 'username', username)
+            // verify required parameter 'request' is not null or undefined
+            assertParamExists('updateShareAccessorPermissions', 'request', request)
+            const localVarPath = `/share/{shareId}/accessors/{username}`
+                .replace(`{${"shareId"}}`, encodeURIComponent(String(shareId)))
+                .replace(`{${"username"}}`, encodeURIComponent(String(username)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PATCH', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
     }
 };
 
@@ -4361,6 +4511,20 @@ export const ShareApiAxiosParamCreator = function (configuration?: Configuration
 export const ShareApiFp = function(configuration?: Configuration) {
     const localVarAxiosParamCreator = ShareApiAxiosParamCreator(configuration)
     return {
+        /**
+         * 
+         * @summary Add a user to a file share
+         * @param {string} shareId Share Id
+         * @param {AddUserParams} request Share Accessors
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async addUserToShare(shareId: string, request: AddUserParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ShareInfo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.addUserToShare(shareId, request, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ShareApi.addUserToShare']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
         /**
          * 
          * @summary Share a file
@@ -4402,16 +4566,16 @@ export const ShareApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
-         * @summary Update a share\'s accessors list
+         * @summary Remove a user from a file share
          * @param {string} shareId Share Id
-         * @param {StructsUserListBody} request Share Accessors
+         * @param {string} username Username
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async setShareAccessors(shareId: string, request: StructsUserListBody, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ShareInfo>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.setShareAccessors(shareId, request, options);
+        async removeUserFromShare(shareId: string, username: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ShareInfo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.removeUserFromShare(shareId, username, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['ShareApi.setShareAccessors']?.[localVarOperationServerIndex]?.url;
+            const localVarOperationServerBasePath = operationServerMap['ShareApi.removeUserFromShare']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -4428,6 +4592,21 @@ export const ShareApiFp = function(configuration?: Configuration) {
             const localVarOperationServerBasePath = operationServerMap['ShareApi.setSharePublic']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
+        /**
+         * 
+         * @summary Update a share\'s user permissions
+         * @param {string} shareId Share Id
+         * @param {string} username Username
+         * @param {PermissionsParams} request Share Permissions Params
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async updateShareAccessorPermissions(shareId: string, username: string, request: PermissionsParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ShareInfo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.updateShareAccessorPermissions(shareId, username, request, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ShareApi.updateShareAccessorPermissions']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
     }
 };
 
@@ -4438,6 +4617,17 @@ export const ShareApiFp = function(configuration?: Configuration) {
 export const ShareApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
     const localVarFp = ShareApiFp(configuration)
     return {
+        /**
+         * 
+         * @summary Add a user to a file share
+         * @param {string} shareId Share Id
+         * @param {AddUserParams} request Share Accessors
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        addUserToShare(shareId: string, request: AddUserParams, options?: RawAxiosRequestConfig): AxiosPromise<ShareInfo> {
+            return localVarFp.addUserToShare(shareId, request, options).then((request) => request(axios, basePath));
+        },
         /**
          * 
          * @summary Share a file
@@ -4470,14 +4660,14 @@ export const ShareApiFactory = function (configuration?: Configuration, basePath
         },
         /**
          * 
-         * @summary Update a share\'s accessors list
+         * @summary Remove a user from a file share
          * @param {string} shareId Share Id
-         * @param {StructsUserListBody} request Share Accessors
+         * @param {string} username Username
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        setShareAccessors(shareId: string, request: StructsUserListBody, options?: RawAxiosRequestConfig): AxiosPromise<ShareInfo> {
-            return localVarFp.setShareAccessors(shareId, request, options).then((request) => request(axios, basePath));
+        removeUserFromShare(shareId: string, username: string, options?: RawAxiosRequestConfig): AxiosPromise<ShareInfo> {
+            return localVarFp.removeUserFromShare(shareId, username, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -4490,6 +4680,18 @@ export const ShareApiFactory = function (configuration?: Configuration, basePath
         setSharePublic(shareId: string, _public: boolean, options?: RawAxiosRequestConfig): AxiosPromise<void> {
             return localVarFp.setSharePublic(shareId, _public, options).then((request) => request(axios, basePath));
         },
+        /**
+         * 
+         * @summary Update a share\'s user permissions
+         * @param {string} shareId Share Id
+         * @param {string} username Username
+         * @param {PermissionsParams} request Share Permissions Params
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateShareAccessorPermissions(shareId: string, username: string, request: PermissionsParams, options?: RawAxiosRequestConfig): AxiosPromise<ShareInfo> {
+            return localVarFp.updateShareAccessorPermissions(shareId, username, request, options).then((request) => request(axios, basePath));
+        },
     };
 };
 
@@ -4500,6 +4702,19 @@ export const ShareApiFactory = function (configuration?: Configuration, basePath
  * @extends {BaseAPI}
  */
 export class ShareApi extends BaseAPI {
+    /**
+     * 
+     * @summary Add a user to a file share
+     * @param {string} shareId Share Id
+     * @param {AddUserParams} request Share Accessors
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ShareApi
+     */
+    public addUserToShare(shareId: string, request: AddUserParams, options?: RawAxiosRequestConfig) {
+        return ShareApiFp(this.configuration).addUserToShare(shareId, request, options).then((request) => request(this.axios, this.basePath));
+    }
+
     /**
      * 
      * @summary Share a file
@@ -4538,15 +4753,15 @@ export class ShareApi extends BaseAPI {
 
     /**
      * 
-     * @summary Update a share\'s accessors list
+     * @summary Remove a user from a file share
      * @param {string} shareId Share Id
-     * @param {StructsUserListBody} request Share Accessors
+     * @param {string} username Username
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof ShareApi
      */
-    public setShareAccessors(shareId: string, request: StructsUserListBody, options?: RawAxiosRequestConfig) {
-        return ShareApiFp(this.configuration).setShareAccessors(shareId, request, options).then((request) => request(this.axios, this.basePath));
+    public removeUserFromShare(shareId: string, username: string, options?: RawAxiosRequestConfig) {
+        return ShareApiFp(this.configuration).removeUserFromShare(shareId, username, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -4560,6 +4775,20 @@ export class ShareApi extends BaseAPI {
      */
     public setSharePublic(shareId: string, _public: boolean, options?: RawAxiosRequestConfig) {
         return ShareApiFp(this.configuration).setSharePublic(shareId, _public, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Update a share\'s user permissions
+     * @param {string} shareId Share Id
+     * @param {string} username Username
+     * @param {PermissionsParams} request Share Permissions Params
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ShareApi
+     */
+    public updateShareAccessorPermissions(shareId: string, username: string, request: PermissionsParams, options?: RawAxiosRequestConfig) {
+        return ShareApiFp(this.configuration).updateShareAccessorPermissions(shareId, username, request, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

@@ -1,4 +1,6 @@
 @import 'tailwindcss';
+@import './components.css';
+@import './animate.css';
 
 @theme {
     --color-amethyst-50: rgb(235, 230, 250, 100); /*  #ebe6fa  */
@@ -132,9 +134,9 @@
         var(--color-aurora-400),
         var(--color-aurora-700)
     );
-    --color-button-text-disabled: var(--color-text-secondary);
 
     --color-button-text-primary: var(--color-text-near-white);
+    --color-button-text-disabled: var(--color-text-secondary);
 
     --wl-padding-sm: 0.25rem;
 
@@ -173,6 +175,10 @@
     --color-card-background-primary: light-dark(
         var(--color-aurora-300),
         var(--color-abyss-200)
+    );
+    --color-card-background-hover: light-dark(
+        var(--color-aurora-400),
+        var(--color-abyss-50)
     );
     --color-card-background-selected: light-dark(
         var(--color-bluenova-200),
@@ -269,100 +275,6 @@
     padding: 0.5rem;
 }
 
-/* @utility weblens-file { */
-/* 	position: relative; */
-/* 	display: flex; */
-/* 	flex-direction: column; */
-/* 	flex-shrink: 1; */
-/* 	flex-basis: 250px; */
-/* 	max-width: 400px; */
-/* 	margin: 6px; */
-/* 	aspect-ratio: 0.9; */
-/* 	border-radius: var(--wl-border-radius-lg); */
-/* 	background-color: var(--color-card-background-primary); */
-/* 	color: var(--color-text-primary); */
-/* 	transition-property: box-shadow, background-color; */
-/* 	transition-duration: var(--wl-transition-duration); */
-/* 	transition-timing-function: var(--ease-wl-default); */
-/**/
-/* 	box-shadow: var(--wl-hard-shadow-off); */
-/* 	user-select: none; */
-/* 	font-size: 8px; */
-/**/
-/* 	--color-file-text: var(--color-text-primary); */
-/* 	--color-file-text-inverted: var(--color-text-inverted); */
-/**/
-/* 	&[data-row], */
-/* 	&[data-column-row] { */
-/* 		flex-direction: row; */
-/* 		align-items: center; */
-/* 		justify-content: space-between; */
-/* 		width: 100%; */
-/* 		height: 62px; */
-/* 		max-height: 62px; */
-/* 		max-width: 90000px; */
-/* 		flex-shrink: 0; */
-/* 		flex-grow: 0; */
-/* 		margin: 0px; */
-/* 		padding: 6px; */
-/* 		padding-right: 8px; */
-/* 		gap: 10px; */
-/* 	} */
-/**/
-/* 	&[data-column-row] { */
-/* 		height: 52px; */
-/* 		max-height: 52px; */
-/* 		justify-content: space-between; */
-/* 	} */
-/**/
-/* 	&[data-clickable='true'] { */
-/* 		cursor: pointer; */
-/* 	} */
-/**/
-/* 	&[data-hovering='1'], */
-/* 	&[data-dragging='0'] &:hover, */
-/* 	&:hover { */
-/* 		background-color: var(--color-background-secondary); */
-/* 	} */
-/**/
-/* 	&[data-in-range='1'] { */
-/* 		background-color: var(--color-background-tertiary); */
-/**/
-/* 		&[data-last-selected='1'] { */
-/* 			outline: 2px solid var(--color-border-secondary); */
-/* 		} */
-/* 	} */
-/**/
-/* 	&[data-selected='1'] { */
-/* 		// background-color: rgb(from var(--color-theme-secondary) r g b / 0.50); */
-/* 		background-color: var(--color-card-background-selected); */
-/* 		box-shadow: var(--wl-soft-shadow); */
-/* 		// --color-file-text: white; */
-/**/
-/* 		&[data-current-view='false'] { */
-/* 			--color-file-text: var(--color-text-primary); */
-/* 			background-color: var(--color-background-tertiary); */
-/* 		} */
-/**/
-/* 		&[data-last-selected='1'] { */
-/* 			outline: 2px solid var(--color-theme-secondary); */
-/* 		} */
-/* 	} */
-/**/
-/* 	&[data-droppable='1'] { */
-/* 		background-color: rgb(from var(--color-theme-secondary) r g b / 0.50); */
-/* 		outline: 2px solid var(--color-theme-primary); */
-/* 		--color-file-text: white; */
-/* 	} */
-/**/
-/* 	&[data-moved='1'] { */
-/* 		pointer-events: none; */
-/* 		color: var(--color-text-dull); */
-/* 		--color-file-text: #{var(--color-text-dull)}; */
-/* 		--color-file-text-inverted: #{var(--color-text-dull)}; */
-/* 	} */
-/* } */
-
 @layer base {
     body {
         margin: 0;
@@ -396,7 +308,7 @@
     }
 
     h3 {
-		@apply line-clamp-none;
+        @apply line-clamp-none;
         font-size: 1.5rem;
         font-weight: 600;
         color: var(--color-text-primary);
@@ -421,7 +333,7 @@
     }
 
     span {
-		@apply line-clamp-none;
+        @apply line-clamp-none;
         font-family: 'Noto Sans', sans-serif;
         font-size: 0.875rem;
         font-weight: 400;

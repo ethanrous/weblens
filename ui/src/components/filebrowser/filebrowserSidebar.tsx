@@ -8,32 +8,94 @@ import {
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react'
-import { FileApi, FolderApi } from '@weblens/api/FileBrowserApi'
+import { useQuery } from '@tanstack/react-query'
+import {
+    FileApi,
+    FolderApi,
+    GetTrashChildIds,
+} from '@weblens/api/FileBrowserApi'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import UsageInfo from '@weblens/components/filebrowser/usageInfo'
-import WeblensButton from '@weblens/lib/WeblensButton'
-import WeblensFileButton from '@weblens/lib/WeblensFileButton'
-import WeblensInput from '@weblens/lib/WeblensInput'
+import UsageInfo from '@weblens/components/filebrowser/usageInfo.tsx'
+import WeblensButton from '@weblens/lib/WeblensButton.tsx'
+import WeblensFileButton from '@weblens/lib/WeblensFileButton.tsx'
+import WeblensInput from '@weblens/lib/WeblensInput.tsx'
 import { ButtonActionHandler } from '@weblens/lib/buttonTypes'
-import { useResizeDrag, useWindowSize } from '@weblens/lib/hooks'
+import { useClick, useResizeDrag, useWindowSize } from '@weblens/lib/hooks'
 import { TaskProgressMini } from '@weblens/pages/FileBrowser/TaskProgress'
 import UploadStatus from '@weblens/pages/FileBrowser/UploadStatus'
 import fbStyle from '@weblens/pages/FileBrowser/style/fileBrowserStyle.module.scss'
+import { Coordinates } from '@weblens/types/Types'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import WeblensFile from '@weblens/types/files/File'
 import { goToFile } from '@weblens/types/files/FileDragLogic'
+import { UserPermissions } from '@weblens/types/user/User'
 import { humanFileSize } from '@weblens/util'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+    Dispatch,
+    RefObject,
+    SetStateAction,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react'
 
 import {
     FbModeT,
     ShareRoot,
     useFileBrowserStore,
 } from '../../store/FBStateControl'
+import WeblensLoader from '../Loading'
 
 const SIDEBAR_BREAKPOINT = 650
 const SIDEBAR_DEFAULT_WIDTH = 300
 const SIDEBAR_MIN_OPEN_WIDTH = 200
+
+function EmptyTrashButton({
+    trashPopupRef,
+    trashPopup,
+    setTrashPopup,
+    sidebarSize,
+}: {
+    trashPopupRef: RefObject<HTMLDivElement | null>
+    trashPopup: Coordinates | undefined
+    setTrashPopup: Dispatch<SetStateAction<Coordinates | undefined>>
+    sidebarSize: number
+}) {
+    const { data: childIds, isFetching } = useQuery<string[]>({
+        queryKey: ['trash'],
+        queryFn: async () => {
+            return GetTrashChildIds()
+        },
+    })
+
+    return (
+        <div
+            ref={trashPopupRef}
+            className="absolute z-50 shadow"
+            style={{
+                left: Math.min(sidebarSize - 130, trashPopup?.x ?? 0),
+                top: trashPopup?.y,
+                zIndex: 100,
+            }}
+        >
+            <WeblensButton
+                danger
+                label={isFetching ? '' : 'Empty Trash'}
+                disabled={!childIds || childIds.length === 0 || isFetching}
+                Left={isFetching ? WeblensLoader : IconTrash}
+                className="relative z-50"
+                onClick={async (e) => {
+                    e.stopPropagation()
+
+                    await FileApi.deleteFiles({ fileIds: childIds })
+                    setTrashPopup(undefined)
+                }}
+            />
+        </div>
+    )
+}
 
 function FBSidebar() {
     const user = useSessionStore((state) => state.user)
@@ -65,19 +127,27 @@ function FBSidebar() {
         (state) => state.setSelectedMoved
     )
 
+    const [trashPopup, setTrashPopup] = useState<Coordinates>()
+    const trashPopupRef = useRef<HTMLDivElement>(null)
+
+    useClick(
+        () => {
+            console.log(trashPopup, trashPopupRef.current)
+
+            setTrashPopup(undefined)
+        },
+        trashPopupRef,
+        trashPopup === undefined
+    )
+
     useEffect(() => {
         if (
             windowSize.width < SIDEBAR_BREAKPOINT &&
             resizeOffset >= SIDEBAR_DEFAULT_WIDTH
         ) {
             setResizeOffset(75)
-        } else if (
-            windowSize.width >= SIDEBAR_BREAKPOINT &&
-            resizeOffset < SIDEBAR_DEFAULT_WIDTH
-        ) {
-            setResizeOffset(SIDEBAR_DEFAULT_WIDTH)
         }
-    }, [windowSize.width])
+    }, [windowSize.width, resizeOffset])
 
     useEffect(() => {
         if (resizeOffset < SIDEBAR_MIN_OPEN_WIDTH && !sidebarCollapsed) {
@@ -85,19 +155,19 @@ function FBSidebar() {
         } else if (resizeOffset >= SIDEBAR_MIN_OPEN_WIDTH && sidebarCollapsed) {
             setSidebarCollapsed(false)
         }
-    }, [resizeOffset])
+    }, [resizeOffset, sidebarCollapsed, setSidebarCollapsed])
 
     const homeMouseOver = useCallback(() => {
         if (draggingState !== DraggingStateT.NoDrag) {
             setMoveDest('Home')
         }
-    }, [draggingState])
+    }, [draggingState, setMoveDest])
 
     const mouseLeave = useCallback(() => {
         if (draggingState !== DraggingStateT.NoDrag) {
             setMoveDest('')
         }
-    }, [draggingState])
+    }, [draggingState, setMoveDest])
 
     const homeMouseUp: ButtonActionHandler = useCallback(
         async (e) => {
@@ -112,24 +182,26 @@ function FBSidebar() {
                     fileIds: selectedIds,
                     newParentId: user.homeId,
                 })
-            } else {
-                goToFile(
-                    new WeblensFile({
-                        id: user.homeId,
-                        isDir: true,
-                    }),
-                    true
-                )
+            } else if (folderInfo.Id() !== user.homeId) {
+                goToFile(WeblensFile.Home(), true)
             }
         },
-        [selected, draggingState]
+        [
+            selected,
+            draggingState,
+            folderInfo,
+            setDragging,
+            setMoveDest,
+            setSelectedMoved,
+            user,
+        ]
     )
 
     const trashMouseOver = useCallback(() => {
         if (draggingState !== DraggingStateT.NoDrag) {
             setMoveDest('.user_trash')
         }
-    }, [draggingState])
+    }, [draggingState, setMoveDest])
 
     const trashMouseUp: ButtonActionHandler = useCallback(
         async (e) => {
@@ -146,7 +218,6 @@ function FBSidebar() {
                 goToFile(
                     new WeblensFile({
                         id: user.trashId,
-                        filename: '.user_trash',
                         isDir: true,
                         modifiable: false,
                     }),
@@ -154,7 +225,14 @@ function FBSidebar() {
                 )
             }
         },
-        [selected, draggingState]
+        [
+            setMoveDest,
+            draggingState,
+            setSelectedMoved,
+            selected,
+            setDragging,
+            user.trashId,
+        ]
     )
 
     const [namingFolder, setNamingFolder] = useState(false)
@@ -261,12 +339,28 @@ function FBSidebar() {
                             onMouseOver={trashMouseOver}
                             onMouseLeave={mouseLeave}
                             onMouseUp={trashMouseUp}
-                            Right={resizeOffset > 200 ? TrashSize : null}
+                            onContextMenu={(e) => {
+                                e.preventDefault()
+                                if (sidebarCollapsed) {
+                                    return
+                                }
+                                setTrashPopup({ x: e.clientX, y: e.clientY })
+                            }}
+                            Right={resizeOffset > 200 ? TrashSize : undefined}
                         />
+
+                        {trashPopup && (
+                            <EmptyTrashButton
+                                trashPopupRef={trashPopupRef}
+                                trashPopup={trashPopup}
+                                setTrashPopup={setTrashPopup}
+                                sidebarSize={resizeOffset}
+                            />
+                        )}
 
                         <div className="p-1" />
 
-                        {user?.admin && (
+                        {user?.permissionLevel >= UserPermissions.Admin && (
                             <WeblensButton
                                 label="External"
                                 fillWidth
@@ -274,7 +368,6 @@ function FBSidebar() {
                                 toggleOn={mode === FbModeT.external}
                                 allowRepeat={false}
                                 Left={IconServer}
-                                // disabled={draggingState !== DraggingStateT.NoDrag}
                                 tooltip={'Coming Soon'}
                                 disabled={true}
                                 onClick={navToExternal}
@@ -367,7 +460,6 @@ function TrashSize() {
 
 function SelectedBox() {
     const selected = useFileBrowserStore((state) => state.selected)
-    const selectedLength = selected.size
 
     const [closed, setClosed] = useState(selected.size === 0)
     const sidebarCollapsed = useFileBrowserStore(
@@ -395,13 +487,13 @@ function SelectedBox() {
         })
 
         return { selectedFolderCount, selectedFileCount }
-    }, [selected.size])
+    }, [selected, filesMap])
 
     return (
         <div
             className="animate-popup bg-background-secondary mt-2 h-max w-full flex-row items-center justify-between rounded-lg p-2 transition"
             onTransitionEnd={() => {
-                if (selectedLength === 0) {
+                if (selected.size === 0) {
                     setClosed(true)
                 } else {
                     setClosed(false)
@@ -409,8 +501,8 @@ function SelectedBox() {
             }}
             style={{
                 display: closed ? 'none' : 'flex',
-                opacity: selectedLength > 0 ? 100 : 0,
-                transform: selectedLength > 0 ? 'scale(1)' : 'scale(0.90)',
+                opacity: selected.size > 0 ? 100 : 0,
+                transform: selected.size > 0 ? 'scale(1)' : 'scale(0.90)',
                 flexDirection: sidebarCollapsed ? 'column' : 'row',
             }}
         >

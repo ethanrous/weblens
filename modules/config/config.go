@@ -45,6 +45,7 @@ type ConfigProvider struct {
 	StaticContentPath string
 
 	LogLevel        zerolog.Level
+	LogFormat       string
 	BackupInterval  time.Duration
 	WorkerCount     int
 	DoCache         bool
@@ -69,12 +70,13 @@ func getDefaultConfig() ConfigProvider {
 		MongoDBUri:        "mongodb://localhost:27017/?replicaSet=rs0",
 		MongoDBName:       "weblensDB",
 		UIPath:            "/app/web",
-		StaticContentPath: "/app/web/static",
+		StaticContentPath: "/app/static",
 
 		DataPath:  "/data",
 		CachePath: "/cache",
 
-		LogLevel: zerolog.InfoLevel,
+		LogLevel:  zerolog.InfoLevel,
+		LogFormat: "json",
 
 		WorkerCount:    runtime.NumCPU(),
 		BackupInterval: time.Hour,
@@ -144,6 +146,14 @@ func getEnvOverride(config *ConfigProvider) {
 
 	if doCache, ok := envBool("WEBLENS_DO_CACHE"); ok {
 		config.DoCache = doCache
+	}
+
+	if logFormat := os.Getenv("WEBLENS_LOG_FORMAT"); logFormat != "" {
+		if logFormat != "dev" {
+			logFormat = "json"
+		}
+
+		config.LogFormat = logFormat
 	}
 
 	if logLevel := os.Getenv("WEBLENS_LOG_LEVEL"); logLevel != "" {

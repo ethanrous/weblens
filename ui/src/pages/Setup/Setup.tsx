@@ -13,11 +13,11 @@ import {
     HandleWebsocketMessage,
     useWebsocketStore,
 } from '@weblens/api/Websocket'
-import Logo from '@weblens/components/Logo'
+import Logo from '@weblens/components/Logo.tsx'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import setupStyle from '@weblens/components/setupStyle.module.scss'
-import WeblensButton from '@weblens/lib/WeblensButton'
-import WeblensInput from '@weblens/lib/WeblensInput'
+import WeblensButton from '@weblens/lib/WeblensButton.tsx'
+import WeblensInput from '@weblens/lib/WeblensInput.tsx'
 import { useKeyDown } from '@weblens/lib/hooks'
 import { TowerRole } from '@weblens/types/tower/tower'
 import User, { UserPermissions } from '@weblens/types/user/User'

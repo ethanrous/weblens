@@ -382,19 +382,42 @@ func GetLastActionByFileIdBefore(ctx context.Context, fileId string, ts time.Tim
 	return
 }
 
-func GetLifetimesByTowerId(ctx context.Context, towerId string, activeOnly bool) ([]FileLifetime, error) {
+type GetLifetimesOptions struct {
+	ActiveOnly bool
+	PathPrefix fs.Filepath
+}
+
+func GetLifetimesByTowerId(ctx context.Context, towerId string, opts ...GetLifetimesOptions) ([]FileLifetime, error) {
 	col, err := db.GetCollection(ctx, FileActionCollectionKey)
 	if err != nil {
 		return nil, err
 	}
 
+	o := GetLifetimesOptions{}
+
+	for _, opt := range opts {
+		if !opt.PathPrefix.IsZero() {
+			o.PathPrefix = opt.PathPrefix
+		}
+
+		if opt.ActiveOnly {
+			o.ActiveOnly = opt.ActiveOnly
+		}
+	}
+
 	activeFilter := bson.M{}
-	if activeOnly {
-		activeFilter = bson.M{"$match": bson.M{"actions.actionType": bson.M{"$ne": "fileDelete"}}}
+	if o.ActiveOnly {
+		activeFilter = bson.M{"$match": bson.M{"actionType": bson.M{"$ne": "fileDelete"}}}
+	}
+
+	pathFilter := bson.M{}
+	if !o.PathPrefix.IsZero() {
+		pathFilter = bson.M{"$match": pathPrefixReFilter(o.PathPrefix)}
 	}
 
 	pipe := bson.A{
 		bson.M{"$match": bson.M{"towerId": towerId}},
+		pathFilter,
 		bson.M{
 			"$group": bson.M{
 				"_id":     "$fileId",
@@ -402,7 +425,7 @@ func GetLifetimesByTowerId(ctx context.Context, towerId string, activeOnly bool)
 			},
 		},
 		activeFilter,
-		bson.M{"$sort": bson.M{"actions.timestamp": 1}},
+		bson.M{"$sort": bson.M{"timestamp": 1}},
 	}
 
 	cur, err := col.Aggregate(ctx, pipe)
@@ -469,22 +492,8 @@ func GetActionsAtPathBefore(ctx context.Context, path fs.Filepath, timestamp tim
 		return nil, err
 	}
 
-	pathRe := regexp.QuoteMeta(path.ToPortable())
-
-	if includeChildren {
-		pathRe += `[^/]*/?`
-	}
-
-	pathRe += `$`
-
-	filter := bson.M{
-		"$or": bson.A{
-			bson.M{"filepath": bson.M{"$regex": pathRe}},
-			bson.M{"originPath": bson.M{"$regex": pathRe}},
-			bson.M{"destinationPath": bson.M{"$regex": pathRe}},
-		},
-		"timestamp": bson.M{"$lte": timestamp},
-	}
+	filter := pathPrefixReFilter(path)
+	filter["timestamp"] = bson.M{"$lte": timestamp}
 
 	opts := options.Find().SetSort(bson.M{"timestamp": -1})
 
@@ -501,4 +510,17 @@ func GetActionsAtPathBefore(ctx context.Context, path fs.Filepath, timestamp tim
 	}
 
 	return actions, nil
+}
+
+func pathPrefixReFilter(path fs.Filepath) bson.M {
+	pathRe := regexp.QuoteMeta(path.ToPortable())
+	pathRe += `[^/]*/?`
+
+	return bson.M{
+		"$or": bson.A{
+			bson.M{"filepath": bson.M{"$regex": pathRe}},
+			bson.M{"originPath": bson.M{"$regex": pathRe}},
+			bson.M{"destinationPath": bson.M{"$regex": pathRe}},
+		},
+	}
 }

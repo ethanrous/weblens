@@ -12,7 +12,7 @@ func init() {
 	db.InstallTransactionHook(WithFileEvent)
 }
 
-type FileEventContextKey struct{}
+type fileEventContextKey struct{}
 
 type FileEvent struct {
 	EventId   string
@@ -25,7 +25,7 @@ func WithFileEvent(ctx context.Context) context.Context {
 		StartTime: time.Now(),
 	}
 
-	return context.WithValue(ctx, FileEventContextKey{}, e)
+	return context.WithValue(ctx, fileEventContextKey{}, e)
 }
 
 func FileEventFromContext(ctx context.Context) (FileEvent, bool) {
@@ -33,7 +33,7 @@ func FileEventFromContext(ctx context.Context) (FileEvent, bool) {
 		return FileEvent{}, false
 	}
 
-	fe, ok := ctx.Value(FileEventContextKey{}).(FileEvent)
+	fe, ok := ctx.Value(fileEventContextKey{}).(FileEvent)
 	if !ok {
 		return FileEvent{}, false
 	}

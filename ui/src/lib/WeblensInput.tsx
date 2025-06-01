@@ -1,6 +1,6 @@
 import { Icon } from '@tabler/icons-react'
 import { useIsFocused } from '@weblens/lib/hooks'
-import WeblensButton from '@weblens/lib/WeblensButton'
+import WeblensButton from '@weblens/lib/WeblensButton.tsx'
 import { useEffect, useState } from 'react'
 
 import { ButtonActionPromiseReturn, ButtonIcon } from './buttonTypes'

@@ -15,9 +15,9 @@ import (
 	"github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
 
+	"github.com/ethanrous/weblens/modules/errors"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
 	task_mod "github.com/ethanrous/weblens/modules/task"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/rs/zerolog/log"
 )
 
@@ -100,7 +100,7 @@ func (m ZipMeta) MetaString() string {
 
 	var shareBit string
 	if m.Share != nil {
-		shareBit = string(m.Share.ShareId) + m.Share.LastUpdated().String()
+		shareBit = string(m.Share.ShareId.Hex()) + m.Share.LastUpdated().String()
 	}
 
 	data := CreateZipTask + string(idsString) + string(m.Requester.GetUsername()) + shareBit
@@ -298,6 +298,7 @@ func (m HashFileMeta) MetaString() string {
 		"JobName": HashFileTask,
 		"fileId":  m.File.ID(),
 	}
+
 	bs, err := json.Marshal(data)
 	if err != nil {
 		err = errors.WithStack(err)
@@ -316,6 +317,37 @@ func (m HashFileMeta) JobName() string {
 }
 
 func (m HashFileMeta) Verify() error {
+	return nil
+}
+
+type LoadFilesystemMeta struct {
+	File *file_model.WeblensFileImpl
+}
+
+func (m LoadFilesystemMeta) MetaString() string {
+	data := map[string]any{
+		"JobName": LoadFilesystemTask,
+		"fileId":  m.File.ID(),
+	}
+
+	bs, err := json.Marshal(data)
+	if err != nil {
+		err = errors.WithStack(err)
+		log.Error().Stack().Err(err).Msg("Could not marshal hasher metadata")
+	}
+
+	return string(bs)
+}
+
+func (m LoadFilesystemMeta) FormatToResult() task_mod.TaskResult {
+	return task_mod.TaskResult{}
+}
+
+func (m LoadFilesystemMeta) JobName() string {
+	return LoadFilesystemTask
+}
+
+func (m LoadFilesystemMeta) Verify() error {
 	return nil
 }
 

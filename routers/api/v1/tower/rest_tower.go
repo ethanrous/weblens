@@ -8,9 +8,12 @@ import (
 	"github.com/ethanrous/weblens/models/db"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
+	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/net"
+	"github.com/ethanrous/weblens/modules/startup"
 	"github.com/ethanrous/weblens/modules/structs"
 	"github.com/ethanrous/weblens/routers/api/v1/websocket"
+	access_service "github.com/ethanrous/weblens/services/auth"
 	context_service "github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/reshape"
 	tower_service "github.com/ethanrous/weblens/services/tower"
@@ -410,7 +413,7 @@ func newOwner(ctx context.Context, initBody structs.InitServerParams) (*user_mod
 
 	rqCtx.Requester = owner
 
-	err = rqCtx.SetSessionToken()
+	err = access_service.SetSessionToken(rqCtx)
 	if err != nil {
 		rqCtx.Error(http.StatusInternalServerError, err)
 	}
@@ -433,6 +436,13 @@ func initializeCoreServer(ctx context.Context, initBody structs.InitServerParams
 	local.Address = initBody.CoreAddress
 
 	err = tower_model.UpdateTower(ctx, &local)
+	if err != nil {
+		return err
+	}
+
+	cnf := config.GetConfig()
+	cnf.InitRole = string(tower_model.RoleCore)
+	err = startup.RunStartups(ctx, cnf)
 	if err != nil {
 		return err
 	}

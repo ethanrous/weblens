@@ -1,14 +1,18 @@
 package fs
 
 import (
+	"context"
 	"encoding/json"
 	"path/filepath"
 	"strings"
 
 	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/bsontype"
 )
+
+var ErrInvalidPortablePath = errors.New("invalid portable path format")
 
 type Filepath struct {
 	RootAlias string
@@ -16,16 +20,25 @@ type Filepath struct {
 }
 
 func BuildFilePath(rootAlias string, relPath ...string) Filepath {
+	path := filepath.Join(relPath...)
+
+	if len(relPath) != 0 {
+		last := relPath[len(relPath)-1]
+		if len(last) != 0 && last[len(last)-1] == '/' {
+			path += "/"
+		}
+	}
+
 	return Filepath{
 		RootAlias: rootAlias,
-		RelPath:   filepath.Join(relPath...),
+		RelPath:   path,
 	}
 }
 
 func NewFilePath(rootAlias, absolutePath string) (Filepath, error) {
-	var root string
-	if root = getAbsolutePrefix(root); root == "" {
-		return Filepath{}, errors.Errorf("root alias %s not registered", rootAlias)
+	root, err := getAbsolutePrefix(rootAlias)
+	if err != nil {
+		return Filepath{}, err
 	}
 
 	path := strings.TrimPrefix(absolutePath, root)
@@ -42,7 +55,7 @@ func NewFilePath(rootAlias, absolutePath string) (Filepath, error) {
 func ParsePortable(portablePath string) (Filepath, error) {
 	colonIndex := strings.Index(portablePath, ":")
 	if colonIndex == -1 {
-		return Filepath{}, errors.New("invalid portable path format: no colon found: " + portablePath)
+		return Filepath{}, ErrInvalidPortablePath
 	}
 
 	prefix := portablePath[:colonIndex]
@@ -60,6 +73,18 @@ func IsZeroFilepath(wf Filepath) bool {
 
 func (wf Filepath) IsZero() bool {
 	return wf.RootAlias == "" && wf.RelPath == ""
+}
+
+func (wf Filepath) Depth() int {
+	if wf.IsZero() {
+		return 0
+	}
+
+	if wf.IsRoot() {
+		return 1
+	}
+
+	return strings.Count(wf.RelPath, "/") + 1
 }
 
 func (wf Filepath) IsRoot() bool {
@@ -157,12 +182,22 @@ func (wf Filepath) ReplacePrefix(prefixPath, newPrefix Filepath) (Filepath, erro
 func (wf Filepath) String() string {
 	return wf.ToPortable()
 }
+
 func (wf Filepath) MarshalJSON() ([]byte, error) {
-	return json.Marshal([]byte(wf.ToPortable()))
+	portable := wf.ToPortable()
+	bs, err := json.Marshal(portable)
+
+	return bs, err
 }
 
 func (wf *Filepath) UnmarshalJSON(b []byte) error {
-	portable, err := ParsePortable(string(b))
+	path := ""
+	if err := json.Unmarshal(b, &path); err != nil {
+		return err
+	}
+	log.FromContext(context.TODO()).Debug().Msgf("UnmarshalJSON: %s", path)
+
+	portable, err := ParsePortable(path)
 	if err != nil {
 		return err
 	}

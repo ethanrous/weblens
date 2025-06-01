@@ -3,9 +3,9 @@ import {
     useWeblensSocket,
     useWebsocketStore,
 } from '@weblens/api/Websocket'
-import Logo from '@weblens/components/Logo'
-import WebsocketStatusDot from '@weblens/components/filebrowser/websocketStatus'
-import WeblensProgress from '@weblens/lib/WeblensProgress'
+import Logo from '@weblens/components/Logo.tsx'
+import WebsocketStatusDot from '@weblens/components/filebrowser/websocketStatus.tsx'
+import WeblensProgress from '@weblens/lib/WeblensProgress.tsx'
 import { useEffect, useState } from 'react'
 
 import { StartupTask, startupWebsocketHandler } from './StartupLogic'

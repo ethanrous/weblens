@@ -1,6 +1,6 @@
 import { IconFile, IconFolder, IconX } from '@tabler/icons-react'
-import WeblensButton from '@weblens/lib/WeblensButton'
-import WeblensProgress from '@weblens/lib/WeblensProgress'
+import WeblensButton from '@weblens/lib/WeblensButton.tsx'
+import WeblensProgress from '@weblens/lib/WeblensProgress.tsx'
 import { humanFileSize } from '@weblens/util'
 import { CSSProperties, useEffect, useMemo, useRef } from 'react'
 import { VariableSizeList } from 'react-window'

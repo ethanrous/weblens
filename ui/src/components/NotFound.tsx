@@ -1,5 +1,5 @@
 import { IconExclamationCircle } from '@tabler/icons-react'
-import WeblensButton from '@weblens/lib/WeblensButton'
+import WeblensButton from '@weblens/lib/WeblensButton.tsx'
 import { useNavigate } from 'react-router-dom'
 
 import { useSessionStore } from './UserInfo'

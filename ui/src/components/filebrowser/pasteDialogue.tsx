@@ -1,5 +1,5 @@
 import { PresentationContainer } from '@weblens/components/Presentation'
-import WeblensButton from '@weblens/lib/WeblensButton'
+import WeblensButton from '@weblens/lib/WeblensButton.tsx'
 import { uploadViaUrl } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { ErrorHandler } from '@weblens/types/Types'
@@ -8,7 +8,7 @@ import { MediaImage } from '@weblens/types/media/PhotoContainer'
 
 function PasteDialogue() {
     const filesMap = useFileBrowserStore((state) => state.filesMap)
-    const contentId = useFileBrowserStore((state) => state.contentId)
+    const contentId = useFileBrowserStore((state) => state.activeFileId)
     const shareId = useFileBrowserStore((state) => state.shareId)
     const pasteImage = useFileBrowserStore((state) => state.pasteImgBytes)
     const pasteImgBytes = useFileBrowserStore((state) => state.pasteImgBytes)

@@ -4,7 +4,8 @@ import (
 	"context"
 
 	tower_model "github.com/ethanrous/weblens/models/tower"
-	context_mod "github.com/ethanrous/weblens/modules/context"
+	"github.com/ethanrous/weblens/modules/errors"
+	context_service "github.com/ethanrous/weblens/services/context"
 )
 
 func ResetTower(ctx context.Context) error {
@@ -13,7 +14,12 @@ func ResetTower(ctx context.Context) error {
 		return err
 	}
 
-	context_mod.ToZ(ctx).ClearCache()
+	appCtx, ok := context_service.FromContext(ctx)
+	if !ok {
+		return errors.New("failed to get app context")
+	}
+
+	appCtx.ClearCache()
 
 	return nil
 }

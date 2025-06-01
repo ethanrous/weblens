@@ -18,18 +18,19 @@ func RegisterStartup(f StartupFunc) {
 var ErrDeferStartup = errors.New("defer startup")
 
 func RunStartups(ctx context.Context, cnf config.ConfigProvider) error {
-	for len(startups) != 0 {
+	toRun := startups
+	for len(toRun) != 0 {
 		var startup StartupFunc
 
-		startup, startups = startups[0], startups[1:]
+		startup, toRun = toRun[0], toRun[1:]
 		if err := startup(ctx, cnf); err != nil {
 			if errors.Is(err, ErrDeferStartup) {
-				if len(startups) == 0 {
+				if len(toRun) == 0 {
 					return errors.New("startup requested to be defered, but there are no more startups to run")
 				}
 
 				// Defer the startup
-				startups = append(startups, startup)
+				toRun = append(toRun, startup)
 
 				continue
 			}

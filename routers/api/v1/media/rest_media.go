@@ -41,6 +41,7 @@ func GetMediaBatch(ctx context.RequestContext) {
 		if err != nil {
 			ctx.Log().Error().Stack().Err(err).Msg("Failed to unmarshal folderIds")
 			ctx.Error(http.StatusBadRequest, errors.New("Invalid folderIds format"))
+
 			return
 		}
 
@@ -59,26 +60,32 @@ func GetMediaBatch(ctx context.RequestContext) {
 	mediaIdsStr := ctx.Query("mediaIds")
 	if mediaIdsStr != "" {
 		var mediaIds []string
+
 		err := json.Unmarshal([]byte(mediaIdsStr), &mediaIds)
 		if err != nil {
 			ctx.Log().Error().Stack().Err(err).Msg("Failed to unmarshal mediaIds")
 			ctx.Error(http.StatusBadRequest, errors.New("Invalid mediaIds format"))
+
 			return
 		}
 
 		var medias []*media_model.Media
+
 		for _, mId := range mediaIds {
 			m, err := media_model.GetMediaByContentId(ctx, mId)
 			if err != nil {
 				ctx.Log().Error().Stack().Err(err).Msg("Failed to get media by id")
 				ctx.Error(http.StatusInternalServerError, err)
+
 				return
 			}
+
 			medias = append(medias, m)
 		}
 
 		batch := reshape.NewMediaBatchInfo(medias)
 		ctx.JSON(http.StatusOK, batch)
+
 		return
 	}
 
@@ -93,6 +100,7 @@ func GetMediaBatch(ctx context.RequestContext) {
 
 	var page int64
 	var err error
+
 	pageStr := ctx.Query("page")
 	if pageStr != "" {
 		page, err = strconv.ParseInt(pageStr, 10, 32)
@@ -106,12 +114,13 @@ func GetMediaBatch(ctx context.RequestContext) {
 	}
 
 	var limit int64
-	limitStr := ctx.Query("limit")
-	if limitStr != "" {
+
+	if limitStr := ctx.Query("limit"); limitStr != "" {
 		limit, err = strconv.ParseInt(limitStr, 10, 32)
 		if err != nil {
 			ctx.Log().Error().Stack().Err(err).Msg("Failed to parse limit number")
 			ctx.Error(http.StatusBadRequest, errors.New("Invalid limit number"))
+
 			return
 		}
 	} else {
@@ -119,9 +128,11 @@ func GetMediaBatch(ctx context.RequestContext) {
 	}
 
 	var mediaFilter []media_model.ContentId
+
 	ms, err := media_model.GetMedia(ctx, ctx.Requester.Username, sort, 1, mediaFilter, raw, hidden, search)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
@@ -208,8 +219,10 @@ func DropMedia(ctx context.RequestContext) {
 	if err != nil {
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to drop media collection")
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
+
 	ctx.Status(http.StatusOK)
 }
 
@@ -225,10 +238,12 @@ func DropMedia(ctx context.RequestContext) {
 //	@Router		/media/{mediaId}/info [get]
 func GetMediaInfo(ctx context.RequestContext) {
 	mediaId := ctx.Path("mediaId")
+
 	m, err := media_model.GetMediaByContentId(ctx, mediaId)
 	if err != nil {
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to get media by id")
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
@@ -253,8 +268,10 @@ func GetMediaImage(ctx context.RequestContext) {
 	quality, ok := media_model.CheckMediaQuality(ctx.Query("quality"))
 	if !ok {
 		ctx.Error(http.StatusBadRequest, errors.New("Invalid quality parameter"))
+
 		return
 	}
+
 	format := ctx.Path("extension")
 	getProcessedMedia(ctx, quality, format)
 }

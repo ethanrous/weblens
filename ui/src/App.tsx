@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import MediaApi from '@weblens/api/MediaApi'
-import ErrorBoundary from '@weblens/components/Error'
-import Logo from '@weblens/components/Logo'
-import Messages from '@weblens/components/Messages'
+import ErrorBoundary from '@weblens/components/Error.tsx'
+import Logo from '@weblens/components/Logo.tsx'
+import Messages from '@weblens/components/Messages.tsx'
 import useR, { useSessionStore } from '@weblens/components/UserInfo'
 import { useKeyDown } from '@weblens/lib/hooks'
 import Fourohfour from '@weblens/pages/404/fourohfour'
@@ -20,6 +20,8 @@ import {
     useNavigate,
     useRoutes,
 } from 'react-router-dom'
+
+import WeblensLoader from './components/Loading'
 
 const Gallery = React.lazy(() => import('@weblens/pages/Gallery/Gallery'))
 const FileBrowser = React.lazy(
@@ -50,13 +52,13 @@ const WeblensRoutes = () => {
 
     useEffect(() => {
         fetchServerInfo().catch(ErrorHandler)
-    }, [])
+    }, [fetchServerInfo])
 
     useEffect(() => {
         if (nav) {
             setNav(nav)
         }
-    }, [nav])
+    }, [nav, setNav])
 
     useEffect(() => {
         if (!server) {
@@ -90,7 +92,7 @@ const WeblensRoutes = () => {
             console.debug('Nav files home (root path)')
             nav('/files/home')
         }
-    }, [loc, server, user])
+    }, [loc, server, user, nav])
 
     useEffect(() => {
         if (!server || !server.started || server.role === 'init') {
@@ -101,7 +103,7 @@ const WeblensRoutes = () => {
                 setTypeMap(r.data)
             })
             .catch(ErrorHandler)
-    }, [server])
+    }, [server, setTypeMap])
 
     useEffect(() => {
         const theme = localStorage.getItem('theme')
@@ -122,33 +124,14 @@ const WeblensRoutes = () => {
     }
 
     if (!server || !user) {
-        return <PageLoader />
+        return <WeblensLoader className="m-auto" />
     }
 
-    const queryClient = new QueryClient()
-
     return (
-        <QueryClientProvider client={queryClient}>
-            <ErrorBoundary>
-                {server.started && <PageSwitcher />}
-                {!server.started && <StartUp />}
-            </ErrorBoundary>
-        </QueryClientProvider>
-    )
-}
-
-function PageLoader() {
-    return (
-        <div
-            style={{
-                position: 'absolute',
-                right: 15,
-                bottom: 10,
-                opacity: 0.5,
-            }}
-        >
-            <Logo />
-        </div>
+        <ErrorBoundary>
+            {server.started && <PageSwitcher />}
+            {!server.started && <StartUp />}
+        </ErrorBoundary>
     )
 }
 
@@ -168,56 +151,50 @@ function PageSwitcher() {
     const loc = useLocation()
 
     const galleryPage = (
-        <Suspense fallback={<PageLoader />}>
+        <Suspense fallback={<WeblensLoader className="m-auto" />}>
             <Gallery />
         </Suspense>
     )
 
     const filesPage = (user.isLoggedIn ||
         loc.pathname.startsWith('/files/share')) && (
-        <Suspense fallback={<PageLoader />}>
+        <Suspense fallback={<WeblensLoader className="m-auto" />}>
             <FileBrowser />
         </Suspense>
     )
 
-    // const wormholePage = (
-    //     <Suspense fallback={<PageLoader />}>
-    //         <Wormhole />
-    //     </Suspense>
-    // )
-
     const loginPage = (
-        <Suspense fallback={<PageLoader />}>
+        <Suspense fallback={<WeblensLoader className="m-auto" />}>
             <Login />
         </Suspense>
     )
 
     const signupPage = (
-        <Suspense fallback={<PageLoader />}>
+        <Suspense fallback={<WeblensLoader className="m-auto" />}>
             <Signup />
         </Suspense>
     )
 
     const setupPage = (
-        <Suspense fallback={<PageLoader />}>
+        <Suspense fallback={<WeblensLoader className="m-auto" />}>
             <Setup />
         </Suspense>
     )
 
     const backupPage = (
-        <Suspense fallback={<PageLoader />}>
+        <Suspense fallback={<WeblensLoader className="m-auto" />}>
             <Backup />
         </Suspense>
     )
 
     const settingsPage = (
-        <Suspense fallback={<PageLoader />}>
+        <Suspense fallback={<WeblensLoader className="m-auto" />}>
             <SettingsMenu />
         </Suspense>
     )
 
     const fourOhFourPage = (
-        <Suspense fallback={<PageLoader />}>
+        <Suspense fallback={<WeblensLoader className="m-auto" />}>
             <Fourohfour />
         </Suspense>
     )
@@ -240,9 +217,11 @@ function PageSwitcher() {
 }
 
 function App() {
-    document.documentElement.style.overflow = 'hidden'
-    document.body.className = 'body'
     const { theme, isOSControlled, changeTheme } = useWlTheme()
+    useEffect(() => {
+        document.documentElement.style.overflow = 'hidden'
+        document.body.className = 'body'
+    })
 
     const toggleThemeCb = useCallback(() => {
         if (isOSControlled) {
@@ -257,12 +236,16 @@ function App() {
 
     useKeyDown('t', toggleThemeCb)
 
+    const queryClient = new QueryClient()
+
     return (
-        <div className="h-screen w-screen">
+        <div className="flex h-screen w-screen">
             <Messages />
-            <Router>
-                <WeblensRoutes />
-            </Router>
+            <QueryClientProvider client={queryClient}>
+                <Router>
+                    <WeblensRoutes />
+                </Router>
+            </QueryClientProvider>
         </div>
     )
 }

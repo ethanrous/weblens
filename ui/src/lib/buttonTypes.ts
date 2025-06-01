@@ -8,16 +8,24 @@ export type ButtonActionPromiseReturn = Promise<
     void | boolean | AxiosResponse | QueryObserverResult
 >
 
-export type ButtonActionHandler = (
-    e: React.MouseEvent<HTMLElement, MouseEvent>
-) => void | ButtonActionPromiseReturn
+export type ButtonActionHandler<T = React.MouseEvent<HTMLElement, MouseEvent>> =
+    (e: T) => void | ButtonActionPromiseReturn
 
 export type ButtonFlavor = 'default' | 'outline' | 'light'
 export type ButtonSize = 'default' | 'tiny' | 'jumbo' | 'small' | 'large'
 
+export type TooltipOptions = {
+    content: string
+    position?: 'top' | 'bottom' | 'left' | 'right' | 'auto'
+    className?: string
+    // delay?: number
+    // style?: CSSProperties
+}
+
 export type ButtonProps = {
+    ref?: React.RefObject<HTMLDivElement>
     label?: string
-    tooltip?: string
+    tooltip?: string | TooltipOptions
     showSuccess?: boolean
     toggleOn?: boolean
     subtle?: boolean
@@ -44,6 +52,7 @@ export type ButtonProps = {
     textMin?: number
 
     onClick?: ButtonActionHandler
+    onContextMenu?: ButtonActionHandler
     onMouseUp?: ButtonActionHandler
     onMouseOver?: ButtonActionHandler
     onMouseLeave?: ButtonActionHandler

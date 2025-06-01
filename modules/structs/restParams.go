@@ -139,10 +139,21 @@ type CreateAlbumParams struct {
 	Name string `json:"name"`
 } // @name CreateAlbumParams
 
-type UserListBody struct {
-	AddUsers    []string `json:"addUsers"`
-	RemoveUsers []string `json:"removeUsers"`
-}
+type PermissionsParams struct {
+	CanEdit     bool `json:"canEdit"`
+	CanDownload bool `json:"canDownload"`
+	CanDelete   bool `json:"canDelete"`
+} // @name PermissionsParams
+
+type AddUserParams struct {
+	Username string `json:"username" validate:"required"`
+	PermissionsParams
+} // @name AddUserParams
+
+type UpdateUsersPermissionsParams struct {
+	AddUsers    map[string]PermissionsParams `json:"addUsers"`
+	RemoveUsers map[string]PermissionsParams `json:"removeUsers"`
+} // @name UpdateUsersPermissionsParams
 
 type SharePublicityBody struct {
 	Public bool `json:"public"`

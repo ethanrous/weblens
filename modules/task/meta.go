@@ -1,5 +1,7 @@
 package task
 
+import "maps"
+
 type TaskResult map[string]any
 
 type TaskMetadata interface {
@@ -10,9 +12,5 @@ type TaskMetadata interface {
 }
 
 func (tr TaskResult) ToMap() map[string]any {
-	m := map[string]any{}
-	for k, v := range tr {
-		m[string(k)] = v
-	}
-	return m
+	return maps.Clone(tr)
 }

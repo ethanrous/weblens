@@ -1,5 +1,5 @@
-import WeblensLoader from '@weblens/components/Loading'
-import GetStartedCard from '@weblens/components/filebrowser/getStartedCard'
+import WeblensLoader from '@weblens/components/Loading.tsx'
+import GetStartedCard from '@weblens/components/filebrowser/getStartedCard.tsx'
 import { useResize } from '@weblens/lib/hooks'
 import { HandleDrop } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { useFileBrowserStore } from '@weblens/store/FBStateControl'
@@ -10,7 +10,7 @@ import { FixedSizeGrid as Grid } from 'react-window'
 
 import { ErrorHandler } from '../Types'
 import { DraggingStateT } from './FBTypes'
-import WeblensFile from './File'
+import WeblensFile, { SelectedState } from './File'
 
 type GridDataProps = {
     files: WeblensFile[]
@@ -38,9 +38,12 @@ function SquareWrapper({
 
     const selState = useMemo(() => {
         if (!file) {
-            return 0
+            return SelectedState.NotSelected
         }
-        return filesMap.get(file?.Id())?.GetSelectedState()
+        return (
+            filesMap.get(file.Id())?.GetSelectedState() ??
+            SelectedState.NotSelected
+        )
     }, [file, hoveringId, holdingShift, filesMap, selected])
 
     if (!file) {
@@ -62,8 +65,8 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
     const jumpTo = useFileBrowserStore((state) => state.jumpTo)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
 
-    const gridRef = useRef<Grid>()
-    const [containerRef, setContainerRef] = useState<HTMLDivElement>()
+    const gridRef = useRef<Grid>(null)
+    const containerRef = useRef<HTMLDivElement>(null)
     const [didScroll, setDidScroll] = useState<boolean>()
     const [lastSeen, setLastSeen] = useState<{
         file: WeblensFile
@@ -89,7 +92,7 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
             return []
         }
         return filteredFiles
-    }, [files])
+    }, [files, folderInfo])
 
     useEffect(() => {
         if (lastSeen?.file) {
@@ -110,13 +113,13 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
                 }, 100)
             )
         }
-    }, [size.width])
+    }, [numCols, size.width])
 
     const isLoading = loading.includes('files')
 
     return (
         <div
-            ref={setContainerRef}
+            ref={containerRef}
             className={filesStyle.filesGrid}
             data-droppable={Boolean(
                 moveDest === folderInfo?.Id() &&

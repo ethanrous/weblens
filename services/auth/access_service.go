@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
-	"slices"
 	"time"
 
 	auth_model "github.com/ethanrous/weblens/models/auth"
@@ -15,72 +14,110 @@ import (
 	context_mod "github.com/ethanrous/weblens/modules/context"
 	"github.com/ethanrous/weblens/modules/crypto"
 	"github.com/ethanrous/weblens/modules/errors"
+	context_service "github.com/ethanrous/weblens/services/context"
 )
 
-var ErrBadAuthHeader = errors.New("invalid auth header format")
+var ErrBadAuthHeader = errors.Statusf(http.StatusBadRequest, "invalid auth header format")
+var ErrMustAuthenticate = errors.Statusf(http.StatusUnauthorized, "user must authenticate to access this resource")
+var ErrFileAccessNotPermitted = errors.Statusf(http.StatusForbidden, "file access not permitted")
+var ErrShareDoesNotPermitFile = errors.Statusf(http.StatusForbidden, "share does not permit access to this file")
 
 func doesSharePermitFile(ctx context.Context, file *file_model.WeblensFileImpl, share *share_model.FileShare) bool {
 	if share == nil || !share.Enabled || file.IsPastFile() {
 		return false
 	}
 
-	if share.FileId == file.ID() {
-		return true
-	}
-
-	tmpFile := file
-	for tmpFile.GetParent() != nil {
-		if tmpFile.ID() == share.FileId {
+	for {
+		if share.FileId == file.ID() {
 			return true
 		}
 
-		tmpFile = tmpFile.GetParent()
+		file = file.GetParent()
+
+		if file == nil {
+			break
+		}
 	}
 
 	return false
 }
 
-func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_model.WeblensFileImpl, share *share_model.FileShare) bool {
-	sharePermitsFile := doesSharePermitFile(ctx, file, share)
-
-	if user == nil || user.IsPublic() {
-		return share != nil && share.IsPublic() && sharePermitsFile
-	}
-
+func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_model.WeblensFileImpl, share *share_model.FileShare, requiredPerms ...share_model.Permission) error {
 	ownerName, err := file_model.GetFileOwnerName(ctx, file)
 	if err != nil {
 		context_mod.ToZ(ctx).Log().Error().Stack().Err(err).Msg("Failed to get file owner name")
 
-		return false
+		return err
 	}
 
+	// If the user is the owner of the file, we can access it regardless of the share
 	if ownerName == user.GetUsername() {
-		return true
+		return nil
+	}
+
+	sharePermitsFile := doesSharePermitFile(ctx, file, share)
+	if !sharePermitsFile && share != nil && share.Enabled {
+		return errors.Errorf("invalid share [%s] for file [%s]: %w", share.ShareId, file.ID(), ErrShareDoesNotPermitFile)
+	}
+
+	if user == nil || user.IsPublic() {
+		if share != nil && share.IsPublic() && sharePermitsFile {
+			return nil
+		} else {
+			return ErrMustAuthenticate
+		}
 	}
 
 	if user.IsSystemUser() && user.Username == "WEBLENS" {
-		return true
+		return nil
 	}
 
 	if !sharePermitsFile {
 		// If the share does not permit access to the file, we cannot access it now we know
 		// the user is not the owner of the file
-		return false
+		return ErrFileAccessNotPermitted
 	} else if share.Public {
 		// If the share is public, and allows access to the specific file we want, we can access it regardless of the accessors list
-		return true
+		return nil
 	}
 
-	// Share is now not public, but the share does allow access to the file. We need to check if the user is in the accessors list.
-	if slices.Contains(share.Accessors, user.GetUsername()) {
-		return true
+	appCtx, _ := context_service.FromContext(ctx)
+	appCtx.Log().Debug().Msgf("Checking file access for user [%s] on file [%s]", user.GetUsername(), file.ID())
+
+	allowedPerms := share.GetUserPermissions(user.GetUsername())
+	if allowedPerms == nil {
+		// If the user is not in the accessors list, we cannot access it
+		return ErrFileAccessNotPermitted
 	}
 
-	return false
+	for _, requiredPerm := range requiredPerms {
+		if !allowedPerms.HasPermission(requiredPerm) {
+			appCtx.Log().Debug().Msgf("User [%s] does not have permission [%s] on file [%s]", user.GetUsername(), requiredPerm, file.GetPortablePath().String())
+
+			return ErrFileAccessNotPermitted
+		}
+	}
+
+	return nil
 }
 
 func CanUserModifyShare(user *user_model.User, share share_model.FileShare) bool {
 	return user.GetUsername() == share.GetOwner()
+}
+
+func SetSessionToken(ctx context_service.RequestContext) error {
+	if ctx.Requester == nil {
+		return errors.New("requester is nil")
+	}
+
+	cookie, err := GenerateJWTCookie(ctx.Requester)
+	if err != nil {
+		return err
+	}
+
+	ctx.SetHeader("Set-Cookie", cookie)
+
+	return nil
 }
 
 func GenerateJWTCookie(user *user_model.User) (string, error) {

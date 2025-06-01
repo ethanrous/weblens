@@ -17,7 +17,7 @@ const maxRetries = 5
 
 func ConnectToMongo(ctx context.Context, mongoUri, mongoDbName string) (*mongo.Database, error) {
 	l := log.FromContext(ctx)
-	l.Debug().Msgf("Connecting to Mongo at %s with name %s ...", mongoUri, mongoDbName)
+	l.Debug().CallerSkipFrame(1).Msgf("Connecting to Mongo at %s with name %s ...", mongoUri, mongoDbName)
 
 	clientOptions := options.Client().ApplyURI(mongoUri)
 

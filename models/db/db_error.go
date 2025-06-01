@@ -2,6 +2,8 @@ package db
 
 import (
 	"fmt"
+	"net/http"
+	"strings"
 
 	"github.com/ethanrous/weblens/modules/errors"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -16,7 +18,9 @@ func WrapError(err error, format string, a ...any) error {
 
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return errors.WithStack(&NotFoundError{msg})
-	} else if errors.Is(err, mongo.ErrNilCursor) {
+		// } else if errors.Is(err, mongo.ErrNilCursor) {
+		// 	return errors.WithStack(&AlreadyExistsError{msg})
+	} else if strings.Contains(err.Error(), "duplicate key error") {
 		return errors.WithStack(&AlreadyExistsError{msg})
 	} else {
 		return errors.WithStack(fmt.Errorf("unknown database error: %s: %w", msg, err))
@@ -32,6 +36,10 @@ type NotFoundError struct {
 // Error implements the error interface for NotFoundError.
 func (e *NotFoundError) Error() string {
 	return fmt.Sprintf("%s: not found", e.Message)
+}
+
+func (e *NotFoundError) Status() int {
+	return http.StatusNotFound
 }
 
 // NewNotFoundError creates a new NotFoundError with the given message.

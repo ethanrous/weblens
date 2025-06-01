@@ -1,5 +1,5 @@
 import { IconExclamationCircle, IconPhoto } from '@tabler/icons-react'
-import WeblensLoader from '@weblens/components/Loading'
+import WeblensLoader from '@weblens/components/Loading.tsx'
 import { useVideo } from '@weblens/lib/hooks'
 import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
 import React, {
@@ -142,21 +142,23 @@ export function MediaImage({
                         <WeblensLoader />
                     </div>
                 )}
-            <img
-                className="media-image"
-                data-fit-logic={fitLogic}
-                data-disabled={disabled}
-                data-hide={
-                    src.url === '' ||
-                    media.HasLoadError() ||
-                    shouldShowVideo ||
-                    !media.HighestQualityLoaded()
-                }
-                draggable={false}
-                src={src.url}
-                style={imgStyle}
-                data-id={media.Id()}
-            />
+            {src.url !== '' && (
+                <img
+                    className="media-image"
+                    data-fit-logic={fitLogic}
+                    data-disabled={disabled}
+                    data-hide={
+                        src.url === '' ||
+                        media.HasLoadError() ||
+                        shouldShowVideo ||
+                        !media.HighestQualityLoaded()
+                    }
+                    draggable={false}
+                    src={src.url}
+                    style={imgStyle}
+                    data-id={media.Id()}
+                />
+            )}
 
             {shouldShowVideo && (
                 <Suspense

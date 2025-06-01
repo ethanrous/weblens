@@ -5,9 +5,9 @@ import {
     IconX,
 } from '@tabler/icons-react'
 import { CancelTask } from '@weblens/api/FileBrowserApi'
-import LoaderDots from '@weblens/lib/LoaderDots'
-import WeblensButton from '@weblens/lib/WeblensButton'
-import WeblensProgress from '@weblens/lib/WeblensProgress'
+import LoaderDots from '@weblens/lib/LoaderDots.tsx'
+import WeblensButton from '@weblens/lib/WeblensButton.tsx'
+import WeblensProgress from '@weblens/lib/WeblensProgress.tsx'
 import { useClick } from '@weblens/lib/hooks'
 import { useMessagesController } from '@weblens/store/MessagesController'
 import { msToHumanTime } from '@weblens/util'

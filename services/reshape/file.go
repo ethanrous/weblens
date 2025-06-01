@@ -29,8 +29,8 @@ func WeblensFileToFileInfo(ctx context.Context, f *file_model.WeblensFileImpl, i
 	}
 
 	shareId := ""
-	if share != nil {
-		shareId = share.ID()
+	if share != nil && !share.ID().IsZero() {
+		shareId = share.ID().Hex()
 	}
 
 	contentId := f.GetContentId()

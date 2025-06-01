@@ -1,9 +1,9 @@
 import { IconBrandGithub } from '@tabler/icons-react'
 import UsersApi from '@weblens/api/UserApi'
-import WeblensLogo from '@weblens/components/Logo'
+import WeblensLogo from '@weblens/components/Logo.tsx'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import WeblensButton from '@weblens/lib/WeblensButton'
-import WeblensInput from '@weblens/lib/WeblensInput'
+import WeblensButton from '@weblens/lib/WeblensButton.tsx'
+import WeblensInput from '@weblens/lib/WeblensInput.tsx'
 import { ErrorHandler } from '@weblens/types/Types'
 import User from '@weblens/types/user/User'
 import { AxiosError } from 'axios'
@@ -46,7 +46,7 @@ const Login = () => {
     }, [userInput, passInput])
 
     return (
-        <div className="bg-wl-background my-auto flex h-screen max-h-screen flex-col items-center justify-center gap-2 sm:justify-normal lg:my-0">
+        <div className="bg-wl-background m-auto flex h-screen max-h-screen flex-col items-center justify-center gap-2 sm:justify-normal lg:my-0">
             <div className="flex w-full justify-center text-center sm:mt-80">
                 <WeblensLogo size={100} />
                 <h1 className="mt-auto">EBLENS</h1>

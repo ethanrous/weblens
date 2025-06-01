@@ -5,7 +5,7 @@ import {
     IconSettings,
     IconSun,
 } from '@tabler/icons-react'
-import WeblensButton from '@weblens/lib/WeblensButton'
+import WeblensButton from '@weblens/lib/WeblensButton.tsx'
 import { useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { ThemeStateEnum, useWlTheme } from '@weblens/store/ThemeControl'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'

@@ -23,6 +23,119 @@ import (
 // ShareAPIService ShareAPI service
 type ShareAPIService service
 
+type ApiAddUserToShareRequest struct {
+	ctx context.Context
+	ApiService *ShareAPIService
+	shareId string
+	request *AddUserParams
+}
+
+// Share Accessors
+func (r ApiAddUserToShareRequest) Request(request AddUserParams) ApiAddUserToShareRequest {
+	r.request = &request
+	return r
+}
+
+func (r ApiAddUserToShareRequest) Execute() (*ShareInfo, *http.Response, error) {
+	return r.ApiService.AddUserToShareExecute(r)
+}
+
+/*
+AddUserToShare Add a user to a file share
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param shareId Share Id
+ @return ApiAddUserToShareRequest
+*/
+func (a *ShareAPIService) AddUserToShare(ctx context.Context, shareId string) ApiAddUserToShareRequest {
+	return ApiAddUserToShareRequest{
+		ApiService: a,
+		ctx: ctx,
+		shareId: shareId,
+	}
+}
+
+// Execute executes the request
+//  @return ShareInfo
+func (a *ShareAPIService) AddUserToShareExecute(r ApiAddUserToShareRequest) (*ShareInfo, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *ShareInfo
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ShareAPIService.AddUserToShare")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/share/{shareId}/accessors"
+	localVarPath = strings.Replace(localVarPath, "{"+"shareId"+"}", url.PathEscape(parameterValueToString(r.shareId, "shareId")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+	if r.request == nil {
+		return localVarReturnValue, nil, reportError("request is required and must be specified")
+	}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	// body params
+	localVarPostBody = r.request
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
 type ApiCreateFileShareRequest struct {
 	ctx context.Context
 	ApiService *ShareAPIService
@@ -323,62 +436,56 @@ func (a *ShareAPIService) GetFileShareExecute(r ApiGetFileShareRequest) (*ShareI
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
-type ApiSetShareAccessorsRequest struct {
+type ApiRemoveUserFromShareRequest struct {
 	ctx context.Context
 	ApiService *ShareAPIService
 	shareId string
-	request *StructsUserListBody
+	username string
 }
 
-// Share Accessors
-func (r ApiSetShareAccessorsRequest) Request(request StructsUserListBody) ApiSetShareAccessorsRequest {
-	r.request = &request
-	return r
-}
-
-func (r ApiSetShareAccessorsRequest) Execute() (*ShareInfo, *http.Response, error) {
-	return r.ApiService.SetShareAccessorsExecute(r)
+func (r ApiRemoveUserFromShareRequest) Execute() (*ShareInfo, *http.Response, error) {
+	return r.ApiService.RemoveUserFromShareExecute(r)
 }
 
 /*
-SetShareAccessors Update a share's accessors list
+RemoveUserFromShare Remove a user from a file share
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @param shareId Share Id
- @return ApiSetShareAccessorsRequest
+ @param username Username
+ @return ApiRemoveUserFromShareRequest
 */
-func (a *ShareAPIService) SetShareAccessors(ctx context.Context, shareId string) ApiSetShareAccessorsRequest {
-	return ApiSetShareAccessorsRequest{
+func (a *ShareAPIService) RemoveUserFromShare(ctx context.Context, shareId string, username string) ApiRemoveUserFromShareRequest {
+	return ApiRemoveUserFromShareRequest{
 		ApiService: a,
 		ctx: ctx,
 		shareId: shareId,
+		username: username,
 	}
 }
 
 // Execute executes the request
 //  @return ShareInfo
-func (a *ShareAPIService) SetShareAccessorsExecute(r ApiSetShareAccessorsRequest) (*ShareInfo, *http.Response, error) {
+func (a *ShareAPIService) RemoveUserFromShareExecute(r ApiRemoveUserFromShareRequest) (*ShareInfo, *http.Response, error) {
 	var (
-		localVarHTTPMethod   = http.MethodPatch
+		localVarHTTPMethod   = http.MethodDelete
 		localVarPostBody     interface{}
 		formFiles            []formFile
 		localVarReturnValue  *ShareInfo
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ShareAPIService.SetShareAccessors")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ShareAPIService.RemoveUserFromShare")
 	if err != nil {
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/share/{shareId}/accessors"
+	localVarPath := localBasePath + "/share/{shareId}/accessors/{username}"
 	localVarPath = strings.Replace(localVarPath, "{"+"shareId"+"}", url.PathEscape(parameterValueToString(r.shareId, "shareId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"username"+"}", url.PathEscape(parameterValueToString(r.username, "username")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
-	if r.request == nil {
-		return localVarReturnValue, nil, reportError("request is required and must be specified")
-	}
 
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -397,8 +504,6 @@ func (a *ShareAPIService) SetShareAccessorsExecute(r ApiSetShareAccessorsRequest
 	if localVarHTTPHeaderAccept != "" {
 		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
 	}
-	// body params
-	localVarPostBody = r.request
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err
@@ -535,4 +640,121 @@ func (a *ShareAPIService) SetSharePublicExecute(r ApiSetSharePublicRequest) (*ht
 	}
 
 	return localVarHTTPResponse, nil
+}
+
+type ApiUpdateShareAccessorPermissionsRequest struct {
+	ctx context.Context
+	ApiService *ShareAPIService
+	shareId string
+	username string
+	request *PermissionsParams
+}
+
+// Share Permissions Params
+func (r ApiUpdateShareAccessorPermissionsRequest) Request(request PermissionsParams) ApiUpdateShareAccessorPermissionsRequest {
+	r.request = &request
+	return r
+}
+
+func (r ApiUpdateShareAccessorPermissionsRequest) Execute() (*ShareInfo, *http.Response, error) {
+	return r.ApiService.UpdateShareAccessorPermissionsExecute(r)
+}
+
+/*
+UpdateShareAccessorPermissions Update a share's user permissions
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param shareId Share Id
+ @param username Username
+ @return ApiUpdateShareAccessorPermissionsRequest
+*/
+func (a *ShareAPIService) UpdateShareAccessorPermissions(ctx context.Context, shareId string, username string) ApiUpdateShareAccessorPermissionsRequest {
+	return ApiUpdateShareAccessorPermissionsRequest{
+		ApiService: a,
+		ctx: ctx,
+		shareId: shareId,
+		username: username,
+	}
+}
+
+// Execute executes the request
+//  @return ShareInfo
+func (a *ShareAPIService) UpdateShareAccessorPermissionsExecute(r ApiUpdateShareAccessorPermissionsRequest) (*ShareInfo, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodPatch
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  *ShareInfo
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ShareAPIService.UpdateShareAccessorPermissions")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/share/{shareId}/accessors/{username}"
+	localVarPath = strings.Replace(localVarPath, "{"+"shareId"+"}", url.PathEscape(parameterValueToString(r.shareId, "shareId")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"username"+"}", url.PathEscape(parameterValueToString(r.username, "username")), -1)
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+	if r.request == nil {
+		return localVarReturnValue, nil, reportError("request is required and must be specified")
+	}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	// body params
+	localVarPostBody = r.request
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
 }

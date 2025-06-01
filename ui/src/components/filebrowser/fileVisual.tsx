@@ -4,7 +4,7 @@ import WeblensFile from '@weblens/types/files/File'
 import { PhotoQuality } from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
-import { useState } from 'react'
+import { useRef } from 'react'
 
 function FileVisual({
     file,
@@ -13,7 +13,7 @@ function FileVisual({
     file: WeblensFile
     allowMedia?: boolean
 }) {
-    const [containerRef, setContainerRef] = useState<HTMLDivElement>(null)
+    const containerRef = useRef<HTMLDivElement>(null)
     const containerSize = useResize(containerRef)
     const mediaData = useMediaStore((state) =>
         state.mediaMap.get(file.GetContentId())
@@ -28,7 +28,7 @@ function FileVisual({
             const containerQuanta = Math.ceil(containerSize.height / 100)
             return (
                 <div
-                    ref={setContainerRef}
+                    ref={containerRef}
                     className="relative flex h-full w-full items-center justify-center"
                 >
                     <div

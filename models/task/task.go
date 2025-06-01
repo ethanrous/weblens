@@ -62,13 +62,13 @@ type TaskOptions struct {
 	Unique     bool
 }
 
-type QueueState string
+type QueueState int
 
 const (
-	PreQueued QueueState = "pre-queued"
-	InQueue   QueueState = "in-queue"
-	Executing QueueState = "executing"
-	Exited    QueueState = "exited"
+	Created QueueState = iota
+	InQueue
+	Executing
+	Exited
 )
 
 func (t *Task) Id() string {
@@ -132,8 +132,8 @@ func (t *Task) Q(tp *TaskPool) *Task {
 		t.Log().Error().Msg("nil task pool")
 
 		return nil
-		// tp = GetGlobalQueue()
 	}
+
 	err := tp.QueueTask(t)
 	if err != nil {
 		t.Log().Error().Stack().Err(err).Msg("")
@@ -149,13 +149,13 @@ func (t *Task) Wait() {
 	if t == nil {
 		return
 	}
+
 	t.updateMu.Lock()
 	if t.queueState == Exited {
 		return
 	}
 	t.updateMu.Unlock()
 	<-t.waitChan
-
 }
 
 // Cancel Unknowable if this is the last operation of a task, so t.success()
@@ -175,6 +175,7 @@ func (t *Task) Cancel() {
 	defer t.updateMu.Unlock()
 
 	if t.exitStatus == task_mod.TaskNoStatus {
+		log.GlobalLogger().Debug().Msgf("Task T[%s] cancel", t.taskId)
 		t.queueState = Exited
 		t.exitStatus = task_mod.TaskCanceled
 	}
@@ -193,7 +194,7 @@ func (t *Task) ClearAndRecompute() {
 
 	t.updateMu.Lock()
 	t.exitStatus = task_mod.TaskNoStatus
-	t.queueState = PreQueued
+	t.queueState = Created
 	t.updateMu.Unlock()
 
 	t.waitChan = make(chan struct{})
@@ -265,6 +266,8 @@ func (t *Task) error(err error) {
 
 	t.err = err
 	t.queueState = Exited
+
+	log.GlobalLogger().Debug().Msgf("Task T[%s] error", t.taskId)
 	t.exitStatus = task_mod.TaskError
 
 	t.updateMu.Unlock()
@@ -341,6 +344,7 @@ func (t *Task) Success(msg ...any) {
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
 
+	log.GlobalLogger().Debug().Msgf("Task T[%s] succeeded", t.taskId)
 	t.queueState = Exited
 	t.exitStatus = task_mod.TaskSuccess
 	if len(msg) != 0 {

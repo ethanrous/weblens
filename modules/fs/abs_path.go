@@ -13,7 +13,7 @@ var absPathMap = make(map[string]string)
 var pathMapLock = sync.RWMutex{}
 
 func RegisterAbsolutePrefix(alias, path string) error {
-	log.Debug().Msgf("Registering absolute path alias: %s -> %s", alias, path)
+	log.Trace().Msgf("Registering absolute path alias: %s -> %s", alias, path)
 
 	if !strings.HasPrefix(path, "/") {
 		return errors.New("absolute path must start with /")
@@ -40,15 +40,16 @@ func RegisterAbsolutePrefix(alias, path string) error {
 	return nil
 }
 
-func getAbsolutePrefix(alias string) string {
+func getAbsolutePrefix(alias string) (string, error) {
 	pathMapLock.RLock()
 	defer pathMapLock.RUnlock()
+
 	root, ok := absPathMap[alias]
 	if !ok {
-		panic("No absolute path registered for alias: " + alias)
+		return "", errors.Errorf("no absolute path registered for alias: %s", alias)
 	}
-	return root
 
+	return root, nil
 }
 
 func (wf Filepath) ToAbsolute() string {
@@ -56,6 +57,11 @@ func (wf Filepath) ToAbsolute() string {
 		return ""
 	}
 
-	absPrefix := getAbsolutePrefix(wf.RootAlias)
+	absPrefix, err := getAbsolutePrefix(wf.RootAlias)
+	if err != nil {
+		log.Error().Err(err).Msgf("Failed to get absolute prefix for alias: %s", wf.RootAlias)
+		return ""
+	}
+
 	return absPrefix + wf.RelPath
 }

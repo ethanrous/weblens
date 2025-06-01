@@ -124,6 +124,19 @@ func (l *OpensearchLogger) worker() {
 }
 
 func (l *OpensearchLogger) send(msg []byte) error {
+	var logMsg map[string]any
+
+	// Remove duplicate keys
+	err := json.Unmarshal(msg, &logMsg)
+	if err != nil {
+		return err
+	}
+
+	msg, err = json.Marshal(logMsg)
+	if err != nil {
+		return err
+	}
+
 	req := opensearchapi.IndexReq{
 		Index: l.indexName,
 		Body:  bytes.NewReader(msg),

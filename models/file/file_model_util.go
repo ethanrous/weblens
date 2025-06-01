@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/fs"
 )
 
 const (
@@ -15,12 +15,14 @@ const (
 	BackupTreeKey  = "BACKUP"
 
 	UserTrashDirName = ".user_trash"
-	ThumbsDirName    = "thumbs"
+	ThumbsDirName    = "thumbs/"
+	ZipsDirName      = "zips/"
 )
 
 var UsersRootPath = fs.Filepath{RootAlias: UsersTreeKey}
 var BackupRootPath = fs.Filepath{RootAlias: BackupTreeKey}
 var CacheRootPath = fs.Filepath{RootAlias: CachesTreeKey}
+var ZipsDirPath = fs.Filepath{RootAlias: CachesTreeKey, RelPath: ZipsDirName}
 var ThumbsDirPath = fs.Filepath{RootAlias: CachesTreeKey, RelPath: ThumbsDirName}
 var RestoreDirPath = fs.Filepath{RootAlias: RestoreTreeKey}
 

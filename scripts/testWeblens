@@ -1,15 +1,32 @@
 #!/bin/bash
+usage="Usage: $0 [-n|--native [package_target]]"
+
+run_native_tests() {
+    target="${1:-./...}" # Default to ./... if no target specified
+
+    # Go is very picky about whitespace, so we need to strip it out
+    target=$(awk '{$1=$1};1' <<<"$target")
+
+    echo "Running native tests for package: $target"
+
+    /usr/local/go/bin/go test -v -cover -race -coverprofile=/cover/coverage.out "$target" | grep -v -e "=== RUN" -e "=== PAUSE" -e "--- PASS"
+    exit $?
+}
+
+tests=""
 
 while [ "${1:-}" != "" ]; do
     case "$1" in
     "-n" | "--native")
-        /usr/local/go/bin/go test -v ./...
-        exit $?
+        shift
+        run_native_tests "${1:-}"
+        ;;
+    "-h" | "--help")
+        echo "$usage"
+        exit 0
         ;;
     *)
-        "Unknown argument: $1"
-        echo "$usage"
-        exit 1
+        tests="$tests$1 "
         ;;
     esac
     shift
@@ -17,11 +34,14 @@ done
 
 arch=$(uname -m)
 
-docker build -t ethrous/weblens-test --build-arg ARCHITECTURE="$arch" --file ./docker/AlpineTester.Dockerfile .
+if ! docker build -t ethrous/weblens-test --build-arg ARCHITECTURE="$arch" --file ./docker/AlpineTester.Dockerfile .; then
+    echo "Failed to build Docker image, exiting..."
+    exit 1
+fi
 
-docker network create weblens-net &>/dev/null
-docker stop weblens-test-mongo &>/dev/null
-docker rm weblens-test-mongo &>/dev/null
+docker network create weblens-net >/dev/null 2>&1
+docker stop weblens-test-mongo >/dev/null 2>&1
+docker rm weblens-test-mongo >/dev/null 2>&1
 rm -rf ./build/fs/test-mongo-container/db
 
 echo "Starting MongoDB container..."
@@ -61,222 +81,6 @@ done
 echo "MongoDB is ready, starting test container..."
 
 rm -rf ./build/fs/test-container
-docker run --rm --platform="linux/$arch" --network=weblens-net -v ./build/fs/test-container/data:/data -v ./build/fs/test-container/cache:/cache -v ./build/cache/test/go/pkg:/go/pkg/mod -v ./build/cache/test/go/build:/tmp/go-cache ethrous/weblens-test
+docker run --rm --platform="linux/$arch" --network=weblens-net -v ./build/fs/test-container/data:/data -v ./build/fs/test-container/cache:/cache -v ./build/cache/test/go/pkg:/go/pkg/mod -v ./build/cache/test/go/build:/tmp/go-cache -v ./build/cover:/cover ethrous/weblens-test -n "${tests}"
 
 exit $?
-
-if [[ ! -e ./ui ]]; then
-    echo "ERR Could not find ./ui directory, are you at the root of the repo? i.e. ~/repos/weblens and not ~/repos/weblens/scripts"
-    exit 1
-fi
-
-mkdir -p build/logs
-
-tail_pid=-1
-tail_file=""
-do_tail() {
-    tail_file="$1"
-    if [[ $show_logs == true ]]; then
-        printf "\n"
-        : >"$1"
-        tail -f "$1" &
-        tail_pid=$!
-    else
-        printf " "
-    fi
-}
-
-stop_tail() {
-    if [[ $tail_pid -ne -1 ]]; then
-        kill $tail_pid &>/dev/null
-        wait $tail_pid 2>/dev/null
-        tail_pid=-1
-        tail_file=""
-    fi
-}
-
-failed=false
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-NC='\033[0m' # No Color
-show_fail() {
-    failed=true
-    printf "%bFAIL%b\n" "${RED}" "${NC}"
-    if [[ $show_logs != true ]]; then
-        cat "$tail_file"
-        printf "%bFAIL%b\n" "${RED}" "${NC}"
-    fi
-    stop_tail
-}
-show_pass() {
-    stop_tail
-    printf "%bPASS%b\n" "${GREEN}" "${NC}"
-}
-
-trap 'kill $tail_pid &>/dev/null' EXIT
-
-usage="
-Usage: $0 [OPTIONS]
-
-This script consolidates and handles various Weblens tests. 
-
-Options:
-  --backend               
-      Enable basic backend tests
-
-  --ui                    
-      Enable UI tests
-
-  --coverage              
-      Generate and display go test coverage report
-
-  -a, --all               
-      Run all available tests
-      (sets --backend and --ui)
-
-  -l, --show-logs         
-      Display logs during the test run (logs are also saved to ./build/logs and are printed on test failure reglardless of this flag)
-"
-
-backend_tests=false
-show_logs=false
-ui_tests=false
-coverage=false
-loop=false
-
-while [ "${1:-}" != "" ]; do
-    case "$1" in
-    "-a" | "--all")
-        backend_tests=true
-        ui_tests=true
-        ;;
-    "--backend")
-        backend_tests=true
-        ;;
-    "--target")
-        shift
-        target=$1
-        ;;
-    "-l" | "--show-logs")
-        show_logs=true
-        ;;
-    "--coverage")
-        coverage=true
-        ;;
-    "--ui")
-        ui_tests=true
-        ;;
-    "--loop")
-        loop=true
-        ;;
-    "-h" | "--help")
-        echo "$usage"
-        exit 0
-        ;;
-    *)
-        "Unknown argument: $1"
-        echo "$usage"
-        exit 1
-        ;;
-    esac
-    shift
-done
-
-if [[ $loop == true ]] && [[ $coverage == true ]]; then
-    echo "ERR Using incompatible options --loop and --coverage"
-    exit 1
-fi
-
-export OPENSEARCH_INDEX=weblens_dev_test
-
-while true; do
-    if [[ $ui_tests != true ]] && [[ $backend_tests != true ]]; then
-        echo "No tests selected..."
-        echo "$usage"
-        exit 1
-    fi
-
-    if [[ ! -e ./ui/dist/index.html ]] || [[ ! -d ./ui/node_modules ]]; then
-        cd ui || exit
-        export VITE_APP_BUILD_TAG=test
-        export VITE_BUILD=true
-        # npm install
-        npm run build
-        cd .. || exit
-    fi
-
-    if [[ $ui_tests == true ]]; then
-        printf "Running UI linter... "
-        cd ui || exit
-        do_tail ../build/logs/ui-lint.log
-        if ! npx eslint . &>../build/logs/ui-lint.log; then
-            show_fail
-        else
-            show_pass
-        fi
-        cd .. || exit
-    fi
-
-    if [[ $backend_tests == true ]]; then
-        dbstr=$(mongosh --eval "show dbs" | awk '{print $1;}' | grep weblens-Test)
-        dbs=($dbstr)
-
-        for db in "${dbs[@]}"; do
-            echo "Dropping test database: $db"
-            mongosh --eval "use $db" --eval "db.dropDatabase()" >/dev/null
-        done
-
-        rm -rf ./build/fs/test
-
-        if [[ -z "$target" ]]; then
-            target="./..."
-        else
-            echo "Using target: $target"
-        fi
-        printf "Running backend tests ... "
-        do_tail ./build/logs/backend-test.log
-
-        export CGO_CFLAGS_ALLOW='-Xpreprocessor'
-        export CONFIG_PATH=$PWD/config
-        export CONFIG_NAME=TEST
-        export APP_ROOT=$PWD
-        export LOG_FORMAT=dev
-        export WEBLENS_BUILD_VERSION=test
-        if [[ $coverage == true ]]; then
-            if ! (
-                set -o pipefail
-                go test -coverprofile ./build/logs/cover_raw.out -v "$target" &>./build/logs/backend-test.log
-            ); then
-                show_fail
-            else
-                grep -v -e internal -e models -e mock -e main -e database ./build/logs/cover_raw.out >./build/logs/cover.out
-                rm ./build/logs/cover_raw.out
-                show_pass
-            fi
-        else
-            if ! (
-                set -o pipefail
-                go test -v "$target" &>./build/logs/backend-test.log
-            ); then
-                show_fail
-            else
-                show_pass
-            fi
-        fi
-    fi
-
-    if [[ $failed == true ]]; then
-        exit 1
-    fi
-
-    if [[ $coverage == true ]]; then
-        go tool cover -html=./build/logs/cover.out
-    fi
-
-    if [[ $loop != true ]]; then
-        exit 0
-    else
-        echo "Cleaning cache..."
-        go clean -testcache
-    fi
-done

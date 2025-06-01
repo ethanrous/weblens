@@ -9,10 +9,10 @@ export default function Messages() {
     if (messages.size === 0) {
         return null
     }
-    const sortedMsgs = messages
-        .values()
-        .toArray()
-        .sort((a, b) => a.queueTime - b.queueTime)
+
+    const sortedMsgs = Array.from(messages.values()).sort(
+        (a, b) => a.queueTime - b.queueTime
+    )
 
     return (
         <div className="absolute right-4 bottom-4 z-50 w-max">

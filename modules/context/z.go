@@ -7,6 +7,22 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+func init() {
+	if ToZ == nil {
+		ToZ = func(c context.Context) ContextZ {
+			if c == nil {
+				return nil
+			}
+
+			if ctx, ok := c.(ContextZ); ok {
+				return ctx
+			}
+
+			panic("ToZ: context is not a ContextZ")
+		}
+	}
+}
+
 var ToZ func(c context.Context) ContextZ
 
 type zkey struct{}
@@ -15,12 +31,8 @@ type zkey struct{}
 type ContextZ interface {
 	context.Context
 	DatabaseContext
-	DispatcherContext
 	LoggerContext
-	NotifierContext
 
-	GetTowerId() string
-	ClearCache()
 	WithContext(ctx context.Context) context.Context
 }
 

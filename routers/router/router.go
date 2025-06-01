@@ -3,9 +3,9 @@ package router
 import (
 	"net/http"
 
+	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/services/context"
 	"github.com/go-chi/chi/v5"
-	"github.com/ethanrous/weblens/modules/errors"
 )
 
 var _ http.Handler = &Router{}
@@ -43,7 +43,7 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func (r *Router) Mount(prefix string, h ...any) {
-	subRouter := h[len(h)-1].(*Router)
+	subRouter := h[len(h)-1].(http.Handler)
 
 	r.chi.With(r.middlewares...).With(parseMiddlewares(h[:len(h)-1]...)...).Mount(r.prefix+prefix, subRouter)
 }
@@ -94,8 +94,10 @@ func (r *Router) Group(path string, fn func(), middlewares ...any) {
 	r.middlewares = previousMiddlewares
 }
 
-func (r *Router) Handle(pattern string, h http.Handler) {
-	r.chi.With(r.middlewares...).Handle(pattern, h)
+func (r *Router) Handle(prefix string, h ...any) {
+	finalHandler := h[len(h)-1].(http.Handler)
+
+	r.chi.With(r.middlewares...).With(parseMiddlewares(h[:len(h)-1]...)...).Handle(r.prefix+prefix, finalHandler)
 }
 
 func (r *Router) NotFound(h HandlerFunc) {

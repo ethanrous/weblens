@@ -113,11 +113,13 @@ Class | Method | HTTP request | Description
 *MediaAPI* | [**SetMediaLiked**](docs/MediaAPI.md#setmedialiked) | **Patch** /media/{mediaId}/liked | Like a media
 *MediaAPI* | [**SetMediaVisibility**](docs/MediaAPI.md#setmediavisibility) | **Patch** /media/visibility | Set media visibility
 *MediaAPI* | [**StreamVideo**](docs/MediaAPI.md#streamvideo) | **Get** /media/{mediaId}/video | Stream a video
+*ShareAPI* | [**AddUserToShare**](docs/ShareAPI.md#addusertoshare) | **Post** /share/{shareId}/accessors | Add a user to a file share
 *ShareAPI* | [**CreateFileShare**](docs/ShareAPI.md#createfileshare) | **Post** /share/file | Share a file
 *ShareAPI* | [**DeleteFileShare**](docs/ShareAPI.md#deletefileshare) | **Delete** /share/{shareId} | Delete a file share
 *ShareAPI* | [**GetFileShare**](docs/ShareAPI.md#getfileshare) | **Get** /share/{shareId} | Get a file share
-*ShareAPI* | [**SetShareAccessors**](docs/ShareAPI.md#setshareaccessors) | **Patch** /share/{shareId}/accessors | Update a share&#39;s accessors list
+*ShareAPI* | [**RemoveUserFromShare**](docs/ShareAPI.md#removeuserfromshare) | **Delete** /share/{shareId}/accessors/{username} | Remove a user from a file share
 *ShareAPI* | [**SetSharePublic**](docs/ShareAPI.md#setsharepublic) | **Patch** /share/{shareId}/public | Update a share&#39;s \&quot;public\&quot; status
+*ShareAPI* | [**UpdateShareAccessorPermissions**](docs/ShareAPI.md#updateshareaccessorpermissions) | **Patch** /share/{shareId}/accessors/{username} | Update a share&#39;s user permissions
 *TowersAPI* | [**CreateRemote**](docs/TowersAPI.md#createremote) | **Post** /tower/remote | Create a new remote
 *TowersAPI* | [**DeleteRemote**](docs/TowersAPI.md#deleteremote) | **Delete** /tower/{serverId} | Delete a remote
 *TowersAPI* | [**GetBackupInfo**](docs/TowersAPI.md#getbackupinfo) | **Get** /tower/backup | Get information about a file
@@ -142,6 +144,7 @@ Class | Method | HTTP request | Description
 
 ## Documentation For Models
 
+ - [AddUserParams](docs/AddUserParams.md)
  - [ApiKeyParams](docs/ApiKeyParams.md)
  - [BackupInfo](docs/BackupInfo.md)
  - [CreateFolderBody](docs/CreateFolderBody.md)
@@ -165,12 +168,13 @@ Class | Method | HTTP request | Description
  - [NewUploadParams](docs/NewUploadParams.md)
  - [NewUserParams](docs/NewUserParams.md)
  - [PasswordUpdateParams](docs/PasswordUpdateParams.md)
+ - [PermissionsInfo](docs/PermissionsInfo.md)
+ - [PermissionsParams](docs/PermissionsParams.md)
  - [RestoreFilesBody](docs/RestoreFilesBody.md)
  - [RestoreFilesInfo](docs/RestoreFilesInfo.md)
  - [ShareInfo](docs/ShareInfo.md)
  - [StructsInitServerParams](docs/StructsInitServerParams.md)
  - [StructsScanBody](docs/StructsScanBody.md)
- - [StructsUserListBody](docs/StructsUserListBody.md)
  - [TakeoutInfo](docs/TakeoutInfo.md)
  - [TokenInfo](docs/TokenInfo.md)
  - [TowerInfo](docs/TowerInfo.md)

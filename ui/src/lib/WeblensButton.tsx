@@ -1,6 +1,6 @@
 import { useResize } from '@weblens/lib/hooks'
 import { ErrorHandler } from '@weblens/types/Types'
-import React, { CSSProperties, useEffect, useState } from 'react'
+import React, { CSSProperties, useEffect, useRef, useState } from 'react'
 
 import LoaderDots from './LoaderDots'
 import { ButtonActionHandler, ButtonProps } from './buttonTypes'
@@ -55,6 +55,7 @@ const handleButtonEvent = async (
 }
 
 function WeblensButton({
+    ref,
     label,
     showSuccess = true,
     disabled = false,
@@ -62,16 +63,18 @@ function WeblensButton({
     Left = null,
     Right = null,
     fillWidth = false,
-    onClick,
 
     tooltip,
 
     flavor = 'default',
     size = 'default',
+    centerContent = false,
+    className,
 
+    onClick,
+    onContextMenu,
     onMouseUp,
     onMouseLeave,
-    className,
 }: ButtonProps) {
     const [, setSuccess] = useState(false)
     const [, setFail] = useState(false)
@@ -81,8 +84,8 @@ function WeblensButton({
     // console.debug(success, fail, loading)
 
     const [showLabel, setShowLabel] = useState(true)
-    const [buttonRef, setButtonRef] = useState<HTMLButtonElement>()
 
+    const buttonRef = useRef<HTMLButtonElement>()
     const buttonSize = useResize(buttonRef)
 
     useEffect(() => {
@@ -95,7 +98,11 @@ function WeblensButton({
         } else if (buttonSize.width >= 60) {
             setShowLabel(true)
         }
-    }, [buttonSize])
+    }, [buttonSize, Left, Right])
+
+    useEffect(() => {
+        setShowLabel(true)
+    }, [label])
 
     let buttonColor = '--color-button-primary'
     let buttonHoverColor = '--color-button-primary-hover'
@@ -135,19 +142,34 @@ function WeblensButton({
             break
     }
 
+    let tooltipClass = ''
+    let doAutoTooltipPosition = false
+    if (typeof tooltip === 'object') {
+        if (tooltip.className) {
+            tooltipClass = tooltip.className
+        }
+        // if (tooltip.position === 'right') {
+        //     tooltipClass += ' right-[anchor(left)]'
+        // }
+        doAutoTooltipPosition = tooltip.position == 'auto'
+    }
+
     return (
         <div
-            className="bg-background-primary group relative flex h-max min-h-0 w-max rounded data-fill-width:w-full"
+            className="bg-background-primary group relative flex h-max min-h-0 w-max justify-center rounded [--tooltip-left:auto] [--tooltip-right:auto] odd:[--tooltip-left:left] even:[--tooltip-right:right] data-fill-width:w-full"
             data-fill-width={fillWidth ? true : null}
+            ref={ref}
         >
             <button
-                ref={setButtonRef}
+                ref={buttonRef}
                 style={
                     {
                         '--color-button': `var(${buttonColor})`,
                         '--color-button-hover': `var(${buttonHoverColor})`,
                         '--color-button-text': `var(${buttonTextColor})`,
                         '--wl-button-spacing': buttonSpacing,
+                        display: 'flex',
+                        alignItems: centerContent ? 'center' : 'flex-start',
                     } as CSSProperties
                 }
                 data-fill-width={fillWidth}
@@ -158,6 +180,17 @@ function WeblensButton({
                     handleButtonEvent(
                         e,
                         onClick,
+                        showSuccess,
+                        setLoading,
+                        setSuccess,
+                        setFail,
+                        true
+                    ).catch(ErrorHandler)
+                }}
+                onContextMenu={(e) => {
+                    handleButtonEvent(
+                        e,
+                        onContextMenu,
                         showSuccess,
                         setLoading,
                         setSuccess,
@@ -188,7 +221,7 @@ function WeblensButton({
             >
                 <span
                     className={
-                        'text-button-text flex items-center justify-center data-[size=default]:h-6 data-[size=jumbo]:h-10 data-[size=jumbo]:text-2xl data-[size=small]:h-6 data-[size=small]:text-sm data-[size=tiny]:h-5 data-[size=tiny]:text-xs'
+                        'flex items-center justify-center text-inherit data-[size=default]:h-6 data-[size=jumbo]:h-10 data-[size=jumbo]:text-2xl data-[size=small]:h-6 data-[size=small]:text-sm data-[size=tiny]:h-5 data-[size=tiny]:text-xs'
                     }
                     data-size={size}
                 >
@@ -217,9 +250,19 @@ function WeblensButton({
             </button>
             {tooltip && (
                 <div
-                    className="bg-background-secondary text-color-text-primary pointer-events-none absolute -bottom-[90%] z-50 w-max translate-x-[-20%] rounded-md p-1 opacity-0 shadow-lg transition group-hover:block group-hover:opacity-100 border"
+                    className={[
+                        'bg-background-secondary text-color-text-primary pointer-events-none absolute top-[100%] z-50 hidden h-max max-w-max min-w-max items-center justify-center rounded-md border p-1 opacity-100 shadow-lg transition group-hover:flex group-hover:opacity-100',
+                        doAutoTooltipPosition
+                            ? 'right-[anchor(var(--tooltip-right),0px)] left-[anchor(var(--tooltip-left),0px)]'
+                            : '',
+                        tooltipClass,
+                    ].join(' ')}
                 >
-                    <span className="">{tooltip}</span>
+                    <span className="text-nowrap">
+                        {typeof tooltip === 'string'
+                            ? tooltip
+                            : tooltip.content}
+                    </span>
                 </div>
             )}
         </div>

@@ -15,6 +15,7 @@ var ErrDecodeNotPointer = errors.New("decode: value must be a pointer")
 
 type Decoder interface {
 	Decode(v any) error
+	Err() error
 }
 
 type decoder struct {
@@ -30,6 +31,10 @@ func (d *decoder) Decode(v any) error {
 
 	rval.Elem().Set(reflect.ValueOf(d.value).Elem())
 
+	return nil
+}
+
+func (d *decoder) Err() error {
 	return nil
 }
 
@@ -74,10 +79,18 @@ func (d *mongoDecoder) Decode(v any) error {
 	return nil
 }
 
+func (d *mongoDecoder) Err() error {
+	return d.err
+}
+
 type errDecoder struct {
 	err error
 }
 
 func (d *errDecoder) Decode(any) error {
+	return d.err
+}
+
+func (d *errDecoder) Err() error {
 	return d.err
 }

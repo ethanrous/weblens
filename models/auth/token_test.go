@@ -1,4 +1,4 @@
-package auth
+package auth_test
 
 import (
 	"context"
@@ -7,12 +7,13 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/models/db"
-	"github.com/ethanrous/weblens/modules/config"
 	"github.com/stretchr/testify/assert"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+
+	. "github.com/ethanrous/weblens/models/auth"
 )
 
-// BSON keys
+// BSON keys.
 const (
 	KeyTokenId   = "_id"
 	KeyOwner     = "owner"
@@ -25,18 +26,16 @@ var sampleTokenCounter = 0
 func makeSampleToken() [32]byte {
 	token := [32]byte{}
 	copy(token[:], "sampletoken"+strconv.Itoa(sampleTokenCounter))
+
 	sampleTokenCounter++
+
 	return token
 }
 
 func TestGenerateNewToken(t *testing.T) {
-	mongodb, err := db.ConnectToMongo(t.Context(), config.GetMongoDBUri(), "weblensTestDB")
-	if err != nil {
-		t.Error(err)
-	}
+	ctx := db.SetupTestDB(t, TokenCollectionKey)
 
 	t.Run("success", func(t *testing.T) {
-		ctx := context.WithValue(t.Context(), db.DatabaseContextKey, mongodb)
 		ctx = context.WithValue(ctx, "towerId", "towerId")
 		token, err := GenerateNewToken(ctx, "nickname", "owner", "createdBy")
 
@@ -48,13 +47,9 @@ func TestGenerateNewToken(t *testing.T) {
 }
 
 func TestSaveToken(t *testing.T) {
-	mongodb, err := db.ConnectToMongo(t.Context(), config.GetMongoDBUri(), "weblensTestDB")
-	if err != nil {
-		t.Error(err)
-	}
+	ctx := db.SetupTestDB(t, TokenCollectionKey)
 
 	t.Run("success", func(t *testing.T) {
-		ctx := context.WithValue(t.Context(), db.DatabaseContextKey, mongodb)
 		ctx = context.WithValue(ctx, "towerId", "towerId")
 		token := &Token{
 			Id:          primitive.NewObjectID(),
@@ -73,13 +68,9 @@ func TestSaveToken(t *testing.T) {
 }
 
 func TestGetTokensByUser(t *testing.T) {
-	mongodb, err := db.ConnectToMongo(t.Context(), config.GetMongoDBUri(), "weblensTestDB")
-	if err != nil {
-		t.Error(err)
-	}
+	ctx := db.SetupTestDB(t, TokenCollectionKey)
 
 	t.Run("found", func(t *testing.T) {
-		ctx := context.WithValue(t.Context(), db.DatabaseContextKey, mongodb)
 		ctx = context.WithValue(ctx, "towerId", "towerId")
 		// Create a mock token
 		token := &Token{
@@ -102,7 +93,6 @@ func TestGetTokensByUser(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		ctx := context.WithValue(t.Context(), db.DatabaseContextKey, mongodb)
 		ctx = context.WithValue(ctx, "towerId", "towerId")
 		tokens, err := GetTokensByUser(ctx, "nonexistent")
 
@@ -112,13 +102,9 @@ func TestGetTokensByUser(t *testing.T) {
 }
 
 func TestGetTokenById(t *testing.T) {
-	mongodb, err := db.ConnectToMongo(t.Context(), config.GetMongoDBUri(), "weblensTestDB")
-	if err != nil {
-		t.Error(err)
-	}
+	ctx := db.SetupTestDB(t, TokenCollectionKey)
 
 	t.Run("found", func(t *testing.T) {
-		ctx := context.WithValue(t.Context(), db.DatabaseContextKey, mongodb)
 		ctx = context.WithValue(ctx, "towerId", "towerId")
 		tokenId := primitive.NewObjectID()
 		// Create a mock token
@@ -142,7 +128,6 @@ func TestGetTokenById(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		ctx := context.WithValue(t.Context(), db.DatabaseContextKey, mongodb)
 		ctx = context.WithValue(ctx, "towerId", "towerId")
 		token, err := GetTokenById(ctx, primitive.NewObjectID())
 
@@ -153,13 +138,9 @@ func TestGetTokenById(t *testing.T) {
 }
 
 func TestGetToken(t *testing.T) {
-	mongodb, err := db.ConnectToMongo(t.Context(), config.GetMongoDBUri(), "weblensTestDB")
-	if err != nil {
-		t.Error(err)
-	}
+	ctx := db.SetupTestDB(t, TokenCollectionKey)
 
 	t.Run("found", func(t *testing.T) {
-		ctx := context.WithValue(t.Context(), db.DatabaseContextKey, mongodb)
 		ctx = context.WithValue(ctx, "towerId", "towerId")
 		// Create a mock token
 		sampleToken := makeSampleToken()
@@ -182,7 +163,6 @@ func TestGetToken(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		ctx := context.WithValue(t.Context(), db.DatabaseContextKey, mongodb)
 		ctx = context.WithValue(ctx, "towerId", "towerId")
 		tokenBytes := [32]byte{}
 		token, err := GetToken(ctx, tokenBytes)
@@ -193,13 +173,9 @@ func TestGetToken(t *testing.T) {
 }
 
 func TestGetAllTokensByTowerId(t *testing.T) {
-	mongodb, err := db.ConnectToMongo(t.Context(), config.GetMongoDBUri(), "weblensTestDB")
-	if err != nil {
-		t.Error(err)
-	}
+	ctx := db.SetupTestDB(t, TokenCollectionKey)
 
 	t.Run("found", func(t *testing.T) {
-		ctx := context.WithValue(t.Context(), db.DatabaseContextKey, mongodb)
 		towerId := "mockTowerId"
 		// Create a mock token
 		token := &Token{
@@ -222,7 +198,6 @@ func TestGetAllTokensByTowerId(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		ctx := context.WithValue(t.Context(), db.DatabaseContextKey, mongodb)
 		ctx = context.WithValue(ctx, "towerId", "towerId")
 		tokens, err := GetAllTokensByTowerId(ctx, "nonexistent")
 
@@ -232,13 +207,9 @@ func TestGetAllTokensByTowerId(t *testing.T) {
 }
 
 func TestDeleteToken(t *testing.T) {
-	mongodb, err := db.ConnectToMongo(t.Context(), config.GetMongoDBUri(), "weblensTestDB")
-	if err != nil {
-		t.Error(err)
-	}
+	ctx := db.SetupTestDB(t, TokenCollectionKey)
 
 	t.Run("success", func(t *testing.T) {
-		ctx := context.WithValue(t.Context(), db.DatabaseContextKey, mongodb)
 		ctx = context.WithValue(ctx, "towerId", "towerId")
 		tokenId := primitive.NewObjectID()
 		// Create a mock token

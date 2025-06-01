@@ -1,4 +1,4 @@
-import WeblensButton from '@weblens/lib/WeblensButton'
+import WeblensButton from '@weblens/lib/WeblensButton.tsx'
 import { useNavigate } from 'react-router-dom'
 
 const Fourohfour = () => {

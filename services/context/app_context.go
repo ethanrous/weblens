@@ -10,6 +10,7 @@ import (
 	"github.com/ethanrous/weblens/models/file"
 	task_model "github.com/ethanrous/weblens/models/task"
 	context_mod "github.com/ethanrous/weblens/modules/context"
+	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/log"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/ethanrous/weblens/modules/websocket"
@@ -33,6 +34,8 @@ func init() {
 }
 
 var _ context_mod.ContextZ = AppContext{}
+
+var ErrNoContext = errors.New("context is not an AppContext")
 
 type appContextKey struct{}
 type AppContext struct {
@@ -72,6 +75,8 @@ func FromContext(ctx context.Context) (AppContext, bool) {
 		return AppContext{}, false
 	}
 
+	c.BasicContext = NewBasicContext(ctx, c.Log())
+
 	return c, true
 }
 
@@ -88,6 +93,7 @@ func (c AppContext) WithContext(ctx context.Context) context.Context {
 	}
 
 	c.BasicContext = NewBasicContext(ctx, l)
+
 	return c
 }
 

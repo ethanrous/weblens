@@ -32,16 +32,16 @@ func validateNewTower(ctx context.Context, t *Instance) error {
 		return errors.WithStack(ErrEmptyRole)
 	}
 
-	local, err := GetLocal(ctx)
-	if err != nil {
-		return err
-	}
-
-	if local.Role == RoleBackup && t.Role == RoleCore {
-		if t.Address == "" {
-			return errors.WithStack(ErrEmptyAddress)
-		}
-	}
+	// local, err := GetLocal(ctx)
+	// if err != nil {
+	// 	return err
+	// }
+	//
+	// if local.Role == RoleBackup && t.Role == RoleCore {
+	// 	if t.Address == "" {
+	// 		return errors.WithStack(ErrEmptyAddress)
+	// 	}
+	// }
 
 	return nil
 }

@@ -9,8 +9,8 @@ import (
 
 	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
-	slices_mod "github.com/ethanrous/weblens/modules/slices"
 	"github.com/ethanrous/weblens/modules/errors"
+	slices_mod "github.com/ethanrous/weblens/modules/slices"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -319,15 +319,18 @@ func (m *Media) GetLowresCacheFile() *file_model.WeblensFileImpl {
 func (m *Media) SetHighresCacheFiles(highresFile *file_model.WeblensFileImpl, pageNum int) {
 	m.updateMu.Lock()
 	defer m.updateMu.Unlock()
+
 	if len(m.highResCacheFiles) < pageNum+1 {
 		m.highResCacheFiles = make([]*file_model.WeblensFileImpl, m.PageCount)
 	}
+
 	m.highResCacheFiles[pageNum] = highresFile
 }
 
 func (m *Media) GetHighresCacheFiles(pageNum int) *file_model.WeblensFileImpl {
 	m.updateMu.RLock()
 	defer m.updateMu.RUnlock()
+
 	if len(m.highResCacheFiles) < pageNum+1 {
 		return nil
 	}

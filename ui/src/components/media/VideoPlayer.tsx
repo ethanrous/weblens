@@ -5,7 +5,7 @@ import {
     IconVolume,
     IconVolume3,
 } from '@tabler/icons-react'
-import WeblensProgress from '@weblens/lib/WeblensProgress'
+import WeblensProgress from '@weblens/lib/WeblensProgress.tsx'
 import { useKeyDown, useResize } from '@weblens/lib/hooks'
 import { ErrorHandler } from '@weblens/types/Types'
 import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'

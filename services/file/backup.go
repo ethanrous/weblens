@@ -12,7 +12,7 @@ import (
 )
 
 func (fs *FileServiceImpl) NewBackupRestoreFile(ctx context.Context, contentId, remoteTowerId string) (*file_model.WeblensFileImpl, error) {
-	restoreRoot, err := fs.GetFileById(file_model.RestoreTreeKey)
+	restoreRoot, err := fs.GetFileById(ctx, file_model.RestoreTreeKey)
 	if err != nil {
 		return nil, err
 	}
@@ -31,10 +31,9 @@ func (fs *FileServiceImpl) NewBackupRestoreFile(ctx context.Context, contentId, 
 	return f, nil
 }
 
+// Backup paths are in the form of BACKUP:<tower_id>/<path>
+// So we check if the root name is BACKUP and the parent of the path is the root (i.e. BACKUP:)
 func IsBackupTowerRoot(path file_system.Filepath) bool {
-	// Backup paths are in the form of BACKUP:<tower_id>/<path>
-	// So we check if the root name is BACKUP and the parent of the path is the root (i.e. BACKUP:)
-
 	return path.RootName() == file_model.BackupTreeKey && !path.IsRoot() && path.Dir().IsRoot()
 }
 
@@ -61,7 +60,7 @@ func loadFsTransactionBackup(ctx context.Context) error {
 
 	appCtx.Log().Debug().Msg("Loading backup file system")
 
-	backupRoot, err := appCtx.FileService.GetFileById(file_model.BackupTreeKey)
+	backupRoot, err := appCtx.FileService.GetFileById(ctx, file_model.BackupTreeKey)
 	if err != nil {
 		return err
 	}
@@ -77,7 +76,7 @@ func loadFsTransactionBackup(ctx context.Context) error {
 			continue
 		}
 
-		lifetimes, err := history.GetLifetimesByTowerId(ctx, remote.TowerId, true)
+		lifetimes, err := history.GetLifetimesByTowerId(ctx, remote.TowerId, history.GetLifetimesOptions{ActiveOnly: true})
 		if err != nil {
 			return err
 		}
@@ -131,36 +130,11 @@ func loadFsTransactionBackup(ctx context.Context) error {
 			}
 		}
 
-		err = loadFilesFromPath(appCtx, remoteDir.GetPortablePath(), fpMap, false)
+		err = loadFilesFromPath(appCtx, remoteDir.GetPortablePath(), fpMap, false, true)
 		if err != nil {
 			return err
 		}
 	}
-	// for len(searchFiles) != 0 {
-	//
-	// 	children, err := getChildFilepaths(remoteDir.GetPortablePath())
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	//
-	// 	for _, childPath := range children {
-	// 		f := file_model.NewWeblensFile(file_model.NewFileOptions{
-	// 			FileId:    childPath.Filename(),
-	// 			ContentId: childPath.Filename(),
-	// 			Path:      childPath,
-	// 		})
-	//
-	// 		err = f.SetParent(remoteDir)
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	//
-	// 		err = appCtx.FileService.AddFile(ctx, f)
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 	}
-	// }
 
 	return nil
 }

@@ -9,7 +9,6 @@
 
 	border-radius: 4px;
 	background-color: var(--color-background-primary);
-	box-shadow: var(--wl-soft-shadow-hidden);
 	border: 1px solid var(--color-border-primary);
 	height: 100%;
 	width: max-content;
@@ -19,13 +18,12 @@
 	-webkit-user-select: none;
 	-moz-user-select: none;
 
-	transition-property: background-color, transform, border-color, box-shadow;
+	transition-property: background-color, transform, border-color;
 	transition-duration: 150ms;
 	transition-timing-function: var(--ease-wl-default);
 
 	&:focus-within {
 		border: 1px solid var(--color-theme-primary);
-		box-shadow: var(--wl-soft-shadow);
 	}
 
 	&[data-subtle='true']:not(:focus-within) {
@@ -38,7 +36,6 @@
 		cursor: pointer;
 
 		&:hover {
-			box-shadow: var(--wl-soft-shadow);
 			background-color: rgb(from var(--color-theme-secondary) r g b / 0.50);
 			border: 1px solid var(--color-theme-primary);
 			transform: translateY(-1px);

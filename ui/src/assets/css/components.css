@@ -1,0 +1,17 @@
+@import 'tailwindcss';
+
+@utility fullscreen-modal {
+    display: flex;
+    position: absolute;
+    width: 100vw;
+    height: 100vh;
+    z-index: 100;
+    background-color: rgb(from var(--color-abyss-800) r g b / 70%);
+    padding: 1rem;
+}
+
+@utility floating-card {
+    box-shadow:
+        0 1px 2px 0 rgb(from var(--color-abyss-800) r g b / 40%),
+        0 1px 3px 1px rgb(from var(--color-abyss-800) r g b / 75%);
+}

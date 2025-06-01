@@ -9,6 +9,7 @@ Name | Type | Description | Notes
 **Expires** | Pointer to **int32** |  | [optional] 
 **FileId** | Pointer to **string** |  | [optional] 
 **Owner** | Pointer to **string** |  | [optional] 
+**Permissions** | Pointer to [**map[string]PermissionsInfo**](PermissionsInfo.md) |  | [optional] 
 **Public** | Pointer to **bool** |  | [optional] 
 **ShareId** | Pointer to **string** |  | [optional] 
 **ShareName** | Pointer to **string** |  | [optional] 
@@ -159,6 +160,31 @@ SetOwner sets Owner field to given value.
 `func (o *ShareInfo) HasOwner() bool`
 
 HasOwner returns a boolean if a field has been set.
+
+### GetPermissions
+
+`func (o *ShareInfo) GetPermissions() map[string]PermissionsInfo`
+
+GetPermissions returns the Permissions field if non-nil, zero value otherwise.
+
+### GetPermissionsOk
+
+`func (o *ShareInfo) GetPermissionsOk() (*map[string]PermissionsInfo, bool)`
+
+GetPermissionsOk returns a tuple with the Permissions field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetPermissions
+
+`func (o *ShareInfo) SetPermissions(v map[string]PermissionsInfo)`
+
+SetPermissions sets Permissions field to given value.
+
+### HasPermissions
+
+`func (o *ShareInfo) HasPermissions() bool`
+
+HasPermissions returns a boolean if a field has been set.
 
 ### GetPublic
 

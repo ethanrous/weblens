@@ -1441,15 +1441,15 @@ const docTemplate = `{
             }
         },
         "/share/{shareId}/accessors": {
-            "patch": {
+            "post": {
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Share"
                 ],
-                "summary": "Update a share's accessors list",
-                "operationId": "SetShareAccessors",
+                "summary": "Add a user to a file share",
+                "operationId": "AddUserToShare",
                 "parameters": [
                     {
                         "type": "string",
@@ -1464,7 +1464,92 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/structs.UserListBody"
+                            "$ref": "#/definitions/AddUserParams"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ShareInfo"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            }
+        },
+        "/share/{shareId}/accessors/{username}": {
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Share"
+                ],
+                "summary": "Remove a user from a file share",
+                "operationId": "RemoveUserFromShare",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Share Id",
+                        "name": "shareId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Username",
+                        "name": "username",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ShareInfo"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            },
+            "patch": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Share"
+                ],
+                "summary": "Update a share's user permissions",
+                "operationId": "UpdateShareAccessorPermissions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Share Id",
+                        "name": "shareId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Username",
+                        "name": "username",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Share Permissions Params",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/PermissionsParams"
                         }
                     }
                 ],
@@ -2544,6 +2629,26 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "AddUserParams": {
+            "type": "object",
+            "required": [
+                "username"
+            ],
+            "properties": {
+                "canDelete": {
+                    "type": "boolean"
+                },
+                "canDownload": {
+                    "type": "boolean"
+                },
+                "canEdit": {
+                    "type": "boolean"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
         "ApiKeyParams": {
             "type": "object",
             "required": [
@@ -3053,6 +3158,34 @@ const docTemplate = `{
                 }
             }
         },
+        "PermissionsInfo": {
+            "type": "object",
+            "properties": {
+                "canDelete": {
+                    "type": "boolean"
+                },
+                "canDownload": {
+                    "type": "boolean"
+                },
+                "canEdit": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "PermissionsParams": {
+            "type": "object",
+            "properties": {
+                "canDelete": {
+                    "type": "boolean"
+                },
+                "canDownload": {
+                    "type": "boolean"
+                },
+                "canEdit": {
+                    "type": "boolean"
+                }
+            }
+        },
         "RestoreFilesBody": {
             "type": "object",
             "properties": {
@@ -3098,6 +3231,12 @@ const docTemplate = `{
                 },
                 "owner": {
                     "type": "string"
+                },
+                "permissions": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/PermissionsInfo"
+                    }
                 },
                 "public": {
                     "type": "boolean"
@@ -3367,23 +3506,6 @@ const docTemplate = `{
                 },
                 "folderId": {
                     "type": "string"
-                }
-            }
-        },
-        "structs.UserListBody": {
-            "type": "object",
-            "properties": {
-                "addUsers": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "removeUsers": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
                 }
             }
         }

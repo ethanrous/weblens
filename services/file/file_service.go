@@ -2,11 +2,8 @@ package file
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/base64"
 	"fmt"
-	"io"
-	"math"
+	"net/http"
 	"slices"
 	"strings"
 	"sync"
@@ -24,6 +21,7 @@ import (
 	file_system "github.com/ethanrous/weblens/modules/fs"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	context_service "github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/services/journal"
 	"github.com/ethanrous/weblens/services/notify"
 	"github.com/rs/zerolog"
 )
@@ -66,17 +64,17 @@ func (fs *FileServiceImpl) Size(treeAlias string) int64 {
 	return -1
 }
 
-func (fs *FileServiceImpl) AddFile(c context.Context, file ...*file_model.WeblensFileImpl) (err error) {
+func (fs *FileServiceImpl) AddFile(c context.Context, files ...*file_model.WeblensFileImpl) (err error) {
 	ctx, ok := context_service.FromContext(c)
 	if !ok {
 		return errors.New("failed to get context from context")
 	}
 
-	for _, f := range file {
+	for _, f := range files {
 		newId := f.ID()
 		if newId == "" {
 			return errors.WithStack(file_model.ErrNoFileId)
-		} else if !f.IsDir() && f.Size() != 0 && f.GetContentId() == "" {
+		} else if !f.IsDir() && f.Size() != 0 && f.GetContentId() == "" && f.GetPortablePath().RootName() == file_model.UsersTreeKey {
 			return errors.Wrapf(file_model.ErrNoContentId, "failed to add [%s] to file service", f.GetPortablePath())
 		}
 
@@ -92,36 +90,56 @@ func (fs *FileServiceImpl) AddFile(c context.Context, file ...*file_model.Weblen
 			}
 		}
 
-		fs.treeLock.Lock()
-		fs.files[f.ID()] = f
-		fs.treeLock.Unlock()
+		if _, exists := fs.getFileInternal(f.ID()); exists {
+			ctx.Log().Warn().CallerSkipFrame(1).Msgf("File [%s] already exists in file service, skipping", f.GetPortablePath())
 
-		ctx.Log().Trace().Msgf("Added file [%s] to file service", f.GetPortablePath())
+			continue
+		}
+
+		fs.setFileInternal(f.ID(), f)
 	}
 
 	return nil
 }
 
-func (fs *FileServiceImpl) GetFileById(id string) (*file_model.WeblensFileImpl, error) {
-	f, ok := fs.files[id]
+func (fs *FileServiceImpl) GetFileById(ctx context.Context, id string) (*file_model.WeblensFileImpl, error) {
+	f, ok := fs.getFileInternal(id)
+
 	if ok {
 		return f, nil
 	}
 
-	return nil, errors.Wrap(file_model.ErrFileNotFound, id)
+	path, err := journal.GetLatestPathById(ctx, id)
+	if err != nil {
+		return nil, errors.WrapStatus(http.StatusNotFound, errors.Wrap(file_model.ErrFileNotFound, err.Error()))
+	}
+
+	return fs.GetFileByFilepath(ctx, path)
 }
 
 func (fs *FileServiceImpl) GetFileByFilepath(ctx context.Context, filepath file_system.Filepath) (*file_model.WeblensFileImpl, error) {
-	root, err := fs.GetFileById(filepath.RootName())
+	root, err := fs.GetFileById(ctx, filepath.RootName())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get root file [%s]: %w", filepath.RootName(), err)
 	}
 
 	childFile := root
 
+	appCtx, ok := context_service.FromContext(ctx)
+	if !ok {
+		return nil, errors.WithStack(context_service.ErrNoContext)
+	}
+
 	for child := range strings.SplitSeq(filepath.RelPath, "/") {
 		if child == "" {
 			continue
+		}
+
+		if !childFile.ChildrenLoaded() {
+			_, err = fs.loadDirectory(appCtx, childFile.GetPortablePath())
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		childFile, err = childFile.GetChild(child)
@@ -131,74 +149,6 @@ func (fs *FileServiceImpl) GetFileByFilepath(ctx context.Context, filepath file_
 	}
 
 	return childFile, nil
-}
-
-func (fs *FileServiceImpl) GetFileByContentId(contentId string) (*file_model.WeblensFileImpl, error) {
-	if fs.contentIdCache == nil {
-		err := fs.loadContentIdCache()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	fs.contentIdLock.RLock()
-	if f, ok := fs.contentIdCache[contentId]; ok {
-		fs.contentIdLock.RUnlock()
-
-		return f, nil
-	}
-	fs.contentIdLock.RUnlock()
-
-	err := fs.loadContentIdCache()
-	if err != nil {
-		return nil, err
-	}
-
-	fs.contentIdLock.RLock()
-	if f, ok := fs.contentIdCache[contentId]; ok {
-		fs.contentIdLock.RUnlock()
-
-		return f, nil
-	}
-	fs.contentIdLock.RUnlock()
-
-	return nil, errors.WithStack(file_model.ErrFileNotFound)
-}
-
-func (fs *FileServiceImpl) GetFiles(ids []string) ([]*file_model.WeblensFileImpl, []string, error) {
-	// var files []*file_model.WeblensFileImpl
-	// var lostFiles []string
-	// for _, id := range ids {
-	// 	lt := usersTree.GetJournal().Get(id)
-	// 	if lt == nil {
-	// 		lostFiles = append(lostFiles, id)
-	// 		continue
-	// 		// return nil, nil, errors.WithStack(werror.ErrNoLifetime.WithArg(id))
-	// 	}
-	// 	if lt.GetLatestAction().ActionType == history.FileDelete {
-	// 		contentId := lt.GetContentId()
-	// 		if contentId == "" {
-	// 			lostFiles = append(lostFiles, id)
-	// 			continue
-	// 		}
-	// 		f, err := fs.trees[file_model.RestoreTreeKey].GetRoot().GetChild(contentId)
-	// 		if err != nil {
-	// 			lostFiles = append(lostFiles, id)
-	// 			continue
-	// 		}
-	// 		files = append(files, f)
-	// 	} else {
-	// 		f := usersTree.Get(id)
-	// 		if f == nil {
-	// 			lostFiles = append(lostFiles, id)
-	// 			continue
-	// 		}
-	// 		files = append(files, f)
-	// 	}
-	// }
-	// return files, lostFiles, nil
-
-	return nil, nil, errors.New("not implemented")
 }
 
 func (fs *FileServiceImpl) GetMediaCacheByFilename(ctx context.Context, thumbFileName string) (*file_model.WeblensFileImpl, error) {
@@ -544,41 +494,34 @@ func (fs *FileServiceImpl) RestoreHistory(ctx context.Context, actions []*histor
 	// return nil
 }
 
-func (fs *FileServiceImpl) NewZip(zipName string, owner *user_model.User) (*file_model.WeblensFileImpl, error) {
+func (fs *FileServiceImpl) NewZip(ctx context.Context, zipName string, owner *user_model.User) (*file_model.WeblensFileImpl, error) {
+	newZipPath := file_model.ZipsDirPath.Child(zipName, false)
 
-	return nil, errors.New("not implemented")
-	// cacheTree := fs.trees[CachesTreeKey]
-	// if cacheTree == nil {
-	// 	return nil, errors.WithStack(file_model.ErrFileTreeNotFound)
-	// }
-	//
-	// cacheRoot := cacheTree.GetRoot()
-	//
-	// takeoutDir, err := cacheRoot.GetChild("takeout")
-	// if err != nil {
-	// 	return nil, err
-	// }
-	//
-	// zipFile, err := cacheTree.Touch(takeoutDir, zipName, nil)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	//
-	// return zipFile, nil
+	zipsDir, err := fs.GetFileByFilepath(ctx, file_model.ZipsDirPath)
+	if err != nil {
+		return nil, err
+	}
+
+	newZip := file_model.NewWeblensFile(file_model.NewFileOptions{Path: newZipPath, CreateNow: true, GenerateId: true})
+
+	err = newZip.SetParent(zipsDir)
+	if err != nil {
+		return nil, err
+	}
+
+	err = fs.AddFile(ctx, newZip)
+	if err != nil {
+		return nil, err
+	}
+
+	return newZip, nil
 }
 
-func (fs *FileServiceImpl) GetZip(id string) (*file_model.WeblensFileImpl, error) {
-	return nil, errors.New("not implemented")
+func (fs *FileServiceImpl) GetZip(ctx context.Context, id string) (*file_model.WeblensFileImpl, error) {
+	zipPath := file_model.ZipsDirPath.Child(id, false)
+	f, err := fs.GetFileByFilepath(ctx, zipPath)
 
-	// takeoutFile := fs.trees[CachesTreeKey].Get(id)
-	// if takeoutFile == nil {
-	// 	return nil, file_model.ErrFileNotFound
-	// }
-	// if takeoutFile.GetParent().Filename() != "takeout" {
-	// 	return nil, file_model.ErrFileNotFound
-	// }
-	//
-	// return takeoutFile, nil
+	return f, err
 }
 
 func (fs *FileServiceImpl) RenameFile(file *file_model.WeblensFileImpl, newName string) error {
@@ -594,8 +537,30 @@ func (fs *FileServiceImpl) RenameFile(file *file_model.WeblensFileImpl, newName 
 	return nil
 }
 
+func (fs *FileServiceImpl) GetChildren(ctx context.Context, folder *file_model.WeblensFileImpl) ([]*file_model.WeblensFileImpl, error) {
+	if !folder.IsDir() {
+		return nil, errors.WithStack(file_model.ErrDirectoryRequired)
+	}
+
+	if !folder.ChildrenLoaded() {
+		appCtx, ok := context_service.FromContext(ctx)
+		if !ok {
+			return nil, errors.WithStack(context_service.ErrNoContext)
+		}
+
+		appCtx.Log().Debug().Msgf("Loading children for folder [%s]", folder.GetPortablePath())
+
+		_, err := fs.loadDirectory(appCtx, folder.GetPortablePath())
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return folder.GetChildren(), nil
+}
+
 func (fs *FileServiceImpl) InitBackupDirectory(ctx context.Context, tower tower_model.Instance) (*file_model.WeblensFileImpl, error) {
-	backupRoot, err := fs.GetFileById(file_model.BackupTreeKey)
+	backupRoot, err := fs.GetFileById(ctx, file_model.BackupTreeKey)
 	if err != nil {
 		return nil, err
 	}
@@ -669,7 +634,7 @@ func (fs *FileServiceImpl) ResizeUp(ctx context.Context, f *file_model.WeblensFi
 	//
 	// return nil
 
-	f, err := fs.GetFileById(file_model.UsersTreeKey)
+	f, err := fs.GetFileById(ctx, file_model.UsersTreeKey)
 	if err != nil {
 		return err
 	}
@@ -703,91 +668,6 @@ func (fs *FileServiceImpl) ResizeDown(ctx context.Context, f *file_model.Weblens
 	f.Size()
 
 	return nil
-}
-
-func (fs *FileServiceImpl) loadContentIdCache() error {
-	// fs.contentIdLock.Lock()
-	// defer fs.contentIdLock.Unlock()
-	// fs.contentIdCache = make(map[string]*file_model.WeblensFileImpl)
-	//
-	// _ = fs.trees[file_model.RestoreTreeKey].GetRoot().LeafMap(
-	// 	func(f *file_model.WeblensFileImpl) error {
-	// 		if f.IsDir() {
-	// 			return nil
-	// 		}
-	// 		fs.contentIdCache[f.Filename()] = f
-	// 		return nil
-	// 	},
-	// )
-	//
-	// if usersTree := fs.trees[file_model.UsersTreeKey]; usersTree != nil {
-	// 	_ = usersTree.GetRoot().LeafMap(
-	// 		func(f *file_model.WeblensFileImpl) error {
-	// 			if f.IsDir() {
-	// 				return nil
-	// 			}
-	// 			contentId := f.GetContentId()
-	// 			if contentId != "" {
-	// 				if _, ok := fs.contentIdCache[contentId]; !ok {
-	// 					fs.contentIdCache[contentId] = f
-	// 				}
-	// 			}
-	// 			return nil
-	// 		},
-	// 	)
-	// }
-	//
-	// return nil
-
-	return errors.New("not implemented")
-}
-
-const oneMB = 1024 * 1024
-
-func GenerateContentId(ctx context.Context, f *file_model.WeblensFileImpl) (string, error) {
-	l, _ := context_service.FromContext(ctx)
-
-	if f.IsDir() {
-		return "", errors.Errorf("cannot hash directory")
-	}
-
-	if f.GetContentId() != "" {
-		return f.GetContentId(), nil
-	}
-
-	l.Log().Trace().Msgf("Generating content id for [%s]", f.GetPortablePath())
-
-	fileSize := f.Size()
-
-	if fileSize == 0 {
-		return "", errors.WithStack(file_model.ErrEmptyFile)
-	}
-
-	// Read up to 1MB at a time
-	bufSize := math.Min(float64(fileSize), oneMB)
-	buf := make([]byte, int64(bufSize))
-	newHash := sha256.New()
-	fp, err := f.Readable()
-
-	if err != nil {
-		return "", err
-	}
-
-	if closer, ok := fp.(io.Closer); ok {
-		defer func(fp io.Closer) {
-			_ = fp.Close()
-		}(closer)
-	}
-
-	_, err = io.CopyBuffer(newHash, fp, buf)
-	if err != nil {
-		return "", err
-	}
-
-	contentId := base64.URLEncoding.EncodeToString(newHash.Sum(nil))[:20]
-	f.SetContentId(contentId)
-
-	return contentId, nil
 }
 
 func (fs *FileServiceImpl) CreateUserHome(ctx context.Context, user *user_model.User) error {
@@ -826,6 +706,21 @@ func (fs *FileServiceImpl) CreateUserHome(ctx context.Context, user *user_model.
 	}
 
 	return nil
+}
+
+func (fs *FileServiceImpl) getFileInternal(id string) (*file_model.WeblensFileImpl, bool) {
+	fs.treeLock.RLock()
+	defer fs.treeLock.RUnlock()
+
+	f, ok := fs.files[id]
+
+	return f, ok
+}
+
+func (fs *FileServiceImpl) setFileInternal(id string, f *file_model.WeblensFileImpl) {
+	fs.treeLock.Lock()
+	defer fs.treeLock.Unlock()
+	fs.files[id] = f
 }
 
 const SkipJournalKey = "skipJournal"
@@ -883,9 +778,10 @@ func (fs *FileServiceImpl) moveFilesWithTransaction(ctx context.Context, files [
 		return errors.New("failed to get notifier from context")
 	}
 
+	oldParents := []*file_model.WeblensFileImpl{}
+
 	for _, file := range files {
 		oldPath := file.GetPortablePath()
-		oldParentId := file.GetParent().ID()
 
 		newPath, err := MakeUniqueChildName(destFolder.GetPortablePath(), file.GetPortablePath().Filename(), file.IsDir())
 		if err != nil {
@@ -958,8 +854,16 @@ func (fs *FileServiceImpl) moveFilesWithTransaction(ctx context.Context, files [
 			return err
 		}
 
-		o := notify.FileNotificationOptions{PreMoveParentId: oldParentId}
-		notif := notify.NewFileNotification(ctx, file, websocket_mod.FileMovedEvent, o)
+		if !slices.ContainsFunc(oldParents, func(p *file_model.WeblensFileImpl) bool {
+			return p.ID() == oldParent.ID()
+		}) {
+			oldParents = append(oldParents, oldParent)
+		}
+	}
+
+	for _, oldParent := range oldParents {
+		// Notify the old parent that it has been updated
+		notif := notify.NewFileNotification(ctx, oldParent, websocket_mod.FileUpdatedEvent)
 		notifier.Notify(ctx, notif...)
 	}
 
@@ -972,6 +876,10 @@ func (fs *FileServiceImpl) moveFilesWithTransaction(ctx context.Context, files [
 }
 
 func (fs *FileServiceImpl) deleteFilesWithTransaction(ctx context.Context, files []*file_model.WeblensFileImpl) error {
+	if len(files) == 0 {
+		return nil
+	}
+
 	local, err := tower_model.GetLocal(ctx)
 	if err != nil {
 		return err
@@ -988,11 +896,17 @@ func (fs *FileServiceImpl) deleteFilesWithTransaction(ctx context.Context, files
 		return nil
 	}
 
+	appCtx, ok := context_service.FromContext(ctx)
+	if !ok {
+		return errors.New("failed to get app context from context")
+	}
+
 	// All files *should* share the same parent: the trash folder, so pulling
 	// just the first one to do the update on will work fine.
 	trash := files[0].GetParent()
 
 	actions := []history.FileAction{}
+	parents := make(map[string][]string)
 
 	for _, file := range files {
 		err := file.RecursiveMap(
@@ -1023,6 +937,13 @@ func (fs *FileServiceImpl) deleteFilesWithTransaction(ctx context.Context, files
 			return err
 		}
 
+		parentId := file.GetParent().ID()
+		if _, ok := parents[parentId]; !ok {
+			parents[parentId] = []string{}
+		}
+
+		parents[parentId] = append(parents[parentId], file.ID())
+
 		err = file.GetParent().RemoveChild(file.GetPortablePath().Filename())
 		if err != nil {
 			return err
@@ -1044,10 +965,10 @@ func (fs *FileServiceImpl) deleteFilesWithTransaction(ctx context.Context, files
 		if err != nil {
 			return err
 		}
-
-		notif := notify.NewFileNotification(ctx, file, websocket_mod.FileDeletedEvent)
-		context_mod.ToZ(ctx).Notify(ctx, notif...)
 	}
+
+	// notif := notify.NewFileNotification(ctx, file, websocket_mod.FileDeletedEvent)
+	// appCtx.Notify(ctx, notif...)
 
 	err = history.SaveActions(ctx, actions)
 	if err != nil {
@@ -1060,7 +981,7 @@ func (fs *FileServiceImpl) deleteFilesWithTransaction(ctx context.Context, files
 	}
 
 	notif := notify.NewFileNotification(ctx, trash, websocket_mod.FileUpdatedEvent)
-	context_mod.ToZ(ctx).Notify(ctx, notif...)
+	appCtx.Notify(ctx, notif...)
 
 	return nil
 }

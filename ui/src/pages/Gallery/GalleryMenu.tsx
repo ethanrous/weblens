@@ -5,7 +5,7 @@ import {
     IconEyeOff,
 } from '@tabler/icons-react'
 import MediaApi from '@weblens/api/MediaApi'
-import WeblensButton from '@weblens/lib/WeblensButton'
+import WeblensButton from '@weblens/lib/WeblensButton.tsx'
 import { useClick, useKeyDown } from '@weblens/lib/hooks'
 import { TimeOffset, newTimeOffset } from '@weblens/types/Types'
 import WeblensMedia from '@weblens/types/media/Media'

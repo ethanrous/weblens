@@ -1,4 +1,4 @@
-import WeblensTooltip from '@weblens/lib/WeblensTooltip'
+import WeblensTooltip from '@weblens/lib/WeblensTooltip.tsx'
 
 function getWsState(ready: number): { color: string; status: string } {
     let color: string

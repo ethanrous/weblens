@@ -1,6 +1,11 @@
-import { IconChevronDown, IconChevronLeft } from '@tabler/icons-react'
+import {
+    IconChevronDown,
+    IconChevronLeft,
+    IconExclamationCircle,
+} from '@tabler/icons-react'
 import { WsAction, useWebsocketStore } from '@weblens/api/Websocket'
-import WeblensButton from '@weblens/lib/WeblensButton'
+import WeblensButton from '@weblens/lib/WeblensButton.tsx'
+import { AxiosError } from 'axios'
 import { Component, ReactNode, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -121,6 +126,57 @@ function ErrorDisplay({
                     {err}
                 </p>
             </div>
+        </div>
+    )
+}
+
+export function RecoverableError({
+    message,
+    error,
+}: {
+    message: string
+    error: Error
+}) {
+    const [explainOpen, setExplainOpen] = useState<boolean>()
+
+    let explainer: ReactNode
+    if (error instanceof AxiosError && error.response.data.error) {
+        explainer = (
+            <div className="flex flex-col items-center">
+                <span className="text-red-600">
+                    {error.response.status +
+                        ' ' +
+                        error.response.statusText}{' '}
+                </span>
+                <span>{error.response.data.error}</span>
+            </div>
+        )
+    } else {
+        explainer = (
+            <div className="flex flex-col items-center">
+                <span className="text-red-600">Unknown Error</span>
+                <span>{error.message}</span>
+            </div>
+        )
+    }
+
+    return (
+        <div className="flex flex-col items-center justify-center gap-2 p-4">
+            <div
+                className="flex cursor-pointer items-center gap-2"
+                onClick={() => setExplainOpen((o) => !o)}
+            >
+                <IconExclamationCircle
+                    size={20}
+                    className="ml-2 text-red-500"
+                />
+                <span>{message}</span>
+            </div>
+            {explainOpen && (
+				<div className='border rounded p-2'>
+					{explainer}
+				</div>
+            )}
         </div>
     )
 }

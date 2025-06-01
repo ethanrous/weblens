@@ -2,15 +2,33 @@ package journal
 
 import (
 	"context"
+	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/history"
-	"github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/fs"
+	"github.com/ethanrous/weblens/modules/log"
 	"go.mongodb.org/mongo-driver/bson"
 )
+
+func pathPrefixReFilter(path fs.Filepath, depth int) bson.M {
+	pathRe := regexp.QuoteMeta(path.ToPortable())
+	pathRe += `([^/]+/?){0,` + strconv.Itoa(depth) + `}/?$`
+
+	log.GlobalLogger().Debug().Msgf("Path regex: %s", pathRe)
+
+	return bson.M{
+		"$or": bson.A{
+			bson.M{"filepath": bson.M{"$regex": pathRe}},
+			bson.M{"originPath": bson.M{"$regex": pathRe}},
+			bson.M{"destinationPath": bson.M{"$regex": pathRe}},
+		},
+	}
+}
 
 func GetPastFileById(ctx context.Context, fileId string, time time.Time) (*file_model.WeblensFileImpl, error) {
 	lastAction, err := history.GetLastActionByFileIdBefore(ctx, fileId, time)
@@ -90,78 +108,6 @@ func GetPastFileByPath(ctx context.Context, path fs.Filepath, time time.Time) (*
 	}
 
 	return newFile, nil
-
-	// actions, err := getActionsByPath(ctx, id, false)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// slices.SortFunc(
-	// 	actions, func(a, b *history.FileAction) int {
-	// 		return a.GetTimestamp().Compare(b.GetTimestamp())
-	// 	},
-	// )
-	//
-	// // If the first action is after the time we are looking for, we need to get the actions
-	// // from the path of the file, but not necessarily the same lifetime.
-	// diff := actions[0].GetTimestamp().UnixMilli() - time.UnixMilli()
-	// if time.Unix() != 0 && diff > 0 {
-	// 	actions, err = j.getActionsByPath(lt.GetLatestPath(), true)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	slices.SortFunc(
-	// 		actions, func(a, b *history.FileAction) int {
-	// 			return a.GetTimestamp().Compare(b.GetTimestamp())
-	// 		},
-	// 	)
-	// }
-	//
-	// if len(actions) == 0 {
-	// 	return nil, errors.WithStack(file_model.ErrFileNotFound)
-	// }
-	//
-	// relevantAction := actions[len(actions)-1]
-	// counter := 1
-	// for relevantAction.GetTimestamp().UnixMilli() >= time.UnixMilli() {
-	// 	counter++
-	// 	if len(actions)-counter < 0 {
-	// 		break
-	// 	}
-	// 	if actions[len(actions)-counter].ActionType == history.FileSizeChange {
-	// 		continue
-	// 	}
-	// 	relevantAction = actions[len(actions)-counter]
-	// }
-	//
-	// if relevantAction.ActionType == history.FileDelete {
-	// 	return nil, errors.Errorf("Trying to get past file after delete [%s]", id)
-	// }
-	//
-	// if fs.IsZeroFilepath(relevantAction.DestinationPath) {
-	// 	return nil, errors.Errorf("Got empty DestinationPath trying to get past file [%s] from journal", id)
-	// }
-	//
-	// f := file_model.NewWeblensFile(file_model.NewFileOptions{Path: relevantAction.DestinationPath})
-	// // f.parentId = relevantAction.ParentId
-	// // f.portablePath = path
-	// // f.pastFile = true
-	// // f.pastId = relevantAction.LifeId
-	// // f.SetContentId(lt.ContentId)
-	// // f.setModifyDate(relevantAction.GetTimestamp())
-	//
-	// children, err := GetPastFolderChildren(f, time)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	//
-	// for _, child := range children {
-	// 	err = f.AddChild(child)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// }
-	//
-	// return f, nil
 }
 
 func GetPastFolderChildren(folder *file_model.WeblensFileImpl, time time.Time) (
@@ -206,8 +152,44 @@ func GetPastFolderChildren(folder *file_model.WeblensFileImpl, time time.Time) (
 	return nil, errors.New("not implemented")
 }
 
-func GetActionsByPath(ctx context.Context, path fs.Filepath) ([]*history.FileAction, error) {
-	return getActionsByPath(ctx, path, false)
+func GetActionsByPathSince(ctx context.Context, path fs.Filepath, since time.Time, noChildren bool) ([]history.FileAction, error) {
+	col, err := db.GetCollection(ctx, history.FileHistoryCollectionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathMatch bson.M
+	if noChildren {
+		// pathMatch = bson.A{
+		// 	bson.D{{Key: "actions.originPath", Value: path.ToPortable()}},
+		// 	bson.D{{Key: "actions.destinationPath", Value: path.ToPortable()}},
+		// }
+	} else {
+		pathMatch = pathPrefixReFilter(path, 1)
+	}
+
+	pipe := bson.A{
+		bson.M{"$match": bson.M{"timestamp": bson.M{"$gt": since}}},
+		bson.M{"$match": pathMatch},
+		// bson.D{{Key: "$unwind", Value: bson.D{{Key: "path", Value: "$actions"}}}},
+		// bson.D{{Key: "$match", Value: bson.D{{Key: "$or", Value: pathMatch}}}},
+		// bson.D{{Key: "$replaceRoot", Value: bson.D{{Key: "newRoot", Value: "$actions"}}}},
+		bson.D{{Key: "$sort", Value: bson.D{{Key: "timestamp", Value: -1}}}},
+	}
+
+	ret, err := col.Aggregate(context.Background(), pipe)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	var target []history.FileAction
+
+	err = ret.All(context.Background(), &target)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return target, nil
 }
 
 func GetActionsSince(ctx context.Context, time time.Time) ([]*history.FileAction, error) {
@@ -239,7 +221,47 @@ func GetAllActionsByTowerId(ctx context.Context, towerId string) ([]*history.Fil
 	}
 
 	return target, nil
+}
 
+func GetLatestPathById(ctx context.Context, fileId string) (fs.Filepath, error) {
+	col, err := db.GetCollection(ctx, history.FileHistoryCollectionKey)
+	if err != nil {
+		return fs.Filepath{}, err
+	}
+
+	pipe := bson.A{
+		bson.M{"$match": bson.M{"fileId": fileId}},
+		bson.M{"$sort": bson.M{"timestamp": -1}},
+		bson.M{"$limit": 1},
+		bson.M{"$project": bson.M{"destinationPath": 1, "filepath": 1}},
+	}
+
+	ret, err := col.Aggregate(ctx, pipe)
+	if err != nil {
+		return fs.Filepath{}, errors.WithStack(err)
+	}
+
+	var result struct {
+		DestinationPath string `bson:"destinationPath"`
+		Filepath        string `bson:"filepath"`
+	}
+
+	if !ret.Next(ctx) {
+		return fs.Filepath{}, errors.New("no results found")
+	}
+
+	err = ret.Decode(&result)
+	if err != nil {
+		return fs.Filepath{}, errors.WithStack(err)
+	}
+
+	log.FromContext(ctx).Debug().Msgf("GOT EEM %v", result)
+
+	if result.DestinationPath != "" {
+		return fs.ParsePortable(result.DestinationPath)
+	} else {
+		return fs.ParsePortable(result.Filepath)
+	}
 }
 
 func getActionsByPath(ctx context.Context, path fs.Filepath, noChildren bool) ([]*history.FileAction, error) {

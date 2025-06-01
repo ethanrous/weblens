@@ -1,10 +1,10 @@
 import { IconBrandGithub } from '@tabler/icons-react'
 import UsersApi from '@weblens/api/UserApi'
-import WeblensLoader from '@weblens/components/Loading'
-import WeblensLogo from '@weblens/components/Logo'
+import WeblensLoader from '@weblens/components/Loading.tsx'
+import WeblensLogo from '@weblens/components/Logo.tsx'
 // import { useKeyDown } from '@weblens/lib/hooks'
-import WeblensButton from '@weblens/lib/WeblensButton'
-import WeblensInput from '@weblens/lib/WeblensInput'
+import WeblensButton from '@weblens/lib/WeblensButton.tsx'
+import WeblensInput from '@weblens/lib/WeblensInput.tsx'
 import { ErrorHandler } from '@weblens/types/Types'
 import { AxiosError } from 'axios'
 import { useCallback, useEffect, useState } from 'react'
@@ -113,9 +113,9 @@ export function SignupInputForm({
 
     return (
         <div>
-            <label className='flex items-center mb-1' htmlFor="name">
+            <label className="mb-1 flex items-center" htmlFor="name">
                 <span>Full Name</span>
-                <sup className="text-red-500 h-max">*</sup>
+                <sup className="h-max text-red-500">*</sup>
             </label>
 
             <WeblensInput
@@ -157,9 +157,9 @@ export function SignupInputForm({
                 <span className="text-red-500">{usernameValidationError}</span>
             </div>
 
-            <label className='flex items-center mb-1' htmlFor="new-password">
+            <label className="mb-1 flex items-center" htmlFor="new-password">
                 <span>Password</span>
-                <sup className="text-red-500 h-max">*</sup>
+                <sup className="h-max text-red-500">*</sup>
             </label>
             <WeblensInput
                 placeholder="*******"
@@ -210,7 +210,7 @@ function Signup() {
     )
 
     return (
-        <div className="bg-wl-background bg-wl-background my-auto flex h-screen max-h-screen flex-col items-center justify-center gap-2 sm:justify-normal lg:my-0">
+        <div className="bg-wl-background bg-wl-background m-auto flex h-screen max-h-screen flex-col items-center justify-center gap-2 sm:justify-normal lg:my-0">
             <div className="flex w-full justify-center text-center sm:mt-72">
                 <WeblensLogo size={100} />
                 <h1 className="mt-auto">EBLENS</h1>

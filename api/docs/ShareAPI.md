@@ -4,12 +4,84 @@ All URIs are relative to *http://localhost:8080/api/v1*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
+[**AddUserToShare**](ShareAPI.md#AddUserToShare) | **Post** /share/{shareId}/accessors | Add a user to a file share
 [**CreateFileShare**](ShareAPI.md#CreateFileShare) | **Post** /share/file | Share a file
 [**DeleteFileShare**](ShareAPI.md#DeleteFileShare) | **Delete** /share/{shareId} | Delete a file share
 [**GetFileShare**](ShareAPI.md#GetFileShare) | **Get** /share/{shareId} | Get a file share
-[**SetShareAccessors**](ShareAPI.md#SetShareAccessors) | **Patch** /share/{shareId}/accessors | Update a share&#39;s accessors list
+[**RemoveUserFromShare**](ShareAPI.md#RemoveUserFromShare) | **Delete** /share/{shareId}/accessors/{username} | Remove a user from a file share
 [**SetSharePublic**](ShareAPI.md#SetSharePublic) | **Patch** /share/{shareId}/public | Update a share&#39;s \&quot;public\&quot; status
+[**UpdateShareAccessorPermissions**](ShareAPI.md#UpdateShareAccessorPermissions) | **Patch** /share/{shareId}/accessors/{username} | Update a share&#39;s user permissions
 
+
+
+## AddUserToShare
+
+> ShareInfo AddUserToShare(ctx, shareId).Request(request).Execute()
+
+Add a user to a file share
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/ethanrous/weblens/api"
+)
+
+func main() {
+	shareId := "shareId_example" // string | Share Id
+	request := *openapiclient.NewAddUserParams("Username_example") // AddUserParams | Share Accessors
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	resp, r, err := apiClient.ShareAPI.AddUserToShare(context.Background(), shareId).Request(request).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `ShareAPI.AddUserToShare``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	// response from `AddUserToShare`: ShareInfo
+	fmt.Fprintf(os.Stdout, "Response from `ShareAPI.AddUserToShare`: %v\n", resp)
+}
+```
+
+### Path Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+**ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
+**shareId** | **string** | Share Id | 
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiAddUserToShareRequest struct via the builder pattern
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+
+ **request** | [**AddUserParams**](AddUserParams.md) | Share Accessors | 
+
+### Return type
+
+[**ShareInfo**](ShareInfo.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
 
 
 ## CreateFileShare
@@ -210,11 +282,11 @@ No authorization required
 [[Back to README]](../README.md)
 
 
-## SetShareAccessors
+## RemoveUserFromShare
 
-> ShareInfo SetShareAccessors(ctx, shareId).Request(request).Execute()
+> ShareInfo RemoveUserFromShare(ctx, shareId, username).Execute()
 
-Update a share's accessors list
+Remove a user from a file share
 
 ### Example
 
@@ -230,17 +302,17 @@ import (
 
 func main() {
 	shareId := "shareId_example" // string | Share Id
-	request := *openapiclient.NewStructsUserListBody() // StructsUserListBody | Share Accessors
+	username := "username_example" // string | Username
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.ShareAPI.SetShareAccessors(context.Background(), shareId).Request(request).Execute()
+	resp, r, err := apiClient.ShareAPI.RemoveUserFromShare(context.Background(), shareId, username).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `ShareAPI.SetShareAccessors``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error when calling `ShareAPI.RemoveUserFromShare``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
-	// response from `SetShareAccessors`: ShareInfo
-	fmt.Fprintf(os.Stdout, "Response from `ShareAPI.SetShareAccessors`: %v\n", resp)
+	// response from `RemoveUserFromShare`: ShareInfo
+	fmt.Fprintf(os.Stdout, "Response from `ShareAPI.RemoveUserFromShare`: %v\n", resp)
 }
 ```
 
@@ -251,16 +323,17 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
 **shareId** | **string** | Share Id | 
+**username** | **string** | Username | 
 
 ### Other Parameters
 
-Other parameters are passed through a pointer to a apiSetShareAccessorsRequest struct via the builder pattern
+Other parameters are passed through a pointer to a apiRemoveUserFromShareRequest struct via the builder pattern
 
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
- **request** | [**StructsUserListBody**](StructsUserListBody.md) | Share Accessors | 
+
 
 ### Return type
 
@@ -342,6 +415,79 @@ No authorization required
 
 - **Content-Type**: Not defined
 - **Accept**: Not defined
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
+
+
+## UpdateShareAccessorPermissions
+
+> ShareInfo UpdateShareAccessorPermissions(ctx, shareId, username).Request(request).Execute()
+
+Update a share's user permissions
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/ethanrous/weblens/api"
+)
+
+func main() {
+	shareId := "shareId_example" // string | Share Id
+	username := "username_example" // string | Username
+	request := *openapiclient.NewPermissionsParams() // PermissionsParams | Share Permissions Params
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	resp, r, err := apiClient.ShareAPI.UpdateShareAccessorPermissions(context.Background(), shareId, username).Request(request).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `ShareAPI.UpdateShareAccessorPermissions``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	// response from `UpdateShareAccessorPermissions`: ShareInfo
+	fmt.Fprintf(os.Stdout, "Response from `ShareAPI.UpdateShareAccessorPermissions`: %v\n", resp)
+}
+```
+
+### Path Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+**ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
+**shareId** | **string** | Share Id | 
+**username** | **string** | Username | 
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiUpdateShareAccessorPermissionsRequest struct via the builder pattern
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+
+
+ **request** | [**PermissionsParams**](PermissionsParams.md) | Share Permissions Params | 
+
+### Return type
+
+[**ShareInfo**](ShareInfo.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
 [[Back to Model list]](../README.md#documentation-for-models)

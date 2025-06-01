@@ -36,7 +36,12 @@ func InsertFunc[S ~[]T, T any](ts S, t T, cmp func(a T, b T) int) S {
 	return slices.Insert(ts, i, t)
 }
 
-func Contains[S ~[]T, T cmp.Ordered](ts S, t T) bool {
+func Contains[S ~[]T, T comparable](ts S, t T) bool {
+	return slices.Contains(ts, t) // find slot
+
+}
+
+func ContainsS[S ~[]T, T cmp.Ordered](ts S, t T) bool {
 	i, _ := slices.BinarySearch(ts, t) // find slot
 	return i >= 0
 }

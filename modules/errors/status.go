@@ -4,6 +4,11 @@ import (
 	"errors"
 )
 
+type StatusErr interface {
+	error
+	Status() int
+}
+
 type statusError struct {
 	code int
 	err  error
@@ -21,17 +26,17 @@ func (e *statusError) Status() int {
 	return e.code
 }
 
-func AsStatus(err error, defaultStatus int) (int, error) {
+func AsStatus(err error, defaultStatus int) (int, string) {
 	if err == nil {
-		return 0, nil
+		return 0, ""
 	}
 
-	var statusErr *statusError
+	var statusErr StatusErr
 	if errors.As(err, &statusErr) {
-		return statusErr.Status(), statusErr.Unwrap()
+		return statusErr.Status(), statusErr.Error()
 	}
 
-	return defaultStatus, err
+	return defaultStatus, err.Error()
 }
 
 func Statusf(code int, format string, args ...any) error {

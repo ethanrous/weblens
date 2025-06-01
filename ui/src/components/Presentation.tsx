@@ -10,7 +10,7 @@ import {
 } from '@tabler/icons-react'
 import { FileApi } from '@weblens/api/FileBrowserApi'
 import MediaApi from '@weblens/api/MediaApi'
-import WeblensButton from '@weblens/lib/WeblensButton'
+import WeblensButton from '@weblens/lib/WeblensButton.tsx'
 import { useKeyDown, useResize, useResizeDrag } from '@weblens/lib/hooks'
 import {
     calculateShareId,
@@ -26,9 +26,11 @@ import {
     Dispatch,
     MouseEventHandler,
     ReactNode,
+    RefObject,
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -61,7 +63,7 @@ export const ContainerMedia = ({
     containerRef,
 }: {
     mediaData: WeblensMedia
-    containerRef: HTMLDivElement
+    containerRef: RefObject<HTMLDivElement | null>
 }) => {
     const [boxSize, setBoxSize] = useState({
         height: 0,
@@ -72,7 +74,7 @@ export const ContainerMedia = ({
 
     useEffect(() => {
         let newWidth: number
-        if (!containerRef) {
+        if (!containerRef.current) {
             newWidth = 0
         } else if (containerWidth < 150 && mediaData.GetPageCount() > 1) {
             newWidth = 150
@@ -318,7 +320,8 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
                                 downloadSelected(
                                     [file],
                                     removeLoading,
-                                    shareId
+                                    shareId,
+                                    'jpeg'
                                 ).catch(ErrorHandler)
                             }}
                         />
@@ -483,7 +486,7 @@ export function PresentationFile({ file }: { file: WeblensFile }) {
     const [to, setTo] = useState<NodeJS.Timeout>()
     const [guiShown, setGuiShown] = useState(false)
     const [fileInfoOpen, setFileInfoOpen] = useState(true)
-    const [containerRef, setContainerRef] = useState<HTMLDivElement>()
+    const containerRef = useRef<HTMLDivElement>(null)
 
     const contentId = file?.GetContentId()
     const mediaMap = useMediaStore((state) => state.mediaMap)
@@ -538,7 +541,7 @@ export function PresentationFile({ file }: { file: WeblensFile }) {
             </div>
 
             <div
-                ref={setContainerRef}
+                ref={containerRef}
                 className="mx-auto flex h-full max-w-full min-w-0 grow items-center justify-center"
             >
                 {Visual}

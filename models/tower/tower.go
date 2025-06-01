@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/models/db"
-	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/modules/errors"
+	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -114,6 +114,10 @@ func SaveTower(ctx context.Context, tower *Instance) error {
 
 	if tower.DbId.IsZero() {
 		tower.DbId = primitive.NewObjectID()
+	} else {
+		_, err = col.ReplaceOne(ctx, bson.M{"_id": tower.DbId}, tower)
+
+		return db.WrapError(err, "failed to update tower")
 	}
 
 	err = validateNewTower(ctx, tower)

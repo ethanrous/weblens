@@ -47,7 +47,8 @@ func init() {
 	zerolog.TimestampFieldName = "@timestamp"
 	zerolog.ErrorStackMarshaler = MarshalStack
 	zerolog.ErrorStackFieldName = "traceback"
-	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+
+	NewZeroLogger()
 }
 
 type ErrUnwrapHook struct{}
@@ -64,16 +65,19 @@ type LogOpts struct {
 
 func compileLogOpts(o ...LogOpts) LogOpts {
 	opts := LogOpts{}
+
 	for _, opt := range o {
 		if opt.NoOpenSearch {
 			opts.NoOpenSearch = true
 		}
 	}
+
 	return opts
 }
 
 func NopLogger() zerolog.Logger {
 	nop := zerolog.Nop()
+
 	return nop
 }
 
@@ -82,11 +86,14 @@ func NewZeroLogger(opts ...LogOpts) *zerolog.Logger {
 
 	if logger.GetLevel() != zerolog.Disabled && len(opts) == 0 {
 		l := logger.With().Logger()
+
 		return &l
 	}
 
+	config := config.GetConfig()
+
 	var localLogger io.Writer
-	if os.Getenv("LOG_FORMAT") == "dev" {
+	if config.LogFormat == "dev" {
 		localLogger = WLConsoleLogger{}
 	} else {
 		localLogger = os.Stdout
@@ -115,15 +122,15 @@ func NewZeroLogger(opts ...LogOpts) *zerolog.Logger {
 		}
 	}
 
-	logLevel := config.GetConfig().LogLevel
-	zerolog.SetGlobalLevel(logLevel)
-
 	multi := zerolog.MultiLevelWriter(writers...)
-	log := zerolog.New(multi).Level(logLevel).With().Timestamp().Caller().Str("weblens_build_version", wl_version).Logger()
-	logger = log
-	zlog.Logger = log
+	log := zerolog.New(multi).Level(config.LogLevel).With().Timestamp().Caller().Str("weblens_build_version", wl_version).Logger()
 
-	log.Info().Msgf("Weblens logger initialized [%s]", log.GetLevel())
+	if len(opts) == 0 {
+		zerolog.SetGlobalLevel(config.LogLevel)
+		logger = log
+		zlog.Logger = log
+		log.Info().Msgf("Weblens logger initialized [%s][%s]", log.GetLevel(), config.LogFormat)
+	}
 
 	return &log
 }

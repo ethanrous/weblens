@@ -13,74 +13,75 @@ import (
 )
 
 func getIndexFields(ctx context.RequestContext, proxyAddress string) (fields indexFields) {
-	var hasImage bool
+	hasImage := false
 	path := ctx.Req.URL.Path
 
 	if path[0] == '/' {
 		path = path[1:]
 	}
+
 	fields.Url = fmt.Sprintf("%s/%s", proxyAddress, path)
 
 	if strings.HasPrefix(path, "files/share/") {
 		path = path[len("files/share/"):]
 		slashIndex := strings.Index(path, "/")
+
 		if slashIndex == -1 {
 			return fields
 		}
 
-		shareId := path[:slashIndex]
+		shareId := share_model.ShareIdFromString(path[:slashIndex])
+
 		share, err := share_model.GetShareById(ctx, shareId)
 		if err != nil && errors.Is(err, share_model.ErrShareNotFound) {
 			log.Error().Stack().Err(err).Msg("")
+
 			return fields
 		}
-		if share != nil {
-			if !share.IsPublic() {
-				fields.Title = "Sign in to view"
-				fields.Description = "Private file share"
-				fields.Image = "/logo_1200.png"
-				return fields
-			}
 
-			f, err := ctx.FileService.GetFileById(share.FileId)
+		if share != nil {
+			f, err := ctx.FileService.GetFileById(ctx, share.FileId)
 			if err != nil {
 				log.Error().Stack().Err(err).Msg("")
+
 				return fields
 			}
-			if f != nil {
-				fields.Title = f.GetPortablePath().Filename()
-				fields.Description = "Weblens file share"
 
-				var m *media_model.Media
+			// TODO: consider sending file name in private shares. An option, perhaps?
+			fields.Title = f.GetPortablePath().Filename() + " - Weblens"
 
-				if f.IsDir() {
-					cover, err := cover_model.GetCoverByFolderId(ctx, f.ID())
-					if err == nil {
-						m, _ = media_model.GetMediaByContentId(ctx, cover.CoverPhotoId)
-					} else {
-						imgUrl := fmt.Sprintf("%s/api/static/folder.png", proxyAddress)
-						hasImage = true
-						fields.Image = imgUrl
-					}
+			if !share.IsPublic() {
+				fields.Description = "Weblens private file share. Sign in with your weblens account to view"
+				fields.Image = "/static/favicon_48x48.png"
 
+				return fields
+			}
+
+			fields.Description = "Weblens file share"
+
+			var m *media_model.Media
+
+			if f.IsDir() {
+				cover, err := cover_model.GetCoverByFolderId(ctx, f.ID())
+				if err == nil {
+					m, _ = media_model.GetMediaByContentId(ctx, cover.CoverPhotoId)
 				} else {
-					m, _ = media_model.GetMediaByContentId(ctx, f.GetContentId())
-				}
-
-				if m != nil && !hasImage {
-					imgUrl := fmt.Sprintf(
-						"%s/api/media/%s.webp?quality=thumbnail&shareId=%s", proxyAddress,
-						f.GetContentId(), share.ID(),
-					)
 					hasImage = true
-					fields.Image = imgUrl
+					fields.Image = "/static/folder.png"
 				}
+			} else {
+				m, _ = media_model.GetMediaByContentId(ctx, f.GetContentId())
+			}
+
+			if m != nil && !hasImage {
+				hasImage = true
+				fields.Image = fmt.Sprintf("/api/v1/media/%s.webp?quality=thumbnail&shareId=%s", f.GetContentId(), share.ID())
 			}
 		}
 	}
 
 	if !hasImage {
-		fields.Image = "/logo_1200.png"
+		fields.Image = "/static/logo_1200.png"
 	}
 
 	return fields

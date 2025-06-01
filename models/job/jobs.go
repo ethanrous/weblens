@@ -9,6 +9,7 @@ const (
 	GatherFsStatsTask    = "gather_filesystem_stats"
 	BackupTask           = "do_backup"
 	HashFileTask         = "hash_file"
+	LoadFilesystemTask   = "load_filesystem"
 	CopyFileFromCoreTask = "copy_file_from_core"
 	RestoreCoreTask      = "restore_core"
 )

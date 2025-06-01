@@ -11,6 +11,7 @@ api_towers.go
 api_users.go
 client.go
 configuration.go
+docs/AddUserParams.md
 docs/ApiKeyParams.md
 docs/ApiKeysAPI.md
 docs/BackupInfo.md
@@ -38,13 +39,14 @@ docs/NewUploadInfo.md
 docs/NewUploadParams.md
 docs/NewUserParams.md
 docs/PasswordUpdateParams.md
+docs/PermissionsInfo.md
+docs/PermissionsParams.md
 docs/RestoreFilesBody.md
 docs/RestoreFilesInfo.md
 docs/ShareAPI.md
 docs/ShareInfo.md
 docs/StructsInitServerParams.md
 docs/StructsScanBody.md
-docs/StructsUserListBody.md
 docs/TakeoutInfo.md
 docs/TokenInfo.md
 docs/TowerInfo.md
@@ -57,6 +59,7 @@ docs/WeblensErrorInfo.md
 git_push.sh
 go.mod
 go.sum
+model_add_user_params.go
 model_api_key_params.go
 model_backup_info.go
 model_create_folder_body.go
@@ -80,12 +83,13 @@ model_new_upload_info.go
 model_new_upload_params.go
 model_new_user_params.go
 model_password_update_params.go
+model_permissions_info.go
+model_permissions_params.go
 model_restore_files_body.go
 model_restore_files_info.go
 model_share_info.go
 model_structs_init_server_params.go
 model_structs_scan_body.go
-model_structs_user_list_body.go
 model_takeout_info.go
 model_token_info.go
 model_tower_info.go

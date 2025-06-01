@@ -93,7 +93,7 @@ func Routes(ctx context_service.AppContext) *router.Router {
 	}, router.RequireSignIn, router.RequireCoreTower)
 
 	// Takeout
-	// r.Post("/takeout", createTakeout)
+	r.Post("/takeout", file_api.CreateTakeout)
 
 	// Users
 	r.Group("/users", func() {
@@ -123,9 +123,14 @@ func Routes(ctx context_service.AppContext) *router.Router {
 		r.Post("/file", file_api.CreateFileShare)
 		r.Group("/{shareId}", func() {
 			r.Get("", file_api.GetFileShare)
-			r.Patch("/accessors", router.RequireSignIn, file_api.SetShareAccessors)
 			r.Patch("/public", router.RequireSignIn, file_api.SetSharePublic)
 			r.Delete("", router.RequireSignIn, file_api.DeleteShare)
+
+			r.Group("/accessors", func() {
+				r.Post("", file_api.AddUserToShare)
+				r.Patch("/{username}", file_api.SetShareAccessors)
+				r.Delete("/{username}", file_api.RemoveUserFromShare)
+			})
 		})
 	})
 
@@ -156,21 +161,13 @@ func Routes(ctx context_service.AppContext) *router.Router {
 	return r
 }
 
-func Docs() *router.Router {
-	r := router.NewRouter()
-
-	r.Get("/", func(ctx context_service.RequestContext) {
-		http.Redirect(ctx.W, ctx.Req, "/docs/", http.StatusMovedPermanently)
-	})
-
+func Docs() http.Handler {
 	// Kinda hacky, but allows for docs to be served from /docs/ instead of /docs/index.html
-	r.Get("/", func(ctx context_service.RequestContext) {
-		if ctx.Req.RequestURI == "/docs/" {
-			ctx.Req.RequestURI = "/docs/index.html"
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.RequestURI == "/docs/" {
+			req.RequestURI = "/docs/index.html"
 		}
 
-		httpSwagger.WrapHandler(ctx.W, ctx.Req)
+		httpSwagger.WrapHandler(w, req)
 	})
-
-	return r
 }

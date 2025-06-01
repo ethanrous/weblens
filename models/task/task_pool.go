@@ -294,7 +294,7 @@ func (tp *TaskPool) QueueTask(task task_mod.Task) (err error) {
 		return
 	}
 
-	if t.taskPool != nil && (t.taskPool != tp || t.queueState != PreQueued) {
+	if t.taskPool != nil && (t.taskPool != tp || t.queueState != Created) {
 		// Task is already queued, we are not allowed to move it to another queue.
 		// We can call .ClearAndRecompute() on the task and it will queue it
 		// again, but it cannot be transferred

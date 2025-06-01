@@ -24,6 +24,7 @@ type ShareInfo struct {
 	Expires *int32 `json:"expires,omitempty"`
 	FileId *string `json:"fileId,omitempty"`
 	Owner *string `json:"owner,omitempty"`
+	Permissions *map[string]PermissionsInfo `json:"permissions,omitempty"`
 	Public *bool `json:"public,omitempty"`
 	ShareId *string `json:"shareId,omitempty"`
 	ShareName *string `json:"shareName,omitempty"`
@@ -207,6 +208,38 @@ func (o *ShareInfo) HasOwner() bool {
 // SetOwner gets a reference to the given string and assigns it to the Owner field.
 func (o *ShareInfo) SetOwner(v string) {
 	o.Owner = &v
+}
+
+// GetPermissions returns the Permissions field value if set, zero value otherwise.
+func (o *ShareInfo) GetPermissions() map[string]PermissionsInfo {
+	if o == nil || IsNil(o.Permissions) {
+		var ret map[string]PermissionsInfo
+		return ret
+	}
+	return *o.Permissions
+}
+
+// GetPermissionsOk returns a tuple with the Permissions field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ShareInfo) GetPermissionsOk() (*map[string]PermissionsInfo, bool) {
+	if o == nil || IsNil(o.Permissions) {
+		return nil, false
+	}
+	return o.Permissions, true
+}
+
+// HasPermissions returns a boolean if a field has been set.
+func (o *ShareInfo) HasPermissions() bool {
+	if o != nil && !IsNil(o.Permissions) {
+		return true
+	}
+
+	return false
+}
+
+// SetPermissions gets a reference to the given map[string]PermissionsInfo and assigns it to the Permissions field.
+func (o *ShareInfo) SetPermissions(v map[string]PermissionsInfo) {
+	o.Permissions = &v
 }
 
 // GetPublic returns the Public field value if set, zero value otherwise.
@@ -425,6 +458,9 @@ func (o ShareInfo) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Owner) {
 		toSerialize["owner"] = o.Owner
+	}
+	if !IsNil(o.Permissions) {
+		toSerialize["permissions"] = o.Permissions
 	}
 	if !IsNil(o.Public) {
 		toSerialize["public"] = o.Public

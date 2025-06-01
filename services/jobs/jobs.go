@@ -13,7 +13,6 @@ import (
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/ethanrous/weblens/modules/websocket"
 	context_service "github.com/ethanrous/weblens/services/context"
-	file_service "github.com/ethanrous/weblens/services/file"
 	"github.com/ethanrous/weblens/services/notify"
 	"github.com/rs/zerolog"
 )
@@ -99,7 +98,7 @@ func HashFile(tsk task_mod.Task) {
 
 	meta := t.GetMeta().(job.HashFileMeta)
 
-	contentId, err := file_service.GenerateContentId(t.Ctx, meta.File)
+	contentId, err := file_model.GenerateContentId(t.Ctx, meta.File)
 	t.ReqNoErr(err)
 
 	if contentId == "" && meta.File.Size() != 0 {
@@ -127,6 +126,7 @@ func HashFile(tsk task_mod.Task) {
 	appCtx, ok := context_service.FromContext(t.Ctx)
 	if !ok {
 		t.Fail(errors.New("failed to get context"))
+
 		return
 	}
 
@@ -136,17 +136,14 @@ func HashFile(tsk task_mod.Task) {
 }
 
 func RegisterJobs(workerPool *task.WorkerPool) {
-
 	workerPool.RegisterJob(job_model.ScanDirectoryTask, ScanDirectory)
 	workerPool.RegisterJob(job_model.ScanFileTask, ScanFile)
 	workerPool.RegisterJob(job_model.UploadFilesTask, HandleFileUploads, task.TaskOptions{Persistent: true, Unique: true})
-	workerPool.RegisterJob(job_model.CreateZipTask, CreateZip)
+	workerPool.RegisterJob(job_model.CreateZipTask, CreateZip, task.TaskOptions{Persistent: true, Unique: false})
 	workerPool.RegisterJob(job_model.GatherFsStatsTask, GatherFilesystemStats)
 	workerPool.RegisterJob(job_model.BackupTask, DoBackup)
 	workerPool.RegisterJob(job_model.CopyFileFromCoreTask, CopyFileFromCore)
 	workerPool.RegisterJob(job_model.RestoreCoreTask, RestoreCore)
 	workerPool.RegisterJob(job_model.HashFileTask, HashFile)
-	// if role == models.BackupServerRole {
-	// } else if role == models.CoreServerRole {
-	// }
+	workerPool.RegisterJob(job_model.LoadFilesystemTask, LoadAtPath)
 }

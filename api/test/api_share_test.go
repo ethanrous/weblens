@@ -11,10 +11,11 @@ package openapi
 
 import (
 	"context"
+	"testing"
+
+	openapiclient "github.com/ethanrous/weblens/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
-	openapiclient "github.com/ethanrous/weblens/api"
 )
 
 func Test_openapi_ShareAPIService(t *testing.T) {
@@ -24,7 +25,7 @@ func Test_openapi_ShareAPIService(t *testing.T) {
 
 	t.Run("Test ShareAPIService CreateFileShare", func(t *testing.T) {
 
-		t.Skip("skip test")  // remove to run test
+		t.Skip("skip test") // remove to run test
 
 		resp, httpRes, err := apiClient.ShareAPI.CreateFileShare(context.Background()).Execute()
 
@@ -36,7 +37,7 @@ func Test_openapi_ShareAPIService(t *testing.T) {
 
 	t.Run("Test ShareAPIService DeleteFileShare", func(t *testing.T) {
 
-		t.Skip("skip test")  // remove to run test
+		t.Skip("skip test") // remove to run test
 
 		var shareId string
 
@@ -49,7 +50,7 @@ func Test_openapi_ShareAPIService(t *testing.T) {
 
 	t.Run("Test ShareAPIService GetFileShare", func(t *testing.T) {
 
-		t.Skip("skip test")  // remove to run test
+		t.Skip("skip test") // remove to run test
 
 		var shareId string
 
@@ -63,21 +64,20 @@ func Test_openapi_ShareAPIService(t *testing.T) {
 
 	t.Run("Test ShareAPIService SetShareAccessors", func(t *testing.T) {
 
-		t.Skip("skip test")  // remove to run test
+		t.Skip("skip test") // remove to run test
 
-		var shareId string
-
-		resp, httpRes, err := apiClient.ShareAPI.SetShareAccessors(context.Background(), shareId).Execute()
-
-		require.Nil(t, err)
-		require.NotNil(t, resp)
-		assert.Equal(t, 200, httpRes.StatusCode)
-
+		// var shareId string
+		//
+		// resp, httpRes, err := apiClient.ShareAPI.SetShareAccessors(context.Background(), shareId).Execute()
+		//
+		// require.Nil(t, err)
+		// require.NotNil(t, resp)
+		// assert.Equal(t, 200, httpRes.StatusCode)
 	})
 
 	t.Run("Test ShareAPIService SetSharePublic", func(t *testing.T) {
 
-		t.Skip("skip test")  // remove to run test
+		t.Skip("skip test") // remove to run test
 
 		var shareId string
 

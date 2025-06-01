@@ -4,50 +4,16 @@ tmp_dir = "tmp"
 
 [build]
   args_bin = []
-  # bin = "CONFIG_NAME=DEBUG-CORE ./build/bin/weblens"
-  cmd = "./scripts/startWeblens"
-  # cmd = "go build -gcflags=\"all=-N -l\" -race -o ./build/bin/weblens ./cmd/weblens"
+  # cmd = "./scripts/startWeblens"
+  cmd = "CGO_ENABLED=1 go build -gcflags=\"all=-N -l\" -race -o ./build/bin/weblens ./cmd/weblens"
+  full_bin = "GORACE='halt_on_error=1' CGO_CFLAGS_ALLOW='-Xpreprocessor' ./build/bin/weblens"
   delay = 1000
-  exclude_dir = ["ui", "build"]
-  exclude_file = []
   exclude_regex = ["_test.go"]
   exclude_unchanged = false
   follow_symlink = false
-  full_bin = "GORACE='halt_on_error=1' CGO_CFLAGS_ALLOW='-Xpreprocessor' ./build/bin/weblens"
-  include_dir = []
-  include_ext = ["go", "tpl", "tmpl", "html"]
-  include_file = []
-  kill_delay = "0s"
+  include_ext = ["go"]
+  exclude_dir = ["ui", "build"]
   log = "./build/logs/weblens-build.log"
-  poll = false
-  poll_interval = 0
-  post_cmd = []
-  pre_cmd = []
-  rerun = false
-  rerun_delay = 500
-  send_interrupt = false
+  send_interrupt = true
+  kill_delay = "1s"
   stop_on_error = true
-
-[color]
-  app = ""
-  build = "yellow"
-  main = "magenta"
-  runner = "green"
-  watcher = "cyan"
-
-[log]
-  main_only = false
-  silent = false
-  time = false
-
-[misc]
-  clean_on_exit = false
-
-[proxy]
-  app_port = 0
-  enabled = false
-  proxy_port = 0
-
-[screen]
-  clear_on_rebuild = false
-  keep_scroll = true

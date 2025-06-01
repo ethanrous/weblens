@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"net/http"
+	"os"
 	"runtime"
+	"runtime/trace"
 	"time"
 
 	"github.com/ethanrous/weblens/modules/config"
@@ -14,6 +16,10 @@ import (
 )
 
 func main() {
+	file, _ := os.Create("/data/trace.out")
+	_ = trace.Start(file)
+	defer trace.Stop()
+
 	cnf := config.GetConfig()
 	cnf.DoFileDiscovery = true
 

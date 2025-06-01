@@ -23,7 +23,7 @@ func TowerToTowerInfo(ctx context.Context, tower tower_model.Instance) structs.T
 		client := appCtx.ClientService.GetClientByTowerId(tower.TowerId)
 		online = client != nil
 
-		towerBackupDir, err := appCtx.FileService.GetFileById(tower.TowerId)
+		towerBackupDir, err := appCtx.FileService.GetFileById(ctx, tower.TowerId)
 		if err == nil {
 			backupSize = towerBackupDir.Size()
 		}

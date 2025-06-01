@@ -18,6 +18,7 @@ var ErrTaskError = errors.New("task error")
 var ErrTaskExit = errors.New("task exit")
 var ErrTaskTimeout = errors.New("task timeout")
 var ErrTaskCancelled = errors.New("task cancelled")
+var ErrTaskAlreadyComplete = errors.New("task already complete")
 
 type hit struct {
 	time   time.Time
@@ -102,6 +103,7 @@ func NewWorkerPool(ctx context_mod.ContextZ, initWorkers int) *WorkerPool {
 // See taskPool.go
 func (wp *WorkerPool) NewTaskPool(replace bool, createdBy task_mod.Task) task_mod.Pool {
 	tp := wp.newTaskPoolInternal()
+
 	if createdBy != nil {
 		t := createdBy.(*Task)
 		tp.createdBy = t
@@ -109,6 +111,7 @@ func (wp *WorkerPool) NewTaskPool(replace bool, createdBy task_mod.Task) task_mo
 			tp.createdBy = t
 		}
 	}
+
 	if replace {
 		wp.addReplacementWorker()
 		tp.hasQueueThread = true
@@ -204,7 +207,7 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta task
 	t := wp.GetTask(taskId)
 
 	if t != nil {
-		t.Log().Trace().Msgf("Task [%s] already exists, not launching again", taskId)
+		t.Log().Debug().Msgf("Task [%s] already exists, not re-queueing again", taskId)
 		return t, nil
 	} else {
 		newl := log.FromContext(ctx).With().
@@ -221,7 +224,7 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta task
 			metadata: meta,
 			work:     job,
 
-			queueState: PreQueued,
+			queueState: Created,
 
 			// signal chan must be buffered so caller doesn't block trying to close many tasks
 			waitChan: make(chan struct{}),
@@ -256,7 +259,7 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta task
 		return nil, errors.Errorf("Task pool is not a TaskPool")
 	}
 
-	if t.taskPool != nil && (t.taskPool != tpool || t.queueState != PreQueued) {
+	if t.taskPool != nil && (t.taskPool != tpool || t.queueState != Created) {
 		// Task is already queued, we are not allowed to move it to another queue.
 		// We can call .ClearAndRecompute() on the task and it will queue it
 		// again, but it cannot be transferred
@@ -524,11 +527,9 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 
 					// Tasks must set their completed flag before exiting
 					// if it wasn't done in the work body, we do it for them
-					t.updateMu.Lock()
-					if t.queueState != Exited {
+					if t.QueueState() != Exited {
 						t.Success("closed by worker pool")
 					}
-					t.updateMu.Unlock()
 
 					result := t.GetResults()
 					t.updateMu.Lock()
@@ -684,7 +685,7 @@ func (wp *WorkerPool) statusReporter() {
 			}
 		case <-ticker.C:
 			remaining, total, busy, alive, retrySize := wp.Status()
-			if lastCount != remaining {
+			if lastCount != remaining || busy != 0 {
 				lastCount = remaining
 				wp.ctx.Log().Debug().Int("queue_remaining", remaining).Int("queue_total", total).Int("queue_buffered", retrySize).Int("busy_workers", busy).Int("alive_workers", alive).Msg(
 					"Worker pool status",

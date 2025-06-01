@@ -16,80 +16,82 @@ func init() {
 	startup.RegisterStartup(loadUserService)
 }
 
-func loadUserService(c context.Context, cnf config.ConfigProvider) error {
-	ctx := c.(context_service.AppContext)
+func loadUserService(ctx context.Context, cnf config.ConfigProvider) error {
+	appCtx, ok := context_service.FromContext(ctx)
+	if !ok {
+		return context_service.ErrNoContext
+	}
 
-	local, err := tower_model.GetLocal(ctx)
+	local, err := tower_model.GetLocal(appCtx)
 	if err != nil {
 		return err
 	}
 
 	if local.Role != tower_model.RoleCore {
-		ctx.Log().Debug().Msg("Not a core tower, skipping user service load")
+		appCtx.Log().Debug().Msg("Not a core tower, skipping user service load")
 
 		return nil
 	}
 
-	userRoot, err := ctx.FileService.GetFileById(file_model.UsersTreeKey)
+	userRoot, err := appCtx.FileService.GetFileById(appCtx, file_model.UsersTreeKey)
 	if err != nil {
-		ctx.Log().Debug().Msg("Deferring user service load")
+		appCtx.Log().Debug().Msg("Deferring user service load")
 
 		return startup.ErrDeferStartup
 	}
 
-	ctx.Log().Debug().Msg("Loading user service")
+	appCtx.Log().Debug().Msg("Loading user service")
 
-	users, err := user.GetAllUsers(ctx)
+	users, err := user.GetAllUsers(appCtx)
 	if err != nil {
 		return err
 	}
 
 	for _, u := range users {
-		homeFolder, err := ctx.FileService.GetFileById(u.HomeId)
+		homeFolder, err := appCtx.FileService.GetFileById(appCtx, u.HomeId)
 		if errors.Is(err, file_model.ErrFileNotFound) {
 			homePath := file_model.UsersRootPath.Child(u.Username, true)
 
-			homeFolder, err = ctx.FileService.GetFileByFilepath(ctx, homePath)
+			homeFolder, err = appCtx.FileService.GetFileByFilepath(appCtx, homePath)
 			if err != nil {
-				ctx.Log().Debug().Msgf("Home folder [%s][%s] not found, creating for user %s", u.HomeId, homePath, u.Username)
+				appCtx.Log().Debug().Msgf("Home folder [%s][%s] not found, creating for user %s", u.HomeId, homePath, u.Username)
 
-				homeFolder, err = ctx.FileService.CreateFolder(ctx, userRoot, u.Username)
+				homeFolder, err = appCtx.FileService.CreateFolder(appCtx, userRoot, u.Username)
 				if err != nil {
 					return err
 				}
 			}
 
-			err = u.UpdateHomeId(ctx, homeFolder.ID())
+			err = u.UpdateHomeId(appCtx, homeFolder.ID())
 			if err != nil {
 				return err
 			}
+		} else if err != nil {
+			return err
 		}
 
-		_, err = ctx.FileService.GetFileById(u.TrashId)
+		_, err = appCtx.FileService.GetFileById(appCtx, u.TrashId)
 		if errors.Is(err, file_model.ErrFileNotFound) {
 			trashPath := file_model.UsersRootPath.Child(u.Username, true).Child(file_model.UserTrashDirName, true)
 
-			trashFolder, err := ctx.FileService.GetFileByFilepath(ctx, trashPath)
+			trashFolder, err := appCtx.FileService.GetFileByFilepath(appCtx, trashPath)
 			if err != nil {
-				ctx.Log().Debug().Msgf("Trash folder not found, creating for user %s", u.Username)
+				appCtx.Log().Debug().Msgf("Trash folder not found, creating for user %s", u.Username)
 
-				trashFolder, err = ctx.FileService.CreateFolder(ctx, homeFolder, file_model.UserTrashDirName)
+				trashFolder, err = appCtx.FileService.CreateFolder(appCtx, homeFolder, file_model.UserTrashDirName)
 				if err != nil {
 					return err
 				}
 			}
 
-			err = u.UpdateTrashId(ctx, trashFolder.ID())
+			err = u.UpdateTrashId(appCtx, trashFolder.ID())
 			if err != nil {
 				return err
 			}
+		} else if err != nil {
+			return err
 		}
 	}
-
-	// Load user service
-	// userService := user.NewUserService()
-	// userService.Load()
-	// log.Info().Msg("User service loaded")
 
 	return nil
 }

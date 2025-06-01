@@ -1,5 +1,18 @@
 basePath: /api/v1/
 definitions:
+  AddUserParams:
+    properties:
+      canDelete:
+        type: boolean
+      canDownload:
+        type: boolean
+      canEdit:
+        type: boolean
+      username:
+        type: string
+    required:
+    - username
+    type: object
   ApiKeyParams:
     properties:
       name:
@@ -345,6 +358,24 @@ definitions:
     required:
     - newPassword
     type: object
+  PermissionsInfo:
+    properties:
+      canDelete:
+        type: boolean
+      canDownload:
+        type: boolean
+      canEdit:
+        type: boolean
+    type: object
+  PermissionsParams:
+    properties:
+      canDelete:
+        type: boolean
+      canDownload:
+        type: boolean
+      canEdit:
+        type: boolean
+    type: object
   RestoreFilesBody:
     properties:
       fileIds:
@@ -375,6 +406,10 @@ definitions:
         type: string
       owner:
         type: string
+      permissions:
+        additionalProperties:
+          $ref: '#/definitions/PermissionsInfo'
+        type: object
       public:
         type: boolean
       shareId:
@@ -568,17 +603,6 @@ definitions:
         type: string
       folderId:
         type: string
-    type: object
-  structs.UserListBody:
-    properties:
-      addUsers:
-        items:
-          type: string
-        type: array
-      removeUsers:
-        items:
-          type: string
-        type: array
     type: object
 host: localhost:8080
 info:
@@ -1471,8 +1495,8 @@ paths:
       tags:
       - Share
   /share/{shareId}/accessors:
-    patch:
-      operationId: SetShareAccessors
+    post:
+      operationId: AddUserToShare
       parameters:
       - description: Share Id
         in: path
@@ -1484,7 +1508,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/structs.UserListBody'
+          $ref: '#/definitions/AddUserParams'
       produces:
       - application/json
       responses:
@@ -1494,7 +1518,64 @@ paths:
             $ref: '#/definitions/ShareInfo'
         "404":
           description: Not Found
-      summary: Update a share's accessors list
+      summary: Add a user to a file share
+      tags:
+      - Share
+  /share/{shareId}/accessors/{username}:
+    delete:
+      operationId: RemoveUserFromShare
+      parameters:
+      - description: Share Id
+        in: path
+        name: shareId
+        required: true
+        type: string
+      - description: Username
+        in: path
+        name: username
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ShareInfo'
+        "404":
+          description: Not Found
+      summary: Remove a user from a file share
+      tags:
+      - Share
+    patch:
+      operationId: UpdateShareAccessorPermissions
+      parameters:
+      - description: Share Id
+        in: path
+        name: shareId
+        required: true
+        type: string
+      - description: Username
+        in: path
+        name: username
+        required: true
+        type: string
+      - description: Share Permissions Params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/PermissionsParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ShareInfo'
+        "404":
+          description: Not Found
+      summary: Update a share's user permissions
       tags:
       - Share
   /share/{shareId}/public:

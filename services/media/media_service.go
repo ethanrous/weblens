@@ -2,6 +2,7 @@ package media
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os/exec"
@@ -14,6 +15,7 @@ import (
 	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/log"
 	context_service "github.com/ethanrous/weblens/services/context"
 	"github.com/rs/zerolog"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
@@ -55,8 +57,34 @@ import (
 // 	"github.com/davidbyttow/govips/v2/vips"
 // )
 
-func GetConverted(m *media_model.Media, format string) ([]byte, error) {
-	return nil, errors.New("not implemented")
+func GetConverted(ctx context.Context, m *media_model.Media, format media_model.MediaType) ([]byte, error) {
+	if !format.IsMime("image/jpeg") {
+		return nil, errors.New("unsupported format")
+	}
+
+	appCtx, ok := context_service.FromContext(ctx)
+	if !ok {
+		return nil, errors.WithStack(context_service.ErrNoContext)
+	}
+
+	file, err := appCtx.FileService.GetFileById(ctx, m.FileIDs[0])
+	if err != nil {
+		return nil, err
+	}
+
+	img, err := loadImageFromFile(file, format)
+	if err != nil {
+		return nil, err
+	}
+
+	bs, _, err := img.ExportJpeg(&vips.JpegExportParams{})
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	log.FromContext(ctx).Debug().Msgf("Exported %s to jpeg", m.ID())
+
+	return bs, nil
 }
 
 //	type MediaServiceImpl struct {

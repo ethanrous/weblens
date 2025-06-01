@@ -1,15 +1,15 @@
 import { FileApi, GetFolderData } from '@weblens/api/FileBrowserApi'
 import SharesApi from '@weblens/api/SharesApi'
 import { useSubscribe as useFolderSubscribe } from '@weblens/api/Websocket'
-import HeaderBar from '@weblens/components/HeaderBar'
+import HeaderBar from '@weblens/components/HeaderBar.tsx'
 import { PresentationFile } from '@weblens/components/Presentation'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import { FileContextMenu } from '@weblens/components/filebrowser/FileMenu'
-import DirectoryView from '@weblens/components/filebrowser/directoryView'
-import FBSidebar from '@weblens/components/filebrowser/filebrowserSidebar'
-import PasteDialogue from '@weblens/components/filebrowser/pasteDialogue'
-import SearchDialogue from '@weblens/components/filebrowser/searchDialogue'
-import WebsocketStatusDot from '@weblens/components/filebrowser/websocketStatus'
+import { FileContextMenu } from '@weblens/components/filebrowser/contextMenu/FileMenu'
+import DirectoryView from '@weblens/components/filebrowser/directoryView.tsx'
+import FBSidebar from '@weblens/components/filebrowser/filebrowserSidebar.tsx'
+import PasteDialogue from '@weblens/components/filebrowser/pasteDialogue.tsx'
+import SearchDialogue from '@weblens/components/filebrowser/searchDialogue.tsx'
+import WebsocketStatusDot from '@weblens/components/filebrowser/websocketStatus.tsx'
 import { ErrorHandler } from '@weblens/types/Types'
 import WeblensFile from '@weblens/types/files/File'
 import { goToFile } from '@weblens/types/files/FileDragLogic'
@@ -28,16 +28,17 @@ import { DirViewModeT } from './FileBrowserTypes'
 
 function useSearch() {
     const { search } = useLocation()
-    const q = new URLSearchParams(search)
+
     return useCallback(
         (s: string) => {
+            const q = new URLSearchParams(search)
             const r = q.get(s)
             if (!r) {
                 return ''
             }
             return r
         },
-        [q]
+        [search]
     )
 }
 
@@ -63,7 +64,7 @@ function FileBrowser() {
         presentingId,
         isSearching,
         fbMode,
-        contentId,
+        activeFileId: contentId,
         shareId,
         pastTime,
         addLoading,
@@ -131,7 +132,7 @@ function FileBrowser() {
             setLocationState({ contentId, mode, shareId, pastTime, jumpTo })
             // removeLoading('files')
         }
-    }, [urlPath, user, past, jumpTo])
+    }, [urlPath, user, past, jumpTo, nav, setLocationState])
 
     const { readyState } = useFolderSubscribe()
 
@@ -205,12 +206,20 @@ function FileBrowser() {
                 fbMode,
                 shareId,
                 pastTime
-            ).catch((r: number) => {
+            ).catch((r) => {
+                if (r.status === 401) {
+                    console.error('Unauthorized, going to login')
+                    nav('/login', {
+                        state: { returnTo: window.location.pathname },
+                    })
+                    return
+                }
+                console.error('Error getting folder data', r)
                 setFilesFetchErr(r)
             })
 
             // If request comes back after we have already navigated away, do nothing
-            if (useFileBrowserStore.getState().contentId !== contentId) {
+            if (useFileBrowserStore.getState().activeFileId !== contentId) {
                 console.error("Content ID don't match")
                 return
             }

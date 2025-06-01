@@ -1,5 +1,5 @@
-import FileVisual from '@weblens/components/filebrowser/fileVisual'
-import GetStartedCard from '@weblens/components/filebrowser/getStartedCard'
+import FileVisual from '@weblens/components/filebrowser/fileVisual.tsx'
+import GetStartedCard from '@weblens/components/filebrowser/getStartedCard.tsx'
 import {
     HandleDrop,
     historyDateTime,

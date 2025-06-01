@@ -59,7 +59,7 @@ func HandleFileUploads(tsk task_mod.Task) {
 
 	meta := t.GetMeta().(job.UploadFilesMeta)
 
-	rootFile, err := appCtx.FileService.GetFileById(meta.RootFolderId)
+	rootFile, err := appCtx.FileService.GetFileById(appCtx, meta.RootFolderId)
 	if err != nil {
 		t.Fail(err)
 
@@ -105,12 +105,6 @@ func HandleFileUploads(tsk task_mod.Task) {
 			notifs = append(notifs, notif...)
 
 			if tl.IsDir() {
-				if err != nil {
-					t.Fail(err)
-
-					return
-				}
-
 				if !timeout {
 					scanMeta := job_model.ScanMeta{
 						File: tl,
@@ -135,11 +129,19 @@ func HandleFileUploads(tsk task_mod.Task) {
 				doingRootScan = true
 			}
 		}
+
 		appCtx.Notify(appCtx, notifs...)
 		newTp.SignalAllQueued()
 	})
 
 	timeoutTicker := time.NewTicker(time.Minute)
+
+	ctx := history.WithFileEvent(t.Ctx)
+	appCtx, ok = context_service.FromContext(ctx)
+	if !ok {
+		t.Fail(errors.New("failed to add file event to context in upload task"))
+		return
+	}
 
 WriterLoop:
 	for {
@@ -152,6 +154,7 @@ WriterLoop:
 		case <-timeoutTicker.C:
 			t.Log().Debug().Func(func(e *zerolog.Event) { e.Msgf("Timeout, exiting upload task") })
 			t.Fail(task.ErrTaskTimeout)
+			timeout = true
 			return
 		case chunk := <-meta.ChunkStream:
 			bottom, top, total, err := parseRangeHeader(chunk.ContentRange)

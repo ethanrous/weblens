@@ -24,6 +24,9 @@ ui: $(TS_SOURCE) FORCE
 test: $(GO_SOURCE) $(TS_SOURCE)
 	./scripts/testWeblens -a 
 
+dev: FORCE
+	./scripts/start.bash --dev --rebuild
+
 clean:
 	rm -rf ./build/bin/*
 	rm -rf ./ui/dist

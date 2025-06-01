@@ -9,6 +9,7 @@ import (
 	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/net"
 	"github.com/ethanrous/weblens/modules/structs"
+	access_service "github.com/ethanrous/weblens/services/auth"
 	"github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/reshape"
 )
@@ -75,7 +76,6 @@ func Login(ctx context.RequestContext) {
 
 	u, err := user_model.GetUserByUsername(ctx, userCredentials.Username)
 	if err != nil {
-		ctx.Log().Error().Stack().Err(err).Msg("Failed to get user")
 		ctx.Error(http.StatusNotFound, err)
 		return
 	}
@@ -89,7 +89,7 @@ func Login(ctx context.RequestContext) {
 
 	ctx.Requester = u
 
-	err = ctx.SetSessionToken()
+	err = access_service.SetSessionToken(ctx)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 		return

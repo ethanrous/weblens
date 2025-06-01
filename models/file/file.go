@@ -15,10 +15,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ethanrous/weblens/modules/errors"
 	file_system "github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/option"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/rs/zerolog/log"
 )
 
@@ -195,6 +195,10 @@ func (f *WeblensFileImpl) GetPastId() string {
 
 // Exists check if the file exists on the real filesystem below.
 func (f *WeblensFileImpl) Exists() bool {
+	if f.memOnly {
+		return false
+	}
+
 	_, err := os.Stat(f.portablePath.ToAbsolute())
 
 	return err == nil
@@ -357,15 +361,11 @@ func (f *WeblensFileImpl) ReadAll() ([]byte, error) {
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	// fileSize := f.Size()
 
 	data, err := io.ReadAll(osFile)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	// if len(data) != int(fileSize) {
-	// 	return nil, errors.WithStack(errors.ErrBadReadCount)
-	// }
 
 	return data, nil
 }
@@ -376,7 +376,7 @@ func (f *WeblensFileImpl) Write(data []byte) (int, error) {
 	}
 
 	if f.memOnly {
-		f.buffer = data
+		f.buffer = bytes.Clone(data)
 
 		return len(data), nil
 	}
@@ -396,22 +396,26 @@ func (f *WeblensFileImpl) WriteAt(data []byte, seekLoc int64) error {
 	}
 
 	if f.memOnly {
-		panic(errors.New("memOnly file write at"))
+		requiredSize := seekLoc + int64(len(data))
+		if requiredSize > int64(len(f.buffer)) {
+			newBuffer := make([]byte, 0, requiredSize)
+			copy(newBuffer, f.buffer)
+			f.buffer = newBuffer
+		}
+
+		copy(f.buffer[seekLoc:], data)
+		f.size.Store(requiredSize)
+
+		return nil
 	}
 
-	path := f.portablePath.ToAbsolute()
-	realFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, os.ModePerm)
+	realFile, err := os.OpenFile(f.portablePath.ToAbsolute(), os.O_CREATE|os.O_WRONLY, os.ModePerm)
 
 	if err != nil {
 		return err
 	}
 
-	defer func(realFile *os.File) {
-		err := realFile.Close()
-		if err != nil {
-			log.Error().Stack().Err(err).Msg("")
-		}
-	}(realFile)
+	defer realFile.Close()
 
 	wroteLen, err := realFile.WriteAt(data, seekLoc)
 	if err == nil {
@@ -452,15 +456,22 @@ func (f *WeblensFileImpl) GetChild(childName string) (*WeblensFileImpl, error) {
 	defer f.childLock.RUnlock()
 
 	if len(f.childrenMap) == 0 || childName == "" {
-		return nil, errors.WithStack(ErrFileNotFound)
+		return nil, errors.Errorf("%w: file %s has no children", ErrFileNotFound, f.portablePath.String())
 	}
 
 	child := f.childrenMap[strings.ToLower(childName)]
 	if child == nil {
-		return nil, errors.WithStack(ErrFileNotFound)
+		return nil, errors.Errorf("%w: %s is not a child of %s", ErrFileNotFound, childName, f.portablePath.String())
 	}
 
 	return child, nil
+}
+
+func (f *WeblensFileImpl) ChildrenLoaded() bool {
+	f.childLock.RLock()
+	defer f.childLock.RUnlock()
+
+	return f.childrenMap != nil
 }
 
 func (f *WeblensFileImpl) GetChildren() []*WeblensFileImpl {
@@ -474,6 +485,12 @@ func (f *WeblensFileImpl) GetChildren() []*WeblensFileImpl {
 	return slices.Collect(maps.Values(f.childrenMap))
 }
 
+func (f *WeblensFileImpl) InitChildren() {
+	if f.childrenMap == nil {
+		f.childrenMap = make(map[string]*WeblensFileImpl)
+	}
+}
+
 func (f *WeblensFileImpl) AddChild(child *WeblensFileImpl) error {
 	if !f.IsDir() {
 		return errors.WithStack(ErrDirectoryRequired)
@@ -484,6 +501,10 @@ func (f *WeblensFileImpl) AddChild(child *WeblensFileImpl) error {
 
 	if f.childrenMap == nil {
 		f.childrenMap = make(map[string]*WeblensFileImpl)
+	}
+
+	if f.childrenMap[strings.ToLower(child.portablePath.Filename())] != nil {
+		return errors.Errorf("failed to add %s as child of %s: %w", child.GetPortablePath(), f.GetPortablePath().String(), ErrFileAlreadyExists)
 	}
 
 	f.childrenMap[strings.ToLower(child.portablePath.Filename())] = child
@@ -512,7 +533,7 @@ func (f *WeblensFileImpl) RemoveChild(child string) error {
 
 func (f *WeblensFileImpl) SetParent(p *WeblensFileImpl) error {
 	if f.GetPortablePath().Dir() != p.GetPortablePath() {
-		return errors.WithStack(ErrNotChild)
+		return errors.Wrapf(ErrNotChild, "%s is not the parent of %s", p.GetPortablePath(), f.GetPortablePath())
 	}
 
 	f.updateLock.Lock()
@@ -540,12 +561,17 @@ func (f *WeblensFileImpl) CreateSelf() error {
 	if f.IsDir() {
 		err = os.Mkdir(f.portablePath.ToAbsolute(), os.ModePerm)
 	} else {
-		_, err = os.Create(f.portablePath.ToAbsolute())
+		var newF *os.File
+		newF, err = os.Create(f.portablePath.ToAbsolute())
+
+		if newF != nil {
+			defer newF.Close()
+		}
 	}
 
 	if err != nil {
 		if errors.Is(err, fs.ErrExist) {
-			return errors.WithStack(ErrFileAlreadyExists)
+			return errors.Errorf("failed to create file %s: %w", f.portablePath.String(), ErrFileAlreadyExists)
 		}
 
 		return errors.WithStack(err)
@@ -684,7 +710,11 @@ func (f *WeblensFileImpl) LeafMap(fn func(*WeblensFileImpl) error) error {
 	}
 
 	if f.IsDir() {
-		for _, c := range f.GetChildren() {
+		children := f.GetChildren()
+		slices.SortFunc(children, func(a, b *WeblensFileImpl) int {
+			return strings.Compare(a.portablePath.Filename(), b.portablePath.Filename())
+		})
+		for _, c := range children {
 			err := c.LeafMap(fn)
 			if err != nil {
 				return err

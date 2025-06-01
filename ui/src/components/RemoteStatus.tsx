@@ -12,11 +12,11 @@ import {
 } from '@tabler/icons-react'
 import { TowersApi } from '@weblens/api/ServersApi'
 import { TowerInfo } from '@weblens/api/swag'
-import LoaderDots from '@weblens/lib/LoaderDots'
-import WeblensButton from '@weblens/lib/WeblensButton'
-import WeblensInput from '@weblens/lib/WeblensInput'
-import WeblensProgress from '@weblens/lib/WeblensProgress'
-import WeblensTooltip from '@weblens/lib/WeblensTooltip'
+import LoaderDots from '@weblens/lib/LoaderDots.tsx'
+import WeblensButton from '@weblens/lib/WeblensButton.tsx'
+import WeblensInput from '@weblens/lib/WeblensInput.tsx'
+import WeblensProgress from '@weblens/lib/WeblensProgress.tsx'
+import WeblensTooltip from '@weblens/lib/WeblensTooltip.tsx'
 import { useTimer } from '@weblens/lib/hooks'
 import {
     BackupProgressT,

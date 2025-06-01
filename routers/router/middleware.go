@@ -18,6 +18,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/hlog"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 const SessionTokenCookie = "weblens-session-token"
@@ -88,14 +89,18 @@ func RequireCoreTower(next Handler) Handler {
 
 func ShareInjector(next Handler) Handler {
 	return HandlerFunc(func(ctx context_service.RequestContext) {
-		shareId := ctx.Query("shareId")
-		if shareId != "" {
+		shareIdStr := ctx.Query("shareId")
+
+		shareId, err := primitive.ObjectIDFromHex(shareIdStr)
+		if err == nil && !shareId.IsZero() {
 			share, err := share_model.GetShareById(ctx, shareId)
 			if err != nil {
 				ctx.Error(http.StatusNotFound, errors.Wrap(err, "failed to get share"))
 
 				return
 			}
+
+			ctx.Log().Debug().Msgf("Share found: %s", shareIdStr)
 
 			ctx.Share = share
 		}
@@ -142,45 +147,39 @@ func WeblensAuth(next Handler) Handler {
 				return
 			}
 
+			ctx.Log().Trace().Msgf("Authenticated user via auth header: %s", usr.Username)
+
 			ctx.Requester = usr
 			ctx.IsLoggedIn = true
-
-			next.ServeHTTP(ctx)
-
-			return
-		}
-
-		if ctx.Remote.TowerId != "" {
+		} else if ctx.Remote.TowerId != "" {
 			ctx.Error(http.StatusUnauthorized, errors.Wrap(ErrNotAuthenticated, "towers must authenticate with a token"))
 
 			return
 		}
 
-		sessionCookie, err := ctx.GetCookie(SessionTokenCookie)
-		if err == nil {
-			usr, err := auth_service.GetUserFromJWT(ctx, sessionCookie)
-			if err != nil {
-				ctx.ExpireCookie()
-				ctx.Error(http.StatusUnauthorized, errors.Wrap(err, "failed to validate sesion token"))
+		// Regular session token
+		if !ctx.IsLoggedIn {
+			sessionCookie, err := ctx.GetCookie(SessionTokenCookie)
+			if err == nil {
+				usr, err := auth_service.GetUserFromJWT(ctx, sessionCookie)
+				if err != nil {
+					ctx.ExpireCookie()
+					ctx.Error(http.StatusUnauthorized, errors.Wrap(err, "failed to validate sesion token"))
 
-				return
+					return
+				}
+
+				ctx.Log().Trace().Msgf("Authenticated user via session token: %s", usr.Username)
+
+				ctx.Requester = usr
+				ctx.IsLoggedIn = true
 			}
-
-			ctx.Requester = usr
-			ctx.IsLoggedIn = true
-
-			log.FromContext(ctx).UpdateContext(func(c zerolog.Context) zerolog.Context {
-				return c.Str("requester", usr.Username)
-			})
-
-			// ctx = ctx.WithContext(logCtx).(context_service.RequestContext)
-
-			next.ServeHTTP(ctx)
-
-			return
 		}
 
-		// Do public
+		log.FromContext(ctx).UpdateContext(func(c zerolog.Context) zerolog.Context {
+			return c.Str("requester", ctx.Requester.Username)
+		})
+
 		next.ServeHTTP(ctx)
 	})
 }
@@ -295,6 +294,8 @@ func HeaderHandler(fieldKey string) func(next http.Handler) http.Handler {
 }
 
 func LoggerMiddlewares(logger zerolog.Logger) []func(http.Handler) http.Handler {
+	doDevLog := config.GetConfig().LogFormat == "dev"
+
 	return []func(http.Handler) http.Handler{
 		hlog.NewHandler(logger),
 		URLGroupHandler("url_group"),
@@ -322,9 +323,21 @@ func LoggerMiddlewares(logger zerolog.Logger) []func(http.Handler) http.Handler 
 				method := r.Method
 				timeTotal := time.Since(start)
 
-				route := log.RouteColor(r)
+				if doDevLog {
+					route := log.RouteColor(r)
 
-				l.Info().Msgf("\u001B[0m[%s][%7s][%s %s][%s]", remote, log.ColorTime(timeTotal), method, route, log.ColorStatus(status))
+					l.Info().Msgf("\u001B[0m[%s][%7s][%s %s][%s]", remote, log.ColorTime(timeTotal), method, route, log.ColorStatus(status))
+
+					return
+				}
+
+				l.Info().
+					Str("method", r.Method).
+					Str("route_group", chi.RouteContext(r.Context()).RoutePattern()).
+					Str("ip_addr", r.RemoteAddr).
+					Int("status", status).
+					Dur("req_duration", timeTotal).
+					Msg(r.URL.String())
 			})
 		}}
 }

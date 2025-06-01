@@ -8,12 +8,11 @@ import (
 	"github.com/ethanrous/weblens/modules/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func SaveUser(ctx context.Context, u *User) (err error) {
-	if err := validateUsername(u.Username); err != nil {
+	if err := validateUsername(ctx, u.Username); err != nil {
 		return err
 	}
 
@@ -21,7 +20,7 @@ func SaveUser(ctx context.Context, u *User) (err error) {
 		return err
 	}
 
-	if u.Password, err = crypto.HashUserPassword(u.Password); err != nil {
+	if u.Password, err = crypto.HashUserPassword(ctx, u.Password); err != nil {
 		return err
 	}
 
@@ -52,11 +51,27 @@ func GetUserByUsername(ctx context.Context, username string) (u *User, err error
 	filter := bson.M{"username": username}
 
 	err = col.FindOne(ctx, filter).Decode(u)
-	if errors.Is(err, mongo.ErrNoDocuments) {
-		return nil, errors.WithStack(ErrUserNotFound)
+	if err != nil {
+		return nil, db.WrapError(err, "failed to get user by username [%s]", username)
 	}
 
 	return
+}
+
+func DoesUserExist(ctx context.Context, username string) (bool, error) {
+	col, err := db.GetCollection(ctx, UserCollectionKey)
+	if err != nil {
+		return false, err
+	}
+
+	filter := bson.M{"username": username}
+
+	count, err := col.CountDocuments(ctx, filter)
+	if err != nil {
+		return false, db.WrapError(err, "failed to check if username [%s] exists", username)
+	}
+
+	return count > 0, nil
 }
 
 func GetAllUsers(ctx context.Context) (us []*User, err error) {
@@ -98,7 +113,7 @@ func (u *User) UpdatePassword(ctx context.Context, newPass string) (err error) {
 		return
 	}
 
-	if u.Password, err = crypto.HashUserPassword(newPass); err != nil {
+	if u.Password, err = crypto.HashUserPassword(ctx, newPass); err != nil {
 		return err
 	}
 
@@ -123,7 +138,7 @@ func (u *User) UpdatePermissionLevel(ctx context.Context, newPermissionLevel Use
 
 	_, err = col.UpdateOne(ctx, bson.M{"_id": u.Id}, bson.M{"$set": bson.M{"userPerms": newPermissionLevel}})
 	if err != nil {
-		return errors.WithStack(err)
+		return db.WrapError(err, "failed to update user permission level")
 	}
 
 	return

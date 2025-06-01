@@ -1021,8 +1021,8 @@ paths:
       tags:
       - Share
   /share/{shareId}/accessors:
-    patch:
-      operationId: SetShareAccessors
+    post:
+      operationId: AddUserToShare
       parameters:
       - description: Share Id
         in: path
@@ -1034,7 +1034,7 @@ paths:
         content:
           '*/*':
             schema:
-              $ref: '#/components/schemas/structs.UserListBody'
+              $ref: '#/components/schemas/AddUserParams'
         description: Share Accessors
         required: true
       responses:
@@ -1047,7 +1047,72 @@ paths:
         "404":
           content: {}
           description: Not Found
-      summary: Update a share's accessors list
+      summary: Add a user to a file share
+      tags:
+      - Share
+      x-codegen-request-body-name: request
+  /share/{shareId}/accessors/{username}:
+    delete:
+      operationId: RemoveUserFromShare
+      parameters:
+      - description: Share Id
+        in: path
+        name: shareId
+        required: true
+        schema:
+          type: string
+      - description: Username
+        in: path
+        name: username
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareInfo'
+          description: OK
+        "404":
+          content: {}
+          description: Not Found
+      summary: Remove a user from a file share
+      tags:
+      - Share
+    patch:
+      operationId: UpdateShareAccessorPermissions
+      parameters:
+      - description: Share Id
+        in: path
+        name: shareId
+        required: true
+        schema:
+          type: string
+      - description: Username
+        in: path
+        name: username
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/PermissionsParams'
+        description: Share Permissions Params
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareInfo'
+          description: OK
+        "404":
+          content: {}
+          description: Not Found
+      summary: Update a share's user permissions
       tags:
       - Share
       x-codegen-request-body-name: request
@@ -1818,6 +1883,24 @@ paths:
       x-codegen-request-body-name: passwordUpdateParams
 components:
   schemas:
+    AddUserParams:
+      example:
+        canEdit: true
+        canDownload: true
+        canDelete: true
+        username: username
+      properties:
+        canDelete:
+          type: boolean
+        canDownload:
+          type: boolean
+        canEdit:
+          type: boolean
+        username:
+          type: string
+      required:
+      - username
+      type: object
     ApiKeyParams:
       example:
         name: name
@@ -2570,6 +2653,32 @@ components:
       required:
       - newPassword
       type: object
+    PermissionsInfo:
+      example:
+        canEdit: true
+        canDownload: true
+        canDelete: true
+      properties:
+        canDelete:
+          type: boolean
+        canDownload:
+          type: boolean
+        canEdit:
+          type: boolean
+      type: object
+    PermissionsParams:
+      example:
+        canEdit: true
+        canDownload: true
+        canDelete: true
+      properties:
+        canDelete:
+          type: boolean
+        canDownload:
+          type: boolean
+        canEdit:
+          type: boolean
+      type: object
     RestoreFilesBody:
       example:
         fileIds:
@@ -2614,6 +2723,11 @@ components:
           token: token
           username: username
         public: true
+        permissions:
+          key:
+            canEdit: true
+            canDownload: true
+            canDelete: true
         shareId: shareId
         shareName: shareName
         wormhole: true
@@ -2634,6 +2748,10 @@ components:
           type: string
         owner:
           type: string
+        permissions:
+          additionalProperties:
+            $ref: '#/components/schemas/PermissionsInfo'
+          type: object
         public:
           type: boolean
         shareId:
@@ -2874,17 +2992,6 @@ components:
           type: string
         folderId:
           type: string
-      type: object
-    structs.UserListBody:
-      properties:
-        addUsers:
-          items:
-            type: string
-          type: array
-        removeUsers:
-          items:
-            type: string
-          type: array
       type: object
     UploadFileChunk_request:
       properties:
