@@ -22,7 +22,8 @@ devel_weblens_locally() {
 ensure_repl_set() {
     if ! docker exec -t "$mongoName" mongosh --eval "rs.status()" &>/dev/null; then
         echo "MongoDB replica set is not initialized, initializing..."
-        docker exec -t "$mongoName" mongosh --eval "rs.initiate({_id: 'rs0', members: [ { _id: 0, host: '\"$mongoName\":27017' } ]})"
+        initiateCommand="rs.initiate({_id: 'rs0', members: [ { _id: 0, host: '$mongoName:27017' } ]})"
+        docker exec -t "$mongoName" mongosh --eval "$initiateCommand"
         return $?
     fi
 }
