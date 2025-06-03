@@ -6,20 +6,28 @@ devel_weblens_locally() {
     echo "Running WebLens locally for development..."
 
     cd ./ui
-    pnpm install
-    pnpm build
-    pnpm dev:no-open &
+
+    if [[ ! -e ./dist/index.html ]]; then
+        echo "Rebuilding UI..."
+        pnpm install
+        pnpm build
+    fi
+    pnpm dev:no-open &>/dev/null &
 
     cd ..
 
     export WEBLENS_STATIC_CONTENT_PATH=./public
+    export WEBLENS_UI_PATH=./ui/dist
+    export WEBLENS_INIT_ROLE=core
 
     air
 
+    echo "Weblens development server finished..."
     exit 0
 }
 
 ensure_repl_set() {
+    echo "Checking if MongoDB replica set is initialized..."
     if ! docker exec -t "$mongoName" mongosh --eval "rs.status()" &>/dev/null; then
         echo "MongoDB replica set is not initialized, initializing..."
         initiateCommand="rs.initiate({_id: 'rs0', members: [ { _id: 0, host: '$mongoName:27017' } ]})"
@@ -29,8 +37,9 @@ ensure_repl_set() {
 }
 
 launch_mongo() {
-    mountPath=$(docker inspect "$mongoName" | jq -r '.[].Mounts[] | select(.Type=="bind") | .Source')
-    if [[ "$mountPath" != "$PWD/build/fs/$fsName/db" ]]; then
+    mountPath=$(docker inspect "$mongoName" | jq -r '.[].Mounts[] | select(.Type=="bind") | .Source') || :
+
+    if [[ "$mountPath" != "" && "$mountPath" != "$PWD/build/fs/$fsName/db" ]]; then
         echo "MongoDB mount path does not match, removing old container..."
         echo "Should be: $mountPath -- but found: $PWD/build/fs/$fsName/db"
         docker stop "$mongoName" 2>/dev/null || :
@@ -176,10 +185,12 @@ docker run \
     -v ./build/fs/"$fsName"/data:/data \
     -v ./build/fs/"$fsName"/cache:/cache \
     -v .:/src \
-    -v ./build/cache/"$fsName"/go:/go/pkg/mod \
+    -v ./build/cache/"$fsName"/go/mod:/go/pkg/mod \
+    -v ./build/cache/"$fsName"/go/build:/go/cache \
     -e WEBLENS_MONGODB_URI=mongodb://"$containerName"-mongo:27017/?replicaSet=rs0 \
     -e WEBLENS_MONGODB_NAME="$containerName" \
     -e WEBLENS_LOG_LEVEL=trace \
     -e WEBLENS_LOG_FORMAT=dev \
+    -e GOCACHE=/go/cache \
     --network weblens-net \
     ethrous/weblens:"$imageName-$arch"

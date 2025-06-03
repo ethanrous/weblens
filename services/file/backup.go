@@ -9,6 +9,7 @@ import (
 	"github.com/ethanrous/weblens/modules/errors"
 	file_system "github.com/ethanrous/weblens/modules/fs"
 	context_service "github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/services/journal"
 )
 
 func (fs *FileServiceImpl) NewBackupRestoreFile(ctx context.Context, contentId, remoteTowerId string) (*file_model.WeblensFileImpl, error) {
@@ -76,7 +77,7 @@ func loadFsTransactionBackup(ctx context.Context) error {
 			continue
 		}
 
-		lifetimes, err := history.GetLifetimesByTowerId(ctx, remote.TowerId, history.GetLifetimesOptions{ActiveOnly: true})
+		lifetimes, err := journal.GetLifetimesByTowerId(ctx, remote.TowerId, journal.GetLifetimesOptions{ActiveOnly: true})
 		if err != nil {
 			return err
 		}
@@ -130,7 +131,7 @@ func loadFsTransactionBackup(ctx context.Context) error {
 			}
 		}
 
-		err = loadFilesFromPath(appCtx, remoteDir.GetPortablePath(), fpMap, false, true)
+		err = LoadFilesRecursively(appCtx, remoteDir)
 		if err != nil {
 			return err
 		}

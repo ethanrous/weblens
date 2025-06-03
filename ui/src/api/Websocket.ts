@@ -119,9 +119,11 @@ export const useSubscribe = () => {
 
         // If we don't have a folderInfo, or we are viewing the past,
         // we can't subscribe to anything
-        if (!folderInfo || pastTime.getTime() !== 0) {
+        if (!folderInfo || !folderInfo.fromAPI || pastTime.getTime() !== 0) {
             return
         }
+        console.log('FOLDER INFO', folderInfo)
+
         const folderIds: string[] = []
         if (user.isLoggedIn) {
             folderIds.push(user.homeId)
@@ -549,14 +551,12 @@ function filebrowserWebsocketHandler(
             }
 
             case WsEvent.ErrorEvent: {
-                useMessagesController
-                    .getState()
-                    .addMessage({
-                        title: 'Websocket Error',
-                        text: msgData.error,
-                        duration: 5000,
-                        severity: 'error',
-                    })
+                useMessagesController.getState().addMessage({
+                    title: 'Websocket Error',
+                    text: msgData.error,
+                    duration: 5000,
+                    severity: 'error',
+                })
                 console.error(msgData.error)
                 return
             }

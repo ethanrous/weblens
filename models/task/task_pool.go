@@ -13,6 +13,8 @@ import (
 	"github.com/rs/zerolog"
 )
 
+const GlobalTaskPoolId = "GLOBAL"
+
 var _ task_mod.Pool = (*TaskPool)(nil)
 
 type TaskPool struct {
@@ -40,6 +42,7 @@ func (tp *TaskPool) IsRoot() bool {
 	if tp == nil {
 		return false
 	}
+
 	return tp.parentTaskPool == nil || tp.parentTaskPool.IsGlobal()
 }
 

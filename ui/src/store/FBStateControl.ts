@@ -867,6 +867,7 @@ const FBStateControl: StateCreator<
         let selfFile: WeblensFile
         if (selfInfo && !(selfInfo instanceof WeblensFile)) {
             selfFile = new WeblensFile(selfInfo)
+            selfFile.fromAPI = true
         } else if (selfInfo && selfInfo instanceof WeblensFile) {
             selfFile = selfInfo
         }

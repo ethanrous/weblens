@@ -117,7 +117,7 @@ func (fs *FileServiceImpl) GetFileById(ctx context.Context, id string) (*file_mo
 	return fs.GetFileByFilepath(ctx, path)
 }
 
-func (fs *FileServiceImpl) GetFileByFilepath(ctx context.Context, filepath file_system.Filepath) (*file_model.WeblensFileImpl, error) {
+func (fs *FileServiceImpl) GetFileByFilepath(ctx context.Context, filepath file_system.Filepath, dontLoadNew ...bool) (*file_model.WeblensFileImpl, error) {
 	root, err := fs.GetFileById(ctx, filepath.RootName())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get root file [%s]: %w", filepath.RootName(), err)
@@ -130,17 +130,28 @@ func (fs *FileServiceImpl) GetFileByFilepath(ctx context.Context, filepath file_
 		return nil, errors.WithStack(context_service.ErrNoContext)
 	}
 
+	shouldLoadNew := true
+	if len(dontLoadNew) != 0 && dontLoadNew[0] {
+		shouldLoadNew = false
+	}
+
 	for child := range strings.SplitSeq(filepath.RelPath, "/") {
 		if child == "" {
 			continue
 		}
 
-		if !childFile.ChildrenLoaded() {
-			_, err = fs.loadDirectory(appCtx, childFile.GetPortablePath())
+		if !childFile.ChildrenLoaded() && shouldLoadNew {
+			appCtx.Log().Debug().Msgf("Loading children for %s [%s]", childFile.GetPortablePath(), childFile.ID())
+
+			_, err = loadOneDirectory(appCtx, childFile, nil)
 			if err != nil {
 				return nil, err
 			}
+		} else if !shouldLoadNew {
+			return nil, file_model.ErrFileNotFound
 		}
+
+		appCtx.Log().Debug().Msgf("Getting child of %s [%s]", childFile.GetPortablePath(), childFile.ID())
 
 		childFile, err = childFile.GetChild(child)
 		if err != nil {
@@ -550,7 +561,8 @@ func (fs *FileServiceImpl) GetChildren(ctx context.Context, folder *file_model.W
 
 		appCtx.Log().Debug().Msgf("Loading children for folder [%s]", folder.GetPortablePath())
 
-		_, err := fs.loadDirectory(appCtx, folder.GetPortablePath())
+		appCtx = appCtx.WithValue(doFileCreationContextKey{}, true)
+		_, err := loadOneDirectory(appCtx, folder, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -671,7 +683,7 @@ func (fs *FileServiceImpl) ResizeDown(ctx context.Context, f *file_model.Weblens
 }
 
 func (fs *FileServiceImpl) CreateUserHome(ctx context.Context, user *user_model.User) error {
-	parent, err := fs.GetFileByFilepath(ctx, file_model.UsersRootPath)
+	parent, err := fs.GetFileById(ctx, file_model.UsersTreeKey)
 	if err != nil {
 		return err
 	}

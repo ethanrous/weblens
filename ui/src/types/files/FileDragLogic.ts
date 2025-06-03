@@ -252,10 +252,12 @@ export function goToFile(next: WeblensFile, allowBlindHop: boolean = false) {
             .filter((p) => p)
 
         console.debug('Go to file:', next)
+
         const locProps: SetFilesDataOpts = {
             selfInfo: next,
             overwriteContentId: true,
         }
+
         if (
             state.fbMode === FbModeT.share &&
             state.folderInfo.Id() === ShareRoot.Id()

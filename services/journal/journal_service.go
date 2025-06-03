@@ -15,6 +15,33 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
+type GetLifetimesOptions struct {
+	ActiveOnly bool
+	PathPrefix fs.Filepath
+	Depth      int
+}
+
+func compileLifetimeOpts(opts ...GetLifetimesOptions) GetLifetimesOptions {
+	o := GetLifetimesOptions{}
+	o.Depth = 1 // Minimum depth
+
+	for _, opt := range opts {
+		if !opt.PathPrefix.IsZero() {
+			o.PathPrefix = opt.PathPrefix
+		}
+
+		if opt.ActiveOnly {
+			o.ActiveOnly = opt.ActiveOnly
+		}
+
+		if opt.Depth != 0 && opt.Depth > o.Depth {
+			o.Depth = opt.Depth
+		}
+	}
+
+	return o
+}
+
 func pathPrefixReFilter(path fs.Filepath, depth int) bson.M {
 	pathRe := regexp.QuoteMeta(path.ToPortable())
 	pathRe += `([^/]+/?){0,` + strconv.Itoa(depth) + `}/?$`
@@ -159,6 +186,7 @@ func GetActionsByPathSince(ctx context.Context, path fs.Filepath, since time.Tim
 	}
 
 	var pathMatch bson.M
+
 	if noChildren {
 		// pathMatch = bson.A{
 		// 	bson.D{{Key: "actions.originPath", Value: path.ToPortable()}},
@@ -215,6 +243,7 @@ func GetAllActionsByTowerId(ctx context.Context, towerId string) ([]*history.Fil
 	}
 
 	var target []*history.FileAction
+
 	err = ret.All(context.Background(), &target)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -264,43 +293,89 @@ func GetLatestPathById(ctx context.Context, fileId string) (fs.Filepath, error) 
 	}
 }
 
-func getActionsByPath(ctx context.Context, path fs.Filepath, noChildren bool) ([]*history.FileAction, error) {
-	col, err := db.GetCollection(ctx, history.FileHistoryCollectionKey)
+func GetLifetimesByTowerId(ctx context.Context, towerId string, opts ...GetLifetimesOptions) ([]history.FileLifetime, error) {
+	col, err := db.GetCollection(ctx, history.FileActionCollectionKey)
 	if err != nil {
 		return nil, err
 	}
 
-	var pathMatch bson.A
-	if noChildren {
-		pathMatch = bson.A{
-			bson.D{{Key: "actions.originPath", Value: path.ToPortable()}},
-			bson.D{{Key: "actions.destinationPath", Value: path.ToPortable()}},
-		}
-	} else {
-		pathMatch = bson.A{
-			bson.D{{Key: "actions.originPath", Value: bson.D{{Key: "$regex", Value: path.ToPortable() + "[^/]*/?$"}}}},
-			bson.D{{Key: "actions.destinationPath", Value: bson.D{{Key: "$regex", Value: path.ToPortable() + "[^/]*/?$"}}}},
-		}
+	o := compileLifetimeOpts(opts...)
+
+	activeFilter := bson.M{}
+	if o.ActiveOnly {
+		activeFilter = bson.M{"$match": bson.M{"actionType": bson.M{"$ne": "fileDelete"}}}
+	}
+
+	pathFilter := bson.M{}
+	if !o.PathPrefix.IsZero() {
+		pathFilter = bson.M{"$match": pathPrefixReFilter(o.PathPrefix, o.Depth)}
 	}
 
 	pipe := bson.A{
-		// bson.D{{Key: "$match", Value: bson.D{{Key: "serverId", Value: j.serverId}}}},
-		bson.D{{Key: "$unwind", Value: bson.D{{Key: "path", Value: "$actions"}}}},
-		bson.D{{Key: "$match", Value: bson.D{{Key: "$or", Value: pathMatch}}}},
-		bson.D{{Key: "$replaceRoot", Value: bson.D{{Key: "newRoot", Value: "$actions"}}}},
-		bson.D{{Key: "$sort", Value: bson.D{{Key: "timestamp", Value: -1}}}},
+		bson.M{"$match": bson.M{"towerId": towerId}},
+		pathFilter,
+		bson.M{
+			"$group": bson.M{
+				"_id":     "$fileId",
+				"actions": bson.M{"$push": "$$ROOT"},
+			},
+		},
+		activeFilter,
+		bson.M{"$sort": bson.M{"timestamp": 1}},
 	}
 
-	ret, err := col.Aggregate(context.Background(), pipe)
+	cur, err := col.Aggregate(ctx, pipe)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
 
-	var target []*history.FileAction
-	err = ret.All(context.Background(), &target)
+	var lifetimes []history.FileLifetime
+	err = cur.All(ctx, &lifetimes)
+
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, db.WrapError(err, "GetLifetimes")
 	}
 
-	return target, nil
+	return lifetimes, nil
 }
+
+// func getActionsByPath(ctx context.Context, path fs.Filepath, noChildren bool) ([]*history.FileAction, error) {
+// 	col, err := db.GetCollection(ctx, history.FileHistoryCollectionKey)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+//
+// 	var pathMatch bson.A
+// 	if noChildren {
+// 		pathMatch = bson.A{
+// 			bson.D{{Key: "actions.originPath", Value: path.ToPortable()}},
+// 			bson.D{{Key: "actions.destinationPath", Value: path.ToPortable()}},
+// 		}
+// 	} else {
+// 		pathMatch = bson.A{
+// 			bson.D{{Key: "actions.originPath", Value: bson.D{{Key: "$regex", Value: path.ToPortable() + "[^/]*/?$"}}}},
+// 			bson.D{{Key: "actions.destinationPath", Value: bson.D{{Key: "$regex", Value: path.ToPortable() + "[^/]*/?$"}}}},
+// 		}
+// 	}
+//
+// 	pipe := bson.A{
+// 		// bson.D{{Key: "$match", Value: bson.D{{Key: "serverId", Value: j.serverId}}}},
+// 		bson.D{{Key: "$unwind", Value: bson.D{{Key: "path", Value: "$actions"}}}},
+// 		bson.D{{Key: "$match", Value: bson.D{{Key: "$or", Value: pathMatch}}}},
+// 		bson.D{{Key: "$replaceRoot", Value: bson.D{{Key: "newRoot", Value: "$actions"}}}},
+// 		bson.D{{Key: "$sort", Value: bson.D{{Key: "timestamp", Value: -1}}}},
+// 	}
+//
+// 	ret, err := col.Aggregate(context.Background(), pipe)
+// 	if err != nil {
+// 		return nil, errors.WithStack(err)
+// 	}
+//
+// 	var target []*history.FileAction
+// 	err = ret.All(context.Background(), &target)
+// 	if err != nil {
+// 		return nil, errors.WithStack(err)
+// 	}
+//
+// 	return target, nil
+// }

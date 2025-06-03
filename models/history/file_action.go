@@ -382,67 +382,6 @@ func GetLastActionByFileIdBefore(ctx context.Context, fileId string, ts time.Tim
 	return
 }
 
-type GetLifetimesOptions struct {
-	ActiveOnly bool
-	PathPrefix fs.Filepath
-}
-
-func GetLifetimesByTowerId(ctx context.Context, towerId string, opts ...GetLifetimesOptions) ([]FileLifetime, error) {
-	col, err := db.GetCollection(ctx, FileActionCollectionKey)
-	if err != nil {
-		return nil, err
-	}
-
-	o := GetLifetimesOptions{}
-
-	for _, opt := range opts {
-		if !opt.PathPrefix.IsZero() {
-			o.PathPrefix = opt.PathPrefix
-		}
-
-		if opt.ActiveOnly {
-			o.ActiveOnly = opt.ActiveOnly
-		}
-	}
-
-	activeFilter := bson.M{}
-	if o.ActiveOnly {
-		activeFilter = bson.M{"$match": bson.M{"actionType": bson.M{"$ne": "fileDelete"}}}
-	}
-
-	pathFilter := bson.M{}
-	if !o.PathPrefix.IsZero() {
-		pathFilter = bson.M{"$match": pathPrefixReFilter(o.PathPrefix)}
-	}
-
-	pipe := bson.A{
-		bson.M{"$match": bson.M{"towerId": towerId}},
-		pathFilter,
-		bson.M{
-			"$group": bson.M{
-				"_id":     "$fileId",
-				"actions": bson.M{"$push": "$$ROOT"},
-			},
-		},
-		activeFilter,
-		bson.M{"$sort": bson.M{"timestamp": 1}},
-	}
-
-	cur, err := col.Aggregate(ctx, pipe)
-	if err != nil {
-		return nil, err
-	}
-
-	var lifetimes []FileLifetime
-	err = cur.All(ctx, &lifetimes)
-
-	if err != nil {
-		return nil, db.WrapError(err, "GetLifetimes")
-	}
-
-	return lifetimes, nil
-}
-
 func UpdateAction(ctx context.Context, action *FileAction) error {
 	if action.Id.IsZero() {
 		return errors.New("cannot update action with zero ID")

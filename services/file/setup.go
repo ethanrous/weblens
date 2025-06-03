@@ -2,7 +2,6 @@ package file
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"time"
 
@@ -10,39 +9,28 @@ import (
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/history"
 	job_model "github.com/ethanrous/weblens/models/job"
+	task_model "github.com/ethanrous/weblens/models/task"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/fs"
 	file_system "github.com/ethanrous/weblens/modules/fs"
-	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/startup"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	context_service "github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/services/journal"
 )
+
+var ErrChildrenAlreadyLoaded = errors.Errorf("children already loaded")
+
+type doFileCreationContextKey struct{}
 
 func init() {
 	startup.RegisterStartup(loadFs)
 }
 
 func needsContentId(f *file_model.WeblensFileImpl) bool {
-	log.GlobalLogger().Trace().Msgf("Checking if file %s needs contentId. Size: %d", f.GetPortablePath(), f.Size())
-
 	return !f.IsDir() && f.Size() != 0 && f.GetContentId() == ""
-}
-
-func (fs *FileServiceImpl) loadDirectory(ctx context_service.AppContext, dirPath fs.Filepath) (*file_model.WeblensFileImpl, error) {
-	fpMap, err := loadLifetimes(ctx, dirPath)
-	if err != nil {
-		return nil, err
-	}
-
-	err = loadFilesFromPath(ctx, dirPath, fpMap, true, true)
-	if err != nil {
-		return nil, err
-	}
-
-	return nil, nil
 }
 
 func (fs *FileServiceImpl) makeRoot(ctx context.Context, rootPath file_system.Filepath) error {
@@ -105,32 +93,20 @@ func loadFs(ctx context.Context, cnf config.ConfigProvider) error {
 	}
 
 	if tower_model.Role(cnf.InitRole) == tower_model.RoleCore {
+		appCtx = appCtx.WithValue(doFileCreationContextKey{}, true)
+
 		err := file_system.RegisterAbsolutePrefix(file_model.UsersTreeKey, filepath.Join(cnf.DataPath, "users"))
 		if err != nil {
 			return err
 		}
 
-		if err := fs.makeRoot(ctx, file_model.UsersRootPath); err != nil {
+		if err := fs.makeRoot(appCtx, file_model.UsersRootPath); err != nil {
 			return err
 		}
 
-		err = loadFsCore(ctx)
+		err = loadFsCore(appCtx)
 		if err != nil {
 			return err
-		}
-
-		userRoot, err := appCtx.FileService.GetFileById(ctx, file_model.UsersTreeKey)
-		if err != nil {
-			return err
-		}
-
-		for _, userHome := range userRoot.GetChildren() {
-			for _, child := range userHome.GetChildren() {
-				_, err = appCtx.TaskService.DispatchJob(ctx, job_model.LoadFilesystemTask, job_model.LoadFilesystemMeta{File: child}, nil)
-				if err != nil {
-					return err
-				}
-			}
 		}
 
 		return nil
@@ -158,6 +134,10 @@ func loadFs(ctx context.Context, cnf config.ConfigProvider) error {
 }
 
 func handleFileCreation(ctx context_service.AppContext, filepath file_system.Filepath, pathMap map[file_system.Filepath]history.FileAction, doFileCreation bool, taskPool task_mod.Pool) (*file_model.WeblensFileImpl, error) {
+	if f, _ := ctx.FileService.GetFileByFilepath(ctx, filepath, true); f != nil {
+		return f, nil
+	}
+
 	f := file_model.NewWeblensFile(file_model.NewFileOptions{Path: filepath})
 	action, ok := pathMap[filepath]
 
@@ -229,83 +209,97 @@ func handleFileCreation(ctx context_service.AppContext, filepath file_system.Fil
 	return f, nil
 }
 
-func loadFilesFromPath(ctx context_service.AppContext, rootPath file_system.Filepath, pathMap map[file_system.Filepath]history.FileAction, doFileCreation, recursive bool) error {
-	err := db.WithTransaction(ctx, func(ctx context.Context) error {
+func loadOneDirectory(ctx context_service.AppContext, dir *file_model.WeblensFileImpl, taskPool task_mod.Pool) ([]*file_model.WeblensFileImpl, error) {
+	if dir.ChildrenLoaded() {
+		return nil, errors.WithStack(ErrChildrenAlreadyLoaded)
+	}
+
+	if !dir.IsDir() {
+		return nil, errors.WithStack(file_model.ErrDirectoryRequired)
+	}
+
+	pathMap, err := loadLifetimes(ctx, dir.GetPortablePath())
+	if err != nil {
+		return nil, err
+	}
+
+	children := []*file_model.WeblensFileImpl{}
+
+	childPaths, err := getChildFilepaths(dir.GetPortablePath())
+	if err != nil {
+		return nil, err
+	}
+
+	if taskPool == nil {
+		taskPool = ctx.TaskService.GetTaskPool(task_model.GlobalTaskPoolId)
+	}
+
+	doFileCreation, _ := ctx.Value(doFileCreationContextKey{}).(bool)
+
+	err = db.WithTransaction(ctx, func(ctx context.Context) error {
 		appCtx, _ := context_service.FromContext(ctx)
 
-		searchFiles := []file_system.Filepath{rootPath}
-
-		taskPool := appCtx.TaskService.NewTaskPool(true, nil)
-
-		for len(searchFiles) != 0 {
-			var fp file_system.Filepath
-			fp, searchFiles = searchFiles[0], searchFiles[1:]
-
-			start := time.Now()
-
-			f, err := handleFileCreation(appCtx, fp, pathMap, doFileCreation, taskPool)
+		for _, childPath := range childPaths {
+			child, err := handleFileCreation(appCtx, childPath, pathMap, doFileCreation, taskPool)
 			if err != nil {
 				return err
 			}
 
-			parent := f.GetParent()
-			if parent == nil {
-				parent, err = appCtx.FileService.GetFileByFilepath(ctx, f.GetPortablePath().Dir())
-				if err != nil {
-					return fmt.Errorf("Failed to find parent directory [%s]: %w", fp.Dir(), err)
-				}
-
-				if parent == nil {
-					return fmt.Errorf("Parent directory [%s] not found", fp.Dir())
-				}
-
-				err = f.SetParent(parent)
-				if err != nil {
-					return err
-				}
-
-				err = parent.AddChild(f)
-				if err != nil {
-					return err
-				}
-
-				if f.ID() != "" {
-					err = appCtx.FileService.AddFile(ctx, f)
-					if err != nil {
-						return err
-					}
-				}
-			}
-
-			_, err = parent.GetChild(f.GetPortablePath().Filename())
+			err = child.SetParent(dir)
 			if err != nil {
 				return err
 			}
 
-			if f.IsDir() {
-				children, err := getChildFilepaths(fp)
-				if err != nil {
-					return err
-				}
-
-				if len(children) == 0 {
-					f.InitChildren()
-				}
-
-				appCtx.Log().Trace().Msgf("Found %d children for %s", len(children), fp.ToAbsolute())
-
-				if recursive || f.GetPortablePath().Depth()-rootPath.Depth() < 2 {
-					searchFiles = append(searchFiles, children...)
-				}
+			err = dir.AddChild(child)
+			if err != nil {
+				return err
 			}
 
-			appCtx.Log().Trace().Msgf("Loaded file %s in %s", fp.String(), time.Since(start))
+			err = appCtx.FileService.AddFile(appCtx, child)
+			if err != nil {
+				return errors.Errorf("failed to add child [%s] to tree: %w", child.GetPortablePath(), err)
+			}
+
+			children = append(children, child)
 		}
 
 		return nil
 	})
 
-	return err
+	if err != nil {
+		return nil, err
+	}
+
+	return children, nil
+}
+
+func LoadFilesRecursively(ctx context_service.AppContext, root *file_model.WeblensFileImpl) error {
+	appCtx, _ := context_service.FromContext(ctx)
+	taskPool := appCtx.TaskService.NewTaskPool(true, nil)
+
+	searchFiles := []*file_model.WeblensFileImpl{root}
+
+	start := time.Now()
+
+	for len(searchFiles) != 0 {
+		var file *file_model.WeblensFileImpl
+		file, searchFiles = searchFiles[0], searchFiles[1:]
+
+		if !file.IsDir() {
+			continue
+		}
+
+		newChildren, err := loadOneDirectory(ctx, file, taskPool)
+		if err != nil {
+			return errors.Errorf("Failed to load directory %s: %w", file.GetPortablePath(), err)
+		}
+
+		searchFiles = append(searchFiles, newChildren...)
+	}
+
+	appCtx.Log().Trace().Msgf("Loaded file %s [%s] in %s", root.GetPortablePath().String(), root.ID(), time.Since(start))
+
+	return nil
 }
 
 func loadFsCore(ctx context.Context) error {
@@ -323,12 +317,7 @@ func loadFsCore(ctx context.Context) error {
 		return err
 	}
 
-	fpMap, err := loadLifetimes(appCtx, file_model.UsersRootPath)
-	if err != nil {
-		return err
-	}
-
-	err = loadFilesFromPath(appCtx, root.GetPortablePath(), fpMap, true, false)
+	_, err = loadOneDirectory(appCtx, root, nil)
 	if err != nil {
 		return err
 	}
@@ -343,11 +332,25 @@ func loadFsCore(ctx context.Context) error {
 
 	appCtx.Log().Trace().Msgf("Computed tree size in %s", time.Since(start))
 
+	for _, userHome := range root.GetChildren() {
+		children, err := appCtx.FileService.GetChildren(appCtx, userHome)
+		if err != nil {
+			return err
+		}
+
+		for _, child := range children {
+			_, err = appCtx.TaskService.DispatchJob(appCtx, job_model.LoadFilesystemTask, job_model.LoadFilesystemMeta{File: child}, nil)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 
 func loadLifetimes(ctx context_service.AppContext, pathPrefix fs.Filepath) (map[file_system.Filepath]history.FileAction, error) {
-	lifetimes, err := history.GetLifetimesByTowerId(ctx, ctx.LocalTowerId, history.GetLifetimesOptions{ActiveOnly: true, PathPrefix: pathPrefix})
+	lifetimes, err := journal.GetLifetimesByTowerId(ctx, ctx.LocalTowerId, journal.GetLifetimesOptions{ActiveOnly: true, PathPrefix: pathPrefix})
 	if err != nil {
 		return nil, err
 	}

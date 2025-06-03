@@ -25,7 +25,7 @@ test: $(GO_SOURCE) $(TS_SOURCE)
 	./scripts/testWeblens -a 
 
 dev: FORCE
-	./scripts/start.bash --dev --rebuild
+	./scripts/start.bash --dev
 
 clean:
 	rm -rf ./build/bin/*

@@ -164,7 +164,7 @@ func WeblensAuth(next Handler) Handler {
 				usr, err := auth_service.GetUserFromJWT(ctx, sessionCookie)
 				if err != nil {
 					ctx.ExpireCookie()
-					ctx.Error(http.StatusUnauthorized, errors.Wrap(err, "failed to validate sesion token"))
+					ctx.Error(http.StatusUnauthorized, errors.WrapStatus(http.StatusUnauthorized, errors.Wrap(err, "failed to validate sesion token")))
 
 					return
 				}

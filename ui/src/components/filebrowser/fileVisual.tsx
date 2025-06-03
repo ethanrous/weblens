@@ -82,7 +82,7 @@ function FileVisual({
         default:
             return (
                 <div
-                    ref={setContainerRef}
+                    ref={containerRef}
                     className="flex h-full w-full items-center justify-center"
                 >
                     <IconFile stroke={1} className="h-3/4 w-3/4" />

@@ -6,6 +6,7 @@ import (
 	"github.com/ethanrous/weblens/modules/errors"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/ethanrous/weblens/services/context"
+	file_service "github.com/ethanrous/weblens/services/file"
 )
 
 func LoadAtPath(tsk task_mod.Task) {
@@ -27,7 +28,7 @@ func LoadAtPath(tsk task_mod.Task) {
 
 	appCtx.Log().Debug().Msgf("Loading filesystem at path %s", meta.File.GetPortablePath())
 
-	_, err := appCtx.FileService.GetChildren(appCtx, meta.File)
+	err := file_service.LoadFilesRecursively(appCtx, meta.File)
 	if err != nil {
 		t.Fail(err)
 

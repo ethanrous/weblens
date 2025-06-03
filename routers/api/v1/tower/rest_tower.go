@@ -8,9 +8,7 @@ import (
 	"github.com/ethanrous/weblens/models/db"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
-	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/net"
-	"github.com/ethanrous/weblens/modules/startup"
 	"github.com/ethanrous/weblens/modules/structs"
 	"github.com/ethanrous/weblens/routers/api/v1/websocket"
 	access_service "github.com/ethanrous/weblens/services/auth"
@@ -349,11 +347,11 @@ func InitializeTower(ctx context_service.RequestContext) {
 		// Initialize the server based on the specified role
 		switch tower_model.Role(initBody.Role) {
 		case tower_model.RoleCore:
-			if err := initializeCoreServer(sessionCtx, initBody); err != nil {
+			if err := tower_service.InitializeCoreServer(sessionCtx, initBody); err != nil {
 				return err
 			}
 		case tower_model.RoleBackup:
-			if err := initializeBackupServer(sessionCtx, initBody); err != nil {
+			if err := tower_service.InitializeBackupServer(sessionCtx, initBody); err != nil {
 				return err
 			}
 		case tower_model.RoleRestore:
@@ -419,85 +417,6 @@ func newOwner(ctx context.Context, initBody structs.InitServerParams) (*user_mod
 	}
 
 	return owner, nil
-}
-
-func initializeCoreServer(ctx context.Context, initBody structs.InitServerParams) error {
-	if initBody.Name == "" || initBody.Username == "" || initBody.Password == "" {
-		return errors.New("missing required fields for core server initialization")
-	}
-
-	local, err := tower_model.GetLocal(ctx)
-	if err != nil {
-		return err
-	}
-
-	local.Role = tower_model.RoleCore
-	local.Name = initBody.Name
-	local.Address = initBody.CoreAddress
-
-	err = tower_model.UpdateTower(ctx, &local)
-	if err != nil {
-		return err
-	}
-
-	cnf := config.GetConfig()
-	cnf.InitRole = string(tower_model.RoleCore)
-	err = startup.RunStartups(ctx, cnf)
-	if err != nil {
-		return err
-	}
-
-	_, err = newOwner(ctx, initBody)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func initializeBackupServer(ctx context.Context, initBody structs.InitServerParams) error {
-	local, err := tower_model.GetLocal(ctx)
-	if err != nil {
-		return err
-	}
-
-	local.Role = tower_model.RoleBackup
-	local.Name = initBody.Name
-
-	err = tower_model.UpdateTower(ctx, &local)
-	if err != nil {
-		return err
-	}
-
-	core := tower_model.Instance{
-		Role:        tower_model.RoleCore,
-		Address:     initBody.CoreAddress,
-		OutgoingKey: initBody.CoreKey,
-	}
-
-	coreInfo, err := tower_service.Ping(ctx, core)
-	if err != nil {
-		return err
-	}
-
-	if tower_model.Role(coreInfo.GetRole()) != tower_model.RoleCore {
-		return tower_model.ErrNotCore
-	}
-
-	core.TowerId = coreInfo.GetId()
-	core.Name = coreInfo.GetName()
-
-	err = tower_model.SaveTower(ctx, &core)
-	if err != nil {
-		return err
-	}
-
-	_, err = newOwner(ctx, initBody)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // func initializeRestoreServer(ctx context.RequestContext, initBody structs.InitServerParams) error {

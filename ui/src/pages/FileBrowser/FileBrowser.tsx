@@ -257,6 +257,7 @@ function FileBrowser() {
         }
 
         addLoading('files')
+
         syncState()
             .catch((e: number) => {
                 console.error(e)

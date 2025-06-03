@@ -19,7 +19,7 @@ type FileService interface {
 	GetFileById(ctx context.Context, fileId string) (*WeblensFileImpl, error)
 
 	// GetFileByFilepath retrieves a file by its filepath
-	GetFileByFilepath(ctx context.Context, path fs.Filepath) (*WeblensFileImpl, error)
+	GetFileByFilepath(ctx context.Context, path fs.Filepath, dontLoadNew ...bool) (*WeblensFileImpl, error)
 
 	// CreateFile creates a new file
 	CreateFile(ctx context.Context, parent *WeblensFileImpl, filename string, data ...[]byte) (*WeblensFileImpl, error)

@@ -30,6 +30,7 @@ func WithTransaction(ctx context.Context, fn func(ctx context.Context) error) er
 	l := log.FromContext(ctx)
 
 	if hasTransaction(ctx) {
+		// return errors.Errorf("Already in a transaction")
 		l.Debug().Msg("Already in a transaction, skipping straight to callback function")
 
 		return fn(ctx)

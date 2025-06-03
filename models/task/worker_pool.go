@@ -86,10 +86,10 @@ func NewWorkerPool(ctx context_mod.ContextZ, initWorkers int) *WorkerPool {
 
 	// Worker pool always has one global queue
 	globalPool := newWp.newTaskPoolInternal()
-	globalPool.id = "GLOBAL"
+	globalPool.id = GlobalTaskPoolId
 	globalPool.MarkGlobal()
 
-	newWp.poolMap["GLOBAL"] = globalPool
+	newWp.poolMap[GlobalTaskPoolId] = globalPool
 
 	return newWp
 }
@@ -107,6 +107,7 @@ func (wp *WorkerPool) NewTaskPool(replace bool, createdBy task_mod.Task) task_mo
 	if createdBy != nil {
 		t := createdBy.(*Task)
 		tp.createdBy = t
+
 		if !createdBy.GetTaskPool().IsGlobal() {
 			tp.createdBy = t
 		}
@@ -139,6 +140,7 @@ func (wp *WorkerPool) GetTasksByJobName(jobName string) []*Task {
 	defer wp.taskMu.RUnlock()
 
 	var ret []*Task
+
 	for _, t := range wp.taskMap {
 		if t.JobName() == jobName {
 			return append(ret, t)
@@ -150,6 +152,7 @@ func (wp *WorkerPool) GetTasksByJobName(jobName string) []*Task {
 func (wp *WorkerPool) GetTaskPoolByJobName(jobName string) *TaskPool {
 	wp.poolMu.Lock()
 	defer wp.poolMu.Unlock()
+
 	for _, tp := range wp.poolMap {
 		if tp.CreatedInTask() != nil && tp.CreatedInTask().JobName() == jobName {
 			return tp
@@ -187,7 +190,7 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta task
 	wp.jobsMu.RUnlock()
 
 	if pool == nil {
-		pool = wp.GetTaskPool("GLOBAL")
+		pool = wp.GetTaskPool(GlobalTaskPoolId)
 	}
 
 	job := wp.getRegisteredJob(jobName)

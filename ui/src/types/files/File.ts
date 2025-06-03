@@ -78,6 +78,7 @@ class WeblensFile {
     visible?: boolean
 
     private fetching: boolean = false
+    public fromAPI: boolean = false
 
     private selected: SelectedState
     private contentId: string = ''
