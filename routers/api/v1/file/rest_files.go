@@ -742,8 +742,8 @@ func CreateTakeout(ctx context_service.RequestContext) {
 //
 //	@Summary	Get path completion suggestions
 //	@Tags		Files
-//	@Param		searchPath	query		string	true	"Search path"
-//	@Success	200			{object}	structs.FolderInfoResponse "Path info"
+//	@Param		searchPath	query		string						true	"Search path"
+//	@Success	200			{object}	structs.FolderInfoResponse	"Path info"
 //	@Failure	500
 //	@Router		/files/autocomplete [get]
 func AutocompletePath(ctx context_service.RequestContext) {
@@ -1079,8 +1079,9 @@ func UnTrashFiles(ctx context_service.RequestContext) {
 //
 //	@Summary	Delete Files "permanently"
 //	@Tags		Files
-//	@Param		request		body	structs.FilesListParams	true	"Delete files request body"
-//	@Param		ignoreTrash	query	boolean					false	"Delete files even if they are not in the trash"
+//	@Param		request			body	structs.FilesListParams	true	"Delete files request body"
+//	@Param		ignoreTrash		query	boolean					false	"Delete files even if they are not in the trash"
+//	@Param		preserveFolder	query	boolean					false	"Preserve parent folder if it is empty after deletion"
 //	@Success	200
 //	@Failure	401
 //	@Failure	404
@@ -1111,6 +1112,32 @@ func DeleteFiles(ctx context_service.RequestContext) {
 		}
 
 		files = append(files, file)
+	}
+
+	preserveFolder := ctx.QueryBool("preserveFolder")
+	ctx.Log().Debug().Msgf("Preserve folder: %v", preserveFolder)
+
+	if preserveFolder {
+		childFiles := []*file_model.WeblensFileImpl{}
+
+		for _, file := range files {
+			if file_model.IsFileInTrash(file) && file.GetPortablePath().Filename() != file_model.UserTrashDirName {
+				// If the file is in the trash, we can delete it without preserving the folder
+				childFiles = append(childFiles, file)
+			} else {
+				// Otherwise get the children of the file and delete those instead
+				children, err := ctx.FileService.GetChildren(ctx, file)
+				if err != nil {
+					ctx.Error(http.StatusInternalServerError, fmt.Errorf("Failed to get children of file: %w", err))
+
+					return
+				}
+
+				childFiles = append(childFiles, children...)
+			}
+		}
+
+		files = childFiles
 	}
 
 	err = ctx.FileService.DeleteFiles(ctx, files...)

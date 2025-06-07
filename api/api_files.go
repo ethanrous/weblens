@@ -381,6 +381,7 @@ type ApiDeleteFilesRequest struct {
 	ApiService *FilesAPIService
 	request *FilesListParams
 	ignoreTrash *bool
+	preserveFolder *bool
 }
 
 // Delete files request body
@@ -392,6 +393,12 @@ func (r ApiDeleteFilesRequest) Request(request FilesListParams) ApiDeleteFilesRe
 // Delete files even if they are not in the trash
 func (r ApiDeleteFilesRequest) IgnoreTrash(ignoreTrash bool) ApiDeleteFilesRequest {
 	r.ignoreTrash = &ignoreTrash
+	return r
+}
+
+// Preserve parent folder if it is empty after deletion
+func (r ApiDeleteFilesRequest) PreserveFolder(preserveFolder bool) ApiDeleteFilesRequest {
+	r.preserveFolder = &preserveFolder
 	return r
 }
 
@@ -436,6 +443,9 @@ func (a *FilesAPIService) DeleteFilesExecute(r ApiDeleteFilesRequest) (*http.Res
 
 	if r.ignoreTrash != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "ignoreTrash", r.ignoreTrash, "", "")
+	}
+	if r.preserveFolder != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "preserveFolder", r.preserveFolder, "", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}

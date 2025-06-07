@@ -11,9 +11,7 @@ WORKDIR /ui
 
 COPY ui .
 
-RUN npm install --global pnpm
-RUN pnpm install
-RUN pnpm run build
+RUN --mount=type=cache,target=./node_modules npm install && npm run build
 
 #
 # Test server binary

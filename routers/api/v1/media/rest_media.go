@@ -532,6 +532,47 @@ func StreamVideo(ctx context.RequestContext) {
 	// streamVideo(w, r)
 }
 
+// GetRandomMedia() godoc
+//
+//	@Id			GetRandomMedia
+//
+//	@Summary	Get random media
+//	@Tags		Media
+//	@Produce	json
+//	@Param		count	query		number					true	"Number of random medias to get"
+//	@Success	200		{object}	structs.MediaBatchInfo	"Media Batch"
+//	@Success	404
+//	@Success	500
+//	@Router		/media/random [get]
+func GetRandomMedia(ctx context.RequestContext) {
+	countStr := ctx.Query("count")
+
+	count, err := strconv.Atoi(countStr)
+	if err != nil {
+		ctx.Error(http.StatusBadRequest, err)
+
+		return
+	}
+
+	username := ctx.AttemptGetUsername()
+
+	if username == "" {
+		ctx.Error(http.StatusUnauthorized, errors.New("unauthorized: no username provided"))
+
+		return
+	}
+
+	medias, err := media_model.GetRandomMedias(ctx, media_model.RandomMediaOptions{Owner: username, Count: count, NoRaws: true})
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, err)
+
+		return
+	}
+
+	batch := reshape.NewMediaBatchInfo(medias)
+	ctx.JSON(http.StatusOK, batch)
+}
+
 // Helper function
 func getMediaInFolders(ctx context.RequestContext, folderIds []string) ([]*media_model.Media, error) {
 	// var folders []*fileTree.WeblensFileImpl

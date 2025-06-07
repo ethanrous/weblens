@@ -37,8 +37,14 @@ function WeblensFileButton(props: FileButtonProps) {
     }
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (!event.currentTarget.files) {
+            console.warn('No files selected in file upload input')
+
+            return
+        }
+
         const files = Array.from(event.currentTarget.files)
-        HandleUploadButton(files, props.folderId, false, props.shareId)
+        HandleUploadButton(files, props.folderId, false, props.shareId ?? '')
             .then(() => {
                 reset()
             })
@@ -50,7 +56,6 @@ function WeblensFileButton(props: FileButtonProps) {
             <WeblensButton
                 onClick={onClick}
                 Left={IconUpload}
-                tooltip="Upload"
                 {...props.buttonProps}
             />
             <input

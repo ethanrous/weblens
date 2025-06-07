@@ -1,6 +1,7 @@
 package task
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"runtime"
@@ -19,7 +20,8 @@ var _ task_mod.Pool = (*TaskPool)(nil)
 
 type TaskPool struct {
 	allQueuedFlag  atomic.Bool
-	cleanupFn      task_mod.PoolCleanupFunc
+	cleanupFn      []task_mod.PoolCleanupFunc
+	cleanupsDone   atomic.Bool
 	completedTasks atomic.Int64
 	createdAt      time.Time
 	createdBy      *Task
@@ -105,16 +107,10 @@ func (tp *TaskPool) HandleTaskExit(replacementThread bool) (canContinue bool) {
 
 			// Once all the tasks have exited, this worker pool is now closing, and so we must run
 			// its cleanup routine(s)
-			if tp.cleanupFn != nil {
-				func() {
-					defer func() {
-						if r := recover(); r != nil {
-							tp.log.Error().Stack().Err(errors.New(fmt.Sprint(r))).Msg("Failed to execute taskPool cleanup")
-						}
-					}()
-					tp.cleanupFn(tp)
-				}()
+			if len(tp.cleanupFn) != 0 {
+				tp.runCleanups()
 			}
+
 			tp.workerPool.removeTaskPool(tp.ID())
 		}
 	}
@@ -191,8 +187,11 @@ func (tp *TaskPool) Wait(supplementWorker bool, task ...task_mod.Task) {
 	// e.g a directory scan waiting for the child file scans to complete,
 	// we want to add a worker to the pool temporarily to supplement this one
 	if supplementWorker {
+		ctx, cancel := context.WithCancel(tp.workerPool.ctx)
+		defer cancel()
+
 		tp.workerPool.busyCount.Add(-1)
-		tp.workerPool.addReplacementWorker()
+		tp.workerPool.addReplacementWorker(ctx)
 	}
 
 	tp.log.Trace().Func(func(e *zerolog.Event) {
@@ -247,14 +246,27 @@ func (tp *TaskPool) AddError(t task_mod.Task) {
 func (tp *TaskPool) AddCleanup(fn task_mod.PoolCleanupFunc) {
 	tp.exitLock.Lock()
 	defer tp.exitLock.Unlock()
-	if tp.allQueuedFlag.Load() && tp.completedTasks.Load() == tp.totalTasks.Load() {
+	if tp.allQueuedFlag.Load() && tp.completedTasks.Load() == tp.totalTasks.Load() && tp.cleanupsDone.Load() {
 		// Caller expects `AddCleanup` to execute asynchronously, so we must run the
 		// cleanup function in its own go routine
 		go fn(tp)
 		return
 	}
 
-	tp.cleanupFn = fn
+	tp.cleanupFn = append(tp.cleanupFn, fn)
+}
+
+func (tp *TaskPool) runCleanups() {
+	defer func() {
+		if r := recover(); r != nil {
+			tp.log.Error().Stack().Err(errors.New(fmt.Sprint(r))).Msg("Failed to execute taskPool cleanup")
+		}
+		tp.cleanupsDone.Store(true)
+	}()
+
+	for _, fn := range tp.cleanupFn {
+		fn(tp)
+	}
 }
 
 func (tp *TaskPool) Errors() []task_mod.Task {

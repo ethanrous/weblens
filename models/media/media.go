@@ -68,7 +68,7 @@ type Media struct {
 	MediaID primitive.ObjectID `bson:"_id"`
 
 	// If the media is hidden from the timeline
-	// TODO - make this per user
+	// TODO: make this per user
 	Hidden bool `bson:"hidden"`
 
 	// If the media disabled. This can happen when the backing file(s) are deleted,
@@ -132,7 +132,6 @@ func GetMediaByPath(ctx context.Context, path string) ([]*Media, error) {
 
 func GetMedia(ctx context.Context, username string, sort string, sortDirection int, excludeIds []ContentId,
 	allowRaw bool, allowHidden bool, search string) ([]*Media, error) {
-
 	slices.Sort(excludeIds)
 
 	pipe := bson.A{
@@ -169,12 +168,60 @@ func GetMedia(ctx context.Context, username string, sort string, sortDirection i
 	}
 
 	medias := []*Media{}
+
 	err = cur.All(ctx, &medias)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
 	return medias, nil
+}
+
+type RandomMediaOptions struct {
+	Count  int
+	Owner  string
+	NoRaws bool // If true, do not return raw media files
+}
+
+func GetRandomMedias(ctx context.Context, opts RandomMediaOptions) ([]*Media, error) {
+	col, err := db.GetCollection(ctx, MediaCollectionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	match := bson.M{
+		// Media must have a file associated with it
+		"fileIds": bson.M{"$exists": true, "$ne": bson.A{}},
+		"hidden":  false, // Only return non-hidden media
+	}
+
+	if opts.Owner != "" {
+		// Match the owner if given
+		match["owner"] = opts.Owner
+	}
+
+	if opts.NoRaws {
+		// Match the owner if given
+		match["mimeType"] = bson.M{"$ne": "image/x-sony-arw"}
+	}
+
+	cursor, err := col.Aggregate(ctx, bson.A{
+		bson.M{"$match": match},
+		// Sample the given number of random documents
+		bson.M{"$sample": bson.M{"size": opts.Count}},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var target []*Media
+
+	err = cursor.All(ctx, &target)
+	if err != nil {
+		return nil, err
+	}
+
+	return target, nil
 }
 
 func DropMediaCollection(ctx context.Context) error {
@@ -212,6 +259,7 @@ func (m *Media) IsHidden() bool {
 func (m *Media) GetCreateDate() time.Time {
 	m.updateMu.RLock()
 	defer m.updateMu.RUnlock()
+
 	return m.CreateDate
 }
 
@@ -229,6 +277,7 @@ func (m *Media) GetPageCount() int {
 func (m *Media) GetVideoLength() int {
 	m.updateMu.RLock()
 	defer m.updateMu.RUnlock()
+
 	return m.Duration
 }
 
@@ -241,12 +290,14 @@ func (m *Media) SetOwner(owner string) {
 func (m *Media) GetOwner() string {
 	m.updateMu.RLock()
 	defer m.updateMu.RUnlock()
+
 	return m.Owner
 }
 
 func (m *Media) GetFiles() []string {
 	m.updateMu.RLock()
 	defer m.updateMu.RUnlock()
+
 	return m.FileIDs
 }
 
@@ -295,13 +346,8 @@ func (m *Media) SetRecognitionTags(tags []string) {
 func (m *Media) GetRecognitionTags() []string {
 	m.updateMu.RLock()
 	defer m.updateMu.RUnlock()
-	return m.RecognitionTags
-}
 
-func (m *Media) setHidden(hidden bool) {
-	m.updateMu.Lock()
-	defer m.updateMu.Unlock()
-	m.Hidden = hidden
+	return m.RecognitionTags
 }
 
 func (m *Media) SetLowresCacheFile(thumb *file_model.WeblensFileImpl) {
@@ -313,6 +359,7 @@ func (m *Media) SetLowresCacheFile(thumb *file_model.WeblensFileImpl) {
 func (m *Media) GetLowresCacheFile() *file_model.WeblensFileImpl {
 	m.updateMu.RLock()
 	defer m.updateMu.RUnlock()
+
 	return m.lowresCacheFile
 }
 
@@ -334,6 +381,7 @@ func (m *Media) GetHighresCacheFiles(pageNum int) *file_model.WeblensFileImpl {
 	if len(m.highResCacheFiles) < pageNum+1 {
 		return nil
 	}
+
 	return m.highResCacheFiles[pageNum]
 }
 
@@ -477,6 +525,7 @@ func CheckMediaQuality(quality string) (MediaQuality, bool) {
 	case string(LowRes), string(HighRes), string(Video):
 		return MediaQuality(quality), true
 	}
+
 	return "", false
 }
 
@@ -510,4 +559,10 @@ func (media *Media) AddFileToMedia(ctx context.Context, fileId string) error {
 	}
 
 	return nil
+}
+
+func (m *Media) setHidden(hidden bool) {
+	m.updateMu.Lock()
+	defer m.updateMu.Unlock()
+	m.Hidden = hidden
 }

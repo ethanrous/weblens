@@ -47,6 +47,8 @@ func Routes(ctx context_service.AppContext) *router.Router {
 			r.Patch("/visibility", media_api.HideMedia)
 			r.Patch("/date", media_api.AdjustMediaDate)
 		}, router.RequireSignIn)
+
+		r.Get("/random", media_api.GetRandomMedia)
 	})
 
 	// Files

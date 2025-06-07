@@ -230,7 +230,7 @@ No authorization required
 
 ## DeleteFiles
 
-> DeleteFiles(ctx).Request(request).IgnoreTrash(ignoreTrash).Execute()
+> DeleteFiles(ctx).Request(request).IgnoreTrash(ignoreTrash).PreserveFolder(preserveFolder).Execute()
 
 Delete Files \"permanently\"
 
@@ -249,10 +249,11 @@ import (
 func main() {
 	request := *openapiclient.NewFilesListParams() // FilesListParams | Delete files request body
 	ignoreTrash := true // bool | Delete files even if they are not in the trash (optional)
+	preserveFolder := true // bool | Preserve parent folder if it is empty after deletion (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	r, err := apiClient.FilesAPI.DeleteFiles(context.Background()).Request(request).IgnoreTrash(ignoreTrash).Execute()
+	r, err := apiClient.FilesAPI.DeleteFiles(context.Background()).Request(request).IgnoreTrash(ignoreTrash).PreserveFolder(preserveFolder).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FilesAPI.DeleteFiles``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -273,6 +274,7 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **request** | [**FilesListParams**](FilesListParams.md) | Delete files request body | 
  **ignoreTrash** | **bool** | Delete files even if they are not in the trash | 
+ **preserveFolder** | **bool** | Preserve parent folder if it is empty after deletion | 
 
 ### Return type
 

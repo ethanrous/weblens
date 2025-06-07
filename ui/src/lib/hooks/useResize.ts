@@ -41,3 +41,24 @@ export function useResize(
 
     return size
 }
+
+export function useResizeWindow() {
+    const [size, setSize] = useState({
+        height: window.innerHeight,
+        width: window.innerWidth,
+    })
+
+    const handler = useCallback(() => {
+        setSize({
+            height: window.innerHeight,
+            width: window.innerWidth,
+        })
+    }, [])
+
+    useEffect(() => {
+        window.addEventListener('resize', handler)
+        return () => window.removeEventListener('resize', handler)
+    }, [handler])
+
+    return size
+}

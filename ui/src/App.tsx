@@ -239,7 +239,7 @@ function App() {
     const queryClient = new QueryClient()
 
     return (
-        <div className="flex h-screen w-screen">
+        <div className="flex h-screen w-screen items-center">
             <Messages />
             <QueryClientProvider client={queryClient}>
                 <Router>

@@ -15,7 +15,7 @@ export default function Messages() {
     )
 
     return (
-        <div className="absolute right-4 bottom-4 z-50 w-max">
+        <div className="absolute right-4 bottom-4 z-[999] w-max">
             {sortedMsgs.map((m, i) => (
                 <SingleMessage key={i} message={m} />
             ))}

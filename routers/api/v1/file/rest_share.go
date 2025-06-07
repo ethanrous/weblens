@@ -273,9 +273,9 @@ func AddUserToShare(ctx context.RequestContext) {
 //	@Summary	Remove a user from a file share
 //	@Tags		Share
 //	@Produce	json
-//	@Param		shareId	path		string					true	"Share Id"
-//	@Param		username	path		string					true	"Username"
-//	@Success	200		{object}	structs.ShareInfo
+//	@Param		shareId		path		string	true	"Share Id"
+//	@Param		username	path		string	true	"Username"
+//	@Success	200			{object}	structs.ShareInfo
 //	@Failure	404
 //	@Router		/share/{shareId}/accessors/{username} [delete]
 func RemoveUserFromShare(ctx context.RequestContext) {
@@ -315,10 +315,10 @@ func RemoveUserFromShare(ctx context.RequestContext) {
 //	@Summary	Update a share's user permissions
 //	@Tags		Share
 //	@Produce	json
-//	@Param		shareId	path		string					true	"Share Id"
-//	@Param		username	path		string					true	"Username"
-//	@Param		request	body		structs.PermissionsParams	true	"Share Permissions Params"
-//	@Success	200		{object}	structs.ShareInfo
+//	@Param		shareId		path		string						true	"Share Id"
+//	@Param		username	path		string						true	"Username"
+//	@Param		request		body		structs.PermissionsParams	true	"Share Permissions Params"
+//	@Success	200			{object}	structs.ShareInfo
 //	@Failure	404
 //	@Router		/share/{shareId}/accessors/{username} [patch]
 func SetShareAccessors(ctx context.RequestContext) {

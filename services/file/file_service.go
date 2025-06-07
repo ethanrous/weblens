@@ -301,6 +301,14 @@ func (fs *FileServiceImpl) MoveFiles(ctx context.Context, files []*file_model.We
 
 // DeleteFiles removes files being pointed to from the tree and moves them to the restore tree.
 func (fs *FileServiceImpl) DeleteFiles(ctx context.Context, files ...*file_model.WeblensFileImpl) error {
+	for _, f := range files {
+		if f.GetPortablePath().Dir().IsRoot() {
+			return errors.Errorf("cannot delete user home directory [%s]", f.GetPortablePath())
+		} else if f.GetPortablePath().Filename() == file_model.UserTrashDirName {
+			return errors.Errorf("cannot delete user trash directory [%s]", f.GetPortablePath())
+		}
+	}
+
 	err := db.WithTransaction(ctx, func(ctx context.Context) error {
 		return fs.deleteFilesWithTransaction(ctx, files)
 	})

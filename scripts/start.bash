@@ -7,18 +7,17 @@ devel_weblens_locally() {
 
     cd ./ui
 
+    pnpm install
     if [[ ! -e ./dist/index.html ]]; then
         echo "Rebuilding UI..."
-        pnpm install
         pnpm build
     fi
-    pnpm dev:no-open &>/dev/null &
+    pnpm dev:no-open 1>/dev/null &
 
     cd ..
 
     export WEBLENS_STATIC_CONTENT_PATH=./public
     export WEBLENS_UI_PATH=./ui/dist
-    export WEBLENS_INIT_ROLE=core
 
     air
 
@@ -189,6 +188,7 @@ docker run \
     -v ./build/cache/"$fsName"/go/build:/go/cache \
     -e WEBLENS_MONGODB_URI=mongodb://"$containerName"-mongo:27017/?replicaSet=rs0 \
     -e WEBLENS_MONGODB_NAME="$containerName" \
+    -e WEBLENS_INIT_ROLE="$towerRole" \
     -e WEBLENS_LOG_LEVEL=trace \
     -e WEBLENS_LOG_FORMAT=dev \
     -e GOCACHE=/go/cache \

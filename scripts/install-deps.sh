@@ -66,10 +66,7 @@ if [[ $buildDcraw == true ]]; then
         gnu-libiconv-dev
 
     cd /tmp
-    wget https://www.dechifro.org/dcraw/archive/dcraw-9.28.0.tar.gz
-    tar -xzvf dcraw-*.tar.gz
-
-    cd /tmp/dcraw
+    wget https://raw.githubusercontent.com/ncruces/dcraw/refs/heads/master/dcraw.c
 
     gcc -O4 -march=native -o /usr/local/bin/dcraw dcraw.c \
         -l:libm.a -ljasper -ljpeg -llcms2 -lintl -s -DLOCALEDIR=\"/usr/local/share/locale/\"

@@ -154,6 +154,18 @@ function MenuTitle() {
     )
 }
 
+function MenuBodyWrapper({ children }: { children: ReactElement[] }) {
+    return (
+        <div
+            className={
+                'flex max-h-max w-full flex-col items-center justify-center gap-1'
+            }
+        >
+            {children}
+        </div>
+    )
+}
+
 export function FileContextMenu() {
     const user = useSessionStore(useShallow((state) => state.user))
     const menuRef = useRef<HTMLDivElement>(null)
@@ -225,7 +237,7 @@ export function FileContextMenu() {
         return null
     }
 
-    let menuBody: ReactElement
+    let menuBody: ReactElement = <div />
     if (user?.trashId === folderInfo.Id()) {
         menuBody = <InTrashMenu activeItems={activeItems.items} />
     } else if (menuMode === FbMenuModeT.Default) {
@@ -240,8 +252,6 @@ export function FileContextMenu() {
         menuBody = <NewFolderName items={activeItems.items} />
     } else if (menuMode === FbMenuModeT.Sharing) {
         return <ShareModal targetFile={targetFile} ref={menuRef} />
-    } else if (menuMode === FbMenuModeT.AddToAlbum) {
-        // menuBody = <AddToAlbum activeItems={activeItems.items} />
     } else if (menuMode === FbMenuModeT.RenameFile) {
         menuBody = <FileRenameInput />
     } else if (menuMode === FbMenuModeT.SearchForFile) {
@@ -277,10 +287,17 @@ export function FileContextMenu() {
         )
     }
 
+    if (menuBody === <div />) {
+        console.error('Unknown menu mode:', menuMode)
+        return null
+    }
+
+    console.log(menuMode === FbMenuModeT.Closed)
+
     return (
         <div
-            key={'fileContextMenu'}
-            className="absolute z-50 flex h-max w-max origin-center -translate-1/2 transition data-closed:pointer-events-none data-closed:max-h-0 data-closed:max-w-0 data-closed:opacity-0"
+            key={'fileContextMenu-' + menuMode}
+            className="absolute z-50 flex h-max w-max origin-center -translate-1/2 transition-[150ms] data-closed:pointer-events-none data-closed:opacity-0"
             data-closed={menuMode === FbMenuModeT.Closed ? true : null}
             data-mode={menuMode}
             style={menuPosStyle}
@@ -330,11 +347,7 @@ function StandardFileMenu({
     }
 
     return (
-        <div
-            className={
-                'flex max-h-max flex-col items-center justify-center gap-1'
-            }
-        >
+        <MenuBodyWrapper>
             <FileMenuButton
                 Icon={IconPencil}
                 name="Rename"
@@ -349,7 +362,7 @@ function StandardFileMenu({
                 disabled={
                     shareLoading ||
                     activeItems.items.length > 1 ||
-                    !share.checkPermission(user.username, 'canEdit')
+                    (share && !share.checkPermission(user.username, 'canEdit'))
                 }
                 action={() => setMenu({ menuState: FbMenuModeT.Sharing })}
             />
@@ -476,7 +489,7 @@ function StandardFileMenu({
                         })
                 }}
             />
-        </div>
+        </MenuBodyWrapper>
     )
 }
 
@@ -579,13 +592,18 @@ function FileRenameInput() {
 
     return (
         <WeblensInput
-            value={menuTarget.GetFilename()}
+            value={menuTarget?.GetFilename()}
             placeholder="Rename File"
             autoFocus
             fillWidth
             squareSize={50}
             buttonIcon={IconPlus}
             onComplete={async (newName) => {
+                if (!menuTarget || !newName) {
+                    setMenu({ menuState: FbMenuModeT.Closed })
+                    return false
+                }
+
                 return FileApi.updateFile(
                     menuTarget.Id(),
                     {
@@ -600,180 +618,6 @@ function FileRenameInput() {
         />
     )
 }
-
-// function AlbumCover({
-//     a,
-//     medias,
-//     refetch,
-// }: {
-//     a: AlbumInfo
-//     medias: string[]
-//     refetch: () => Promise<QueryObserverResult<MediaInfo[], Error>>
-// }) {
-//     const hasAll = medias?.filter((v) => !a.medias?.includes(v)).length === 0
-//
-//     return (
-//         <div
-//             className="h-max w-max"
-//             key={a.id}
-//             onClick={(e) => {
-//                 e.stopPropagation()
-//                 if (hasAll) {
-//                     return
-//                 }
-//                 AlbumsApi.updateAlbum(a.id, undefined, undefined, medias)
-//                     .then(() => refetch())
-//                     .catch(ErrorHandler)
-//             }}
-//         >
-//             <MiniAlbumCover
-//                 album={a}
-//                 disabled={!medias || medias.length === 0 || hasAll}
-//             />
-//         </div>
-//     )
-// }
-
-// function AddToAlbum({ activeItems }: { activeItems: WeblensFile[] }) {
-//     const [newAlbum, setNewAlbum] = useState(false)
-//
-//     const { data: albums } = useQuery<AlbumInfo[]>({
-//         queryKey: ['albums'],
-//         initialData: [],
-//         queryFn: () =>
-//             AlbumsApi.getAlbums().then((res) =>
-//                 res.data.sort((a, b) => {
-//                     return a.name.localeCompare(b.name)
-//                 })
-//             ),
-//     })
-//
-//     const menuMode = useFileBrowserStore((state) => state.menuMode)
-//     const setMenu = useFileBrowserStore((state) => state.setMenu)
-//     const addMedias = useMediaStore((state) => state.addMedias)
-//     const getMedia = useMediaStore((state) => state.getMedia)
-//
-//     useEffect(() => {
-//         setNewAlbum(false)
-//     }, [menuMode])
-//
-//     useEffect(() => {
-//         const newMediaIds: string[] = []
-//         for (const album of albums) {
-//             if (album.cover && !getMedia(album.cover)) {
-//                 newMediaIds.push(album.cover)
-//             }
-//         }
-//         if (newMediaIds) {
-//             MediaApi.getMedia(
-//                 true,
-//                 true,
-//                 undefined,
-//                 undefined,
-//                 undefined,
-//                 undefined,
-//                 JSON.stringify(newMediaIds)
-//             )
-//                 .then((res) => {
-//                     const medias = res.data.Media.map(
-//                         (mediaParam) => new WeblensMedia(mediaParam)
-//                     )
-//                     addMedias(medias)
-//                 })
-//                 .catch((err) => {
-//                     console.error(err)
-//                 })
-//         }
-//     }, [albums.length])
-//
-//     const {
-//         data: medias,
-//         isLoading,
-//         refetch,
-//     } = useQuery<MediaInfo[]>({
-//         queryKey: ['selected-medias', activeItems.map((i) => i.Id()), menuMode],
-//         initialData: [],
-//         queryFn: () => {
-//             if (menuMode !== FbMenuModeT.AddToAlbum) {
-//                 return [] as MediaInfo[]
-//             }
-//             return MediaApi.getMedia(
-//                 true,
-//                 true,
-//                 undefined,
-//                 undefined,
-//                 undefined,
-//                 JSON.stringify(activeItems.map((i) => i.Id()))
-//             ).then((res) => res.data.Media)
-//         },
-//     })
-//
-//     if (menuMode !== FbMenuModeT.AddToAlbum) {
-//         return <></>
-//     }
-//
-//     return (
-//         <div className="add-to-album-menu">
-//             {medias && medias.length !== 0 && (
-//                 <p className="animate-fade">
-//                     Add {medias.length} media to Albums
-//                 </p>
-//             )}
-//             {medias && medias.length === 0 && (
-//                 <p className="animate-fade">No valid media selected</p>
-//             )}
-//             {isLoading && <p className="animate-fade">Loading media...</p>}
-//             <div className="no-scrollbar grid grid-cols-2 gap-3 h-max max-h-[350px] overflow-y-scroll pt-1">
-//                 {albums.map((a) => {
-//                     return (
-//                         <AlbumCover
-//                             key={a.name}
-//                             a={a}
-//                             medias={medias.map((m) => m.contentId)}
-//                             refetch={refetch}
-//                         />
-//                     )
-//                 })}
-//             </div>
-//             {newAlbum && (
-//                 <WeblensInput
-//                     squareSize={40}
-//                     autoFocus
-//                     closeInput={() => setNewAlbum(false)}
-//                     onComplete={async (v: string) =>
-//                         AlbumsApi.createAlbum(v)
-//                             .then(() => refetch())
-//                             .then(() => {
-//                                 setNewAlbum(false)
-//                             })
-//                     }
-//                 />
-//             )}
-//             {!newAlbum && (
-//                 <WeblensButton
-//                     fillWidth
-//                     label={'New Album'}
-//                     Left={IconLibraryPlus}
-//                     size="jumbo"
-//                     onClick={(e) => {
-//                         e.stopPropagation()
-//                         setNewAlbum(true)
-//                     }}
-//                 />
-//             )}
-//             <WeblensButton
-//                 fillWidth
-//                 label={'Back'}
-//                 Left={IconArrowLeft}
-//                 size="jumbo"
-//                 onClick={(e) => {
-//                     e.stopPropagation()
-//                     setMenu({ menuState: FbMenuModeT.Default })
-//                 }}
-//             />
-//         </div>
-//     )
-// }
 
 function InTrashMenu({ activeItems }: { activeItems: WeblensFile[] }) {
     const user = useSessionStore((state) => state.user)
@@ -792,14 +636,12 @@ function InTrashMenu({ activeItems }: { activeItems: WeblensFile[] }) {
     }
 
     return (
-        <div className="no-scrollbar grid grid-flow-row grid-cols-2 items-center justify-center justify-items-center gap-2 p-1 pb-4">
-            <WeblensButton
-                className="mx-auto h-24 w-24"
-                Left={IconFileExport}
-                size="jumbo"
+        <div className="flex max-h-max w-full flex-col items-center justify-center gap-1">
+            <FileMenuButton
+                name="Restore"
+                Icon={IconFileExport}
                 disabled={menuTarget === ''}
-                onClick={async (e) => {
-                    e.stopPropagation()
+                action={async () => {
                     const ids = activeItems.map((f) => f.Id())
                     setSelectedMoved(ids)
                     setMenu({ menuState: FbMenuModeT.Closed })
@@ -808,24 +650,36 @@ function InTrashMenu({ activeItems }: { activeItems: WeblensFile[] }) {
                     })
                 }}
             />
-            <WeblensButton
-                className="mx-auto h-24 w-24"
-                Left={IconTrash}
-                size="jumbo"
+            <FileMenuButton
+                name={menuTarget ? 'Delete' : 'Empty Trash'}
+                Icon={IconTrash}
                 danger
                 disabled={menuTarget === '' && filesList.size === 0}
-                onClick={async (e) => {
-                    e.stopPropagation()
-                    let toDeleteIds: string[]
+                action={async () => {
                     if (menuTarget === '') {
-                        toDeleteIds = filesList
-                            .get(user.trashId)
-                            .map((f) => f.Id())
-                    } else {
-                        toDeleteIds = activeItems.map((f) => f.Id())
+                        const inTrashIds = useFileBrowserStore
+                            .getState()
+                            .filesLists.get(user.trashId)
+                            ?.map((f) => f.Id())
+                        setSelectedMoved(inTrashIds ?? [])
+
+                        await FileApi.deleteFiles(
+                            {
+                                fileIds: [
+                                    useSessionStore.getState().user.trashId,
+                                ],
+                            },
+                            false,
+                            true
+                        ).then(() => setMenu({ menuState: FbMenuModeT.Closed }))
+
+                        return
                     }
+
+                    const toDeleteIds = activeItems.map((f) => f.Id())
                     setSelectedMoved(toDeleteIds)
                     setMenu({ menuState: FbMenuModeT.Closed })
+
                     return FileApi.deleteFiles({
                         fileIds: toDeleteIds,
                     })
@@ -837,56 +691,34 @@ function InTrashMenu({ activeItems }: { activeItems: WeblensFile[] }) {
 
 function BackdropDefaultItems() {
     const user = useSessionStore((state) => state.user)
-
-    const menuMode = useFileBrowserStore((state) => state.menuMode)
-    const menuTarget = useFileBrowserStore((state) => state.menuTargetId)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
 
     const setMenu = useFileBrowserStore((state) => state.setMenu)
 
-    if (menuMode === FbMenuModeT.Closed) {
-        return <></>
-    }
-
     return (
-        <div
-            className="no-scrollbar grid grid-flow-row grid-cols-2 items-center justify-center justify-items-center gap-2 p-1 pb-4"
-            data-visible={menuMode === FbMenuModeT.Default && menuTarget === ''}
-        >
-            <WeblensButton
-                Left={IconFolderPlus}
-                className="mx-auto h-24 w-24"
-                size="jumbo"
+        <MenuBodyWrapper>
+            <FileMenuButton
+                name="New Folder"
+                Icon={IconFolderPlus}
                 disabled={!folderInfo.IsModifiable()}
-                onClick={(e) => {
-                    e.stopPropagation()
-                    setMenu({ menuState: FbMenuModeT.NameFolder })
-                }}
+                action={() => setMenu({ menuState: FbMenuModeT.NameFolder })}
             />
 
-            <WeblensButton
-                Left={IconUsersPlus}
-                className="mx-auto h-24 w-24"
+            <FileMenuButton
+                name="Share"
+                Icon={IconUsersPlus}
                 disabled={
                     folderInfo.Id() === user.homeId ||
                     folderInfo.Id() === user.trashId
                 }
-                size="jumbo"
-                onClick={(e) => {
-                    e.stopPropagation()
-                    setMenu({ menuState: FbMenuModeT.Sharing })
-                }}
+                action={() => setMenu({ menuState: FbMenuModeT.Sharing })}
             />
 
-            <WeblensButton
-                Left={IconScan}
-                className="mx-auto h-24 w-24"
-                size="jumbo"
-                onClick={(e) => {
-                    e.stopPropagation()
-                    ScanDirectory(folderInfo)
-                }}
+            <FileMenuButton
+                name="Scan Directory"
+                Icon={IconScan}
+                action={() => ScanDirectory(folderInfo)}
             />
-        </div>
+        </MenuBodyWrapper>
     )
 }

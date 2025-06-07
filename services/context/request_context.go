@@ -103,6 +103,22 @@ func (c RequestContext) Query(paramName string) string {
 	return c.Req.URL.Query().Get(paramName)
 }
 
+func (c RequestContext) QueryBool(paramName string) bool {
+	qstr := c.Req.URL.Query().Get(paramName)
+	if qstr == "" {
+		return false
+	}
+
+	q, err := strconv.ParseBool(qstr)
+	if err != nil {
+		c.Log().Error().Err(err).Msgf("Failed to parse query parameter '%s' as bool", paramName)
+
+		return false
+	}
+
+	return q
+}
+
 func (c RequestContext) Error(code int, err error) {
 	if err == nil {
 		err = errors.New("error is nil")
@@ -152,6 +168,10 @@ func (c RequestContext) Header(headerName string) string {
 
 func (c RequestContext) SetHeader(headerName, headerValue string) {
 	c.W.Header().Set(headerName, headerValue)
+}
+
+func (c RequestContext) AddHeader(headerName, headerValue string) {
+	c.W.Header().Add(headerName, headerValue)
 }
 
 // Set the HTTP status code for the response.
@@ -217,6 +237,19 @@ func (c RequestContext) Bytes(code int, data []byte) {
 
 func (c RequestContext) Client() *client.WsClient {
 	return c.ClientService.GetClientByUsername(c.Requester.Username)
+}
+
+func (c RequestContext) AttemptGetUsername() string {
+	if c.Requester != nil && c.Requester.Username != "" && c.Requester.Username != user_model.PublicUserName {
+		return c.Requester.Username
+	}
+
+	usernameCookie, err := c.GetCookie(crypto.UserCrumbCookie)
+	if err != nil {
+		return ""
+	}
+
+	return usernameCookie
 }
 
 func ReqFromContext(ctx context.Context) (RequestContext, bool) {

@@ -1,3 +1,4 @@
+import WeblensLoader from '@weblens/components/Loading'
 import { useResize } from '@weblens/lib/hooks'
 import { ErrorHandler } from '@weblens/types/Types'
 import React, { CSSProperties, useEffect, useRef, useState } from 'react'
@@ -85,7 +86,7 @@ function WeblensButton({
 
     const [showLabel, setShowLabel] = useState(true)
 
-    const buttonRef = useRef<HTMLButtonElement>()
+    const buttonRef = useRef<HTMLButtonElement>(null)
     const buttonSize = useResize(buttonRef)
 
     useEffect(() => {
@@ -225,7 +226,11 @@ function WeblensButton({
                     }
                     data-size={size}
                 >
-                    {loading && <LoaderDots />}
+                    {loading && (
+                        <div className="flex h-6 w-6 items-center justify-center">
+                            <WeblensLoader size={16} />
+                        </div>
+                    )}
                     {!loading && (
                         <>
                             {Left && (

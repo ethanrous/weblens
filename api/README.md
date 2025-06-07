@@ -110,6 +110,7 @@ Class | Method | HTTP request | Description
 *MediaAPI* | [**GetMediaImage**](docs/MediaAPI.md#getmediaimage) | **Get** /media/{mediaId}.{extension} | Get a media image bytes
 *MediaAPI* | [**GetMediaInfo**](docs/MediaAPI.md#getmediainfo) | **Get** /media/{mediaId}/info | Get media info
 *MediaAPI* | [**GetMediaTypes**](docs/MediaAPI.md#getmediatypes) | **Get** /media/types | Get media type dictionary
+*MediaAPI* | [**GetRandomMedia**](docs/MediaAPI.md#getrandommedia) | **Get** /media/random | Get random media
 *MediaAPI* | [**SetMediaLiked**](docs/MediaAPI.md#setmedialiked) | **Patch** /media/{mediaId}/liked | Like a media
 *MediaAPI* | [**SetMediaVisibility**](docs/MediaAPI.md#setmediavisibility) | **Patch** /media/visibility | Set media visibility
 *MediaAPI* | [**StreamVideo**](docs/MediaAPI.md#streamvideo) | **Get** /media/{mediaId}/video | Stream a video

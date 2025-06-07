@@ -507,8 +507,6 @@ func (f *WeblensFileImpl) AddChild(child *WeblensFileImpl) error {
 		return errors.Errorf("failed to add %s as child of %s: %w", child.GetPortablePath(), f.GetPortablePath().String(), ErrFileAlreadyExists)
 	}
 
-	log.Debug().Msgf("Adding child %s [%s] to %s [%s]", child.GetPortablePath(), child.ID(), f.GetPortablePath(), f.ID())
-
 	if child.GetPortablePath().Dir() == child.GetPortablePath() {
 		return errors.Errorf("Cannot add %s as a child because it is a root folder", child.GetPortablePath())
 	}

@@ -20,6 +20,11 @@ paths:
         name: ignoreTrash
         schema:
           type: boolean
+      - description: Preserve parent folder if it is empty after deletion
+        in: query
+        name: preserveFolder
+        schema:
+          type: boolean
       requestBody:
         content:
           '*/*':
@@ -751,6 +756,32 @@ paths:
         - admin
       summary: DANGEROUS. Drop all computed media and clear thumbnail in-memory and
         filesystem cache. Must be server owner.
+      tags:
+      - Media
+  /media/random:
+    get:
+      operationId: GetRandomMedia
+      parameters:
+      - description: Number of random medias to get
+        in: query
+        name: count
+        required: true
+        schema:
+          type: number
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaBatchInfo'
+          description: Media Batch
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      summary: Get random media
       tags:
       - Media
   /media/types:

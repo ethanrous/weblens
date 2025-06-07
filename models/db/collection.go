@@ -138,7 +138,11 @@ func (c *ContextualizedCollection) DeleteMany(_ context.Context, filter any, opt
 }
 
 func (c *ContextualizedCollection) Aggregate(_ context.Context, pipeline any, opts ...*options.AggregateOptions) (*mongo.Cursor, error) {
-	return c.collection.Aggregate(c.ctx, pipeline, opts...)
+	cursor, err := c.collection.Aggregate(c.ctx, pipeline, opts...)
+
+	log.FromContext(c.ctx).Trace().Msgf("Aggregate on collection [%s] got %d results", c.collection.Name(), cursor.RemainingBatchLength())
+
+	return cursor, errors.WithStack(err)
 }
 
 func (c *ContextualizedCollection) Drop(ctx context.Context) error {

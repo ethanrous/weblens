@@ -530,7 +530,7 @@ export function PresentationFile({ file }: { file: WeblensFile }) {
             onClick={() => setPresTarget('')}
         >
             <div
-                className="presentation-icon top-4 left-4"
+                className="absolute top-4 left-4"
                 data-shown={guiShown}
             >
                 <WeblensButton
@@ -615,7 +615,7 @@ function Presentation({ mediaId, element, setTarget }: PresentationProps) {
             />
 
             <div
-                className="presentation-icon top-4 left-4"
+                className="absolute top-4 left-4"
                 data-shown={guiShown}
             >
                 <WeblensButton

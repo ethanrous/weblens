@@ -11,6 +11,7 @@ Method | HTTP request | Description
 [**GetMediaImage**](MediaAPI.md#GetMediaImage) | **Get** /media/{mediaId}.{extension} | Get a media image bytes
 [**GetMediaInfo**](MediaAPI.md#GetMediaInfo) | **Get** /media/{mediaId}/info | Get media info
 [**GetMediaTypes**](MediaAPI.md#GetMediaTypes) | **Get** /media/types | Get media type dictionary
+[**GetRandomMedia**](MediaAPI.md#GetRandomMedia) | **Get** /media/random | Get random media
 [**SetMediaLiked**](MediaAPI.md#SetMediaLiked) | **Patch** /media/{mediaId}/liked | Like a media
 [**SetMediaVisibility**](MediaAPI.md#SetMediaVisibility) | **Patch** /media/visibility | Set media visibility
 [**StreamVideo**](MediaAPI.md#StreamVideo) | **Get** /media/{mediaId}/video | Stream a video
@@ -464,6 +465,70 @@ Other parameters are passed through a pointer to a apiGetMediaTypesRequest struc
 ### Return type
 
 [**MediaTypesInfo**](MediaTypesInfo.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
+
+
+## GetRandomMedia
+
+> MediaBatchInfo GetRandomMedia(ctx).Count(count).Execute()
+
+Get random media
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/ethanrous/weblens/api"
+)
+
+func main() {
+	count := float32(8.14) // float32 | Number of random medias to get
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	resp, r, err := apiClient.MediaAPI.GetRandomMedia(context.Background()).Count(count).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `MediaAPI.GetRandomMedia``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	// response from `GetRandomMedia`: MediaBatchInfo
+	fmt.Fprintf(os.Stdout, "Response from `MediaAPI.GetRandomMedia`: %v\n", resp)
+}
+```
+
+### Path Parameters
+
+
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiGetRandomMediaRequest struct via the builder pattern
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **count** | **float32** | Number of random medias to get | 
+
+### Return type
+
+[**MediaBatchInfo**](MediaBatchInfo.md)
 
 ### Authorization
 

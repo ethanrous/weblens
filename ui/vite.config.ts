@@ -20,6 +20,7 @@ export default ({ mode }: { mode: string }) => {
         )
     }
 
+    // this sets a default port to 3000
     const vitePort = Number(process.env.VITE_PORT)
         ? Number(process.env.VITE_PORT)
         : 3000
@@ -33,9 +34,9 @@ export default ({ mode }: { mode: string }) => {
         mode: 'development',
         server: {
             // this ensures that the browser opens upon server start
-            open: true,
+            open: 'local.weblens.io',
             host: '0.0.0.0',
-            // this sets a default port to 3000
+            allowedHosts: ['local.weblens.io'],
             port: vitePort,
             proxy: {
                 '/api/v1': {

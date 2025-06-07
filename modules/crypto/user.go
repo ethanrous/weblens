@@ -35,6 +35,7 @@ type WlClaims struct {
 }
 
 const SessionTokenCookie = "weblens-session-token"
+const UserCrumbCookie = "weblens-user-name"
 
 var superSecretKey = []byte("weblens_super_secret_key")
 

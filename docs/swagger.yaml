@@ -628,6 +628,10 @@ paths:
         in: query
         name: ignoreTrash
         type: boolean
+      - description: Preserve parent folder if it is empty after deletion
+        in: query
+        name: preserveFolder
+        type: boolean
       responses:
         "200":
           description: OK
@@ -1410,6 +1414,29 @@ paths:
         - admin
       summary: DANGEROUS. Drop all computed media and clear thumbnail in-memory and
         filesystem cache. Must be server owner.
+      tags:
+      - Media
+  /media/random:
+    get:
+      operationId: GetRandomMedia
+      parameters:
+      - description: Number of random medias to get
+        in: query
+        name: count
+        required: true
+        type: number
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Media Batch
+          schema:
+            $ref: '#/definitions/MediaBatchInfo'
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      summary: Get random media
       tags:
       - Media
   /media/types:

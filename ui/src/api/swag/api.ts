@@ -1709,10 +1709,11 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
          * @summary Delete Files \"permanently\"
          * @param {FilesListParams} request Delete files request body
          * @param {boolean} [ignoreTrash] Delete files even if they are not in the trash
+         * @param {boolean} [preserveFolder] Preserve parent folder if it is empty after deletion
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        deleteFiles: async (request: FilesListParams, ignoreTrash?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        deleteFiles: async (request: FilesListParams, ignoreTrash?: boolean, preserveFolder?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'request' is not null or undefined
             assertParamExists('deleteFiles', 'request', request)
             const localVarPath = `/files`;
@@ -1729,6 +1730,10 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
 
             if (ignoreTrash !== undefined) {
                 localVarQueryParameter['ignoreTrash'] = ignoreTrash;
+            }
+
+            if (preserveFolder !== undefined) {
+                localVarQueryParameter['preserveFolder'] = preserveFolder;
             }
 
 
@@ -2322,11 +2327,12 @@ export const FilesApiFp = function(configuration?: Configuration) {
          * @summary Delete Files \"permanently\"
          * @param {FilesListParams} request Delete files request body
          * @param {boolean} [ignoreTrash] Delete files even if they are not in the trash
+         * @param {boolean} [preserveFolder] Preserve parent folder if it is empty after deletion
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async deleteFiles(request: FilesListParams, ignoreTrash?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteFiles(request, ignoreTrash, options);
+        async deleteFiles(request: FilesListParams, ignoreTrash?: boolean, preserveFolder?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteFiles(request, ignoreTrash, preserveFolder, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['FilesApi.deleteFiles']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -2560,11 +2566,12 @@ export const FilesApiFactory = function (configuration?: Configuration, basePath
          * @summary Delete Files \"permanently\"
          * @param {FilesListParams} request Delete files request body
          * @param {boolean} [ignoreTrash] Delete files even if they are not in the trash
+         * @param {boolean} [preserveFolder] Preserve parent folder if it is empty after deletion
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        deleteFiles(request: FilesListParams, ignoreTrash?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.deleteFiles(request, ignoreTrash, options).then((request) => request(axios, basePath));
+        deleteFiles(request: FilesListParams, ignoreTrash?: boolean, preserveFolder?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.deleteFiles(request, ignoreTrash, preserveFolder, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -2762,12 +2769,13 @@ export class FilesApi extends BaseAPI {
      * @summary Delete Files \"permanently\"
      * @param {FilesListParams} request Delete files request body
      * @param {boolean} [ignoreTrash] Delete files even if they are not in the trash
+     * @param {boolean} [preserveFolder] Preserve parent folder if it is empty after deletion
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof FilesApi
      */
-    public deleteFiles(request: FilesListParams, ignoreTrash?: boolean, options?: RawAxiosRequestConfig) {
-        return FilesApiFp(this.configuration).deleteFiles(request, ignoreTrash, options).then((request) => request(this.axios, this.basePath));
+    public deleteFiles(request: FilesListParams, ignoreTrash?: boolean, preserveFolder?: boolean, options?: RawAxiosRequestConfig) {
+        return FilesApiFp(this.configuration).deleteFiles(request, ignoreTrash, preserveFolder, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -3676,6 +3684,43 @@ export const MediaApiAxiosParamCreator = function (configuration?: Configuration
         },
         /**
          * 
+         * @summary Get random media
+         * @param {number} count Number of random medias to get
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getRandomMedia: async (count: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'count' is not null or undefined
+            assertParamExists('getRandomMedia', 'count', count)
+            const localVarPath = `/media/random`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (count !== undefined) {
+                localVarQueryParameter['count'] = count;
+            }
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary Like a media
          * @param {string} mediaId Id of media
          * @param {boolean} liked Liked status to set
@@ -3910,6 +3955,19 @@ export const MediaApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary Get random media
+         * @param {number} count Number of random medias to get
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getRandomMedia(count: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MediaBatchInfo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getRandomMedia(count, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['MediaApi.getRandomMedia']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Like a media
          * @param {string} mediaId Id of media
          * @param {boolean} liked Liked status to set
@@ -4036,6 +4094,16 @@ export const MediaApiFactory = function (configuration?: Configuration, basePath
          */
         getMediaTypes(options?: RawAxiosRequestConfig): AxiosPromise<MediaTypesInfo> {
             return localVarFp.getMediaTypes(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Get random media
+         * @param {number} count Number of random medias to get
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getRandomMedia(count: number, options?: RawAxiosRequestConfig): AxiosPromise<MediaBatchInfo> {
+            return localVarFp.getRandomMedia(count, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -4169,6 +4237,18 @@ export class MediaApi extends BaseAPI {
      */
     public getMediaTypes(options?: RawAxiosRequestConfig) {
         return MediaApiFp(this.configuration).getMediaTypes(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Get random media
+     * @param {number} count Number of random medias to get
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof MediaApi
+     */
+    public getRandomMedia(count: number, options?: RawAxiosRequestConfig) {
+        return MediaApiFp(this.configuration).getRandomMedia(count, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

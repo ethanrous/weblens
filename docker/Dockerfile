@@ -9,8 +9,7 @@ WORKDIR /ui
 
 COPY ui .
 
-RUN npm install --global pnpm
-RUN --mount=type=cache,target=./node_modules pnpm install && pnpm build
+RUN --mount=type=cache,target=./node_modules npm install && npm run build
 
 # Build server binary
 FROM --platform=linux/${ARCHITECTURE} golang:${GO_VERSION}-alpine AS backend

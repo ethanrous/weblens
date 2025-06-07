@@ -114,7 +114,12 @@ func (wp *WorkerPool) NewTaskPool(replace bool, createdBy task_mod.Task) task_mo
 	}
 
 	if replace {
-		wp.addReplacementWorker()
+		// We want to use the same context as the worker pool, but we need a cancelable context for when the task pool is closed
+		ctx, cancel := context.WithCancel(wp.ctx)
+
+		tp.AddCleanup(func(p task_mod.Pool) { cancel() })
+		wp.addReplacementWorker(ctx)
+
 		tp.hasQueueThread = true
 	}
 
@@ -428,12 +433,11 @@ func (wp *WorkerPool) Run() {
 	// Spawn the status printer
 	go wp.statusReporter()
 
-	var i int64
-	for i = 0; i < wp.maxWorkers.Load(); i++ {
+	for range wp.maxWorkers.Load() {
 		// These are the base, 'omnipresent' threads for this pool,
 		// so they are NOT replacement workers. See wp.execWorker
 		// for more info
-		wp.execWorker(false)
+		wp.execWorker(wp.ctx, false)
 	}
 }
 
@@ -470,9 +474,10 @@ func (wp *WorkerPool) removeTask(taskId string) {
 // `replacement` specifies if the worker is a temporary replacement for another
 // task that is parking for a long time. Replacement workers behave a bit
 // different to minimize parked time of the other task.
-func (wp *WorkerPool) execWorker(replacement bool) {
+func (wp *WorkerPool) execWorker(ctx context.Context, replacement bool) {
 	go func(workerId int64) {
-		wp.ctx.Log().Trace().Msgf("Spinning up worker with id [%d] o7", workerId)
+		wp.ctx.Log().Debug().Msgf("Spinning up worker with id [%d] o7", workerId)
+
 		defer func() {
 			wp.ctx.Log().Debug().Msgf("worker %d exiting, %d workers remain", workerId, wp.currentWorkers.Add(-1))
 		}()
@@ -480,24 +485,25 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 		// WorkLoop:
 		for {
 			select {
-			case _, ok := <-wp.ctx.Done():
+			case _, ok := <-ctx.Done():
 				if !ok {
 					return
 				}
 			case t := <-wp.taskStream:
 				{
 					// Replacement workers are not allowed to do "scan_directory" tasks
-					// TODO - generalize
+					// TODO: - generalize
 					if replacement && t.jobName == "scan_directory" && t.exitStatus == task_mod.TaskNoStatus {
-
 						// If there are twice the number of free spaces in the chan, don't bother pulling
 						// everything into the waiting buffer, just put it at the end right now.
 						if cap(wp.taskStream)-len(wp.taskStream) > int(wp.currentWorkers.Load())*2 {
 							// util.Debug().Msg("Replacement worker putting scan dir task back")
 							wp.taskStream <- t
+
 							continue
 						}
 						tBuf := []*Task{t}
+
 						for t = range wp.taskStream {
 							if t.jobName == "scan_directory" {
 								tBuf = append(tBuf, t)
@@ -538,8 +544,10 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 					t.updateMu.Lock()
 					result["task_id"] = t.taskId
 					result["exit_status"] = t.exitStatus
+
 					wp.poolMu.Lock()
 					var complete int64
+
 					for _, p := range wp.poolMap {
 						status := p.Status()
 						complete += status.Complete
@@ -627,9 +635,12 @@ Replacement workers:
 1. Are not allowed to pick up "scan_directory" tasks
 2. will exit once the main thread has woken up, and shrunk the worker pool back down
 */
-func (wp *WorkerPool) addReplacementWorker() {
+func (wp *WorkerPool) addReplacementWorker(ctx context.Context) {
 	wp.maxWorkers.Add(1)
-	wp.execWorker(true)
+
+	log.FromContext(ctx).Debug().Msg("Adding replacement worker")
+
+	wp.execWorker(ctx, true)
 }
 
 func (wp *WorkerPool) removeWorker() {

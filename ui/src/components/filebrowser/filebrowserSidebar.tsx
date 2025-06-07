@@ -8,12 +8,7 @@ import {
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react'
-import { useQuery } from '@tanstack/react-query'
-import {
-    FileApi,
-    FolderApi,
-    GetTrashChildIds,
-} from '@weblens/api/FileBrowserApi'
+import { FileApi, FolderApi } from '@weblens/api/FileBrowserApi'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import UsageInfo from '@weblens/components/filebrowser/usageInfo.tsx'
 import WeblensButton from '@weblens/lib/WeblensButton.tsx'
@@ -24,7 +19,7 @@ import { useClick, useResizeDrag, useWindowSize } from '@weblens/lib/hooks'
 import { TaskProgressMini } from '@weblens/pages/FileBrowser/TaskProgress'
 import UploadStatus from '@weblens/pages/FileBrowser/UploadStatus'
 import fbStyle from '@weblens/pages/FileBrowser/style/fileBrowserStyle.module.scss'
-import { Coordinates } from '@weblens/types/Types'
+import { Coordinates, validateCoordinates } from '@weblens/types/Types'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import WeblensFile from '@weblens/types/files/File'
 import { goToFile } from '@weblens/types/files/FileDragLogic'
@@ -46,7 +41,6 @@ import {
     ShareRoot,
     useFileBrowserStore,
 } from '../../store/FBStateControl'
-import WeblensLoader from '../Loading'
 
 const SIDEBAR_BREAKPOINT = 650
 const SIDEBAR_DEFAULT_WIDTH = 300
@@ -59,16 +53,11 @@ function EmptyTrashButton({
     sidebarSize,
 }: {
     trashPopupRef: RefObject<HTMLDivElement | null>
-    trashPopup: Coordinates | undefined
-    setTrashPopup: Dispatch<SetStateAction<Coordinates | undefined>>
+    trashPopup: Coordinates
+    setTrashPopup: Dispatch<SetStateAction<Coordinates>>
     sidebarSize: number
 }) {
-    const { data: childIds, isFetching } = useQuery<string[]>({
-        queryKey: ['trash'],
-        queryFn: async () => {
-            return GetTrashChildIds()
-        },
-    })
+    const trashSize = useFileBrowserStore((state) => state.trashDirSize)
 
     return (
         <div
@@ -82,15 +71,19 @@ function EmptyTrashButton({
         >
             <WeblensButton
                 danger
-                label={isFetching ? '' : 'Empty Trash'}
-                disabled={!childIds || childIds.length === 0 || isFetching}
-                Left={isFetching ? WeblensLoader : IconTrash}
+                label={'Empty Trash'}
+                disabled={!trashSize}
+                Left={IconTrash}
                 className="relative z-50"
                 onClick={async (e) => {
                     e.stopPropagation()
 
-                    await FileApi.deleteFiles({ fileIds: childIds })
-                    setTrashPopup(undefined)
+                    await FileApi.deleteFiles(
+                        { fileIds: [useSessionStore.getState().user.trashId] },
+                        false,
+                        true
+                    )
+                    setTrashPopup({ x: -1, y: -1 }) // Hide the popup
                 }}
             />
         </div>
@@ -127,17 +120,15 @@ function FBSidebar() {
         (state) => state.setSelectedMoved
     )
 
-    const [trashPopup, setTrashPopup] = useState<Coordinates>()
+    const [trashPopup, setTrashPopup] = useState<Coordinates>({ x: -1, y: -1 })
     const trashPopupRef = useRef<HTMLDivElement>(null)
 
     useClick(
         () => {
-            console.log(trashPopup, trashPopupRef.current)
-
-            setTrashPopup(undefined)
+            setTrashPopup({ x: -1, y: -1 }) // Hide the popup when clicking outside
         },
         trashPopupRef,
-        trashPopup === undefined
+        trashPopup.x === -1 || trashPopup.y === -1
     )
 
     useEffect(() => {
@@ -349,7 +340,7 @@ function FBSidebar() {
                             Right={resizeOffset > 200 ? TrashSize : undefined}
                         />
 
-                        {trashPopup && (
+                        {validateCoordinates(trashPopup) && (
                             <EmptyTrashButton
                                 trashPopupRef={trashPopupRef}
                                 trashPopup={trashPopup}

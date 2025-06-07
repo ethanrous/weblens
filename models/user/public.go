@@ -1,7 +1,9 @@
 package user
 
+const PublicUserName = "PUBLIC"
+
 var publicUser = User{
-	Username:  "PUBLIC",
+	Username:  PublicUserName,
 	UserPerms: UserPermissionPublic,
 }
 

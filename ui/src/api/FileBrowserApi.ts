@@ -10,9 +10,10 @@ import {
     FolderApiFactory,
     FolderInfo,
 } from './swag/api.js'
+import { Configuration } from './swag/configuration.js'
 
-export const FileApi = FilesApiFactory(null, API_ENDPOINT)
-export const FolderApi = FolderApiFactory(null, API_ENDPOINT)
+export const FileApi = FilesApiFactory({} as Configuration, API_ENDPOINT)
+export const FolderApi = FolderApiFactory({} as Configuration, API_ENDPOINT)
 
 export function SubToFolder(subId: string, shareId: string) {
     if (!subId) {
@@ -79,11 +80,17 @@ export async function GetTrashChildIds(): Promise<string[]> {
         useSessionStore.getState().user.trashId
     )
 
-    const childIds = folder.children.map((file) => file.id)
+    if (!folder || !folder.children) {
+        console.error('No children found in trash folder')
+        return []
+    }
+
+    const childIds = folder.children
+        .map((file) => file.id)
+        .filter((id) => id !== undefined)
 
     return childIds
 }
-
 
 export async function GetFolderData(
     folderId: string,

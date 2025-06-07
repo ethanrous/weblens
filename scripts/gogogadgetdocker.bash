@@ -56,7 +56,7 @@ done
 
 printf "Checking connection to docker..."
 
-sudo docker ps &>/dev/null
+docker ps &>/dev/null
 docker_status=$?
 
 if [ $docker_status != 0 ]; then
@@ -95,14 +95,14 @@ echo "Weblens build version: $WEBLENS_BUILD_VERSION"
 
 printf "Building Weblens container..."
 
-sudo docker rmi ethrous/weblens:"$full_tag" &>/dev/null
-if ! sudo docker build --platform "linux/$arch" -t ethrous/weblens:"$full_tag" --build-arg WEBLENS_BUILD_VERSION="$WEBLENS_BUILD_VERSION" --build-arg ARCHITECTURE="$arch" -f "./docker/$dockerfile" .; then
+docker rmi ethrous/weblens:"$full_tag" &>/dev/null
+if ! docker build --platform "linux/$arch" -t ethrous/weblens:"$full_tag" --build-arg WEBLENS_BUILD_VERSION="$WEBLENS_BUILD_VERSION" --build-arg ARCHITECTURE="$arch" -f "./docker/$dockerfile" .; then
     printf "Container build failed\n"
     exit 1
 fi
 
 if [ $do_push == true ]; then
-    sudo docker push ethrous/weblens:"$full_tag"
+    docker push ethrous/weblens:"$full_tag"
 fi
 
 printf "\nBUILD COMPLETE. Container tag: ethrous/weblens:%s\n" "$full_tag"

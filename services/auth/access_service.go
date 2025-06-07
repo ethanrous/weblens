@@ -110,12 +110,15 @@ func SetSessionToken(ctx context_service.RequestContext) error {
 		return errors.New("requester is nil")
 	}
 
-	cookie, err := GenerateJWTCookie(ctx.Requester)
+	sessionCookie, err := GenerateJWTCookie(ctx.Requester)
 	if err != nil {
 		return err
 	}
 
-	ctx.SetHeader("Set-Cookie", cookie)
+	ctx.SetHeader("Set-Cookie", sessionCookie)
+
+	usernameCookie := GenerateUserCookie(ctx.Requester)
+	ctx.AddHeader("Set-Cookie", usernameCookie)
 
 	return nil
 }
@@ -129,6 +132,13 @@ func GenerateJWTCookie(user *user_model.User) (string, error) {
 	cookie := fmt.Sprintf("%s=%s;Path=/;Expires=%s;HttpOnly", crypto.SessionTokenCookie, token, expires.Format(time.RFC1123))
 
 	return cookie, nil
+}
+
+func GenerateUserCookie(user *user_model.User) string {
+	expires := time.Now().Add(time.Hour * 24 * 7).In(time.UTC)
+	cookie := fmt.Sprintf("%s=%s;Path=/;Expires=%s;HttpOnly", crypto.UserCrumbCookie, user.Username, expires.Format(time.RFC1123))
+
+	return cookie
 }
 
 func GetUserFromJWT(ctx context.Context, tokenStr string) (*user_model.User, error) {

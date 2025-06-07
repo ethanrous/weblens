@@ -16,13 +16,13 @@ export default function useShare(target?: WeblensFile) {
         data: share,
         refetch,
         isLoading,
-    } = useQuery<WeblensShare>({
+    } = useQuery<WeblensShare | undefined>({
         queryKey: ['share', _target.Id()],
         queryFn: async () => {
             console.log('Fetching share for', _target.Id())
             const share = await _target.GetShare(true).catch(ErrorHandler)
             if (!share) {
-                return null
+                return
             }
 
             return share

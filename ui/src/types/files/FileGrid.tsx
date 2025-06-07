@@ -115,14 +115,7 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
         }
     }, [numCols, size.width])
 
-    const isLoading = loading.includes('files') || folderInfo.GetFetching()
-
-    console.log(
-        'LOADING IS RIHG??',
-        isLoading,
-        folderInfo.GetFetching(),
-        files.length
-    )
+    const isLoading = loading.includes('files') || folderInfo?.GetFetching()
 
     return (
         <div

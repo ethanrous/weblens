@@ -44,6 +44,12 @@
                         "description": "Delete files even if they are not in the trash",
                         "name": "ignoreTrash",
                         "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Preserve parent folder if it is empty after deletion",
+                        "name": "preserveFolder",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -1052,6 +1058,41 @@
                     },
                     "403": {
                         "description": "Forbidden"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/media/random": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Media"
+                ],
+                "summary": "Get random media",
+                "operationId": "GetRandomMedia",
+                "parameters": [
+                    {
+                        "type": "number",
+                        "description": "Number of random medias to get",
+                        "name": "count",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Media Batch",
+                        "schema": {
+                            "$ref": "#/definitions/MediaBatchInfo"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found"
                     },
                     "500": {
                         "description": "Internal Server Error"
