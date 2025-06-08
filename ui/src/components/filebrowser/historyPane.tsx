@@ -353,6 +353,12 @@ function HistoryRowWrapper({
 
     const thisEvent = data.events[index]
 
+    const path = thisEvent[0].filepath ?? thisEvent[0].destinationPath
+    if (!path) {
+        console.warn('No path for event:', thisEvent[0])
+        return null
+    }
+
     return (
         <div
             style={{
@@ -367,9 +373,7 @@ function HistoryRowWrapper({
             <HistoryEventRow
                 key={thisEvent[0].eventId}
                 event={thisEvent}
-                folderPath={
-                    thisEvent[0].filepath ?? thisEvent[0].destinationPath
-                }
+                folderPath={path}
                 previousSize={previousSize}
                 open={data.openEvents[index]}
                 setOpen={(o: boolean) =>
@@ -379,6 +383,7 @@ function HistoryRowWrapper({
                     })
                 }
                 showResize={data.showResize}
+                index={index}
             />
         </div>
     )
@@ -451,9 +456,9 @@ function ExpandableEventRow({
                     : 36,
             }}
         >
-            <div className="flex h-[28px] w-full shrink-0 cursor-pointer items-center">
+            <div className="flex h-[28px] w-full shrink-0 items-center">
                 <div
-                    className="text-text-secondary hover:text-text-primary hover:bg-background-secondary hover:border-text-primary rounded-md border transition"
+                    className="text-text-secondary hover:text-text-primary hover:bg-background-secondary hover:border-text-primary rounded-md border transition cursor-pointer"
                     onClick={(e) => {
                         e.stopPropagation()
                         setOpen(!open)
@@ -500,13 +505,15 @@ function HistoryEventRow({
     open,
     setOpen,
     showResize,
+    index,
 }: {
     event: FileActionInfo[]
     folderPath: string
     previousSize: number
     open: boolean
-    setOpen: Dispatch<SetStateAction<boolean>>
+    setOpen: (o: boolean) => void
     showResize: boolean
+    index: number
 }) {
     const pastTime = useFileBrowserStore((state) => state.pastTime)
     const contentId = useFileBrowserStore((state) => state.activeFileId)
@@ -580,14 +587,16 @@ function HistoryEventRow({
 
     return (
         <div
-            className="data-selected:border-text-secondary data-selected:bg-background-secondary hover:bg-background-secondary my-1 flex h-full w-full cursor-pointer items-center justify-center gap-1 rounded border p-1"
+            className="data-selected:border-text-secondary data-selected:bg-background-secondary hover:bg-background-secondary my-1 flex h-full w-full cursor-pointer items-center justify-center gap-1 rounded border p-1 data-is-first:cursor-default"
             data-resize={
                 event[0].actionType === FbActionT.FileSizeChange.valueOf()
             }
             data-selected={isSelected ? true : undefined}
+            data-is-first={index === 0 ? true : undefined}
             onClick={(e) => {
                 e.stopPropagation()
                 if (
+                    index === 0 ||
                     event[0].actionType === FbActionT.FileSizeChange.valueOf()
                 ) {
                     return
