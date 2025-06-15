@@ -24,49 +24,6 @@ devel_weblens_locally() {
     echo "Weblens development server finished..."
 }
 
-ensure_repl_set() {
-    if [[ "$(docker inspect "$mongoName" --format '{{.State.Health.Status}}')" != "healthy" ]]; then
-        return 1
-    fi
-
-    return 0
-}
-
-launch_mongo() {
-    if ! docker image ls | grep ethrous/weblens-mongo; then
-        ls ./scripts/build-mongo.bash
-        ./scripts/build-mongo.bash || exit 1
-    fi
-
-    mongoWaitCount=0
-    if ! docker ps | grep "$mongoName"; then
-        echo "Starting MongoDB container [$mongoName] ..."
-        docker run \
-            --rm \
-            -d \
-            --name "$mongoName" \
-            --mount type=volume,src="mongo-$fsName",dst=/data/db \
-            --network weblens-net \
-            -e WEBLENS_MONGO_HOST_NAME="$mongoName" \
-            ethrous/weblens-mongo
-    fi
-
-    while [[ $mongoWaitCount -lt 10 ]]; do
-        if ! ensure_repl_set; then
-            echo "Waiting for MongoDB to be ready... $?"
-            mongoWaitCount=$((mongoWaitCount + 1))
-            sleep 1
-        else
-            break
-        fi
-    done
-
-    if [[ $mongoWaitCount -ge 10 ]]; then
-        echo "MongoDB did not start in time, exiting..."
-        exit 1
-    fi
-}
-
 usage="./scripts/quickCore.bash [-r|--rebuild] [-t|--role <role>] [-c|--clean]
 	-r, --rebuild   Rebuild the container
 	-t, --role      Specify the tower role (default: core)
@@ -170,7 +127,7 @@ if ! docker image ls | grep "$imageName-$arch" &>/dev/null; then
     printf "\n---- gogogadgetdocker succeeded ----\n\n"
 fi
 
-launch_mongo
+./scripts/start-mongo.sh "$mongoName" || exit 1
 
 docker run \
     -t \

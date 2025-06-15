@@ -20,7 +20,7 @@ func ConnectToMongo(ctx context.Context, mongoUri, mongoDbName string) (*mongo.D
 	l := log.FromContext(ctx)
 	l.Debug().CallerSkipFrame(1).Msgf("Connecting to Mongo at %s with name %s ...", mongoUri, mongoDbName)
 
-	clientOptions := options.Client().ApplyURI(mongoUri)
+	clientOptions := options.Client().ApplyURI(mongoUri).SetTimeout(5 * time.Second)
 
 	var err error
 

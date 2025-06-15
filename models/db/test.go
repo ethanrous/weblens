@@ -2,9 +2,11 @@ package db
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	"github.com/ethanrous/weblens/modules/config"
+	context_mod "github.com/ethanrous/weblens/modules/context"
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -15,7 +17,9 @@ func initMongo() {
 	if testing.Testing() {
 		var err error
 
-		testDB, err = ConnectToMongo(context.Background(), config.GetMongoDBUri(), "weblensTestDB")
+		ctx := context.WithValue(context.Background(), context_mod.WgKey, &sync.WaitGroup{})
+		testDB, err = ConnectToMongo(ctx, config.GetMongoDBUri(), "weblensTestDB")
+
 		if err != nil {
 			panic(err)
 		}
