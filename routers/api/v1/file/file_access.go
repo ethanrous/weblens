@@ -63,7 +63,7 @@ func checkFileAccessById(ctx context_service.RequestContext, fileId string, perm
 	}
 
 	// Check if the user has access to the file
-	if err = auth.CanUserAccessFile(ctx, ctx.Requester, file, ctx.Share, perms...); err != nil {
+	if _, err = auth.CanUserAccessFile(ctx, ctx.Requester, file, ctx.Share, perms...); err != nil {
 		// If the user does not have access, return forbidden
 		ctx.Error(http.StatusForbidden, err)
 
@@ -82,7 +82,7 @@ func checkPastFileAccess(ctx context_service.RequestContext, fileId string, time
 	}
 
 	// Check if the user has access to the file
-	if err = auth.CanUserAccessFile(ctx, ctx.Requester, file, nil); err != nil {
+	if _, err = auth.CanUserAccessFile(ctx, ctx.Requester, file, nil); err != nil {
 		// If the user does not have access, return forbidden
 		ctx.Error(http.StatusForbidden, err)
 

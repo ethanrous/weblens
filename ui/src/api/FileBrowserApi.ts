@@ -107,6 +107,10 @@ export async function GetFolderData(
         console.error('External files not implemented')
     }
 
+    if (folderId === '') {
+        throw new Error('Folder ID cannot be empty')
+    }
+
     const res = await FolderApi.getFolder(
         folderId,
         shareId ? shareId : undefined,
@@ -123,6 +127,10 @@ export async function downloadSingleFile(
     shareId: string,
     format: 'webp' | 'jpeg' = 'webp'
 ) {
+    if (!format) {
+        format = 'webp'
+    }
+
     const a = document.createElement('a')
     const paramCreator = FilesApiAxiosParamCreator()
     const args = await paramCreator.downloadFile(

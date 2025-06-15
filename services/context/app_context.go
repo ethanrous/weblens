@@ -48,9 +48,11 @@ type AppContext struct {
 	TaskService   *task_model.WorkerPool
 	ClientService client.ClientManager
 	DB            *mongo.Database
-	Cache         map[string]*sturdyc.Client[any]
 
+	Cache     map[string]*sturdyc.Client[any]
 	cacheLock *sync.RWMutex
+
+	WG *sync.WaitGroup
 }
 
 var capacity = 10000
@@ -59,7 +61,12 @@ var ttl = time.Hour
 var evictionPercentage = 10
 
 func NewAppContext(ctx BasicContext) AppContext {
-	newCtx := AppContext{BasicContext: ctx, Cache: make(map[string]*sturdyc.Client[any]), cacheLock: &sync.RWMutex{}}
+	newCtx := AppContext{
+		BasicContext: ctx,
+		Cache:        make(map[string]*sturdyc.Client[any]),
+		cacheLock:    &sync.RWMutex{},
+		WG:           &sync.WaitGroup{},
+	}
 	newCtx.BasicContext = newCtx.BasicContext.WithValue(appContextKey{}, newCtx)
 
 	return newCtx
@@ -104,6 +111,10 @@ func (c AppContext) Value(key any) any {
 
 	if key == db.DatabaseContextKey {
 		return c.DB
+	}
+
+	if key == context_mod.WgKey {
+		return c.WG
 	}
 
 	return c.BasicContext.Value(key)

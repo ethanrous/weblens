@@ -1,31 +1,34 @@
 import { useCallback, useEffect, useState } from 'react'
 
-export function useVideo(elem: HTMLVideoElement) {
+export function useVideo(elem: HTMLVideoElement | null) {
     const [playtime, setPlaytime] = useState(0)
     const [isPlaying, setIsPlaying] = useState(false)
     const [isWaiting, setIsWaiting] = useState(true)
 
-    const updatePlaytime = useCallback(() => {
-        setPlaytime(elem.currentTime)
-    }, [setPlaytime, elem])
+    console.log('Using video')
 
-    const updatePlayState = useCallback(
-        (e: Event) => {
-            if (e.type === 'canplaythrough') {
-                if (isWaiting) {
-                    setIsWaiting(false)
-                }
-                return
-            } else if (e.type === 'play') {
-                setIsPlaying(true)
-            } else if (e.type === 'pause') {
-                setIsPlaying(false)
-            } else {
-                console.error('unknown play event', e.type)
+    const updatePlaytime = useCallback(() => {
+        if (!elem) {
+            return
+        }
+
+        setPlaytime(elem.currentTime)
+    }, [elem])
+
+    const updatePlayState = (e: Event) => {
+        if (e.type === 'canplaythrough') {
+            if (isWaiting) {
+                setIsWaiting(false)
             }
-        },
-        [setIsPlaying]
-    )
+            return
+        } else if (e.type === 'play') {
+            setIsPlaying(true)
+        } else if (e.type === 'pause') {
+            setIsPlaying(false)
+        } else {
+            console.error('unknown play event', e.type)
+        }
+    }
 
     const updateBufferState = useCallback(
         (e: Event) => {
@@ -46,6 +49,7 @@ export function useVideo(elem: HTMLVideoElement) {
         if (!elem) {
             return
         }
+
         elem.addEventListener('timeupdate', updatePlaytime)
         elem.addEventListener('play', updatePlayState)
         elem.addEventListener('pause', updatePlayState)

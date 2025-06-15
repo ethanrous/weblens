@@ -1,6 +1,5 @@
 import { IconExclamationCircle, IconPhoto } from '@tabler/icons-react'
 import WeblensLoader from '@weblens/components/Loading.tsx'
-import { useVideo } from '@weblens/lib/hooks'
 import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
 import React, {
     CSSProperties,
@@ -49,8 +48,6 @@ export function MediaImage({
 
     const [loadError, setLoadErr] = useState('')
     const [src, setUrl] = useState({ url: '', id: media.Id() })
-    const [videoRef, setVideoRef] = useState<HTMLVideoElement>()
-    const { playtime, isPlaying, isWaiting } = useVideo(videoRef!)
 
     useEffect(() => {
         if (
@@ -137,7 +134,7 @@ export function MediaImage({
                 quality === PhotoQuality.HighRes &&
                 media.HighestQualityLoaded() !== PhotoQuality.HighRes &&
                 !loadError &&
-                (!media.GetMediaType().IsVideo || isWaiting) && (
+                !media.GetMediaType().IsVideo && (
                     <div className="absolute right-10 bottom-10 w-8">
                         <WeblensLoader />
                     </div>
@@ -174,10 +171,6 @@ export function MediaImage({
                         media={media}
                         fitLogic={fitLogic}
                         imgStyle={imgStyle ?? {}}
-                        videoRef={videoRef!}
-                        setVideoRef={setVideoRef}
-                        isPlaying={isPlaying}
-                        playtime={playtime}
                     />
                 </Suspense>
             )}

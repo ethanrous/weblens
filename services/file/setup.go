@@ -11,6 +11,7 @@ import (
 	job_model "github.com/ethanrous/weblens/models/job"
 	task_model "github.com/ethanrous/weblens/models/task"
 	tower_model "github.com/ethanrous/weblens/models/tower"
+	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/fs"
@@ -333,6 +334,11 @@ func loadFsCore(ctx context.Context) error {
 	appCtx.Log().Trace().Msgf("Computed tree size in %s", time.Since(start))
 
 	for _, userHome := range root.GetChildren() {
+		_, err := user_model.GetUserByUsername(ctx, userHome.GetPortablePath().Filename())
+		if err != nil {
+			continue // Skip if user does not exist
+		}
+
 		children, err := appCtx.FileService.GetChildren(appCtx, userHome)
 		if err != nil {
 			return err

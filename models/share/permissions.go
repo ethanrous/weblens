@@ -13,6 +13,7 @@ const (
 
 // Permissions represents the specific permissions a user can have on a file share.
 type Permissions struct {
+	CanView     bool `bson:"canView"` // Indicates if the user can view the share
 	CanEdit     bool `bson:"canEdit"`
 	CanDownload bool `bson:"canDownload"`
 	CanDelete   bool `bson:"canDelete"`
@@ -21,9 +22,20 @@ type Permissions struct {
 // NewPermissions creates a new Permissions instance with default values.
 func NewPermissions() *Permissions {
 	return &Permissions{
+		CanView:     true, // Default to allowing viewing
 		CanEdit:     false,
 		CanDownload: true, // Default to allowing downloads
 		CanDelete:   false,
+	}
+}
+
+func NewFullPermissions() *Permissions {
+	// Allow all permissions
+	return &Permissions{
+		CanView:     true,
+		CanEdit:     true,
+		CanDownload: true,
+		CanDelete:   true,
 	}
 }
 

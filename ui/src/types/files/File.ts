@@ -87,13 +87,20 @@ class WeblensFile {
     constructor(init: FileInfo) {
         this.id = init.id ?? ''
 
+        if (init.portablePath?.endsWith('/RAWs/')) {
+            console.log('Creating WeblensFile with', init)
+        }
         Object.assign(this, init)
+        if (init.portablePath?.endsWith('/RAWs/')) {
+            console.log('NUMBER 2', this)
+        }
         this.hovering = false
         this.modifyDate = new Date(init.modifyTimestamp ?? 0)
         this.selected = SelectedState.NotSelected
         if (!this.parents) {
             this.parents = []
         }
+        this.share = new WeblensShare({ fileId: this.id, owner: this.owner })
     }
 
     Id(): string {
@@ -332,10 +339,15 @@ class WeblensFile {
     }
 
     public async GetShare(refetch?: boolean): Promise<WeblensShare> {
-        if (this.share && !refetch) {
+        console.log('File has share?', this.shareId, this.share)
+        if (this.share.shareId && !this.shareId) {
+            this.shareId = this.share.shareId
+        }
+
+        if (this.share.shareId && !refetch) {
             return this.share
         } else if (!this.shareId) {
-            return new WeblensShare({ fileId: this.id, owner: this.owner })
+            return this.share
         }
 
         const res = await SharesApi.getFileShare(this.shareId)

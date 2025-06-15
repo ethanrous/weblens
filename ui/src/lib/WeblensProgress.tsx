@@ -94,7 +94,7 @@ function WeblensProgress({
                 className
             }
             data-scrubbing={dragging}
-            style={style}
+            style={style as CSSProperties}
             data-seekable={seekCallback !== undefined}
         >
             {seekCallback !== undefined && (
@@ -117,15 +117,14 @@ function WeblensProgress({
                 data-failure={failure}
                 onMouseUp={() => setDragging(false)}
                 onMouseMove={(e) => {
-                    if (e.target instanceof HTMLDivElement) {
-                        const rect = e.target.getBoundingClientRect()
-                        let v =
-                            (e.clientX - rect.left) / (rect.right - rect.left)
-                        if (v < 0) {
-                            v = 0
-                        }
-                        setHoverPercent(v * 100)
+                    const rect = (
+                        e.target as HTMLDivElement
+                    ).getBoundingClientRect()
+                    let v = (e.clientX - rect.left) / (rect.right - rect.left)
+                    if (v < 0) {
+                        v = 0
                     }
+                    setHoverPercent(v * 100)
                 }}
                 onMouseLeave={() => setHoverPercent(0)}
                 onMouseDown={(e) => {

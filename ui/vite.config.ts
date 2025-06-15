@@ -1,5 +1,7 @@
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import fs from 'node:fs'
+import { ServerOptions } from 'node:https'
 import path from 'node:path'
 import { defineConfig, loadEnv } from 'vite'
 import viteTsconfigPaths from 'vite-tsconfig-paths'
@@ -27,6 +29,22 @@ export default ({ mode }: { mode: string }) => {
 
     console.log(`Vite is running in ${mode} mode on port ${vitePort}`)
 
+    const useHTTPS = process.env.VITE_USE_HTTPS === 'true'
+    let httpsConfig: ServerOptions | undefined
+    if (useHTTPS) {
+        httpsConfig = {
+            key: fs.readFileSync(
+                path.resolve(__dirname, '../cert/local.weblens.io.key')
+            ),
+            cert: fs.readFileSync(
+                path.resolve(__dirname, '../cert/local.weblens.io.crt')
+            ),
+        }
+        console.log('Using HTTPS for development server')
+    } else {
+        console.log('Using HTTP for development server')
+    }
+
     return defineConfig({
         // depending on your application, base can also be "/"
         base: '/',
@@ -47,6 +65,7 @@ export default ({ mode }: { mode: string }) => {
                     ws: true,
                 },
             },
+            https: httpsConfig,
         },
         resolve: {
             alias: {

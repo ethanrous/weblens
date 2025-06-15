@@ -65,6 +65,7 @@ export interface FileBrowserStateT {
     viewOpts: FbViewOptsT
     fbMode: FbModeT
     sidebarCollapsed: boolean
+    historyPaneOpen: boolean
 
     folderInfo: WeblensFile
 
@@ -142,6 +143,7 @@ export interface FileBrowserStateT {
     setNumCols: (cols: number) => void
     setPasteImgBytes: (bytes: ArrayBuffer) => void
     setSidebarCollapsed: (c: boolean) => void
+    setHistoryPaneOpen: (o: boolean) => void
 
     setMenu: (opts: MenuOptionsT) => void
     setViewOptions: (opts: ViewOptionsT) => void
@@ -664,10 +666,10 @@ function clearFiles(state: FileBrowserStateT): FileBrowserStateT {
     console.debug('Clearing files')
     return {
         ...state,
-        activeFileId: null,
+        activeFileId: '',
         lastSelectedId: '',
         shareId: '',
-        folderInfo: null,
+        folderInfo: new WeblensFile({}),
         filesMap: new Map<string, WeblensFile>(),
         selected: new Map<string, boolean>(),
         filesLists: new Map<string, WeblensFile[]>(),
@@ -705,6 +707,7 @@ const initState: Partial<FileBrowserStateT> = {
     numCols: 0,
     fbMode: FbModeT.unset,
     sidebarCollapsed: false,
+    historyPaneOpen: false,
     viewOpts: loadViewOptions(),
     draggingState: DraggingStateT.NoDrag,
     menuPos: { x: 0, y: 0 },
@@ -1295,6 +1298,10 @@ const FBStateControl: StateCreator<
 
     setSidebarCollapsed: (c: boolean) => {
         set({ sidebarCollapsed: c })
+    },
+
+    setHistoryPaneOpen: (o: boolean) => {
+        set({ historyPaneOpen: o })
     },
 
     setViewOptions: ({

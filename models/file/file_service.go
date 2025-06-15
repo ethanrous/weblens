@@ -43,7 +43,7 @@ type FileService interface {
 	MoveFiles(ctx context.Context, files []*WeblensFileImpl, destFolder *WeblensFileImpl) error
 
 	// RenameFile renames a file
-	RenameFile(file *WeblensFileImpl, newName string) error
+	RenameFile(ctx context.Context, file *WeblensFileImpl, newName string) error
 
 	// ReturnFilesFromTrash restores files from the trash
 	ReturnFilesFromTrash(ctx context.Context, trashFiles []*WeblensFileImpl) error

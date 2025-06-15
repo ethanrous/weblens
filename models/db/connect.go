@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	context_mod "github.com/ethanrous/weblens/modules/context"
 	"github.com/ethanrous/weblens/modules/log"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -55,11 +56,21 @@ func ConnectToMongo(ctx context.Context, mongoUri, mongoDbName string) (*mongo.D
 		return nil, err
 	}
 
+	err = context_mod.AddToWg(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	context.AfterFunc(ctx, func() {
 		l.Debug().Msg("Disconnecting from MongoDB...")
 
 		if err := mongoc.Disconnect(context.Background()); err != nil {
 			l.Error().Err(err).Msg("Failed to disconnect from MongoDB")
+		}
+
+		err := context_mod.WgDone(ctx)
+		if err != nil {
+			l.Error().Err(err).Msg("Failed to mark WaitGroup done after MongoDB disconnection")
 		}
 	})
 

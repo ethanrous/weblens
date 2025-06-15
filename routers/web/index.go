@@ -26,11 +26,12 @@ func getIndexFields(ctx context.RequestContext, proxyAddress string) (fields ind
 		path = path[len("files/share/"):]
 		slashIndex := strings.Index(path, "/")
 
-		if slashIndex == -1 {
-			return fields
+		if slashIndex != -1 {
+			path = path[:slashIndex]
 		}
 
-		shareId := share_model.ShareIdFromString(path[:slashIndex])
+		shareId := share_model.ShareIdFromString(path)
+		ctx.Log().Debug().Msgf("Share ID: %s", shareId)
 
 		share, err := share_model.GetShareById(ctx, shareId)
 		if err != nil && errors.Is(err, share_model.ErrShareNotFound) {
@@ -75,7 +76,7 @@ func getIndexFields(ctx context.RequestContext, proxyAddress string) (fields ind
 
 			if m != nil && !hasImage {
 				hasImage = true
-				fields.Image = fmt.Sprintf("/api/v1/media/%s.webp?quality=thumbnail&shareId=%s", f.GetContentId(), share.ID())
+				fields.Image = fmt.Sprintf("/api/v1/media/%s.webp?quality=thumbnail&shareId=%s", m.ContentID, share.ID().Hex())
 			}
 		}
 	}

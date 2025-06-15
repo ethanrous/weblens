@@ -58,6 +58,7 @@ export type ButtonProps = {
     onMouseLeave?: ButtonActionHandler
     style?: CSSProperties
     className?: string
+    containerClassName?: string
     setButtonRef?: (ref: HTMLButtonElement) => void
 }
 

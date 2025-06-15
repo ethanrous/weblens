@@ -7,6 +7,7 @@ import GridMotion from '@weblens/components/ScatteredPhotos'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import WeblensButton from '@weblens/lib/WeblensButton.tsx'
 import WeblensInput from '@weblens/lib/WeblensInput.tsx'
+import { useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { ErrorHandler } from '@weblens/types/Types'
 import WeblensMedia from '@weblens/types/media/Media'
 import User from '@weblens/types/user/User'
@@ -30,6 +31,7 @@ const Login = () => {
         }
         return UsersApi.loginUser({ username, password })
             .then((res) => {
+                useFileBrowserStore.getState().reset()
                 const user = new User(res.data)
                 user.isLoggedIn = true
                 setUser(user)
@@ -69,7 +71,7 @@ const Login = () => {
 
     return (
         <>
-            <div className="absolute top-0 left-0 z-0 opacity-50 w-screen h-screen">
+            <div className="absolute top-0 left-0 z-0 h-screen w-screen opacity-50">
                 <GridMotion items={medias} />
             </div>
 

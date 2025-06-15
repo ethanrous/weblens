@@ -1,23 +1,20 @@
 import {
     IconChevronRight,
-    IconLink,
+    IconCopy,
     IconPlus,
     IconUser,
     IconUsers,
     IconUsersPlus,
 } from '@tabler/icons-react'
-import {
-    QueryObserverResult,
-    RefetchOptions,
-    useQuery,
-} from '@tanstack/react-query'
+import { QueryObserverResult, RefetchOptions } from '@tanstack/react-query'
 import UsersApi from '@weblens/api/UserApi'
 import { PermissionsParams, UserInfo } from '@weblens/api/swag'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import { useClick } from '@weblens/lib/hooks'
+import useShare from '@weblens/lib/hooks/useShare'
 import { useFileBrowserStore } from '@weblens/store/FBStateControl'
-import { ErrorHandler } from '@weblens/types/Types'
+import { useMessagesController } from '@weblens/store/MessagesController'
 import WeblensFile, { FbMenuModeT } from '@weblens/types/files/File'
 import { WeblensShare } from '@weblens/types/share/share'
 import { Ref, useEffect, useRef, useState } from 'react'
@@ -48,7 +45,7 @@ function UserSearch({
 
     useClick(() => {
         setSearchMenuOpen(false)
-    }, searchRef.current)
+    }, searchRef)
 
     useEffect(() => {
         if (userSearch.length < 2) {
@@ -85,7 +82,6 @@ function UserSearch({
                     value={userSearch}
                     valueCallback={setUserSearch}
                     placeholder="Add users"
-                    onComplete={null}
                     Icon={IconUsersPlus}
                     openInput={() => setSearchMenuOpen(true)}
                 />
@@ -133,61 +129,57 @@ function UserPermissions({
         options?: RefetchOptions
     ) => Promise<QueryObserverResult<WeblensShare, Error>>
 }) {
+    const perms = share.permissions[user.username]
+
     return (
         <div className="border-l-border-primary ml-2 flex w-1/2 flex-col items-center border-l-2 px-2">
             <h5>{user.username} Permissions</h5>
-            <div className="flex flex-col gap-1 px-10">
-                <WeblensButton
-                    label="Can Download"
-                    fillWidth
-                    flavor={
-                        share.permissions[user.username].canDownload
-                            ? 'default'
-                            : 'outline'
-                    }
-                    onClick={async () => {
-                        await toggleParam(user.username, share, 'canDownload')
-                        refetch()
-                    }}
-                />
-                <WeblensButton
-                    label="Can Edit"
-                    fillWidth
-                    flavor={
-                        share.permissions[user.username].canEdit
-                            ? 'default'
-                            : 'outline'
-                    }
-                    onClick={async () => {
-                        await toggleParam(user.username, share, 'canEdit')
-                        refetch()
-                    }}
-                />
-                <WeblensButton
-                    label="Can Delete"
-                    fillWidth
-                    flavor={
-                        share.permissions[user.username].canDelete
-                            ? 'default'
-                            : 'outline'
-                    }
-                    onClick={async () => {
-                        await toggleParam(user.username, share, 'canDelete')
-                        refetch()
-                    }}
-                />
+            {perms && (
+                <div className="flex flex-col gap-1 px-10">
+                    <WeblensButton
+                        label="Can Download"
+                        fillWidth
+                        flavor={perms.canDownload ? 'default' : 'outline'}
+                        onClick={async () => {
+                            await toggleParam(
+                                user.username,
+                                share,
+                                'canDownload'
+                            )
+                            refetch()
+                        }}
+                    />
+                    <WeblensButton
+                        label="Can Edit"
+                        fillWidth
+                        flavor={perms.canEdit ? 'default' : 'outline'}
+                        onClick={async () => {
+                            await toggleParam(user.username, share, 'canEdit')
+                            refetch()
+                        }}
+                    />
+                    <WeblensButton
+                        label="Can Delete"
+                        fillWidth
+                        flavor={perms.canDelete ? 'default' : 'outline'}
+                        onClick={async () => {
+                            await toggleParam(user.username, share, 'canDelete')
+                            refetch()
+                        }}
+                    />
 
-                <WeblensButton
-                    label="Unshare"
-                    danger
-                    className="mt-4"
-                    fillWidth
-                    onClick={async () => {
-                        await share.removeAccessor(user.username)
-                        refetch()
-                    }}
-                />
-            </div>
+                    <WeblensButton
+                        label="Unshare"
+                        danger
+                        className="mt-4"
+                        fillWidth
+                        onClick={async () => {
+                            await share.removeAccessor(user.username)
+                            refetch()
+                        }}
+                    />
+                </div>
+            )}
         </div>
     )
 }
@@ -196,37 +188,42 @@ export function ShareModal({
     targetFile,
     ref,
 }: {
-    targetFile: WeblensFile
+    targetFile: WeblensFile | undefined
     ref: Ref<HTMLDivElement>
 }) {
     const menuMode = useFileBrowserStore((state) => state.menuMode)
     const setMenu = useFileBrowserStore((state) => state.setMenu)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
 
-    const [focusedUser, setFocusedUser] = useState<UserInfo>(null)
+    const [focusedUser, setFocusedUser] = useState<UserInfo | null>(null)
 
     if (!targetFile) {
+        console.warn(
+            'ShareModal: No targetFile provided, using folderInfo instead'
+        )
         targetFile = folderInfo
     }
 
-    const {
-        data: share,
-        refetch,
-        isLoading,
-    } = useQuery<WeblensShare>({
-        queryKey: ['share', targetFile.Id()],
-        initialData: null,
-        queryFn: async () => {
-            const share = await targetFile.GetShare(true).catch(ErrorHandler)
+    const { share, refetchShare, shareLoading } = useShare(targetFile)
 
-            console.log('GOT SHREA', share)
-            if (!share) {
-                return null
-            }
-
-            return share
-        },
-    })
+    // const {
+    //     data: share,
+    //     refetch: refetchShare,
+    //     isLoading: shareLoading,
+    // } = useQuery<WeblensShare | undefined>({
+    //     queryKey: ['share', targetFile.Id()],
+    //     initialData: undefined,
+    //     queryFn: async () => {
+    //         const share = await targetFile.GetShare(true).catch(ErrorHandler)
+    //
+    //         console.log('GOT SHREA', share)
+    //         if (!share) {
+    //             return
+    //         }
+    //
+    //         return share
+    //     },
+    // })
 
     useEffect(() => {
         if (!share) {
@@ -242,13 +239,15 @@ export function ShareModal({
         return <></>
     }
 
+    const shareLink = share?.GetLink()
+
     return (
         <div
             className="fullscreen-modal"
             onClick={(e) => e.stopPropagation()}
             ref={ref}
         >
-            {isLoading && (
+            {shareLoading && (
                 <div className="bg-background-primary absolute top-0 left-0 h-full w-full opacity-50" />
             )}
 
@@ -264,61 +263,107 @@ export function ShareModal({
                         fillWidth
                         onClick={async (e) => {
                             e.stopPropagation()
+                            if (!share) {
+                                console.error('Share is not defined')
+                                return
+                            }
+
                             await share.setPublic(!share.public)
-                            refetch()
+                            await refetchShare()
                         }}
                     />
-                    <WeblensButton
-                        label={'Copy Link'}
-                        Left={IconLink}
-                        fillWidth
-                        disabled={!share?.shareId}
-                        tooltip={!share?.shareId ? 'Not shared' : ''}
-                    />
+                    <div className="flex h-10 w-1/2 shrink-0 items-center gap-1 rounded-sm border p-1">
+                        <span
+                            className="no-scrollbar data-[has-share=true]:text-text-primary data-[has-share=false]:text-text-tertiary mr-1 ml-1 overflow-scroll select-all data-[has-share=false]:cursor-not-allowed data-[has-share=false]:select-none data-[has-share=true]:cursor-pointer"
+                            data-has-share={Boolean(share?.shareId)}
+                        >
+                            {share?.shareId ? shareLink : 'Not Shared'}
+                        </span>
+                        <WeblensButton
+                            Left={IconCopy}
+                            disabled={!share?.shareId}
+                            tooltip={
+                                !share?.shareId ? 'Not shared' : 'Copy Link'
+                            }
+                            size="small"
+                            containerClassName="ml-auto"
+                            onClick={async (e) => {
+                                e.stopPropagation()
+                                if (!share || !share.shareId) {
+                                    console.error(
+                                        'Share is not defined fully defined'
+                                    )
+                                    return
+                                }
+
+                                if (navigator.clipboard === undefined) {
+                                    useMessagesController
+                                        .getState()
+                                        .addMessage({
+                                            severity: 'error',
+                                            title: 'Copy Error',
+                                            text: 'Copy is not supported in this context. You must use https.',
+                                            duration: 5000,
+                                        })
+                                    return
+                                }
+
+                                const shareUrl = share.GetLink()
+                                await navigator.clipboard.writeText(shareUrl)
+                            }}
+                        />
+                    </div>
                 </div>
 
                 <UserSearch
-                    accessors={share?.accessors}
+                    accessors={share?.accessors || []}
                     addUser={async (user: UserInfo) => {
+                        if (!share) {
+                            console.error('Share is not defined')
+                            return
+                        }
+
                         await share.addAccessor(user.username)
-                        refetch()
+                        await refetchShare()
                     }}
                 />
 
                 <h4 className="mb-2 w-max">Shared With</h4>
 
                 <div className="no-scrollbar flex h-full w-full rounded-sm border p-2">
-                    {share && share.accessors.length === 0 && (
-                        <span className="m-auto">Not Shared</span>
-                    )}
-                    {share &&
-                        share.accessors.length !== 0 &&
-                        share.accessors.map((u: UserInfo) => {
-                            return (
-                                <div
-                                    key={u.username}
-                                    className="bg-background-secondary hover:bg-card-background-hover group/user flex h-10 w-full cursor-pointer items-center rounded p-2 transition"
-                                    onClick={() => {
-                                        if (focusedUser === u) {
-                                            setFocusedUser(null)
-                                        } else {
-                                            setFocusedUser(u)
-                                        }
-                                    }}
-                                >
-                                    <span>{u.fullName}</span>
-                                    <span className="text-color-text-secondary ml-1">
-                                        [{u.username}]
-                                    </span>
-                                    <IconChevronRight className="text-text-tertiary ml-auto" />
-                                </div>
-                            )
-                        })}
+                    <div className="flex min-w-[75%] flex-col">
+                        {share?.public && (
+                            <div className="border-b pb-2 mb-2">
+                                <UserShareRow
+                                    u={{ username: 'PUBLIC' } as UserInfo}
+                                    focusedUser={focusedUser}
+                                    setFocusedUser={setFocusedUser}
+                                />
+                            </div>
+                        )}
+                        {share && share.accessors.length === 0 && (
+                            <span className="m-auto">
+                                Not Shared With Anyone Specific
+                            </span>
+                        )}
+                        {share &&
+                            share.accessors.length !== 0 &&
+                            share.accessors.map((u: UserInfo) => {
+                                return (
+                                    <UserShareRow
+                                        key={u.username}
+                                        u={u}
+                                        focusedUser={focusedUser}
+                                        setFocusedUser={setFocusedUser}
+                                    />
+                                )
+                            })}
+                    </div>
                     {focusedUser && (
                         <UserPermissions
                             user={focusedUser}
                             share={share}
-                            refetch={refetch}
+                            refetch={refetchShare}
                         />
                     )}
                 </div>
@@ -332,6 +377,41 @@ export function ShareModal({
                     />
                 </div>
             </div>
+        </div>
+    )
+}
+
+function UserShareRow({
+    u,
+    focusedUser,
+    setFocusedUser,
+}: {
+    u: UserInfo
+    focusedUser: UserInfo | null
+    setFocusedUser: (user: UserInfo | null) => void
+}) {
+    return (
+        <div
+            className="bg-background-secondary hover:bg-card-background-hover group/user flex h-10 w-full cursor-pointer items-center rounded p-2 transition"
+            onClick={() => {
+                if (focusedUser === u) {
+                    setFocusedUser(null)
+                } else {
+                    setFocusedUser(u)
+                }
+            }}
+        >
+            {u.username === 'PUBLIC' && <span>{u.username}</span>}
+            {u.username !== 'PUBLIC' && (
+                <>
+                    <IconUser className="text-text-tertiary" />
+                    <span>{u.fullName}</span>
+                    <span className="text-color-text-secondary ml-1">
+                        [{u.username}]
+                    </span>
+                </>
+            )}
+            <IconChevronRight className="text-text-tertiary ml-auto" />
         </div>
     )
 }

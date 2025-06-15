@@ -50,6 +50,7 @@ func initTower(ctx context.Context, cnf config.ConfigProvider) error {
 				Name:     "Weblens Core",
 				Username: "admin",
 				Password: "adminadmin1",
+				FullName: "Weblens Admin",
 				Role:     string(tower_model.RoleCore),
 			})
 		})

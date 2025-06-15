@@ -2,7 +2,9 @@ package context
 
 import (
 	"context"
+	"sync"
 
+	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -52,4 +54,42 @@ func (n *noplogger) WithLogger(zerolog.Logger) {}
 
 func Background() LoggerContext {
 	return &noplogger{context.Background()}
+}
+
+const RequestDoerKey = "doer"
+
+type Doer interface {
+	Doer() string
+}
+
+const WgKey = "wg"
+
+func AddToWg(ctx context.Context) error {
+	if ctx == nil {
+		return errors.New("AddToWg: context is nil")
+	}
+
+	wg, ok := ctx.Value(WgKey).(*sync.WaitGroup)
+	if !ok {
+		return errors.New("AddToWg: context does not contain a WaitGroup")
+	}
+
+	wg.Add(1)
+
+	return nil
+}
+
+func WgDone(ctx context.Context) error {
+	if ctx == nil {
+		return errors.New("AddToWg: context is nil")
+	}
+
+	wg, ok := ctx.Value(WgKey).(*sync.WaitGroup)
+	if !ok {
+		return errors.New("AddToWg: context does not contain a WaitGroup")
+	}
+
+	wg.Done()
+
+	return nil
 }

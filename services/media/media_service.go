@@ -341,7 +341,6 @@ func FetchCacheImg(ctx context_service.AppContext, m *media_model.Media, q media
 	// return cache, nil
 }
 
-//
 //	func (ms *MediaServiceImpl) StreamCacheVideo(m *models.Media, startByte, endByte int) ([]byte, error) {
 //		return nil, errors.NotImplemented("StreamCacheVideo")
 //		// cacheKey := fmt.Sprintf("%s-STREAM %d-%d", m.ID(), startByte, endByte)
@@ -511,38 +510,58 @@ func FetchCacheImg(ctx context_service.AppContext, m *media_model.Media, q media
 //		prom = wl_slices.Map(promColors, func(p prominentcolor.ColorItem) string { return p.AsString() })
 //		return
 //	}
-//
-// func (ms *MediaServiceImpl) StreamVideo(
-//
-//	m *models.Media, u *models.User, share *models.FileShare,
-//
-//	) (*models.VideoStreamer, error) {
-//		if !ms.GetMediaType(m).Video {
-//			return nil, errors.WithStack(errors.ErrMediaNotVideo)
-//		}
-//
-//		ms.streamerLock.Lock()
-//		defer ms.streamerLock.Unlock()
-//
-//		var streamer *models.VideoStreamer
-//		var ok bool
-//		if streamer, ok = ms.streamerMap[m.ID()]; !ok {
-//			f, err := ms.fileService.GetFileByContentId(m.ContentID)
-//			if err != nil {
-//				return nil, err
-//			}
-//
-//			thumbs, err := ms.fileService.GetThumbsDir()
-//			if err != nil {
-//				return nil, err
-//			}
-//			streamer = models.NewVideoStreamer(f, thumbs.AbsPath())
-//			ms.streamerMap[m.ID()] = streamer
-//		}
-//
-//		return streamer, nil
-//	}
-//
+
+func GetFileByMediaId(ctx context.Context, contentId string) (*file_model.WeblensFileImpl, error) {
+	appCtx, ok := context_service.FromContext(ctx)
+	if !ok {
+		return nil, errors.WithStack(context_service.ErrNoContext)
+	}
+
+	m, err := media_model.GetMediaByContentId(ctx, contentId)
+	if err != nil {
+		return nil, err
+	}
+
+	f, err := appCtx.FileService.GetFileById(ctx, m.FileIDs[0])
+	if err != nil {
+		return nil, err
+	}
+
+	return f, nil
+}
+
+var ErrMediaNotVideo = errors.New("media is not a video")
+
+const videoStreamerContextKey = "videoStreamerContextKey"
+
+func StreamVideo(ctx context.Context, m *media_model.Media) (*media_model.VideoStreamer, error) {
+	appCtx, ok := context_service.FromContext(ctx)
+	if !ok {
+		return nil, errors.WithStack(context_service.ErrNoContext)
+	}
+
+	if !media_model.ParseMime(m.MimeType).IsVideo {
+		return nil, errors.WithStack(ErrMediaNotVideo)
+	}
+
+	cache := appCtx.GetCache(videoStreamerContextKey)
+	streamerAny, ok := cache.Get(m.ID())
+	if ok {
+		return streamerAny.(*media_model.VideoStreamer), nil
+	}
+
+	f, err := appCtx.FileService.GetFileById(ctx, m.FileIDs[0])
+	if err != nil {
+		return nil, err
+	}
+
+	streamer := media_model.NewVideoStreamer(f, file_model.ThumbsDirPath)
+
+	cache.Set(m.ID(), streamer)
+
+	return streamer, nil
+}
+
 //	func (ms *MediaServiceImpl) SetMediaLiked(mediaId models.ContentId, liked bool, username string) error {
 //		m := ms.Get(mediaId)
 //		if m == nil {

@@ -42,63 +42,59 @@ func doesSharePermitFile(ctx context.Context, file *file_model.WeblensFileImpl, 
 	return false
 }
 
-func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_model.WeblensFileImpl, share *share_model.FileShare, requiredPerms ...share_model.Permission) error {
+func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_model.WeblensFileImpl, share *share_model.FileShare, requiredPerms ...share_model.Permission) (*share_model.Permissions, error) {
 	ownerName, err := file_model.GetFileOwnerName(ctx, file)
 	if err != nil {
 		context_mod.ToZ(ctx).Log().Error().Stack().Err(err).Msg("Failed to get file owner name")
 
-		return err
+		return &share_model.Permissions{}, err
 	}
 
 	// If the user is the owner of the file, we can access it regardless of the share
 	if ownerName == user.GetUsername() {
-		return nil
+		return share_model.NewFullPermissions(), nil
 	}
 
-	sharePermitsFile := doesSharePermitFile(ctx, file, share)
-	if !sharePermitsFile && share != nil && share.Enabled {
-		return errors.Errorf("invalid share [%s] for file [%s]: %w", share.ShareId, file.ID(), ErrShareDoesNotPermitFile)
+	// Check that the share permits access the specific file we are trying to access
+	if !doesSharePermitFile(ctx, file, share) {
+		return &share_model.Permissions{}, errors.Errorf("invalid share [%s] for file [%s]: %w", share.ShareId, file.ID(), ErrShareDoesNotPermitFile)
 	}
 
 	if user == nil || user.IsPublic() {
-		if share != nil && share.IsPublic() && sharePermitsFile {
-			return nil
+		if share != nil && share.IsPublic() {
+			return share_model.NewPermissions(), nil
 		} else {
-			return ErrMustAuthenticate
+			return &share_model.Permissions{}, ErrMustAuthenticate
 		}
 	}
 
 	if user.IsSystemUser() && user.Username == "WEBLENS" {
-		return nil
+		return share_model.NewFullPermissions(), nil
 	}
 
-	if !sharePermitsFile {
-		// If the share does not permit access to the file, we cannot access it now we know
-		// the user is not the owner of the file
-		return ErrFileAccessNotPermitted
-	} else if share.Public {
-		// If the share is public, and allows access to the specific file we want, we can access it regardless of the accessors list
-		return nil
-	}
+	// if !sharePermitsFile {
+	// 	// If the share does not permit access to the file, we cannot access it now that we know
+	// 	// the user is not the owner of the file
+	// 	return &share_model.Permissions{}, ErrFileAccessNotPermitted
+	// }
 
-	appCtx, _ := context_service.FromContext(ctx)
-	appCtx.Log().Debug().Msgf("Checking file access for user [%s] on file [%s]", user.GetUsername(), file.ID())
-
-	allowedPerms := share.GetUserPermissions(user.GetUsername())
-	if allowedPerms == nil {
+	if allowedPerms := share.GetUserPermissions(user.GetUsername()); allowedPerms == nil && !share.Public {
 		// If the user is not in the accessors list, we cannot access it
-		return ErrFileAccessNotPermitted
-	}
-
-	for _, requiredPerm := range requiredPerms {
-		if !allowedPerms.HasPermission(requiredPerm) {
-			appCtx.Log().Debug().Msgf("User [%s] does not have permission [%s] on file [%s]", user.GetUsername(), requiredPerm, file.GetPortablePath().String())
-
-			return ErrFileAccessNotPermitted
+		return &share_model.Permissions{}, ErrFileAccessNotPermitted
+	} else if allowedPerms != nil {
+		for _, requiredPerm := range requiredPerms {
+			if !allowedPerms.HasPermission(requiredPerm) {
+				// If the user does not have the required permissions, we say cannot access it at all
+				return &share_model.Permissions{}, ErrFileAccessNotPermitted
+			}
 		}
-	}
 
-	return nil
+		// If the user has the required permissions, we can access it
+		return allowedPerms, nil
+	} else {
+		// If the share is public, and allows access to the specific file we want, we can access it regardless of the accessors list
+		return share.GetUserPermissions(user_model.PublicUserName), nil
+	}
 }
 
 func CanUserModifyShare(user *user_model.User, share share_model.FileShare) bool {

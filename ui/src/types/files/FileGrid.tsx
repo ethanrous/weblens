@@ -120,7 +120,7 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
     return (
         <div
             ref={containerRef}
-            className={filesStyle.filesGrid}
+            className="dropzone"
             data-droppable={Boolean(
                 moveDest === folderInfo?.Id() &&
                     folderInfo?.modifiable &&
@@ -165,14 +165,14 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
                     {!isLoading && files.length === 0 && <GetStartedCard />}
                     {!isLoading && files.length !== 0 && (
                         <Grid
-                            className="no-scrollbar outline-0"
+                            className="w-full outline-0"
                             ref={gridRef}
                             columnCount={numCols}
                             itemData={{ files: filteredFiles, numCols }}
                             height={size.height}
                             width={size.width}
                             rowCount={Math.ceil(filteredFiles.length / numCols)}
-                            columnWidth={size.width / numCols}
+                            columnWidth={(size.width - 8) / numCols}
                             rowHeight={rowHeight}
                             overscanRowCount={8}
                             onScroll={({ scrollTop }) => {

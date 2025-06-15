@@ -6,8 +6,7 @@ import {
     IconVolume3,
 } from '@tabler/icons-react'
 import WeblensProgress from '@weblens/lib/WeblensProgress.tsx'
-import { useKeyDown, useResize } from '@weblens/lib/hooks'
-import { ErrorHandler } from '@weblens/types/Types'
+import { useKeyDown, useResize, useVideo } from '@weblens/lib/hooks'
 import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
 import { secondsToVideoTime } from '@weblens/util'
 import Hls from 'hls.js'
@@ -47,10 +46,10 @@ function VideoInterface({
     setPlaytime: (v: number) => void
     isPlaying: boolean
     showUi: boolean
-    videoRef: HTMLVideoElement
-    containerRef: RefObject<HTMLDivElement>
+    videoRef: RefObject<HTMLVideoElement | null>
+    containerRef: RefObject<HTMLDivElement | null>
 }) {
-    const size = useResize(containerRef.current!)
+    const size = useResize(containerRef)
     const [wasPlaying, setWasPlaying] = useState(false)
 
     const VolumeIcon = useMemo(() => {
@@ -62,14 +61,16 @@ function VideoInterface({
     }, [volume])
 
     const buffered = useMemo(() => {
-        const buffered = videoRef?.buffered.length
-            ? (videoRef.buffered.end(videoRef.buffered.length - 1) /
-                  videoRef.duration) *
+        const buffered = videoRef.current?.buffered.length
+            ? (videoRef.current.buffered.end(
+                  videoRef.current.buffered.length - 1
+              ) /
+                  videoRef.current.duration) *
               100
             : 0
 
         return buffered
-    }, [videoRef?.buffered])
+    }, [videoRef])
 
     const PlayIcon = isPlaying ? IconPlayerPauseFilled : IconPlayerPlayFilled
 
@@ -87,10 +88,14 @@ function VideoInterface({
                     className="absolute z-50 h-6 w-6 cursor-pointer text-white"
                     onClick={(e) => {
                         e.stopPropagation()
+                        if (!videoRef.current) {
+                            return
+                        }
+
                         if (isPlaying) {
-                            videoRef.pause()
+                            videoRef.current.pause()
                         } else {
-                            videoRef
+                            videoRef.current
                                 .play()
                                 .catch((e) =>
                                     console.error('Failed to play video', e)
@@ -127,21 +132,23 @@ function VideoInterface({
                         value={(playtime * 100) / videoLength}
                         secondaryValue={buffered}
                         seekCallback={(v, seeking) => {
-                            if (videoRef) {
+                            console.log('SEEKING??')
+                            return
+                            if (videoRef.current) {
                                 const newTime = videoLength * (v / 100)
 
-                                if (!videoRef.paused && !wasPlaying) {
-                                    videoRef.pause()
+                                if (!videoRef.current.paused && !wasPlaying) {
+                                    videoRef.current.pause()
                                     if (seeking) {
                                         setWasPlaying(true)
                                     }
                                 }
 
-                                videoRef.currentTime = newTime
+                                videoRef.current.currentTime = newTime
                                 setPlaytime(newTime)
 
                                 if (!seeking && (wasPlaying || isPlaying)) {
-                                    videoRef.play().catch(ErrorHandler)
+                                    // videoRef.play().catch(ErrorHandler)
                                     setWasPlaying(false)
                                 }
                             }
@@ -190,26 +197,27 @@ export function VideoWrapper({
     fitLogic,
     media,
     imgStyle,
-    videoRef,
-    setVideoRef,
-    isPlaying,
-    playtime,
+    setLoading,
 }: {
     url: string
     shouldShowVideo: boolean
     fitLogic: string
     media: WeblensMedia
     imgStyle: CSSProperties
-    videoRef: HTMLVideoElement
-    setVideoRef: (r: HTMLVideoElement) => void
-    isPlaying: boolean
-    playtime: number
+    setLoading: (l: boolean) => void
 }) {
+    const videoRef = useRef<HTMLVideoElement>(null)
+    const { playtime, isPlaying, isWaiting } = useVideo(videoRef.current)
+
     const containerRef = useRef<HTMLDivElement>(null)
 
     const [showUi, setShowUi] = useState<NodeJS.Timeout | undefined>()
     const [volume, setVolume] = useState<number>(0)
     const [playtimeInternal, setPlaytime] = useState(0)
+
+    useEffect(() => {
+        setLoading(isWaiting)
+    }, [isWaiting])
 
     useEffect(() => {
         const muted = localStorage.getItem('volume-muted') === 'true'
@@ -226,14 +234,13 @@ export function VideoWrapper({
     }, [playtime])
 
     useEffect(() => {
-        if (!videoRef) {
+        if (!videoRef.current) {
             return
         }
-        console.log('UPDATING HLS')
 
-        if (videoRef.canPlayType('application/vnd.apple.mpegurl')) {
+        if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
             console.debug('Not Using HLS')
-            videoRef.src = media.StreamVideoUrl()
+            videoRef.current.src = media.StreamVideoUrl()
         } else if (Hls.isSupported()) {
             Hls.DefaultConfig.debug = true
             console.debug('Using HLS')
@@ -244,21 +251,22 @@ export function VideoWrapper({
                 // maxBufferTime: 10000, // Increase the maximum buffer time (10 seconds)
             })
             hls.loadSource(media.StreamVideoUrl())
-            hls.attachMedia(videoRef)
+            hls.attachMedia(videoRef.current)
             return () => {
                 hls.destroy()
             }
         }
-    }, [videoRef, media.StreamVideoUrl()])
+    }, [videoRef, media])
 
     const togglePlayState = useCallback(() => {
-        if (!videoRef) {
+        if (!videoRef.current) {
             return
         }
+
         if (isPlaying) {
-            videoRef.pause()
+            videoRef.current.pause()
         } else {
-            videoRef.play().catch((e) => {
+            videoRef.current.play().catch((e) => {
                 console.error('Failed to play video', e)
             })
         }
@@ -270,16 +278,18 @@ export function VideoWrapper({
         if (volume === undefined) {
             return
         }
-        if (videoRef) {
-            videoRef.volume = volume / 100
+
+        if (videoRef.current) {
+            videoRef.current.volume = volume / 100
         }
+
         if (volume === 0) {
             localStorage.setItem('volume-muted', 'true')
         } else {
             localStorage.setItem('volume-muted', 'false')
             localStorage.setItem('volume', volume.toString())
         }
-    }, [volume])
+    }, [videoRef, volume])
 
     if (!shouldShowVideo) {
         return null
@@ -301,7 +311,7 @@ export function VideoWrapper({
             }}
         >
             <video
-                ref={setVideoRef}
+                ref={videoRef}
                 autoPlay
                 muted={volume === 0}
                 // preload="metadata"

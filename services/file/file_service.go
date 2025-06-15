@@ -543,15 +543,44 @@ func (fs *FileServiceImpl) GetZip(ctx context.Context, id string) (*file_model.W
 	return f, err
 }
 
-func (fs *FileServiceImpl) RenameFile(file *file_model.WeblensFileImpl, newName string) error {
-	// preFile := file.Freeze()
-	err := rename(file.GetPortablePath(), file.GetPortablePath().Dir().Child(newName, false))
+func (fs *FileServiceImpl) RenameFile(ctx context.Context, file *file_model.WeblensFileImpl, newName string) error {
+	parent := file.GetParent()
+	if _, err := parent.GetChild(newName); err == nil {
+		return errors.WithStack(file_model.ErrFileAlreadyExists)
+	}
+
+	oldPath := file.GetPortablePath()
+	newPath := oldPath.Dir().Child(newName, file.GetPortablePath().IsDir())
+
+	err := rename(file.GetPortablePath(), newPath)
 	if err != nil {
 		return err
 	}
 
-	// TODO: Implement caster calls
-	// caster.PushFileMove(preFile, file)
+	err = file.RecursiveMap(func(wfi *file_model.WeblensFileImpl) error {
+		// Update the file's path to the new path
+		newFilePath, err := wfi.GetPortablePath().ReplacePrefix(oldPath, newPath)
+		if err != nil {
+			return err
+		}
+
+		wfi.SetPortablePath(newFilePath)
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	appCtx, ok := context_service.FromContext(ctx)
+	if !ok {
+		return errors.WithStack(context_service.ErrNoContext)
+	}
+
+	appCtx.Log().Debug().Msgf("Renaming file [%s] to [%s]", file.GetPortablePath(), newPath)
+
+	notif := notify.NewFileNotification(ctx, file, websocket_mod.FileUpdatedEvent)
+	appCtx.Notify(ctx, notif...)
 
 	return nil
 }

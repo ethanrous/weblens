@@ -64,7 +64,7 @@ function FileBrowser() {
         presentingId,
         isSearching,
         fbMode,
-        activeFileId: contentId,
+        activeFileId,
         shareId,
         pastTime,
         addLoading,
@@ -119,7 +119,7 @@ function FileBrowser() {
             contentId = splitPath[0]
         }
 
-        const pastTime: Date = past ? new Date(past) : null
+        const pastTime: Date = past ? new Date(past) : new Date(0)
 
         if (mode === FbModeT.share && shareId && !contentId) {
             SharesApi.getFileShare(shareId)
@@ -139,11 +139,11 @@ function FileBrowser() {
     useKeyDownFileBrowser()
 
     // Hook to handle uploading images from the clipboard
-    usePaste(contentId, user, blockFocus)
+    usePaste(activeFileId, user, blockFocus)
 
     // Reset most of the state when we change folders
     useEffect(() => {
-        if (contentId === null) {
+        if (activeFileId === null) {
             console.debug('Content ID is null, refusing to sync state')
             return
         }
@@ -180,7 +180,7 @@ function FileBrowser() {
                 clearSelected()
             }
 
-            const folder = filesMap.get(contentId)
+            const folder = filesMap.get(activeFileId)
             if (
                 folder &&
                 (pastTime.getTime() === 0 || folder.modifyDate === pastTime) &&
@@ -202,7 +202,7 @@ function FileBrowser() {
             folder?.SetFetching(true)
 
             const fileData = await GetFolderData(
-                contentId,
+                activeFileId,
                 fbMode,
                 shareId,
                 pastTime
@@ -219,7 +219,7 @@ function FileBrowser() {
             })
 
             // If request comes back after we have already navigated away, do nothing
-            if (useFileBrowserStore.getState().activeFileId !== contentId) {
+            if (useFileBrowserStore.getState().activeFileId !== activeFileId) {
                 console.error("Content ID don't match")
                 return
             }
@@ -241,18 +241,21 @@ function FileBrowser() {
                     mediaData: fileData.medias,
                 })
 
-                document.title =
-                    filenameFromPath(fileData.self.portablePath).nameText +
-                    ' - Weblens'
+                if (fileData?.self?.portablePath) {
+                    document.title =
+                        filenameFromPath(fileData.self.portablePath).nameText +
+                        ' - Weblens'
+                }
+
                 folder?.SetFetching(false)
             }
 
             if (
                 (jumpTo || viewOpts.dirViewMode === DirViewModeT.Columns) &&
-                (fbMode !== FbModeT.share || contentId) &&
+                (fbMode !== FbModeT.share || activeFileId) &&
                 useFileBrowserStore.getState().selected.size === 0
             ) {
-                setSelected([jumpTo ? jumpTo : contentId], true)
+                setSelected([jumpTo ? jumpTo : activeFileId], true)
             }
         }
 
@@ -264,7 +267,7 @@ function FileBrowser() {
                 setFilesFetchErr(e)
             })
             .finally(() => removeLoading('files'))
-    }, [user, contentId, shareId, fbMode, pastTime, jumpTo])
+    }, [user, activeFileId, shareId, fbMode, pastTime, jumpTo])
 
     useEffect(() => {
         const selectedSize = useFileBrowserStore.getState().selected.size
@@ -278,10 +281,10 @@ function FileBrowser() {
 
         if (
             (jumpTo || viewOpts.dirViewMode === DirViewModeT.Columns) &&
-            (fbMode !== FbModeT.share || contentId) &&
+            (fbMode !== FbModeT.share || activeFileId) &&
             selectedSize === 0
         ) {
-            setSelected([jumpTo ? jumpTo : contentId], true)
+            setSelected([jumpTo ? jumpTo : activeFileId], true)
         }
     }, [viewOpts.dirViewMode])
 
@@ -298,11 +301,13 @@ function FileBrowser() {
             .catch(ErrorHandler)
     }
 
+    const presentingFile = filesMap.get(presentingId)
+
     return (
         <div className="flex h-screen flex-col">
             <HeaderBar />
             <DraggingCounter />
-            <PresentationFile file={filesMap.get(presentingId)} />
+            {presentingFile && <PresentationFile file={presentingFile} />}
             <PasteDialogue />
             {isSearching && (
                 <div className="absolute z-40 flex h-screen w-screen items-center justify-center bg-[#00000088] px-[30%] py-[10%] backdrop-blur-xs">

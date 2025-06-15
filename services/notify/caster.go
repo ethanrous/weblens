@@ -6,11 +6,11 @@ import (
 
 	file_model "github.com/ethanrous/weblens/models/file"
 	task_model "github.com/ethanrous/weblens/models/task"
+	"github.com/ethanrous/weblens/modules/errors"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	context_service "github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/reshape"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/rs/zerolog/log"
 )
 
@@ -68,7 +68,7 @@ func NewFileNotification(
 ) []websocket_mod.WsResponseInfo {
 	ctx, _ := context_service.FromContext(c)
 
-	fileInfo, err := reshape.WeblensFileToFileInfo(ctx, file, false)
+	fileInfo, err := reshape.WeblensFileToFileInfo(ctx, file)
 	if err != nil {
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to create new file notification")
 

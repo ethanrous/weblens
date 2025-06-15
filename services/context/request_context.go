@@ -57,6 +57,7 @@ func (c RequestContext) AppCtx() context_mod.ContextZ {
 func (c RequestContext) SetValue(key any, value any) {
 	// c.Req = c.Req.WithContext(context.WithValue(c.Req.Context(), key, value))
 	c.ReqCtx = context.WithValue(c.ReqCtx, key, value)
+	c.AppContext = c.AppContext.WithValue(key, value)
 }
 
 func (c RequestContext) Value(key any) any {
@@ -66,6 +67,10 @@ func (c RequestContext) Value(key any) any {
 
 	if c.ReqCtx == nil {
 		panic("request context is nil")
+	}
+
+	if key == context_mod.RequestDoerKey {
+		return c.Doer()
 	}
 
 	if v := c.AppContext.Value(key); v != nil {
@@ -239,6 +244,10 @@ func (c RequestContext) Client() *client.WsClient {
 	return c.ClientService.GetClientByUsername(c.Requester.Username)
 }
 
+func (c RequestContext) Write(b []byte) (int, error) {
+	return c.W.Write(b)
+}
+
 func (c RequestContext) AttemptGetUsername() string {
 	if c.Requester != nil && c.Requester.Username != "" && c.Requester.Username != user_model.PublicUserName {
 		return c.Requester.Username
@@ -295,4 +304,23 @@ func TimestampFromCtx(ctx RequestContext) (time.Time, bool, error) {
 	}
 
 	return time.UnixMilli(millis), true, nil
+}
+
+func (c RequestContext) WithRequester(u *user_model.User) RequestContext {
+	c.Requester = u
+	c.WithValue(context_mod.RequestDoerKey, u.GetUsername())
+
+	if u != nil && u.Username != "" && u.Username != user_model.PublicUserName {
+		c.IsLoggedIn = true
+	}
+
+	return c
+}
+
+func (c RequestContext) Doer() string {
+	if c.Requester != nil {
+		return c.Requester.GetUsername()
+	}
+
+	return user_model.GetUnknownUser().GetUsername()
 }

@@ -131,7 +131,6 @@ function MenuTitle() {
             {(menuMode === FbMenuModeT.NameFolder ||
                 menuMode === FbMenuModeT.RenameFile) && (
                 <WeblensButton
-                    className="absolute"
                     Left={IconArrowLeft}
                     size="small"
                     onClick={(e) => {
@@ -228,12 +227,15 @@ export function FileContextMenu() {
         }
     }, [menuPos, menuHeight, menuWidth, width, height])
 
-    const targetFile = filesMap.get(menuTarget)
+    const targetFile = filesMap.get(
+        menuTarget === '' ? folderInfo.Id() : menuTarget
+    )
+
     const targetMedia = useMediaStore((state) =>
         state.mediaMap.get(targetFile?.GetContentId() ?? '')
     )
 
-    if (!folderInfo) {
+    if (!folderInfo || !targetFile) {
         return null
     }
 
@@ -243,8 +245,6 @@ export function FileContextMenu() {
     } else if (menuMode === FbMenuModeT.Default) {
         if (pastTime.getTime() !== 0) {
             menuBody = <PastFileMenu activeItems={activeItems.items} />
-        } else if (menuTarget === '') {
-            menuBody = <BackdropDefaultItems />
         } else {
             menuBody = <StandardFileMenu activeItems={activeItems} />
         }
@@ -255,12 +255,8 @@ export function FileContextMenu() {
     } else if (menuMode === FbMenuModeT.RenameFile) {
         menuBody = <FileRenameInput />
     } else if (menuMode === FbMenuModeT.SearchForFile) {
-        const text =
-            '~' +
-            targetFile.portablePath.slice(
-                targetFile.portablePath.indexOf('/'),
-                targetFile.portablePath.lastIndexOf('/')
-            )
+        const path = targetFile.portablePath ?? ''
+        const text = '~' + path.slice(path.indexOf('/'), path.lastIndexOf('/'))
         menuBody = (
             <div className="menu-body-below-header flex h-[40vh] w-[50vw] items-center gap-2 p-2">
                 <div className="flex h-[39vh] grow rounded-md">
@@ -291,8 +287,6 @@ export function FileContextMenu() {
         console.error('Unknown menu mode:', menuMode)
         return null
     }
-
-    console.log(menuMode === FbMenuModeT.Closed)
 
     return (
         <div
@@ -336,7 +330,7 @@ function StandardFileMenu({
         return filesMap.get(menuTarget)
     }, [filesMap, menuTarget])
 
-    const { share, shareLoading } = useShare()
+    const { share, shareLoading } = useShare(targetFile)
 
     if (user.trashId === folderInfo.Id()) {
         return null
@@ -351,8 +345,18 @@ function StandardFileMenu({
             <FileMenuButton
                 Icon={IconPencil}
                 name="Rename"
-                disabled={activeItems.items.length > 1}
+                disabled={
+                    activeItems.items.length > 1 || !targetFile?.modifiable
+                }
                 action={() => setMenu({ menuState: FbMenuModeT.RenameFile })}
+            />
+
+            <FileMenuButton
+                name="New Folder"
+                Icon={IconFolderPlus}
+                show={menuTarget === folderInfo.Id()}
+                disabled={!folderInfo.IsModifiable()}
+                action={() => setMenu({ menuState: FbMenuModeT.NameFolder })}
             />
 
             <FileMenuButton
@@ -377,6 +381,9 @@ function StandardFileMenu({
                             0
                         )
                     ).join(' ')
+                }
+                disabled={
+                    activeItems.items.length < 2 && targetFile?.size === 0
                 }
                 action={async () => {
                     const dlShareId = calculateShareId(activeItems.items)
@@ -417,7 +424,12 @@ function StandardFileMenu({
                     targetFile.GetContentId() !== ''
                 }
                 name="Remove Folder Image"
+                disabled={!targetFile?.modifiable}
                 action={async () => {
+                    if (!targetFile) {
+                        return Promise.reject('No target file selected')
+                    }
+
                     return FolderApi.setFolderCover(targetFile.Id(), '').then(
                         () => {
                             setMenu({
@@ -686,39 +698,5 @@ function InTrashMenu({ activeItems }: { activeItems: WeblensFile[] }) {
                 }}
             />
         </div>
-    )
-}
-
-function BackdropDefaultItems() {
-    const user = useSessionStore((state) => state.user)
-    const folderInfo = useFileBrowserStore((state) => state.folderInfo)
-
-    const setMenu = useFileBrowserStore((state) => state.setMenu)
-
-    return (
-        <MenuBodyWrapper>
-            <FileMenuButton
-                name="New Folder"
-                Icon={IconFolderPlus}
-                disabled={!folderInfo.IsModifiable()}
-                action={() => setMenu({ menuState: FbMenuModeT.NameFolder })}
-            />
-
-            <FileMenuButton
-                name="Share"
-                Icon={IconUsersPlus}
-                disabled={
-                    folderInfo.Id() === user.homeId ||
-                    folderInfo.Id() === user.trashId
-                }
-                action={() => setMenu({ menuState: FbMenuModeT.Sharing })}
-            />
-
-            <FileMenuButton
-                name="Scan Directory"
-                Icon={IconScan}
-                action={() => ScanDirectory(folderInfo)}
-            />
-        </MenuBodyWrapper>
     )
 }

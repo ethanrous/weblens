@@ -9,6 +9,7 @@ export default function useShare(target?: WeblensFile) {
 
     let _target = target
     if (!_target) {
+        console.warn('useShare called without target, using folderInfo instead')
         _target = folderInfo
     }
 
@@ -19,7 +20,7 @@ export default function useShare(target?: WeblensFile) {
     } = useQuery<WeblensShare | undefined>({
         queryKey: ['share', _target.Id()],
         queryFn: async () => {
-            console.log('Fetching share for', _target.Id())
+            console.log('Fetching share for file', _target.Id())
             const share = await _target.GetShare(true).catch(ErrorHandler)
             if (!share) {
                 return

@@ -41,6 +41,7 @@ type FileAction struct {
 	TowerId         string         `bson:"towerId" json:"towerId"`
 	ContentId       string         `bson:"contentId,omitempty" json:"contentId"`
 	FileId          string         `bson:"fileId" json:"fileId"`
+	Doer            string         `bson:"doer" json:"doer"` // The user or system that performed the action
 
 	Size int64 `bson:"size" json:"size"`
 
@@ -80,6 +81,7 @@ func NewCreateAction(ctx context.Context, file *file_model.WeblensFileImpl) File
 		Size:       file.Size(),
 		Timestamp:  eventTime,
 		TowerId:    towerId,
+		Doer:       event.Doer,
 
 		file: file,
 	}
@@ -113,6 +115,7 @@ func NewMoveAction(ctx context.Context, originPath, destinationPath fs.Filepath,
 		Timestamp:       eventTime,
 		TowerId:         towerId,
 		ContentId:       file.GetContentId(),
+		Doer:            event.Doer,
 	}
 }
 
@@ -139,6 +142,7 @@ func NewDeleteAction(ctx context.Context, file *file_model.WeblensFileImpl) File
 		Size:       file.Size(),
 		Timestamp:  eventTime,
 		TowerId:    towerId,
+		Doer:       event.Doer,
 	}
 }
 

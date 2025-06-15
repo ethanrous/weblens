@@ -36,12 +36,16 @@ const (
 var ErrNotAuthenticated = errors.New("not authenticated")
 var ErrNotAuthorized = errors.New("not authorized")
 
-func RequireSignIn(ctx context_service.RequestContext) {
-	if !ctx.IsLoggedIn {
-		ctx.Error(http.StatusUnauthorized, ErrNotAuthenticated)
+func RequireSignIn(next Handler) Handler {
+	return HandlerFunc(func(ctx context_service.RequestContext) {
+		if !ctx.IsLoggedIn {
+			ctx.Error(http.StatusUnauthorized, ErrNotAuthenticated)
 
-		return
-	}
+			return
+		}
+
+		next.ServeHTTP(ctx)
+	})
 }
 
 func RequireAdmin(next Handler) Handler {
@@ -124,7 +128,7 @@ func WeblensAuth(next Handler) Handler {
 			return
 		}
 
-		ctx.Requester = user_model.GetPublicUser()
+		ctx = ctx.WithRequester(user_model.GetPublicUser())
 
 		remoteTowerId := ctx.Header(tower_service.TowerIdHeader)
 		if remoteTowerId != "" {
@@ -149,8 +153,7 @@ func WeblensAuth(next Handler) Handler {
 
 			ctx.Log().Trace().Msgf("Authenticated user via auth header: %s", usr.Username)
 
-			ctx.Requester = usr
-			ctx.IsLoggedIn = true
+			ctx = ctx.WithRequester(usr)
 		} else if ctx.Remote.TowerId != "" {
 			ctx.Error(http.StatusUnauthorized, errors.Wrap(ErrNotAuthenticated, "towers must authenticate with a token"))
 
@@ -171,8 +174,7 @@ func WeblensAuth(next Handler) Handler {
 
 				ctx.Log().Trace().Msgf("Authenticated user via session token: %s", usr.Username)
 
-				ctx.Requester = usr
-				ctx.IsLoggedIn = true
+				ctx = ctx.WithRequester(usr)
 			}
 		}
 

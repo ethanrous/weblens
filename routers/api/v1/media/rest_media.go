@@ -2,6 +2,7 @@ package media
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -10,7 +11,7 @@ import (
 	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/structs"
 	"github.com/ethanrous/weblens/services/context"
-	"github.com/ethanrous/weblens/services/media"
+	media_service "github.com/ethanrous/weblens/services/media"
 	"github.com/ethanrous/weblens/services/reshape"
 )
 
@@ -276,65 +277,61 @@ func GetMediaImage(ctx context.RequestContext) {
 	getProcessedMedia(ctx, quality, format)
 }
 
-// func streamVideo(w http.ResponseWriter, r *http.Request) {
-// 	pack := getServices(r)
-// 	log := hlog.FromRequest(r)
-//
-// 	log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Streaming video %s", chi.URLParam(r, "chunkName")) })
-//
-// 	sh, err := getShareFromCtx[*models.FileShare](w, r)
-// 	if err != nil {
-// 		return
-// 	}
-//
-// 	mediaId := chi.URLParam(r, "mediaId")
-// 	m := pack.MediaService.Get(mediaId)
-// 	if m == nil {
-// 		writeError(w, http.StatusNotFound, werror.ErrNoMedia)
-// 		return
-// 	} else if !pack.MediaService.GetMediaType(m).Video {
-// 		writeError(w, http.StatusBadRequest, werror.Errorf("media is not of type video"))
-// 		return
-// 	}
-//
-// 	streamer, err := pack.MediaService.StreamVideo(m, pack.UserService.GetRootUser(), sh)
-// 	if SafeErrorAndExit(err, w, log) {
-// 		return
-// 	}
-//
-// 	chunkName := chi.URLParam(r, "chunkName")
-// 	if chunkName != "" {
-// 		chunkFile, err := streamer.GetChunk(chunkName)
-// 		if SafeErrorAndExit(err, w, log) {
-// 			return
-// 		}
-//
-// 		log.Trace().Msgf("Serving chunk %s", chunkName)
-// 		wrote, err := io.Copy(w, chunkFile)
-// 		if SafeErrorAndExit(err, w, log) {
-// 			return
-// 		}
-//
-// 		err = chunkFile.Close()
-// 		log.Trace().Msgf("Chunk [%s] wrote [%d] bytes", chunkName, wrote)
-// 		if SafeErrorAndExit(err, w, log) {
-// 			return
-// 		}
-// 		return
-// 	}
-//
-// 	listFile, err := streamer.GetListFile()
-// 	if SafeErrorAndExit(err, w, log) {
-// 		return
-// 	}
-//
-// 	// if !bytes.HasSuffix(listFile, []byte("#EXT-X-ENDLIST")) {
-// 	// 	listFile = append(listFile, []byte("#EXT-X-ENDLIST")...)
-// 	// }
-//
-// 	_, err = w.Write(listFile)
-// 	SafeErrorAndExit(err, w, log)
-// }
+func streamVideo(ctx context.RequestContext) {
+	chunkName := ctx.Path("chunkName")
+
+	ctx.Log().Debug().Msgf("Streaming video %s", chunkName)
+
+	mediaId := ctx.Path("mediaId")
+
+	m, err := media_model.GetMediaByContentId(ctx, mediaId)
+	if err != nil {
+		ctx.Error(http.StatusNotFound, err)
+
+		return
+	} else if !media_model.ParseMime(m.MimeType).IsVideo {
+		ctx.Error(http.StatusBadRequest, errors.New("media is not of type video"))
+
+		return
+	}
+
+	streamer, err := media_service.StreamVideo(ctx, m)
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, err)
+
+		return
+	}
+
+	if chunkName != "" {
+		chunkFile, err := streamer.GetChunk(chunkName)
+		if err != nil {
+			ctx.Error(http.StatusInternalServerError, err)
+
+			return
+		}
+
+		_, err = io.Copy(ctx, chunkFile)
+		if err != nil {
+			ctx.Error(http.StatusInternalServerError, err)
+		}
+
+		return
+	}
+
+	listFile, err := streamer.GetListFile()
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, err)
+
+		return
+	}
+
+	_, err = ctx.Write(listFile)
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, err)
+
+		return
+	}
+}
 
 // SetMediaVisibility godoc
 //
@@ -520,16 +517,7 @@ func GetMediaFile(ctx context.RequestContext) {
 //	@Success	500
 //	@Router		/media/{mediaId}/video [get]
 func StreamVideo(ctx context.RequestContext) {
-	ctx.Status(http.StatusNotImplemented)
-
-	// pack := getServices(r)
-	// log := hlog.FromRequest(r)
-	// u, err := getUserFromCtx(r, true)
-	// if SafeErrorAndExit(err, w, log) {
-	// 	return
-	// }
-	//
-	// streamVideo(w, r)
+	streamVideo(ctx)
 }
 
 // GetRandomMedia() godoc
@@ -619,7 +607,7 @@ func getProcessedMedia(ctx context.RequestContext, q media_model.MediaQuality, f
 		return
 	}
 
-	bs, err := media.FetchCacheImg(ctx.AppContext, m, q, pageNum)
+	bs, err := media_service.FetchCacheImg(ctx.AppContext, m, q, pageNum)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 	}

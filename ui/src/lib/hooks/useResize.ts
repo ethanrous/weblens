@@ -1,9 +1,15 @@
 import { Dimensions } from '@weblens/types/Types'
 import { RefObject, useCallback, useEffect, useState } from 'react'
 
+type resizeOptions = {
+    resizeCallback?: (oldSize: Dimensions, newSize: Dimensions) => void
+    heightOffset?: number
+    widthOffset?: number
+}
+
 export function useResize(
     elem: RefObject<HTMLElement | null>,
-    resizeCallback?: (oldSize: Dimensions, newSize: Dimensions) => void
+    opts?: resizeOptions
 ) {
     const [size, setSize] = useState({ height: -1, width: -1 })
 
@@ -13,23 +19,23 @@ export function useResize(
         }
 
         const newSize = {
-            height: elem.current.clientHeight,
-            width: elem.current.clientWidth,
+            height: elem.current.clientHeight + (opts?.heightOffset || 0),
+            width: elem.current.clientWidth + (opts?.widthOffset || 0),
         }
         // only 1 entry
         setSize((prev: Dimensions) => {
-            if (resizeCallback) {
-                resizeCallback(prev, newSize)
+            if (opts?.resizeCallback) {
+                opts.resizeCallback(prev, newSize)
             }
             return newSize
         })
-    }, [elem, resizeCallback])
+    }, [elem])
 
     useEffect(() => {
         if (elem && elem.current) {
             setSize({
-                height: elem.current.clientHeight,
-                width: elem.current.clientWidth,
+                height: elem.current.clientHeight + (opts?.heightOffset || 0),
+                width: elem.current.clientWidth + (opts?.widthOffset || 0),
             })
             const obs = new ResizeObserver(handler)
             obs.observe(elem.current)

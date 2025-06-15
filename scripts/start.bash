@@ -22,26 +22,20 @@ devel_weblens_locally() {
     air
 
     echo "Weblens development server finished..."
-    exit 0
 }
 
 ensure_repl_set() {
-    echo "Checking if MongoDB replica set is initialized..."
-    if ! docker exec -t "$mongoName" mongosh --eval "rs.status()" &>/dev/null; then
-        echo "MongoDB replica set is not initialized, initializing..."
-        initiateCommand="rs.initiate({_id: 'rs0', members: [ { _id: 0, host: '$mongoName:27017' } ]})"
-        docker exec -t "$mongoName" mongosh --eval "$initiateCommand"
-        return $?
+    if [[ "$(docker inspect "$mongoName" --format '{{.State.Health.Status}}')" != "healthy" ]]; then
+        return 1
     fi
+
+    return 0
 }
 
 launch_mongo() {
-    mountPath=$(docker inspect "$mongoName" | jq -r '.[].Mounts[] | select(.Type=="bind") | .Source') || :
-
-    if [[ "$mountPath" != "" && "$mountPath" != "$PWD/build/fs/$fsName/db" ]]; then
-        echo "MongoDB mount path does not match, removing old container..."
-        echo "Should be: $mountPath -- but found: $PWD/build/fs/$fsName/db"
-        docker stop "$mongoName" 2>/dev/null || :
+    if ! docker image ls | grep ethrous/weblens-mongo; then
+        ls ./scripts/build-mongo.bash
+        ./scripts/build-mongo.bash || exit 1
     fi
 
     mongoWaitCount=0
@@ -51,25 +45,25 @@ launch_mongo() {
             --rm \
             -d \
             --name "$mongoName" \
-            -v ./build/fs/"$fsName"/db:/data/db \
+            --mount type=volume,src="mongo-$fsName",dst=/data/db \
             --network weblens-net \
-            mongo \
-            mongod --replSet rs0
+            -e WEBLENS_MONGO_HOST_NAME="$mongoName" \
+            ethrous/weblens-mongo
+    fi
 
-        while [[ $mongoWaitCount -lt 10 ]]; do
-            if ! ensure_repl_set; then
-                echo "Waiting for MongoDB to be ready... $?"
-                mongoWaitCount=$((mongoWaitCount + 1))
-                sleep 1
-            else
-                break
-            fi
-        done
-
-        if [[ $mongoWaitCount -ge 10 ]]; then
-            echo "MongoDB did not start in time, exiting..."
-            exit 1
+    while [[ $mongoWaitCount -lt 10 ]]; do
+        if ! ensure_repl_set; then
+            echo "Waiting for MongoDB to be ready... $?"
+            mongoWaitCount=$((mongoWaitCount + 1))
+            sleep 1
+        else
+            break
         fi
+    done
+
+    if [[ $mongoWaitCount -ge 10 ]]; then
+        echo "MongoDB did not start in time, exiting..."
+        exit 1
     fi
 }
 
@@ -107,6 +101,10 @@ while [ "${1:-}" != "" ]; do
     "-l" | "--local")
         devel_weblens_locally
         exit 0
+        ;;
+    "-s" | "--secure")
+        export VITE_USE_HTTPS=true
+        ./scripts/make-cert.bash
         ;;
     "-g" | "--group")
         shift
@@ -189,8 +187,9 @@ docker run \
     -e WEBLENS_MONGODB_URI=mongodb://"$containerName"-mongo:27017/?replicaSet=rs0 \
     -e WEBLENS_MONGODB_NAME="$containerName" \
     -e WEBLENS_INIT_ROLE="$towerRole" \
-    -e WEBLENS_LOG_LEVEL=trace \
+    -e WEBLENS_LOG_LEVEL=debug \
     -e WEBLENS_LOG_FORMAT=dev \
+    -e VITE_USE_HTTPS="$VITE_USE_HTTPS" \
     -e GOCACHE=/go/cache \
     --network weblens-net \
     ethrous/weblens:"$imageName-$arch"

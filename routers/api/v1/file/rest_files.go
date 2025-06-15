@@ -55,7 +55,7 @@ func GetFile(ctx context_service.RequestContext) {
 		return
 	}
 
-	fileInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, file, false)
+	fileInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, file)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 
@@ -197,6 +197,57 @@ func DownloadFile(ctx context_service.RequestContext) {
 	http.ServeFile(ctx.W, ctx.Req, filePath)
 }
 
+// GetFolder godoc
+//
+//	@ID	GetFolder
+//
+//	@Security
+//	@Security	SessionAuth
+//
+//	@Summary	Get a folder
+//	@Tags		Folder
+//	@Accept		json
+//	@Produce	json
+//	@Param		folderId	path		string						true	"Folder Id"
+//	@Param		shareId		query		string						false	"Share Id"
+//	@Param		timestamp	query		int							false	"Past timestamp to view the folder at, in ms since epoch"
+//	@Success	200			{object}	structs.FolderInfoResponse	"Folder Info"
+//	@Router		/folder/{folderId} [get]
+func GetFolder(ctx context_service.RequestContext) {
+	folder, err := checkFileAccess(ctx)
+	if err != nil {
+		return
+	}
+
+	date := time.UnixMilli(0)
+
+	milliStr := ctx.Query("timestamp")
+	if milliStr != "" {
+		millis, err := strconv.ParseInt(milliStr, 10, 64)
+		if err != nil {
+			ctx.Error(http.StatusBadRequest, errors.New("invalid timestamp format"))
+
+			return
+		}
+
+		date = time.UnixMilli(millis)
+	}
+
+	if date.Unix() != 0 {
+		err := formatRespondPastFolderInfo(ctx, folder, date)
+		if err != nil {
+			ctx.Error(http.StatusInternalServerError, err)
+		}
+
+		return
+	}
+
+	err = formatRespondFolderInfo(ctx, folder)
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, err)
+	}
+}
+
 // GetFolderHistory godoc
 //
 //	@ID			GetFolderHistory
@@ -326,7 +377,7 @@ func SearchByFilename(ctx context_service.RequestContext) {
 			continue
 		}
 
-		fileInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, f, false)
+		fileInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, f)
 		if err != nil {
 			ctx.Log().Error().Stack().Err(err).Msgf("Failed to convert file to FileInfo for file ID: %s", f.ID())
 
@@ -366,10 +417,14 @@ func CreateFolder(ctx context_service.RequestContext) {
 		return
 	}
 
-	parentFolder, err := checkFileAccessById(ctx, body.ParentFolderId)
+	parentFolder, err := checkFileAccessById(ctx, body.ParentFolderId, share_model.SharePermissionEdit)
 	if err != nil {
+		ctx.Error(http.StatusForbidden, errors.New("You do not have permission to create a folder in this location"))
+
 		return
 	}
+
+	ctx.Log().Debug().Msgf("User %s DOES have permission to create a folder in %s", ctx.Doer(), parentFolder.GetPortablePath())
 
 	// var children []*file_model.WeblensFileImpl
 	// if len(body.Children) != 0 {
@@ -396,7 +451,7 @@ func CreateFolder(ctx context_service.RequestContext) {
 	// 	return
 	// }
 
-	newDirInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, newDir, false)
+	newDirInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, newDir)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 
@@ -404,57 +459,6 @@ func CreateFolder(ctx context_service.RequestContext) {
 	}
 
 	ctx.JSON(http.StatusOK, newDirInfo)
-}
-
-// GetFolder godoc
-//
-//	@ID	GetFolder
-//
-//	@Security
-//	@Security	SessionAuth
-//
-//	@Summary	Get a folder
-//	@Tags		Folder
-//	@Accept		json
-//	@Produce	json
-//	@Param		folderId	path		string						true	"Folder Id"
-//	@Param		shareId		query		string						false	"Share Id"
-//	@Param		timestamp	query		int							false	"Past timestamp to view the folder at, in ms since epoch"
-//	@Success	200			{object}	structs.FolderInfoResponse	"Folder Info"
-//	@Router		/folder/{folderId} [get]
-func GetFolder(ctx context_service.RequestContext) {
-	folder, err := checkFileAccess(ctx)
-	if err != nil {
-		return
-	}
-
-	date := time.UnixMilli(0)
-
-	milliStr := ctx.Query("timestamp")
-	if milliStr != "" {
-		millis, err := strconv.ParseInt(milliStr, 10, 64)
-		if err != nil {
-			ctx.Error(http.StatusBadRequest, errors.New("invalid timestamp format"))
-
-			return
-		}
-
-		date = time.UnixMilli(millis)
-	}
-
-	if date.Unix() != 0 {
-		err := formatRespondPastFolderInfo(ctx, folder, date)
-		if err != nil {
-			ctx.Error(http.StatusInternalServerError, err)
-		}
-
-		return
-	}
-
-	err = formatRespondFolderInfo(ctx, folder)
-	if err != nil {
-		ctx.Error(http.StatusInternalServerError, err)
-	}
 }
 
 // SetFolderCover godoc
@@ -605,7 +609,7 @@ func GetSharedFiles(ctx context_service.RequestContext) {
 	childInfos := make([]structs.FileInfo, 0, len(children))
 
 	for _, child := range children {
-		fInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, child, false)
+		fInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, child)
 		if err != nil {
 			// If we can't convert the file to a FileInfo, log the error and continue
 			ctx.Error(http.StatusInternalServerError, errors.New("failed to convert file to FileInfo"))
@@ -802,7 +806,7 @@ func AutocompletePath(ctx context_service.RequestContext) {
 	for _, match := range matches {
 		f := children[match.OriginalIndex]
 
-		childInfo, err := reshape.WeblensFileToFileInfo(ctx.AppContext, f, false)
+		childInfo, err := reshape.WeblensFileToFileInfo(ctx.AppContext, f)
 		if err != nil {
 			ctx.Error(http.StatusInternalServerError, errors.New("failed to convert file to FileInfo"))
 
@@ -812,7 +816,7 @@ func AutocompletePath(ctx context_service.RequestContext) {
 		childInfos = append(childInfos, childInfo)
 	}
 
-	selfInfo, err := reshape.WeblensFileToFileInfo(ctx.AppContext, folder, false)
+	selfInfo, err := reshape.WeblensFileToFileInfo(ctx.AppContext, folder)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, errors.New("failed to convert folder to FileInfo"))
 
@@ -934,7 +938,7 @@ func UpdateFile(ctx context_service.RequestContext) {
 		return
 	}
 
-	err = ctx.FileService.RenameFile(file, updateInfo.NewName)
+	err = ctx.FileService.RenameFile(ctx, file, updateInfo.NewName)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 
@@ -977,7 +981,7 @@ func MoveFiles(ctx context_service.RequestContext) {
 	}
 
 	if file_model.IsFileInTrash(newParent) {
-		if err = auth.CanUserAccessFile(ctx, ctx.Requester, newParent, ctx.Share, share_model.SharePermissionDelete); err != nil {
+		if _, err = auth.CanUserAccessFile(ctx, ctx.Requester, newParent, ctx.Share, share_model.SharePermissionDelete); err != nil {
 			// If the user does not have permission to delete, return forbidden
 			ctx.Error(http.StatusForbidden, err)
 
@@ -992,6 +996,7 @@ func MoveFiles(ctx context_service.RequestContext) {
 	}
 
 	perms := []share_model.Permission{share_model.SharePermissionEdit}
+	// if the new parent is in the trash, we need to check delete permission as well
 	if file_model.IsFileInTrash(newParent) {
 		perms = append(perms, share_model.SharePermissionDelete)
 	}
@@ -1006,7 +1011,7 @@ func MoveFiles(ctx context_service.RequestContext) {
 			return
 		}
 
-		if err = auth.CanUserAccessFile(ctx, ctx.Requester, f, ctx.Share, perms...); err != nil {
+		if _, err = auth.CanUserAccessFile(ctx, ctx.Requester, f, ctx.Share, perms...); err != nil {
 			// If the user does not have permission to delete, return forbidden
 			ctx.Error(http.StatusForbidden, err)
 
@@ -1176,7 +1181,7 @@ func NewUploadTask(ctx context_service.RequestContext) {
 		return
 	}
 
-	_, err = checkFileAccessById(ctx, upInfo.RootFolderId)
+	_, err = checkFileAccessById(ctx, upInfo.RootFolderId, share_model.SharePermissionEdit)
 	if err != nil {
 		return
 	}
@@ -1456,141 +1461,4 @@ func getChildMedias(
 	}
 
 	return medias, nil
-}
-
-// Format and write back directory information. Authorization checks should be done before this function.
-func formatRespondFolderInfo(ctx context_service.RequestContext, dir *file_model.WeblensFileImpl) error {
-	if dir == nil {
-		ctx.Error(http.StatusNotFound, file_model.ErrFileNotFound)
-
-		return nil
-	}
-
-	parentsInfo := []structs.FileInfo{}
-	parent := dir.GetParent()
-
-	owner, err := file_service.GetFileOwner(ctx, dir)
-	if err != nil {
-		return err
-	}
-
-	for parent != nil && !parent.GetPortablePath().IsRoot() && auth.CanUserAccessFile(ctx, ctx.Requester, parent, ctx.Share) == nil && !owner.IsSystemUser() {
-		parentInfo, err := reshape.WeblensFileToFileInfo(ctx.AppContext, parent, false)
-		if err != nil {
-			return err
-		}
-
-		parentsInfo = append(parentsInfo, parentInfo)
-
-		parent = parent.GetParent()
-	}
-
-	children, err := ctx.FileService.GetChildren(ctx, dir)
-	if err != nil {
-		ctx.Error(http.StatusInternalServerError, err)
-
-		return err
-	}
-
-	mediaFiles := append(children, dir)
-
-	medias, err := getChildMedias(ctx, mediaFiles)
-	if err != nil {
-		return err
-	}
-
-	childInfos := make([]structs.FileInfo, 0, len(children))
-
-	for _, child := range children {
-		if child == nil {
-			continue
-		}
-
-		info, err := reshape.WeblensFileToFileInfo(ctx, child, false)
-		if err != nil {
-			return err
-		}
-
-		childInfos = append(childInfos, info)
-	}
-
-	selfInfo, err := reshape.WeblensFileToFileInfo(ctx, dir, false)
-	if err != nil {
-		return err
-	}
-
-	mediaInfos := make([]structs.MediaInfo, 0, len(medias))
-	for _, m := range medias {
-		mediaInfos = append(mediaInfos, reshape.MediaToMediaInfo(m))
-	}
-
-	packagedInfo := structs.FolderInfoResponse{Self: selfInfo, Children: childInfos, Parents: parentsInfo, Medias: mediaInfos}
-	ctx.JSON(http.StatusOK, packagedInfo)
-
-	return nil
-}
-
-func formatRespondPastFolderInfo(ctx context_service.RequestContext, folder *file_model.WeblensFileImpl, pastTime time.Time) error {
-	ctx.Log().Trace().Func(func(e *zerolog.Event) {
-		e.Msgf("Getting past folder [%s] at time [%s]", folder.GetPortablePath(), pastTime)
-	})
-
-	pastFileInfo, err := reshape.WeblensFileToFileInfo(ctx.AppContext, folder, true)
-	if err != nil {
-		return err
-	}
-
-	parentsInfo := []structs.FileInfo{}
-
-	pastParent := folder.GetParent()
-	for pastParent != nil && !pastParent.GetPortablePath().IsRoot() {
-		parentInfo, err := reshape.WeblensFileToFileInfo(ctx.AppContext, pastParent, true)
-		if err != nil {
-			return err
-		}
-
-		parentsInfo = append(parentsInfo, parentInfo)
-		pastParent = pastParent.GetParent()
-	}
-
-	children := folder.GetChildren()
-	childrenInfos := make([]structs.FileInfo, 0, len(children))
-
-	for _, child := range children {
-		if child.GetPortablePath().Filename() == file_model.UserTrashDirName {
-			continue
-		}
-
-		childInfo, err := reshape.WeblensFileToFileInfo(ctx.AppContext, child, true)
-		if err != nil {
-			return err
-		}
-
-		childrenInfos = append(childrenInfos, childInfo)
-	}
-
-	medias := []*media_model.Media{}
-
-	for _, child := range children {
-		m, err := media_model.GetMediaByContentId(ctx, child.GetContentId())
-
-		if err == nil {
-			medias = append(medias, m)
-		}
-	}
-
-	mediaInfos := make([]structs.MediaInfo, 0, len(medias))
-	for _, m := range medias {
-		mediaInfos = append(mediaInfos, reshape.MediaToMediaInfo(m))
-	}
-
-	packagedInfo := structs.FolderInfoResponse{
-		Self:     pastFileInfo,
-		Children: childrenInfos,
-		Parents:  parentsInfo,
-		Medias:   mediaInfos,
-	}
-	ctx.JSON(http.StatusOK, packagedInfo)
-
-	return nil
 }

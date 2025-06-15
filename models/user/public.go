@@ -1,6 +1,7 @@
 package user
 
 const PublicUserName = "PUBLIC"
+const UnknownUserName = "UNKNOWN"
 
 var publicUser = User{
 	Username:  PublicUserName,
@@ -9,4 +10,13 @@ var publicUser = User{
 
 func GetPublicUser() *User {
 	return &publicUser
+}
+
+var unknownUser = User{
+	Username:  UnknownUserName,
+	UserPerms: UserPermissionPublic,
+}
+
+func GetUnknownUser() *User {
+	return &unknownUser
 }

@@ -205,10 +205,6 @@
 	&[data-resizing='true'] {
 		transition: 0ms width;
 	}
-
-	&[data-open='false'] {
-		padding-left: 20px;
-	}
 }
 
 @media screen and (max-width: 600px) {
@@ -233,8 +229,8 @@
 	width: 8px;
 	z-index: 1;
 	background-color: var(--color-background-primary);
-	padding-left: 6px;
-	padding-right: 6px;
+	padding-left: 4px;
+	padding-right: 4px;
 	height: 100%;
 	flex-shrink: 0;
 	cursor: grab;

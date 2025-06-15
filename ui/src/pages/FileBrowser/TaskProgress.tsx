@@ -11,7 +11,7 @@ import WeblensProgress from '@weblens/lib/WeblensProgress.tsx'
 import { useClick } from '@weblens/lib/hooks'
 import { useMessagesController } from '@weblens/store/MessagesController'
 import { msToHumanTime } from '@weblens/util'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { RefObject, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
     TaskProgress,
@@ -24,7 +24,7 @@ export function TasksPane({
     // paneRef,
     setPaneRef,
 }: {
-    calloutDivRef: HTMLDivElement
+    calloutDivRef: RefObject<HTMLDivElement | null>
     // paneRef: HTMLDivElement
     setPaneRef: (d: HTMLDivElement) => void
 }) {
@@ -259,7 +259,7 @@ export function TaskProgressMini() {
     const tasksMap = useTaskState((state) => state.tasks)
     const showingMenu = useTaskState((state) => state.showingMenu)
     const setShowingMenu = useTaskState((state) => state.setShowingMenu)
-    const [calloutRef, setCalloutRef] = useState<HTMLDivElement>()
+    const calloutRef = useRef<HTMLDivElement>(null)
     const [paneRef, setPaneRef] = useState<HTMLDivElement>()
 
     const taskPoolProgress = useMemo(() => {
@@ -283,7 +283,7 @@ export function TaskProgressMini() {
                 }
                 setShowingMenu(!showingMenu)
             }}
-            ref={setCalloutRef}
+            ref={calloutRef}
         >
             {taskPoolProgress < 100 && (
                 <div className="group text-color-text-secondary hover:bg-background-secondary hover:text-color-theme-primary mt-2 flex w-full cursor-pointer flex-col items-center gap-2 rounded-sm p-2 transition">

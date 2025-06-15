@@ -43,7 +43,7 @@ func WithTransaction(ctx context.Context, fn func(ctx context.Context) error) er
 
 	defer session.EndSession(ctx)
 
-	l.Debug().CallerSkipFrame(1).Msg("Starting transaction")
+	l.Trace().CallerSkipFrame(1).Msg("Starting transaction")
 
 	_, err = session.WithTransaction(ctx, func(sessCtx mongo.SessionContext) (any, error) {
 		var ctx context.Context = sessCtx
@@ -56,7 +56,7 @@ func WithTransaction(ctx context.Context, fn func(ctx context.Context) error) er
 
 		err := fn(ctx)
 		if err != nil {
-			l.Debug().Msg("Transaction func returned error, aborting")
+			l.Error().Msg("Transaction func returned error, aborting")
 
 			return nil, err
 		}

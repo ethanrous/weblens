@@ -478,7 +478,19 @@ func (wp *WorkerPool) execWorker(ctx context.Context, replacement bool) {
 	go func(workerId int64) {
 		wp.ctx.Log().Debug().Msgf("Spinning up worker with id [%d] o7", workerId)
 
+		err := context_mod.AddToWg(ctx)
+		if err != nil {
+			wp.ctx.Log().Error().Stack().Err(err).Msg("Failed to add worker to wait group")
+			return
+		}
+
 		defer func() {
+			err = context_mod.WgDone(ctx)
+			if err != nil {
+				wp.ctx.Log().Error().Stack().Err(err).Msg("Failed to remove worker from wait group")
+				return
+			}
+
 			wp.ctx.Log().Debug().Msgf("worker %d exiting, %d workers remain", workerId, wp.currentWorkers.Add(-1))
 		}()
 
@@ -523,12 +535,21 @@ func (wp *WorkerPool) execWorker(ctx context.Context, replacement bool) {
 
 					// Inc tasks being processed
 					wp.busyCount.Add(1)
-					l.Trace().Func(func(e *zerolog.Event) { e.Msgf("Starting task") })
-					wp.safetyWork(t, workerId)
-					l.Trace().Func(func(e *zerolog.Event) {
+					l.Debug().Func(func(e *zerolog.Event) {
 						t.updateMu.RLock()
 						defer t.updateMu.RUnlock()
-						e.Dur("task_duration_ms", t.ExeTime()).Str("exit_status", string(t.exitStatus)).Msg("Task finished")
+
+						e.Msgf("Starting [%s] task [%s]", t.jobName, t.taskId)
+					})
+
+					// Perform the task
+					wp.safetyWork(t, workerId)
+
+					l.Debug().Func(func(e *zerolog.Event) {
+						t.updateMu.RLock()
+						defer t.updateMu.RUnlock()
+
+						e.Dur("task_duration_ms", t.ExeTime()).Str("exit_status", string(t.exitStatus)).Msgf("[%s] Task [%s] finished", t.jobName, t.taskId)
 					})
 
 					// Dec tasks being processed

@@ -22,6 +22,7 @@ Weblens is a self-hosted file management and sharing system that aims to provide
 * Media viewing and management, including video and raw photo support, metadata editing, and more
 * API (still likely to include breaking changes with future updates, documentation at /docs/index.html on any running weblens server)
 * Focus on performance and simplicity
+* And plenty of bugs! Oh and more features too
 
 ### Roadmap
 * Search and organization
@@ -42,24 +43,24 @@ Weblens is distributed as a Docker image. Here is a minimal docker setup to get 
 ```bash
 docker run --name weblens \
 -p 8080:8080 \ 
--v /files/on/host:/media/users \ 
--v /cache/on/host:/media/cache \
--e MONGODB_URI="mongodb://{{ MONGO_USER }}:{{ MONGO_PASS }}@weblens-mongo:27017"
+-v {{ /files/on/host }}:/media/users \ 
+-v {{ /cache/on/host }}:/media/cache \
+-e MONGODB_URI="mongodb://weblens-mongo:27017/?replicaSet=rs0" \ # This is the default, and can be omitted, but you can change it to fit your setup, if needed.
+--network weblens-net \
 docker.io/ethrous/weblens:latest
 ```
 Also, Weblens uses MongoDB. This can easily be setup using another container
 ```bash
-docker run --name weblens-mongo \
--v /db/on/host:/data/db \
--e MONGO_INITDB_ROOT_USERNAME: {{ MONGO_USER }} \
--e MONGO_INITDB_ROOT_PASSWORD: {{ MONGO_PASS }} \
-mongo
+docker run --name weblens-mongo \ # Name must match the MONGODB_URI above
+-v {{ /db/on/host }}:/data/db \
+--network weblens-net \
+docker.io/ethrous/weblens-mongo:latest
 ```
 Replace anything above with `{{ DOUBLE_BRACES }}` with values specific to your setup.
 
 ⚠️ **Note** Having the containers on the same Docker network is extremely helpful. [Read how to set up a Docker network](https://docs.docker.com/reference/cli/docker/network/create/). If you wish not to do this, you will have to modify the MONGODB_URI to something routable, and export port 27017 on the mongo container.
 
-If you prefer to use docker-compose or want view the other configuration options, a sample [docker-compose.yml](scripts/docker-compose.yml) is provided in the scripts directory.
+If you prefer to use docker-compose or want view the other configuration options, [check out the docker-compose.yml example](scripts/docker-compose.yml).
 
 ## Setup
 Once you have the containers configured and running, you can begin setting up your Weblens server. 
@@ -95,7 +96,5 @@ In the event of a disaster that takes out your core server, you can perform a "r
 
 # Want to contribute?
 
-Weblens aims to be feature-full and rock-solid stable, but it is still early in development (the term "beta" may be pushing it), so it is likely to have bugs or missing features. Bug reports, feature suggestions, and pull requests are all welcome and encouraged here on GitHub 
-
-Visit the [contributing](CONTRIBUTING.md) instructions for how you can help improve Weblens
+Visit the [contributing instructions](CONTRIBUTING.md) for how you can help improve Weblens!
 

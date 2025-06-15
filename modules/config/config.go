@@ -58,8 +58,10 @@ func envBool(key string) (val bool, ok bool) {
 		if value == "true" {
 			return true, true
 		}
+
 		return false, true
 	}
+
 	return false, false
 }
 
@@ -67,7 +69,7 @@ func getDefaultConfig() ConfigProvider {
 	return ConfigProvider{
 		Host:              "0.0.0.0",
 		Port:              "8080",
-		MongoDBUri:        "mongodb://localhost:27017/?replicaSet=rs0",
+		MongoDBUri:        "mongodb://weblens-mongo:27017/?replicaSet=rs0",
 		MongoDBName:       "weblensDB",
 		UIPath:            "/app/web",
 		StaticContentPath: "/app/static",

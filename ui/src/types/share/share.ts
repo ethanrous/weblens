@@ -7,17 +7,17 @@ import {
 } from '@weblens/api/swag'
 
 export class WeblensShare {
-    shareId: string
+    shareId: string = ''
     accessors: UserInfo[] = []
     private _permissions: Record<string, PermissionsInfo> = {}
-    expires: number
-    private _public: boolean
-    fileId: string
-    shareName: string
-    wormhole: boolean
-    owner: string
+    expires: number = 0
+    private _public: boolean = false
+    fileId: string = ''
+    shareName: string = ''
+    wormhole: boolean = false
+    owner: string = ''
 
-    constructor(init?: ShareInfo) {
+    constructor(init: ShareInfo) {
         this.assign(init)
     }
 
@@ -26,13 +26,13 @@ export class WeblensShare {
             return
         }
 
-        this.shareId = init.shareId
-        this.fileId = init.fileId
-        this.shareName = init.shareName
-        this.expires = init.expires
-        this._public = init.public
-        this.wormhole = init.wormhole
-        this.owner = init.owner
+        this.shareId = init.shareId || ''
+        this.fileId = init.fileId || ''
+        this.shareName = init.shareName || ''
+        this.expires = init.expires || 0
+        this._public = init.public ?? false
+        this.wormhole = init.wormhole ?? false
+        this.owner = init.owner || ''
 
         if (init.accessors) {
             this.accessors = init.accessors
@@ -71,8 +71,8 @@ export class WeblensShare {
         return this.accessors
     }
 
-    GetPublicLink(): string {
-        return `${window.location.origin}/files/share/${this.shareId}/${this.fileId}`
+    GetLink(): string {
+        return `${window.location.origin}/files/share/${this.shareId}`
     }
 
     private async createShare() {
@@ -125,6 +125,7 @@ export class WeblensShare {
         }
 
         this._public = isPublic
+        console.log('Set share public to', isPublic, 'for share', this.shareId)
         return await SharesApi.setSharePublic(this.shareId, isPublic)
     }
 

@@ -7,14 +7,67 @@ import (
 	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
 	share_model "github.com/ethanrous/weblens/models/share"
+	"github.com/ethanrous/weblens/modules/option"
 	"github.com/ethanrous/weblens/modules/structs"
 )
 
-func WeblensFileToFileInfo(ctx context.Context, f *file_model.WeblensFileImpl, isPastFile bool) (structs.FileInfo, error) {
+type FileInfoOptions struct {
+	IsPastFile         bool
+	ModifiableOverride option.Option[bool]
+	Perms              option.Option[share_model.Permissions]
+	DontCheckShare     bool // If true, we won't check if the file has a share
+}
+
+func compileOptions(opts ...FileInfoOptions) FileInfoOptions {
+	var compiled FileInfoOptions
+
+	for _, opt := range opts {
+		if opt.IsPastFile {
+			compiled.IsPastFile = true
+		}
+
+		if modifiableOverride, hasOverride := opt.ModifiableOverride.Get(); hasOverride {
+			compiled.ModifiableOverride = option.Of(modifiableOverride)
+		}
+
+		if perms, hasPerms := opt.Perms.Get(); hasPerms {
+			compiled.Perms = option.Of(perms)
+		}
+
+		if opt.DontCheckShare {
+			compiled.DontCheckShare = true
+		}
+	}
+
+	return compiled
+}
+
+func checkModifyable(ctx context.Context, f *file_model.WeblensFileImpl, o FileInfoOptions) bool {
+	if override, ok := o.ModifiableOverride.Get(); ok {
+		return override
+	}
+
+	if o.IsPastFile || file_model.IsFileInTrash(f) || !f.Exists() {
+		return false
+	}
+
+	if perms, ok := o.Perms.Get(); ok {
+		if !perms.HasPermission(share_model.SharePermissionEdit) {
+			return false
+		}
+	}
+
+	// If the file is not in the trash and exists, it is modifiable
+	return true
+}
+
+func WeblensFileToFileInfo(ctx context.Context, f *file_model.WeblensFileImpl, opts ...FileInfoOptions) (structs.FileInfo, error) {
 	ownerName, err := file_model.GetFileOwnerName(ctx, f)
 	if err != nil {
 		return structs.FileInfo{}, err
 	}
+
+	o := compileOptions(opts...)
 
 	children := f.GetChildren()
 
@@ -23,9 +76,12 @@ func WeblensFileToFileInfo(ctx context.Context, f *file_model.WeblensFileImpl, i
 		childrenIds = append(childrenIds, c.ID())
 	}
 
-	share, err := share_model.GetShareByFileId(ctx, f.ID())
-	if err != nil && !db.IsNotFound(err) {
-		return structs.FileInfo{}, err
+	var share *share_model.FileShare
+	if !o.DontCheckShare {
+		share, err = share_model.GetShareByFileId(ctx, f.ID())
+		if err != nil && !db.IsNotFound(err) {
+			return structs.FileInfo{}, err
+		}
 	}
 
 	shareId := ""
@@ -47,10 +103,10 @@ func WeblensFileToFileInfo(ctx context.Context, f *file_model.WeblensFileImpl, i
 
 	exists := f.Exists()
 
-	modifiable := !isPastFile && !file_model.IsFileInTrash(f) && exists
+	modifiable := checkModifyable(ctx, f, o)
 
 	var hasRestoreMedia bool
-	if exists || !isPastFile || f.IsDir() {
+	if exists || !o.IsPastFile || f.IsDir() {
 		hasRestoreMedia = true
 	} else {
 		// ctx.(context_mod.AppContexter).AppCtx().(context.AppContext).FileService.GetFileById(f.ID())
@@ -92,7 +148,7 @@ func WeblensFileToFileInfo(ctx context.Context, f *file_model.WeblensFileImpl, i
 		Modifiable:      modifiable,
 		Owner:           ownerName,
 		ParentId:        parentId,
-		PastFile:        isPastFile,
+		PastFile:        o.IsPastFile,
 		PastId:          f.GetPastId(),
 		PortablePath:    portablePath.String(),
 		ShareId:         shareId,

@@ -223,7 +223,7 @@ func wsWebClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte, c
 				return errors.Errorf("could not find directory to scan: %w", err)
 			}
 
-			if err = auth.CanUserAccessFile(ctx, c.GetUser(), folder, share); err != nil {
+			if _, err = auth.CanUserAccessFile(ctx, c.GetUser(), folder, share); err != nil {
 				return err
 			}
 

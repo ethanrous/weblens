@@ -53,6 +53,13 @@ function FileHistoryPane() {
     const dragging = useFileBrowserStore(
         (state) => state.draggingState === DraggingStateT.InterfaceDrag
     )
+    const historyPaneOpen = useFileBrowserStore(
+        (state) => state.historyPaneOpen
+    )
+    const setHistoryPaneOpen = useFileBrowserStore(
+        (state) => state.setHistoryPaneOpen
+    )
+
     const [localDragging, setLocalDragging] = useState(false)
     const setDraggingGlobal = useFileBrowserStore((state) => state.setDragging)
     const setDragging = (d: DraggingStateT) => {
@@ -63,7 +70,6 @@ function FileHistoryPane() {
     const [resizeOffset, setResizeOffset] = useState(
         windowSize?.width > SIDEBAR_BREAKPOINT ? 550 : 75
     )
-    const [open, setOpen] = useState<boolean>(false)
 
     useEffect(() => {
         if (!dragging && localDragging) {
@@ -90,7 +96,7 @@ function FileHistoryPane() {
         <div
             className={fbStyle.fileInfoPane}
             data-resizing={dragging}
-            data-open={open}
+            data-open={historyPaneOpen}
             onClick={(e) => {
                 e.stopPropagation()
             }}
@@ -99,22 +105,10 @@ function FileHistoryPane() {
                 e.stopPropagation()
             }}
         >
-            <div className={fbStyle.openArrowContainer}>
-                <WeblensButton
-                    size="tiny"
-                    className="h-6 w-6"
-                    flavor="outline"
-                    Left={open ? IconChevronRight : IconChevronLeft}
-                    onClick={(e) => {
-                        e.stopPropagation()
-                        setOpen(!open)
-                    }}
-                />
-            </div>
-            {open && (
+            {historyPaneOpen && (
                 <div
                     className="flex h-full max-w-full"
-                    style={{ width: open ? resizeOffset : 20 }}
+                    style={{ width: historyPaneOpen ? resizeOffset : 20 }}
                 >
                     <div
                         draggable={false}
@@ -136,7 +130,7 @@ function FileHistoryPane() {
                         <div className={fbStyle.resizeBar} />
                     </div>
                     <div className="flex h-full w-[75px] grow flex-col">
-                        {open && <FileHistory />}
+                        {historyPaneOpen && <FileHistory />}
                     </div>
                 </div>
             )}
@@ -458,7 +452,7 @@ function ExpandableEventRow({
         >
             <div className="flex h-[28px] w-full shrink-0 items-center">
                 <div
-                    className="text-text-secondary hover:text-text-primary hover:bg-background-secondary hover:border-text-primary rounded-md border transition cursor-pointer"
+                    className="text-text-secondary hover:text-text-primary hover:bg-background-secondary hover:border-text-primary cursor-pointer rounded-md border transition"
                     onClick={(e) => {
                         e.stopPropagation()
                         setOpen(!open)

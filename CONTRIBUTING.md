@@ -1,66 +1,33 @@
 # Want to contribute?
 
-Weblens aims to be feature-full and rock-solid stable, but it is still early in development (the term "beta" may be pushing it), so it is likely to have bugs or missing features. Bug reports, feature suggestions, and pull requests are all welcome and encouraged here on GitHub 
+Weblens aims to eventually be feature-full and rock-solid stable, but it is still early in development (the term "beta" may be pushing it), so it is likely to have bugs or missing features. Bug reports, feature suggestions, and pull requests are all welcome and encouraged here on GitHub 
 
 ## Development Setup
-Weblens has a few dependencies that are needed for developing. Easy install instructions per platform are listed below
+Weblens should only require docker to get up and running with a dev environment. Inside the container, all dependencies are installed, and the code is mounted in a volume, so you can edit the code on your host machine and see the changes immediately, both frontend and backend.
 
-* Go 1.23
-* LibVips
-* ImageMagick
-* MongoDB
-* ExifTool
-* Node and NPM for the React/Vite frontend
-
-### MacOS
+You can run the dev environment with:
 ```bash
-brew tap mongodb/brew &&
-brew install go@1.23 mongodb-community vips imagemagick mongodb-community@7.0 exiftool node npm &&
-brew services start mongodb-community
+make dev # or `make dev-s` for https with self-signed certs
 ```
 
-### Linux (Ubuntu)
-⚠️ On Ubuntu, installing the Go compiler ImageMagick, and MongoDB have a few extra steps.
-[Install Go compiler on Linux](https://go.dev/doc/install)
-and
-[Install MongoDB on Ubuntu](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/)
+On the first run, this will build the docker image, install all dependencies, build the server and client, and then start the container, this can take a couple minutes. The container will run the api server on port 8080, and a HMR server for the frontend on port 3000. You can access the web server at `https://local.weblens.io:3000`.
+
+You first may want to set a dns entry for `local.weblens.io` to point to your localhost, so you can access the server in your browser. This can be done by adding to your `/etc/hosts` file:
+
 ```bash
-sudo apt update &&
-sudo apt-get install -y pkg-config libvips-dev exiftool nodejs npm
+sudo echo '127.0.0.1       local.weblens.io' >> /etc/hosts
 ```
-Building ImageMagick from source is recommended on Linux, as the version in the package manager is often outdated. [Instructions here](https://imagemagick.org/script/install-source.php). ImageMagick version 7 is required, which is correctly pulled with apk on Alpine Linux (like inside our docker containers), but version 6 is still pulled from apt on Ubuntu.
 
 ### Building / Testing
-Verify the environment is set up correctly by running tests (run with --help for all options):
+Once you have made changes, and are ready to build and run the test suite, you can run:
 ```bash
-./scripts/testWeblens -a -l
+make test
 ```
-If they pass: Congrats! You are ready to start contributing!
+This will run all the tests for the repo, frontend and backend. If they pass: Congrats! You are ready to start contributing!
 
-If they don't, there is likely a configuration issue. Please re-read the instructions and ensure the environment is set up as described. If there is still an issue, please be descriptive in asking for help on the [issues page](https://github.com/ethanrous/weblens/issues)
+If any of what is described above is not working as expected, please give it another read through, and if there is still an issue, please leave a note on the [issues page](https://github.com/ethanrous/weblens/issues)
 
 ⚠️ **Note** that scripts must be run from the repo root, you cannot be in the scripts directory or anywhere else
 
 ### Debugging
-
-Building and running the server can be done with the following in the shell
-```bash
-./scripts/startWeblens
-```
-This should start your Weblens server running at `localhost:8080`. To change the host, port or other config options such as log level, see `./config/config.json` and edit the `DEBUG-CORE` config section, or create your own section.
-
-In an IDE, you will need to choose the entry point for the compiler to `./cmd/weblens/main.go`. You will also need to set the following environment variables (`{{ WEBLENS_REPO }}` is the absolute path to this repo, i.e. `$(pwd)`):
-
-```
-CONFIG_NAME=DEBUG-CORE
-APP_ROOT={{ WEBLENS_REPO }} 
-```
-
-### WebUI
-After starting your Weblens server, in a separate shell, you can run:
-```bash
-cd ./ui && npm install && npm start
-```
-This will launch the web UI at `localhost:3000` (if it is not in use), and proxy requests to the server running at `localhost:8080`.
-
-If you'd like to choose the port yourself, set `VITE_PORT`. If you change the backend server address or port, make sure to set `VITE_PROXY_HOST` and `VITE_PROXY_PORT` in the environment before running `npm start`
+TDB

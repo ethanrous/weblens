@@ -71,6 +71,7 @@ function WeblensButton({
     size = 'default',
     centerContent = false,
     className,
+    containerClassName,
 
     onClick,
     onContextMenu,
@@ -157,7 +158,10 @@ function WeblensButton({
 
     return (
         <div
-            className="bg-background-primary group relative flex h-max min-h-0 w-max justify-center rounded [--tooltip-left:auto] [--tooltip-right:auto] odd:[--tooltip-left:left] even:[--tooltip-right:right] data-fill-width:w-full"
+            className={
+                'bg-background-primary group relative flex h-max min-h-0 w-max justify-center rounded [--tooltip-left:auto] [--tooltip-right:auto] odd:[--tooltip-left:left] even:[--tooltip-right:right] data-fill-width:w-full ' +
+                (containerClassName ?? '')
+            }
             data-fill-width={fillWidth ? true : null}
             ref={ref}
         >

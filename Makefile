@@ -30,6 +30,9 @@ core: FORCE
 dev: FORCE
 	./scripts/start.bash --dev
 
+dev-s: FORCE
+	./scripts/start.bash --dev --secure
+
 dev\:backup: FORCE
 	./scripts/start.bash --dev -t backup
 
