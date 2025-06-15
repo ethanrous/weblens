@@ -25,16 +25,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: 'latest'
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22.11.0
-          cache: 'npm'
-          cache-dependency-path: ui/package-lock.json
-
-      - run: cd ui && npm ci
+          go-version: 'stable'
 
       - name: GoGoGadgetDocker
         run: |
