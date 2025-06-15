@@ -1,5 +1,5 @@
 import { IconExclamationCircle } from '@tabler/icons-react'
-import WeblensButton from '@weblens/lib/WeblensButton'
+import WeblensButton from '@weblens/lib/WeblensButton.tsx'
 import { useNavigate } from 'react-router-dom'
 
 import { useSessionStore } from './UserInfo'
@@ -30,9 +30,9 @@ function FilesErrorDisplay({
 
     return (
         <div className="flex h-full w-full flex-col items-center justify-center">
-            <div className="bg-wl-barely-visible mb-[40vh] flex h-max w-[360px] flex-col items-center justify-center rounded-sm border p-12">
-                <div className="mb-4 flex items-center gap-1">
-                    <p className="w-max text-2xl font-bold">{preText}</p>
+            <div className="bg-wl-barely-visible mb-[40vh] flex h-max w-[360px] flex-col items-center justify-center rounded-sm border p-8 max-w-full overflow-hidden">
+                <div className="mb-4 flex items-center gap-1 max-w-full">
+                    <p className="w-max text-2xl font-bold truncate">{preText}</p>
                     <IconExclamationCircle size={32} className="text-red-500" />
                 </div>
 

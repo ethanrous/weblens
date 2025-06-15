@@ -6,15 +6,15 @@ import {
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react'
-import WeblensLoader from '@weblens/components/Loading'
+import WeblensLoader from '@weblens/components/Loading.tsx'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import WeblensButton from '@weblens/lib/WeblensButton'
-import WeblensFileButton from '@weblens/lib/WeblensFileButton'
+import WeblensButton from '@weblens/lib/WeblensButton.tsx'
+import WeblensFileButton from '@weblens/lib/WeblensFileButton.tsx'
 import { useResize } from '@weblens/lib/hooks'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import { FbMenuModeT } from '@weblens/types/files/File'
 import User from '@weblens/types/user/User'
-import { useState } from 'react'
+import { useRef } from 'react'
 
 import { FbModeT, useFileBrowserStore } from '../../store/FBStateControl'
 
@@ -41,7 +41,7 @@ function GetStartedCard() {
     const mode = useFileBrowserStore((state) => state.fbMode)
     const draggingState = useFileBrowserStore((state) => state.draggingState)
     const loading = useFileBrowserStore((state) => state.loading)
-    const [viewRef, setViewRef] = useState<HTMLDivElement>()
+    const viewRef = useRef<HTMLDivElement>(null)
     const size = useResize(viewRef)
 
     const setMenu = useFileBrowserStore((state) => state.setMenu)
@@ -75,7 +75,7 @@ function GetStartedCard() {
 
     return (
         <div
-            ref={setViewRef}
+            ref={viewRef}
             className="animate-fade z-3 m-auto flex h-max w-[50vw] min-w-[250px] items-center justify-center p-4"
         >
             <div className="flex h-fit w-max max-w-full flex-col items-center justify-center">
@@ -95,6 +95,7 @@ function GetStartedCard() {
                         <WeblensFileButton
                             folderId={folderInfo.Id()}
                             shareId={shareId}
+                            multiple={true}
                             buttonProps={{ size: 'jumbo' }}
                         />
                         <WeblensButton

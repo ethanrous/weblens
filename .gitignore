@@ -46,3 +46,7 @@ media_proc/
 go.work.sum
 
 scripts/docker-compose.yml
+
+.pnpm-store
+
+cert/

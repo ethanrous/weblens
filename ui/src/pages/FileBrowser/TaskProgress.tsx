@@ -4,14 +4,14 @@ import {
     IconExclamationCircle,
     IconX,
 } from '@tabler/icons-react'
-import { WsMsgAction, useWebsocketStore } from '@weblens/api/Websocket'
+import { CancelTask } from '@weblens/api/FileBrowserApi'
+import LoaderDots from '@weblens/lib/LoaderDots.tsx'
+import WeblensButton from '@weblens/lib/WeblensButton.tsx'
+import WeblensProgress from '@weblens/lib/WeblensProgress.tsx'
 import { useClick } from '@weblens/lib/hooks'
-import LoaderDots from '@weblens/lib/LoaderDots'
-import WeblensButton from '@weblens/lib/WeblensButton'
-import WeblensProgress from '@weblens/lib/WeblensProgress'
 import { useMessagesController } from '@weblens/store/MessagesController'
 import { msToHumanTime } from '@weblens/util'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { RefObject, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
     TaskProgress,
@@ -24,7 +24,7 @@ export function TasksPane({
     // paneRef,
     setPaneRef,
 }: {
-    calloutDivRef: HTMLDivElement
+    calloutDivRef: RefObject<HTMLDivElement | null>
     // paneRef: HTMLDivElement
     setPaneRef: (d: HTMLDivElement) => void
 }) {
@@ -149,7 +149,6 @@ function TaskProgTimers({ prog }: { prog: TaskProgress }) {
 
 const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
     const removeTask = useTaskState((state) => state.removeTask)
-    const wsSend = useWebsocketStore((state) => state.wsSend)
 
     const [cancelWarning, setCancelWarning] = useState(false)
 
@@ -192,11 +191,9 @@ const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
                                     return
                                 }
                                 if (cancelWarning) {
-                                    wsSend(WsMsgAction.CancelTaskAction, {
-                                        taskPoolId: prog.poolId
-                                            ? prog.poolId
-                                            : prog.taskId,
-                                    })
+                                    CancelTask(
+                                        prog.poolId ? prog.poolId : prog.taskId
+                                    )
 
                                     setCancelWarning(false)
                                 } else {
@@ -262,7 +259,7 @@ export function TaskProgressMini() {
     const tasksMap = useTaskState((state) => state.tasks)
     const showingMenu = useTaskState((state) => state.showingMenu)
     const setShowingMenu = useTaskState((state) => state.setShowingMenu)
-    const [calloutRef, setCalloutRef] = useState<HTMLDivElement>()
+    const calloutRef = useRef<HTMLDivElement>(null)
     const [paneRef, setPaneRef] = useState<HTMLDivElement>()
 
     const taskPoolProgress = useMemo(() => {
@@ -286,7 +283,7 @@ export function TaskProgressMini() {
                 }
                 setShowingMenu(!showingMenu)
             }}
-            ref={setCalloutRef}
+            ref={calloutRef}
         >
             {taskPoolProgress < 100 && (
                 <div className="group text-color-text-secondary hover:bg-background-secondary hover:text-color-theme-primary mt-2 flex w-full cursor-pointer flex-col items-center gap-2 rounded-sm p-2 transition">

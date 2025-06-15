@@ -1,148 +1,126 @@
-// const ScatteredPhoto = ({
-//     media,
-//     attribute,
-// }: {
-//     media: WeblensMedia
-//     attribute: attribute
-// }) => {
-//     return (
-//         <div
-//             className="scattered-photo"
-//             style={{
-//                 width: attribute.width,
-//                 left: attribute.left,
-//                 top: attribute.top,
-//                 rotate: `${attribute.rotate}deg`,
-//                 zIndex: 60 - Math.floor(attribute.blur * 10),
-//             }}
-//         >
-//             <MediaImage
-//                 media={media}
-//                 quality={PhotoQuality.LowRes}
-//                 imgStyle={{ filter: `blur(${attribute.blur}px)` }}
-//             />
-//         </div>
-//     )
-// }
+import { useResizeWindow } from '@weblens/lib/hooks'
+import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
+import { GetMediaRows } from '@weblens/types/media/MediaRows'
+import { MediaImage } from '@weblens/types/media/PhotoContainer'
+import { gsap } from 'gsap'
+import { FC, useEffect, useMemo, useRef } from 'react'
 
-// type attribute = {
-//     width: number
-//     left: number
-//     top: number
-//     edgeRight: number
-//     edgeBottom: number
-//     blur: number
-//     rotate: number
-// }
+gsap.registerPlugin()
 
-// const doesCollide = (box1: attribute, box2: attribute) => {
-//     let collideH: boolean = false
-//     let collideV: boolean = false
-//     if (
-//         (box1.left >= box2.left && box1.left <= box2.edgeRight) ||
-//         (box2.left >= box1.left && box2.left <= box1.edgeRight)
-//     ) {
-//         collideH = true
-//     }
-//
-//     if (
-//         (box1.top >= box2.top && box1.top <= box2.edgeBottom) ||
-//         (box2.top >= box1.top && box2.top <= box1.edgeBottom)
-//     ) {
-//         collideV = true
-//     }
-//     return collideH && collideV
-// }
+interface GridMotionProps {
+    items?: (string | WeblensMedia)[]
+    gradientColor?: string
+}
 
-// export const ScatteredPhotos = () => {
-//     const [medias, setMedias]: [medias: WeblensMedia[], setMedias: any] =
-//         useState([])
-//     useEffect(() => {
-//         getRandomThumbs().then((r) => setMedias(r.medias))
-//     }, [])
-//     const [pageRef, setPageRef] = useState(null)
-//     const pageSize = useResize(pageRef)
-//
-//     const attributes = useMemo(() => {
-//         const attributes: attribute[] = []
-//         attributes.push({
-//             blur: 0,
-//             rotate: 0,
-//             width: 500,
-//             left: pageSize.width / 2 - 300,
-//             top: pageSize.height / 2 - 300,
-//             edgeRight: pageSize.width / 2 + 300,
-//             edgeBottom: pageSize.height / 2 + 300,
-//         })
-//         for (const m of medias) {
-//             // const blur = getRandomInt(1, 3);
-//             // const rotate = 15;
-//             const rotate = getRandomInt(0, 20)
-//
-//             const newAttr: attribute = {
-//                 blur: 0,
-//                 rotate: rotate - 10,
-//                 width: 0,
-//                 left: 0,
-//                 top: 0,
-//                 edgeRight: 0,
-//                 edgeBottom: 0,
-//             }
-//
-//             const longOrig =
-//                 m.GetWidth() > m.GetHeight() ? m.GetWidth() : m.GetHeight()
-//             const shortOrig =
-//                 m.GetWidth() > m.GetHeight() ? m.GetHeight() : m.GetWidth()
-//             let longRatio
-//             let maxSize = 500
-//             while (maxSize > 150) {
-//                 longRatio = getRandomInt(150, maxSize)
-//                 const shortRatio = (longRatio / longOrig) * shortOrig
-//
-//                 newAttr.width =
-//                     m.GetWidth() > m.GetHeight() ? longRatio : shortRatio
-//                 const height =
-//                     m.GetWidth() < m.GetHeight() ? longRatio : shortRatio
-//
-//                 newAttr.left = getRandomInt(0, pageSize.width - newAttr.width)
-//                 newAttr.top = getRandomInt(0, pageSize.height - height)
-//                 newAttr.edgeRight = newAttr.left + newAttr.width
-//                 newAttr.edgeBottom = newAttr.top + height
-//
-//                 let collision: attribute
-//                 for (const past of attributes) {
-//                     if (doesCollide(past, newAttr)) {
-//                         collision = past
-//                         break
-//                     }
-//                 }
-//                 if (!collision) {
-//                     break
-//                 }
-//
-//                 if (collision.width === 500) {
-//                     continue
-//                 }
-//                 maxSize--
-//             }
-//             newAttr.blur = ((longRatio - 149) / 250) * (4 - 1)
-//
-//             attributes.push(newAttr)
-//         }
-//         return attributes
-//     }, [medias])
-//
-//     return (
-//         <div className="absolute w-[100vw] h-[100vh] z-0" ref={setPageRef}>
-//             {medias.map((m, i) => {
-//                 return (
-//                     <ScatteredPhoto
-//                         key={m.Id()}
-//                         media={m}
-//                         attribute={attributes[i + 1]}
-//                     />
-//                 )
-//             })}
-//         </div>
-//     )
-// }
+const GridMotion: FC<GridMotionProps> = ({
+    items = [],
+    gradientColor = 'black',
+}) => {
+    const gridRef = useRef<HTMLDivElement>(null)
+    const rowRefs = useRef<(HTMLDivElement | null)[]>([])
+    const mouseXRef = useRef<number>(window.innerWidth / 2)
+    const windowSise = useResizeWindow()
+
+    const mediaRows = useMemo(() => {
+        if (!(items[0] instanceof WeblensMedia)) {
+            return
+        }
+
+        return GetMediaRows(
+            items as WeblensMedia[],
+            380,
+            windowSise.width * 1.5,
+            4
+        )
+    }, [items, windowSise.width])
+
+    console.log('mediaRows', mediaRows)
+
+    useEffect(() => {
+        gsap.ticker.lagSmoothing(0)
+
+        const handleMouseMove = (e: MouseEvent): void => {
+            mouseXRef.current = e.clientX
+        }
+
+        const updateMotion = (): void => {
+            const maxMoveAmount = 300
+            const baseDuration = 0.8 // Base duration for inertia
+            const inertiaFactors = [0.6, 0.4, 0.3, 0.2] // Different inertia for each row, outer rows slower
+
+            rowRefs.current.forEach((row, index) => {
+                if (row) {
+                    const direction = index % 2 === 0 ? 1 : -1
+                    const moveAmount =
+                        ((mouseXRef.current / window.innerWidth) *
+                            maxMoveAmount -
+                            maxMoveAmount / 2) *
+                        direction
+
+                    gsap.to(row, {
+                        x: moveAmount,
+                        duration:
+                            baseDuration +
+                            inertiaFactors[index % inertiaFactors.length],
+                        ease: 'power3.out',
+                        overwrite: 'auto',
+                    })
+                }
+            })
+        }
+
+        const removeAnimationLoop = gsap.ticker.add(updateMotion)
+        window.addEventListener('mousemove', handleMouseMove)
+
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove)
+            removeAnimationLoop()
+        }
+    }, [])
+
+    return (
+        <div ref={gridRef} className="h-full w-full overflow-hidden">
+            <section
+                className="relative flex h-screen w-full items-center justify-center overflow-hidden"
+                style={{
+                    background: `radial-gradient(circle, ${gradientColor} 0%, transparent 100%)`,
+                }}
+            >
+                {/* <div className="pointer-events-none absolute inset-0 z-[4] bg-[length:250px]"></div> */}
+                <div className="relative z-[2] flex h-[150vh] w-[150vw] origin-center rotate-[-15deg] flex-col justify-center gap-4">
+                    {mediaRows &&
+                        mediaRows.map((row, rowIndex) => (
+                            <div
+                                key={rowIndex}
+                                className="relative flex gap-4"
+                                style={{
+                                    willChange: 'transform, filter',
+                                    gridTemplateColumns: `repeat(${row.items.length}, minmax(0, 1fr))`,
+                                    height: row.rowHeight,
+                                }}
+                                ref={(el) => {
+                                    rowRefs.current[rowIndex] = el
+                                }}
+                            >
+                                {row.items.map((rowItem) => {
+                                    return (
+                                        <MediaImage
+                                            key={rowItem.m.Id()}
+                                            media={rowItem.m}
+                                            quality={PhotoQuality.LowRes}
+                                            containerStyle={{
+                                                width: rowItem.w,
+                                            }}
+                                        />
+                                    )
+                                })}
+                            </div>
+                        ))}
+                </div>
+                <div className="pointer-events-none relative top-0 left-0 h-full w-full"></div>
+            </section>
+        </div>
+    )
+}
+
+export default GridMotion

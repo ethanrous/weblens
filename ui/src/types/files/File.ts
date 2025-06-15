@@ -39,7 +39,7 @@ export enum FbMenuModeT {
     SearchForFile,
 }
 
-function getIcon(folderName: string): Icon {
+function getIcon(folderName: string): Icon | null {
     if (folderName === 'HOME') {
         return IconHome
     } else if (folderName === 'TRASH') {
@@ -52,15 +52,15 @@ function getIcon(folderName: string): Icon {
 }
 
 class WeblensFile {
-    id?: string
+    id: string
     owner?: string
     private filename?: string
-    portablePath?: string
+    portablePath?: string = ''
     parentId?: string
 
     modifyDate?: Date
 
-    childrenIds?: string[]
+    childrenIds: string[] = []
 
     isDir?: boolean
     pastFile?: boolean
@@ -72,29 +72,35 @@ class WeblensFile {
     shareId?: string
 
     // Non-api props
-    parents?: WeblensFile[]
+    parents?: WeblensFile[] = []
     hovering?: boolean
     index?: number
     visible?: boolean
 
-    private fetching: boolean
+    private fetching: boolean = false
+    public fromAPI: boolean = false
 
     private selected: SelectedState
-    private contentId: string
+    private contentId: string = ''
     private share: WeblensShare
 
     constructor(init: FileInfo) {
-        if (!init || !init.id) {
-            throw new Error('trying to construct WeblensFile with no id')
-        }
+        this.id = init.id ?? ''
 
+        if (init.portablePath?.endsWith('/RAWs/')) {
+            console.log('Creating WeblensFile with', init)
+        }
         Object.assign(this, init)
+        if (init.portablePath?.endsWith('/RAWs/')) {
+            console.log('NUMBER 2', this)
+        }
         this.hovering = false
-        this.modifyDate = new Date(init.modifyTimestamp)
+        this.modifyDate = new Date(init.modifyTimestamp ?? 0)
         this.selected = SelectedState.NotSelected
         if (!this.parents) {
             this.parents = []
         }
+        this.share = new WeblensShare({ fileId: this.id, owner: this.owner })
     }
 
     Id(): string {
@@ -155,6 +161,10 @@ class WeblensFile {
 
     GetFilename(): string {
         if (!this.filename) {
+            if (!this.portablePath) {
+                return ''
+            }
+
             const filename = this.portablePath.slice(
                 this.portablePath.indexOf(':') + 1
             )
@@ -173,6 +183,10 @@ class WeblensFile {
             }
 
             this.filename = name
+        }
+
+        if (!this.filename) {
+            console.error('Filename is null', this)
         }
 
         return this.filename
@@ -324,12 +338,18 @@ class WeblensFile {
         this.share = share
     }
 
-    public async GetShare(): Promise<WeblensShare> {
-        if (this.share) {
+    public async GetShare(refetch?: boolean): Promise<WeblensShare> {
+        console.log('File has share?', this.shareId, this.share)
+        if (this.share.shareId && !this.shareId) {
+            this.shareId = this.share.shareId
+        }
+
+        if (this.share.shareId && !refetch) {
             return this.share
         } else if (!this.shareId) {
-            return null
+            return this.share
         }
+
         const res = await SharesApi.getFileShare(this.shareId)
         if (res.status !== 200) {
             return Promise.reject(new Error('Failed to get share info'))
@@ -337,6 +357,19 @@ class WeblensFile {
 
         this.share = new WeblensShare(res.data)
         return this.share
+    }
+
+    public static Home(): WeblensFile {
+        const user = useSessionStore.getState().user
+
+        return new WeblensFile({
+            id: user.homeId,
+            owner: user.username,
+            portablePath: `USERS:${user.username}/`,
+            isDir: true,
+            modifiable: true,
+            pastFile: false,
+        })
     }
 }
 

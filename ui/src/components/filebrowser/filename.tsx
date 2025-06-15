@@ -40,6 +40,10 @@ export function PathFmt({
         <div
             className={'flex min-w-0 items-center ' + (className ?? '')}
             style={{ flexShrink: parts.length ? 1 : 0 }}
+            onClick={(e) => {
+                e.stopPropagation()
+                navigator.clipboard.writeText(pathName)
+            }}
         >
             <StartIcon className="shrink-0" size={16} />
             {parts.map((part) => {
@@ -80,6 +84,10 @@ export function FileFmt({
                 'flex w-max max-w-full min-w-0 items-center gap-1 ' +
                 (className ?? '')
             }
+            onClick={(e) => {
+                e.stopPropagation()
+                navigator.clipboard.writeText(pathName)
+            }}
         >
             {StartIcon && (
                 <StartIcon className="theme-text shrink-0" size={16} />
@@ -90,4 +98,3 @@ export function FileFmt({
         </div>
     )
 }
-

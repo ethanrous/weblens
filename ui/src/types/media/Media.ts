@@ -1,6 +1,6 @@
 import API_ENDPOINT from '@weblens/api/ApiEndpoint'
 import MediaApi from '@weblens/api/MediaApi'
-import { MediaInfo, MediaType } from '@weblens/api/swag'
+import { MediaInfo, MediaTypeInfo } from '@weblens/api/swag'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 
 export enum PhotoQuality {
@@ -8,7 +8,7 @@ export enum PhotoQuality {
     HighRes = 'fullres',
 }
 
-class WeblensMedia {
+class WeblensMedia implements MediaInfo {
     contentId: string
     mimeType?: string
 
@@ -36,7 +36,7 @@ class WeblensMedia {
     previous?: WeblensMedia
     next?: WeblensMedia
     selected?: boolean
-    mediaType?: MediaType
+    mediaType?: MediaTypeInfo
 
     abort?: AbortController
     index?: number
@@ -95,7 +95,7 @@ class WeblensMedia {
         }
     }
 
-    GetMediaType(): MediaType {
+    GetMediaType(): MediaTypeInfo {
         if (!this.mediaType && this.mimeType) {
             const typeMap = useMediaStore.getState().mediaTypeMap
             if (typeMap?.mimeMap) {
@@ -155,19 +155,19 @@ class WeblensMedia {
         return this.width
     }
 
-    SetNextLink(next: WeblensMedia) {
+    SetNextLink(next?: WeblensMedia) {
         this.next = next
     }
 
-    Next(): WeblensMedia {
+    Next(): WeblensMedia | undefined {
         return this.next
     }
 
-    SetPrevLink(prev: WeblensMedia) {
+    SetPrevLink(prev?: WeblensMedia) {
         this.previous = prev
     }
 
-    Prev(): WeblensMedia {
+    Prev(): WeblensMedia | undefined {
         return this.previous
     }
 

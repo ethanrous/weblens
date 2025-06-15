@@ -1,4 +1,5 @@
 import {
+    Icon,
     IconCalendar,
     IconChevronDown,
     IconChevronLeft,
@@ -6,15 +7,21 @@ import {
     IconFileAnalytics,
     IconLayoutGrid,
     IconLayoutList,
+    IconProps,
     IconSortAZ,
     IconSortAscending2,
     IconSortDescending2,
-    TablerIconsProps,
 } from '@tabler/icons-react'
+import WeblensButton from '@weblens/lib/WeblensButton.tsx'
 import { useResize } from '@weblens/lib/hooks'
-import WeblensButton from '@weblens/lib/WeblensButton'
 import dirViewHeaderStyle from '@weblens/pages/FileBrowser/style/dirViewHeader.module.scss'
-import { useEffect, useState } from 'react'
+import {
+    ForwardRefExoticComponent,
+    RefAttributes,
+    useEffect,
+    useRef,
+    useState,
+} from 'react'
 
 import { useFileBrowserStore } from '../../store/FBStateControl'
 import { DirViewModeT } from './FileBrowserTypes'
@@ -27,7 +34,7 @@ const fileSortTypes = [
 
 const dirViewModes: {
     Mode: DirViewModeT
-    Icon: (props: TablerIconsProps) => JSX.Element
+    Icon: ForwardRefExoticComponent<IconProps & RefAttributes<Icon>>
 }[] = [
     { Mode: DirViewModeT.Grid, Icon: IconLayoutGrid },
     { Mode: DirViewModeT.List, Icon: IconLayoutList },
@@ -39,7 +46,7 @@ function FileSortBox() {
     const setViewOpts = useFileBrowserStore((state) => state.setViewOptions)
     const [open, setOpen] = useState(false)
     const [isVertical, setIsVertical] = useState(false)
-    const [sortRef, setSortRef] = useState<HTMLDivElement>()
+    const sortRef = useRef<HTMLDivElement>(null)
     const size = useResize(sortRef)
 
     useEffect(() => {
@@ -56,8 +63,8 @@ function FileSortBox() {
 
     return (
         <div
-            ref={setSortRef}
-            className={dirViewHeaderStyle.fileSortBox + ' ' + "wl-static-card"}
+            ref={sortRef}
+            className={dirViewHeaderStyle.fileSortBox + ' ' + 'wl-static-card'}
             data-open={open}
         >
             {isVertical && (

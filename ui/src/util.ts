@@ -174,11 +174,9 @@ export function binarySearch<T>(
     return -1
 }
 
-// export function require_css(...classNames: string[]) {
-//     for (const className of classNames) {
-//         if (className === undefined) {
-//             throw new Error('undefined className')
-//         }
-//     }
-//     return classNames.join(' ')
-// }
+export function shuffleArray<T>(array: T[]): void {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[array[i], array[j]] = [array[j], array[i]]
+    }
+}

@@ -1,16 +1,16 @@
-import WeblensLoader from '@weblens/components/Loading'
-import GetStartedCard from '@weblens/components/filebrowser/getStartedCard'
+import WeblensLoader from '@weblens/components/Loading.tsx'
+import GetStartedCard from '@weblens/components/filebrowser/getStartedCard.tsx'
+import { useResize } from '@weblens/lib/hooks'
 import { HandleDrop } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { FileSquare } from '@weblens/types/files/FileSquare'
 import filesStyle from '@weblens/types/files/filesStyle.module.scss'
-import { useResize } from '@weblens/lib/hooks'
 import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import { FixedSizeGrid as Grid } from 'react-window'
 
 import { ErrorHandler } from '../Types'
 import { DraggingStateT } from './FBTypes'
-import WeblensFile from './File'
+import WeblensFile, { SelectedState } from './File'
 
 type GridDataProps = {
     files: WeblensFile[]
@@ -38,9 +38,12 @@ function SquareWrapper({
 
     const selState = useMemo(() => {
         if (!file) {
-            return 0
+            return SelectedState.NotSelected
         }
-        return filesMap.get(file?.Id())?.GetSelectedState()
+        return (
+            filesMap.get(file.Id())?.GetSelectedState() ??
+            SelectedState.NotSelected
+        )
     }, [file, hoveringId, holdingShift, filesMap, selected])
 
     if (!file) {
@@ -62,8 +65,8 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
     const jumpTo = useFileBrowserStore((state) => state.jumpTo)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
 
-    const gridRef = useRef<Grid>()
-    const [containerRef, setContainerRef] = useState<HTMLDivElement>()
+    const gridRef = useRef<Grid>(null)
+    const containerRef = useRef<HTMLDivElement>(null)
     const [didScroll, setDidScroll] = useState<boolean>()
     const [lastSeen, setLastSeen] = useState<{
         file: WeblensFile
@@ -89,7 +92,7 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
             return []
         }
         return filteredFiles
-    }, [files])
+    }, [files, folderInfo])
 
     useEffect(() => {
         if (lastSeen?.file) {
@@ -110,14 +113,14 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
                 }, 100)
             )
         }
-    }, [size.width])
+    }, [numCols, size.width])
 
-    const isLoading = loading.includes('files')
+    const isLoading = loading.includes('files') || folderInfo?.GetFetching()
 
     return (
         <div
-            ref={setContainerRef}
-            className={filesStyle.filesGrid}
+            ref={containerRef}
+            className="dropzone"
             data-droppable={Boolean(
                 moveDest === folderInfo?.Id() &&
                     folderInfo?.modifiable &&
@@ -162,14 +165,14 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
                     {!isLoading && files.length === 0 && <GetStartedCard />}
                     {!isLoading && files.length !== 0 && (
                         <Grid
-                            className="no-scrollbar outline-0"
+                            className="w-full outline-0"
                             ref={gridRef}
                             columnCount={numCols}
                             itemData={{ files: filteredFiles, numCols }}
                             height={size.height}
                             width={size.width}
                             rowCount={Math.ceil(filteredFiles.length / numCols)}
-                            columnWidth={size.width / numCols}
+                            columnWidth={(size.width - 8) / numCols}
                             rowHeight={rowHeight}
                             overscanRowCount={8}
                             onScroll={({ scrollTop }) => {

@@ -22,26 +22,28 @@ import {
 } from '@tanstack/react-query'
 import AccessApi from '@weblens/api/AccessApi'
 import MediaApi from '@weblens/api/MediaApi'
-import { ServersApi } from '@weblens/api/ServersApi'
+import { TowersApi } from '@weblens/api/ServersApi.js'
 import UsersApi from '@weblens/api/UserApi'
 import {
     HandleWebsocketMessage,
+    WsAction,
+    WsSubscriptionType,
     useWeblensSocket,
     useWebsocketStore,
 } from '@weblens/api/Websocket'
-import { ApiKeyInfo, ServerInfo } from '@weblens/api/swag/api'
+import { TokenInfo, TowerInfo } from '@weblens/api/swag/api.js'
 import HeaderBar, { ThemeToggleButton } from '@weblens/components/HeaderBar'
-import WeblensLoader from '@weblens/components/Loading'
-import RemoteStatus from '@weblens/components/RemoteStatus'
+import WeblensLoader from '@weblens/components/Loading.tsx'
+import RemoteStatus from '@weblens/components/RemoteStatus.tsx'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import WeblensButton from '@weblens/lib/WeblensButton'
-import WeblensInput from '@weblens/lib/WeblensInput'
+import WeblensButton from '@weblens/lib/WeblensButton.tsx'
+import WeblensInput from '@weblens/lib/WeblensInput.tsx'
 import { useKeyDown } from '@weblens/lib/hooks'
 import { useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { useMessagesController } from '@weblens/store/MessagesController'
 import { ErrorHandler } from '@weblens/types/Types'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import User from '@weblens/types/user/User'
+import User, { UserPermissions } from '@weblens/types/user/User'
 import { FC, useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -99,6 +101,40 @@ const adminTabs: settingsTab[] = [
     },
 ]
 
+function TabGroup({
+    tabs,
+    activeTab,
+    setActiveTab,
+}: {
+    tabs: settingsTab[]
+    activeTab: string
+    setActiveTab: (tab: string) => void
+}) {
+    return (
+        <div>
+            {tabs.map((tab) => {
+                return (
+                    <li key={tab.id}>
+                        <a
+                            data-active={activeTab === tab.id}
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                e.preventDefault()
+                                setActiveTab(tab.id)
+                            }}
+                        >
+                            <span className={settingsStyle.tabIcon}>
+                                <tab.icon size={20} />
+                            </span>
+                            <span>{tab.name}</span>
+                        </a>
+                    </li>
+                )
+            })}
+        </div>
+    )
+}
+
 export default function Settings() {
     const user = useSessionStore((state) => state.user)
     const setUser = useSessionStore((state) => state.setUser)
@@ -119,7 +155,7 @@ export default function Settings() {
 
     const ActivePage = useMemo(() => {
         const allTabs = [...tabs]
-        if (user.admin) {
+        if (user.permissionLevel >= UserPermissions.Admin) {
             allTabs.push(...adminTabs)
         }
 
@@ -149,60 +185,23 @@ export default function Settings() {
                 <div className="flex grow">
                     <div className={settingsStyle.sidebar}>
                         <ul className="flex h-full flex-col">
-                            {tabs.map((tab) => {
-                                return (
-                                    <li key={tab.id}>
-                                        <a
-                                            data-active={activeTab === tab.id}
-                                            onClick={(e) => {
-                                                e.stopPropagation()
-                                                e.preventDefault()
-                                                setActiveTab(tab.id)
-                                            }}
-                                        >
-                                            <span
-                                                className={
-                                                    settingsStyle.tabIcon
-                                                }
-                                            >
-                                                <tab.icon size={20} />
-                                            </span>
-                                            <span>{tab.name}</span>
-                                        </a>
-                                    </li>
-                                )
-                            })}
-                            {user.admin && (
+                            <TabGroup
+                                tabs={tabs}
+                                activeTab={activeTab}
+                                setActiveTab={setActiveTab}
+                            />
+                            {user.permissionLevel >= UserPermissions.Admin && (
                                 <p className={settingsStyle.settingsTabsGroup}>
                                     Admin
                                 </p>
                             )}
-                            {user.admin &&
-                                adminTabs.map((tab) => {
-                                    return (
-                                        <li key={tab.id}>
-                                            <a
-                                                data-active={
-                                                    activeTab === tab.id
-                                                }
-                                                onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    e.preventDefault()
-                                                    setActiveTab(tab.id)
-                                                }}
-                                            >
-                                                <span
-                                                    className={
-                                                        settingsStyle.tabIcon
-                                                    }
-                                                >
-                                                    <tab.icon size={16} />
-                                                </span>
-                                                <span>{tab.name}</span>
-                                            </a>
-                                        </li>
-                                    )
-                                })}
+                            {user.permissionLevel >= UserPermissions.Admin && (
+                                <TabGroup
+                                    tabs={adminTabs}
+                                    activeTab={activeTab}
+                                    setActiveTab={setActiveTab}
+                                />
+                            )}
                             <li className="mt-auto">
                                 <WeblensButton
                                     label={'Logout'}
@@ -258,7 +257,7 @@ function AccountTab() {
                         userFullName === '' || userFullName === user.fullName
                     }
                     onClick={() =>
-                        UsersApi.changeFullName(user.username, userFullName)
+                        UsersApi.changeDisplayName(user.username, userFullName)
                             .then(() => {
                                 user.fullName = userFullName
                                 setUser(user)
@@ -312,18 +311,18 @@ function SecurityTab() {
         data: keys,
         refetch: refetchKeys,
         isLoading,
-    } = useQuery<ApiKeyInfo[]>({
+    } = useQuery<TokenInfo[]>({
         queryKey: ['apiKeys'],
         initialData: [],
         queryFn: () => AccessApi.getApiKeys().then((res) => res.data),
         retry: false,
     })
 
-    const { data: remotes, refetch: refetchRemotes } = useQuery<ServerInfo[]>({
+    const { data: remotes, refetch: refetchRemotes } = useQuery<TowerInfo[]>({
         queryKey: ['remotes'],
         initialData: [],
         queryFn: async () =>
-            (await ServersApi.getRemotes().then((res) => res.data)) || [],
+            (await TowersApi.getRemotes().then((res) => res.data)) || [],
         retry: false,
     })
 
@@ -371,7 +370,7 @@ function SecurityTab() {
                             return (
                                 <ApiKeyRow
                                     key={val.id}
-                                    keyInfo={val}
+                                    tokenInfo={val}
                                     refetch={() => {
                                         refetchRemotes().catch(ErrorHandler)
                                         refetchKeys().catch(ErrorHandler)
@@ -421,33 +420,33 @@ function SecurityTab() {
 }
 
 function ApiKeyRow({
-    keyInfo,
+    tokenInfo,
     refetch,
     remotes,
 }: {
-    keyInfo: ApiKeyInfo
+    tokenInfo: TokenInfo
     refetch: () => void
-    remotes: ServerInfo[]
+    remotes: TowerInfo[]
 }) {
-    const stars = '*'.repeat(keyInfo.key.slice(4).length)
+    const stars = '*'.repeat(tokenInfo.token.slice(4).length)
 
     return (
         <div
-            key={keyInfo.id}
+            key={tokenInfo.id}
             className="border-color-border-primary relative -my-[1px] flex h-max w-full flex-row items-center border-2 p-4 first:rounded-t-md last:rounded-b-md"
         >
             <div className="mx-6 flex flex-col items-center">
                 <IconKey size={50} />
-                {keyInfo.remoteUsing !== '' && (
+                {tokenInfo.remoteUsing !== '' && (
                     <span className="text-color-text-primary select-none">
                         Linked to{' '}
                         {
-                            remotes.find((r) => r.id === keyInfo.remoteUsing)
+                            remotes.find((r) => r.id === tokenInfo.remoteUsing)
                                 ?.name
                         }
                     </span>
                 )}
-                {keyInfo.remoteUsing === '' && (
+                {tokenInfo.remoteUsing === '' && (
                     <span className="text-color-text-primary select-none">
                         Personal
                     </span>
@@ -455,23 +454,23 @@ function ApiKeyRow({
             </div>
             <div className="flex w-max flex-col">
                 <h4 className="theme-text w-full truncate text-nowrap">
-                    {keyInfo.name}
+                    {tokenInfo.nickname}
                 </h4>
                 <code className="theme-text mb-2 w-full truncate text-nowrap select-none">
-                    {keyInfo.key.slice(0, 4)}
+                    {tokenInfo.token.slice(0, 4)}
                     {stars}
                 </code>
                 <span className="text-color-text-secondary">
-                    Added on {historyDate(keyInfo.createdTime, true)}
+                    Added on {historyDate(tokenInfo.createdTime, true)}
                 </span>
-                {keyInfo.lastUsedTime === 0 && (
+                {tokenInfo.lastUsed === 0 && (
                     <span className="text-color-text-secondary select-none">
                         Never Used
                     </span>
                 )}
-                {keyInfo.lastUsedTime !== 0 && (
+                {tokenInfo.lastUsed !== 0 && (
                     <span className="text-color-text-secondary select-none">
-                        {historyDate(keyInfo.lastUsedTime)}
+                        {historyDate(tokenInfo.lastUsed)}
                     </span>
                 )}
             </div>
@@ -483,7 +482,9 @@ function ApiKeyRow({
                         if (!window.isSecureContext) {
                             return
                         }
-                        await navigator.clipboard.writeText(keyInfo.key)
+                        await navigator.clipboard.writeText(
+                            String(tokenInfo.token)
+                        )
                         return true
                     }}
                 />
@@ -493,7 +494,7 @@ function ApiKeyRow({
                     requireConfirm
                     tooltip="Delete Key"
                     onClick={() => {
-                        AccessApi.deleteApiKey(keyInfo.key)
+                        AccessApi.deleteApiKey(tokenInfo.id)
                             .then(() => refetch())
                             .catch(ErrorHandler)
                     }}
@@ -507,11 +508,11 @@ function ServersTab() {
     const readyState = useWebsocketStore((state) => state.readyState)
     const wsSend = useWebsocketStore((state) => state.wsSend)
 
-    const { data: remotes, refetch: refetchRemotes } = useQuery<ServerInfo[]>({
+    const { data: remotes, refetch: refetchRemotes } = useQuery<TowerInfo[]>({
         queryKey: ['remotes'],
         initialData: [],
         queryFn: async () =>
-            (await ServersApi.getRemotes().then((res) => res.data)) || [],
+            (await TowersApi.getRemotes().then((res) => res.data)) || [],
         retry: false,
     })
 
@@ -526,8 +527,17 @@ function ServersTab() {
             return
         }
 
-        wsSend('taskSubscribe', { taskType: 'do_backup' })
-        return () => wsSend('unsubscribe', { taskType: 'do_backup' })
+        wsSend({
+            action: WsAction.Subscribe,
+            subscriptionType: WsSubscriptionType.TaskType,
+            content: { taskType: 'do_backup' },
+        })
+
+        return () =>
+            wsSend({
+                action: WsAction.Unsubscribe,
+                content: { taskType: 'do_backup' },
+            })
     }, [readyState])
 
     useEffect(() => {
@@ -652,7 +662,9 @@ function UsersTable({
                           >
                               <td className="p-2">{rowUser.fullName}</td>
                               <td>{rowUser.username}</td>
-                              <td>{rowUser.admin ? 'Admin' : 'Basic'}</td>
+                              <td>
+                                  {UserPermissions[rowUser.permissionLevel]}
+                              </td>
                               <td className="p-2">
                                   <UserRowActions
                                       rowUser={rowUser}
@@ -691,17 +703,18 @@ function UserRowActions({
                     }}
                 />
             )}
-            {!changingPass && accessor.owner && (
-                <WeblensButton
-                    tooltip="Change Password"
-                    size="small"
-                    Left={IconLockOpen}
-                    disabled={!rowUser.activated}
-                    onClick={() => {
-                        setChangingPass(true)
-                    }}
-                />
-            )}
+            {!changingPass &&
+                accessor.permissionLevel >= UserPermissions.Owner && (
+                    <WeblensButton
+                        tooltip="Change Password"
+                        size="small"
+                        Left={IconLockOpen}
+                        disabled={!rowUser.activated}
+                        onClick={() => {
+                            setChangingPass(true)
+                        }}
+                    />
+                )}
             {changingPass && (
                 <WeblensInput
                     placeholder="New Password"
@@ -722,31 +735,34 @@ function UserRowActions({
                     }}
                 />
             )}
-            {!rowUser.admin && accessor.owner && (
-                <WeblensButton
-                    tooltip="Make Admin"
-                    Left={IconUserUp}
-                    size="small"
-                    labelOnHover={true}
-                    onClick={() => {
-                        UsersApi.setUserAdmin(rowUser.username, true)
-                            .then(() => refetchUsers())
-                            .catch(ErrorHandler)
-                    }}
-                />
-            )}
-            {!rowUser.owner && rowUser.admin && accessor.owner && (
-                <WeblensButton
-                    tooltip="Remove Admin"
-                    Left={IconUserMinus}
-                    size="small"
-                    onClick={() => {
-                        UsersApi.setUserAdmin(rowUser.username, false)
-                            .then(() => refetchUsers())
-                            .catch(ErrorHandler)
-                    }}
-                />
-            )}
+            {rowUser.permissionLevel < UserPermissions.Admin &&
+                accessor.permissionLevel >= UserPermissions.Owner && (
+                    <WeblensButton
+                        tooltip="Make Admin"
+                        Left={IconUserUp}
+                        size="small"
+                        labelOnHover={true}
+                        onClick={() => {
+                            UsersApi.setUserAdmin(rowUser.username, true)
+                                .then(() => refetchUsers())
+                                .catch(ErrorHandler)
+                        }}
+                    />
+                )}
+            {rowUser.permissionLevel < UserPermissions.Owner &&
+                rowUser.permissionLevel >= UserPermissions.Admin &&
+                accessor.permissionLevel >= UserPermissions.Owner && (
+                    <WeblensButton
+                        tooltip="Remove Admin"
+                        Left={IconUserMinus}
+                        size="small"
+                        onClick={() => {
+                            UsersApi.setUserAdmin(rowUser.username, false)
+                                .then(() => refetchUsers())
+                                .catch(ErrorHandler)
+                        }}
+                    />
+                )}
 
             <WeblensButton
                 squareSize={35}
@@ -756,7 +772,8 @@ function UserRowActions({
                 danger
                 requireConfirm
                 disabled={
-                    (rowUser.admin && !accessor.owner) ||
+                    (rowUser.permissionLevel >= UserPermissions.Admin &&
+                        accessor.permissionLevel < UserPermissions.Owner) ||
                     accessor.username === rowUser.username
                 }
                 onClick={() =>
@@ -854,11 +871,9 @@ function DeveloperTab() {
             <WeblensButton
                 label="Reset Server"
                 danger
-                onClick={() =>
-                    ServersApi.resetServer().then(() =>
-                        window.location.reload()
-                    )
-                }
+                onClick={() => {
+                    TowersApi.resetTower().then(() => window.location.reload())
+                }}
             />
         </div>
     )

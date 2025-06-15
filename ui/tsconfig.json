@@ -14,13 +14,17 @@
 		"isolatedModules": true,
 		"jsx": "react-jsx",
 		"module": "esnext",
-		"strict": false,
+		"strict": true,
 		"moduleResolution": "bundler",
+		"allowImportingTsExtensions": true,
 		"allowSyntheticDefaultImports": true,
 		"baseUrl": ".",
 		"paths": {
 			"@weblens/*": [
 				"src/*"
+			],
+			"react": [
+				"./node_modules/@types/react"
 			]
 		},
 		"noUnusedLocals": false

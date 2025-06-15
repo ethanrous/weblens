@@ -18,21 +18,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      # - name: Set up Go
-      #   uses: actions/setup-go@v4
-      #   with:
-      #     go-version: '1.24'
-      #
-      # - name: Set up Node
-      #   uses: actions/setup-node@v4
-      #   with:
-      #     node-version: 22.11.0
-      #     cache: 'npm'
-      #     cache-dependency-path: ui/package-lock.json
-      #
-      # - run: cd ui && npm ci
-
       - name: Install Deps
         run: |
           # Add Docker's official GPG key:
@@ -51,62 +36,7 @@ jobs:
 
           sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-      # - name: Start MongoDB
-      #   uses: supercharge/mongodb-github-action@1.11.0
-      #   with:
-      #     mongodb-version: '7.0'
-
       - name: Run Tests
         run: |
-          docker build -t ethrous/weblens-test --platform "linux/amd64" --build-arg ARCHITECTURE="amd64" --file ./docker/AlpineTester.Dockerfile .
-
-          docker network create weblens-net
-
-          docker run --name=weblens-mongo -v ./mongo:/data/db -e MONGO_INITDB_ROOT_USERNAME=admin -e MONGO_INITDB_ROOT_PASSWORD=admin --network=weblens-net -d -- mongo
-          docker run --platform="linux/amd64" --network=weblens-net -v ./build/fs/test-container/data:/data -v ./build/fs/test-container/cache:/cache  ethrous/weblens-test
-
-          # if [[ $DO_TRACE == true ]]; then
-          #   export LOG_LEVEL=trace
-          # fi
-          # ./scripts/testWeblens --all --show-logs
-          # exit $?
-        env:
-          DO_TRACE: ${{ inputs.trace }}
-
-  # test-macos:
-  #   runs-on: macos-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #
-  #     - name: Set up Homebrew
-  #       id: set-up-homebrew
-  #       uses: homebrew/actions/setup-homebrew@master
-  #
-  #     - name: Set up Go
-  #       uses: actions/setup-go@v4
-  #       with:
-  #         go-version: '1.24'
-  #
-  #     - name: Set up Node
-  #       uses: actions/setup-node@v4
-  #       with:
-  #         node-version: 22.11.0
-  #         cache: 'npm'
-  #         cache-dependency-path: ui/package-lock.json
-  #
-  #     - run: cd ui && npm ci
-  #
-  #     - name: Install Deps
-  #       run: |
-  #         brew update
-  #         brew install vips exiftool node npm imagemagick pkg-config libraw
-  #
-  #         brew tap mongodb/brew
-  #         brew install mongodb-community
-  #         brew services start mongodb-community
-  #
-  #     - name: Run Tests
-  #       run: |
-  #         docker build --platform "linux/amd64" --build-arg ARCHITECTURE="amd64" --file ./docker/AlpineTester.Dockerfile .
-  #       env:
-  #         DO_TRACE: ${{ inputs.trace }}
+          ./scripts/testWeblens 
+          exit $?

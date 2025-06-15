@@ -2,22 +2,22 @@ import {
     IconDatabaseImport,
     IconPlus,
     IconRocket,
+    IconSettings,
     IconX,
 } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
-import { ServersApi } from '@weblens/api/ServersApi'
+import { TowersApi } from '@weblens/api/ServersApi'
 import {
     HandleWebsocketMessage,
     useWeblensSocket,
     useWebsocketStore,
 } from '@weblens/api/Websocket'
-import { ServerInfo } from '@weblens/api/swag'
-import { ThemeToggleButton } from '@weblens/components/HeaderBar'
-import Logo from '@weblens/components/Logo'
-import RemoteStatus from '@weblens/components/RemoteStatus'
+import { TowerInfo } from '@weblens/api/swag'
+import Logo from '@weblens/components/Logo.tsx'
+import RemoteStatus from '@weblens/components/RemoteStatus.tsx'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import WeblensButton from '@weblens/lib/WeblensButton'
-import WeblensInput from '@weblens/lib/WeblensInput'
+import WeblensButton from '@weblens/lib/WeblensButton.tsx'
+import WeblensInput from '@weblens/lib/WeblensInput.tsx'
 import { ErrorHandler } from '@weblens/types/Types'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -71,7 +71,7 @@ function NewCoreMenu({ closeNewCore }: { closeNewCore: () => void }) {
                     disabled={coreAddress === '' || apiKey === ''}
                     doSuper
                     onClick={async () => {
-                        ServersApi.createRemote({
+                        TowersApi.createRemote({
                             role: 'core',
                             coreAddress: coreAddress,
                             usingKey: apiKey,
@@ -86,11 +86,14 @@ function NewCoreMenu({ closeNewCore }: { closeNewCore: () => void }) {
 }
 
 export default function Backup() {
-    const { data: remotes, refetch } = useQuery<ServerInfo[]>({
+    const serverInfo = useSessionStore((state) => state.server)
+    const user = useSessionStore((state) => state.user)
+
+    const { data: remotes, refetch } = useQuery<TowerInfo[]>({
         queryKey: ['remotes'],
         initialData: [],
         queryFn: async () => {
-            return ServersApi.getRemotes().then((res) =>
+            return TowersApi.getRemotes().then((res) =>
                 res.data.filter((r) => r.role === 'core')
             )
         },
@@ -138,14 +141,37 @@ export default function Backup() {
             {newCoreMenu && (
                 <NewCoreMenu closeNewCore={() => setNewCoreMenu(false)} />
             )}
-            <div className="flex w-full items-center justify-between">
+            <div className="flex w-full items-center justify-between border-b pb-2">
                 <div className="flex flex-row gap-2">
                     <Logo />
                     <h1 className="text-3xl">Backup</h1>
                 </div>
-                <ThemeToggleButton />
+
+                <div className="ml-auto flex items-center gap-3">
+                    <h4>{serverInfo.name}</h4>
+                    <WeblensButton
+                        label={!user.isLoggedIn ? 'Login' : ''}
+                        tooltip={!user.isLoggedIn ? 'Login' : 'Settings'}
+                        Left={IconSettings}
+                        disabled={window.location.pathname.startsWith(
+                            '/settings'
+                        )}
+                        onClick={() => {
+                            if (user.isLoggedIn) {
+                                nav('/settings')
+                            } else {
+                                nav('/login', {
+                                    state: {
+                                        returnTo: window.location.pathname,
+                                    },
+                                })
+                            }
+                        }}
+                    />
+                </div>
+                {/* <ThemeToggleButton /> */}
             </div>
-            <div className="mb-10 flex w-full gap-1 pt-4">
+            <div className="mb-auto flex w-full gap-1 pt-4">
                 {remotes.map((remote) => {
                     return (
                         <RemoteStatus
@@ -168,6 +194,7 @@ export default function Backup() {
                 })}
             </div>
             <WeblensButton
+                className="mt-auto"
                 label="Add Core"
                 Left={IconPlus}
                 onClick={() => setNewCoreMenu(true)}

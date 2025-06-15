@@ -1,15 +1,15 @@
 import { FileApi, GetFolderData } from '@weblens/api/FileBrowserApi'
 import SharesApi from '@weblens/api/SharesApi'
 import { useSubscribe as useFolderSubscribe } from '@weblens/api/Websocket'
-import HeaderBar from '@weblens/components/HeaderBar'
+import HeaderBar from '@weblens/components/HeaderBar.tsx'
 import { PresentationFile } from '@weblens/components/Presentation'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import { FileContextMenu } from '@weblens/components/filebrowser/FileMenu'
-import DirectoryView from '@weblens/components/filebrowser/directoryView'
-import FBSidebar from '@weblens/components/filebrowser/filebrowserSidebar'
-import PasteDialogue from '@weblens/components/filebrowser/pasteDialogue'
-import SearchDialogue from '@weblens/components/filebrowser/searchDialogue'
-import WebsocketStatus from '@weblens/components/filebrowser/websocketStatus'
+import { FileContextMenu } from '@weblens/components/filebrowser/contextMenu/FileMenu'
+import DirectoryView from '@weblens/components/filebrowser/directoryView.tsx'
+import FBSidebar from '@weblens/components/filebrowser/filebrowserSidebar.tsx'
+import PasteDialogue from '@weblens/components/filebrowser/pasteDialogue.tsx'
+import SearchDialogue from '@weblens/components/filebrowser/searchDialogue.tsx'
+import WebsocketStatusDot from '@weblens/components/filebrowser/websocketStatus.tsx'
 import { ErrorHandler } from '@weblens/types/Types'
 import WeblensFile from '@weblens/types/files/File'
 import { goToFile } from '@weblens/types/files/FileDragLogic'
@@ -18,21 +18,27 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { FbModeT, useFileBrowserStore } from '../../store/FBStateControl'
 import { DraggingCounter } from './DropSpot'
-import { getRealId, useKeyDownFileBrowser, usePaste } from './FileBrowserLogic'
+import {
+    filenameFromPath,
+    getRealId,
+    useKeyDownFileBrowser,
+    usePaste,
+} from './FileBrowserLogic'
 import { DirViewModeT } from './FileBrowserTypes'
 
 function useSearch() {
     const { search } = useLocation()
-    const q = new URLSearchParams(search)
+
     return useCallback(
         (s: string) => {
+            const q = new URLSearchParams(search)
             const r = q.get(s)
             if (!r) {
                 return ''
             }
             return r
         },
-        [q]
+        [search]
     )
 }
 
@@ -58,7 +64,7 @@ function FileBrowser() {
         presentingId,
         isSearching,
         fbMode,
-        contentId,
+        activeFileId,
         shareId,
         pastTime,
         addLoading,
@@ -113,7 +119,7 @@ function FileBrowser() {
             contentId = splitPath[0]
         }
 
-        const pastTime: Date = past ? new Date(past) : null
+        const pastTime: Date = past ? new Date(past) : new Date(0)
 
         if (mode === FbModeT.share && shareId && !contentId) {
             SharesApi.getFileShare(shareId)
@@ -126,18 +132,18 @@ function FileBrowser() {
             setLocationState({ contentId, mode, shareId, pastTime, jumpTo })
             // removeLoading('files')
         }
-    }, [urlPath, user, past, jumpTo])
+    }, [urlPath, user, past, jumpTo, nav, setLocationState])
 
     const { readyState } = useFolderSubscribe()
 
     useKeyDownFileBrowser()
 
     // Hook to handle uploading images from the clipboard
-    usePaste(contentId, user, blockFocus)
+    usePaste(activeFileId, user, blockFocus)
 
     // Reset most of the state when we change folders
     useEffect(() => {
-        if (contentId === null) {
+        if (activeFileId === null) {
             console.debug('Content ID is null, refusing to sync state')
             return
         }
@@ -174,7 +180,7 @@ function FileBrowser() {
                 clearSelected()
             }
 
-            const folder = filesMap.get(contentId)
+            const folder = filesMap.get(activeFileId)
             if (
                 folder &&
                 (pastTime.getTime() === 0 || folder.modifyDate === pastTime) &&
@@ -196,16 +202,24 @@ function FileBrowser() {
             folder?.SetFetching(true)
 
             const fileData = await GetFolderData(
-                contentId,
+                activeFileId,
                 fbMode,
                 shareId,
                 pastTime
-            ).catch((r: number) => {
+            ).catch((r) => {
+                if (r.status === 401) {
+                    console.error('Unauthorized, going to login')
+                    nav('/login', {
+                        state: { returnTo: window.location.pathname },
+                    })
+                    return
+                }
+                console.error('Error getting folder data', r)
                 setFilesFetchErr(r)
             })
 
             // If request comes back after we have already navigated away, do nothing
-            if (useFileBrowserStore.getState().contentId !== contentId) {
+            if (useFileBrowserStore.getState().activeFileId !== activeFileId) {
                 console.error("Content ID don't match")
                 return
             }
@@ -227,26 +241,33 @@ function FileBrowser() {
                     mediaData: fileData.medias,
                 })
 
+                if (fileData?.self?.portablePath) {
+                    document.title =
+                        filenameFromPath(fileData.self.portablePath).nameText +
+                        ' - Weblens'
+                }
+
                 folder?.SetFetching(false)
             }
 
             if (
                 (jumpTo || viewOpts.dirViewMode === DirViewModeT.Columns) &&
-                (fbMode !== FbModeT.share || contentId) &&
+                (fbMode !== FbModeT.share || activeFileId) &&
                 useFileBrowserStore.getState().selected.size === 0
             ) {
-                setSelected([jumpTo ? jumpTo : contentId], true)
+                setSelected([jumpTo ? jumpTo : activeFileId], true)
             }
         }
 
         addLoading('files')
+
         syncState()
             .catch((e: number) => {
                 console.error(e)
                 setFilesFetchErr(e)
             })
             .finally(() => removeLoading('files'))
-    }, [user, contentId, shareId, fbMode, pastTime, jumpTo])
+    }, [user, activeFileId, shareId, fbMode, pastTime, jumpTo])
 
     useEffect(() => {
         const selectedSize = useFileBrowserStore.getState().selected.size
@@ -260,10 +281,10 @@ function FileBrowser() {
 
         if (
             (jumpTo || viewOpts.dirViewMode === DirViewModeT.Columns) &&
-            (fbMode !== FbModeT.share || contentId) &&
+            (fbMode !== FbModeT.share || activeFileId) &&
             selectedSize === 0
         ) {
-            setSelected([jumpTo ? jumpTo : contentId], true)
+            setSelected([jumpTo ? jumpTo : activeFileId], true)
         }
     }, [viewOpts.dirViewMode])
 
@@ -280,11 +301,13 @@ function FileBrowser() {
             .catch(ErrorHandler)
     }
 
+    const presentingFile = filesMap.get(presentingId)
+
     return (
         <div className="flex h-screen flex-col">
             <HeaderBar />
             <DraggingCounter />
-            <PresentationFile file={filesMap.get(presentingId)} />
+            {presentingFile && <PresentationFile file={presentingFile} />}
             <PasteDialogue />
             {isSearching && (
                 <div className="absolute z-40 flex h-screen w-screen items-center justify-center bg-[#00000088] px-[30%] py-[10%] backdrop-blur-xs">
@@ -293,7 +316,7 @@ function FileBrowser() {
             )}
             <FileContextMenu />
             <div className="absolute bottom-1 left-1">
-                <WebsocketStatus ready={readyState} />
+                <WebsocketStatusDot ready={readyState} />
             </div>
             <div className="flex h-[90vh] grow flex-row items-start">
                 <FBSidebar />

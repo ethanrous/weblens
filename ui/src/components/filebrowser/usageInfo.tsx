@@ -1,15 +1,15 @@
 import { IconFiles, IconFolder, IconHome } from '@tabler/icons-react'
 import { useSessionStore } from '@weblens/components/UserInfo'
+import WeblensProgress from '@weblens/lib/WeblensProgress.tsx'
 import { useResize } from '@weblens/lib/hooks'
-import WeblensProgress from '@weblens/lib/WeblensProgress'
 import { humanFileSize } from '@weblens/util'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef } from 'react'
 
 import { FbModeT, useFileBrowserStore } from '../../store/FBStateControl'
 
 function UsageInfo() {
-    const [box, setBox] = useState<HTMLDivElement>(null)
-    const size = useResize(box)
+    const boxRef = useRef<HTMLDivElement>(null)
+    const size = useResize(boxRef)
 
     const user = useSessionStore((state) => state.user)
 
@@ -28,9 +28,13 @@ function UsageInfo() {
         () =>
             Array.from(selected.keys()).reduce((acc, fileId) => {
                 const f = filesMap.get(fileId)
-                return acc + f.size
+                if (!f) {
+                    return acc
+                }
+
+                return acc + (f.size ?? 0)
             }, 0),
-        [selectedLength]
+        [filesMap, selected]
     )
 
     let displaySize = folderInfo?.GetSize() || 0
@@ -84,7 +88,7 @@ function UsageInfo() {
 
     return (
         <div
-            ref={setBox}
+            ref={boxRef}
             className="border-t-color-border-primary mt-4 mb-1 flex h-max w-full flex-col gap-3 border-t pt-4"
             style={{
                 alignItems: miniMode ? 'center' : 'flex-start',

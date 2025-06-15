@@ -33,9 +33,10 @@
 	grid-template-columns: min-content min-content minmax(0, auto) min-content min-content;
 	grid-template-rows: min-content;
 	align-items: center;
+	border-radius: var(--wl-border-radius);
 
 	&[data-active='true'] {
-		background-color: var(--color-background-tertiary);
+		background-color: var(--color-background-secondary);
 		font-weight: 500;
 	}
 

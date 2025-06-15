@@ -3,7 +3,11 @@ TS_SOURCE=$(shell find ./ui/src/ -iname "*.ts*")
 
 all: run
 
+# WEBLENS_ENV_PATH=./scripts/.env ./build/bin/weblens
 run: gen-ui gen-go
+	./build/bin/weblens
+
+run\:go: gen-go
 	./build/bin/weblens
 
 gen-go: $(GO_SOURCE)
@@ -18,7 +22,22 @@ ui: $(TS_SOURCE) FORCE
 	cd ui && pnpm run dev
 
 test: $(GO_SOURCE) $(TS_SOURCE)
-	./scripts/testWeblens -a 
+	./scripts/testWeblens
+
+core: FORCE
+	./scripts/start.bash
+
+dev: FORCE
+	./scripts/start.bash --dev
+
+dev-s: FORCE
+	./scripts/start.bash --dev --secure
+
+dev\:backup: FORCE
+	./scripts/start.bash --dev -t backup
+
+swag: FORCE
+	./scripts/swaggo
 
 clean:
 	rm -rf ./build/bin/*
@@ -33,12 +52,7 @@ really-clean:
 docker\:build: $(GO_SOURCE) $(TS_SOURCE)
 	./scripts/gogogadgetdocker.bash 
 
-docker-push: test
+docker: test
 	./scripts/gogogadgetdocker.bash -p
-
-docker\:run: 
-	docker compose --file ./scripts/docker-compose.yml --env-file ./scripts/.env up -d
-
-docker: docker-build docker-run
 
 FORCE:

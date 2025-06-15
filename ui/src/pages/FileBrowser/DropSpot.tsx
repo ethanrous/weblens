@@ -4,7 +4,7 @@ import { useMouse } from '@weblens/lib/hooks'
 import { ErrorHandler } from '@weblens/types/Types'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import WeblensFile from '@weblens/types/files/File'
-import { useMemo } from 'react'
+import { RefObject, useMemo } from 'react'
 
 import { useFileBrowserStore } from '../../store/FBStateControl'
 import { HandleDrop } from './FileBrowserLogic'
@@ -17,22 +17,18 @@ export const TransferCard = ({
 }: {
     action: string
     destination: string
-    boundRef?: HTMLDivElement
+    boundRef?: RefObject<HTMLDivElement | null>
 }) => {
     let width: number
     let left: number
-    if (boundRef) {
-        width = boundRef.clientWidth
-        left = boundRef.getBoundingClientRect()['left']
+    if (boundRef && boundRef.current) {
+        width = boundRef.current.clientWidth
+        left = boundRef.current.getBoundingClientRect()['left']
     }
     const dragState = useFileBrowserStore((state) => state.draggingState)
-
-    const destFile = useMemo(() => {
-        if (!destination) {
-            return null
-        }
-        return useFileBrowserStore.getState().filesMap.get(destination)
-    }, [destination])
+    const destFile = useFileBrowserStore((state) =>
+        state.filesMap.get(destination)
+    )
 
     if (
         !destFile ||

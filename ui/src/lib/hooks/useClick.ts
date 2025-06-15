@@ -1,8 +1,8 @@
-import { useCallback, useEffect } from 'react'
+import { RefObject, useCallback, useEffect } from 'react'
 
 export const useClick = (
     handler: (e: MouseEvent) => void,
-    ignore?: HTMLDivElement,
+    ignore?: RefObject<HTMLElement | null>,
     disable?: boolean
 ) => {
     const callback = useCallback(
@@ -11,7 +11,7 @@ export const useClick = (
                 return
             }
 
-            if (ignore && ignore.contains(e.target as Node)) {
+            if (ignore?.current && ignore.current.contains(e.target as Node)) {
                 return
             }
 

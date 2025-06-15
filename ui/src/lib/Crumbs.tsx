@@ -12,7 +12,7 @@ import { ShareRoot, useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import WeblensFile from '@weblens/types/files/File'
 import { goToFile } from '@weblens/types/files/FileDragLogic'
-import { useEffect, useState } from 'react'
+import { RefObject, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import WeblensButton from './WeblensButton'
@@ -157,7 +157,7 @@ function LoafOverflowMenu({
     crumbs,
 }: {
     open: boolean
-    reff: HTMLDivElement
+    reff: RefObject<HTMLDivElement | null>
     setOpen: (b: boolean) => void
     crumbs: Crumb[]
 }) {
@@ -195,10 +195,10 @@ export const StyledLoaf = ({
 }) => {
     const [widths, setWidths] = useState<number[]>(new Array(crumbs.length))
     // const [squished, setSquished] = useState(0)
-    const [crumbsRef, setCrumbRef] = useState<HTMLDivElement>(null)
+    const crumbsRef = useRef<HTMLDivElement>(null)
     const size = useResize(crumbsRef)
     const [overflowMenu, setOverflowMenu] = useState(false)
-    const [overflowRef, setOverflowRef] = useState<HTMLDivElement>()
+    const overflowRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
         setOverflowMenu(false)
@@ -222,7 +222,7 @@ export const StyledLoaf = ({
     }
 
     return (
-        <div ref={setCrumbRef} className={crumbStyle.loaf}>
+        <div ref={crumbsRef} className={crumbStyle.loaf}>
             {crumbs.map((c, i) => (
                 <div
                     key={c.id}
@@ -243,7 +243,7 @@ export const StyledLoaf = ({
 
             {squished > 0 && (
                 <div
-                    ref={setOverflowRef}
+                    ref={overflowRef}
                     className="flex h-max w-max cursor-pointer flex-row items-center"
                     onClick={(e) => {
                         e.stopPropagation()

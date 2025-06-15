@@ -1,5 +1,5 @@
 import { IconFolder } from '@tabler/icons-react'
-import FileVisual from '@weblens/components/filebrowser/fileVisual'
+import FileVisual from '@weblens/components/filebrowser/fileVisual.tsx'
 import { HandleDrop } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { useFileBrowserStore } from '@weblens/store/FBStateControl'
 import {
@@ -72,7 +72,7 @@ export function FileSquare({
     file: WeblensFile
     selState: SelectedState
 }) {
-    const [mouseDown, setMouseDown] = useState<Coordinates>(null)
+    const [mouseDown, setMouseDown] = useState<Coordinates>({ x: -1, y: -1 })
 
     const draggingState = useFileBrowserStore((state) => state.draggingState)
     const setMoveDest = useFileBrowserStore((state) => state.setMoveDest)
@@ -88,7 +88,7 @@ export function FileSquare({
         (state) => state.setSelectedMoved
     )
 
-    const fileRef = useRef<HTMLDivElement>()
+    const fileRef = useRef<HTMLDivElement>(null)
 
     return (
         <div

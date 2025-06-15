@@ -1,15 +1,10 @@
-import {
-    IconFile,
-    IconFileZip,
-    IconFolder,
-    IconPhoto,
-} from '@tabler/icons-react'
+import { IconFile, IconFileZip, IconFolder } from '@tabler/icons-react'
 import { useResize } from '@weblens/lib/hooks'
 import WeblensFile from '@weblens/types/files/File'
 import { PhotoQuality } from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
-import { useState } from 'react'
+import { useRef } from 'react'
 
 function FileVisual({
     file,
@@ -18,7 +13,7 @@ function FileVisual({
     file: WeblensFile
     allowMedia?: boolean
 }) {
-    const [containerRef, setContainerRef] = useState<HTMLDivElement>(null)
+    const containerRef = useRef<HTMLDivElement>(null)
     const containerSize = useResize(containerRef)
     const mediaData = useMediaStore((state) =>
         state.mediaMap.get(file.GetContentId())
@@ -33,7 +28,7 @@ function FileVisual({
             const containerQuanta = Math.ceil(containerSize.height / 100)
             return (
                 <div
-                    ref={setContainerRef}
+                    ref={containerRef}
                     className="relative flex h-full w-full items-center justify-center"
                 >
                     <div
@@ -47,9 +42,9 @@ function FileVisual({
                             quality={PhotoQuality.LowRes}
                         />
                     </div>
-                    <div className="bg-wl-outline-subtle outline-theme-text absolute z-10 h-[88%] w-[88%] rounded-sm opacity-75 outline outline-2" />
+                    <div className="bg-wl-outline-subtle outline-theme-text absolute z-10 h-[88%] w-[88%] rounded-sm opacity-75 outline-2" />
                     <div
-                        className="bg-wl-outline-subtle outline-theme-text absolute h-[88%] w-[88%] rounded-sm opacity-50 outline outline-2"
+                        className="bg-wl-outline-subtle outline-theme-text absolute h-[88%] w-[88%] rounded-sm opacity-50 outline-2"
                         style={{
                             translate: `${containerQuanta * 3}px ${containerQuanta * 3}px`,
                         }}
@@ -66,11 +61,14 @@ function FileVisual({
         }
     }
 
-    if (mediaData && (!mediaData.IsImported() || !allowMedia)) {
-        return <IconPhoto stroke={1} className="shrink-0" />
-    } else if (mediaData && allowMedia && mediaData.IsImported()) {
+    if (mediaData?.contentId && allowMedia) {
         return <MediaImage media={mediaData} quality={PhotoQuality.LowRes} />
     }
+
+    // if (mediaData && (!mediaData.IsImported() || !allowMedia)) {
+    //     return <IconPhoto stroke={1} className="shrink-0" />
+    // } else if (mediaData && allowMedia && mediaData.IsImported()) {
+    // }
 
     const extIndex = file.GetFilename().lastIndexOf('.')
     const ext = file
@@ -84,13 +82,13 @@ function FileVisual({
         default:
             return (
                 <div
-                    ref={setContainerRef}
+                    ref={containerRef}
                     className="flex h-full w-full items-center justify-center"
                 >
                     <IconFile stroke={1} className="h-3/4 w-3/4" />
                     {extIndex !== -1 && (
                         <p
-                            className="absolute select-none font-semibold"
+                            className="absolute font-semibold select-none"
                             style={{ fontSize: textSize }}
                         >
                             .{ext}

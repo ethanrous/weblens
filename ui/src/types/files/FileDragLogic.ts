@@ -7,10 +7,11 @@ import {
     ShareRoot,
     useFileBrowserStore,
 } from '@weblens/store/FBStateControl'
+import { useMessagesController } from '@weblens/store/MessagesController'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import { Dispatch, MouseEvent } from 'react'
 
-import { Coordinates } from '../Types'
+import { Coordinates, ErrorHandler, validateCoordinates } from '../Types'
 import WeblensFile, { FbMenuModeT, SelectedState } from './File'
 
 export function mouseMove(
@@ -26,7 +27,7 @@ export function mouseMove(
     }
 
     if (
-        mouseDown &&
+        validateCoordinates(mouseDown) &&
         !draggingState &&
         (Math.abs(mouseDown.x - e.clientX) > 20 ||
             Math.abs(mouseDown.y - e.clientY) > 20)
@@ -116,14 +117,14 @@ export function handleMouseUp(
         state.setSelected([file.Id()], false)
     }
 
-    setMouseDown(null)
+    setMouseDown({ x: -1, y: -1 })
 }
 
 export function handleMouseLeave(
     e: MouseEvent<HTMLDivElement>,
     file: WeblensFile,
     draggingState: DraggingStateT,
-    fileRef: HTMLDivElement,
+    fileRef: HTMLDivElement | null,
     setMoveDest: (dest: string) => void,
     setHovering: (hovering: string) => void,
     mouseDown: Coordinates,
@@ -133,6 +134,7 @@ export function handleMouseLeave(
         if (
             e.relatedTarget &&
             e.relatedTarget instanceof Node &&
+            fileRef &&
             !fileRef.contains(e.relatedTarget)
         ) {
             setHovering('')
@@ -147,7 +149,7 @@ export function handleMouseLeave(
         setMoveDest('')
     }
     if (mouseDown) {
-        setMouseDown(null)
+        setMouseDown({ x: -1, y: -1 })
     }
 }
 
@@ -214,16 +216,13 @@ export function goToFile(next: WeblensFile, allowBlindHop: boolean = false) {
             // based on what we already have, and add the currentFolder to the list.
             parents.push(state.folderInfo)
             next.parents = parents
-        } else if (
-            next.parentId &&
-            parents.map((p) => p.Id()).includes(next.Id())
-        ) {
+        } else if (parents.map((p) => p.Id()).includes(next.Id())) {
             // If the next file is the current folders parent of any distance (i.e. we are going up a level)
-            while (
-                parents.length &&
-                parents[parents.length - 1].Id() !== next.parentId
-            ) {
-                parents.pop()
+            while (parents.length) {
+                const popped = parents.pop()
+                if (popped.Id() === next.Id()) {
+                    break
+                }
             }
             next.parents = parents
         } else if (next.Id() === state.folderInfo?.Id()) {
@@ -242,7 +241,8 @@ export function goToFile(next: WeblensFile, allowBlindHop: boolean = false) {
             return
         } else {
             console.error(
-                'ERR | goToFile did not find a valid state update rule'
+                'ERR | goToFile did not find a valid state update rule for',
+                next
             )
             return
         }
@@ -252,17 +252,24 @@ export function goToFile(next: WeblensFile, allowBlindHop: boolean = false) {
             .filter((p) => p)
 
         console.debug('Go to file:', next)
+
         const locProps: SetFilesDataOpts = {
             selfInfo: next,
             overwriteContentId: true,
         }
+
         if (
             state.fbMode === FbModeT.share &&
             state.folderInfo.Id() === ShareRoot.Id()
         ) {
             locProps.shareId = next.shareId ? next.shareId : ''
         }
-        state.setFilesData(locProps)
+
+        try {
+            state.setFilesData(locProps)
+        } catch (e) {
+            ErrorHandler(e, 'Failed to goToFile: error setting files data')
+        }
     } else {
         // If the next is not a folder, we can set the location to the parent of the next file,
         // with the child as the "jumpTo" parameter. If the parent is the same as the current folder,
@@ -290,9 +297,13 @@ export function goToFile(next: WeblensFile, allowBlindHop: boolean = false) {
                 state.nav('/files/' + next.parentId + '#' + next.Id())
                 return
             } else {
-                console.error(
-                    'BAD! goToFile did not find a valid state update rule'
-                )
+                useMessagesController.getState().addMessage({
+                    title: 'Failed to navigate to file',
+                    text: 'goToFile did not find a valid state update rule',
+                    severity: 'error',
+                    duration: 5000,
+                })
+
                 return
             }
         } else if (state.presentingId) {
@@ -303,7 +314,7 @@ export function goToFile(next: WeblensFile, allowBlindHop: boolean = false) {
         state.setFilesData({ selfInfo: newParent, overwriteContentId: true })
         state.setLocationState({ contentId: newParent.Id(), jumpTo: next.Id() })
     }
-    state.setSelected([next.Id()], true)
+    // state.setSelected([next.Id()], true)
 }
 
 export const activeItemsFromState = (

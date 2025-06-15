@@ -1,9 +1,10 @@
 import { IconArrowLeft, IconClock } from '@tabler/icons-react'
 import { FileApi } from '@weblens/api/FileBrowserApi'
-import FilesErrorDisplay from '@weblens/components/NotFound'
+import FilesErrorDisplay from '@weblens/components/NotFound.tsx'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import FileHistoryPane from '@weblens/components/filebrowser/historyPane'
-import Crumbs from '@weblens/lib/Crumbs'
+import FileHistoryPane from '@weblens/components/filebrowser/historyPane.tsx'
+import Crumbs from '@weblens/lib/Crumbs.tsx'
+import WeblensButton from '@weblens/lib/WeblensButton'
 import { useKeyDown } from '@weblens/lib/hooks'
 import { TransferCard } from '@weblens/pages/FileBrowser/DropSpot'
 import { historyDateTime } from '@weblens/pages/FileBrowser/FileBrowserLogic'
@@ -15,7 +16,7 @@ import WeblensFile, { FbMenuModeT } from '@weblens/types/files/File'
 import FileColumns from '@weblens/types/files/FileColumns'
 import FileGrid from '@weblens/types/files/FileGrid'
 import { FileRows } from '@weblens/types/files/FileRows'
-import { ReactElement, useCallback, useEffect, useState } from 'react'
+import { ReactElement, useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { FbModeT, useFileBrowserStore } from '../../store/FBStateControl'
@@ -30,7 +31,7 @@ function SingleFile({ file }: { file: WeblensFile }) {
                 link="/files/home"
                 setNotFound={() => {}}
                 error={404}
-				notFound={true}
+                notFound={true}
             />
         )
     }
@@ -54,8 +55,8 @@ function DirView({
 }) {
     const nav = useNavigate()
 
-    const [fullViewRef, setFullViewRef] = useState<HTMLDivElement>(null)
-    const [dragBoxRef, setDragBoxRef] = useState<HTMLDivElement>()
+    const fullViewRef = useRef<HTMLDivElement>(null)
+    const dragBoxRef = useRef<HTMLDivElement>(null)
 
     const mode = useFileBrowserStore((state) => state.fbMode)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
@@ -97,7 +98,7 @@ function DirView({
                 resourceType="Folder"
                 link="/files/home"
                 setNotFound={setFilesError}
-				notFound={true}
+                notFound={true}
             />
         )
     } else if (
@@ -130,7 +131,7 @@ function DirView({
     }
 
     return (
-        <div className="flex h-full flex-col" ref={setFullViewRef}>
+        <div className="flex h-full flex-col" ref={fullViewRef}>
             <DirViewHeader />
             <TransferCard
                 action={dropAction}
@@ -139,7 +140,7 @@ function DirView({
             />
             <div
                 className="flex h-0 w-full grow"
-                ref={setDragBoxRef}
+                ref={dragBoxRef}
                 onDragEnter={(e) => {
                     e.stopPropagation()
                     e.preventDefault()
@@ -149,15 +150,17 @@ function DirView({
                 onDragOver={(e) => e.preventDefault()}
                 onDragLeave={(e) => {
                     e.stopPropagation()
-                    if (dragBoxRef.contains(e.relatedTarget as Node)) {
+
+                    if (dragBoxRef.current?.contains(e.relatedTarget as Node)) {
                         return
                     }
+
                     setDragging(DraggingStateT.NoDrag)
                 }}
             >
                 <div className="flex h-full w-full min-w-[20vw] flex-col">
                     <div className="flex h-[200px] max-w-full grow flex-row">
-                        <div className="ml-1 w-0 shrink grow p-1">
+                        <div className="ml-3 w-0 shrink grow mr-0.5">
                             {fileDisplay}
                         </div>
                     </div>
@@ -173,6 +176,9 @@ function DirViewHeader() {
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const pastTime = useFileBrowserStore((state) => state.pastTime)
     const selected = useFileBrowserStore((state) => state.selected)
+    const historyPaneOpen = useFileBrowserStore(
+        (state) => state.historyPaneOpen
+    )
 
     const setLocationState = useFileBrowserStore(
         (state) => state.setLocationState
@@ -180,6 +186,9 @@ function DirViewHeader() {
     const setDragging = useFileBrowserStore((state) => state.setDragging)
     const setSelectedMoved = useFileBrowserStore(
         (state) => state.setSelectedMoved
+    )
+    const setHistoryPaneOpen = useFileBrowserStore(
+        (state) => state.setHistoryPaneOpen
     )
 
     const [viewingFolder, setViewingFolder] = useState<boolean>(false)
@@ -196,7 +205,7 @@ function DirViewHeader() {
                 newParentId: folderId,
             }).catch(ErrorHandler)
         },
-        [selected, folderInfo?.Id()]
+        [selected, folderInfo?.id, setDragging, setSelectedMoved]
     )
 
     useEffect(() => {
@@ -214,6 +223,19 @@ function DirViewHeader() {
                     <Crumbs navOnLast={false} moveSelectedTo={moveSelectedTo} />
                 )}
                 {(mode === FbModeT.share || viewingFolder) && <FileSortBox />}
+                <WeblensButton
+                    Left={IconClock}
+                    className="mr-3 ml-3"
+                    tooltip={{
+                        content: 'View History',
+                        position: 'right',
+                        className: 'mr-8',
+                    }}
+                    toggleOn={historyPaneOpen}
+                    onClick={() => {
+                        setHistoryPaneOpen(!historyPaneOpen)
+                    }}
+                />
             </div>
             {pastTime && pastTime.getTime() !== 0 && (
                 <div
@@ -264,6 +286,7 @@ function DirectoryView({
     searchFilter: string
 }) {
     const draggingState = useFileBrowserStore((state) => state.draggingState)
+    const folderInfo = useFileBrowserStore((state) => state.folderInfo)
 
     const setDragging = useFileBrowserStore((state) => state.setDragging)
     const clearSelected = useFileBrowserStore((state) => state.clearSelected)
@@ -292,13 +315,13 @@ function DirectoryView({
             onContextMenu={(e) => {
                 e.preventDefault()
                 setMenu({
-                    menuTarget: '',
+                    menuTarget: folderInfo?.Id() || '',
                     menuPos: { x: e.clientX, y: e.clientY },
                     menuState: FbMenuModeT.Default,
                 })
             }}
         >
-            <div className="h-full w-full p-2">
+            <div className="h-full w-full">
                 <DirView
                     filesError={filesError}
                     setFilesError={setFilesError}

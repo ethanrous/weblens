@@ -1,9 +1,9 @@
 import { IconChevronRight, IconFile } from '@tabler/icons-react'
 import { GetFolderData } from '@weblens/api/FileBrowserApi'
-import WeblensLoader from '@weblens/components/Loading'
+import WeblensLoader from '@weblens/components/Loading.tsx'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import FileVisual from '@weblens/components/filebrowser/fileVisual'
-import GetStartedCard from '@weblens/components/filebrowser/getStartedCard'
+import FileVisual from '@weblens/components/filebrowser/fileVisual.tsx'
+import GetStartedCard from '@weblens/components/filebrowser/getStartedCard.tsx'
 import { useKeyDown, useResize, useResizeDrag } from '@weblens/lib/hooks'
 import { HandleDrop } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { DirViewModeT } from '@weblens/pages/FileBrowser/FileBrowserTypes'
@@ -81,8 +81,11 @@ function ColumnRow({
     file: WeblensFile
     selState: SelectedState
 }) {
-    const [mouseDown, setMouseDown] = useState<{ x: number; y: number }>(null)
-    const fileRef = useRef<HTMLDivElement>()
+    const [mouseDown, setMouseDown] = useState<{ x: number; y: number }>({
+        x: -1,
+        y: -1,
+    })
+    const fileRef = useRef<HTMLDivElement>(null)
 
     const draggingState = useFileBrowserStore((state) => state.draggingState)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
@@ -344,7 +347,7 @@ function Column({
             .catch((err) => console.error('Failed to fetch column info', err))
     }, [folderInfo, files.length])
 
-    const [boxRef, setBoxRef] = useState<HTMLDivElement>()
+    const boxRef = useRef<HTMLDivElement>(null)
     const size = useResize(boxRef)
 
     useEffect(() => {
@@ -370,8 +373,8 @@ function Column({
     }, [selectedChildId])
 
     useEffect(() => {
-        if (boxRef && !selectedChildId) {
-            boxRef.scrollIntoView({
+        if (boxRef.current && !selectedChildId) {
+            boxRef.current.scrollIntoView({
                 behavior: 'instant',
                 block: 'nearest',
                 inline: 'nearest',
@@ -381,7 +384,7 @@ function Column({
 
     return (
         <div
-            ref={setBoxRef}
+            ref={boxRef}
             className={filesStyle.filesColumn}
             onClick={(e) => {
                 e.stopPropagation()
@@ -645,7 +648,6 @@ function FileColumns() {
                     goToFile(
                         new WeblensFile({
                             id: 'share',
-                            filename: 'Shared',
                             isDir: true,
                         }),
                         true
@@ -659,7 +661,6 @@ function FileColumns() {
                     goToFile(
                         new WeblensFile({
                             id: 'shared',
-                            filename: 'SHARED',
                             isDir: true,
                         }),
                         true

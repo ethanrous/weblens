@@ -3,8 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { FileApi } from '@weblens/api/FileBrowserApi'
 import { FileInfo } from '@weblens/api/swag'
 import { useSessionStore } from '@weblens/components/UserInfo'
+import WeblensInput from '@weblens/lib/WeblensInput.tsx'
 import { useResize } from '@weblens/lib/hooks'
-import WeblensInput from '@weblens/lib/WeblensInput'
 import { useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { ErrorHandler } from '@weblens/types/Types'
 import { CSSProperties, useCallback, useEffect, useRef, useState } from 'react'
@@ -133,8 +133,12 @@ function SearchDialogue({
             let res: FileInfo[] | void = []
 
             if (search.startsWith('~/')) {
-                res = await FileApi.autocompletePath(search)
-                    .then((res) => res.data.children)
+                const newSearch = search.replace(
+                    '~/',
+                    `USERS:${user.username}/`
+                )
+                res = await FileApi.autocompletePath(newSearch)
+                    .then((res) => [...res.data.children, res.data.self])
                     .catch(ErrorHandler)
             } else if (search.startsWith('./')) {
                 const path =
@@ -149,10 +153,12 @@ function SearchDialogue({
                     .then((res) => res.data)
                     .catch(ErrorHandler)
             }
+            console.log('searchResult2', res)
 
             if (!res) {
                 return []
             }
+
             return res
         },
     })
@@ -188,7 +194,7 @@ function SearchDialogue({
         } else {
             setHighlightIndex(-1)
         }
-    }, [selectNext])
+    }, [selectNext, files.length, search.length])
 
     useEffect(() => {
         if (searchResult) {
@@ -202,6 +208,8 @@ function SearchDialogue({
     } else if (search.startsWith('./')) {
         searchType = SearchModeT.local
     }
+
+    console.log('searchResult', files)
 
     const resultsData = {
         files,

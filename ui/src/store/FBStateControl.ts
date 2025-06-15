@@ -65,6 +65,7 @@ export interface FileBrowserStateT {
     viewOpts: FbViewOptsT
     fbMode: FbModeT
     sidebarCollapsed: boolean
+    historyPaneOpen: boolean
 
     folderInfo: WeblensFile
 
@@ -94,7 +95,7 @@ export interface FileBrowserStateT {
     // fileInfoMenu: boolean;
 
     shareId: string
-    contentId: string
+    activeFileId: string
     pastTime: Date
     pasteImgBytes: ArrayBuffer
 
@@ -142,6 +143,7 @@ export interface FileBrowserStateT {
     setNumCols: (cols: number) => void
     setPasteImgBytes: (bytes: ArrayBuffer) => void
     setSidebarCollapsed: (c: boolean) => void
+    setHistoryPaneOpen: (o: boolean) => void
 
     setMenu: (opts: MenuOptionsT) => void
     setViewOptions: (opts: ViewOptionsT) => void
@@ -266,20 +268,24 @@ function getSortedFilesLists(
 
     const lists: Map<string, WeblensFile[]> = new Map()
 
+    const homeId = useSessionStore.getState().user.homeId
     for (const file of state.filesMap.values()) {
+        if (file.ParentId() === homeId && file.IsTrash()) {
+            continue
+        }
         const fs = lists.get(file.ParentId()) ?? []
         fs.push(file)
         lists.set(file.ParentId(), fs)
     }
 
-    for (const pId of lists.keys()) {
-        const files = lists.get(pId)
+    for (const parentId of lists.keys()) {
+        const files = lists.get(parentId)
         files.sort(sortFunc)
         for (let i = 0; i < files.length; i++) {
             files[i].SetIndex(i)
             state.filesMap.set(files[i].Id(), files[i])
         }
-        lists.set(pId, files)
+        lists.set(parentId, files)
     }
 
     state.filesLists = lists
@@ -511,16 +517,16 @@ function setLocation(
     } else if (
         // If we are moving out of a folder, and no longer need the children,
         // clear the list for that folder
-        contentId !== state.contentId &&
-        state.filesMap.get(state.contentId)?.parentId !== contentId &&
-        state.filesMap.get(contentId)?.parentId !== state.contentId
+        contentId !== state.activeFileId &&
+        state.filesMap.get(state.activeFileId)?.parentId !== contentId &&
+        state.filesMap.get(contentId)?.parentId !== state.activeFileId
     ) {
-        const list = state.filesLists.get(state.contentId)
+        const list = state.filesLists.get(state.activeFileId)
         if (list) {
             for (const f of list) {
                 state.filesMap.delete(f.Id())
             }
-            state.filesLists.delete(state.contentId)
+            state.filesLists.delete(state.activeFileId)
         }
     }
 
@@ -530,7 +536,7 @@ function setLocation(
 
     return {
         ...state,
-        contentId: contentId,
+        activeFileId: contentId,
         // fbMode: state.fbMode,
         // shareId: state.shareId,
         // lastSelectedId: jumpTo ? jumpTo : contentId,
@@ -545,17 +551,41 @@ function addFile(
     state: FileBrowserStateT,
     newF: WeblensFile
 ): FileBrowserStateT {
-    console.debug('Adding file', newF.GetFilename())
+    if (newF.portablePath === '' || !newF.parentId) {
+        console.warn(
+            'Tried to add file with no portable path or parentId',
+            newF
+        )
+        return state
+    }
+
     state.filesMap.set(newF.Id(), newF)
 
     const list = state.filesLists.get(newF.parentId) ?? []
+
     const index = list.findIndex((f) => f.Id() === newF.Id())
     if (index > -1) {
         list[index] = newF
     } else {
         list.push(newF)
     }
+
     state.filesLists.set(newF.parentId, list)
+
+    return state
+}
+
+function purgeMovedFiles(
+    state: FileBrowserStateT,
+    newF: WeblensFile
+): FileBrowserStateT {
+    for (const child of state.folderInfo.childrenIds) {
+        if (newF.childrenIds.includes(child)) {
+            continue
+        }
+
+        state = deleteFile(child, state)
+    }
 
     return state
 }
@@ -572,22 +602,34 @@ function updateFileQuick(
 
         if (state.folderInfo && state.folderInfo?.Id() === user.homeId) {
             state.folderInfo.size = newF.size
+            state = purgeMovedFiles(state, newF)
         }
-        state.homeDirSize = newF.size
+
+        state.homeDirSize = newF.size ?? state.homeDirSize
+
         return state
     }
 
     if (newF.id === user.trashId) {
-        state.trashDirSize = newF.size
-        return state
+        state.trashDirSize = newF.size ?? state.homeDirSize
+
+        if (newF.id !== state.activeFileId) {
+            return state
+        }
     }
 
-    if (newF.id === state.contentId && state.folderInfo !== null) {
+    if (newF.id === state.activeFileId && state.folderInfo !== null) {
         state.folderInfo.SetSize(newF.size)
+
+        state = purgeMovedFiles(state, newF)
     }
 
     const existing = state.filesMap.get(newF.Id())
-    if (existing && existing.parentId !== newF.parentId) {
+    if (
+        (existing && existing.parentId !== newF.parentId) ||
+        newF.portablePath === ''
+    ) {
+        console.debug('(Re)moving file:', existing.portablePath)
         state = deleteFile(existing.Id(), state)
     } else if (existing) {
         newF.modifiable = existing.modifiable
@@ -615,7 +657,7 @@ function deleteFile(
         state.jumpTo = ''
     }
 
-    console.debug('Deleted file', existing?.GetFilename())
+    console.debug('Deleted file', existing?.portablePath)
 
     return state
 }
@@ -624,10 +666,10 @@ function clearFiles(state: FileBrowserStateT): FileBrowserStateT {
     console.debug('Clearing files')
     return {
         ...state,
-        contentId: null,
+        activeFileId: '',
         lastSelectedId: '',
         shareId: '',
-        folderInfo: null,
+        folderInfo: new WeblensFile({}),
         filesMap: new Map<string, WeblensFile>(),
         selected: new Map<string, boolean>(),
         filesLists: new Map<string, WeblensFile[]>(),
@@ -637,19 +679,18 @@ function clearFiles(state: FileBrowserStateT): FileBrowserStateT {
 
 export const ShareRoot = new WeblensFile({
     id: 'shared',
-    filename: 'SHARED',
     isDir: true,
 })
 
-const initState: FileBrowserStateT = {
+const initState: Partial<FileBrowserStateT> = {
     filesMap: new Map<string, WeblensFile>(),
     selected: new Map<string, boolean>(),
-    folderInfo: null,
+    folderInfo: new WeblensFile({}),
     filesLists: new Map<string, WeblensFile[]>(),
     loading: [],
     shareId: undefined,
     jumpTo: '',
-    contentId: '',
+    activeFileId: '',
     searchContent: '',
     lastSelectedId: '',
     presentingId: '',
@@ -666,14 +707,15 @@ const initState: FileBrowserStateT = {
     numCols: 0,
     fbMode: FbModeT.unset,
     sidebarCollapsed: false,
+    historyPaneOpen: false,
     viewOpts: loadViewOptions(),
     draggingState: DraggingStateT.NoDrag,
     menuPos: { x: 0, y: 0 },
-    pasteImgBytes: null,
+    pasteImgBytes: undefined,
 
-    nav: null,
-    navTimer: null,
-} as FileBrowserStateT
+    nav: undefined,
+    navTimer: undefined,
+} as Partial<FileBrowserStateT>
 
 const FBStateControl: StateCreator<
     FileBrowserStateT,
@@ -816,7 +858,7 @@ const FBStateControl: StateCreator<
         const user = useSessionStore.getState().user
 
         let parents = parentsInfo?.map((f) => new WeblensFile(f))
-        if (parents?.length > 1) {
+        if (parents && parents?.length > 1) {
             parents.reverse()
         }
 
@@ -828,6 +870,7 @@ const FBStateControl: StateCreator<
         let selfFile: WeblensFile
         if (selfInfo && !(selfInfo instanceof WeblensFile)) {
             selfFile = new WeblensFile(selfInfo)
+            selfFile.fromAPI = true
         } else if (selfInfo && selfInfo instanceof WeblensFile) {
             selfFile = selfInfo
         }
@@ -838,7 +881,7 @@ const FBStateControl: StateCreator<
                     state.fbMode === FbModeT.share &&
                     selfFile.Id() !== ShareRoot.Id()
                 ) {
-                    parents = parents ?? selfFile.parents
+                    parents = parents ?? selfFile.parents ?? []
                     if (
                         parents.length === 0 ||
                         parents[0].Id() !== ShareRoot.Id()
@@ -846,12 +889,16 @@ const FBStateControl: StateCreator<
                         parents.unshift(ShareRoot)
                     }
                 }
+
                 if (parents) {
                     selfFile.SetParents(parents)
                 }
+
                 if (
+                    selfFile.parents &&
+                    selfFile.portablePath &&
                     selfFile.parents.length !==
-                    selfFile.portablePath.split('/').length - 2
+                        selfFile.portablePath.split('/').length - 2
                 ) {
                     console.error(
                         "Parent count doesn't match path length. Parents:",
@@ -890,9 +937,9 @@ const FBStateControl: StateCreator<
                 }
 
                 if (selfFile.Id() != 'shared') {
-                    if (selfFile.Id() !== state.contentId) {
+                    if (selfFile.Id() !== state.activeFileId) {
                         console.error(
-                            `Content Id doesn't match new selfInfo, not updating state. Previous: ${state.folderInfo?.GetFilename()} (${state.contentId}) -- New: ${selfFile.GetFilename()} (${selfFile.Id()})`
+                            `Content Id doesn't match new selfInfo, not updating state. Previous: ${state.folderInfo?.GetFilename()} (${state.activeFileId}) -- New: ${selfFile.GetFilename()} (${selfFile.Id()})`
                         )
                         return state
                     }
@@ -903,7 +950,7 @@ const FBStateControl: StateCreator<
 
             for (const newFileInfo of childrenInfo ?? []) {
                 if (
-                    newFileInfo.id === state.contentId &&
+                    newFileInfo.id === state.activeFileId &&
                     state.folderInfo !== null
                 ) {
                     state.folderInfo.SetSize(newFileInfo.size)
@@ -914,6 +961,7 @@ const FBStateControl: StateCreator<
                     continue
                 }
                 if (newFileInfo.id === user.trashId) {
+                    console.debug('Got trash as child, skipping...')
                     continue
                 }
 
@@ -978,7 +1026,7 @@ const FBStateControl: StateCreator<
                 filesMap: new Map<string, WeblensFile>(state.filesMap),
                 filesLists: new Map<string, WeblensFile[]>(state.filesLists),
 
-                contentId: state.contentId,
+                activeFileId: state.activeFileId,
                 jumpTo: state.jumpTo,
                 shareId: state.shareId,
             }
@@ -1145,7 +1193,7 @@ const FBStateControl: StateCreator<
 
             return {
                 ...state,
-                contentId: folderId,
+                activeFileId: folderId,
                 pastTime: pastTime,
             }
         })
@@ -1250,6 +1298,10 @@ const FBStateControl: StateCreator<
 
     setSidebarCollapsed: (c: boolean) => {
         set({ sidebarCollapsed: c })
+    },
+
+    setHistoryPaneOpen: (o: boolean) => {
+        set({ historyPaneOpen: o })
     },
 
     setViewOptions: ({

@@ -11,9 +11,7 @@ WORKDIR /ui
 
 COPY ui .
 
-RUN npm install --global pnpm
-RUN pnpm install
-RUN pnpm run build
+RUN --mount=type=cache,target=./node_modules npm install && npm run build
 
 #
 # Test server binary
@@ -21,32 +19,23 @@ RUN pnpm run build
 FROM --platform=linux/${ARCHITECTURE} golang:${GO_VERSION}-alpine
 
 # Install dependencies
-RUN apk upgrade --no-cache
-RUN apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community --repository http://dl-3.alpinelinux.org/alpine/edge/main vips-dev vips-poppler
-RUN apk add --no-cache bash build-base pkgconfig
-RUN apk add --no-cache tiff-dev libraw-dev libpng-dev libwebp-dev libheif exiftool jasper-dev
-RUN apk add --no-cache ffmpeg tiff libraw libpng libwebp libheif libjpeg exiftool 
-# Build deps
-RUN apk add --no-cache build-base gcc jasper-dev libjpeg-turbo-dev lcms2-dev gettext gettext-dev gnu-libiconv-dev 
+COPY scripts/install-deps.sh /tmp/install-deps.sh
+RUN chmod +x /tmp/install-deps.sh
+RUN /tmp/install-deps.sh -b --dcraw
 
-WORKDIR /tmp
-RUN wget https://www.dechifro.org/dcraw/archive/dcraw-9.28.0.tar.gz ; \
-    tar -xzvf dcraw-*.tar.gz ; \
-    cd /tmp/dcraw ; \
-    sed 's/-llcms2/-llcms2 -lintl/' <install >install.new && mv install.new install ; \
-    chmod 755 install ;
-RUN cd /tmp/dcraw; ./install
-
-# COPY go.mod go.sum ./
 WORKDIR /src
 COPY . .
+# RUN go mod download
 COPY --from=web /ui ./ui
-RUN go mod download
+RUN touch .env
 
-ENV MONGODB_URI=mongodb://admin:admin@weblens-mongo:27017
-ENV LOG_LEVEL=debug
-ENV APP_ROOT=/src
-# RUN go test -v ./...
+ENV WEBLENS_MONGODB_URI=mongodb://weblens-test-mongo:27017/?replicaSet=rs0
+ENV WEBLENS_MONGODB_NAME=weblens-test
+ENV WEBLENS_LOG_LEVEL=debug
+ENV WEBLENS_LOG_FORMAT=dev
+ENV WEBLENS_ENV_PATH=/src/.env
+ENV WEBLENS_DO_CACHE=false
+ENV GOCACHE=/tmp/go-cache
 
-ENTRYPOINT ["/usr/local/go/bin/go", "test"]
-CMD ["-v", "./..."]
+ENTRYPOINT ["./scripts/testWeblens"]
+CMD ["-n"]

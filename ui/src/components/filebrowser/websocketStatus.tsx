@@ -1,13 +1,13 @@
-import WeblensTooltip from '@weblens/lib/WeblensTooltip'
+import WeblensTooltip from '@weblens/lib/WeblensTooltip.tsx'
 
-function WebsocketStatus({ ready }: { ready: number }) {
+function getWsState(ready: number): { color: string; status: string } {
     let color: string
     let status: string
 
     switch (ready) {
         case 1:
             color = '#00ff0055'
-            status = 'Connected'
+            status = 'Online'
             break
         case 2:
         case 3:
@@ -19,6 +19,12 @@ function WebsocketStatus({ ready }: { ready: number }) {
             status = 'Disconnected'
     }
 
+    return { color, status }
+}
+
+function WebsocketStatusDot({ ready }: { ready: number }) {
+    const { color, status } = getWsState(ready)
+
     return (
         <WeblensTooltip label={status}>
             <svg width="24" height="24" fill={color}>
@@ -28,4 +34,17 @@ function WebsocketStatus({ ready }: { ready: number }) {
     )
 }
 
-export default WebsocketStatus
+export function WebsocketStatusCard({ ready }: { ready: number }) {
+    const { color, status } = getWsState(ready)
+
+    return (
+        <div
+            className="flex items-center gap-2 p-1 rounded w-max"
+            style={{ backgroundColor: color }}
+        >
+            <span className='text-xs'>{status}</span>
+        </div>
+    )
+}
+
+export default WebsocketStatusDot

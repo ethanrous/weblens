@@ -32,14 +32,12 @@
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	justify-content: space-between;
 	opacity: 0;
 	padding: 30px;
 	flex-shrink: 0;
 	transition-property: transform, opacity;
 	transition-duration: 200ms;
 	transition-timing-function: var(--ease-wl-default);
-	gap: 10px;
 	pointer-events: none;
 
 }

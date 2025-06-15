@@ -6,15 +6,19 @@ import { CSSProperties } from 'react'
 
 export default function Messages() {
     const messages = useMessagesController((state) => state.messages)
+    if (messages.size === 0) {
+        return null
+    }
+
+    const sortedMsgs = Array.from(messages.values()).sort(
+        (a, b) => a.queueTime - b.queueTime
+    )
+
     return (
-        <div className="absolute right-4 bottom-4 z-50 w-max">
-            {messages
-                .values()
-                .toArray()
-                .sort((a, b) => a.queueTime - b.queueTime)
-                .map((m, i) => (
-                    <SingleMessage key={i} message={m} />
-                ))}
+        <div className="absolute right-4 bottom-4 z-[999] w-max">
+            {sortedMsgs.map((m, i) => (
+                <SingleMessage key={i} message={m} />
+            ))}
         </div>
     )
 }
@@ -41,7 +45,7 @@ function SingleMessage({ message }: { message: Message }) {
 
     return (
         <div
-            className="animate-fade-in border-message bg-background-primary m-2 rounded-md border transition"
+            className="animate-fade-in border-message bg-background-primary pointer-events-none m-2 rounded-md border transition"
             style={
                 {
                     opacity: message.expired ? 0 : 100,
@@ -50,8 +54,8 @@ function SingleMessage({ message }: { message: Message }) {
             }
         >
             <div className="bg-message/50 p-2">
-                <h4>{message.title}</h4>
-                <span>{message.text}</span>
+                <h5>{message.title}</h5>
+                <h5 className="text-text-secondary">{message.text}</h5>
             </div>
         </div>
     )

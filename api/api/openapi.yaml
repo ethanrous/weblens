@@ -1,0 +1,3041 @@
+openapi: 3.0.1
+info:
+  contact: {}
+  description: Programmatic access to the Weblens server
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  title: Weblens API
+  version: "1.0"
+servers:
+- url: http://localhost:8080/api/v1/
+- url: https://localhost:8080/api/v1/
+paths:
+  /files:
+    delete:
+      operationId: DeleteFiles
+      parameters:
+      - description: Delete files even if they are not in the trash
+        in: query
+        name: ignoreTrash
+        schema:
+          type: boolean
+      - description: Preserve parent folder if it is empty after deletion
+        in: query
+        name: preserveFolder
+        schema:
+          type: boolean
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/FilesListParams'
+        description: Delete files request body
+        required: true
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "401":
+          content: {}
+          description: Unauthorized
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Delete Files "permanently"
+      tags:
+      - Files
+      x-codegen-request-body-name: request
+    patch:
+      operationId: MoveFiles
+      parameters:
+      - description: Share Id
+        in: query
+        name: shareId
+        schema:
+          type: string
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/MoveFilesParams'
+        description: Move files request body
+        required: true
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Move a list of files to a new parent folder
+      tags:
+      - Files
+      x-codegen-request-body-name: request
+  /files/autocomplete:
+    get:
+      operationId: AutocompletePath
+      parameters:
+      - description: Search path
+        in: query
+        name: searchPath
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/FolderInfo'
+          description: Path info
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Get path completion suggestions
+      tags:
+      - Files
+  /files/search:
+    get:
+      operationId: SearchByFilename
+      parameters:
+      - description: Filename to search for
+        in: query
+        name: search
+        required: true
+        schema:
+          type: string
+      - description: "The folder to search in, defaults to the user's home folder"
+        in: query
+        name: baseFolderId
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                items:
+                  $ref: '#/components/schemas/FileInfo'
+                type: array
+          description: File Info
+        "400":
+          content: {}
+          description: Bad Request
+        "401":
+          content: {}
+          description: Unauthorized
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Search for files by filename
+      tags:
+      - Files
+  /files/shared:
+    get:
+      operationId: GetSharedFiles
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/FolderInfo'
+          description: All the top-level files shared with the user
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Get files shared with the logged in user
+      tags:
+      - Files
+  /files/structsore:
+    post:
+      operationId: RestoreFiles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RestoreFilesBody'
+        description: RestoreFiles files request body
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RestoreFilesInfo'
+          description: structsore files info
+        "400":
+          content: {}
+          description: Bad Request
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: structsore files from some time in the past
+      tags:
+      - Files
+      x-codegen-request-body-name: request
+  /files/untrash:
+    patch:
+      operationId: UnTrashFiles
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/FilesListParams'
+        description: Un-trash files request body
+        required: true
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "401":
+          content: {}
+          description: Unauthorized
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: "Move a list of files out of the trash, structsoring them to where\
+        \ they were before"
+      tags:
+      - Files
+      x-codegen-request-body-name: request
+  /files/{fileId}:
+    get:
+      operationId: GetFile
+      parameters:
+      - description: File Id
+        in: path
+        name: fileId
+        required: true
+        schema:
+          type: string
+      - description: Share Id
+        in: query
+        name: shareId
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileInfo'
+          description: File Info
+        "401":
+          content: {}
+          description: Unauthorized
+        "404":
+          content: {}
+          description: Not Found
+      security:
+      - SessionAuth: []
+      summary: Get information about a file
+      tags:
+      - Files
+    patch:
+      operationId: UpdateFile
+      parameters:
+      - description: File Id
+        in: path
+        name: fileId
+        required: true
+        schema:
+          type: string
+      - description: Share Id
+        in: query
+        name: shareId
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFileParams'
+        description: Update file request body
+        required: true
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "403":
+          content: {}
+          description: Forbidden
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Update a File
+      tags:
+      - Files
+      x-codegen-request-body-name: request
+  /files/{fileId}/download:
+    get:
+      operationId: DownloadFile
+      parameters:
+      - description: File Id
+        in: path
+        name: fileId
+        required: true
+        schema:
+          type: string
+      - description: Share Id
+        in: query
+        name: shareId
+        schema:
+          type: string
+      - description: File format conversion
+        in: query
+        name: format
+        schema:
+          type: string
+      - description: Is this a takeout file
+        in: query
+        name: isTakeout
+        schema:
+          default: false
+          type: boolean
+      responses:
+        "200":
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+          description: File content
+        "404":
+          content:
+            application/octet-stream:
+              schema:
+                $ref: '#/components/schemas/WeblensErrorInfo'
+          description: Error Info
+      security:
+      - SessionAuth: []
+      summary: Download a file
+      tags:
+      - Files
+  /files/{fileId}/history:
+    get:
+      operationId: GetFolderHistory
+      parameters:
+      - description: File Id
+        in: path
+        name: fileId
+        required: true
+        schema:
+          type: string
+      - description: "Past timestamp to view the folder at, in ms since epoch"
+        in: query
+        name: timestamp
+        required: true
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                items:
+                  $ref: '#/components/schemas/FileActionInfo'
+                type: array
+          description: File actions
+        "400":
+          content: {}
+          description: Bad Request
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Get actions of a folder at a given time
+      tags:
+      - Folder
+  /files/{fileId}/stats:
+    get:
+      operationId: GetFileStats
+      parameters:
+      - description: File Id
+        in: path
+        name: fileId
+        required: true
+        schema:
+          type: string
+      responses:
+        "400":
+          content: {}
+          description: Bad Request
+        "501":
+          content: {}
+          description: Not Implemented
+      security:
+      - SessionAuth: []
+      summary: Get the statistics of a file
+      tags:
+      - Files
+  /files/{fileId}/text:
+    get:
+      operationId: GetFileText
+      parameters:
+      - description: File Id
+        in: path
+        name: fileId
+        required: true
+        schema:
+          type: string
+      - description: Share Id
+        in: query
+        name: shareId
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: File text
+        "400":
+          content: {}
+          description: Bad Request
+      security:
+      - SessionAuth: []
+      summary: Get the text of a text file
+      tags:
+      - Files
+  /folder:
+    post:
+      operationId: CreateFolder
+      parameters:
+      - description: Share Id
+        in: query
+        name: shareId
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFolderBody'
+        description: New folder body
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileInfo'
+          description: File Info
+      security:
+      - SessionAuth: []
+      summary: Create a new folder
+      tags:
+      - Folder
+      x-codegen-request-body-name: request
+  /folder/scan:
+    post:
+      operationId: ScanFolder
+      parameters:
+      - description: Share Id
+        in: query
+        name: shareId
+        schema:
+          type: string
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/structs.ScanBody'
+        description: Scan parameters
+        required: true
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Dispatch a folder scan
+      tags:
+      - Folder
+      x-codegen-request-body-name: request
+  /folder/{folderId}:
+    get:
+      operationId: GetFolder
+      parameters:
+      - description: Folder Id
+        in: path
+        name: folderId
+        required: true
+        schema:
+          type: string
+      - description: Share Id
+        in: query
+        name: shareId
+        schema:
+          type: string
+      - description: "Past timestamp to view the folder at, in ms since epoch"
+        in: query
+        name: timestamp
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FolderInfo'
+          description: Folder Info
+      security:
+      - SessionAuth: []
+      summary: Get a folder
+      tags:
+      - Folder
+  /folder/{folderId}/cover:
+    patch:
+      operationId: SetFolderCover
+      parameters:
+      - description: Folder Id
+        in: path
+        name: folderId
+        required: true
+        schema:
+          type: string
+      - description: Media Id
+        in: query
+        name: mediaId
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "400":
+          content: {}
+          description: Bad Request
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Set the cover image of a folder
+      tags:
+      - Folder
+  /info:
+    get:
+      operationId: GetServerInfo
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TowerInfo'
+          description: Server info
+      summary: Get server info
+      tags:
+      - Towers
+  /keys:
+    get:
+      operationId: GetApiKeys
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/TokenInfo'
+                type: array
+          description: Tokens
+        "403":
+          content: {}
+          description: Forbidden
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Get all api keys
+      tags:
+      - ApiKeys
+    post:
+      operationId: CreateApiKey
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/ApiKeyParams'
+        description: The new token params
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenInfo'
+          description: The new token
+        "403":
+          content: {}
+          description: Forbidden
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Create a new api key
+      tags:
+      - ApiKeys
+      x-codegen-request-body-name: params
+  /keys/{tokenId}:
+    delete:
+      operationId: DeleteApiKey
+      parameters:
+      - description: Api key id
+        in: path
+        name: tokenId
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "403":
+          content: {}
+          description: Forbidden
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth:
+        - admin
+      summary: Delete an api key
+      tags:
+      - ApiKeys
+  /media:
+    get:
+      operationId: GetMedia
+      parameters:
+      - description: Include raw files
+        in: query
+        name: raw
+        schema:
+          default: false
+          type: boolean
+      - description: Include hidden media
+        in: query
+        name: hidden
+        schema:
+          default: false
+          type: boolean
+      - description: Sort by field
+        in: query
+        name: sort
+        schema:
+          default: createDate
+          enum:
+          - createDate
+          type: string
+      - description: Search string
+        in: query
+        name: search
+        schema:
+          type: string
+      - description: Page of medias to get
+        in: query
+        name: page
+        schema:
+          type: integer
+      - description: Number of medias to get
+        in: query
+        name: limit
+        schema:
+          type: integer
+      - description: Search only in given folders
+        in: query
+        name: folderIds
+        schema:
+          type: string
+      - description: Get only media with the provided ids
+        in: query
+        name: mediaIds
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaBatchInfo'
+          description: Media Batch
+        "400":
+          content: {}
+          description: Bad Request
+        "500":
+          content: {}
+          description: Internal Server Error
+      summary: Get paginated media
+      tags:
+      - Media
+  /media/cleanup:
+    post:
+      operationId: CleanupMedia
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Make sure all media is correctly synced with the file system
+      tags:
+      - Media
+  /media/drop:
+    post:
+      operationId: DropMedia
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "403":
+          content: {}
+          description: Forbidden
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: DANGEROUS. Drop all computed media and clear thumbnail in-memory and
+        filesystem cache. Must be server owner.
+      tags:
+      - Media
+  /media/random:
+    get:
+      operationId: GetRandomMedia
+      parameters:
+      - description: Number of random medias to get
+        in: query
+        name: count
+        required: true
+        schema:
+          type: number
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaBatchInfo'
+          description: Media Batch
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      summary: Get random media
+      tags:
+      - Media
+  /media/types:
+    get:
+      operationId: GetMediaTypes
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaTypesInfo'
+          description: Media types
+      summary: Get media type dictionary
+      tags:
+      - Media
+  /media/visibility:
+    patch:
+      operationId: SetMediaVisibility
+      parameters:
+      - description: Set the media visibility
+        in: query
+        name: hidden
+        required: true
+        schema:
+          type: boolean
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/MediaIdsParams'
+        description: MediaIds to change visibility of
+        required: true
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      summary: Set media visibility
+      tags:
+      - Media
+      x-codegen-request-body-name: mediaIds
+  /media/{mediaId}.{extension}:
+    get:
+      operationId: GetMediaImage
+      parameters:
+      - description: Media Id
+        in: path
+        name: mediaId
+        required: true
+        schema:
+          type: string
+      - description: Extension
+        in: path
+        name: extension
+        required: true
+        schema:
+          type: string
+      - description: Image Quality
+        in: query
+        name: quality
+        required: true
+        schema:
+          enum:
+          - thumbnail
+          - fullres
+          type: string
+      - description: Page number
+        in: query
+        name: page
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            image/*:
+              schema:
+                type: string
+          description: image bytes
+        "500":
+          content: {}
+          description: Internal Server Error
+      summary: Get a media image bytes
+      tags:
+      - Media
+  /media/{mediaId}/file:
+    get:
+      operationId: GetMediaFile
+      parameters:
+      - description: Id of media
+        in: path
+        name: mediaId
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileInfo'
+          description: File info of file media was created from
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      - ApiKeyAuth: []
+      summary: Get file of media by id
+      tags:
+      - Media
+  /media/{mediaId}/info:
+    get:
+      operationId: GetMediaInfo
+      parameters:
+      - description: Media Id
+        in: path
+        name: mediaId
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaInfo'
+          description: Media Info
+      summary: Get media info
+      tags:
+      - Media
+  /media/{mediaId}/liked:
+    patch:
+      operationId: SetMediaLiked
+      parameters:
+      - description: Id of media
+        in: path
+        name: mediaId
+        required: true
+        schema:
+          type: string
+      - description: ShareId
+        in: query
+        name: shareId
+        schema:
+          type: string
+      - description: Liked status to set
+        in: query
+        name: liked
+        required: true
+        schema:
+          type: boolean
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "401":
+          content: {}
+          description: Unauthorized
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Like a media
+      tags:
+      - Media
+  /media/{mediaId}/video:
+    get:
+      operationId: StreamVideo
+      parameters:
+      - description: Id of media
+        in: path
+        name: mediaId
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      - ApiKeyAuth: []
+      summary: Stream a video
+      tags:
+      - Media
+  /share/file:
+    post:
+      operationId: CreateFileShare
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/FileShareParams'
+        description: New File Share Params
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareInfo'
+          description: New File Share
+        "409":
+          content: {}
+          description: Conflict
+      summary: Share a file
+      tags:
+      - Share
+      x-codegen-request-body-name: request
+  /share/{shareId}:
+    delete:
+      operationId: DeleteFileShare
+      parameters:
+      - description: Share Id
+        in: path
+        name: shareId
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "404":
+          content: {}
+          description: Not Found
+      summary: Delete a file share
+      tags:
+      - Share
+    get:
+      operationId: GetFileShare
+      parameters:
+      - description: Share Id
+        in: path
+        name: shareId
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareInfo'
+          description: File Share
+        "404":
+          content: {}
+          description: Not Found
+      summary: Get a file share
+      tags:
+      - Share
+  /share/{shareId}/accessors:
+    post:
+      operationId: AddUserToShare
+      parameters:
+      - description: Share Id
+        in: path
+        name: shareId
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/AddUserParams'
+        description: Share Accessors
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareInfo'
+          description: OK
+        "404":
+          content: {}
+          description: Not Found
+      summary: Add a user to a file share
+      tags:
+      - Share
+      x-codegen-request-body-name: request
+  /share/{shareId}/accessors/{username}:
+    delete:
+      operationId: RemoveUserFromShare
+      parameters:
+      - description: Share Id
+        in: path
+        name: shareId
+        required: true
+        schema:
+          type: string
+      - description: Username
+        in: path
+        name: username
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareInfo'
+          description: OK
+        "404":
+          content: {}
+          description: Not Found
+      summary: Remove a user from a file share
+      tags:
+      - Share
+    patch:
+      operationId: UpdateShareAccessorPermissions
+      parameters:
+      - description: Share Id
+        in: path
+        name: shareId
+        required: true
+        schema:
+          type: string
+      - description: Username
+        in: path
+        name: username
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/PermissionsParams'
+        description: Share Permissions Params
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareInfo'
+          description: OK
+        "404":
+          content: {}
+          description: Not Found
+      summary: Update a share's user permissions
+      tags:
+      - Share
+      x-codegen-request-body-name: request
+  /share/{shareId}/public:
+    patch:
+      operationId: SetSharePublic
+      parameters:
+      - description: Share Id
+        in: path
+        name: shareId
+        required: true
+        schema:
+          type: string
+      - description: Share Public Status
+        in: query
+        name: public
+        required: true
+        schema:
+          type: boolean
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "404":
+          content: {}
+          description: Not Found
+      summary: Update a share's "public" status
+      tags:
+      - Share
+  /takeout:
+    post:
+      description: "Dispatch a task to create a zip file of the given files, or get\
+        \ the id of a previously created zip file if it already exists"
+      operationId: CreateTakeout
+      parameters:
+      - description: Share Id
+        in: query
+        name: shareId
+        schema:
+          type: string
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/FilesListParams'
+        description: File Ids
+        required: true
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TakeoutInfo'
+          description: Zip Takeout Info
+        "202":
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TakeoutInfo'
+          description: Task Dispatch Info
+        "400":
+          content: {}
+          description: Bad Request
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Create a zip file
+      tags:
+      - Files
+      x-codegen-request-body-name: request
+  /tower:
+    get:
+      operationId: GetRemotes
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                items:
+                  $ref: '#/components/schemas/TowerInfo'
+                type: array
+          description: Tower Info
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Get all remotes
+      tags:
+      - Towers
+  /tower/backup:
+    get:
+      operationId: GetBackupInfo
+      parameters:
+      - description: Timestamp in milliseconds since epoch
+        in: query
+        name: timestamp
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupInfo'
+          description: Backup Info
+        "400":
+          content: {}
+          description: Bad Request
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - ApiKeyAuth:
+        - admin
+      summary: Get information about a file
+      tags:
+      - Towers
+  /tower/init:
+    post:
+      operationId: InitializeTower
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/structs.InitServerParams'
+        description: Server initialization body
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/TowerInfo'
+                type: array
+          description: New server info
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security: []
+      summary: Initialize the target server
+      tags:
+      - Towers
+      x-codegen-request-body-name: request
+  /tower/remote:
+    post:
+      operationId: CreateRemote
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/NewServerParams'
+        description: New Server Params
+        required: true
+      responses:
+        "201":
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TowerInfo'
+          description: New Server Info
+        "400":
+          content: {}
+          description: Bad Request
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Create a new remote
+      tags:
+      - Towers
+      x-codegen-request-body-name: request
+  /tower/reset:
+    post:
+      operationId: ResetTower
+      responses:
+        "202":
+          content: {}
+          description: Accepted
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Reset tower
+      tags:
+      - Towers
+  /tower/{serverId}:
+    delete:
+      operationId: DeleteRemote
+      parameters:
+      - description: Server Id to delete
+        in: path
+        name: serverId
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "400":
+          content: {}
+          description: Bad Request
+        "404":
+          content: {}
+          description: Not Found
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Delete a remote
+      tags:
+      - Towers
+  /tower/{serverId}/backup:
+    post:
+      operationId: LaunchBackup
+      parameters:
+      - description: Server ID
+        in: path
+        name: serverId
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content: {}
+          description: OK
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Launch backup on a tower
+      tags:
+      - Towers
+  /upload:
+    post:
+      operationId: StartUpload
+      parameters:
+      - description: Share Id
+        in: query
+        name: shareId
+        schema:
+          type: string
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/NewUploadParams'
+        description: New upload request body
+        required: true
+      responses:
+        "201":
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/NewUploadInfo'
+          description: Upload Info
+        "401":
+          content: {}
+          description: Unauthorized
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Begin a new upload task
+      tags:
+      - Files
+      x-codegen-request-body-name: request
+  /upload/{uploadId}:
+    get:
+      operationId: GetUploadResult
+      parameters:
+      - description: Upload Id
+        in: path
+        name: uploadId
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "401":
+          content: {}
+          description: Unauthorized
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Get the result of an upload task. This will block until the upload
+        is complete
+      tags:
+      - Files
+    post:
+      operationId: AddFilesToUpload
+      parameters:
+      - description: Upload Id
+        in: path
+        name: uploadId
+        required: true
+        schema:
+          type: string
+      - description: Share Id
+        in: query
+        name: shareId
+        schema:
+          type: string
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/NewFilesParams'
+        description: New file params
+        required: true
+      responses:
+        "201":
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/NewFilesInfo'
+          description: FileIds
+        "401":
+          content: {}
+          description: Unauthorized
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Add a file to an upload task
+      tags:
+      - Files
+      x-codegen-request-body-name: request
+  /upload/{uploadId}/file/{fileId}:
+    put:
+      operationId: UploadFileChunk
+      parameters:
+      - description: Upload Id
+        in: path
+        name: uploadId
+        required: true
+        schema:
+          type: string
+      - description: File Id
+        in: path
+        name: fileId
+        required: true
+        schema:
+          type: string
+      - description: Share Id
+        in: query
+        name: shareId
+        schema:
+          type: string
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UploadFileChunk_request'
+        required: true
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "401":
+          content: {}
+          description: Unauthorized
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Add a chunk to a file upload
+      tags:
+      - Files
+  /users:
+    get:
+      operationId: GetUsers
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/UserInfoArchive'
+                type: array
+          description: List of users
+        "401":
+          content: {}
+          description: Unauthorized
+      security:
+      - SessionAuth:
+        - admin
+      summary: "Get all users, including (possibly) sensitive information like password\
+        \ hashes"
+      tags:
+      - Users
+    post:
+      operationId: CreateUser
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/NewUserParams'
+        description: New user params
+        required: true
+      responses:
+        "201":
+          content: {}
+          description: Created
+        "401":
+          content: {}
+          description: Unauthorized
+      security:
+      - ApiKeyAuth: []
+      summary: Create a new user
+      tags:
+      - Users
+      x-codegen-request-body-name: newUserParams
+  /users/auth:
+    post:
+      operationId: LoginUser
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/LoginBody'
+        description: Login params
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInfo'
+          description: Logged-in users info
+        "401":
+          content: {}
+          description: Unauthorized
+      summary: Login User
+      tags:
+      - Users
+      x-codegen-request-body-name: loginParams
+  /users/logout:
+    post:
+      operationId: LogoutUser
+      responses:
+        "200":
+          content: {}
+          description: OK
+      security:
+      - SessionAuth: []
+      summary: Logout User
+      tags:
+      - Users
+  /users/me:
+    get:
+      operationId: GetUser
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInfo'
+          description: Logged-in users info
+        "401":
+          content: {}
+          description: Unauthorized
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Gets the user based on the auth token
+      tags:
+      - Users
+  /users/search:
+    get:
+      operationId: SearchUsers
+      parameters:
+      - description: Partial username to search for
+        in: query
+        name: search
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/UserInfo'
+                type: array
+          description: List of users
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WeblensErrorInfo'
+          description: Username autocomplete must contain at least 2 characters
+        "401":
+          content: {}
+          description: Unauthorized
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Search for users by username
+      tags:
+      - Users
+  /users/{username}:
+    delete:
+      operationId: DeleteUser
+      parameters:
+      - description: Username of user to delete
+        in: path
+        name: username
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "401":
+          content: {}
+          description: Unauthorized
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth:
+        - Admin
+      - ApiKeyAuth:
+        - Admin
+      summary: Delete a user
+      tags:
+      - Users
+    head:
+      operationId: CheckExists
+      parameters:
+      - description: Username of user to check
+        in: path
+        name: username
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "400":
+          content: {}
+          description: Bad Request
+        "404":
+          content: {}
+          description: Not Found
+      summary: Check if username is already taken
+      tags:
+      - Users
+  /users/{username}/active:
+    patch:
+      operationId: ActivateUser
+      parameters:
+      - description: Username of user to update
+        in: path
+        name: username
+        required: true
+        schema:
+          type: string
+      - description: Target activation status
+        in: query
+        name: setActive
+        required: true
+        schema:
+          type: boolean
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WeblensErrorInfo'
+          description: Bad Request
+        "401":
+          content: {}
+          description: Unauthorized
+        "404":
+          content: {}
+          description: Not Found
+      security:
+      - SessionAuth: []
+      - ApiKeyAuth: []
+      summary: Update active status of user
+      tags:
+      - Users
+  /users/{username}/admin:
+    patch:
+      operationId: SetUserAdmin
+      parameters:
+      - description: Username of user to update
+        in: path
+        name: username
+        required: true
+        schema:
+          type: string
+      - description: Target admin status
+        in: query
+        name: setAdmin
+        required: true
+        schema:
+          type: boolean
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WeblensErrorInfo'
+          description: Bad Request
+        "403":
+          content: {}
+          description: Forbidden
+        "404":
+          content: {}
+          description: Not Found
+      security:
+      - SessionAuth: []
+      - ApiKeyAuth: []
+      summary: Update admin status of user
+      tags:
+      - Users
+  /users/{username}/fullName:
+    patch:
+      operationId: ChangeDisplayName
+      parameters:
+      - description: Username of user to update
+        in: path
+        name: username
+        required: true
+        schema:
+          type: string
+      - description: New full name of user
+        in: query
+        name: newFullName
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WeblensErrorInfo'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WeblensErrorInfo'
+          description: Unauthorized
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WeblensErrorInfo'
+          description: Not Found
+      security:
+      - SessionAuth: []
+      - ApiKeyAuth: []
+      summary: Update display name of a user
+      tags:
+      - Users
+  /users/{username}/password:
+    patch:
+      operationId: UpdateUserPassword
+      parameters:
+      - description: Username of user to update
+        in: path
+        name: username
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/PasswordUpdateParams'
+        description: Password update params
+        required: true
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WeblensErrorInfo'
+          description: Both oldPassword and newPassword fields are required
+        "403":
+          content: {}
+          description: Forbidden
+        "404":
+          content: {}
+          description: Not Found
+      security:
+      - SessionAuth: []
+      - ApiKeyAuth: []
+      summary: Update user password
+      tags:
+      - Users
+      x-codegen-request-body-name: passwordUpdateParams
+components:
+  schemas:
+    AddUserParams:
+      example:
+        canEdit: true
+        canDownload: true
+        canDelete: true
+        username: username
+      properties:
+        canDelete:
+          type: boolean
+        canDownload:
+          type: boolean
+        canEdit:
+          type: boolean
+        username:
+          type: string
+      required:
+      - username
+      type: object
+    ApiKeyParams:
+      example:
+        name: name
+      properties:
+        name:
+          type: string
+      required:
+      - name
+      type: object
+    BackupInfo:
+      example:
+        fileHistory:
+        - actionType: actionType
+          eventId: eventId
+          filepath: filepath
+          originPath: originPath
+          size: 0
+          contentId: contentId
+          destinationPath: destinationPath
+          towerId: towerId
+          parentId: parentId
+          fileId: fileId
+          timestamp: 6
+        - actionType: actionType
+          eventId: eventId
+          filepath: filepath
+          originPath: originPath
+          size: 0
+          contentId: contentId
+          destinationPath: destinationPath
+          towerId: towerId
+          parentId: parentId
+          fileId: fileId
+          timestamp: 6
+        lifetimesCount: 0
+        instances:
+        - backupSize: 0
+          lastBackup: 6
+          role: role
+          userCount: 1
+          reportedRole: reportedRole
+          name: name
+          online: true
+          started: true
+          id: id
+          coreAddress: coreAddress
+        - backupSize: 0
+          lastBackup: 6
+          role: role
+          userCount: 1
+          reportedRole: reportedRole
+          name: name
+          online: true
+          started: true
+          id: id
+          coreAddress: coreAddress
+        tokens:
+        - lastUsed: 6
+          owner: owner
+          createdBy: createdBy
+          nickname: nickname
+          remoteUsing: remoteUsing
+          createdTime: 0
+          id: id
+          token: token
+        - lastUsed: 6
+          owner: owner
+          createdBy: createdBy
+          nickname: nickname
+          remoteUsing: remoteUsing
+          createdTime: 0
+          id: id
+          token: token
+        users:
+        - password: password
+          permissionLevel: 6
+          fullName: fullName
+          trashId: trashId
+          homeId: homeId
+          activated: true
+          token: token
+          username: username
+        - password: password
+          permissionLevel: 6
+          fullName: fullName
+          trashId: trashId
+          homeId: homeId
+          activated: true
+          token: token
+          username: username
+      properties:
+        fileHistory:
+          items:
+            $ref: '#/components/schemas/FileActionInfo'
+          type: array
+        instances:
+          items:
+            $ref: '#/components/schemas/TowerInfo'
+          type: array
+        lifetimesCount:
+          type: integer
+        tokens:
+          items:
+            $ref: '#/components/schemas/TokenInfo'
+          type: array
+        users:
+          items:
+            $ref: '#/components/schemas/UserInfoArchive'
+          type: array
+      type: object
+    CreateFolderBody:
+      example:
+        children:
+        - children
+        - children
+        parentFolderId: parentFolderId
+        newFolderName: newFolderName
+      properties:
+        children:
+          items:
+            type: string
+          type: array
+        newFolderName:
+          type: string
+        parentFolderId:
+          type: string
+      required:
+      - newFolderName
+      - parentFolderId
+      type: object
+    FileActionInfo:
+      example:
+        actionType: actionType
+        eventId: eventId
+        filepath: filepath
+        originPath: originPath
+        size: 0
+        contentId: contentId
+        destinationPath: destinationPath
+        towerId: towerId
+        parentId: parentId
+        fileId: fileId
+        timestamp: 6
+      properties:
+        actionType:
+          type: string
+        contentId:
+          type: string
+        destinationPath:
+          type: string
+        eventId:
+          type: string
+        fileId:
+          type: string
+        filepath:
+          type: string
+        originPath:
+          type: string
+        parentId:
+          type: string
+        size:
+          format: int64
+          type: integer
+        timestamp:
+          format: int64
+          type: integer
+        towerId:
+          type: string
+      required:
+      - actionType
+      - eventId
+      - fileId
+      - parentId
+      - size
+      - timestamp
+      - towerId
+      type: object
+    FileInfo:
+      example:
+        owner: owner
+        currentId: currentId
+        childrenIds:
+        - childrenIds
+        - childrenIds
+        contentId: contentId
+        hasRestoreMedia: true
+        shareId: shareId
+        portablePath: portablePath
+        parentId: parentId
+        modifyTimestamp: 0
+        pastFile: true
+        size: 6
+        id: id
+        modifiable: true
+        isDir: true
+      properties:
+        childrenIds:
+          items:
+            type: string
+          type: array
+        contentId:
+          type: string
+        currentId:
+          type: string
+        hasRestoreMedia:
+          type: boolean
+        id:
+          type: string
+        isDir:
+          type: boolean
+        modifiable:
+          type: boolean
+        modifyTimestamp:
+          type: integer
+        owner:
+          type: string
+        parentId:
+          type: string
+        pastFile:
+          type: boolean
+        portablePath:
+          type: string
+        shareId:
+          type: string
+        size:
+          type: integer
+      type: object
+    FileShareParams:
+      example:
+        public: true
+        wormhole: true
+        users:
+        - users
+        - users
+        fileId: fileId
+      properties:
+        fileId:
+          type: string
+        public:
+          type: boolean
+        users:
+          items:
+            type: string
+          type: array
+        wormhole:
+          type: boolean
+      type: object
+    FilesListParams:
+      example:
+        fileIds:
+        - fileIds
+        - fileIds
+      properties:
+        fileIds:
+          items:
+            type: string
+          type: array
+      type: object
+    FolderInfo:
+      example:
+        medias:
+        - owner: owner
+          pageCount: 2
+          hidden: true
+          likedBy:
+          - likedBy
+          - likedBy
+          contentId: contentId
+          mimeType: mimeType
+          enabled: true
+          duration: 5
+          recognitionTags:
+          - recognitionTags
+          - recognitionTags
+          fileIds:
+          - fileIds
+          - fileIds
+          imported: true
+          width: 7
+          createDate: 1
+          height: 5
+        - owner: owner
+          pageCount: 2
+          hidden: true
+          likedBy:
+          - likedBy
+          - likedBy
+          contentId: contentId
+          mimeType: mimeType
+          enabled: true
+          duration: 5
+          recognitionTags:
+          - recognitionTags
+          - recognitionTags
+          fileIds:
+          - fileIds
+          - fileIds
+          imported: true
+          width: 7
+          createDate: 1
+          height: 5
+        children:
+        - owner: owner
+          currentId: currentId
+          childrenIds:
+          - childrenIds
+          - childrenIds
+          contentId: contentId
+          hasRestoreMedia: true
+          shareId: shareId
+          portablePath: portablePath
+          parentId: parentId
+          modifyTimestamp: 0
+          pastFile: true
+          size: 6
+          id: id
+          modifiable: true
+          isDir: true
+        - owner: owner
+          currentId: currentId
+          childrenIds:
+          - childrenIds
+          - childrenIds
+          contentId: contentId
+          hasRestoreMedia: true
+          shareId: shareId
+          portablePath: portablePath
+          parentId: parentId
+          modifyTimestamp: 0
+          pastFile: true
+          size: 6
+          id: id
+          modifiable: true
+          isDir: true
+        self:
+          owner: owner
+          currentId: currentId
+          childrenIds:
+          - childrenIds
+          - childrenIds
+          contentId: contentId
+          hasRestoreMedia: true
+          shareId: shareId
+          portablePath: portablePath
+          parentId: parentId
+          modifyTimestamp: 0
+          pastFile: true
+          size: 6
+          id: id
+          modifiable: true
+          isDir: true
+        parents:
+        - owner: owner
+          currentId: currentId
+          childrenIds:
+          - childrenIds
+          - childrenIds
+          contentId: contentId
+          hasRestoreMedia: true
+          shareId: shareId
+          portablePath: portablePath
+          parentId: parentId
+          modifyTimestamp: 0
+          pastFile: true
+          size: 6
+          id: id
+          modifiable: true
+          isDir: true
+        - owner: owner
+          currentId: currentId
+          childrenIds:
+          - childrenIds
+          - childrenIds
+          contentId: contentId
+          hasRestoreMedia: true
+          shareId: shareId
+          portablePath: portablePath
+          parentId: parentId
+          modifyTimestamp: 0
+          pastFile: true
+          size: 6
+          id: id
+          modifiable: true
+          isDir: true
+      properties:
+        children:
+          items:
+            $ref: '#/components/schemas/FileInfo'
+          type: array
+        medias:
+          items:
+            $ref: '#/components/schemas/MediaInfo'
+          type: array
+        parents:
+          items:
+            $ref: '#/components/schemas/FileInfo'
+          type: array
+        self:
+          $ref: '#/components/schemas/FileInfo'
+      type: object
+    LoginBody:
+      example:
+        password: password
+        username: username
+      properties:
+        password:
+          type: string
+        username:
+          type: string
+      required:
+      - password
+      - username
+      type: object
+    MediaBatchInfo:
+      example:
+        Media:
+        - owner: owner
+          pageCount: 2
+          hidden: true
+          likedBy:
+          - likedBy
+          - likedBy
+          contentId: contentId
+          mimeType: mimeType
+          enabled: true
+          duration: 5
+          recognitionTags:
+          - recognitionTags
+          - recognitionTags
+          fileIds:
+          - fileIds
+          - fileIds
+          imported: true
+          width: 7
+          createDate: 1
+          height: 5
+        - owner: owner
+          pageCount: 2
+          hidden: true
+          likedBy:
+          - likedBy
+          - likedBy
+          contentId: contentId
+          mimeType: mimeType
+          enabled: true
+          duration: 5
+          recognitionTags:
+          - recognitionTags
+          - recognitionTags
+          fileIds:
+          - fileIds
+          - fileIds
+          imported: true
+          width: 7
+          createDate: 1
+          height: 5
+        mediaCount: 0
+      properties:
+        Media:
+          items:
+            $ref: '#/components/schemas/MediaInfo'
+          type: array
+        mediaCount:
+          type: integer
+      type: object
+    MediaIdsParams:
+      example:
+        mediaIds:
+        - mediaIds
+        - mediaIds
+      properties:
+        mediaIds:
+          items:
+            type: string
+          type: array
+      type: object
+    MediaInfo:
+      example:
+        owner: owner
+        pageCount: 2
+        hidden: true
+        likedBy:
+        - likedBy
+        - likedBy
+        contentId: contentId
+        mimeType: mimeType
+        enabled: true
+        duration: 5
+        recognitionTags:
+        - recognitionTags
+        - recognitionTags
+        fileIds:
+        - fileIds
+        - fileIds
+        imported: true
+        width: 7
+        createDate: 1
+        height: 5
+      properties:
+        contentId:
+          description: "Hash of the file content, to ensure that the same files don't\
+            \ get duplicated"
+          type: string
+        createDate:
+          type: integer
+        duration:
+          description: "Total time, in milliseconds, of a video"
+          type: integer
+        enabled:
+          description: |-
+            If the media disabled. This can happen when the backing file(s) are deleted,
+            but the media stays behind because it can be re-used if needed.
+          type: boolean
+        fileIds:
+          description: Slices of files whos content hash to the contentId
+          items:
+            type: string
+          type: array
+        height:
+          type: integer
+        hidden:
+          description: |-
+            If the media is hidden from the timeline
+            TODO - make this per user
+          type: boolean
+        imported:
+          type: boolean
+        likedBy:
+          items:
+            type: string
+          type: array
+        mimeType:
+          description: Mime-type key of the media
+          type: string
+        owner:
+          description: User who owns the file that resulted in this media being created
+          type: string
+        pageCount:
+          description: "Number of pages (typically 1, 0 in not a valid page count)"
+          type: integer
+        recognitionTags:
+          description: Tags from the ML image scan so searching for particular objects
+            in the images can be done
+          items:
+            type: string
+          type: array
+        width:
+          description: Full-res image dimensions
+          type: integer
+      type: object
+    MediaTypeInfo:
+      example:
+        IsVideo: true
+        IsRaw: true
+        FriendlyName: FriendlyName
+        FileExtension:
+        - FileExtension
+        - FileExtension
+        MultiPage: true
+        mime: mime
+        IsDisplayable: true
+        SupportsImgRecog: true
+        RawThumbExifKey: RawThumbExifKey
+      properties:
+        FileExtension:
+          items:
+            type: string
+          type: array
+        FriendlyName:
+          type: string
+        IsDisplayable:
+          type: boolean
+        IsRaw:
+          type: boolean
+        IsVideo:
+          type: boolean
+        MultiPage:
+          type: boolean
+        RawThumbExifKey:
+          type: string
+        SupportsImgRecog:
+          type: boolean
+        mime:
+          type: string
+      type: object
+    MediaTypesInfo:
+      example:
+        extMap:
+          key:
+            IsVideo: true
+            IsRaw: true
+            FriendlyName: FriendlyName
+            FileExtension:
+            - FileExtension
+            - FileExtension
+            MultiPage: true
+            mime: mime
+            IsDisplayable: true
+            SupportsImgRecog: true
+            RawThumbExifKey: RawThumbExifKey
+        mimeMap:
+          key:
+            IsVideo: true
+            IsRaw: true
+            FriendlyName: FriendlyName
+            FileExtension:
+            - FileExtension
+            - FileExtension
+            MultiPage: true
+            mime: mime
+            IsDisplayable: true
+            SupportsImgRecog: true
+            RawThumbExifKey: RawThumbExifKey
+      properties:
+        extMap:
+          additionalProperties:
+            $ref: '#/components/schemas/MediaTypeInfo'
+          type: object
+        mimeMap:
+          additionalProperties:
+            $ref: '#/components/schemas/MediaTypeInfo'
+          type: object
+      type: object
+    MoveFilesParams:
+      example:
+        fileIds:
+        - fileIds
+        - fileIds
+        newParentId: newParentId
+      properties:
+        fileIds:
+          items:
+            type: string
+          type: array
+        newParentId:
+          type: string
+      type: object
+    NewFileParams:
+      example:
+        fileSize: 0
+        parentFolderId: parentFolderId
+        newFileName: newFileName
+        isDir: true
+      properties:
+        fileSize:
+          type: integer
+        isDir:
+          type: boolean
+        newFileName:
+          type: string
+        parentFolderId:
+          type: string
+      type: object
+    NewFilesInfo:
+      example:
+        fileIds:
+        - fileIds
+        - fileIds
+      properties:
+        fileIds:
+          items:
+            type: string
+          type: array
+      type: object
+    NewFilesParams:
+      example:
+        newFiles:
+        - fileSize: 0
+          parentFolderId: parentFolderId
+          newFileName: newFileName
+          isDir: true
+        - fileSize: 0
+          parentFolderId: parentFolderId
+          newFileName: newFileName
+          isDir: true
+      properties:
+        newFiles:
+          items:
+            $ref: '#/components/schemas/NewFileParams'
+          type: array
+      type: object
+    NewServerParams:
+      example:
+        role: role
+        name: name
+        usingKey: usingKey
+        coreAddress: coreAddress
+        serverId: serverId
+      properties:
+        coreAddress:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        serverId:
+          type: string
+        usingKey:
+          type: string
+      type: object
+    NewUploadInfo:
+      example:
+        uploadId: uploadId
+      properties:
+        uploadId:
+          type: string
+      type: object
+    NewUploadParams:
+      example:
+        chunkSize: 0
+        rootFolderId: rootFolderId
+      properties:
+        chunkSize:
+          type: integer
+        rootFolderId:
+          type: string
+      type: object
+    NewUserParams:
+      example:
+        password: password
+        admin: true
+        fullName: fullName
+        autoActivate: true
+        username: username
+      properties:
+        admin:
+          type: boolean
+        autoActivate:
+          type: boolean
+        fullName:
+          type: string
+        password:
+          type: string
+        username:
+          type: string
+      required:
+      - fullName
+      - password
+      - username
+      type: object
+    PasswordUpdateParams:
+      example:
+        oldPassword: oldPassword
+        newPassword: newPassword
+      properties:
+        newPassword:
+          type: string
+        oldPassword:
+          type: string
+      required:
+      - newPassword
+      type: object
+    PermissionsInfo:
+      example:
+        canEdit: true
+        canDownload: true
+        canDelete: true
+      properties:
+        canDelete:
+          type: boolean
+        canDownload:
+          type: boolean
+        canEdit:
+          type: boolean
+      type: object
+    PermissionsParams:
+      example:
+        canEdit: true
+        canDownload: true
+        canDelete: true
+      properties:
+        canDelete:
+          type: boolean
+        canDownload:
+          type: boolean
+        canEdit:
+          type: boolean
+      type: object
+    RestoreFilesBody:
+      example:
+        fileIds:
+        - fileIds
+        - fileIds
+        newParentId: newParentId
+        timestamp: 0
+      properties:
+        fileIds:
+          items:
+            type: string
+          type: array
+        newParentId:
+          type: string
+        timestamp:
+          type: integer
+      type: object
+    RestoreFilesInfo:
+      example:
+        newParentId: newParentId
+      properties:
+        newParentId:
+          type: string
+      type: object
+    ShareInfo:
+      example:
+        owner: owner
+        expires: 6
+        accessors:
+        - permissionLevel: 0
+          fullName: fullName
+          trashId: trashId
+          homeId: homeId
+          activated: true
+          token: token
+          username: username
+        - permissionLevel: 0
+          fullName: fullName
+          trashId: trashId
+          homeId: homeId
+          activated: true
+          token: token
+          username: username
+        public: true
+        permissions:
+          key:
+            canEdit: true
+            canDownload: true
+            canDelete: true
+        shareId: shareId
+        shareName: shareName
+        wormhole: true
+        shareType: shareType
+        updated: 1
+        enabled: true
+        fileId: fileId
+      properties:
+        accessors:
+          items:
+            $ref: '#/components/schemas/UserInfo'
+          type: array
+        enabled:
+          type: boolean
+        expires:
+          type: integer
+        fileId:
+          type: string
+        owner:
+          type: string
+        permissions:
+          additionalProperties:
+            $ref: '#/components/schemas/PermissionsInfo'
+          type: object
+        public:
+          type: boolean
+        shareId:
+          type: string
+        shareName:
+          type: string
+        shareType:
+          type: string
+        updated:
+          type: integer
+        wormhole:
+          type: boolean
+      type: object
+    TakeoutInfo:
+      example:
+        single: true
+        filename: filename
+        takeoutId: takeoutId
+        taskId: taskId
+      properties:
+        filename:
+          type: string
+        single:
+          type: boolean
+        takeoutId:
+          type: string
+        taskId:
+          type: string
+      type: object
+    TokenInfo:
+      example:
+        lastUsed: 6
+        owner: owner
+        createdBy: createdBy
+        nickname: nickname
+        remoteUsing: remoteUsing
+        createdTime: 0
+        id: id
+        token: token
+      properties:
+        createdBy:
+          type: string
+        createdTime:
+          format: int64
+          type: integer
+        id:
+          type: string
+        lastUsed:
+          format: int64
+          type: integer
+        nickname:
+          type: string
+        owner:
+          type: string
+        remoteUsing:
+          type: string
+        token:
+          type: string
+      required:
+      - createdBy
+      - createdTime
+      - id
+      - lastUsed
+      - nickname
+      - owner
+      - remoteUsing
+      - token
+      type: object
+    TowerInfo:
+      example:
+        backupSize: 0
+        lastBackup: 6
+        role: role
+        userCount: 1
+        reportedRole: reportedRole
+        name: name
+        online: true
+        started: true
+        id: id
+        coreAddress: coreAddress
+      properties:
+        backupSize:
+          format: int64
+          type: integer
+        coreAddress:
+          description: |-
+            Address of the remote server, only if the instance is a core.
+            Not set for any remotes/backups on core server, as it IS the core
+          type: string
+        id:
+          type: string
+        lastBackup:
+          format: int64
+          type: integer
+        name:
+          type: string
+        online:
+          type: boolean
+        reportedRole:
+          description: Role the server is currently reporting. This is used to determine
+            if the server is online (and functional) or not
+          type: string
+        role:
+          description: Core or Backup
+          type: string
+        started:
+          type: boolean
+        userCount:
+          type: integer
+      required:
+      - backupSize
+      - coreAddress
+      - id
+      - lastBackup
+      - name
+      - online
+      - reportedRole
+      - role
+      - started
+      - userCount
+      type: object
+    UpdateFileParams:
+      example:
+        newName: newName
+        newParentId: newParentId
+      properties:
+        newName:
+          type: string
+        newParentId:
+          type: string
+      type: object
+    UserInfo:
+      example:
+        permissionLevel: 0
+        fullName: fullName
+        trashId: trashId
+        homeId: homeId
+        activated: true
+        token: token
+        username: username
+      properties:
+        activated:
+          type: boolean
+        fullName:
+          type: string
+        homeId:
+          type: string
+        permissionLevel:
+          description: HomeSize        int64  `json:"homeSize" validate:"required"`
+          type: integer
+        token:
+          type: string
+        trashId:
+          type: string
+        username:
+          description: TrashSize       int64  `json:"trashSize" validate:"required"`
+          type: string
+      required:
+      - activated
+      - fullName
+      - homeId
+      - permissionLevel
+      - trashId
+      - username
+      type: object
+    UserInfoArchive:
+      example:
+        password: password
+        permissionLevel: 6
+        fullName: fullName
+        trashId: trashId
+        homeId: homeId
+        activated: true
+        token: token
+        username: username
+      properties:
+        activated:
+          type: boolean
+        fullName:
+          type: string
+        homeId:
+          type: string
+        password:
+          type: string
+        permissionLevel:
+          description: HomeSize        int64  `json:"homeSize" validate:"required"`
+          type: integer
+        token:
+          type: string
+        trashId:
+          type: string
+        username:
+          description: TrashSize       int64  `json:"trashSize" validate:"required"`
+          type: string
+      required:
+      - activated
+      - fullName
+      - homeId
+      - permissionLevel
+      - trashId
+      - username
+      type: object
+    WeblensErrorInfo:
+      example:
+        error: error
+      properties:
+        error:
+          type: string
+      type: object
+    structs.InitServerParams:
+      properties:
+        coreAddress:
+          type: string
+        coreKey:
+          type: string
+        fullName:
+          type: string
+        localId:
+          description: "For restoring a server, remoind the core of its serverId and\
+            \ api key the remote last used"
+          type: string
+        name:
+          type: string
+        password:
+          type: string
+        remoteId:
+          type: string
+        role:
+          type: string
+        username:
+          type: string
+        usingKeyInfo:
+          type: string
+      type: object
+    structs.ScanBody:
+      properties:
+        filename:
+          type: string
+        folderId:
+          type: string
+      type: object
+    UploadFileChunk_request:
+      properties:
+        chunk:
+          description: File chunk
+          format: binary
+          type: string
+      required:
+      - chunk
+      type: object
+  securitySchemes:
+    ApiKeyAuth:
+      in: header
+      name: Authorization
+      type: apiKey
+x-original-swagger-version: "2.0"

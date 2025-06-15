@@ -1,43 +1,17 @@
-basePath: /api/
+basePath: /api/v1/
 definitions:
-  AlbumShareParams:
+  AddUserParams:
     properties:
-      albumId:
-        type: string
-      public:
+      canDelete:
         type: boolean
-      users:
-        items:
-          type: string
-        type: array
-    type: object
-  ApiKeyInfo:
-    properties:
-      createdBy:
-        type: string
-      createdTime:
-        type: integer
-      id:
-        type: string
-      key:
-        type: string
-      lastUsedTime:
-        type: integer
-      name:
-        type: string
-      owner:
-        type: string
-      remoteUsing:
+      canDownload:
+        type: boolean
+      canEdit:
+        type: boolean
+      username:
         type: string
     required:
-    - createdBy
-    - createdTime
-    - id
-    - key
-    - lastUsedTime
-    - name
-    - owner
-    - remoteUsing
+    - username
     type: object
   ApiKeyParams:
     properties:
@@ -45,6 +19,27 @@ definitions:
         type: string
     required:
     - name
+    type: object
+  BackupInfo:
+    properties:
+      fileHistory:
+        items:
+          $ref: '#/definitions/FileActionInfo'
+        type: array
+      instances:
+        items:
+          $ref: '#/definitions/TowerInfo'
+        type: array
+      lifetimesCount:
+        type: integer
+      tokens:
+        items:
+          $ref: '#/definitions/TokenInfo'
+        type: array
+      users:
+        items:
+          $ref: '#/definitions/UserInfoArchive'
+        type: array
     type: object
   CreateFolderBody:
     properties:
@@ -60,41 +55,40 @@ definitions:
     - newFolderName
     - parentFolderId
     type: object
-  ErrorInfo:
-    properties:
-      error:
-        type: string
-    type: object
   FileActionInfo:
     properties:
       actionType:
+        type: string
+      contentId:
         type: string
       destinationPath:
         type: string
       eventId:
         type: string
-      lifeId:
+      fileId:
+        type: string
+      filepath:
         type: string
       originPath:
         type: string
       parentId:
         type: string
-      serverId:
-        type: string
       size:
+        format: int64
         type: integer
       timestamp:
+        format: int64
         type: integer
+      towerId:
+        type: string
     required:
     - actionType
-    - destinationPath
     - eventId
-    - lifeId
-    - originPath
+    - fileId
     - parentId
-    - serverId
     - size
     - timestamp
+    - towerId
     type: object
   FileInfo:
     properties:
@@ -105,8 +99,6 @@ definitions:
       contentId:
         type: string
       currentId:
-        type: string
-      filename:
         type: string
       hasRestoreMedia:
         type: boolean
@@ -174,6 +166,9 @@ definitions:
         type: string
       username:
         type: string
+    required:
+    - password
+    - username
     type: object
   MediaBatchInfo:
     properties:
@@ -244,7 +239,7 @@ definitions:
         description: Full-res image dimensions
         type: integer
     type: object
-  MediaType:
+  MediaTypeInfo:
     properties:
       FileExtension:
         items:
@@ -267,15 +262,15 @@ definitions:
       mime:
         type: string
     type: object
-  MediaTypeInfo:
+  MediaTypesInfo:
     properties:
       extMap:
         additionalProperties:
-          $ref: '#/definitions/MediaType'
+          $ref: '#/definitions/MediaTypeInfo'
         type: object
       mimeMap:
         additionalProperties:
-          $ref: '#/definitions/MediaType'
+          $ref: '#/definitions/MediaTypeInfo'
         type: object
     type: object
   MoveFilesParams:
@@ -319,7 +314,7 @@ definitions:
       name:
         type: string
       role:
-        $ref: '#/definitions/models.ServerRole'
+        type: string
       serverId:
         type: string
       usingKey:
@@ -363,12 +358,23 @@ definitions:
     required:
     - newPassword
     type: object
-  RestoreCoreParams:
+  PermissionsInfo:
     properties:
-      restoreId:
-        type: string
-      restoreUrl:
-        type: string
+      canDelete:
+        type: boolean
+      canDownload:
+        type: boolean
+      canEdit:
+        type: boolean
+    type: object
+  PermissionsParams:
+    properties:
+      canDelete:
+        type: boolean
+      canDownload:
+        type: boolean
+      canEdit:
+        type: boolean
     type: object
   RestoreFilesBody:
     properties:
@@ -386,37 +392,6 @@ definitions:
       newParentId:
         type: string
     type: object
-  ServerInfo:
-    properties:
-      backupSize:
-        type: integer
-      coreAddress:
-        description: |-
-          Address of the remote server, only if the instance is a core.
-          Not set for any remotes/backups on core server, as it IS the core
-        type: string
-      id:
-        type: string
-      lastBackup:
-        type: integer
-      name:
-        type: string
-      online:
-        type: boolean
-      reportedRole:
-        allOf:
-        - $ref: '#/definitions/models.ServerRole'
-        description: Role the server is currently reporting. This is used to determine
-          if the server is online (and functional) or not
-      role:
-        allOf:
-        - $ref: '#/definitions/models.ServerRole'
-        description: Core or Backup
-      started:
-        type: boolean
-      userCount:
-        type: integer
-    type: object
   ShareInfo:
     properties:
       accessors:
@@ -431,6 +406,10 @@ definitions:
         type: string
       owner:
         type: string
+      permissions:
+        additionalProperties:
+          $ref: '#/definitions/PermissionsInfo'
+        type: object
       public:
         type: boolean
       shareId:
@@ -455,6 +434,78 @@ definitions:
       taskId:
         type: string
     type: object
+  TokenInfo:
+    properties:
+      createdBy:
+        type: string
+      createdTime:
+        format: int64
+        type: integer
+      id:
+        type: string
+      lastUsed:
+        format: int64
+        type: integer
+      nickname:
+        type: string
+      owner:
+        type: string
+      remoteUsing:
+        type: string
+      token:
+        type: string
+    required:
+    - createdBy
+    - createdTime
+    - id
+    - lastUsed
+    - nickname
+    - owner
+    - remoteUsing
+    - token
+    type: object
+  TowerInfo:
+    properties:
+      backupSize:
+        format: int64
+        type: integer
+      coreAddress:
+        description: |-
+          Address of the remote server, only if the instance is a core.
+          Not set for any remotes/backups on core server, as it IS the core
+        type: string
+      id:
+        type: string
+      lastBackup:
+        format: int64
+        type: integer
+      name:
+        type: string
+      online:
+        type: boolean
+      reportedRole:
+        description: Role the server is currently reporting. This is used to determine
+          if the server is online (and functional) or not
+        type: string
+      role:
+        description: Core or Backup
+        type: string
+      started:
+        type: boolean
+      userCount:
+        type: integer
+    required:
+    - backupSize
+    - coreAddress
+    - id
+    - lastBackup
+    - name
+    - online
+    - reportedRole
+    - role
+    - started
+    - userCount
+    type: object
   UpdateFileParams:
     properties:
       newName:
@@ -462,93 +513,66 @@ definitions:
       newParentId:
         type: string
     type: object
-  UpdateServerParams:
-    properties:
-      coreAddress:
-        type: string
-      name:
-        type: string
-      usingKey:
-        type: string
-    type: object
   UserInfo:
     properties:
-      admin:
+      activated:
         type: boolean
       fullName:
         type: string
       homeId:
         type: string
-      homeSize:
+      permissionLevel:
+        description: HomeSize        int64  `json:"homeSize" validate:"required"`
         type: integer
-      owner:
-        type: boolean
       token:
         type: string
       trashId:
         type: string
-      trashSize:
-        type: integer
       username:
+        description: TrashSize       int64  `json:"trashSize" validate:"required"`
         type: string
+    required:
+    - activated
+    - fullName
+    - homeId
+    - permissionLevel
+    - trashId
+    - username
     type: object
   UserInfoArchive:
     properties:
       activated:
         type: boolean
-      admin:
-        type: boolean
       fullName:
         type: string
       homeId:
         type: string
-      homeSize:
-        type: integer
-      owner:
-        type: boolean
       password:
         type: string
+      permissionLevel:
+        description: HomeSize        int64  `json:"homeSize" validate:"required"`
+        type: integer
       token:
         type: string
       trashId:
         type: string
-      trashSize:
-        type: integer
       username:
+        description: TrashSize       int64  `json:"trashSize" validate:"required"`
         type: string
+    required:
+    - activated
+    - fullName
+    - homeId
+    - permissionLevel
+    - trashId
+    - username
     type: object
-  models.ApiKey:
+  WeblensErrorInfo:
     properties:
-      createdBy:
-        type: string
-      createdTime:
-        type: string
-      id:
-        type: string
-      key:
-        type: string
-      lastUsed:
-        type: string
-      name:
-        type: string
-      owner:
-        type: string
-      remoteUsing:
+      error:
         type: string
     type: object
-  models.ServerRole:
-    enum:
-    - init
-    - core
-    - backup
-    - restore
-    type: string
-    x-enum-varnames:
-    - InitServerRole
-    - CoreServerRole
-    - BackupServerRole
-    - RestoreServerRole
-  rest.InitServerParams:
+  structs.InitServerParams:
     properties:
       coreAddress:
         type: string
@@ -567,29 +591,18 @@ definitions:
       remoteId:
         type: string
       role:
-        $ref: '#/definitions/models.ServerRole'
+        type: string
       username:
         type: string
       usingKeyInfo:
-        $ref: '#/definitions/models.ApiKey'
+        type: string
     type: object
-  rest.ScanBody:
+  structs.ScanBody:
     properties:
       filename:
         type: string
       folderId:
         type: string
-    type: object
-  rest.UserListBody:
-    properties:
-      addUsers:
-        items:
-          type: string
-        type: array
-      removeUsers:
-        items:
-          type: string
-        type: array
     type: object
 host: localhost:8080
 info:
@@ -614,6 +627,10 @@ paths:
       - description: Delete files even if they are not in the trash
         in: query
         name: ignoreTrash
+        type: boolean
+      - description: Preserve parent folder if it is empty after deletion
+        in: query
+        name: preserveFolder
         type: boolean
       responses:
         "200":
@@ -752,7 +769,7 @@ paths:
         "404":
           description: Error Info
           schema:
-            $ref: '#/definitions/ErrorInfo'
+            $ref: '#/definitions/WeblensErrorInfo'
       security:
       - SessionAuth: []
       summary: Download a file
@@ -857,36 +874,6 @@ paths:
       summary: Get path completion suggestions
       tags:
       - Files
-  /files/restore:
-    post:
-      consumes:
-      - application/json
-      operationId: RestoreFiles
-      parameters:
-      - description: Restore files request body
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/RestoreFilesBody'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Restore files info
-          schema:
-            $ref: '#/definitions/RestoreFilesInfo'
-        "400":
-          description: Bad Request
-        "404":
-          description: Not Found
-        "500":
-          description: Internal Server Error
-      security:
-      - SessionAuth: []
-      summary: Restore files from some time in the past
-      tags:
-      - Files
   /files/search:
     get:
       operationId: SearchByFilename
@@ -935,11 +922,41 @@ paths:
       summary: Get files shared with the logged in user
       tags:
       - Files
+  /files/structsore:
+    post:
+      consumes:
+      - application/json
+      operationId: RestoreFiles
+      parameters:
+      - description: RestoreFiles files request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/RestoreFilesBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: structsore files info
+          schema:
+            $ref: '#/definitions/RestoreFilesInfo'
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: structsore files from some time in the past
+      tags:
+      - Files
   /files/untrash:
     patch:
       operationId: UnTrashFiles
       parameters:
-      - description: UnTrash files request body
+      - description: Un-trash files request body
         in: body
         name: request
         required: true
@@ -956,7 +973,7 @@ paths:
           description: Internal Server Error
       security:
       - SessionAuth: []
-      summary: Move a list of files out of the trash, restoring them to where they
+      summary: Move a list of files out of the trash, structsoring them to where they
         were before
       tags:
       - Files
@@ -1060,7 +1077,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/rest.ScanBody'
+          $ref: '#/definitions/structs.ScanBody'
       responses:
         "200":
           description: OK
@@ -1082,10 +1099,10 @@ paths:
         "200":
           description: Server info
           schema:
-            $ref: '#/definitions/ServerInfo'
+            $ref: '#/definitions/TowerInfo'
       summary: Get server info
       tags:
-      - Servers
+      - Towers
   /keys:
     get:
       operationId: GetApiKeys
@@ -1093,10 +1110,10 @@ paths:
       - application/json
       responses:
         "200":
-          description: Api keys info
+          description: Tokens
           schema:
             items:
-              $ref: '#/definitions/ApiKeyInfo'
+              $ref: '#/definitions/TokenInfo'
             type: array
         "403":
           description: Forbidden
@@ -1110,7 +1127,7 @@ paths:
     post:
       operationId: CreateApiKey
       parameters:
-      - description: The new key params
+      - description: The new token params
         in: body
         name: params
         required: true
@@ -1120,9 +1137,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: The new api key info
+          description: The new token
           schema:
-            $ref: '#/definitions/ApiKeyInfo'
+            $ref: '#/definitions/TokenInfo'
         "403":
           description: Forbidden
         "500":
@@ -1132,13 +1149,13 @@ paths:
       summary: Create a new api key
       tags:
       - ApiKeys
-  /keys/{keyId}:
+  /keys/{tokenId}:
     delete:
       operationId: DeleteApiKey
       parameters:
       - description: Api key id
         in: path
-        name: keyId
+        name: tokenId
         required: true
         type: string
       produces:
@@ -1336,6 +1353,30 @@ paths:
       summary: Like a media
       tags:
       - Media
+  /media/{mediaId}/video:
+    get:
+      operationId: StreamVideo
+      parameters:
+      - description: Id of media
+        in: path
+        name: mediaId
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      - ApiKeyAuth: []
+      summary: Stream a video
+      tags:
+      - Media
   /media/cleanup:
     post:
       operationId: CleanupMedia
@@ -1375,6 +1416,29 @@ paths:
         filesystem cache. Must be server owner.
       tags:
       - Media
+  /media/random:
+    get:
+      operationId: GetRandomMedia
+      parameters:
+      - description: Number of random medias to get
+        in: query
+        name: count
+        required: true
+        type: number
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Media Batch
+          schema:
+            $ref: '#/definitions/MediaBatchInfo'
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      summary: Get random media
+      tags:
+      - Media
   /media/types:
     get:
       operationId: GetMediaTypes
@@ -1384,7 +1448,7 @@ paths:
         "200":
           description: Media types
           schema:
-            $ref: '#/definitions/MediaTypeInfo'
+            $ref: '#/definitions/MediaTypesInfo'
       summary: Get media type dictionary
       tags:
       - Media
@@ -1418,200 +1482,6 @@ paths:
       summary: Set media visibility
       tags:
       - Media
-  /servers:
-    get:
-      operationId: GetRemotes
-      responses:
-        "200":
-          description: Server Info
-          schema:
-            items:
-              $ref: '#/definitions/ServerInfo'
-            type: array
-      security:
-      - SessionAuth:
-        - admin
-      - ApiKeyAuth:
-        - admin
-      summary: Get all remotes
-      tags:
-      - Servers
-    post:
-      operationId: CreateRemote
-      parameters:
-      - description: New Server Params
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/NewServerParams'
-      responses:
-        "201":
-          description: New Server Info
-          schema:
-            $ref: '#/definitions/ServerInfo'
-        "400":
-          description: Bad Request
-      security:
-      - SessionAuth:
-        - admin
-      - ApiKeyAuth:
-        - admin
-      summary: Create a new remote
-      tags:
-      - Servers
-  /servers/{serverId}:
-    delete:
-      operationId: DeleteRemote
-      parameters:
-      - description: Server Id to delete
-        in: path
-        name: serverId
-        required: true
-        type: string
-      responses:
-        "200":
-          description: OK
-        "400":
-          description: Bad Request
-        "404":
-          description: Not Found
-      security:
-      - SessionAuth:
-        - admin
-      - ApiKeyAuth:
-        - admin
-      summary: Delete a remote
-      tags:
-      - Servers
-    patch:
-      operationId: UpdateRemote
-      parameters:
-      - description: Server Id to update
-        in: path
-        name: serverId
-        required: true
-        type: string
-      - description: Server Params
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/UpdateServerParams'
-      responses:
-        "200":
-          description: OK
-        "400":
-          description: Bad Request
-        "404":
-          description: Not Found
-      security:
-      - SessionAuth:
-        - admin
-      - ApiKeyAuth:
-        - admin
-      summary: Update a remote
-      tags:
-      - Servers
-  /servers/{serverId}/backup:
-    post:
-      operationId: LaunchBackup
-      parameters:
-      - description: Server ID
-        in: path
-        name: serverId
-        required: true
-        type: string
-      responses:
-        "200":
-          description: OK
-      security:
-      - SessionAuth:
-        - admin
-      - ApiKeyAuth:
-        - admin
-      summary: Launch backup on a server
-      tags:
-      - Servers
-  /servers/{serverId}/restore:
-    post:
-      operationId: RestoreCore
-      parameters:
-      - description: Server Id
-        in: path
-        name: serverId
-        required: true
-        type: string
-      - description: Restore Params
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/RestoreCoreParams'
-      produces:
-      - application/json
-      responses:
-        "202":
-          description: Accepted
-        "404":
-          description: Not Found
-        "500":
-          description: Internal Server Error
-      security:
-      - SessionAuth:
-        - admin
-      - ApiKeyAuth:
-        - admin
-      summary: Restore target core server
-      tags:
-      - Servers
-  /servers/init:
-    post:
-      operationId: InitializeServer
-      parameters:
-      - description: Server initialization body
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/rest.InitServerParams'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: New server info
-          schema:
-            items:
-              $ref: '#/definitions/ServerInfo'
-            type: array
-        "404":
-          description: Not Found
-        "500":
-          description: Internal Server Error
-      security: []
-      summary: Initialize the target server
-      tags:
-      - Servers
-  /servers/reset:
-    post:
-      operationId: ResetServer
-      produces:
-      - application/json
-      responses:
-        "202":
-          description: Accepted
-        "404":
-          description: Not Found
-        "500":
-          description: Internal Server Error
-      security:
-      - SessionAuth:
-        - admin
-      - ApiKeyAuth:
-        - admin
-      summary: Reset server
-      tags:
-      - Servers
   /share/{shareId}:
     delete:
       operationId: DeleteFileShare
@@ -1652,8 +1522,8 @@ paths:
       tags:
       - Share
   /share/{shareId}/accessors:
-    patch:
-      operationId: SetShareAccessors
+    post:
+      operationId: AddUserToShare
       parameters:
       - description: Share Id
         in: path
@@ -1665,7 +1535,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/rest.UserListBody'
+          $ref: '#/definitions/AddUserParams'
       produces:
       - application/json
       responses:
@@ -1675,7 +1545,64 @@ paths:
             $ref: '#/definitions/ShareInfo'
         "404":
           description: Not Found
-      summary: Update a share's accessors list
+      summary: Add a user to a file share
+      tags:
+      - Share
+  /share/{shareId}/accessors/{username}:
+    delete:
+      operationId: RemoveUserFromShare
+      parameters:
+      - description: Share Id
+        in: path
+        name: shareId
+        required: true
+        type: string
+      - description: Username
+        in: path
+        name: username
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ShareInfo'
+        "404":
+          description: Not Found
+      summary: Remove a user from a file share
+      tags:
+      - Share
+    patch:
+      operationId: UpdateShareAccessorPermissions
+      parameters:
+      - description: Share Id
+        in: path
+        name: shareId
+        required: true
+        type: string
+      - description: Username
+        in: path
+        name: username
+        required: true
+        type: string
+      - description: Share Permissions Params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/PermissionsParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ShareInfo'
+        "404":
+          description: Not Found
+      summary: Update a share's user permissions
       tags:
       - Share
   /share/{shareId}/public:
@@ -1700,28 +1627,6 @@ paths:
         "404":
           description: Not Found
       summary: Update a share's "public" status
-      tags:
-      - Share
-  /share/album:
-    post:
-      operationId: CreateAlbumShare
-      parameters:
-      - description: New Album Share Params
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/AlbumShareParams'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: New Album Share
-          schema:
-            $ref: '#/definitions/ShareInfo'
-        "409":
-          description: Conflict
-      summary: Share an album
       tags:
       - Share
   /share/file:
@@ -1782,6 +1687,168 @@ paths:
       summary: Create a zip file
       tags:
       - Files
+  /tower:
+    get:
+      operationId: GetRemotes
+      responses:
+        "200":
+          description: Tower Info
+          schema:
+            items:
+              $ref: '#/definitions/TowerInfo'
+            type: array
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Get all remotes
+      tags:
+      - Towers
+  /tower/{serverId}:
+    delete:
+      operationId: DeleteRemote
+      parameters:
+      - description: Server Id to delete
+        in: path
+        name: serverId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Delete a remote
+      tags:
+      - Towers
+  /tower/{serverId}/backup:
+    post:
+      operationId: LaunchBackup
+      parameters:
+      - description: Server ID
+        in: path
+        name: serverId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Launch backup on a tower
+      tags:
+      - Towers
+  /tower/backup:
+    get:
+      operationId: GetBackupInfo
+      parameters:
+      - description: Timestamp in milliseconds since epoch
+        in: query
+        name: timestamp
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Backup Info
+          schema:
+            $ref: '#/definitions/BackupInfo'
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - ApiKeyAuth:
+        - admin
+      summary: Get information about a file
+      tags:
+      - Towers
+  /tower/init:
+    post:
+      operationId: InitializeTower
+      parameters:
+      - description: Server initialization body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/structs.InitServerParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: New server info
+          schema:
+            items:
+              $ref: '#/definitions/TowerInfo'
+            type: array
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security: []
+      summary: Initialize the target server
+      tags:
+      - Towers
+  /tower/remote:
+    post:
+      operationId: CreateRemote
+      parameters:
+      - description: New Server Params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/NewServerParams'
+      responses:
+        "201":
+          description: New Server Info
+          schema:
+            $ref: '#/definitions/TowerInfo'
+        "400":
+          description: Bad Request
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Create a new remote
+      tags:
+      - Towers
+  /tower/reset:
+    post:
+      operationId: ResetTower
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Reset tower
+      tags:
+      - Towers
   /upload:
     post:
       operationId: StartUpload
@@ -1977,6 +2044,26 @@ paths:
       summary: Delete a user
       tags:
       - Users
+    head:
+      operationId: CheckExists
+      parameters:
+      - description: Username of user to check
+        in: path
+        name: username
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+      summary: Check if username is already taken
+      tags:
+      - Users
   /users/{username}/active:
     patch:
       operationId: ActivateUser
@@ -1999,7 +2086,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/ErrorInfo'
+            $ref: '#/definitions/WeblensErrorInfo'
         "401":
           description: Unauthorized
         "404":
@@ -2032,7 +2119,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/ErrorInfo'
+            $ref: '#/definitions/WeblensErrorInfo'
         "403":
           description: Forbidden
         "404":
@@ -2045,7 +2132,7 @@ paths:
       - Users
   /users/{username}/fullName:
     patch:
-      operationId: ChangeFullName
+      operationId: ChangeDisplayName
       parameters:
       - description: Username of user to update
         in: path
@@ -2065,19 +2152,19 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/ErrorInfo'
+            $ref: '#/definitions/WeblensErrorInfo'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/ErrorInfo'
+            $ref: '#/definitions/WeblensErrorInfo'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/ErrorInfo'
+            $ref: '#/definitions/WeblensErrorInfo'
       security:
       - SessionAuth: []
       - ApiKeyAuth: []
-      summary: Update full name of user
+      summary: Update display name of a user
       tags:
       - Users
   /users/{username}/password:
@@ -2103,7 +2190,7 @@ paths:
         "400":
           description: Both oldPassword and newPassword fields are required
           schema:
-            $ref: '#/definitions/ErrorInfo'
+            $ref: '#/definitions/WeblensErrorInfo'
         "403":
           description: Forbidden
         "404":
@@ -2189,7 +2276,7 @@ paths:
         "400":
           description: Username autocomplete must contain at least 2 characters
           schema:
-            $ref: '#/definitions/ErrorInfo'
+            $ref: '#/definitions/WeblensErrorInfo'
         "401":
           description: Unauthorized
         "404":
@@ -2199,27 +2286,6 @@ paths:
       security:
       - SessionAuth: []
       summary: Search for users by username
-      tags:
-      - Users
-  /users/unique:
-    get:
-      operationId: CheckUsernameUnique
-      parameters:
-      - description: Username to check
-        in: query
-        name: username
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-        "400":
-          description: Bad Request
-        "409":
-          description: Conflict
-      summary: Check if username is unique
       tags:
       - Users
 schemes:

@@ -8,12 +8,15 @@ import {
     IconUser,
     IconX,
 } from '@tabler/icons-react'
-import ReactCodeMirror from '@uiw/react-codemirror'
 import { FileApi } from '@weblens/api/FileBrowserApi'
 import MediaApi from '@weblens/api/MediaApi'
-import { useWebsocketStore } from '@weblens/api/Websocket'
-import WeblensButton from '@weblens/lib/WeblensButton'
-import { useKeyDown, useResize, useResizeDrag } from '@weblens/lib/hooks'
+import WeblensButton from '@weblens/lib/WeblensButton.tsx'
+import {
+    useKeyDown,
+    useResize,
+    useResizeDrag,
+    useTimeout,
+} from '@weblens/lib/hooks'
 import {
     calculateShareId,
     downloadSelected,
@@ -25,12 +28,13 @@ import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
 import {
-    Dispatch,
     MouseEventHandler,
     ReactNode,
+    RefObject,
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -63,7 +67,7 @@ export const ContainerMedia = ({
     containerRef,
 }: {
     mediaData: WeblensMedia
-    containerRef: HTMLDivElement
+    containerRef: RefObject<HTMLDivElement | null>
 }) => {
     const [boxSize, setBoxSize] = useState({
         height: 0,
@@ -72,9 +76,12 @@ export const ContainerMedia = ({
     const { width: containerWidth, height: containerHeight } =
         useResize(containerRef)
 
+    const height = mediaData.GetHeight()
+    const width = mediaData.GetWidth()
+
     useEffect(() => {
         let newWidth: number
-        if (!containerRef) {
+        if (!containerRef.current) {
             newWidth = 0
         } else if (containerWidth < 150 && mediaData.GetPageCount() > 1) {
             newWidth = 150
@@ -94,21 +101,20 @@ export const ContainerMedia = ({
         ) {
             return { height: 0, width: 0 }
         }
-        const mediaRatio = mediaData.GetWidth() / mediaData.GetHeight()
+        const mediaRatio = width / height
         const windowRatio = boxSize.width / boxSize.height
         let absHeight = 0
         let absWidth = 0
         if (mediaRatio > windowRatio) {
             absWidth = boxSize.width
-            absHeight =
-                (absWidth / mediaData.GetWidth()) * mediaData.GetHeight()
+            absHeight = (absWidth / width) * height
         } else {
             absHeight = boxSize.height
-            absWidth =
-                (absHeight / mediaData.GetHeight()) * mediaData.GetWidth()
+            absWidth = (absHeight / height) * width
         }
+
         return { height: absHeight, width: absWidth }
-    }, [mediaData, mediaData.GetHeight(), mediaData.GetWidth(), boxSize])
+    }, [mediaData, height, width, boxSize])
 
     if (!mediaData || !containerRef) {
         return <></>
@@ -160,10 +166,6 @@ function TextDisplay({
     const setBlockFocus = useFileBrowserStore((state) => state.setBlockFocus)
     const [content, setContent] = useState('')
 
-    if (!file) {
-        return null
-    }
-
     useEffect(() => {
         setBlockFocus(true)
         FileApi.getFileText(file.Id(), shareId)
@@ -175,6 +177,10 @@ function TextDisplay({
         return () => setBlockFocus(false)
     }, [])
 
+    if (!file) {
+        return null
+    }
+
     if (content.length == 0) {
         return null
     }
@@ -184,14 +190,14 @@ function TextDisplay({
             className="bg-background-secondary rounded-sm p-8"
             onClick={(e) => e.stopPropagation()}
         >
-            <ReactCodeMirror
-                value={content}
-                theme={'dark'}
-                basicSetup={{ lineNumbers: false, foldGutter: false }}
-                minHeight={'100%'}
-                minWidth={'100%'}
-                editable={false}
-            />
+            {/* <ReactCodeMirror */}
+            {/*     value={content} */}
+            {/*     theme={'dark'} */}
+            {/*     basicSetup={{ lineNumbers: false, foldGutter: false }} */}
+            {/*     minHeight={'100%'} */}
+            {/*     minWidth={'100%'} */}
+            {/*     editable={false} */}
+            {/* /> */}
         </div>
     )
 }
@@ -214,7 +220,7 @@ function MediaHeart({ mediaData }: { mediaData: WeblensMedia }) {
             (isLiked && mediaData.GetLikedBy()?.length > 1)
 
         return { isLiked, otherLikes }
-    }, [mediaData?.GetLikedBy().length])
+    }, [mediaData, user.username])
 
     return (
         <div
@@ -270,7 +276,6 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
     )
     const user = useSessionStore((state) => state.user)
 
-    const wsSend = useWebsocketStore((state) => state.wsSend)
     const removeLoading = useFileBrowserStore((state) => state.removeLoading)
     const nav = useNavigate()
 
@@ -308,7 +313,6 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
                             downloadSelected(
                                 [file],
                                 removeLoading,
-                                wsSend,
                                 shareId
                             ).catch(ErrorHandler)
                         }}
@@ -322,8 +326,8 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
                                 downloadSelected(
                                     [file],
                                     removeLoading,
-                                    wsSend,
-                                    shareId
+                                    shareId,
+                                    'jpeg'
                                 ).catch(ErrorHandler)
                             }}
                         />
@@ -375,20 +379,20 @@ export const PresentationVisual = ({
     Element,
 }: {
     mediaData: WeblensMedia
-    Element: () => ReactNode
+    Element?: () => ReactNode
 }) => {
-    const [screenRef, setScreenRef] = useState<HTMLDivElement>(null)
-    const [containerRef, setContainerRef] = useState<HTMLDivElement>(null)
+    const screenRef = useRef<HTMLDivElement>(null)
+    const containerRef = useRef<HTMLDivElement>(null)
     const [splitSize, setSplitSize] = useState(-1)
     const [dragging, setDragging] = useState(false)
     const screenSize = useResize(screenRef)
     const splitCalc = useCallback(
         (o: number) => {
-            if (screenSize.width === -1) {
+            if (screenSize.width === -1 || !screenRef.current) {
                 return
             }
             setSplitSize(
-                (o - screenRef.getBoundingClientRect().left - 56) /
+                (o - screenRef.current.getBoundingClientRect().left - 56) /
                     screenSize.width
             )
         },
@@ -406,12 +410,12 @@ export const PresentationVisual = ({
     }, [Element, splitSize, screenSize])
 
     return (
-        <div ref={setScreenRef} className="flex h-full w-full items-center">
+        <div ref={screenRef} className="flex h-full w-full items-center">
             {mediaData && (
                 <div
                     className="flex h-full items-center justify-center"
                     style={imgStyle}
-                    ref={setContainerRef}
+                    ref={containerRef}
                 >
                     <ContainerMedia
                         mediaData={mediaData}
@@ -441,7 +445,7 @@ function useKeyDownPresentation(
 
     const keyDownHandler = useCallback(
         (event: KeyboardEvent) => {
-            if (!contentId) {
+            if (!contentId || !mediaData) {
                 return
             } else if (event.key === 'Escape') {
                 event.preventDefault()
@@ -452,13 +456,21 @@ function useKeyDownPresentation(
                 if (!mediaData.Prev()) {
                     return
                 }
-                setTarget(mediaData.Prev()?.Id())
+
+                const prevId = mediaData.Prev()?.Id()
+                if (prevId) {
+                    setTarget(prevId)
+                }
             } else if (event.key === 'ArrowRight') {
                 event.preventDefault()
                 if (!mediaData.Next()) {
                     return
                 }
-                setTarget(mediaData.Next()?.Id())
+
+                const nextId = mediaData.Next()?.Id()
+                if (nextId) {
+                    setTarget(nextId)
+                }
             } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
                 event.preventDefault()
             }
@@ -473,27 +485,21 @@ function useKeyDownPresentation(
     }, [keyDownHandler])
 }
 
-function handleTimeout(
-    to: NodeJS.Timeout,
-    setTo: Dispatch<NodeJS.Timeout>,
-    setGuiShown: (b: boolean) => void
-) {
-    if (to) {
-        clearTimeout(to)
-    }
-    setTo(setTimeout(() => setGuiShown(false), 1000))
-}
-
 export function PresentationFile({ file }: { file: WeblensFile }) {
-    const [to, setTo] = useState<NodeJS.Timeout>()
     const [guiShown, setGuiShown] = useState(false)
+
+    const closeGui = useCallback(() => {
+        setGuiShown(false)
+    }, [])
+
+    const { reset } = useTimeout(closeGui, 2000, {
+        onStart: () => setGuiShown(true),
+    })
+
     const [fileInfoOpen, setFileInfoOpen] = useState(true)
-    const [containerRef, setContainerRef] = useState<HTMLDivElement>()
+    const containerRef = useRef<HTMLDivElement>(null)
 
-    const contentId = file?.GetContentId()
     const mediaMap = useMediaStore((state) => state.mediaMap)
-    const mediaData = mediaMap.get(contentId)
-
     const shareId = useFileBrowserStore((state) => state.shareId)
 
     const setPresTarget = useFileBrowserStore(
@@ -506,9 +512,8 @@ export function PresentationFile({ file }: { file: WeblensFile }) {
         }
     })
 
-    if (!file) {
-        return null
-    }
+    const contentId = file?.GetContentId()
+    const mediaData = mediaMap.get(contentId)
 
     let Visual = null
     if (mediaData && mediaData.Id() !== '') {
@@ -526,13 +531,12 @@ export function PresentationFile({ file }: { file: WeblensFile }) {
     return (
         <PresentationContainer
             onMouseMove={() => {
-                setGuiShown(true)
-                handleTimeout(to, setTo, setGuiShown)
+                reset()
             }}
             onClick={() => setPresTarget('')}
         >
             <div
-                className="presentation-icon top-4 left-4"
+                className="absolute top-4 left-4 opacity-0 transition hover:opacity-100 data-[shown=true]:opacity-100"
                 data-shown={guiShown}
             >
                 <WeblensButton
@@ -543,7 +547,7 @@ export function PresentationFile({ file }: { file: WeblensFile }) {
             </div>
 
             <div
-                ref={setContainerRef}
+                ref={containerRef}
                 className="mx-auto flex h-full max-w-full min-w-0 grow items-center justify-center"
             >
                 {Visual}
@@ -582,8 +586,10 @@ interface PresentationProps {
 function Presentation({ mediaId, element, setTarget }: PresentationProps) {
     useKeyDownPresentation(mediaId, setTarget)
 
-    const [to, setTo] = useState<NodeJS.Timeout>(null)
     const [guiShown, setGuiShown] = useState(false)
+    const { reset } = useTimeout(() => setGuiShown(false), 1000, {
+        onStart: () => setGuiShown(true),
+    })
     const [likedHover, setLikedHover] = useState(false)
     const { user } = useSessionStore()
 
@@ -605,8 +611,7 @@ function Presentation({ mediaId, element, setTarget }: PresentationProps) {
     return (
         <PresentationContainer
             onMouseMove={() => {
-                setGuiShown(true)
-                handleTimeout(to, setTo, setGuiShown)
+                reset()
             }}
             onClick={() => setTarget('')}
         >
@@ -616,10 +621,7 @@ function Presentation({ mediaId, element, setTarget }: PresentationProps) {
                 Element={element}
             />
 
-            <div
-                className="presentation-icon top-4 left-4"
-                data-shown={guiShown}
-            >
+            <div className="absolute top-4 left-4" data-shown={guiShown}>
                 <WeblensButton
                     subtle
                     Left={IconX}

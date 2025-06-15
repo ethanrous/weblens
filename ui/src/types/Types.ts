@@ -17,7 +17,7 @@ export type MediaWrapperProps = {
         mediaId: string,
         open: boolean,
         setOpen: (open: boolean) => void
-    ) => JSX.Element
+    ) => Element
 }
 
 export enum PresentType {
@@ -46,28 +46,13 @@ export const newTimeOffset = (): TimeOffset => {
     }
 }
 
-// export type GalleryStateT = {
-//     albumsMap: Map<string, AlbumInfo>
-//     albumsFilter: string[]
-//     loading: string[]
-//     newAlbumDialogue: boolean
-//     blockSearchFocus: boolean
-//     selecting: boolean
-//     menuTargetId: string
-//     imageSize: number
-//     searchContent: string
-//     presentingMediaId: string
-//     presentingMode: PresentType
-//     timeAdjustOffset: TimeOffset
-//     hoverIndex: number
-//     lastSelId: string
-//     holdingShift: boolean
-//     albumId: string
-// }
-
 export type Coordinates = {
     x: number
     y: number
+}
+
+export function validateCoordinates(coordinates: Coordinates): boolean {
+    return coordinates.x >= 0 && coordinates.y >= 0
 }
 
 export type Dimensions = {
@@ -79,15 +64,14 @@ export function ErrorHandler(err: Error, note?: string) {
     note = note ?? ''
     let errMsg = err.message ?? new Error('Unknown error')
     if (err instanceof AxiosError) {
-        errMsg = err.response.data.error + note
+        errMsg = String(err.response.data.error)
     } else {
-        console.log('ErrorHandler 2')
-        errMsg = err.message + note
+        errMsg = err.message
     }
-    console.log('ErrorHandler 3')
 
+    console.error('ErrorHandler caught', errMsg, err.stack)
     useMessagesController.getState().addMessage({
-        title: 'ErrorHandler caught an error',
+        title: note ?? 'ErrorHandler caught an error',
         text: errMsg,
         duration: 5000,
         severity: 'error',

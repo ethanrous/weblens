@@ -1,3 +1,4 @@
+import { WsAction, useWebsocketStore } from '@weblens/api/Websocket'
 import { StateCreator, create } from 'zustand'
 
 type chunkT = {
@@ -9,6 +10,7 @@ type chunkT = {
 
 export class SingleUpload {
     key: string
+    uploadTaskId: string
     isDir: boolean
     friendlyName: string
     subProgress: number // bytes written in current chunk, files only
@@ -24,19 +26,28 @@ export class SingleUpload {
 
     error: string
 
-    constructor(
-        key: string,
-        name: string,
-        isDir: boolean,
-        totalBytes: number,
-        parent?: string
-    ) {
+    constructor({
+        key,
+        name,
+        isDir,
+        totalBytes,
+        uploadTaskId,
+        parentId,
+    }: {
+        key: string
+        name: string
+        isDir: boolean
+        totalBytes: number
+        uploadTaskId: string
+        parentId?: string
+    }) {
         this.key = key
+        this.uploadTaskId = uploadTaskId
         this.friendlyName = name
         this.isDir = isDir
         this.bytesTotal = totalBytes
         this.filesTotal = 0
-        this.parent = parent
+        this.parent = parentId
 
         this.bytes = 0
         this.files = 0
@@ -164,6 +175,7 @@ export interface UploadStatusStateT {
 
     newUpload: (
         key: string,
+        uploadTaskId: string,
         name: string,
         isDir: boolean,
         totalBytes: number,
@@ -184,19 +196,21 @@ const UploadStatusControl: StateCreator<UploadStatusStateT, [], []> = (
 
     newUpload: (
         key: string,
+        uploadTaskId: string,
         name: string,
         isDir: boolean,
         totalBytes: number,
         parentId?: string
     ) => {
         set((state) => {
-            const upload = new SingleUpload(
+            const upload = new SingleUpload({
                 key,
+                uploadTaskId,
                 name,
                 isDir,
                 totalBytes,
-                parentId
-            )
+                parentId,
+            })
 
             state.uploads.set(key, upload)
 
@@ -295,15 +309,43 @@ const UploadStatusControl: StateCreator<UploadStatusStateT, [], []> = (
             upload = state.uploads.get(upload.parent)
         }
         if (!upload) {
-            console.error('Could not find upload with key', key)
-            return
+            throw new Error(`Could not find upload with key: ${key}`)
         }
 
         return upload.error
     },
 
     clearUploads: () => {
-        set({ uploads: new Map() })
+        set((state) => {
+            for (const upload of state.uploads.values()) {
+                console.log('Clearing upload', upload)
+                if (upload.error) {
+                    continue
+                }
+
+                if (upload.complete) {
+                    if (upload.parent) {
+                        const parent = state.uploads.get(upload.parent)
+                        if (parent && !parent.complete) {
+                            continue
+                        }
+                    }
+                    console.log('Its complete', upload)
+                    state.uploads.delete(upload.uploadTaskId)
+                    continue
+                }
+
+                upload.setError('Upload cancelled')
+
+                useWebsocketStore.getState().wsSend({
+                    action: WsAction.CancelTask,
+                    subscribeKey: upload.uploadTaskId,
+                })
+            }
+            return {
+                uploads: new Map(state.uploads),
+            }
+        })
     },
 })
 

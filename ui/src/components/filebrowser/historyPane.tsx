@@ -5,9 +5,9 @@ import {
     IconChevronRight,
     IconCircleMinus,
     IconCirclePlus,
-    IconExclamationCircle,
     IconExternalLink,
     IconFile,
+    IconFolderOpen,
     IconFolderSymlink,
     IconRestore,
     IconTrash,
@@ -15,10 +15,10 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { FolderApi } from '@weblens/api/FileBrowserApi'
 import { FileActionInfo } from '@weblens/api/swag'
-import WeblensLoader from '@weblens/components/Loading'
+import WeblensLoader from '@weblens/components/Loading.tsx'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import historyStyle from '@weblens/components/filebrowser/historyStyle.module.scss'
-import WeblensButton from '@weblens/lib/WeblensButton'
+import WeblensButton from '@weblens/lib/WeblensButton.tsx'
 import { useResize, useResizeDrag, useWindowSize } from '@weblens/lib/hooks'
 import {
     filenameFromPath,
@@ -33,15 +33,16 @@ import { clamp, humanFileSize } from '@weblens/util'
 import {
     CSSProperties,
     Dispatch,
-    FC,
     ReactElement,
     SetStateAction,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from 'react'
 import { VariableSizeList, VariableSizeList as WindowList } from 'react-window'
 
+import { RecoverableError } from '../Error'
 import { FileFmt, PathFmt } from './filename'
 
 const SIDEBAR_BREAKPOINT = 650
@@ -52,6 +53,13 @@ function FileHistoryPane() {
     const dragging = useFileBrowserStore(
         (state) => state.draggingState === DraggingStateT.InterfaceDrag
     )
+    const historyPaneOpen = useFileBrowserStore(
+        (state) => state.historyPaneOpen
+    )
+    const setHistoryPaneOpen = useFileBrowserStore(
+        (state) => state.setHistoryPaneOpen
+    )
+
     const [localDragging, setLocalDragging] = useState(false)
     const setDraggingGlobal = useFileBrowserStore((state) => state.setDragging)
     const setDragging = (d: DraggingStateT) => {
@@ -62,7 +70,6 @@ function FileHistoryPane() {
     const [resizeOffset, setResizeOffset] = useState(
         windowSize?.width > SIDEBAR_BREAKPOINT ? 550 : 75
     )
-    const [open, setOpen] = useState<boolean>(false)
 
     useEffect(() => {
         if (!dragging && localDragging) {
@@ -89,7 +96,7 @@ function FileHistoryPane() {
         <div
             className={fbStyle.fileInfoPane}
             data-resizing={dragging}
-            data-open={open}
+            data-open={historyPaneOpen}
             onClick={(e) => {
                 e.stopPropagation()
             }}
@@ -98,22 +105,10 @@ function FileHistoryPane() {
                 e.stopPropagation()
             }}
         >
-            <div className={fbStyle.openArrowContainer}>
-                <WeblensButton
-                    size="tiny"
-                    className="h-6 w-6"
-                    flavor="outline"
-                    Left={open ? IconChevronRight : IconChevronLeft}
-                    onClick={(e) => {
-                        e.stopPropagation()
-                        setOpen(!open)
-                    }}
-                />
-            </div>
-            {open && (
+            {historyPaneOpen && (
                 <div
                     className="flex h-full max-w-full"
-                    style={{ width: open ? resizeOffset : 20 }}
+                    style={{ width: historyPaneOpen ? resizeOffset : 20 }}
                 >
                     <div
                         draggable={false}
@@ -135,12 +130,20 @@ function FileHistoryPane() {
                         <div className={fbStyle.resizeBar} />
                     </div>
                     <div className="flex h-full w-[75px] grow flex-col">
-                        {open && <FileHistory />}
+                        {historyPaneOpen && <FileHistory />}
                     </div>
                 </div>
             )}
         </div>
     )
+}
+
+const relevantOrigin = (action: FileActionInfo) => {
+    return action.originPath ?? action.filepath ?? ''
+}
+
+const relevantDestination = (action: FileActionInfo) => {
+    return action.destinationPath ?? action.filepath ?? ''
 }
 
 const portableToFolderName = (path: string) => {
@@ -170,30 +173,34 @@ function ActionRow({
     action,
     folderName,
     isSelected,
+    inOpenEvent,
 }: {
     action: FileActionInfo
     folderName: string
     isSelected: boolean
+    inOpenEvent?: boolean
 }) {
     const { fromNode, toNode, moveOut } = useMemo(() => {
-        const fromFolder = portableToFolderName(action.originPath)
-        const toFolder = portableToFolderName(action.destinationPath)
-        const originName = portableToFileName(action.originPath)
+        const fromFolder = portableToFolderName(relevantOrigin(action))
+        const toFolder = portableToFolderName(relevantDestination(action))
+        const originName = portableToFileName(relevantOrigin(action))
 
         let fromNode: ReactElement
+        const pathClass =
+            'font-semibold border rounded p-1 bg-card-background-primary hover:bg-card-background-hover'
         if (action.actionType === FbActionT.FileMove.valueOf()) {
             if (folderName === fromFolder) {
                 fromNode = (
                     <FileFmt
-                        pathName={action.originPath}
-                        className="font-semibold"
+                        pathName={relevantOrigin(action)}
+                        className={pathClass}
                     />
                 )
             } else {
                 fromNode = (
                     <PathFmt
-                        pathName={action.originPath}
-                        className="font-semibold"
+                        pathName={relevantOrigin(action)}
+                        className={pathClass}
                     />
                 )
             }
@@ -203,15 +210,15 @@ function ActionRow({
         ) {
             fromNode = (
                 <FileFmt
-                    pathName={action.destinationPath}
-                    className="font-semibold"
+                    pathName={relevantDestination(action)}
+                    className={pathClass}
                 />
             )
         } else if (action.actionType === FbActionT.FileDelete.valueOf()) {
             fromNode = (
                 <FileFmt
-                    pathName={action.originPath}
-                    className="font-semibold"
+                    pathName={relevantOrigin(action)}
+                    className={pathClass}
                 />
             )
         }
@@ -223,16 +230,16 @@ function ActionRow({
                 moveOut = true
                 toNode = (
                     <PathFmt
-                        pathName={action.destinationPath}
-                        className="font-semibold"
+                        pathName={relevantDestination(action)}
+                        className={pathClass}
                         excludeBasenameMatching={originName}
                     />
                 )
             } else {
                 toNode = (
                     <FileFmt
-                        pathName={action.destinationPath}
-                        className="font-semibold"
+                        pathName={relevantDestination(action)}
+                        className={pathClass}
                     />
                 )
             }
@@ -241,12 +248,11 @@ function ActionRow({
         return { fromNode, toNode, moveOut }
     }, [action])
 
-    let ActionIcon: FC<{ size?: number; color?: string; className?: string }> =
-        IconFile
+    let ActionIcon: typeof IconFile = IconFile
     let actionColor: string
     if (action.actionType === FbActionT.FileMove.valueOf()) {
         if (moveOut) {
-            if (action.destinationPath.includes('.user_trash')) {
+            if (relevantDestination(action).includes('.user_trash')) {
                 ActionIcon = IconTrash
                 actionColor = 'var(--color-danger)'
             } else {
@@ -284,12 +290,14 @@ function ActionRow({
 
             {toNode}
 
-            <span
-                className="text-text-tertiary data-selected:text-text-primary ml-auto text-nowrap"
-                data-selected={isSelected ? true : undefined}
-            >
-                {historyDateTime(action.timestamp, true)}
-            </span>
+            {!inOpenEvent && (
+                <span
+                    className="text-text-tertiary data-selected:text-text-primary ml-auto text-nowrap"
+                    data-selected={isSelected ? true : undefined}
+                >
+                    {historyDateTime(action.timestamp, true)}
+                </span>
+            )}
         </>
     )
 }
@@ -320,7 +328,7 @@ function HistoryRowWrapper({
             while (index + backCounter < data.events.length) {
                 backCounter++
                 i = data.events[index + backCounter].findIndex((v) => {
-                    if (v.lifeId === data.events[index][0].lifeId) {
+                    if (v.fileId === data.events[index][0].fileId) {
                         return true
                     }
                 })
@@ -332,6 +340,18 @@ function HistoryRowWrapper({
         }
         return previousSize
     }, [data])
+
+    if (!data.events[index]) {
+        return null
+    }
+
+    const thisEvent = data.events[index]
+
+    const path = thisEvent[0].filepath ?? thisEvent[0].destinationPath
+    if (!path) {
+        console.warn('No path for event:', thisEvent[0])
+        return null
+    }
 
     return (
         <div
@@ -345,9 +365,9 @@ function HistoryRowWrapper({
             }}
         >
             <HistoryEventRow
-                key={data.events[index][0].eventId}
-                event={data.events[index]}
-                folderPath={data.events[index][0].destinationPath}
+                key={thisEvent[0].eventId}
+                event={thisEvent}
+                folderPath={path}
                 previousSize={previousSize}
                 open={data.openEvents[index]}
                 setOpen={(o: boolean) =>
@@ -357,12 +377,13 @@ function HistoryRowWrapper({
                     })
                 }
                 showResize={data.showResize}
+                index={index}
             />
         </div>
     )
 }
 
-function ActionRowWrapper({
+function EventDropdownRow({
     data,
     index,
     style,
@@ -387,6 +408,7 @@ function ActionRowWrapper({
                 action={data.actions[index]}
                 folderName={data.folderName}
                 isSelected={false}
+                inOpenEvent={true}
             />
         </div>
     )
@@ -405,7 +427,7 @@ function ExpandableEventRow({
     setOpen: Dispatch<SetStateAction<boolean>>
     showResize: boolean
 }) {
-    const [boxRef, setBoxRef] = useState<HTMLDivElement>()
+    const boxRef = useRef<HTMLDivElement>(null)
     const boxSize = useResize(boxRef)
     const pastTime = useFileBrowserStore((state) => state.pastTime)
 
@@ -428,9 +450,9 @@ function ExpandableEventRow({
                     : 36,
             }}
         >
-            <div className="flex h-[28px] w-full shrink-0 cursor-pointer items-center">
+            <div className="flex h-[28px] w-full shrink-0 items-center">
                 <div
-                    className="text-text-secondary hover:text-text-primary hover:bg-background-secondary hover:border-text-primary rounded-md border transition"
+                    className="text-text-secondary hover:text-text-primary hover:bg-background-secondary hover:border-text-primary cursor-pointer rounded-md border transition"
                     onClick={(e) => {
                         e.stopPropagation()
                         setOpen(!open)
@@ -451,9 +473,9 @@ function ExpandableEventRow({
                 </span>
             </div>
             <div
+                ref={boxRef}
                 className="relative flex h-0 w-full flex-col rounded-md data-open:h-full data-open:max-h-full"
                 data-open={open ? true : undefined}
-                ref={setBoxRef}
             >
                 <WindowList
                     height={boxSize.height}
@@ -463,7 +485,7 @@ function ExpandableEventRow({
                     itemData={{ actions: event, folderName }}
                     overscanCount={5}
                 >
-                    {ActionRowWrapper}
+                    {EventDropdownRow}
                 </WindowList>
             </div>
         </div>
@@ -477,16 +499,18 @@ function HistoryEventRow({
     open,
     setOpen,
     showResize,
+    index,
 }: {
     event: FileActionInfo[]
     folderPath: string
     previousSize: number
     open: boolean
-    setOpen: Dispatch<SetStateAction<boolean>>
+    setOpen: (o: boolean) => void
     showResize: boolean
+    index: number
 }) {
     const pastTime = useFileBrowserStore((state) => state.pastTime)
-    const contentId = useFileBrowserStore((state) => state.contentId)
+    const contentId = useFileBrowserStore((state) => state.activeFileId)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const setLocation = useFileBrowserStore((state) => state.setLocationState)
 
@@ -506,7 +530,7 @@ function HistoryEventRow({
         return null
     }
 
-    let content: JSX.Element
+    let content: ReactElement
     if (
         event.length === 1 &&
         event[0].actionType === FbActionT.FileSizeChange.valueOf()
@@ -557,14 +581,16 @@ function HistoryEventRow({
 
     return (
         <div
-            className="data-selected:border-text-secondary data-selected:bg-background-secondary hover:bg-background-secondary my-1 flex h-full w-full cursor-pointer items-center justify-center gap-1 rounded border p-1"
+            className="data-selected:border-text-secondary data-selected:bg-background-secondary hover:bg-background-secondary my-1 flex h-full w-full cursor-pointer items-center justify-center gap-1 rounded border p-1 data-is-first:cursor-default"
             data-resize={
                 event[0].actionType === FbActionT.FileSizeChange.valueOf()
             }
             data-selected={isSelected ? true : undefined}
+            data-is-first={index === 0 ? true : undefined}
             onClick={(e) => {
                 e.stopPropagation()
                 if (
+                    index === 0 ||
                     event[0].actionType === FbActionT.FileSizeChange.valueOf()
                 ) {
                     return
@@ -581,7 +607,6 @@ function HistoryEventRow({
                 let newDate = new Date(0)
                 const timestamp = Math.max(...event.map((a) => a.timestamp))
                 newDate = new Date(timestamp)
-                console.log('NEW DATE', newDate)
 
                 if (newDate !== pastTime) {
                     setLocation({
@@ -604,7 +629,7 @@ function getEventHeight(
     showResize: boolean
 ) {
     if (openEvents[i]) {
-        return Math.min(516, 72 + events[i].length * 36)
+        return Math.min(516, 72 + events[i].length * 24)
     }
 
     if (events[i][0].actionType === FbActionT.FileSizeChange.valueOf()) {
@@ -644,7 +669,7 @@ function FileHistoryFooter({
                 label={'Size Changes'}
                 toggleOn={showResize}
                 onClick={() => setShowResize((r) => !r)}
-				className='hidden'
+                className="hidden"
             />
             <div className="border-t-color-border-primary mt-4 flex flex-col items-center border-t pt-2">
                 <div className="flex flex-row items-center">
@@ -664,24 +689,26 @@ function FileHistory() {
     const user = useSessionStore((state) => state.user)
 
     const filesMap = useFileBrowserStore((state) => state.filesMap)
-    const contentId = useFileBrowserStore((state) => state.contentId)
+    const activeFileId = useFileBrowserStore((state) => state.activeFileId)
     const mode = useFileBrowserStore((state) => state.fbMode)
     const pastTime = useFileBrowserStore((state) => state.pastTime)
     const setLocation = useFileBrowserStore((state) => state.setLocationState)
 
     const [showResize, setShowResize] = useState<boolean>(false)
 
-    const [windowRef, setWindowRef] = useState<VariableSizeList>()
-    const [boxRef, setBoxRef] = useState<HTMLDivElement>()
+    const windowRef = useRef<VariableSizeList>(null)
+    const boxRef = useRef<HTMLDivElement>(null)
 
     const boxSize = useResize(boxRef)
 
     const {
         data: fileHistory,
         refetch,
+        isPending,
         error,
     } = useQuery<FileActionInfo[]>({
-        queryKey: ['fileHistory', contentId],
+        queryKey: ['fileHistory', activeFileId],
+        retry: false,
         queryFn: () => {
             if (mode === FbModeT.share) {
                 return []
@@ -692,7 +719,7 @@ function FileHistory() {
                 timestamp = pastTime.getTime()
             }
 
-            return FolderApi.getFolderHistory(contentId, timestamp).then(
+            return FolderApi.getFolderHistory(activeFileId, timestamp).then(
                 (res) => {
                     return res.data
                 }
@@ -700,25 +727,31 @@ function FileHistory() {
         },
     })
 
+    if (error) {
+        console.error('Failed to fetch file history:', error)
+    }
+
     useEffect(() => {
         refetch().catch(ErrorHandler)
-    }, [filesMap.size])
+    }, [filesMap.size, refetch])
 
     const { events, epoch } = useMemo(() => {
         if (!fileHistory || !fileHistory.length) {
             return { events: [], epoch: null }
         }
 
+        console.log('File history:', fileHistory)
+
         const events: FileActionInfo[][] = []
         let epoch: FileActionInfo
         // let lastSizeChangeIndex = -1
 
         fileHistory.forEach((a: FileActionInfo) => {
-            if (a.lifeId === contentId) {
+            if (a.fileId === activeFileId) {
                 epoch = a
                 return
             }
-            if (a.lifeId === user.trashId) {
+            if (a.fileId === user.trashId) {
                 return
             }
 
@@ -735,7 +768,7 @@ function FileHistory() {
         })
 
         return { events, epoch }
-    }, [fileHistory])
+    }, [fileHistory, user.trashId, activeFileId])
 
     const [openEvents, setOpenEvents] = useState<boolean[]>([])
     useEffect(() => {
@@ -744,7 +777,7 @@ function FileHistory() {
     }, [events])
 
     useEffect(() => {
-        windowRef?.resetAfterIndex(0)
+        windowRef.current?.resetAfterIndex(0)
     }, [openEvents, showResize])
 
     if (mode === FbModeT.share) {
@@ -763,7 +796,7 @@ function FileHistory() {
                 data-selected={pastTime.getTime() === 0}
                 onClick={() => {
                     setLocation({
-                        contentId: contentId,
+                        contentId: activeFileId,
                         pastTime: new Date(0),
                     })
                 }}
@@ -772,29 +805,39 @@ function FileHistory() {
                     Now
                 </p>
             </div>
-            {!epoch && !error && (
+            {isPending && (
                 <div className="flex h-1 w-full grow items-center justify-center">
                     <WeblensLoader />
                 </div>
             )}
             {error && (
-                <div className="flex h-1 w-full grow items-center">
-                    <div className="m-auto inline-flex w-max flex-row gap-1 p-2">
-                        <IconExclamationCircle
-                            size={24}
-                            className="ml-2 text-red-500"
+                <div className="flex h-1 w-full grow flex-col items-center">
+                    <div className="m-auto inline-flex w-max flex-row items-center justify-center gap-1 p-2">
+                        <RecoverableError
+                            message="Failed to get file history"
+                            error={error}
                         />
-                        <p>Failed to get file history</p>
                     </div>
+                </div>
+            )}
+            {!isPending && !error && (!epoch || events.length <= 0) && (
+                <div className="flex h-1 w-full grow flex-col items-center justify-center">
+                    <span className="z-10">
+                        Nothing has happened here... yet
+                    </span>
+                    <IconFolderOpen
+                        className="text-nearly-invisible"
+                        size={150}
+                    />
                 </div>
             )}
             {epoch && !error && (
                 <div
-                    ref={setBoxRef}
+                    ref={boxRef}
                     className="relative flex h-1 w-full grow flex-col pt-1"
                 >
                     <WindowList
-                        ref={setWindowRef}
+                        ref={windowRef}
                         height={boxSize.height}
                         width={boxSize.width}
                         style={{ position: 'relative' }}
@@ -802,7 +845,7 @@ function FileHistory() {
                             getEventHeight(
                                 events,
                                 openEvents,
-                                epoch.destinationPath,
+                                epoch.filepath,
                                 i,
                                 showResize
                             )

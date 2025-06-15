@@ -1,17 +1,27 @@
-import Logo from './Logo'
-
-export default function WeblensLoader({ loading }: { loading?: string[] }) {
+export default function WeblensLoader({
+    size = 24,
+    loading,
+    className,
+}: {
+    size?: number
+    loading?: string[]
+    className?: string
+}) {
     if (loading && loading.length === 0) {
         return null
     }
     return (
         <div
-            className="flex justify-center"
+            className={
+                'funky-spinner ' + className
+            }
+            style={{
+                width: size,
+                height: size,
+            }}
             onClick={() => {
                 console.log('Waiting on:', loading)
             }}
-        >
-            <Logo />
-        </div>
+        />
     )
 }

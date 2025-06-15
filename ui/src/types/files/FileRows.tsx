@@ -1,5 +1,6 @@
-import FileVisual from '@weblens/components/filebrowser/fileVisual'
-import GetStartedCard from '@weblens/components/filebrowser/getStartedCard'
+import FileVisual from '@weblens/components/filebrowser/fileVisual.tsx'
+import GetStartedCard from '@weblens/components/filebrowser/getStartedCard.tsx'
+import { useResize } from '@weblens/lib/hooks'
 import {
     HandleDrop,
     historyDateTime,
@@ -14,7 +15,6 @@ import {
     visitFile,
 } from '@weblens/types/files/FileDragLogic'
 import filesStyle from '@weblens/types/files/filesStyle.module.scss'
-import { useResize } from '@weblens/lib/hooks'
 import { CSSProperties, MouseEvent, useRef, useState } from 'react'
 import { FixedSizeList as WindowList } from 'react-window'
 
@@ -32,9 +32,9 @@ function FileRow({
     style: CSSProperties
 }) {
     const file = data[index]
-    const fileRef = useRef<HTMLDivElement>()
+    const fileRef = useRef<HTMLDivElement>(null)
 
-    const [mouseDown, setMouseDown] = useState<Coordinates>(null)
+    const [mouseDown, setMouseDown] = useState<Coordinates>({ x: -1, y: -1 })
 
     const draggingState = useFileBrowserStore((state) => state.draggingState)
     const viewOpts = useFileBrowserStore((state) => state.viewOpts)
@@ -165,7 +165,7 @@ function FileRow({
 }
 
 export function FileRows({ files }: { files: WeblensFile[] }) {
-    const [boxRef, setBoxRef] = useState<HTMLDivElement>()
+    const boxRef = useRef<HTMLDivElement>(null)
     const size = useResize(boxRef)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const moveDest = useFileBrowserStore((state) => state.moveDest)
@@ -176,8 +176,8 @@ export function FileRows({ files }: { files: WeblensFile[] }) {
 
     return (
         <div
-            ref={setBoxRef}
-            className={filesStyle.fileRows}
+            ref={boxRef}
+            className={filesStyle.fileRows + ' dropzone'}
             data-droppable={Boolean(
                 moveDest === folderInfo?.Id() &&
                     folderInfo?.modifiable &&
