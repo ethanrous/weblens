@@ -4,12 +4,7 @@ import WeblensFile from '@weblens/types/files/File.js'
 
 import API_ENDPOINT from './ApiEndpoint.js'
 import { WsAction, WsSubscriptionType, useWebsocketStore } from './Websocket'
-import {
-    FilesApiAxiosParamCreator,
-    FilesApiFactory,
-    FolderApiFactory,
-    FolderInfo,
-} from './swag/api.js'
+import { FilesApiAxiosParamCreator, FilesApiFactory, FolderApiFactory, FolderInfo } from './swag/api.js'
 import { Configuration } from './swag/configuration.js'
 
 export const FileApi = FilesApiFactory({} as Configuration, API_ENDPOINT)
@@ -76,18 +71,14 @@ export function UnsubFromFolder(subId: string) {
 }
 
 export async function GetTrashChildIds(): Promise<string[]> {
-    const { data: folder } = await FolderApi.getFolder(
-        useSessionStore.getState().user.trashId
-    )
+    const { data: folder } = await FolderApi.getFolder(useSessionStore.getState().user.trashId)
 
     if (!folder || !folder.children) {
         console.error('No children found in trash folder')
         return []
     }
 
-    const childIds = folder.children
-        .map((file) => file.id)
-        .filter((id) => id !== undefined)
+    const childIds = folder.children.map((file) => file.id).filter((id) => id !== undefined)
 
     return childIds
 }
@@ -111,39 +102,33 @@ export async function GetFolderData(
         throw new Error('Folder ID cannot be empty')
     }
 
-    const res = await FolderApi.getFolder(
-        folderId,
-        shareId ? shareId : undefined,
-        viewingTime?.getTime(),
-        { withCredentials: true }
-    )
+    const res = await FolderApi.getFolder(folderId, shareId ? shareId : undefined, viewingTime?.getTime(), {
+        withCredentials: true,
+    })
     return res.data
 }
+
+export type AllowedDownloadFormats = 'webp' | 'jpeg' | 'zip'
 
 export async function downloadSingleFile(
     fileId: string,
     filename: string,
-    isZip: boolean,
     shareId: string,
-    format: 'webp' | 'jpeg' = 'webp'
+    format?: AllowedDownloadFormats
 ) {
-    if (!format) {
-        format = 'webp'
-    }
-
     const a = document.createElement('a')
     const paramCreator = FilesApiAxiosParamCreator()
     const args = await paramCreator.downloadFile(
         fileId,
         shareId,
-        `image/${format}`,
-        isZip
+        format ? `image/${format}` : undefined,
+        format === 'zip'
     )
     const url = API_ENDPOINT + args.url
 
-    if (isZip) {
+    if (format === 'zip') {
         filename = 'weblens_download_' + filename
-    } else {
+    } else if (format) {
         filename = filename.split('.').slice(0, -1).join('.') + '.' + format
     }
 

@@ -34,9 +34,7 @@
         &::before {
             content: '';
             position: absolute;
-            background-color: rgb(
-                from var(--color-theme-secondary) r g b / 0.2
-            );
+            background-color: rgb(from var(--color-theme-secondary) r g b / 0.2);
 
             width: 100%;
             height: 100%;
@@ -64,8 +62,7 @@
             background-image: repeating-linear-gradient(
                 45deg,
                 rgba(from var(--color-card-background-primary) r g b / 0.75),
-                rgba(from var(--color-card-background-primary) r g b / 0.75)
-                    10px,
+                rgba(from var(--color-card-background-primary) r g b / 0.75) 10px,
                 rgba(from var(--color-red-600) r g b / 0.2) 10px,
                 rgba(from var(--color-red-600) r g b / 0.2) 20px
             );
@@ -84,4 +81,8 @@
             z-index: 1;
         }
     }
+}
+
+@utility presentation-container {
+    @apply bg-background-primary/85 absolute top-0 left-0 z-50 flex h-full w-full items-center justify-center p-6 backdrop-blur-sm;
 }

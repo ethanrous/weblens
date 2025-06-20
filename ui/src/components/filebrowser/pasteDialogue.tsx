@@ -1,4 +1,3 @@
-import { PresentationContainer } from '@weblens/components/Presentation'
 import WeblensButton from '@weblens/lib/WeblensButton.tsx'
 import { uploadViaUrl } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { useFileBrowserStore } from '@weblens/store/FBStateControl'
@@ -13,9 +12,7 @@ function PasteDialogue() {
     const pasteImage = useFileBrowserStore((state) => state.pasteImgBytes)
     const pasteImgBytes = useFileBrowserStore((state) => state.pasteImgBytes)
 
-    const setPasteImgBytes = useFileBrowserStore(
-        (state) => state.setPasteImgBytes
-    )
+    const setPasteImgBytes = useFileBrowserStore((state) => state.setPasteImgBytes)
 
     if (!pasteImgBytes) {
         return null
@@ -25,15 +22,14 @@ function PasteDialogue() {
     media.SetThumbnailBytes(pasteImage)
 
     return (
-        <PresentationContainer
+        <div
+            className="presentation-container"
             onClick={() => {
                 setPasteImgBytes(null)
             }}
         >
             <div className="absolute z-2 flex h-full w-full flex-col items-center justify-center">
-                <p className="pb-[50px] text-[40px] font-bold">
-                    Upload from clipboard?
-                </p>
+                <p className="pb-[50px] text-[40px] font-bold">Upload from clipboard?</p>
                 <div
                     className="bg-bottom-grey h-1/2 w-max overflow-hidden rounded-lg p-3"
                     onClick={(e) => {
@@ -60,19 +56,14 @@ function PasteDialogue() {
                         fillWidth
                         onClick={(e) => {
                             e.stopPropagation()
-                            uploadViaUrl(
-                                pasteImage,
-                                contentId,
-                                filesMap,
-                                shareId
-                            )
+                            uploadViaUrl(pasteImage, contentId, filesMap, shareId)
                                 .then(() => setPasteImgBytes(null))
                                 .catch(ErrorHandler)
                         }}
                     />
                 </div>
             </div>
-        </PresentationContainer>
+        </div>
     )
 }
 export default PasteDialogue

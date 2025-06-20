@@ -18,12 +18,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { FbModeT, useFileBrowserStore } from '../../store/FBStateControl'
 import { DraggingCounter } from './DropSpot'
-import {
-    filenameFromPath,
-    getRealId,
-    useKeyDownFileBrowser,
-    usePaste,
-} from './FileBrowserLogic'
+import { filenameFromPath, getRealId, useKeyDownFileBrowser, usePaste } from './FileBrowserLogic'
 import { DirViewModeT } from './FileBrowserTypes'
 
 function useSearch() {
@@ -89,9 +84,7 @@ function FileBrowser() {
         let mode: FbModeT = 0
         let contentId: string = ''
         let shareId: string = ''
-        const splitPath: string[] = urlPath
-            .split('/')
-            .filter((s) => s.length !== 0)
+        const splitPath: string[] = urlPath.split('/').filter((s) => s.length !== 0)
 
         if (splitPath.length === 0) {
             return
@@ -162,12 +155,7 @@ function FileBrowser() {
 
             // If we're not ready, leave
             if (fbMode == FbModeT.unset || !user) {
-                console.debug(
-                    'Not ready to sync state. Mode: ',
-                    fbMode,
-                    'User:',
-                    user
-                )
+                console.debug('Not ready to sync state. Mode: ', fbMode, 'User:', user)
                 return
             }
 
@@ -187,8 +175,8 @@ function FileBrowser() {
                 (folder.GetFetching() ||
                     (folder.modifiable !== undefined &&
                         folder.childrenIds &&
-                        folder.childrenIds.filter((f) => f !== user.trashId)
-                            .length === filesLists.get(folder.Id())?.length))
+                        folder.childrenIds.filter((f) => f !== user.trashId).length ===
+                            filesLists.get(folder.Id())?.length))
             ) {
                 console.debug('Exiting sync state early')
                 if (folder.Id() !== folderInfo.Id()) {
@@ -201,12 +189,7 @@ function FileBrowser() {
 
             folder?.SetFetching(true)
 
-            const fileData = await GetFolderData(
-                activeFileId,
-                fbMode,
-                shareId,
-                pastTime
-            ).catch((r) => {
+            const fileData = await GetFolderData(activeFileId, fbMode, shareId, pastTime).catch((r) => {
                 if (r.status === 401) {
                     console.error('Unauthorized, going to login')
                     nav('/login', {
@@ -225,10 +208,7 @@ function FileBrowser() {
             }
 
             if (fileData) {
-                if (
-                    fbMode === FbModeT.share &&
-                    fileData.self?.owner == user.username
-                ) {
+                if (fbMode === FbModeT.share && fileData.self?.owner == user.username) {
                     nav(`/files/${fileData.self.id}`, { replace: true })
                     return
                 }
@@ -242,9 +222,7 @@ function FileBrowser() {
                 })
 
                 if (fileData?.self?.portablePath) {
-                    document.title =
-                        filenameFromPath(fileData.self.portablePath).nameText +
-                        ' - Weblens'
+                    document.title = filenameFromPath(fileData.self.portablePath).nameText + ' - Weblens'
                 }
 
                 folder?.SetFetching(false)
@@ -272,10 +250,7 @@ function FileBrowser() {
     useEffect(() => {
         const selectedSize = useFileBrowserStore.getState().selected.size
 
-        if (
-            viewOpts.dirViewMode !== DirViewModeT.Columns &&
-            selectedSize === 1
-        ) {
+        if (viewOpts.dirViewMode !== DirViewModeT.Columns && selectedSize === 1) {
             clearSelected()
         }
 
@@ -320,11 +295,7 @@ function FileBrowser() {
             </div>
             <div className="flex h-[90vh] grow flex-row items-start">
                 <FBSidebar />
-                <DirectoryView
-                    filesError={filesFetchErr}
-                    setFilesError={setFilesFetchErr}
-                    searchFilter={''}
-                />
+                <DirectoryView filesError={filesFetchErr} setFilesError={setFilesFetchErr} searchFilter={''} />
             </div>
         </div>
     )
