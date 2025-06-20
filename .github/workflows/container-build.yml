@@ -30,7 +30,7 @@ jobs:
     environment: >-
       ${{ github.ref == 'refs/heads/main'
           && github.event_name != 'workflow_dispatch'
-          && github.event.inputs.deploy == 'none'
+          && github.event.inputs.deploy == ''
           && 'amethyst'
           || github.event.inputs.do_release_build == true && 'prod' || null }}
     steps:
