@@ -41,9 +41,11 @@ ensure_repl_set() {
 
 launch_mongo() {
     if ! docker image ls | grep ethrous/weblens-mongo; then
-        ls ./scripts/build-mongo.bash
         ./scripts/build-mongo.bash || exit 1
     fi
+
+    echo "MONGO VVV"
+    docker image ls
 
     if ! docker ps | grep "$mongoName"; then
         echo "Starting MongoDB container [$mongoName] ..."
@@ -54,7 +56,7 @@ launch_mongo() {
             --mount type=volume,src="$mongoName",dst=/data/db \
             --network weblens-net \
             -e WEBLENS_MONGO_HOST_NAME="$mongoName" \
-            ethrous/weblens-mongo
+            ethrous/weblens-mongo || exit 1
     fi
 
     ensure_repl_set
