@@ -9,7 +9,7 @@ fi
 ensure_repl_set() {
     mongoWaitCount=0
     while [[ $mongoWaitCount -lt 10 ]]; do
-        status="$(docker inspect "$mongoName" --format '{{.State.Health.Status}}')"
+        status="$(sudo docker inspect "$mongoName" --format '{{.State.Health.Status}}')"
         if [[ $status == "starting" ]]; then
             mongoWaitCount=$((mongoWaitCount + 1))
             echo "MongoDB is starting, waiting ${mongoWaitCount}s..."
