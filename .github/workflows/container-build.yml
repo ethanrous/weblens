@@ -13,6 +13,14 @@ on:
         required: false
         default: false
         type: boolean
+      deploy:
+        description: The environment to deploy to
+        required: true
+        type: choice
+        options:
+          - "none"
+          - "not-none"
+        default: "none"
   push:
     branches: [ "main" ]
 
@@ -22,6 +30,7 @@ jobs:
     environment: >-
       ${{ github.ref == 'refs/heads/main'
           && github.event_name != 'workflow_dispatch'
+          && github.event.inputs.deploy == 'none'
           && 'amethyst'
           || github.event.inputs.do_release_build == true && 'prod' || null }}
     steps:
@@ -36,7 +45,9 @@ jobs:
         run: |
           sudo docker login -u ${{ vars.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
           echo "EVENT NAME: $GITHUB_EVENT_NAME, REF: $GITHUB_REF"
-          if [ -z "$BUILD_TAG" ] && [ $RELEASE_BUILD == true ]; then
+          echo ${{ github.event.inputs.deploy }}
+          echo "DEPLOY2 $ENVIRON"
+          if [[ -z "$BUILD_TAG" ]] && [[ $RELEASE_BUILD == true ]]; then
             echo "ERR BUILD_TAG must be specified when doing release build"
             exit 1
           elif [ -z "$BUILD_TAG" ] && [ "$GITHUB_REF" == "refs/heads/main" ]; then
@@ -55,3 +66,4 @@ jobs:
         env:
           BUILD_TAG: ${{ inputs.build_tag }}
           RELEASE_BUILD: ${{ inputs.do_release_build }}
+          ENVIRON: ${{ inputs.deploy }}
