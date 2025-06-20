@@ -77,6 +77,13 @@ func newOwner(ctx context.Context, initBody structs.InitServerParams) (*user_mod
 		return nil, errors.New("failed to get request context")
 	}
 
+	if exists, err := user_model.GetUserByUsername(ctx, owner.Username); err == nil {
+		err = exists.Delete(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if tower_model.Role(initBody.Role) == tower_model.RoleCore {
 		// Create user home directory
 		err := appCtx.FileService.CreateUserHome(ctx, owner)

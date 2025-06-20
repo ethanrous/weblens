@@ -510,9 +510,8 @@ function filebrowserWebsocketHandler(
                 downloadSingleFile(
                     msgData.content.takeoutId,
                     msgData.content.filename,
-                    true,
                     shareId,
-                    null
+                    'zip'
                 ).catch(ErrorHandler)
                 break
             }

@@ -2,17 +2,16 @@ import { QueryObserverResult } from '@tanstack/react-query'
 import { AxiosResponse } from 'axios'
 import { CSSProperties, FC } from 'react'
 
-export type ButtonIcon = FC<{ className?: string; size?: number }>
+export type ButtonIcon = FC<{ className?: string; size?: number }> | null
 
-export type ButtonActionPromiseReturn = Promise<
-    void | boolean | AxiosResponse | QueryObserverResult
->
+export type ButtonActionPromiseReturn = Promise<void | boolean | AxiosResponse | QueryObserverResult>
 
-export type ButtonActionHandler<T = React.MouseEvent<HTMLElement, MouseEvent>> =
-    (e: T) => void | ButtonActionPromiseReturn
+export type ButtonActionHandler<T = React.MouseEvent<HTMLElement, MouseEvent>> = (
+    e: T
+) => void | ButtonActionPromiseReturn
 
 export type ButtonFlavor = 'default' | 'outline' | 'light'
-export type ButtonSize = 'default' | 'tiny' | 'jumbo' | 'small' | 'large'
+export type ButtonSize = 'default' | 'tiny' | 'jumbo' | 'small' | 'large' | number
 
 export type TooltipOptions = {
     content: string

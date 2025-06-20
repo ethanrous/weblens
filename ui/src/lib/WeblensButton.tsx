@@ -127,21 +127,35 @@ function WeblensButton({
 
     let iconSize = 24
     let buttonSpacing = '0.5rem'
-    switch (size) {
-        case 'default':
-            break
-        case 'small':
-            iconSize = 20
-            buttonSpacing = '0.3rem'
-            break
-        case 'tiny':
-            iconSize = 16
-            buttonSpacing = '0.2rem'
-            break
-        case 'jumbo':
-            iconSize = 48
-            buttonSpacing = '0.75rem'
-            break
+    let minSize = 0
+    let maxW = 999
+    let maxH = 999
+    if (typeof size === 'number') {
+        minSize = size
+        maxH = size
+		iconSize = size * 0.6
+
+        if (!label) {
+            maxW = size
+        }
+    } else {
+        switch (size) {
+            case 'default':
+                break
+            case 'small':
+                iconSize = 20
+                minSize = 32
+                buttonSpacing = '0.3rem'
+                break
+            case 'tiny':
+                iconSize = 16
+                buttonSpacing = '0.2rem'
+                break
+            case 'jumbo':
+                iconSize = 48
+                buttonSpacing = '0.75rem'
+                break
+        }
     }
 
     let tooltipClass = ''
@@ -164,6 +178,12 @@ function WeblensButton({
             }
             data-fill-width={fillWidth ? true : null}
             ref={ref}
+            style={{
+                minHeight: minSize,
+                minWidth: minSize,
+                maxWidth: maxW,
+                maxHeight: maxH,
+            }}
         >
             <button
                 ref={buttonRef}
@@ -175,6 +195,8 @@ function WeblensButton({
                         '--wl-button-spacing': buttonSpacing,
                         display: 'flex',
                         alignItems: centerContent ? 'center' : 'flex-start',
+                        minHeight: minSize,
+                        minWidth: minSize,
                     } as CSSProperties
                 }
                 data-fill-width={fillWidth}
@@ -182,51 +204,25 @@ function WeblensButton({
                 data-flavor={flavor}
                 disabled={disabled || loading}
                 onClick={(e) => {
-                    handleButtonEvent(
-                        e,
-                        onClick,
-                        showSuccess,
-                        setLoading,
-                        setSuccess,
-                        setFail,
-                        true
-                    ).catch(ErrorHandler)
+                    handleButtonEvent(e, onClick, showSuccess, setLoading, setSuccess, setFail, true).catch(
+                        ErrorHandler
+                    )
                 }}
                 onContextMenu={(e) => {
-                    handleButtonEvent(
-                        e,
-                        onContextMenu,
-                        showSuccess,
-                        setLoading,
-                        setSuccess,
-                        setFail,
-                        true
-                    ).catch(ErrorHandler)
+                    handleButtonEvent(e, onContextMenu, showSuccess, setLoading, setSuccess, setFail, true).catch(
+                        ErrorHandler
+                    )
                 }}
                 onMouseUp={(e) => {
-                    handleButtonEvent(
-                        e,
-                        onMouseUp,
-                        showSuccess,
-                        setLoading,
-                        setSuccess,
-                        setFail
-                    ).catch(ErrorHandler)
+                    handleButtonEvent(e, onMouseUp, showSuccess, setLoading, setSuccess, setFail).catch(ErrorHandler)
                 }}
                 onMouseLeave={(e) => {
-                    handleButtonEvent(
-                        e,
-                        onMouseLeave,
-                        showSuccess,
-                        setLoading,
-                        setSuccess,
-                        setFail
-                    ).catch(ErrorHandler)
+                    handleButtonEvent(e, onMouseLeave, showSuccess, setLoading, setSuccess, setFail).catch(ErrorHandler)
                 }}
             >
                 <span
                     className={
-                        'flex items-center justify-center text-inherit data-[size=default]:h-6 data-[size=jumbo]:h-10 data-[size=jumbo]:text-2xl data-[size=small]:h-6 data-[size=small]:text-sm data-[size=tiny]:h-5 data-[size=tiny]:text-xs'
+                        'flex items-center justify-center text-inherit data-[size=default]:h-6 data-[size=jumbo]:h-10 data-[size=jumbo]:text-2xl data-[size=small]:h-6 data-[size=small]:text-sm data-[size=tiny]:h-5 data-[size=tiny]:text-xs max-h-full max-w-full'
                     }
                     data-size={size}
                 >
@@ -267,11 +263,7 @@ function WeblensButton({
                         tooltipClass,
                     ].join(' ')}
                 >
-                    <span className="text-nowrap">
-                        {typeof tooltip === 'string'
-                            ? tooltip
-                            : tooltip.content}
-                    </span>
+                    <span className="text-nowrap">{typeof tooltip === 'string' ? tooltip : tooltip.content}</span>
                 </div>
             )}
         </div>

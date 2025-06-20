@@ -725,9 +725,16 @@ func (fs *FileServiceImpl) CreateUserHome(ctx context.Context, user *user_model.
 		return err
 	}
 
+	appCtx, ok := context_service.FromContext(ctx)
+	if !ok {
+		return errors.WithStack(context_service.ErrNoContext)
+	}
+
+	appCtx = appCtx.WithValue(doFileCreationContextKey{}, true)
+
 	home, err := fs.CreateFolder(ctx, parent, user.GetUsername())
 	if errors.Is(err, file_model.ErrDirectoryAlreadyExists) {
-		home, err = fs.GetFileByFilepath(ctx, file_model.UsersRootPath.Child(user.GetUsername(), true))
+		home, err = fs.GetFileByFilepath(appCtx, file_model.UsersRootPath.Child(user.GetUsername(), true))
 		if err != nil {
 			return err
 		}
@@ -737,9 +744,9 @@ func (fs *FileServiceImpl) CreateUserHome(ctx context.Context, user *user_model.
 
 	user.HomeId = home.ID()
 
-	trash, err := fs.CreateFolder(ctx, home, file_model.UserTrashDirName)
+	trash, err := fs.CreateFolder(appCtx, home, file_model.UserTrashDirName)
 	if errors.Is(err, file_model.ErrDirectoryAlreadyExists) {
-		trash, err = fs.GetFileByFilepath(ctx, home.GetPortablePath().Child(file_model.UserTrashDirName, true))
+		trash, err = fs.GetFileByFilepath(appCtx, home.GetPortablePath().Child(file_model.UserTrashDirName, true))
 		if err != nil {
 			return err
 		}
@@ -749,7 +756,7 @@ func (fs *FileServiceImpl) CreateUserHome(ctx context.Context, user *user_model.
 
 	user.TrashId = trash.ID()
 
-	err = fs.AddFile(ctx, home, trash)
+	err = fs.AddFile(appCtx, home, trash)
 	if err != nil {
 		return err
 	}
