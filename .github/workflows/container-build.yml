@@ -23,7 +23,7 @@ jobs:
       ${{ github.ref == 'refs/heads/main'
           && github.event_name != 'workflow_dispatch'
           && 'amethyst'
-          || github.event.inputs.do_release_build == true && 'production' || null }}
+          || github.event.inputs.do_release_build == true && 'prod' || null }}
     steps:
       - uses: actions/checkout@v4
 
