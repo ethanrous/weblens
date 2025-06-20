@@ -40,16 +40,16 @@ ensure_repl_set() {
 }
 
 launch_mongo() {
-    if ! docker image ls | grep ethrous/weblens-mongo; then
+    if ! sudo docker image ls | grep ethrous/weblens-mongo; then
         ./scripts/build-mongo.bash || exit 1
     fi
 
     echo "MONGO VVV"
-    docker image ls
+    sudo docker image ls
 
-    if ! docker ps | grep "$mongoName"; then
+    if ! sudo docker ps | grep "$mongoName"; then
         echo "Starting MongoDB container [$mongoName] ..."
-        docker run \
+        sudo docker run \
             --rm \
             -d \
             --name "$mongoName" \
