@@ -110,7 +110,12 @@ export async function GetFolderData(
 
 export type AllowedDownloadFormats = 'webp' | 'jpeg' | 'zip'
 
-export async function downloadSingleFile(fileId: string, filename: string, shareId: string, format?: AllowedDownloadFormats) {
+export async function downloadSingleFile(
+    fileId: string,
+    filename: string,
+    shareId: string,
+    format?: AllowedDownloadFormats
+) {
     const a = document.createElement('a')
     const paramCreator = FilesApiAxiosParamCreator()
     const args = await paramCreator.downloadFile(
@@ -126,8 +131,6 @@ export async function downloadSingleFile(fileId: string, filename: string, share
     } else if (format) {
         filename = filename.split('.').slice(0, -1).join('.') + '.' + format
     }
-
-    console.log('DOWNLOADING', url, filename)
 
     a.href = url
     a.download = filename
