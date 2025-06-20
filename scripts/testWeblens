@@ -58,11 +58,11 @@ done
 
 arch=$(uname -m)
 
-docker network create weblens-net >/dev/null 2>&1
-docker volume rm weblens-test-mongo >/dev/null 2>&1
+sudo docker network create weblens-net >/dev/null 2>&1
+sudo docker volume rm weblens-test-mongo >/dev/null 2>&1
 
-docker stop weblens-test-mongo >/dev/null 2>&1
-docker rm weblens-test-mongo >/dev/null 2>&1
+sudo docker stop weblens-test-mongo >/dev/null 2>&1
+sudo docker rm weblens-test-mongo >/dev/null 2>&1
 ./scripts/start-mongo.sh "weblens-test-mongo" || exit 1
 
 # if ! docker build -t ethrous/weblens-test --build-arg ARCHITECTURE="$arch" --file ./docker/AlpineTester.Dockerfile .; then
@@ -72,7 +72,7 @@ docker rm weblens-test-mongo >/dev/null 2>&1
 
 rm -rf ./build/fs/test-container
 
-if ! docker run --rm --platform="linux/$arch" \
+if ! sudo docker run --rm --platform="linux/$arch" \
     --network weblens-net \
     -v ./build/fs/test-container/data:/data \
     -v ./build/fs/test-container/cache:/cache \
