@@ -2,32 +2,22 @@ ARG ARCHITECTURE
 
 ARG NODE_VERSION=22.14.0
 ARG GO_VERSION=1.24
-
-#
-# Build UI
-#
-FROM node:${NODE_VERSION}-alpine AS web
-WORKDIR /ui
-
-COPY ui .
-
-RUN --mount=type=cache,target=./node_modules npm install && npm run build
+ARG WEBLENS_ROUX_VERSION=v0
 
 #
 # Test server binary
 #
-FROM --platform=linux/${ARCHITECTURE} golang:${GO_VERSION}-alpine
+FROM --platform=linux/${ARCHITECTURE} ethrous/weblens-roux:${WEBLENS_ROUX_VERSION}
 
-# Install dependencies
-COPY scripts/install-deps.sh /tmp/install-deps.sh
-RUN chmod +x /tmp/install-deps.sh
-RUN /tmp/install-deps.sh -b --dcraw
 
 WORKDIR /src
 COPY . .
-# RUN go mod download
-COPY --from=web /ui ./ui
 RUN touch .env
+
+WORKDIR /src/ui
+RUN --mount=type=cache,target=./node_modules npm install && npm run build
+
+WORKDIR /src
 
 ENV WEBLENS_MONGODB_URI=mongodb://weblens-test-mongo:27017/?replicaSet=rs0
 ENV WEBLENS_MONGODB_NAME=weblens-test
