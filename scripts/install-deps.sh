@@ -49,7 +49,8 @@ if [[ $buildDeps == true ]]; then
         libraw-dev \
         libpng-dev \
         libwebp-dev \
-        bash
+        bash \
+        npm
 else
     apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community --repository http://dl-3.alpinelinux.org/alpine/edge/main vips-poppler
 fi

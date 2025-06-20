@@ -9,7 +9,7 @@ fi
 ensure_repl_set() {
     mongoWaitCount=0
     while [[ $mongoWaitCount -lt 10 ]]; do
-        status="$(docker inspect "$mongoName" --format '{{.State.Health.Status}}')"
+        status="$(sudo docker inspect "$mongoName" --format '{{.State.Health.Status}}')"
         if [[ $status == "starting" ]]; then
             mongoWaitCount=$((mongoWaitCount + 1))
             echo "MongoDB is starting, waiting ${mongoWaitCount}s..."
@@ -40,21 +40,23 @@ ensure_repl_set() {
 }
 
 launch_mongo() {
-    if ! docker image ls | grep ethrous/weblens-mongo; then
-        ls ./scripts/build-mongo.bash
+    if ! sudo docker image ls | grep ethrous/weblens-mongo; then
         ./scripts/build-mongo.bash || exit 1
     fi
 
-    if ! docker ps | grep "$mongoName"; then
+    echo "MONGO VVV"
+    sudo docker image ls
+
+    if ! sudo docker ps | grep "$mongoName"; then
         echo "Starting MongoDB container [$mongoName] ..."
-        docker run \
+        sudo docker run \
             --rm \
             -d \
             --name "$mongoName" \
             --mount type=volume,src="$mongoName",dst=/data/db \
             --network weblens-net \
             -e WEBLENS_MONGO_HOST_NAME="$mongoName" \
-            ethrous/weblens-mongo
+            ethrous/weblens-mongo || exit 1
     fi
 
     ensure_repl_set

@@ -8,7 +8,7 @@ mkdir -p ./build/logs
 
 arch=$(uname -m)
 
-# Once the container is build, push it to docker hub
+# Once the image is built, push it to docker hub
 do_push=false
 
 usage="TODO"
@@ -43,17 +43,22 @@ docker_status=$?
 
 if [ $docker_status != 0 ]; then
     printf " FAILED\n"
-    echo "Aborting container build. Ensure docker is runnning"
+    echo "Aborting image build. Ensure docker is runnning"
     exit 1
 else
     printf " PASS\n"
 fi
 
-printf "Building Weblens mongodb container..."
+printf "Building Weblens mongodb image..."
 
 sudo docker rmi ethrous/weblens-mongo:latest &>/dev/null
 if ! sudo docker build --platform "linux/$arch" -t ethrous/weblens-mongo:latest --build-arg ARCHITECTURE="$arch" -f "./docker/mongo.Dockerfile" .; then
-    printf "mongodb container build failed\n"
+    printf "mongodb image build failed\n"
+    exit 1
+fi
+
+if ! sudo docker image inspect docker.io/ethrous/weblens-mongo:latest; then
+    printf "mongodb image build failed (image does not exist)\n"
     exit 1
 fi
 
@@ -61,4 +66,4 @@ if [ $do_push == true ]; then
     sudo docker push ethrous/weblens-mongo:latest
 fi
 
-printf "\nBUILD COMPLETE. Container tag: ethrous/weblens-mongo:latest\n"
+printf "\nBUILD COMPLETE. Image tag: ethrous/weblens-mongo:latest\n"

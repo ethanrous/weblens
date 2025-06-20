@@ -4,6 +4,19 @@ set -o pipefail
 usage="Usage: $0 [-n|--native [package_target]]"
 
 run_native_tests() {
+    cd /src || exit 1
+
+    cd ./ui || exit 1
+    if [[ ! -d ./node_modules ]]; then
+        echo "Installing ui dependencies..."
+        npm install
+    fi
+
+    echo "Building UI..."
+    npm run build || exit 1
+
+    cd .. || exit 1
+
     target="${1:-./...}" # Default to ./... if no target specified
 
     # Go is very picky about whitespace, so we need to strip it out
@@ -11,17 +24,26 @@ run_native_tests() {
 
     echo "Running native tests for package: $target"
 
+    touch /tmp/weblens.env
+    export WEBLENS_ENV_PATH=/tmp/weblens.env
+    export WEBLENS_DO_CACHE=false
+
     /usr/local/go/bin/go test -v -cover -race -coverprofile=/cover/coverage.out "$target" | grep -v -e "=== RUN" -e "=== PAUSE" -e "--- PASS"
     exit $?
 }
 
 tests=""
+baseVersion="v0"
 
 while [ "${1:-}" != "" ]; do
     case "$1" in
     "-n" | "--native")
         shift
         run_native_tests "${1:-}"
+        ;;
+    "-b" | "--base-version")
+        shift
+        baseVersion="$1"
         ;;
     "-h" | "--help")
         echo "$usage"
@@ -36,21 +58,30 @@ done
 
 arch=$(uname -m)
 
-docker network create weblens-net >/dev/null 2>&1
-docker volume rm weblens-test-mongo >/dev/null 2>&1
+sudo docker network create weblens-net >/dev/null 2>&1
+sudo docker volume rm weblens-test-mongo >/dev/null 2>&1
 
-docker stop weblens-test-mongo >/dev/null 2>&1
-docker rm weblens-test-mongo >/dev/null 2>&1
+sudo docker stop weblens-test-mongo >/dev/null 2>&1
+sudo docker rm weblens-test-mongo >/dev/null 2>&1
 ./scripts/start-mongo.sh "weblens-test-mongo" || exit 1
 
-if ! docker build -t ethrous/weblens-test --build-arg ARCHITECTURE="$arch" --file ./docker/AlpineTester.Dockerfile .; then
-    echo "Failed to build Docker image, exiting..."
-    exit 1
-fi
+# if ! docker build -t ethrous/weblens-test --build-arg ARCHITECTURE="$arch" --file ./docker/AlpineTester.Dockerfile .; then
+#     echo "Failed to build Docker image, exiting..."
+#     exit 1
+# fi
 
 rm -rf ./build/fs/test-container
 
-if ! docker run --rm --platform="linux/$arch" --network weblens-net -v ./build/fs/test-container/data:/data -v ./build/fs/test-container/cache:/cache -v ./build/cache/test/go/pkg:/go/pkg/mod -v ./build/cache/test/go/build:/tmp/go-cache -v ./build/cover:/cover -e WEBLENS_MONGODB_URI="mongodb://weblens-test-mongo:27017/?replicaSet=rs0" ethrous/weblens-test -n "${tests}"; then
+if ! sudo docker run --rm --platform="linux/$arch" \
+    --network weblens-net \
+    -v ./build/fs/test-container/data:/data \
+    -v ./build/fs/test-container/cache:/cache \
+    -v ./build/cache/test/go/build:/tmp/go-cache \
+    -v ./build/cover:/cover \
+    -v ./:/src \
+    -v /src/build \
+    -e WEBLENS_MONGODB_URI="mongodb://weblens-test-mongo:27017/?replicaSet=rs0" \
+    ethrous/weblens-roux":$baseVersion" /src/scripts/testWeblens -n "${tests}"; then
     echo "Tests failed, exiting..."
     exit 1
 fi

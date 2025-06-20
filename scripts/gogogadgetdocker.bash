@@ -11,11 +11,11 @@ mkdir -p ./build/logs
 docker_tag=devel_$(git rev-parse --abbrev-ref HEAD)
 arch=$(uname -m)
 
-# Once the container is build, push it to docker hub
+# Once the image is built, push it to docker hub
 do_push=false
 
 # Skip testing
-skip_tests=true
+skip_tests=false
 
 usage="TODO"
 dockerfile="Dockerfile"
@@ -59,7 +59,7 @@ printf "Checking connection to docker..."
 sudo docker ps &>/dev/null
 docker_status=$?
 
-if [ $docker_status != 0 ]; then
+if [[ $docker_status != 0 ]]; then
     printf " FAILED\n"
     echo "Aborting container build. Ensure docker is runnning"
     exit 1
@@ -67,7 +67,7 @@ else
     printf " PASS\n"
 fi
 
-if [ ! $skip_tests == true ]; then
+if [[ $do_push == true && $skip_tests != true ]]; then
     printf "Running tests..."
     if ! ./scripts/testWeblens -a &>./build/logs/container-build-pretest.log; then
         printf " FAILED\n"
@@ -78,10 +78,6 @@ if [ ! $skip_tests == true ]; then
         printf " PASS\n"
     fi
 fi
-
-# if [[ ! -e ./build/ffmpeg ]]; then
-#     docker run --platform linux/amd64 -v ./scripts/buildFfmpeg.sh:/buildFfmpeg.sh -v ./build:/build --rm alpine /buildFfmpeg.sh
-# fi
 
 full_tag="${docker_tag}-${arch}"
 echo "Using tag: $full_tag"
@@ -101,7 +97,7 @@ if ! sudo docker build --platform "linux/$arch" -t ethrous/weblens:"$full_tag" -
     exit 1
 fi
 
-if [ $do_push == true ]; then
+if [[ $do_push == true ]]; then
     sudo docker push ethrous/weblens:"$full_tag"
 fi
 
