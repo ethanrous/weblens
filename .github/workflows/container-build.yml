@@ -19,6 +19,11 @@ on:
 jobs:
   build-container:
     runs-on: ubuntu-latest
+    environment: >-
+      ${{ github.ref == 'refs/heads/main'
+          && github.event_name != 'workflow_dispatch'
+          && 'amethyst'
+          || github.event.inputs.do_release_build == true && 'production' || null }}
     steps:
       - uses: actions/checkout@v4
 
@@ -30,6 +35,7 @@ jobs:
       - name: GoGoGadgetDocker
         run: |
           sudo docker login -u ${{ vars.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
+          echo "EVENT NAME: $GITHUB_EVENT_NAME, REF: $GITHUB_REF"
           if [ -z "$BUILD_TAG" ] && [ $RELEASE_BUILD == true ]; then
             echo "ERR BUILD_TAG must be specified when doing release build"
             exit 1
