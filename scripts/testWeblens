@@ -76,7 +76,6 @@ if ! sudo docker run --rm --platform="linux/$arch" \
     --network weblens-net \
     -v ./build/fs/test-container/data:/data \
     -v ./build/fs/test-container/cache:/cache \
-    -v ./build/cache/test/go/pkg:/go/pkg/mod \
     -v ./build/cache/test/go/build:/tmp/go-cache \
     -v ./build/cover:/cover \
     -v ./:/src \
