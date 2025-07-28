@@ -106,6 +106,10 @@ func (fs *FileServiceImpl) GetFileById(ctx context.Context, id string) (*file_mo
 	f, ok := fs.getFileInternal(id)
 
 	if ok {
+		if f.ID() != id {
+			return nil, errors.Errorf("Mismatched fileId getting file by id %s != %s", f.ID(), id)
+		}
+
 		return f, nil
 	}
 
@@ -160,6 +164,32 @@ func (fs *FileServiceImpl) GetFileByFilepath(ctx context.Context, filepath file_
 	}
 
 	return childFile, nil
+}
+
+func (fs *FileServiceImpl) GetFileByContentId(ctx context.Context, contentId string) (*file_model.WeblensFileImpl, error) {
+	media, err := media_model.GetMediaByContentId(ctx, contentId)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, fId := range media.FileIDs {
+		f, err := fs.GetFileById(ctx, fId)
+		if err != nil {
+			if errors.Is(err, file_model.ErrFileNotFound) {
+				continue // Skip files that are not found
+			}
+
+			return nil, err // Return other errors
+		}
+
+		if f.GetContentId() == media.ContentID {
+			return f, nil
+		}
+
+		return nil, errors.Errorf("file [%s] does not match media content ID [%s]", f.GetPortablePath(), media.ContentID)
+	}
+
+	return nil, errors.Errorf("Failed getting file from media: %w", file_model.ErrFileNotFound)
 }
 
 func (fs *FileServiceImpl) GetMediaCacheByFilename(ctx context.Context, thumbFileName string) (*file_model.WeblensFileImpl, error) {
@@ -915,6 +945,9 @@ func (fs *FileServiceImpl) moveFilesWithTransaction(ctx context.Context, files [
 		}) {
 			oldParents = append(oldParents, oldParent)
 		}
+
+		notif := notify.NewFileNotification(ctx, file, websocket_mod.FileUpdatedEvent, notify.FileNotificationOptions{PreMoveParentId: oldParent.ID()})
+		notifier.Notify(ctx, notif...)
 	}
 
 	for _, oldParent := range oldParents {
@@ -963,6 +996,7 @@ func (fs *FileServiceImpl) deleteFilesWithTransaction(ctx context.Context, files
 
 	actions := []history.FileAction{}
 	parents := make(map[string][]string)
+	notifs := []websocket_mod.WsResponseInfo{}
 
 	for _, file := range files {
 		err := file.RecursiveMap(
@@ -976,15 +1010,13 @@ func (fs *FileServiceImpl) deleteFilesWithTransaction(ctx context.Context, files
 				actions = append(actions, newAction)
 
 				if !f.IsDir() && f.Size() != 0 {
-					if f.GetContentId() == "" {
-						return errors.Errorf("cannot move file [%s] to restore tree without content id", f.GetPortablePath())
-					} else {
-						err = linkToRestore(ctx, f)
-						if err != nil {
-							return err
-						}
+					err = linkToRestore(ctx, f)
+					if err != nil {
+						return err
 					}
 				}
+
+				notifs = append(notifs, notify.NewFileNotification(ctx, f, websocket_mod.FileDeletedEvent)...)
 
 				return nil
 			},
@@ -1023,8 +1055,7 @@ func (fs *FileServiceImpl) deleteFilesWithTransaction(ctx context.Context, files
 		}
 	}
 
-	// notif := notify.NewFileNotification(ctx, file, websocket_mod.FileDeletedEvent)
-	// appCtx.Notify(ctx, notif...)
+	appCtx.Notify(ctx, notifs...)
 
 	err = history.SaveActions(ctx, actions)
 	if err != nil {

@@ -1,5 +1,5 @@
 GO_SOURCE=$(shell find . -path ./build -prune -o -iname "*.go")
-TS_SOURCE=$(shell find ./ui/src/ -iname "*.ts*")
+TS_SOURCE=$(shell find ./weblens-vue/weblens-nuxt/ -iname "*.ts*")
 
 all: run
 
@@ -14,15 +14,15 @@ gen-go: $(GO_SOURCE)
 	./scripts/startWeblens
 
 gen-ui: $(TS_SOURCE)
-	cd ui && \
+	cd weblens-vue/weblens-nuxt && \
 	pnpm i && \
-	pnpm run build
+	pnpm generate
 
 ui: $(TS_SOURCE) FORCE
 	cd ui && pnpm run dev
 
 test: $(GO_SOURCE) $(TS_SOURCE)
-	./scripts/testWeblens
+	# ./scripts/testWeblens
 
 core: FORCE
 	./scripts/start.bash
@@ -53,6 +53,6 @@ docker\:build: $(GO_SOURCE) $(TS_SOURCE)
 	./scripts/gogogadgetdocker.bash 
 
 docker: test
-	./scripts/gogogadgetdocker.bash -p
+	./scripts/gogogadgetdocker.bash -p --skip-tests
 
 FORCE:

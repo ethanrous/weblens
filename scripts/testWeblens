@@ -6,16 +6,16 @@ usage="Usage: $0 [-n|--native [package_target]]"
 run_native_tests() {
     cd /src || exit 1
 
-    cd ./ui || exit 1
+    cd ./weblens-vue/weblens-nuxt || exit 1
     if [[ ! -d ./node_modules ]]; then
         echo "Installing ui dependencies..."
-        npm install
+        pnpm install
     fi
 
     echo "Building UI..."
-    npm run build || exit 1
+    pnpm run generate || exit 1
 
-    cd .. || exit 1
+    cd ../.. || exit 1
 
     target="${1:-./...}" # Default to ./... if no target specified
 
@@ -72,7 +72,7 @@ sudo docker rm weblens-test-mongo >/dev/null 2>&1
 
 rm -rf ./build/fs/test-container
 
-if ! sudo docker run --rm --platform="linux/$arch" \
+if ! sudo docker run --rm --platform="linux/amd64" \
     --network weblens-net \
     -v ./build/fs/test-container/data:/data \
     -v ./build/fs/test-container/cache:/cache \

@@ -911,7 +911,7 @@ const docTemplate = `{
             }
         },
         "/media": {
-            "get": {
+            "post": {
                 "produces": [
                     "application/json"
                 ],
@@ -922,65 +922,18 @@ const docTemplate = `{
                 "operationId": "GetMedia",
                 "parameters": [
                     {
-                        "enum": [
-                            true,
-                            false
-                        ],
-                        "type": "boolean",
-                        "default": false,
-                        "description": "Include raw files",
-                        "name": "raw",
-                        "in": "query"
-                    },
-                    {
-                        "enum": [
-                            true,
-                            false
-                        ],
-                        "type": "boolean",
-                        "default": false,
-                        "description": "Include hidden media",
-                        "name": "hidden",
-                        "in": "query"
-                    },
-                    {
-                        "enum": [
-                            "createDate"
-                        ],
-                        "type": "string",
-                        "default": "createDate",
-                        "description": "Sort by field",
-                        "name": "sort",
-                        "in": "query"
+                        "description": "Media Batch Params",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/MediaBatchParams"
+                        }
                     },
                     {
                         "type": "string",
-                        "description": "Search string",
-                        "name": "search",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Page of medias to get",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Number of medias to get",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Search only in given folders",
-                        "name": "folderIds",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Get only media with the provided ids",
-                        "name": "mediaIds",
+                        "description": "File ShareId",
+                        "name": "shareId",
                         "in": "query"
                     }
                 ],
@@ -2862,6 +2815,9 @@ const docTemplate = `{
                 "public": {
                     "type": "boolean"
                 },
+                "timelineOnly": {
+                    "type": "boolean"
+                },
                 "users": {
                     "type": "array",
                     "items": {
@@ -2939,6 +2895,74 @@ const docTemplate = `{
                 }
             }
         },
+        "MediaBatchParams": {
+            "type": "object",
+            "properties": {
+                "folderIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[fId1",
+                        "fId2]"
+                    ]
+                },
+                "hidden": {
+                    "type": "boolean",
+                    "enum": [
+                        true,
+                        false
+                    ],
+                    "example": false
+                },
+                "limit": {
+                    "type": "integer",
+                    "example": 20
+                },
+                "mediaIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[mId1",
+                        "mId2]"
+                    ]
+                },
+                "page": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "raw": {
+                    "type": "boolean",
+                    "enum": [
+                        true,
+                        false
+                    ],
+                    "example": false
+                },
+                "search": {
+                    "type": "string",
+                    "example": ""
+                },
+                "sort": {
+                    "type": "string",
+                    "enum": [
+                        "createDate"
+                    ],
+                    "example": "createDate"
+                },
+                "sortDirection": {
+                    "type": "integer",
+                    "enum": [
+                        1,
+                        -1
+                    ],
+                    "example": 1
+                }
+            }
+        },
         "MediaIdsParams": {
             "type": "object",
             "properties": {
@@ -2989,6 +3013,12 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "type": "string"
+                    }
+                },
+                "location": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
                     }
                 },
                 "mimeType": {
@@ -3290,6 +3320,9 @@ const docTemplate = `{
                 },
                 "shareType": {
                     "type": "string"
+                },
+                "timelineOnly": {
+                    "type": "boolean"
                 },
                 "updated": {
                     "type": "integer"

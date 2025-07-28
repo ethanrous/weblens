@@ -40,13 +40,16 @@ func Routes(ctx context_service.AppContext) *router.Router {
 		})
 
 		r.Group("", func() {
-			r.Get("", media_api.GetMediaBatch)
 			r.Get("/{mediaId}/file", media_api.GetMediaFile)
 			r.Post("/cleanup", media_api.CleanupMedia)
 			r.Post("/drop", media_api.DropMedia)
 			r.Patch("/visibility", media_api.HideMedia)
 			r.Patch("/date", media_api.AdjustMediaDate)
 		}, router.RequireSignIn)
+
+		// POST because it needs body for all the params.
+		// Kinda hacky, but its better than GET with a body or with 100 query params.
+		r.Post("", media_api.GetMediaBatch)
 
 		r.Get("/random", media_api.GetRandomMedia)
 	})

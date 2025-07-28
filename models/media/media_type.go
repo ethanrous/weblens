@@ -260,3 +260,15 @@ func (mt MediaType) GetThumbExifKey() string {
 func (mt MediaType) SupportsImgRecog() bool {
 	return mt.ImgRecog
 }
+
+func rawMimes() []string {
+	rawMimes := []string{}
+
+	for mime, mediaType := range mimeMap {
+		if mediaType.Raw {
+			rawMimes = append(rawMimes, mime)
+		}
+	}
+
+	return rawMimes
+}

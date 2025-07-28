@@ -17,7 +17,7 @@ func CacheMiddleware(addGzip bool) router.PassthroughHandler {
 		return router.HandlerFunc(func(ctx context_service.RequestContext) {
 			ctx.W.Header().Set("Cache-Control", "public, max-age=3600")
 
-			if addGzip {
+			if addGzip && (strings.HasSuffix(ctx.Req.URL.Path, ".js") || strings.HasSuffix(ctx.Req.URL.Path, ".css")) {
 				ctx.W.Header().Set("Content-Encoding", "gzip")
 			}
 
@@ -36,7 +36,7 @@ func NewMemFs(ctx context_service.AppContext, cnf config.ConfigProvider) *InMemo
 func UiRoutes(memFs *InMemoryFS) *router.Router {
 	r := router.NewRouter()
 
-	r.Handle("/assets/*", CacheMiddleware(true), http.FileServer(memFs))
+	r.Handle("/_nuxt/*", CacheMiddleware(true), http.FileServer(memFs))
 	r.Get("/static/{filename}", CacheMiddleware(false), serveStaticContent)
 	r.Get("/docs", func(ctx context_service.RequestContext) {
 		http.Redirect(ctx.W, ctx.Req, "/docs/", http.StatusMovedPermanently)

@@ -24,6 +24,13 @@ func (fs *FileServiceImpl) removeFileById(ctx context.Context, fileId string) er
 }
 
 func linkToRestore(ctx context.Context, file *file_model.WeblensFileImpl) error {
+	if file.GetContentId() == "" {
+		_, err := file_model.GenerateContentId(ctx, file)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Check if the restore file already exists, with the filename being the content id
 	restorePath := file_system.BuildFilePath(file_model.RestoreTreeKey, file.GetContentId())
 

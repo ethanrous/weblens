@@ -77,6 +77,13 @@ func HandleFileUploads(tsk task_mod.Task) {
 	t.SetCleanup(func(tsk task_mod.Task) {
 		t := tsk.(*task.Task)
 
+		for _, f := range fileMap {
+			t.Log().Debug().Func(func(e *zerolog.Event) {
+				e.Msgf("Cleaning up file [%+v]", *f)
+			})
+		}
+		// e.Msgf("Upload fileMap has %d remaining - and chunk stream has %d remaining", len(fileMap), len(meta.ChunkStream))
+
 		select {
 		case <-t.Ctx.Done():
 			err = removeTopLevels(t, topLevels)
@@ -87,10 +94,6 @@ func HandleFileUploads(tsk task_mod.Task) {
 			return
 		default:
 		}
-
-		t.Log().Debug().Func(func(e *zerolog.Event) {
-			e.Msgf("Upload fileMap has %d remaining and chunk stream has %d remaining", len(fileMap), len(meta.ChunkStream))
-		})
 
 		rootFile.Size()
 		notifs := notify.NewFileNotification(appCtx, rootFile, websocket.FileUpdatedEvent)
@@ -219,6 +222,10 @@ WriterLoop:
 
 			// When file is finished writing
 			if chnk.BytesWritten >= chnk.FileSizeTotal {
+				t.Log().Debug().Func(func(e *zerolog.Event) {
+					e.Msgf("Finished writing file [%s] with %d bytes", chnk.File.GetPortablePath(), chnk.BytesWritten)
+				})
+
 				// Hash file content to get content ID.
 				chnk.File.SetContentId(base64.URLEncoding.EncodeToString(chnk.Hash.Sum(nil))[:20])
 				if chnk.File.GetContentId() == "" {

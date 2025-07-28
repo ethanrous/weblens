@@ -29,6 +29,7 @@ type ShareInfo struct {
 	ShareId *string `json:"shareId,omitempty"`
 	ShareName *string `json:"shareName,omitempty"`
 	ShareType *string `json:"shareType,omitempty"`
+	TimelineOnly *bool `json:"timelineOnly,omitempty"`
 	Updated *int32 `json:"updated,omitempty"`
 	Wormhole *bool `json:"wormhole,omitempty"`
 }
@@ -370,6 +371,38 @@ func (o *ShareInfo) SetShareType(v string) {
 	o.ShareType = &v
 }
 
+// GetTimelineOnly returns the TimelineOnly field value if set, zero value otherwise.
+func (o *ShareInfo) GetTimelineOnly() bool {
+	if o == nil || IsNil(o.TimelineOnly) {
+		var ret bool
+		return ret
+	}
+	return *o.TimelineOnly
+}
+
+// GetTimelineOnlyOk returns a tuple with the TimelineOnly field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ShareInfo) GetTimelineOnlyOk() (*bool, bool) {
+	if o == nil || IsNil(o.TimelineOnly) {
+		return nil, false
+	}
+	return o.TimelineOnly, true
+}
+
+// HasTimelineOnly returns a boolean if a field has been set.
+func (o *ShareInfo) HasTimelineOnly() bool {
+	if o != nil && !IsNil(o.TimelineOnly) {
+		return true
+	}
+
+	return false
+}
+
+// SetTimelineOnly gets a reference to the given bool and assigns it to the TimelineOnly field.
+func (o *ShareInfo) SetTimelineOnly(v bool) {
+	o.TimelineOnly = &v
+}
+
 // GetUpdated returns the Updated field value if set, zero value otherwise.
 func (o *ShareInfo) GetUpdated() int32 {
 	if o == nil || IsNil(o.Updated) {
@@ -473,6 +506,9 @@ func (o ShareInfo) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.ShareType) {
 		toSerialize["shareType"] = o.ShareType
+	}
+	if !IsNil(o.TimelineOnly) {
+		toSerialize["timelineOnly"] = o.TimelineOnly
 	}
 	if !IsNil(o.Updated) {
 		toSerialize["updated"] = o.Updated

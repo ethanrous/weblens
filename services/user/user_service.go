@@ -70,8 +70,8 @@ func loadUserService(ctx context.Context, cnf config.ConfigProvider) error {
 			return err
 		}
 
-		_, err = appCtx.FileService.GetFileById(appCtx, u.TrashId)
-		if errors.Is(err, file_model.ErrFileNotFound) {
+		trashFile, err := appCtx.FileService.GetFileById(appCtx, u.TrashId)
+		if errors.Is(err, file_model.ErrFileNotFound) || trashFile.ID() != u.TrashId {
 			trashPath := file_model.UsersRootPath.Child(u.Username, true).Child(file_model.UserTrashDirName, true)
 
 			trashFolder, err := appCtx.FileService.GetFileByFilepath(appCtx, trashPath)

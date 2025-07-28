@@ -21,6 +21,7 @@ var _ MappedNullable = &FileShareParams{}
 type FileShareParams struct {
 	FileId *string `json:"fileId,omitempty"`
 	Public *bool `json:"public,omitempty"`
+	TimelineOnly *bool `json:"timelineOnly,omitempty"`
 	Users []string `json:"users,omitempty"`
 	Wormhole *bool `json:"wormhole,omitempty"`
 }
@@ -106,6 +107,38 @@ func (o *FileShareParams) SetPublic(v bool) {
 	o.Public = &v
 }
 
+// GetTimelineOnly returns the TimelineOnly field value if set, zero value otherwise.
+func (o *FileShareParams) GetTimelineOnly() bool {
+	if o == nil || IsNil(o.TimelineOnly) {
+		var ret bool
+		return ret
+	}
+	return *o.TimelineOnly
+}
+
+// GetTimelineOnlyOk returns a tuple with the TimelineOnly field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *FileShareParams) GetTimelineOnlyOk() (*bool, bool) {
+	if o == nil || IsNil(o.TimelineOnly) {
+		return nil, false
+	}
+	return o.TimelineOnly, true
+}
+
+// HasTimelineOnly returns a boolean if a field has been set.
+func (o *FileShareParams) HasTimelineOnly() bool {
+	if o != nil && !IsNil(o.TimelineOnly) {
+		return true
+	}
+
+	return false
+}
+
+// SetTimelineOnly gets a reference to the given bool and assigns it to the TimelineOnly field.
+func (o *FileShareParams) SetTimelineOnly(v bool) {
+	o.TimelineOnly = &v
+}
+
 // GetUsers returns the Users field value if set, zero value otherwise.
 func (o *FileShareParams) GetUsers() []string {
 	if o == nil || IsNil(o.Users) {
@@ -185,6 +218,9 @@ func (o FileShareParams) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Public) {
 		toSerialize["public"] = o.Public
+	}
+	if !IsNil(o.TimelineOnly) {
+		toSerialize["timelineOnly"] = o.TimelineOnly
 	}
 	if !IsNil(o.Users) {
 		toSerialize["users"] = o.Users

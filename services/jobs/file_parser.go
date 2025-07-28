@@ -1,7 +1,6 @@
 package jobs
 
 import (
-	"runtime/trace"
 	"slices"
 	"time"
 
@@ -227,9 +226,20 @@ func ScanFile(tsk task_mod.Task) {
 }
 
 func ScanFile_(ctx context_service.AppContext, meta job.ScanMeta) error {
-	defer trace.StartRegion(ctx, "ScanFile").End()
 	if !media_model.ParseExtension(meta.File.GetPortablePath().Ext()).Displayable {
 		return errors.WithStack(media_model.ErrNotDisplayable)
+	}
+
+	existingMedia, err := media_model.GetMediaByContentId(ctx, meta.File.GetContentId())
+	if err == nil {
+		if !slices.Contains(existingMedia.FileIDs, meta.File.ID()) {
+			err = existingMedia.AddFileToMedia(ctx, meta.File.ID())
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
 	}
 
 	media, err := media_service.NewMediaFromFile(ctx, meta.File)

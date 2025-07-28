@@ -17,6 +17,7 @@ func MediaToMediaInfo(m *media_model.Media) structs.MediaInfo {
 		PageCount:       m.PageCount,
 		Duration:        m.Duration,
 		MimeType:        m.MimeType,
+		Location:        m.Location,
 		RecognitionTags: m.GetRecognitionTags(),
 		Hidden:          m.Hidden,
 		Enabled:         m.Enabled,

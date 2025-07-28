@@ -3,6 +3,7 @@ package media
 import (
 	"bytes"
 	"encoding/json"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -13,15 +14,19 @@ import (
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/fs"
+	"github.com/ethanrous/weblens/modules/log"
 	"github.com/rs/zerolog"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
+
+var ErrChunkNotFound = errors.New("chunk not found")
 
 type VideoStreamer struct {
 	err           error
 	file          *file_model.WeblensFileImpl
 	streamDirPath fs.Filepath
 	listFileCache []byte
+	modifiedCache time.Time
 	updateMu      sync.RWMutex
 	encodingBegun atomic.Bool
 
@@ -69,7 +74,7 @@ func (vs *VideoStreamer) transcodeChunks(f *file_model.WeblensFileImpl, speed st
 		return
 	}
 
-	videoBitrate, audioBitrate, err := vs.probeSourceBitrate(f)
+	videoBitrate, _, err := vs.probeSourceBitrate(f)
 	if err != nil {
 		vs.updateMu.Lock()
 		vs.err = err
@@ -78,7 +83,8 @@ func (vs *VideoStreamer) transcodeChunks(f *file_model.WeblensFileImpl, speed st
 		return
 	}
 
-	vs.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Bitrate: %d %d", videoBitrate, audioBitrate) })
+	log.GlobalLogger().Debug().Msgf("Bitrate: %d", videoBitrate)
+
 	outputArgs := ffmpeg.KwArgs{
 		"c:v":                "libx264",
 		"b:v":                int(videoBitrate),
@@ -87,11 +93,9 @@ func (vs *VideoStreamer) transcodeChunks(f *file_model.WeblensFileImpl, speed st
 		"segment_list_flags": "+live",
 		"format":             "segment",
 		"segment_format":     "mpegts",
-		"hls_init_time":      5,
-		"hls_time":           5,
+		"hls_time":           6,
 		"hls_list_size":      0,
 		"segment_list":       filepath.Join(vs.streamDirPath.ToAbsolute(), "list.m3u8"),
-		"crf":                18,
 		"preset":             speed,
 	}
 
@@ -140,9 +144,22 @@ func (vs *VideoStreamer) GetChunk(chunkName string) (*os.File, error) {
 	return os.Open(chunkPath.ToAbsolute())
 }
 
-func (vs *VideoStreamer) GetListFile() ([]byte, error) {
+func (vs *VideoStreamer) GetChunkModified(chunkName string) (time.Time, error) {
+	chunkPath := vs.GetEncodeDir().Child(chunkName, false)
+	if stat, err := os.Stat(chunkPath.ToAbsolute()); err != nil {
+		if os.IsNotExist(err) {
+			return time.Time{}, ErrChunkNotFound
+		}
+
+		return time.Time{}, errors.WithStack(err)
+	} else {
+		return stat.ModTime(), nil
+	}
+}
+
+func (vs *VideoStreamer) GetListFile() ([]byte, time.Time, error) {
 	if vs.listFileCache != nil {
-		return vs.listFileCache, nil
+		return vs.listFileCache, vs.modifiedCache, nil
 	}
 
 	listPath := vs.GetEncodeDir().Child("list.m3u8", false)
@@ -155,7 +172,7 @@ func (vs *VideoStreamer) GetListFile() ([]byte, error) {
 			}
 
 			if vs.Err() != nil {
-				return nil, vs.Err()
+				return nil, time.Time{}, vs.Err()
 			}
 
 			time.Sleep(time.Second)
@@ -164,25 +181,27 @@ func (vs *VideoStreamer) GetListFile() ([]byte, error) {
 
 	listFile, err := os.ReadFile(listPath.ToAbsolute())
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, time.Time{}, errors.WithStack(err)
 	}
 
-	// Cache the list file only if transcoding is done
-	// if bytes.HasSuffix(listFile, []byte("ENDLIST")) {
-	// 	vs.listFileCache = listFile
-	// }
+	stat, err := os.Stat(listPath.ToAbsolute())
+	if err != nil {
+		return nil, time.Time{}, errors.WithStack(err)
+	}
 
 	// Cache the list file only if transcoding is finished and no errors
 	if !vs.IsTranscoding() && vs.Err() == nil {
 		vs.listFileCache = listFile
+		vs.modifiedCache = stat.ModTime()
 	}
 
-	return listFile, nil
+	return listFile, stat.ModTime(), nil
 }
 
 func (vs *VideoStreamer) Err() error {
 	vs.updateMu.RLock()
 	defer vs.updateMu.RUnlock()
+
 	return vs.err
 }
 
@@ -243,6 +262,8 @@ func (vs *VideoStreamer) probeSourceBitrate(f *file_model.WeblensFileImpl) (vide
 			break
 		}
 	}
+
+	videoBitrate = int64(math.Min(float64(videoBitrate), 40_000_000))
 
 	return videoBitrate, audioBitrate, nil
 }

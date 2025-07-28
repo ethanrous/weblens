@@ -57,7 +57,12 @@ func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_mo
 
 	// Check that the share permits access the specific file we are trying to access
 	if !doesSharePermitFile(ctx, file, share) {
-		return &share_model.Permissions{}, errors.Errorf("invalid share [%s] for file [%s]: %w", share.ShareId, file.ID(), ErrShareDoesNotPermitFile)
+		shareId := ""
+		if share != nil {
+			shareId = share.ShareId.Hex()
+		}
+
+		return &share_model.Permissions{}, errors.Errorf("invalid share [%s] for file [%s]: %w", shareId, file.ID(), ErrShareDoesNotPermitFile)
 	}
 
 	if user == nil || user.IsPublic() {

@@ -60,6 +60,8 @@ type FileService interface {
 	// GetMediaCacheByFilename retrieves media cache by filename
 	GetMediaCacheByFilename(ctx context.Context, filename string) (*WeblensFileImpl, error)
 
+	GetFileByContentId(ctx context.Context, contentId string) (*WeblensFileImpl, error)
+
 	// NewCacheFile creates a new cache file for media
 	NewCacheFile(mediaId, quality string, pageNum int) (*WeblensFileImpl, error)
 

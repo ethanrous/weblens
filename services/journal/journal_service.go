@@ -11,7 +11,6 @@ import (
 	"github.com/ethanrous/weblens/models/history"
 	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/fs"
-	"github.com/ethanrous/weblens/modules/log"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -45,8 +44,6 @@ func compileLifetimeOpts(opts ...GetLifetimesOptions) GetLifetimesOptions {
 func pathPrefixReFilter(path fs.Filepath, depth int) bson.M {
 	pathRe := regexp.QuoteMeta(path.ToPortable())
 	pathRe += `([^/]+/?){0,` + strconv.Itoa(depth) + `}/?$`
-
-	log.GlobalLogger().Debug().Msgf("Path regex: %s", pathRe)
 
 	return bson.M{
 		"$or": bson.A{
@@ -283,8 +280,6 @@ func GetLatestPathById(ctx context.Context, fileId string) (fs.Filepath, error) 
 	if err != nil {
 		return fs.Filepath{}, errors.WithStack(err)
 	}
-
-	log.FromContext(ctx).Debug().Msgf("GOT EEM %v", result)
 
 	if result.DestinationPath != "" {
 		return fs.ParsePortable(result.DestinationPath)

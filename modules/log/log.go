@@ -193,24 +193,24 @@ func (l WLConsoleLogger) Write(p []byte) (n int, err error) {
 	logMsg, _ := target["message"].(string)
 	traceback, _ := target["traceback"].([]any)
 
-	if level == zerolog.TraceLevel.String() || true {
-		// ignoredKeys := []string{"level", "error", "message", "weblens_build_version", "caller", "@timestamp", "traceback", "instance"}
-		allowedKeys := []string{"task_id"}
-		extras := ""
-
-		for _, k := range allowedKeys {
-			v, ok := target[k]
-			if !ok {
-				continue
-			}
-
-			extras += fmt.Sprintf("%s%s%s: %v ", BLUE, k, RESET, v)
-		}
-
-		if extras != "" {
-			logMsg += "\n\t" + extras
-		}
-	}
+	// if level == zerolog.TraceLevel.String() || true {
+	// 	// ignoredKeys := []string{"level", "error", "message", "weblens_build_version", "caller", "@timestamp", "traceback", "instance"}
+	// 	allowedKeys := []string{"task_id"}
+	// 	extras := ""
+	//
+	// 	for _, k := range allowedKeys {
+	// 		v, ok := target[k]
+	// 		if !ok {
+	// 			continue
+	// 		}
+	//
+	// 		extras += fmt.Sprintf("%s%s%s: %v ", BLUE, k, RESET, v)
+	// 	}
+	//
+	// 	if extras != "" {
+	// 		logMsg += "\n\t" + extras
+	// 	}
+	// }
 
 	stackStr := ""
 	if len(traceback) != 0 {

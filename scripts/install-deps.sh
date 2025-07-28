@@ -34,10 +34,15 @@ while [ "${1:-}" != "" ]; do
 done
 
 apk upgrade --no-cache
-apk add --no-cache ffmpeg exiftool jasper
+apk add --no-cache ffmpeg exiftool jasper poppler-glib vips fontconfig
+apk add --update --no-cache --virtual .ms-fonts msttcorefonts-installer &&
+    update-ms-fonts 2>/dev/null &&
+    fc-cache -fv &&
+    apk del .ms-fonts
+# apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community --repository http://dl-3.alpinelinux.org/alpine/edge/main vips-poppler
 
 if [[ $buildDeps == true ]]; then
-    apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community --repository http://dl-3.alpinelinux.org/alpine/edge/main vips-dev
+    # apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community --repository http://dl-3.alpinelinux.org/alpine/edge/main vips-dev
 
     apk add --no-cache \
         build-base \
@@ -50,9 +55,13 @@ if [[ $buildDeps == true ]]; then
         libpng-dev \
         libwebp-dev \
         bash \
-        npm
-else
-    apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community --repository http://dl-3.alpinelinux.org/alpine/edge/main vips-poppler
+        npm \
+        python3~3.12 \
+        poetry
+
+    npm install -g pnpm
+# else
+#     apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community --repository http://dl-3.alpinelinux.org/alpine/edge/main vips-poppler
 fi
 
 if [[ $buildDcraw == true ]]; then

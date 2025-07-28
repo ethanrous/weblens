@@ -55,10 +55,11 @@ type PasswordUpdateParams struct {
 } // @name PasswordUpdateParams
 
 type FileShareParams struct {
-	FileId   string   `json:"fileId"`
-	Users    []string `json:"users"`
-	Public   bool     `json:"public"`
-	Wormhole bool     `json:"wormhole"`
+	FileId       string   `json:"fileId"`
+	Users        []string `json:"users"`
+	Public       bool     `json:"public"`
+	Wormhole     bool     `json:"wormhole"`
+	TimelineOnly bool     `json:"timelineOnly"`
 } // @name FileShareParams
 
 type AlbumShareParams struct {
@@ -178,3 +179,15 @@ type RestoreCoreParams struct {
 type ApiKeyParams struct {
 	Name string `json:"name" validate:"required"`
 } // @name ApiKeyParams
+
+type MediaBatchParams struct {
+	Raw           bool     `json:"raw" query:"raw" example:"false" enums:"true,false"`
+	Hidden        bool     `json:"hidden" query:"hidden" example:"false" enums:"true,false"`
+	Sort          string   `json:"sort" query:"sort" example:"createDate" enums:"createDate"`
+	SortDirection int      `json:"sortDirection" example:"1" enums:"1,-1"`
+	Search        string   `json:"search" query:"search" example:""`
+	Page          int      `json:"page" query:"page" example:"1"`
+	Limit         int      `json:"limit" query:"limit" example:"20"`
+	FolderIds     []string `json:"folderIds" query:"folderIds" example:"[fId1,fId2]"`
+	MediaIds      []string `json:"mediaIds" query:"mediaIds" example:"[mId1,mId2]"`
+} // @name MediaBatchParams

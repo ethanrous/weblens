@@ -12,6 +12,8 @@ type MediaInfo struct {
 	// Mime-type key of the media
 	MimeType string `json:"mimeType"`
 
+	Location [2]float64 `json:"location"`
+
 	// Slices of files whos content hash to the contentId
 	FileIds []string `json:"fileIds"`
 

@@ -6,6 +6,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **FileId** | Pointer to **string** |  | [optional] 
 **Public** | Pointer to **bool** |  | [optional] 
+**TimelineOnly** | Pointer to **bool** |  | [optional] 
 **Users** | Pointer to **[]string** |  | [optional] 
 **Wormhole** | Pointer to **bool** |  | [optional] 
 
@@ -77,6 +78,31 @@ SetPublic sets Public field to given value.
 `func (o *FileShareParams) HasPublic() bool`
 
 HasPublic returns a boolean if a field has been set.
+
+### GetTimelineOnly
+
+`func (o *FileShareParams) GetTimelineOnly() bool`
+
+GetTimelineOnly returns the TimelineOnly field if non-nil, zero value otherwise.
+
+### GetTimelineOnlyOk
+
+`func (o *FileShareParams) GetTimelineOnlyOk() (*bool, bool)`
+
+GetTimelineOnlyOk returns a tuple with the TimelineOnly field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetTimelineOnly
+
+`func (o *FileShareParams) SetTimelineOnly(v bool)`
+
+SetTimelineOnly sets TimelineOnly field to given value.
+
+### HasTimelineOnly
+
+`func (o *FileShareParams) HasTimelineOnly() bool`
+
+HasTimelineOnly returns a boolean if a field has been set.
 
 ### GetUsers
 

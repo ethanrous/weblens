@@ -362,6 +362,8 @@ func (f *WeblensFileImpl) ReadAll() ([]byte, error) {
 		return nil, errors.WithStack(err)
 	}
 
+	defer osFile.Close()
+
 	data, err := io.ReadAll(osFile)
 	if err != nil {
 		return nil, errors.WithStack(err)

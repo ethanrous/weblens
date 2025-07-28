@@ -152,6 +152,13 @@ func (c *ContextualizedCollection) Drop(ctx context.Context) error {
 		ctx = c.ctx
 	}
 
+	if config.GetConfig().DoCache {
+		cache := context_mod.ToZ(c.ctx).GetCache(c.collection.Name())
+		for _, key := range cache.ScanKeys() {
+			cache.Delete(key)
+		}
+	}
+
 	return c.collection.Drop(ctx)
 }
 

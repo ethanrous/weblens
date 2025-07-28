@@ -129,6 +129,8 @@ definitions:
         type: string
       public:
         type: boolean
+      timelineOnly:
+        type: boolean
       users:
         items:
           type: string
@@ -179,6 +181,55 @@ definitions:
       mediaCount:
         type: integer
     type: object
+  MediaBatchParams:
+    properties:
+      folderIds:
+        example:
+        - '[fId1'
+        - fId2]
+        items:
+          type: string
+        type: array
+      hidden:
+        enum:
+        - true
+        - false
+        example: false
+        type: boolean
+      limit:
+        example: 20
+        type: integer
+      mediaIds:
+        example:
+        - '[mId1'
+        - mId2]
+        items:
+          type: string
+        type: array
+      page:
+        example: 1
+        type: integer
+      raw:
+        enum:
+        - true
+        - false
+        example: false
+        type: boolean
+      search:
+        example: ""
+        type: string
+      sort:
+        enum:
+        - createDate
+        example: createDate
+        type: string
+      sortDirection:
+        enum:
+        - 1
+        - -1
+        example: 1
+        type: integer
+    type: object
   MediaIdsParams:
     properties:
       mediaIds:
@@ -219,6 +270,10 @@ definitions:
       likedBy:
         items:
           type: string
+        type: array
+      location:
+        items:
+          type: number
         type: array
       mimeType:
         description: Mime-type key of the media
@@ -418,6 +473,8 @@ definitions:
         type: string
       shareType:
         type: string
+      timelineOnly:
+        type: boolean
       updated:
         type: integer
       wormhole:
@@ -1176,51 +1233,18 @@ paths:
       tags:
       - ApiKeys
   /media:
-    get:
+    post:
       operationId: GetMedia
       parameters:
-      - default: false
-        description: Include raw files
-        enum:
-        - true
-        - false
+      - description: Media Batch Params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/MediaBatchParams'
+      - description: File ShareId
         in: query
-        name: raw
-        type: boolean
-      - default: false
-        description: Include hidden media
-        enum:
-        - true
-        - false
-        in: query
-        name: hidden
-        type: boolean
-      - default: createDate
-        description: Sort by field
-        enum:
-        - createDate
-        in: query
-        name: sort
-        type: string
-      - description: Search string
-        in: query
-        name: search
-        type: string
-      - description: Page of medias to get
-        in: query
-        name: page
-        type: integer
-      - description: Number of medias to get
-        in: query
-        name: limit
-        type: integer
-      - description: Search only in given folders
-        in: query
-        name: folderIds
-        type: string
-      - description: Get only media with the provided ids
-        in: query
-        name: mediaIds
+        name: shareId
         type: string
       produces:
       - application/json

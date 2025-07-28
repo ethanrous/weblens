@@ -13,6 +13,7 @@ import (
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 const MediaCollectionKey = "media"
@@ -39,6 +40,13 @@ type Media struct {
 
 	// The rotation of the image from its original. Found from the exif data
 	Rotate string
+
+	// Location of the media, if available. This is a slice of two floats, representing the coordinates of the media.
+	Location [2]float64 `bson:"location"`
+
+	// High Dimensional Image Representation, a slice of floats representing the image's high-dimensional representation.
+	// Used for image similarity searches.
+	HDIR []float64 `bson:"hdir"`
 
 	// Slices of files whos content hash to the contentId
 	FileIDs []string `bson:"fileIds"`
@@ -112,6 +120,32 @@ func GetMediaByContentId(ctx context.Context, contentId ContentId) (*Media, erro
 	}
 
 	return &media, nil
+}
+
+func GetMediasByContentIds(ctx context.Context, limit, page, sortDirection int, includeRaw bool, contentIds ...ContentId) ([]*Media, error) {
+	col, err := db.GetCollection(ctx, MediaCollectionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	media := []*Media{}
+
+	filter := bson.M{"contentId": bson.M{"$in": contentIds}, "duration": bson.M{"$eq": 0}}
+	if !includeRaw {
+		filter["mimeType"] = bson.M{"$not": bson.M{"$in": rawMimes()}}
+	}
+
+	cur, err := col.Find(ctx, filter, options.Find().SetLimit(int64(limit)).SetSkip(int64(page*limit)).SetSort(bson.D{{Key: "createDate", Value: sortDirection}}))
+	if err != nil {
+		return nil, err
+	}
+
+	err = cur.All(ctx, &media)
+	if err != nil {
+		return nil, db.WrapError(err, "get media by contentIds")
+	}
+
+	return media, nil
 }
 
 func GetMediaByPath(ctx context.Context, path string) ([]*Media, error) {

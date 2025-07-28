@@ -24,16 +24,17 @@ type FileShare struct {
 	// Accessors is a list of users that have access to the share
 	Accessors []string `bson:"accessors"`
 	// Permissions maps usernames to their specific permissions
-	Permissions map[string]*Permissions `bson:"permissions"`
-	Enabled     bool                    `bson:"enabled"`
-	Expires     time.Time               `bson:"expires"`
-	FileId      string                  `bson:"fileId"`
-	Owner       string                  `bson:"owner"`
-	Public      bool                    `bson:"public"`
-	ShareId     primitive.ObjectID      `bson:"_id"`
-	ShareName   string                  `bson:"shareName"`
-	Updated     time.Time               `bson:"updated"`
-	Wormhole    bool                    `bson:"wormhole"`
+	Permissions  map[string]*Permissions `bson:"permissions"`
+	Enabled      bool                    `bson:"enabled"`
+	Expires      time.Time               `bson:"expires"`
+	FileId       string                  `bson:"fileId"`
+	Owner        string                  `bson:"owner"`
+	Public       bool                    `bson:"public"`
+	ShareId      primitive.ObjectID      `bson:"_id"`
+	ShareName    string                  `bson:"shareName"`
+	Updated      time.Time               `bson:"updated"`
+	Wormhole     bool                    `bson:"wormhole"`
+	TimelineOnly bool                    `bson:"timelineOnly"`
 }
 
 var IndexModels = []mongo.IndexModel{
@@ -60,7 +61,7 @@ func ShareIdFromString(shareId string) primitive.ObjectID {
 	return id
 }
 
-func NewFileShare(ctx context.Context, fileId string, owner *user_model.User, accessors []*user_model.User, public bool, wormhole bool) (*FileShare, error) {
+func NewFileShare(ctx context.Context, fileId string, owner *user_model.User, accessors []*user_model.User, public bool, wormhole bool, timelineOnly bool) (*FileShare, error) {
 	permissions := make(map[string]*Permissions)
 	for _, u := range accessors {
 		permissions[u.GetUsername()] = NewPermissions() // default permissions
@@ -74,11 +75,12 @@ func NewFileShare(ctx context.Context, fileId string, owner *user_model.User, ac
 				return u.GetUsername()
 			},
 		),
-		Permissions: permissions,
-		Public:      public,
-		Wormhole:    wormhole,
-		Enabled:     true,
-		Updated:     time.Now(),
+		Permissions:  permissions,
+		Public:       public,
+		Wormhole:     wormhole,
+		TimelineOnly: timelineOnly,
+		Enabled:      true,
+		Updated:      time.Now(),
 	}, nil
 }
 

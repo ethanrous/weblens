@@ -3,7 +3,9 @@ package share
 type Permission string
 
 const (
-	// SharePermissionRead allows read access to the file share.
+	// SharePermissionView allows read access to the file share.
+	SharePermissionView Permission = "view"
+	// SharePermissionRead allows download access to the file share.
 	SharePermissionDownload Permission = "download"
 	// SharePermissionWrite allows write access to the file share.
 	SharePermissionEdit Permission = "edit"

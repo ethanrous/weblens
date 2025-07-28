@@ -68,6 +68,19 @@ func Map[T, V any](ts []T, fn func(T) V) []V {
 	return result
 }
 
+func MapI[T, V any](ts []T, fn func(T, int) V) []V {
+	result := make([]V, len(ts))
+	for i, t := range ts {
+		result[i] = fn(t, i)
+	}
+	return result
+}
+
+func SortFunc[S ~[]T, T any](ts S, cmp func(a T, b T) int) S {
+	slices.SortFunc(ts, cmp)
+	return ts
+}
+
 func Filter[S ~[]T, T any](ts S, fn func(t T) bool) []T {
 	var result []T
 	for _, t := range ts {
@@ -107,4 +120,12 @@ func Convert[V, T any](ts []T) []V {
 	}
 
 	return vs
+}
+
+func Index[S ~[]E, E comparable](s S, v E) int {
+	return slices.Index(s, v)
+}
+
+func IndexFunc[S ~[]E, E any](s S, f func(E) bool) int {
+	return slices.IndexFunc(s, f)
 }
