@@ -19,6 +19,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-docker-action@v4
+        with:
+          submodules: "true"
+          fetch-depth: 0
 
       - name: Run Tests
         run: |
