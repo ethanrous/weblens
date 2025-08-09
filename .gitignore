@@ -11,9 +11,7 @@ api/ts/node_modules/
 /coverage
 
 # production
-/build
-ui/build/
-ui/dist/
+/_build
 
 # ide
 .vscode/

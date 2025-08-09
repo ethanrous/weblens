@@ -97,7 +97,7 @@ fi
 
 if [[ $shouldClean == true ]]; then
     docker stop "$mongoName" 2>/dev/null
-    rm -rf ./build/fs/"$fsName"
+    rm -rf ./_build/fs/"$fsName"
 fi
 
 if [[ $shouldRebuild == true ]]; then
@@ -145,11 +145,11 @@ docker run \
     --name "$containerName" \
     -p 8080:8080 \
     -p 3001:3000 \
-    -v ./build/fs/"$fsName"/data:/data \
-    -v ./build/fs/"$fsName"/cache:/cache \
+    -v ./_build/fs/"$fsName"/data:/data \
+    -v ./_build/fs/"$fsName"/cache:/cache \
     -v .:/src \
-    -v ./build/cache/"$fsName"/go/mod:/go/pkg/mod \
-    -v ./build/cache/"$fsName"/go/build:/go/cache \
+    -v ./_build/cache/"$fsName"/go/mod:/go/pkg/mod \
+    -v ./_build/cache/"$fsName"/go/build:/go/cache \
     -e WEBLENS_MONGODB_URI=mongodb://"$containerName"-mongo:27017/?replicaSet=rs0 \
     -e WEBLENS_MONGODB_NAME="$containerName" \
     -e WEBLENS_INIT_ROLE="$towerRole" \
