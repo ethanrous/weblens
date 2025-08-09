@@ -19,14 +19,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: "true"
-          fetch-depth: 0
+          submodules: "recursive"
 
       - uses: docker/setup-docker-action@v4
 
       - name: Run Tests
         run: |
-          git submodule init
-          git pull --recurse-submodules
           ./scripts/testWeblens 
           exit $?
