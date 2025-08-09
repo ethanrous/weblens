@@ -1,0 +1,34 @@
+{
+	"name": "@ethanrous/weblens-api",
+	"version": "0.0.3",
+	"type": "module",
+	"files": [
+		"dist"
+	],
+	"exports": {
+		".": {
+			"import": "./dist/AllApi.js",
+			"types": "./dist/AllApi.d.ts"
+		}
+	},
+	"dependencies": {
+		"axios": "^1.10.0",
+		"tsup": "^8.5.0",
+		"typescript": "^5.8.3"
+	},
+	"scripts": {
+		"build": "tsup"
+	},
+	"tsup": {
+		"entry": [
+			"./AllApi.ts"
+		],
+		"format": [
+			"esm"
+		],
+		"dts": true
+	},
+	"main": "./dist/AllApi.js",
+	"module": "./dist/AllApi.js",
+	"types": "./dist/AllApi.d.ts"
+}

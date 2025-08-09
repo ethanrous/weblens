@@ -44,9 +44,6 @@ launch_mongo() {
         ./scripts/build-mongo.bash || exit 1
     fi
 
-    echo "MONGO VVV"
-    sudo docker image ls
-
     if ! sudo docker ps | grep "$mongoName"; then
         echo "Starting MongoDB container [$mongoName] ..."
         sudo docker run \

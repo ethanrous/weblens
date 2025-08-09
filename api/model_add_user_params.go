@@ -24,6 +24,7 @@ type AddUserParams struct {
 	CanDelete *bool `json:"canDelete,omitempty"`
 	CanDownload *bool `json:"canDownload,omitempty"`
 	CanEdit *bool `json:"canEdit,omitempty"`
+	CanView *bool `json:"canView,omitempty"`
 	Username string `json:"username"`
 }
 
@@ -143,6 +144,38 @@ func (o *AddUserParams) SetCanEdit(v bool) {
 	o.CanEdit = &v
 }
 
+// GetCanView returns the CanView field value if set, zero value otherwise.
+func (o *AddUserParams) GetCanView() bool {
+	if o == nil || IsNil(o.CanView) {
+		var ret bool
+		return ret
+	}
+	return *o.CanView
+}
+
+// GetCanViewOk returns a tuple with the CanView field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AddUserParams) GetCanViewOk() (*bool, bool) {
+	if o == nil || IsNil(o.CanView) {
+		return nil, false
+	}
+	return o.CanView, true
+}
+
+// HasCanView returns a boolean if a field has been set.
+func (o *AddUserParams) HasCanView() bool {
+	if o != nil && !IsNil(o.CanView) {
+		return true
+	}
+
+	return false
+}
+
+// SetCanView gets a reference to the given bool and assigns it to the CanView field.
+func (o *AddUserParams) SetCanView(v bool) {
+	o.CanView = &v
+}
+
 // GetUsername returns the Username field value
 func (o *AddUserParams) GetUsername() string {
 	if o == nil {
@@ -185,6 +218,9 @@ func (o AddUserParams) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.CanEdit) {
 		toSerialize["canEdit"] = o.CanEdit
+	}
+	if !IsNil(o.CanView) {
+		toSerialize["canView"] = o.CanView
 	}
 	toSerialize["username"] = o.Username
 	return toSerialize, nil

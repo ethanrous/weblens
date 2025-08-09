@@ -5,8 +5,9 @@ All URIs are relative to *http://localhost:8080/api/v1*
 Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**CleanupMedia**](MediaAPI.md#CleanupMedia) | **Post** /media/cleanup | Make sure all media is correctly synced with the file system
+[**DropHDIRs**](MediaAPI.md#DropHDIRs) | **Post** /media/drop/hdirs | Drop all computed media HDIR data. Must be server owner.
 [**DropMedia**](MediaAPI.md#DropMedia) | **Post** /media/drop | DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
-[**GetMedia**](MediaAPI.md#GetMedia) | **Get** /media | Get paginated media
+[**GetMedia**](MediaAPI.md#GetMedia) | **Post** /media | Get paginated media
 [**GetMediaFile**](MediaAPI.md#GetMediaFile) | **Get** /media/{mediaId}/file | Get file of media by id
 [**GetMediaImage**](MediaAPI.md#GetMediaImage) | **Get** /media/{mediaId}.{extension} | Get a media image bytes
 [**GetMediaInfo**](MediaAPI.md#GetMediaInfo) | **Get** /media/{mediaId}/info | Get media info
@@ -55,6 +56,63 @@ This endpoint does not need any parameter.
 ### Other Parameters
 
 Other parameters are passed through a pointer to a apiCleanupMediaRequest struct via the builder pattern
+
+
+### Return type
+
+ (empty response body)
+
+### Authorization
+
+[ApiKeyAuth](../README.md#ApiKeyAuth)
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: Not defined
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
+
+
+## DropHDIRs
+
+> DropHDIRs(ctx).Execute()
+
+Drop all computed media HDIR data. Must be server owner.
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/ethanrous/weblens/api"
+)
+
+func main() {
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	r, err := apiClient.MediaAPI.DropHDIRs(context.Background()).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `MediaAPI.DropHDIRs``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+}
+```
+
+### Path Parameters
+
+This endpoint does not need any parameter.
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiDropHDIRsRequest struct via the builder pattern
 
 
 ### Return type
@@ -134,7 +192,7 @@ Other parameters are passed through a pointer to a apiDropMediaRequest struct vi
 
 ## GetMedia
 
-> MediaBatchInfo GetMedia(ctx).Raw(raw).Hidden(hidden).Sort(sort).Search(search).Page(page).Limit(limit).FolderIds(folderIds).MediaIds(mediaIds).Execute()
+> MediaBatchInfo GetMedia(ctx).Request(request).ShareId(shareId).Execute()
 
 Get paginated media
 
@@ -151,18 +209,12 @@ import (
 )
 
 func main() {
-	raw := true // bool | Include raw files (optional) (default to false)
-	hidden := true // bool | Include hidden media (optional) (default to false)
-	sort := "sort_example" // string | Sort by field (optional) (default to "createDate")
-	search := "search_example" // string | Search string (optional)
-	page := int32(56) // int32 | Page of medias to get (optional)
-	limit := int32(56) // int32 | Number of medias to get (optional)
-	folderIds := "folderIds_example" // string | Search only in given folders (optional)
-	mediaIds := "mediaIds_example" // string | Get only media with the provided ids (optional)
+	request := *openapiclient.NewMediaBatchParams() // MediaBatchParams | Media Batch Params
+	shareId := "shareId_example" // string | File ShareId (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.MediaAPI.GetMedia(context.Background()).Raw(raw).Hidden(hidden).Sort(sort).Search(search).Page(page).Limit(limit).FolderIds(folderIds).MediaIds(mediaIds).Execute()
+	resp, r, err := apiClient.MediaAPI.GetMedia(context.Background()).Request(request).ShareId(shareId).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `MediaAPI.GetMedia``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -183,14 +235,8 @@ Other parameters are passed through a pointer to a apiGetMediaRequest struct via
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **raw** | **bool** | Include raw files | [default to false]
- **hidden** | **bool** | Include hidden media | [default to false]
- **sort** | **string** | Sort by field | [default to &quot;createDate&quot;]
- **search** | **string** | Search string | 
- **page** | **int32** | Page of medias to get | 
- **limit** | **int32** | Number of medias to get | 
- **folderIds** | **string** | Search only in given folders | 
- **mediaIds** | **string** | Get only media with the provided ids | 
+ **request** | [**MediaBatchParams**](MediaBatchParams.md) | Media Batch Params | 
+ **shareId** | **string** | File ShareId | 
 
 ### Return type
 

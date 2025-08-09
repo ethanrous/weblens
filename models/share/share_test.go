@@ -33,7 +33,7 @@ func TestFileShare_Creation(t *testing.T) {
 		owner := createTestUser("basic")
 		accessors := []*user_model.User{createTestUser("basic_accessor")}
 
-		share, err := NewFileShare(ctx, fileId, owner, accessors, false, false)
+		share, err := NewFileShare(ctx, fileId, owner, accessors, false, false, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, share)
 
@@ -51,7 +51,7 @@ func TestFileShare_Creation(t *testing.T) {
 	t.Run("CreatePublicShare", func(t *testing.T) {
 		fileId := primitive.NewObjectID().Hex()
 		owner := createTestUser("public")
-		share, err := NewFileShare(ctx, fileId, owner, nil, true, false)
+		share, err := NewFileShare(ctx, fileId, owner, nil, true, false, false)
 		assert.NoError(t, err)
 
 		err = SaveFileShare(ctx, share)
@@ -65,7 +65,7 @@ func TestFileShare_Creation(t *testing.T) {
 	t.Run("CreateWormholeShare", func(t *testing.T) {
 		fileId := primitive.NewObjectID().Hex()
 		owner := createTestUser("wormhole")
-		share, err := NewFileShare(ctx, fileId, owner, nil, false, true)
+		share, err := NewFileShare(ctx, fileId, owner, nil, false, true, false)
 		assert.NoError(t, err)
 
 		err = SaveFileShare(ctx, share)
@@ -79,12 +79,12 @@ func TestFileShare_Creation(t *testing.T) {
 	t.Run("CreateDuplicateShare", func(t *testing.T) {
 		fileId := primitive.NewObjectID().Hex()
 		owner := createTestUser("duplicate")
-		share1, err := NewFileShare(ctx, fileId, owner, nil, false, false)
+		share1, err := NewFileShare(ctx, fileId, owner, nil, false, false, false)
 		require.NoError(t, err)
 		err = SaveFileShare(ctx, share1)
 		require.NoError(t, err)
 
-		share2, err := NewFileShare(ctx, fileId, owner, nil, false, false)
+		share2, err := NewFileShare(ctx, fileId, owner, nil, false, false, false)
 		require.NoError(t, err)
 		err = SaveFileShare(ctx, share2)
 		assert.Error(t, err)
@@ -98,7 +98,7 @@ func TestFileShare_Retrieval(t *testing.T) {
 	t.Run("GetShareById", func(t *testing.T) {
 		fileId := primitive.NewObjectID().Hex()
 		owner := createTestUser("retrieve_by_id")
-		share, err := NewFileShare(ctx, fileId, owner, nil, false, false)
+		share, err := NewFileShare(ctx, fileId, owner, nil, false, false, false)
 		require.NoError(t, err)
 		err = SaveFileShare(ctx, share)
 		require.NoError(t, err)
@@ -112,7 +112,7 @@ func TestFileShare_Retrieval(t *testing.T) {
 	t.Run("GetShareByFileId", func(t *testing.T) {
 		fileId := primitive.NewObjectID().Hex()
 		owner := createTestUser("retrieve_by_file")
-		share, err := NewFileShare(ctx, fileId, owner, nil, false, false)
+		share, err := NewFileShare(ctx, fileId, owner, nil, false, false, false)
 		require.NoError(t, err)
 		err = SaveFileShare(ctx, share)
 		require.NoError(t, err)
@@ -140,7 +140,7 @@ func TestFileShare_Retrieval(t *testing.T) {
 		numShares := 3
 		for range numShares {
 			fileId := primitive.NewObjectID().Hex()
-			share, err := NewFileShare(ctx, fileId, owner, []*user_model.User{accessor}, false, false)
+			share, err := NewFileShare(ctx, fileId, owner, []*user_model.User{accessor}, false, false, false)
 			require.NoError(t, err)
 			err = SaveFileShare(ctx, share)
 			require.NoError(t, err)
@@ -148,7 +148,7 @@ func TestFileShare_Retrieval(t *testing.T) {
 
 		// Create a share with different accessor
 		otherFileId := primitive.NewObjectID().Hex()
-		otherShare, err := NewFileShare(ctx, otherFileId, owner, []*user_model.User{createTestUser("other")}, false, false)
+		otherShare, err := NewFileShare(ctx, otherFileId, owner, []*user_model.User{createTestUser("other")}, false, false, false)
 		require.NoError(t, err)
 		err = SaveFileShare(ctx, otherShare)
 		require.NoError(t, err)
@@ -169,7 +169,7 @@ func TestFileShare_Updates(t *testing.T) {
 	t.Run("SetPublic", func(t *testing.T) {
 		fileId := primitive.NewObjectID().Hex()
 		owner := createTestUser("public_update")
-		share, err := NewFileShare(ctx, fileId, owner, nil, false, false)
+		share, err := NewFileShare(ctx, fileId, owner, nil, false, false, false)
 		require.NoError(t, err)
 		err = SaveFileShare(ctx, share)
 		require.NoError(t, err)
@@ -185,7 +185,7 @@ func TestFileShare_Updates(t *testing.T) {
 	t.Run("AddUsers", func(t *testing.T) {
 		fileId := primitive.NewObjectID().Hex()
 		owner := createTestUser("add_users")
-		share, err := NewFileShare(ctx, fileId, owner, nil, false, false)
+		share, err := NewFileShare(ctx, fileId, owner, nil, false, false, false)
 		require.NoError(t, err)
 		err = SaveFileShare(ctx, share)
 		require.NoError(t, err)
@@ -212,7 +212,7 @@ func TestFileShare_Updates(t *testing.T) {
 			createTestUser("remove2").Username,
 			createTestUser("remove3").Username,
 		}
-		share, err := NewFileShare(ctx, fileId, owner, nil, false, false)
+		share, err := NewFileShare(ctx, fileId, owner, nil, false, false, false)
 		require.NoError(t, err)
 		share.Accessors = initialUsers
 		err = SaveFileShare(ctx, share)
@@ -233,7 +233,7 @@ func TestFileShare_Updates(t *testing.T) {
 		fileId := primitive.NewObjectID().Hex()
 		owner := createTestUser("perm_owner")
 		user := createTestUser("perm_user")
-		share, err := NewFileShare(ctx, fileId, owner, []*user_model.User{user}, false, false)
+		share, err := NewFileShare(ctx, fileId, owner, []*user_model.User{user}, false, false, false)
 		require.NoError(t, err)
 		err = SaveFileShare(ctx, share)
 		require.NoError(t, err)

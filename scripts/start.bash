@@ -3,21 +3,23 @@ set -e
 set -o pipefail
 
 devel_weblens_locally() {
-    echo "Running WebLens locally for development..."
+    echo "Running Weblens locally for development..."
 
-    cd ./ui
-
-    pnpm install
-    if [[ ! -e ./dist/index.html ]]; then
-        echo "Rebuilding UI..."
-        pnpm build
-    fi
-    pnpm dev:no-open 1>/dev/null &
-
-    cd ..
+    cd ./weblens-vue/weblens-nuxt || exit 1
 
     export WEBLENS_STATIC_CONTENT_PATH=./public
-    export WEBLENS_UI_PATH=./ui/dist
+    export WEBLENS_UI_PATH=./weblens-vue/weblens-nuxt/.output/public
+    export VITE_PROXY_PORT=8080
+    export VITE_PROXY_HOST=127.0.0.1
+
+    pnpm install
+    if [[ ! -e ./.output/public/index.html ]]; then
+        echo "Rebuilding UI..."
+        pnpm generate
+    fi
+    pnpm dev 1>/dev/null &
+
+    cd ../..
 
     air
 
@@ -102,12 +104,17 @@ if [[ $shouldRebuild == true ]]; then
     docker image rm -f ethrous/weblens:"$imageName-$arch" &>/dev/null || :
 fi
 
+printf "Removing old '%s' containers... " "$containerName"
+
 docker stop "$containerName" 2>/dev/null || :
 docker rm "$containerName" 2>/dev/null || :
 
+printf "Done\n"
+
 if ! docker network ls | grep weblens-net &>/dev/null; then
-    echo "Creating weblens docker network..."
+    printf "Creating weblens docker network... "
     docker network create weblens-net
+    printf "Done\n"
 fi
 
 # Build image if it doesn't exist
@@ -129,13 +136,15 @@ fi
 
 ./scripts/start-mongo.sh "$mongoName" || exit 1
 
+echo "Starting development container for Weblens..."
+
 docker run \
     -t \
     -i \
     --rm \
     --name "$containerName" \
     -p 8080:8080 \
-    -p 3000:3000 \
+    -p 3001:3000 \
     -v ./build/fs/"$fsName"/data:/data \
     -v ./build/fs/"$fsName"/cache:/cache \
     -v .:/src \

@@ -26,6 +26,7 @@ docs/FolderInfo.md
 docs/LoginBody.md
 docs/MediaAPI.md
 docs/MediaBatchInfo.md
+docs/MediaBatchParams.md
 docs/MediaIdsParams.md
 docs/MediaInfo.md
 docs/MediaTypeInfo.md
@@ -70,6 +71,7 @@ model_files_list_params.go
 model_folder_info.go
 model_login_body.go
 model_media_batch_info.go
+model_media_batch_params.go
 model_media_ids_params.go
 model_media_info.go
 model_media_type_info.go

@@ -29,7 +29,7 @@ paths:
         content:
           '*/*':
             schema:
-              $ref: '#/components/schemas/FilesListParams'
+              $ref: "#/components/schemas/FilesListParams"
         description: Delete files request body
         required: true
       responses:
@@ -63,7 +63,7 @@ paths:
         content:
           '*/*':
             schema:
-              $ref: '#/components/schemas/MoveFilesParams'
+              $ref: "#/components/schemas/MoveFilesParams"
         description: Move files request body
         required: true
       responses:
@@ -97,7 +97,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/FolderInfo'
+                $ref: "#/components/schemas/FolderInfo"
           description: Path info
         "500":
           content: {}
@@ -128,7 +128,7 @@ paths:
             '*/*':
               schema:
                 items:
-                  $ref: '#/components/schemas/FileInfo'
+                  $ref: "#/components/schemas/FileInfo"
                 type: array
           description: File Info
         "400":
@@ -153,7 +153,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/FolderInfo'
+                $ref: "#/components/schemas/FolderInfo"
           description: All the top-level files shared with the user
         "404":
           content: {}
@@ -173,7 +173,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RestoreFilesBody'
+              $ref: "#/components/schemas/RestoreFilesBody"
         description: RestoreFiles files request body
         required: true
       responses:
@@ -181,7 +181,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RestoreFilesInfo'
+                $ref: "#/components/schemas/RestoreFilesInfo"
           description: structsore files info
         "400":
           content: {}
@@ -205,7 +205,7 @@ paths:
         content:
           '*/*':
             schema:
-              $ref: '#/components/schemas/FilesListParams'
+              $ref: "#/components/schemas/FilesListParams"
         description: Un-trash files request body
         required: true
       responses:
@@ -248,7 +248,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FileInfo'
+                $ref: "#/components/schemas/FileInfo"
           description: File Info
         "401":
           content: {}
@@ -279,7 +279,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateFileParams'
+              $ref: "#/components/schemas/UpdateFileParams"
         description: Update file request body
         required: true
       responses:
@@ -338,7 +338,7 @@ paths:
           content:
             application/octet-stream:
               schema:
-                $ref: '#/components/schemas/WeblensErrorInfo'
+                $ref: "#/components/schemas/WeblensErrorInfo"
           description: Error Info
       security:
       - SessionAuth: []
@@ -367,7 +367,7 @@ paths:
             '*/*':
               schema:
                 items:
-                  $ref: '#/components/schemas/FileActionInfo'
+                  $ref: "#/components/schemas/FileActionInfo"
                 type: array
           description: File actions
         "400":
@@ -446,7 +446,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateFolderBody'
+              $ref: "#/components/schemas/CreateFolderBody"
         description: New folder body
         required: true
       responses:
@@ -454,7 +454,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FileInfo'
+                $ref: "#/components/schemas/FileInfo"
           description: File Info
       security:
       - SessionAuth: []
@@ -475,7 +475,7 @@ paths:
         content:
           '*/*':
             schema:
-              $ref: '#/components/schemas/structs.ScanBody'
+              $ref: "#/components/schemas/structs.ScanBody"
         description: Scan parameters
         required: true
       responses:
@@ -519,7 +519,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FolderInfo'
+                $ref: "#/components/schemas/FolderInfo"
           description: Folder Info
       security:
       - SessionAuth: []
@@ -568,7 +568,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TowerInfo'
+                $ref: "#/components/schemas/TowerInfo"
           description: Server info
       summary: Get server info
       tags:
@@ -582,7 +582,7 @@ paths:
             application/json:
               schema:
                 items:
-                  $ref: '#/components/schemas/TokenInfo'
+                  $ref: "#/components/schemas/TokenInfo"
                 type: array
           description: Tokens
         "403":
@@ -602,7 +602,7 @@ paths:
         content:
           '*/*':
             schema:
-              $ref: '#/components/schemas/ApiKeyParams'
+              $ref: "#/components/schemas/ApiKeyParams"
         description: The new token params
         required: true
       responses:
@@ -610,7 +610,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TokenInfo'
+                $ref: "#/components/schemas/TokenInfo"
           description: The new token
         "403":
           content: {}
@@ -654,60 +654,27 @@ paths:
       tags:
       - ApiKeys
   /media:
-    get:
+    post:
       operationId: GetMedia
       parameters:
-      - description: Include raw files
+      - description: File ShareId
         in: query
-        name: raw
-        schema:
-          default: false
-          type: boolean
-      - description: Include hidden media
-        in: query
-        name: hidden
-        schema:
-          default: false
-          type: boolean
-      - description: Sort by field
-        in: query
-        name: sort
-        schema:
-          default: createDate
-          enum:
-          - createDate
-          type: string
-      - description: Search string
-        in: query
-        name: search
+        name: shareId
         schema:
           type: string
-      - description: Page of medias to get
-        in: query
-        name: page
-        schema:
-          type: integer
-      - description: Number of medias to get
-        in: query
-        name: limit
-        schema:
-          type: integer
-      - description: Search only in given folders
-        in: query
-        name: folderIds
-        schema:
-          type: string
-      - description: Get only media with the provided ids
-        in: query
-        name: mediaIds
-        schema:
-          type: string
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              $ref: "#/components/schemas/MediaBatchParams"
+        description: Media Batch Params
+        required: true
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MediaBatchInfo'
+                $ref: "#/components/schemas/MediaBatchInfo"
           description: Media Batch
         "400":
           content: {}
@@ -718,6 +685,7 @@ paths:
       summary: Get paginated media
       tags:
       - Media
+      x-codegen-request-body-name: request
   /media/cleanup:
     post:
       operationId: CleanupMedia
@@ -758,6 +726,27 @@ paths:
         filesystem cache. Must be server owner.
       tags:
       - Media
+  /media/drop/hdirs:
+    post:
+      operationId: DropHDIRs
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "403":
+          content: {}
+          description: Forbidden
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Drop all computed media HDIR data. Must be server owner.
+      tags:
+      - Media
   /media/random:
     get:
       operationId: GetRandomMedia
@@ -773,7 +762,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MediaBatchInfo'
+                $ref: "#/components/schemas/MediaBatchInfo"
           description: Media Batch
         "404":
           content: {}
@@ -792,7 +781,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MediaTypesInfo'
+                $ref: "#/components/schemas/MediaTypesInfo"
           description: Media types
       summary: Get media type dictionary
       tags:
@@ -811,7 +800,7 @@ paths:
         content:
           '*/*':
             schema:
-              $ref: '#/components/schemas/MediaIdsParams'
+              $ref: "#/components/schemas/MediaIdsParams"
         description: MediaIds to change visibility of
         required: true
       responses:
@@ -886,7 +875,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FileInfo'
+                $ref: "#/components/schemas/FileInfo"
           description: File info of file media was created from
         "404":
           content: {}
@@ -915,7 +904,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MediaInfo'
+                $ref: "#/components/schemas/MediaInfo"
           description: Media Info
       summary: Get media info
       tags:
@@ -992,7 +981,7 @@ paths:
         content:
           '*/*':
             schema:
-              $ref: '#/components/schemas/FileShareParams'
+              $ref: "#/components/schemas/FileShareParams"
         description: New File Share Params
         required: true
       responses:
@@ -1000,7 +989,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ShareInfo'
+                $ref: "#/components/schemas/ShareInfo"
           description: New File Share
         "409":
           content: {}
@@ -1043,7 +1032,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ShareInfo'
+                $ref: "#/components/schemas/ShareInfo"
           description: File Share
         "404":
           content: {}
@@ -1065,7 +1054,7 @@ paths:
         content:
           '*/*':
             schema:
-              $ref: '#/components/schemas/AddUserParams'
+              $ref: "#/components/schemas/AddUserParams"
         description: Share Accessors
         required: true
       responses:
@@ -1073,7 +1062,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ShareInfo'
+                $ref: "#/components/schemas/ShareInfo"
           description: OK
         "404":
           content: {}
@@ -1103,7 +1092,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ShareInfo'
+                $ref: "#/components/schemas/ShareInfo"
           description: OK
         "404":
           content: {}
@@ -1130,7 +1119,7 @@ paths:
         content:
           '*/*':
             schema:
-              $ref: '#/components/schemas/PermissionsParams'
+              $ref: "#/components/schemas/PermissionsParams"
         description: Share Permissions Params
         required: true
       responses:
@@ -1138,7 +1127,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ShareInfo'
+                $ref: "#/components/schemas/ShareInfo"
           description: OK
         "404":
           content: {}
@@ -1188,7 +1177,7 @@ paths:
         content:
           '*/*':
             schema:
-              $ref: '#/components/schemas/FilesListParams'
+              $ref: "#/components/schemas/FilesListParams"
         description: File Ids
         required: true
       responses:
@@ -1196,13 +1185,13 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/TakeoutInfo'
+                $ref: "#/components/schemas/TakeoutInfo"
           description: Zip Takeout Info
         "202":
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/TakeoutInfo'
+                $ref: "#/components/schemas/TakeoutInfo"
           description: Task Dispatch Info
         "400":
           content: {}
@@ -1228,7 +1217,7 @@ paths:
             '*/*':
               schema:
                 items:
-                  $ref: '#/components/schemas/TowerInfo'
+                  $ref: "#/components/schemas/TowerInfo"
                 type: array
           description: Tower Info
       security:
@@ -1254,7 +1243,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BackupInfo'
+                $ref: "#/components/schemas/BackupInfo"
           description: Backup Info
         "400":
           content: {}
@@ -1278,7 +1267,7 @@ paths:
         content:
           '*/*':
             schema:
-              $ref: '#/components/schemas/structs.InitServerParams'
+              $ref: "#/components/schemas/structs.InitServerParams"
         description: Server initialization body
         required: true
       responses:
@@ -1287,7 +1276,7 @@ paths:
             application/json:
               schema:
                 items:
-                  $ref: '#/components/schemas/TowerInfo'
+                  $ref: "#/components/schemas/TowerInfo"
                 type: array
           description: New server info
         "404":
@@ -1308,7 +1297,7 @@ paths:
         content:
           '*/*':
             schema:
-              $ref: '#/components/schemas/NewServerParams'
+              $ref: "#/components/schemas/NewServerParams"
         description: New Server Params
         required: true
       responses:
@@ -1316,7 +1305,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/TowerInfo'
+                $ref: "#/components/schemas/TowerInfo"
           description: New Server Info
         "400":
           content: {}
@@ -1414,7 +1403,7 @@ paths:
         content:
           '*/*':
             schema:
-              $ref: '#/components/schemas/NewUploadParams'
+              $ref: "#/components/schemas/NewUploadParams"
         description: New upload request body
         required: true
       responses:
@@ -1422,7 +1411,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/NewUploadInfo'
+                $ref: "#/components/schemas/NewUploadInfo"
           description: Upload Info
         "401":
           content: {}
@@ -1486,7 +1475,7 @@ paths:
         content:
           '*/*':
             schema:
-              $ref: '#/components/schemas/NewFilesParams'
+              $ref: "#/components/schemas/NewFilesParams"
         description: New file params
         required: true
       responses:
@@ -1494,7 +1483,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/NewFilesInfo'
+                $ref: "#/components/schemas/NewFilesInfo"
           description: FileIds
         "401":
           content: {}
@@ -1536,7 +1525,7 @@ paths:
         content:
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/UploadFileChunk_request'
+              $ref: "#/components/schemas/UploadFileChunk_request"
         required: true
       responses:
         "200":
@@ -1565,7 +1554,7 @@ paths:
             application/json:
               schema:
                 items:
-                  $ref: '#/components/schemas/UserInfoArchive'
+                  $ref: "#/components/schemas/UserInfoArchive"
                 type: array
           description: List of users
         "401":
@@ -1584,7 +1573,7 @@ paths:
         content:
           '*/*':
             schema:
-              $ref: '#/components/schemas/NewUserParams'
+              $ref: "#/components/schemas/NewUserParams"
         description: New user params
         required: true
       responses:
@@ -1607,7 +1596,7 @@ paths:
         content:
           '*/*':
             schema:
-              $ref: '#/components/schemas/LoginBody'
+              $ref: "#/components/schemas/LoginBody"
         description: Login params
         required: true
       responses:
@@ -1615,7 +1604,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserInfo'
+                $ref: "#/components/schemas/UserInfo"
           description: Logged-in users info
         "401":
           content: {}
@@ -1644,7 +1633,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserInfo'
+                $ref: "#/components/schemas/UserInfo"
           description: Logged-in users info
         "401":
           content: {}
@@ -1676,14 +1665,14 @@ paths:
             application/json:
               schema:
                 items:
-                  $ref: '#/components/schemas/UserInfo'
+                  $ref: "#/components/schemas/UserInfo"
                 type: array
           description: List of users
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WeblensErrorInfo'
+                $ref: "#/components/schemas/WeblensErrorInfo"
           description: Username autocomplete must contain at least 2 characters
         "401":
           content: {}
@@ -1776,7 +1765,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WeblensErrorInfo'
+                $ref: "#/components/schemas/WeblensErrorInfo"
           description: Bad Request
         "401":
           content: {}
@@ -1814,7 +1803,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WeblensErrorInfo'
+                $ref: "#/components/schemas/WeblensErrorInfo"
           description: Bad Request
         "403":
           content: {}
@@ -1852,19 +1841,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WeblensErrorInfo'
+                $ref: "#/components/schemas/WeblensErrorInfo"
           description: Bad Request
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WeblensErrorInfo'
+                $ref: "#/components/schemas/WeblensErrorInfo"
           description: Unauthorized
         "404":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WeblensErrorInfo'
+                $ref: "#/components/schemas/WeblensErrorInfo"
           description: Not Found
       security:
       - SessionAuth: []
@@ -1886,7 +1875,7 @@ paths:
         content:
           '*/*':
             schema:
-              $ref: '#/components/schemas/PasswordUpdateParams'
+              $ref: "#/components/schemas/PasswordUpdateParams"
         description: Password update params
         required: true
       responses:
@@ -1897,7 +1886,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WeblensErrorInfo'
+                $ref: "#/components/schemas/WeblensErrorInfo"
           description: Both oldPassword and newPassword fields are required
         "403":
           content: {}
@@ -1916,6 +1905,7 @@ components:
   schemas:
     AddUserParams:
       example:
+        canView: true
         canEdit: true
         canDownload: true
         canDelete: true
@@ -1926,6 +1916,8 @@ components:
         canDownload:
           type: boolean
         canEdit:
+          type: boolean
+        canView:
           type: boolean
         username:
           type: string
@@ -2025,21 +2017,21 @@ components:
       properties:
         fileHistory:
           items:
-            $ref: '#/components/schemas/FileActionInfo'
+            $ref: "#/components/schemas/FileActionInfo"
           type: array
         instances:
           items:
-            $ref: '#/components/schemas/TowerInfo'
+            $ref: "#/components/schemas/TowerInfo"
           type: array
         lifetimesCount:
           type: integer
         tokens:
           items:
-            $ref: '#/components/schemas/TokenInfo'
+            $ref: "#/components/schemas/TokenInfo"
           type: array
         users:
           items:
-            $ref: '#/components/schemas/UserInfoArchive'
+            $ref: "#/components/schemas/UserInfoArchive"
           type: array
       type: object
     CreateFolderBody:
@@ -2162,6 +2154,7 @@ components:
     FileShareParams:
       example:
         public: true
+        timelineOnly: true
         wormhole: true
         users:
         - users
@@ -2171,6 +2164,8 @@ components:
         fileId:
           type: string
         public:
+          type: boolean
+        timelineOnly:
           type: boolean
         users:
           items:
@@ -2194,7 +2189,7 @@ components:
       example:
         medias:
         - owner: owner
-          pageCount: 2
+          pageCount: 7
           hidden: true
           likedBy:
           - likedBy
@@ -2210,11 +2205,14 @@ components:
           - fileIds
           - fileIds
           imported: true
-          width: 7
+          width: 9
+          location:
+          - 2.3021358869347655
+          - 2.3021358869347655
           createDate: 1
           height: 5
         - owner: owner
-          pageCount: 2
+          pageCount: 7
           hidden: true
           likedBy:
           - likedBy
@@ -2230,7 +2228,10 @@ components:
           - fileIds
           - fileIds
           imported: true
-          width: 7
+          width: 9
+          location:
+          - 2.3021358869347655
+          - 2.3021358869347655
           createDate: 1
           height: 5
         children:
@@ -2319,18 +2320,18 @@ components:
       properties:
         children:
           items:
-            $ref: '#/components/schemas/FileInfo'
+            $ref: "#/components/schemas/FileInfo"
           type: array
         medias:
           items:
-            $ref: '#/components/schemas/MediaInfo'
+            $ref: "#/components/schemas/MediaInfo"
           type: array
         parents:
           items:
-            $ref: '#/components/schemas/FileInfo'
+            $ref: "#/components/schemas/FileInfo"
           type: array
         self:
-          $ref: '#/components/schemas/FileInfo'
+          $ref: "#/components/schemas/FileInfo"
       type: object
     LoginBody:
       example:
@@ -2349,7 +2350,7 @@ components:
       example:
         Media:
         - owner: owner
-          pageCount: 2
+          pageCount: 7
           hidden: true
           likedBy:
           - likedBy
@@ -2365,11 +2366,14 @@ components:
           - fileIds
           - fileIds
           imported: true
-          width: 7
+          width: 9
+          location:
+          - 2.3021358869347655
+          - 2.3021358869347655
           createDate: 1
           height: 5
         - owner: owner
-          pageCount: 2
+          pageCount: 7
           hidden: true
           likedBy:
           - likedBy
@@ -2385,16 +2389,76 @@ components:
           - fileIds
           - fileIds
           imported: true
-          width: 7
+          width: 9
+          location:
+          - 2.3021358869347655
+          - 2.3021358869347655
           createDate: 1
           height: 5
         mediaCount: 0
+        totalMediaCount: 6
       properties:
         Media:
           items:
-            $ref: '#/components/schemas/MediaInfo'
+            $ref: "#/components/schemas/MediaInfo"
           type: array
         mediaCount:
+          type: integer
+        totalMediaCount:
+          type: integer
+      type: object
+    MediaBatchParams:
+      example:
+        search: ""
+        sortDirection: 1
+        hidden: false
+        limit: 20
+        raw: false
+        folderIds:
+        - "[fId1"
+        - "fId2]"
+        mediaIds:
+        - "[mId1"
+        - "mId2]"
+        page: 1
+        sort: createDate
+      properties:
+        folderIds:
+          example:
+          - "[fId1"
+          - "fId2]"
+          items:
+            type: string
+          type: array
+        hidden:
+          example: false
+          type: boolean
+        limit:
+          example: 20
+          type: integer
+        mediaIds:
+          example:
+          - "[mId1"
+          - "mId2]"
+          items:
+            type: string
+          type: array
+        page:
+          example: 1
+          type: integer
+        raw:
+          example: false
+          type: boolean
+        search:
+          example: ""
+          type: string
+        sort:
+          enum:
+          - createDate
+          example: createDate
+          type: string
+        sortDirection:
+          example: 1
           type: integer
       type: object
     MediaIdsParams:
@@ -2411,7 +2475,7 @@ components:
     MediaInfo:
       example:
         owner: owner
-        pageCount: 2
+        pageCount: 7
         hidden: true
         likedBy:
         - likedBy
@@ -2427,7 +2491,10 @@ components:
         - fileIds
         - fileIds
         imported: true
-        width: 7
+        width: 9
+        location:
+        - 2.3021358869347655
+        - 2.3021358869347655
         createDate: 1
         height: 5
       properties:
@@ -2462,6 +2529,10 @@ components:
         likedBy:
           items:
             type: string
+          type: array
+        location:
+          items:
+            type: number
           type: array
         mimeType:
           description: Mime-type key of the media
@@ -2548,11 +2619,11 @@ components:
       properties:
         extMap:
           additionalProperties:
-            $ref: '#/components/schemas/MediaTypeInfo'
+            $ref: "#/components/schemas/MediaTypeInfo"
           type: object
         mimeMap:
           additionalProperties:
-            $ref: '#/components/schemas/MediaTypeInfo'
+            $ref: "#/components/schemas/MediaTypeInfo"
           type: object
       type: object
     MoveFilesParams:
@@ -2610,7 +2681,7 @@ components:
       properties:
         newFiles:
           items:
-            $ref: '#/components/schemas/NewFileParams'
+            $ref: "#/components/schemas/NewFileParams"
           type: array
       type: object
     NewServerParams:
@@ -2686,6 +2757,7 @@ components:
       type: object
     PermissionsInfo:
       example:
+        canView: true
         canEdit: true
         canDownload: true
         canDelete: true
@@ -2695,10 +2767,13 @@ components:
         canDownload:
           type: boolean
         canEdit:
+          type: boolean
+        canView:
           type: boolean
       type: object
     PermissionsParams:
       example:
+        canView: true
         canEdit: true
         canDownload: true
         canDelete: true
@@ -2708,6 +2783,8 @@ components:
         canDownload:
           type: boolean
         canEdit:
+          type: boolean
+        canView:
           type: boolean
       type: object
     RestoreFilesBody:
@@ -2753,23 +2830,25 @@ components:
           activated: true
           token: token
           username: username
+        timelineOnly: true
+        shareId: shareId
+        wormhole: true
+        shareType: shareType
+        enabled: true
         public: true
         permissions:
           key:
+            canView: true
             canEdit: true
             canDownload: true
             canDelete: true
-        shareId: shareId
         shareName: shareName
-        wormhole: true
-        shareType: shareType
         updated: 1
-        enabled: true
         fileId: fileId
       properties:
         accessors:
           items:
-            $ref: '#/components/schemas/UserInfo'
+            $ref: "#/components/schemas/UserInfo"
           type: array
         enabled:
           type: boolean
@@ -2781,7 +2860,7 @@ components:
           type: string
         permissions:
           additionalProperties:
-            $ref: '#/components/schemas/PermissionsInfo'
+            $ref: "#/components/schemas/PermissionsInfo"
           type: object
         public:
           type: boolean
@@ -2791,6 +2870,8 @@ components:
           type: string
         shareType:
           type: string
+        timelineOnly:
+          type: boolean
         updated:
           type: integer
         wormhole:

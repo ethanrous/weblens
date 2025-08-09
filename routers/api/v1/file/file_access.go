@@ -44,10 +44,10 @@ func checkFileAccess(ctx context_service.RequestContext, perms ...share.Permissi
 		return checkPastFileAccess(ctx, fileId, ts)
 	}
 
-	return checkFileAccessById(ctx, fileId, perms...)
+	return CheckFileAccessById(ctx, fileId, perms...)
 }
 
-func checkFileAccessById(ctx context_service.RequestContext, fileId string, perms ...share.Permission) (file *file_model.WeblensFileImpl, err error) {
+func CheckFileAccessById(ctx context_service.RequestContext, fileId string, perms ...share.Permission) (file *file_model.WeblensFileImpl, err error) {
 	file, err = ctx.FileService.GetFileById(ctx, fileId)
 	if err != nil {
 		// Handle error if file not found

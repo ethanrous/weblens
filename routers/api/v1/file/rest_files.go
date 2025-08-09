@@ -333,7 +333,7 @@ func SearchByFilename(ctx context_service.RequestContext) {
 		baseFolderId = ctx.Requester.HomeId
 	}
 
-	baseFolder, err := checkFileAccessById(ctx, baseFolderId)
+	baseFolder, err := CheckFileAccessById(ctx, baseFolderId)
 	if err != nil {
 		return
 	}
@@ -417,7 +417,7 @@ func CreateFolder(ctx context_service.RequestContext) {
 		return
 	}
 
-	parentFolder, err := checkFileAccessById(ctx, body.ParentFolderId, share_model.SharePermissionEdit)
+	parentFolder, err := CheckFileAccessById(ctx, body.ParentFolderId, share_model.SharePermissionEdit)
 	if err != nil {
 		ctx.Error(http.StatusForbidden, errors.New("You do not have permission to create a folder in this location"))
 
@@ -969,7 +969,7 @@ func MoveFiles(ctx context_service.RequestContext) {
 		return
 	}
 
-	newParent, err := checkFileAccessById(ctx, filesData.NewParentId, share_model.SharePermissionEdit)
+	newParent, err := CheckFileAccessById(ctx, filesData.NewParentId, share_model.SharePermissionEdit)
 	if err != nil {
 		return
 	}
@@ -1109,7 +1109,7 @@ func DeleteFiles(ctx context_service.RequestContext) {
 	files := make([]*file_model.WeblensFileImpl, 0, len(params.FileIds))
 
 	for _, fileId := range params.FileIds {
-		file, err := checkFileAccessById(ctx, fileId, share_model.SharePermissionDelete)
+		file, err := CheckFileAccessById(ctx, fileId, share_model.SharePermissionDelete)
 		if err != nil {
 			ctx.Error(http.StatusForbidden, err)
 
@@ -1181,7 +1181,7 @@ func NewUploadTask(ctx context_service.RequestContext) {
 		return
 	}
 
-	_, err = checkFileAccessById(ctx, upInfo.RootFolderId, share_model.SharePermissionEdit)
+	_, err = CheckFileAccessById(ctx, upInfo.RootFolderId, share_model.SharePermissionEdit)
 	if err != nil {
 		return
 	}
@@ -1333,6 +1333,13 @@ func HandleUploadChunk(ctx context_service.RequestContext) {
 
 		return
 	}
+
+	// if rand.IntN(100) >= 95 {
+	// 	ctx.Error(http.StatusBadRequest, errors.New("Fake error"))
+	//
+	// 	return
+	// }
+	//
 
 	fileId := ctx.Path("fileId")
 

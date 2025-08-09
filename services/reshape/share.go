@@ -45,6 +45,7 @@ func PermissionsToPermissionsInfo(ctx context.RequestContext, perms map[string]*
 	permsInfo := make(map[string]structs.PermissionsInfo, len(perms))
 	for k, v := range perms {
 		permsInfo[k] = structs.PermissionsInfo{
+			CanView:     v.CanView,
 			CanEdit:     v.CanEdit,
 			CanDownload: v.CanDownload,
 			CanDelete:   v.CanDelete,
@@ -56,6 +57,7 @@ func PermissionsToPermissionsInfo(ctx context.RequestContext, perms map[string]*
 
 func PermissionsParamsToPermissions(ctx context.RequestContext, perms structs.PermissionsParams) (share_model.Permissions, error) {
 	newPerms := share_model.Permissions{
+		CanView:     perms.CanView,
 		CanEdit:     perms.CanEdit,
 		CanDownload: perms.CanDownload,
 		CanDelete:   perms.CanDelete,

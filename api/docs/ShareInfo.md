@@ -14,6 +14,7 @@ Name | Type | Description | Notes
 **ShareId** | Pointer to **string** |  | [optional] 
 **ShareName** | Pointer to **string** |  | [optional] 
 **ShareType** | Pointer to **string** |  | [optional] 
+**TimelineOnly** | Pointer to **bool** |  | [optional] 
 **Updated** | Pointer to **int32** |  | [optional] 
 **Wormhole** | Pointer to **bool** |  | [optional] 
 
@@ -285,6 +286,31 @@ SetShareType sets ShareType field to given value.
 `func (o *ShareInfo) HasShareType() bool`
 
 HasShareType returns a boolean if a field has been set.
+
+### GetTimelineOnly
+
+`func (o *ShareInfo) GetTimelineOnly() bool`
+
+GetTimelineOnly returns the TimelineOnly field if non-nil, zero value otherwise.
+
+### GetTimelineOnlyOk
+
+`func (o *ShareInfo) GetTimelineOnlyOk() (*bool, bool)`
+
+GetTimelineOnlyOk returns a tuple with the TimelineOnly field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetTimelineOnly
+
+`func (o *ShareInfo) SetTimelineOnly(v bool)`
+
+SetTimelineOnly sets TimelineOnly field to given value.
+
+### HasTimelineOnly
+
+`func (o *ShareInfo) HasTimelineOnly() bool`
+
+HasTimelineOnly returns a boolean if a field has been set.
 
 ### GetUpdated
 

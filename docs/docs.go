@@ -911,7 +911,7 @@ const docTemplate = `{
             }
         },
         "/media": {
-            "get": {
+            "post": {
                 "produces": [
                     "application/json"
                 ],
@@ -922,65 +922,18 @@ const docTemplate = `{
                 "operationId": "GetMedia",
                 "parameters": [
                     {
-                        "enum": [
-                            true,
-                            false
-                        ],
-                        "type": "boolean",
-                        "default": false,
-                        "description": "Include raw files",
-                        "name": "raw",
-                        "in": "query"
-                    },
-                    {
-                        "enum": [
-                            true,
-                            false
-                        ],
-                        "type": "boolean",
-                        "default": false,
-                        "description": "Include hidden media",
-                        "name": "hidden",
-                        "in": "query"
-                    },
-                    {
-                        "enum": [
-                            "createDate"
-                        ],
-                        "type": "string",
-                        "default": "createDate",
-                        "description": "Sort by field",
-                        "name": "sort",
-                        "in": "query"
+                        "description": "Media Batch Params",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/MediaBatchParams"
+                        }
                     },
                     {
                         "type": "string",
-                        "description": "Search string",
-                        "name": "search",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Page of medias to get",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Number of medias to get",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Search only in given folders",
-                        "name": "folderIds",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Get only media with the provided ids",
-                        "name": "mediaIds",
+                        "description": "File ShareId",
+                        "name": "shareId",
                         "in": "query"
                     }
                 ],
@@ -1054,6 +1007,41 @@ const docTemplate = `{
                 ],
                 "summary": "DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.",
                 "operationId": "DropMedia",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/media/drop/hdirs": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Media"
+                ],
+                "summary": "Drop all computed media HDIR data. Must be server owner.",
+                "operationId": "DropHDIRs",
                 "responses": {
                     "200": {
                         "description": "OK"
@@ -2685,6 +2673,9 @@ const docTemplate = `{
                 "canEdit": {
                     "type": "boolean"
                 },
+                "canView": {
+                    "type": "boolean"
+                },
                 "username": {
                     "type": "string"
                 }
@@ -2862,6 +2853,9 @@ const docTemplate = `{
                 "public": {
                     "type": "boolean"
                 },
+                "timelineOnly": {
+                    "type": "boolean"
+                },
                 "users": {
                     "type": "array",
                     "items": {
@@ -2936,6 +2930,77 @@ const docTemplate = `{
                 },
                 "mediaCount": {
                     "type": "integer"
+                },
+                "totalMediaCount": {
+                    "type": "integer"
+                }
+            }
+        },
+        "MediaBatchParams": {
+            "type": "object",
+            "properties": {
+                "folderIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[fId1",
+                        "fId2]"
+                    ]
+                },
+                "hidden": {
+                    "type": "boolean",
+                    "enum": [
+                        true,
+                        false
+                    ],
+                    "example": false
+                },
+                "limit": {
+                    "type": "integer",
+                    "example": 20
+                },
+                "mediaIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[mId1",
+                        "mId2]"
+                    ]
+                },
+                "page": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "raw": {
+                    "type": "boolean",
+                    "enum": [
+                        true,
+                        false
+                    ],
+                    "example": false
+                },
+                "search": {
+                    "type": "string",
+                    "example": ""
+                },
+                "sort": {
+                    "type": "string",
+                    "enum": [
+                        "createDate"
+                    ],
+                    "example": "createDate"
+                },
+                "sortDirection": {
+                    "type": "integer",
+                    "enum": [
+                        1,
+                        -1
+                    ],
+                    "example": 1
                 }
             }
         },
@@ -2989,6 +3054,12 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "type": "string"
+                    }
+                },
+                "location": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
                     }
                 },
                 "mimeType": {
@@ -3210,6 +3281,9 @@ const docTemplate = `{
                 },
                 "canEdit": {
                     "type": "boolean"
+                },
+                "canView": {
+                    "type": "boolean"
                 }
             }
         },
@@ -3223,6 +3297,9 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "canEdit": {
+                    "type": "boolean"
+                },
+                "canView": {
                     "type": "boolean"
                 }
             }
@@ -3290,6 +3367,9 @@ const docTemplate = `{
                 },
                 "shareType": {
                     "type": "string"
+                },
+                "timelineOnly": {
+                    "type": "boolean"
                 },
                 "updated": {
                     "type": "integer"

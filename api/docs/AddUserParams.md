@@ -7,6 +7,7 @@ Name | Type | Description | Notes
 **CanDelete** | Pointer to **bool** |  | [optional] 
 **CanDownload** | Pointer to **bool** |  | [optional] 
 **CanEdit** | Pointer to **bool** |  | [optional] 
+**CanView** | Pointer to **bool** |  | [optional] 
 **Username** | **string** |  | 
 
 ## Methods
@@ -102,6 +103,31 @@ SetCanEdit sets CanEdit field to given value.
 `func (o *AddUserParams) HasCanEdit() bool`
 
 HasCanEdit returns a boolean if a field has been set.
+
+### GetCanView
+
+`func (o *AddUserParams) GetCanView() bool`
+
+GetCanView returns the CanView field if non-nil, zero value otherwise.
+
+### GetCanViewOk
+
+`func (o *AddUserParams) GetCanViewOk() (*bool, bool)`
+
+GetCanViewOk returns a tuple with the CanView field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetCanView
+
+`func (o *AddUserParams) SetCanView(v bool)`
+
+SetCanView sets CanView field to given value.
+
+### HasCanView
+
+`func (o *AddUserParams) HasCanView() bool`
+
+HasCanView returns a boolean if a field has been set.
 
 ### GetUsername
 

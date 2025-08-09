@@ -5,11 +5,13 @@ ARG GO_VERSION=1.24
 
 # Build UI
 FROM node:${NODE_VERSION}-alpine AS web
-WORKDIR /ui
 
-COPY ui .
+COPY weblens-vue /src
+WORKDIR /src/weblens-nuxt
 
-RUN --mount=type=cache,target=./node_modules npm install && npm run build
+RUN npm install -g pnpm
+RUN pnpm install 
+RUN pnpm generate
 
 # Build server binary
 FROM --platform=linux/${ARCHITECTURE} golang:${GO_VERSION}-alpine AS backend
@@ -31,7 +33,8 @@ RUN chmod +x /tmp/install-deps.sh
 RUN /tmp/install-deps.sh --dcraw
 
 WORKDIR /app
-COPY --from=web /ui/dist /app/web/
+
+COPY --from=web /src/weblens-nuxt/.output/public/ /app/web/
 COPY --from=backend /server/weblens /app/weblens
 COPY config/ /app/config
 COPY public /app/static

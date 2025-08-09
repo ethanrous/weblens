@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/log"
@@ -29,7 +30,7 @@ func main() {
 
 	logger.Info().Msgf("Starting Weblens router at %s:%s", cnf.Host, cnf.Port)
 
-	server := &http.Server{Addr: cnf.Host + ":" + cnf.Port, Handler: router}
+	server := &http.Server{Addr: cnf.Host + ":" + cnf.Port, Handler: router, ReadTimeout: time.Minute * 5}
 
 	context.AfterFunc(ctx, func() {
 		logger.Info().Msg("Shutting down router")

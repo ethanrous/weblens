@@ -33,6 +33,7 @@ type MediaInfo struct {
 	Hidden *bool `json:"hidden,omitempty"`
 	Imported *bool `json:"imported,omitempty"`
 	LikedBy []string `json:"likedBy,omitempty"`
+	Location []float32 `json:"location,omitempty"`
 	// Mime-type key of the media
 	MimeType *string `json:"mimeType,omitempty"`
 	// User who owns the file that resulted in this media being created
@@ -350,6 +351,38 @@ func (o *MediaInfo) SetLikedBy(v []string) {
 	o.LikedBy = v
 }
 
+// GetLocation returns the Location field value if set, zero value otherwise.
+func (o *MediaInfo) GetLocation() []float32 {
+	if o == nil || IsNil(o.Location) {
+		var ret []float32
+		return ret
+	}
+	return o.Location
+}
+
+// GetLocationOk returns a tuple with the Location field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MediaInfo) GetLocationOk() ([]float32, bool) {
+	if o == nil || IsNil(o.Location) {
+		return nil, false
+	}
+	return o.Location, true
+}
+
+// HasLocation returns a boolean if a field has been set.
+func (o *MediaInfo) HasLocation() bool {
+	if o != nil && !IsNil(o.Location) {
+		return true
+	}
+
+	return false
+}
+
+// SetLocation gets a reference to the given []float32 and assigns it to the Location field.
+func (o *MediaInfo) SetLocation(v []float32) {
+	o.Location = v
+}
+
 // GetMimeType returns the MimeType field value if set, zero value otherwise.
 func (o *MediaInfo) GetMimeType() string {
 	if o == nil || IsNil(o.MimeType) {
@@ -546,6 +579,9 @@ func (o MediaInfo) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.LikedBy) {
 		toSerialize["likedBy"] = o.LikedBy
+	}
+	if !IsNil(o.Location) {
+		toSerialize["location"] = o.Location
 	}
 	if !IsNil(o.MimeType) {
 		toSerialize["mimeType"] = o.MimeType

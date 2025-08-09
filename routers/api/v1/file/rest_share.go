@@ -26,12 +26,12 @@ import (
 //	@Success	409
 //	@Router		/share/file [post]
 func CreateFileShare(ctx context.RequestContext) {
-	shareInfo, err := net.ReadRequestBody[structs.FileShareParams](ctx.Req)
+	shareParams, err := net.ReadRequestBody[structs.FileShareParams](ctx.Req)
 	if err != nil {
 		return
 	}
 
-	file, err := ctx.FileService.GetFileById(ctx, shareInfo.FileId)
+	file, err := ctx.FileService.GetFileById(ctx, shareParams.FileId)
 	if err != nil {
 		ctx.Error(http.StatusNotFound, err)
 
@@ -52,7 +52,7 @@ func CreateFileShare(ctx context.RequestContext) {
 		return
 	}
 
-	_, err = share_model.GetShareByFileId(ctx, shareInfo.FileId)
+	_, err = share_model.GetShareByFileId(ctx, shareParams.FileId)
 	if err == nil {
 		ctx.Error(http.StatusConflict, share_model.ErrShareAlreadyExists)
 
@@ -65,9 +65,9 @@ func CreateFileShare(ctx context.RequestContext) {
 		return
 	}
 
-	accessors := make([]*user_model.User, 0, len(shareInfo.Users))
+	accessors := make([]*user_model.User, 0, len(shareParams.Users))
 
-	for _, un := range shareInfo.Users {
+	for _, un := range shareParams.Users {
 		u, err := user_model.GetUserByUsername(ctx, un)
 		if err != nil {
 			ctx.Error(http.StatusNotFound, err)
@@ -78,7 +78,7 @@ func CreateFileShare(ctx context.RequestContext) {
 		accessors = append(accessors, u)
 	}
 
-	newShare, err := share_model.NewFileShare(ctx, file.ID(), ctx.Requester, accessors, shareInfo.Public, shareInfo.Wormhole)
+	newShare, err := share_model.NewFileShare(ctx, file.ID(), ctx.Requester, accessors, shareParams.Public, shareParams.Wormhole, shareParams.TimelineOnly)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 

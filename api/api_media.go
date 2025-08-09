@@ -123,6 +123,106 @@ func (a *MediaAPIService) CleanupMediaExecute(r ApiCleanupMediaRequest) (*http.R
 	return localVarHTTPResponse, nil
 }
 
+type ApiDropHDIRsRequest struct {
+	ctx context.Context
+	ApiService *MediaAPIService
+}
+
+func (r ApiDropHDIRsRequest) Execute() (*http.Response, error) {
+	return r.ApiService.DropHDIRsExecute(r)
+}
+
+/*
+DropHDIRs Drop all computed media HDIR data. Must be server owner.
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return ApiDropHDIRsRequest
+*/
+func (a *MediaAPIService) DropHDIRs(ctx context.Context) ApiDropHDIRsRequest {
+	return ApiDropHDIRsRequest{
+		ApiService: a,
+		ctx: ctx,
+	}
+}
+
+// Execute executes the request
+func (a *MediaAPIService) DropHDIRsExecute(r ApiDropHDIRsRequest) (*http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "MediaAPIService.DropHDIRs")
+	if err != nil {
+		return nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/media/drop/hdirs"
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	if r.ctx != nil {
+		// API Key Authentication
+		if auth, ok := r.ctx.Value(ContextAPIKeys).(map[string]APIKey); ok {
+			if apiKey, ok := auth["ApiKeyAuth"]; ok {
+				var key string
+				if apiKey.Prefix != "" {
+					key = apiKey.Prefix + " " + apiKey.Key
+				} else {
+					key = apiKey.Key
+				}
+				localVarHeaderParams["Authorization"] = key
+			}
+		}
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarHTTPResponse, newErr
+	}
+
+	return localVarHTTPResponse, nil
+}
+
 type ApiDropMediaRequest struct {
 	ctx context.Context
 	ApiService *MediaAPIService
@@ -226,61 +326,19 @@ func (a *MediaAPIService) DropMediaExecute(r ApiDropMediaRequest) (*http.Respons
 type ApiGetMediaRequest struct {
 	ctx context.Context
 	ApiService *MediaAPIService
-	raw *bool
-	hidden *bool
-	sort *string
-	search *string
-	page *int32
-	limit *int32
-	folderIds *string
-	mediaIds *string
+	request *MediaBatchParams
+	shareId *string
 }
 
-// Include raw files
-func (r ApiGetMediaRequest) Raw(raw bool) ApiGetMediaRequest {
-	r.raw = &raw
+// Media Batch Params
+func (r ApiGetMediaRequest) Request(request MediaBatchParams) ApiGetMediaRequest {
+	r.request = &request
 	return r
 }
 
-// Include hidden media
-func (r ApiGetMediaRequest) Hidden(hidden bool) ApiGetMediaRequest {
-	r.hidden = &hidden
-	return r
-}
-
-// Sort by field
-func (r ApiGetMediaRequest) Sort(sort string) ApiGetMediaRequest {
-	r.sort = &sort
-	return r
-}
-
-// Search string
-func (r ApiGetMediaRequest) Search(search string) ApiGetMediaRequest {
-	r.search = &search
-	return r
-}
-
-// Page of medias to get
-func (r ApiGetMediaRequest) Page(page int32) ApiGetMediaRequest {
-	r.page = &page
-	return r
-}
-
-// Number of medias to get
-func (r ApiGetMediaRequest) Limit(limit int32) ApiGetMediaRequest {
-	r.limit = &limit
-	return r
-}
-
-// Search only in given folders
-func (r ApiGetMediaRequest) FolderIds(folderIds string) ApiGetMediaRequest {
-	r.folderIds = &folderIds
-	return r
-}
-
-// Get only media with the provided ids
-func (r ApiGetMediaRequest) MediaIds(mediaIds string) ApiGetMediaRequest {
-	r.mediaIds = &mediaIds
+// File ShareId
+func (r ApiGetMediaRequest) ShareId(shareId string) ApiGetMediaRequest {
+	r.shareId = &shareId
 	return r
 }
 
@@ -305,7 +363,7 @@ func (a *MediaAPIService) GetMedia(ctx context.Context) ApiGetMediaRequest {
 //  @return MediaBatchInfo
 func (a *MediaAPIService) GetMediaExecute(r ApiGetMediaRequest) (*MediaBatchInfo, *http.Response, error) {
 	var (
-		localVarHTTPMethod   = http.MethodGet
+		localVarHTTPMethod   = http.MethodPost
 		localVarPostBody     interface{}
 		formFiles            []formFile
 		localVarReturnValue  *MediaBatchInfo
@@ -321,39 +379,12 @@ func (a *MediaAPIService) GetMediaExecute(r ApiGetMediaRequest) (*MediaBatchInfo
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
+	if r.request == nil {
+		return localVarReturnValue, nil, reportError("request is required and must be specified")
+	}
 
-	if r.raw != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "raw", r.raw, "", "")
-	} else {
-		var defaultValue bool = false
-		r.raw = &defaultValue
-	}
-	if r.hidden != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "hidden", r.hidden, "", "")
-	} else {
-		var defaultValue bool = false
-		r.hidden = &defaultValue
-	}
-	if r.sort != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "sort", r.sort, "", "")
-	} else {
-		var defaultValue string = "createDate"
-		r.sort = &defaultValue
-	}
-	if r.search != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "search", r.search, "", "")
-	}
-	if r.page != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "page", r.page, "", "")
-	}
-	if r.limit != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", r.limit, "", "")
-	}
-	if r.folderIds != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "folderIds", r.folderIds, "", "")
-	}
-	if r.mediaIds != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "mediaIds", r.mediaIds, "", "")
+	if r.shareId != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "shareId", r.shareId, "", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -372,6 +403,8 @@ func (a *MediaAPIService) GetMediaExecute(r ApiGetMediaRequest) (*MediaBatchInfo
 	if localVarHTTPHeaderAccept != "" {
 		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
 	}
+	// body params
+	localVarPostBody = r.request
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err

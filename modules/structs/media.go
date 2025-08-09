@@ -12,6 +12,8 @@ type MediaInfo struct {
 	// Mime-type key of the media
 	MimeType string `json:"mimeType"`
 
+	Location [2]float64 `json:"location"`
+
 	// Slices of files whos content hash to the contentId
 	FileIds []string `json:"fileIds"`
 
@@ -61,6 +63,7 @@ type MediaTypesInfo struct {
 } // @name MediaTypesInfo
 
 type MediaBatchInfo struct {
-	Media      []MediaInfo `json:"Media"`
-	MediaCount int         `json:"mediaCount"`
+	Media           []MediaInfo `json:"Media"`
+	MediaCount      int         `json:"mediaCount"`
+	TotalMediaCount int         `json:"totalMediaCount"`
 } // @name MediaBatchInfo

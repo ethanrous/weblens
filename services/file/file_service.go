@@ -106,6 +106,10 @@ func (fs *FileServiceImpl) GetFileById(ctx context.Context, id string) (*file_mo
 	f, ok := fs.getFileInternal(id)
 
 	if ok {
+		if f.ID() != id {
+			return nil, errors.Errorf("Mismatched fileId getting file by id %s != %s", f.ID(), id)
+		}
+
 		return f, nil
 	}
 
@@ -162,6 +166,32 @@ func (fs *FileServiceImpl) GetFileByFilepath(ctx context.Context, filepath file_
 	return childFile, nil
 }
 
+func (fs *FileServiceImpl) GetFileByContentId(ctx context.Context, contentId string) (*file_model.WeblensFileImpl, error) {
+	media, err := media_model.GetMediaByContentId(ctx, contentId)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, fId := range media.FileIDs {
+		f, err := fs.GetFileById(ctx, fId)
+		if err != nil {
+			if errors.Is(err, file_model.ErrFileNotFound) {
+				continue // Skip files that are not found
+			}
+
+			return nil, err // Return other errors
+		}
+
+		if f.GetContentId() == media.ContentID {
+			return f, nil
+		}
+
+		return nil, errors.Errorf("file [%s] does not match media content ID [%s]", f.GetPortablePath(), media.ContentID)
+	}
+
+	return nil, errors.Errorf("Failed getting file from media: %w", file_model.ErrFileNotFound)
+}
+
 func (fs *FileServiceImpl) GetMediaCacheByFilename(ctx context.Context, thumbFileName string) (*file_model.WeblensFileImpl, error) {
 	f := file_model.NewWeblensFile(file_model.NewFileOptions{Path: file_model.ThumbsDirPath.Child(thumbFileName, false)})
 	if !f.Exists() {
@@ -171,16 +201,11 @@ func (fs *FileServiceImpl) GetMediaCacheByFilename(ctx context.Context, thumbFil
 	return f, nil
 }
 
-func (fs *FileServiceImpl) NewCacheFile(mediaId, quality string, pageNum int) (*file_model.WeblensFileImpl, error) {
-	switch media_model.MediaQuality(quality) {
-	case media_model.LowRes, media_model.HighRes:
-		break
-	default:
-
-		return nil, errors.New("invalid quality")
+func (fs *FileServiceImpl) NewCacheFile(mediaId string, quality string, pageNum int) (*file_model.WeblensFileImpl, error) {
+	filename, err := media_model.FmtCacheFileName(mediaId, media_model.MediaQuality(quality), pageNum)
+	if err != nil {
+		return nil, err
 	}
-
-	filename := getCacheFilename(mediaId, quality, pageNum)
 
 	childPath := file_model.ThumbsDirPath.Child(filename, false)
 
@@ -549,6 +574,7 @@ func (fs *FileServiceImpl) RenameFile(ctx context.Context, file *file_model.Webl
 		return errors.WithStack(file_model.ErrFileAlreadyExists)
 	}
 
+
 	oldPath := file.GetPortablePath()
 	newPath := oldPath.Dir().Child(newName, file.GetPortablePath().IsDir())
 
@@ -571,6 +597,9 @@ func (fs *FileServiceImpl) RenameFile(ctx context.Context, file *file_model.Webl
 	if err != nil {
 		return err
 	}
+
+	parent.RemoveChild(oldPath.Filename())
+	parent.AddChild(file)
 
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
@@ -606,6 +635,27 @@ func (fs *FileServiceImpl) GetChildren(ctx context.Context, folder *file_model.W
 	}
 
 	return folder.GetChildren(), nil
+}
+
+func (fs *FileServiceImpl) RecursiveEnsureChildrenLoaded(ctx context.Context, folder *file_model.WeblensFileImpl) error {
+	if !folder.IsDir() {
+		return errors.WithStack(file_model.ErrDirectoryRequired)
+	}
+
+	err := folder.RecursiveMap(func(wfi *file_model.WeblensFileImpl) error {
+		if wfi.IsDir() {
+			_, err := fs.GetChildren(ctx, wfi)
+
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (fs *FileServiceImpl) InitBackupDirectory(ctx context.Context, tower tower_model.Instance) (*file_model.WeblensFileImpl, error) {
@@ -915,6 +965,9 @@ func (fs *FileServiceImpl) moveFilesWithTransaction(ctx context.Context, files [
 		}) {
 			oldParents = append(oldParents, oldParent)
 		}
+
+		notif := notify.NewFileNotification(ctx, file, websocket_mod.FileUpdatedEvent, notify.FileNotificationOptions{PreMoveParentId: oldParent.ID()})
+		notifier.Notify(ctx, notif...)
 	}
 
 	for _, oldParent := range oldParents {
@@ -963,6 +1016,7 @@ func (fs *FileServiceImpl) deleteFilesWithTransaction(ctx context.Context, files
 
 	actions := []history.FileAction{}
 	parents := make(map[string][]string)
+	notifs := []websocket_mod.WsResponseInfo{}
 
 	for _, file := range files {
 		err := file.RecursiveMap(
@@ -976,15 +1030,13 @@ func (fs *FileServiceImpl) deleteFilesWithTransaction(ctx context.Context, files
 				actions = append(actions, newAction)
 
 				if !f.IsDir() && f.Size() != 0 {
-					if f.GetContentId() == "" {
-						return errors.Errorf("cannot move file [%s] to restore tree without content id", f.GetPortablePath())
-					} else {
-						err = linkToRestore(ctx, f)
-						if err != nil {
-							return err
-						}
+					err = linkToRestore(ctx, f)
+					if err != nil {
+						return err
 					}
 				}
+
+				notifs = append(notifs, notify.NewFileNotification(ctx, f, websocket_mod.FileDeletedEvent)...)
 
 				return nil
 			},
@@ -1023,8 +1075,7 @@ func (fs *FileServiceImpl) deleteFilesWithTransaction(ctx context.Context, files
 		}
 	}
 
-	// notif := notify.NewFileNotification(ctx, file, websocket_mod.FileDeletedEvent)
-	// appCtx.Notify(ctx, notif...)
+	appCtx.Notify(ctx, notifs...)
 
 	err = history.SaveActions(ctx, actions)
 	if err != nil {

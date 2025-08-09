@@ -362,6 +362,8 @@ func (f *WeblensFileImpl) ReadAll() ([]byte, error) {
 		return nil, errors.WithStack(err)
 	}
 
+	defer osFile.Close()
+
 	data, err := io.ReadAll(osFile)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -459,7 +461,7 @@ func (f *WeblensFileImpl) GetChild(childName string) (*WeblensFileImpl, error) {
 		return nil, errors.Errorf("%w: file %s [%p] has no children", ErrFileNotFound, f.portablePath.String(), f)
 	}
 
-	child := f.childrenMap[strings.ToLower(childName)]
+	child := f.childrenMap[childName]
 	if child == nil {
 		return nil, errors.Errorf("%w: %s is not a child of %s", ErrFileNotFound, childName, f.portablePath.String())
 	}
@@ -503,7 +505,7 @@ func (f *WeblensFileImpl) AddChild(child *WeblensFileImpl) error {
 		f.childrenMap = make(map[string]*WeblensFileImpl)
 	}
 
-	if f.childrenMap[strings.ToLower(child.portablePath.Filename())] != nil {
+	if f.childrenMap[child.portablePath.Filename()] != nil {
 		return errors.Errorf("failed to add %s as child of %s: %w", child.GetPortablePath(), f.GetPortablePath().String(), ErrFileAlreadyExists)
 	}
 
@@ -515,7 +517,7 @@ func (f *WeblensFileImpl) AddChild(child *WeblensFileImpl) error {
 		return errors.Errorf("Cannot make %s a child of %s: %w", child.GetPortablePath().Dir(), f.GetPortablePath(), ErrNotChild)
 	}
 
-	f.childrenMap[strings.ToLower(child.portablePath.Filename())] = child
+	f.childrenMap[child.portablePath.Filename()] = child
 
 	return nil
 }
@@ -528,11 +530,11 @@ func (f *WeblensFileImpl) RemoveChild(child string) error {
 	f.childLock.Lock()
 	defer f.childLock.Unlock()
 
-	if _, ok := f.childrenMap[strings.ToLower(child)]; !ok {
+	if _, ok := f.childrenMap[child]; !ok {
 		return errors.WithStack(ErrFileNotFound)
 	}
 
-	delete(f.childrenMap, strings.ToLower(child))
+	delete(f.childrenMap, child)
 
 	f.modifiedNow()
 

@@ -43,12 +43,14 @@ func Connect(ctx context_service.RequestContext) {
 	conn, err := upgrader.Upgrade(ctx.W, ctx.Req, nil)
 	if err != nil {
 		ctx.Log().Error().Err(err).Msg("Failed to upgrade connection to websocket")
+
 		return
 	}
 
 	client, err := ctx.ClientService.ClientConnect(ctx, conn, ctx.Requester)
 	if err != nil {
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to connect client")
+
 		return
 	}
 
@@ -63,7 +65,13 @@ func wsMain(ctx context_service.RequestContext, c *client_model.WsClient) {
 
 	if c.GetUser() != nil {
 		switchboard = wsWebClientSwitchboard
-		onWebConnect(ctx, c)
+
+		err := onWebConnect(ctx, c)
+		if err != nil {
+			ctx.Log().Err(err).Msg("Failed to handle web client connect")
+
+			return
+		}
 	} else {
 		switchboard = wsServerClientSwitchboard
 	}
@@ -77,8 +85,10 @@ func wsMain(ctx context_service.RequestContext, c *client_model.WsClient) {
 		if err != nil {
 			break
 		}
+
 		go func() {
 			defer wsRecover(ctx, c)
+
 			err := switchboard(ctx, buf, c)
 			if err != nil {
 				c.Error(err)

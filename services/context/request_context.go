@@ -124,6 +124,20 @@ func (c RequestContext) QueryBool(paramName string) bool {
 	return q
 }
 
+func (c RequestContext) QueryInt(paramName string) (int64, error) {
+	limitStr := c.Query(paramName)
+	if limitStr == "" {
+		return 0, nil
+	}
+
+	num, err := strconv.ParseInt(limitStr, 10, 32)
+	if err != nil {
+		return 0, errors.New("Invalid query int")
+	}
+
+	return num, nil
+}
+
 func (c RequestContext) Error(code int, err error) {
 	if err == nil {
 		err = errors.New("error is nil")
@@ -173,6 +187,33 @@ func (c RequestContext) Header(headerName string) string {
 
 func (c RequestContext) SetHeader(headerName, headerValue string) {
 	c.W.Header().Set(headerName, headerValue)
+}
+
+// Set the Content-Type header for the response.
+func (c RequestContext) SetContentType(contentType string) {
+	c.SetHeader("Content-Type", contentType)
+}
+
+// Set the Last-Modified header for the response.
+func (c RequestContext) SetLastModified(modified time.Time) {
+	c.SetHeader("Last-Modified", modified.UTC().Format(http.TimeFormat))
+}
+
+// IfModifiedSince checks if the request's If-Modified-Since header is set and returns the time if it is
+func (c RequestContext) IfModifiedSince() (time.Time, bool) {
+	ifModifiedSince := c.Req.Header.Get("If-Modified-Since")
+	if ifModifiedSince == "" {
+		return time.Time{}, false
+	}
+
+	modifiedTime, err := time.Parse(http.TimeFormat, ifModifiedSince)
+	if err != nil {
+		c.Log().Error().Stack().Err(err).Msgf("Failed to parse If-Modified-Since header: %s", ifModifiedSince)
+
+		return time.Time{}, false
+	}
+
+	return modifiedTime, true
 }
 
 func (c RequestContext) AddHeader(headerName, headerValue string) {

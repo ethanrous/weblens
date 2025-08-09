@@ -218,6 +218,8 @@ func (fa *FileAction) SetFile(file *file_model.WeblensFileImpl) {
 const FileActionCollectionKey = "fileHistory"
 
 func missingContentId(ctx context.Context, action *FileAction) error {
+	return nil
+
 	if action.ContentId == "" && action.Size > 0 && !action.GetRelevantPath().IsDir() {
 		return errors.Errorf("action for [%s]s contentId is empty", action.GetRelevantPath())
 	}

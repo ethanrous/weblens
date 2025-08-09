@@ -13,7 +13,7 @@ type WsResponseInfo struct {
 	TaskType        string           `json:"taskType,omitempty"`
 	Content         WsData           `json:"content"`
 	Error           string           `json:"error,omitempty"`
-	BroadcastType   SubscriptionType `json:"broadcastType,omitempty"`
+	BroadcastType   SubscriptionType `json:"subscriptionType,omitempty"`
 	RelaySource     string           `json:"relaySource,omitempty"`
 	SentTime        int64            `json:"sentTime,omitempty"`
 	ConstructedTime int64            `json:"constructedTime,omitempty"`

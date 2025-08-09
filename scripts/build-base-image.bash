@@ -6,7 +6,7 @@ if [[ ! -e ./scripts ]]; then
 fi
 
 docker_tag=""
-arch=$(uname -m)
+arch="amd64"
 
 # Once the image is built, push it to docker hub
 do_push=false

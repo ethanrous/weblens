@@ -13,6 +13,7 @@ Name | Type | Description | Notes
 **Hidden** | Pointer to **bool** | If the media is hidden from the timeline TODO - make this per user | [optional] 
 **Imported** | Pointer to **bool** |  | [optional] 
 **LikedBy** | Pointer to **[]string** |  | [optional] 
+**Location** | Pointer to **[]float32** |  | [optional] 
 **MimeType** | Pointer to **string** | Mime-type key of the media | [optional] 
 **Owner** | Pointer to **string** | User who owns the file that resulted in this media being created | [optional] 
 **PageCount** | Pointer to **int32** | Number of pages (typically 1, 0 in not a valid page count) | [optional] 
@@ -262,6 +263,31 @@ SetLikedBy sets LikedBy field to given value.
 `func (o *MediaInfo) HasLikedBy() bool`
 
 HasLikedBy returns a boolean if a field has been set.
+
+### GetLocation
+
+`func (o *MediaInfo) GetLocation() []float32`
+
+GetLocation returns the Location field if non-nil, zero value otherwise.
+
+### GetLocationOk
+
+`func (o *MediaInfo) GetLocationOk() (*[]float32, bool)`
+
+GetLocationOk returns a tuple with the Location field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetLocation
+
+`func (o *MediaInfo) SetLocation(v []float32)`
+
+SetLocation sets Location field to given value.
+
+### HasLocation
+
+`func (o *MediaInfo) HasLocation() bool`
+
+HasLocation returns a boolean if a field has been set.
 
 ### GetMimeType
 

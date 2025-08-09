@@ -1,15 +1,22 @@
 package media
 
 import (
-	"encoding/json"
 	"io"
+	"mime"
 	"net/http"
+	"os"
 	"strconv"
+	"time"
 
 	_ "github.com/ethanrous/weblens/docs"
+	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
+	"github.com/ethanrous/weblens/models/share"
 	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/net"
+	"github.com/ethanrous/weblens/modules/slices"
 	"github.com/ethanrous/weblens/modules/structs"
+	file_api "github.com/ethanrous/weblens/routers/api/v1/file"
 	"github.com/ethanrous/weblens/services/context"
 	media_service "github.com/ethanrous/weblens/services/media"
 	"github.com/ethanrous/weblens/services/reshape"
@@ -22,57 +29,71 @@ import (
 //	@Summary	Get paginated media
 //	@Tags		Media
 //	@Produce	json
-//	@Param		raw			query		bool					false	"Include raw files"		Enums(true, false)	default(false)
-//	@Param		hidden		query		bool					false	"Include hidden media"	Enums(true, false)	default(false)
-//	@Param		sort		query		string					false	"Sort by field"			Enums(createDate)	default(createDate)
-//	@Param		search		query		string					false	"Search string"
-//	@Param		page		query		int						false	"Page of medias to get"
-//	@Param		limit		query		int						false	"Number of medias to get"
-//	@Param		folderIds	query		string					false	"Search only in given folders"			SchemaExample([fId1, fId2])
-//	@Param		mediaIds	query		string					false	"Get only media with the provided ids"	SchemaExample([mId1, id2])
+//	@Param		request	body		structs.MediaBatchParams	true	"Media Batch Params"
+//	@Param		shareId		query		string					false	"File ShareId"
 //	@Success	200			{object}	structs.MediaBatchInfo	"Media Batch"
 //	@Success	400
 //	@Success	500
-//	@Router		/media [get]
+//	@Router		/media [post]
 func GetMediaBatch(ctx context.RequestContext) {
-	folderIdsStr := ctx.Query("folderIds")
-	if folderIdsStr != "" {
-		var folderIds []string
-		err := json.Unmarshal([]byte(folderIdsStr), &folderIds)
-		if err != nil {
-			ctx.Log().Error().Stack().Err(err).Msg("Failed to unmarshal folderIds")
-			ctx.Error(http.StatusBadRequest, errors.New("Invalid folderIds format"))
+	reqParams, err := net.ReadRequestBody[structs.MediaBatchParams](ctx.Req)
+	if err != nil {
+		ctx.Error(http.StatusBadRequest, err)
 
-			return
+		return
+	}
+
+	if len(reqParams.FolderIds) != 0 {
+		for _, folderId := range reqParams.FolderIds {
+			_, err := file_api.CheckFileAccessById(ctx, folderId, share.SharePermissionView)
+			if err != nil {
+				ctx.Error(http.StatusForbidden, err)
+
+				return
+			}
 		}
 
-		media, err := getMediaInFolders(ctx, folderIds)
+		if reqParams.SortDirection == 0 {
+			reqParams.SortDirection = -1
+		}
+
+		page := reqParams.Page
+		limit := reqParams.Limit
+
+		if reqParams.Search != "" {
+			page = 0
+			limit = 9999999
+		}
+
+		media, totalMediaCount, err := getMediaInFolders(ctx, reqParams.FolderIds, limit, page, reqParams.SortDirection, reqParams.Raw)
 		if err != nil {
 			ctx.Log().Error().Stack().Err(err).Msg("Failed to get media in folders")
 			ctx.Error(http.StatusInternalServerError, err)
 		}
 
+		if reqParams.Search != "" {
+			scoredMedia, err := media_service.SortMediaByTextSimilarity(ctx.AppContext, reqParams.Search, media, reqParams.FolderIds, 0.22)
+			if err != nil {
+				ctx.Error(http.StatusInternalServerError, err)
+
+				return
+			}
+
+			media = slices.Map(scoredMedia, func(m media_service.MediaWithScore) *media_model.Media { return m.Media })
+			totalMediaCount = len(media)
+		}
+
 		batch := reshape.NewMediaBatchInfo(media)
+		batch.TotalMediaCount = totalMediaCount
 		ctx.JSON(http.StatusOK, batch)
 
 		return
 	}
 
-	mediaIdsStr := ctx.Query("mediaIds")
-	if mediaIdsStr != "" {
-		var mediaIds []string
-
-		err := json.Unmarshal([]byte(mediaIdsStr), &mediaIds)
-		if err != nil {
-			ctx.Log().Error().Stack().Err(err).Msg("Failed to unmarshal mediaIds")
-			ctx.Error(http.StatusBadRequest, errors.New("Invalid mediaIds format"))
-
-			return
-		}
-
+	if len(reqParams.MediaIds) != 0 {
 		var medias []*media_model.Media
 
-		for _, mId := range mediaIds {
+		for _, mId := range reqParams.MediaIds {
 			m, err := media_model.GetMediaByContentId(ctx, mId)
 			if err != nil {
 				ctx.Log().Error().Stack().Err(err).Msg("Failed to get media by id")
@@ -85,52 +106,19 @@ func GetMediaBatch(ctx context.RequestContext) {
 		}
 
 		batch := reshape.NewMediaBatchInfo(medias)
+		batch.TotalMediaCount = len(medias)
 		ctx.JSON(http.StatusOK, batch)
 
 		return
 	}
 
-	sort := ctx.Query("sort")
-	if sort == "" {
-		sort = "createDate"
-	}
-
-	raw := ctx.Query("raw") == "true"
-	hidden := ctx.Query("hidden") == "true"
-	search := ctx.Query("search")
-
-	var page int64
-	var err error
-
-	pageStr := ctx.Query("page")
-	if pageStr != "" {
-		page, err = strconv.ParseInt(pageStr, 10, 32)
-		if err != nil {
-			ctx.Log().Error().Stack().Err(err).Msg("Failed to parse page number")
-			ctx.Error(http.StatusBadRequest, errors.New("Invalid page number"))
-			return
-		}
-	} else {
-		page = 0
-	}
-
-	var limit int64
-
-	if limitStr := ctx.Query("limit"); limitStr != "" {
-		limit, err = strconv.ParseInt(limitStr, 10, 32)
-		if err != nil {
-			ctx.Log().Error().Stack().Err(err).Msg("Failed to parse limit number")
-			ctx.Error(http.StatusBadRequest, errors.New("Invalid limit number"))
-
-			return
-		}
-	} else {
-		limit = 100
+	if reqParams.Sort == "" {
+		reqParams.Sort = "createDate"
 	}
 
 	var mediaFilter []media_model.ContentId
 
-	ms, err := media_model.GetMedia(ctx, ctx.Requester.Username, sort, 1, mediaFilter, raw, hidden, search)
+	ms, err := media_model.GetMedia(ctx, ctx.Requester.Username, reqParams.Sort, 1, mediaFilter, reqParams.Raw, reqParams.Hidden, reqParams.Search)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 
@@ -138,10 +126,10 @@ func GetMediaBatch(ctx context.RequestContext) {
 	}
 
 	var slicedMs []*media_model.Media
-	if (page+1)*limit > int64(len(ms)) {
-		slicedMs = ms[(page)*limit:]
+	if (reqParams.Page+1)*reqParams.Limit > len(ms) {
+		slicedMs = ms[(reqParams.Page)*reqParams.Limit:]
 	} else {
-		slicedMs = ms[(page)*limit : (page+1)*limit]
+		slicedMs = ms[(reqParams.Page)*reqParams.Limit : (reqParams.Page+1)*reqParams.Limit]
 	}
 
 	batch := reshape.NewMediaBatchInfo(slicedMs)
@@ -219,6 +207,50 @@ func DropMedia(ctx context.RequestContext) {
 	err := media_model.DropMediaCollection(ctx)
 	if err != nil {
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to drop media collection")
+		ctx.Error(http.StatusInternalServerError, err)
+
+		return
+	}
+
+	for _, p := range ctx.GetCache("photoCache").ScanKeys() {
+		ctx.GetCache("photoCache").Delete(p)
+	}
+
+	err = os.RemoveAll(file_model.ThumbsDirPath.ToAbsolute())
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, errors.Errorf("Failed to remove thumbnails directory: %w", err))
+
+		return
+	}
+
+	err = os.Mkdir(file_model.ThumbsDirPath.ToAbsolute(), 0755)
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, errors.Errorf("Failed to re-create thumbnails directory: %w", err))
+
+		return
+	}
+
+	ctx.Status(http.StatusOK)
+}
+
+// DropHDIRs godoc
+//
+//	@ID			DropHDIRs
+//
+//	@Security	SessionAuth[admin]
+//	@Security	ApiKeyAuth[admin]
+//
+//	@Summary	Drop all computed media HDIR data. Must be server owner.
+//	@Tags		Media
+//	@Produce	json
+//	@Success	200
+//	@Failure	403
+//	@Failure	500
+//	@Router		/media/drop/hdirs  [post]
+func DropHDIRs(ctx context.RequestContext) {
+	err := media_model.DropHDIRs(ctx)
+	if err != nil {
+		ctx.Log().Error().Stack().Err(err).Msg("Failed to drop media hdir data")
 		ctx.Error(http.StatusInternalServerError, err)
 
 		return
@@ -303,12 +335,38 @@ func streamVideo(ctx context.RequestContext) {
 	}
 
 	if chunkName != "" {
+		ctx.SetContentType(mime.TypeByExtension(".mp4"))
+
+		// Set headers to ensure caching, but require revalidation
+		ctx.W.Header().Add("Cache-Control", "no-cache")
+
+		modified, err := streamer.GetChunkModified(chunkName)
+		if err == nil {
+			modified = modified.Truncate(time.Second)
+			ctx.SetLastModified(modified)
+
+			modifiedSince, hasModifiedHeader := ctx.IfModifiedSince()
+
+			// If the client has sent an If-Modified-Since header, check if the chunk has been modified since then
+			if hasModifiedHeader && (modified.Equal(modifiedSince) || modified.Truncate(time.Second).Before(modifiedSince)) {
+				ctx.Status(http.StatusNotModified)
+
+				return
+			}
+		} else if !errors.Is(err, media_model.ErrChunkNotFound) {
+			ctx.Error(http.StatusInternalServerError, err)
+
+			return
+		}
+
 		chunkFile, err := streamer.GetChunk(chunkName)
 		if err != nil {
 			ctx.Error(http.StatusInternalServerError, err)
 
 			return
 		}
+
+		defer chunkFile.Close()
 
 		_, err = io.Copy(ctx, chunkFile)
 		if err != nil {
@@ -318,9 +376,22 @@ func streamVideo(ctx context.RequestContext) {
 		return
 	}
 
-	listFile, err := streamer.GetListFile()
+	listFile, modified, err := streamer.GetListFile()
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
+
+		return
+	}
+
+	ctx.SetContentType(mime.TypeByExtension(".m3u8"))
+	ctx.W.Header().Add("Cache-Control", "no-cache")
+
+	modified = modified.Truncate(time.Second)
+	ctx.SetLastModified(modified)
+	modifiedSince, hasModifiedHeader := ctx.IfModifiedSince()
+
+	if hasModifiedHeader && (modified.Equal(modifiedSince) || modified.Truncate(time.Second).Before(modifiedSince)) {
+		ctx.Status(http.StatusNotModified)
 
 		return
 	}
@@ -562,78 +633,105 @@ func GetRandomMedia(ctx context.RequestContext) {
 }
 
 // Helper function
-func getMediaInFolders(ctx context.RequestContext, folderIds []string) ([]*media_model.Media, error) {
-	// var folders []*fileTree.WeblensFileImpl
-	// for _, folderId := range folderIds {
-	// 	f, err := pack.FileService.GetFileSafe(folderId, u, nil)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	folders = append(folders, f)
-	// }
-	//
-	// ms := pack.MediaService.RecursiveGetMedia(folders...)
-	// batch := structs.NewMediaBatchInfo(ms)
-	//
-	// writeJson(w, http.StatusOK, batch)
+func getMediaInFolders(ctx context.RequestContext, folderIds []string, limit, page, sortDirection int, includeRaw bool) ([]*media_model.Media, int, error) {
+	allContentIds := []string{}
 
-	ctx.Status(http.StatusNotImplemented)
-	return nil, nil
+	for _, folderId := range folderIds {
+		folder, err := ctx.FileService.GetFileById(ctx, folderId)
+
+		if err != nil {
+			return nil, -1, err
+		}
+
+		err = ctx.FileService.RecursiveEnsureChildrenLoaded(ctx, folder)
+		if err != nil {
+			return nil, -1, err
+		}
+
+		err = folder.RecursiveMap(func(wfi *file_model.WeblensFileImpl) error {
+			if wfi.IsDir() {
+				return nil
+			}
+
+			allContentIds = append(allContentIds, wfi.GetContentId())
+
+			return nil
+		})
+
+		if err != nil {
+			return nil, -1, err
+		}
+	}
+
+	medias, err := media_model.GetMediasByContentIds(ctx, limit, page, sortDirection, includeRaw, allContentIds...)
+	if err != nil {
+		return nil, -1, err
+	}
+
+	return medias, len(allContentIds), nil
 }
 
 // Helper function
 func getProcessedMedia(ctx context.RequestContext, q media_model.MediaQuality, format string) {
 	mediaId := ctx.Path("mediaId")
+
 	m, err := media_model.GetMediaByContentId(ctx, mediaId)
 	if err != nil {
 		ctx.Error(http.StatusNotFound, err)
+
 		return
 	}
 
 	var pageNum int
+
 	if q == media_model.HighRes && m.PageCount > 1 {
 		pageString := ctx.Query("page")
+
 		pageNum, err = strconv.Atoi(pageString)
 		if err != nil {
 			ctx.Error(http.StatusBadRequest, err)
+
 			return
 		}
 	}
 
 	mt := media_model.ParseMime(m.MimeType)
 
+	if format == "pdf" && q == media_model.HighRes && mt.IsMultiPage() {
+		f, err := ctx.FileService.GetFileByContentId(ctx, m.ContentID)
+
+		if err != nil {
+			ctx.Error(http.StatusNotFound, err)
+
+			return
+		}
+
+		pdfBytes, err := f.ReadAll()
+		if err != nil {
+			ctx.Error(http.StatusInternalServerError, err)
+
+			return
+		}
+
+		_, err = ctx.Write(pdfBytes)
+		if err != nil {
+			ctx.Error(http.StatusInternalServerError, err)
+		}
+
+		return
+	}
+
 	if q == media_model.Video && mt.IsVideo {
 		ctx.Error(http.StatusBadRequest, errors.New("media type is not video"))
+
 		return
 	}
 
 	bs, err := media_service.FetchCacheImg(ctx.AppContext, m, q, pageNum)
+
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 	}
-
-	// if errors.Is(err, werror.ErrNoCache) {
-	// 	files := m.GetFiles()
-	// 	f, err := pack.FileService.GetFileSafe(files[len(files)-1], u, nil)
-	// 	if SafeErrorAndExit(err, w, log) {
-	// 		return
-	// 	}
-	//
-	// 	meta := models.ScanMeta{
-	// 		File:         f.GetParent(),
-	// 		FileService:  pack.FileService,
-	// 		MediaService: pack.MediaService,
-	// 		TaskService:  pack.TaskService,
-	// 		TaskSubber:   pack.ClientService,
-	// 	}
-	// 	_, err = pack.TaskService.DispatchJob(models.ScanDirectoryTask, meta, nil)
-	// 	if SafeErrorAndExit(err, w, log) {
-	// 		return
-	// 	}
-	// 	log.Debug().Func(func(e *zerolog.Event) { e.Msgf("Image %s has no cache", m.ID()) })
-	// 	w.WriteHeader(http.StatusNoContent)
-	// 	return
-	// }
 
 	// Instruct the client to cache images that are returned
 	ctx.SetHeader("Cache-Control", "max-age=3600")
