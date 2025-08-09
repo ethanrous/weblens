@@ -7,10 +7,8 @@ run_native_tests() {
     cd /src || exit 1
 
     cd ./weblens-vue/weblens-nuxt || exit 1
-    if [[ ! -d ./node_modules ]]; then
-        echo "Installing ui dependencies..."
-        pnpm install
-    fi
+    echo "Installing ui dependencies..."
+    pnpm install
 
     echo "Building UI..."
     pnpm run generate || exit 1
@@ -79,6 +77,7 @@ if ! sudo docker run --rm --platform="linux/amd64" \
     -v ./build/cache/test/go/build:/tmp/go-cache \
     -v ./build/cover:/cover \
     -v ./:/src \
+    -v /src/weblens-vue/weblens-nuxt/node_modules \
     -v /src/build \
     -e WEBLENS_MONGODB_URI="mongodb://weblens-test-mongo:27017/?replicaSet=rs0" \
     ethrous/weblens-roux":$baseVersion" /src/scripts/testWeblens -n "${tests}"; then

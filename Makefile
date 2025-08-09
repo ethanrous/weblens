@@ -22,7 +22,7 @@ ui: $(TS_SOURCE) FORCE
 	cd ui && pnpm run dev
 
 test: $(GO_SOURCE) $(TS_SOURCE)
-	# ./scripts/testWeblens
+	./scripts/testWeblens
 
 core: FORCE
 	./scripts/start.bash
@@ -38,6 +38,10 @@ dev\:backup: FORCE
 
 swag: FORCE
 	./scripts/swaggo
+
+roux: FORCE
+	./scripts/build-base-image.bash -t v0
+	docker push ethrous/weblens-roux:v0
 
 clean:
 	rm -rf ./build/bin/*
