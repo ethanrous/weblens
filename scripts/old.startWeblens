@@ -5,8 +5,8 @@ if [[ ! -e ./cmd ]]; then
     exit 1
 fi
 
-mkdir -p ./build/bin
-mkdir -p ./build/logs
+mkdir -p ./_build/bin
+mkdir -p ./_build/logs
 
 trace=false
 docs=false
@@ -59,9 +59,9 @@ printf "\n"
 
 if [[ $docs == true ]]; then
     printf "Building Docs..."
-    if ! ./scripts/swaggo &>./build/logs/docs-build.log; then
+    if ! ./scripts/swaggo &>./_build/logs/docs-build.log; then
         printf " FAILED\n"
-        cat ./build/logs/docs-build.log
+        cat ./_build/logs/docs-build.log
         echo "Aborting Weblens startup. Failed to build docs"
         exit 1
     else
@@ -79,9 +79,9 @@ if [[ $build_ui == true ]]; then
     export VITE_APP_BUILD_TAG="DEV-BUILD"
     export VITE_BUILD=true
 
-    if ! npm run build &>../build/logs/ui-build.log; then
+    if ! npm run build &>../_build/logs/ui-build.log; then
         printf " FAILED\n"
-        cat ../build/logs/ui-build.log
+        cat ../_build/logs/ui-build.log
         echo "Aborting Weblens startup. Ensure \`npm run build\` completes successfully before starting Weblens."
         exit 1
     else
@@ -92,7 +92,7 @@ if [[ $build_ui == true ]]; then
 fi
 
 printf "Building Weblens binary..."
-rm -f ./build/bin/weblens
+rm -f ./_build/bin/weblens
 
 pwd=$(pwd)
 
@@ -102,5 +102,5 @@ pwd=$(pwd)
 # export CONFIG_NAME=$config_name
 
 # Build and launch the binary, automatically restarting on changes
-go build -gcflags="all=-N -l" -race -o ./build/bin/weblens ./cmd/weblens
+go build -gcflags="all=-N -l" -race -o ./_build/bin/weblens ./cmd/weblens
 # air

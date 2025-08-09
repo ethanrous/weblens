@@ -68,14 +68,14 @@ sudo docker rm weblens-test-mongo >/dev/null 2>&1
 #     exit 1
 # fi
 
-rm -rf ./build/fs/test-container
+rm -rf ./_build/fs/test-container
 
 if ! sudo docker run --rm --platform="linux/amd64" \
     --network weblens-net \
-    -v ./build/fs/test-container/data:/data \
-    -v ./build/fs/test-container/cache:/cache \
-    -v ./build/cache/test/go/build:/tmp/go-cache \
-    -v ./build/cover:/cover \
+    -v ./_build/fs/test-container/data:/data \
+    -v ./_build/fs/test-container/cache:/cache \
+    -v ./_build/cache/test/go/build:/tmp/go-cache \
+    -v ./_build/cover:/cover \
     -v ./:/src \
     -v /src/weblens-vue/weblens-nuxt/node_modules \
     -v /src/build \

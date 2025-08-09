@@ -4,16 +4,16 @@ tmp_dir = "tmp"
 
 [build]
   args_bin = []
-  cmd = "CGO_ENABLED=1 go build -gcflags=\"all=-N -l\" -race -o ./build/bin/weblens ./cmd/weblens"
-  full_bin = "CGO_CFLAGS_ALLOW='-Xpreprocessor' ./build/bin/weblens"
-  # full_bin = "GORACE='halt_on_error=1' CGO_CFLAGS_ALLOW='-Xpreprocessor' ./build/bin/weblens"
+  cmd = "CGO_ENABLED=1 go build -gcflags=\"all=-N -l\" -race -o ./_build/bin/weblens ./cmd/weblens"
+  full_bin = "CGO_CFLAGS_ALLOW='-Xpreprocessor' ./_build/bin/weblens"
+  # full_bin = "GORACE='halt_on_error=1' CGO_CFLAGS_ALLOW='-Xpreprocessor' ./_build/bin/weblens"
   delay = 1000
   exclude_regex = ["_test.go"]
   exclude_unchanged = false
   follow_symlink = false
   include_ext = ["go"]
   exclude_dir = ["weblens-vue", "build"]
-  log = "./build/logs/weblens-build.log"
+  log = "./_build/logs/weblens-build.log"
   send_interrupt = true
   kill_delay = "1s"
   stop_on_error = true

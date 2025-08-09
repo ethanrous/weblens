@@ -4,7 +4,7 @@ if [[ ! -e ./scripts ]]; then
     exit 1
 fi
 
-mkdir -p ./build/logs
+mkdir -p ./_build/logs
 
 arch=$(uname -m)
 

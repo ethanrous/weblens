@@ -5,8 +5,8 @@ if [[ ! -e ./scripts ]]; then
     exit 1
 fi
 
-mkdir -p ./build/bin
-mkdir -p ./build/logs
+mkdir -p ./_build/bin
+mkdir -p ./_build/logs
 
 docker_tag=devel_$(git rev-parse --abbrev-ref HEAD)
 arch=$(uname -m)
@@ -69,9 +69,9 @@ fi
 
 if [[ $do_push == true && $skip_tests != true ]]; then
     printf "Running tests..."
-    if ! ./scripts/testWeblens -a &>./build/logs/container-build-pretest.log; then
+    if ! ./scripts/testWeblens -a &>./_build/logs/container-build-pretest.log; then
         printf " FAILED\n"
-        cat ./build/logs/container-build-pretest.log
+        cat ./_build/logs/container-build-pretest.log
         echo "Aborting container build. Ensure ./scripts/testWeblens passes before building container"
         exit 1
     else

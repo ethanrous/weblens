@@ -1,6 +1,6 @@
 module github.com/ethanrous/weblens
 
-go 1.24
+go 1.24.6
 
 require (
 	github.com/barasher/go-exiftool v1.10.0
@@ -13,6 +13,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/lithammer/fuzzysearch v1.1.8
 	github.com/opensearch-project/opensearch-go/v4 v4.4.0
+	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.33.0
 	github.com/saracen/fastzip v0.1.11
 	github.com/stretchr/testify v1.10.0

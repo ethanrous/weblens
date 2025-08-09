@@ -1,14 +1,14 @@
-GO_SOURCE=$(shell find . -path ./build -prune -o -iname "*.go")
+GO_SOURCE=$(shell find . -path ./_build -prune -o -iname "*.go")
 TS_SOURCE=$(shell find ./weblens-vue/weblens-nuxt/ -iname "*.ts*")
 
 all: run
 
-# WEBLENS_ENV_PATH=./scripts/.env ./build/bin/weblens
+# WEBLENS_ENV_PATH=./scripts/.env ./_build/bin/weblens
 run: gen-ui gen-go
-	./build/bin/weblens
+	./_build/bin/weblens
 
 run\:go: gen-go
-	./build/bin/weblens
+	./_build/bin/weblens
 
 gen-go: $(GO_SOURCE)
 	./scripts/startWeblens
@@ -44,11 +44,11 @@ roux: FORCE
 	docker push ethrous/weblens-roux:v0
 
 clean:
-	rm -rf ./build/bin/*
+	rm -rf ./_build/bin/*
 	rm -rf ./ui/dist
 
 really-clean:
-	rm -rf ./build
+	rm -rf ./_build
 	rm -rf ./ui/dist
 	rm -rf ./ui/node_modules
 
