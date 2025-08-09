@@ -5,6 +5,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 |Method | HTTP request | Description|
 |------------- | ------------- | -------------|
 |[**cleanupMedia**](#cleanupmedia) | **POST** /media/cleanup | Make sure all media is correctly synced with the file system|
+|[**dropHDIRs**](#drophdirs) | **POST** /media/drop/hdirs | Drop all computed media HDIR data. Must be server owner.|
 |[**dropMedia**](#dropmedia) | **POST** /media/drop | DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.|
 |[**getMedia**](#getmedia) | **POST** /media | Get paginated media|
 |[**getMediaFile**](#getmediafile) | **GET** /media/{mediaId}/file | Get file of media by id|
@@ -56,6 +57,51 @@ void (empty response body)
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 |**200** | OK |  -  |
+|**500** | Internal Server Error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **dropHDIRs**
+> dropHDIRs()
+
+
+### Example
+
+```typescript
+import {
+    MediaApi,
+    Configuration
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new MediaApi(configuration);
+
+const { status, data } = await apiInstance.dropHDIRs();
+```
+
+### Parameters
+This endpoint does not have any parameters.
+
+
+### Return type
+
+void (empty response body)
+
+### Authorization
+
+[ApiKeyAuth](../README.md#ApiKeyAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: Not defined
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | OK |  -  |
+|**403** | Forbidden |  -  |
 |**500** | Internal Server Error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

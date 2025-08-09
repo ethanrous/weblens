@@ -104,6 +104,7 @@ Class | Method | HTTP request | Description
 *FolderAPI* | [**ScanFolder**](docs/FolderAPI.md#scanfolder) | **Post** /folder/scan | Dispatch a folder scan
 *FolderAPI* | [**SetFolderCover**](docs/FolderAPI.md#setfoldercover) | **Patch** /folder/{folderId}/cover | Set the cover image of a folder
 *MediaAPI* | [**CleanupMedia**](docs/MediaAPI.md#cleanupmedia) | **Post** /media/cleanup | Make sure all media is correctly synced with the file system
+*MediaAPI* | [**DropHDIRs**](docs/MediaAPI.md#drophdirs) | **Post** /media/drop/hdirs | Drop all computed media HDIR data. Must be server owner.
 *MediaAPI* | [**DropMedia**](docs/MediaAPI.md#dropmedia) | **Post** /media/drop | DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
 *MediaAPI* | [**GetMedia**](docs/MediaAPI.md#getmedia) | **Post** /media | Get paginated media
 *MediaAPI* | [**GetMediaFile**](docs/MediaAPI.md#getmediafile) | **Get** /media/{mediaId}/file | Get file of media by id

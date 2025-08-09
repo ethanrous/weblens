@@ -1440,6 +1440,26 @@ paths:
         filesystem cache. Must be server owner.
       tags:
       - Media
+  /media/drop/hdirs:
+    post:
+      operationId: DropHDIRs
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Drop all computed media HDIR data. Must be server owner.
+      tags:
+      - Media
   /media/random:
     get:
       operationId: GetRandomMedia

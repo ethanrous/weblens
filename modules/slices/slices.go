@@ -81,6 +81,26 @@ func SortFunc[S ~[]T, T any](ts S, cmp func(a T, b T) int) S {
 	return ts
 }
 
+func BinarySearchFunc[S ~[]E, E, T any](x S, target T, cmp func(E, T) int) (int, bool) {
+	return slices.BinarySearchFunc(x, target, cmp)
+}
+
+func BinarySearchIndexFunc[S ~[]E, E, T any](x S, target T, cmp func(E, T) int) int {
+	n := len(x)
+	i, j := 0, n
+	for i < j {
+		h := int(uint(i+j) >> 1) // avoid overflow when computing h
+		// i ≤ h < j
+		if cmp(x[h], target) < 0 {
+			i = h + 1 // preserves x[i-1] < target
+		} else {
+			j = h // preserves x[j] >= target
+		}
+	}
+
+	return i
+}
+
 func Filter[S ~[]T, T any](ts S, fn func(t T) bool) []T {
 	var result []T
 	for _, t := range ts {

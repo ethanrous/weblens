@@ -141,6 +141,7 @@ type CreateAlbumParams struct {
 } // @name CreateAlbumParams
 
 type PermissionsParams struct {
+	CanView     bool `json:"canView"`
 	CanEdit     bool `json:"canEdit"`
 	CanDownload bool `json:"canDownload"`
 	CanDelete   bool `json:"canDelete"`

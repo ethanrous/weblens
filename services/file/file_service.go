@@ -201,16 +201,11 @@ func (fs *FileServiceImpl) GetMediaCacheByFilename(ctx context.Context, thumbFil
 	return f, nil
 }
 
-func (fs *FileServiceImpl) NewCacheFile(mediaId, quality string, pageNum int) (*file_model.WeblensFileImpl, error) {
-	switch media_model.MediaQuality(quality) {
-	case media_model.LowRes, media_model.HighRes:
-		break
-	default:
-
-		return nil, errors.New("invalid quality")
+func (fs *FileServiceImpl) NewCacheFile(mediaId string, quality string, pageNum int) (*file_model.WeblensFileImpl, error) {
+	filename, err := media_model.FmtCacheFileName(mediaId, media_model.MediaQuality(quality), pageNum)
+	if err != nil {
+		return nil, err
 	}
-
-	filename := getCacheFilename(mediaId, quality, pageNum)
 
 	childPath := file_model.ThumbsDirPath.Child(filename, false)
 
@@ -579,6 +574,7 @@ func (fs *FileServiceImpl) RenameFile(ctx context.Context, file *file_model.Webl
 		return errors.WithStack(file_model.ErrFileAlreadyExists)
 	}
 
+
 	oldPath := file.GetPortablePath()
 	newPath := oldPath.Dir().Child(newName, file.GetPortablePath().IsDir())
 
@@ -601,6 +597,9 @@ func (fs *FileServiceImpl) RenameFile(ctx context.Context, file *file_model.Webl
 	if err != nil {
 		return err
 	}
+
+	parent.RemoveChild(oldPath.Filename())
+	parent.AddChild(file)
 
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
@@ -636,6 +635,27 @@ func (fs *FileServiceImpl) GetChildren(ctx context.Context, folder *file_model.W
 	}
 
 	return folder.GetChildren(), nil
+}
+
+func (fs *FileServiceImpl) RecursiveEnsureChildrenLoaded(ctx context.Context, folder *file_model.WeblensFileImpl) error {
+	if !folder.IsDir() {
+		return errors.WithStack(file_model.ErrDirectoryRequired)
+	}
+
+	err := folder.RecursiveMap(func(wfi *file_model.WeblensFileImpl) error {
+		if wfi.IsDir() {
+			_, err := fs.GetChildren(ctx, wfi)
+
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (fs *FileServiceImpl) InitBackupDirectory(ctx context.Context, tower tower_model.Instance) (*file_model.WeblensFileImpl, error) {

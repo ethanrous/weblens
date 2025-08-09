@@ -17,6 +17,7 @@ type ShareInfo struct {
 } // @name ShareInfo
 
 type PermissionsInfo struct {
+	CanView     bool `json:"canView"`
 	CanEdit     bool `json:"canEdit"`
 	CanDownload bool `json:"canDownload"`
 	CanDelete   bool `json:"canDelete"`

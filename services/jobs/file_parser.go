@@ -112,7 +112,10 @@ func ScanDirectory(tsk task_mod.Task) {
 			}
 
 			m, err := media_model.GetMediaByContentId(ctx, mf.GetContentId())
-			if err == nil {
+			if err == nil && m.IsSufficentlyProcessed() {
+				if len(m.HDIR) == 0 {
+				}
+
 				if !slices.ContainsFunc(m.FileIDs, func(fId string) bool { return fId == mf.ID() }) {
 					err = m.AddFileToMedia(ctx, mf.GetPortablePath().ToPortable())
 					if err != nil {
@@ -231,7 +234,7 @@ func ScanFile_(ctx context_service.AppContext, meta job.ScanMeta) error {
 	}
 
 	existingMedia, err := media_model.GetMediaByContentId(ctx, meta.File.GetContentId())
-	if err == nil {
+	if err == nil && existingMedia.IsSufficentlyProcessed() {
 		if !slices.Contains(existingMedia.FileIDs, meta.File.ID()) {
 			err = existingMedia.AddFileToMedia(ctx, meta.File.ID())
 			if err != nil {
@@ -242,9 +245,34 @@ func ScanFile_(ctx context_service.AppContext, meta job.ScanMeta) error {
 		return nil
 	}
 
-	media, err := media_service.NewMediaFromFile(ctx, meta.File)
-	if err != nil {
-		return err
+	media := existingMedia
+	mediaIsNew := media == nil
+	isCached := false
+
+	if mediaIsNew {
+		media, err = media_service.NewMediaFromFile(ctx, meta.File)
+		if err != nil {
+			return err
+		}
+	} else {
+		isCached, err = media_service.IsCached(ctx, media)
+		if err != nil {
+			return err
+		}
+	}
+
+	if !isCached {
+		_, err = media_service.HandleCacheCreation(ctx, media, meta.File)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(media.HDIR) == 0 {
+		_, err = media_service.GetHighDimensionImageEncoding(ctx, media)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = media_model.SaveMedia(ctx, media)

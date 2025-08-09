@@ -1,26 +1,15 @@
 package file
 
 import (
-	"fmt"
 	"os"
 
 	file_model "github.com/ethanrous/weblens/models/file"
-	media_model "github.com/ethanrous/weblens/models/media"
-	"github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/fs"
 )
 
 func isCacheFile(filepath fs.Filepath) bool {
 	return filepath.RootAlias == file_model.CachesTreeKey
-}
-
-func getCacheFilename(mId, quality string, pageNum int) string {
-	var pageNumStr string
-	if pageNum > 1 && quality == string(media_model.HighRes) {
-		pageNumStr = fmt.Sprintf("_%d", pageNum)
-	}
-
-	return fmt.Sprintf("%s-%s%s.cache", mId, quality, pageNumStr)
 }
 
 func touch(filepath fs.Filepath) (f *file_model.WeblensFileImpl, err error) {

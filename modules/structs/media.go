@@ -63,6 +63,7 @@ type MediaTypesInfo struct {
 } // @name MediaTypesInfo
 
 type MediaBatchInfo struct {
-	Media      []MediaInfo `json:"Media"`
-	MediaCount int         `json:"mediaCount"`
+	Media           []MediaInfo `json:"Media"`
+	MediaCount      int         `json:"mediaCount"`
+	TotalMediaCount int         `json:"totalMediaCount"`
 } // @name MediaBatchInfo

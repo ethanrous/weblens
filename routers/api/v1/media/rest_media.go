@@ -65,14 +65,14 @@ func GetMediaBatch(ctx context.RequestContext) {
 			limit = 9999999
 		}
 
-		media, err := getMediaInFolders(ctx, reqParams.FolderIds, limit, page, reqParams.SortDirection, reqParams.Raw)
+		media, totalMediaCount, err := getMediaInFolders(ctx, reqParams.FolderIds, limit, page, reqParams.SortDirection, reqParams.Raw)
 		if err != nil {
 			ctx.Log().Error().Stack().Err(err).Msg("Failed to get media in folders")
 			ctx.Error(http.StatusInternalServerError, err)
 		}
 
 		if reqParams.Search != "" {
-			scoredMedia, err := media_service.SortMediaByTextSimilarity(ctx.AppContext, reqParams.Search, media, 0.22)
+			scoredMedia, err := media_service.SortMediaByTextSimilarity(ctx.AppContext, reqParams.Search, media, reqParams.FolderIds, 0.22)
 			if err != nil {
 				ctx.Error(http.StatusInternalServerError, err)
 
@@ -80,9 +80,11 @@ func GetMediaBatch(ctx context.RequestContext) {
 			}
 
 			media = slices.Map(scoredMedia, func(m media_service.MediaWithScore) *media_model.Media { return m.Media })
+			totalMediaCount = len(media)
 		}
 
 		batch := reshape.NewMediaBatchInfo(media)
+		batch.TotalMediaCount = totalMediaCount
 		ctx.JSON(http.StatusOK, batch)
 
 		return
@@ -104,6 +106,7 @@ func GetMediaBatch(ctx context.RequestContext) {
 		}
 
 		batch := reshape.NewMediaBatchInfo(medias)
+		batch.TotalMediaCount = len(medias)
 		ctx.JSON(http.StatusOK, batch)
 
 		return
@@ -223,6 +226,32 @@ func DropMedia(ctx context.RequestContext) {
 	err = os.Mkdir(file_model.ThumbsDirPath.ToAbsolute(), 0755)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, errors.Errorf("Failed to re-create thumbnails directory: %w", err))
+
+		return
+	}
+
+	ctx.Status(http.StatusOK)
+}
+
+// DropHDIRs godoc
+//
+//	@ID			DropHDIRs
+//
+//	@Security	SessionAuth[admin]
+//	@Security	ApiKeyAuth[admin]
+//
+//	@Summary	Drop all computed media HDIR data. Must be server owner.
+//	@Tags		Media
+//	@Produce	json
+//	@Success	200
+//	@Failure	403
+//	@Failure	500
+//	@Router		/media/drop/hdirs  [post]
+func DropHDIRs(ctx context.RequestContext) {
+	err := media_model.DropHDIRs(ctx)
+	if err != nil {
+		ctx.Log().Error().Stack().Err(err).Msg("Failed to drop media hdir data")
+		ctx.Error(http.StatusInternalServerError, err)
 
 		return
 	}
@@ -604,27 +633,19 @@ func GetRandomMedia(ctx context.RequestContext) {
 }
 
 // Helper function
-func getMediaInFolders(ctx context.RequestContext, folderIds []string, limit, page, sortDirection int, includeRaw bool) ([]*media_model.Media, error) {
+func getMediaInFolders(ctx context.RequestContext, folderIds []string, limit, page, sortDirection int, includeRaw bool) ([]*media_model.Media, int, error) {
 	allContentIds := []string{}
 
 	for _, folderId := range folderIds {
 		folder, err := ctx.FileService.GetFileById(ctx, folderId)
 
 		if err != nil {
-			return nil, err
+			return nil, -1, err
 		}
 
-		err = folder.RecursiveMap(func(wfi *file_model.WeblensFileImpl) error {
-			if wfi.IsDir() {
-				_, err := ctx.FileService.GetChildren(ctx, wfi)
-
-				return err
-			}
-
-			return nil
-		})
+		err = ctx.FileService.RecursiveEnsureChildrenLoaded(ctx, folder)
 		if err != nil {
-			return nil, err
+			return nil, -1, err
 		}
 
 		err = folder.RecursiveMap(func(wfi *file_model.WeblensFileImpl) error {
@@ -638,16 +659,16 @@ func getMediaInFolders(ctx context.RequestContext, folderIds []string, limit, pa
 		})
 
 		if err != nil {
-			return nil, err
+			return nil, -1, err
 		}
 	}
 
 	medias, err := media_model.GetMediasByContentIds(ctx, limit, page, sortDirection, includeRaw, allContentIds...)
 	if err != nil {
-		return nil, err
+		return nil, -1, err
 	}
 
-	return medias, nil
+	return medias, len(allContentIds), nil
 }
 
 // Helper function

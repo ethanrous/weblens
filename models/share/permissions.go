@@ -1,5 +1,7 @@
 package share
 
+import "github.com/ethanrous/weblens/modules/log"
+
 type Permission string
 
 const (
@@ -78,6 +80,8 @@ func (p *Permissions) RemovePermission(permission Permission) {
 // HasPermission checks if a specific permission is granted.
 func (p *Permissions) HasPermission(permission Permission) bool {
 	switch permission {
+	case SharePermissionView:
+		return p.CanView
 	case SharePermissionEdit:
 		return p.CanEdit
 	case SharePermissionDownload:
@@ -85,6 +89,7 @@ func (p *Permissions) HasPermission(permission Permission) bool {
 	case SharePermissionDelete:
 		return p.CanDelete
 	default:
+		log.GlobalLogger().Warn().Msgf("Unknown permission: %s", permission)
 		return false
 	}
 }

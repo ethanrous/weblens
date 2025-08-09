@@ -1888,6 +1888,31 @@ var MediaApiAxiosParamCreator = function(configuration) {
     },
     /**
      * 
+     * @summary Drop all computed media HDIR data. Must be server owner.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    dropHDIRs: async (options = {}) => {
+      const localVarPath = `/media/drop/hdirs`;
+      const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+      let baseOptions;
+      if (configuration) {
+        baseOptions = configuration.baseOptions;
+      }
+      const localVarRequestOptions = __spreadValues(__spreadValues({ method: "POST" }, baseOptions), options);
+      const localVarHeaderParameter = {};
+      const localVarQueryParameter = {};
+      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
+      setSearchParams(localVarUrlObj, localVarQueryParameter);
+      let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+      localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
+      return {
+        url: toPathString(localVarUrlObj),
+        options: localVarRequestOptions
+      };
+    },
+    /**
+     * 
      * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
@@ -2201,6 +2226,19 @@ var MediaApiFp = function(configuration) {
     },
     /**
      * 
+     * @summary Drop all computed media HDIR data. Must be server owner.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    async dropHDIRs(options) {
+      var _a, _b, _c;
+      const localVarAxiosArgs = await localVarAxiosParamCreator.dropHDIRs(options);
+      const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
+      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["MediaApi.dropHDIRs"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
+      return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+    },
+    /**
+     * 
      * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
@@ -2360,6 +2398,15 @@ var MediaApiFactory = function(configuration, basePath, axios) {
     },
     /**
      * 
+     * @summary Drop all computed media HDIR data. Must be server owner.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    dropHDIRs(options) {
+      return localVarFp.dropHDIRs(options).then((request) => request(axios, basePath));
+    },
+    /**
+     * 
      * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
@@ -2475,6 +2522,16 @@ var MediaApi = class extends BaseAPI {
    */
   cleanupMedia(options) {
     return MediaApiFp(this.configuration).cleanupMedia(options).then((request) => request(this.axios, this.basePath));
+  }
+  /**
+   * 
+   * @summary Drop all computed media HDIR data. Must be server owner.
+   * @param {*} [options] Override http request option.
+   * @throws {RequiredError}
+   * @memberof MediaApi
+   */
+  dropHDIRs(options) {
+    return MediaApiFp(this.configuration).dropHDIRs(options).then((request) => request(this.axios, this.basePath));
   }
   /**
    * 

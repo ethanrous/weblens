@@ -2530,6 +2530,13 @@ declare const MediaApiAxiosParamCreator: (configuration?: Configuration) => {
     cleanupMedia: (options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
+     * @summary Drop all computed media HDIR data. Must be server owner.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    dropHDIRs: (options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    /**
+     *
      * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
@@ -2628,6 +2635,13 @@ declare const MediaApiFp: (configuration?: Configuration) => {
     cleanupMedia(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
     /**
      *
+     * @summary Drop all computed media HDIR data. Must be server owner.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    dropHDIRs(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    /**
+     *
      * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
@@ -2724,6 +2738,13 @@ declare const MediaApiFactory: (configuration?: Configuration, basePath?: string
      * @throws {RequiredError}
      */
     cleanupMedia(options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    /**
+     *
+     * @summary Drop all computed media HDIR data. Must be server owner.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    dropHDIRs(options?: RawAxiosRequestConfig): AxiosPromise<void>;
     /**
      *
      * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
@@ -2825,6 +2846,14 @@ declare class MediaApi extends BaseAPI {
      * @memberof MediaApi
      */
     cleanupMedia(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
+    /**
+     *
+     * @summary Drop all computed media HDIR data. Must be server owner.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof MediaApi
+     */
+    dropHDIRs(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
      *
      * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.

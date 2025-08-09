@@ -3,7 +3,7 @@ set -e
 set -o pipefail
 
 devel_weblens_locally() {
-    echo "Running WebLens locally for development..."
+    echo "Running Weblens locally for development..."
 
     cd ./weblens-vue/weblens-nuxt || exit 1
 
@@ -136,7 +136,7 @@ fi
 
 ./scripts/start-mongo.sh "$mongoName" || exit 1
 
-echo "Starting development container for WebLens..."
+echo "Starting development container for Weblens..."
 
 docker run \
     -t \

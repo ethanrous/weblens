@@ -42,7 +42,8 @@ func Routes(ctx context_service.AppContext) *router.Router {
 		r.Group("", func() {
 			r.Get("/{mediaId}/file", media_api.GetMediaFile)
 			r.Post("/cleanup", media_api.CleanupMedia)
-			r.Post("/drop", media_api.DropMedia)
+			r.Post("/drop", router.RequireOwner, media_api.DropMedia)
+			r.Post("/drop/hdirs", router.RequireOwner, media_api.DropHDIRs)
 			r.Patch("/visibility", media_api.HideMedia)
 			r.Patch("/date", media_api.AdjustMediaDate)
 		}, router.RequireSignIn)

@@ -27,8 +27,11 @@ type FileService interface {
 	// CreateFolder creates a new folder
 	CreateFolder(ctx context.Context, parent *WeblensFileImpl, folderName string) (*WeblensFileImpl, error)
 
-	// CreateFolder creates a new folder
+	// GetChildren retrieves children of a folder
 	GetChildren(ctx context.Context, folder *WeblensFileImpl) ([]*WeblensFileImpl, error)
+
+	// GetChildrenByPath loads children of a folder recursively
+	RecursiveEnsureChildrenLoaded(ctx context.Context, folder *WeblensFileImpl) error
 
 	// CreateUserHome creates a home directory for a user
 	CreateUserHome(ctx context.Context, user *user_model.User) error
@@ -63,7 +66,7 @@ type FileService interface {
 	GetFileByContentId(ctx context.Context, contentId string) (*WeblensFileImpl, error)
 
 	// NewCacheFile creates a new cache file for media
-	NewCacheFile(mediaId, quality string, pageNum int) (*WeblensFileImpl, error)
+	NewCacheFile(mediaId string, quality string, pageNum int) (*WeblensFileImpl, error)
 
 	// DeleteCacheFile deletes a cache file
 	DeleteCacheFile(file *WeblensFileImpl) error

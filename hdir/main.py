@@ -49,12 +49,11 @@ def match():
     text = clip.tokenize([search_text]).to(device)
 
     with torch.no_grad():
-        text_features = model.encode_text(text)
+        text_features = model.encode_text(text).to(device, dtype=torch.float32)
         text_features /= text_features.norm(dim=-1, keepdim=True)
 
     image_features = torch.from_numpy(numpy.array(request_data['image_features'])).to(device, dtype=torch.float32)
     similarity = (image_features @ text_features.T).squeeze(1).cpu().numpy()
-    print(f"Similarity: {similarity}", flush=True)
 
     return jsonify({"similarity": similarity.tolist()})
 

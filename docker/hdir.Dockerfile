@@ -17,10 +17,10 @@ COPY hdir/poetry.lock .
 
 RUN poetry install --no-root 
 
-COPY hdir/preload.py .
-RUN poetry run python preload.py 
+# COPY hdir/preload.py .
+# RUN poetry run python preload.py 
 
-COPY hdir/main.py .
+COPY hdir/open.main.py main.py
 
 # Expose the server port (update if needed)
 EXPOSE 5000

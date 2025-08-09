@@ -80,6 +80,24 @@ func (c *ContextualizedCollection) UpdateOne(_ context.Context, filter, update a
 	return res, nil
 }
 
+func (c *ContextualizedCollection) UpdateMany(_ context.Context, filter, update any, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error) {
+	log.FromContext(c.ctx).Trace().Msgf("UpdateMany on collection [%s] with filter %v", c.collection.Name(), filter)
+
+	if config.GetConfig().DoCache {
+		cache := context_mod.ToZ(c.ctx).GetCache(c.collection.Name())
+		for _, key := range cache.ScanKeys() {
+			cache.Delete(key)
+		}
+	}
+
+	res, err := c.collection.UpdateMany(c.ctx, filter, update, opts...)
+	if err != nil {
+		return res, err
+	}
+
+	return res, nil
+}
+
 func (c *ContextualizedCollection) ReplaceOne(_ context.Context, filter, replacement any, opts ...*options.ReplaceOptions) (*mongo.UpdateResult, error) {
 	log.FromContext(c.ctx).Trace().Msgf("ReplaceOne on collection [%s] with filter %v", c.collection.Name(), filter)
 

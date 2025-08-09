@@ -33,10 +33,12 @@ func NewMediaBatchInfo(m []*media_model.Media) structs.MediaBatchInfo {
 			MediaCount: 0,
 		}
 	}
-	var mediaInfos []structs.MediaInfo
+
+	mediaInfos := make([]structs.MediaInfo, 0, len(m))
 	for _, media := range m {
 		mediaInfos = append(mediaInfos, MediaToMediaInfo(media))
 	}
+
 	return structs.MediaBatchInfo{
 		Media:      mediaInfos,
 		MediaCount: len(m),
