@@ -49,6 +49,12 @@ export interface AddUserParams {
     'canEdit'?: boolean;
     /**
      * 
+     * @type {boolean}
+     * @memberof AddUserParams
+     */
+    'canView'?: boolean;
+    /**
+     * 
      * @type {string}
      * @memberof AddUserParams
      */
@@ -411,6 +417,12 @@ export interface MediaBatchInfo {
      * @memberof MediaBatchInfo
      */
     'mediaCount'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof MediaBatchInfo
+     */
+    'totalMediaCount'?: number;
 }
 /**
  * 
@@ -895,6 +907,12 @@ export interface PermissionsInfo {
      * @memberof PermissionsInfo
      */
     'canEdit'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof PermissionsInfo
+     */
+    'canView'?: boolean;
 }
 /**
  * 
@@ -920,6 +938,12 @@ export interface PermissionsParams {
      * @memberof PermissionsParams
      */
     'canEdit'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof PermissionsParams
+     */
+    'canView'?: boolean;
 }
 /**
  * 

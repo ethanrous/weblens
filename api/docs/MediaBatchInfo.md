@@ -6,6 +6,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **Media** | Pointer to [**[]MediaInfo**](MediaInfo.md) |  | [optional] 
 **MediaCount** | Pointer to **int32** |  | [optional] 
+**TotalMediaCount** | Pointer to **int32** |  | [optional] 
 
 ## Methods
 
@@ -75,6 +76,31 @@ SetMediaCount sets MediaCount field to given value.
 `func (o *MediaBatchInfo) HasMediaCount() bool`
 
 HasMediaCount returns a boolean if a field has been set.
+
+### GetTotalMediaCount
+
+`func (o *MediaBatchInfo) GetTotalMediaCount() int32`
+
+GetTotalMediaCount returns the TotalMediaCount field if non-nil, zero value otherwise.
+
+### GetTotalMediaCountOk
+
+`func (o *MediaBatchInfo) GetTotalMediaCountOk() (*int32, bool)`
+
+GetTotalMediaCountOk returns a tuple with the TotalMediaCount field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetTotalMediaCount
+
+`func (o *MediaBatchInfo) SetTotalMediaCount(v int32)`
+
+SetTotalMediaCount sets TotalMediaCount field to given value.
+
+### HasTotalMediaCount
+
+`func (o *MediaBatchInfo) HasTotalMediaCount() bool`
+
+HasTotalMediaCount returns a boolean if a field has been set.
 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

@@ -8,6 +8,7 @@ Name | Type | Description | Notes
 **canDelete** | **boolean** |  | [optional] [default to undefined]
 **canDownload** | **boolean** |  | [optional] [default to undefined]
 **canEdit** | **boolean** |  | [optional] [default to undefined]
+**canView** | **boolean** |  | [optional] [default to undefined]
 
 ## Example
 
@@ -18,6 +19,7 @@ const instance: PermissionsParams = {
     canDelete,
     canDownload,
     canEdit,
+    canView,
 };
 ```
 

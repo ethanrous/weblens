@@ -2671,6 +2671,9 @@
                 "canEdit": {
                     "type": "boolean"
                 },
+                "canView": {
+                    "type": "boolean"
+                },
                 "username": {
                     "type": "string"
                 }
@@ -2924,6 +2927,9 @@
                     }
                 },
                 "mediaCount": {
+                    "type": "integer"
+                },
+                "totalMediaCount": {
                     "type": "integer"
                 }
             }
@@ -3273,6 +3279,9 @@
                 },
                 "canEdit": {
                     "type": "boolean"
+                },
+                "canView": {
+                    "type": "boolean"
                 }
             }
         },
@@ -3286,6 +3295,9 @@
                     "type": "boolean"
                 },
                 "canEdit": {
+                    "type": "boolean"
+                },
+                "canView": {
                     "type": "boolean"
                 }
             }

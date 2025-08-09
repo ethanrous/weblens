@@ -21,6 +21,7 @@ var _ MappedNullable = &MediaBatchInfo{}
 type MediaBatchInfo struct {
 	Media []MediaInfo `json:"Media,omitempty"`
 	MediaCount *int32 `json:"mediaCount,omitempty"`
+	TotalMediaCount *int32 `json:"totalMediaCount,omitempty"`
 }
 
 // NewMediaBatchInfo instantiates a new MediaBatchInfo object
@@ -104,6 +105,38 @@ func (o *MediaBatchInfo) SetMediaCount(v int32) {
 	o.MediaCount = &v
 }
 
+// GetTotalMediaCount returns the TotalMediaCount field value if set, zero value otherwise.
+func (o *MediaBatchInfo) GetTotalMediaCount() int32 {
+	if o == nil || IsNil(o.TotalMediaCount) {
+		var ret int32
+		return ret
+	}
+	return *o.TotalMediaCount
+}
+
+// GetTotalMediaCountOk returns a tuple with the TotalMediaCount field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MediaBatchInfo) GetTotalMediaCountOk() (*int32, bool) {
+	if o == nil || IsNil(o.TotalMediaCount) {
+		return nil, false
+	}
+	return o.TotalMediaCount, true
+}
+
+// HasTotalMediaCount returns a boolean if a field has been set.
+func (o *MediaBatchInfo) HasTotalMediaCount() bool {
+	if o != nil && !IsNil(o.TotalMediaCount) {
+		return true
+	}
+
+	return false
+}
+
+// SetTotalMediaCount gets a reference to the given int32 and assigns it to the TotalMediaCount field.
+func (o *MediaBatchInfo) SetTotalMediaCount(v int32) {
+	o.TotalMediaCount = &v
+}
+
 func (o MediaBatchInfo) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -119,6 +152,9 @@ func (o MediaBatchInfo) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.MediaCount) {
 		toSerialize["mediaCount"] = o.MediaCount
+	}
+	if !IsNil(o.TotalMediaCount) {
+		toSerialize["totalMediaCount"] = o.TotalMediaCount
 	}
 	return toSerialize, nil
 }

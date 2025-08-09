@@ -1905,6 +1905,7 @@ components:
   schemas:
     AddUserParams:
       example:
+        canView: true
         canEdit: true
         canDownload: true
         canDelete: true
@@ -1915,6 +1916,8 @@ components:
         canDownload:
           type: boolean
         canEdit:
+          type: boolean
+        canView:
           type: boolean
         username:
           type: string
@@ -2393,12 +2396,15 @@ components:
           createDate: 1
           height: 5
         mediaCount: 0
+        totalMediaCount: 6
       properties:
         Media:
           items:
             $ref: "#/components/schemas/MediaInfo"
           type: array
         mediaCount:
+          type: integer
+        totalMediaCount:
           type: integer
       type: object
     MediaBatchParams:
@@ -2751,6 +2757,7 @@ components:
       type: object
     PermissionsInfo:
       example:
+        canView: true
         canEdit: true
         canDownload: true
         canDelete: true
@@ -2760,10 +2767,13 @@ components:
         canDownload:
           type: boolean
         canEdit:
+          type: boolean
+        canView:
           type: boolean
       type: object
     PermissionsParams:
       example:
+        canView: true
         canEdit: true
         canDownload: true
         canDelete: true
@@ -2773,6 +2783,8 @@ components:
         canDownload:
           type: boolean
         canEdit:
+          type: boolean
+        canView:
           type: boolean
       type: object
     RestoreFilesBody:
@@ -2826,6 +2838,7 @@ components:
         public: true
         permissions:
           key:
+            canView: true
             canEdit: true
             canDownload: true
             canDelete: true

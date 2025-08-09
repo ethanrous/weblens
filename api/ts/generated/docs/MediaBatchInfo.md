@@ -7,6 +7,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **Media** | [**Array&lt;MediaInfo&gt;**](MediaInfo.md) |  | [optional] [default to undefined]
 **mediaCount** | **number** |  | [optional] [default to undefined]
+**totalMediaCount** | **number** |  | [optional] [default to undefined]
 
 ## Example
 
@@ -16,6 +17,7 @@ import { MediaBatchInfo } from './api';
 const instance: MediaBatchInfo = {
     Media,
     mediaCount,
+    totalMediaCount,
 };
 ```
 

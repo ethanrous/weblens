@@ -2673,6 +2673,9 @@ const docTemplate = `{
                 "canEdit": {
                     "type": "boolean"
                 },
+                "canView": {
+                    "type": "boolean"
+                },
                 "username": {
                     "type": "string"
                 }
@@ -2926,6 +2929,9 @@ const docTemplate = `{
                     }
                 },
                 "mediaCount": {
+                    "type": "integer"
+                },
+                "totalMediaCount": {
                     "type": "integer"
                 }
             }
@@ -3275,6 +3281,9 @@ const docTemplate = `{
                 },
                 "canEdit": {
                     "type": "boolean"
+                },
+                "canView": {
+                    "type": "boolean"
                 }
             }
         },
@@ -3288,6 +3297,9 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "canEdit": {
+                    "type": "boolean"
+                },
+                "canView": {
                     "type": "boolean"
                 }
             }
