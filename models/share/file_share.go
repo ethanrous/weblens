@@ -85,7 +85,7 @@ func NewFileShare(ctx context.Context, fileId string, owner *user_model.User, ac
 }
 
 func SaveFileShare(ctx context.Context, share *FileShare) error {
-	collection, err := db.GetCollection(ctx, ShareCollectionKey)
+	collection, err := db.GetCollection[any](ctx, ShareCollectionKey)
 	if err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func SaveFileShare(ctx context.Context, share *FileShare) error {
 }
 
 func GetShareById(ctx context.Context, shareId primitive.ObjectID) (*FileShare, error) {
-	collection, err := db.GetCollection(ctx, ShareCollectionKey)
+	collection, err := db.GetCollection[any](ctx, ShareCollectionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func GetShareById(ctx context.Context, shareId primitive.ObjectID) (*FileShare, 
 }
 
 func GetShareByFileId(ctx context.Context, fileId string) (*FileShare, error) {
-	collection, err := db.GetCollection(ctx, ShareCollectionKey)
+	collection, err := db.GetCollection[any](ctx, ShareCollectionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +143,7 @@ func GetShareByFileId(ctx context.Context, fileId string) (*FileShare, error) {
 }
 
 func GetSharedWithUser(ctx context.Context, username string) ([]FileShare, error) {
-	collection, err := db.GetCollection(ctx, ShareCollectionKey)
+	collection, err := db.GetCollection[any](ctx, ShareCollectionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +164,7 @@ func GetSharedWithUser(ctx context.Context, username string) ([]FileShare, error
 }
 
 func DeleteShare(ctx context.Context, shareId primitive.ObjectID) error {
-	collection, err := db.GetCollection(ctx, ShareCollectionKey)
+	collection, err := db.GetCollection[any](ctx, ShareCollectionKey)
 	if err != nil {
 		return err
 	}
@@ -178,7 +178,7 @@ func DeleteShare(ctx context.Context, shareId primitive.ObjectID) error {
 }
 
 func (s *FileShare) SetPublic(ctx context.Context, pub bool) error {
-	collection, err := db.GetCollection(ctx, ShareCollectionKey)
+	collection, err := db.GetCollection[any](ctx, ShareCollectionKey)
 	if err != nil {
 		return err
 	}
@@ -194,7 +194,7 @@ func (s *FileShare) SetPublic(ctx context.Context, pub bool) error {
 }
 
 func (s *FileShare) AddUser(ctx context.Context, username string, perms *Permissions) error {
-	collection, err := db.GetCollection(ctx, ShareCollectionKey)
+	collection, err := db.GetCollection[any](ctx, ShareCollectionKey)
 	if err != nil {
 		return err
 	}
@@ -226,7 +226,7 @@ func (s *FileShare) AddUser(ctx context.Context, username string, perms *Permiss
 }
 
 func (s *FileShare) SetUserPerms(ctx context.Context, perms map[string]*Permissions) error {
-	collection, err := db.GetCollection(ctx, ShareCollectionKey)
+	collection, err := db.GetCollection[any](ctx, ShareCollectionKey)
 	if err != nil {
 		return err
 	}
@@ -256,7 +256,7 @@ func (s *FileShare) SetUserPerms(ctx context.Context, perms map[string]*Permissi
 }
 
 func (s *FileShare) RemoveUsers(ctx context.Context, usernames []string) error {
-	collection, err := db.GetCollection(ctx, ShareCollectionKey)
+	collection, err := db.GetCollection[any](ctx, ShareCollectionKey)
 	if err != nil {
 		return err
 	}
@@ -301,7 +301,7 @@ func (s *FileShare) SetUserPermissions(ctx context.Context, username string, per
 		s.Permissions = make(map[string]*Permissions)
 	}
 	s.Permissions[username] = perms
-	collection, err := db.GetCollection(ctx, ShareCollectionKey)
+	collection, err := db.GetCollection[any](ctx, ShareCollectionKey)
 	if err != nil {
 		return err
 	}

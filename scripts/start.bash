@@ -134,6 +134,11 @@ if ! docker image ls | grep "$imageName-$arch" &>/dev/null; then
     printf "\n---- gogogadgetdocker succeeded ----\n\n"
 fi
 
+logLevel="debug"
+if [[ $WEBLENS_LOG_LEVEL != "" ]]; then
+    logLevel="$WEBLENS_LOG_LEVEL"
+fi
+
 ./scripts/start-mongo.sh "$mongoName" || exit 1
 
 echo "Starting development container for Weblens..."
@@ -153,7 +158,7 @@ docker run \
     -e WEBLENS_MONGODB_URI=mongodb://"$containerName"-mongo:27017/?replicaSet=rs0 \
     -e WEBLENS_MONGODB_NAME="$containerName" \
     -e WEBLENS_INIT_ROLE="$towerRole" \
-    -e WEBLENS_LOG_LEVEL=debug \
+    -e WEBLENS_LOG_LEVEL="$logLevel" \
     -e WEBLENS_LOG_FORMAT=dev \
     -e VITE_USE_HTTPS="$VITE_USE_HTTPS" \
     -e GOCACHE=/go/cache \

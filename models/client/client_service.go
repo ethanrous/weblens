@@ -32,6 +32,7 @@ type ClientManager interface {
 	FolderSubToTask(ctx context_mod.LoggerContext, folderId string, task task.Task)
 	UnsubTask(ctx context_mod.LoggerContext, taskId string)
 	Send(ctx context.Context, msg websocket_mod.WsResponseInfo)
+	Flush(ctx context.Context)
 	Relay(msg websocket_mod.WsResponseInfo)
 	// PushWeblensEvent(event websocket_mod.WsEvent, msg websocket_mod.WsData)
 }

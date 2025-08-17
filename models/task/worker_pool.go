@@ -2,6 +2,8 @@ package task
 
 import (
 	"context"
+	"iter"
+	"maps"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -340,6 +342,8 @@ func (wp *WorkerPool) workerRecover(task *Task, workerId int64) {
 func (wp *WorkerPool) safetyWork(task *Task, workerId int64) {
 	defer wp.workerRecover(task, workerId)
 
+	task.SetQueueState(Executing)
+
 	if task.exitStatus != task_mod.TaskNoStatus {
 		log.FromContext(task.Ctx).Trace().Msgf("Task [%s] already has exit status [%s], not running", task.taskId, task.exitStatus)
 	} else {
@@ -443,9 +447,15 @@ func (wp *WorkerPool) Run() {
 
 func (wp *WorkerPool) GetTask(taskId string) *Task {
 	wp.taskMu.Lock()
-	t := wp.taskMap[taskId]
-	wp.taskMu.Unlock()
-	return t
+	defer wp.taskMu.Unlock()
+
+	return wp.taskMap[taskId]
+}
+
+func (wp *WorkerPool) GetTasks() iter.Seq[*Task] {
+	wp.taskMu.Lock()
+	defer wp.taskMu.Unlock()
+	return maps.Values(wp.taskMap)
 }
 
 func (wp *WorkerPool) addTask(task *Task) {
@@ -503,13 +513,19 @@ func (wp *WorkerPool) execWorker(ctx context.Context, replacement bool) {
 				}
 			case t := <-wp.taskStream:
 				{
+					if t.exitStatus != task_mod.TaskNoStatus {
+						// If the task has already been completed, we don't want to run it again
+						log.FromContext(t.Ctx).Trace().Msgf("Task [%s] already has exit status [%s], not running", t.taskId, t.exitStatus)
+
+						continue
+					}
+
 					// Replacement workers are not allowed to do "scan_directory" tasks
 					// TODO: - generalize
 					if replacement && t.jobName == "scan_directory" && t.exitStatus == task_mod.TaskNoStatus {
 						// If there are twice the number of free spaces in the chan, don't bother pulling
 						// everything into the waiting buffer, just put it at the end right now.
 						if cap(wp.taskStream)-len(wp.taskStream) > int(wp.currentWorkers.Load())*2 {
-							// util.Debug().Msg("Replacement worker putting scan dir task back")
 							wp.taskStream <- t
 
 							continue
@@ -530,6 +546,8 @@ func (wp *WorkerPool) execWorker(ctx context.Context, replacement bool) {
 						Int("worker_id", int(workerId)).
 						Logger()
 
+					t.WorkerId = workerId
+
 					t.Ctx = log.WithContext(t.Ctx, &newl)
 					l := log.FromContext(t.Ctx)
 
@@ -549,7 +567,7 @@ func (wp *WorkerPool) execWorker(ctx context.Context, replacement bool) {
 						t.updateMu.RLock()
 						defer t.updateMu.RUnlock()
 
-						e.Dur("task_duration_ms", t.ExeTime()).Str("exit_status", string(t.exitStatus)).Msgf("[%s] Task [%s] finished", t.jobName, t.taskId)
+						e.Dur("task_duration_ms", t.ExeTime()).Str("exit_status", string(t.exitStatus)).Msgf("[%s] Task [%s] finished in %s", t.jobName, t.taskId, t.ExeTime())
 					})
 
 					// Dec tasks being processed
@@ -722,8 +740,8 @@ func (wp *WorkerPool) statusReporter() {
 			remaining, total, busy, alive, retrySize := wp.Status()
 			if lastCount != remaining || busy != 0 {
 				lastCount = remaining
-				wp.ctx.Log().Debug().Int("queue_remaining", remaining).Int("queue_total", total).Int("queue_buffered", retrySize).Int("busy_workers", busy).Int("alive_workers", alive).Msg(
-					"Worker pool status",
+				wp.ctx.Log().Debug().Int("queue_remaining", remaining).Int("queue_total", total).Int("queue_buffered", retrySize).Int("busy_workers", busy).Int("alive_workers", alive).Msgf(
+					"Worker pool status - %d tasks in queue, %d total tasks queued, %d busy workers, %d alive workers", remaining, total, busy, alive,
 				)
 			}
 		}

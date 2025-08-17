@@ -34,12 +34,9 @@ func NewMediaFromFile(ctx context_service.AppContext, f *file_model.WeblensFileI
 		return nil, errors.WithStack(file_model.ErrNoContentId)
 	}
 
-	m, err = media_model.GetMediaByContentId(ctx, f.GetContentId())
+	m, err = newMedia(ctx, f)
 	if err != nil {
-		m, err = newMedia(ctx, f)
-		if err != nil {
-			return nil, err
-		}
+		return nil, err
 	}
 
 	fileMetas := exifd.ExtractMetadata(f.GetPortablePath().ToAbsolute())

@@ -11,6 +11,48 @@ servers:
 - url: http://localhost:8080/api/v1/
 - url: https://localhost:8080/api/v1/
 paths:
+  /config:
+    get:
+      operationId: GetConfig
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Config"
+          description: Config Info
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Get Config
+      tags:
+      - Config
+    post:
+      operationId: SetConfig
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              items:
+                $ref: "#/components/schemas/structs.SetConfigParam"
+              type: array
+        description: Set Config Params
+        required: true
+      responses:
+        "200":
+          content: {}
+          description: OK
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Set Config
+      tags:
+      - Config
+      x-codegen-request-body-name: request
   /files:
     delete:
       operationId: DeleteFiles
@@ -1260,6 +1302,24 @@ paths:
       summary: Get information about a file
       tags:
       - Towers
+  /tower/cache:
+    delete:
+      operationId: FlushCache
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WLResponseInfo"
+          description: Cache flushed successfully
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Flush Cache
+      tags:
+      - Towers
   /tower/init:
     post:
       operationId: InitializeTower
@@ -1338,6 +1398,26 @@ paths:
       - ApiKeyAuth:
         - admin
       summary: Reset tower
+      tags:
+      - Towers
+  /tower/tasks:
+    get:
+      operationId: GetRunningTasks
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/TaskInfo"
+                type: array
+          description: Task Infos
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Get Running Tasks
       tags:
       - Towers
   /tower/{serverId}:
@@ -2001,6 +2081,7 @@ components:
         - password: password
           permissionLevel: 6
           fullName: fullName
+          isOnline: true
           trashId: trashId
           homeId: homeId
           activated: true
@@ -2009,6 +2090,7 @@ components:
         - password: password
           permissionLevel: 6
           fullName: fullName
+          isOnline: true
           trashId: trashId
           homeId: homeId
           activated: true
@@ -2033,6 +2115,16 @@ components:
           items:
             $ref: "#/components/schemas/UserInfoArchive"
           type: array
+      type: object
+    Config:
+      example:
+        enableHDIR: true
+        allowRegistrations: true
+      properties:
+        allowRegistrations:
+          type: boolean
+        enableHDIR:
+          type: boolean
       type: object
     CreateFolderBody:
       example:
@@ -2818,6 +2910,7 @@ components:
         accessors:
         - permissionLevel: 0
           fullName: fullName
+          isOnline: true
           trashId: trashId
           homeId: homeId
           activated: true
@@ -2825,6 +2918,7 @@ components:
           username: username
         - permissionLevel: 0
           fullName: fullName
+          isOnline: true
           trashId: trashId
           homeId: homeId
           activated: true
@@ -2892,6 +2986,41 @@ components:
           type: string
         taskId:
           type: string
+      type: object
+    TaskInfo:
+      example:
+        jobName: jobName
+        result: "{}"
+        workerId: 6
+        Completed: true
+        progress: 0
+        startTime: startTime
+        taskId: taskId
+        status: ""
+      properties:
+        Completed:
+          type: boolean
+        jobName:
+          type: string
+        progress:
+          type: integer
+        result:
+          type: object
+        startTime:
+          type: string
+        status:
+          $ref: "#/components/schemas/task.TaskExitStatus"
+        taskId:
+          type: string
+        workerId:
+          type: integer
+      required:
+      - Completed
+      - jobName
+      - progress
+      - status
+      - taskId
+      - workerId
       type: object
     TokenInfo:
       example:
@@ -2999,6 +3128,7 @@ components:
       example:
         permissionLevel: 0
         fullName: fullName
+        isOnline: true
         trashId: trashId
         homeId: homeId
         activated: true
@@ -3011,15 +3141,15 @@ components:
           type: string
         homeId:
           type: string
+        isOnline:
+          type: boolean
         permissionLevel:
-          description: HomeSize        int64  `json:"homeSize" validate:"required"`
           type: integer
         token:
           type: string
         trashId:
           type: string
         username:
-          description: TrashSize       int64  `json:"trashSize" validate:"required"`
           type: string
       required:
       - activated
@@ -3034,6 +3164,7 @@ components:
         password: password
         permissionLevel: 6
         fullName: fullName
+        isOnline: true
         trashId: trashId
         homeId: homeId
         activated: true
@@ -3046,17 +3177,17 @@ components:
           type: string
         homeId:
           type: string
+        isOnline:
+          type: boolean
         password:
           type: string
         permissionLevel:
-          description: HomeSize        int64  `json:"homeSize" validate:"required"`
           type: integer
         token:
           type: string
         trashId:
           type: string
         username:
-          description: TrashSize       int64  `json:"trashSize" validate:"required"`
           type: string
       required:
       - activated
@@ -3065,6 +3196,13 @@ components:
       - permissionLevel
       - trashId
       - username
+      type: object
+    WLResponseInfo:
+      example:
+        message: message
+      properties:
+        message:
+          type: string
       type: object
     WeblensErrorInfo:
       example:
@@ -3105,6 +3243,25 @@ components:
         folderId:
           type: string
       type: object
+    structs.SetConfigParam:
+      properties:
+        configKey:
+          type: string
+        configValue:
+          type: object
+      type: object
+    task.TaskExitStatus:
+      enum:
+      - ""
+      - success
+      - cancelled
+      - error
+      type: string
+      x-enum-varnames:
+      - TaskNoStatus
+      - TaskSuccess
+      - TaskCanceled
+      - TaskError
     UploadFileChunk_request:
       properties:
         chunk:

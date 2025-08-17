@@ -19,6 +19,79 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/config": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Config"
+                ],
+                "summary": "Get Config",
+                "operationId": "GetConfig",
+                "responses": {
+                    "200": {
+                        "description": "Config Info",
+                        "schema": {
+                            "$ref": "#/definitions/Config"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Config"
+                ],
+                "summary": "Set Config",
+                "operationId": "SetConfig",
+                "parameters": [
+                    {
+                        "description": "Set Config Params",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/structs.SetConfigParam"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
         "/files": {
             "delete": {
                 "security": [
@@ -1763,6 +1836,38 @@ const docTemplate = `{
                 }
             }
         },
+        "/tower/cache": {
+            "delete": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Towers"
+                ],
+                "summary": "Flush Cache",
+                "operationId": "FlushCache",
+                "responses": {
+                    "200": {
+                        "description": "Cache flushed successfully",
+                        "schema": {
+                            "$ref": "#/definitions/WLResponseInfo"
+                        }
+                    }
+                }
+            }
+        },
         "/tower/init": {
             "post": {
                 "security": [],
@@ -1878,6 +1983,41 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/tower/tasks": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Towers"
+                ],
+                "summary": "Get Running Tasks",
+                "operationId": "GetRunningTasks",
+                "responses": {
+                    "200": {
+                        "description": "Task Infos",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/TaskInfo"
+                            }
+                        }
                     }
                 }
             }
@@ -2724,6 +2864,17 @@ const docTemplate = `{
                 }
             }
         },
+        "Config": {
+            "type": "object",
+            "properties": {
+                "allowRegistrations": {
+                    "type": "boolean"
+                },
+                "enableHDIR": {
+                    "type": "boolean"
+                }
+            }
+        },
         "CreateFolderBody": {
             "type": "object",
             "required": [
@@ -3396,6 +3547,41 @@ const docTemplate = `{
                 }
             }
         },
+        "TaskInfo": {
+            "type": "object",
+            "required": [
+                "Completed",
+                "jobName",
+                "progress",
+                "status",
+                "taskId",
+                "workerId"
+            ],
+            "properties": {
+                "Completed": {
+                    "type": "boolean"
+                },
+                "jobName": {
+                    "type": "string"
+                },
+                "progress": {
+                    "type": "integer"
+                },
+                "result": {},
+                "startTime": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/task.TaskExitStatus"
+                },
+                "taskId": {
+                    "type": "string"
+                },
+                "workerId": {
+                    "type": "integer"
+                }
+            }
+        },
         "TokenInfo": {
             "type": "object",
             "required": [
@@ -3520,8 +3706,10 @@ const docTemplate = `{
                 "homeId": {
                     "type": "string"
                 },
+                "isOnline": {
+                    "type": "boolean"
+                },
                 "permissionLevel": {
-                    "description": "HomeSize        int64  ` + "`" + `json:\"homeSize\" validate:\"required\"` + "`" + `",
                     "type": "integer"
                 },
                 "token": {
@@ -3531,7 +3719,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "username": {
-                    "description": "TrashSize       int64  ` + "`" + `json:\"trashSize\" validate:\"required\"` + "`" + `",
                     "type": "string"
                 }
             }
@@ -3556,11 +3743,13 @@ const docTemplate = `{
                 "homeId": {
                     "type": "string"
                 },
+                "isOnline": {
+                    "type": "boolean"
+                },
                 "password": {
                     "type": "string"
                 },
                 "permissionLevel": {
-                    "description": "HomeSize        int64  ` + "`" + `json:\"homeSize\" validate:\"required\"` + "`" + `",
                     "type": "integer"
                 },
                 "token": {
@@ -3570,7 +3759,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "username": {
-                    "description": "TrashSize       int64  ` + "`" + `json:\"trashSize\" validate:\"required\"` + "`" + `",
+                    "type": "string"
+                }
+            }
+        },
+        "WLResponseInfo": {
+            "type": "object",
+            "properties": {
+                "message": {
                     "type": "string"
                 }
             }
@@ -3629,6 +3825,30 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "structs.SetConfigParam": {
+            "type": "object",
+            "properties": {
+                "configKey": {
+                    "type": "string"
+                },
+                "configValue": {}
+            }
+        },
+        "task.TaskExitStatus": {
+            "type": "string",
+            "enum": [
+                "",
+                "success",
+                "cancelled",
+                "error"
+            ],
+            "x-enum-varnames": [
+                "TaskNoStatus",
+                "TaskSuccess",
+                "TaskCanceled",
+                "TaskError"
+            ]
         }
     },
     "securityDefinitions": {

@@ -267,9 +267,11 @@ func wsWebClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte, c
 				return errors.Errorf("could not find task T[%s] to cancel", cancelInfo.TaskId)
 			}
 
-			task.Cancel()
 			notif := notify.NewTaskNotification(task, websocket_mod.TaskCanceledEvent, nil)
 			ctx.Notify(ctx, notif)
+			<-notif.Sent
+
+			task.Cancel()
 		}
 
 	case "":

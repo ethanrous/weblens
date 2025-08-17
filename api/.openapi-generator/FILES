@@ -3,6 +3,7 @@
 README.md
 api/openapi.yaml
 api_api_keys.go
+api_config.go
 api_files.go
 api_folder.go
 api_media.go
@@ -15,6 +16,8 @@ docs/AddUserParams.md
 docs/ApiKeyParams.md
 docs/ApiKeysAPI.md
 docs/BackupInfo.md
+docs/Config.md
+docs/ConfigAPI.md
 docs/CreateFolderBody.md
 docs/FileActionInfo.md
 docs/FileInfo.md
@@ -48,7 +51,10 @@ docs/ShareAPI.md
 docs/ShareInfo.md
 docs/StructsInitServerParams.md
 docs/StructsScanBody.md
+docs/StructsSetConfigParam.md
 docs/TakeoutInfo.md
+docs/TaskInfo.md
+docs/TaskTaskExitStatus.md
 docs/TokenInfo.md
 docs/TowerInfo.md
 docs/TowersAPI.md
@@ -56,6 +62,7 @@ docs/UpdateFileParams.md
 docs/UserInfo.md
 docs/UserInfoArchive.md
 docs/UsersAPI.md
+docs/WLResponseInfo.md
 docs/WeblensErrorInfo.md
 git_push.sh
 go.mod
@@ -63,6 +70,7 @@ go.sum
 model_add_user_params.go
 model_api_key_params.go
 model_backup_info.go
+model_config.go
 model_create_folder_body.go
 model_file_action_info.go
 model_file_info.go
@@ -92,12 +100,17 @@ model_restore_files_info.go
 model_share_info.go
 model_structs_init_server_params.go
 model_structs_scan_body.go
+model_structs_set_config_param.go
 model_takeout_info.go
+model_task_info.go
+model_task_task_exit_status.go
 model_token_info.go
 model_tower_info.go
 model_update_file_params.go
 model_user_info.go
 model_user_info_archive.go
 model_weblens_error_info.go
+model_wl_response_info.go
 response.go
+test/api_config_test.go
 utils.go

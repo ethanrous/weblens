@@ -14,19 +14,18 @@ type LoginParams struct {
 } // @name LoginBody
 
 type UserInfo struct {
-	Activated bool   `json:"activated" validate:"required"`
-	FullName  string `json:"fullName" validate:"required"`
-	HomeId    string `json:"homeId" validate:"required"`
-	// HomeSize        int64  `json:"homeSize" validate:"required"`
+	Activated       bool   `json:"activated" validate:"required"`
+	FullName        string `json:"fullName" validate:"required"`
+	HomeId          string `json:"homeId" validate:"required"`
 	PermissionLevel int    `json:"permissionLevel" validate:"required"`
 	Token           string `json:"token" omitEmpty:"true"`
 	TrashId         string `json:"trashId" validate:"required"`
-	// TrashSize       int64  `json:"trashSize" validate:"required"`
-	Username string `json:"username" validate:"required"`
+	Username        string `json:"username" validate:"required"`
+	IsOnline        bool   `json:"isOnline"`
 } // @name UserInfo
 
 type UserInfoArchive struct {
 	UserInfo
-	Password  string `json:"password" omitEmpty:"true"`
-	Activated bool   `json:"activated"`
+
+	Password string `json:"password" omitEmpty:"true"`
 } // @name UserInfoArchive

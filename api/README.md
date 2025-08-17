@@ -81,6 +81,8 @@ Class | Method | HTTP request | Description
 *ApiKeysAPI* | [**CreateApiKey**](docs/ApiKeysAPI.md#createapikey) | **Post** /keys | Create a new api key
 *ApiKeysAPI* | [**DeleteApiKey**](docs/ApiKeysAPI.md#deleteapikey) | **Delete** /keys/{tokenId} | Delete an api key
 *ApiKeysAPI* | [**GetApiKeys**](docs/ApiKeysAPI.md#getapikeys) | **Get** /keys | Get all api keys
+*ConfigAPI* | [**GetConfig**](docs/ConfigAPI.md#getconfig) | **Get** /config | Get Config
+*ConfigAPI* | [**SetConfig**](docs/ConfigAPI.md#setconfig) | **Post** /config | Set Config
 *FilesAPI* | [**AddFilesToUpload**](docs/FilesAPI.md#addfilestoupload) | **Post** /upload/{uploadId} | Add a file to an upload task
 *FilesAPI* | [**AutocompletePath**](docs/FilesAPI.md#autocompletepath) | **Get** /files/autocomplete | Get path completion suggestions
 *FilesAPI* | [**CreateTakeout**](docs/FilesAPI.md#createtakeout) | **Post** /takeout | Create a zip file
@@ -124,8 +126,10 @@ Class | Method | HTTP request | Description
 *ShareAPI* | [**UpdateShareAccessorPermissions**](docs/ShareAPI.md#updateshareaccessorpermissions) | **Patch** /share/{shareId}/accessors/{username} | Update a share&#39;s user permissions
 *TowersAPI* | [**CreateRemote**](docs/TowersAPI.md#createremote) | **Post** /tower/remote | Create a new remote
 *TowersAPI* | [**DeleteRemote**](docs/TowersAPI.md#deleteremote) | **Delete** /tower/{serverId} | Delete a remote
+*TowersAPI* | [**FlushCache**](docs/TowersAPI.md#flushcache) | **Delete** /tower/cache | Flush Cache
 *TowersAPI* | [**GetBackupInfo**](docs/TowersAPI.md#getbackupinfo) | **Get** /tower/backup | Get information about a file
 *TowersAPI* | [**GetRemotes**](docs/TowersAPI.md#getremotes) | **Get** /tower | Get all remotes
+*TowersAPI* | [**GetRunningTasks**](docs/TowersAPI.md#getrunningtasks) | **Get** /tower/tasks | Get Running Tasks
 *TowersAPI* | [**GetServerInfo**](docs/TowersAPI.md#getserverinfo) | **Get** /info | Get server info
 *TowersAPI* | [**InitializeTower**](docs/TowersAPI.md#initializetower) | **Post** /tower/init | Initialize the target server
 *TowersAPI* | [**LaunchBackup**](docs/TowersAPI.md#launchbackup) | **Post** /tower/{serverId}/backup | Launch backup on a tower
@@ -149,6 +153,7 @@ Class | Method | HTTP request | Description
  - [AddUserParams](docs/AddUserParams.md)
  - [ApiKeyParams](docs/ApiKeyParams.md)
  - [BackupInfo](docs/BackupInfo.md)
+ - [Config](docs/Config.md)
  - [CreateFolderBody](docs/CreateFolderBody.md)
  - [FileActionInfo](docs/FileActionInfo.md)
  - [FileInfo](docs/FileInfo.md)
@@ -178,12 +183,16 @@ Class | Method | HTTP request | Description
  - [ShareInfo](docs/ShareInfo.md)
  - [StructsInitServerParams](docs/StructsInitServerParams.md)
  - [StructsScanBody](docs/StructsScanBody.md)
+ - [StructsSetConfigParam](docs/StructsSetConfigParam.md)
  - [TakeoutInfo](docs/TakeoutInfo.md)
+ - [TaskInfo](docs/TaskInfo.md)
+ - [TaskTaskExitStatus](docs/TaskTaskExitStatus.md)
  - [TokenInfo](docs/TokenInfo.md)
  - [TowerInfo](docs/TowerInfo.md)
  - [UpdateFileParams](docs/UpdateFileParams.md)
  - [UserInfo](docs/UserInfo.md)
  - [UserInfoArchive](docs/UserInfoArchive.md)
+ - [WLResponseInfo](docs/WLResponseInfo.md)
  - [WeblensErrorInfo](docs/WeblensErrorInfo.md)
 
 

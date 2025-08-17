@@ -39,6 +39,8 @@ type ConfigProvider struct {
 	MongoDBUri  string
 	MongoDBName string
 
+	HdirUri string
+
 	UIPath            string
 	DataPath          string
 	CachePath         string
@@ -71,6 +73,7 @@ func getDefaultConfig() ConfigProvider {
 		Port:              "8080",
 		MongoDBUri:        "mongodb://weblens-mongo:27017/?replicaSet=rs0",
 		MongoDBName:       "weblensDB",
+		HdirUri:           "http://weblens-hdir:5000",
 		UIPath:            "/app/web",
 		StaticContentPath: "/app/static",
 
@@ -107,46 +110,57 @@ func getEnvOverride(config *ConfigProvider) {
 	}
 
 	if host := os.Getenv("WEBLENS_HOST"); host != "" {
+		log.Trace().Msgf("Overriding Host with WEBLENS_HOST: %s", host)
 		config.Host = host
 	}
 
 	if port := os.Getenv("WEBLENS_PORT"); port != "" {
+		log.Trace().Msgf("Overriding Port with WEBLENS_PORT: %s", port)
 		config.Port = port
 	}
 
 	if proxyAddress := os.Getenv("WEBLENS_PROXY_ADDRESS"); proxyAddress != "" {
+		log.Trace().Msgf("Overriding ProxyAddress with WEBLENS_PROXY_ADDRESS: %s", proxyAddress)
 		config.ProxyAddress = proxyAddress
 	}
 
 	if uiPath := os.Getenv("WEBLENS_UI_PATH"); uiPath != "" {
+		log.Trace().Msgf("Overriding UIPath with WEBLENS_UI_PATH: %s", uiPath)
 		config.UIPath = handlePath(uiPath)
 	}
 
 	if staticContentPath := os.Getenv("WEBLENS_STATIC_CONTENT_PATH"); staticContentPath != "" {
+		log.Trace().Msgf("Overriding StaticContentPath with WEBLENS_STATIC_CONTENT_PATH: %s", staticContentPath)
 		config.StaticContentPath = staticContentPath
 	}
 
 	if mongoDBUri := os.Getenv("WEBLENS_MONGODB_URI"); mongoDBUri != "" {
+		log.Trace().Msgf("Overriding MongoDBUri with WEBLENS_MONGODB_URI: %s", mongoDBUri)
 		config.MongoDBUri = mongoDBUri
 	}
 
 	if mongoDBName := os.Getenv("WEBLENS_MONGODB_NAME"); mongoDBName != "" {
+		log.Trace().Msgf("Overriding MongoDBName with WEBLENS_MONGODB_NAME: %s", mongoDBName)
 		config.MongoDBName = mongoDBName
 	}
 
 	if initRole := os.Getenv("WEBLENS_INIT_ROLE"); initRole != "" {
+		log.Trace().Msgf("Overriding InitRole with WEBLENS_INIT_ROLE: %s", initRole)
 		config.InitRole = initRole
 	}
 
 	if dataPath := os.Getenv("WEBLENS_DATA_PATH"); dataPath != "" {
+		log.Trace().Msgf("Overriding DataPath with WEBLENS_DATA_PATH: %s", dataPath)
 		config.DataPath = handlePath(dataPath)
 	}
 
 	if cachePath := os.Getenv("WEBLENS_CACHE_PATH"); cachePath != "" {
+		log.Trace().Msgf("Overriding CachePath with WEBLENS_CACHE_PATH: %s", cachePath)
 		config.CachePath = handlePath(cachePath)
 	}
 
 	if doCache, ok := envBool("WEBLENS_DO_CACHE"); ok {
+		log.Trace().Msgf("Overriding DoCache with WEBLENS_DO_CACHE: %v", doCache)
 		config.DoCache = doCache
 	}
 
@@ -155,11 +169,15 @@ func getEnvOverride(config *ConfigProvider) {
 			logFormat = "json"
 		}
 
+		log.Trace().Msgf("Overriding LogFormat with WEBLENS_LOG_FORMAT: %s", logFormat)
 		config.LogFormat = logFormat
 	}
 
 	if logLevel := os.Getenv("WEBLENS_LOG_LEVEL"); logLevel != "" {
-		config.LogLevel, _ = zerolog.ParseLevel(logLevel)
+		parsedLevel, _ := zerolog.ParseLevel(logLevel)
+		log.Trace().Msgf("Overriding LogLevel with WEBLENS_LOG_LEVEL: %s (parsed: %v)", logLevel, parsedLevel)
+		config.LogLevel = parsedLevel
+
 		if config.LogLevel == zerolog.NoLevel {
 			config.LogLevel = zerolog.InfoLevel
 		}

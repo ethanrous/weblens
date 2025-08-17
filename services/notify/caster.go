@@ -22,6 +22,8 @@ func NewTaskNotification(task *task_model.Task, event websocket_mod.WsEvent, res
 		TaskType:        task.JobName(),
 		BroadcastType:   websocket_mod.TaskSubscribe,
 		ConstructedTime: time.Now().Unix(),
+
+		Sent: make(chan struct{}),
 	}
 
 	return msg

@@ -16,7 +16,7 @@ type CoverPhoto struct {
 }
 
 func GetCoverByFolderId(ctx context.Context, folderId string) (*CoverPhoto, error) {
-	col, err := db.GetCollection(ctx, CoverPhotoCollectionKey)
+	col, err := db.GetCollection[any](ctx, CoverPhotoCollectionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +30,7 @@ func GetCoverByFolderId(ctx context.Context, folderId string) (*CoverPhoto, erro
 }
 
 func SetCoverPhoto(ctx context.Context, folderId string, coverPhotoId string) (*CoverPhoto, error) {
-	col, err := db.GetCollection(ctx, CoverPhotoCollectionKey)
+	col, err := db.GetCollection[any](ctx, CoverPhotoCollectionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ func SetCoverPhoto(ctx context.Context, folderId string, coverPhotoId string) (*
 }
 
 func DeleteCoverByFolderId(ctx context.Context, folderId string) error {
-	col, err := db.GetCollection(ctx, CoverPhotoCollectionKey)
+	col, err := db.GetCollection[any](ctx, CoverPhotoCollectionKey)
 	if err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func DeleteCoverByFolderId(ctx context.Context, folderId string) error {
 }
 
 func UpsertCoverByFolderId(ctx context.Context, folderId, coverPhotoId string) error {
-	col, err := db.GetCollection(ctx, CoverPhotoCollectionKey)
+	col, err := db.GetCollection[any](ctx, CoverPhotoCollectionKey)
 	if err != nil {
 		return err
 	}

@@ -24,11 +24,10 @@ type UserInfo struct {
 	Activated bool `json:"activated"`
 	FullName string `json:"fullName"`
 	HomeId string `json:"homeId"`
-	// HomeSize        int64  `json:\"homeSize\" validate:\"required\"`
+	IsOnline *bool `json:"isOnline,omitempty"`
 	PermissionLevel int32 `json:"permissionLevel"`
 	Token *string `json:"token,omitempty"`
 	TrashId string `json:"trashId"`
-	// TrashSize       int64  `json:\"trashSize\" validate:\"required\"`
 	Username string `json:"username"`
 }
 
@@ -127,6 +126,38 @@ func (o *UserInfo) GetHomeIdOk() (*string, bool) {
 // SetHomeId sets field value
 func (o *UserInfo) SetHomeId(v string) {
 	o.HomeId = v
+}
+
+// GetIsOnline returns the IsOnline field value if set, zero value otherwise.
+func (o *UserInfo) GetIsOnline() bool {
+	if o == nil || IsNil(o.IsOnline) {
+		var ret bool
+		return ret
+	}
+	return *o.IsOnline
+}
+
+// GetIsOnlineOk returns a tuple with the IsOnline field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *UserInfo) GetIsOnlineOk() (*bool, bool) {
+	if o == nil || IsNil(o.IsOnline) {
+		return nil, false
+	}
+	return o.IsOnline, true
+}
+
+// HasIsOnline returns a boolean if a field has been set.
+func (o *UserInfo) HasIsOnline() bool {
+	if o != nil && !IsNil(o.IsOnline) {
+		return true
+	}
+
+	return false
+}
+
+// SetIsOnline gets a reference to the given bool and assigns it to the IsOnline field.
+func (o *UserInfo) SetIsOnline(v bool) {
+	o.IsOnline = &v
 }
 
 // GetPermissionLevel returns the PermissionLevel field value
@@ -246,6 +277,9 @@ func (o UserInfo) ToMap() (map[string]interface{}, error) {
 	toSerialize["activated"] = o.Activated
 	toSerialize["fullName"] = o.FullName
 	toSerialize["homeId"] = o.HomeId
+	if !IsNil(o.IsOnline) {
+		toSerialize["isOnline"] = o.IsOnline
+	}
 	toSerialize["permissionLevel"] = o.PermissionLevel
 	if !IsNil(o.Token) {
 		toSerialize["token"] = o.Token

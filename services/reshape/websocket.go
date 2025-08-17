@@ -27,7 +27,7 @@ func GetSubscribeInfo(msg websocket_mod.WsResponseInfo) websocket_mod.Subscripti
 
 func GetCancelInfo(msg websocket_mod.WsResponseInfo) websocket_mod.CancelInfo {
 	return websocket_mod.CancelInfo{
-		TaskId: msg.SubscribeKey,
+		TaskId: msg.Content["taskId"].(string),
 	}
 }
 

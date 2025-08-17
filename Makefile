@@ -28,10 +28,10 @@ core: FORCE
 	./scripts/start.bash
 
 dev: FORCE
-	./scripts/start.bash --dev
+	./scripts/start.bash --dev $(ARGS)
 
 dev-s: FORCE
-	./scripts/start.bash --dev --secure
+	./scripts/start.bash --dev --secure $(ARGS)
 
 dev\:backup: FORCE
 	./scripts/start.bash --dev -t backup
@@ -56,7 +56,7 @@ really-clean:
 docker\:build: $(GO_SOURCE) $(TS_SOURCE)
 	./scripts/gogogadgetdocker.bash 
 
-docker: test
+docker: FORCE
 	./scripts/gogogadgetdocker.bash -p --skip-tests
 
 FORCE:

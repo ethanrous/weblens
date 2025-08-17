@@ -11,22 +11,22 @@ import (
 )
 
 func NewBackupInfo(ctx context.Context, fileHistory []history.FileAction, users []*user.User, instances []tower.Instance, tokens []*auth.Token) structs.BackupInfo {
-	var fileActionInfos []structs.FileActionInfo
+	fileActionInfos := make([]structs.FileActionInfo, 0, len(fileHistory))
 	for _, a := range fileHistory {
 		fileActionInfos = append(fileActionInfos, FileActionToFileActionInfo(a))
 	}
 
-	var userInfos []structs.UserInfoArchive
+	userInfos := make([]structs.UserInfoArchive, 0, len(users))
 	for _, u := range users {
-		userInfos = append(userInfos, UserToUserInfoArchive(u))
+		userInfos = append(userInfos, UserToUserInfoArchive(ctx, u))
 	}
 
-	var serverInfos []structs.TowerInfo
+	serverInfos := make([]structs.TowerInfo, 0, len(instances))
 	for _, i := range instances {
 		serverInfos = append(serverInfos, TowerToTowerInfo(ctx, i))
 	}
 
-	var tokenInfos []structs.TokenInfo
+	tokenInfos := make([]structs.TokenInfo, 0, len(tokens))
 	for _, k := range tokens {
 		tokenInfos = append(tokenInfos, TokenToTokenInfo(ctx, k))
 	}

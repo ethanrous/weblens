@@ -97,6 +97,8 @@ func (fs *FileServiceImpl) AddFile(c context.Context, files ...*file_model.Weble
 		}
 
 		fs.setFileInternal(f.ID(), f)
+
+		ctx.Log().Trace().Msgf("Added file [%s] to file service with id [%s]", f.GetPortablePath(), f.ID())
 	}
 
 	return nil
@@ -145,17 +147,13 @@ func (fs *FileServiceImpl) GetFileByFilepath(ctx context.Context, filepath file_
 		}
 
 		if !childFile.ChildrenLoaded() && shouldLoadNew {
-			appCtx.Log().Debug().Msgf("Loading children for %s [%s]", childFile.GetPortablePath(), childFile.ID())
-
-			_, err = loadOneDirectory(appCtx, childFile, nil)
+			_, err = loadOneDirectory(appCtx, childFile)
 			if err != nil {
 				return nil, err
 			}
 		} else if !shouldLoadNew {
 			return nil, file_model.ErrFileNotFound
 		}
-
-		appCtx.Log().Debug().Msgf("Getting child of %s [%s]", childFile.GetPortablePath(), childFile.ID())
 
 		childFile, err = childFile.GetChild(child)
 		if err != nil {
@@ -574,7 +572,6 @@ func (fs *FileServiceImpl) RenameFile(ctx context.Context, file *file_model.Webl
 		return errors.WithStack(file_model.ErrFileAlreadyExists)
 	}
 
-
 	oldPath := file.GetPortablePath()
 	newPath := oldPath.Dir().Child(newName, file.GetPortablePath().IsDir())
 
@@ -598,8 +595,15 @@ func (fs *FileServiceImpl) RenameFile(ctx context.Context, file *file_model.Webl
 		return err
 	}
 
-	parent.RemoveChild(oldPath.Filename())
-	parent.AddChild(file)
+	err = parent.RemoveChild(oldPath.Filename())
+	if err != nil {
+		return err
+	}
+
+	err = parent.AddChild(file)
+	if err != nil {
+		return err
+	}
 
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
@@ -625,10 +629,9 @@ func (fs *FileServiceImpl) GetChildren(ctx context.Context, folder *file_model.W
 			return nil, errors.WithStack(context_service.ErrNoContext)
 		}
 
-		appCtx.Log().Debug().Msgf("Loading children for folder [%s]", folder.GetPortablePath())
-
 		appCtx = appCtx.WithValue(doFileCreationContextKey{}, true)
-		_, err := loadOneDirectory(appCtx, folder, nil)
+
+		_, err := loadOneDirectory(appCtx, folder)
 		if err != nil {
 			return nil, err
 		}

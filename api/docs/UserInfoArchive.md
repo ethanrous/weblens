@@ -7,11 +7,12 @@ Name | Type | Description | Notes
 **Activated** | **bool** |  | 
 **FullName** | **string** |  | 
 **HomeId** | **string** |  | 
+**IsOnline** | Pointer to **bool** |  | [optional] 
 **Password** | Pointer to **string** |  | [optional] 
-**PermissionLevel** | **int32** | HomeSize        int64  &#x60;json:\&quot;homeSize\&quot; validate:\&quot;required\&quot;&#x60; | 
+**PermissionLevel** | **int32** |  | 
 **Token** | Pointer to **string** |  | [optional] 
 **TrashId** | **string** |  | 
-**Username** | **string** | TrashSize       int64  &#x60;json:\&quot;trashSize\&quot; validate:\&quot;required\&quot;&#x60; | 
+**Username** | **string** |  | 
 
 ## Methods
 
@@ -91,6 +92,31 @@ and a boolean to check if the value has been set.
 
 SetHomeId sets HomeId field to given value.
 
+
+### GetIsOnline
+
+`func (o *UserInfoArchive) GetIsOnline() bool`
+
+GetIsOnline returns the IsOnline field if non-nil, zero value otherwise.
+
+### GetIsOnlineOk
+
+`func (o *UserInfoArchive) GetIsOnlineOk() (*bool, bool)`
+
+GetIsOnlineOk returns a tuple with the IsOnline field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetIsOnline
+
+`func (o *UserInfoArchive) SetIsOnline(v bool)`
+
+SetIsOnline sets IsOnline field to given value.
+
+### HasIsOnline
+
+`func (o *UserInfoArchive) HasIsOnline() bool`
+
+HasIsOnline returns a boolean if a field has been set.
 
 ### GetPassword
 

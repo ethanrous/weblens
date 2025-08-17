@@ -145,6 +145,11 @@ func CreateZip(tsk task_mod.Task) {
 
 	const updateInterval = 500 * int64(time.Millisecond)
 
+	t.OnResult(func(result task_mod.TaskResult) {
+		notif := notify.NewTaskNotification(t, websocket.ZipProgressEvent, result)
+		ctx.Notify(ctx, notif)
+	})
+
 	// Update client over websocket until entire archive has been written, or an error is thrown
 	for int64(totalFiles) > entries {
 		if archiveErr != nil {
@@ -156,14 +161,13 @@ func CreateZip(tsk task_mod.Task) {
 			byteDiff := bytes - prevBytes
 			timeNs := updateInterval * sinceUpdate
 
-			notif := notify.NewTaskNotification(t, websocket.ZipProgressEvent,
-				task_mod.TaskResult{
-					"completedFiles": int(entries), "totalFiles": totalFiles,
-					"bytesSoFar": bytes,
-					"bytesTotal": bytesTotal,
-					"speedBytes": int((float64(byteDiff) / float64(timeNs)) * float64(time.Second)),
-				})
-			ctx.Notify(ctx, notif)
+			t.SetResult(task_mod.TaskResult{
+				"completedFiles": int(entries), "totalFiles": totalFiles,
+				"bytesSoFar": bytes,
+				"bytesTotal": bytesTotal,
+				"speedBytes": int((float64(byteDiff) / float64(timeNs)) * float64(time.Second)),
+			})
+
 			prevBytes = bytes
 			sinceUpdate = 0
 		}
@@ -177,7 +181,14 @@ func CreateZip(tsk task_mod.Task) {
 		return
 	}
 
-	t.SetResult(task_mod.TaskResult{"takeoutId": zipFile.ID(), "filename": zipFile.GetPortablePath().Filename()})
+	t.ClearOnResult()
+
+	t.SetResult(task_mod.TaskResult{
+		"takeoutId":      zipFile.ID(),
+		"filename":       zipFile.GetPortablePath().Filename(),
+		"completedFiles": totalFiles,
+		"bytesSoFar":     bytesTotal,
+	})
 
 	notif = notify.NewTaskNotification(t, websocket.ZipCompleteEvent, t.GetResults())
 	ctx.Notify(ctx, notif)

@@ -51,6 +51,7 @@ launch_mongo() {
             -d \
             --name "$mongoName" \
             --mount type=volume,src="$mongoName",dst=/data/db \
+            --publish 27018:27017 \
             --network weblens-net \
             -e WEBLENS_MONGO_HOST_NAME="$mongoName" \
             ethrous/weblens-mongo || exit 1

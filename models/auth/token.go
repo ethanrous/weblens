@@ -46,7 +46,7 @@ func GenerateNewToken(ctx context.Context, nickname, owner, createdBy string) (*
 		Token:       tokenBytes,
 	}
 
-	col, err := db.GetCollection(ctx, TokenCollectionKey)
+	col, err := db.GetCollection[Token](ctx, TokenCollectionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func SaveToken(ctx context.Context, token *Token) error {
 		return errors.New("token is empty")
 	}
 
-	col, err := db.GetCollection(ctx, TokenCollectionKey)
+	col, err := db.GetCollection[any](ctx, TokenCollectionKey)
 	if err != nil {
 		return err
 	}
@@ -78,7 +78,7 @@ func SaveToken(ctx context.Context, token *Token) error {
 }
 
 func GetTokensByUser(ctx context.Context, username string) ([]*Token, error) {
-	col, err := db.GetCollection(ctx, TokenCollectionKey)
+	col, err := db.GetCollection[any](ctx, TokenCollectionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -105,14 +105,12 @@ func GetTokensByUser(ctx context.Context, username string) ([]*Token, error) {
 }
 
 func GetTokenById(ctx context.Context, tokenId primitive.ObjectID) (token *Token, err error) {
-	col, err := db.GetCollection(ctx, TokenCollectionKey)
+	col, err := db.GetCollection[*Token](ctx, TokenCollectionKey)
 	if err != nil {
 		return nil, err
 	}
 
-	token = &Token{}
-
-	err = col.FindOne(ctx, bson.M{"_id": tokenId}).Decode(token)
+	token, err = col.FindOneAs(ctx, bson.M{"_id": tokenId})
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, ErrTokenNotFound
 	}
@@ -120,22 +118,22 @@ func GetTokenById(ctx context.Context, tokenId primitive.ObjectID) (token *Token
 	return
 }
 
-func GetToken(ctx context.Context, tokenBytes [32]byte) (token Token, err error) {
-	col, err := db.GetCollection(ctx, TokenCollectionKey)
+func GetToken(ctx context.Context, tokenBytes [32]byte) (Token, error) {
+	col, err := db.GetCollection[Token](ctx, TokenCollectionKey)
 	if err != nil {
-		return
+		return Token{}, err
 	}
 
-	err = col.FindOne(ctx, bson.M{"token": tokenBytes}).Decode(&token)
+	token, err := col.FindOneAs(ctx, bson.M{"token": tokenBytes})
 	if err != nil {
 		return token, db.WrapError(err, "failed to find token")
 	}
 
-	return
+	return token, nil
 }
 
 func GetAllTokensByTowerId(ctx context.Context, towerId string) (tokens []*Token, err error) {
-	col, err := db.GetCollection(ctx, TokenCollectionKey)
+	col, err := db.GetCollection[any](ctx, TokenCollectionKey)
 	if err != nil {
 		return
 	}
@@ -154,7 +152,7 @@ func GetAllTokensByTowerId(ctx context.Context, towerId string) (tokens []*Token
 }
 
 func DeleteToken(ctx context.Context, tokenId primitive.ObjectID) error {
-	col, err := db.GetCollection(ctx, TokenCollectionKey)
+	col, err := db.GetCollection[any](ctx, TokenCollectionKey)
 	if err != nil {
 		return err
 	}

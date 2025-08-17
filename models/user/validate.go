@@ -49,7 +49,7 @@ func validateUsername(ctx context.Context, username string) error {
 		return ErrUsernameInvalidChars
 	}
 
-	col, err := db.GetCollection(ctx, UserCollectionKey)
+	col, err := db.GetCollection[any](ctx, UserCollectionKey)
 	if err != nil {
 		return err
 	}

@@ -61,7 +61,7 @@ func WithTransaction(ctx context.Context, fn func(ctx context.Context) error) er
 			return nil, err
 		}
 
-		l.Debug().Msgf("Transaction complete in %s, committing", time.Since(start))
+		l.Trace().Msgf("Transaction complete in %s, committing", time.Since(start))
 
 		err = sessCtx.CommitTransaction(sessCtx)
 		if err != nil {

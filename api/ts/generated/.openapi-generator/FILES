@@ -8,6 +8,8 @@ docs/AddUserParams.md
 docs/ApiKeyParams.md
 docs/ApiKeysApi.md
 docs/BackupInfo.md
+docs/Config.md
+docs/ConfigApi.md
 docs/CreateFolderBody.md
 docs/FileActionInfo.md
 docs/FileInfo.md
@@ -41,7 +43,10 @@ docs/ShareApi.md
 docs/ShareInfo.md
 docs/StructsInitServerParams.md
 docs/StructsScanBody.md
+docs/StructsSetConfigParam.md
 docs/TakeoutInfo.md
+docs/TaskInfo.md
+docs/TaskTaskExitStatus.md
 docs/TokenInfo.md
 docs/TowerInfo.md
 docs/TowersApi.md
@@ -49,6 +54,7 @@ docs/UpdateFileParams.md
 docs/UserInfo.md
 docs/UserInfoArchive.md
 docs/UsersApi.md
+docs/WLResponseInfo.md
 docs/WeblensErrorInfo.md
 git_push.sh
 index.ts

@@ -82,21 +82,4 @@ func serveStaticContent(ctx context_service.RequestContext) {
 	ctx.Log().Debug().Msgf("Serving static content: %s", fullPath)
 
 	http.ServeFile(ctx.W, ctx.Req, fullPath)
-
-	// f, err := os.Open(fullPath)
-	// if err != nil {
-	// 	ctx.Error(http.StatusNotFound, err)
-	//
-	// 	return
-	// }
-	// defer f.Close()
-	//
-	// _, err = io.Copy(ctx.W, f)
-	// if err != nil {
-	// 	ctx.Error(http.StatusInternalServerError, err)
-	//
-	// 	return
-	// }
-	//
-	// ctx.Status(http.StatusOK)
 }

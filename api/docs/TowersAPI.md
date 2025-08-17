@@ -6,8 +6,10 @@ Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**CreateRemote**](TowersAPI.md#CreateRemote) | **Post** /tower/remote | Create a new remote
 [**DeleteRemote**](TowersAPI.md#DeleteRemote) | **Delete** /tower/{serverId} | Delete a remote
+[**FlushCache**](TowersAPI.md#FlushCache) | **Delete** /tower/cache | Flush Cache
 [**GetBackupInfo**](TowersAPI.md#GetBackupInfo) | **Get** /tower/backup | Get information about a file
 [**GetRemotes**](TowersAPI.md#GetRemotes) | **Get** /tower | Get all remotes
+[**GetRunningTasks**](TowersAPI.md#GetRunningTasks) | **Get** /tower/tasks | Get Running Tasks
 [**GetServerInfo**](TowersAPI.md#GetServerInfo) | **Get** /info | Get server info
 [**InitializeTower**](TowersAPI.md#InitializeTower) | **Post** /tower/init | Initialize the target server
 [**LaunchBackup**](TowersAPI.md#LaunchBackup) | **Post** /tower/{serverId}/backup | Launch backup on a tower
@@ -145,6 +147,65 @@ Name | Type | Description  | Notes
 [[Back to README]](../README.md)
 
 
+## FlushCache
+
+> WLResponseInfo FlushCache(ctx).Execute()
+
+Flush Cache
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/ethanrous/weblens/api"
+)
+
+func main() {
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	resp, r, err := apiClient.TowersAPI.FlushCache(context.Background()).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `TowersAPI.FlushCache``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	// response from `FlushCache`: WLResponseInfo
+	fmt.Fprintf(os.Stdout, "Response from `TowersAPI.FlushCache`: %v\n", resp)
+}
+```
+
+### Path Parameters
+
+This endpoint does not need any parameter.
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiFlushCacheRequest struct via the builder pattern
+
+
+### Return type
+
+[**WLResponseInfo**](WLResponseInfo.md)
+
+### Authorization
+
+[ApiKeyAuth](../README.md#ApiKeyAuth)
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
+
+
 ## GetBackupInfo
 
 > BackupInfo GetBackupInfo(ctx).Timestamp(timestamp).Execute()
@@ -262,6 +323,65 @@ Other parameters are passed through a pointer to a apiGetRemotesRequest struct v
 
 - **Content-Type**: Not defined
 - **Accept**: */*
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
+
+
+## GetRunningTasks
+
+> []TaskInfo GetRunningTasks(ctx).Execute()
+
+Get Running Tasks
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/ethanrous/weblens/api"
+)
+
+func main() {
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	resp, r, err := apiClient.TowersAPI.GetRunningTasks(context.Background()).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `TowersAPI.GetRunningTasks``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	// response from `GetRunningTasks`: []TaskInfo
+	fmt.Fprintf(os.Stdout, "Response from `TowersAPI.GetRunningTasks`: %v\n", resp)
+}
+```
+
+### Path Parameters
+
+This endpoint does not need any parameter.
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiGetRunningTasksRequest struct via the builder pattern
+
+
+### Return type
+
+[**[]TaskInfo**](TaskInfo.md)
+
+### Authorization
+
+[ApiKeyAuth](../README.md#ApiKeyAuth)
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
 [[Back to Model list]](../README.md#documentation-for-models)

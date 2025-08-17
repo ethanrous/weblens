@@ -79,7 +79,7 @@ func CreateLocal(ctx context.Context) (t Instance, err error) {
 		IsThisTower: true,
 	}
 
-	col, err := db.GetCollection(ctx, TowerCollectionKey)
+	col, err := db.GetCollection[any](ctx, TowerCollectionKey)
 	if err != nil {
 		return t, errors.WithStack(err)
 	}
@@ -93,7 +93,7 @@ func CreateLocal(ctx context.Context) (t Instance, err error) {
 }
 
 func ResetLocal(ctx context.Context) (t Instance, err error) {
-	col, err := db.GetCollection(ctx, TowerCollectionKey)
+	col, err := db.GetCollection[any](ctx, TowerCollectionKey)
 	if err != nil {
 		return t, errors.WithStack(err)
 	}
@@ -107,7 +107,7 @@ func ResetLocal(ctx context.Context) (t Instance, err error) {
 }
 
 func SaveTower(ctx context.Context, tower *Instance) error {
-	col, err := db.GetCollection(ctx, TowerCollectionKey)
+	col, err := db.GetCollection[any](ctx, TowerCollectionKey)
 	if err != nil {
 		return err
 	}
@@ -134,7 +134,7 @@ func SaveTower(ctx context.Context, tower *Instance) error {
 }
 
 func GetTowerById(ctx context.Context, towerId string) (tower Instance, err error) {
-	col, err := db.GetCollection(ctx, TowerCollectionKey)
+	col, err := db.GetCollection[any](ctx, TowerCollectionKey)
 	if err != nil {
 		return tower, err
 	}
@@ -152,7 +152,7 @@ func GetTowerById(ctx context.Context, towerId string) (tower Instance, err erro
 }
 
 func GetBackupTowerById(ctx context.Context, towerId string, remoteId string) (tower Instance, err error) {
-	col, err := db.GetCollection(ctx, TowerCollectionKey)
+	col, err := db.GetCollection[any](ctx, TowerCollectionKey)
 	if err != nil {
 		return tower, err
 	}
@@ -166,7 +166,7 @@ func GetBackupTowerById(ctx context.Context, towerId string, remoteId string) (t
 }
 
 func DeleteTowerById(ctx context.Context, towerId string) error {
-	col, err := db.GetCollection(ctx, TowerCollectionKey)
+	col, err := db.GetCollection[any](ctx, TowerCollectionKey)
 	if err != nil {
 		return err
 	}
@@ -180,7 +180,7 @@ func DeleteTowerById(ctx context.Context, towerId string) error {
 }
 
 func GetLocal(ctx context.Context) (t Instance, err error) {
-	col, err := db.GetCollection(ctx, TowerCollectionKey)
+	col, err := db.GetCollection[any](ctx, TowerCollectionKey)
 	if err != nil {
 		return t, err
 	}
@@ -196,7 +196,7 @@ func GetLocal(ctx context.Context) (t Instance, err error) {
 }
 
 func SetLastBackup(ctx context.Context, towerId string, lastBackup time.Time) error {
-	col, err := db.GetCollection(ctx, TowerCollectionKey)
+	col, err := db.GetCollection[any](ctx, TowerCollectionKey)
 	if err != nil {
 		return err
 	}
@@ -214,7 +214,7 @@ func UpdateTower(ctx context.Context, tower *Instance) error {
 		return errors.New("tower DBID is not set")
 	}
 
-	col, err := db.GetCollection(ctx, TowerCollectionKey)
+	col, err := db.GetCollection[any](ctx, TowerCollectionKey)
 	if err != nil {
 		return err
 	}
@@ -228,7 +228,7 @@ func UpdateTower(ctx context.Context, tower *Instance) error {
 }
 
 func GetAllTowersByTowerId(ctx context.Context, towerId string) ([]Instance, error) {
-	col, err := db.GetCollection(ctx, TowerCollectionKey)
+	col, err := db.GetCollection[any](ctx, TowerCollectionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +248,7 @@ func GetAllTowersByTowerId(ctx context.Context, towerId string) ([]Instance, err
 }
 
 func GetRemotes(ctx context.Context) ([]Instance, error) {
-	col, err := db.GetCollection(ctx, TowerCollectionKey)
+	col, err := db.GetCollection[any](ctx, TowerCollectionKey)
 	if err != nil {
 		return nil, err
 	}

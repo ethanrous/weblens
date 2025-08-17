@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/ethanrous/weblens/modules/context"
 	"github.com/ethanrous/weblens/modules/errors"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -18,10 +19,10 @@ func WrapError(err error, format string, a ...any) error {
 
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return errors.WithStack(&NotFoundError{msg})
-		// } else if errors.Is(err, mongo.ErrNilCursor) {
-		// 	return errors.WithStack(&AlreadyExistsError{msg})
 	} else if strings.Contains(err.Error(), "duplicate key error") {
 		return errors.WithStack(&AlreadyExistsError{msg})
+	} else if strings.HasSuffix(err.Error(), "context canceled") {
+		return errors.WithStack(context.NewCanceledError(msg))
 	} else {
 		return errors.WithStack(fmt.Errorf("unknown database error: %s: %w", msg, err))
 	}
@@ -81,5 +82,6 @@ func IsAlreadyExists(err error) bool {
 	if errors.As(err, &alreadyExistsErr) {
 		return true
 	}
+
 	return false
 }

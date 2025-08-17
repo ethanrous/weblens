@@ -1,6 +1,6 @@
 ARG ARCHITECTURE
 
-ARG GO_VERSION=1.24
+ARG GO_VERSION=1.24.6
 
 FROM --platform=linux/${ARCHITECTURE} golang:${GO_VERSION}-alpine AS download
 COPY . .

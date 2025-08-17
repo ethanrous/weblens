@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	media_model "github.com/ethanrous/weblens/models/media"
+	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/slices"
@@ -84,16 +86,26 @@ func SortMediaByTextSimilarity(ctx context_service.AppContext, search string, ms
 	return msScores, nil
 }
 
-const hdieServerUrl = "http://weblens-hdir:5000"
+var serviceAvailable = true
 
 func GetHighDimensionImageEncoding(ctx context_service.AppContext, m *media_model.Media) ([]float64, error) {
+	if !serviceAvailable {
+		return nil, errors.WithStack(errors.Statusf(http.StatusServiceUnavailable, "HDIR service is not available"))
+	}
+
 	f, err := getCacheFile(ctx, m, media_model.LowRes, 0)
 	if err != nil {
 		return nil, err
 	}
 
+	hdieServerUrl := config.GetConfig().HdirUri
+
 	resp, err := http.Get(hdieServerUrl + "/encode?img-path=" + f.GetPortablePath().String())
 	if err != nil {
+		if strings.Contains(err.Error(), "no such host") { // If the HDIR server is not available, we don't retry
+			serviceAvailable = false
+		}
+
 		return nil, err
 	}
 
@@ -136,6 +148,8 @@ func getSimilarityScores(ctx context_service.AppContext, text string, m ...*medi
 	}
 
 	reqBody := bytes.NewBuffer((fmt.Appendf(nil, `{"text": "%s", "image_features": %s}`, text, hdirBytes)))
+
+	hdieServerUrl := config.GetConfig().HdirUri
 
 	resp, err := http.Post(hdieServerUrl+"/match", "application/json", reqBody)
 	if err != nil {

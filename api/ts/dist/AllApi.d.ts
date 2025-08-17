@@ -152,6 +152,12 @@ interface AddUserParams {
     'canEdit'?: boolean;
     /**
      *
+     * @type {boolean}
+     * @memberof AddUserParams
+     */
+    'canView'?: boolean;
+    /**
+     *
      * @type {string}
      * @memberof AddUserParams
      */
@@ -206,6 +212,25 @@ interface BackupInfo {
      * @memberof BackupInfo
      */
     'users'?: Array<UserInfoArchive>;
+}
+/**
+ *
+ * @export
+ * @interface Config
+ */
+interface Config {
+    /**
+     *
+     * @type {boolean}
+     * @memberof Config
+     */
+    'allowRegistrations'?: boolean;
+    /**
+     *
+     * @type {boolean}
+     * @memberof Config
+     */
+    'enableHDIR'?: boolean;
 }
 /**
  *
@@ -514,6 +539,12 @@ interface MediaBatchInfo {
      * @memberof MediaBatchInfo
      */
     'mediaCount'?: number;
+    /**
+     *
+     * @type {number}
+     * @memberof MediaBatchInfo
+     */
+    'totalMediaCount'?: number;
 }
 /**
  *
@@ -999,6 +1030,12 @@ interface PermissionsInfo {
      * @memberof PermissionsInfo
      */
     'canEdit'?: boolean;
+    /**
+     *
+     * @type {boolean}
+     * @memberof PermissionsInfo
+     */
+    'canView'?: boolean;
 }
 /**
  *
@@ -1024,6 +1061,12 @@ interface PermissionsParams {
      * @memberof PermissionsParams
      */
     'canEdit'?: boolean;
+    /**
+     *
+     * @type {boolean}
+     * @memberof PermissionsParams
+     */
+    'canView'?: boolean;
 }
 /**
  *
@@ -1239,6 +1282,25 @@ interface StructsScanBody {
 /**
  *
  * @export
+ * @interface StructsSetConfigParam
+ */
+interface StructsSetConfigParam {
+    /**
+     *
+     * @type {string}
+     * @memberof StructsSetConfigParam
+     */
+    'configKey'?: string;
+    /**
+     *
+     * @type {object}
+     * @memberof StructsSetConfigParam
+     */
+    'configValue'?: object;
+}
+/**
+ *
+ * @export
  * @interface TakeoutInfo
  */
 interface TakeoutInfo {
@@ -1267,6 +1329,73 @@ interface TakeoutInfo {
      */
     'taskId'?: string;
 }
+/**
+ *
+ * @export
+ * @interface TaskInfo
+ */
+interface TaskInfo {
+    /**
+     *
+     * @type {boolean}
+     * @memberof TaskInfo
+     */
+    'Completed': boolean;
+    /**
+     *
+     * @type {string}
+     * @memberof TaskInfo
+     */
+    'jobName': string;
+    /**
+     *
+     * @type {number}
+     * @memberof TaskInfo
+     */
+    'progress': number;
+    /**
+     *
+     * @type {object}
+     * @memberof TaskInfo
+     */
+    'result'?: object;
+    /**
+     *
+     * @type {string}
+     * @memberof TaskInfo
+     */
+    'startTime'?: string;
+    /**
+     *
+     * @type {TaskTaskExitStatus}
+     * @memberof TaskInfo
+     */
+    'status': TaskTaskExitStatus;
+    /**
+     *
+     * @type {string}
+     * @memberof TaskInfo
+     */
+    'taskId': string;
+    /**
+     *
+     * @type {number}
+     * @memberof TaskInfo
+     */
+    'workerId': number;
+}
+/**
+ *
+ * @export
+ * @enum {string}
+ */
+declare const TaskTaskExitStatus: {
+    readonly TaskNoStatus: "";
+    readonly TaskSuccess: "success";
+    readonly TaskCanceled: "cancelled";
+    readonly TaskError: "error";
+};
+type TaskTaskExitStatus = typeof TaskTaskExitStatus[keyof typeof TaskTaskExitStatus];
 /**
  *
  * @export
@@ -1433,7 +1562,13 @@ interface UserInfo {
      */
     'homeId': string;
     /**
-     * HomeSize        int64  `json:\"homeSize\" validate:\"required\"`
+     *
+     * @type {boolean}
+     * @memberof UserInfo
+     */
+    'isOnline'?: boolean;
+    /**
+     *
      * @type {number}
      * @memberof UserInfo
      */
@@ -1451,7 +1586,7 @@ interface UserInfo {
      */
     'trashId': string;
     /**
-     * TrashSize       int64  `json:\"trashSize\" validate:\"required\"`
+     *
      * @type {string}
      * @memberof UserInfo
      */
@@ -1483,12 +1618,18 @@ interface UserInfoArchive {
     'homeId': string;
     /**
      *
+     * @type {boolean}
+     * @memberof UserInfoArchive
+     */
+    'isOnline'?: boolean;
+    /**
+     *
      * @type {string}
      * @memberof UserInfoArchive
      */
     'password'?: string;
     /**
-     * HomeSize        int64  `json:\"homeSize\" validate:\"required\"`
+     *
      * @type {number}
      * @memberof UserInfoArchive
      */
@@ -1506,11 +1647,24 @@ interface UserInfoArchive {
      */
     'trashId': string;
     /**
-     * TrashSize       int64  `json:\"trashSize\" validate:\"required\"`
+     *
      * @type {string}
      * @memberof UserInfoArchive
      */
     'username': string;
+}
+/**
+ *
+ * @export
+ * @interface WLResponseInfo
+ */
+interface WLResponseInfo {
+    /**
+     *
+     * @type {string}
+     * @memberof WLResponseInfo
+     */
+    'message'?: string;
 }
 /**
  *
@@ -1645,6 +1799,94 @@ declare class ApiKeysApi extends BaseAPI {
      * @memberof ApiKeysApi
      */
     getApiKeys(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TokenInfo[], any>>;
+}
+/**
+ * ConfigApi - axios parameter creator
+ * @export
+ */
+declare const ConfigApiAxiosParamCreator: (configuration?: Configuration) => {
+    /**
+     *
+     * @summary Get Config
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getConfig: (options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    /**
+     *
+     * @summary Set Config
+     * @param {Array<StructsSetConfigParam>} request Set Config Params
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    setConfig: (request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+};
+/**
+ * ConfigApi - functional programming interface
+ * @export
+ */
+declare const ConfigApiFp: (configuration?: Configuration) => {
+    /**
+     *
+     * @summary Get Config
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getConfig(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Config>>;
+    /**
+     *
+     * @summary Set Config
+     * @param {Array<StructsSetConfigParam>} request Set Config Params
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    setConfig(request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+};
+/**
+ * ConfigApi - factory interface
+ * @export
+ */
+declare const ConfigApiFactory: (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) => {
+    /**
+     *
+     * @summary Get Config
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getConfig(options?: RawAxiosRequestConfig): AxiosPromise<Config>;
+    /**
+     *
+     * @summary Set Config
+     * @param {Array<StructsSetConfigParam>} request Set Config Params
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    setConfig(request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+};
+/**
+ * ConfigApi - object-oriented interface
+ * @export
+ * @class ConfigApi
+ * @extends {BaseAPI}
+ */
+declare class ConfigApi extends BaseAPI {
+    /**
+     *
+     * @summary Get Config
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ConfigApi
+     */
+    getConfig(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<Config, any>>;
+    /**
+     *
+     * @summary Set Config
+     * @param {Array<StructsSetConfigParam>} request Set Config Params
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ConfigApi
+     */
+    setConfig(request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
 }
 /**
  * FilesApi - axios parameter creator
@@ -3258,6 +3500,13 @@ declare const TowersApiAxiosParamCreator: (configuration?: Configuration) => {
     deleteRemote: (serverId: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
+     * @summary Flush Cache
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    flushCache: (options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    /**
+     *
      * @summary Get information about a file
      * @param {string} timestamp Timestamp in milliseconds since epoch
      * @param {*} [options] Override http request option.
@@ -3271,6 +3520,13 @@ declare const TowersApiAxiosParamCreator: (configuration?: Configuration) => {
      * @throws {RequiredError}
      */
     getRemotes: (options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    /**
+     *
+     * @summary Get Running Tasks
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getRunningTasks: (options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Get server info
@@ -3325,6 +3581,13 @@ declare const TowersApiFp: (configuration?: Configuration) => {
     deleteRemote(serverId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
     /**
      *
+     * @summary Flush Cache
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    flushCache(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<WLResponseInfo>>;
+    /**
+     *
      * @summary Get information about a file
      * @param {string} timestamp Timestamp in milliseconds since epoch
      * @param {*} [options] Override http request option.
@@ -3338,6 +3601,13 @@ declare const TowersApiFp: (configuration?: Configuration) => {
      * @throws {RequiredError}
      */
     getRemotes(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<TowerInfo>>>;
+    /**
+     *
+     * @summary Get Running Tasks
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getRunningTasks(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<TaskInfo>>>;
     /**
      *
      * @summary Get server info
@@ -3392,6 +3662,13 @@ declare const TowersApiFactory: (configuration?: Configuration, basePath?: strin
     deleteRemote(serverId: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
     /**
      *
+     * @summary Flush Cache
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    flushCache(options?: RawAxiosRequestConfig): AxiosPromise<WLResponseInfo>;
+    /**
+     *
      * @summary Get information about a file
      * @param {string} timestamp Timestamp in milliseconds since epoch
      * @param {*} [options] Override http request option.
@@ -3405,6 +3682,13 @@ declare const TowersApiFactory: (configuration?: Configuration, basePath?: strin
      * @throws {RequiredError}
      */
     getRemotes(options?: RawAxiosRequestConfig): AxiosPromise<Array<TowerInfo>>;
+    /**
+     *
+     * @summary Get Running Tasks
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getRunningTasks(options?: RawAxiosRequestConfig): AxiosPromise<Array<TaskInfo>>;
     /**
      *
      * @summary Get server info
@@ -3463,6 +3747,14 @@ declare class TowersApi extends BaseAPI {
     deleteRemote(serverId: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
      *
+     * @summary Flush Cache
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof TowersApi
+     */
+    flushCache(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<WLResponseInfo, any>>;
+    /**
+     *
      * @summary Get information about a file
      * @param {string} timestamp Timestamp in milliseconds since epoch
      * @param {*} [options] Override http request option.
@@ -3478,6 +3770,14 @@ declare class TowersApi extends BaseAPI {
      * @memberof TowersApi
      */
     getRemotes(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TowerInfo[], any>>;
+    /**
+     *
+     * @summary Get Running Tasks
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof TowersApi
+     */
+    getRunningTasks(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TaskInfo[], any>>;
     /**
      *
      * @summary Get server info
@@ -3950,4 +4250,4 @@ type WLAPI = {
 };
 declare function WeblensApiFactory(apiEndpoint: string): WLAPI;
 
-export { type AddUserParams, type ApiKeyParams, ApiKeysApi, ApiKeysApiAxiosParamCreator, ApiKeysApiFactory, ApiKeysApiFp, type BackupInfo, type CreateFolderBody, type FileActionInfo, type FileInfo, type FileShareParams, FilesApi, FilesApiAxiosParamCreator, FilesApiFactory, FilesApiFp, type FilesListParams, FolderApi, FolderApiAxiosParamCreator, FolderApiFactory, FolderApiFp, type FolderInfo, GetMediaImageQualityEnum, type LoginBody, MediaApi, MediaApiAxiosParamCreator, MediaApiFactory, MediaApiFp, type MediaBatchInfo, type MediaBatchParams, MediaBatchParamsSortEnum, type MediaIdsParams, type MediaInfo, type MediaTypeInfo, type MediaTypesInfo, type MoveFilesParams, type NewFileParams, type NewFilesInfo, type NewFilesParams, type NewServerParams, type NewUploadInfo, type NewUploadParams, type NewUserParams, type PasswordUpdateParams, type PermissionsInfo, type PermissionsParams, type RestoreFilesBody, type RestoreFilesInfo, ShareApi, ShareApiAxiosParamCreator, ShareApiFactory, ShareApiFp, type ShareInfo, type StructsInitServerParams, type StructsScanBody, type TakeoutInfo, type TokenInfo, type TowerInfo, TowersApi, TowersApiAxiosParamCreator, TowersApiFactory, TowersApiFp, type UpdateFileParams, type UserInfo, type UserInfoArchive, UsersApi, UsersApiAxiosParamCreator, UsersApiFactory, UsersApiFp, type WLAPI, WeblensApiFactory, type WeblensErrorInfo };
+export { type AddUserParams, type ApiKeyParams, ApiKeysApi, ApiKeysApiAxiosParamCreator, ApiKeysApiFactory, ApiKeysApiFp, type BackupInfo, type Config, ConfigApi, ConfigApiAxiosParamCreator, ConfigApiFactory, ConfigApiFp, type CreateFolderBody, type FileActionInfo, type FileInfo, type FileShareParams, FilesApi, FilesApiAxiosParamCreator, FilesApiFactory, FilesApiFp, type FilesListParams, FolderApi, FolderApiAxiosParamCreator, FolderApiFactory, FolderApiFp, type FolderInfo, GetMediaImageQualityEnum, type LoginBody, MediaApi, MediaApiAxiosParamCreator, MediaApiFactory, MediaApiFp, type MediaBatchInfo, type MediaBatchParams, MediaBatchParamsSortEnum, type MediaIdsParams, type MediaInfo, type MediaTypeInfo, type MediaTypesInfo, type MoveFilesParams, type NewFileParams, type NewFilesInfo, type NewFilesParams, type NewServerParams, type NewUploadInfo, type NewUploadParams, type NewUserParams, type PasswordUpdateParams, type PermissionsInfo, type PermissionsParams, type RestoreFilesBody, type RestoreFilesInfo, ShareApi, ShareApiAxiosParamCreator, ShareApiFactory, ShareApiFp, type ShareInfo, type StructsInitServerParams, type StructsScanBody, type StructsSetConfigParam, type TakeoutInfo, type TaskInfo, TaskTaskExitStatus, type TokenInfo, type TowerInfo, TowersApi, TowersApiAxiosParamCreator, TowersApiFactory, TowersApiFp, type UpdateFileParams, type UserInfo, type UserInfoArchive, UsersApi, UsersApiAxiosParamCreator, UsersApiFactory, UsersApiFp, type WLAPI, type WLResponseInfo, WeblensApiFactory, type WeblensErrorInfo };
