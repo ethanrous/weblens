@@ -30,7 +30,7 @@ type ClientManager interface {
 	SubscribeToTask(ctx context_mod.LoggerContext, c *WsClient, task *task_model.Task, subTime time.Time) error
 	Unsubscribe(ctx context_mod.LoggerContext, c *WsClient, key string, unSubTime time.Time) error
 	FolderSubToTask(ctx context_mod.LoggerContext, folderId string, task task.Task)
-	UnsubTask(ctx context_mod.LoggerContext, taskId string)
+	UnsubTask(ctx context.Context, taskId string)
 	Send(ctx context.Context, msg websocket_mod.WsResponseInfo)
 	Flush(ctx context.Context)
 	Relay(msg websocket_mod.WsResponseInfo)

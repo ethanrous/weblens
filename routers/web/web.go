@@ -1,21 +1,24 @@
 package web
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/routers/router"
 	context_service "github.com/ethanrous/weblens/services/context"
 )
 
-func CacheMiddleware(addGzip bool) router.PassthroughHandler {
+func CacheMiddleware(addGzip bool, cacheTime int) router.PassthroughHandler {
+	cacheTimeStr := fmt.Sprintf("public, max-age=%d", cacheTime)
 	return func(next router.Handler) router.Handler {
 		return router.HandlerFunc(func(ctx context_service.RequestContext) {
-			ctx.W.Header().Set("Cache-Control", "public, max-age=3600")
+			ctx.W.Header().Set("Cache-Control", cacheTimeStr)
 
 			if addGzip && (strings.HasSuffix(ctx.Req.URL.Path, ".js") || strings.HasSuffix(ctx.Req.URL.Path, ".css")) {
 				ctx.W.Header().Set("Content-Encoding", "gzip")
@@ -36,8 +39,8 @@ func NewMemFs(ctx context_service.AppContext, cnf config.ConfigProvider) *InMemo
 func UiRoutes(memFs *InMemoryFS) *router.Router {
 	r := router.NewRouter()
 
-	r.Handle("/_nuxt/*", CacheMiddleware(true), http.FileServer(memFs))
-	r.Get("/static/{filename}", CacheMiddleware(false), serveStaticContent)
+	r.Handle("/_nuxt/*", CacheMiddleware(true, int((time.Hour*24).Seconds())), http.FileServer(memFs))
+	r.Get("/static/{filename}", CacheMiddleware(false, int(time.Hour.Seconds())), serveStaticContent)
 	r.Get("/docs", func(ctx context_service.RequestContext) {
 		http.Redirect(ctx.W, ctx.Req, "/docs/", http.StatusMovedPermanently)
 	})

@@ -43,6 +43,14 @@ func doesSharePermitFile(ctx context.Context, file *file_model.WeblensFileImpl, 
 }
 
 func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_model.WeblensFileImpl, share *share_model.FileShare, requiredPerms ...share_model.Permission) (*share_model.Permissions, error) {
+	if file.GetPortablePath() == file_model.UsersRootPath {
+		if user.IsOwner() {
+			return share_model.NewPermissions(), nil
+		}
+
+		return &share_model.Permissions{}, errors.Statusf(http.StatusForbidden, "cannot access the USERS root path")
+	}
+
 	ownerName, err := file_model.GetFileOwnerName(ctx, file)
 	if err != nil {
 		log.FromContext(ctx).Error().Stack().Err(err).Msg("Failed to get file owner name")
@@ -55,7 +63,7 @@ func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_mo
 		return share_model.NewFullPermissions(), nil
 	}
 
-	// Check that the share permits access the specific file we are trying to access
+	// Check that the share permits access to the specific file we are trying to access
 	if !doesSharePermitFile(ctx, file, share) {
 		shareId := ""
 		if share != nil {

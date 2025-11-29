@@ -103,7 +103,7 @@ Class | Method | HTTP request | Description
 *FolderAPI* | [**CreateFolder**](docs/FolderAPI.md#createfolder) | **Post** /folder | Create a new folder
 *FolderAPI* | [**GetFolder**](docs/FolderAPI.md#getfolder) | **Get** /folder/{folderId} | Get a folder
 *FolderAPI* | [**GetFolderHistory**](docs/FolderAPI.md#getfolderhistory) | **Get** /files/{fileId}/history | Get actions of a folder at a given time
-*FolderAPI* | [**ScanFolder**](docs/FolderAPI.md#scanfolder) | **Post** /folder/scan | Dispatch a folder scan
+*FolderAPI* | [**ScanFolder**](docs/FolderAPI.md#scanfolder) | **Post** /folder/{folderId}/scan | Dispatch a folder scan
 *FolderAPI* | [**SetFolderCover**](docs/FolderAPI.md#setfoldercover) | **Patch** /folder/{folderId}/cover | Set the cover image of a folder
 *MediaAPI* | [**CleanupMedia**](docs/MediaAPI.md#cleanupmedia) | **Post** /media/cleanup | Make sure all media is correctly synced with the file system
 *MediaAPI* | [**DropHDIRs**](docs/MediaAPI.md#drophdirs) | **Post** /media/drop/hdirs | Drop all computed media HDIR data. Must be server owner.
@@ -182,7 +182,6 @@ Class | Method | HTTP request | Description
  - [RestoreFilesInfo](docs/RestoreFilesInfo.md)
  - [ShareInfo](docs/ShareInfo.md)
  - [StructsInitServerParams](docs/StructsInitServerParams.md)
- - [StructsScanBody](docs/StructsScanBody.md)
  - [StructsSetConfigParam](docs/StructsSetConfigParam.md)
  - [TakeoutInfo](docs/TakeoutInfo.md)
  - [TaskInfo](docs/TaskInfo.md)

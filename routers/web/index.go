@@ -81,7 +81,6 @@ func getIndexFields(ctx context.RequestContext, proxyAddress string) (fields ind
 	} else if strings.HasPrefix(path, "media/") {
 		handleMediaPage(ctx, path[len("media/"):], &fields)
 	}
-	ctx.Log().Debug().Msgf("Media path?: %s", path)
 
 	if fields.Image == "" {
 		fields.Image = "/static/favicon_48x48.png"

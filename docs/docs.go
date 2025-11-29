@@ -712,48 +712,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/folder/scan": {
-            "post": {
-                "security": [
-                    {
-                        "SessionAuth": []
-                    }
-                ],
-                "tags": [
-                    "Folder"
-                ],
-                "summary": "Dispatch a folder scan",
-                "operationId": "ScanFolder",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
-                        "in": "query"
-                    },
-                    {
-                        "description": "Scan parameters",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/structs.ScanBody"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    },
-                    "404": {
-                        "description": "Not Found"
-                    },
-                    "500": {
-                        "description": "Internal Server Error"
-                    }
-                }
-            }
-        },
         "/folder/{folderId}": {
             "get": {
                 "security": [
@@ -837,6 +795,49 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/folder/{folderId}/scan": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "tags": [
+                    "Folder"
+                ],
+                "summary": "Dispatch a folder scan",
+                "operationId": "ScanFolder",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Folder Id",
+                        "name": "folderId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Share Id",
+                        "name": "shareId",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Task Info",
+                        "schema": {
+                            "$ref": "#/definitions/TaskInfo"
+                        }
                     },
                     "404": {
                         "description": "Not Found"
@@ -3811,17 +3812,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "usingKeyInfo": {
-                    "type": "string"
-                }
-            }
-        },
-        "structs.ScanBody": {
-            "type": "object",
-            "properties": {
-                "filename": {
-                    "type": "string"
-                },
-                "folderId": {
                     "type": "string"
                 }
             }

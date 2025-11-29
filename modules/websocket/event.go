@@ -46,6 +46,8 @@ const (
 	FileMovedEvent               WsEvent = "fileMoved"
 	FileScanStartedEvent         WsEvent = "fileScanStarted"
 	FileScanCompleteEvent        WsEvent = "fileScanComplete"
+	FileScanFailedEvent          WsEvent = "fileScanFailedEvent"
+	FileScanCancelledEvent       WsEvent = "fileScanCancelledEvent"
 	FileUpdatedEvent             WsEvent = "fileUpdated"
 	FilesDeletedEvent            WsEvent = "filesDeleted"
 	FilesMovedEvent              WsEvent = "filesMoved"

@@ -9,6 +9,8 @@ import (
 	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/routers"
 	context_service "github.com/ethanrous/weblens/services/context"
+
+	_ "net/http/pprof"
 )
 
 func main() {
@@ -21,6 +23,10 @@ func main() {
 	defer cancel()
 
 	appCtx := context_service.NewAppContext(context_service.NewBasicContext(ctx, logger))
+
+	go func() {
+		logger.Debug().Msgf("%v+", http.ListenAndServe("0.0.0.0:6060", nil))
+	}()
 
 	router, err := routers.Startup(appCtx, cnf)
 	if err != nil {

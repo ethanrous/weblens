@@ -11,6 +11,6 @@ FROM --platform=linux/${ARCHITECTURE} golang:${GO_VERSION}-alpine
 # Install dependencies
 COPY scripts/install-deps.sh /tmp/install-deps.sh
 RUN chmod +x /tmp/install-deps.sh
-RUN /tmp/install-deps.sh -b --dcraw
+RUN /tmp/install-deps.sh -b 
 
 COPY --from=download /go/pkg/mod /go/pkg/mod

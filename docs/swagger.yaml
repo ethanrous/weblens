@@ -699,13 +699,6 @@ definitions:
       usingKeyInfo:
         type: string
     type: object
-  structs.ScanBody:
-    properties:
-      filename:
-        type: string
-      folderId:
-        type: string
-    type: object
   structs.SetConfigParam:
     properties:
       configKey:
@@ -1226,23 +1219,24 @@ paths:
       summary: Set the cover image of a folder
       tags:
       - Folder
-  /folder/scan:
+  /folder/{folderId}/scan:
     post:
       operationId: ScanFolder
       parameters:
+      - description: Folder Id
+        in: path
+        name: folderId
+        required: true
+        type: string
       - description: Share Id
         in: query
         name: shareId
         type: string
-      - description: Scan parameters
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/structs.ScanBody'
       responses:
         "200":
-          description: OK
+          description: Task Info
+          schema:
+            $ref: '#/definitions/TaskInfo'
         "404":
           description: Not Found
         "500":

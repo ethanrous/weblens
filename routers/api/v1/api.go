@@ -31,6 +31,7 @@ func Routes(ctx context_service.AppContext) *router.Router {
 	// Media
 	r.Group("/media", func() {
 		r.Get("/types", media_api.GetMediaTypes)
+
 		r.Group("/{mediaId}", func() {
 			r.Get("/info", media_api.GetMediaInfo)
 			r.Get(".{extension}", media_api.GetMediaImage)
@@ -79,6 +80,7 @@ func Routes(ctx context_service.AppContext) *router.Router {
 	r.Group("/folder", func() {
 		r.Group("/{folderId}", func() {
 			r.Get("", file_api.GetFolder)
+			r.Post("/scan", file_api.ScanDir)
 			r.Patch("/cover", router.RequireSignIn, file_api.SetFolderCover)
 		})
 

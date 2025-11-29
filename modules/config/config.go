@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -109,6 +110,25 @@ func getEnvOverride(config *ConfigProvider) {
 		log.Trace().Msgf("No .env file found, using default config: %s", err.Error())
 	}
 
+	if logFormat := os.Getenv("WEBLENS_LOG_FORMAT"); logFormat != "" {
+		if logFormat != "dev" {
+			logFormat = "json"
+		}
+
+		log.Trace().Msgf("Overriding LogFormat with WEBLENS_LOG_FORMAT: %s", logFormat)
+		config.LogFormat = logFormat
+	}
+
+	if logLevel := os.Getenv("WEBLENS_LOG_LEVEL"); logLevel != "" {
+		parsedLevel, _ := zerolog.ParseLevel(logLevel)
+		log.Trace().Msgf("Overriding LogLevel with WEBLENS_LOG_LEVEL: %s (parsed: %v)", logLevel, parsedLevel)
+		config.LogLevel = parsedLevel
+
+		if config.LogLevel == zerolog.NoLevel {
+			config.LogLevel = zerolog.InfoLevel
+		}
+	}
+
 	if host := os.Getenv("WEBLENS_HOST"); host != "" {
 		log.Trace().Msgf("Overriding Host with WEBLENS_HOST: %s", host)
 		config.Host = host
@@ -117,6 +137,16 @@ func getEnvOverride(config *ConfigProvider) {
 	if port := os.Getenv("WEBLENS_PORT"); port != "" {
 		log.Trace().Msgf("Overriding Port with WEBLENS_PORT: %s", port)
 		config.Port = port
+	}
+
+	if workerCount := os.Getenv("WEBLENS_WORKER_COUNT"); workerCount != "" {
+		log.Trace().Msgf("Overriding worker count with WEBLENS_WORKER_COUNT: %s", workerCount)
+
+		if count, err := strconv.Atoi(workerCount); err == nil && count > 0 {
+			config.WorkerCount = count
+		} else {
+			log.Warn().Msgf("Invalid WEBLENS_WORKER_COUNT value: %s, using default worker count: %d", workerCount, config.WorkerCount)
+		}
 	}
 
 	if proxyAddress := os.Getenv("WEBLENS_PROXY_ADDRESS"); proxyAddress != "" {
@@ -162,25 +192,6 @@ func getEnvOverride(config *ConfigProvider) {
 	if doCache, ok := envBool("WEBLENS_DO_CACHE"); ok {
 		log.Trace().Msgf("Overriding DoCache with WEBLENS_DO_CACHE: %v", doCache)
 		config.DoCache = doCache
-	}
-
-	if logFormat := os.Getenv("WEBLENS_LOG_FORMAT"); logFormat != "" {
-		if logFormat != "dev" {
-			logFormat = "json"
-		}
-
-		log.Trace().Msgf("Overriding LogFormat with WEBLENS_LOG_FORMAT: %s", logFormat)
-		config.LogFormat = logFormat
-	}
-
-	if logLevel := os.Getenv("WEBLENS_LOG_LEVEL"); logLevel != "" {
-		parsedLevel, _ := zerolog.ParseLevel(logLevel)
-		log.Trace().Msgf("Overriding LogLevel with WEBLENS_LOG_LEVEL: %s (parsed: %v)", logLevel, parsedLevel)
-		config.LogLevel = parsedLevel
-
-		if config.LogLevel == zerolog.NoLevel {
-			config.LogLevel = zerolog.InfoLevel
-		}
 	}
 }
 

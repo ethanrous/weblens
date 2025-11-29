@@ -225,9 +225,7 @@ func GetCollection[T any](ctx context.Context, collectionName string) (*Contextu
 	s := mongo.SessionFromContext(ctx)
 
 	log.FromContext(ctx).Trace().Func(func(e *zerolog.Event) {
-		if s == nil {
-			e.CallerSkipFrame(4).Msgf("GetCollection [%s] without session", collectionName)
-		} else {
+		if s != nil {
 			e.CallerSkipFrame(4).Msgf("GetCollection [%s] with session %s", collectionName, s.ID())
 		}
 	})

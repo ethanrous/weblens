@@ -1157,25 +1157,6 @@ export interface StructsInitServerParams {
 /**
  * 
  * @export
- * @interface StructsScanBody
- */
-export interface StructsScanBody {
-    /**
-     * 
-     * @type {string}
-     * @memberof StructsScanBody
-     */
-    'filename'?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof StructsScanBody
-     */
-    'folderId'?: string;
-}
-/**
- * 
- * @export
  * @interface StructsSetConfigParam
  */
 export interface StructsSetConfigParam {
@@ -3508,15 +3489,16 @@ export const FolderApiAxiosParamCreator = function (configuration?: Configuratio
         /**
          * 
          * @summary Dispatch a folder scan
-         * @param {StructsScanBody} request Scan parameters
+         * @param {string} folderId Folder Id
          * @param {string} [shareId] Share Id
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        scanFolder: async (request: StructsScanBody, shareId?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'request' is not null or undefined
-            assertParamExists('scanFolder', 'request', request)
-            const localVarPath = `/folder/scan`;
+        scanFolder: async (folderId: string, shareId?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'folderId' is not null or undefined
+            assertParamExists('scanFolder', 'folderId', folderId)
+            const localVarPath = `/folder/{folderId}/scan`
+                .replace(`{${"folderId"}}`, encodeURIComponent(String(folderId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -3534,12 +3516,9 @@ export const FolderApiAxiosParamCreator = function (configuration?: Configuratio
 
 
     
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -3643,13 +3622,13 @@ export const FolderApiFp = function(configuration?: Configuration) {
         /**
          * 
          * @summary Dispatch a folder scan
-         * @param {StructsScanBody} request Scan parameters
+         * @param {string} folderId Folder Id
          * @param {string} [shareId] Share Id
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async scanFolder(request: StructsScanBody, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.scanFolder(request, shareId, options);
+        async scanFolder(folderId: string, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TaskInfo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.scanFolder(folderId, shareId, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['FolderApi.scanFolder']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -3715,13 +3694,13 @@ export const FolderApiFactory = function (configuration?: Configuration, basePat
         /**
          * 
          * @summary Dispatch a folder scan
-         * @param {StructsScanBody} request Scan parameters
+         * @param {string} folderId Folder Id
          * @param {string} [shareId] Share Id
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        scanFolder(request: StructsScanBody, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.scanFolder(request, shareId, options).then((request) => request(axios, basePath));
+        scanFolder(folderId: string, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<TaskInfo> {
+            return localVarFp.scanFolder(folderId, shareId, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -3787,14 +3766,14 @@ export class FolderApi extends BaseAPI {
     /**
      * 
      * @summary Dispatch a folder scan
-     * @param {StructsScanBody} request Scan parameters
+     * @param {string} folderId Folder Id
      * @param {string} [shareId] Share Id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof FolderApi
      */
-    public scanFolder(request: StructsScanBody, shareId?: string, options?: RawAxiosRequestConfig) {
-        return FolderApiFp(this.configuration).scanFolder(request, shareId, options).then((request) => request(this.axios, this.basePath));
+    public scanFolder(folderId: string, shareId?: string, options?: RawAxiosRequestConfig) {
+        return FolderApiFp(this.configuration).scanFolder(folderId, shareId, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

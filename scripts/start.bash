@@ -2,30 +2,6 @@
 set -e
 set -o pipefail
 
-devel_weblens_locally() {
-    echo "Running Weblens locally for development..."
-
-    cd ./weblens-vue/weblens-nuxt || exit 1
-
-    export WEBLENS_STATIC_CONTENT_PATH=./public
-    export WEBLENS_UI_PATH=./weblens-vue/weblens-nuxt/.output/public
-    export VITE_PROXY_PORT=8080
-    export VITE_PROXY_HOST=127.0.0.1
-
-    pnpm install
-    if [[ ! -e ./.output/public/index.html ]]; then
-        echo "Rebuilding UI..."
-        pnpm generate
-    fi
-    pnpm dev 1>/dev/null &
-
-    cd ../..
-
-    air
-
-    echo "Weblens development server finished..."
-}
-
 usage="./scripts/quickCore.bash [-r|--rebuild] [-t|--role <role>] [-c|--clean]
 	-r, --rebuild   Rebuild the container
 	-t, --role      Specify the tower role (default: core)
@@ -34,10 +10,13 @@ usage="./scripts/quickCore.bash [-r|--rebuild] [-t|--role <role>] [-c|--clean]
 	"
 
 towerRole="core"
-groupName="quick"
+groupName="dev"
+uiPath="/app/web/"
 shouldClean=false
 shouldRebuild=false
 doDevMode=false
+doDynamic=false
+local=false
 
 arch=$(uname -m)
 
@@ -45,6 +24,9 @@ while [ "${1:-}" != "" ]; do
     case "$1" in
     "-r" | "--rebuild")
         shouldRebuild=true
+        ;;
+    "-l" | "--local")
+        local=true
         ;;
     "-t" | "--role")
         shift
@@ -55,15 +37,17 @@ while [ "${1:-}" != "" ]; do
         ;;
     "-d" | "--dev")
         doDevMode=true
-        groupName="dev"
         ;;
-    "-l" | "--local")
-        devel_weblens_locally
-        exit 0
+    "-y" | "--dynamic")
+        doDynamic=true
         ;;
     "-s" | "--secure")
         export VITE_USE_HTTPS=true
         ./scripts/make-cert.bash
+        ;;
+    "-a" | "--arch")
+        shift
+        arch="$1"
         ;;
     "-g" | "--group")
         shift
@@ -85,14 +69,23 @@ fi
 
 containerName="weblens-$groupName-$towerRole"
 mongoName="$containerName-mongo"
-imageName="rc" # Release Candidate? It's not "prod" but not "dev" either. idk
+imageName="static"
 fsName="$groupName-$towerRole"
+dockerfile="Dockerfile"
+runCmd=""
 
 echo "Using base name: $containerName"
 
 if [[ $doDevMode == true ]]; then
     echo "Using development image"
     imageName="dev"
+    dockerfile="dev.Dockerfile"
+    uiPath="./weblens-vue/weblens-nuxt/.output/public"
+fi
+
+if [[ $doDynamic == true ]]; then
+    WEBLENS_STATIC_CONTENT_PATH=./public
+    runCmd="--dynamic"
 fi
 
 if [[ $shouldClean == true ]]; then
@@ -113,18 +106,13 @@ printf "Done\n"
 
 if ! docker network ls | grep weblens-net &>/dev/null; then
     printf "Creating weblens docker network... "
-    docker network create weblens-net
+    docker network create weblens-net &>/dev/null
     printf "Done\n"
 fi
 
 # Build image if it doesn't exist
-if ! docker image ls | grep "$imageName-$arch" &>/dev/null; then
+if [[ $local == false ]] && ! docker image ls | grep "$imageName-$arch" &>/dev/null; then
     echo "Image does not exist, building..."
-
-    dockerfile="Dockerfile"
-    if [[ $doDevMode == true ]]; then
-        dockerfile="dev.Dockerfile"
-    fi
 
     printf "\n---- gogogadgetdocker ----\n"
     if ! ./scripts/gogogadgetdocker.bash -t "$imageName" -a "$arch" -d "$dockerfile" | sed 's/^/  /'; then
@@ -134,14 +122,30 @@ if ! docker image ls | grep "$imageName-$arch" &>/dev/null; then
     printf "\n---- gogogadgetdocker succeeded ----\n\n"
 fi
 
-logLevel="debug"
-if [[ $WEBLENS_LOG_LEVEL != "" ]]; then
-    logLevel="$WEBLENS_LOG_LEVEL"
+if [[ $WEBLENS_LOG_LEVEL == "" ]]; then
+    WEBLENS_LOG_LEVEL="debug"
 fi
 
 ./scripts/start-mongo.sh "$mongoName" || exit 1
 
+export WEBLENS_DATA_PATH="./_build/fs/$fsName/data"
+export WEBLENS_LOG_FORMAT=dev
+export WEBLENS_MONGODB_NAME="$containerName"
+
+if [[ $local == true ]]; then
+    echo "Running Weblens locally for development..."
+
+    export WEBLENS_MONGODB_URI="mongodb://127.0.0.1:27018/?replicaSet=rs0&directConnection=true"
+
+    ./scripts/devel.bash
+
+    exit 0
+fi
+
 echo "Starting development container for Weblens..."
+
+# FIXME: Tempporray fix for cache issues
+# rm -rf ./_build/cache/"$fsName"
 
 docker run \
     -t \
@@ -149,18 +153,30 @@ docker run \
     --rm \
     --name "$containerName" \
     -p 8080:8080 \
+    -p 6060:6060 \
     -p 3001:3000 \
     -v ./_build/fs/"$fsName"/data:/data \
     -v ./_build/fs/"$fsName"/cache:/cache \
     -v .:/src \
+    -v ../agno/:/agno \
     -v ./_build/cache/"$fsName"/go/mod:/go/pkg/mod \
     -v ./_build/cache/"$fsName"/go/build:/go/cache \
+    -v ./_build/cache/"$fsName"/cargo/registry:/root/.cargo/registry \
+    -v /src/weblens-vue/weblens-nuxt/node_modules \
     -e WEBLENS_MONGODB_URI=mongodb://"$containerName"-mongo:27017/?replicaSet=rs0 \
     -e WEBLENS_MONGODB_NAME="$containerName" \
     -e WEBLENS_INIT_ROLE="$towerRole" \
-    -e WEBLENS_LOG_LEVEL="$logLevel" \
-    -e WEBLENS_LOG_FORMAT=dev \
+    -e WEBLENS_LOG_LEVEL="$WEBLENS_LOG_LEVEL" \
+    -e WEBLENS_LOG_FORMAT="$WEBLENS_LOG_FORMAT" \
+    -e WEBLENS_STATIC_CONTENT_PATH="${WEBLENS_STATIC_CONTENT_PATH:-/app/static}" \
+    -e WEBLENS_DATA_PATH="$WEBLENS_DATA_PATH" \
+    -e WEBLENS_UI_PATH="$uiPath" \
+    -e VITE_PROXY_PORT=8080 \
+    -e VITE_PROXY_HOST=127.0.0.1 \
     -e VITE_USE_HTTPS="$VITE_USE_HTTPS" \
     -e GOCACHE=/go/cache \
+    -e GOMEMLIMIT=10GiB \
     --network weblens-net \
-    ethrous/weblens:"$imageName-$arch"
+    --platform linux/"$arch" \
+    ethrous/weblens:"$imageName-$arch" \
+    "$runCmd"

@@ -1735,14 +1735,14 @@ var FolderApiAxiosParamCreator = function(configuration) {
     /**
      * 
      * @summary Dispatch a folder scan
-     * @param {StructsScanBody} request Scan parameters
+     * @param {string} folderId Folder Id
      * @param {string} [shareId] Share Id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    scanFolder: async (request, shareId, options = {}) => {
-      assertParamExists("scanFolder", "request", request);
-      const localVarPath = `/folder/scan`;
+    scanFolder: async (folderId, shareId, options = {}) => {
+      assertParamExists("scanFolder", "folderId", folderId);
+      const localVarPath = `/folder/{folderId}/scan`.replace(`{${"folderId"}}`, encodeURIComponent(String(folderId)));
       const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
       let baseOptions;
       if (configuration) {
@@ -1754,11 +1754,9 @@ var FolderApiAxiosParamCreator = function(configuration) {
       if (shareId !== void 0) {
         localVarQueryParameter["shareId"] = shareId;
       }
-      localVarHeaderParameter["Content-Type"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
-      localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration);
       return {
         url: toPathString(localVarUrlObj),
         options: localVarRequestOptions
@@ -1849,14 +1847,14 @@ var FolderApiFp = function(configuration) {
     /**
      * 
      * @summary Dispatch a folder scan
-     * @param {StructsScanBody} request Scan parameters
+     * @param {string} folderId Folder Id
      * @param {string} [shareId] Share Id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    async scanFolder(request, shareId, options) {
+    async scanFolder(folderId, shareId, options) {
       var _a, _b, _c;
-      const localVarAxiosArgs = await localVarAxiosParamCreator.scanFolder(request, shareId, options);
+      const localVarAxiosArgs = await localVarAxiosParamCreator.scanFolder(folderId, shareId, options);
       const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
       const localVarOperationServerBasePath = (_c = (_b = operationServerMap["FolderApi.scanFolder"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
       return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -1918,13 +1916,13 @@ var FolderApiFactory = function(configuration, basePath, axios) {
     /**
      * 
      * @summary Dispatch a folder scan
-     * @param {StructsScanBody} request Scan parameters
+     * @param {string} folderId Folder Id
      * @param {string} [shareId] Share Id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    scanFolder(request, shareId, options) {
-      return localVarFp.scanFolder(request, shareId, options).then((request2) => request2(axios, basePath));
+    scanFolder(folderId, shareId, options) {
+      return localVarFp.scanFolder(folderId, shareId, options).then((request) => request(axios, basePath));
     },
     /**
      * 
@@ -1980,14 +1978,14 @@ var FolderApi = class extends BaseAPI {
   /**
    * 
    * @summary Dispatch a folder scan
-   * @param {StructsScanBody} request Scan parameters
+   * @param {string} folderId Folder Id
    * @param {string} [shareId] Share Id
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    * @memberof FolderApi
    */
-  scanFolder(request, shareId, options) {
-    return FolderApiFp(this.configuration).scanFolder(request, shareId, options).then((request2) => request2(this.axios, this.basePath));
+  scanFolder(folderId, shareId, options) {
+    return FolderApiFp(this.configuration).scanFolder(folderId, shareId, options).then((request) => request(this.axios, this.basePath));
   }
   /**
    * 

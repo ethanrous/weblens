@@ -186,6 +186,11 @@ func (tp *TaskPool) Wait(supplementWorker bool, task ...task_mod.Task) {
 
 		tp.workerPool.busyCount.Add(-1)
 		tp.workerPool.addReplacementWorker(ctx)
+
+		defer func() {
+			tp.workerPool.busyCount.Add(1)
+			tp.workerPool.removeWorker()
+		}()
 	}
 
 	tp.log.Trace().Func(func(e *zerolog.Event) {
@@ -197,7 +202,24 @@ func (tp *TaskPool) Wait(supplementWorker bool, task ...task_mod.Task) {
 		tp.log.Warn().Msg("Going to sleep on pool without allQueuedFlag set! This task pool may never wake up!")
 	}
 
+	for _, t := range task {
+		t.(*Task).SetQueueState(Sleeping)
+		t.SetResult(task_mod.TaskResult{
+			"waiting": true,
+		})
+	}
+
+	defer func() {
+		for _, t := range task {
+			t.(*Task).SetQueueState(Executing)
+			t.SetResult(task_mod.TaskResult{
+				"waiting": false,
+			})
+		}
+	}()
+
 	tp.waiterCount.Add(1)
+	defer tp.waiterCount.Add(-1)
 
 	if len(task) != 0 {
 		select {
@@ -212,17 +234,10 @@ func (tp *TaskPool) Wait(supplementWorker bool, task ...task_mod.Task) {
 		}
 	}
 
-	tp.waiterCount.Add(-1)
-
 	tp.log.Trace().Func(func(e *zerolog.Event) {
 		_, file, line, _ := runtime.Caller(2)
 		e.Msgf("Woke up, returning to %s:%d", file, line)
 	})
-
-	if supplementWorker {
-		tp.workerPool.busyCount.Add(1)
-		tp.workerPool.removeWorker()
-	}
 }
 
 func (tp *TaskPool) LockExit() {

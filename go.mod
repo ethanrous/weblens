@@ -1,10 +1,8 @@
 module github.com/ethanrous/weblens
 
-go 1.24.6
+go 1.25.0
 
 require (
-	github.com/barasher/go-exiftool v1.10.0
-	github.com/davidbyttow/govips/v2 v2.16.0
 	github.com/ethanrous/weblens/api v0.0.0-00010101000000-000000000000
 	github.com/go-chi/chi/v5 v5.2.0
 	github.com/golang-jwt/jwt/v5 v5.2.1
@@ -54,8 +52,6 @@ require (
 	github.com/xdg-go/scram v1.1.2 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
-	golang.org/x/image v0.24.0 // indirect
-	golang.org/x/net v0.34.0 // indirect
 	golang.org/x/sync v0.11.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/text v0.22.0 // indirect

@@ -50,7 +50,6 @@ docs/RestoreFilesInfo.md
 docs/ShareAPI.md
 docs/ShareInfo.md
 docs/StructsInitServerParams.md
-docs/StructsScanBody.md
 docs/StructsSetConfigParam.md
 docs/TakeoutInfo.md
 docs/TaskInfo.md
@@ -99,7 +98,6 @@ model_restore_files_body.go
 model_restore_files_info.go
 model_share_info.go
 model_structs_init_server_params.go
-model_structs_scan_body.go
 model_structs_set_config_param.go
 model_takeout_info.go
 model_task_info.go
@@ -112,5 +110,4 @@ model_user_info_archive.go
 model_weblens_error_info.go
 model_wl_response_info.go
 response.go
-test/api_config_test.go
 utils.go

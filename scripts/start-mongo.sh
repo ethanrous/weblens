@@ -40,16 +40,17 @@ ensure_repl_set() {
 }
 
 launch_mongo() {
-    if ! sudo docker image ls | grep ethrous/weblens-mongo; then
+    if ! sudo docker image ls | grep ethrous/weblens-mongo &>/dev/null; then
         ./scripts/build-mongo.bash || exit 1
     fi
 
-    if ! sudo docker ps | grep "$mongoName"; then
+    if ! sudo docker ps | grep "$mongoName" &>/dev/null; then
         echo "Starting MongoDB container [$mongoName] ..."
         sudo docker run \
-            --rm \
             -d \
+            --rm \
             --name "$mongoName" \
+            -v ./_build/log/syslog:/var/log/syslog \
             --mount type=volume,src="$mongoName",dst=/data/db \
             --publish 27018:27017 \
             --network weblens-net \

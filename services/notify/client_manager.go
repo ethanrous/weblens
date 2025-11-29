@@ -20,6 +20,7 @@ import (
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
+	context_service "github.com/ethanrous/weblens/services/context"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog"
 )
@@ -138,7 +139,7 @@ func (cm *ClientManager) DisconnectAll(ctx context.Context) {
 func (cm *ClientManager) Notify(ctx context.Context, msg ...websocket_mod.WsResponseInfo) {
 	select {
 	case <-ctx.Done():
-		log.FromContext(ctx).Trace().Msgf("Context done, not sending websocket message: %s", msg[0].EventTag)
+		log.FromContext(ctx).Error().Stack().Err(errors.WithStack(ctx.Err())).Msgf("Context done, not sending websocket message: %s", msg[0].EventTag)
 
 		return
 	default:
@@ -155,7 +156,7 @@ const flushEventTag = "flush"
 // This is useful to ensure that all pending notifications are sent before a task forces all clients to unsubscribe, etc.
 func (cm *ClientManager) Flush(ctx context.Context) {
 	if ctx.Err() != nil {
-		log.FromContext(ctx).Debug().Msg("Context is done, not flushing notifications")
+		log.FromContext(ctx).Error().Stack().Err(errors.WithStack(ctx.Err())).Msg("Context is done, not flushing notifications")
 
 		return
 	}
@@ -347,7 +348,14 @@ func (cm *ClientManager) FolderSubToTask(ctx context_mod.LoggerContext, folderId
 	}
 }
 
-func (cm *ClientManager) UnsubTask(ctx context_mod.LoggerContext, taskId string) {
+func (cm *ClientManager) UnsubTask(c context.Context, taskId string) {
+	ctx, ok := context_service.FromContext(c)
+	if !ok {
+		log.GlobalLogger().Error().Msg("Context is not a ContextZ, cannot unsubscribe from task")
+
+		return
+	}
+
 	subs := cm.GetSubscribers(ctx, websocket_mod.TaskSubscribe, taskId)
 
 	for _, s := range subs {

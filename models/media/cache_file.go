@@ -20,7 +20,7 @@ func FmtCacheFileName(mId string, quality MediaQuality, pageNum int) (string, er
 		pageNumStr = fmt.Sprintf("_%d", pageNum)
 	}
 
-	filename := fmt.Sprintf("%s-%s%s.cache", mId, quality, pageNumStr)
+	filename := fmt.Sprintf("%s-%s%s.webp", mId, quality, pageNumStr)
 
 	return filename, nil
 }

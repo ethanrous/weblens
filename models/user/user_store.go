@@ -213,7 +213,7 @@ func (u *User) Delete(ctx context.Context) (err error) {
 		return
 	}
 
-	_, err = col.DeleteOne(ctx, bson.M{"_id": u.Id})
+	_, err = col.DeleteOne(ctx, bson.M{"username": u.Username})
 	if err != nil {
 		return errors.WithStack(err)
 	}

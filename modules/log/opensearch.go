@@ -51,13 +51,17 @@ func NewOpenSearchClient(opensearchURL, username, password string) (*opensearch.
 		Index: "weblens_dev",
 		Body:  settings,
 	}
+
 	res, err := client.Do(context.Background(), newIndexReq, nil)
 	if err != nil {
 		return nil, errors.Errorf("error calling opensearch creating index: %v", err)
 	}
+
 	defer res.Body.Close()
+
 	var responseData map[string]any
-	if res.StatusCode >= 300 {
+
+	if res.StatusCode >= http.StatusBadRequest {
 		bodyBytes, err := io.ReadAll(res.Body)
 		if err != nil {
 			return nil, errors.Errorf("error reading response body: %v", err)
@@ -67,10 +71,13 @@ func NewOpenSearchClient(opensearchURL, username, password string) (*opensearch.
 		if err != nil {
 			return nil, errors.Errorf("error unmarshaling create index body: %v", err)
 		}
-		if res.StatusCode == 400 && responseData["error"].(map[string]any)["type"] == "resource_already_exists_exception" {
+
+		if res.StatusCode == http.StatusBadRequest && responseData["error"].(map[string]any)["type"] == "resource_already_exists_exception" {
 			return client, nil
 		}
+
 		fmt.Printf("REASON: %v\n", responseData)
+
 		return nil, errors.Errorf("opensearch error creating index: %s", res.String())
 	}
 

@@ -1,5 +1,5 @@
 GO_SOURCE=$(shell find . -path ./_build -prune -o -iname "*.go")
-TS_SOURCE=$(shell find ./weblens-vue/weblens-nuxt/ -iname "*.ts*")
+# TS_SOURCE=$(shell find ./weblens-vue/weblens-nuxt/ -iname "*.ts*")
 
 all: run
 
@@ -24,17 +24,17 @@ ui: $(TS_SOURCE) FORCE
 test: $(GO_SOURCE) $(TS_SOURCE)
 	./scripts/testWeblens
 
-core: FORCE
-	./scripts/start.bash
-
 dev: FORCE
-	./scripts/start.bash --dev $(ARGS)
+	./scripts/start.bash --dev --dynamic "${@:1}"
 
 dev-s: FORCE
 	./scripts/start.bash --dev --secure $(ARGS)
 
 dev\:backup: FORCE
 	./scripts/start.bash --dev -t backup
+
+dev\:static: FORCE
+	./scripts/start.bash --rebuild --dev "${@:2}"
 
 swag: FORCE
 	./scripts/swaggo

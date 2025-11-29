@@ -1263,25 +1263,6 @@ interface StructsInitServerParams {
 /**
  *
  * @export
- * @interface StructsScanBody
- */
-interface StructsScanBody {
-    /**
-     *
-     * @type {string}
-     * @memberof StructsScanBody
-     */
-    'filename'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof StructsScanBody
-     */
-    'folderId'?: string;
-}
-/**
- *
- * @export
  * @interface StructsSetConfigParam
  */
 interface StructsSetConfigParam {
@@ -2579,12 +2560,12 @@ declare const FolderApiAxiosParamCreator: (configuration?: Configuration) => {
     /**
      *
      * @summary Dispatch a folder scan
-     * @param {StructsScanBody} request Scan parameters
+     * @param {string} folderId Folder Id
      * @param {string} [shareId] Share Id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    scanFolder: (request: StructsScanBody, shareId?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    scanFolder: (folderId: string, shareId?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Set the cover image of a folder
@@ -2631,12 +2612,12 @@ declare const FolderApiFp: (configuration?: Configuration) => {
     /**
      *
      * @summary Dispatch a folder scan
-     * @param {StructsScanBody} request Scan parameters
+     * @param {string} folderId Folder Id
      * @param {string} [shareId] Share Id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    scanFolder(request: StructsScanBody, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    scanFolder(folderId: string, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TaskInfo>>;
     /**
      *
      * @summary Set the cover image of a folder
@@ -2683,12 +2664,12 @@ declare const FolderApiFactory: (configuration?: Configuration, basePath?: strin
     /**
      *
      * @summary Dispatch a folder scan
-     * @param {StructsScanBody} request Scan parameters
+     * @param {string} folderId Folder Id
      * @param {string} [shareId] Share Id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    scanFolder(request: StructsScanBody, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    scanFolder(folderId: string, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<TaskInfo>;
     /**
      *
      * @summary Set the cover image of a folder
@@ -2740,13 +2721,13 @@ declare class FolderApi extends BaseAPI {
     /**
      *
      * @summary Dispatch a folder scan
-     * @param {StructsScanBody} request Scan parameters
+     * @param {string} folderId Folder Id
      * @param {string} [shareId] Share Id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof FolderApi
      */
-    scanFolder(request: StructsScanBody, shareId?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
+    scanFolder(folderId: string, shareId?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TaskInfo, any>>;
     /**
      *
      * @summary Set the cover image of a folder
@@ -4250,4 +4231,4 @@ type WLAPI = {
 };
 declare function WeblensApiFactory(apiEndpoint: string): WLAPI;
 
-export { type AddUserParams, type ApiKeyParams, ApiKeysApi, ApiKeysApiAxiosParamCreator, ApiKeysApiFactory, ApiKeysApiFp, type BackupInfo, type Config, ConfigApi, ConfigApiAxiosParamCreator, ConfigApiFactory, ConfigApiFp, type CreateFolderBody, type FileActionInfo, type FileInfo, type FileShareParams, FilesApi, FilesApiAxiosParamCreator, FilesApiFactory, FilesApiFp, type FilesListParams, FolderApi, FolderApiAxiosParamCreator, FolderApiFactory, FolderApiFp, type FolderInfo, GetMediaImageQualityEnum, type LoginBody, MediaApi, MediaApiAxiosParamCreator, MediaApiFactory, MediaApiFp, type MediaBatchInfo, type MediaBatchParams, MediaBatchParamsSortEnum, type MediaIdsParams, type MediaInfo, type MediaTypeInfo, type MediaTypesInfo, type MoveFilesParams, type NewFileParams, type NewFilesInfo, type NewFilesParams, type NewServerParams, type NewUploadInfo, type NewUploadParams, type NewUserParams, type PasswordUpdateParams, type PermissionsInfo, type PermissionsParams, type RestoreFilesBody, type RestoreFilesInfo, ShareApi, ShareApiAxiosParamCreator, ShareApiFactory, ShareApiFp, type ShareInfo, type StructsInitServerParams, type StructsScanBody, type StructsSetConfigParam, type TakeoutInfo, type TaskInfo, TaskTaskExitStatus, type TokenInfo, type TowerInfo, TowersApi, TowersApiAxiosParamCreator, TowersApiFactory, TowersApiFp, type UpdateFileParams, type UserInfo, type UserInfoArchive, UsersApi, UsersApiAxiosParamCreator, UsersApiFactory, UsersApiFp, type WLAPI, type WLResponseInfo, WeblensApiFactory, type WeblensErrorInfo };
+export { type AddUserParams, type ApiKeyParams, ApiKeysApi, ApiKeysApiAxiosParamCreator, ApiKeysApiFactory, ApiKeysApiFp, type BackupInfo, type Config, ConfigApi, ConfigApiAxiosParamCreator, ConfigApiFactory, ConfigApiFp, type CreateFolderBody, type FileActionInfo, type FileInfo, type FileShareParams, FilesApi, FilesApiAxiosParamCreator, FilesApiFactory, FilesApiFp, type FilesListParams, FolderApi, FolderApiAxiosParamCreator, FolderApiFactory, FolderApiFp, type FolderInfo, GetMediaImageQualityEnum, type LoginBody, MediaApi, MediaApiAxiosParamCreator, MediaApiFactory, MediaApiFp, type MediaBatchInfo, type MediaBatchParams, MediaBatchParamsSortEnum, type MediaIdsParams, type MediaInfo, type MediaTypeInfo, type MediaTypesInfo, type MoveFilesParams, type NewFileParams, type NewFilesInfo, type NewFilesParams, type NewServerParams, type NewUploadInfo, type NewUploadParams, type NewUserParams, type PasswordUpdateParams, type PermissionsInfo, type PermissionsParams, type RestoreFilesBody, type RestoreFilesInfo, ShareApi, ShareApiAxiosParamCreator, ShareApiFactory, ShareApiFp, type ShareInfo, type StructsInitServerParams, type StructsSetConfigParam, type TakeoutInfo, type TaskInfo, TaskTaskExitStatus, type TokenInfo, type TowerInfo, TowersApi, TowersApiAxiosParamCreator, TowersApiFactory, TowersApiFp, type UpdateFileParams, type UserInfo, type UserInfoArchive, UsersApi, UsersApiAxiosParamCreator, UsersApiFactory, UsersApiFp, type WLAPI, type WLResponseInfo, WeblensApiFactory, type WeblensErrorInfo };

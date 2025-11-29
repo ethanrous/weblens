@@ -2,7 +2,6 @@ package tower
 
 import (
 	"net/http"
-	"slices"
 
 	"github.com/ethanrous/weblens/models/config"
 	"github.com/ethanrous/weblens/models/task"
@@ -31,8 +30,8 @@ import (
 func GetRunningTasks(ctx context.RequestContext) {
 	tasksIter := ctx.TaskService.GetTasks()
 
-	tasks := slices_mod.Filter(slices.Collect(tasksIter), func(t *task.Task) bool {
-		return t.QueueState() == task.Executing
+	tasks := slices_mod.Filter(tasksIter, func(t *task.Task) bool {
+		return t.QueueState() != task.Exited
 	})
 
 	taskInfos := reshape.TasksToTaskInfos(tasks)

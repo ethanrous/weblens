@@ -16,6 +16,7 @@ import (
 )
 
 type Task struct {
+	QueueTime  time.Time
 	StartTime  time.Time
 	FinishTime time.Time
 
@@ -48,7 +49,7 @@ type Task struct {
 	cleanups []task_mod.CleanupFunc
 
 	// Function to be run to clean up if the task errors
-	errorCleanup []task_mod.CleanupFunc
+	errorCleanups []task_mod.CleanupFunc
 
 	updateMu sync.RWMutex
 
@@ -70,6 +71,7 @@ const (
 	Created QueueState = iota
 	InQueue
 	Executing
+	Sleeping
 	Exited
 )
 
@@ -93,6 +95,20 @@ func (t *Task) GetTaskPool() task_mod.Pool {
 	defer t.updateMu.RUnlock()
 
 	return t.taskPool
+}
+
+func (t *Task) GetWorkerId() int {
+	t.updateMu.RLock()
+	defer t.updateMu.RUnlock()
+
+	return int(t.WorkerId)
+}
+
+func (t *Task) setWorkerId(workerId int64) {
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
+
+	t.WorkerId = workerId
 }
 
 func (t *Task) setTaskPoolInternal(pool *TaskPool) {
@@ -313,7 +329,7 @@ func (t *Task) SetPostAction(action func(task_mod.TaskResult)) {
 func (t *Task) SetErrorCleanup(cleanup task_mod.CleanupFunc) {
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
-	t.errorCleanup = append(t.errorCleanup, cleanup)
+	t.errorCleanups = append(t.errorCleanups, cleanup)
 }
 
 // SetCleanup takes a function to be run after the task has completed, no matter the exit status.
@@ -434,6 +450,23 @@ func (t *Task) ExeTime() time.Duration {
 	}
 
 	return t.FinishTime.Sub(t.StartTime)
+}
+
+func (t *Task) QueueTimeDuration() time.Duration {
+	t.updateMu.RLock()
+	defer t.updateMu.RUnlock()
+
+	if t.StartTime.IsZero() {
+		return time.Since(t.QueueTime)
+	}
+
+	return t.StartTime.Sub(t.QueueTime)
+}
+
+func (t *Task) SetQueueTime(qt time.Time) {
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
+	t.QueueTime = qt
 }
 
 func globbyHash(charLimit int, dataToHash ...any) string {

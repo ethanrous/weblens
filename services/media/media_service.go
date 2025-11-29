@@ -5,17 +5,14 @@ import (
 	"mime"
 	"strconv"
 
-	"github.com/barasher/go-exiftool"
-	"github.com/davidbyttow/govips/v2/vips"
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/startup"
 	context_service "github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/services/media/agno"
 )
-
-var exifd *exiftool.Exiftool
 
 type cacheKey string
 
@@ -31,8 +28,6 @@ const (
 
 	HighresMaxSize = 2500
 	ThumbMaxSize   = 500
-
-	exifToolByfferSize = 100_000 // 100 KB
 )
 
 var extraMimes = []struct{ ext, mime string }{
@@ -44,7 +39,7 @@ func init() {
 	startup.RegisterStartup(mediaServiceStartup)
 }
 
-func mediaServiceStartup(context.Context, config.ConfigProvider) error {
+func mediaServiceStartup(ctx context.Context, cnf config.ConfigProvider) error {
 	for _, em := range extraMimes {
 		err := mime.AddExtensionType(em.ext, em.mime)
 
@@ -52,19 +47,6 @@ func mediaServiceStartup(context.Context, config.ConfigProvider) error {
 			return err
 		}
 	}
-
-	var err error
-	exifd, err = exiftool.NewExiftool(
-		exiftool.Api("largefilesupport"),
-		exiftool.Buffer([]byte{}, exifToolByfferSize),
-	)
-
-	if err != nil {
-		panic(err)
-	}
-
-	vips.LoggingSettings(nil, vips.LogLevelWarning)
-	vips.Startup(&vips.Config{})
 
 	return nil
 }
@@ -90,10 +72,13 @@ func GetConverted(ctx context.Context, m *media_model.Media, format media_model.
 		return nil, err
 	}
 
-	bs, _, err := img.ExportJpeg(&vips.JpegExportParams{})
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
+	// TODO: support agno
+	err = agno.WriteWebp("", img)
+	bs := []byte{}
+	// bs, err := img.JpegsaveBuffer(nil)
+	// if err != nil {
+	// 	return nil, errors.WithStack(err)
+	// }
 
 	log.FromContext(ctx).Debug().Msgf("Exported %s to jpeg", m.ID())
 
