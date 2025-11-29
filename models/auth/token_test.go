@@ -131,7 +131,6 @@ func TestGetTokenById(t *testing.T) {
 		ctx = context.WithValue(ctx, "towerId", "towerId")
 		token, err := GetTokenById(ctx, primitive.NewObjectID())
 
-		assert.Error(t, err)
 		assert.Nil(t, token)
 		assert.Equal(t, ErrTokenNotFound, err)
 	})

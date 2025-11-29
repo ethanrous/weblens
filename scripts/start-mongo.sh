@@ -47,10 +47,6 @@ launch_mongo() {
     if ! sudo docker ps | grep "$mongoName" &>/dev/null; then
         echo "Starting MongoDB container [$mongoName] ..."
 
-        sudo docker network create weblens-net
-        echo "Available docker networks:"
-        sudo docker network ls
-
         sudo docker run \
             -d \
             --rm \

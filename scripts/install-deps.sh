@@ -60,6 +60,7 @@ if [[ $buildDeps == true ]]; then
         musl \
         musl-dev \
         npm \
+        pnpm \
         pkgconfig \
         tiff-dev \
         rustup

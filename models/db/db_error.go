@@ -28,6 +28,8 @@ func WrapError(err error, format string, a ...any) error {
 	}
 }
 
+var _ error = &NotFoundError{}
+
 // NotFoundError represents a generic "not found" error in the database.
 type NotFoundError struct {
 	// Message provides additional context about the error.

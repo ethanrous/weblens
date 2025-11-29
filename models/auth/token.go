@@ -9,7 +9,6 @@ import (
 	"github.com/ethanrous/weblens/modules/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 const TokenCollectionKey = "tokens"
@@ -111,7 +110,7 @@ func GetTokenById(ctx context.Context, tokenId primitive.ObjectID) (token *Token
 	}
 
 	token, err = col.FindOneAs(ctx, bson.M{"_id": tokenId})
-	if errors.Is(err, mongo.ErrNoDocuments) {
+	if db.IsNotFound(err) {
 		return nil, ErrTokenNotFound
 	}
 

@@ -1,32 +1,32 @@
 #!/bin/bash
-set -o pipefail
+set -euo pipefail
 
 usage="Usage: $0 [-n|--native [package_target]]"
 
 run_native_tests() {
-    cd /src || exit 1
+    cd /src
 
-    cd ./weblens-vue/weblens-nuxt || exit 1
-    echo "Installing ui dependencies..."
-    pnpm install
+    pushd ./weblens-vue/weblens-nuxt
+    echo "Installing UI Dependencies..."
+    pnpm install >/dev/null 2>&1
 
     echo "Building UI..."
-    pnpm run generate || exit 1
+    pnpm run generate >/dev/null 2>&1
 
-    cd ../.. || exit 1
+    popd >/dev/null
 
     target="${1:-./...}" # Default to ./... if no target specified
 
     # Go is very picky about whitespace, so we need to strip it out
     target=$(awk '{$1=$1};1' <<<"$target")
 
-    echo "Running native tests for package: $target"
-
     touch /tmp/weblens.env
     export WEBLENS_ENV_PATH=/tmp/weblens.env
     export WEBLENS_DO_CACHE=false
 
-    /usr/local/go/bin/go test -v -cover -race -coverprofile=/cover/coverage.out "$target" | grep -v -e "=== RUN" -e "=== PAUSE" -e "--- PASS"
+    echo "Running tests with target: $target"
+    # /usr/local/go/bin/go test -v -cover -race -coverprofile=/cover/coverage.out "$target" | grep -v -e "=== RUN" -e "=== PAUSE" -e "--- PASS"
+    go test -v -race "$target"
     exit $?
 }
 
@@ -54,19 +54,12 @@ while [ "${1:-}" != "" ]; do
     shift
 done
 
-arch=$(uname -m)
+sudo docker network create weblens-net >/dev/null 2>&1 || true
+sudo docker volume rm weblens-test-mongo >/dev/null 2>&1 || true
 
-sudo docker network create weblens-net >/dev/null 2>&1
-sudo docker volume rm weblens-test-mongo >/dev/null 2>&1
-
-sudo docker stop weblens-test-mongo >/dev/null 2>&1
-sudo docker rm weblens-test-mongo >/dev/null 2>&1
-./scripts/start-mongo.sh "weblens-test-mongo" || exit 1
-
-# if ! docker build -t ethrous/weblens-test --build-arg ARCHITECTURE="$arch" --file ./docker/AlpineTester.Dockerfile .; then
-#     echo "Failed to build Docker image, exiting..."
-#     exit 1
-# fi
+sudo docker stop weblens-test-mongo >/dev/null 2>&1 || true
+sudo docker rm weblens-test-mongo >/dev/null 2>&1 || true
+./scripts/start-mongo.sh "weblens-test-mongo"
 
 rm -rf ./_build/fs/test-container
 
