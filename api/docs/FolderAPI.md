@@ -7,7 +7,7 @@ Method | HTTP request | Description
 [**CreateFolder**](FolderAPI.md#CreateFolder) | **Post** /folder | Create a new folder
 [**GetFolder**](FolderAPI.md#GetFolder) | **Get** /folder/{folderId} | Get a folder
 [**GetFolderHistory**](FolderAPI.md#GetFolderHistory) | **Get** /files/{fileId}/history | Get actions of a folder at a given time
-[**ScanFolder**](FolderAPI.md#ScanFolder) | **Post** /folder/scan | Dispatch a folder scan
+[**ScanFolder**](FolderAPI.md#ScanFolder) | **Post** /folder/{folderId}/scan | Dispatch a folder scan
 [**SetFolderCover**](FolderAPI.md#SetFolderCover) | **Patch** /folder/{folderId}/cover | Set the cover image of a folder
 
 
@@ -222,7 +222,7 @@ No authorization required
 
 ## ScanFolder
 
-> ScanFolder(ctx).Request(request).ShareId(shareId).Execute()
+> TaskInfo ScanFolder(ctx, folderId).ShareId(shareId).Execute()
 
 Dispatch a folder scan
 
@@ -239,22 +239,28 @@ import (
 )
 
 func main() {
-	request := *openapiclient.NewStructsScanBody() // StructsScanBody | Scan parameters
+	folderId := "folderId_example" // string | Folder Id
 	shareId := "shareId_example" // string | Share Id (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	r, err := apiClient.FolderAPI.ScanFolder(context.Background()).Request(request).ShareId(shareId).Execute()
+	resp, r, err := apiClient.FolderAPI.ScanFolder(context.Background(), folderId).ShareId(shareId).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FolderAPI.ScanFolder``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
+	// response from `ScanFolder`: TaskInfo
+	fmt.Fprintf(os.Stdout, "Response from `FolderAPI.ScanFolder`: %v\n", resp)
 }
 ```
 
 ### Path Parameters
 
 
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+**ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
+**folderId** | **string** | Folder Id | 
 
 ### Other Parameters
 
@@ -263,12 +269,12 @@ Other parameters are passed through a pointer to a apiScanFolderRequest struct v
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **request** | [**StructsScanBody**](StructsScanBody.md) | Scan parameters | 
+
  **shareId** | **string** | Share Id | 
 
 ### Return type
 
- (empty response body)
+[**TaskInfo**](TaskInfo.md)
 
 ### Authorization
 
@@ -277,7 +283,7 @@ No authorization required
 ### HTTP request headers
 
 - **Content-Type**: Not defined
-- **Accept**: Not defined
+- **Accept**: */*
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
 [[Back to Model list]](../README.md#documentation-for-models)

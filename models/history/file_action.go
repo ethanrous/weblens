@@ -230,7 +230,7 @@ func missingContentId(ctx context.Context, action *FileAction) error {
 // SaveAction saves a FileAction to the database.
 // It returns an error if the operation fails.
 func SaveAction(ctx context.Context, action *FileAction) error {
-	col, err := db.GetCollection(ctx, FileActionCollectionKey)
+	col, err := db.GetCollection[any](ctx, FileActionCollectionKey)
 	if err != nil {
 		return err
 	}
@@ -260,7 +260,7 @@ func SaveActions(ctx context.Context, actions []FileAction) error {
 		return nil
 	}
 
-	col, err := db.GetCollection(ctx, FileActionCollectionKey)
+	col, err := db.GetCollection[any](ctx, FileActionCollectionKey)
 	if err != nil {
 		return err
 	}
@@ -303,7 +303,7 @@ func ActionSorter(a, b FileAction) int {
 // GetLatestAction retrieves the latest FileAction from the database.
 // It returns the latest FileAction and an error if the operation fails.
 func GetLatestAction(ctx context_mod.DatabaseContext) (*FileAction, error) {
-	col, err := db.GetCollection(ctx, FileActionCollectionKey)
+	col, err := db.GetCollection[any](ctx, FileActionCollectionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -331,7 +331,7 @@ func GetLatestAction(ctx context_mod.DatabaseContext) (*FileAction, error) {
 //   - A slice of FileActions associated with the specified towerId.
 //   - An error if the operation fails.
 func GetActionsByTowerId(ctx context_mod.DatabaseContext, towerId string) ([]*FileAction, error) {
-	col, err := db.GetCollection(ctx, FileActionCollectionKey)
+	col, err := db.GetCollection[any](ctx, FileActionCollectionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -356,7 +356,7 @@ func GetActionsByTowerId(ctx context_mod.DatabaseContext, towerId string) ([]*Fi
 }
 
 func GetActionAtFilepath(ctx context.Context, filepath fs.Filepath) (*FileAction, error) {
-	col, err := db.GetCollection(ctx, FileActionCollectionKey)
+	col, err := db.GetCollection[any](ctx, FileActionCollectionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -373,7 +373,7 @@ func GetActionAtFilepath(ctx context.Context, filepath fs.Filepath) (*FileAction
 }
 
 func GetLastActionByFileIdBefore(ctx context.Context, fileId string, ts time.Time) (action FileAction, err error) {
-	col, err := db.GetCollection(ctx, FileActionCollectionKey)
+	col, err := db.GetCollection[any](ctx, FileActionCollectionKey)
 	if err != nil {
 		return
 	}
@@ -393,7 +393,7 @@ func UpdateAction(ctx context.Context, action *FileAction) error {
 		return errors.New("cannot update action with zero ID")
 	}
 
-	col, err := db.GetCollection(ctx, FileActionCollectionKey)
+	col, err := db.GetCollection[any](ctx, FileActionCollectionKey)
 	if err != nil {
 		return err
 	}
@@ -409,7 +409,7 @@ func UpdateAction(ctx context.Context, action *FileAction) error {
 }
 
 func GetActionsAfter(ctx context.Context, timestamp time.Time) ([]FileAction, error) {
-	col, err := db.GetCollection(ctx, FileActionCollectionKey)
+	col, err := db.GetCollection[any](ctx, FileActionCollectionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -432,7 +432,7 @@ func GetActionsAfter(ctx context.Context, timestamp time.Time) ([]FileAction, er
 }
 
 func GetActionsAtPathBefore(ctx context.Context, path fs.Filepath, timestamp time.Time, includeChildren bool) ([]FileAction, error) {
-	col, err := db.GetCollection(ctx, FileActionCollectionKey)
+	col, err := db.GetCollection[any](ctx, FileActionCollectionKey)
 	if err != nil {
 		return nil, err
 	}

@@ -32,7 +32,7 @@ func SaveUser(ctx context.Context, u *User) (err error) {
 		u.Id = primitive.NewObjectID()
 	}
 
-	if col, dberr := db.GetCollection(ctx, UserCollectionKey); dberr == nil {
+	if col, dberr := db.GetCollection[any](ctx, UserCollectionKey); dberr == nil {
 		_, err = col.InsertOne(ctx, u)
 	} else {
 		return dberr
@@ -42,7 +42,7 @@ func SaveUser(ctx context.Context, u *User) (err error) {
 }
 
 func GetUserByUsername(ctx context.Context, username string) (u *User, err error) {
-	col, err := db.GetCollection(ctx, UserCollectionKey)
+	col, err := db.GetCollection[any](ctx, UserCollectionKey)
 	if err != nil {
 		return
 	}
@@ -59,7 +59,7 @@ func GetUserByUsername(ctx context.Context, username string) (u *User, err error
 }
 
 func DoesUserExist(ctx context.Context, username string) (bool, error) {
-	col, err := db.GetCollection(ctx, UserCollectionKey)
+	col, err := db.GetCollection[any](ctx, UserCollectionKey)
 	if err != nil {
 		return false, err
 	}
@@ -75,7 +75,7 @@ func DoesUserExist(ctx context.Context, username string) (bool, error) {
 }
 
 func GetAllUsers(ctx context.Context) (us []*User, err error) {
-	col, err := db.GetCollection(ctx, UserCollectionKey)
+	col, err := db.GetCollection[any](ctx, UserCollectionKey)
 	if err != nil {
 		return
 	}
@@ -91,7 +91,7 @@ func GetAllUsers(ctx context.Context) (us []*User, err error) {
 }
 
 func GetServerOwner(ctx context.Context) (u *User, err error) {
-	col, err := db.GetCollection(ctx, UserCollectionKey)
+	col, err := db.GetCollection[any](ctx, UserCollectionKey)
 	if err != nil {
 		return
 	}
@@ -100,6 +100,7 @@ func GetServerOwner(ctx context.Context) (u *User, err error) {
 
 	// Find all users with Owner permissions
 	filter := bson.M{"userPerms": UserPermissionOwner}
+
 	err = col.FindOne(ctx, filter).Decode(u)
 	if err != nil {
 		return nil, db.WrapError(err, "failed to get server owner")
@@ -117,7 +118,7 @@ func (u *User) UpdatePassword(ctx context.Context, newPass string) (err error) {
 		return err
 	}
 
-	col, err := db.GetCollection(ctx, UserCollectionKey)
+	col, err := db.GetCollection[any](ctx, UserCollectionKey)
 	if err != nil {
 		return
 	}
@@ -131,7 +132,7 @@ func (u *User) UpdatePassword(ctx context.Context, newPass string) (err error) {
 }
 
 func (u *User) UpdatePermissionLevel(ctx context.Context, newPermissionLevel UserPermissions) (err error) {
-	col, err := db.GetCollection(ctx, UserCollectionKey)
+	col, err := db.GetCollection[any](ctx, UserCollectionKey)
 	if err != nil {
 		return
 	}
@@ -145,7 +146,7 @@ func (u *User) UpdatePermissionLevel(ctx context.Context, newPermissionLevel Use
 }
 
 func (u *User) UpdateHomeId(ctx context.Context, newHomeId string) (err error) {
-	col, err := db.GetCollection(ctx, UserCollectionKey)
+	col, err := db.GetCollection[any](ctx, UserCollectionKey)
 	if err != nil {
 		return
 	}
@@ -161,7 +162,7 @@ func (u *User) UpdateHomeId(ctx context.Context, newHomeId string) (err error) {
 }
 
 func (u *User) UpdateTrashId(ctx context.Context, newTrashId string) (err error) {
-	col, err := db.GetCollection(ctx, UserCollectionKey)
+	col, err := db.GetCollection[any](ctx, UserCollectionKey)
 	if err != nil {
 		return
 	}
@@ -177,7 +178,7 @@ func (u *User) UpdateTrashId(ctx context.Context, newTrashId string) (err error)
 }
 
 func (u *User) UpdateActivationStatus(ctx context.Context, active bool) (err error) {
-	col, err := db.GetCollection(ctx, UserCollectionKey)
+	col, err := db.GetCollection[any](ctx, UserCollectionKey)
 	if err != nil {
 		return
 	}
@@ -191,7 +192,7 @@ func (u *User) UpdateActivationStatus(ctx context.Context, active bool) (err err
 }
 
 func (u *User) UpdateDisplayName(ctx context.Context, newName string) (err error) {
-	col, err := db.GetCollection(ctx, UserCollectionKey)
+	col, err := db.GetCollection[any](ctx, UserCollectionKey)
 	if err != nil {
 		return
 	}
@@ -201,16 +202,18 @@ func (u *User) UpdateDisplayName(ctx context.Context, newName string) (err error
 		return errors.WithStack(err)
 	}
 
+	u.DisplayName = newName
+
 	return
 }
 
 func (u *User) Delete(ctx context.Context) (err error) {
-	col, err := db.GetCollection(ctx, UserCollectionKey)
+	col, err := db.GetCollection[any](ctx, UserCollectionKey)
 	if err != nil {
 		return
 	}
 
-	_, err = col.DeleteOne(ctx, bson.M{"_id": u.Id})
+	_, err = col.DeleteOne(ctx, bson.M{"username": u.Username})
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -219,7 +222,7 @@ func (u *User) Delete(ctx context.Context) (err error) {
 }
 
 func SearchByUsername(ctx context.Context, partialUsername string) ([]*User, error) {
-	col, err := db.GetCollection(ctx, UserCollectionKey)
+	col, err := db.GetCollection[any](ctx, UserCollectionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +243,7 @@ func SearchByUsername(ctx context.Context, partialUsername string) ([]*User, err
 }
 
 func DeleteAllUsers(ctx context.Context) (err error) {
-	col, err := db.GetCollection(ctx, UserCollectionKey)
+	col, err := db.GetCollection[any](ctx, UserCollectionKey)
 	if err != nil {
 		return
 	}

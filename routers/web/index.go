@@ -12,8 +12,9 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const apiBasePath = "/api/v1"
+
 func getIndexFields(ctx context.RequestContext, proxyAddress string) (fields indexFields) {
-	hasImage := false
 	path := ctx.Req.URL.Path
 
 	if path[0] == '/' {
@@ -67,27 +68,39 @@ func getIndexFields(ctx context.RequestContext, proxyAddress string) (fields ind
 				if err == nil {
 					m, _ = media_model.GetMediaByContentId(ctx, cover.CoverPhotoId)
 				} else {
-					hasImage = true
 					fields.Image = "/static/folder.png"
 				}
 			} else {
 				m, _ = media_model.GetMediaByContentId(ctx, f.GetContentId())
 			}
 
-			if m != nil && !hasImage {
-				hasImage = true
-				fields.Image = fmt.Sprintf("/api/v1/media/%s.webp?quality=thumbnail&shareId=%s", m.ContentID, share.ID().Hex())
+			if m != nil && fields.Image == "" {
+				fields.Image = fmt.Sprintf("%s/media/%s.webp?quality=thumbnail&shareId=%s", apiBasePath, m.ContentID, share.ID().Hex())
 			}
 		}
+	} else if strings.HasPrefix(path, "media/") {
+		handleMediaPage(ctx, path[len("media/"):], &fields)
 	}
 
-	if !hasImage {
-		fields.Image = "/static/logo_1200.png"
+	if fields.Image == "" {
+		fields.Image = "/static/favicon_48x48.png"
 	}
 
 	return fields
 }
 
-// func getImageUrl() string {
-// 	return "/logo_1200.png"
-// }
+func handleMediaPage(ctx context.RequestContext, mediaId string, fields *indexFields) {
+	m, err := media_model.GetMediaByContentId(ctx, mediaId)
+	if err != nil {
+		log.Error().Stack().Err(err).Msg("")
+
+		return
+	}
+
+	if m == nil {
+		return
+	}
+
+	fields.Description = "Weblens Media"
+	fields.Image = fmt.Sprintf("%s/media/%s.webp?quality=thumbnail", apiBasePath, m.ContentID)
+}

@@ -1,7 +1,7 @@
 ARG ARCHITECTURE
 
 ARG NODE_VERSION=22.14.0
-ARG GO_VERSION=1.24
+ARG GO_VERSION=1.25.0
 
 # Build UI
 FROM node:${NODE_VERSION}-alpine AS web
@@ -9,28 +9,35 @@ FROM node:${NODE_VERSION}-alpine AS web
 COPY weblens-vue /src
 WORKDIR /src/weblens-nuxt
 
-RUN npm install -g pnpm
-RUN pnpm install 
-RUN pnpm generate
+RUN npm install -g pnpm;
+RUN pnpm install;
+RUN pnpm generate;
 
 # Build server binary
 FROM --platform=linux/${ARCHITECTURE} golang:${GO_VERSION}-alpine AS backend
 
 ## Install dependencies
 COPY scripts/install-deps.sh /tmp/install-deps.sh
-RUN chmod +x /tmp/install-deps.sh
-RUN /tmp/install-deps.sh -b
+RUN chmod +x /tmp/install-deps.sh;
+RUN /tmp/install-deps.sh -b -a;
 
 WORKDIR /src
 COPY . .
+
+WORKDIR /src/agno
+RUN source "$HOME/.cargo/env"; cargo build --release --target x86_64-unknown-linux-musl;
+## Copy agno binary to local library
+RUN mkdir -p /agno/lib; cp /src/agno/target/x86_64-unknown-linux-musl/release/libagno.a /agno/lib/libagno.a; cp /src/agno/lib/agno.h /agno/lib/agno.h;
+
+WORKDIR /src
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=1 CGO_CFLAGS_ALLOW='-Xpreprocessor' GOOS=linux GOARCH=${ARCHITECTURE} go build -v -ldflags="-s -w" -o /server/weblens ./cmd/weblens/main.go
 
 # Combine into final image
-FROM --platform=linux/${ARCHITECTURE} alpine:latest
+FROM --platform=linux/${ARCHITECTURE} alpine:latest AS final
 
 COPY scripts/install-deps.sh /tmp/install-deps.sh
-RUN chmod +x /tmp/install-deps.sh
-RUN /tmp/install-deps.sh --dcraw
+RUN chmod +x /tmp/install-deps.sh;
+RUN /tmp/install-deps.sh;
 
 WORKDIR /app
 

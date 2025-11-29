@@ -11,7 +11,7 @@ import (
 )
 
 func getActionsSince(ctx context.Context, date time.Time, serverId string) ([]*history.FileAction, error) {
-	col, err := db.GetCollection(ctx, history.FileHistoryCollectionKey)
+	col, err := db.GetCollection[any](ctx, history.FileHistoryCollectionKey)
 	if err != nil {
 		return nil, err
 	}

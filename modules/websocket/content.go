@@ -17,6 +17,8 @@ type WsResponseInfo struct {
 	RelaySource     string           `json:"relaySource,omitempty"`
 	SentTime        int64            `json:"sentTime,omitempty"`
 	ConstructedTime int64            `json:"constructedTime,omitempty"`
+
+	Sent chan struct{} `json:"-"`
 }
 
 // type WsRequestInfo struct {

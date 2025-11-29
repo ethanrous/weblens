@@ -378,14 +378,8 @@ func (a *FolderAPIService) GetFolderHistoryExecute(r ApiGetFolderHistoryRequest)
 type ApiScanFolderRequest struct {
 	ctx context.Context
 	ApiService *FolderAPIService
-	request *StructsScanBody
+	folderId string
 	shareId *string
-}
-
-// Scan parameters
-func (r ApiScanFolderRequest) Request(request StructsScanBody) ApiScanFolderRequest {
-	r.request = &request
-	return r
 }
 
 // Share Id
@@ -394,7 +388,7 @@ func (r ApiScanFolderRequest) ShareId(shareId string) ApiScanFolderRequest {
 	return r
 }
 
-func (r ApiScanFolderRequest) Execute() (*http.Response, error) {
+func (r ApiScanFolderRequest) Execute() (*TaskInfo, *http.Response, error) {
 	return r.ApiService.ScanFolderExecute(r)
 }
 
@@ -402,36 +396,38 @@ func (r ApiScanFolderRequest) Execute() (*http.Response, error) {
 ScanFolder Dispatch a folder scan
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param folderId Folder Id
  @return ApiScanFolderRequest
 */
-func (a *FolderAPIService) ScanFolder(ctx context.Context) ApiScanFolderRequest {
+func (a *FolderAPIService) ScanFolder(ctx context.Context, folderId string) ApiScanFolderRequest {
 	return ApiScanFolderRequest{
 		ApiService: a,
 		ctx: ctx,
+		folderId: folderId,
 	}
 }
 
 // Execute executes the request
-func (a *FolderAPIService) ScanFolderExecute(r ApiScanFolderRequest) (*http.Response, error) {
+//  @return TaskInfo
+func (a *FolderAPIService) ScanFolderExecute(r ApiScanFolderRequest) (*TaskInfo, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodPost
 		localVarPostBody     interface{}
 		formFiles            []formFile
+		localVarReturnValue  *TaskInfo
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "FolderAPIService.ScanFolder")
 	if err != nil {
-		return nil, &GenericOpenAPIError{error: err.Error()}
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/folder/scan"
+	localVarPath := localBasePath + "/folder/{folderId}/scan"
+	localVarPath = strings.Replace(localVarPath, "{"+"folderId"+"}", url.PathEscape(parameterValueToString(r.folderId, "folderId")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
-	if r.request == nil {
-		return nil, reportError("request is required and must be specified")
-	}
 
 	if r.shareId != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "shareId", r.shareId, "", "")
@@ -446,30 +442,28 @@ func (a *FolderAPIService) ScanFolderExecute(r ApiScanFolderRequest) (*http.Resp
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{}
+	localVarHTTPHeaderAccepts := []string{"*/*"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
 	if localVarHTTPHeaderAccept != "" {
 		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
 	}
-	// body params
-	localVarPostBody = r.request
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
-		return nil, err
+		return localVarReturnValue, nil, err
 	}
 
 	localVarHTTPResponse, err := a.client.callAPI(req)
 	if err != nil || localVarHTTPResponse == nil {
-		return localVarHTTPResponse, err
+		return localVarReturnValue, localVarHTTPResponse, err
 	}
 
 	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
 	localVarHTTPResponse.Body.Close()
 	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
 	if err != nil {
-		return localVarHTTPResponse, err
+		return localVarReturnValue, localVarHTTPResponse, err
 	}
 
 	if localVarHTTPResponse.StatusCode >= 300 {
@@ -477,10 +471,19 @@ func (a *FolderAPIService) ScanFolderExecute(r ApiScanFolderRequest) (*http.Resp
 			body:  localVarBody,
 			error: localVarHTTPResponse.Status,
 		}
-		return localVarHTTPResponse, newErr
+		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
 
-	return localVarHTTPResponse, nil
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
 type ApiSetFolderCoverRequest struct {

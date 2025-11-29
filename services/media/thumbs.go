@@ -1,12 +1,11 @@
 package media
 
 import (
-	"github.com/davidbyttow/govips/v2/vips"
 	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/modules/errors"
 	context_service "github.com/ethanrous/weblens/services/context"
-	"github.com/rs/zerolog"
+	"github.com/ethanrous/weblens/services/media/agno"
 )
 
 func HandleCacheCreation(ctx context_service.AppContext, m *media_model.Media, file *file_model.WeblensFileImpl) (thumbBytes []byte, err error) {
@@ -18,31 +17,32 @@ func HandleCacheCreation(ctx context_service.AppContext, m *media_model.Media, f
 			return nil, err
 		}
 
-		m.PageCount = img.Pages()
+		defer img.Free()
+
+		// m.PageCount = img.Pages()
+		m.PageCount = 1
 		// Read image dimensions
-		m.Height = img.Height()
-		m.Width = img.Width()
+		m.Width, m.Height = img.Dimensions()
+		ctx.Log().Debug().Msgf("Loaded image dimensions for %s: %dx%d (pages: %d)", file.GetPortablePath(), m.Width, m.Height, m.PageCount)
 
 		if mType.IsMultiPage() {
-			fullPdf, err := file.ReadAll()
-			if err != nil {
-				return nil, errors.WithStack(err)
-			}
+			// fullPdf, err := file.ReadAll()
+			// if err != nil {
+			// 	return nil, errors.WithStack(err)
+			// }
 
-			for page := range m.PageCount {
-				vipsPage := vips.IntParameter{}
-				vipsPage.Set(page)
+			// for page := range m.PageCount {
+			// TODO: convert to agno
+			// img, err := vips.NewImageFromBuffer(fullPdf, &vips.LoadOptions{Page: page})
+			// if err != nil {
+			// 	return nil, errors.WithStack(err)
+			// }
 
-				img, err := vips.LoadImageFromBuffer(fullPdf, &vips.ImportParams{Page: vipsPage})
-				if err != nil {
-					return nil, errors.WithStack(err)
-				}
-
-				err = handleNewHighRes(ctx, m, img, page)
-				if err != nil {
-					return nil, err
-				}
-			}
+			// err = handleNewHighRes(ctx, m, img, page)
+			// if err != nil {
+			// 	return nil, err
+			// }
+			// }
 		} else {
 			err = handleNewHighRes(ctx, m, img, 0)
 			if err != nil {
@@ -52,20 +52,14 @@ func HandleCacheCreation(ctx context_service.AppContext, m *media_model.Media, f
 
 		// Resize thumb image if too big
 		if m.Width > ThumbMaxSize || m.Height > ThumbMaxSize {
-			var thumbWidth, thumbHeight uint
+			var thumbHeight uint
 			if m.Width > m.Height {
-				thumbWidth = ThumbMaxSize
 				thumbHeight = uint(float64(ThumbMaxSize) / float64(m.Width) * float64(m.Height))
 			} else {
 				thumbHeight = ThumbMaxSize
-				thumbWidth = uint(float64(ThumbMaxSize) / float64(m.Height) * float64(m.Width))
 			}
 
-			ctx.Log().Trace().Func(func(e *zerolog.Event) {
-				e.Msgf("Resizing %s thumb image to %dx%d", file.GetPortablePath(), thumbWidth, thumbHeight)
-			})
-
-			err = img.Resize(float64(thumbHeight)/float64(m.Height), vips.KernelAuto)
+			err = img.Resize(float64(thumbHeight) / float64(m.Height))
 			if err != nil {
 				return nil, errors.WithStack(err)
 			}
@@ -76,19 +70,20 @@ func HandleCacheCreation(ctx context_service.AppContext, m *media_model.Media, f
 		if err != nil && !errors.Is(err, file_model.ErrFileAlreadyExists) {
 			return nil, errors.WithStack(err)
 		} else if err == nil {
-			blob, _, err := img.ExportWebp(nil)
-			if err != nil {
-				return nil, errors.WithStack(err)
-			}
-
-			_, err = thumb.Write(blob)
-			if err != nil {
-				return nil, errors.WithStack(err)
-			}
+			agno.WriteWebp(thumb.GetPortablePath().ToAbsolute(), img)
+			// blob, err := img.WebpsaveBuffer(nil)
+			// if err != nil {
+			// 	return nil, errors.WithStack(err)
+			// }
+			//
+			// _, err = thumb.Write(blob)
+			// if err != nil {
+			// 	return nil, errors.WithStack(err)
+			// }
 
 			m.SetLowresCacheFile(thumb)
 
-			thumbBytes = blob
+			// thumbBytes = blob
 		}
 	} else {
 		thumb, err := ctx.FileService.NewCacheFile(m.ID(), string(media_model.LowRes), 0)
@@ -112,17 +107,17 @@ func HandleCacheCreation(ctx context_service.AppContext, m *media_model.Media, f
 	return thumbBytes, nil
 }
 
-func handleNewHighRes(ctx context_service.AppContext, m *media_model.Media, img *vips.ImageRef, page int) error {
+func handleNewHighRes(ctx context_service.AppContext, m *media_model.Media, img *agno.Image, page int) error {
 	// Resize highres image if too big
 	if m.Width > HighresMaxSize || m.Height > HighresMaxSize {
 		var fullHeight int
 		if m.Width > m.Height {
-			fullHeight = HighresMaxSize * m.Height / m.Width
+			fullHeight = int(float64(HighresMaxSize) * float64(m.Height) / float64(m.Width))
 		} else {
 			fullHeight = HighresMaxSize
 		}
 
-		err := img.Resize(float64(fullHeight)/float64(m.Height), vips.KernelAuto)
+		err := img.Resize(float64(fullHeight) / float64(m.Height))
 		if err != nil {
 			return errors.WithStack(err)
 		}
@@ -133,17 +128,21 @@ func handleNewHighRes(ctx context_service.AppContext, m *media_model.Media, img 
 	if err != nil && !errors.Is(err, file_model.ErrFileAlreadyExists) {
 		return err
 	} else if err == nil {
-		params := &vips.WebpExportParams{NearLossless: true, Quality: 100}
+		// params := &vips.WebpsaveBufferOptions{NearLossless: true, Q: 100}
 
-		blob, _, err := img.ExportWebp(params)
-		if err != nil {
-			return errors.WithStack(err)
-		}
-
-		_, err = highres.Write(blob)
+		err = agno.WriteWebp(highres.GetPortablePath().ToAbsolute(), img)
 		if err != nil {
 			return err
 		}
+		// blob, err := img.WebpsaveBuffer(nil)
+		// if err != nil {
+		// 	return errors.WithStack(err)
+		// }
+		//
+		// _, err = highres.Write(blob)
+		// if err != nil {
+		// 	return err
+		// }
 
 		m.SetHighresCacheFiles(highres, page)
 	}

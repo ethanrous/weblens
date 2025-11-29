@@ -177,7 +177,7 @@ func GetPastFolderChildren(folder *file_model.WeblensFileImpl, time time.Time) (
 }
 
 func GetActionsByPathSince(ctx context.Context, path fs.Filepath, since time.Time, noChildren bool) ([]history.FileAction, error) {
-	col, err := db.GetCollection(ctx, history.FileHistoryCollectionKey)
+	col, err := db.GetCollection[any](ctx, history.FileHistoryCollectionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +222,7 @@ func GetActionsSince(ctx context.Context, time time.Time) ([]*history.FileAction
 }
 
 func GetAllActionsByTowerId(ctx context.Context, towerId string) ([]*history.FileAction, error) {
-	col, err := db.GetCollection(ctx, history.FileHistoryCollectionKey)
+	col, err := db.GetCollection[any](ctx, history.FileHistoryCollectionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +250,7 @@ func GetAllActionsByTowerId(ctx context.Context, towerId string) ([]*history.Fil
 }
 
 func GetLatestPathById(ctx context.Context, fileId string) (fs.Filepath, error) {
-	col, err := db.GetCollection(ctx, history.FileHistoryCollectionKey)
+	col, err := db.GetCollection[any](ctx, history.FileHistoryCollectionKey)
 	if err != nil {
 		return fs.Filepath{}, err
 	}
@@ -289,34 +289,91 @@ func GetLatestPathById(ctx context.Context, fileId string) (fs.Filepath, error) 
 }
 
 func GetLifetimesByTowerId(ctx context.Context, towerId string, opts ...GetLifetimesOptions) ([]history.FileLifetime, error) {
-	col, err := db.GetCollection(ctx, history.FileActionCollectionKey)
+	col, err := db.GetCollection[any](ctx, history.FileActionCollectionKey)
 	if err != nil {
 		return nil, err
 	}
 
 	o := compileLifetimeOpts(opts...)
 
-	activeFilter := bson.M{}
-	if o.ActiveOnly {
-		activeFilter = bson.M{"$match": bson.M{"actionType": bson.M{"$ne": "fileDelete"}}}
-	}
-
-	pathFilter := bson.M{}
-	if !o.PathPrefix.IsZero() {
-		pathFilter = bson.M{"$match": pathPrefixReFilter(o.PathPrefix, o.Depth)}
-	}
-
 	pipe := bson.A{
-		bson.M{"$match": bson.M{"towerId": towerId}},
-		pathFilter,
-		bson.M{
-			"$group": bson.M{
-				"_id":     "$fileId",
-				"actions": bson.M{"$push": "$$ROOT"},
+		bson.D{
+			{Key: "$match", Value: bson.D{
+				{Key: "towerId", Value: towerId},
+				{Key: "$or", Value: pathPrefixReFilter(o.PathPrefix, o.Depth)["$or"]},
+			},
 			},
 		},
-		activeFilter,
-		bson.M{"$sort": bson.M{"timestamp": 1}},
+	}
+
+	fileIdGroup := bson.D{
+		{Key: "$group", Value: bson.D{
+			{Key: "_id", Value: "$fileId"},
+			{Key: "actions", Value: bson.D{{Key: "$push", Value: "$$ROOT"}}},
+		},
+		},
+	}
+
+	if o.ActiveOnly {
+		pipe = append(pipe,
+			bson.D{{Key: "$sort", Value: bson.D{{Key: "timestamp", Value: 1}}}},
+			fileIdGroup,
+			bson.D{{Key: "$match", Value: bson.D{{Key: "actions", Value: bson.D{{Key: "$not", Value: bson.D{{Key: "$elemMatch", Value: bson.D{{Key: "actionType", Value: "fileDelete"}}}}}}}}}},
+			bson.D{
+				{Key: "$addFields", Value: bson.D{
+					{Key: "fileCreateAction", Value: bson.D{
+						{Key: "$first", Value: bson.D{
+							{Key: "$filter", Value: bson.D{
+								{Key: "input", Value: "$actions"},
+								{Key: "as", Value: "a"},
+								{Key: "cond", Value: bson.D{
+									{Key: "$eq", Value: bson.A{
+										"$$a.actionType",
+										"fileCreate",
+									},
+									},
+								},
+								},
+							},
+							},
+						},
+						},
+					},
+					},
+				},
+				},
+			},
+			bson.D{
+				{Key: "$project", Value: bson.D{
+					{Key: "originalGroupId", Value: "$_id"},
+					{Key: "actions", Value: 1},
+					{Key: "fileCreateAction", Value: 1},
+					{Key: "fileCreateTimestamp", Value: "$fileCreateAction.timestamp"},
+					{Key: "fileCreateFilepath", Value: "$fileCreateAction.filepath"},
+				},
+				},
+			},
+			bson.D{{Key: "$sort", Value: bson.D{{Key: "fileCreateAction.timestamp", Value: -1}}}},
+			bson.D{
+				{Key: "$group", Value: bson.D{
+					{Key: "_id", Value: "$fileCreateAction.filepath"},
+					{Key: "doc", Value: bson.D{{Key: "$first", Value: "$$ROOT"}}},
+				},
+				},
+			},
+			bson.D{{Key: "$replaceRoot", Value: bson.D{{Key: "newRoot", Value: "$doc"}}}},
+			bson.D{
+				{Key: "$project", Value: bson.D{
+					{Key: "originalGroupId", Value: 0},
+					{Key: "fileCreateAction", Value: 0},
+					{Key: "fileCreateTimestamp", Value: 0},
+					{Key: "fileCreateFilepath", Value: 0},
+				},
+				},
+			},
+		)
+	} else {
+		pipe = append(pipe, fileIdGroup)
 	}
 
 	cur, err := col.Aggregate(ctx, pipe)
@@ -335,7 +392,7 @@ func GetLifetimesByTowerId(ctx context.Context, towerId string, opts ...GetLifet
 }
 
 // func getActionsByPath(ctx context.Context, path fs.Filepath, noChildren bool) ([]*history.FileAction, error) {
-// 	col, err := db.GetCollection(ctx, history.FileHistoryCollectionKey)
+// 	col, err := db.GetCollection[any](ctx, history.FileHistoryCollectionKey)
 // 	if err != nil {
 // 		return nil, err
 // 	}

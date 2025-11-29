@@ -512,61 +512,6 @@ func SetFolderCover(ctx context_service.RequestContext) {
 	ctx.Status(http.StatusOK)
 }
 
-// ScanFolder godoc
-//
-//	@ID	ScanFolder
-//
-//	@Security
-//	@Security	SessionAuth
-//
-//	@Summary	Dispatch a folder scan
-//	@Tags		Folder
-//	@Param		shareId	query	string				false	"Share Id"
-//	@Param		request	body	structs.ScanBody	true	"Scan parameters"
-//	@Success	200
-//	@Failure	404
-//	@Failure	500
-//	@Router		/folder/scan [post]
-func ScanDir(ctx context_service.RequestContext) {
-	// sh, err := getShareFromCtx[*models.FileShare](ctx.Req)
-	// if err != nil {
-	// 	return
-	// }
-	//
-	// body, err := io.ReadAll(r.Body)
-	// if err != nil {
-	// 	w.WriteHeader(http.StatusInternalServerError)
-	// 	return
-	// }
-	// var scanInfo structs.ScanBody
-	// err = json.Unmarshal(body, &scanInfo)
-	// if err != nil {
-	// 	log.Error().Stack().Err(err).Msg("")
-	// 	w.WriteHeader(http.StatusInternalServerError)
-	// 	return
-	// }
-	//
-	// dir, err := ctx.FileService.GetFileSafe(scanInfo.FolderId, u, sh)
-	// if err != nil {
-	// 	w.WriteHeader(http.StatusNotFound)
-	// 	return
-	// }
-	//
-	// meta := models.ScanMeta{
-	// 	File:         dir,
-	// 	FileService:  ctx.FileService,
-	// 	MediaService: pack.MediaService,
-	// 	TaskSubber:   pack.ClientService,
-	// 	TaskService:  pack.TaskService,
-	// }
-	// _, err = pack.TaskService.DispatchJob(models.ScanDirectoryTask, meta, nil)
-	// if SafeErrorAndExit(err, w, log) {
-	// 	return
-	// }
-	//
-	// w.WriteHeader(http.StatusOK)
-}
-
 // GetSharedFiles godoc
 //
 //	@ID			GetSharedFiles

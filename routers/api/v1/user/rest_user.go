@@ -223,13 +223,13 @@ func GetMe(ctx context.RequestContext) {
 func UpdatePassword(ctx context.RequestContext) {
 	updateUsername := ctx.Path("username")
 
-	updateUser, err := user_model.GetUserByUsername(ctx, updateUsername)
+	userToUpdate, err := user_model.GetUserByUsername(ctx, updateUsername)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
 
-	if updateUser.Username != ctx.Requester.Username && !ctx.Requester.IsOwner() {
+	if userToUpdate.Username != ctx.Requester.Username && !ctx.Requester.IsOwner() {
 		ctx.Status(http.StatusForbidden)
 		return
 	}
@@ -240,17 +240,24 @@ func UpdatePassword(ctx context.RequestContext) {
 		return
 	}
 
-	if !ctx.Requester.IsOwner() && updateParams.OldPass == "" {
-		ctx.Error(http.StatusBadRequest, errors.New("oldPassword field is required"))
-		return
+	if !ctx.Requester.IsOwner() || ctx.Requester.Username == updateUsername {
+		ok := userToUpdate.CheckLogin(updateParams.OldPass)
+
+		if !ok {
+			ctx.Log().Debug().Msgf("Invalid password for user [%s]", updateUsername)
+			ctx.Error(http.StatusUnauthorized, errors.New("invalid password"))
+			return
+		}
 	}
 
-	err = updateUser.UpdatePassword(ctx, updateParams.NewPass)
+	err = userToUpdate.UpdatePassword(ctx, updateParams.NewPass)
 	if err != nil {
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to update user password")
 		ctx.Error(http.StatusInternalServerError, err)
 		return
 	}
+
+	ctx.Status(http.StatusOK)
 }
 
 // SetUserAdmin godoc
@@ -404,7 +411,7 @@ func ChangeDisplayName(ctx context.RequestContext) {
 		return
 	}
 
-	ctx.Status(http.StatusOK)
+	ctx.JSON(http.StatusOK, reshape.UserToUserInfo(ctx, u))
 }
 
 // DeleteUser godoc

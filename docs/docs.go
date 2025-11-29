@@ -19,6 +19,79 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/config": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Config"
+                ],
+                "summary": "Get Config",
+                "operationId": "GetConfig",
+                "responses": {
+                    "200": {
+                        "description": "Config Info",
+                        "schema": {
+                            "$ref": "#/definitions/Config"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Config"
+                ],
+                "summary": "Set Config",
+                "operationId": "SetConfig",
+                "parameters": [
+                    {
+                        "description": "Set Config Params",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/structs.SetConfigParam"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
         "/files": {
             "delete": {
                 "security": [
@@ -639,48 +712,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/folder/scan": {
-            "post": {
-                "security": [
-                    {
-                        "SessionAuth": []
-                    }
-                ],
-                "tags": [
-                    "Folder"
-                ],
-                "summary": "Dispatch a folder scan",
-                "operationId": "ScanFolder",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
-                        "in": "query"
-                    },
-                    {
-                        "description": "Scan parameters",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/structs.ScanBody"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    },
-                    "404": {
-                        "description": "Not Found"
-                    },
-                    "500": {
-                        "description": "Internal Server Error"
-                    }
-                }
-            }
-        },
         "/folder/{folderId}": {
             "get": {
                 "security": [
@@ -764,6 +795,49 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/folder/{folderId}/scan": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "tags": [
+                    "Folder"
+                ],
+                "summary": "Dispatch a folder scan",
+                "operationId": "ScanFolder",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Folder Id",
+                        "name": "folderId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Share Id",
+                        "name": "shareId",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Task Info",
+                        "schema": {
+                            "$ref": "#/definitions/TaskInfo"
+                        }
                     },
                     "404": {
                         "description": "Not Found"
@@ -1763,6 +1837,38 @@ const docTemplate = `{
                 }
             }
         },
+        "/tower/cache": {
+            "delete": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Towers"
+                ],
+                "summary": "Flush Cache",
+                "operationId": "FlushCache",
+                "responses": {
+                    "200": {
+                        "description": "Cache flushed successfully",
+                        "schema": {
+                            "$ref": "#/definitions/WLResponseInfo"
+                        }
+                    }
+                }
+            }
+        },
         "/tower/init": {
             "post": {
                 "security": [],
@@ -1878,6 +1984,41 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/tower/tasks": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Towers"
+                ],
+                "summary": "Get Running Tasks",
+                "operationId": "GetRunningTasks",
+                "responses": {
+                    "200": {
+                        "description": "Task Infos",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/TaskInfo"
+                            }
+                        }
                     }
                 }
             }
@@ -2724,6 +2865,17 @@ const docTemplate = `{
                 }
             }
         },
+        "Config": {
+            "type": "object",
+            "properties": {
+                "allowRegistrations": {
+                    "type": "boolean"
+                },
+                "enableHDIR": {
+                    "type": "boolean"
+                }
+            }
+        },
         "CreateFolderBody": {
             "type": "object",
             "required": [
@@ -3396,6 +3548,41 @@ const docTemplate = `{
                 }
             }
         },
+        "TaskInfo": {
+            "type": "object",
+            "required": [
+                "Completed",
+                "jobName",
+                "progress",
+                "status",
+                "taskId",
+                "workerId"
+            ],
+            "properties": {
+                "Completed": {
+                    "type": "boolean"
+                },
+                "jobName": {
+                    "type": "string"
+                },
+                "progress": {
+                    "type": "integer"
+                },
+                "result": {},
+                "startTime": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/task.TaskExitStatus"
+                },
+                "taskId": {
+                    "type": "string"
+                },
+                "workerId": {
+                    "type": "integer"
+                }
+            }
+        },
         "TokenInfo": {
             "type": "object",
             "required": [
@@ -3520,8 +3707,10 @@ const docTemplate = `{
                 "homeId": {
                     "type": "string"
                 },
+                "isOnline": {
+                    "type": "boolean"
+                },
                 "permissionLevel": {
-                    "description": "HomeSize        int64  ` + "`" + `json:\"homeSize\" validate:\"required\"` + "`" + `",
                     "type": "integer"
                 },
                 "token": {
@@ -3531,7 +3720,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "username": {
-                    "description": "TrashSize       int64  ` + "`" + `json:\"trashSize\" validate:\"required\"` + "`" + `",
                     "type": "string"
                 }
             }
@@ -3556,11 +3744,13 @@ const docTemplate = `{
                 "homeId": {
                     "type": "string"
                 },
+                "isOnline": {
+                    "type": "boolean"
+                },
                 "password": {
                     "type": "string"
                 },
                 "permissionLevel": {
-                    "description": "HomeSize        int64  ` + "`" + `json:\"homeSize\" validate:\"required\"` + "`" + `",
                     "type": "integer"
                 },
                 "token": {
@@ -3570,7 +3760,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "username": {
-                    "description": "TrashSize       int64  ` + "`" + `json:\"trashSize\" validate:\"required\"` + "`" + `",
+                    "type": "string"
+                }
+            }
+        },
+        "WLResponseInfo": {
+            "type": "object",
+            "properties": {
+                "message": {
                     "type": "string"
                 }
             }
@@ -3619,16 +3816,29 @@ const docTemplate = `{
                 }
             }
         },
-        "structs.ScanBody": {
+        "structs.SetConfigParam": {
             "type": "object",
             "properties": {
-                "filename": {
+                "configKey": {
                     "type": "string"
                 },
-                "folderId": {
-                    "type": "string"
-                }
+                "configValue": {}
             }
+        },
+        "task.TaskExitStatus": {
+            "type": "string",
+            "enum": [
+                "",
+                "success",
+                "cancelled",
+                "error"
+            ],
+            "x-enum-varnames": [
+                "TaskNoStatus",
+                "TaskSuccess",
+                "TaskCanceled",
+                "TaskError"
+            ]
         }
     },
     "securityDefinitions": {

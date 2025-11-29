@@ -24,12 +24,11 @@ type UserInfoArchive struct {
 	Activated bool `json:"activated"`
 	FullName string `json:"fullName"`
 	HomeId string `json:"homeId"`
+	IsOnline *bool `json:"isOnline,omitempty"`
 	Password *string `json:"password,omitempty"`
-	// HomeSize        int64  `json:\"homeSize\" validate:\"required\"`
 	PermissionLevel int32 `json:"permissionLevel"`
 	Token *string `json:"token,omitempty"`
 	TrashId string `json:"trashId"`
-	// TrashSize       int64  `json:\"trashSize\" validate:\"required\"`
 	Username string `json:"username"`
 }
 
@@ -128,6 +127,38 @@ func (o *UserInfoArchive) GetHomeIdOk() (*string, bool) {
 // SetHomeId sets field value
 func (o *UserInfoArchive) SetHomeId(v string) {
 	o.HomeId = v
+}
+
+// GetIsOnline returns the IsOnline field value if set, zero value otherwise.
+func (o *UserInfoArchive) GetIsOnline() bool {
+	if o == nil || IsNil(o.IsOnline) {
+		var ret bool
+		return ret
+	}
+	return *o.IsOnline
+}
+
+// GetIsOnlineOk returns a tuple with the IsOnline field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *UserInfoArchive) GetIsOnlineOk() (*bool, bool) {
+	if o == nil || IsNil(o.IsOnline) {
+		return nil, false
+	}
+	return o.IsOnline, true
+}
+
+// HasIsOnline returns a boolean if a field has been set.
+func (o *UserInfoArchive) HasIsOnline() bool {
+	if o != nil && !IsNil(o.IsOnline) {
+		return true
+	}
+
+	return false
+}
+
+// SetIsOnline gets a reference to the given bool and assigns it to the IsOnline field.
+func (o *UserInfoArchive) SetIsOnline(v bool) {
+	o.IsOnline = &v
 }
 
 // GetPassword returns the Password field value if set, zero value otherwise.
@@ -279,6 +310,9 @@ func (o UserInfoArchive) ToMap() (map[string]interface{}, error) {
 	toSerialize["activated"] = o.Activated
 	toSerialize["fullName"] = o.FullName
 	toSerialize["homeId"] = o.HomeId
+	if !IsNil(o.IsOnline) {
+		toSerialize["isOnline"] = o.IsOnline
+	}
 	if !IsNil(o.Password) {
 		toSerialize["password"] = o.Password
 	}

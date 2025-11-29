@@ -6,8 +6,10 @@ All URIs are relative to *http://localhost:8080/api/v1*
 |------------- | ------------- | -------------|
 |[**createRemote**](#createremote) | **POST** /tower/remote | Create a new remote|
 |[**deleteRemote**](#deleteremote) | **DELETE** /tower/{serverId} | Delete a remote|
+|[**flushCache**](#flushcache) | **DELETE** /tower/cache | Flush Cache|
 |[**getBackupInfo**](#getbackupinfo) | **GET** /tower/backup | Get information about a file|
 |[**getRemotes**](#getremotes) | **GET** /tower | Get all remotes|
+|[**getRunningTasks**](#getrunningtasks) | **GET** /tower/tasks | Get Running Tasks|
 |[**getServerInfo**](#getserverinfo) | **GET** /info | Get server info|
 |[**initializeTower**](#initializetower) | **POST** /tower/init | Initialize the target server|
 |[**launchBackup**](#launchbackup) | **POST** /tower/{serverId}/backup | Launch backup on a tower|
@@ -117,6 +119,49 @@ void (empty response body)
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **flushCache**
+> WLResponseInfo flushCache()
+
+
+### Example
+
+```typescript
+import {
+    TowersApi,
+    Configuration
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new TowersApi(configuration);
+
+const { status, data } = await apiInstance.flushCache();
+```
+
+### Parameters
+This endpoint does not have any parameters.
+
+
+### Return type
+
+**WLResponseInfo**
+
+### Authorization
+
+[ApiKeyAuth](../README.md#ApiKeyAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | Cache flushed successfully |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **getBackupInfo**
 > BackupInfo getBackupInfo()
 
@@ -210,6 +255,49 @@ This endpoint does not have any parameters.
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 |**200** | Tower Info |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getRunningTasks**
+> Array<TaskInfo> getRunningTasks()
+
+
+### Example
+
+```typescript
+import {
+    TowersApi,
+    Configuration
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new TowersApi(configuration);
+
+const { status, data } = await apiInstance.getRunningTasks();
+```
+
+### Parameters
+This endpoint does not have any parameters.
+
+
+### Return type
+
+**Array<TaskInfo>**
+
+### Authorization
+
+[ApiKeyAuth](../README.md#ApiKeyAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | Task Infos |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

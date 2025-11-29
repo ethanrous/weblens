@@ -243,7 +243,7 @@ func TestUser_Retrieval(t *testing.T) {
 
 	t.Run("GetAllUsers", func(t *testing.T) {
 		// Drop collection to ensure a clean state
-		col, err := db.GetCollection(ctx, UserCollectionKey)
+		col, err := db.GetCollection[any](ctx, UserCollectionKey)
 		require.NoError(t, err)
 		err = col.Drop(ctx)
 		require.NoError(t, err)

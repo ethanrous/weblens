@@ -21,16 +21,16 @@ const (
 
 var ErrNoDatabase = errors.New("context is not a DatabaseContext")
 
-type ContextualizedCollection struct {
+type ContextualizedCollection[T any] struct {
 	ctx        context.Context
 	collection *mongo.Collection
 }
 
-func (c *ContextualizedCollection) GetCollection() *mongo.Collection {
+func (c *ContextualizedCollection[T]) GetCollection() *mongo.Collection {
 	return c.collection
 }
 
-func (c *ContextualizedCollection) InsertOne(_ context.Context, document any, opts ...*options.InsertOneOptions) (*mongo.InsertOneResult, error) {
+func (c *ContextualizedCollection[T]) InsertOne(_ context.Context, document any, opts ...*options.InsertOneOptions) (*mongo.InsertOneResult, error) {
 	log.FromContext(c.ctx).Trace().Func(func(e *zerolog.Event) {
 		docStr, err := json.Marshal(document)
 		if err == nil {
@@ -52,13 +52,13 @@ func (c *ContextualizedCollection) InsertOne(_ context.Context, document any, op
 	return c.collection.InsertOne(c.ctx, document, opts...)
 }
 
-func (c *ContextualizedCollection) InsertMany(_ context.Context, documents []any, opts ...*options.InsertManyOptions) (*mongo.InsertManyResult, error) {
+func (c *ContextualizedCollection[T]) InsertMany(_ context.Context, documents []any, opts ...*options.InsertManyOptions) (*mongo.InsertManyResult, error) {
 	log.FromContext(c.ctx).Trace().Msgf("Insert many on collection [%s] with %d documents", c.collection.Name(), len(documents))
 
 	return c.collection.InsertMany(c.ctx, documents, opts...)
 }
 
-func (c *ContextualizedCollection) UpdateOne(_ context.Context, filter, update any, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error) {
+func (c *ContextualizedCollection[T]) UpdateOne(_ context.Context, filter, update any, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error) {
 	log.FromContext(c.ctx).Trace().Msgf("UpdateOne on collection [%s] with filter %v", c.collection.Name(), filter)
 
 	if config.GetConfig().DoCache {
@@ -80,7 +80,7 @@ func (c *ContextualizedCollection) UpdateOne(_ context.Context, filter, update a
 	return res, nil
 }
 
-func (c *ContextualizedCollection) UpdateMany(_ context.Context, filter, update any, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error) {
+func (c *ContextualizedCollection[T]) UpdateMany(_ context.Context, filter, update any, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error) {
 	log.FromContext(c.ctx).Trace().Msgf("UpdateMany on collection [%s] with filter %v", c.collection.Name(), filter)
 
 	if config.GetConfig().DoCache {
@@ -98,7 +98,7 @@ func (c *ContextualizedCollection) UpdateMany(_ context.Context, filter, update 
 	return res, nil
 }
 
-func (c *ContextualizedCollection) ReplaceOne(_ context.Context, filter, replacement any, opts ...*options.ReplaceOptions) (*mongo.UpdateResult, error) {
+func (c *ContextualizedCollection[T]) ReplaceOne(_ context.Context, filter, replacement any, opts ...*options.ReplaceOptions) (*mongo.UpdateResult, error) {
 	log.FromContext(c.ctx).Trace().Msgf("ReplaceOne on collection [%s] with filter %v", c.collection.Name(), filter)
 
 	if config.GetConfig().DoCache {
@@ -111,20 +111,20 @@ func (c *ContextualizedCollection) ReplaceOne(_ context.Context, filter, replace
 	return c.collection.ReplaceOne(c.ctx, filter, replacement, opts...)
 }
 
-func (c *ContextualizedCollection) FindOne(_ context.Context, filter any, opts ...*options.FindOneOptions) Decoder {
+func (c *ContextualizedCollection[T]) FindOne(_ context.Context, filter any, opts ...*options.FindOneOptions) Decoder[T] {
 	if config.GetConfig().DoCache {
 		cache := context_mod.ToZ(c.ctx).GetCache(c.collection.Name())
 
 		filterStr, err := bson.Marshal(filter)
 		if err != nil {
-			return &errDecoder{err}
+			return &errDecoder[T]{err}
 		}
 
 		v, ok := cache.Get(string(filterStr))
 		if ok {
 			log.FromContext(c.ctx).Trace().Msgf("Cache hit for collection [%s] with filter %v", c.collection.Name(), filter)
 
-			return &decoder{ctx: c.ctx, value: v}
+			return &decoder[T]{ctx: c.ctx, value: v}
 		}
 
 		log.FromContext(c.ctx).Trace().Msgf("FindOne on collection [%s] with filter %v", c.collection.Name(), filter)
@@ -132,30 +132,43 @@ func (c *ContextualizedCollection) FindOne(_ context.Context, filter any, opts .
 
 	ret := c.collection.FindOne(c.ctx, filter, opts...)
 
-	return &mongoDecoder{ctx: c.ctx, res: ret, filter: filter, col: c.collection.Name(), err: ret.Err()}
+	return &mongoDecoder[T]{ctx: c.ctx, res: ret, filter: filter, col: c.collection.Name(), err: ret.Err()}
 }
 
-func (c *ContextualizedCollection) Find(_ context.Context, filter any, opts ...*options.FindOptions) (*mongo.Cursor, error) {
+func (c *ContextualizedCollection[T]) FindOneAs(_ context.Context, filter any, opts ...*options.FindOneOptions) (T, error) {
+	log.FromContext(c.ctx).Trace().Msgf("FindOneAs on collection [%s] with filter %v", c.collection.Name(), filter)
+
+	var result T
+
+	err := c.collection.FindOne(c.ctx, filter, opts...).Decode(&result)
+	if err != nil {
+		return result, WrapError(err, "find one as")
+	}
+
+	return result, nil
+}
+
+func (c *ContextualizedCollection[T]) Find(_ context.Context, filter any, opts ...*options.FindOptions) (*mongo.Cursor, error) {
 	log.FromContext(c.ctx).Trace().Msgf("Find on collection [%s] with filter %v", c.collection.Name(), filter)
 
 	return c.collection.Find(c.ctx, filter, opts...)
 }
 
-func (c *ContextualizedCollection) CountDocuments(_ context.Context, filter any, opts ...*options.CountOptions) (int64, error) {
+func (c *ContextualizedCollection[T]) CountDocuments(_ context.Context, filter any, opts ...*options.CountOptions) (int64, error) {
 	log.FromContext(c.ctx).Trace().Msgf("CountDocuments on collection [%s] with filter %v", c.collection.Name(), filter)
 
 	return c.collection.CountDocuments(c.ctx, filter, opts...)
 }
 
-func (c *ContextualizedCollection) DeleteOne(_ context.Context, filter any, opts ...*options.DeleteOptions) (*mongo.DeleteResult, error) {
+func (c *ContextualizedCollection[T]) DeleteOne(_ context.Context, filter any, opts ...*options.DeleteOptions) (*mongo.DeleteResult, error) {
 	return c.collection.DeleteOne(c.ctx, filter, opts...)
 }
 
-func (c *ContextualizedCollection) DeleteMany(_ context.Context, filter any, opts ...*options.DeleteOptions) (*mongo.DeleteResult, error) {
+func (c *ContextualizedCollection[T]) DeleteMany(_ context.Context, filter any, opts ...*options.DeleteOptions) (*mongo.DeleteResult, error) {
 	return c.collection.DeleteMany(c.ctx, filter, opts...)
 }
 
-func (c *ContextualizedCollection) Aggregate(_ context.Context, pipeline any, opts ...*options.AggregateOptions) (*mongo.Cursor, error) {
+func (c *ContextualizedCollection[T]) Aggregate(_ context.Context, pipeline any, opts ...*options.AggregateOptions) (*mongo.Cursor, error) {
 	cursor, err := c.collection.Aggregate(c.ctx, pipeline, opts...)
 
 	log.FromContext(c.ctx).Trace().Msgf("Aggregate on collection [%s] got %d results", c.collection.Name(), cursor.RemainingBatchLength())
@@ -163,7 +176,7 @@ func (c *ContextualizedCollection) Aggregate(_ context.Context, pipeline any, op
 	return cursor, errors.WithStack(err)
 }
 
-func (c *ContextualizedCollection) Drop(ctx context.Context) error {
+func (c *ContextualizedCollection[T]) Drop(ctx context.Context) error {
 	select {
 	case <-c.ctx.Done():
 	default:
@@ -198,7 +211,7 @@ func getDbFromContext(ctx context.Context) (*mongo.Database, error) {
 	return nil, errors.WithStack(ErrNoDatabase)
 }
 
-func GetCollection(ctx context.Context, collectionName string) (*ContextualizedCollection, error) {
+func GetCollection[T any](ctx context.Context, collectionName string) (*ContextualizedCollection[T], error) {
 	db, err := getDbFromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -212,12 +225,10 @@ func GetCollection(ctx context.Context, collectionName string) (*ContextualizedC
 	s := mongo.SessionFromContext(ctx)
 
 	log.FromContext(ctx).Trace().Func(func(e *zerolog.Event) {
-		if s == nil {
-			e.CallerSkipFrame(4).Msgf("GetCollection [%s] without session", collectionName)
-		} else {
+		if s != nil {
 			e.CallerSkipFrame(4).Msgf("GetCollection [%s] with session %s", collectionName, s.ID())
 		}
 	})
 
-	return &ContextualizedCollection{ctx, db.Collection(collectionName)}, nil
+	return &ContextualizedCollection[T]{ctx, db.Collection(collectionName)}, nil
 }

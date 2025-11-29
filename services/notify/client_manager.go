@@ -16,12 +16,16 @@ import (
 	user_model "github.com/ethanrous/weblens/models/user"
 	context_mod "github.com/ethanrous/weblens/modules/context"
 	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/log"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
+	context_service "github.com/ethanrous/weblens/services/context"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog"
 )
+
+const notificationChanCapacity = 1000
 
 var ErrSubscriptionNotFound = errors.New("subscription not found")
 
@@ -52,9 +56,11 @@ type ClientManager struct {
 
 	taskTypeSubs map[string][]*websocket_model.WsClient
 	taskTypeMu   sync.Mutex
+
+	notificationChan chan websocket_mod.WsResponseInfo
 }
 
-func NewClientManager() *ClientManager {
+func NewClientManager(ctx context.Context) *ClientManager {
 	cm := &ClientManager{
 		webClientMap:    map[string]*websocket_model.WsClient{},
 		remoteClientMap: map[string]*websocket_model.WsClient{},
@@ -63,7 +69,11 @@ func NewClientManager() *ClientManager {
 		folderSubs:   map[string][]*websocket_model.WsClient{},
 		taskSubs:     map[string][]*websocket_model.WsClient{},
 		taskTypeSubs: map[string][]*websocket_model.WsClient{},
+
+		notificationChan: make(chan websocket_mod.WsResponseInfo, notificationChanCapacity),
 	}
+
+	go cm.notificationWorker(ctx)
 
 	return cm
 }
@@ -129,12 +139,39 @@ func (cm *ClientManager) DisconnectAll(ctx context.Context) {
 func (cm *ClientManager) Notify(ctx context.Context, msg ...websocket_mod.WsResponseInfo) {
 	select {
 	case <-ctx.Done():
+		log.FromContext(ctx).Error().Stack().Err(errors.WithStack(ctx.Err())).Msgf("Context done, not sending websocket message: %s", msg[0].EventTag)
+
 		return
 	default:
 	}
 
 	for _, m := range msg {
-		cm.Send(ctx, m)
+		cm.notificationChan <- m
+	}
+}
+
+const flushEventTag = "flush"
+
+// Flush loads a no-op message into the notification channel as a sort of "tracer round", and then waits for the notification worker to process it.
+// This is useful to ensure that all pending notifications are sent before a task forces all clients to unsubscribe, etc.
+func (cm *ClientManager) Flush(ctx context.Context) {
+	if ctx.Err() != nil {
+		log.FromContext(ctx).Error().Stack().Err(errors.WithStack(ctx.Err())).Msg("Context is done, not flushing notifications")
+
+		return
+	}
+
+	done := make(chan struct{})
+	cm.notificationChan <- websocket_mod.WsResponseInfo{
+		EventTag: websocket_mod.FlushEvent,
+		Sent:     done,
+	}
+
+	select {
+	case <-done:
+		log.FromContext(ctx).Trace().Msg("Flushed notifications")
+	case <-time.After(5 * time.Second):
+		log.FromContext(ctx).Warn().Msg("Flush timed out")
 	}
 }
 
@@ -311,7 +348,14 @@ func (cm *ClientManager) FolderSubToTask(ctx context_mod.LoggerContext, folderId
 	}
 }
 
-func (cm *ClientManager) UnsubTask(ctx context_mod.LoggerContext, taskId string) {
+func (cm *ClientManager) UnsubTask(c context.Context, taskId string) {
+	ctx, ok := context_service.FromContext(c)
+	if !ok {
+		log.GlobalLogger().Error().Msg("Context is not a ContextZ, cannot unsubscribe from task")
+
+		return
+	}
+
 	subs := cm.GetSubscribers(ctx, websocket_mod.TaskSubscribe, taskId)
 
 	for _, s := range subs {
@@ -352,6 +396,10 @@ func (cm *ClientManager) Send(c context.Context, msg websocket_mod.WsResponseInf
 				)...,
 			)
 		}
+	}
+
+	if msg.EventTag == "taskCanceled" {
+		log.FromContext(c).Debug().Msgf("websocket_event: %d clients for task %s - %s", len(clients), msg.SubscribeKey, msg.BroadcastType)
 	}
 
 	// Don't relay messages to the client that sent them
@@ -446,6 +494,8 @@ func (cm *ClientManager) removeSubscription(
 			cm.taskMu.Lock()
 			err = removeSubs(cm.taskSubs, subInfo, client, removeAll)
 			cm.taskMu.Unlock()
+
+			log.GlobalLogger().Trace().Msgf("Removed task subscription [%s] for client [%s]", subInfo.SubscriptionId, client.GetClientId())
 		}
 	case websocket_mod.TaskTypeSubscribe:
 		{
@@ -482,6 +532,31 @@ func (cm *ClientManager) removeClient(ctx context.Context, client *websocket_mod
 	}
 
 	return nil
+}
+
+func (cm *ClientManager) notificationWorker(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			log.FromContext(ctx).Debug().Msg("Notification worker stopped")
+
+			return
+		case msg := <-cm.notificationChan:
+			if msg.EventTag == "" {
+				log.FromContext(ctx).Error().Msg("Received empty event tag in notification worker")
+
+				continue
+			} else if msg.EventTag == websocket_mod.FlushEvent {
+				log.FromContext(ctx).Trace().Msg("Received flush event, closing sent channel")
+			} else {
+				cm.Send(ctx, msg)
+			}
+
+			if msg.Sent != nil {
+				close(msg.Sent)
+			}
+		}
+	}
 }
 
 func addSub(subMap map[string][]*websocket_model.WsClient, subInfo websocket_mod.Subscription, client *websocket_model.WsClient) {

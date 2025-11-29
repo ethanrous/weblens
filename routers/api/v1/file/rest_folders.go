@@ -5,8 +5,11 @@ import (
 	"time"
 
 	file_model "github.com/ethanrous/weblens/models/file"
+	"github.com/ethanrous/weblens/models/job"
 	media_model "github.com/ethanrous/weblens/models/media"
 	share_model "github.com/ethanrous/weblens/models/share"
+	"github.com/ethanrous/weblens/models/task"
+	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/option"
 	"github.com/ethanrous/weblens/modules/structs"
 	"github.com/ethanrous/weblens/services/auth"
@@ -15,6 +18,50 @@ import (
 	"github.com/ethanrous/weblens/services/reshape"
 	"github.com/rs/zerolog"
 )
+
+// ScanFolder godoc
+//
+//	@ID	ScanFolder
+//
+//	@Security
+//	@Security	SessionAuth
+//
+//	@Summary	Dispatch a folder scan
+//	@Tags		Folder
+//	@Param		folderId	path		string				true	"Folder Id"
+//	@Param		shareId	query	string				false	"Share Id"
+//	@Success	200 {object} structs.TaskInfo "Task Info"
+//	@Failure	404
+//	@Failure	500
+//	@Router		/folder/{folderId}/scan [post]
+func ScanDir(ctx context_service.RequestContext) {
+	folder, err := checkFileAccess(ctx)
+	if err != nil {
+		return
+	}
+
+	meta := job.ScanMeta{
+		File: folder,
+	}
+
+	var jobName string
+	if folder.IsDir() {
+		jobName = job.ScanDirectoryTask
+	} else {
+		jobName = job.ScanFileTask
+	}
+
+	t, err := ctx.TaskService.DispatchJob(ctx, jobName, meta, nil)
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, errors.Errorf("Failed to dispatch scan task: %w", err))
+
+		return
+	}
+
+	taskInfo := reshape.TaskToTaskInfo(t.(*task.Task))
+
+	ctx.JSON(http.StatusOK, taskInfo)
+}
 
 // Format and write back directory information. Authorization checks should be done before this function.
 func formatRespondFolderInfo(ctx context_service.RequestContext, dir *file_model.WeblensFileImpl) error {

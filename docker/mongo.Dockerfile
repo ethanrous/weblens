@@ -1,7 +1,6 @@
 ARG ARCHITECTURE
 
 FROM --platform=linux/${ARCHITECTURE} mongo
-COPY ./scripts/start-mongo.sh /start-mongo.sh
 
 ENV WEBLENS_MONGO_HOST_NAME=weblens-mongo
 
@@ -10,5 +9,3 @@ HEALTHCHECK --retries=16 --interval=5m --start-period=5s --start-interval=2s --t
 
 ENTRYPOINT ["mongod"]
 CMD ["--replSet", "rs0", "--bind_ip_all"]
-# ENTRYPOINT ["/start-mongo.sh"]
-# CMD ["-n"]

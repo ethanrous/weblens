@@ -78,7 +78,7 @@ func Startup(ctx context_service.AppContext, cnf config.ConfigProvider) (*router
 
 	ctx.FileService = fileService
 
-	clientService := notify.NewClientManager()
+	clientService := notify.NewClientManager(ctx)
 	ctx.ClientService = clientService
 
 	taskService := task.NewWorkerPool(ctx, cnf.WorkerCount)

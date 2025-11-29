@@ -94,7 +94,7 @@ func SaveMedia(ctx context.Context, media *Media) error {
 		media.MediaID = primitive.NewObjectID()
 	}
 
-	col, err := db.GetCollection(ctx, MediaCollectionKey)
+	col, err := db.GetCollection[any](ctx, MediaCollectionKey)
 	if err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func SaveMedia(ctx context.Context, media *Media) error {
 }
 
 func GetMediaByContentId(ctx context.Context, contentId ContentId) (*Media, error) {
-	col, err := db.GetCollection(ctx, MediaCollectionKey)
+	col, err := db.GetCollection[any](ctx, MediaCollectionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func GetMediaByContentId(ctx context.Context, contentId ContentId) (*Media, erro
 }
 
 func GetMediasByContentIds(ctx context.Context, limit, page, sortDirection int, includeRaw bool, contentIds ...ContentId) ([]*Media, error) {
-	col, err := db.GetCollection(ctx, MediaCollectionKey)
+	col, err := db.GetCollection[any](ctx, MediaCollectionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func GetMediasByContentIds(ctx context.Context, limit, page, sortDirection int, 
 }
 
 func GetMediaByPath(ctx context.Context, path string) ([]*Media, error) {
-	// col, err := db.GetCollection(ctx, MediaCollectionKey)
+	// col, err := db.GetCollection[any](ctx, MediaCollectionKey)
 	// if err != nil {
 	// 	return nil, err
 	// }
@@ -192,7 +192,7 @@ func GetMedia(ctx context.Context, username string, sort string, sortDirection i
 	pipe = append(pipe, bson.D{{Key: "$sort", Value: bson.D{{Key: sort, Value: sortDirection}}}})
 	// pipe = append(pipe, bson.D{{Key: "$project", Value: bson.D{{Key: "_id", Value: false}, {Key: "contentId", Value: true}}}})
 
-	col, err := db.GetCollection(ctx, MediaCollectionKey)
+	col, err := db.GetCollection[any](ctx, MediaCollectionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +219,7 @@ type RandomMediaOptions struct {
 }
 
 func GetRandomMedias(ctx context.Context, opts RandomMediaOptions) ([]*Media, error) {
-	col, err := db.GetCollection(ctx, MediaCollectionKey)
+	col, err := db.GetCollection[any](ctx, MediaCollectionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +260,7 @@ func GetRandomMedias(ctx context.Context, opts RandomMediaOptions) ([]*Media, er
 }
 
 func DropMediaCollection(ctx context.Context) error {
-	col, err := db.GetCollection(ctx, MediaCollectionKey)
+	col, err := db.GetCollection[any](ctx, MediaCollectionKey)
 	if err != nil {
 		return err
 	}
@@ -274,7 +274,7 @@ func DropMediaCollection(ctx context.Context) error {
 }
 
 func DropHDIRs(ctx context.Context) error {
-	col, err := db.GetCollection(ctx, MediaCollectionKey)
+	col, err := db.GetCollection[any](ctx, MediaCollectionKey)
 	if err != nil {
 		return err
 	}
@@ -434,7 +434,7 @@ func (m *Media) GetHighresCacheFiles(pageNum int) *file_model.WeblensFileImpl {
 	return m.highResCacheFiles[pageNum]
 }
 
-func (m *Media) IsSufficentlyProcessed() bool {
+func (m *Media) IsSufficentlyProcessed(requireHDIR bool) bool {
 	m.updateMu.RLock()
 	defer m.updateMu.RUnlock()
 
@@ -442,7 +442,7 @@ func (m *Media) IsSufficentlyProcessed() bool {
 		return false
 	}
 
-	if len(m.HDIR) == 0 {
+	if requireHDIR && len(m.HDIR) == 0 {
 		return false
 	}
 
@@ -470,7 +470,7 @@ func CheckMediaQuality(quality string) (MediaQuality, bool) {
 }
 
 func RemoveFileFromMedia(ctx context.Context, media *Media, fileId string) error {
-	col, err := db.GetCollection(ctx, MediaCollectionKey)
+	col, err := db.GetCollection[any](ctx, MediaCollectionKey)
 	if err != nil {
 		return err
 	}
@@ -486,7 +486,7 @@ func RemoveFileFromMedia(ctx context.Context, media *Media, fileId string) error
 }
 
 func (media *Media) AddFileToMedia(ctx context.Context, fileId string) error {
-	col, err := db.GetCollection(ctx, MediaCollectionKey)
+	col, err := db.GetCollection[any](ctx, MediaCollectionKey)
 	if err != nil {
 		return err
 	}

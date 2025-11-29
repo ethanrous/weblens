@@ -8,10 +8,11 @@ Name | Type | Description | Notes
 **activated** | **boolean** |  | [default to undefined]
 **fullName** | **string** |  | [default to undefined]
 **homeId** | **string** |  | [default to undefined]
-**permissionLevel** | **number** | HomeSize        int64  &#x60;json:\&quot;homeSize\&quot; validate:\&quot;required\&quot;&#x60; | [default to undefined]
+**isOnline** | **boolean** |  | [optional] [default to undefined]
+**permissionLevel** | **number** |  | [default to undefined]
 **token** | **string** |  | [optional] [default to undefined]
 **trashId** | **string** |  | [default to undefined]
-**username** | **string** | TrashSize       int64  &#x60;json:\&quot;trashSize\&quot; validate:\&quot;required\&quot;&#x60; | [default to undefined]
+**username** | **string** |  | [default to undefined]
 
 ## Example
 
@@ -22,6 +23,7 @@ const instance: UserInfo = {
     activated,
     fullName,
     homeId,
+    isOnline,
     permissionLevel,
     token,
     trashId,

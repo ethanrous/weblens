@@ -46,6 +46,8 @@ const (
 	FileMovedEvent               WsEvent = "fileMoved"
 	FileScanStartedEvent         WsEvent = "fileScanStarted"
 	FileScanCompleteEvent        WsEvent = "fileScanComplete"
+	FileScanFailedEvent          WsEvent = "fileScanFailedEvent"
+	FileScanCancelledEvent       WsEvent = "fileScanCancelledEvent"
 	FileUpdatedEvent             WsEvent = "fileUpdated"
 	FilesDeletedEvent            WsEvent = "filesDeleted"
 	FilesMovedEvent              WsEvent = "filesMoved"
@@ -70,4 +72,8 @@ const (
 	WeblensLoadedEvent           WsEvent = "weblensLoaded"
 	ZipCompleteEvent             WsEvent = "zipComplete"
 	ZipProgressEvent             WsEvent = "createZipProgress"
+
+	// FlushEvent is used to flush the pending websocket notifications, typically after a large amount of data has been sent.
+	// It is internal to the websocket module and should not be sent to clients, and clients are not required to handle it.
+	FlushEvent WsEvent = "flush"
 )

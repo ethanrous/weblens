@@ -72,21 +72,13 @@ func (tp *TaskPool) GetCompletedTaskCount() int {
 	return int(tp.completedTasks.Load())
 }
 
-func (tp *TaskPool) addTask(task *Task) {
-	tp.taskLock.Lock()
-	defer tp.taskLock.Unlock()
-	tp.tasks[task.taskId] = task
-}
-
 func (tp *TaskPool) RemoveTask(taskId string) {
 	tp.taskLock.Lock()
 	defer tp.taskLock.Unlock()
 	delete(tp.tasks, taskId)
-
 }
 
 func (tp *TaskPool) HandleTaskExit(replacementThread bool) (canContinue bool) {
-
 	// Global queues do not finish and cannot be waited on. If this is NOT a global queue,
 	// we check if we are empty and finished, and if so, wake any waiters.
 	if !tp.treatAsGlobal {
@@ -144,12 +136,14 @@ func (tp *TaskPool) GetRootPool() task_mod.Pool {
 	for !tmpTp.parentTaskPool.IsRoot() {
 		tmpTp = tmpTp.parentTaskPool
 	}
+
 	return tmpTp
 }
 
 func (tp *TaskPool) Status() task_mod.PoolStatus {
 	complete := tp.completedTasks.Load()
 	total := tp.totalTasks.Load()
+
 	progress := (float64(complete * 100)) / float64(total)
 	if math.IsNaN(progress) {
 		progress = 0
@@ -192,6 +186,11 @@ func (tp *TaskPool) Wait(supplementWorker bool, task ...task_mod.Task) {
 
 		tp.workerPool.busyCount.Add(-1)
 		tp.workerPool.addReplacementWorker(ctx)
+
+		defer func() {
+			tp.workerPool.busyCount.Add(1)
+			tp.workerPool.removeWorker()
+		}()
 	}
 
 	tp.log.Trace().Func(func(e *zerolog.Event) {
@@ -203,7 +202,25 @@ func (tp *TaskPool) Wait(supplementWorker bool, task ...task_mod.Task) {
 		tp.log.Warn().Msg("Going to sleep on pool without allQueuedFlag set! This task pool may never wake up!")
 	}
 
+	for _, t := range task {
+		t.(*Task).SetQueueState(Sleeping)
+		t.SetResult(task_mod.TaskResult{
+			"waiting": true,
+		})
+	}
+
+	defer func() {
+		for _, t := range task {
+			t.(*Task).SetQueueState(Executing)
+			t.SetResult(task_mod.TaskResult{
+				"waiting": false,
+			})
+		}
+	}()
+
 	tp.waiterCount.Add(1)
+	defer tp.waiterCount.Add(-1)
+
 	if len(task) != 0 {
 		select {
 		case <-tp.createdBy.Ctx.Done():
@@ -216,17 +233,11 @@ func (tp *TaskPool) Wait(supplementWorker bool, task ...task_mod.Task) {
 		case <-tp.waiterGate:
 		}
 	}
-	tp.waiterCount.Add(-1)
 
 	tp.log.Trace().Func(func(e *zerolog.Event) {
 		_, file, line, _ := runtime.Caller(2)
 		e.Msgf("Woke up, returning to %s:%d", file, line)
 	})
-
-	if supplementWorker {
-		tp.workerPool.busyCount.Add(1)
-		tp.workerPool.removeWorker()
-	}
 }
 
 func (tp *TaskPool) LockExit() {
@@ -246,27 +257,16 @@ func (tp *TaskPool) AddError(t task_mod.Task) {
 func (tp *TaskPool) AddCleanup(fn task_mod.PoolCleanupFunc) {
 	tp.exitLock.Lock()
 	defer tp.exitLock.Unlock()
+
 	if tp.allQueuedFlag.Load() && tp.completedTasks.Load() == tp.totalTasks.Load() && tp.cleanupsDone.Load() {
 		// Caller expects `AddCleanup` to execute asynchronously, so we must run the
 		// cleanup function in its own go routine
 		go fn(tp)
+
 		return
 	}
 
 	tp.cleanupFn = append(tp.cleanupFn, fn)
-}
-
-func (tp *TaskPool) runCleanups() {
-	defer func() {
-		if r := recover(); r != nil {
-			tp.log.Error().Stack().Err(errors.New(fmt.Sprint(r))).Msg("Failed to execute taskPool cleanup")
-		}
-		tp.cleanupsDone.Store(true)
-	}()
-
-	for _, fn := range tp.cleanupFn {
-		fn(tp)
-	}
 }
 
 func (tp *TaskPool) Errors() []task_mod.Task {
@@ -283,12 +283,6 @@ func (tp *TaskPool) Cancel() {
 		t.Cancel()
 	}
 	tp.taskLock.Unlock()
-
-	// TODO - move this to the cleanup function as well
-	// Signal to the client that this pool has been canceled, so we can reflect
-	// that in the UI
-	// Caster.PushPoolUpdate(tp, websocket.PoolCancelledEvent, nil)
-
 }
 
 func (tp *TaskPool) QueueTask(task task_mod.Task) (err error) {
@@ -297,7 +291,8 @@ func (tp *TaskPool) QueueTask(task task_mod.Task) (err error) {
 	select {
 	case <-tp.workerPool.ctx.Done():
 		tp.log.Warn().Msg("Not queuing task while worker pool is going down")
-		return
+
+		return err
 	default:
 	}
 
@@ -306,7 +301,8 @@ func (tp *TaskPool) QueueTask(task task_mod.Task) (err error) {
 		// task map, then it will be re-tried because the previous error was lost. This can be
 		// sometimes be useful, some tasks auto-remove themselves after they finish.
 		tp.log.Warn().Msg("Not re-queueing task that has error set, please restart weblens to try again")
-		return
+
+		return err
 	}
 
 	if t.taskPool != nil && (t.taskPool != tp || t.queueState != Created) {
@@ -315,10 +311,13 @@ func (tp *TaskPool) QueueTask(task task_mod.Task) (err error) {
 		// again, but it cannot be transferred
 		if t.taskPool != tp {
 			tp.log.Warn().Msgf("Attempted to re-queue a [%s] task that is already in a queue", t.jobName)
-			return
+
+			return err
 		}
+
 		t.taskPool.tasks[t.taskId] = t
-		return
+
+		return err
 	}
 
 	if tp.allQueuedFlag.Load() {
@@ -333,6 +332,7 @@ func (tp *TaskPool) QueueTask(task task_mod.Task) (err error) {
 		for tmpTp.parentTaskPool != nil {
 			tmpTp = tmpTp.parentTaskPool
 		}
+
 		if tmpTp != tp {
 			tmpTp.totalTasks.Add(1)
 		}
@@ -352,7 +352,8 @@ func (tp *TaskPool) QueueTask(task task_mod.Task) (err error) {
 	}
 
 	t.taskPool.tasks[t.taskId] = t
-	return
+
+	return err
 }
 
 // MarkGlobal specifies the work queue as being a "global" one
@@ -376,8 +377,10 @@ func (tp *TaskPool) SignalAllQueued() {
 	if tp.treatAsGlobal {
 		tp.log.Error().Msg("Attempt to signal all queued for global queue")
 	}
+
 	if tp.allQueuedFlag.Load() {
 		tp.log.Warn().Msg("Trying to signal all queued on already all-queued task pool")
+
 		return
 	}
 
@@ -386,17 +389,39 @@ func (tp *TaskPool) SignalAllQueued() {
 	// the final exiting task will not let the waiters out, so we must do it here. We must also
 	// remove the task pool from the worker pool for the same reason
 	if tp.completedTasks.Load() == tp.totalTasks.Load() {
+		tp.log.Debug().Msgf("SignalAllQueued: Task pool [%s] already complete, waking up waiters and removing task pool from worker pool", tp.ID())
+
 		close(tp.waiterGate)
 		tp.workerPool.removeTaskPool(tp.ID())
-		tp.log.Debug().Msg("Task pool already complete")
 	} else {
 		tp.log.Trace().Msg("Task Pool NOT Complete")
 	}
+
 	tp.allQueuedFlag.Store(true)
 	tp.exitLock.Unlock()
 
 	if tp.hasQueueThread {
 		tp.workerPool.removeWorker()
 		tp.hasQueueThread = false
+	}
+}
+
+func (tp *TaskPool) addTask(task *Task) {
+	tp.taskLock.Lock()
+	defer tp.taskLock.Unlock()
+	tp.tasks[task.taskId] = task
+}
+
+func (tp *TaskPool) runCleanups() {
+	defer func() {
+		if r := recover(); r != nil {
+			tp.log.Error().Stack().Err(errors.New(fmt.Sprint(r))).Msg("Failed to execute taskPool cleanup")
+		}
+
+		tp.cleanupsDone.Store(true)
+	}()
+
+	for _, fn := range tp.cleanupFn {
+		fn(tp)
 	}
 }

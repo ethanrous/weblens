@@ -100,6 +100,12 @@ var createRequestFunction = function(axiosArgs, globalAxios3, BASE_PATH2, config
 var MediaBatchParamsSortEnum = {
   CreateDate: "createDate"
 };
+var TaskTaskExitStatus = {
+  TaskNoStatus: "",
+  TaskSuccess: "success",
+  TaskCanceled: "cancelled",
+  TaskError: "error"
+};
 var ApiKeysApiAxiosParamCreator = function(configuration) {
   return {
     /**
@@ -294,6 +300,143 @@ var ApiKeysApi = class extends BaseAPI {
    */
   getApiKeys(options) {
     return ApiKeysApiFp(this.configuration).getApiKeys(options).then((request) => request(this.axios, this.basePath));
+  }
+};
+var ConfigApiAxiosParamCreator = function(configuration) {
+  return {
+    /**
+     * 
+     * @summary Get Config
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getConfig: async (options = {}) => {
+      const localVarPath = `/config`;
+      const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+      let baseOptions;
+      if (configuration) {
+        baseOptions = configuration.baseOptions;
+      }
+      const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
+      const localVarHeaderParameter = {};
+      const localVarQueryParameter = {};
+      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
+      setSearchParams(localVarUrlObj, localVarQueryParameter);
+      let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+      localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
+      return {
+        url: toPathString(localVarUrlObj),
+        options: localVarRequestOptions
+      };
+    },
+    /**
+     * 
+     * @summary Set Config
+     * @param {Array<StructsSetConfigParam>} request Set Config Params
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    setConfig: async (request, options = {}) => {
+      assertParamExists("setConfig", "request", request);
+      const localVarPath = `/config`;
+      const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+      let baseOptions;
+      if (configuration) {
+        baseOptions = configuration.baseOptions;
+      }
+      const localVarRequestOptions = __spreadValues(__spreadValues({ method: "POST" }, baseOptions), options);
+      const localVarHeaderParameter = {};
+      const localVarQueryParameter = {};
+      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
+      localVarHeaderParameter["Content-Type"] = "application/json";
+      setSearchParams(localVarUrlObj, localVarQueryParameter);
+      let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+      localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
+      localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration);
+      return {
+        url: toPathString(localVarUrlObj),
+        options: localVarRequestOptions
+      };
+    }
+  };
+};
+var ConfigApiFp = function(configuration) {
+  const localVarAxiosParamCreator = ConfigApiAxiosParamCreator(configuration);
+  return {
+    /**
+     * 
+     * @summary Get Config
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    async getConfig(options) {
+      var _a, _b, _c;
+      const localVarAxiosArgs = await localVarAxiosParamCreator.getConfig(options);
+      const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
+      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["ConfigApi.getConfig"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
+      return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+    },
+    /**
+     * 
+     * @summary Set Config
+     * @param {Array<StructsSetConfigParam>} request Set Config Params
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    async setConfig(request, options) {
+      var _a, _b, _c;
+      const localVarAxiosArgs = await localVarAxiosParamCreator.setConfig(request, options);
+      const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
+      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["ConfigApi.setConfig"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
+      return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+    }
+  };
+};
+var ConfigApiFactory = function(configuration, basePath, axios) {
+  const localVarFp = ConfigApiFp(configuration);
+  return {
+    /**
+     * 
+     * @summary Get Config
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getConfig(options) {
+      return localVarFp.getConfig(options).then((request) => request(axios, basePath));
+    },
+    /**
+     * 
+     * @summary Set Config
+     * @param {Array<StructsSetConfigParam>} request Set Config Params
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    setConfig(request, options) {
+      return localVarFp.setConfig(request, options).then((request2) => request2(axios, basePath));
+    }
+  };
+};
+var ConfigApi = class extends BaseAPI {
+  /**
+   * 
+   * @summary Get Config
+   * @param {*} [options] Override http request option.
+   * @throws {RequiredError}
+   * @memberof ConfigApi
+   */
+  getConfig(options) {
+    return ConfigApiFp(this.configuration).getConfig(options).then((request) => request(this.axios, this.basePath));
+  }
+  /**
+   * 
+   * @summary Set Config
+   * @param {Array<StructsSetConfigParam>} request Set Config Params
+   * @param {*} [options] Override http request option.
+   * @throws {RequiredError}
+   * @memberof ConfigApi
+   */
+  setConfig(request, options) {
+    return ConfigApiFp(this.configuration).setConfig(request, options).then((request2) => request2(this.axios, this.basePath));
   }
 };
 var FilesApiAxiosParamCreator = function(configuration) {
@@ -1592,14 +1735,14 @@ var FolderApiAxiosParamCreator = function(configuration) {
     /**
      * 
      * @summary Dispatch a folder scan
-     * @param {StructsScanBody} request Scan parameters
+     * @param {string} folderId Folder Id
      * @param {string} [shareId] Share Id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    scanFolder: async (request, shareId, options = {}) => {
-      assertParamExists("scanFolder", "request", request);
-      const localVarPath = `/folder/scan`;
+    scanFolder: async (folderId, shareId, options = {}) => {
+      assertParamExists("scanFolder", "folderId", folderId);
+      const localVarPath = `/folder/{folderId}/scan`.replace(`{${"folderId"}}`, encodeURIComponent(String(folderId)));
       const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
       let baseOptions;
       if (configuration) {
@@ -1611,11 +1754,9 @@ var FolderApiAxiosParamCreator = function(configuration) {
       if (shareId !== void 0) {
         localVarQueryParameter["shareId"] = shareId;
       }
-      localVarHeaderParameter["Content-Type"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
-      localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration);
       return {
         url: toPathString(localVarUrlObj),
         options: localVarRequestOptions
@@ -1706,14 +1847,14 @@ var FolderApiFp = function(configuration) {
     /**
      * 
      * @summary Dispatch a folder scan
-     * @param {StructsScanBody} request Scan parameters
+     * @param {string} folderId Folder Id
      * @param {string} [shareId] Share Id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    async scanFolder(request, shareId, options) {
+    async scanFolder(folderId, shareId, options) {
       var _a, _b, _c;
-      const localVarAxiosArgs = await localVarAxiosParamCreator.scanFolder(request, shareId, options);
+      const localVarAxiosArgs = await localVarAxiosParamCreator.scanFolder(folderId, shareId, options);
       const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
       const localVarOperationServerBasePath = (_c = (_b = operationServerMap["FolderApi.scanFolder"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
       return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -1775,13 +1916,13 @@ var FolderApiFactory = function(configuration, basePath, axios) {
     /**
      * 
      * @summary Dispatch a folder scan
-     * @param {StructsScanBody} request Scan parameters
+     * @param {string} folderId Folder Id
      * @param {string} [shareId] Share Id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    scanFolder(request, shareId, options) {
-      return localVarFp.scanFolder(request, shareId, options).then((request2) => request2(axios, basePath));
+    scanFolder(folderId, shareId, options) {
+      return localVarFp.scanFolder(folderId, shareId, options).then((request) => request(axios, basePath));
     },
     /**
      * 
@@ -1837,14 +1978,14 @@ var FolderApi = class extends BaseAPI {
   /**
    * 
    * @summary Dispatch a folder scan
-   * @param {StructsScanBody} request Scan parameters
+   * @param {string} folderId Folder Id
    * @param {string} [shareId] Share Id
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    * @memberof FolderApi
    */
-  scanFolder(request, shareId, options) {
-    return FolderApiFp(this.configuration).scanFolder(request, shareId, options).then((request2) => request2(this.axios, this.basePath));
+  scanFolder(folderId, shareId, options) {
+    return FolderApiFp(this.configuration).scanFolder(folderId, shareId, options).then((request) => request(this.axios, this.basePath));
   }
   /**
    * 
@@ -3190,6 +3331,31 @@ var TowersApiAxiosParamCreator = function(configuration) {
     },
     /**
      * 
+     * @summary Flush Cache
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    flushCache: async (options = {}) => {
+      const localVarPath = `/tower/cache`;
+      const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+      let baseOptions;
+      if (configuration) {
+        baseOptions = configuration.baseOptions;
+      }
+      const localVarRequestOptions = __spreadValues(__spreadValues({ method: "DELETE" }, baseOptions), options);
+      const localVarHeaderParameter = {};
+      const localVarQueryParameter = {};
+      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
+      setSearchParams(localVarUrlObj, localVarQueryParameter);
+      let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+      localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
+      return {
+        url: toPathString(localVarUrlObj),
+        options: localVarRequestOptions
+      };
+    },
+    /**
+     * 
      * @summary Get information about a file
      * @param {string} timestamp Timestamp in milliseconds since epoch
      * @param {*} [options] Override http request option.
@@ -3226,6 +3392,31 @@ var TowersApiAxiosParamCreator = function(configuration) {
      */
     getRemotes: async (options = {}) => {
       const localVarPath = `/tower`;
+      const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+      let baseOptions;
+      if (configuration) {
+        baseOptions = configuration.baseOptions;
+      }
+      const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
+      const localVarHeaderParameter = {};
+      const localVarQueryParameter = {};
+      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
+      setSearchParams(localVarUrlObj, localVarQueryParameter);
+      let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+      localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
+      return {
+        url: toPathString(localVarUrlObj),
+        options: localVarRequestOptions
+      };
+    },
+    /**
+     * 
+     * @summary Get Running Tasks
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getRunningTasks: async (options = {}) => {
+      const localVarPath = `/tower/tasks`;
       const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
       let baseOptions;
       if (configuration) {
@@ -3382,6 +3573,19 @@ var TowersApiFp = function(configuration) {
     },
     /**
      * 
+     * @summary Flush Cache
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    async flushCache(options) {
+      var _a, _b, _c;
+      const localVarAxiosArgs = await localVarAxiosParamCreator.flushCache(options);
+      const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
+      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["TowersApi.flushCache"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
+      return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+    },
+    /**
+     * 
      * @summary Get information about a file
      * @param {string} timestamp Timestamp in milliseconds since epoch
      * @param {*} [options] Override http request option.
@@ -3405,6 +3609,19 @@ var TowersApiFp = function(configuration) {
       const localVarAxiosArgs = await localVarAxiosParamCreator.getRemotes(options);
       const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
       const localVarOperationServerBasePath = (_c = (_b = operationServerMap["TowersApi.getRemotes"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
+      return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+    },
+    /**
+     * 
+     * @summary Get Running Tasks
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    async getRunningTasks(options) {
+      var _a, _b, _c;
+      const localVarAxiosArgs = await localVarAxiosParamCreator.getRunningTasks(options);
+      const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
+      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["TowersApi.getRunningTasks"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
       return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
     },
     /**
@@ -3488,6 +3705,15 @@ var TowersApiFactory = function(configuration, basePath, axios) {
     },
     /**
      * 
+     * @summary Flush Cache
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    flushCache(options) {
+      return localVarFp.flushCache(options).then((request) => request(axios, basePath));
+    },
+    /**
+     * 
      * @summary Get information about a file
      * @param {string} timestamp Timestamp in milliseconds since epoch
      * @param {*} [options] Override http request option.
@@ -3504,6 +3730,15 @@ var TowersApiFactory = function(configuration, basePath, axios) {
      */
     getRemotes(options) {
       return localVarFp.getRemotes(options).then((request) => request(axios, basePath));
+    },
+    /**
+     * 
+     * @summary Get Running Tasks
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getRunningTasks(options) {
+      return localVarFp.getRunningTasks(options).then((request) => request(axios, basePath));
     },
     /**
      * 
@@ -3570,6 +3805,16 @@ var TowersApi = class extends BaseAPI {
   }
   /**
    * 
+   * @summary Flush Cache
+   * @param {*} [options] Override http request option.
+   * @throws {RequiredError}
+   * @memberof TowersApi
+   */
+  flushCache(options) {
+    return TowersApiFp(this.configuration).flushCache(options).then((request) => request(this.axios, this.basePath));
+  }
+  /**
+   * 
    * @summary Get information about a file
    * @param {string} timestamp Timestamp in milliseconds since epoch
    * @param {*} [options] Override http request option.
@@ -3588,6 +3833,16 @@ var TowersApi = class extends BaseAPI {
    */
   getRemotes(options) {
     return TowersApiFp(this.configuration).getRemotes(options).then((request) => request(this.axios, this.basePath));
+  }
+  /**
+   * 
+   * @summary Get Running Tasks
+   * @param {*} [options] Override http request option.
+   * @throws {RequiredError}
+   * @memberof TowersApi
+   */
+  getRunningTasks(options) {
+    return TowersApiFp(this.configuration).getRunningTasks(options).then((request) => request(this.axios, this.basePath));
   }
   /**
    * 
@@ -4426,6 +4681,10 @@ export {
   ApiKeysApiAxiosParamCreator,
   ApiKeysApiFactory,
   ApiKeysApiFp,
+  ConfigApi,
+  ConfigApiAxiosParamCreator,
+  ConfigApiFactory,
+  ConfigApiFp,
   FilesApi,
   FilesApiAxiosParamCreator,
   FilesApiFactory,
@@ -4444,6 +4703,7 @@ export {
   ShareApiAxiosParamCreator,
   ShareApiFactory,
   ShareApiFp,
+  TaskTaskExitStatus,
   TowersApi,
   TowersApiAxiosParamCreator,
   TowersApiFactory,

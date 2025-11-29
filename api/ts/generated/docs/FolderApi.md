@@ -7,7 +7,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 |[**createFolder**](#createfolder) | **POST** /folder | Create a new folder|
 |[**getFolder**](#getfolder) | **GET** /folder/{folderId} | Get a folder|
 |[**getFolderHistory**](#getfolderhistory) | **GET** /files/{fileId}/history | Get actions of a folder at a given time|
-|[**scanFolder**](#scanfolder) | **POST** /folder/scan | Dispatch a folder scan|
+|[**scanFolder**](#scanfolder) | **POST** /folder/{folderId}/scan | Dispatch a folder scan|
 |[**setFolderCover**](#setfoldercover) | **PATCH** /folder/{folderId}/cover | Set the cover image of a folder|
 
 # **createFolder**
@@ -176,7 +176,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **scanFolder**
-> scanFolder(request)
+> TaskInfo scanFolder()
 
 
 ### Example
@@ -184,18 +184,17 @@ No authorization required
 ```typescript
 import {
     FolderApi,
-    Configuration,
-    StructsScanBody
+    Configuration
 } from './api';
 
 const configuration = new Configuration();
 const apiInstance = new FolderApi(configuration);
 
-let request: StructsScanBody; //Scan parameters
+let folderId: string; //Folder Id (default to undefined)
 let shareId: string; //Share Id (optional) (default to undefined)
 
 const { status, data } = await apiInstance.scanFolder(
-    request,
+    folderId,
     shareId
 );
 ```
@@ -204,13 +203,13 @@ const { status, data } = await apiInstance.scanFolder(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **request** | **StructsScanBody**| Scan parameters | |
+| **folderId** | [**string**] | Folder Id | defaults to undefined|
 | **shareId** | [**string**] | Share Id | (optional) defaults to undefined|
 
 
 ### Return type
 
-void (empty response body)
+**TaskInfo**
 
 ### Authorization
 
@@ -219,13 +218,13 @@ No authorization required
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: Not defined
+ - **Accept**: */*
 
 
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-|**200** | OK |  -  |
+|**200** | Task Info |  -  |
 |**404** | Not Found |  -  |
 |**500** | Internal Server Error |  -  |
 

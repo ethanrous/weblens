@@ -1,3 +1,6 @@
 [submodule "weblens-vue"]
 	path = weblens-vue
 	url = git@github.com:ethanrous/weblens-vue.git
+[submodule "agno"]
+	path = agno
+	url = https://github.com/ethanrous/agno

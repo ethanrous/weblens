@@ -2,10 +2,10 @@ set -e
 
 buildDeps=false
 devDeps=false
-buildDcraw=false
+agno=false
 
 usage() {
-    echo "Usage: $0 [-b|--build] [-d|--dev] [--dcraw]"
+    echo "Usage: $0 [-b|--build] [-d|--dev]"
 }
 
 while [ "${1:-}" != "" ]; do
@@ -17,8 +17,8 @@ while [ "${1:-}" != "" ]; do
         buildDeps=true
         devDeps=true
         ;;
-    "--dcraw")
-        buildDcraw=true
+    "-a" | "--agno")
+        agno=true
         ;;
     "-h" | "--help")
         usage
@@ -34,62 +34,90 @@ while [ "${1:-}" != "" ]; do
 done
 
 apk upgrade --no-cache
-apk add --no-cache ffmpeg exiftool jasper poppler-glib vips fontconfig
-apk add --update --no-cache --virtual .ms-fonts msttcorefonts-installer &&
-    update-ms-fonts 2>/dev/null &&
-    fc-cache -fv &&
-    apk del .ms-fonts
-# apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community --repository http://dl-3.alpinelinux.org/alpine/edge/main vips-poppler
+apk add --no-cache ffmpeg
+# apk add --no-cache ffmpeg jasper poppler-glib fontconfig libraw
+# apk add --update --no-cache --virtual .ms-fonts msttcorefonts-installer &&
+#     update-ms-fonts 2>/dev/null &&
+#     fc-cache -fv &&
+#     apk del .ms-fonts
 
 if [[ $buildDeps == true ]]; then
-    # apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community --repository http://dl-3.alpinelinux.org/alpine/edge/main vips-dev
+    apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community
 
     apk add --no-cache \
-        build-base \
-        gcc \
-        pkgconfig \
-        vips-dev \
-        lcms2-dev \
-        tiff-dev \
-        libraw-dev \
-        libpng-dev \
-        libwebp-dev \
         bash \
-        npm \
-        python3~3.12 \
-        poetry
-
-    npm install -g pnpm
-# else
-#     apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community --repository http://dl-3.alpinelinux.org/alpine/edge/main vips-poppler
-fi
-
-if [[ $buildDcraw == true ]]; then
-    apk add --no-cache --virtual .dcraw-deps \
         build-base \
+        curl \
         gcc \
-        pkgconfig \
         lcms2-dev \
-        jasper-dev \
-        libjpeg-turbo-dev \
-        gettext-dev \
-        gnu-libiconv-dev
+        libgcc \
+        g++ \
+        libstdc++ \
+        libpng-dev \
+        libraw-dev \
+        libwebp-dev \
+        musl-dbg \
+        musl \
+        musl-dev \
+        npm \
+        pnpm \
+        pkgconfig \
+        tiff-dev \
+        rustup
 
-    cd /tmp
-    wget https://raw.githubusercontent.com/ncruces/dcraw/refs/heads/master/dcraw.c
+    rustup-init -y --no-modify-path
+    . "$HOME/.cargo/env"
+    rustup target add aarch64-unknown-linux-musl || exit 1
 
-    gcc -O4 -march=native -o /usr/local/bin/dcraw dcraw.c \
-        -l:libm.a -ljasper -ljpeg -llcms2 -lintl -s -DLOCALEDIR=\"/usr/local/share/locale/\"
+    mkdir -p /opt/musl
 
-    rm -rf /tmp/dcraw*
+    MUSL_VERSION="aarch64-linux-musl-cross"
+    curl -L "https://musl.cc/${MUSL_VERSION}.tgz" | tar xz -C /opt/musl
 
-    apk del .dcraw-deps
+    ln -sf /opt/musl/"${MUSL_VERSION}"/bin/aarch64-linux-musl-gcc /usr/local/bin/aarch64-linux-musl-gcc &&
+        ln -sf /opt/musl/"${MUSL_VERSION}"/bin/aarch64-linux-musl-g++ /usr/local/bin/aarch64-linux-musl-g++ &&
+        ln -sf /opt/musl/"${MUSL_VERSION}"/bin/aarch64-linux-musl-ar /usr/local/bin/aarch64-linux-musl-ar &&
+        ln -sf /opt/musl/"${MUSL_VERSION}"/bin/aarch64-linux-musl-nm /usr/local/bin/aarch64-linux-musl-nm &&
+        ln -sf /opt/musl/"${MUSL_VERSION}"/bin/aarch64-linux-musl-strip /usr/local/bin/aarch64-linux-musl-strip &&
+        ln -sf /opt/musl/"${MUSL_VERSION}"/bin/aarch64-linux-musl-ranlib /usr/local/bin/aarch64-linux-musl-ranlib
 
-    cd /tmp
+else
+    apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community
 fi
 
 if [[ $devDeps == true ]]; then
-    apk add --no-cache pnpm
+    apk add --no-cache \
+        cmake \
+        delve \
+        gdb \
+        git \
+        libunwind \
+        libunwind-dev \
+        pnpm \
+        python3 \
+        elfutils \
+        elfutils-dev \
+        boost-dev
+
+    # mkdir /debug && cd /debug || exit 1
+    # git clone https://github.com/KDE/heaptrack.git
+    # cd heaptrack || exit 1
+    # mkdir build && cd build || exit 1
+    # cmake -DCMAKE_BUILD_TYPE=Release ..
+    # make -j$(nproc)
+
+    go install github.com/go-delve/delve/cmd/dlv@latest
 
     go install github.com/air-verse/air@latest
 fi
+
+# if [[ $agno == true ]]; then
+# cd /agno/ || exit 1
+#
+# . "$HOME/.cargo/env"
+# echo '[target.aarch64-unknown-linux-musl]
+# linker = "aarch64-linux-musl-g++"' >~/.cargo/config
+# export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-musl-g++
+# PDFIUM_STATIC_LIB_PATH="/agno/libpdfium" RUSTFLAGS='-C link-arg=-lpdfium -C link-arg=-lstdc++' cargo build --release --target aarch64-unknown-linux-musl
+# cp target/aarch64-unknown-linux-musl/release/libagno.a ./lib/
+# fi

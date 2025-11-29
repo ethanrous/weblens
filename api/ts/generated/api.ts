@@ -113,6 +113,25 @@ export interface BackupInfo {
 /**
  * 
  * @export
+ * @interface Config
+ */
+export interface Config {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof Config
+     */
+    'allowRegistrations'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof Config
+     */
+    'enableHDIR'?: boolean;
+}
+/**
+ * 
+ * @export
  * @interface CreateFolderBody
  */
 export interface CreateFolderBody {
@@ -1138,21 +1157,21 @@ export interface StructsInitServerParams {
 /**
  * 
  * @export
- * @interface StructsScanBody
+ * @interface StructsSetConfigParam
  */
-export interface StructsScanBody {
+export interface StructsSetConfigParam {
     /**
      * 
      * @type {string}
-     * @memberof StructsScanBody
+     * @memberof StructsSetConfigParam
      */
-    'filename'?: string;
+    'configKey'?: string;
     /**
      * 
-     * @type {string}
-     * @memberof StructsScanBody
+     * @type {object}
+     * @memberof StructsSetConfigParam
      */
-    'folderId'?: string;
+    'configValue'?: object;
 }
 /**
  * 
@@ -1185,6 +1204,79 @@ export interface TakeoutInfo {
      */
     'taskId'?: string;
 }
+/**
+ * 
+ * @export
+ * @interface TaskInfo
+ */
+export interface TaskInfo {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof TaskInfo
+     */
+    'Completed': boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof TaskInfo
+     */
+    'jobName': string;
+    /**
+     * 
+     * @type {number}
+     * @memberof TaskInfo
+     */
+    'progress': number;
+    /**
+     * 
+     * @type {object}
+     * @memberof TaskInfo
+     */
+    'result'?: object;
+    /**
+     * 
+     * @type {string}
+     * @memberof TaskInfo
+     */
+    'startTime'?: string;
+    /**
+     * 
+     * @type {TaskTaskExitStatus}
+     * @memberof TaskInfo
+     */
+    'status': TaskTaskExitStatus;
+    /**
+     * 
+     * @type {string}
+     * @memberof TaskInfo
+     */
+    'taskId': string;
+    /**
+     * 
+     * @type {number}
+     * @memberof TaskInfo
+     */
+    'workerId': number;
+}
+
+
+/**
+ * 
+ * @export
+ * @enum {string}
+ */
+
+export const TaskTaskExitStatus = {
+    TaskNoStatus: '',
+    TaskSuccess: 'success',
+    TaskCanceled: 'cancelled',
+    TaskError: 'error'
+} as const;
+
+export type TaskTaskExitStatus = typeof TaskTaskExitStatus[keyof typeof TaskTaskExitStatus];
+
+
 /**
  * 
  * @export
@@ -1351,7 +1443,13 @@ export interface UserInfo {
      */
     'homeId': string;
     /**
-     * HomeSize        int64  `json:\"homeSize\" validate:\"required\"`
+     * 
+     * @type {boolean}
+     * @memberof UserInfo
+     */
+    'isOnline'?: boolean;
+    /**
+     * 
      * @type {number}
      * @memberof UserInfo
      */
@@ -1369,7 +1467,7 @@ export interface UserInfo {
      */
     'trashId': string;
     /**
-     * TrashSize       int64  `json:\"trashSize\" validate:\"required\"`
+     * 
      * @type {string}
      * @memberof UserInfo
      */
@@ -1401,12 +1499,18 @@ export interface UserInfoArchive {
     'homeId': string;
     /**
      * 
+     * @type {boolean}
+     * @memberof UserInfoArchive
+     */
+    'isOnline'?: boolean;
+    /**
+     * 
      * @type {string}
      * @memberof UserInfoArchive
      */
     'password'?: string;
     /**
-     * HomeSize        int64  `json:\"homeSize\" validate:\"required\"`
+     * 
      * @type {number}
      * @memberof UserInfoArchive
      */
@@ -1424,11 +1528,24 @@ export interface UserInfoArchive {
      */
     'trashId': string;
     /**
-     * TrashSize       int64  `json:\"trashSize\" validate:\"required\"`
+     * 
      * @type {string}
      * @memberof UserInfoArchive
      */
     'username': string;
+}
+/**
+ * 
+ * @export
+ * @interface WLResponseInfo
+ */
+export interface WLResponseInfo {
+    /**
+     * 
+     * @type {string}
+     * @memberof WLResponseInfo
+     */
+    'message'?: string;
 }
 /**
  * 
@@ -1680,6 +1797,184 @@ export class ApiKeysApi extends BaseAPI {
      */
     public getApiKeys(options?: RawAxiosRequestConfig) {
         return ApiKeysApiFp(this.configuration).getApiKeys(options).then((request) => request(this.axios, this.basePath));
+    }
+}
+
+
+
+/**
+ * ConfigApi - axios parameter creator
+ * @export
+ */
+export const ConfigApiAxiosParamCreator = function (configuration?: Configuration) {
+    return {
+        /**
+         * 
+         * @summary Get Config
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getConfig: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/config`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication ApiKeyAuth required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Set Config
+         * @param {Array<StructsSetConfigParam>} request Set Config Params
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        setConfig: async (request: Array<StructsSetConfigParam>, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'request' is not null or undefined
+            assertParamExists('setConfig', 'request', request)
+            const localVarPath = `/config`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication ApiKeyAuth required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+    }
+};
+
+/**
+ * ConfigApi - functional programming interface
+ * @export
+ */
+export const ConfigApiFp = function(configuration?: Configuration) {
+    const localVarAxiosParamCreator = ConfigApiAxiosParamCreator(configuration)
+    return {
+        /**
+         * 
+         * @summary Get Config
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getConfig(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Config>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getConfig(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ConfigApi.getConfig']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Set Config
+         * @param {Array<StructsSetConfigParam>} request Set Config Params
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async setConfig(request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.setConfig(request, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ConfigApi.setConfig']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+    }
+};
+
+/**
+ * ConfigApi - factory interface
+ * @export
+ */
+export const ConfigApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
+    const localVarFp = ConfigApiFp(configuration)
+    return {
+        /**
+         * 
+         * @summary Get Config
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getConfig(options?: RawAxiosRequestConfig): AxiosPromise<Config> {
+            return localVarFp.getConfig(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Set Config
+         * @param {Array<StructsSetConfigParam>} request Set Config Params
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        setConfig(request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.setConfig(request, options).then((request) => request(axios, basePath));
+        },
+    };
+};
+
+/**
+ * ConfigApi - object-oriented interface
+ * @export
+ * @class ConfigApi
+ * @extends {BaseAPI}
+ */
+export class ConfigApi extends BaseAPI {
+    /**
+     * 
+     * @summary Get Config
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ConfigApi
+     */
+    public getConfig(options?: RawAxiosRequestConfig) {
+        return ConfigApiFp(this.configuration).getConfig(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Set Config
+     * @param {Array<StructsSetConfigParam>} request Set Config Params
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ConfigApi
+     */
+    public setConfig(request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig) {
+        return ConfigApiFp(this.configuration).setConfig(request, options).then((request) => request(this.axios, this.basePath));
     }
 }
 
@@ -3194,15 +3489,16 @@ export const FolderApiAxiosParamCreator = function (configuration?: Configuratio
         /**
          * 
          * @summary Dispatch a folder scan
-         * @param {StructsScanBody} request Scan parameters
+         * @param {string} folderId Folder Id
          * @param {string} [shareId] Share Id
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        scanFolder: async (request: StructsScanBody, shareId?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'request' is not null or undefined
-            assertParamExists('scanFolder', 'request', request)
-            const localVarPath = `/folder/scan`;
+        scanFolder: async (folderId: string, shareId?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'folderId' is not null or undefined
+            assertParamExists('scanFolder', 'folderId', folderId)
+            const localVarPath = `/folder/{folderId}/scan`
+                .replace(`{${"folderId"}}`, encodeURIComponent(String(folderId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -3220,12 +3516,9 @@ export const FolderApiAxiosParamCreator = function (configuration?: Configuratio
 
 
     
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -3329,13 +3622,13 @@ export const FolderApiFp = function(configuration?: Configuration) {
         /**
          * 
          * @summary Dispatch a folder scan
-         * @param {StructsScanBody} request Scan parameters
+         * @param {string} folderId Folder Id
          * @param {string} [shareId] Share Id
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async scanFolder(request: StructsScanBody, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.scanFolder(request, shareId, options);
+        async scanFolder(folderId: string, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TaskInfo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.scanFolder(folderId, shareId, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['FolderApi.scanFolder']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -3401,13 +3694,13 @@ export const FolderApiFactory = function (configuration?: Configuration, basePat
         /**
          * 
          * @summary Dispatch a folder scan
-         * @param {StructsScanBody} request Scan parameters
+         * @param {string} folderId Folder Id
          * @param {string} [shareId] Share Id
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        scanFolder(request: StructsScanBody, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.scanFolder(request, shareId, options).then((request) => request(axios, basePath));
+        scanFolder(folderId: string, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<TaskInfo> {
+            return localVarFp.scanFolder(folderId, shareId, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -3473,14 +3766,14 @@ export class FolderApi extends BaseAPI {
     /**
      * 
      * @summary Dispatch a folder scan
-     * @param {StructsScanBody} request Scan parameters
+     * @param {string} folderId Folder Id
      * @param {string} [shareId] Share Id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof FolderApi
      */
-    public scanFolder(request: StructsScanBody, shareId?: string, options?: RawAxiosRequestConfig) {
-        return FolderApiFp(this.configuration).scanFolder(request, shareId, options).then((request) => request(this.axios, this.basePath));
+    public scanFolder(folderId: string, shareId?: string, options?: RawAxiosRequestConfig) {
+        return FolderApiFp(this.configuration).scanFolder(folderId, shareId, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -5079,6 +5372,39 @@ export const TowersApiAxiosParamCreator = function (configuration?: Configuratio
         },
         /**
          * 
+         * @summary Flush Cache
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        flushCache: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/tower/cache`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication ApiKeyAuth required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary Get information about a file
          * @param {string} timestamp Timestamp in milliseconds since epoch
          * @param {*} [options] Override http request option.
@@ -5125,6 +5451,39 @@ export const TowersApiAxiosParamCreator = function (configuration?: Configuratio
          */
         getRemotes: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/tower`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication ApiKeyAuth required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Get Running Tasks
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getRunningTasks: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/tower/tasks`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -5324,6 +5683,18 @@ export const TowersApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary Flush Cache
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async flushCache(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<WLResponseInfo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.flushCache(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TowersApi.flushCache']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Get information about a file
          * @param {string} timestamp Timestamp in milliseconds since epoch
          * @param {*} [options] Override http request option.
@@ -5345,6 +5716,18 @@ export const TowersApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.getRemotes(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['TowersApi.getRemotes']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Get Running Tasks
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getRunningTasks(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<TaskInfo>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getRunningTasks(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TowersApi.getRunningTasks']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -5429,6 +5812,15 @@ export const TowersApiFactory = function (configuration?: Configuration, basePat
         },
         /**
          * 
+         * @summary Flush Cache
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        flushCache(options?: RawAxiosRequestConfig): AxiosPromise<WLResponseInfo> {
+            return localVarFp.flushCache(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary Get information about a file
          * @param {string} timestamp Timestamp in milliseconds since epoch
          * @param {*} [options] Override http request option.
@@ -5445,6 +5837,15 @@ export const TowersApiFactory = function (configuration?: Configuration, basePat
          */
         getRemotes(options?: RawAxiosRequestConfig): AxiosPromise<Array<TowerInfo>> {
             return localVarFp.getRemotes(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Get Running Tasks
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getRunningTasks(options?: RawAxiosRequestConfig): AxiosPromise<Array<TaskInfo>> {
+            return localVarFp.getRunningTasks(options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -5520,6 +5921,17 @@ export class TowersApi extends BaseAPI {
 
     /**
      * 
+     * @summary Flush Cache
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof TowersApi
+     */
+    public flushCache(options?: RawAxiosRequestConfig) {
+        return TowersApiFp(this.configuration).flushCache(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @summary Get information about a file
      * @param {string} timestamp Timestamp in milliseconds since epoch
      * @param {*} [options] Override http request option.
@@ -5539,6 +5951,17 @@ export class TowersApi extends BaseAPI {
      */
     public getRemotes(options?: RawAxiosRequestConfig) {
         return TowersApiFp(this.configuration).getRemotes(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Get Running Tasks
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof TowersApi
+     */
+    public getRunningTasks(options?: RawAxiosRequestConfig) {
+        return TowersApiFp(this.configuration).getRunningTasks(options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

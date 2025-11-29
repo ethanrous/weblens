@@ -16,6 +16,7 @@ import (
 )
 
 type Task struct {
+	QueueTime  time.Time
 	StartTime  time.Time
 	FinishTime time.Time
 
@@ -48,13 +49,15 @@ type Task struct {
 	cleanups []task_mod.CleanupFunc
 
 	// Function to be run to clean up if the task errors
-	errorCleanup []task_mod.CleanupFunc
+	errorCleanups []task_mod.CleanupFunc
 
 	updateMu sync.RWMutex
 
 	timerLock sync.RWMutex
 
 	waitChan chan struct{}
+
+	WorkerId int64
 }
 
 type TaskOptions struct {
@@ -68,6 +71,7 @@ const (
 	Created QueueState = iota
 	InQueue
 	Executing
+	Sleeping
 	Exited
 )
 
@@ -91,6 +95,20 @@ func (t *Task) GetTaskPool() task_mod.Pool {
 	defer t.updateMu.RUnlock()
 
 	return t.taskPool
+}
+
+func (t *Task) GetWorkerId() int {
+	t.updateMu.RLock()
+	defer t.updateMu.RUnlock()
+
+	return int(t.WorkerId)
+}
+
+func (t *Task) setWorkerId(workerId int64) {
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
+
+	t.WorkerId = workerId
 }
 
 func (t *Task) setTaskPoolInternal(pool *TaskPool) {
@@ -150,11 +168,10 @@ func (t *Task) Wait() {
 		return
 	}
 
-	t.updateMu.Lock()
-	if t.queueState == Exited {
+	if t.QueueState() == Exited {
 		return
 	}
-	t.updateMu.Unlock()
+
 	<-t.waitChan
 }
 
@@ -163,22 +180,23 @@ func (t *Task) Wait() {
 // override the exit status in special cases, such as a timeout,
 // which is both an error and a reason for cancellation.
 //
-// Cancellations are always external to the  From within the
+// Cancellations are always external to the task. From within the
 // body of the task, either error or success should be called.
-// If a task finds itself not required to continue, success should
-// be returned
+// If a task finds itself not required to continue, and should exit early,
+// success should be returned instead of cancel.
 func (t *Task) Cancel() {
-	t.Log().Debug().Msgf("Cancelling task T[%s]", t.taskId)
+	t.Log().Trace().Msgf("Cancelling task T[%s]", t.taskId)
+
 	t.cancelFunc(nil)
 
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
 
 	if t.exitStatus == task_mod.TaskNoStatus {
-		log.GlobalLogger().Debug().Msgf("Task T[%s] cancel", t.taskId)
 		t.queueState = Exited
 		t.exitStatus = task_mod.TaskCanceled
 	}
+
 	if t.childTaskPool != nil {
 		t.childTaskPool.Cancel()
 	}
@@ -250,7 +268,6 @@ func (t *Task) Manipulate(fn func(meta task_mod.TaskMetadata) error) error {
 // If an error has caused the task to be cancelled, t.Cancel() must be called after t.error()
 func (t *Task) error(err error) {
 	t.updateMu.Lock()
-	t.Log().Error().CallerSkipFrame(2).Stack().Err(err).Msg("Task encountered an error")
 
 	// If we have already called cancel, do not set any error
 	// E.g. A file is being moved, so we cancel all tasks on it,
@@ -262,12 +279,13 @@ func (t *Task) error(err error) {
 		return
 	}
 
+	t.Log().Error().CallerSkipFrame(2).Stack().Err(err).Msgf("A [%s] task [%s] encountered an error", t.jobName, t.taskId)
+
 	t.cancelFunc(err)
 
 	t.err = err
 	t.queueState = Exited
 
-	log.GlobalLogger().Debug().Msgf("Task T[%s] error", t.taskId)
 	t.exitStatus = task_mod.TaskError
 
 	t.updateMu.Unlock()
@@ -311,7 +329,7 @@ func (t *Task) SetPostAction(action func(task_mod.TaskResult)) {
 func (t *Task) SetErrorCleanup(cleanup task_mod.CleanupFunc) {
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
-	t.errorCleanup = append(t.errorCleanup, cleanup)
+	t.errorCleanups = append(t.errorCleanups, cleanup)
 }
 
 // SetCleanup takes a function to be run after the task has completed, no matter the exit status.
@@ -344,7 +362,6 @@ func (t *Task) Success(msg ...any) {
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
 
-	log.GlobalLogger().Debug().Msgf("Task T[%s] succeeded", t.taskId)
 	t.queueState = Exited
 	t.exitStatus = task_mod.TaskSuccess
 	if len(msg) != 0 {
@@ -357,6 +374,13 @@ func (t *Task) QueueState() QueueState {
 	defer t.updateMu.RUnlock()
 
 	return t.queueState
+}
+
+func (t *Task) SetQueueState(s QueueState) {
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
+
+	t.queueState = s
 }
 
 func (t *Task) SetTimeout(timeout time.Time) {
@@ -389,6 +413,12 @@ func (t *Task) OnResult(callback func(task_mod.TaskResult)) {
 	t.resultsCallback = callback
 }
 
+func (t *Task) ClearOnResult() {
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
+	t.resultsCallback = nil
+}
+
 func (t *Task) SetResult(results task_mod.TaskResult) {
 	t.updateMu.Lock()
 	if t.result == nil {
@@ -396,6 +426,10 @@ func (t *Task) SetResult(results task_mod.TaskResult) {
 	} else {
 		maps.Copy(t.result, results)
 	}
+
+	t.Log().Trace().Func(func(e *zerolog.Event) {
+		e.Interface("result", results).Msgf("Task [%s][%s] updated its result", t.taskId, t.jobName)
+	})
 
 	if t.resultsCallback != nil {
 		resultClone := maps.Clone(t.result)
@@ -418,6 +452,23 @@ func (t *Task) ExeTime() time.Duration {
 	return t.FinishTime.Sub(t.StartTime)
 }
 
+func (t *Task) QueueTimeDuration() time.Duration {
+	t.updateMu.RLock()
+	defer t.updateMu.RUnlock()
+
+	if t.StartTime.IsZero() {
+		return time.Since(t.QueueTime)
+	}
+
+	return t.StartTime.Sub(t.QueueTime)
+}
+
+func (t *Task) SetQueueTime(qt time.Time) {
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
+	t.QueueTime = qt
+}
+
 func globbyHash(charLimit int, dataToHash ...any) string {
 	h := sha256.New()
 
@@ -426,30 +477,3 @@ func globbyHash(charLimit int, dataToHash ...any) string {
 
 	return base64.URLEncoding.EncodeToString(h.Sum(nil))[:charLimit]
 }
-
-// type TaskInterface interface {
-// 	Id() Id
-// 	JobName() string
-// 	GetTaskPool() *TaskPool
-// 	GetChildTaskPool() *TaskPool
-// 	Status() (bool, TaskExitStatus)
-// 	GetMeta() TaskMetadata
-// 	GetResult(string) any
-// 	GetResults() TaskResult
-//
-// 	Q(pool *TaskPool) *Task
-//
-// 	Wait() *Task
-// 	Cancel()
-//
-// 	SwLap(string)
-// 	ClearTimeout()
-//
-// 	ReadError() any
-// 	ClearAndRecompute()
-// 	SetPostAction(action func(TaskResult))
-// 	SetCleanup(cleanup func())
-// 	SetErrorCleanup(cleanup func())
-//
-// 	ExeTime() time.Duration
-// }

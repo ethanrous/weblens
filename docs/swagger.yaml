@@ -43,6 +43,13 @@ definitions:
           $ref: '#/definitions/UserInfoArchive'
         type: array
     type: object
+  Config:
+    properties:
+      allowRegistrations:
+        type: boolean
+      enableHDIR:
+        type: boolean
+    type: object
   CreateFolderBody:
     properties:
       children:
@@ -499,6 +506,31 @@ definitions:
       taskId:
         type: string
     type: object
+  TaskInfo:
+    properties:
+      Completed:
+        type: boolean
+      jobName:
+        type: string
+      progress:
+        type: integer
+      result: {}
+      startTime:
+        type: string
+      status:
+        $ref: '#/definitions/task.TaskExitStatus'
+      taskId:
+        type: string
+      workerId:
+        type: integer
+    required:
+    - Completed
+    - jobName
+    - progress
+    - status
+    - taskId
+    - workerId
+    type: object
   TokenInfo:
     properties:
       createdBy:
@@ -586,15 +618,15 @@ definitions:
         type: string
       homeId:
         type: string
+      isOnline:
+        type: boolean
       permissionLevel:
-        description: HomeSize        int64  `json:"homeSize" validate:"required"`
         type: integer
       token:
         type: string
       trashId:
         type: string
       username:
-        description: TrashSize       int64  `json:"trashSize" validate:"required"`
         type: string
     required:
     - activated
@@ -612,17 +644,17 @@ definitions:
         type: string
       homeId:
         type: string
+      isOnline:
+        type: boolean
       password:
         type: string
       permissionLevel:
-        description: HomeSize        int64  `json:"homeSize" validate:"required"`
         type: integer
       token:
         type: string
       trashId:
         type: string
       username:
-        description: TrashSize       int64  `json:"trashSize" validate:"required"`
         type: string
     required:
     - activated
@@ -631,6 +663,11 @@ definitions:
     - permissionLevel
     - trashId
     - username
+    type: object
+  WLResponseInfo:
+    properties:
+      message:
+        type: string
     type: object
   WeblensErrorInfo:
     properties:
@@ -662,13 +699,24 @@ definitions:
       usingKeyInfo:
         type: string
     type: object
-  structs.ScanBody:
+  structs.SetConfigParam:
     properties:
-      filename:
+      configKey:
         type: string
-      folderId:
-        type: string
+      configValue: {}
     type: object
+  task.TaskExitStatus:
+    enum:
+    - ""
+    - success
+    - cancelled
+    - error
+    type: string
+    x-enum-varnames:
+    - TaskNoStatus
+    - TaskSuccess
+    - TaskCanceled
+    - TaskError
 host: localhost:8080
 info:
   contact: {}
@@ -679,6 +727,48 @@ info:
   title: Weblens API
   version: "1.0"
 paths:
+  /config:
+    get:
+      operationId: GetConfig
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Config Info
+          schema:
+            $ref: '#/definitions/Config'
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Get Config
+      tags:
+      - Config
+    post:
+      operationId: SetConfig
+      parameters:
+      - description: Set Config Params
+        in: body
+        name: request
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/structs.SetConfigParam'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Set Config
+      tags:
+      - Config
   /files:
     delete:
       operationId: DeleteFiles
@@ -1129,23 +1219,24 @@ paths:
       summary: Set the cover image of a folder
       tags:
       - Folder
-  /folder/scan:
+  /folder/{folderId}/scan:
     post:
       operationId: ScanFolder
       parameters:
+      - description: Folder Id
+        in: path
+        name: folderId
+        required: true
+        type: string
       - description: Share Id
         in: query
         name: shareId
         type: string
-      - description: Scan parameters
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/structs.ScanBody'
       responses:
         "200":
-          description: OK
+          description: Task Info
+          schema:
+            $ref: '#/definitions/TaskInfo'
         "404":
           description: Not Found
         "500":
@@ -1829,6 +1920,24 @@ paths:
       summary: Get information about a file
       tags:
       - Towers
+  /tower/cache:
+    delete:
+      operationId: FlushCache
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Cache flushed successfully
+          schema:
+            $ref: '#/definitions/WLResponseInfo'
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Flush Cache
+      tags:
+      - Towers
   /tower/init:
     post:
       operationId: InitializeTower
@@ -1899,6 +2008,26 @@ paths:
       - ApiKeyAuth:
         - admin
       summary: Reset tower
+      tags:
+      - Towers
+  /tower/tasks:
+    get:
+      operationId: GetRunningTasks
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Task Infos
+          schema:
+            items:
+              $ref: '#/definitions/TaskInfo'
+            type: array
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Get Running Tasks
       tags:
       - Towers
   /upload:

@@ -31,6 +31,7 @@ func Routes(ctx context_service.AppContext) *router.Router {
 	// Media
 	r.Group("/media", func() {
 		r.Get("/types", media_api.GetMediaTypes)
+
 		r.Group("/{mediaId}", func() {
 			r.Get("/info", media_api.GetMediaInfo)
 			r.Get(".{extension}", media_api.GetMediaImage)
@@ -79,6 +80,7 @@ func Routes(ctx context_service.AppContext) *router.Router {
 	r.Group("/folder", func() {
 		r.Group("/{folderId}", func() {
 			r.Get("", file_api.GetFolder)
+			r.Post("/scan", file_api.ScanDir)
 			r.Patch("/cover", router.RequireSignIn, file_api.SetFolderCover)
 		})
 
@@ -151,6 +153,8 @@ func Routes(ctx context_service.AppContext) *router.Router {
 	r.Group("/tower", func() {
 		r.Post("/init", tower_api.InitializeTower)
 		r.Group("", func() {
+			r.Get("/tasks", tower_api.GetRunningTasks)
+
 			r.Post("/reset", router.RequireOwner, tower_api.ResetServer)
 			r.Post("/remote", tower_api.AttachRemote)
 			r.Get("", tower_api.GetRemotes)
@@ -161,8 +165,15 @@ func Routes(ctx context_service.AppContext) *router.Router {
 			// r.Post("/{serverId}/restore", restoreToCore)
 			// r.Patch("/{serverId}", updateRemote)
 			r.Delete("/{serverId}", tower_api.DeleteRemote)
+
+			r.Delete("/cache", tower_api.DeleteRemote)
 		}, router.RequireAdmin)
 	})
+
+	r.Group("/config", func() {
+		r.Get("", tower_api.GetConfig)
+		r.Post("", tower_api.SetConfig)
+	}, router.RequireAdmin)
 
 	return r
 }

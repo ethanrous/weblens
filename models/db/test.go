@@ -42,7 +42,7 @@ func SetupTestDB(t *testing.T, collectionKey string, indexModels ...mongo.IndexM
 	ctx := context.WithValue(context.Background(), DatabaseContextKey, testDB)
 
 	// Clean up test collection before each test
-	col, err := GetCollection(ctx, collectionKey)
+	col, err := GetCollection[any](ctx, collectionKey)
 	require.NoError(t, err)
 
 	err = col.Drop(ctx)

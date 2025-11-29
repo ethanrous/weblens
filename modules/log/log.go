@@ -2,15 +2,12 @@ package log
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"strings"
-	"time"
 
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/opensearch-project/opensearch-go/v4"
@@ -41,7 +38,7 @@ func init() {
 	}
 
 	if err != nil {
-		panic(err)
+		fmt.Println("Error initializing OpenSearch client for logging:", err)
 	}
 
 	zerolog.TimestampFieldName = "@timestamp"
@@ -94,7 +91,7 @@ func NewZeroLogger(opts ...LogOpts) *zerolog.Logger {
 
 	var localLogger io.Writer
 	if config.LogFormat == "dev" {
-		localLogger = WLConsoleLogger{}
+		localLogger = newDevLogger()
 	} else {
 		localLogger = os.Stdout
 	}
@@ -167,105 +164,6 @@ func FromContext(ctx context.Context) *zerolog.Logger {
 
 func FromContextOk(ctx context.Context) (*zerolog.Logger, bool) {
 	l, ok := ctx.Value(loggerContextKey{}).(*zerolog.Logger)
+
 	return l, ok
-}
-
-type WLConsoleLogger struct{}
-
-func (l WLConsoleLogger) Write(p []byte) (n int, err error) {
-	var target map[string]any
-	err = json.Unmarshal(p, &target)
-
-	if err != nil {
-		return
-	}
-
-	callerI, ok := target["caller"]
-	caller := "[NO CALLER]"
-
-	if ok {
-		caller = callerI.(string)
-		caller = strings.TrimPrefix(caller, projectPrefix)
-	}
-
-	level, _ := target["level"].(string)
-	msgErr, _ := target["error"].(string)
-	logMsg, _ := target["message"].(string)
-	traceback, _ := target["traceback"].([]any)
-
-	// if level == zerolog.TraceLevel.String() || true {
-	// 	// ignoredKeys := []string{"level", "error", "message", "weblens_build_version", "caller", "@timestamp", "traceback", "instance"}
-	// 	allowedKeys := []string{"task_id"}
-	// 	extras := ""
-	//
-	// 	for _, k := range allowedKeys {
-	// 		v, ok := target[k]
-	// 		if !ok {
-	// 			continue
-	// 		}
-	//
-	// 		extras += fmt.Sprintf("%s%s%s: %v ", BLUE, k, RESET, v)
-	// 	}
-	//
-	// 	if extras != "" {
-	// 		logMsg += "\n\t" + extras
-	// 	}
-	// }
-
-	stackStr := ""
-	if len(traceback) != 0 {
-		stackStr = "\n"
-
-		for _, block := range traceback {
-			blockMap, ok := block.(map[string]any)
-			if !ok {
-				continue
-			}
-
-			function, _ := blockMap["func"].(string)
-			if strings.HasSuffix(function, "ServeHTTP") {
-				break
-			}
-
-			line, _ := blockMap["line"].(string)
-
-			source, okSource := blockMap["source"].(string)
-			if okSource {
-				if strings.HasPrefix(source, projectPrefix) {
-					source = strings.TrimPrefix(source, projectPrefix)
-				} else {
-					source = ".../" + filepath.Base(source)
-				}
-
-				fileAndLine := source + ":" + line
-				function += "()"
-				stackStr += fmt.Sprintf("\t%s%-40s %s%30s\n", BLUE, fileAndLine, RESET, function)
-			}
-		}
-	}
-
-	levelColor := ""
-
-	switch level {
-	case "trace":
-		levelColor = RESET
-	case "debug":
-		levelColor = ORANGE
-	case "info":
-		levelColor = BLUE
-	case "warn":
-		levelColor = YELLOW
-	case "error", "fatal":
-		levelColor = RED
-	}
-
-	timeStr := time.Now().Format(time.DateTime)
-	msg := fmt.Sprintf("%s%s %s%s %s[%s] %s%s %s%s%s%s\n", ORANGE, timeStr, BLUE, caller, levelColor, level, RESET, logMsg, RED, msgErr, stackStr, RESET)
-	_, err = os.Stdout.Write([]byte(msg))
-
-	if err != nil {
-		return
-	}
-
-	return len(p), nil
 }
