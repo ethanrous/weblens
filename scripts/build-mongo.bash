@@ -57,10 +57,12 @@ if ! sudo docker build --platform "linux/$arch" -t ethrous/weblens-mongo:latest 
     exit 1
 fi
 
-if ! sudo docker image inspect docker.io/ethrous/weblens-mongo:latest; then
+if ! sudo docker image inspect docker.io/ethrous/weblens-mongo:latest >/dev/null; then
     printf "mongodb image build failed (image does not exist)\n"
     exit 1
 fi
+
+printf " DONE\n"
 
 if [ $do_push == true ]; then
     sudo docker push ethrous/weblens-mongo:latest
