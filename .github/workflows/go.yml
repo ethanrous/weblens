@@ -4,14 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       trace:
-        description: 'Trace'
+        description: "Trace"
         required: true
         default: false
         type: boolean
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   test-ubuntu:
@@ -25,5 +25,8 @@ jobs:
 
       - name: Run Tests
         run: |
+          # Restart docker to fix networking bug...
+          sudo systemctl restart docker
+
           ./scripts/testWeblens 
           exit $?
