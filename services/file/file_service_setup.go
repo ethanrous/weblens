@@ -172,6 +172,15 @@ func handleFileCreation(ctx context_service.AppContext, filepath file_system.Fil
 	}
 
 	if !ok {
+		existingAction, err := history.DoesFileExistInHistory(ctx, filepath)
+		if err != nil {
+			return nil, err
+		}
+
+		if existingAction != nil {
+			return nil, errors.Errorf("File [%s] not found in pathMap but exists in history, inconsistent state", filepath)
+		}
+
 		ctx.Log().Trace().Msgf("File [%s] not found in history, creating new file", filepath)
 
 		if needsContentId(f) {
@@ -198,7 +207,7 @@ func handleFileCreation(ctx context_service.AppContext, filepath file_system.Fil
 
 		action = history.NewCreateAction(ctx, f)
 
-		err := history.SaveAction(ctx, &action)
+		err = history.SaveAction(ctx, &action)
 		if err != nil {
 			return nil, err
 		}

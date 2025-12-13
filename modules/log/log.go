@@ -167,3 +167,7 @@ func FromContextOk(ctx context.Context) (*zerolog.Logger, bool) {
 
 	return l, ok
 }
+
+func ShowStackTrace() {
+
+}

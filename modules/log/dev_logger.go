@@ -44,6 +44,54 @@ func (l WLConsoleLogger) Write(p []byte) (n int, err error) {
 	}
 }
 
+func formatStack(traceback []any) string {
+	stackStr := "\n"
+	for _, block := range traceback {
+		blockMap, ok := block.(map[string]any)
+
+		var line string
+
+		var function string
+
+		var source string
+
+		var okSource bool
+
+		if ok {
+			function, _ = blockMap["func"].(string)
+			line, _ = blockMap["line"].(string)
+
+			source, okSource = blockMap["source"].(string)
+		} else {
+			blockMap, ok := block.(map[string]string)
+			if !ok {
+				continue
+			}
+
+			function = blockMap["func"]
+			line = blockMap["line"]
+			source, okSource = blockMap["source"]
+		}
+
+		if strings.HasSuffix(function, "ServeHTTP") {
+			break
+		}
+
+		if okSource {
+			var found bool
+			if source, found = strings.CutPrefix(source, projectPrefix); !found {
+				source = ".../" + filepath.Base(source)
+			}
+
+			fileAndLine := source + ":" + line
+			function += "()"
+			stackStr += fmt.Sprintf("\t%s%-40s %s%30s\n", BLUE, fileAndLine, RESET, function)
+		}
+	}
+
+	return stackStr
+}
+
 func (l WLConsoleLogger) write_(p []byte) (n int, err error) {
 	defer recoverLogger()
 
@@ -73,33 +121,7 @@ func (l WLConsoleLogger) write_(p []byte) (n int, err error) {
 
 	stackStr := ""
 	if len(traceback) != 0 {
-		stackStr = "\n"
-
-		for _, block := range traceback {
-			blockMap, ok := block.(map[string]any)
-			if !ok {
-				continue
-			}
-
-			function, _ := blockMap["func"].(string)
-			if strings.HasSuffix(function, "ServeHTTP") {
-				break
-			}
-
-			line, _ := blockMap["line"].(string)
-
-			source, okSource := blockMap["source"].(string)
-			if okSource {
-				var found bool
-				if source, found = strings.CutPrefix(source, projectPrefix); !found {
-					source = ".../" + filepath.Base(source)
-				}
-
-				fileAndLine := source + ":" + line
-				function += "()"
-				stackStr += fmt.Sprintf("\t%s%-40s %s%30s\n", BLUE, fileAndLine, RESET, function)
-			}
-		}
+		stackStr = formatStack(traceback)
 	}
 
 	levelColor := ""

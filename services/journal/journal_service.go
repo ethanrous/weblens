@@ -289,7 +289,7 @@ func GetLatestPathById(ctx context.Context, fileId string) (fs.Filepath, error) 
 }
 
 func GetLifetimesByTowerId(ctx context.Context, towerId string, opts ...GetLifetimesOptions) ([]history.FileLifetime, error) {
-	col, err := db.GetCollection[any](ctx, history.FileActionCollectionKey)
+	col, err := db.GetCollection[any](ctx, history.FileHistoryCollectionKey)
 	if err != nil {
 		return nil, err
 	}

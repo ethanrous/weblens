@@ -1,6 +1,10 @@
 package log
 
-import "github.com/ethanrous/weblens/modules/errors"
+import (
+	"fmt"
+
+	"github.com/ethanrous/weblens/modules/errors"
+)
 
 var (
 	StackSourceFileName     = "source"
@@ -87,4 +91,31 @@ func MarshalStack(err error) any {
 		})
 	}
 	return out
+}
+
+func PrintStackTrace() {
+	err := errors.New("stack trace")
+	st := MarshalStack(err)
+
+	stm, ok := st.([]map[string]string)
+	if !ok {
+		fmt.Println("Could not marshal stack trace", st)
+		return
+	}
+
+	if len(stm) == 0 {
+		fmt.Println("No stack trace available")
+	}
+
+	stma := make([]any, 0, len(stm)-1)
+	for i, frame := range stm {
+		if i == 0 {
+			continue
+		}
+
+		stma = append(stma, frame)
+	}
+
+	stkStr := formatStack(stma)
+	GlobalLogger().Log().Msg(stkStr)
 }
