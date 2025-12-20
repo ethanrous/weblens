@@ -1,4 +1,5 @@
-set -e
+#!/bin/bash
+set -euox pipefail
 
 buildDeps=false
 devDeps=false
