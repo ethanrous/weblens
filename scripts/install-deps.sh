@@ -67,19 +67,21 @@ if [[ $buildDeps == true ]]; then
 
     rustup-init -y --no-modify-path
     . "$HOME/.cargo/env"
-    rustup target add aarch64-unknown-linux-musl || exit 1
+    TRIPLE_VENDOR="x86_64-unknown-linux-musl"
+    TRIPLE="x86_64-linux-musl"
+    rustup target add $TRIPLE_VENDOR || exit 1
 
     mkdir -p /opt/musl
 
     MUSL_VERSION="aarch64-linux-musl-cross"
     curl -L "https://musl.cc/${MUSL_VERSION}.tgz" | tar xz -C /opt/musl
 
-    ln -sf /opt/musl/"${MUSL_VERSION}"/bin/aarch64-linux-musl-gcc /usr/local/bin/aarch64-linux-musl-gcc &&
-        ln -sf /opt/musl/"${MUSL_VERSION}"/bin/aarch64-linux-musl-g++ /usr/local/bin/aarch64-linux-musl-g++ &&
-        ln -sf /opt/musl/"${MUSL_VERSION}"/bin/aarch64-linux-musl-ar /usr/local/bin/aarch64-linux-musl-ar &&
-        ln -sf /opt/musl/"${MUSL_VERSION}"/bin/aarch64-linux-musl-nm /usr/local/bin/aarch64-linux-musl-nm &&
-        ln -sf /opt/musl/"${MUSL_VERSION}"/bin/aarch64-linux-musl-strip /usr/local/bin/aarch64-linux-musl-strip &&
-        ln -sf /opt/musl/"${MUSL_VERSION}"/bin/aarch64-linux-musl-ranlib /usr/local/bin/aarch64-linux-musl-ranlib
+    ln -sf /opt/musl/"${MUSL_VERSION}"/bin/"${TRIPLE}"-gcc /usr/local/bin/"${TRIPLE}"-gcc &&
+        ln -sf /opt/musl/"${MUSL_VERSION}"/bin/"${TRIPLE}"-g++ /usr/local/bin/"${TRIPLE}"-g++ &&
+        ln -sf /opt/musl/"${MUSL_VERSION}"/bin/"${TRIPLE}"-ar /usr/local/bin/"${TRIPLE}"-ar &&
+        ln -sf /opt/musl/"${MUSL_VERSION}"/bin/"${TRIPLE}"-nm /usr/local/bin/"${TRIPLE}"-nm &&
+        ln -sf /opt/musl/"${MUSL_VERSION}"/bin/"${TRIPLE}"-strip /usr/local/bin/"${TRIPLE}"-strip &&
+        ln -sf /opt/musl/"${MUSL_VERSION}"/bin/"${TRIPLE}"-ranlib /usr/local/bin/"${TRIPLE}"-ranlib
 
 else
     apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community

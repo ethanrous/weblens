@@ -42,8 +42,8 @@ jobs:
         with:
           version: 10
           cache: true
-          run_install: true
-          run_install.cwd: weblens-vue/weblens-nuxt
+          run_install: |
+            - cwd: weblens-vue/weblens-nuxt
 
       - name: Lint
         working-directory: weblens-vue/weblens-nuxt
