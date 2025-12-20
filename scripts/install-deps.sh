@@ -74,7 +74,7 @@ if [[ $buildDeps == true ]]; then
 
     mkdir -p /opt/musl
 
-    MUSL_VERSION="aarch64-linux-musl-cross"
+    MUSL_VERSION="x86_64-linux-musl-cross"
     curl -L "https://musl.cc/${MUSL_VERSION}.tgz" | tar xz -C /opt/musl
 
     ln -sf /opt/musl/"${MUSL_VERSION}"/bin/"${TRIPLE}"-gcc /usr/local/bin/"${TRIPLE}"-gcc &&
