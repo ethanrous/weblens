@@ -67,9 +67,10 @@ if [[ $buildDeps == true ]]; then
 
     rustup-init -y --no-modify-path
     . "$HOME/.cargo/env"
-    TRIPLE_VENDOR="x86_64-unknown-linux-musl"
+    # TRIPLE_VENDOR="x86_64-unknown-linux-musl"
+    # rustup target add $TRIPLE_VENDOR || exit 1
+
     TRIPLE="x86_64-linux-musl"
-    rustup target add $TRIPLE_VENDOR || exit 1
 
     mkdir -p /opt/musl
 
