@@ -65,24 +65,24 @@ if [[ $buildDeps == true ]]; then
         tiff-dev \
         rustup
 
-    rustup-init -y --no-modify-path
-    . "$HOME/.cargo/env"
-    # TRIPLE_VENDOR="x86_64-unknown-linux-musl"
-    # rustup target add $TRIPLE_VENDOR || exit 1
-
-    TRIPLE="x86_64-linux-musl"
-
-    mkdir -p /opt/musl
-
-    MUSL_VERSION="x86_64-linux-musl-cross"
-    curl -L "https://musl.cc/${MUSL_VERSION}.tgz" | tar xz -C /opt/musl
-
-    ln -sf /opt/musl/"${MUSL_VERSION}"/bin/"${TRIPLE}"-gcc /usr/local/bin/"${TRIPLE}"-gcc &&
-        ln -sf /opt/musl/"${MUSL_VERSION}"/bin/"${TRIPLE}"-g++ /usr/local/bin/"${TRIPLE}"-g++ &&
-        ln -sf /opt/musl/"${MUSL_VERSION}"/bin/"${TRIPLE}"-ar /usr/local/bin/"${TRIPLE}"-ar &&
-        ln -sf /opt/musl/"${MUSL_VERSION}"/bin/"${TRIPLE}"-nm /usr/local/bin/"${TRIPLE}"-nm &&
-        ln -sf /opt/musl/"${MUSL_VERSION}"/bin/"${TRIPLE}"-strip /usr/local/bin/"${TRIPLE}"-strip &&
-        ln -sf /opt/musl/"${MUSL_VERSION}"/bin/"${TRIPLE}"-ranlib /usr/local/bin/"${TRIPLE}"-ranlib
+    # rustup-init -y --no-modify-path
+    # . "$HOME/.cargo/env"
+    # # TRIPLE_VENDOR="x86_64-unknown-linux-musl"
+    # # rustup target add $TRIPLE_VENDOR || exit 1
+    #
+    # TRIPLE="x86_64-linux-musl"
+    #
+    # mkdir -p /opt/musl
+    #
+    # MUSL_VERSION="x86_64-linux-musl-cross"
+    # curl -L "https://musl.cc/${MUSL_VERSION}.tgz" | tar xz -C /opt/musl
+    #
+    # ln -sf /opt/musl/"${MUSL_VERSION}"/bin/"${TRIPLE}"-gcc /usr/local/bin/"${TRIPLE}"-gcc &&
+    #     ln -sf /opt/musl/"${MUSL_VERSION}"/bin/"${TRIPLE}"-g++ /usr/local/bin/"${TRIPLE}"-g++ &&
+    #     ln -sf /opt/musl/"${MUSL_VERSION}"/bin/"${TRIPLE}"-ar /usr/local/bin/"${TRIPLE}"-ar &&
+    #     ln -sf /opt/musl/"${MUSL_VERSION}"/bin/"${TRIPLE}"-nm /usr/local/bin/"${TRIPLE}"-nm &&
+    #     ln -sf /opt/musl/"${MUSL_VERSION}"/bin/"${TRIPLE}"-strip /usr/local/bin/"${TRIPLE}"-strip &&
+    #     ln -sf /opt/musl/"${MUSL_VERSION}"/bin/"${TRIPLE}"-ranlib /usr/local/bin/"${TRIPLE}"-ranlib
 
 else
     apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community
@@ -102,25 +102,7 @@ if [[ $devDeps == true ]]; then
         elfutils-dev \
         boost-dev
 
-    # mkdir /debug && cd /debug || exit 1
-    # git clone https://github.com/KDE/heaptrack.git
-    # cd heaptrack || exit 1
-    # mkdir build && cd build || exit 1
-    # cmake -DCMAKE_BUILD_TYPE=Release ..
-    # make -j$(nproc)
-
     go install github.com/go-delve/delve/cmd/dlv@latest
 
     go install github.com/air-verse/air@latest
 fi
-
-# if [[ $agno == true ]]; then
-# cd /agno/ || exit 1
-#
-# . "$HOME/.cargo/env"
-# echo '[target.aarch64-unknown-linux-musl]
-# linker = "aarch64-linux-musl-g++"' >~/.cargo/config
-# export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-musl-g++
-# PDFIUM_STATIC_LIB_PATH="/agno/libpdfium" RUSTFLAGS='-C link-arg=-lpdfium -C link-arg=-lstdc++' cargo build --release --target aarch64-unknown-linux-musl
-# cp target/aarch64-unknown-linux-musl/release/libagno.a ./lib/
-# fi

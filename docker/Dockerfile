@@ -13,9 +13,8 @@ RUN npm install -g pnpm;
 RUN pnpm install;
 RUN pnpm generate;
 
-# Build server binary
-FROM --platform=linux/${ARCHITECTURE} golang:${GO_VERSION}-alpine AS backend
-
+# Build agno static library
+FROM clux/muslrust:stable AS agno-builder
 ## Install dependencies
 COPY scripts/install-deps.sh /tmp/install-deps.sh
 RUN chmod +x /tmp/install-deps.sh;
@@ -29,8 +28,22 @@ RUN source "$HOME/.cargo/env"; cargo build --release --target x86_64-unknown-lin
 ## Copy agno binary to local library
 RUN mkdir -p /agno/lib; cp /src/agno/target/x86_64-unknown-linux-musl/release/libagno.a /agno/lib/libagno.a; cp /src/agno/lib/agno.h /agno/lib/agno.h;
 
+# Build server binary
+FROM --platform=linux/${ARCHITECTURE} golang:${GO_VERSION}-alpine AS backend
+
+## Install dependencies
+COPY scripts/install-deps.sh /tmp/install-deps.sh
+RUN chmod +x /tmp/install-deps.sh;
+RUN /tmp/install-deps.sh -b -a;
+
 WORKDIR /src
-RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=1 CGO_CFLAGS_ALLOW='-Xpreprocessor' GOOS=linux GOARCH=${ARCHITECTURE} go build -v -ldflags="-s -w" -o /server/weblens ./cmd/weblens/main.go
+COPY . .
+
+RUN mkdir -p /agno/lib; 
+COPY --from=agno-builder /src/agno/target/x86_64-unknown-linux-musl/release/libagno.a /agno/lib/libagno.a
+COPY --from=agno-builder cp /src/agno/lib/agno.h /agno/lib/agno.h
+
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=1 CGO_CFLAGS_ALLOW='-Xpreprocessor' GOOS=linux GOARCH=${ARCHITECTURE} go build -v -ldflags="-s -w" -o /server/weblens ./cmd/weblens/main.go;
 
 # Combine into final image
 FROM --platform=linux/${ARCHITECTURE} alpine:latest AS final
