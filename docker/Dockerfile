@@ -15,18 +15,11 @@ RUN pnpm generate;
 
 # Build agno static library
 FROM clux/muslrust:stable AS agno-builder
-## Install dependencies
-COPY scripts/install-deps.sh /tmp/install-deps.sh
-RUN chmod +x /tmp/install-deps.sh;
-RUN /tmp/install-deps.sh -b -a;
-
 WORKDIR /src
 COPY . .
 
 WORKDIR /src/agno
-RUN source "$HOME/.cargo/env"; cargo build --release --target x86_64-unknown-linux-musl;
-## Copy agno binary to local library
-RUN mkdir -p /agno/lib; cp /src/agno/target/x86_64-unknown-linux-musl/release/libagno.a /agno/lib/libagno.a; cp /src/agno/lib/agno.h /agno/lib/agno.h;
+RUN cargo build --release;
 
 # Build server binary
 FROM --platform=linux/${ARCHITECTURE} golang:${GO_VERSION}-alpine AS backend
