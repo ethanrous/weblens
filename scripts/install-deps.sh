@@ -35,11 +35,6 @@ done
 
 apk upgrade --no-cache
 apk add --no-cache ffmpeg
-# apk add --no-cache ffmpeg jasper poppler-glib fontconfig libraw
-# apk add --update --no-cache --virtual .ms-fonts msttcorefonts-installer &&
-#     update-ms-fonts 2>/dev/null &&
-#     fc-cache -fv &&
-#     apk del .ms-fonts
 
 if [[ $buildDeps == true ]]; then
     apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community
@@ -64,25 +59,6 @@ if [[ $buildDeps == true ]]; then
         pkgconfig \
         tiff-dev \
         rustup
-
-    # rustup-init -y --no-modify-path
-    # . "$HOME/.cargo/env"
-    # # TRIPLE_VENDOR="x86_64-unknown-linux-musl"
-    # # rustup target add $TRIPLE_VENDOR || exit 1
-    #
-    # TRIPLE="x86_64-linux-musl"
-    #
-    # mkdir -p /opt/musl
-    #
-    # MUSL_VERSION="x86_64-linux-musl-cross"
-    # curl -L "https://musl.cc/${MUSL_VERSION}.tgz" | tar xz -C /opt/musl
-    #
-    # ln -sf /opt/musl/"${MUSL_VERSION}"/bin/"${TRIPLE}"-gcc /usr/local/bin/"${TRIPLE}"-gcc &&
-    #     ln -sf /opt/musl/"${MUSL_VERSION}"/bin/"${TRIPLE}"-g++ /usr/local/bin/"${TRIPLE}"-g++ &&
-    #     ln -sf /opt/musl/"${MUSL_VERSION}"/bin/"${TRIPLE}"-ar /usr/local/bin/"${TRIPLE}"-ar &&
-    #     ln -sf /opt/musl/"${MUSL_VERSION}"/bin/"${TRIPLE}"-nm /usr/local/bin/"${TRIPLE}"-nm &&
-    #     ln -sf /opt/musl/"${MUSL_VERSION}"/bin/"${TRIPLE}"-strip /usr/local/bin/"${TRIPLE}"-strip &&
-    #     ln -sf /opt/musl/"${MUSL_VERSION}"/bin/"${TRIPLE}"-ranlib /usr/local/bin/"${TRIPLE}"-ranlib
 
 else
     apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community

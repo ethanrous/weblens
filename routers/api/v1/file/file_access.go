@@ -76,6 +76,9 @@ func CheckFileAccessById(ctx context_service.RequestContext, fileId string, perm
 func checkPastFileAccess(ctx context_service.RequestContext, fileId string, timestamp time.Time) (file *file_model.WeblensFileImpl, err error) {
 	file, err = journal.GetPastFileById(ctx, fileId, timestamp)
 	if err != nil {
+		// Handle error if file not found, return 404.
+		// Here we both send the error to the client and return it so the caller can handle it as needed.
+		// The caller of this function should never send the error to the client again to avoid duplicate responses.
 		ctx.Error(http.StatusNotFound, err)
 
 		return nil, err

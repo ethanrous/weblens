@@ -10,6 +10,7 @@ import (
 	context_mod "github.com/ethanrous/weblens/modules/context"
 	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/fs"
+	"github.com/ethanrous/weblens/modules/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -25,8 +26,6 @@ const (
 	FileDelete     FileActionType = "fileDelete"
 	FileRestore    FileActionType = "fileRestore"
 )
-
-const fileActionErrorLabel = "file action"
 
 type FileAction struct {
 	Id primitive.ObjectID `bson:"_id" json:"id"`
@@ -88,10 +87,6 @@ func NewCreateAction(ctx context.Context, file *file_model.WeblensFileImpl) File
 }
 
 func NewMoveAction(ctx context.Context, originPath, destinationPath fs.Filepath, file *file_model.WeblensFileImpl) FileAction {
-	// if destinationPath != file.GetPortablePath() {
-	// 	panic(errors.New("destination path does not match file path"))
-	// }
-
 	towerId := ctx.Value("towerId").(string)
 
 	eventId := ""
@@ -215,16 +210,6 @@ func (fa *FileAction) SetFile(file *file_model.WeblensFileImpl) {
 	fa.file = file
 }
 
-func missingContentId(ctx context.Context, action *FileAction) error {
-	return nil
-
-	if action.ContentId == "" && action.Size > 0 && !action.GetRelevantPath().IsDir() {
-		return errors.Errorf("action for [%s]s contentId is empty", action.GetRelevantPath())
-	}
-
-	return nil
-}
-
 // SaveAction saves a FileAction to the database.
 // It returns an error if the operation fails.
 func SaveAction(ctx context.Context, action *FileAction) error {
@@ -235,10 +220,6 @@ func SaveAction(ctx context.Context, action *FileAction) error {
 
 	if action.TowerId == "" {
 		return errors.New("towerId is empty")
-	}
-
-	if err = missingContentId(ctx, action); err != nil {
-		return err
 	}
 
 	if action.Id.IsZero() {
@@ -264,10 +245,6 @@ func SaveActions(ctx context.Context, actions []FileAction) error {
 	}
 
 	for i, a := range actions {
-		if err = missingContentId(ctx, &a); err != nil {
-			return err
-		}
-
 		if a.Id.IsZero() {
 			actions[i].Id = primitive.NewObjectID()
 		}
@@ -435,7 +412,7 @@ func GetActionsAtPathBefore(ctx context.Context, path fs.Filepath, timestamp tim
 		return nil, err
 	}
 
-	filter := pathPrefixReFilter(path)
+	filter := pathPrefixReFilter(path, includeChildren)
 	filter["timestamp"] = bson.M{"$lte": timestamp}
 
 	opts := options.Find().SetSort(bson.M{"timestamp": -1})
@@ -455,9 +432,15 @@ func GetActionsAtPathBefore(ctx context.Context, path fs.Filepath, timestamp tim
 	return actions, nil
 }
 
-func pathPrefixReFilter(path fs.Filepath) bson.M {
+func pathPrefixReFilter(path fs.Filepath, includeChildren bool) bson.M {
 	pathRe := regexp.QuoteMeta(path.ToPortable())
-	pathRe += `[^/]*/?`
+	if includeChildren {
+		pathRe = "^" + pathRe + "(?:[^/]+/?)?$"
+	} else {
+		pathRe = "^" + pathRe + "$"
+	}
+
+	log.GlobalLogger().Println("Generated path regex:", pathRe)
 
 	return bson.M{
 		"$or": bson.A{

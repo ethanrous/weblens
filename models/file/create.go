@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"io"
 	"math"
+	"time"
 
 	"github.com/ethanrous/weblens/modules/errors"
 	file_system "github.com/ethanrous/weblens/modules/fs"
@@ -33,23 +34,25 @@ type NewFileOptions struct {
 
 	// GenerateId will generate a new ID for the file
 	GenerateId bool
+
+	ModifiedDate option.Option[time.Time]
 }
 
 func NewWeblensFile(params NewFileOptions) *WeblensFileImpl {
+	// TODO: make this return an error instead of panicking
 	if params.Path.IsZero() {
 		panic("Path cannot be empty")
 	}
 
 	f := &WeblensFileImpl{
 		portablePath: params.Path,
-		// childrenMap:  make(map[string]*WeblensFileImpl),
-		isDir: option.Of(params.Path.IsDir()),
+		isDir:        option.Of(params.Path.IsDir()),
 
-		id:        params.FileId,
-		contentId: params.ContentId,
-		// parent:    params.Parent,
-		pastFile: params.IsPastFile,
-		memOnly:  params.MemOnly,
+		id:         params.FileId,
+		contentId:  params.ContentId,
+		pastFile:   params.IsPastFile,
+		memOnly:    params.MemOnly,
+		modifyDate: params.ModifiedDate.GetOr(time.Now()),
 	}
 
 	if params.Size > 0 {

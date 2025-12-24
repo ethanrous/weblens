@@ -25,6 +25,14 @@ func (o Option[T]) Get() (value T, isSet bool) {
 	return o.value, o.present
 }
 
+func (o Option[T]) GetOr(fallback T) (value T) {
+	if o.present {
+		return o.value
+	}
+
+	return fallback
+}
+
 func (o Option[T]) Set(value T) Option[T] {
 	o.value = value
 	o.present = true

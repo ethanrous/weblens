@@ -223,14 +223,11 @@ func (f *WeblensFileImpl) IsDir() bool {
 }
 
 func (f *WeblensFileImpl) ModTime() (t time.Time) {
-	// f.updateLock.RLock()
-	// f.updateLock.RUnlock()
 	if f.pastFile {
 		return f.modifyDate
 	}
 
 	if f.modifyDate.Unix() <= 0 {
-
 		_, err := f.LoadStat()
 		if err != nil {
 			log.Error().Stack().Err(err).Msg("")

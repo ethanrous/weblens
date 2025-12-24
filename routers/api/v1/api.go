@@ -152,6 +152,7 @@ func Routes(ctx context_service.AppContext) *router.Router {
 	// Servers
 	r.Group("/tower", func() {
 		r.Post("/init", tower_api.InitializeTower)
+		r.Get("/history", history_api.GetPagedHistoryActions)
 		r.Group("", func() {
 			r.Get("/tasks", tower_api.GetRunningTasks)
 
