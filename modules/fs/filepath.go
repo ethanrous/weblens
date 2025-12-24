@@ -87,6 +87,7 @@ func (wf Filepath) Depth() int {
 	return strings.Count(wf.RelPath, "/") + 1
 }
 
+// IsRoot returns true if the filepath represents *a* root of the Weblens filesystem.
 func (wf Filepath) IsRoot() bool {
 	return wf.RootAlias != "" && wf.RelPath == ""
 }

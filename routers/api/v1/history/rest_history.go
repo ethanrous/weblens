@@ -9,39 +9,39 @@ import (
 	"github.com/ethanrous/weblens/models/history"
 	"github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/models/user"
+	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/structs"
 	"github.com/ethanrous/weblens/services/context"
 	"github.com/ethanrous/weblens/services/journal"
 	"github.com/ethanrous/weblens/services/reshape"
-	"github.com/ethanrous/weblens/modules/errors"
 )
 
-func GetLifetimesSince(ctx context.RequestContext) {
+// func GetLifetimesSince(ctx context.RequestContext) {
+// 	millisString := ctx.Query("timestamp")
+// 	if millisString == "" {
+// 		ctx.Error(http.StatusBadRequest, errors.New("missing timestamp"))
+// 	}
+//
+// 	millis, err := strconv.ParseInt(millisString, 10, 64)
+// 	if err != nil || millis < 0 {
+// 		ctx.Error(http.StatusBadRequest, errors.New("invalid timestamp"))
+//
+// 		return
+// 	}
+//
+// 	date := time.UnixMilli(millis)
+//
+// 	actions, err := journal.GetActionsSince(ctx, date)
+// 	if err != nil {
+// 		ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "failed to get lifetimes"))
+//
+// 		return
+// 	}
+//
+// 	ctx.JSON(http.StatusNotImplemented, actions)
+// }
 
-	millisString := ctx.Query("timestamp")
-	if millisString == "" {
-		ctx.Error(http.StatusBadRequest, errors.New("missing timestamp"))
-	}
-
-	millis, err := strconv.ParseInt(millisString, 10, 64)
-	if err != nil || millis < 0 {
-		ctx.Error(http.StatusBadRequest, errors.New("invalid timestamp"))
-
-		return
-	}
-
-	date := time.UnixMilli(millis)
-
-	actions, err := journal.GetActionsSince(ctx, date)
-	if err != nil {
-		ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "failed to get lifetimes"))
-
-		return
-	}
-
-	ctx.JSON(http.StatusNotImplemented, actions)
-}
-
-// GetBackupInfo godoc
+// DoFullBackup godoc
 //
 //	@ID			GetBackupInfo
 //	@Security	ApiKeyAuth[admin]
@@ -117,4 +117,49 @@ func DoFullBackup(ctx context.RequestContext) {
 	)
 
 	ctx.JSON(http.StatusOK, res)
+}
+
+// GetPagedHistoryActions godoc
+//
+//	@ID			GetPagedHistoryActions
+//	@Security	ApiKeyAuth[admin]
+//
+//	@Summary	Get a page of file actions
+//	@Tags		Towers
+//	@Produce	json
+//	@Param		page		query		int					false	"Page number"
+//	@Param		pageSize	query		int					false	"Number of items per page"
+//	@Success	200			{array}	history.FileAction	"File Actions"
+//	@Failure	400
+//	@Failure	404
+//	@Failure	500
+//	@Router		/tower/history [get]
+func GetPagedHistoryActions(ctx context.RequestContext) {
+	page, err := ctx.QueryInt("page")
+	if err != nil {
+		ctx.Error(http.StatusBadRequest, errors.New("invalid page number"))
+
+		return
+	}
+
+	pageSize, err := ctx.QueryIntDefault("pageSize", 50)
+	if err != nil {
+		ctx.Error(http.StatusBadRequest, errors.New("invalid page size"))
+
+		return
+	}
+
+	actions, err := journal.GetActionsPage(ctx, int(pageSize), int(page))
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "failed to get actions"))
+
+		return
+	}
+
+	actionInfos := make([]structs.FileActionInfo, 0, len(actions))
+	for _, action := range actions {
+		actionInfos = append(actionInfos, reshape.FileActionToFileActionInfo(action))
+	}
+
+	ctx.JSON(http.StatusOK, actionInfos)
 }

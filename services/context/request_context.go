@@ -125,17 +125,26 @@ func (c RequestContext) QueryBool(paramName string) bool {
 }
 
 func (c RequestContext) QueryInt(paramName string) (int64, error) {
-	limitStr := c.Query(paramName)
-	if limitStr == "" {
+	queryStr := c.Query(paramName)
+	if queryStr == "" {
 		return 0, nil
 	}
 
-	num, err := strconv.ParseInt(limitStr, 10, 32)
+	num, err := strconv.ParseInt(queryStr, 10, 32)
 	if err != nil {
 		return 0, errors.New("Invalid query int")
 	}
 
 	return num, nil
+}
+
+func (c RequestContext) QueryIntDefault(paramName string, defaultValue int64) (int64, error) {
+	queryStr := c.Query(paramName)
+	if queryStr == "" {
+		return defaultValue, nil
+	}
+
+	return c.QueryInt(paramName)
 }
 
 func (c RequestContext) Error(code int, err error) {
@@ -154,6 +163,10 @@ func (c RequestContext) Error(code int, err error) {
 		e = c.Log().Error().Stack()
 	} else {
 		e = c.Log().Warn()
+
+		if c.Log().GetLevel() <= zerolog.DebugLevel {
+			e = e.Stack()
+		}
 	}
 
 	e.CallerSkipFrame(1).Caller().Err(err).Msgf("API Error %d %s", code, http.StatusText(code))
@@ -189,12 +202,12 @@ func (c RequestContext) SetHeader(headerName, headerValue string) {
 	c.W.Header().Set(headerName, headerValue)
 }
 
-// Set the Content-Type header for the response.
+// SetContentType sets the Content-Type header for the response.
 func (c RequestContext) SetContentType(contentType string) {
 	c.SetHeader("Content-Type", contentType)
 }
 
-// Set the Last-Modified header for the response.
+// SetLastModified sets the Last-Modified header for the response.
 func (c RequestContext) SetLastModified(modified time.Time) {
 	c.SetHeader("Last-Modified", modified.UTC().Format(http.TimeFormat))
 }
@@ -220,7 +233,7 @@ func (c RequestContext) AddHeader(headerName, headerValue string) {
 	c.W.Header().Add(headerName, headerValue)
 }
 
-// Set the HTTP status code for the response.
+// Status sets the HTTP status code for the response.
 func (c RequestContext) Status(code int) {
 	if code >= http.StatusBadRequest {
 		c.Log().Trace().CallerSkipFrame(1).Caller().Msgf("Setting response code [%d]", code)

@@ -11,6 +11,8 @@ import (
 	"github.com/ethanrous/weblens/models/history"
 	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/fs"
+	"github.com/ethanrous/weblens/modules/log"
+	"github.com/ethanrous/weblens/modules/option"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -54,6 +56,89 @@ func pathPrefixReFilter(path fs.Filepath, depth int) bson.M {
 	}
 }
 
+func getPastFileIdAtPath(ctx context.Context, path fs.Filepath, time time.Time) (string, error) {
+	if path.IsRoot() {
+		// The root path's file ID is always the root alias
+		return path.RootAlias, nil
+	}
+
+	actions, err := history.GetActionsAtPathBefore(ctx, path, time, false)
+	if err != nil {
+		return "", err
+	}
+
+	if len(actions) != 1 {
+		return "", errors.Errorf("could not determine past file ID at path [%s] (ambiguous, %d actions found)", path, len(actions))
+	}
+
+	lastAction := actions[len(actions)-1]
+
+	return lastAction.FileId, nil
+}
+
+// getPastFileChildren retrieves the children of a past file at a specific point in time.
+func getPastFileChildren(ctx context.Context, pastFile *file_model.WeblensFileImpl, time time.Time) (map[fs.Filepath]*file_model.WeblensFileImpl, error) {
+	path := pastFile.GetPortablePath()
+
+	actions, err := history.GetActionsAtPathBefore(ctx, path, time, true)
+	if err != nil {
+		return nil, err
+	}
+
+	childActions := make(map[fs.Filepath]history.FileAction)
+
+	for _, action := range actions {
+		if action.GetRelevantPath() == path {
+			continue
+		}
+
+		log.FromContext(ctx).Debug().Msgf("Considering action for child: %s, parent path: %s", action.GetRelevantPath(), path)
+
+		pathKey := action.GetRelevantPath()
+		if action.ActionType == history.FileMove && action.OriginPath.Dir() == path {
+			pathKey = action.OriginPath
+		}
+
+		if _, ok := childActions[pathKey]; !ok {
+			childActions[pathKey] = action
+		}
+	}
+
+	children := make(map[fs.Filepath]*file_model.WeblensFileImpl)
+
+	for pathKey, action := range childActions {
+		destPath := action.GetRelevantPath()
+
+		// If the destination is not the same as the path we are looking for, skip it
+		if pathKey != destPath {
+			continue
+		}
+
+		child := file_model.NewWeblensFile(file_model.NewFileOptions{
+			Path:         destPath,
+			FileId:       action.FileId,
+			IsPastFile:   true,
+			Size:         action.Size,
+			ContentId:    action.ContentId,
+			ModifiedDate: option.Of(action.Timestamp),
+		})
+
+		err = child.SetParent(pastFile)
+		if err != nil {
+			return nil, err
+		}
+
+		err = pastFile.AddChild(child)
+		if err != nil {
+			return nil, err
+		}
+
+		children[destPath] = child
+	}
+
+	return children, nil
+}
+
 func GetPastFileById(ctx context.Context, fileId string, time time.Time) (*file_model.WeblensFileImpl, error) {
 	lastAction, err := history.GetLastActionByFileIdBefore(ctx, fileId, time)
 	if err != nil {
@@ -64,116 +149,38 @@ func GetPastFileById(ctx context.Context, fileId string, time time.Time) (*file_
 }
 
 func GetPastFileByPath(ctx context.Context, path fs.Filepath, time time.Time) (*file_model.WeblensFileImpl, error) {
-	actions, err := history.GetActionsAtPathBefore(ctx, path, time, true)
+	pastFileId, err := getPastFileIdAtPath(ctx, path, time)
 	if err != nil {
 		return nil, err
 	}
 
-	fileId := ""
-	children := make(map[fs.Filepath]history.FileAction)
+	newFile := file_model.NewWeblensFile(file_model.NewFileOptions{Path: path, FileId: pastFileId, IsPastFile: true})
 
-	for _, action := range actions {
-		if action.GetRelevantPath() == path {
-			fileId = action.FileId
-
-			continue
-		}
-
-		pathKey := action.GetRelevantPath()
-		if action.ActionType == history.FileMove && action.OriginPath.Dir() == path {
-			pathKey = action.OriginPath
-		}
-
-		if _, ok := children[pathKey]; !ok {
-			children[pathKey] = action
-		}
-	}
-
-	newFile := file_model.NewWeblensFile(file_model.NewFileOptions{Path: path, FileId: fileId, IsPastFile: true})
-
-	parentActions, err := history.GetActionsAtPathBefore(ctx, path.Dir(), time, false)
+	_, err = getPastFileChildren(ctx, newFile, time)
 	if err != nil {
 		return nil, err
 	}
 
-	lastParentAction := parentActions[len(parentActions)-1]
-	parent := file_model.NewWeblensFile(file_model.NewFileOptions{Path: path.Dir(), FileId: lastParentAction.FileId})
+	parentPath := path.Dir()
+
+	parentFileId, err := getPastFileIdAtPath(ctx, parentPath, time)
+	if err != nil {
+		return nil, err
+	}
+
+	parent := file_model.NewWeblensFile(file_model.NewFileOptions{Path: parentPath, FileId: parentFileId, IsPastFile: true})
 
 	err = newFile.SetParent(parent)
 	if err != nil {
 		return nil, err
 	}
 
-	for pathKey, action := range children {
-		destPath := action.GetRelevantPath()
-
-		// If the destination is not the same as the path we are looking for, skip it
-		if pathKey != destPath {
-			continue
-		}
-
-		child := file_model.NewWeblensFile(file_model.NewFileOptions{
-			Path:       destPath,
-			FileId:     action.FileId,
-			IsPastFile: true,
-			Size:       action.Size,
-			ContentId:  action.ContentId,
-		})
-
-		err = child.SetParent(newFile)
-		if err != nil {
-			return nil, err
-		}
-
-		err = newFile.AddChild(child)
-		if err != nil {
-			return nil, err
-		}
+	err = parent.AddChild(newFile)
+	if err != nil {
+		return nil, err
 	}
 
 	return newFile, nil
-}
-
-func GetPastFolderChildren(folder *file_model.WeblensFileImpl, time time.Time) (
-	[]*file_model.WeblensFileImpl, error,
-) {
-	// var id = folder.ID()
-	// if pastId := folder.GetPastId(); pastId != "" {
-	// 	id = pastId
-	// }
-	//
-	// actions, err := j.getChildrenAtTime(id, time)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	//
-	// lifeIdMap := map[string]any{}
-	// children := []*file_model.WeblensFileImpl{}
-	// for _, action := range actions {
-	// 	if action == nil {
-	// 		continue
-	// 	}
-	// 	if _, ok := lifeIdMap[action.LifeId]; ok {
-	// 		continue
-	// 	}
-	//
-	// 	newChild := file_model.NewWeblensFile(
-	// 		action.GetLifetimeId(), filepath.Base(action.DestinationPath), folder,
-	// 		action.DestinationPath[len(action.DestinationPath)-1] == '/',
-	// 	)
-	// 	newChild.setModifyDate(time)
-	// 	newChild.setPastFile(true)
-	// 	newChild.size.Store(action.Size)
-	// 	newChild.contentId = j.Get(action.LifeId).ContentId
-	// 	children = append(
-	// 		children, newChild,
-	// 	)
-	//
-	// 	lifeIdMap[action.LifeId] = nil
-	// }
-	//
-	// return children, nil
-	return nil, errors.New("not implemented")
 }
 
 func GetActionsByPathSince(ctx context.Context, path fs.Filepath, since time.Time, noChildren bool) ([]history.FileAction, error) {
@@ -219,6 +226,10 @@ func GetActionsByPathSince(ctx context.Context, path fs.Filepath, since time.Tim
 
 func GetActionsSince(ctx context.Context, time time.Time) ([]*history.FileAction, error) {
 	return getActionsSince(ctx, time, "")
+}
+
+func GetActionsPage(ctx context.Context, pageSize, pageNum int) ([]history.FileAction, error) {
+	return getActionsPage(ctx, pageSize, pageNum, "")
 }
 
 func GetAllActionsByTowerId(ctx context.Context, towerId string) ([]*history.FileAction, error) {
@@ -289,7 +300,7 @@ func GetLatestPathById(ctx context.Context, fileId string) (fs.Filepath, error) 
 }
 
 func GetLifetimesByTowerId(ctx context.Context, towerId string, opts ...GetLifetimesOptions) ([]history.FileLifetime, error) {
-	col, err := db.GetCollection[any](ctx, history.FileActionCollectionKey)
+	col, err := db.GetCollection[any](ctx, history.FileHistoryCollectionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -390,44 +401,3 @@ func GetLifetimesByTowerId(ctx context.Context, towerId string, opts ...GetLifet
 
 	return lifetimes, nil
 }
-
-// func getActionsByPath(ctx context.Context, path fs.Filepath, noChildren bool) ([]*history.FileAction, error) {
-// 	col, err := db.GetCollection[any](ctx, history.FileHistoryCollectionKey)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-//
-// 	var pathMatch bson.A
-// 	if noChildren {
-// 		pathMatch = bson.A{
-// 			bson.D{{Key: "actions.originPath", Value: path.ToPortable()}},
-// 			bson.D{{Key: "actions.destinationPath", Value: path.ToPortable()}},
-// 		}
-// 	} else {
-// 		pathMatch = bson.A{
-// 			bson.D{{Key: "actions.originPath", Value: bson.D{{Key: "$regex", Value: path.ToPortable() + "[^/]*/?$"}}}},
-// 			bson.D{{Key: "actions.destinationPath", Value: bson.D{{Key: "$regex", Value: path.ToPortable() + "[^/]*/?$"}}}},
-// 		}
-// 	}
-//
-// 	pipe := bson.A{
-// 		// bson.D{{Key: "$match", Value: bson.D{{Key: "serverId", Value: j.serverId}}}},
-// 		bson.D{{Key: "$unwind", Value: bson.D{{Key: "path", Value: "$actions"}}}},
-// 		bson.D{{Key: "$match", Value: bson.D{{Key: "$or", Value: pathMatch}}}},
-// 		bson.D{{Key: "$replaceRoot", Value: bson.D{{Key: "newRoot", Value: "$actions"}}}},
-// 		bson.D{{Key: "$sort", Value: bson.D{{Key: "timestamp", Value: -1}}}},
-// 	}
-//
-// 	ret, err := col.Aggregate(context.Background(), pipe)
-// 	if err != nil {
-// 		return nil, errors.WithStack(err)
-// 	}
-//
-// 	var target []*history.FileAction
-// 	err = ret.All(context.Background(), &target)
-// 	if err != nil {
-// 		return nil, errors.WithStack(err)
-// 	}
-//
-// 	return target, nil
-// }

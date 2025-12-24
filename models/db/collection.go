@@ -171,7 +171,15 @@ func (c *ContextualizedCollection[T]) DeleteMany(_ context.Context, filter any, 
 func (c *ContextualizedCollection[T]) Aggregate(_ context.Context, pipeline any, opts ...*options.AggregateOptions) (*mongo.Cursor, error) {
 	cursor, err := c.collection.Aggregate(c.ctx, pipeline, opts...)
 
-	log.FromContext(c.ctx).Trace().Msgf("Aggregate on collection [%s] got %d results", c.collection.Name(), cursor.RemainingBatchLength())
+	log.FromContext(c.ctx).Trace().Func(func(e *zerolog.Event) {
+		if cursor == nil {
+			e.Msgf("Aggregate on collection [%s] got nil cursor", c.collection.Name())
+
+			return
+		}
+
+		e.Msgf("Aggregate on collection [%s] got %d results", c.collection.Name(), cursor.RemainingBatchLength())
+	})
 
 	return cursor, errors.WithStack(err)
 }
