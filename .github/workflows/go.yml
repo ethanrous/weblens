@@ -49,6 +49,11 @@ jobs:
           run_install: |
             - cwd: weblens-vue/weblens-nuxt
 
+      - name: setup agno deps
+        run: |
+          cp ./agno/lib/agno.h ./services/media/agno/lib/
+          cp ./agno/lib/libagno.a ./services/media/agno/lib/
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
