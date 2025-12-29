@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": "2.6",
   "linters": {
     "default": "fast",
     "enable": ["errcheck", "revive", "wsl_v5"],
