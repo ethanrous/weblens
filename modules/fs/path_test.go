@@ -100,6 +100,7 @@ func TestNewFilePath(t *testing.T) {
 
 func TestParsePortable(t *testing.T) {
 	tests.Setup(t)
+
 	tests := []struct {
 		name        string
 		portableStr string
