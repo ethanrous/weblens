@@ -6,18 +6,18 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **childrenIds** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
-**contentId** | **string** |  | [optional] [default to undefined]
-**currentId** | **string** |  | [optional] [default to undefined]
+**contentID** | **string** |  | [optional] [default to undefined]
+**currentID** | **string** |  | [optional] [default to undefined]
 **hasRestoreMedia** | **boolean** |  | [optional] [default to undefined]
 **id** | **string** |  | [optional] [default to undefined]
 **isDir** | **boolean** |  | [optional] [default to undefined]
 **modifiable** | **boolean** |  | [optional] [default to undefined]
 **modifyTimestamp** | **number** |  | [optional] [default to undefined]
 **owner** | **string** |  | [optional] [default to undefined]
-**parentId** | **string** |  | [optional] [default to undefined]
+**parentID** | **string** |  | [optional] [default to undefined]
 **pastFile** | **boolean** |  | [optional] [default to undefined]
 **portablePath** | **string** |  | [optional] [default to undefined]
-**shareId** | **string** |  | [optional] [default to undefined]
+**shareID** | **string** |  | [optional] [default to undefined]
 **size** | **number** |  | [optional] [default to undefined]
 
 ## Example
@@ -27,18 +27,18 @@ import { FileInfo } from './api';
 
 const instance: FileInfo = {
     childrenIds,
-    contentId,
-    currentId,
+    contentID,
+    currentID,
     hasRestoreMedia,
     id,
     isDir,
     modifiable,
     modifyTimestamp,
     owner,
-    parentId,
+    parentID,
     pastFile,
     portablePath,
-    shareId,
+    shareID,
     size,
 };
 ```

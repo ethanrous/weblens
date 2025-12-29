@@ -1,8 +1,9 @@
 package structs
 
+// TakeoutInfo represents information about a data takeout export operation.
 type TakeoutInfo struct {
-	TakeoutId string `json:"takeoutId"`
-	TaskId    string `json:"taskId"`
+	TakeoutID string `json:"takeoutID"`
+	TaskID    string `json:"taskID"`
 	Filename  string `json:"filename"`
 	Single    bool   `json:"single"`
 } // @name TakeoutInfo

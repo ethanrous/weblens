@@ -45,7 +45,12 @@ jobs:
           run_install: |
             - cwd: weblens-vue/weblens-nuxt
 
-      - name: Lint
+      - name: Lint go
+        run: |
+          golangci-lint run
+          exit $?
+
+      - name: Lint nuxt app
         working-directory: weblens-vue/weblens-nuxt
         run: |
           pnpm lint

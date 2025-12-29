@@ -31,7 +31,7 @@ func CreateFileShare(ctx context.RequestContext) {
 		return
 	}
 
-	file, err := ctx.FileService.GetFileById(ctx, shareParams.FileId)
+	file, err := ctx.FileService.GetFileByID(ctx, shareParams.FileID)
 	if err != nil {
 		ctx.Error(http.StatusNotFound, err)
 
@@ -52,7 +52,7 @@ func CreateFileShare(ctx context.RequestContext) {
 		return
 	}
 
-	_, err = share_model.GetShareByFileId(ctx, shareParams.FileId)
+	_, err = share_model.GetShareByFileID(ctx, shareParams.FileID)
 	if err == nil {
 		ctx.Error(http.StatusConflict, share_model.ErrShareAlreadyExists)
 
@@ -113,7 +113,7 @@ func CreateFileShare(ctx context.RequestContext) {
 // 		return
 // 	}
 //
-// 	album := pack.AlbumService.Get(shareParams.AlbumId)
+// 	album := pack.AlbumService.Get(shareParams.AlbumID)
 // 	if album == nil {
 // 		SafeErrorAndExit(werror.ErrNoAlbum, w)
 // 		return
@@ -140,7 +140,7 @@ func CreateFileShare(ctx context.RequestContext) {
 // 		return
 // 	}
 //
-// 	writeJson(w, http.StatusCreated, newShare)
+// 	writeJSON(w, http.StatusCreated, newShare)
 // }
 
 // GetFileShare godoc
@@ -150,13 +150,14 @@ func CreateFileShare(ctx context.RequestContext) {
 //	@Summary	Get a file share
 //	@Tags		Share
 //	@Produce	json
-//	@Param		shareId	path		string				true	"Share Id"
+//	@Param		shareID	path		string				true	"Share ID"
 //	@Success	200		{object}	structs.ShareInfo	"File Share"
 //	@Failure	404
-//	@Router		/share/{shareId} [get]
+//	@Router		/share/{shareID} [get]
 func GetFileShare(ctx context.RequestContext) {
-	shareId := share_model.ShareIdFromString(ctx.Path("shareId"))
-	share, err := share_model.GetShareById(ctx, shareId)
+	shareID := share_model.IDFromString(ctx.Path("shareID"))
+
+	share, err := share_model.GetShareByID(ctx, shareID)
 	if err != nil {
 		ctx.Error(http.StatusNotFound, err)
 
@@ -176,15 +177,15 @@ func GetFileShare(ctx context.RequestContext) {
 //	@Summary	Update a share's "public" status
 //	@Tags		Share
 //	@Produce	json
-//	@Param		shareId	path	string	true	"Share Id"
+//	@Param		shareID	path	string	true	"Share ID"
 //	@Param		public	query	bool	true	"Share Public Status"
 //	@Success	200
 //	@Failure	404
-//	@Router		/share/{shareId}/public [patch]
+//	@Router		/share/{shareID}/public [patch]
 func SetSharePublic(ctx context.RequestContext) {
-	shareId := share_model.ShareIdFromString(ctx.Path("shareId"))
+	shareID := share_model.IDFromString(ctx.Path("shareID"))
 
-	share, err := share_model.GetShareById(ctx, shareId)
+	share, err := share_model.GetShareByID(ctx, shareID)
 	if err != nil {
 		ctx.Error(http.StatusNotFound, err)
 
@@ -215,15 +216,15 @@ func SetSharePublic(ctx context.RequestContext) {
 //	@Summary	Add a user to a file share
 //	@Tags		Share
 //	@Produce	json
-//	@Param		shareId	path		string					true	"Share Id"
+//	@Param		shareID	path		string					true	"Share ID"
 //	@Param		request	body		structs.AddUserParams	true	"Share Accessors"
 //	@Success	200		{object}	structs.ShareInfo
 //	@Failure	404
-//	@Router		/share/{shareId}/accessors [post]
+//	@Router		/share/{shareID}/accessors [post]
 func AddUserToShare(ctx context.RequestContext) {
-	shareId := share_model.ShareIdFromString(ctx.Path("shareId"))
+	shareID := share_model.IDFromString(ctx.Path("shareID"))
 
-	share, err := share_model.GetShareById(ctx, shareId)
+	share, err := share_model.GetShareByID(ctx, shareID)
 	if err != nil {
 		ctx.Error(http.StatusNotFound, err)
 
@@ -273,15 +274,15 @@ func AddUserToShare(ctx context.RequestContext) {
 //	@Summary	Remove a user from a file share
 //	@Tags		Share
 //	@Produce	json
-//	@Param		shareId		path		string	true	"Share Id"
+//	@Param		shareID		path		string	true	"Share ID"
 //	@Param		username	path		string	true	"Username"
 //	@Success	200			{object}	structs.ShareInfo
 //	@Failure	404
-//	@Router		/share/{shareId}/accessors/{username} [delete]
+//	@Router		/share/{shareID}/accessors/{username} [delete]
 func RemoveUserFromShare(ctx context.RequestContext) {
-	shareId := share_model.ShareIdFromString(ctx.Path("shareId"))
+	shareID := share_model.IDFromString(ctx.Path("shareID"))
 
-	share, err := share_model.GetShareById(ctx, shareId)
+	share, err := share_model.GetShareByID(ctx, shareID)
 	if err != nil {
 		ctx.Error(http.StatusNotFound, err)
 
@@ -308,23 +309,23 @@ func RemoveUserFromShare(ctx context.RequestContext) {
 	ctx.JSON(http.StatusOK, shareInfo)
 }
 
-// UpdateShareAccessorPermissions godoc
+// SetShareAccessors godoc
 //
 //	@ID			UpdateShareAccessorPermissions
 //
 //	@Summary	Update a share's user permissions
 //	@Tags		Share
 //	@Produce	json
-//	@Param		shareId		path		string						true	"Share Id"
+//	@Param		shareID		path		string						true	"Share ID"
 //	@Param		username	path		string						true	"Username"
 //	@Param		request		body		structs.PermissionsParams	true	"Share Permissions Params"
 //	@Success	200			{object}	structs.ShareInfo
 //	@Failure	404
-//	@Router		/share/{shareId}/accessors/{username} [patch]
+//	@Router		/share/{shareID}/accessors/{username} [patch]
 func SetShareAccessors(ctx context.RequestContext) {
-	shareId := share_model.ShareIdFromString(ctx.Path("shareId"))
+	shareID := share_model.IDFromString(ctx.Path("shareID"))
 
-	share, err := share_model.GetShareById(ctx, shareId)
+	share, err := share_model.GetShareByID(ctx, shareID)
 	if err != nil {
 		ctx.Error(http.StatusNotFound, err)
 
@@ -371,21 +372,21 @@ func SetShareAccessors(ctx context.RequestContext) {
 	ctx.JSON(http.StatusOK, shareInfo)
 }
 
-// DeleteFileShare godoc
+// DeleteShare godoc
 //
 //	@ID			DeleteFileShare
 //
 //	@Summary	Delete a file share
 //	@Tags		Share
 //	@Produce	json
-//	@Param		shareId	path	string	true	"Share Id"
+//	@Param		shareID	path	string	true	"Share ID"
 //	@Success	200
 //	@Failure	404
-//	@Router		/share/{shareId} [delete]
+//	@Router		/share/{shareID} [delete]
 func DeleteShare(ctx context.RequestContext) {
-	shareId := share_model.ShareIdFromString(ctx.Path("shareId"))
+	shareID := share_model.IDFromString(ctx.Path("shareID"))
 
-	err := share_model.DeleteShare(ctx, shareId)
+	err := share_model.DeleteShare(ctx, shareID)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 

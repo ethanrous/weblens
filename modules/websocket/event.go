@@ -1,10 +1,18 @@
 package websocket
 
+// WsAction represents the type of action in a WebSocket message sent from the client.
 type WsAction string
+
+// WsEvent represents the type of event in a WebSocket message sent to the client.
 type WsEvent string
+
+// ClientType represents the type of client connected via WebSocket.
 type ClientType string
+
+// SubscriptionType represents the type of subscription a client can have for WebSocket events.
 type SubscriptionType string
 
+// WebClient and TowerClient represent the different types of clients that can connect via WebSocket.
 const (
 	WebClient   ClientType = "webClient"
 	TowerClient ClientType = "towerClient"
@@ -19,8 +27,8 @@ const (
 	ActionSubscribe   WsAction = "subscribe"
 	ActionUnsubscribe WsAction = "unsubscribe"
 
-	/* UserSubscribe does not actually get "subscribed" to, it is automatically tracked for every websocket
-	connection made, and only sends updates to that specific user when needed */
+	// UserSubscribe does not actually get "subscribed" to, it is automatically tracked for every websocket
+	// connection made, and only sends updates to that specific user when needed
 	UserSubscribe SubscriptionType = "userSubscribe"
 
 	SystemSubscribe SubscriptionType = "systemSubscribe"
@@ -30,6 +38,7 @@ const (
 	TaskTypeSubscribe SubscriptionType = "taskTypeSubscribe"
 )
 
+// SystemSubscriberKey is the key used for system-wide WebSocket subscriptions.
 const SystemSubscriberKey = "WEBLENS"
 
 // All Websocket event tags. These are used to identify the type of content being sent *to* the client.

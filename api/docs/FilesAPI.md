@@ -4,29 +4,29 @@ All URIs are relative to *http://localhost:8080/api/v1*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
-[**AddFilesToUpload**](FilesAPI.md#AddFilesToUpload) | **Post** /upload/{uploadId} | Add a file to an upload task
+[**AddFilesToUpload**](FilesAPI.md#AddFilesToUpload) | **Post** /upload/{uploadID} | Add a file to an upload task
 [**AutocompletePath**](FilesAPI.md#AutocompletePath) | **Get** /files/autocomplete | Get path completion suggestions
 [**CreateTakeout**](FilesAPI.md#CreateTakeout) | **Post** /takeout | Create a zip file
 [**DeleteFiles**](FilesAPI.md#DeleteFiles) | **Delete** /files | Delete Files \&quot;permanently\&quot;
-[**DownloadFile**](FilesAPI.md#DownloadFile) | **Get** /files/{fileId}/download | Download a file
-[**GetFile**](FilesAPI.md#GetFile) | **Get** /files/{fileId} | Get information about a file
-[**GetFileStats**](FilesAPI.md#GetFileStats) | **Get** /files/{fileId}/stats | Get the statistics of a file
-[**GetFileText**](FilesAPI.md#GetFileText) | **Get** /files/{fileId}/text | Get the text of a text file
+[**DownloadFile**](FilesAPI.md#DownloadFile) | **Get** /files/{fileID}/download | Download a file
+[**GetFile**](FilesAPI.md#GetFile) | **Get** /files/{fileID} | Get information about a file
+[**GetFileStats**](FilesAPI.md#GetFileStats) | **Get** /files/{fileID}/stats | Get the statistics of a file
+[**GetFileText**](FilesAPI.md#GetFileText) | **Get** /files/{fileID}/text | Get the text of a text file
 [**GetSharedFiles**](FilesAPI.md#GetSharedFiles) | **Get** /files/shared | Get files shared with the logged in user
-[**GetUploadResult**](FilesAPI.md#GetUploadResult) | **Get** /upload/{uploadId} | Get the result of an upload task. This will block until the upload is complete
+[**GetUploadResult**](FilesAPI.md#GetUploadResult) | **Get** /upload/{uploadID} | Get the result of an upload task. This will block until the upload is complete
 [**MoveFiles**](FilesAPI.md#MoveFiles) | **Patch** /files | Move a list of files to a new parent folder
 [**RestoreFiles**](FilesAPI.md#RestoreFiles) | **Post** /files/structsore | structsore files from some time in the past
 [**SearchByFilename**](FilesAPI.md#SearchByFilename) | **Get** /files/search | Search for files by filename
 [**StartUpload**](FilesAPI.md#StartUpload) | **Post** /upload | Begin a new upload task
 [**UnTrashFiles**](FilesAPI.md#UnTrashFiles) | **Patch** /files/untrash | Move a list of files out of the trash, structsoring them to where they were before
-[**UpdateFile**](FilesAPI.md#UpdateFile) | **Patch** /files/{fileId} | Update a File
-[**UploadFileChunk**](FilesAPI.md#UploadFileChunk) | **Put** /upload/{uploadId}/file/{fileId} | Add a chunk to a file upload
+[**UpdateFile**](FilesAPI.md#UpdateFile) | **Patch** /files/{fileID} | Update a File
+[**UploadFileChunk**](FilesAPI.md#UploadFileChunk) | **Put** /upload/{uploadID}/file/{fileID} | Add a chunk to a file upload
 
 
 
 ## AddFilesToUpload
 
-> NewFilesInfo AddFilesToUpload(ctx, uploadId).Request(request).ShareId(shareId).Execute()
+> NewFilesInfo AddFilesToUpload(ctx, uploadID).Request(request).ShareID(shareID).Execute()
 
 Add a file to an upload task
 
@@ -43,13 +43,13 @@ import (
 )
 
 func main() {
-	uploadId := "uploadId_example" // string | Upload Id
+	uploadID := "uploadID_example" // string | Upload ID
 	request := *openapiclient.NewNewFilesParams() // NewFilesParams | New file params
-	shareId := "shareId_example" // string | Share Id (optional)
+	shareID := "shareID_example" // string | Share ID (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.FilesAPI.AddFilesToUpload(context.Background(), uploadId).Request(request).ShareId(shareId).Execute()
+	resp, r, err := apiClient.FilesAPI.AddFilesToUpload(context.Background(), uploadID).Request(request).ShareID(shareID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FilesAPI.AddFilesToUpload``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -65,7 +65,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**uploadId** | **string** | Upload Id | 
+**uploadID** | **string** | Upload ID | 
 
 ### Other Parameters
 
@@ -76,7 +76,7 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
  **request** | [**NewFilesParams**](NewFilesParams.md) | New file params | 
- **shareId** | **string** | Share Id | 
+ **shareID** | **string** | Share ID | 
 
 ### Return type
 
@@ -162,7 +162,7 @@ No authorization required
 
 ## CreateTakeout
 
-> TakeoutInfo CreateTakeout(ctx).Request(request).ShareId(shareId).Execute()
+> TakeoutInfo CreateTakeout(ctx).Request(request).ShareID(shareID).Execute()
 
 Create a zip file
 
@@ -182,11 +182,11 @@ import (
 
 func main() {
 	request := *openapiclient.NewFilesListParams() // FilesListParams | File Ids
-	shareId := "shareId_example" // string | Share Id (optional)
+	shareID := "shareID_example" // string | Share ID (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.FilesAPI.CreateTakeout(context.Background()).Request(request).ShareId(shareId).Execute()
+	resp, r, err := apiClient.FilesAPI.CreateTakeout(context.Background()).Request(request).ShareID(shareID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FilesAPI.CreateTakeout``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -208,7 +208,7 @@ Other parameters are passed through a pointer to a apiCreateTakeoutRequest struc
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **request** | [**FilesListParams**](FilesListParams.md) | File Ids | 
- **shareId** | **string** | Share Id | 
+ **shareID** | **string** | Share ID | 
 
 ### Return type
 
@@ -296,7 +296,7 @@ No authorization required
 
 ## DownloadFile
 
-> string DownloadFile(ctx, fileId).ShareId(shareId).Format(format).IsTakeout(isTakeout).Execute()
+> string DownloadFile(ctx, fileID).ShareID(shareID).Format(format).IsTakeout(isTakeout).Execute()
 
 Download a file
 
@@ -313,14 +313,14 @@ import (
 )
 
 func main() {
-	fileId := "fileId_example" // string | File Id
-	shareId := "shareId_example" // string | Share Id (optional)
+	fileID := "fileID_example" // string | File ID
+	shareID := "shareID_example" // string | Share ID (optional)
 	format := "format_example" // string | File format conversion (optional)
 	isTakeout := true // bool | Is this a takeout file (optional) (default to false)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.FilesAPI.DownloadFile(context.Background(), fileId).ShareId(shareId).Format(format).IsTakeout(isTakeout).Execute()
+	resp, r, err := apiClient.FilesAPI.DownloadFile(context.Background(), fileID).ShareID(shareID).Format(format).IsTakeout(isTakeout).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FilesAPI.DownloadFile``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -336,7 +336,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**fileId** | **string** | File Id | 
+**fileID** | **string** | File ID | 
 
 ### Other Parameters
 
@@ -346,7 +346,7 @@ Other parameters are passed through a pointer to a apiDownloadFileRequest struct
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
- **shareId** | **string** | Share Id | 
+ **shareID** | **string** | Share ID | 
  **format** | **string** | File format conversion | 
  **isTakeout** | **bool** | Is this a takeout file | [default to false]
 
@@ -370,7 +370,7 @@ No authorization required
 
 ## GetFile
 
-> FileInfo GetFile(ctx, fileId).ShareId(shareId).Execute()
+> FileInfo GetFile(ctx, fileID).ShareID(shareID).Execute()
 
 Get information about a file
 
@@ -387,12 +387,12 @@ import (
 )
 
 func main() {
-	fileId := "fileId_example" // string | File Id
-	shareId := "shareId_example" // string | Share Id (optional)
+	fileID := "fileID_example" // string | File ID
+	shareID := "shareID_example" // string | Share ID (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.FilesAPI.GetFile(context.Background(), fileId).ShareId(shareId).Execute()
+	resp, r, err := apiClient.FilesAPI.GetFile(context.Background(), fileID).ShareID(shareID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FilesAPI.GetFile``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -408,7 +408,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**fileId** | **string** | File Id | 
+**fileID** | **string** | File ID | 
 
 ### Other Parameters
 
@@ -418,7 +418,7 @@ Other parameters are passed through a pointer to a apiGetFileRequest struct via 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
- **shareId** | **string** | Share Id | 
+ **shareID** | **string** | Share ID | 
 
 ### Return type
 
@@ -440,7 +440,7 @@ No authorization required
 
 ## GetFileStats
 
-> GetFileStats(ctx, fileId).Execute()
+> GetFileStats(ctx, fileID).Execute()
 
 Get the statistics of a file
 
@@ -457,11 +457,11 @@ import (
 )
 
 func main() {
-	fileId := "fileId_example" // string | File Id
+	fileID := "fileID_example" // string | File ID
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	r, err := apiClient.FilesAPI.GetFileStats(context.Background(), fileId).Execute()
+	r, err := apiClient.FilesAPI.GetFileStats(context.Background(), fileID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FilesAPI.GetFileStats``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -475,7 +475,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**fileId** | **string** | File Id | 
+**fileID** | **string** | File ID | 
 
 ### Other Parameters
 
@@ -506,7 +506,7 @@ No authorization required
 
 ## GetFileText
 
-> string GetFileText(ctx, fileId).ShareId(shareId).Execute()
+> string GetFileText(ctx, fileID).ShareID(shareID).Execute()
 
 Get the text of a text file
 
@@ -523,12 +523,12 @@ import (
 )
 
 func main() {
-	fileId := "fileId_example" // string | File Id
-	shareId := "shareId_example" // string | Share Id (optional)
+	fileID := "fileID_example" // string | File ID
+	shareID := "shareID_example" // string | Share ID (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.FilesAPI.GetFileText(context.Background(), fileId).ShareId(shareId).Execute()
+	resp, r, err := apiClient.FilesAPI.GetFileText(context.Background(), fileID).ShareID(shareID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FilesAPI.GetFileText``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -544,7 +544,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**fileId** | **string** | File Id | 
+**fileID** | **string** | File ID | 
 
 ### Other Parameters
 
@@ -554,7 +554,7 @@ Other parameters are passed through a pointer to a apiGetFileTextRequest struct 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
- **shareId** | **string** | Share Id | 
+ **shareID** | **string** | Share ID | 
 
 ### Return type
 
@@ -635,7 +635,7 @@ No authorization required
 
 ## GetUploadResult
 
-> GetUploadResult(ctx, uploadId).Execute()
+> GetUploadResult(ctx, uploadID).Execute()
 
 Get the result of an upload task. This will block until the upload is complete
 
@@ -652,11 +652,11 @@ import (
 )
 
 func main() {
-	uploadId := "uploadId_example" // string | Upload Id
+	uploadID := "uploadID_example" // string | Upload ID
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	r, err := apiClient.FilesAPI.GetUploadResult(context.Background(), uploadId).Execute()
+	r, err := apiClient.FilesAPI.GetUploadResult(context.Background(), uploadID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FilesAPI.GetUploadResult``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -670,7 +670,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**uploadId** | **string** | Upload Id | 
+**uploadID** | **string** | Upload ID | 
 
 ### Other Parameters
 
@@ -701,7 +701,7 @@ No authorization required
 
 ## MoveFiles
 
-> MoveFiles(ctx).Request(request).ShareId(shareId).Execute()
+> MoveFiles(ctx).Request(request).ShareID(shareID).Execute()
 
 Move a list of files to a new parent folder
 
@@ -719,11 +719,11 @@ import (
 
 func main() {
 	request := *openapiclient.NewMoveFilesParams() // MoveFilesParams | Move files request body
-	shareId := "shareId_example" // string | Share Id (optional)
+	shareID := "shareID_example" // string | Share ID (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	r, err := apiClient.FilesAPI.MoveFiles(context.Background()).Request(request).ShareId(shareId).Execute()
+	r, err := apiClient.FilesAPI.MoveFiles(context.Background()).Request(request).ShareID(shareID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FilesAPI.MoveFiles``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -743,7 +743,7 @@ Other parameters are passed through a pointer to a apiMoveFilesRequest struct vi
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **request** | [**MoveFilesParams**](MoveFilesParams.md) | Move files request body | 
- **shareId** | **string** | Share Id | 
+ **shareID** | **string** | Share ID | 
 
 ### Return type
 
@@ -829,7 +829,7 @@ No authorization required
 
 ## SearchByFilename
 
-> []FileInfo SearchByFilename(ctx).Search(search).BaseFolderId(baseFolderId).Execute()
+> []FileInfo SearchByFilename(ctx).Search(search).BaseFolderID(baseFolderID).Execute()
 
 Search for files by filename
 
@@ -847,11 +847,11 @@ import (
 
 func main() {
 	search := "search_example" // string | Filename to search for
-	baseFolderId := "baseFolderId_example" // string | The folder to search in, defaults to the user's home folder (optional)
+	baseFolderID := "baseFolderID_example" // string | The folder to search in, defaults to the user's home folder (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.FilesAPI.SearchByFilename(context.Background()).Search(search).BaseFolderId(baseFolderId).Execute()
+	resp, r, err := apiClient.FilesAPI.SearchByFilename(context.Background()).Search(search).BaseFolderID(baseFolderID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FilesAPI.SearchByFilename``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -873,7 +873,7 @@ Other parameters are passed through a pointer to a apiSearchByFilenameRequest st
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **search** | **string** | Filename to search for | 
- **baseFolderId** | **string** | The folder to search in, defaults to the user&#39;s home folder | 
+ **baseFolderID** | **string** | The folder to search in, defaults to the user&#39;s home folder | 
 
 ### Return type
 
@@ -895,7 +895,7 @@ No authorization required
 
 ## StartUpload
 
-> NewUploadInfo StartUpload(ctx).Request(request).ShareId(shareId).Execute()
+> NewUploadInfo StartUpload(ctx).Request(request).ShareID(shareID).Execute()
 
 Begin a new upload task
 
@@ -913,11 +913,11 @@ import (
 
 func main() {
 	request := *openapiclient.NewNewUploadParams() // NewUploadParams | New upload request body
-	shareId := "shareId_example" // string | Share Id (optional)
+	shareID := "shareID_example" // string | Share ID (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.FilesAPI.StartUpload(context.Background()).Request(request).ShareId(shareId).Execute()
+	resp, r, err := apiClient.FilesAPI.StartUpload(context.Background()).Request(request).ShareID(shareID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FilesAPI.StartUpload``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -939,7 +939,7 @@ Other parameters are passed through a pointer to a apiStartUploadRequest struct 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **request** | [**NewUploadParams**](NewUploadParams.md) | New upload request body | 
- **shareId** | **string** | Share Id | 
+ **shareID** | **string** | Share ID | 
 
 ### Return type
 
@@ -1023,7 +1023,7 @@ No authorization required
 
 ## UpdateFile
 
-> UpdateFile(ctx, fileId).Request(request).ShareId(shareId).Execute()
+> UpdateFile(ctx, fileID).Request(request).ShareID(shareID).Execute()
 
 Update a File
 
@@ -1040,13 +1040,13 @@ import (
 )
 
 func main() {
-	fileId := "fileId_example" // string | File Id
+	fileID := "fileID_example" // string | File ID
 	request := *openapiclient.NewUpdateFileParams() // UpdateFileParams | Update file request body
-	shareId := "shareId_example" // string | Share Id (optional)
+	shareID := "shareID_example" // string | Share ID (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	r, err := apiClient.FilesAPI.UpdateFile(context.Background(), fileId).Request(request).ShareId(shareId).Execute()
+	r, err := apiClient.FilesAPI.UpdateFile(context.Background(), fileID).Request(request).ShareID(shareID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FilesAPI.UpdateFile``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -1060,7 +1060,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**fileId** | **string** | File Id | 
+**fileID** | **string** | File ID | 
 
 ### Other Parameters
 
@@ -1071,7 +1071,7 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
  **request** | [**UpdateFileParams**](UpdateFileParams.md) | Update file request body | 
- **shareId** | **string** | Share Id | 
+ **shareID** | **string** | Share ID | 
 
 ### Return type
 
@@ -1093,7 +1093,7 @@ No authorization required
 
 ## UploadFileChunk
 
-> UploadFileChunk(ctx, uploadId, fileId).Chunk(chunk).ShareId(shareId).Execute()
+> UploadFileChunk(ctx, uploadID, fileID).Chunk(chunk).ShareID(shareID).Execute()
 
 Add a chunk to a file upload
 
@@ -1110,14 +1110,14 @@ import (
 )
 
 func main() {
-	uploadId := "uploadId_example" // string | Upload Id
-	fileId := "fileId_example" // string | File Id
+	uploadID := "uploadID_example" // string | Upload ID
+	fileID := "fileID_example" // string | File ID
 	chunk := os.NewFile(1234, "some_file") // *os.File | File chunk
-	shareId := "shareId_example" // string | Share Id (optional)
+	shareID := "shareID_example" // string | Share ID (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	r, err := apiClient.FilesAPI.UploadFileChunk(context.Background(), uploadId, fileId).Chunk(chunk).ShareId(shareId).Execute()
+	r, err := apiClient.FilesAPI.UploadFileChunk(context.Background(), uploadID, fileID).Chunk(chunk).ShareID(shareID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FilesAPI.UploadFileChunk``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -1131,8 +1131,8 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**uploadId** | **string** | Upload Id | 
-**fileId** | **string** | File Id | 
+**uploadID** | **string** | Upload ID | 
+**fileID** | **string** | File ID | 
 
 ### Other Parameters
 
@@ -1144,7 +1144,7 @@ Name | Type | Description  | Notes
 
 
  **chunk** | ***os.File** | File chunk | 
- **shareId** | **string** | Share Id | 
+ **shareID** | **string** | Share ID | 
 
 ### Return type
 

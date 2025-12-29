@@ -23,11 +23,11 @@ var _ MappedNullable = &UserInfo{}
 type UserInfo struct {
 	Activated bool `json:"activated"`
 	FullName string `json:"fullName"`
-	HomeId string `json:"homeId"`
+	HomeID string `json:"homeID"`
 	IsOnline *bool `json:"isOnline,omitempty"`
 	PermissionLevel int32 `json:"permissionLevel"`
 	Token *string `json:"token,omitempty"`
-	TrashId string `json:"trashId"`
+	TrashID string `json:"trashID"`
 	Username string `json:"username"`
 }
 
@@ -37,13 +37,13 @@ type _UserInfo UserInfo
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewUserInfo(activated bool, fullName string, homeId string, permissionLevel int32, trashId string, username string) *UserInfo {
+func NewUserInfo(activated bool, fullName string, homeID string, permissionLevel int32, trashID string, username string) *UserInfo {
 	this := UserInfo{}
 	this.Activated = activated
 	this.FullName = fullName
-	this.HomeId = homeId
+	this.HomeID = homeID
 	this.PermissionLevel = permissionLevel
-	this.TrashId = trashId
+	this.TrashID = trashID
 	this.Username = username
 	return &this
 }
@@ -104,28 +104,28 @@ func (o *UserInfo) SetFullName(v string) {
 	o.FullName = v
 }
 
-// GetHomeId returns the HomeId field value
-func (o *UserInfo) GetHomeId() string {
+// GetHomeID returns the HomeID field value
+func (o *UserInfo) GetHomeID() string {
 	if o == nil {
 		var ret string
 		return ret
 	}
 
-	return o.HomeId
+	return o.HomeID
 }
 
-// GetHomeIdOk returns a tuple with the HomeId field value
+// GetHomeIDOk returns a tuple with the HomeID field value
 // and a boolean to check if the value has been set.
-func (o *UserInfo) GetHomeIdOk() (*string, bool) {
+func (o *UserInfo) GetHomeIDOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.HomeId, true
+	return &o.HomeID, true
 }
 
-// SetHomeId sets field value
-func (o *UserInfo) SetHomeId(v string) {
-	o.HomeId = v
+// SetHomeID sets field value
+func (o *UserInfo) SetHomeID(v string) {
+	o.HomeID = v
 }
 
 // GetIsOnline returns the IsOnline field value if set, zero value otherwise.
@@ -216,28 +216,28 @@ func (o *UserInfo) SetToken(v string) {
 	o.Token = &v
 }
 
-// GetTrashId returns the TrashId field value
-func (o *UserInfo) GetTrashId() string {
+// GetTrashID returns the TrashID field value
+func (o *UserInfo) GetTrashID() string {
 	if o == nil {
 		var ret string
 		return ret
 	}
 
-	return o.TrashId
+	return o.TrashID
 }
 
-// GetTrashIdOk returns a tuple with the TrashId field value
+// GetTrashIDOk returns a tuple with the TrashID field value
 // and a boolean to check if the value has been set.
-func (o *UserInfo) GetTrashIdOk() (*string, bool) {
+func (o *UserInfo) GetTrashIDOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.TrashId, true
+	return &o.TrashID, true
 }
 
-// SetTrashId sets field value
-func (o *UserInfo) SetTrashId(v string) {
-	o.TrashId = v
+// SetTrashID sets field value
+func (o *UserInfo) SetTrashID(v string) {
+	o.TrashID = v
 }
 
 // GetUsername returns the Username field value
@@ -276,7 +276,7 @@ func (o UserInfo) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["activated"] = o.Activated
 	toSerialize["fullName"] = o.FullName
-	toSerialize["homeId"] = o.HomeId
+	toSerialize["homeID"] = o.HomeID
 	if !IsNil(o.IsOnline) {
 		toSerialize["isOnline"] = o.IsOnline
 	}
@@ -284,7 +284,7 @@ func (o UserInfo) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Token) {
 		toSerialize["token"] = o.Token
 	}
-	toSerialize["trashId"] = o.TrashId
+	toSerialize["trashID"] = o.TrashID
 	toSerialize["username"] = o.Username
 	return toSerialize, nil
 }
@@ -296,9 +296,9 @@ func (o *UserInfo) UnmarshalJSON(data []byte) (err error) {
 	requiredProperties := []string{
 		"activated",
 		"fullName",
-		"homeId",
+		"homeID",
 		"permissionLevel",
-		"trashId",
+		"trashID",
 		"username",
 	}
 

@@ -1,7 +1,9 @@
+// Package context provides custom error types for context-related operations.
 package context
 
 import "fmt"
 
+// CanceledError represents an error that occurred due to context cancellation.
 type CanceledError struct {
 	// Message provides additional context about the error.
 	Message string

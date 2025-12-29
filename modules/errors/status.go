@@ -4,6 +4,7 @@ import (
 	"errors"
 )
 
+// StatusErr is an error that includes an HTTP status code.
 type StatusErr interface {
 	error
 	Status() int
@@ -26,6 +27,7 @@ func (e *statusError) Status() int {
 	return e.code
 }
 
+// AsStatus extracts the HTTP status code from an error, returning the default status if the error does not implement StatusErr.
 func AsStatus(err error, defaultStatus int) (int, string) {
 	if err == nil {
 		return 0, ""
@@ -39,6 +41,7 @@ func AsStatus(err error, defaultStatus int) (int, string) {
 	return defaultStatus, err.Error()
 }
 
+// Statusf creates a new error with the specified HTTP status code and formatted message.
 func Statusf(code int, format string, args ...any) error {
 	err := Errorf(format, args...)
 
@@ -48,6 +51,7 @@ func Statusf(code int, format string, args ...any) error {
 	}
 }
 
+// WrapStatus wraps an existing error with an HTTP status code.
 func WrapStatus(code int, err error) error {
 	return &statusError{
 		code: code,

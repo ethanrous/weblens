@@ -8,14 +8,14 @@ All URIs are relative to *http://localhost:8080/api/v1*
 |[**dropHDIRs**](#drophdirs) | **POST** /media/drop/hdirs | Drop all computed media HDIR data. Must be server owner.|
 |[**dropMedia**](#dropmedia) | **POST** /media/drop | DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.|
 |[**getMedia**](#getmedia) | **POST** /media | Get paginated media|
-|[**getMediaFile**](#getmediafile) | **GET** /media/{mediaId}/file | Get file of media by id|
-|[**getMediaImage**](#getmediaimage) | **GET** /media/{mediaId}.{extension} | Get a media image bytes|
-|[**getMediaInfo**](#getmediainfo) | **GET** /media/{mediaId}/info | Get media info|
+|[**getMediaFile**](#getmediafile) | **GET** /media/{mediaID}/file | Get file of media by id|
+|[**getMediaImage**](#getmediaimage) | **GET** /media/{mediaID}.{extension} | Get a media image bytes|
+|[**getMediaInfo**](#getmediainfo) | **GET** /media/{mediaID}/info | Get media info|
 |[**getMediaTypes**](#getmediatypes) | **GET** /media/types | Get media type dictionary|
 |[**getRandomMedia**](#getrandommedia) | **GET** /media/random | Get random media|
-|[**setMediaLiked**](#setmedialiked) | **PATCH** /media/{mediaId}/liked | Like a media|
+|[**setMediaLiked**](#setmedialiked) | **PATCH** /media/{mediaID}/liked | Like a media|
 |[**setMediaVisibility**](#setmediavisibility) | **PATCH** /media/visibility | Set media visibility|
-|[**streamVideo**](#streamvideo) | **GET** /media/{mediaId}/video | Stream a video|
+|[**streamVideo**](#streamvideo) | **GET** /media/{mediaID}/video | Stream a video|
 
 # **cleanupMedia**
 > cleanupMedia()
@@ -168,11 +168,11 @@ const configuration = new Configuration();
 const apiInstance = new MediaApi(configuration);
 
 let request: MediaBatchParams; //Media Batch Params
-let shareId: string; //File ShareId (optional) (default to undefined)
+let shareID: string; //File ShareID (optional) (default to undefined)
 
 const { status, data } = await apiInstance.getMedia(
     request,
-    shareId
+    shareID
 );
 ```
 
@@ -181,7 +181,7 @@ const { status, data } = await apiInstance.getMedia(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **request** | **MediaBatchParams**| Media Batch Params | |
-| **shareId** | [**string**] | File ShareId | (optional) defaults to undefined|
+| **shareID** | [**string**] | File ShareID | (optional) defaults to undefined|
 
 
 ### Return type
@@ -222,10 +222,10 @@ import {
 const configuration = new Configuration();
 const apiInstance = new MediaApi(configuration);
 
-let mediaId: string; //Id of media (default to undefined)
+let mediaID: string; //ID of media (default to undefined)
 
 const { status, data } = await apiInstance.getMediaFile(
-    mediaId
+    mediaID
 );
 ```
 
@@ -233,7 +233,7 @@ const { status, data } = await apiInstance.getMediaFile(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **mediaId** | [**string**] | Id of media | defaults to undefined|
+| **mediaID** | [**string**] | ID of media | defaults to undefined|
 
 
 ### Return type
@@ -274,13 +274,13 @@ import {
 const configuration = new Configuration();
 const apiInstance = new MediaApi(configuration);
 
-let mediaId: string; //Media Id (default to undefined)
+let mediaID: string; //Media ID (default to undefined)
 let extension: string; //Extension (default to undefined)
 let quality: 'thumbnail' | 'fullres'; //Image Quality (default to undefined)
 let page: number; //Page number (optional) (default to undefined)
 
 const { status, data } = await apiInstance.getMediaImage(
-    mediaId,
+    mediaID,
     extension,
     quality,
     page
@@ -291,7 +291,7 @@ const { status, data } = await apiInstance.getMediaImage(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **mediaId** | [**string**] | Media Id | defaults to undefined|
+| **mediaID** | [**string**] | Media ID | defaults to undefined|
 | **extension** | [**string**] | Extension | defaults to undefined|
 | **quality** | [**&#39;thumbnail&#39; | &#39;fullres&#39;**]**Array<&#39;thumbnail&#39; &#124; &#39;fullres&#39;>** | Image Quality | defaults to undefined|
 | **page** | [**number**] | Page number | (optional) defaults to undefined|
@@ -334,10 +334,10 @@ import {
 const configuration = new Configuration();
 const apiInstance = new MediaApi(configuration);
 
-let mediaId: string; //Media Id (default to undefined)
+let mediaID: string; //Media ID (default to undefined)
 
 const { status, data } = await apiInstance.getMediaInfo(
-    mediaId
+    mediaID
 );
 ```
 
@@ -345,7 +345,7 @@ const { status, data } = await apiInstance.getMediaInfo(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **mediaId** | [**string**] | Media Id | defaults to undefined|
+| **mediaID** | [**string**] | Media ID | defaults to undefined|
 
 
 ### Return type
@@ -479,14 +479,14 @@ import {
 const configuration = new Configuration();
 const apiInstance = new MediaApi(configuration);
 
-let mediaId: string; //Id of media (default to undefined)
+let mediaID: string; //ID of media (default to undefined)
 let liked: boolean; //Liked status to set (default to undefined)
-let shareId: string; //ShareId (optional) (default to undefined)
+let shareID: string; //ShareID (optional) (default to undefined)
 
 const { status, data } = await apiInstance.setMediaLiked(
-    mediaId,
+    mediaID,
     liked,
-    shareId
+    shareID
 );
 ```
 
@@ -494,9 +494,9 @@ const { status, data } = await apiInstance.setMediaLiked(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **mediaId** | [**string**] | Id of media | defaults to undefined|
+| **mediaID** | [**string**] | ID of media | defaults to undefined|
 | **liked** | [**boolean**] | Liked status to set | defaults to undefined|
-| **shareId** | [**string**] | ShareId | (optional) defaults to undefined|
+| **shareID** | [**string**] | ShareID | (optional) defaults to undefined|
 
 
 ### Return type
@@ -524,7 +524,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **setMediaVisibility**
-> setMediaVisibility(mediaIds)
+> setMediaVisibility(mediaIDs)
 
 
 ### Example
@@ -533,18 +533,18 @@ No authorization required
 import {
     MediaApi,
     Configuration,
-    MediaIdsParams
+    MediaIDsParams
 } from './api';
 
 const configuration = new Configuration();
 const apiInstance = new MediaApi(configuration);
 
 let hidden: boolean; //Set the media visibility (default to undefined)
-let mediaIds: MediaIdsParams; //MediaIds to change visibility of
+let mediaIDs: MediaIDsParams; //MediaIDs to change visibility of
 
 const { status, data } = await apiInstance.setMediaVisibility(
     hidden,
-    mediaIds
+    mediaIDs
 );
 ```
 
@@ -552,7 +552,7 @@ const { status, data } = await apiInstance.setMediaVisibility(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **mediaIds** | **MediaIdsParams**| MediaIds to change visibility of | |
+| **mediaIDs** | **MediaIDsParams**| MediaIDs to change visibility of | |
 | **hidden** | [**boolean**] | Set the media visibility | defaults to undefined|
 
 
@@ -594,10 +594,10 @@ import {
 const configuration = new Configuration();
 const apiInstance = new MediaApi(configuration);
 
-let mediaId: string; //Id of media (default to undefined)
+let mediaID: string; //ID of media (default to undefined)
 
 const { status, data } = await apiInstance.streamVideo(
-    mediaId
+    mediaID
 );
 ```
 
@@ -605,7 +605,7 @@ const { status, data } = await apiInstance.streamVideo(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **mediaId** | [**string**] | Id of media | defaults to undefined|
+| **mediaID** | [**string**] | ID of media | defaults to undefined|
 
 
 ### Return type

@@ -7,20 +7,26 @@ import (
 )
 
 var (
-	ErrNilTower     = errors.New("tower is nil")
-	ErrEmptyID      = errors.New("tower ID is empty")
-	ErrEmptyName    = errors.New("tower name is empty")
-	ErrEmptyRole    = errors.New("tower role is empty")
+	// ErrNilTower indicates a nil tower instance was provided.
+	ErrNilTower = errors.New("tower is nil")
+	// ErrEmptyID indicates a tower has an empty ID.
+	ErrEmptyID = errors.New("tower ID is empty")
+	// ErrEmptyName indicates a tower has an empty name.
+	ErrEmptyName = errors.New("tower name is empty")
+	// ErrEmptyRole indicates a tower has an empty role.
+	ErrEmptyRole = errors.New("tower role is empty")
+	// ErrEmptyAddress indicates a tower has an empty address.
 	ErrEmptyAddress = errors.New("tower address is empty")
-	ErrEmptyPort    = errors.New("tower port is empty")
+	// ErrEmptyPort indicates a tower has an empty port.
+	ErrEmptyPort = errors.New("tower port is empty")
 )
 
-func validateNewTower(ctx context.Context, t *Instance) error {
+func validateNewTower(_ context.Context, t *Instance) error {
 	if t == nil {
 		return errors.WithStack(ErrNilTower)
 	}
 
-	if t.TowerId == "" {
+	if t.TowerID == "" {
 		return errors.WithStack(ErrEmptyID)
 	}
 

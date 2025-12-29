@@ -33,7 +33,7 @@ WORKDIR /src
 COPY . .
 
 RUN mkdir -p /agno/lib; cp /src/agno/lib/agno.h /agno/lib/agno.h;
-COPY --from=agno-builder /src/agno/target/x86_64-unknown-linux-musl/release/libagno.a /agno/lib/libagno.a
+COPY --from=agno-builder /src/agno/target/x86_64-unknown-linux-musl/release/libagno.a /src/services/media/agno/lib/libagno.a
 
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=1 CGO_CFLAGS_ALLOW='-Xpreprocessor' GOOS=linux GOARCH=${ARCHITECTURE} go build -v -ldflags="-s -w" -o /server/weblens ./cmd/weblens/main.go;
 

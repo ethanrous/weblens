@@ -4,7 +4,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**ContentId** | Pointer to **string** | Hash of the file content, to ensure that the same files don&#39;t get duplicated | [optional] 
+**ContentID** | Pointer to **string** | Hash of the file content, to ensure that the same files don&#39;t get duplicated | [optional] 
 **CreateDate** | Pointer to **int32** |  | [optional] 
 **Duration** | Pointer to **int32** | Total time, in milliseconds, of a video | [optional] 
 **Enabled** | Pointer to **bool** | If the media disabled. This can happen when the backing file(s) are deleted, but the media stays behind because it can be re-used if needed. | [optional] 
@@ -39,30 +39,30 @@ NewMediaInfoWithDefaults instantiates a new MediaInfo object
 This constructor will only assign default values to properties that have it defined,
 but it doesn't guarantee that properties required by API are set
 
-### GetContentId
+### GetContentID
 
-`func (o *MediaInfo) GetContentId() string`
+`func (o *MediaInfo) GetContentID() string`
 
-GetContentId returns the ContentId field if non-nil, zero value otherwise.
+GetContentID returns the ContentID field if non-nil, zero value otherwise.
 
-### GetContentIdOk
+### GetContentIDOk
 
-`func (o *MediaInfo) GetContentIdOk() (*string, bool)`
+`func (o *MediaInfo) GetContentIDOk() (*string, bool)`
 
-GetContentIdOk returns a tuple with the ContentId field if it's non-nil, zero value otherwise
+GetContentIDOk returns a tuple with the ContentID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetContentId
+### SetContentID
 
-`func (o *MediaInfo) SetContentId(v string)`
+`func (o *MediaInfo) SetContentID(v string)`
 
-SetContentId sets ContentId field to given value.
+SetContentID sets ContentID field to given value.
 
-### HasContentId
+### HasContentID
 
-`func (o *MediaInfo) HasContentId() bool`
+`func (o *MediaInfo) HasContentID() bool`
 
-HasContentId returns a boolean if a field has been set.
+HasContentID returns a boolean if a field has been set.
 
 ### GetCreateDate
 

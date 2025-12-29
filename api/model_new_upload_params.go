@@ -20,7 +20,7 @@ var _ MappedNullable = &NewUploadParams{}
 // NewUploadParams struct for NewUploadParams
 type NewUploadParams struct {
 	ChunkSize *int32 `json:"chunkSize,omitempty"`
-	RootFolderId *string `json:"rootFolderId,omitempty"`
+	RootFolderID *string `json:"rootFolderID,omitempty"`
 }
 
 // NewNewUploadParams instantiates a new NewUploadParams object
@@ -72,36 +72,36 @@ func (o *NewUploadParams) SetChunkSize(v int32) {
 	o.ChunkSize = &v
 }
 
-// GetRootFolderId returns the RootFolderId field value if set, zero value otherwise.
-func (o *NewUploadParams) GetRootFolderId() string {
-	if o == nil || IsNil(o.RootFolderId) {
+// GetRootFolderID returns the RootFolderID field value if set, zero value otherwise.
+func (o *NewUploadParams) GetRootFolderID() string {
+	if o == nil || IsNil(o.RootFolderID) {
 		var ret string
 		return ret
 	}
-	return *o.RootFolderId
+	return *o.RootFolderID
 }
 
-// GetRootFolderIdOk returns a tuple with the RootFolderId field value if set, nil otherwise
+// GetRootFolderIDOk returns a tuple with the RootFolderID field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *NewUploadParams) GetRootFolderIdOk() (*string, bool) {
-	if o == nil || IsNil(o.RootFolderId) {
+func (o *NewUploadParams) GetRootFolderIDOk() (*string, bool) {
+	if o == nil || IsNil(o.RootFolderID) {
 		return nil, false
 	}
-	return o.RootFolderId, true
+	return o.RootFolderID, true
 }
 
-// HasRootFolderId returns a boolean if a field has been set.
-func (o *NewUploadParams) HasRootFolderId() bool {
-	if o != nil && !IsNil(o.RootFolderId) {
+// HasRootFolderID returns a boolean if a field has been set.
+func (o *NewUploadParams) HasRootFolderID() bool {
+	if o != nil && !IsNil(o.RootFolderID) {
 		return true
 	}
 
 	return false
 }
 
-// SetRootFolderId gets a reference to the given string and assigns it to the RootFolderId field.
-func (o *NewUploadParams) SetRootFolderId(v string) {
-	o.RootFolderId = &v
+// SetRootFolderID gets a reference to the given string and assigns it to the RootFolderID field.
+func (o *NewUploadParams) SetRootFolderID(v string) {
+	o.RootFolderID = &v
 }
 
 func (o NewUploadParams) MarshalJSON() ([]byte, error) {
@@ -117,8 +117,8 @@ func (o NewUploadParams) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.ChunkSize) {
 		toSerialize["chunkSize"] = o.ChunkSize
 	}
-	if !IsNil(o.RootFolderId) {
-		toSerialize["rootFolderId"] = o.RootFolderId
+	if !IsNil(o.RootFolderID) {
+		toSerialize["rootFolderID"] = o.RootFolderID
 	}
 	return toSerialize, nil
 }

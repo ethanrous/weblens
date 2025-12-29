@@ -1,4 +1,4 @@
-# MediaIdsParams
+# MediaIDsParams
 
 
 ## Properties
@@ -10,9 +10,9 @@ Name | Type | Description | Notes
 ## Example
 
 ```typescript
-import { MediaIdsParams } from './api';
+import { MediaIDsParams } from './api';
 
-const instance: MediaIdsParams = {
+const instance: MediaIDsParams = {
     mediaIds,
 };
 ```

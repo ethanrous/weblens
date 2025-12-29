@@ -1,3 +1,4 @@
+// Package media provides handlers for media-related API endpoints.
 package media
 
 import (
@@ -8,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	_ "github.com/ethanrous/weblens/docs"
+	_ "github.com/ethanrous/weblens/docs" // Required for swagger docs generation
 	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/models/share"
@@ -22,7 +23,7 @@ import (
 	"github.com/ethanrous/weblens/services/reshape"
 )
 
-// GetMedia godoc
+// GetMediaBatch godoc
 //
 //	@ID			GetMedia
 //
@@ -30,7 +31,7 @@ import (
 //	@Tags		Media
 //	@Produce	json
 //	@Param		request	body		structs.MediaBatchParams	true	"Media Batch Params"
-//	@Param		shareId		query		string					false	"File ShareId"
+//	@Param		shareID		query		string					false	"File ShareID"
 //	@Success	200			{object}	structs.MediaBatchInfo	"Media Batch"
 //	@Success	400
 //	@Success	500
@@ -43,9 +44,9 @@ func GetMediaBatch(ctx context.RequestContext) {
 		return
 	}
 
-	if len(reqParams.FolderIds) != 0 {
-		for _, folderId := range reqParams.FolderIds {
-			_, err := file_api.CheckFileAccessById(ctx, folderId, share.SharePermissionView)
+	if len(reqParams.FolderIDs) != 0 {
+		for _, folderID := range reqParams.FolderIDs {
+			_, err := file_api.CheckFileAccessByID(ctx, folderID, share.SharePermissionView)
 			if err != nil {
 				ctx.Error(http.StatusForbidden, err)
 
@@ -65,21 +66,21 @@ func GetMediaBatch(ctx context.RequestContext) {
 			limit = 9999999
 		}
 
-		media, totalMediaCount, err := getMediaInFolders(ctx, reqParams.FolderIds, limit, page, reqParams.SortDirection, reqParams.Raw)
+		media, totalMediaCount, err := getMediaInFolders(ctx, reqParams.FolderIDs, limit, page, reqParams.SortDirection, reqParams.Raw)
 		if err != nil {
 			ctx.Log().Error().Stack().Err(err).Msg("Failed to get media in folders")
 			ctx.Error(http.StatusInternalServerError, err)
 		}
 
 		if reqParams.Search != "" {
-			scoredMedia, err := media_service.SortMediaByTextSimilarity(ctx.AppContext, reqParams.Search, media, reqParams.FolderIds, 0.22)
+			scoredMedia, err := media_service.SortMediaByTextSimilarity(ctx.AppContext, reqParams.Search, media, reqParams.FolderIDs, 0.22)
 			if err != nil {
 				ctx.Error(http.StatusInternalServerError, err)
 
 				return
 			}
 
-			media = slices.Map(scoredMedia, func(m media_service.MediaWithScore) *media_model.Media { return m.Media })
+			media = slices.Map(scoredMedia, func(m media_service.ScoreWrapper) *media_model.Media { return m.Media })
 			totalMediaCount = len(media)
 		}
 
@@ -90,11 +91,11 @@ func GetMediaBatch(ctx context.RequestContext) {
 		return
 	}
 
-	if len(reqParams.MediaIds) != 0 {
+	if len(reqParams.MediaIDs) != 0 {
 		var medias []*media_model.Media
 
-		for _, mId := range reqParams.MediaIds {
-			m, err := media_model.GetMediaByContentId(ctx, mId)
+		for _, mID := range reqParams.MediaIDs {
+			m, err := media_model.GetMediaByContentID(ctx, mID)
 			if err != nil {
 				ctx.Log().Error().Stack().Err(err).Msg("Failed to get media by id")
 				ctx.Error(http.StatusInternalServerError, err)
@@ -116,7 +117,7 @@ func GetMediaBatch(ctx context.RequestContext) {
 		reqParams.Sort = "createDate"
 	}
 
-	var mediaFilter []media_model.ContentId
+	var mediaFilter []media_model.ContentID
 
 	ms, err := media_model.GetMedia(ctx, ctx.Requester.Username, reqParams.Sort, 1, mediaFilter, reqParams.Raw, reqParams.Hidden, reqParams.Search)
 	if err != nil {
@@ -266,13 +267,13 @@ func DropHDIRs(ctx context.RequestContext) {
 //	@Summary	Get media info
 //	@Tags		Media
 //	@Produce	json
-//	@Param		mediaId	path		string				true	"Media Id"
+//	@Param		mediaID	path		string				true	"Media ID"
 //	@Success	200		{object}	structs.MediaInfo	"Media Info"
-//	@Router		/media/{mediaId}/info [get]
+//	@Router		/media/{mediaID}/info [get]
 func GetMediaInfo(ctx context.RequestContext) {
-	mediaId := ctx.Path("mediaId")
+	mediaID := ctx.Path("mediaID")
 
-	m, err := media_model.GetMediaByContentId(ctx, mediaId)
+	m, err := media_model.GetMediaByContentID(ctx, mediaID)
 	if err != nil {
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to get media by id")
 		ctx.Error(http.StatusInternalServerError, err)
@@ -285,18 +286,18 @@ func GetMediaInfo(ctx context.RequestContext) {
 
 // GetMediaImage godoc
 //
-//	@Id			GetMediaImage
+//	@ID			GetMediaImage
 //
 //	@Summary	Get a media image bytes
 //	@Tags		Media
 //	@Produce	image/*
-//	@Param		mediaId		path		string	true	"Media Id"
+//	@Param		mediaID		path		string	true	"Media ID"
 //	@Param		extension	path		string	true	"Extension"
 //	@Param		quality		query		string	true	"Image Quality"	Enums(thumbnail, fullres)
 //	@Param		page		query		int		false	"Page number"
 //	@Success	200			{string}	binary	"image bytes"
 //	@Success	500
-//	@Router		/media/{mediaId}.{extension} [get]
+//	@Router		/media/{mediaID}.{extension} [get]
 func GetMediaImage(ctx context.RequestContext) {
 	quality, ok := media_model.CheckMediaQuality(ctx.Query("quality"))
 	if !ok {
@@ -314,9 +315,9 @@ func streamVideo(ctx context.RequestContext) {
 
 	ctx.Log().Debug().Msgf("Streaming video %s", chunkName)
 
-	mediaId := ctx.Path("mediaId")
+	mediaID := ctx.Path("mediaID")
 
-	m, err := media_model.GetMediaByContentId(ctx, mediaId)
+	m, err := media_model.GetMediaByContentID(ctx, mediaID)
 	if err != nil {
 		ctx.Error(http.StatusNotFound, err)
 
@@ -366,7 +367,7 @@ func streamVideo(ctx context.RequestContext) {
 			return
 		}
 
-		defer chunkFile.Close()
+		defer chunkFile.Close() //nolint:errcheck
 
 		_, err = io.Copy(ctx, chunkFile)
 		if err != nil {
@@ -404,15 +405,15 @@ func streamVideo(ctx context.RequestContext) {
 	}
 }
 
-// SetMediaVisibility godoc
+// HideMedia godoc
 //
-//	@Id			SetMediaVisibility
+//	@ID			SetMediaVisibility
 //
 //	@Summary	Set media visibility
 //	@Tags		Media
 //	@Produce	json
 //	@Param		hidden		query	bool					true	"Set the media visibility"	Enums(true, false)
-//	@Param		mediaIds	body	structs.MediaIdsParams	true	"MediaIds to change visibility of"
+//	@Param		mediaIDs	body	structs.MediaIDsParams	true	"MediaIDs to change visibility of"
 //	@Success	200
 //	@Success	404
 //	@Success	500
@@ -421,16 +422,16 @@ func HideMedia(ctx context.RequestContext) {
 	ctx.Status(http.StatusNotImplemented)
 	// pack := getServices(r)
 	// log := hlog.FromRequest(r)
-	// body, err := readCtxBody[structs.MediaIdsParams](w, r)
+	// body, err := readCtxBody[structs.MediaIDsParams](w, r)
 	// if err != nil {
 	// 	return
 	// }
 	//
 	// hidden := r.URL.Query().Get("hidden") == "true"
 	//
-	// medias := make([]*models.Media, len(body.MediaIds))
-	// for i, mId := range body.MediaIds {
-	// 	m := pack.MediaService.Get(mId)
+	// medias := make([]*models.Media, len(body.MediaIDs))
+	// for i, mID := range body.MediaIDs {
+	// 	m := pack.MediaService.Get(mID)
 	// 	if m == nil {
 	// 		w.WriteHeader(http.StatusNotFound)
 	// 		return
@@ -446,10 +447,11 @@ func HideMedia(ctx context.RequestContext) {
 	// 		return
 	// 	}
 	// }
-	//
 	// w.WriteHeader(http.StatusOK)
+	_ = ""
 }
 
+// AdjustMediaDate adjusts the date metadata for a media item.
 func AdjustMediaDate(ctx context.RequestContext) {
 	ctx.Status(http.StatusNotImplemented)
 
@@ -460,13 +462,13 @@ func AdjustMediaDate(ctx context.RequestContext) {
 	// 	return
 	// }
 	//
-	// anchor := pack.MediaService.Get(body.AnchorId)
+	// anchor := pack.MediaService.Get(body.AnchorID)
 	// if anchor == nil {
 	// 	w.WriteHeader(http.StatusNotFound)
 	// 	return
 	// }
 	// extras := internal.Map(
-	// 	body.MediaIds, func(mId models.ContentId) *models.Media { return pack.MediaService.Get(body.AnchorId) },
+	// 	body.MediaIDs, func(mID models.ContentID) *models.Media { return pack.MediaService.Get(body.AnchorID) },
 	// )
 	//
 	// err = pack.MediaService.AdjustMediaDates(anchor, body.NewTime, extras)
@@ -475,51 +477,34 @@ func AdjustMediaDate(ctx context.RequestContext) {
 	// 	w.WriteHeader(http.StatusBadRequest)
 	// 	return
 	// }
-	//
 	// w.WriteHeader(http.StatusOK)
+	_ = ""
 }
 
 // SetMediaLiked godoc
 //
-//	@Id			SetMediaLiked
+//	@ID			SetMediaLiked
 //
 //	@Security	SessionAuth
 //
 //	@Summary	Like a media
 //	@Tags		Media
 //	@Produce	json
-//	@Param		mediaId	path	string	true	"Id of media"
-//	@Param		shareId	query	string	false	"ShareId"
+//	@Param		mediaID	path	string	true	"ID of media"
+//	@Param		shareID	query	string	false	"ShareID"
 //	@Param		liked	query	bool	true	"Liked status to set"
 //	@Success	200
 //	@Failure	401
 //	@Failure	404
 //	@Failure	500
-//	@Router		/media/{mediaId}/liked [patch]
+//	@Router		/media/{mediaID}/liked [patch]
 func SetMediaLiked(ctx context.RequestContext) {
 	ctx.Status(http.StatusNotImplemented)
-
-	// pack := getServices(r)
-	// log := hlog.FromRequest(r)
-	// u, err := getUserFromCtx(r, true)
-	// if SafeErrorAndExit(err, w, log) {
-	// 	return
-	// }
-	//
-	// mediaId := chi.URLParam(r, "mediaId")
-	// liked := r.URL.Query().Get("liked") == "true"
-	//
-	// err = pack.MediaService.SetMediaLiked(mediaId, liked, u.GetUsername())
-	// if SafeErrorAndExit(err, w, log) {
-	// 	return
-	// }
-	//
-	// w.WriteHeader(http.StatusOK)
 }
 
 // GetMediaFile godoc
 //
-//	@Id			GetMediaFile
+//	@ID			GetMediaFile
 //
 //	@Security	SessionAuth
 //	@Security	ApiKeyAuth
@@ -527,54 +512,18 @@ func SetMediaLiked(ctx context.RequestContext) {
 //	@Summary	Get file of media by id
 //	@Tags		Media
 //	@Produce	json
-//	@Param		mediaId	path		string				true	"Id of media"
+//	@Param		mediaID	path		string				true	"ID of media"
 //	@Success	200		{object}	structs.FileInfo	"File info of file media was created from"
 //	@Success	404
 //	@Success	500
-//	@Router		/media/{mediaId}/file [get]
+//	@Router		/media/{mediaID}/file [get]
 func GetMediaFile(ctx context.RequestContext) {
 	ctx.Status(http.StatusNotImplemented)
-
-	// pack := getServices(r)
-	// log := hlog.FromRequest(r)
-	// u, err := getUserFromCtx(r, true)
-	// if SafeErrorAndExit(err, w, log) {
-	// 	return
-	// }
-	//
-	// mediaId := chi.URLParam(r, "mediaId")
-	//
-	// m := pack.MediaService.Get(mediaId)
-	// if m == nil {
-	// 	SafeErrorAndExit(werror.ErrNoMedia, w)
-	// 	return
-	// }
-	//
-	// var f *fileTree.WeblensFileImpl
-	// for _, fId := range m.GetFiles() {
-	// 	fu, err := pack.FileService.GetFileSafe(fId, u, nil)
-	// 	if err == nil && fu.GetPortablePath().RootName() == "USERS" {
-	// 		break
-	// 	}
-	// }
-	//
-	// if f == nil {
-	// 	f, err = pack.FileService.GetFileByContentId(m.ID())
-	// 	if SafeErrorAndExit(err, w, log) {
-	// 		return
-	// 	}
-	// }
-	//
-	// fInfo, err := structs.WeblensFileToFileInfo(f, pack, false)
-	// if SafeErrorAndExit(err, w, log) {
-	// 	return
-	// }
-	// writeJson(w, http.StatusOK, fInfo)
 }
 
 // StreamVideo godoc
 //
-//	@Id			StreamVideo
+//	@ID			StreamVideo
 //
 //	@Security	SessionAuth
 //	@Security	ApiKeyAuth
@@ -582,18 +531,18 @@ func GetMediaFile(ctx context.RequestContext) {
 //	@Summary	Stream a video
 //	@Tags		Media
 //	@Produce	octet-stream
-//	@Param		mediaId	path	string	true	"Id of media"
+//	@Param		mediaID	path	string	true	"ID of media"
 //	@Success	200
 //	@Success	404
 //	@Success	500
-//	@Router		/media/{mediaId}/video [get]
+//	@Router		/media/{mediaID}/video [get]
 func StreamVideo(ctx context.RequestContext) {
 	streamVideo(ctx)
 }
 
-// GetRandomMedia() godoc
+// GetRandomMedia godoc
 //
-//	@Id			GetRandomMedia
+//	@ID			GetRandomMedia
 //
 //	@Summary	Get random media
 //	@Tags		Media
@@ -633,12 +582,11 @@ func GetRandomMedia(ctx context.RequestContext) {
 }
 
 // Helper function
-func getMediaInFolders(ctx context.RequestContext, folderIds []string, limit, page, sortDirection int, includeRaw bool) ([]*media_model.Media, int, error) {
-	allContentIds := []string{}
+func getMediaInFolders(ctx context.RequestContext, folderIDs []string, limit, page, sortDirection int, includeRaw bool) ([]*media_model.Media, int, error) {
+	allContentIDs := []string{}
 
-	for _, folderId := range folderIds {
-		folder, err := ctx.FileService.GetFileById(ctx, folderId)
-
+	for _, folderID := range folderIDs {
+		folder, err := ctx.FileService.GetFileByID(ctx, folderID)
 		if err != nil {
 			return nil, -1, err
 		}
@@ -653,29 +601,28 @@ func getMediaInFolders(ctx context.RequestContext, folderIds []string, limit, pa
 				return nil
 			}
 
-			allContentIds = append(allContentIds, wfi.GetContentId())
+			allContentIDs = append(allContentIDs, wfi.GetContentID())
 
 			return nil
 		})
-
 		if err != nil {
 			return nil, -1, err
 		}
 	}
 
-	medias, err := media_model.GetMediasByContentIds(ctx, limit, page, sortDirection, includeRaw, allContentIds...)
+	medias, err := media_model.GetMediasByContentIDs(ctx, limit, page, sortDirection, includeRaw, allContentIDs...)
 	if err != nil {
 		return nil, -1, err
 	}
 
-	return medias, len(allContentIds), nil
+	return medias, len(allContentIDs), nil
 }
 
 // Helper function
-func getProcessedMedia(ctx context.RequestContext, q media_model.MediaQuality, format string) {
-	mediaId := ctx.Path("mediaId")
+func getProcessedMedia(ctx context.RequestContext, q media_model.Quality, format string) {
+	mediaID := ctx.Path("mediaID")
 
-	m, err := media_model.GetMediaByContentId(ctx, mediaId)
+	m, err := media_model.GetMediaByContentID(ctx, mediaID)
 	if err != nil {
 		ctx.Error(http.StatusNotFound, err)
 
@@ -698,8 +645,7 @@ func getProcessedMedia(ctx context.RequestContext, q media_model.MediaQuality, f
 	mt := media_model.ParseMime(m.MimeType)
 
 	if format == "pdf" && q == media_model.HighRes && mt.IsMultiPage() {
-		f, err := ctx.FileService.GetFileByContentId(ctx, m.ContentID)
-
+		f, err := ctx.FileService.GetFileByContentID(ctx, m.ContentID)
 		if err != nil {
 			ctx.Error(http.StatusNotFound, err)
 
@@ -728,7 +674,6 @@ func getProcessedMedia(ctx context.RequestContext, q media_model.MediaQuality, f
 	}
 
 	bs, err := media_service.FetchCacheImg(ctx.AppContext, m, q, pageNum)
-
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 	}

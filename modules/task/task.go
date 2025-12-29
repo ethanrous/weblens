@@ -1,15 +1,17 @@
 package task
 
+// CleanupFunc is a function called when a task completes.
 type CleanupFunc func(Task)
 
+// Task is an interface for background task execution.
 type Task interface {
-	Id() string
+	ID() string
 	Wait()
-	Status() (bool, TaskExitStatus)
-	SetResult(result TaskResult)
-	GetResult() TaskResult
+	Status() (bool, ExitStatus)
+	SetResult(result Result)
+	GetResult() Result
 	SetCleanup(fn CleanupFunc)
-	GetMeta() TaskMetadata
+	GetMeta() Metadata
 	GetTaskPool() Pool
 	JobName() string
 	SetChildTaskPool(pool Pool)

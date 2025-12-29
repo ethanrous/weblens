@@ -21,8 +21,8 @@ var _ MappedNullable = &TakeoutInfo{}
 type TakeoutInfo struct {
 	Filename *string `json:"filename,omitempty"`
 	Single *bool `json:"single,omitempty"`
-	TakeoutId *string `json:"takeoutId,omitempty"`
-	TaskId *string `json:"taskId,omitempty"`
+	TakeoutID *string `json:"takeoutID,omitempty"`
+	TaskID *string `json:"taskID,omitempty"`
 }
 
 // NewTakeoutInfo instantiates a new TakeoutInfo object
@@ -106,68 +106,68 @@ func (o *TakeoutInfo) SetSingle(v bool) {
 	o.Single = &v
 }
 
-// GetTakeoutId returns the TakeoutId field value if set, zero value otherwise.
-func (o *TakeoutInfo) GetTakeoutId() string {
-	if o == nil || IsNil(o.TakeoutId) {
+// GetTakeoutID returns the TakeoutID field value if set, zero value otherwise.
+func (o *TakeoutInfo) GetTakeoutID() string {
+	if o == nil || IsNil(o.TakeoutID) {
 		var ret string
 		return ret
 	}
-	return *o.TakeoutId
+	return *o.TakeoutID
 }
 
-// GetTakeoutIdOk returns a tuple with the TakeoutId field value if set, nil otherwise
+// GetTakeoutIDOk returns a tuple with the TakeoutID field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *TakeoutInfo) GetTakeoutIdOk() (*string, bool) {
-	if o == nil || IsNil(o.TakeoutId) {
+func (o *TakeoutInfo) GetTakeoutIDOk() (*string, bool) {
+	if o == nil || IsNil(o.TakeoutID) {
 		return nil, false
 	}
-	return o.TakeoutId, true
+	return o.TakeoutID, true
 }
 
-// HasTakeoutId returns a boolean if a field has been set.
-func (o *TakeoutInfo) HasTakeoutId() bool {
-	if o != nil && !IsNil(o.TakeoutId) {
+// HasTakeoutID returns a boolean if a field has been set.
+func (o *TakeoutInfo) HasTakeoutID() bool {
+	if o != nil && !IsNil(o.TakeoutID) {
 		return true
 	}
 
 	return false
 }
 
-// SetTakeoutId gets a reference to the given string and assigns it to the TakeoutId field.
-func (o *TakeoutInfo) SetTakeoutId(v string) {
-	o.TakeoutId = &v
+// SetTakeoutID gets a reference to the given string and assigns it to the TakeoutID field.
+func (o *TakeoutInfo) SetTakeoutID(v string) {
+	o.TakeoutID = &v
 }
 
-// GetTaskId returns the TaskId field value if set, zero value otherwise.
-func (o *TakeoutInfo) GetTaskId() string {
-	if o == nil || IsNil(o.TaskId) {
+// GetTaskID returns the TaskID field value if set, zero value otherwise.
+func (o *TakeoutInfo) GetTaskID() string {
+	if o == nil || IsNil(o.TaskID) {
 		var ret string
 		return ret
 	}
-	return *o.TaskId
+	return *o.TaskID
 }
 
-// GetTaskIdOk returns a tuple with the TaskId field value if set, nil otherwise
+// GetTaskIDOk returns a tuple with the TaskID field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *TakeoutInfo) GetTaskIdOk() (*string, bool) {
-	if o == nil || IsNil(o.TaskId) {
+func (o *TakeoutInfo) GetTaskIDOk() (*string, bool) {
+	if o == nil || IsNil(o.TaskID) {
 		return nil, false
 	}
-	return o.TaskId, true
+	return o.TaskID, true
 }
 
-// HasTaskId returns a boolean if a field has been set.
-func (o *TakeoutInfo) HasTaskId() bool {
-	if o != nil && !IsNil(o.TaskId) {
+// HasTaskID returns a boolean if a field has been set.
+func (o *TakeoutInfo) HasTaskID() bool {
+	if o != nil && !IsNil(o.TaskID) {
 		return true
 	}
 
 	return false
 }
 
-// SetTaskId gets a reference to the given string and assigns it to the TaskId field.
-func (o *TakeoutInfo) SetTaskId(v string) {
-	o.TaskId = &v
+// SetTaskID gets a reference to the given string and assigns it to the TaskID field.
+func (o *TakeoutInfo) SetTaskID(v string) {
+	o.TaskID = &v
 }
 
 func (o TakeoutInfo) MarshalJSON() ([]byte, error) {
@@ -186,11 +186,11 @@ func (o TakeoutInfo) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Single) {
 		toSerialize["single"] = o.Single
 	}
-	if !IsNil(o.TakeoutId) {
-		toSerialize["takeoutId"] = o.TakeoutId
+	if !IsNil(o.TakeoutID) {
+		toSerialize["takeoutID"] = o.TakeoutID
 	}
-	if !IsNil(o.TaskId) {
-		toSerialize["taskId"] = o.TaskId
+	if !IsNil(o.TaskID) {
+		toSerialize["taskID"] = o.TaskID
 	}
 	return toSerialize, nil
 }

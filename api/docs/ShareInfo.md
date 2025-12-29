@@ -7,11 +7,11 @@ Name | Type | Description | Notes
 **Accessors** | Pointer to [**[]UserInfo**](UserInfo.md) |  | [optional] 
 **Enabled** | Pointer to **bool** |  | [optional] 
 **Expires** | Pointer to **int32** |  | [optional] 
-**FileId** | Pointer to **string** |  | [optional] 
+**FileID** | Pointer to **string** |  | [optional] 
 **Owner** | Pointer to **string** |  | [optional] 
 **Permissions** | Pointer to [**map[string]PermissionsInfo**](PermissionsInfo.md) |  | [optional] 
 **Public** | Pointer to **bool** |  | [optional] 
-**ShareId** | Pointer to **string** |  | [optional] 
+**ShareID** | Pointer to **string** |  | [optional] 
 **ShareName** | Pointer to **string** |  | [optional] 
 **ShareType** | Pointer to **string** |  | [optional] 
 **TimelineOnly** | Pointer to **bool** |  | [optional] 
@@ -112,30 +112,30 @@ SetExpires sets Expires field to given value.
 
 HasExpires returns a boolean if a field has been set.
 
-### GetFileId
+### GetFileID
 
-`func (o *ShareInfo) GetFileId() string`
+`func (o *ShareInfo) GetFileID() string`
 
-GetFileId returns the FileId field if non-nil, zero value otherwise.
+GetFileID returns the FileID field if non-nil, zero value otherwise.
 
-### GetFileIdOk
+### GetFileIDOk
 
-`func (o *ShareInfo) GetFileIdOk() (*string, bool)`
+`func (o *ShareInfo) GetFileIDOk() (*string, bool)`
 
-GetFileIdOk returns a tuple with the FileId field if it's non-nil, zero value otherwise
+GetFileIDOk returns a tuple with the FileID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetFileId
+### SetFileID
 
-`func (o *ShareInfo) SetFileId(v string)`
+`func (o *ShareInfo) SetFileID(v string)`
 
-SetFileId sets FileId field to given value.
+SetFileID sets FileID field to given value.
 
-### HasFileId
+### HasFileID
 
-`func (o *ShareInfo) HasFileId() bool`
+`func (o *ShareInfo) HasFileID() bool`
 
-HasFileId returns a boolean if a field has been set.
+HasFileID returns a boolean if a field has been set.
 
 ### GetOwner
 
@@ -212,30 +212,30 @@ SetPublic sets Public field to given value.
 
 HasPublic returns a boolean if a field has been set.
 
-### GetShareId
+### GetShareID
 
-`func (o *ShareInfo) GetShareId() string`
+`func (o *ShareInfo) GetShareID() string`
 
-GetShareId returns the ShareId field if non-nil, zero value otherwise.
+GetShareID returns the ShareID field if non-nil, zero value otherwise.
 
-### GetShareIdOk
+### GetShareIDOk
 
-`func (o *ShareInfo) GetShareIdOk() (*string, bool)`
+`func (o *ShareInfo) GetShareIDOk() (*string, bool)`
 
-GetShareIdOk returns a tuple with the ShareId field if it's non-nil, zero value otherwise
+GetShareIDOk returns a tuple with the ShareID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetShareId
+### SetShareID
 
-`func (o *ShareInfo) SetShareId(v string)`
+`func (o *ShareInfo) SetShareID(v string)`
 
-SetShareId sets ShareId field to given value.
+SetShareID sets ShareID field to given value.
 
-### HasShareId
+### HasShareID
 
-`func (o *ShareInfo) HasShareId() bool`
+`func (o *ShareInfo) HasShareID() bool`
 
-HasShareId returns a boolean if a field has been set.
+HasShareID returns a boolean if a field has been set.
 
 ### GetShareName
 

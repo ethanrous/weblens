@@ -19,7 +19,7 @@ var _ MappedNullable = &FileShareParams{}
 
 // FileShareParams struct for FileShareParams
 type FileShareParams struct {
-	FileId *string `json:"fileId,omitempty"`
+	FileID *string `json:"fileID,omitempty"`
 	Public *bool `json:"public,omitempty"`
 	TimelineOnly *bool `json:"timelineOnly,omitempty"`
 	Users []string `json:"users,omitempty"`
@@ -43,36 +43,36 @@ func NewFileShareParamsWithDefaults() *FileShareParams {
 	return &this
 }
 
-// GetFileId returns the FileId field value if set, zero value otherwise.
-func (o *FileShareParams) GetFileId() string {
-	if o == nil || IsNil(o.FileId) {
+// GetFileID returns the FileID field value if set, zero value otherwise.
+func (o *FileShareParams) GetFileID() string {
+	if o == nil || IsNil(o.FileID) {
 		var ret string
 		return ret
 	}
-	return *o.FileId
+	return *o.FileID
 }
 
-// GetFileIdOk returns a tuple with the FileId field value if set, nil otherwise
+// GetFileIDOk returns a tuple with the FileID field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *FileShareParams) GetFileIdOk() (*string, bool) {
-	if o == nil || IsNil(o.FileId) {
+func (o *FileShareParams) GetFileIDOk() (*string, bool) {
+	if o == nil || IsNil(o.FileID) {
 		return nil, false
 	}
-	return o.FileId, true
+	return o.FileID, true
 }
 
-// HasFileId returns a boolean if a field has been set.
-func (o *FileShareParams) HasFileId() bool {
-	if o != nil && !IsNil(o.FileId) {
+// HasFileID returns a boolean if a field has been set.
+func (o *FileShareParams) HasFileID() bool {
+	if o != nil && !IsNil(o.FileID) {
 		return true
 	}
 
 	return false
 }
 
-// SetFileId gets a reference to the given string and assigns it to the FileId field.
-func (o *FileShareParams) SetFileId(v string) {
-	o.FileId = &v
+// SetFileID gets a reference to the given string and assigns it to the FileID field.
+func (o *FileShareParams) SetFileID(v string) {
+	o.FileID = &v
 }
 
 // GetPublic returns the Public field value if set, zero value otherwise.
@@ -213,8 +213,8 @@ func (o FileShareParams) MarshalJSON() ([]byte, error) {
 
 func (o FileShareParams) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
-	if !IsNil(o.FileId) {
-		toSerialize["fileId"] = o.FileId
+	if !IsNil(o.FileID) {
+		toSerialize["fileID"] = o.FileID
 	}
 	if !IsNil(o.Public) {
 		toSerialize["public"] = o.Public

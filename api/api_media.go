@@ -327,7 +327,7 @@ type ApiGetMediaRequest struct {
 	ctx context.Context
 	ApiService *MediaAPIService
 	request *MediaBatchParams
-	shareId *string
+	shareID *string
 }
 
 // Media Batch Params
@@ -336,9 +336,9 @@ func (r ApiGetMediaRequest) Request(request MediaBatchParams) ApiGetMediaRequest
 	return r
 }
 
-// File ShareId
-func (r ApiGetMediaRequest) ShareId(shareId string) ApiGetMediaRequest {
-	r.shareId = &shareId
+// File ShareID
+func (r ApiGetMediaRequest) ShareID(shareID string) ApiGetMediaRequest {
+	r.shareID = &shareID
 	return r
 }
 
@@ -383,8 +383,8 @@ func (a *MediaAPIService) GetMediaExecute(r ApiGetMediaRequest) (*MediaBatchInfo
 		return localVarReturnValue, nil, reportError("request is required and must be specified")
 	}
 
-	if r.shareId != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "shareId", r.shareId, "", "")
+	if r.shareID != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "shareID", r.shareID, "", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -445,7 +445,7 @@ func (a *MediaAPIService) GetMediaExecute(r ApiGetMediaRequest) (*MediaBatchInfo
 type ApiGetMediaFileRequest struct {
 	ctx context.Context
 	ApiService *MediaAPIService
-	mediaId string
+	mediaID string
 }
 
 func (r ApiGetMediaFileRequest) Execute() (*FileInfo, *http.Response, error) {
@@ -456,14 +456,14 @@ func (r ApiGetMediaFileRequest) Execute() (*FileInfo, *http.Response, error) {
 GetMediaFile Get file of media by id
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param mediaId Id of media
+ @param mediaID ID of media
  @return ApiGetMediaFileRequest
 */
-func (a *MediaAPIService) GetMediaFile(ctx context.Context, mediaId string) ApiGetMediaFileRequest {
+func (a *MediaAPIService) GetMediaFile(ctx context.Context, mediaID string) ApiGetMediaFileRequest {
 	return ApiGetMediaFileRequest{
 		ApiService: a,
 		ctx: ctx,
-		mediaId: mediaId,
+		mediaID: mediaID,
 	}
 }
 
@@ -482,8 +482,8 @@ func (a *MediaAPIService) GetMediaFileExecute(r ApiGetMediaFileRequest) (*FileIn
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/media/{mediaId}/file"
-	localVarPath = strings.Replace(localVarPath, "{"+"mediaId"+"}", url.PathEscape(parameterValueToString(r.mediaId, "mediaId")), -1)
+	localVarPath := localBasePath + "/media/{mediaID}/file"
+	localVarPath = strings.Replace(localVarPath, "{"+"mediaID"+"}", url.PathEscape(parameterValueToString(r.mediaID, "mediaID")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -560,7 +560,7 @@ func (a *MediaAPIService) GetMediaFileExecute(r ApiGetMediaFileRequest) (*FileIn
 type ApiGetMediaImageRequest struct {
 	ctx context.Context
 	ApiService *MediaAPIService
-	mediaId string
+	mediaID string
 	extension string
 	quality *string
 	page *int32
@@ -586,15 +586,15 @@ func (r ApiGetMediaImageRequest) Execute() (string, *http.Response, error) {
 GetMediaImage Get a media image bytes
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param mediaId Media Id
+ @param mediaID Media ID
  @param extension Extension
  @return ApiGetMediaImageRequest
 */
-func (a *MediaAPIService) GetMediaImage(ctx context.Context, mediaId string, extension string) ApiGetMediaImageRequest {
+func (a *MediaAPIService) GetMediaImage(ctx context.Context, mediaID string, extension string) ApiGetMediaImageRequest {
 	return ApiGetMediaImageRequest{
 		ApiService: a,
 		ctx: ctx,
-		mediaId: mediaId,
+		mediaID: mediaID,
 		extension: extension,
 	}
 }
@@ -614,8 +614,8 @@ func (a *MediaAPIService) GetMediaImageExecute(r ApiGetMediaImageRequest) (strin
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/media/{mediaId}.{extension}"
-	localVarPath = strings.Replace(localVarPath, "{"+"mediaId"+"}", url.PathEscape(parameterValueToString(r.mediaId, "mediaId")), -1)
+	localVarPath := localBasePath + "/media/{mediaID}.{extension}"
+	localVarPath = strings.Replace(localVarPath, "{"+"mediaID"+"}", url.PathEscape(parameterValueToString(r.mediaID, "mediaID")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"extension"+"}", url.PathEscape(parameterValueToString(r.extension, "extension")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -686,7 +686,7 @@ func (a *MediaAPIService) GetMediaImageExecute(r ApiGetMediaImageRequest) (strin
 type ApiGetMediaInfoRequest struct {
 	ctx context.Context
 	ApiService *MediaAPIService
-	mediaId string
+	mediaID string
 }
 
 func (r ApiGetMediaInfoRequest) Execute() (*MediaInfo, *http.Response, error) {
@@ -697,14 +697,14 @@ func (r ApiGetMediaInfoRequest) Execute() (*MediaInfo, *http.Response, error) {
 GetMediaInfo Get media info
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param mediaId Media Id
+ @param mediaID Media ID
  @return ApiGetMediaInfoRequest
 */
-func (a *MediaAPIService) GetMediaInfo(ctx context.Context, mediaId string) ApiGetMediaInfoRequest {
+func (a *MediaAPIService) GetMediaInfo(ctx context.Context, mediaID string) ApiGetMediaInfoRequest {
 	return ApiGetMediaInfoRequest{
 		ApiService: a,
 		ctx: ctx,
-		mediaId: mediaId,
+		mediaID: mediaID,
 	}
 }
 
@@ -723,8 +723,8 @@ func (a *MediaAPIService) GetMediaInfoExecute(r ApiGetMediaInfoRequest) (*MediaI
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/media/{mediaId}/info"
-	localVarPath = strings.Replace(localVarPath, "{"+"mediaId"+"}", url.PathEscape(parameterValueToString(r.mediaId, "mediaId")), -1)
+	localVarPath := localBasePath + "/media/{mediaID}/info"
+	localVarPath = strings.Replace(localVarPath, "{"+"mediaID"+"}", url.PathEscape(parameterValueToString(r.mediaID, "mediaID")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -992,9 +992,9 @@ func (a *MediaAPIService) GetRandomMediaExecute(r ApiGetRandomMediaRequest) (*Me
 type ApiSetMediaLikedRequest struct {
 	ctx context.Context
 	ApiService *MediaAPIService
-	mediaId string
+	mediaID string
 	liked *bool
-	shareId *string
+	shareID *string
 }
 
 // Liked status to set
@@ -1003,9 +1003,9 @@ func (r ApiSetMediaLikedRequest) Liked(liked bool) ApiSetMediaLikedRequest {
 	return r
 }
 
-// ShareId
-func (r ApiSetMediaLikedRequest) ShareId(shareId string) ApiSetMediaLikedRequest {
-	r.shareId = &shareId
+// ShareID
+func (r ApiSetMediaLikedRequest) ShareID(shareID string) ApiSetMediaLikedRequest {
+	r.shareID = &shareID
 	return r
 }
 
@@ -1017,14 +1017,14 @@ func (r ApiSetMediaLikedRequest) Execute() (*http.Response, error) {
 SetMediaLiked Like a media
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param mediaId Id of media
+ @param mediaID ID of media
  @return ApiSetMediaLikedRequest
 */
-func (a *MediaAPIService) SetMediaLiked(ctx context.Context, mediaId string) ApiSetMediaLikedRequest {
+func (a *MediaAPIService) SetMediaLiked(ctx context.Context, mediaID string) ApiSetMediaLikedRequest {
 	return ApiSetMediaLikedRequest{
 		ApiService: a,
 		ctx: ctx,
-		mediaId: mediaId,
+		mediaID: mediaID,
 	}
 }
 
@@ -1041,8 +1041,8 @@ func (a *MediaAPIService) SetMediaLikedExecute(r ApiSetMediaLikedRequest) (*http
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/media/{mediaId}/liked"
-	localVarPath = strings.Replace(localVarPath, "{"+"mediaId"+"}", url.PathEscape(parameterValueToString(r.mediaId, "mediaId")), -1)
+	localVarPath := localBasePath + "/media/{mediaID}/liked"
+	localVarPath = strings.Replace(localVarPath, "{"+"mediaID"+"}", url.PathEscape(parameterValueToString(r.mediaID, "mediaID")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -1051,8 +1051,8 @@ func (a *MediaAPIService) SetMediaLikedExecute(r ApiSetMediaLikedRequest) (*http
 		return nil, reportError("liked is required and must be specified")
 	}
 
-	if r.shareId != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "shareId", r.shareId, "", "")
+	if r.shareID != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "shareID", r.shareID, "", "")
 	}
 	parameterAddToHeaderOrQuery(localVarQueryParams, "liked", r.liked, "", "")
 	// to determine the Content-Type header
@@ -1104,7 +1104,7 @@ type ApiSetMediaVisibilityRequest struct {
 	ctx context.Context
 	ApiService *MediaAPIService
 	hidden *bool
-	mediaIds *MediaIdsParams
+	mediaIDs *MediaIDsParams
 }
 
 // Set the media visibility
@@ -1113,9 +1113,9 @@ func (r ApiSetMediaVisibilityRequest) Hidden(hidden bool) ApiSetMediaVisibilityR
 	return r
 }
 
-// MediaIds to change visibility of
-func (r ApiSetMediaVisibilityRequest) MediaIds(mediaIds MediaIdsParams) ApiSetMediaVisibilityRequest {
-	r.mediaIds = &mediaIds
+// MediaIDs to change visibility of
+func (r ApiSetMediaVisibilityRequest) MediaIDs(mediaIDs MediaIDsParams) ApiSetMediaVisibilityRequest {
+	r.mediaIDs = &mediaIDs
 	return r
 }
 
@@ -1157,8 +1157,8 @@ func (a *MediaAPIService) SetMediaVisibilityExecute(r ApiSetMediaVisibilityReque
 	if r.hidden == nil {
 		return nil, reportError("hidden is required and must be specified")
 	}
-	if r.mediaIds == nil {
-		return nil, reportError("mediaIds is required and must be specified")
+	if r.mediaIDs == nil {
+		return nil, reportError("mediaIDs is required and must be specified")
 	}
 
 	parameterAddToHeaderOrQuery(localVarQueryParams, "hidden", r.hidden, "", "")
@@ -1180,7 +1180,7 @@ func (a *MediaAPIService) SetMediaVisibilityExecute(r ApiSetMediaVisibilityReque
 		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
 	}
 	// body params
-	localVarPostBody = r.mediaIds
+	localVarPostBody = r.mediaIDs
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return nil, err
@@ -1212,7 +1212,7 @@ func (a *MediaAPIService) SetMediaVisibilityExecute(r ApiSetMediaVisibilityReque
 type ApiStreamVideoRequest struct {
 	ctx context.Context
 	ApiService *MediaAPIService
-	mediaId string
+	mediaID string
 }
 
 func (r ApiStreamVideoRequest) Execute() (*http.Response, error) {
@@ -1223,14 +1223,14 @@ func (r ApiStreamVideoRequest) Execute() (*http.Response, error) {
 StreamVideo Stream a video
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param mediaId Id of media
+ @param mediaID ID of media
  @return ApiStreamVideoRequest
 */
-func (a *MediaAPIService) StreamVideo(ctx context.Context, mediaId string) ApiStreamVideoRequest {
+func (a *MediaAPIService) StreamVideo(ctx context.Context, mediaID string) ApiStreamVideoRequest {
 	return ApiStreamVideoRequest{
 		ApiService: a,
 		ctx: ctx,
-		mediaId: mediaId,
+		mediaID: mediaID,
 	}
 }
 
@@ -1247,8 +1247,8 @@ func (a *MediaAPIService) StreamVideoExecute(r ApiStreamVideoRequest) (*http.Res
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/media/{mediaId}/video"
-	localVarPath = strings.Replace(localVarPath, "{"+"mediaId"+"}", url.PathEscape(parameterValueToString(r.mediaId, "mediaId")), -1)
+	localVarPath := localBasePath + "/media/{mediaID}/video"
+	localVarPath = strings.Replace(localVarPath, "{"+"mediaID"+"}", url.PathEscape(parameterValueToString(r.mediaID, "mediaID")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}

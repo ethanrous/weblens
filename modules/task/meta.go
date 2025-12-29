@@ -2,15 +2,18 @@ package task
 
 import "maps"
 
-type TaskResult map[string]any
+// Result represents the results of a task execution as key-value pairs.
+type Result map[string]any
 
-type TaskMetadata interface {
+// Metadata provides information about a task including its name, configuration, and validation.
+type Metadata interface {
 	JobName() string
 	MetaString() string
-	FormatToResult() TaskResult
+	FormatToResult() Result
 	Verify() error
 }
 
-func (tr TaskResult) ToMap() map[string]any {
+// ToMap returns a cloned map representation of the TaskResult.
+func (tr Result) ToMap() map[string]any {
 	return maps.Clone(tr)
 }

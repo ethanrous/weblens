@@ -6,16 +6,16 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **actionType** | **string** |  | [default to undefined]
-**contentId** | **string** |  | [optional] [default to undefined]
+**contentID** | **string** |  | [optional] [default to undefined]
 **destinationPath** | **string** |  | [optional] [default to undefined]
-**eventId** | **string** |  | [default to undefined]
-**fileId** | **string** |  | [default to undefined]
+**eventID** | **string** |  | [default to undefined]
+**fileID** | **string** |  | [default to undefined]
 **filepath** | **string** |  | [optional] [default to undefined]
 **originPath** | **string** |  | [optional] [default to undefined]
-**parentId** | **string** |  | [default to undefined]
+**parentID** | **string** |  | [default to undefined]
 **size** | **number** |  | [default to undefined]
 **timestamp** | **number** |  | [default to undefined]
-**towerId** | **string** |  | [default to undefined]
+**towerID** | **string** |  | [default to undefined]
 
 ## Example
 
@@ -24,16 +24,16 @@ import { FileActionInfo } from './api';
 
 const instance: FileActionInfo = {
     actionType,
-    contentId,
+    contentID,
     destinationPath,
-    eventId,
-    fileId,
+    eventID,
+    fileID,
     filepath,
     originPath,
-    parentId,
+    parentID,
     size,
     timestamp,
-    towerId,
+    towerID,
 };
 ```
 

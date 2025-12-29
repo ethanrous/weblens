@@ -27,7 +27,7 @@ type ApiCreateFolderRequest struct {
 	ctx context.Context
 	ApiService *FolderAPIService
 	request *CreateFolderBody
-	shareId *string
+	shareID *string
 }
 
 // New folder body
@@ -36,9 +36,9 @@ func (r ApiCreateFolderRequest) Request(request CreateFolderBody) ApiCreateFolde
 	return r
 }
 
-// Share Id
-func (r ApiCreateFolderRequest) ShareId(shareId string) ApiCreateFolderRequest {
-	r.shareId = &shareId
+// Share ID
+func (r ApiCreateFolderRequest) ShareID(shareID string) ApiCreateFolderRequest {
+	r.shareID = &shareID
 	return r
 }
 
@@ -83,8 +83,8 @@ func (a *FolderAPIService) CreateFolderExecute(r ApiCreateFolderRequest) (*FileI
 		return localVarReturnValue, nil, reportError("request is required and must be specified")
 	}
 
-	if r.shareId != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "shareId", r.shareId, "", "")
+	if r.shareID != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "shareID", r.shareID, "", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{"application/json"}
@@ -145,14 +145,14 @@ func (a *FolderAPIService) CreateFolderExecute(r ApiCreateFolderRequest) (*FileI
 type ApiGetFolderRequest struct {
 	ctx context.Context
 	ApiService *FolderAPIService
-	folderId string
-	shareId *string
+	folderID string
+	shareID *string
 	timestamp *int32
 }
 
-// Share Id
-func (r ApiGetFolderRequest) ShareId(shareId string) ApiGetFolderRequest {
-	r.shareId = &shareId
+// Share ID
+func (r ApiGetFolderRequest) ShareID(shareID string) ApiGetFolderRequest {
+	r.shareID = &shareID
 	return r
 }
 
@@ -170,14 +170,14 @@ func (r ApiGetFolderRequest) Execute() (*FolderInfo, *http.Response, error) {
 GetFolder Get a folder
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param folderId Folder Id
+ @param folderID Folder ID
  @return ApiGetFolderRequest
 */
-func (a *FolderAPIService) GetFolder(ctx context.Context, folderId string) ApiGetFolderRequest {
+func (a *FolderAPIService) GetFolder(ctx context.Context, folderID string) ApiGetFolderRequest {
 	return ApiGetFolderRequest{
 		ApiService: a,
 		ctx: ctx,
-		folderId: folderId,
+		folderID: folderID,
 	}
 }
 
@@ -196,15 +196,15 @@ func (a *FolderAPIService) GetFolderExecute(r ApiGetFolderRequest) (*FolderInfo,
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/folder/{folderId}"
-	localVarPath = strings.Replace(localVarPath, "{"+"folderId"+"}", url.PathEscape(parameterValueToString(r.folderId, "folderId")), -1)
+	localVarPath := localBasePath + "/folder/{folderID}"
+	localVarPath = strings.Replace(localVarPath, "{"+"folderID"+"}", url.PathEscape(parameterValueToString(r.folderID, "folderID")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
-	if r.shareId != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "shareId", r.shareId, "", "")
+	if r.shareID != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "shareID", r.shareID, "", "")
 	}
 	if r.timestamp != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "timestamp", r.timestamp, "", "")
@@ -266,7 +266,7 @@ func (a *FolderAPIService) GetFolderExecute(r ApiGetFolderRequest) (*FolderInfo,
 type ApiGetFolderHistoryRequest struct {
 	ctx context.Context
 	ApiService *FolderAPIService
-	fileId string
+	fileID string
 	timestamp *int32
 }
 
@@ -284,14 +284,14 @@ func (r ApiGetFolderHistoryRequest) Execute() ([]FileActionInfo, *http.Response,
 GetFolderHistory Get actions of a folder at a given time
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param fileId File Id
+ @param fileID File ID
  @return ApiGetFolderHistoryRequest
 */
-func (a *FolderAPIService) GetFolderHistory(ctx context.Context, fileId string) ApiGetFolderHistoryRequest {
+func (a *FolderAPIService) GetFolderHistory(ctx context.Context, fileID string) ApiGetFolderHistoryRequest {
 	return ApiGetFolderHistoryRequest{
 		ApiService: a,
 		ctx: ctx,
-		fileId: fileId,
+		fileID: fileID,
 	}
 }
 
@@ -310,8 +310,8 @@ func (a *FolderAPIService) GetFolderHistoryExecute(r ApiGetFolderHistoryRequest)
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/files/{fileId}/history"
-	localVarPath = strings.Replace(localVarPath, "{"+"fileId"+"}", url.PathEscape(parameterValueToString(r.fileId, "fileId")), -1)
+	localVarPath := localBasePath + "/files/{fileID}/history"
+	localVarPath = strings.Replace(localVarPath, "{"+"fileID"+"}", url.PathEscape(parameterValueToString(r.fileID, "fileID")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -378,13 +378,13 @@ func (a *FolderAPIService) GetFolderHistoryExecute(r ApiGetFolderHistoryRequest)
 type ApiScanFolderRequest struct {
 	ctx context.Context
 	ApiService *FolderAPIService
-	folderId string
-	shareId *string
+	folderID string
+	shareID *string
 }
 
-// Share Id
-func (r ApiScanFolderRequest) ShareId(shareId string) ApiScanFolderRequest {
-	r.shareId = &shareId
+// Share ID
+func (r ApiScanFolderRequest) ShareID(shareID string) ApiScanFolderRequest {
+	r.shareID = &shareID
 	return r
 }
 
@@ -396,14 +396,14 @@ func (r ApiScanFolderRequest) Execute() (*TaskInfo, *http.Response, error) {
 ScanFolder Dispatch a folder scan
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param folderId Folder Id
+ @param folderID Folder ID
  @return ApiScanFolderRequest
 */
-func (a *FolderAPIService) ScanFolder(ctx context.Context, folderId string) ApiScanFolderRequest {
+func (a *FolderAPIService) ScanFolder(ctx context.Context, folderID string) ApiScanFolderRequest {
 	return ApiScanFolderRequest{
 		ApiService: a,
 		ctx: ctx,
-		folderId: folderId,
+		folderID: folderID,
 	}
 }
 
@@ -422,15 +422,15 @@ func (a *FolderAPIService) ScanFolderExecute(r ApiScanFolderRequest) (*TaskInfo,
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/folder/{folderId}/scan"
-	localVarPath = strings.Replace(localVarPath, "{"+"folderId"+"}", url.PathEscape(parameterValueToString(r.folderId, "folderId")), -1)
+	localVarPath := localBasePath + "/folder/{folderID}/scan"
+	localVarPath = strings.Replace(localVarPath, "{"+"folderID"+"}", url.PathEscape(parameterValueToString(r.folderID, "folderID")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
-	if r.shareId != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "shareId", r.shareId, "", "")
+	if r.shareID != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "shareID", r.shareID, "", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -489,13 +489,13 @@ func (a *FolderAPIService) ScanFolderExecute(r ApiScanFolderRequest) (*TaskInfo,
 type ApiSetFolderCoverRequest struct {
 	ctx context.Context
 	ApiService *FolderAPIService
-	folderId string
-	mediaId *string
+	folderID string
+	mediaID *string
 }
 
-// Media Id
-func (r ApiSetFolderCoverRequest) MediaId(mediaId string) ApiSetFolderCoverRequest {
-	r.mediaId = &mediaId
+// Media ID
+func (r ApiSetFolderCoverRequest) MediaID(mediaID string) ApiSetFolderCoverRequest {
+	r.mediaID = &mediaID
 	return r
 }
 
@@ -507,14 +507,14 @@ func (r ApiSetFolderCoverRequest) Execute() (*http.Response, error) {
 SetFolderCover Set the cover image of a folder
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param folderId Folder Id
+ @param folderID Folder ID
  @return ApiSetFolderCoverRequest
 */
-func (a *FolderAPIService) SetFolderCover(ctx context.Context, folderId string) ApiSetFolderCoverRequest {
+func (a *FolderAPIService) SetFolderCover(ctx context.Context, folderID string) ApiSetFolderCoverRequest {
 	return ApiSetFolderCoverRequest{
 		ApiService: a,
 		ctx: ctx,
-		folderId: folderId,
+		folderID: folderID,
 	}
 }
 
@@ -531,17 +531,17 @@ func (a *FolderAPIService) SetFolderCoverExecute(r ApiSetFolderCoverRequest) (*h
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/folder/{folderId}/cover"
-	localVarPath = strings.Replace(localVarPath, "{"+"folderId"+"}", url.PathEscape(parameterValueToString(r.folderId, "folderId")), -1)
+	localVarPath := localBasePath + "/folder/{folderID}/cover"
+	localVarPath = strings.Replace(localVarPath, "{"+"folderID"+"}", url.PathEscape(parameterValueToString(r.folderID, "folderID")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
-	if r.mediaId == nil {
-		return nil, reportError("mediaId is required and must be specified")
+	if r.mediaID == nil {
+		return nil, reportError("mediaID is required and must be specified")
 	}
 
-	parameterAddToHeaderOrQuery(localVarQueryParams, "mediaId", r.mediaId, "", "")
+	parameterAddToHeaderOrQuery(localVarQueryParams, "mediaID", r.mediaID, "", "")
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 

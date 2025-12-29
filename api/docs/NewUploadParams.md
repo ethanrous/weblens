@@ -5,7 +5,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **ChunkSize** | Pointer to **int32** |  | [optional] 
-**RootFolderId** | Pointer to **string** |  | [optional] 
+**RootFolderID** | Pointer to **string** |  | [optional] 
 
 ## Methods
 
@@ -51,30 +51,30 @@ SetChunkSize sets ChunkSize field to given value.
 
 HasChunkSize returns a boolean if a field has been set.
 
-### GetRootFolderId
+### GetRootFolderID
 
-`func (o *NewUploadParams) GetRootFolderId() string`
+`func (o *NewUploadParams) GetRootFolderID() string`
 
-GetRootFolderId returns the RootFolderId field if non-nil, zero value otherwise.
+GetRootFolderID returns the RootFolderID field if non-nil, zero value otherwise.
 
-### GetRootFolderIdOk
+### GetRootFolderIDOk
 
-`func (o *NewUploadParams) GetRootFolderIdOk() (*string, bool)`
+`func (o *NewUploadParams) GetRootFolderIDOk() (*string, bool)`
 
-GetRootFolderIdOk returns a tuple with the RootFolderId field if it's non-nil, zero value otherwise
+GetRootFolderIDOk returns a tuple with the RootFolderID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetRootFolderId
+### SetRootFolderID
 
-`func (o *NewUploadParams) SetRootFolderId(v string)`
+`func (o *NewUploadParams) SetRootFolderID(v string)`
 
-SetRootFolderId sets RootFolderId field to given value.
+SetRootFolderID sets RootFolderID field to given value.
 
-### HasRootFolderId
+### HasRootFolderID
 
-`func (o *NewUploadParams) HasRootFolderId() bool`
+`func (o *NewUploadParams) HasRootFolderID() bool`
 
-HasRootFolderId returns a boolean if a field has been set.
+HasRootFolderID returns a boolean if a field has been set.
 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

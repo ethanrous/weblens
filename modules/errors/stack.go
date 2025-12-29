@@ -1,3 +1,4 @@
+// Package errors provides error handling with stack traces.
 package errors
 
 import (
@@ -13,41 +14,6 @@ import (
 // For historical reasons if Frame is interpreted as a uintptr
 // its value represents the program counter + 1.
 type Frame uintptr
-
-// pc returns the program counter for this frame;
-// multiple frames may have the same PC value.
-func (f Frame) pc() uintptr { return uintptr(f) - 1 }
-
-// file returns the full path to the file that contains the
-// function for this Frame's pc.
-func (f Frame) file() string {
-	fn := runtime.FuncForPC(f.pc())
-	if fn == nil {
-		return "unknown"
-	}
-	file, _ := fn.FileLine(f.pc())
-	return file
-}
-
-// line returns the line number of source code of the
-// function for this Frame's pc.
-func (f Frame) line() int {
-	fn := runtime.FuncForPC(f.pc())
-	if fn == nil {
-		return 0
-	}
-	_, line := fn.FileLine(f.pc())
-	return line
-}
-
-// name returns the name of this function, if known.
-func (f Frame) name() string {
-	fn := runtime.FuncForPC(f.pc())
-	if fn == nil {
-		return "unknown"
-	}
-	return fn.Name()
-}
 
 // Format formats the frame according to the fmt.Formatter interface.
 //
@@ -66,19 +32,19 @@ func (f Frame) Format(s fmt.State, verb rune) {
 	case 's':
 		switch {
 		case s.Flag('+'):
-			io.WriteString(s, f.name())
-			io.WriteString(s, "\n\t")
-			io.WriteString(s, f.file())
+			_, _ = io.WriteString(s, f.name())
+			_, _ = io.WriteString(s, "\n\t")
+			_, _ = io.WriteString(s, f.file())
 		default:
-			io.WriteString(s, path.Base(f.file()))
+			_, _ = io.WriteString(s, path.Base(f.file()))
 		}
 	case 'd':
-		io.WriteString(s, strconv.Itoa(f.line()))
+		_, _ = io.WriteString(s, strconv.Itoa(f.line()))
 	case 'n':
-		io.WriteString(s, funcname(f.name()))
+		_, _ = io.WriteString(s, funcname(f.name()))
 	case 'v':
 		f.Format(s, 's')
-		io.WriteString(s, ":")
+		_, _ = io.WriteString(s, ":")
 		f.Format(s, 'd')
 	}
 }
@@ -90,7 +56,48 @@ func (f Frame) MarshalText() ([]byte, error) {
 	if name == "unknown" {
 		return []byte(name), nil
 	}
-	return []byte(fmt.Sprintf("%s %s:%d", name, f.file(), f.line())), nil
+
+	return fmt.Appendf(nil, "%s %s:%d", name, f.file(), f.line()), nil
+}
+
+// pc returns the program counter for this frame;
+// multiple frames may have the same PC value.
+func (f Frame) pc() uintptr { return uintptr(f) - 1 }
+
+// file returns the full path to the file that contains the
+// function for this Frame's pc.
+func (f Frame) file() string {
+	fn := runtime.FuncForPC(f.pc())
+	if fn == nil {
+		return "unknown"
+	}
+
+	file, _ := fn.FileLine(f.pc())
+
+	return file
+}
+
+// line returns the line number of source code of the
+// function for this Frame's pc.
+func (f Frame) line() int {
+	fn := runtime.FuncForPC(f.pc())
+	if fn == nil {
+		return 0
+	}
+
+	_, line := fn.FileLine(f.pc())
+
+	return line
+}
+
+// name returns the name of this function, if known.
+func (f Frame) name() string {
+	fn := runtime.FuncForPC(f.pc())
+	if fn == nil {
+		return "unknown"
+	}
+
+	return fn.Name()
 }
 
 // StackTrace is stack of Frames from innermost (newest) to outermost (oldest).
@@ -110,11 +117,11 @@ func (st StackTrace) Format(s fmt.State, verb rune) {
 		switch {
 		case s.Flag('+'):
 			for _, f := range st {
-				io.WriteString(s, "\n")
+				_, _ = io.WriteString(s, "\n")
 				f.Format(s, verb)
 			}
 		case s.Flag('#'):
-			fmt.Fprintf(s, "%#v", []Frame(st))
+			_, _ = fmt.Fprintf(s, "%#v", []Frame(st))
 		default:
 			st.formatSlice(s, verb)
 		}
@@ -126,14 +133,17 @@ func (st StackTrace) Format(s fmt.State, verb rune) {
 // formatSlice will format this StackTrace into the given buffer as a slice of
 // Frame, only valid when called with '%s' or '%v'.
 func (st StackTrace) formatSlice(s fmt.State, verb rune) {
-	io.WriteString(s, "[")
+	_, _ = io.WriteString(s, "[")
+
 	for i, f := range st {
 		if i > 0 {
-			io.WriteString(s, " ")
+			_, _ = io.WriteString(s, " ")
 		}
+
 		f.Format(s, verb)
 	}
-	io.WriteString(s, "]")
+
+	_, _ = io.WriteString(s, "]")
 }
 
 // stack represents a stack of program counters.
@@ -146,7 +156,7 @@ func (s *stack) Format(st fmt.State, verb rune) {
 		case st.Flag('+'):
 			for _, pc := range *s {
 				f := Frame(pc)
-				fmt.Fprintf(st, "\n%+v", f)
+				_, _ = fmt.Fprintf(st, "\n%+v", f)
 			}
 		}
 	}
@@ -154,17 +164,22 @@ func (s *stack) Format(st fmt.State, verb rune) {
 
 func (s *stack) StackTrace() StackTrace {
 	f := make([]Frame, len(*s))
-	for i := 0; i < len(f); i++ {
+	for i := range f {
 		f[i] = Frame((*s)[i])
 	}
+
 	return f
 }
 
 func callers() *stack {
 	const depth = 32
+
 	var pcs [depth]uintptr
+
 	n := runtime.Callers(3, pcs[:])
+
 	var st stack = pcs[0:n]
+
 	return &st
 }
 
@@ -173,6 +188,7 @@ func funcname(name string) string {
 	i := strings.LastIndex(name, "/")
 	name = name[i+1:]
 	i = strings.Index(name, ".")
+
 	return name[i+1:]
 }
 
@@ -197,8 +213,9 @@ func Errorf(format string, args ...any) error {
 
 // fundamental is an error that has a message and a stack, but no caller.
 type fundamental struct {
-	msg string
 	*stack
+
+	msg string
 }
 
 func (f *fundamental) Error() string { return f.msg }
@@ -207,15 +224,17 @@ func (f *fundamental) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 'v':
 		if s.Flag('+') {
-			io.WriteString(s, f.msg)
+			_, _ = io.WriteString(s, f.msg)
 			f.stack.Format(s, verb)
+
 			return
 		}
+
 		fallthrough
 	case 's':
-		io.WriteString(s, f.msg)
+		_, _ = io.WriteString(s, f.msg)
 	case 'q':
-		fmt.Fprintf(s, "%q", f.msg)
+		_, _ = fmt.Fprintf(s, "%q", f.msg)
 	}
 }
 
@@ -225,6 +244,7 @@ func WithStack(err error) error {
 	if err == nil {
 		return nil
 	}
+
 	return &withStack{
 		err,
 		callers(),
@@ -245,15 +265,17 @@ func (w *withStack) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 'v':
 		if s.Flag('+') {
-			fmt.Fprintf(s, "%+v", w.Cause())
+			_, _ = fmt.Fprintf(s, "%+v", w.Cause())
 			w.stack.Format(s, verb)
+
 			return
 		}
+
 		fallthrough
 	case 's':
-		io.WriteString(s, w.Error())
+		_, _ = io.WriteString(s, w.Error())
 	case 'q':
-		fmt.Fprintf(s, "%q", w.Error())
+		_, _ = fmt.Fprintf(s, "%q", w.Error())
 	}
 }
 
@@ -264,10 +286,12 @@ func Wrap(err error, message string) error {
 	if err == nil {
 		return nil
 	}
+
 	err = &withMessage{
 		cause: err,
 		msg:   message,
 	}
+
 	return &withStack{
 		err,
 		callers(),
@@ -281,10 +305,12 @@ func Wrapf(err error, format string, args ...any) error {
 	if err == nil {
 		return nil
 	}
+
 	err = &withMessage{
 		cause: err,
 		msg:   fmt.Sprintf(format, args...),
 	}
+
 	return &withStack{
 		err,
 		callers(),
@@ -297,6 +323,7 @@ func WithMessage(err error, message string) error {
 	if err == nil {
 		return nil
 	}
+
 	return &withMessage{
 		cause: err,
 		msg:   message,
@@ -309,6 +336,7 @@ func WithMessagef(err error, format string, args ...any) error {
 	if err == nil {
 		return nil
 	}
+
 	return &withMessage{
 		cause: err,
 		msg:   fmt.Sprintf(format, args...),
@@ -330,13 +358,15 @@ func (w *withMessage) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 'v':
 		if s.Flag('+') {
-			fmt.Fprintf(s, "%+v\n", w.Cause())
-			io.WriteString(s, w.msg)
+			_, _ = fmt.Fprintf(s, "%+v\n", w.Cause())
+			_, _ = io.WriteString(s, w.msg)
+
 			return
 		}
+
 		fallthrough
 	case 's', 'q':
-		io.WriteString(s, w.Error())
+		_, _ = io.WriteString(s, w.Error())
 	}
 }
 
@@ -361,7 +391,9 @@ func Cause(err error) error {
 		if !ok {
 			break
 		}
+
 		err = cause.Cause()
 	}
+
 	return err
 }

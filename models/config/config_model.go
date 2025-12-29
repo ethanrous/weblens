@@ -1,3 +1,4 @@
+// Package config provides configuration management for Weblens.
 package config
 
 import (
@@ -9,20 +10,27 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// ConfigCollectionKey is the database collection name for configuration documents.
 const ConfigCollectionKey = "config"
 
-type ConfigKey = string
+// OptionKey represents a configuration key used to identify specific settings.
+type OptionKey = string
 
+// Configuration keys for Weblens settings.
 const (
-	AllowRegistrations ConfigKey = "allowRegistrations"
-	EnableHDIR         ConfigKey = "enableHDIR"
+	// AllowRegistrations controls whether new user registration is allowed.
+	AllowRegistrations OptionKey = "allowRegistrations"
+	// EnableHDIR controls whether HDIR (high-dynamic-range image rendering) is enabled.
+	EnableHDIR OptionKey = "enableHDIR"
 )
 
+// Config represents the application configuration settings.
 type Config struct {
 	AllowRegistrations bool `bson:"allowRegistrations" json:"allowRegistrations"`
 	EnableHDIR         bool `bson:"enableHDIR" json:"enableHDIR"`
 } // @name Config
 
+// DefaultConfig returns the default configuration with all settings enabled.
 func DefaultConfig() Config {
 	return Config{
 		AllowRegistrations: true,
@@ -30,6 +38,7 @@ func DefaultConfig() Config {
 	}
 }
 
+// GetConfig retrieves the current configuration from cache or database.
 func GetConfig(ctx context.Context) (Config, error) {
 	config, ok := cache.GetOneAs[Config](ctx, ConfigCollectionKey, "config")
 	if ok {
@@ -65,6 +74,7 @@ func GetConfig(ctx context.Context) (Config, error) {
 	return config, nil
 }
 
+// SaveConfig saves the configuration to the database and updates the cache.
 func SaveConfig(ctx context.Context, config Config) error {
 	col, err := db.GetCollection[Config](ctx, ConfigCollectionKey)
 	if err != nil {

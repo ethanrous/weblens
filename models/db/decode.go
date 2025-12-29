@@ -12,8 +12,10 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+// ErrDecodeNotPointer indicates that a decode operation was attempted with a non-pointer value.
 var ErrDecodeNotPointer = errors.New("decode: value must be a pointer")
 
+// Decoder provides an interface for decoding database results into typed values.
 type Decoder[T any] interface {
 	Decode(v T) error
 	Err() error

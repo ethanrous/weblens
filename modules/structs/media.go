@@ -1,10 +1,11 @@
 package structs
 
+// MediaInfo represents metadata and properties of a media file.
 type MediaInfo struct {
-	MediaId string `json:"-" example:"5f9b3b3b7b4f3b0001b3b3b7"`
+	MediaID string `json:"-" example:"5f9b3b3b7b4f3b0001b3b3b7"`
 
 	// Hash of the file content, to ensure that the same files don't get duplicated
-	ContentId string `json:"contentId"`
+	ContentID string `json:"contentID"`
 
 	// User who owns the file that resulted in this media being created
 	Owner string `json:"owner"`
@@ -15,7 +16,7 @@ type MediaInfo struct {
 	Location [2]float64 `json:"location"`
 
 	// Slices of files whos content hash to the contentId
-	FileIds []string `json:"fileIds"`
+	FileIDs []string `json:"fileIds"`
 
 	// Tags from the ML image scan so searching for particular objects in the images can be done
 	RecognitionTags []string `json:"recognitionTags"`
@@ -45,6 +46,7 @@ type MediaInfo struct {
 	Imported bool `json:"imported"`
 } // @Name MediaInfo
 
+// MediaTypeInfo represents information about a specific media type.
 type MediaTypeInfo struct {
 	Mime            string   `json:"mime"`
 	Name            string   `json:"FriendlyName"`
@@ -57,11 +59,13 @@ type MediaTypeInfo struct {
 	MultiPage       bool     `json:"MultiPage"`
 } // @name MediaTypeInfo
 
+// MediaTypesInfo represents the complete mapping of media types indexed by both mime type and file extension.
 type MediaTypesInfo struct {
 	MimeMap map[string]MediaTypeInfo `json:"mimeMap"`
 	ExtMap  map[string]MediaTypeInfo `json:"extMap"`
 } // @name MediaTypesInfo
 
+// MediaBatchInfo represents a paginated batch of media items with count information.
 type MediaBatchInfo struct {
 	Media           []MediaInfo `json:"Media"`
 	MediaCount      int         `json:"mediaCount"`

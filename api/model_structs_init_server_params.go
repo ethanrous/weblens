@@ -22,11 +22,11 @@ type StructsInitServerParams struct {
 	CoreAddress *string `json:"coreAddress,omitempty"`
 	CoreKey *string `json:"coreKey,omitempty"`
 	FullName *string `json:"fullName,omitempty"`
-	// For restoring a server, remoind the core of its serverId and api key the remote last used
-	LocalId *string `json:"localId,omitempty"`
+	// For restoring a server, remoind the core of its serverID and api key the remote last used
+	LocalID *string `json:"localID,omitempty"`
 	Name *string `json:"name,omitempty"`
 	Password *string `json:"password,omitempty"`
-	RemoteId *string `json:"remoteId,omitempty"`
+	RemoteID *string `json:"remoteID,omitempty"`
 	Role *string `json:"role,omitempty"`
 	Username *string `json:"username,omitempty"`
 	UsingKeyInfo *string `json:"usingKeyInfo,omitempty"`
@@ -145,36 +145,36 @@ func (o *StructsInitServerParams) SetFullName(v string) {
 	o.FullName = &v
 }
 
-// GetLocalId returns the LocalId field value if set, zero value otherwise.
-func (o *StructsInitServerParams) GetLocalId() string {
-	if o == nil || IsNil(o.LocalId) {
+// GetLocalID returns the LocalID field value if set, zero value otherwise.
+func (o *StructsInitServerParams) GetLocalID() string {
+	if o == nil || IsNil(o.LocalID) {
 		var ret string
 		return ret
 	}
-	return *o.LocalId
+	return *o.LocalID
 }
 
-// GetLocalIdOk returns a tuple with the LocalId field value if set, nil otherwise
+// GetLocalIDOk returns a tuple with the LocalID field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *StructsInitServerParams) GetLocalIdOk() (*string, bool) {
-	if o == nil || IsNil(o.LocalId) {
+func (o *StructsInitServerParams) GetLocalIDOk() (*string, bool) {
+	if o == nil || IsNil(o.LocalID) {
 		return nil, false
 	}
-	return o.LocalId, true
+	return o.LocalID, true
 }
 
-// HasLocalId returns a boolean if a field has been set.
-func (o *StructsInitServerParams) HasLocalId() bool {
-	if o != nil && !IsNil(o.LocalId) {
+// HasLocalID returns a boolean if a field has been set.
+func (o *StructsInitServerParams) HasLocalID() bool {
+	if o != nil && !IsNil(o.LocalID) {
 		return true
 	}
 
 	return false
 }
 
-// SetLocalId gets a reference to the given string and assigns it to the LocalId field.
-func (o *StructsInitServerParams) SetLocalId(v string) {
-	o.LocalId = &v
+// SetLocalID gets a reference to the given string and assigns it to the LocalID field.
+func (o *StructsInitServerParams) SetLocalID(v string) {
+	o.LocalID = &v
 }
 
 // GetName returns the Name field value if set, zero value otherwise.
@@ -241,36 +241,36 @@ func (o *StructsInitServerParams) SetPassword(v string) {
 	o.Password = &v
 }
 
-// GetRemoteId returns the RemoteId field value if set, zero value otherwise.
-func (o *StructsInitServerParams) GetRemoteId() string {
-	if o == nil || IsNil(o.RemoteId) {
+// GetRemoteID returns the RemoteID field value if set, zero value otherwise.
+func (o *StructsInitServerParams) GetRemoteID() string {
+	if o == nil || IsNil(o.RemoteID) {
 		var ret string
 		return ret
 	}
-	return *o.RemoteId
+	return *o.RemoteID
 }
 
-// GetRemoteIdOk returns a tuple with the RemoteId field value if set, nil otherwise
+// GetRemoteIDOk returns a tuple with the RemoteID field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *StructsInitServerParams) GetRemoteIdOk() (*string, bool) {
-	if o == nil || IsNil(o.RemoteId) {
+func (o *StructsInitServerParams) GetRemoteIDOk() (*string, bool) {
+	if o == nil || IsNil(o.RemoteID) {
 		return nil, false
 	}
-	return o.RemoteId, true
+	return o.RemoteID, true
 }
 
-// HasRemoteId returns a boolean if a field has been set.
-func (o *StructsInitServerParams) HasRemoteId() bool {
-	if o != nil && !IsNil(o.RemoteId) {
+// HasRemoteID returns a boolean if a field has been set.
+func (o *StructsInitServerParams) HasRemoteID() bool {
+	if o != nil && !IsNil(o.RemoteID) {
 		return true
 	}
 
 	return false
 }
 
-// SetRemoteId gets a reference to the given string and assigns it to the RemoteId field.
-func (o *StructsInitServerParams) SetRemoteId(v string) {
-	o.RemoteId = &v
+// SetRemoteID gets a reference to the given string and assigns it to the RemoteID field.
+func (o *StructsInitServerParams) SetRemoteID(v string) {
+	o.RemoteID = &v
 }
 
 // GetRole returns the Role field value if set, zero value otherwise.
@@ -388,8 +388,8 @@ func (o StructsInitServerParams) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.FullName) {
 		toSerialize["fullName"] = o.FullName
 	}
-	if !IsNil(o.LocalId) {
-		toSerialize["localId"] = o.LocalId
+	if !IsNil(o.LocalID) {
+		toSerialize["localID"] = o.LocalID
 	}
 	if !IsNil(o.Name) {
 		toSerialize["name"] = o.Name
@@ -397,8 +397,8 @@ func (o StructsInitServerParams) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Password) {
 		toSerialize["password"] = o.Password
 	}
-	if !IsNil(o.RemoteId) {
-		toSerialize["remoteId"] = o.RemoteId
+	if !IsNil(o.RemoteID) {
+		toSerialize["remoteID"] = o.RemoteID
 	}
 	if !IsNil(o.Role) {
 		toSerialize["role"] = o.Role

@@ -1,4 +1,4 @@
-package db
+package db_test
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethanrous/weblens/models/db"
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/stretchr/testify/assert"
@@ -33,7 +34,7 @@ func TestConnectToMongoWithCancelledContext(t *testing.T) {
 	cancel()
 
 	// Attempt to connect with cancelled context
-	mongodb, err := ConnectToMongo(ctx, config.GetMongoDBUri(), testCollectionKey)
+	mongodb, err := db.ConnectToMongo(ctx, config.GetMongoDBUri(), testCollectionKey)
 
 	assert.Error(t, err)
 	assert.Nil(t, mongodb)
@@ -41,34 +42,34 @@ func TestConnectToMongoWithCancelledContext(t *testing.T) {
 }
 
 func TestContextualizedCollection_Basic(t *testing.T) {
-	ctx := SetupTestDB(t, testCollectionKey)
+	ctx := db.SetupTestDB(t, testCollectionKey)
 
 	t.Run("GetCollection", func(t *testing.T) {
-		collection, err := GetCollection[any](ctx, testCollectionKey)
+		collection, err := db.GetCollection[any](ctx, testCollectionKey)
 		assert.NoError(t, err)
 		assert.NotNil(t, collection)
 	})
 
 	t.Run("GetCollection_NoDatabase", func(t *testing.T) {
-		collection, err := GetCollection[any](context.Background(), testCollectionKey)
+		collection, err := db.GetCollection[any](context.Background(), testCollectionKey)
 		assert.Error(t, err)
 		assert.Nil(t, collection)
-		assert.True(t, errors.Is(err, ErrNoDatabase))
+		assert.True(t, errors.Is(err, db.ErrNoDatabase))
 	})
 
 	t.Run("GetCollection_NilContext", func(t *testing.T) {
-		collection, err := GetCollection[any](nil, testCollectionKey)
+		collection, err := db.GetCollection[any](context.TODO(), testCollectionKey)
 		assert.Error(t, err)
 		assert.Nil(t, collection)
-		assert.True(t, errors.Is(err, ErrNoDatabase))
+		assert.True(t, errors.Is(err, db.ErrNoDatabase))
 	})
 }
 
 func TestContextualizedCollection_CRUD(t *testing.T) {
-	ctx := SetupTestDB(t, testCollectionKey)
+	ctx := db.SetupTestDB(t, testCollectionKey)
 
 	t.Run("InsertOne", func(t *testing.T) {
-		collection, err := GetCollection[any](ctx, testCollectionKey)
+		collection, err := db.GetCollection[any](ctx, testCollectionKey)
 		require.NoError(t, err)
 
 		doc := TestDocument{
@@ -86,10 +87,10 @@ func TestContextualizedCollection_CRUD(t *testing.T) {
 	})
 
 	t.Run("InsertMany", func(t *testing.T) {
-		collection, err := GetCollection[any](ctx, testCollectionKey)
+		collection, err := db.GetCollection[any](ctx, testCollectionKey)
 		require.NoError(t, err)
 
-		docs := []interface{}{
+		docs := []any{
 			TestDocument{
 				ID:        primitive.NewObjectID(),
 				Name:      "test1",
@@ -112,7 +113,7 @@ func TestContextualizedCollection_CRUD(t *testing.T) {
 	})
 
 	t.Run("FindOne", func(t *testing.T) {
-		collection, err := GetCollection[any](ctx, testCollectionKey)
+		collection, err := db.GetCollection[any](ctx, testCollectionKey)
 		require.NoError(t, err)
 
 		doc := TestDocument{
@@ -127,6 +128,7 @@ func TestContextualizedCollection_CRUD(t *testing.T) {
 		require.NoError(t, err)
 
 		var found TestDocument
+
 		err = collection.FindOne(ctx, bson.M{"name": "findTest"}).Decode(&found)
 		assert.NoError(t, err)
 		assert.Equal(t, doc.ID, found.ID)
@@ -135,7 +137,7 @@ func TestContextualizedCollection_CRUD(t *testing.T) {
 	})
 
 	t.Run("UpdateOne", func(t *testing.T) {
-		collection, err := GetCollection[any](ctx, testCollectionKey)
+		collection, err := db.GetCollection[any](ctx, testCollectionKey)
 		require.NoError(t, err)
 
 		doc := TestDocument{
@@ -155,13 +157,14 @@ func TestContextualizedCollection_CRUD(t *testing.T) {
 		assert.Equal(t, int64(1), result.ModifiedCount)
 
 		var updated TestDocument
+
 		err = collection.FindOne(ctx, bson.M{"_id": doc.ID}).Decode(&updated)
 		assert.NoError(t, err)
 		assert.Equal(t, 43, updated.Value)
 	})
 
 	t.Run("DeleteOne", func(t *testing.T) {
-		collection, err := GetCollection[any](ctx, testCollectionKey)
+		collection, err := db.GetCollection[any](ctx, testCollectionKey)
 		require.NoError(t, err)
 
 		doc := TestDocument{
@@ -283,10 +286,10 @@ func TestContextualizedCollection_CRUD(t *testing.T) {
 // }
 
 func TestContextualizedCollection_EdgeCases(t *testing.T) {
-	ctx := SetupTestDB(t, testCollectionKey)
+	ctx := db.SetupTestDB(t, testCollectionKey)
 
 	t.Run("EmptyDocument", func(t *testing.T) {
-		collection, err := GetCollection[any](ctx, testCollectionKey)
+		collection, err := db.GetCollection[any](ctx, testCollectionKey)
 		require.NoError(t, err)
 
 		_, err = collection.InsertOne(ctx, bson.M{})
@@ -294,7 +297,7 @@ func TestContextualizedCollection_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("LargeDocument", func(t *testing.T) {
-		collection, err := GetCollection[any](ctx, testCollectionKey)
+		collection, err := db.GetCollection[any](ctx, testCollectionKey)
 		require.NoError(t, err)
 
 		// Create a large document (close to 16MB limit)
@@ -306,7 +309,7 @@ func TestContextualizedCollection_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("NestedDocument", func(t *testing.T) {
-		collection, err := GetCollection[any](ctx, testCollectionKey)
+		collection, err := db.GetCollection[any](ctx, testCollectionKey)
 		require.NoError(t, err)
 
 		doc := bson.M{
@@ -325,35 +328,38 @@ func TestContextualizedCollection_EdgeCases(t *testing.T) {
 		assert.NoError(t, err)
 
 		var found bson.M
+
 		err = collection.FindOne(ctx, bson.M{"level1.level2.level3.level4.value": 42}).Decode(&found)
 		assert.NoError(t, err)
 	})
 }
 
 func TestContextualizedCollection_Transactions(t *testing.T) {
-	ctx := SetupTestDB(t, testCollectionKey)
+	ctx := db.SetupTestDB(t, testCollectionKey)
 
 	t.Run("SuccessfulTransaction", func(t *testing.T) {
-		collection, err := GetCollection[any](ctx, testCollectionKey)
+		collection, err := db.GetCollection[any](ctx, testCollectionKey)
 		require.NoError(t, err)
 
-		err = WithTransaction(ctx, func(ctx context.Context) error {
+		err = db.WithTransaction(ctx, func(ctx context.Context) error {
 			_, err := collection.InsertOne(ctx, TestDocument{
 				ID:   primitive.NewObjectID(),
 				Name: "transactionTest",
 			})
+
 			return err
 		})
 		assert.NoError(t, err)
 
 		var doc TestDocument
+
 		err = collection.FindOne(ctx, bson.M{"name": "transactionTest"}).Decode(&doc)
 		assert.NoError(t, err)
 	})
 
 	t.Run("RollbackTransaction", func(t *testing.T) {
-		err := WithTransaction(ctx, func(ctx context.Context) error {
-			collection, err := GetCollection[any](ctx, testCollectionKey)
+		err := db.WithTransaction(ctx, func(ctx context.Context) error {
+			collection, err := db.GetCollection[any](ctx, testCollectionKey)
 			require.NoError(t, err)
 
 			_, err = collection.InsertOne(ctx, TestDocument{
@@ -366,7 +372,7 @@ func TestContextualizedCollection_Transactions(t *testing.T) {
 		})
 		assert.Error(t, err)
 
-		collection, err := GetCollection[any](ctx, testCollectionKey)
+		collection, err := db.GetCollection[any](ctx, testCollectionKey)
 		require.NoError(t, err)
 
 		err = collection.FindOne(ctx, bson.M{"name": "rollbackTest"}).Decode(&TestDocument{})
@@ -375,10 +381,10 @@ func TestContextualizedCollection_Transactions(t *testing.T) {
 }
 
 func TestContextualizedCollection_Indexes(t *testing.T) {
-	ctx := SetupTestDB(t, testCollectionKey)
+	ctx := db.SetupTestDB(t, testCollectionKey)
 
 	t.Run("CreateAndVerifyIndex", func(t *testing.T) {
-		collection, err := GetCollection[any](ctx, testCollectionKey)
+		collection, err := db.GetCollection[any](ctx, testCollectionKey)
 		require.NoError(t, err)
 
 		indexModel := mongo.IndexModel{
@@ -408,10 +414,10 @@ func TestContextualizedCollection_Indexes(t *testing.T) {
 }
 
 func TestContextualizedCollection_ErrorHandling(t *testing.T) {
-	ctx := SetupTestDB(t, testCollectionKey)
+	ctx := db.SetupTestDB(t, testCollectionKey)
 
 	t.Run("InvalidObjectID", func(t *testing.T) {
-		collection, err := GetCollection[any](ctx, testCollectionKey)
+		collection, err := db.GetCollection[any](ctx, testCollectionKey)
 		require.NoError(t, err)
 
 		err = collection.FindOne(ctx, bson.M{"_id": "invalid"}).Err()
@@ -419,7 +425,7 @@ func TestContextualizedCollection_ErrorHandling(t *testing.T) {
 	})
 
 	t.Run("InvalidQuery", func(t *testing.T) {
-		collection, err := GetCollection[any](ctx, testCollectionKey)
+		collection, err := db.GetCollection[any](ctx, testCollectionKey)
 		require.NoError(t, err)
 
 		_, err = collection.Find(ctx, bson.M{"$invalid": 1})
@@ -430,7 +436,7 @@ func TestContextualizedCollection_ErrorHandling(t *testing.T) {
 		ctxTimeout, cancel := context.WithTimeout(ctx, 1*time.Nanosecond)
 		defer cancel()
 
-		collection, err := GetCollection[any](ctxTimeout, testCollectionKey)
+		collection, err := db.GetCollection[any](ctxTimeout, testCollectionKey)
 		require.NoError(t, err)
 
 		_, err = collection.Find(ctxTimeout, bson.M{})

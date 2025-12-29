@@ -1,4 +1,4 @@
-package auth
+package auth_test
 
 // import (
 // 	"context"
@@ -194,6 +194,6 @@ package auth
 // 	fetchedKey, err := acc.GetApiKey(key.Key)
 // 	require.NoError(t, err)
 //
-// 	assert.Equal(t, backupServer.ServerId(), fetchedKey.RemoteUsing)
+// 	assert.Equal(t, backupServer.ServerID(), fetchedKey.RemoteUsing)
 //
 // }

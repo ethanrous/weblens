@@ -22,7 +22,7 @@ type NewServerParams struct {
 	CoreAddress *string `json:"coreAddress,omitempty"`
 	Name *string `json:"name,omitempty"`
 	Role *string `json:"role,omitempty"`
-	ServerId *string `json:"serverId,omitempty"`
+	ServerID *string `json:"serverID,omitempty"`
 	UsingKey *string `json:"usingKey,omitempty"`
 }
 
@@ -139,36 +139,36 @@ func (o *NewServerParams) SetRole(v string) {
 	o.Role = &v
 }
 
-// GetServerId returns the ServerId field value if set, zero value otherwise.
-func (o *NewServerParams) GetServerId() string {
-	if o == nil || IsNil(o.ServerId) {
+// GetServerID returns the ServerID field value if set, zero value otherwise.
+func (o *NewServerParams) GetServerID() string {
+	if o == nil || IsNil(o.ServerID) {
 		var ret string
 		return ret
 	}
-	return *o.ServerId
+	return *o.ServerID
 }
 
-// GetServerIdOk returns a tuple with the ServerId field value if set, nil otherwise
+// GetServerIDOk returns a tuple with the ServerID field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *NewServerParams) GetServerIdOk() (*string, bool) {
-	if o == nil || IsNil(o.ServerId) {
+func (o *NewServerParams) GetServerIDOk() (*string, bool) {
+	if o == nil || IsNil(o.ServerID) {
 		return nil, false
 	}
-	return o.ServerId, true
+	return o.ServerID, true
 }
 
-// HasServerId returns a boolean if a field has been set.
-func (o *NewServerParams) HasServerId() bool {
-	if o != nil && !IsNil(o.ServerId) {
+// HasServerID returns a boolean if a field has been set.
+func (o *NewServerParams) HasServerID() bool {
+	if o != nil && !IsNil(o.ServerID) {
 		return true
 	}
 
 	return false
 }
 
-// SetServerId gets a reference to the given string and assigns it to the ServerId field.
-func (o *NewServerParams) SetServerId(v string) {
-	o.ServerId = &v
+// SetServerID gets a reference to the given string and assigns it to the ServerID field.
+func (o *NewServerParams) SetServerID(v string) {
+	o.ServerID = &v
 }
 
 // GetUsingKey returns the UsingKey field value if set, zero value otherwise.
@@ -222,8 +222,8 @@ func (o NewServerParams) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Role) {
 		toSerialize["role"] = o.Role
 	}
-	if !IsNil(o.ServerId) {
-		toSerialize["serverId"] = o.ServerId
+	if !IsNil(o.ServerID) {
+		toSerialize["serverID"] = o.ServerID
 	}
 	if !IsNil(o.UsingKey) {
 		toSerialize["usingKey"] = o.UsingKey

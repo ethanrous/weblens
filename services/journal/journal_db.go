@@ -1,3 +1,4 @@
+// Package journal handles database operations related to journaling file actions.
 package journal
 
 import (
@@ -10,18 +11,17 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-func getActionsSince(ctx context.Context, date time.Time, serverId string) ([]*history.FileAction, error) {
+func getActionsSince(ctx context.Context, date time.Time, serverID string) ([]*history.FileAction, error) {
 	col, err := db.GetCollection[any](ctx, history.FileHistoryCollectionKey)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: Make this work for actions, not lifetimes
 	pipe := bson.A{
 		bson.D{
 			{
 				Key:   "$match",
-				Value: bson.D{{Key: "actions.timestamp", Value: bson.D{{Key: "$gt", Value: date}}}, {Key: "serverId", Value: serverId}},
+				Value: bson.D{{Key: "actions.timestamp", Value: bson.D{{Key: "$gt", Value: date}}}, {Key: "serverID", Value: serverID}},
 			},
 		},
 		bson.D{{Key: "$sort", Value: bson.D{{Key: "actions.timestamp", Value: 1}}}},
@@ -42,7 +42,7 @@ func getActionsSince(ctx context.Context, date time.Time, serverId string) ([]*h
 	return target, nil
 }
 
-func getActionsPage(ctx context.Context, pageSize, pageNum int, serverId string) ([]history.FileAction, error) {
+func getActionsPage(ctx context.Context, pageSize, pageNum int, _ string) ([]history.FileAction, error) {
 	col, err := db.GetCollection[any](ctx, history.FileHistoryCollectionKey)
 	if err != nil {
 		return nil, err
@@ -54,7 +54,7 @@ func getActionsPage(ctx context.Context, pageSize, pageNum int, serverId string)
 		// bson.D{
 		// 	{
 		// 		Key:   "$match",
-		// 		Value: bson.D{{Key: "serverId", Value: serverId}},
+		// 		Value: bson.D{{Key: "serverID", Value: serverID}},
 		// 	},
 		// },
 		bson.D{{Key: "$sort", Value: bson.D{{Key: "actions.timestamp", Value: -1}}}},

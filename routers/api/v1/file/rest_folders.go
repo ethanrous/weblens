@@ -19,7 +19,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// ScanFolder godoc
+// ScanDir godoc
 //
 //	@ID	ScanFolder
 //
@@ -28,12 +28,12 @@ import (
 //
 //	@Summary	Dispatch a folder scan
 //	@Tags		Folder
-//	@Param		folderId	path		string				true	"Folder Id"
-//	@Param		shareId	query	string				false	"Share Id"
+//	@Param		folderID	path		string				true	"Folder ID"
+//	@Param		shareID	query	string				false	"Share ID"
 //	@Success	200 {object} structs.TaskInfo "Task Info"
 //	@Failure	404
 //	@Failure	500
-//	@Router		/folder/{folderId}/scan [post]
+//	@Router		/folder/{folderID}/scan [post]
 func ScanDir(ctx context_service.RequestContext) {
 	folder, err := checkFileAccess(ctx)
 	if err != nil {
@@ -81,6 +81,7 @@ func formatRespondFolderInfo(ctx context_service.RequestContext, dir *file_model
 
 	for parent != nil && !parent.GetPortablePath().IsRoot() && !owner.IsSystemUser() {
 		var perms *share_model.Permissions
+
 		if perms, err = auth.CanUserAccessFile(ctx, ctx.Requester, parent, ctx.Share); err != nil {
 			break
 		}
@@ -190,8 +191,7 @@ func formatRespondPastFolderInfo(ctx context_service.RequestContext, folder *fil
 	medias := []*media_model.Media{}
 
 	for _, child := range children {
-		m, err := media_model.GetMediaByContentId(ctx, child.GetContentId())
-
+		m, err := media_model.GetMediaByContentID(ctx, child.GetContentID())
 		if err == nil {
 			medias = append(medias, m)
 		}

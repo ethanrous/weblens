@@ -1,3 +1,4 @@
+// Package tower contains admin REST API handlers for tower management.
 package tower
 
 import (

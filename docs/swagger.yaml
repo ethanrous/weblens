@@ -58,29 +58,29 @@ definitions:
         type: array
       newFolderName:
         type: string
-      parentFolderId:
+      parentFolderID:
         type: string
     required:
     - newFolderName
-    - parentFolderId
+    - parentFolderID
     type: object
   FileActionInfo:
     properties:
       actionType:
         type: string
-      contentId:
+      contentID:
         type: string
       destinationPath:
         type: string
-      eventId:
+      eventID:
         type: string
-      fileId:
+      fileID:
         type: string
       filepath:
         type: string
       originPath:
         type: string
-      parentId:
+      parentID:
         type: string
       size:
         format: int64
@@ -88,16 +88,16 @@ definitions:
       timestamp:
         format: int64
         type: integer
-      towerId:
+      towerID:
         type: string
     required:
     - actionType
-    - eventId
-    - fileId
-    - parentId
+    - eventID
+    - fileID
+    - parentID
     - size
     - timestamp
-    - towerId
+    - towerID
     type: object
   FileInfo:
     properties:
@@ -105,9 +105,9 @@ definitions:
         items:
           type: string
         type: array
-      contentId:
+      contentID:
         type: string
-      currentId:
+      currentID:
         type: string
       hasRestoreMedia:
         type: boolean
@@ -121,20 +121,20 @@ definitions:
         type: integer
       owner:
         type: string
-      parentId:
+      parentID:
         type: string
       pastFile:
         type: boolean
       portablePath:
         type: string
-      shareId:
+      shareID:
         type: string
       size:
         type: integer
     type: object
   FileShareParams:
     properties:
-      fileId:
+      fileID:
         type: string
       public:
         type: boolean
@@ -194,10 +194,10 @@ definitions:
     type: object
   MediaBatchParams:
     properties:
-      folderIds:
+      folderIDs:
         example:
-        - '[fId1'
-        - fId2]
+        - '[fID1'
+        - fID2]
         items:
           type: string
         type: array
@@ -210,10 +210,10 @@ definitions:
       limit:
         example: 20
         type: integer
-      mediaIds:
+      mediaIDs:
         example:
-        - '[mId1'
-        - mId2]
+        - '[mID1'
+        - mID2]
         items:
           type: string
         type: array
@@ -241,7 +241,7 @@ definitions:
         example: 1
         type: integer
     type: object
-  MediaIdsParams:
+  MediaIDsParams:
     properties:
       mediaIds:
         items:
@@ -250,7 +250,7 @@ definitions:
     type: object
   MediaInfo:
     properties:
-      contentId:
+      contentID:
         description: Hash of the file content, to ensure that the same files don't
           get duplicated
         type: string
@@ -345,7 +345,7 @@ definitions:
         items:
           type: string
         type: array
-      newParentId:
+      newParentID:
         type: string
     type: object
   NewFileParams:
@@ -356,7 +356,7 @@ definitions:
         type: boolean
       newFileName:
         type: string
-      parentFolderId:
+      parentFolderID:
         type: string
     type: object
   NewFilesInfo:
@@ -381,21 +381,21 @@ definitions:
         type: string
       role:
         type: string
-      serverId:
+      serverID:
         type: string
       usingKey:
         type: string
     type: object
   NewUploadInfo:
     properties:
-      uploadId:
+      uploadID:
         type: string
     type: object
   NewUploadParams:
     properties:
       chunkSize:
         type: integer
-      rootFolderId:
+      rootFolderID:
         type: string
     type: object
   NewUserParams:
@@ -452,14 +452,14 @@ definitions:
         items:
           type: string
         type: array
-      newParentId:
+      newParentID:
         type: string
       timestamp:
         type: integer
     type: object
   RestoreFilesInfo:
     properties:
-      newParentId:
+      newParentID:
         type: string
     type: object
   ShareInfo:
@@ -472,7 +472,7 @@ definitions:
         type: boolean
       expires:
         type: integer
-      fileId:
+      fileID:
         type: string
       owner:
         type: string
@@ -482,7 +482,7 @@ definitions:
         type: object
       public:
         type: boolean
-      shareId:
+      shareID:
         type: string
       shareName:
         type: string
@@ -501,9 +501,9 @@ definitions:
         type: string
       single:
         type: boolean
-      takeoutId:
+      takeoutID:
         type: string
-      taskId:
+      taskID:
         type: string
     type: object
   TaskInfo:
@@ -519,17 +519,17 @@ definitions:
         type: string
       status:
         $ref: '#/definitions/task.TaskExitStatus'
-      taskId:
+      taskID:
         type: string
-      workerId:
+      workerID:
         type: integer
     required:
     - Completed
     - jobName
     - progress
     - status
-    - taskId
-    - workerId
+    - taskID
+    - workerID
     type: object
   TokenInfo:
     properties:
@@ -607,7 +607,7 @@ definitions:
     properties:
       newName:
         type: string
-      newParentId:
+      newParentID:
         type: string
     type: object
   UserInfo:
@@ -616,7 +616,7 @@ definitions:
         type: boolean
       fullName:
         type: string
-      homeId:
+      homeID:
         type: string
       isOnline:
         type: boolean
@@ -624,16 +624,16 @@ definitions:
         type: integer
       token:
         type: string
-      trashId:
+      trashID:
         type: string
       username:
         type: string
     required:
     - activated
     - fullName
-    - homeId
+    - homeID
     - permissionLevel
-    - trashId
+    - trashID
     - username
     type: object
   UserInfoArchive:
@@ -642,7 +642,7 @@ definitions:
         type: boolean
       fullName:
         type: string
-      homeId:
+      homeID:
         type: string
       isOnline:
         type: boolean
@@ -652,16 +652,16 @@ definitions:
         type: integer
       token:
         type: string
-      trashId:
+      trashID:
         type: string
       username:
         type: string
     required:
     - activated
     - fullName
-    - homeId
+    - homeID
     - permissionLevel
-    - trashId
+    - trashID
     - username
     type: object
   WLResponseInfo:
@@ -674,6 +674,41 @@ definitions:
       error:
         type: string
     type: object
+  fs.Filepath:
+    properties:
+      relPath:
+        type: string
+      rootAlias:
+        type: string
+    type: object
+  history.FileAction:
+    properties:
+      actionType:
+        type: string
+      contentID:
+        type: string
+      destinationPath:
+        $ref: '#/definitions/fs.Filepath'
+      doer:
+        description: The user or system that performed the action
+        type: string
+      eventID:
+        type: string
+      fileID:
+        type: string
+      filepath:
+        $ref: '#/definitions/fs.Filepath'
+      id:
+        type: string
+      originPath:
+        $ref: '#/definitions/fs.Filepath'
+      size:
+        type: integer
+      timestamp:
+        type: string
+      towerID:
+        type: string
+    type: object
   structs.InitServerParams:
     properties:
       coreAddress:
@@ -682,15 +717,15 @@ definitions:
         type: string
       fullName:
         type: string
-      localId:
-        description: For restoring a server, remoind the core of its serverId and
+      localID:
+        description: For restoring a server, remoind the core of its serverID and
           api key the remote last used
         type: string
       name:
         type: string
       password:
         type: string
-      remoteId:
+      remoteID:
         type: string
       role:
         type: string
@@ -810,9 +845,9 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/MoveFilesParams'
-      - description: Share Id
+      - description: Share ID
         in: query
-        name: shareId
+        name: shareID
         type: string
       responses:
         "200":
@@ -826,18 +861,18 @@ paths:
       summary: Move a list of files to a new parent folder
       tags:
       - Files
-  /files/{fileId}:
+  /files/{fileID}:
     get:
       operationId: GetFile
       parameters:
-      - description: File Id
+      - description: File ID
         in: path
-        name: fileId
+        name: fileID
         required: true
         type: string
-      - description: Share Id
+      - description: Share ID
         in: query
-        name: shareId
+        name: shareID
         type: string
       produces:
       - application/json
@@ -860,14 +895,14 @@ paths:
       - application/json
       operationId: UpdateFile
       parameters:
-      - description: File Id
+      - description: File ID
         in: path
-        name: fileId
+        name: fileID
         required: true
         type: string
-      - description: Share Id
+      - description: Share ID
         in: query
-        name: shareId
+        name: shareID
         type: string
       - description: Update file request body
         in: body
@@ -889,18 +924,18 @@ paths:
       summary: Update a File
       tags:
       - Files
-  /files/{fileId}/download:
+  /files/{fileID}/download:
     get:
       operationId: DownloadFile
       parameters:
-      - description: File Id
+      - description: File ID
         in: path
-        name: fileId
+        name: fileID
         required: true
         type: string
-      - description: Share Id
+      - description: Share ID
         in: query
-        name: shareId
+        name: shareID
         type: string
       - description: File format conversion
         in: query
@@ -930,13 +965,13 @@ paths:
       summary: Download a file
       tags:
       - Files
-  /files/{fileId}/history:
+  /files/{fileID}/history:
     get:
       operationId: GetFolderHistory
       parameters:
-      - description: File Id
+      - description: File ID
         in: path
-        name: fileId
+        name: fileID
         required: true
         type: string
       - description: Past timestamp to view the folder at, in ms since epoch
@@ -960,13 +995,13 @@ paths:
       summary: Get actions of a folder at a given time
       tags:
       - Folder
-  /files/{fileId}/stats:
+  /files/{fileID}/stats:
     get:
       operationId: GetFileStats
       parameters:
-      - description: File Id
+      - description: File ID
         in: path
-        name: fileId
+        name: fileID
         required: true
         type: string
       produces:
@@ -981,18 +1016,18 @@ paths:
       summary: Get the statistics of a file
       tags:
       - Files
-  /files/{fileId}/text:
+  /files/{fileID}/text:
     get:
       operationId: GetFileText
       parameters:
-      - description: File Id
+      - description: File ID
         in: path
-        name: fileId
+        name: fileID
         required: true
         type: string
-      - description: Share Id
+      - description: Share ID
         in: query
-        name: shareId
+        name: shareID
         type: string
       produces:
       - text/plain
@@ -1040,7 +1075,7 @@ paths:
         type: string
       - description: The folder to search in, defaults to the user's home folder
         in: query
-        name: baseFolderId
+        name: baseFolderID
         type: string
       responses:
         "200":
@@ -1144,9 +1179,9 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/CreateFolderBody'
-      - description: Share Id
+      - description: Share ID
         in: query
-        name: shareId
+        name: shareID
         type: string
       produces:
       - application/json
@@ -1160,20 +1195,20 @@ paths:
       summary: Create a new folder
       tags:
       - Folder
-  /folder/{folderId}:
+  /folder/{folderID}:
     get:
       consumes:
       - application/json
       operationId: GetFolder
       parameters:
-      - description: Folder Id
+      - description: Folder ID
         in: path
-        name: folderId
+        name: folderID
         required: true
         type: string
-      - description: Share Id
+      - description: Share ID
         in: query
-        name: shareId
+        name: shareID
         type: string
       - description: Past timestamp to view the folder at, in ms since epoch
         in: query
@@ -1191,18 +1226,18 @@ paths:
       summary: Get a folder
       tags:
       - Folder
-  /folder/{folderId}/cover:
+  /folder/{folderID}/cover:
     patch:
       operationId: SetFolderCover
       parameters:
-      - description: Folder Id
+      - description: Folder ID
         in: path
-        name: folderId
+        name: folderID
         required: true
         type: string
-      - description: Media Id
+      - description: Media ID
         in: query
-        name: mediaId
+        name: mediaID
         required: true
         type: string
       responses:
@@ -1219,18 +1254,18 @@ paths:
       summary: Set the cover image of a folder
       tags:
       - Folder
-  /folder/{folderId}/scan:
+  /folder/{folderID}/scan:
     post:
       operationId: ScanFolder
       parameters:
-      - description: Folder Id
+      - description: Folder ID
         in: path
-        name: folderId
+        name: folderID
         required: true
         type: string
-      - description: Share Id
+      - description: Share ID
         in: query
-        name: shareId
+        name: shareID
         type: string
       responses:
         "200":
@@ -1305,13 +1340,13 @@ paths:
       summary: Create a new api key
       tags:
       - ApiKeys
-  /keys/{tokenId}:
+  /keys/{tokenID}:
     delete:
       operationId: DeleteApiKey
       parameters:
       - description: Api key id
         in: path
-        name: tokenId
+        name: tokenID
         required: true
         type: string
       produces:
@@ -1341,9 +1376,9 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/MediaBatchParams'
-      - description: File ShareId
+      - description: File ShareID
         in: query
-        name: shareId
+        name: shareID
         type: string
       produces:
       - application/json
@@ -1359,13 +1394,13 @@ paths:
       summary: Get paginated media
       tags:
       - Media
-  /media/{mediaId}.{extension}:
+  /media/{mediaID}.{extension}:
     get:
       operationId: GetMediaImage
       parameters:
-      - description: Media Id
+      - description: Media ID
         in: path
-        name: mediaId
+        name: mediaID
         required: true
         type: string
       - description: Extension
@@ -1397,13 +1432,13 @@ paths:
       summary: Get a media image bytes
       tags:
       - Media
-  /media/{mediaId}/file:
+  /media/{mediaID}/file:
     get:
       operationId: GetMediaFile
       parameters:
-      - description: Id of media
+      - description: ID of media
         in: path
-        name: mediaId
+        name: mediaID
         required: true
         type: string
       produces:
@@ -1423,13 +1458,13 @@ paths:
       summary: Get file of media by id
       tags:
       - Media
-  /media/{mediaId}/info:
+  /media/{mediaID}/info:
     get:
       operationId: GetMediaInfo
       parameters:
-      - description: Media Id
+      - description: Media ID
         in: path
-        name: mediaId
+        name: mediaID
         required: true
         type: string
       produces:
@@ -1442,18 +1477,18 @@ paths:
       summary: Get media info
       tags:
       - Media
-  /media/{mediaId}/liked:
+  /media/{mediaID}/liked:
     patch:
       operationId: SetMediaLiked
       parameters:
-      - description: Id of media
+      - description: ID of media
         in: path
-        name: mediaId
+        name: mediaID
         required: true
         type: string
-      - description: ShareId
+      - description: ShareID
         in: query
-        name: shareId
+        name: shareID
         type: string
       - description: Liked status to set
         in: query
@@ -1476,13 +1511,13 @@ paths:
       summary: Like a media
       tags:
       - Media
-  /media/{mediaId}/video:
+  /media/{mediaID}/video:
     get:
       operationId: StreamVideo
       parameters:
-      - description: Id of media
+      - description: ID of media
         in: path
-        name: mediaId
+        name: mediaID
         required: true
         type: string
       produces:
@@ -1607,12 +1642,12 @@ paths:
         name: hidden
         required: true
         type: boolean
-      - description: MediaIds to change visibility of
+      - description: MediaIDs to change visibility of
         in: body
-        name: mediaIds
+        name: mediaIDs
         required: true
         schema:
-          $ref: '#/definitions/MediaIdsParams'
+          $ref: '#/definitions/MediaIDsParams'
       produces:
       - application/json
       responses:
@@ -1625,13 +1660,13 @@ paths:
       summary: Set media visibility
       tags:
       - Media
-  /share/{shareId}:
+  /share/{shareID}:
     delete:
       operationId: DeleteFileShare
       parameters:
-      - description: Share Id
+      - description: Share ID
         in: path
-        name: shareId
+        name: shareID
         required: true
         type: string
       produces:
@@ -1647,9 +1682,9 @@ paths:
     get:
       operationId: GetFileShare
       parameters:
-      - description: Share Id
+      - description: Share ID
         in: path
-        name: shareId
+        name: shareID
         required: true
         type: string
       produces:
@@ -1664,13 +1699,13 @@ paths:
       summary: Get a file share
       tags:
       - Share
-  /share/{shareId}/accessors:
+  /share/{shareID}/accessors:
     post:
       operationId: AddUserToShare
       parameters:
-      - description: Share Id
+      - description: Share ID
         in: path
-        name: shareId
+        name: shareID
         required: true
         type: string
       - description: Share Accessors
@@ -1691,13 +1726,13 @@ paths:
       summary: Add a user to a file share
       tags:
       - Share
-  /share/{shareId}/accessors/{username}:
+  /share/{shareID}/accessors/{username}:
     delete:
       operationId: RemoveUserFromShare
       parameters:
-      - description: Share Id
+      - description: Share ID
         in: path
-        name: shareId
+        name: shareID
         required: true
         type: string
       - description: Username
@@ -1720,9 +1755,9 @@ paths:
     patch:
       operationId: UpdateShareAccessorPermissions
       parameters:
-      - description: Share Id
+      - description: Share ID
         in: path
-        name: shareId
+        name: shareID
         required: true
         type: string
       - description: Username
@@ -1748,13 +1783,13 @@ paths:
       summary: Update a share's user permissions
       tags:
       - Share
-  /share/{shareId}/public:
+  /share/{shareID}/public:
     patch:
       operationId: SetSharePublic
       parameters:
-      - description: Share Id
+      - description: Share ID
         in: path
-        name: shareId
+        name: shareID
         required: true
         type: string
       - description: Share Public Status
@@ -1800,9 +1835,9 @@ paths:
         the id of a previously created zip file if it already exists
       operationId: CreateTakeout
       parameters:
-      - description: Share Id
+      - description: Share ID
         in: query
-        name: shareId
+        name: shareID
         type: string
       - description: File Ids
         in: body
@@ -1848,13 +1883,13 @@ paths:
       summary: Get all remotes
       tags:
       - Towers
-  /tower/{serverId}:
+  /tower/{serverID}:
     delete:
       operationId: DeleteRemote
       parameters:
-      - description: Server Id to delete
+      - description: Server ID to delete
         in: path
-        name: serverId
+        name: serverID
         required: true
         type: string
       responses:
@@ -1872,13 +1907,13 @@ paths:
       summary: Delete a remote
       tags:
       - Towers
-  /tower/{serverId}/backup:
+  /tower/{serverID}/backup:
     post:
       operationId: LaunchBackup
       parameters:
       - description: Server ID
         in: path
-        name: serverId
+        name: serverID
         required: true
         type: string
       responses:
@@ -1936,6 +1971,39 @@ paths:
       - ApiKeyAuth:
         - admin
       summary: Flush Cache
+      tags:
+      - Towers
+  /tower/history:
+    get:
+      operationId: GetPagedHistoryActions
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Number of items per page
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: File Actions
+          schema:
+            items:
+              $ref: '#/definitions/history.FileAction'
+            type: array
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - ApiKeyAuth:
+        - admin
+      summary: Get a page of file actions
       tags:
       - Towers
   /tower/init:
@@ -2040,9 +2108,9 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/NewUploadParams'
-      - description: Share Id
+      - description: Share ID
         in: query
-        name: shareId
+        name: shareID
         type: string
       responses:
         "201":
@@ -2060,13 +2128,13 @@ paths:
       summary: Begin a new upload task
       tags:
       - Files
-  /upload/{uploadId}:
+  /upload/{uploadID}:
     get:
       operationId: GetUploadResult
       parameters:
-      - description: Upload Id
+      - description: Upload ID
         in: path
-        name: uploadId
+        name: uploadID
         required: true
         type: string
       responses:
@@ -2087,14 +2155,14 @@ paths:
     post:
       operationId: AddFilesToUpload
       parameters:
-      - description: Upload Id
+      - description: Upload ID
         in: path
-        name: uploadId
+        name: uploadID
         required: true
         type: string
-      - description: Share Id
+      - description: Share ID
         in: query
-        name: shareId
+        name: shareID
         type: string
       - description: New file params
         in: body
@@ -2118,23 +2186,23 @@ paths:
       summary: Add a file to an upload task
       tags:
       - Files
-  /upload/{uploadId}/file/{fileId}:
+  /upload/{uploadID}/file/{fileID}:
     put:
       operationId: UploadFileChunk
       parameters:
-      - description: Upload Id
+      - description: Upload ID
         in: path
-        name: uploadId
+        name: uploadID
         required: true
         type: string
-      - description: File Id
+      - description: File ID
         in: path
-        name: fileId
+        name: fileID
         required: true
         type: string
-      - description: Share Id
+      - description: Share ID
         in: query
-        name: shareId
+        name: shareID
         type: string
       - description: File chunk
         in: formData

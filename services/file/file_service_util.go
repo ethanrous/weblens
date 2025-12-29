@@ -10,6 +10,7 @@ import (
 	"github.com/ethanrous/weblens/modules/errors"
 )
 
+// GetFileOwner retrieves the user who owns the specified file.
 func GetFileOwner(ctx context.Context, file *file_model.WeblensFileImpl) (*user_model.User, error) {
 	username, err := file_model.GetFileOwnerName(ctx, file)
 	if err != nil {
@@ -21,6 +22,7 @@ func GetFileOwner(ctx context.Context, file *file_model.WeblensFileImpl) (*user_
 
 const maxDupeCount = 100
 
+// MakeUniqueChildName generates a unique filename within the parent directory by appending a number suffix if necessary.
 func MakeUniqueChildName(parent file_system.Filepath, childName string, childIsDir bool) (childPath file_system.Filepath, err error) {
 	dupeCount := 0
 

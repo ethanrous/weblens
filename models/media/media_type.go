@@ -2,7 +2,8 @@ package media
 
 import "encoding/json"
 
-const MediaTypeJson = `{
+// MediaTypeJSON contains the JSON definition of all supported media types.
+const MediaTypeJSON = `{
     "application/zip": {
         "FriendlyName": "Zip",
         "FileExtension": [
@@ -170,12 +171,16 @@ const MediaTypeJson = `{
 }
 `
 
-var mimeMap = map[string]MediaType{}
-var extMap = map[string]MediaType{}
+var mimeMap = map[string]MType{}
+var extMap = map[string]MType{}
 
 func init() {
-	var marshMap map[string]MediaType
-	json.Unmarshal([]byte(MediaTypeJson), &marshMap)
+	var marshMap map[string]MType
+
+	err := json.Unmarshal([]byte(MediaTypeJSON), &marshMap)
+	if err != nil {
+		panic(err)
+	}
 
 	for k, t := range marshMap {
 		t.Mime = k
@@ -189,7 +194,8 @@ func init() {
 	}
 }
 
-type MediaType struct {
+// MType represents the properties and capabilities of a specific media file type.
+type MType struct {
 	Mime            string   `json:"mime"`
 	Name            string   `json:"FriendlyName"`
 	RawThumbExifKey string   `json:"RawThumbExifKey"`
@@ -202,7 +208,7 @@ type MediaType struct {
 } // @name MediaType
 
 // ParseExtension Get a pointer to the weblens Media type of a file given the file extension
-func ParseExtension(ext string) MediaType {
+func ParseExtension(ext string) MType {
 	if len(ext) == 0 {
 		return mimeMap["generic"]
 	}
@@ -210,54 +216,67 @@ func ParseExtension(ext string) MediaType {
 	if ext[0] == '.' {
 		ext = ext[1:]
 	}
+
 	mt, ok := extMap[ext]
 	if !ok {
 		return mimeMap["generic"]
 	}
+
 	return mt
 }
 
-func ParseMime(mime string) MediaType {
+// ParseMime returns the MediaType for a given MIME type string.
+func ParseMime(mime string) MType {
 	return mimeMap[mime]
 }
 
-func GetMaps() (map[string]MediaType, map[string]MediaType) {
+// GetMaps returns both the MIME type map and the extension map for media types.
+func GetMaps() (map[string]MType, map[string]MType) {
 	return mimeMap, extMap
 }
 
-func Generic() MediaType {
+// Generic returns the generic MediaType used for unsupported file types.
+func Generic() MType {
 	return mimeMap["generic"]
 }
 
+// Size returns the total number of registered media types.
 func Size() int {
 	return len(mimeMap)
 }
 
-func (mt MediaType) IsMime(mime string) bool {
+// IsMime checks if the MediaType has the specified MIME type.
+func (mt MType) IsMime(mime string) bool {
 	return mt.Mime == mime
 }
 
-func (mt MediaType) IsDisplayable() bool {
+// IsDisplayable checks if the MediaType can be displayed in a browser.
+func (mt MType) IsDisplayable() bool {
 	return mt.Displayable
 }
 
-func (mt MediaType) FriendlyName() string {
+// FriendlyName returns the human-readable name of the MediaType.
+func (mt MType) FriendlyName() string {
 	return mt.Name
 }
 
-func (mt MediaType) IsSupported() bool {
+// IsSupported checks if the MediaType is a recognized and supported type.
+func (mt MType) IsSupported() bool {
 	return mt.Mime != "generic" && mt.Mime != ""
 }
 
-func (mt MediaType) IsMultiPage() bool {
+// IsMultiPage checks if the MediaType supports multiple pages.
+func (mt MType) IsMultiPage() bool {
 	return mt.MultiPage
 }
 
-func (mt MediaType) GetThumbExifKey() string {
+// GetThumbExifKey returns the EXIF key used to extract thumbnails from RAW images.
+func (mt MType) GetThumbExifKey() string {
 	return mt.RawThumbExifKey
 }
 
-func (mt MediaType) SupportsImgRecog() bool {
+// SupportsImgRecog checks if the MediaType supports image recognition processing.
+func (mt MType) SupportsImgRecog() bool {
 	return mt.ImgRecog
 }
 

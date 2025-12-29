@@ -7,6 +7,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+// DatabaseContext provides access to MongoDB database and caching functionality.
 type DatabaseContext interface {
 	context.Context
 	Database() *mongo.Database

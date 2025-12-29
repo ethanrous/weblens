@@ -5,18 +5,18 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **ChildrenIds** | Pointer to **[]string** |  | [optional] 
-**ContentId** | Pointer to **string** |  | [optional] 
-**CurrentId** | Pointer to **string** |  | [optional] 
+**ContentID** | Pointer to **string** |  | [optional] 
+**CurrentID** | Pointer to **string** |  | [optional] 
 **HasRestoreMedia** | Pointer to **bool** |  | [optional] 
 **Id** | Pointer to **string** |  | [optional] 
 **IsDir** | Pointer to **bool** |  | [optional] 
 **Modifiable** | Pointer to **bool** |  | [optional] 
 **ModifyTimestamp** | Pointer to **int32** |  | [optional] 
 **Owner** | Pointer to **string** |  | [optional] 
-**ParentId** | Pointer to **string** |  | [optional] 
+**ParentID** | Pointer to **string** |  | [optional] 
 **PastFile** | Pointer to **bool** |  | [optional] 
 **PortablePath** | Pointer to **string** |  | [optional] 
-**ShareId** | Pointer to **string** |  | [optional] 
+**ShareID** | Pointer to **string** |  | [optional] 
 **Size** | Pointer to **int32** |  | [optional] 
 
 ## Methods
@@ -63,55 +63,55 @@ SetChildrenIds sets ChildrenIds field to given value.
 
 HasChildrenIds returns a boolean if a field has been set.
 
-### GetContentId
+### GetContentID
 
-`func (o *FileInfo) GetContentId() string`
+`func (o *FileInfo) GetContentID() string`
 
-GetContentId returns the ContentId field if non-nil, zero value otherwise.
+GetContentID returns the ContentID field if non-nil, zero value otherwise.
 
-### GetContentIdOk
+### GetContentIDOk
 
-`func (o *FileInfo) GetContentIdOk() (*string, bool)`
+`func (o *FileInfo) GetContentIDOk() (*string, bool)`
 
-GetContentIdOk returns a tuple with the ContentId field if it's non-nil, zero value otherwise
+GetContentIDOk returns a tuple with the ContentID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetContentId
+### SetContentID
 
-`func (o *FileInfo) SetContentId(v string)`
+`func (o *FileInfo) SetContentID(v string)`
 
-SetContentId sets ContentId field to given value.
+SetContentID sets ContentID field to given value.
 
-### HasContentId
+### HasContentID
 
-`func (o *FileInfo) HasContentId() bool`
+`func (o *FileInfo) HasContentID() bool`
 
-HasContentId returns a boolean if a field has been set.
+HasContentID returns a boolean if a field has been set.
 
-### GetCurrentId
+### GetCurrentID
 
-`func (o *FileInfo) GetCurrentId() string`
+`func (o *FileInfo) GetCurrentID() string`
 
-GetCurrentId returns the CurrentId field if non-nil, zero value otherwise.
+GetCurrentID returns the CurrentID field if non-nil, zero value otherwise.
 
-### GetCurrentIdOk
+### GetCurrentIDOk
 
-`func (o *FileInfo) GetCurrentIdOk() (*string, bool)`
+`func (o *FileInfo) GetCurrentIDOk() (*string, bool)`
 
-GetCurrentIdOk returns a tuple with the CurrentId field if it's non-nil, zero value otherwise
+GetCurrentIDOk returns a tuple with the CurrentID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetCurrentId
+### SetCurrentID
 
-`func (o *FileInfo) SetCurrentId(v string)`
+`func (o *FileInfo) SetCurrentID(v string)`
 
-SetCurrentId sets CurrentId field to given value.
+SetCurrentID sets CurrentID field to given value.
 
-### HasCurrentId
+### HasCurrentID
 
-`func (o *FileInfo) HasCurrentId() bool`
+`func (o *FileInfo) HasCurrentID() bool`
 
-HasCurrentId returns a boolean if a field has been set.
+HasCurrentID returns a boolean if a field has been set.
 
 ### GetHasRestoreMedia
 
@@ -263,30 +263,30 @@ SetOwner sets Owner field to given value.
 
 HasOwner returns a boolean if a field has been set.
 
-### GetParentId
+### GetParentID
 
-`func (o *FileInfo) GetParentId() string`
+`func (o *FileInfo) GetParentID() string`
 
-GetParentId returns the ParentId field if non-nil, zero value otherwise.
+GetParentID returns the ParentID field if non-nil, zero value otherwise.
 
-### GetParentIdOk
+### GetParentIDOk
 
-`func (o *FileInfo) GetParentIdOk() (*string, bool)`
+`func (o *FileInfo) GetParentIDOk() (*string, bool)`
 
-GetParentIdOk returns a tuple with the ParentId field if it's non-nil, zero value otherwise
+GetParentIDOk returns a tuple with the ParentID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetParentId
+### SetParentID
 
-`func (o *FileInfo) SetParentId(v string)`
+`func (o *FileInfo) SetParentID(v string)`
 
-SetParentId sets ParentId field to given value.
+SetParentID sets ParentID field to given value.
 
-### HasParentId
+### HasParentID
 
-`func (o *FileInfo) HasParentId() bool`
+`func (o *FileInfo) HasParentID() bool`
 
-HasParentId returns a boolean if a field has been set.
+HasParentID returns a boolean if a field has been set.
 
 ### GetPastFile
 
@@ -338,30 +338,30 @@ SetPortablePath sets PortablePath field to given value.
 
 HasPortablePath returns a boolean if a field has been set.
 
-### GetShareId
+### GetShareID
 
-`func (o *FileInfo) GetShareId() string`
+`func (o *FileInfo) GetShareID() string`
 
-GetShareId returns the ShareId field if non-nil, zero value otherwise.
+GetShareID returns the ShareID field if non-nil, zero value otherwise.
 
-### GetShareIdOk
+### GetShareIDOk
 
-`func (o *FileInfo) GetShareIdOk() (*string, bool)`
+`func (o *FileInfo) GetShareIDOk() (*string, bool)`
 
-GetShareIdOk returns a tuple with the ShareId field if it's non-nil, zero value otherwise
+GetShareIDOk returns a tuple with the ShareID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetShareId
+### SetShareID
 
-`func (o *FileInfo) SetShareId(v string)`
+`func (o *FileInfo) SetShareID(v string)`
 
-SetShareId sets ShareId field to given value.
+SetShareID sets ShareID field to given value.
 
-### HasShareId
+### HasShareID
 
-`func (o *FileInfo) HasShareId() bool`
+`func (o *FileInfo) HasShareID() bool`
 
-HasShareId returns a boolean if a field has been set.
+HasShareID returns a boolean if a field has been set.
 
 ### GetSize
 

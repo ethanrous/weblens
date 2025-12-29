@@ -6,8 +6,10 @@ import (
 	"github.com/ethanrous/weblens/modules/errors"
 )
 
+// ErrChildTaskFailed indicates that one or more child tasks in a pool failed.
 var ErrChildTaskFailed = errors.New("child task failed")
 
+// PoolStatus represents the current state and progress of a task pool.
 type PoolStatus struct {
 	// The count of tasks that have completed on this task pool.
 	// Complete *DOES* include failed tasks
@@ -26,18 +28,20 @@ type PoolStatus struct {
 	Runtime time.Duration
 }
 
+// PoolCleanupFunc is a function that performs cleanup operations when a pool completes.
 type PoolCleanupFunc func(Pool)
 
+// Pool manages the execution and lifecycle of a group of tasks.
 type Pool interface {
 	QueueTask(task Task) (err error)
 	IsGlobal() bool
 	GetRootPool() Pool
 	GetWorkerPool() WorkerPool
 	CreatedInTask() Task
-	IncTaskCount(int)
-	IncCompletedTasks(int)
-	RemoveTask(string)
-	AddError(Task)
+	IncTaskCount(incCount int)
+	IncCompletedTasks(incCount int)
+	RemoveTask(taskID string)
+	AddError(task Task)
 	IsRoot() bool
 	LockExit()
 	UnlockExit()
@@ -45,13 +49,14 @@ type Pool interface {
 	GetCompletedTaskCount() int
 	HandleTaskExit(replacement bool) bool
 	SignalAllQueued()
-	Wait(bool, ...Task)
+	Wait(supplementWorker bool, activeTask ...Task)
 	Errors() []Task
 	Status() PoolStatus
-	AddCleanup(PoolCleanupFunc)
+	AddCleanup(fn PoolCleanupFunc)
 }
 
+// WorkerPool manages worker threads and creates task pools for job execution.
 type WorkerPool interface {
-	AddHit(time.Time, Task)
-	NewTaskPool(bool, Task) Pool
+	AddHit(hitTime time.Time, task Task)
+	NewTaskPool(replace bool, activeTask Task) Pool
 }

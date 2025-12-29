@@ -1,3 +1,4 @@
+// Package net provides HTTP networking utilities for making requests and handling errors.
 package net
 
 import (
@@ -10,12 +11,14 @@ import (
 	context_mod "github.com/ethanrous/weblens/modules/context"
 )
 
+// Error represents an error response from an HTTP request.
 type Error struct {
 	Error string `json:"error"`
 }
 
+// ReadError reads and parses an error from an HTTP response body.
 func ReadError(ctx context.Context, resp *http.Response, respErr error) error {
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	bs, err := io.ReadAll(resp.Body)
 	if err != nil {

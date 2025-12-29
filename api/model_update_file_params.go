@@ -20,7 +20,7 @@ var _ MappedNullable = &UpdateFileParams{}
 // UpdateFileParams struct for UpdateFileParams
 type UpdateFileParams struct {
 	NewName *string `json:"newName,omitempty"`
-	NewParentId *string `json:"newParentId,omitempty"`
+	NewParentID *string `json:"newParentID,omitempty"`
 }
 
 // NewUpdateFileParams instantiates a new UpdateFileParams object
@@ -72,36 +72,36 @@ func (o *UpdateFileParams) SetNewName(v string) {
 	o.NewName = &v
 }
 
-// GetNewParentId returns the NewParentId field value if set, zero value otherwise.
-func (o *UpdateFileParams) GetNewParentId() string {
-	if o == nil || IsNil(o.NewParentId) {
+// GetNewParentID returns the NewParentID field value if set, zero value otherwise.
+func (o *UpdateFileParams) GetNewParentID() string {
+	if o == nil || IsNil(o.NewParentID) {
 		var ret string
 		return ret
 	}
-	return *o.NewParentId
+	return *o.NewParentID
 }
 
-// GetNewParentIdOk returns a tuple with the NewParentId field value if set, nil otherwise
+// GetNewParentIDOk returns a tuple with the NewParentID field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *UpdateFileParams) GetNewParentIdOk() (*string, bool) {
-	if o == nil || IsNil(o.NewParentId) {
+func (o *UpdateFileParams) GetNewParentIDOk() (*string, bool) {
+	if o == nil || IsNil(o.NewParentID) {
 		return nil, false
 	}
-	return o.NewParentId, true
+	return o.NewParentID, true
 }
 
-// HasNewParentId returns a boolean if a field has been set.
-func (o *UpdateFileParams) HasNewParentId() bool {
-	if o != nil && !IsNil(o.NewParentId) {
+// HasNewParentID returns a boolean if a field has been set.
+func (o *UpdateFileParams) HasNewParentID() bool {
+	if o != nil && !IsNil(o.NewParentID) {
 		return true
 	}
 
 	return false
 }
 
-// SetNewParentId gets a reference to the given string and assigns it to the NewParentId field.
-func (o *UpdateFileParams) SetNewParentId(v string) {
-	o.NewParentId = &v
+// SetNewParentID gets a reference to the given string and assigns it to the NewParentID field.
+func (o *UpdateFileParams) SetNewParentID(v string) {
+	o.NewParentID = &v
 }
 
 func (o UpdateFileParams) MarshalJSON() ([]byte, error) {
@@ -117,8 +117,8 @@ func (o UpdateFileParams) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.NewName) {
 		toSerialize["newName"] = o.NewName
 	}
-	if !IsNil(o.NewParentId) {
-		toSerialize["newParentId"] = o.NewParentId
+	if !IsNil(o.NewParentID) {
+		toSerialize["newParentID"] = o.NewParentID
 	}
 	return toSerialize, nil
 }

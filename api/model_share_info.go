@@ -22,11 +22,11 @@ type ShareInfo struct {
 	Accessors []UserInfo `json:"accessors,omitempty"`
 	Enabled *bool `json:"enabled,omitempty"`
 	Expires *int32 `json:"expires,omitempty"`
-	FileId *string `json:"fileId,omitempty"`
+	FileID *string `json:"fileID,omitempty"`
 	Owner *string `json:"owner,omitempty"`
 	Permissions *map[string]PermissionsInfo `json:"permissions,omitempty"`
 	Public *bool `json:"public,omitempty"`
-	ShareId *string `json:"shareId,omitempty"`
+	ShareID *string `json:"shareID,omitempty"`
 	ShareName *string `json:"shareName,omitempty"`
 	ShareType *string `json:"shareType,omitempty"`
 	TimelineOnly *bool `json:"timelineOnly,omitempty"`
@@ -147,36 +147,36 @@ func (o *ShareInfo) SetExpires(v int32) {
 	o.Expires = &v
 }
 
-// GetFileId returns the FileId field value if set, zero value otherwise.
-func (o *ShareInfo) GetFileId() string {
-	if o == nil || IsNil(o.FileId) {
+// GetFileID returns the FileID field value if set, zero value otherwise.
+func (o *ShareInfo) GetFileID() string {
+	if o == nil || IsNil(o.FileID) {
 		var ret string
 		return ret
 	}
-	return *o.FileId
+	return *o.FileID
 }
 
-// GetFileIdOk returns a tuple with the FileId field value if set, nil otherwise
+// GetFileIDOk returns a tuple with the FileID field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *ShareInfo) GetFileIdOk() (*string, bool) {
-	if o == nil || IsNil(o.FileId) {
+func (o *ShareInfo) GetFileIDOk() (*string, bool) {
+	if o == nil || IsNil(o.FileID) {
 		return nil, false
 	}
-	return o.FileId, true
+	return o.FileID, true
 }
 
-// HasFileId returns a boolean if a field has been set.
-func (o *ShareInfo) HasFileId() bool {
-	if o != nil && !IsNil(o.FileId) {
+// HasFileID returns a boolean if a field has been set.
+func (o *ShareInfo) HasFileID() bool {
+	if o != nil && !IsNil(o.FileID) {
 		return true
 	}
 
 	return false
 }
 
-// SetFileId gets a reference to the given string and assigns it to the FileId field.
-func (o *ShareInfo) SetFileId(v string) {
-	o.FileId = &v
+// SetFileID gets a reference to the given string and assigns it to the FileID field.
+func (o *ShareInfo) SetFileID(v string) {
+	o.FileID = &v
 }
 
 // GetOwner returns the Owner field value if set, zero value otherwise.
@@ -275,36 +275,36 @@ func (o *ShareInfo) SetPublic(v bool) {
 	o.Public = &v
 }
 
-// GetShareId returns the ShareId field value if set, zero value otherwise.
-func (o *ShareInfo) GetShareId() string {
-	if o == nil || IsNil(o.ShareId) {
+// GetShareID returns the ShareID field value if set, zero value otherwise.
+func (o *ShareInfo) GetShareID() string {
+	if o == nil || IsNil(o.ShareID) {
 		var ret string
 		return ret
 	}
-	return *o.ShareId
+	return *o.ShareID
 }
 
-// GetShareIdOk returns a tuple with the ShareId field value if set, nil otherwise
+// GetShareIDOk returns a tuple with the ShareID field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *ShareInfo) GetShareIdOk() (*string, bool) {
-	if o == nil || IsNil(o.ShareId) {
+func (o *ShareInfo) GetShareIDOk() (*string, bool) {
+	if o == nil || IsNil(o.ShareID) {
 		return nil, false
 	}
-	return o.ShareId, true
+	return o.ShareID, true
 }
 
-// HasShareId returns a boolean if a field has been set.
-func (o *ShareInfo) HasShareId() bool {
-	if o != nil && !IsNil(o.ShareId) {
+// HasShareID returns a boolean if a field has been set.
+func (o *ShareInfo) HasShareID() bool {
+	if o != nil && !IsNil(o.ShareID) {
 		return true
 	}
 
 	return false
 }
 
-// SetShareId gets a reference to the given string and assigns it to the ShareId field.
-func (o *ShareInfo) SetShareId(v string) {
-	o.ShareId = &v
+// SetShareID gets a reference to the given string and assigns it to the ShareID field.
+func (o *ShareInfo) SetShareID(v string) {
+	o.ShareID = &v
 }
 
 // GetShareName returns the ShareName field value if set, zero value otherwise.
@@ -486,8 +486,8 @@ func (o ShareInfo) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Expires) {
 		toSerialize["expires"] = o.Expires
 	}
-	if !IsNil(o.FileId) {
-		toSerialize["fileId"] = o.FileId
+	if !IsNil(o.FileID) {
+		toSerialize["fileID"] = o.FileID
 	}
 	if !IsNil(o.Owner) {
 		toSerialize["owner"] = o.Owner
@@ -498,8 +498,8 @@ func (o ShareInfo) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Public) {
 		toSerialize["public"] = o.Public
 	}
-	if !IsNil(o.ShareId) {
-		toSerialize["shareId"] = o.ShareId
+	if !IsNil(o.ShareID) {
+		toSerialize["shareID"] = o.ShareID
 	}
 	if !IsNil(o.ShareName) {
 		toSerialize["shareName"] = o.ShareName

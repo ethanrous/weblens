@@ -8,11 +8,11 @@ Name | Type | Description | Notes
 **accessors** | [**Array&lt;UserInfo&gt;**](UserInfo.md) |  | [optional] [default to undefined]
 **enabled** | **boolean** |  | [optional] [default to undefined]
 **expires** | **number** |  | [optional] [default to undefined]
-**fileId** | **string** |  | [optional] [default to undefined]
+**fileID** | **string** |  | [optional] [default to undefined]
 **owner** | **string** |  | [optional] [default to undefined]
 **permissions** | [**{ [key: string]: PermissionsInfo; }**](PermissionsInfo.md) |  | [optional] [default to undefined]
 **_public** | **boolean** |  | [optional] [default to undefined]
-**shareId** | **string** |  | [optional] [default to undefined]
+**shareID** | **string** |  | [optional] [default to undefined]
 **shareName** | **string** |  | [optional] [default to undefined]
 **shareType** | **string** |  | [optional] [default to undefined]
 **timelineOnly** | **boolean** |  | [optional] [default to undefined]
@@ -28,11 +28,11 @@ const instance: ShareInfo = {
     accessors,
     enabled,
     expires,
-    fileId,
+    fileID,
     owner,
     permissions,
     _public,
-    shareId,
+    shareID,
     shareName,
     shareType,
     timelineOnly,

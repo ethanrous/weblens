@@ -5,7 +5,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 |Method | HTTP request | Description|
 |------------- | ------------- | -------------|
 |[**createApiKey**](#createapikey) | **POST** /keys | Create a new api key|
-|[**deleteApiKey**](#deleteapikey) | **DELETE** /keys/{tokenId} | Delete an api key|
+|[**deleteApiKey**](#deleteapikey) | **DELETE** /keys/{tokenID} | Delete an api key|
 |[**getApiKeys**](#getapikeys) | **GET** /keys | Get all api keys|
 
 # **createApiKey**
@@ -76,10 +76,10 @@ import {
 const configuration = new Configuration();
 const apiInstance = new ApiKeysApi(configuration);
 
-let tokenId: string; //Api key id (default to undefined)
+let tokenID: string; //Api key id (default to undefined)
 
 const { status, data } = await apiInstance.deleteApiKey(
-    tokenId
+    tokenID
 );
 ```
 
@@ -87,7 +87,7 @@ const { status, data } = await apiInstance.deleteApiKey(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **tokenId** | [**string**] | Api key id | defaults to undefined|
+| **tokenID** | [**string**] | Api key id | defaults to undefined|
 
 
 ### Return type

@@ -1,3 +1,4 @@
+// Package fs provides filesystem abstraction and path manipulation utilities.
 package fs
 
 import (
@@ -12,6 +13,7 @@ import (
 var absPathMap = make(map[string]string)
 var pathMapLock = sync.RWMutex{}
 
+// RegisterAbsolutePrefix registers an alias for an absolute filesystem path.
 func RegisterAbsolutePrefix(alias, path string) error {
 	log.Trace().Msgf("Registering absolute path alias: %s -> %s", alias, path)
 
@@ -52,6 +54,7 @@ func getAbsolutePrefix(alias string) (string, error) {
 	return root, nil
 }
 
+// ToAbsolute converts the Filepath to an absolute filesystem path.
 func (wf Filepath) ToAbsolute() string {
 	if wf.RootAlias == "" {
 		return ""
@@ -60,6 +63,7 @@ func (wf Filepath) ToAbsolute() string {
 	absPrefix, err := getAbsolutePrefix(wf.RootAlias)
 	if err != nil {
 		log.Error().Err(err).Msgf("Failed to get absolute prefix for alias: %s", wf.RootAlias)
+
 		return ""
 	}
 

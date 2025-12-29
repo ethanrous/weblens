@@ -1,3 +1,4 @@
+// Package tower manages tower instances and their connections in the Weblens distributed system.
 package tower
 
 import (
@@ -12,10 +13,13 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+// Role represents a tower's role in the system.
 type Role string
 
+// TowerCollectionKey is the MongoDB collection name for towers.
 const TowerCollectionKey = "towers"
 
+// Tower role constants.
 const (
 	RoleInit    Role = "init"
 	RoleCore    Role = "core"
@@ -23,14 +27,25 @@ const (
 	RoleRestore Role = "restore"
 )
 
+// ErrTowerNotFound is returned when a tower cannot be found.
 var ErrTowerNotFound = errors.New("no tower found")
+
+// ErrTowerNotInitialized is returned when a tower has not been initialized.
 var ErrTowerNotInitialized = errors.New("tower not initialized")
+
+// ErrTowerAlreadyInitialized is returned when attempting to initialize an already initialized tower.
 var ErrTowerAlreadyInitialized = errors.New("tower is already initialized")
+
+// ErrTowerIsBackup is returned when a tower is a backup but shouldn't be.
 var ErrTowerIsBackup = errors.New("tower is a backup")
+
+// ErrTowerNotBackup is returned when a tower was expected to be a backup but is not.
 var ErrTowerNotBackup = errors.New("tower was expected to be a backup tower, but is not")
+
+// ErrNotCore is returned when a tower was expected to be a core but is not.
 var ErrNotCore = errors.New("tower was expected to be a core tower, but is not")
 
-// A "Tower" is a single Weblens tower.
+// Instance represents a Weblens tower.
 // For clarity: Core and Backup are "absolute" tower roles, and each tower
 // will fit into one of these categories once initialized. Local vs Remote
 // are RELATIVE terms, meaning a core tower is "remote" to a backup tower, but
@@ -38,7 +53,7 @@ var ErrNotCore = errors.New("tower was expected to be a core tower, but is not")
 type Instance struct {
 
 	// The public ID of the tower
-	TowerId string `bson:"towerId"`
+	TowerID string `bson:"towerID"`
 	Name    string `bson:"name"`
 
 	// Core or Backup
@@ -55,7 +70,7 @@ type Instance struct {
 	LastBackup int64 `bson:"lastBackup"`
 
 	// The private ID of the tower only in the local database
-	DbId primitive.ObjectID `bson:"_id"`
+	DbID primitive.ObjectID `bson:"_id"`
 
 	// Only one of the following 2 will be set, depending on the role of the local tower
 
@@ -71,10 +86,11 @@ type Instance struct {
 	reportedRole Role `bson:"-"`
 }
 
+// CreateLocal creates a new local tower instance.
 func CreateLocal(ctx context.Context) (t Instance, err error) {
 	t = Instance{
-		DbId:        primitive.NewObjectID(),
-		TowerId:     primitive.NewObjectID().Hex(),
+		DbID:        primitive.NewObjectID(),
+		TowerID:     primitive.NewObjectID().Hex(),
 		Role:        RoleInit,
 		IsThisTower: true,
 	}
@@ -92,6 +108,7 @@ func CreateLocal(ctx context.Context) (t Instance, err error) {
 	return t, nil
 }
 
+// ResetLocal deletes and recreates the local tower instance.
 func ResetLocal(ctx context.Context) (t Instance, err error) {
 	col, err := db.GetCollection[any](ctx, TowerCollectionKey)
 	if err != nil {
@@ -106,16 +123,17 @@ func ResetLocal(ctx context.Context) (t Instance, err error) {
 	return CreateLocal(ctx)
 }
 
+// SaveTower persists a tower instance to the database.
 func SaveTower(ctx context.Context, tower *Instance) error {
 	col, err := db.GetCollection[any](ctx, TowerCollectionKey)
 	if err != nil {
 		return err
 	}
 
-	if tower.DbId.IsZero() {
-		tower.DbId = primitive.NewObjectID()
+	if tower.DbID.IsZero() {
+		tower.DbID = primitive.NewObjectID()
 	} else {
-		_, err = col.ReplaceOne(ctx, bson.M{"_id": tower.DbId}, tower)
+		_, err = col.ReplaceOne(ctx, bson.M{"_id": tower.DbID}, tower)
 
 		return db.WrapError(err, "failed to update tower")
 	}
@@ -133,13 +151,14 @@ func SaveTower(ctx context.Context, tower *Instance) error {
 	return nil
 }
 
-func GetTowerById(ctx context.Context, towerId string) (tower Instance, err error) {
+// GetTowerByID retrieves a tower by its public ID.
+func GetTowerByID(ctx context.Context, towerID string) (tower Instance, err error) {
 	col, err := db.GetCollection[any](ctx, TowerCollectionKey)
 	if err != nil {
 		return tower, err
 	}
 
-	err = col.FindOne(ctx, bson.M{"towerId": towerId}).Decode(&tower)
+	err = col.FindOne(ctx, bson.M{"towerID": towerID}).Decode(&tower)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return tower, ErrTowerNotFound
@@ -151,13 +170,14 @@ func GetTowerById(ctx context.Context, towerId string) (tower Instance, err erro
 	return
 }
 
-func GetBackupTowerById(ctx context.Context, towerId string, remoteId string) (tower Instance, err error) {
+// GetBackupTowerByID retrieves a backup tower by its ID and remote ID.
+func GetBackupTowerByID(ctx context.Context, towerID string, remoteID string) (tower Instance, err error) {
 	col, err := db.GetCollection[any](ctx, TowerCollectionKey)
 	if err != nil {
 		return tower, err
 	}
 
-	err = col.FindOne(ctx, bson.M{"towerId": towerId, "createdBy": remoteId}).Decode(&tower)
+	err = col.FindOne(ctx, bson.M{"towerID": towerID, "createdBy": remoteID}).Decode(&tower)
 	if err != nil {
 		return tower, db.WrapError(err, "failed to get backup tower")
 	}
@@ -165,13 +185,14 @@ func GetBackupTowerById(ctx context.Context, towerId string, remoteId string) (t
 	return
 }
 
-func DeleteTowerById(ctx context.Context, towerId string) error {
+// DeleteTowerByID removes a tower by its public ID.
+func DeleteTowerByID(ctx context.Context, towerID string) error {
 	col, err := db.GetCollection[any](ctx, TowerCollectionKey)
 	if err != nil {
 		return err
 	}
 
-	_, err = col.DeleteOne(ctx, bson.M{"towerId": towerId})
+	_, err = col.DeleteOne(ctx, bson.M{"towerID": towerID})
 	if err != nil {
 		return db.WrapError(err, "failed to delete tower")
 	}
@@ -179,6 +200,7 @@ func DeleteTowerById(ctx context.Context, towerId string) error {
 	return nil
 }
 
+// GetLocal retrieves the local tower instance.
 func GetLocal(ctx context.Context) (t Instance, err error) {
 	col, err := db.GetCollection[any](ctx, TowerCollectionKey)
 	if err != nil {
@@ -195,13 +217,14 @@ func GetLocal(ctx context.Context) (t Instance, err error) {
 	return tower, nil
 }
 
-func SetLastBackup(ctx context.Context, towerId string, lastBackup time.Time) error {
+// SetLastBackup updates the last backup timestamp for a tower.
+func SetLastBackup(ctx context.Context, towerID string, lastBackup time.Time) error {
 	col, err := db.GetCollection[any](ctx, TowerCollectionKey)
 	if err != nil {
 		return err
 	}
 
-	_, err = col.UpdateOne(ctx, bson.M{"towerId": towerId}, bson.M{"$set": bson.M{"lastBackup": lastBackup.UnixMilli()}})
+	_, err = col.UpdateOne(ctx, bson.M{"towerID": towerID}, bson.M{"$set": bson.M{"lastBackup": lastBackup.UnixMilli()}})
 	if err != nil {
 		return err
 	}
@@ -209,8 +232,9 @@ func SetLastBackup(ctx context.Context, towerId string, lastBackup time.Time) er
 	return nil
 }
 
+// UpdateTower updates a tower instance in the database.
 func UpdateTower(ctx context.Context, tower *Instance) error {
-	if tower.DbId.IsZero() {
+	if tower.DbID.IsZero() {
 		return errors.New("tower DBID is not set")
 	}
 
@@ -219,7 +243,7 @@ func UpdateTower(ctx context.Context, tower *Instance) error {
 		return err
 	}
 
-	_, err = col.UpdateOne(ctx, bson.M{"_id": tower.DbId}, bson.M{"$set": tower})
+	_, err = col.UpdateOne(ctx, bson.M{"_id": tower.DbID}, bson.M{"$set": tower})
 	if err != nil {
 		return err
 	}
@@ -227,17 +251,18 @@ func UpdateTower(ctx context.Context, tower *Instance) error {
 	return nil
 }
 
-func GetAllTowersByTowerId(ctx context.Context, towerId string) ([]Instance, error) {
+// GetAllTowersByTowerID retrieves all towers created by a specific tower.
+func GetAllTowersByTowerID(ctx context.Context, towerID string) ([]Instance, error) {
 	col, err := db.GetCollection[any](ctx, TowerCollectionKey)
 	if err != nil {
 		return nil, err
 	}
 
-	cursor, err := col.Find(ctx, bson.M{"createdBy": towerId})
+	cursor, err := col.Find(ctx, bson.M{"createdBy": towerID})
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(ctx)
+	defer cursor.Close(ctx) //nolint:errcheck
 
 	var towers []Instance
 	if err := cursor.All(ctx, &towers); err != nil {
@@ -247,6 +272,7 @@ func GetAllTowersByTowerId(ctx context.Context, towerId string) ([]Instance, err
 	return towers, nil
 }
 
+// GetRemotes retrieves all remote tower instances.
 func GetRemotes(ctx context.Context) ([]Instance, error) {
 	col, err := db.GetCollection[any](ctx, TowerCollectionKey)
 	if err != nil {
@@ -268,22 +294,27 @@ func GetRemotes(ctx context.Context) ([]Instance, error) {
 	return remotes, nil
 }
 
+// IsCore returns true if the tower has the core role.
 func (t *Instance) IsCore() bool {
 	return t.Role == RoleCore
 }
 
+// IsBackup returns true if the tower has the backup role.
 func (t *Instance) IsBackup() bool {
 	return t.Role == RoleBackup
 }
 
+// GetReportedRole returns the role the tower is currently reporting.
 func (t *Instance) GetReportedRole() Role {
 	return t.reportedRole
 }
 
+// SetReportedRole sets the role the tower is currently reporting.
 func (t *Instance) SetReportedRole(role Role) {
 	t.reportedRole = role
 }
 
+// SocketType returns the websocket client type for this tower.
 func (t *Instance) SocketType() websocket_mod.ClientType {
 	return websocket_mod.TowerClient
 }

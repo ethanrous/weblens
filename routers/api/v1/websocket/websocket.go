@@ -25,8 +25,10 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// IsTowerQueryKey is the query parameter key to indicate a tower connection.
 const IsTowerQueryKey = "isTower"
 
+// WsAuthorize represents the authorization message for websocket connections.
 type WsAuthorize struct {
 	Auth string `json:"auth"`
 }
@@ -34,11 +36,12 @@ type WsAuthorize struct {
 var upgrader = gorilla.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
+	CheckOrigin: func(_ *http.Request) bool {
 		return true
 	},
 }
 
+// Connect upgrades an HTTP connection to a websocket connection.
 func Connect(ctx context_service.RequestContext) {
 	conn, err := upgrader.Upgrade(ctx.W, ctx.Req, nil)
 	if err != nil {
@@ -97,17 +100,126 @@ func wsMain(ctx context_service.RequestContext, c *client_model.WsClient) {
 	}
 }
 
+func handleActionSubscribe(msg websocket_mod.WsResponseInfo, ctx context_service.RequestContext, c *client_model.WsClient) error {
+	subscription := reshape.GetSubscribeInfo(msg)
+	if subscription.SubscriptionID == "" {
+		return errors.Errorf("subscribe request missing subscription id")
+	}
+
+	switch subscription.Type {
+	case websocket_mod.FolderSubscribe:
+		{
+			var share *share_model.FileShare
+
+			var err error
+
+			shareID := share_model.IDFromString(subscription.ShareID)
+			if !shareID.IsZero() {
+				share, err = share_model.GetShareByID(ctx, shareID)
+				if err != nil {
+					return errors.WithStack(err)
+				}
+			}
+
+			f, err := ctx.FileService.GetFileByID(ctx, subscription.SubscriptionID)
+			if err != nil {
+				return errors.WithStack(err)
+			}
+
+			err = ctx.ClientService.SubscribeToFile(ctx, c, f, share, time.UnixMilli(msg.SentTime))
+			if err != nil {
+				return errors.WithStack(err)
+			}
+		}
+	case websocket_mod.TaskSubscribe:
+		key := subscription.SubscriptionID
+
+		t := ctx.TaskService.GetTask(key)
+		if t == nil {
+			return errors.Errorf("could not find task T[%s] to subscribe", key)
+		}
+
+		ctx.Log().Debug().Msgf("Subscribing to task [%s]", key)
+
+		err := ctx.ClientService.SubscribeToTask(ctx, c, t, time.UnixMilli(msg.SentTime))
+		if err != nil && !errors.Is(err, task_model.ErrTaskAlreadyComplete) {
+			return errors.Errorf("could not subscribe to task T[%s]: %w", key, err)
+		} else if err != nil {
+			notif := notify.NewTaskNotification(t, websocket_mod.TaskCompleteEvent, t.GetResults())
+
+			err = c.Send(notif)
+			if err != nil {
+				return errors.WithStack(err)
+			}
+		}
+	case websocket_mod.TaskTypeSubscribe:
+		ctx.Log().Error().Msgf("Task type subscription not implemented: %s", subscription.SubscriptionID)
+	default:
+		return errors.Errorf("unknown subscription type: %s", msg.BroadcastType)
+	}
+
+	return nil
+}
+
+func handleScanDirectory(ctx context_service.RequestContext, msg websocket_mod.WsResponseInfo, c *client_model.WsClient) error {
+	scanInfo := reshape.GetScanInfo(msg)
+
+	local, err := tower_model.GetLocal(ctx)
+	if err != nil {
+		return err
+	}
+
+	if local.Role == tower_model.RoleBackup {
+		return tower_model.ErrTowerIsBackup
+	}
+
+	var share *share_model.FileShare
+
+	if scanInfo.ShareID != "" {
+		shareID := share_model.IDFromString(ctx.Path("shareID"))
+
+		share, err = share_model.GetShareByID(ctx, shareID)
+		if err != nil {
+			return err
+		}
+	}
+
+	folder, err := ctx.FileService.GetFileByID(ctx, scanInfo.FileID)
+	if err != nil {
+		ctx.Log().Error().Stack().Err(err).Msgf("Failed to get file by id: %s", scanInfo.FileID)
+
+		return errors.Errorf("could not find directory to scan: %w", err)
+	}
+
+	if _, err = auth.CanUserAccessFile(ctx, c.GetUser(), folder, share); err != nil {
+		return err
+	}
+
+	meta := job.ScanMeta{
+		File: folder,
+	}
+
+	var jobName string
+	if folder.IsDir() {
+		jobName = job.ScanDirectoryTask
+	} else {
+		jobName = job.ScanFileTask
+	}
+
+	t, err := ctx.TaskService.DispatchJob(ctx, jobName, meta, nil)
+	if err != nil {
+		return err
+	}
+
+	err = ctx.ClientService.SubscribeToTask(ctx, c, t.(*task_model.Task), time.UnixMilli(msg.SentTime))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func wsWebClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte, c *client_model.WsClient) error {
-	// localTower, err := tower_model.GetLocal(ctx)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// TODO: Verify that we want to ignore requests to the init server
-	// if localTower.Role == tower_model.InitServerRole {
-	// 	return errors.ErrServerNotInitialized
-	// }
-
 	var msg websocket_mod.WsResponseInfo
 
 	err := json.Unmarshal(msgBuf, &msg)
@@ -130,130 +242,31 @@ func wsWebClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte, c
 		}
 	case websocket_mod.ActionSubscribe:
 		{
-			subscription := reshape.GetSubscribeInfo(msg)
-			if subscription.SubscriptionId == "" {
-				return errors.Errorf("subscribe request missing subscription id")
-			}
-
-			switch subscription.Type {
-			case websocket_mod.FolderSubscribe:
-				{
-					var share *share_model.FileShare
-
-					shareId := share_model.ShareIdFromString(subscription.ShareId)
-					if !shareId.IsZero() {
-						share, err = share_model.GetShareById(ctx, shareId)
-						if err != nil {
-							return errors.WithStack(err)
-						}
-					}
-
-					f, err := ctx.FileService.GetFileById(ctx, subscription.SubscriptionId)
-					if err != nil {
-						return errors.WithStack(err)
-					}
-
-					err = ctx.ClientService.SubscribeToFile(ctx, c, f, share, time.UnixMilli(msg.SentTime))
-					if err != nil {
-						return errors.WithStack(err)
-					}
-				}
-			case websocket_mod.TaskSubscribe:
-				key := subscription.SubscriptionId
-
-				t := ctx.TaskService.GetTask(key)
-				if t == nil {
-					return errors.Errorf("could not find task T[%s] to subscribe", key)
-				}
-
-				ctx.Log().Debug().Msgf("Subscribing to task [%s]", key)
-
-				err = ctx.ClientService.SubscribeToTask(ctx, c, t, time.UnixMilli(msg.SentTime))
-				if err != nil && !errors.Is(err, task_model.ErrTaskAlreadyComplete) {
-					return errors.Errorf("could not subscribe to task T[%s]: %w", key, err)
-				} else if err != nil {
-					notif := notify.NewTaskNotification(t, websocket_mod.TaskCompleteEvent, t.GetResults())
-
-					err = c.Send(notif)
-					if err != nil {
-						return errors.WithStack(err)
-					}
-				}
-			case websocket_mod.TaskTypeSubscribe:
-				ctx.Log().Error().Msgf("Task type subscription not implemented: %s", subscription.SubscriptionId)
-			default:
-				return errors.Errorf("unknown subscription type: %s", msg.BroadcastType)
+			err = handleActionSubscribe(msg, ctx, c)
+			if err != nil {
+				return err
 			}
 		}
 
 	case websocket_mod.ActionUnsubscribe:
 		subscription := reshape.GetSubscribeInfo(msg)
 
-		if strings.HasPrefix(subscription.SubscriptionId, "TID#") {
-			subscription.SubscriptionId = subscription.SubscriptionId[4:]
-		} else if strings.HasPrefix(subscription.SubscriptionId, "TT#") {
-			subscription.SubscriptionId = subscription.SubscriptionId[3:]
+		if strings.HasPrefix(subscription.SubscriptionID, "TID#") {
+			subscription.SubscriptionID = subscription.SubscriptionID[4:]
+		} else if strings.HasPrefix(subscription.SubscriptionID, "TT#") {
+			subscription.SubscriptionID = subscription.SubscriptionID[3:]
 		}
 
-		err = ctx.ClientService.Unsubscribe(ctx, c, subscription.SubscriptionId, time.UnixMilli(msg.SentTime))
+		err = ctx.ClientService.Unsubscribe(ctx, c, subscription.SubscriptionID, time.UnixMilli(msg.SentTime))
 		if err != nil && !errors.Is(err, notify.ErrSubscriptionNotFound) {
 			c.Error(err)
 		} else if err != nil {
-			c.Log().Warn().Msgf("Subscription [%s] not found in websocket unsub", subscription.SubscriptionId)
+			c.Log().Warn().Msgf("Subscription [%s] not found in websocket unsub", subscription.SubscriptionID)
 		}
 
 	case websocket_mod.ScanDirectory:
 		{
-			scanInfo := reshape.GetScanInfo(msg)
-
-			local, err := tower_model.GetLocal(ctx)
-			if err != nil {
-				return err
-			}
-
-			if local.Role == tower_model.RoleBackup {
-				return tower_model.ErrTowerIsBackup
-			}
-
-			var share *share_model.FileShare
-
-			if scanInfo.ShareId != "" {
-				shareId := share_model.ShareIdFromString(ctx.Path("shareId"))
-
-				share, err = share_model.GetShareById(ctx, shareId)
-				if err != nil {
-					return err
-				}
-			}
-
-			folder, err := ctx.FileService.GetFileById(ctx, scanInfo.FileId)
-			if err != nil {
-				ctx.Log().Error().Stack().Err(err).Msgf("Failed to get file by id: %s", scanInfo.FileId)
-
-				return errors.Errorf("could not find directory to scan: %w", err)
-			}
-
-			if _, err = auth.CanUserAccessFile(ctx, c.GetUser(), folder, share); err != nil {
-				return err
-			}
-
-			meta := job.ScanMeta{
-				File: folder,
-			}
-
-			var jobName string
-			if folder.IsDir() {
-				jobName = job.ScanDirectoryTask
-			} else {
-				jobName = job.ScanFileTask
-			}
-
-			t, err := ctx.TaskService.DispatchJob(ctx, jobName, meta, nil)
-			if err != nil {
-				return err
-			}
-
-			err = ctx.ClientService.SubscribeToTask(ctx, c, t.(*task_model.Task), time.UnixMilli(msg.SentTime))
+			err = handleScanDirectory(ctx, msg, c)
 			if err != nil {
 				return err
 			}
@@ -262,9 +275,10 @@ func wsWebClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte, c
 	case websocket_mod.CancelTask:
 		{
 			cancelInfo := reshape.GetCancelInfo(msg)
-			task := ctx.TaskService.GetTask(cancelInfo.TaskId)
+
+			task := ctx.TaskService.GetTask(cancelInfo.TaskID)
 			if task == nil {
-				return errors.Errorf("could not find task T[%s] to cancel", cancelInfo.TaskId)
+				return errors.Errorf("could not find task T[%s] to cancel", cancelInfo.TaskID)
 			}
 
 			notif := notify.NewTaskNotification(task, websocket_mod.TaskCanceledEvent, nil)
@@ -288,6 +302,7 @@ func wsServerClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte
 	defer wsRecover(ctx, c)
 
 	var msg websocket.WsResponseInfo
+
 	err := json.Unmarshal(msgBuf, &msg)
 	if err != nil {
 		return err
@@ -295,20 +310,22 @@ func wsServerClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte
 
 	if msg.SentTime == 0 {
 		err := errors.Errorf("invalid sent time on relay message: [%s]", msg.EventTag)
+
 		return err
 	}
 
 	sentTime := time.UnixMilli(msg.SentTime)
-	relaySourceId := c.GetInstance().TowerId
+	relaySourceID := c.GetInstance().TowerID
 
 	switch msg.EventTag {
 	case websocket_mod.ServerGoingDownEvent:
 		c.Disconnect()
+
 		return nil
 	case websocket_mod.BackupCompleteEvent:
 		// Log the backup time, but don't return so the
 		// message can be relayed to the web client
-		err = tower_model.SetLastBackup(ctx, relaySourceId, sentTime)
+		err = tower_model.SetLastBackup(ctx, relaySourceID, sentTime)
 		if err != nil {
 			return err
 		}
@@ -317,9 +334,10 @@ func wsServerClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte
 		if err != nil {
 			return err
 		}
+
 		if local.IsCore() {
 			// Also update the local core server's last backup time
-			err = tower_model.SetLastBackup(ctx, local.TowerId, sentTime)
+			err = tower_model.SetLastBackup(ctx, local.TowerID, sentTime)
 			if err != nil {
 				return err
 			}
@@ -328,21 +346,15 @@ func wsServerClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte
 		return nil
 	}
 
-	msg.RelaySource = relaySourceId
+	msg.RelaySource = relaySourceID
 	ctx.ClientService.Relay(msg)
 
-	ctx.Log().Debug().Msgf("Relaying message [%s] from server [%s]", msg.EventTag, relaySourceId)
+	ctx.Log().Debug().Msgf("Relaying message [%s] from server [%s]", msg.EventTag, relaySourceID)
 
 	return nil
 }
 
 func onWebConnect(ctx context_service.RequestContext, c *client_model.WsClient) error {
-	// if !pack.Loaded.Load() {
-	// 	c.PushWeblensEvent(client_model.StartupProgressEvent, client_model.WsC{"waitingOn": pack.GetStartupTasks()})
-	// 	return
-	// } else {
-	// 	c.PushWeblensEvent(client_model.WeblensLoadedEvent, client_model.WsC{"role": pack.InstanceService.GetLocal().GetRole()})
-	// }
 	local, err := tower_model.GetLocal(ctx)
 	if err != nil {
 		return err
@@ -354,8 +366,13 @@ func onWebConnect(ctx context_service.RequestContext, c *client_model.WsClient) 
 			if len(r) == 0 {
 				continue
 			}
+
 			notif := notify.NewTaskNotification(backupTask, websocket_mod.BackupProgressEvent, r)
-			err = c.Send(notif)
+
+			err := c.Send(notif)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -372,6 +389,7 @@ func wsRecover(ctx context_mod.LoggerContext, c *client_model.WsClient) {
 	if !ok {
 		err = errors.Errorf("%v", e)
 	}
+
 	name := ""
 	if u := c.GetUser(); u != nil {
 		name = u.GetUsername()

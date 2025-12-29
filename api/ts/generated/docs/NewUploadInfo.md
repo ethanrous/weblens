@@ -5,7 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**uploadId** | **string** |  | [optional] [default to undefined]
+**uploadID** | **string** |  | [optional] [default to undefined]
 
 ## Example
 
@@ -13,7 +13,7 @@ Name | Type | Description | Notes
 import { NewUploadInfo } from './api';
 
 const instance: NewUploadInfo = {
-    uploadId,
+    uploadID,
 };
 ```
 

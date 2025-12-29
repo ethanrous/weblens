@@ -9,14 +9,16 @@ import (
 	"github.com/ethanrous/weblens/modules/fs"
 )
 
-type FileService interface {
+// Service provides operations for managing files and folders in the Weblens system.
+// It handles file creation, modification, deletion, and retrieval, as well as media caching and backup operations.
+type Service interface {
 	AddFile(context context.Context, file ...*WeblensFileImpl) error
 
 	// Size returns the size of the specified file tree
 	Size(treeAlias string) int64
 
-	// GetFileById retrieves a file by its ID
-	GetFileById(ctx context.Context, fileId string) (*WeblensFileImpl, error)
+	// GetFileByID retrieves a file by its ID
+	GetFileByID(ctx context.Context, fileID string) (*WeblensFileImpl, error)
 
 	// GetFileByFilepath retrieves a file by its filepath
 	GetFileByFilepath(ctx context.Context, path fs.Filepath, dontLoadNew ...bool) (*WeblensFileImpl, error)
@@ -36,8 +38,10 @@ type FileService interface {
 	// CreateUserHome creates a home directory for a user
 	CreateUserHome(ctx context.Context, user *user_model.User) error
 
-	NewBackupRestoreFile(ctx context.Context, contentId, remoteTowerId string) (*WeblensFileImpl, error)
+	// NewBackupRestoreFile creates a new file for backup restoration from a remote tower
+	NewBackupRestoreFile(ctx context.Context, contentID, remoteTowerID string) (*WeblensFileImpl, error)
 
+	// InitBackupDirectory initializes the backup directory for a tower
 	InitBackupDirectory(ctx context.Context, tower tower_model.Instance) (*WeblensFileImpl, error)
 	// IsFileInTrash checks if a file is in the trash
 	// IsFileInTrash(file *WeblensFileImpl) bool
@@ -63,10 +67,11 @@ type FileService interface {
 	// GetMediaCacheByFilename retrieves media cache by filename
 	GetMediaCacheByFilename(ctx context.Context, filename string) (*WeblensFileImpl, error)
 
-	GetFileByContentId(ctx context.Context, contentId string) (*WeblensFileImpl, error)
+	// GetFileByContentID retrieves a file by its content ID
+	GetFileByContentID(ctx context.Context, contentID string) (*WeblensFileImpl, error)
 
 	// NewCacheFile creates a new cache file for media
-	NewCacheFile(mediaId string, quality string, pageNum int) (*WeblensFileImpl, error)
+	NewCacheFile(mediaID string, quality string, pageNum int) (*WeblensFileImpl, error)
 
 	// DeleteCacheFile deletes a cache file
 	DeleteCacheFile(file *WeblensFileImpl) error
@@ -75,7 +80,7 @@ type FileService interface {
 	// GetFolderCover(folder *WeblensFileImpl) (string, error)
 
 	// SetFolderCover sets the cover for a folder
-	// SetFolderCover(folderId string, coverId string) error
+	// SetFolderCover(folderID string, coverID string) error
 
 	// AddTask adds a task to a file
 	// AddTask(f *WeblensFileImpl, t *task.Task) error

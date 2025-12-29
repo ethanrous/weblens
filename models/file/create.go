@@ -1,3 +1,4 @@
+// Package file provides file management functionality for the Weblens system.
 package file
 
 import (
@@ -15,11 +16,12 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+// NewFileOptions represents configuration options for creating a new WeblensFile.
 type NewFileOptions struct {
 	Path file_system.Filepath
 
-	FileId    string
-	ContentId string
+	FileID    string
+	ContentID string
 
 	IsPastFile bool
 
@@ -32,12 +34,13 @@ type NewFileOptions struct {
 	// CreateNow will create the file if it doesn't exist
 	CreateNow bool
 
-	// GenerateId will generate a new ID for the file
-	GenerateId bool
+	// GenerateID will generate a new ID for the file
+	GenerateID bool
 
 	ModifiedDate option.Option[time.Time]
 }
 
+// NewWeblensFile creates and initializes a new WeblensFileImpl with the provided options.
 func NewWeblensFile(params NewFileOptions) *WeblensFileImpl {
 	// TODO: make this return an error instead of panicking
 	if params.Path.IsZero() {
@@ -48,8 +51,8 @@ func NewWeblensFile(params NewFileOptions) *WeblensFileImpl {
 		portablePath: params.Path,
 		isDir:        option.Of(params.Path.IsDir()),
 
-		id:         params.FileId,
-		contentId:  params.ContentId,
+		id:         params.FileID,
+		contentID:  params.ContentID,
 		pastFile:   params.IsPastFile,
 		memOnly:    params.MemOnly,
 		modifyDate: params.ModifiedDate.GetOr(time.Now()),
@@ -70,7 +73,7 @@ func NewWeblensFile(params NewFileOptions) *WeblensFileImpl {
 		}
 	}
 
-	if params.GenerateId {
+	if params.GenerateID {
 		if params.Path.RelPath == "" {
 			f.id = params.Path.RootName()
 		} else {
@@ -83,15 +86,16 @@ func NewWeblensFile(params NewFileOptions) *WeblensFileImpl {
 
 const oneMB = 1024 * 1024
 
-func GenerateContentId(ctx context.Context, f *WeblensFileImpl) (string, error) {
+// GenerateContentID computes and returns a content hash for the file.
+func GenerateContentID(ctx context.Context, f *WeblensFileImpl) (string, error) {
 	l := log.FromContext(ctx)
 
 	if f.IsDir() {
 		return "", errors.Errorf("cannot hash directory")
 	}
 
-	if f.GetContentId() != "" {
-		return f.GetContentId(), nil
+	if f.GetContentID() != "" {
+		return f.GetContentID(), nil
 	}
 
 	l.Trace().Msgf("Generating content id for [%s]", f.GetPortablePath())
@@ -106,8 +110,8 @@ func GenerateContentId(ctx context.Context, f *WeblensFileImpl) (string, error) 
 	bufSize := math.Min(float64(fileSize), oneMB)
 	buf := make([]byte, int64(bufSize))
 	newHash := sha256.New()
-	fp, err := f.Readable()
 
+	fp, err := f.Readable()
 	if err != nil {
 		return "", err
 	}
@@ -123,8 +127,8 @@ func GenerateContentId(ctx context.Context, f *WeblensFileImpl) (string, error) 
 		return "", err
 	}
 
-	contentId := base64.URLEncoding.EncodeToString(newHash.Sum(nil))[:20]
-	f.SetContentId(contentId)
+	contentID := base64.URLEncoding.EncodeToString(newHash.Sum(nil))[:20]
+	f.SetContentID(contentID)
 
-	return contentId, nil
+	return contentID, nil
 }

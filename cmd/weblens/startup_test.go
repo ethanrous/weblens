@@ -196,13 +196,13 @@ package main
 // 	err = http.WebsocketToCore(core, backupServices)
 // 	require.NoError(t, err)
 //
-// 	coreClient := backupServices.ClientService.GetClientByServerId(core.ServerId())
+// 	coreClient := backupServices.ClientService.GetClientByServerID(core.ServerID())
 // 	retries := 0
 // 	for coreClient == nil && retries < 10 {
 // 		retries++
 // 		time.Sleep(time.Millisecond * 100)
 //
-// 		coreClient = backupServices.ClientService.GetClientByServerId(core.ServerId())
+// 		coreClient = backupServices.ClientService.GetClientByServerID(core.ServerID())
 // 	}
 // 	require.NotNil(t, coreClient)
 // 	assert.True(t, coreClient.Active.Load())

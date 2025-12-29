@@ -5,14 +5,15 @@ All URIs are relative to *http://localhost:8080/api/v1*
 |Method | HTTP request | Description|
 |------------- | ------------- | -------------|
 |[**createRemote**](#createremote) | **POST** /tower/remote | Create a new remote|
-|[**deleteRemote**](#deleteremote) | **DELETE** /tower/{serverId} | Delete a remote|
+|[**deleteRemote**](#deleteremote) | **DELETE** /tower/{serverID} | Delete a remote|
 |[**flushCache**](#flushcache) | **DELETE** /tower/cache | Flush Cache|
 |[**getBackupInfo**](#getbackupinfo) | **GET** /tower/backup | Get information about a file|
+|[**getPagedHistoryActions**](#getpagedhistoryactions) | **GET** /tower/history | Get a page of file actions|
 |[**getRemotes**](#getremotes) | **GET** /tower | Get all remotes|
 |[**getRunningTasks**](#getrunningtasks) | **GET** /tower/tasks | Get Running Tasks|
 |[**getServerInfo**](#getserverinfo) | **GET** /info | Get server info|
 |[**initializeTower**](#initializetower) | **POST** /tower/init | Initialize the target server|
-|[**launchBackup**](#launchbackup) | **POST** /tower/{serverId}/backup | Launch backup on a tower|
+|[**launchBackup**](#launchbackup) | **POST** /tower/{serverID}/backup | Launch backup on a tower|
 |[**resetTower**](#resettower) | **POST** /tower/reset | Reset tower|
 
 # **createRemote**
@@ -82,10 +83,10 @@ import {
 const configuration = new Configuration();
 const apiInstance = new TowersApi(configuration);
 
-let serverId: string; //Server Id to delete (default to undefined)
+let serverID: string; //Server ID to delete (default to undefined)
 
 const { status, data } = await apiInstance.deleteRemote(
-    serverId
+    serverID
 );
 ```
 
@@ -93,7 +94,7 @@ const { status, data } = await apiInstance.deleteRemote(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **serverId** | [**string**] | Server Id to delete | defaults to undefined|
+| **serverID** | [**string**] | Server ID to delete | defaults to undefined|
 
 
 ### Return type
@@ -209,6 +210,62 @@ const { status, data } = await apiInstance.getBackupInfo(
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 |**200** | Backup Info |  -  |
+|**400** | Bad Request |  -  |
+|**404** | Not Found |  -  |
+|**500** | Internal Server Error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getPagedHistoryActions**
+> Array<HistoryFileAction> getPagedHistoryActions()
+
+
+### Example
+
+```typescript
+import {
+    TowersApi,
+    Configuration
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new TowersApi(configuration);
+
+let page: number; //Page number (optional) (default to undefined)
+let pageSize: number; //Number of items per page (optional) (default to undefined)
+
+const { status, data } = await apiInstance.getPagedHistoryActions(
+    page,
+    pageSize
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **page** | [**number**] | Page number | (optional) defaults to undefined|
+| **pageSize** | [**number**] | Number of items per page | (optional) defaults to undefined|
+
+
+### Return type
+
+**Array<HistoryFileAction>**
+
+### Authorization
+
+[ApiKeyAuth](../README.md#ApiKeyAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | File Actions |  -  |
 |**400** | Bad Request |  -  |
 |**404** | Not Found |  -  |
 |**500** | Internal Server Error |  -  |
@@ -412,10 +469,10 @@ import {
 const configuration = new Configuration();
 const apiInstance = new TowersApi(configuration);
 
-let serverId: string; //Server ID (default to undefined)
+let serverID: string; //Server ID (default to undefined)
 
 const { status, data } = await apiInstance.launchBackup(
-    serverId
+    serverID
 );
 ```
 
@@ -423,7 +480,7 @@ const { status, data } = await apiInstance.launchBackup(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **serverId** | [**string**] | Server ID | defaults to undefined|
+| **serverID** | [**string**] | Server ID | defaults to undefined|
 
 
 ### Return type

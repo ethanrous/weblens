@@ -1,3 +1,4 @@
+// Package main is the entry point for the Weblens application server.
 package main
 
 import (
@@ -54,30 +55,4 @@ func main() {
 	}
 
 	appCtx.WG.Wait()
-	// lastCount := -1
-	//
-	// plateauCount := 0
-	// for plateauCount < 5 {
-	// 	newCount := runtime.NumGoroutine()
-	// 	if newCount == lastCount {
-	// 		plateauCount++
-	// 	} else {
-	// 		logger.Debug().Msgf("Waiting for %d goroutines to finish", newCount)
-	//
-	// 		plateauCount = 0
-	// 	}
-	//
-	// 	lastCount = newCount
-	//
-	// 	// Yield the processor to allow other goroutines to run
-	// 	time.Sleep(100 * time.Millisecond)
-	// 	runtime.Gosched()
-	// }
-	//
-	// appCtx.Log().Trace().Func(func(e *zerolog.Event) {
-	// 	remaining := runtime.NumGoroutine()
-	// 	buf := make([]byte, remaining*1024)
-	// 	runtime.Stack(buf, true)
-	// 	e.Msgf("Stack trace: %s", buf)
-	// })
 }

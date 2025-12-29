@@ -4,7 +4,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**FileId** | Pointer to **string** |  | [optional] 
+**FileID** | Pointer to **string** |  | [optional] 
 **Public** | Pointer to **bool** |  | [optional] 
 **TimelineOnly** | Pointer to **bool** |  | [optional] 
 **Users** | Pointer to **[]string** |  | [optional] 
@@ -29,30 +29,30 @@ NewFileShareParamsWithDefaults instantiates a new FileShareParams object
 This constructor will only assign default values to properties that have it defined,
 but it doesn't guarantee that properties required by API are set
 
-### GetFileId
+### GetFileID
 
-`func (o *FileShareParams) GetFileId() string`
+`func (o *FileShareParams) GetFileID() string`
 
-GetFileId returns the FileId field if non-nil, zero value otherwise.
+GetFileID returns the FileID field if non-nil, zero value otherwise.
 
-### GetFileIdOk
+### GetFileIDOk
 
-`func (o *FileShareParams) GetFileIdOk() (*string, bool)`
+`func (o *FileShareParams) GetFileIDOk() (*string, bool)`
 
-GetFileIdOk returns a tuple with the FileId field if it's non-nil, zero value otherwise
+GetFileIDOk returns a tuple with the FileID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetFileId
+### SetFileID
 
-`func (o *FileShareParams) SetFileId(v string)`
+`func (o *FileShareParams) SetFileID(v string)`
 
-SetFileId sets FileId field to given value.
+SetFileID sets FileID field to given value.
 
-### HasFileId
+### HasFileID
 
-`func (o *FileShareParams) HasFileId() bool`
+`func (o *FileShareParams) HasFileID() bool`
 
-HasFileId returns a boolean if a field has been set.
+HasFileID returns a boolean if a field has been set.
 
 ### GetPublic
 

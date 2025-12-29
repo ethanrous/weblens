@@ -1,3 +1,4 @@
+// Package history provides functionalities for managing and retrieving file history.
 package history
 
 import (
@@ -16,31 +17,6 @@ import (
 	"github.com/ethanrous/weblens/services/reshape"
 )
 
-// func GetLifetimesSince(ctx context.RequestContext) {
-// 	millisString := ctx.Query("timestamp")
-// 	if millisString == "" {
-// 		ctx.Error(http.StatusBadRequest, errors.New("missing timestamp"))
-// 	}
-//
-// 	millis, err := strconv.ParseInt(millisString, 10, 64)
-// 	if err != nil || millis < 0 {
-// 		ctx.Error(http.StatusBadRequest, errors.New("invalid timestamp"))
-//
-// 		return
-// 	}
-//
-// 	date := time.UnixMilli(millis)
-//
-// 	actions, err := journal.GetActionsSince(ctx, date)
-// 	if err != nil {
-// 		ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "failed to get lifetimes"))
-//
-// 		return
-// 	}
-//
-// 	ctx.JSON(http.StatusNotImplemented, actions)
-// }
-
 // DoFullBackup godoc
 //
 //	@ID			GetBackupInfo
@@ -56,7 +32,7 @@ import (
 //	@Failure	500
 //	@Router		/tower/backup [get]
 func DoFullBackup(ctx context.RequestContext) {
-	if ctx.Remote.TowerId == "" {
+	if ctx.Remote.TowerID == "" {
 		ctx.Error(http.StatusUnauthorized, errors.New("missing tower in request context"))
 
 		return
@@ -92,19 +68,19 @@ func DoFullBackup(ctx context.RequestContext) {
 		return
 	}
 
-	towers, err := tower.GetAllTowersByTowerId(ctx, ctx.LocalTowerId)
+	towers, err := tower.GetAllTowersByTowerID(ctx, ctx.LocalTowerID)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "failed to get towers"))
 
 		return
 	}
 
-	// tokenId, err := primitive.ObjectIDFromHex(ctx.Remote.IncomingKey)
+	// tokenID, err := primitive.ObjectIDFromHex(ctx.Remote.IncomingKey)
 	// if err != nil {
 	// 	ctx.Error(http.StatusBadRequest, errors.Wrap(err, "invalid token id"))
 	// 	return
 	// }
-	// auth.GetTokenById(ctx, tokenId)
+	// auth.GetTokenByID(ctx, tokenID)
 	// TODO: Get tokens from the database
 	tokens := make([]*auth.Token, 0)
 

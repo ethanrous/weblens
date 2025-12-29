@@ -7,7 +7,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **children** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
 **newFolderName** | **string** |  | [default to undefined]
-**parentFolderId** | **string** |  | [default to undefined]
+**parentFolderID** | **string** |  | [default to undefined]
 
 ## Example
 
@@ -17,7 +17,7 @@ import { CreateFolderBody } from './api';
 const instance: CreateFolderBody = {
     children,
     newFolderName,
-    parentFolderId,
+    parentFolderID,
 };
 ```
 

@@ -14,12 +14,17 @@ import (
 
 var (
 	// ErrUsernameTooShort is returned when the username is too short.
-	ErrUsernameTooShort     = errors.Statusf(http.StatusBadRequest, "username is too short")
-	ErrUsernameTooLong      = errors.Statusf(http.StatusBadRequest, "username is too long")
+	ErrUsernameTooShort = errors.Statusf(http.StatusBadRequest, "username is too short")
+	// ErrUsernameTooLong is returned when the username exceeds the maximum length.
+	ErrUsernameTooLong = errors.Statusf(http.StatusBadRequest, "username is too long")
+	// ErrUsernameInvalidChars is returned when the username contains invalid characters.
 	ErrUsernameInvalidChars = errors.Statusf(http.StatusBadRequest, "username contains invalid characters, only alphanumeric, _ and - are allowed")
-	ErrUsernameNotAllowed   = errors.Statusf(http.StatusBadRequest, "username is not allowed")
+	// ErrUsernameNotAllowed is returned when the username is reserved or disallowed.
+	ErrUsernameNotAllowed = errors.Statusf(http.StatusBadRequest, "username is not allowed")
 
+	// ErrPasswordTooShort is returned when the password is too short.
 	ErrPasswordTooShort = errors.Statusf(http.StatusBadRequest, "password is too short")
+	// ErrPasswordNoDigits is returned when the password contains no digits.
 	ErrPasswordNoDigits = errors.Statusf(http.StatusBadRequest, "password must contain at least one digit")
 )
 
@@ -55,6 +60,7 @@ func validateUsername(ctx context.Context, username string) error {
 	}
 
 	err = col.FindOne(ctx, bson.M{"username": username}).Decode(&User{})
+
 	err = db.WrapError(err, "failed to check if username exists [%s]", username)
 	if err == nil {
 		return errors.Statusf(http.StatusConflict, "username already exists")

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/ethanrous/weblens/models/file"
+	"github.com/ethanrous/weblens/models/file"
 	file_system "github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/tests"
 	"github.com/stretchr/testify/assert"
@@ -26,7 +26,10 @@ func testSetup(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "weblens_test_*")
 	require.NoError(t, err)
 
-	file_system.RegisterAbsolutePrefix(TestRoot, tempDir)
+	err = file_system.RegisterAbsolutePrefix(TestRoot, tempDir)
+	if err != nil {
+		t.Fatalf("Failed to register test root: %v", err)
+	}
 
 	cleanup := func() {
 		err := os.RemoveAll(tempDir)
@@ -43,7 +46,7 @@ func TestWeblensFile_BasicOperations(t *testing.T) {
 
 	t.Run("CreateAndVerifyFile", func(t *testing.T) {
 		path := file_system.BuildFilePath(TestRoot, "test.txt")
-		f := NewWeblensFile(NewFileOptions{
+		f := file.NewWeblensFile(file.NewFileOptions{
 			Path: path,
 		})
 
@@ -61,7 +64,7 @@ func TestWeblensFile_BasicOperations(t *testing.T) {
 
 	t.Run("CreateDirectory", func(t *testing.T) {
 		path := file_system.BuildFilePath(TestRoot, "testdir/")
-		f := NewWeblensFile(NewFileOptions{
+		f := file.NewWeblensFile(file.NewFileOptions{
 			Path: path,
 		})
 
@@ -78,14 +81,14 @@ func TestWeblensFile_HierarchyOperations(t *testing.T) {
 
 	t.Run("ParentChildRelationships", func(t *testing.T) {
 		parentPath := file_system.BuildFilePath(TestRoot, "parent/")
-		parent := NewWeblensFile(NewFileOptions{
+		parent := file.NewWeblensFile(file.NewFileOptions{
 			Path: parentPath,
 		})
 		err := parent.CreateSelf()
 		require.NoError(t, err)
 
 		childPath := file_system.BuildFilePath(TestRoot, "parent/child.txt")
-		child := NewWeblensFile(NewFileOptions{
+		child := file.NewWeblensFile(file.NewFileOptions{
 			Path: childPath,
 		})
 
@@ -105,14 +108,14 @@ func TestWeblensFile_HierarchyOperations(t *testing.T) {
 
 	t.Run("RemoveChild", func(t *testing.T) {
 		parentPath := file_system.BuildFilePath(TestRoot, "parent2/")
-		parent := NewWeblensFile(NewFileOptions{
+		parent := file.NewWeblensFile(file.NewFileOptions{
 			Path: parentPath,
 		})
 		err := parent.CreateSelf()
 		require.NoError(t, err)
 
 		childPath := file_system.BuildFilePath(TestRoot, "parent2/child.txt")
-		child := NewWeblensFile(NewFileOptions{
+		child := file.NewWeblensFile(file.NewFileOptions{
 			Path: childPath,
 		})
 
@@ -124,7 +127,7 @@ func TestWeblensFile_HierarchyOperations(t *testing.T) {
 
 		_, err = parent.GetChild(child.Name())
 		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrFileNotFound)
+		assert.ErrorIs(t, err, file.ErrFileNotFound)
 	})
 }
 
@@ -133,7 +136,7 @@ func TestWeblensFile_ContentOperations(t *testing.T) {
 
 	t.Run("WriteAndRead", func(t *testing.T) {
 		path := file_system.BuildFilePath(TestRoot, "content.txt")
-		f := NewWeblensFile(NewFileOptions{
+		f := file.NewWeblensFile(file.NewFileOptions{
 			Path: path,
 		})
 
@@ -148,7 +151,9 @@ func TestWeblensFile_ContentOperations(t *testing.T) {
 
 		reader, err := f.Readable()
 		assert.NoError(t, err)
+
 		buf := make([]byte, 4)
+
 		n, err = reader.Read(buf)
 		assert.NoError(t, err)
 		assert.Equal(t, 4, n)
@@ -157,7 +162,7 @@ func TestWeblensFile_ContentOperations(t *testing.T) {
 
 	t.Run("AppendContent", func(t *testing.T) {
 		path := file_system.BuildFilePath(TestRoot, "append.txt")
-		f := NewWeblensFile(NewFileOptions{
+		f := file.NewWeblensFile(file.NewFileOptions{
 			Path: path,
 		})
 
@@ -165,8 +170,8 @@ func TestWeblensFile_ContentOperations(t *testing.T) {
 		_, err := f.Write(initial)
 		require.NoError(t, err)
 
-		append := []byte("appended")
-		err = f.Append(append)
+		appendData := []byte("appended")
+		err = f.Append(appendData)
 		assert.NoError(t, err)
 
 		content, err := f.ReadAll()
@@ -176,7 +181,7 @@ func TestWeblensFile_ContentOperations(t *testing.T) {
 
 	t.Run("LargeFileOperations", func(t *testing.T) {
 		path := file_system.BuildFilePath(TestRoot, "large.bin")
-		f := NewWeblensFile(NewFileOptions{
+		f := file.NewWeblensFile(file.NewFileOptions{
 			Path: path,
 		})
 
@@ -199,7 +204,7 @@ func TestWeblensFile_ConcurrentOperations(t *testing.T) {
 
 	t.Run("ConcurrentReads", func(t *testing.T) {
 		path := file_system.BuildFilePath(TestRoot, "concurrent.txt")
-		f := NewWeblensFile(NewFileOptions{
+		f := file.NewWeblensFile(file.NewFileOptions{
 			Path: path,
 		})
 
@@ -208,12 +213,14 @@ func TestWeblensFile_ConcurrentOperations(t *testing.T) {
 		require.NoError(t, err)
 
 		var wg sync.WaitGroup
+
 		numGoroutines := 10
 		wg.Add(numGoroutines)
 
 		for range numGoroutines {
 			go func() {
 				defer wg.Done()
+
 				content, err := f.ReadAll()
 				assert.NoError(t, err)
 				assert.Equal(t, data, content)
@@ -225,7 +232,7 @@ func TestWeblensFile_ConcurrentOperations(t *testing.T) {
 
 	t.Run("ConcurrentWritesAndReads", func(t *testing.T) {
 		path := file_system.BuildFilePath(TestRoot, "concurrent_rw.txt")
-		f := NewWeblensFile(NewFileOptions{
+		f := file.NewWeblensFile(file.NewFileOptions{
 			Path: path,
 		})
 
@@ -233,14 +240,18 @@ func TestWeblensFile_ConcurrentOperations(t *testing.T) {
 		require.NoError(t, err)
 
 		var wg sync.WaitGroup
+
 		numWriters := 5
 		numReaders := 5
+
 		wg.Add(numWriters + numReaders)
 
 		for i := range numWriters {
 			go func(id int) {
 				defer wg.Done()
+
 				data := fmt.Appendf(nil, "writer_%d", id)
+
 				err := f.Append(data)
 				assert.NoError(t, err)
 				time.Sleep(10 * time.Millisecond)
@@ -250,6 +261,7 @@ func TestWeblensFile_ConcurrentOperations(t *testing.T) {
 		for range numReaders {
 			go func() {
 				defer wg.Done()
+
 				_, err := f.ReadAll()
 				assert.NoError(t, err)
 				time.Sleep(10 * time.Millisecond)
@@ -265,7 +277,7 @@ func TestWeblensFile_ErrorHandling(t *testing.T) {
 
 	t.Run("ReadNonExistentFile", func(t *testing.T) {
 		path := file_system.BuildFilePath(TestRoot, "nonexistent.txt")
-		f := NewWeblensFile(NewFileOptions{
+		f := file.NewWeblensFile(file.NewFileOptions{
 			Path: path,
 		})
 
@@ -275,7 +287,7 @@ func TestWeblensFile_ErrorHandling(t *testing.T) {
 
 	t.Run("WriteToDirectory", func(t *testing.T) {
 		path := file_system.BuildFilePath(TestRoot, "testdir/")
-		f := NewWeblensFile(NewFileOptions{
+		f := file.NewWeblensFile(file.NewFileOptions{
 			Path: path,
 		})
 		err := f.CreateSelf()
@@ -283,28 +295,28 @@ func TestWeblensFile_ErrorHandling(t *testing.T) {
 
 		_, err = f.Write([]byte("test"))
 		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrDirectoryNotAllowed)
+		assert.ErrorIs(t, err, file.ErrDirectoryNotAllowed)
 	})
 
 	t.Run("InvalidParentChild", func(t *testing.T) {
-		parent := NewWeblensFile(NewFileOptions{
+		parent := file.NewWeblensFile(file.NewFileOptions{
 			Path: file_system.BuildFilePath(TestRoot, "parent/"),
 		})
-		child := NewWeblensFile(NewFileOptions{
+		child := file.NewWeblensFile(file.NewFileOptions{
 			Path: file_system.BuildFilePath("different", "path/child"),
 		})
 
 		err := child.SetParent(parent)
 		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrNotChild)
+		assert.ErrorIs(t, err, file.ErrNotChild)
 	})
 }
 
 func TestWeblensFile_MemoryOperations(t *testing.T) {
 	t.Run("MemOnlyFile", func(t *testing.T) {
-		f := NewWeblensFile(NewFileOptions{
+		f := file.NewWeblensFile(file.NewFileOptions{
 			Path:    file_system.BuildFilePath("memory", "memory.txt"),
-			FileId:  "mem1",
+			FileID:  "mem1",
 			MemOnly: true,
 		})
 
@@ -321,9 +333,9 @@ func TestWeblensFile_MemoryOperations(t *testing.T) {
 	})
 
 	t.Run("MemOnlyWithBuffer", func(t *testing.T) {
-		f := NewWeblensFile(NewFileOptions{
+		f := file.NewWeblensFile(file.NewFileOptions{
 			Path:    file_system.BuildFilePath("memory", "buffer.txt"),
-			FileId:  "mem2",
+			FileID:  "mem2",
 			MemOnly: true,
 		})
 
@@ -346,14 +358,15 @@ func TestWeblensFile_TreeOperations(t *testing.T) {
 	testSetup(t)
 
 	t.Run("RecursiveMap", func(t *testing.T) {
-		root := NewWeblensFile(NewFileOptions{
+		root := file.NewWeblensFile(file.NewFileOptions{
 			Path: file_system.BuildFilePath(TestRoot, "root/"),
 		})
 		require.NoError(t, root.CreateSelf())
 
-		files := make([]*WeblensFileImpl, 0)
+		files := make([]*file.WeblensFileImpl, 0)
+
 		for i := range 3 {
-			child := NewWeblensFile(NewFileOptions{
+			child := file.NewWeblensFile(file.NewFileOptions{
 				Path: file_system.BuildFilePath(TestRoot, fmt.Sprintf("root/child_%d", i)),
 			})
 			require.NoError(t, child.SetParent(root))
@@ -362,34 +375,37 @@ func TestWeblensFile_TreeOperations(t *testing.T) {
 		}
 
 		visited := make(map[string]bool)
-		err := root.RecursiveMap(func(f *WeblensFileImpl) error {
+		err := root.RecursiveMap(func(f *file.WeblensFileImpl) error {
 			visited[f.Name()] = true
+
 			return nil
 		})
-		assert.NoError(t, err)
 
+		assert.NoError(t, err)
 		assert.True(t, visited["root"])
+
 		for _, f := range files {
 			assert.True(t, visited[f.Name()])
 		}
 	})
 
 	t.Run("LeafMap", func(t *testing.T) {
-		root := NewWeblensFile(NewFileOptions{
+		root := file.NewWeblensFile(file.NewFileOptions{
 			Path: file_system.BuildFilePath(TestRoot, "leaftest/"),
 		})
 		require.NoError(t, root.CreateSelf())
 
-		subdir := NewWeblensFile(NewFileOptions{
+		subdir := file.NewWeblensFile(file.NewFileOptions{
 			Path: file_system.BuildFilePath(TestRoot, "leaftest/subdir/"),
 		})
 		require.NoError(t, subdir.CreateSelf())
 		require.NoError(t, subdir.SetParent(root))
 		require.NoError(t, root.AddChild(subdir))
 
-		leafFiles := make([]*WeblensFileImpl, 0)
+		leafFiles := make([]*file.WeblensFileImpl, 0)
+
 		for i := range 2 {
-			leaf := NewWeblensFile(NewFileOptions{
+			leaf := file.NewWeblensFile(file.NewFileOptions{
 				Path: file_system.BuildFilePath(TestRoot, fmt.Sprintf("leaftest/subdir/leaf_%d", i)),
 			})
 			require.NoError(t, leaf.SetParent(subdir))
@@ -398,7 +414,7 @@ func TestWeblensFile_TreeOperations(t *testing.T) {
 		}
 
 		visited := make([]string, 0)
-		err := root.LeafMap(func(f *WeblensFileImpl) error {
+		err := root.LeafMap(func(f *file.WeblensFileImpl) error {
 			visited = append(visited, f.Name())
 
 			return nil
@@ -420,7 +436,7 @@ func TestWeblensFile_WriteAt(t *testing.T) {
 
 	t.Run("BasicWriteAt", func(t *testing.T) {
 		path := file_system.BuildFilePath(TestRoot, "writeat.txt")
-		f := NewWeblensFile(NewFileOptions{
+		f := file.NewWeblensFile(file.NewFileOptions{
 			Path:      path,
 			CreateNow: true,
 		})
@@ -444,7 +460,7 @@ func TestWeblensFile_WriteAt(t *testing.T) {
 
 	t.Run("WriteAtZeroPosition", func(t *testing.T) {
 		path := file_system.BuildFilePath(TestRoot, "writeat_zero.txt")
-		f := NewWeblensFile(NewFileOptions{
+		f := file.NewWeblensFile(file.NewFileOptions{
 			Path:      path,
 			CreateNow: true,
 		})
@@ -468,7 +484,7 @@ func TestWeblensFile_WriteAt(t *testing.T) {
 
 	t.Run("WriteAtBeyondFileSize", func(t *testing.T) {
 		path := file_system.BuildFilePath(TestRoot, "writeat_beyond.txt")
-		f := NewWeblensFile(NewFileOptions{
+		f := file.NewWeblensFile(file.NewFileOptions{
 			Path:      path,
 			CreateNow: true,
 		})
@@ -495,7 +511,7 @@ func TestWeblensFile_WriteAt(t *testing.T) {
 
 	t.Run("ConcurrentWriteAt", func(t *testing.T) {
 		path := file_system.BuildFilePath(TestRoot, "writeat_concurrent.txt")
-		f := NewWeblensFile(NewFileOptions{
+		f := file.NewWeblensFile(file.NewFileOptions{
 			Path:      path,
 			CreateNow: true,
 		})
@@ -507,14 +523,18 @@ func TestWeblensFile_WriteAt(t *testing.T) {
 		require.Equal(t, len(initialData), n)
 
 		var wg sync.WaitGroup
+
 		numGoroutines := 5
 
 		// Concurrently write at different positions
 		wg.Add(numGoroutines)
-		for i := 0; i < numGoroutines; i++ {
+
+		for i := range numGoroutines {
 			go func(pos int) {
 				defer wg.Done()
-				data := []byte(fmt.Sprintf("%d", pos))
+
+				data := fmt.Appendf(nil, "%d", pos)
+
 				err := f.WriteAt(data, int64(pos))
 				assert.NoError(t, err)
 			}(i)
@@ -528,14 +548,14 @@ func TestWeblensFile_WriteAt(t *testing.T) {
 		assert.Equal(t, 10, len(content))
 
 		// Verify that first 5 positions contain digits 0-4
-		for i := 0; i < numGoroutines; i++ {
+		for i := range numGoroutines {
 			assert.Equal(t, byte('0'+i), content[i])
 		}
 	})
 
 	t.Run("WriteAtToDirectory", func(t *testing.T) {
 		path := file_system.BuildFilePath(TestRoot, "writeat_dir/")
-		f := NewWeblensFile(NewFileOptions{
+		f := file.NewWeblensFile(file.NewFileOptions{
 			Path:      path,
 			CreateNow: true,
 		})
@@ -544,13 +564,13 @@ func TestWeblensFile_WriteAt(t *testing.T) {
 		// Attempt to write to directory
 		err := f.WriteAt([]byte("test"), 0)
 		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrDirectoryNotAllowed)
+		assert.ErrorIs(t, err, file.ErrDirectoryNotAllowed)
 	})
 
 	t.Run("MemOnlyWriteAt", func(t *testing.T) {
-		f := NewWeblensFile(NewFileOptions{
+		f := file.NewWeblensFile(file.NewFileOptions{
 			Path:    file_system.BuildFilePath("memory", "writeat_mem.txt"),
-			FileId:  "mem_writeat",
+			FileID:  "mem_writeat",
 			MemOnly: true,
 		})
 		require.NotNil(t, f)
@@ -575,7 +595,7 @@ func TestWeblensFile_WriteAt(t *testing.T) {
 
 	t.Run("LargeWriteAt", func(t *testing.T) {
 		path := file_system.BuildFilePath(TestRoot, "writeat_large.txt")
-		f := NewWeblensFile(NewFileOptions{
+		f := file.NewWeblensFile(file.NewFileOptions{
 			Path:      path,
 			CreateNow: true,
 		})
@@ -583,20 +603,24 @@ func TestWeblensFile_WriteAt(t *testing.T) {
 
 		// Write initial large content
 		initialSize := 1024 * 1024 // 1MB
+
 		initialData := make([]byte, initialSize)
 		for i := range initialData {
 			initialData[i] = 'A'
 		}
+
 		n, err := f.Write(initialData)
 		require.NoError(t, err)
 		require.Equal(t, initialSize, n)
 
 		// Write large chunk at middle
 		writeSize := 512 * 1024 // 512KB
+
 		writeData := make([]byte, writeSize)
 		for i := range writeData {
 			writeData[i] = 'B'
 		}
+
 		err = f.WriteAt(writeData, int64(initialSize/2))
 		assert.NoError(t, err)
 

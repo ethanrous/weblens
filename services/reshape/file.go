@@ -11,6 +11,7 @@ import (
 	"github.com/ethanrous/weblens/modules/structs"
 )
 
+// FileInfoOptions configures how file information is computed and formatted.
 type FileInfoOptions struct {
 	IsPastFile         bool
 	ModifiableOverride option.Option[bool]
@@ -42,7 +43,7 @@ func compileOptions(opts ...FileInfoOptions) FileInfoOptions {
 	return compiled
 }
 
-func checkModifyable(ctx context.Context, f *file_model.WeblensFileImpl, o FileInfoOptions) bool {
+func checkModifyable(_ context.Context, f *file_model.WeblensFileImpl, o FileInfoOptions) bool {
 	if override, ok := o.ModifiableOverride.Get(); ok {
 		return override
 	}
@@ -61,6 +62,7 @@ func checkModifyable(ctx context.Context, f *file_model.WeblensFileImpl, o FileI
 	return true
 }
 
+// WeblensFileToFileInfo converts a WeblensFileImpl to a FileInfo structure suitable for API responses.
 func WeblensFileToFileInfo(ctx context.Context, f *file_model.WeblensFileImpl, opts ...FileInfoOptions) (structs.FileInfo, error) {
 	ownerName, err := file_model.GetFileOwnerName(ctx, f)
 	if err != nil {
@@ -71,33 +73,33 @@ func WeblensFileToFileInfo(ctx context.Context, f *file_model.WeblensFileImpl, o
 
 	children := f.GetChildren()
 
-	childrenIds := make([]string, 0, len(children))
+	childrenIDs := make([]string, 0, len(children))
 	for _, c := range children {
-		childrenIds = append(childrenIds, c.ID())
+		childrenIDs = append(childrenIDs, c.ID())
 	}
 
 	var share *share_model.FileShare
 	if !o.DontCheckShare {
-		share, err = share_model.GetShareByFileId(ctx, f.ID())
+		share, err = share_model.GetShareByFileID(ctx, f.ID())
 		if err != nil && !db.IsNotFound(err) {
 			return structs.FileInfo{}, err
 		}
 	}
 
-	shareId := ""
+	shareID := ""
 	if share != nil && !share.ID().IsZero() {
-		shareId = share.ID().Hex()
+		shareID = share.ID().Hex()
 	}
 
-	contentId := f.GetContentId()
+	contentID := f.GetContentID()
 
-	if f.IsDir() && contentId == "" {
+	if f.IsDir() && contentID == "" {
 		// Check if the folder has a cover photo, and use that as the content id if it does
-		cover, err := cover_model.GetCoverByFolderId(ctx, f.ID())
+		cover, err := cover_model.GetCoverByFolderID(ctx, f.ID())
 		if err != nil && !db.IsNotFound(err) {
 			return structs.FileInfo{}, err
 		} else if err == nil {
-			contentId = cover.CoverPhotoId
+			contentID = cover.CoverPhotoID
 		}
 	}
 
@@ -108,20 +110,11 @@ func WeblensFileToFileInfo(ctx context.Context, f *file_model.WeblensFileImpl, o
 	var hasRestoreMedia bool
 	if exists || !o.IsPastFile || f.IsDir() {
 		hasRestoreMedia = true
-	} else {
-		// ctx.(context_mod.AppContexter).AppCtx().(context.AppContext).FileService.GetFileById(f.ID())
-		// TODO: check if the file is in the restore media tree
-		if err == nil {
-			hasRestoreMedia = true
-		} else {
-			// restoreTree, err := pack.FileService.GetFileTreeByName(services.RestoreTreeKey)
-			// if err != nil {
-			// 	return structs.FileInfo{}, err
-			// }
-			//
-			// _, err = restoreTree.GetRoot().GetChild(f.GetContentId())
-			// hasRestoreMedia = err == nil
-		}
+	}
+	// ctx.(context_mod.AppContexter).AppCtx().(context.AppContext).FileService.GetFileByID(f.ID())
+	// TODO: check if the file is in the restore media tree
+	if err == nil {
+		hasRestoreMedia = true
 	}
 
 	size := int64(0)
@@ -130,28 +123,26 @@ func WeblensFileToFileInfo(ctx context.Context, f *file_model.WeblensFileImpl, o
 	}
 
 	portablePath := f.GetPortablePath()
-	// if !exists {
-	// 	portablePath = fs.Filepath{}
-	// }
-	parentId := ""
+
+	parentID := ""
 	if f.GetParent() != nil {
-		parentId = f.GetParent().ID()
+		parentID = f.GetParent().ID()
 	}
 
 	return structs.FileInfo{
-		Children:        childrenIds,
-		ContentId:       contentId,
+		Children:        childrenIDs,
+		ContentID:       contentID,
 		HasRestoreMedia: hasRestoreMedia,
-		Id:              f.ID(),
+		ID:              f.ID(),
 		IsDir:           f.IsDir(),
 		ModTime:         f.ModTime().UnixMilli(),
 		Modifiable:      modifiable,
 		Owner:           ownerName,
-		ParentId:        parentId,
+		ParentID:        parentID,
 		PastFile:        o.IsPastFile,
-		PastId:          f.GetPastId(),
+		PastID:          f.GetPastID(),
 		PortablePath:    portablePath.String(),
-		ShareId:         shareId,
+		ShareID:         shareID,
 		Size:            size,
 	}, nil
 }

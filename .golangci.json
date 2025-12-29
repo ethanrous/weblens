@@ -1,20 +1,26 @@
 {
-	"version": 2,
-	"linters": {
-		"default": "fast",
-		"enable": [
-			"errcheck"
-		],
-		"disable": [
-			"depguard",
-			"dogsled",
-			"lll",
-			"funlen",
-			"gochecknoinits",
-			"nestif",
-			"cyclop",
-			"gocognit",
-			"godot"
-		]
-	}
+  "version": 2,
+  "linters": {
+    "default": "fast",
+    "enable": ["errcheck", "revive", "wsl_v5"],
+    "disable": [
+      "cyclop",
+      "depguard",
+      "dogsled",
+      "funlen",
+      "gochecknoinits",
+      "gocognit",
+      "gocyclo",
+      "godot",
+      "godox",
+      "gomoddirectives",
+      "interfacebloat",
+      "lll",
+      "maintidx",
+      "mnd",
+      "nestif",
+      "tagalign",
+      "wsl"
+    ]
+  }
 }

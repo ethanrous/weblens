@@ -1,4 +1,4 @@
-package task
+package task_test
 
 // import (
 // 	"math/rand"

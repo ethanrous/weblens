@@ -24,12 +24,14 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+// BaseContextKey is the context key for accessing the base context.
 const BaseContextKey = "context"
 
-var _ context_mod.ContextZ = RequestContext{}
+var _ context_mod.Z = RequestContext{}
 
 type requestContextKey struct{}
 
+// RequestContext represents an HTTP request context with user authentication and request-specific data.
 type RequestContext struct {
 	AppContext
 
@@ -46,20 +48,24 @@ type RequestContext struct {
 	mongoSession mongo.SessionContext
 }
 
+// GetMongoSession retrieves the MongoDB session context for this request.
 func (c RequestContext) GetMongoSession() mongo.SessionContext {
 	return c.mongoSession
 }
 
-func (c RequestContext) AppCtx() context_mod.ContextZ {
+// AppCtx returns the underlying AppContext from the RequestContext.
+func (c RequestContext) AppCtx() context_mod.Z {
 	return c.AppContext
 }
 
+// SetValue adds a key-value pair to the request context.
 func (c RequestContext) SetValue(key any, value any) {
 	// c.Req = c.Req.WithContext(context.WithValue(c.Req.Context(), key, value))
 	c.ReqCtx = context.WithValue(c.ReqCtx, key, value)
 	c.AppContext = c.AppContext.WithValue(key, value)
 }
 
+// Value retrieves the value associated with the given key from the RequestContext.
 func (c RequestContext) Value(key any) any {
 	if key == (requestContextKey{}) {
 		return c
@@ -80,6 +86,7 @@ func (c RequestContext) Value(key any) any {
 	return c.ReqCtx.Value(key)
 }
 
+// WithContext creates a new context by combining the RequestContext with the provided context.
 func (c RequestContext) WithContext(ctx context.Context) context.Context {
 	l, ok := log.FromContextOk(ctx)
 	if !ok {
@@ -108,6 +115,7 @@ func (c RequestContext) Query(paramName string) string {
 	return c.Req.URL.Query().Get(paramName)
 }
 
+// QueryBool retrieves a query parameter and parses it as a boolean value.
 func (c RequestContext) QueryBool(paramName string) bool {
 	qstr := c.Req.URL.Query().Get(paramName)
 	if qstr == "" {
@@ -124,6 +132,7 @@ func (c RequestContext) QueryBool(paramName string) bool {
 	return q
 }
 
+// QueryInt retrieves a query parameter and parses it as an integer value.
 func (c RequestContext) QueryInt(paramName string) (int64, error) {
 	queryStr := c.Query(paramName)
 	if queryStr == "" {
@@ -138,6 +147,7 @@ func (c RequestContext) QueryInt(paramName string) (int64, error) {
 	return num, nil
 }
 
+// QueryIntDefault retrieves a query parameter as an integer or returns the default value if not provided.
 func (c RequestContext) QueryIntDefault(paramName string, defaultValue int64) (int64, error) {
 	queryStr := c.Query(paramName)
 	if queryStr == "" {
@@ -174,11 +184,13 @@ func (c RequestContext) Error(code int, err error) {
 	c.JSON(code, net.Error{Error: errMsg})
 }
 
+// ExpireCookie sets a cookie header that expires the session cookie.
 func (c RequestContext) ExpireCookie() {
 	cookie := fmt.Sprintf("%s=;Path=/;Expires=Thu, 01 Jan 1970 00:00:00 GMT;HttpOnly", crypto.SessionTokenCookie)
 	c.W.Header().Set("Set-Cookie", cookie)
 }
 
+// GetCookie returns the value of a cookie by name.
 func (c RequestContext) GetCookie(cookieName string) (string, error) {
 	// Get the value of a specific cookie from the request.
 	// This will return an empty string and non-nil error if the cookie is not present.
@@ -190,6 +202,7 @@ func (c RequestContext) GetCookie(cookieName string) (string, error) {
 	return cookie.Value, nil
 }
 
+// Header returns the value of a request header.
 func (c RequestContext) Header(headerName string) string {
 	// Get the value of a specific header from the request.
 	// This will return an empty string if the header is not present.
@@ -198,6 +211,7 @@ func (c RequestContext) Header(headerName string) string {
 	return headerValue
 }
 
+// SetHeader sets a response header.
 func (c RequestContext) SetHeader(headerName, headerValue string) {
 	c.W.Header().Set(headerName, headerValue)
 }
@@ -229,6 +243,7 @@ func (c RequestContext) IfModifiedSince() (time.Time, bool) {
 	return modifiedTime, true
 }
 
+// AddHeader adds a value to a response header.
 func (c RequestContext) AddHeader(headerName, headerValue string) {
 	c.W.Header().Add(headerName, headerValue)
 }
@@ -244,6 +259,7 @@ func (c RequestContext) Status(code int) {
 
 var rangeMatchR = regexp.MustCompile("^bytes=[0-9]+-[0-9]+/[0-9]+$")
 
+// ContentRange parses the Content-Range header and returns start, end, and total values.
 func (c RequestContext) ContentRange() (start, end, total int, err error) {
 	// Get the "Range" header from the request.
 	rangeHeader := c.Header("Content-Range")
@@ -272,6 +288,7 @@ func (c RequestContext) ContentRange() (start, end, total int, err error) {
 	return start, end, total, nil
 }
 
+// JSON writes a JSON response with the given status code.
 func (c RequestContext) JSON(code int, data any) {
 	bs, err := json.Marshal(data)
 	if err != nil {
@@ -284,6 +301,7 @@ func (c RequestContext) JSON(code int, data any) {
 	c.Bytes(code, bs)
 }
 
+// Bytes writes a byte slice response with the given status code.
 func (c RequestContext) Bytes(code int, data []byte) {
 	c.Status(code)
 	_, err := c.W.Write(data)
@@ -294,6 +312,7 @@ func (c RequestContext) Bytes(code int, data []byte) {
 	}
 }
 
+// Client returns the websocket client for the current user.
 func (c RequestContext) Client() *client.WsClient {
 	return c.ClientService.GetClientByUsername(c.Requester.Username)
 }
@@ -302,6 +321,7 @@ func (c RequestContext) Write(b []byte) (int, error) {
 	return c.W.Write(b)
 }
 
+// AttemptGetUsername attempts to retrieve the username from the requester or cookies.
 func (c RequestContext) AttemptGetUsername() string {
 	if c.Requester != nil && c.Requester.Username != "" && c.Requester.Username != user_model.PublicUserName {
 		return c.Requester.Username
@@ -315,6 +335,7 @@ func (c RequestContext) AttemptGetUsername() string {
 	return usernameCookie
 }
 
+// ReqFromContext extracts a RequestContext from a context.Context.
 func ReqFromContext(ctx context.Context) (RequestContext, bool) {
 	if ctx == nil {
 		return RequestContext{}, false
@@ -328,6 +349,7 @@ func ReqFromContext(ctx context.Context) (RequestContext, bool) {
 	return reqCtx, true
 }
 
+// AppContexter creates a middleware that wraps handlers with an AppContext.
 func AppContexter(ctx AppContext) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -339,13 +361,14 @@ func AppContexter(ctx AppContext) func(next http.Handler) http.Handler {
 			}
 
 			reqContext.SetValue(requestContextKey{}, reqContext)
-			reqContext.SetValue("towerId", ctx.LocalTowerId)
+			reqContext.SetValue("towerID", ctx.LocalTowerID)
 			reqContext.Req = reqContext.Req.WithContext(reqContext)
 			next.ServeHTTP(reqContext.W, reqContext.Req)
 		})
 	}
 }
 
+// TimestampFromCtx extracts a timestamp from the request context query parameters.
 func TimestampFromCtx(ctx RequestContext) (time.Time, bool, error) {
 	ts := ctx.Query("timestamp")
 	if ts == "" || ts == "0" {
@@ -360,6 +383,7 @@ func TimestampFromCtx(ctx RequestContext) (time.Time, bool, error) {
 	return time.UnixMilli(millis), true, nil
 }
 
+// WithRequester sets the requesting user in the RequestContext.
 func (c RequestContext) WithRequester(u *user_model.User) RequestContext {
 	c.Requester = u
 	c.WithValue(context_mod.RequestDoerKey, u.GetUsername())
@@ -371,6 +395,7 @@ func (c RequestContext) WithRequester(u *user_model.User) RequestContext {
 	return c
 }
 
+// Doer returns the username of the requester, or a default unknown user if not set.
 func (c RequestContext) Doer() string {
 	if c.Requester != nil {
 		return c.Requester.GetUsername()

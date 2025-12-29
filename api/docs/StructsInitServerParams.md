@@ -7,10 +7,10 @@ Name | Type | Description | Notes
 **CoreAddress** | Pointer to **string** |  | [optional] 
 **CoreKey** | Pointer to **string** |  | [optional] 
 **FullName** | Pointer to **string** |  | [optional] 
-**LocalId** | Pointer to **string** | For restoring a server, remoind the core of its serverId and api key the remote last used | [optional] 
+**LocalID** | Pointer to **string** | For restoring a server, remoind the core of its serverID and api key the remote last used | [optional] 
 **Name** | Pointer to **string** |  | [optional] 
 **Password** | Pointer to **string** |  | [optional] 
-**RemoteId** | Pointer to **string** |  | [optional] 
+**RemoteID** | Pointer to **string** |  | [optional] 
 **Role** | Pointer to **string** |  | [optional] 
 **Username** | Pointer to **string** |  | [optional] 
 **UsingKeyInfo** | Pointer to **string** |  | [optional] 
@@ -109,30 +109,30 @@ SetFullName sets FullName field to given value.
 
 HasFullName returns a boolean if a field has been set.
 
-### GetLocalId
+### GetLocalID
 
-`func (o *StructsInitServerParams) GetLocalId() string`
+`func (o *StructsInitServerParams) GetLocalID() string`
 
-GetLocalId returns the LocalId field if non-nil, zero value otherwise.
+GetLocalID returns the LocalID field if non-nil, zero value otherwise.
 
-### GetLocalIdOk
+### GetLocalIDOk
 
-`func (o *StructsInitServerParams) GetLocalIdOk() (*string, bool)`
+`func (o *StructsInitServerParams) GetLocalIDOk() (*string, bool)`
 
-GetLocalIdOk returns a tuple with the LocalId field if it's non-nil, zero value otherwise
+GetLocalIDOk returns a tuple with the LocalID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetLocalId
+### SetLocalID
 
-`func (o *StructsInitServerParams) SetLocalId(v string)`
+`func (o *StructsInitServerParams) SetLocalID(v string)`
 
-SetLocalId sets LocalId field to given value.
+SetLocalID sets LocalID field to given value.
 
-### HasLocalId
+### HasLocalID
 
-`func (o *StructsInitServerParams) HasLocalId() bool`
+`func (o *StructsInitServerParams) HasLocalID() bool`
 
-HasLocalId returns a boolean if a field has been set.
+HasLocalID returns a boolean if a field has been set.
 
 ### GetName
 
@@ -184,30 +184,30 @@ SetPassword sets Password field to given value.
 
 HasPassword returns a boolean if a field has been set.
 
-### GetRemoteId
+### GetRemoteID
 
-`func (o *StructsInitServerParams) GetRemoteId() string`
+`func (o *StructsInitServerParams) GetRemoteID() string`
 
-GetRemoteId returns the RemoteId field if non-nil, zero value otherwise.
+GetRemoteID returns the RemoteID field if non-nil, zero value otherwise.
 
-### GetRemoteIdOk
+### GetRemoteIDOk
 
-`func (o *StructsInitServerParams) GetRemoteIdOk() (*string, bool)`
+`func (o *StructsInitServerParams) GetRemoteIDOk() (*string, bool)`
 
-GetRemoteIdOk returns a tuple with the RemoteId field if it's non-nil, zero value otherwise
+GetRemoteIDOk returns a tuple with the RemoteID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetRemoteId
+### SetRemoteID
 
-`func (o *StructsInitServerParams) SetRemoteId(v string)`
+`func (o *StructsInitServerParams) SetRemoteID(v string)`
 
-SetRemoteId sets RemoteId field to given value.
+SetRemoteID sets RemoteID field to given value.
 
-### HasRemoteId
+### HasRemoteID
 
-`func (o *StructsInitServerParams) HasRemoteId() bool`
+`func (o *StructsInitServerParams) HasRemoteID() bool`
 
-HasRemoteId returns a boolean if a field has been set.
+HasRemoteID returns a boolean if a field has been set.
 
 ### GetRole
 

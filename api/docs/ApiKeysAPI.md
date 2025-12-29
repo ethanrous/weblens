@@ -5,7 +5,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**CreateApiKey**](ApiKeysAPI.md#CreateApiKey) | **Post** /keys | Create a new api key
-[**DeleteApiKey**](ApiKeysAPI.md#DeleteApiKey) | **Delete** /keys/{tokenId} | Delete an api key
+[**DeleteApiKey**](ApiKeysAPI.md#DeleteApiKey) | **Delete** /keys/{tokenID} | Delete an api key
 [**GetApiKeys**](ApiKeysAPI.md#GetApiKeys) | **Get** /keys | Get all api keys
 
 
@@ -76,7 +76,7 @@ No authorization required
 
 ## DeleteApiKey
 
-> DeleteApiKey(ctx, tokenId).Execute()
+> DeleteApiKey(ctx, tokenID).Execute()
 
 Delete an api key
 
@@ -93,11 +93,11 @@ import (
 )
 
 func main() {
-	tokenId := "tokenId_example" // string | Api key id
+	tokenID := "tokenID_example" // string | Api key id
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	r, err := apiClient.ApiKeysAPI.DeleteApiKey(context.Background(), tokenId).Execute()
+	r, err := apiClient.ApiKeysAPI.DeleteApiKey(context.Background(), tokenID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `ApiKeysAPI.DeleteApiKey``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -111,7 +111,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**tokenId** | **string** | Api key id | 
+**tokenID** | **string** | Api key id | 
 
 ### Other Parameters
 

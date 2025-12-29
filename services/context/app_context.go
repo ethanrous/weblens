@@ -1,3 +1,4 @@
+// Package context provides application context and dependency injection for Weblens services.
 package context
 
 import (
@@ -19,7 +20,7 @@ import (
 )
 
 func init() {
-	context_mod.ToZ = func(ctx context.Context) context_mod.ContextZ {
+	context_mod.ToZ = func(ctx context.Context) context_mod.Z {
 		if ctx == nil {
 			return nil
 		}
@@ -33,20 +34,23 @@ func init() {
 	}
 }
 
-var _ context_mod.ContextZ = AppContext{}
+var _ context_mod.Z = AppContext{}
 
+// ErrNoContext is returned when a context is not an AppContext.
 var ErrNoContext = errors.New("context is not an AppContext")
 
 type appContextKey struct{}
+
+// AppContext represents the application-level context with services and resources for the Weblens application.
 type AppContext struct {
 	BasicContext
 
-	// LocalTowerId is the id of the tower that the app is running on
-	LocalTowerId string
+	// LocalTowerID is the id of the tower that the app is running on
+	LocalTowerID string
 
-	FileService   file.FileService
+	FileService   file.Service
 	TaskService   *task_model.WorkerPool
-	ClientService client.ClientManager
+	ClientService client.Manager
 	DB            *mongo.Database
 
 	Cache     map[string]*sturdyc.Client[any]
@@ -60,6 +64,7 @@ var numShards = 10
 var ttl = time.Hour
 var evictionPercentage = 10
 
+// NewAppContext creates a new AppContext from a BasicContext with initialized services and caches.
 func NewAppContext(ctx BasicContext) AppContext {
 	newCtx := AppContext{
 		BasicContext: ctx,
@@ -72,6 +77,7 @@ func NewAppContext(ctx BasicContext) AppContext {
 	return newCtx
 }
 
+// FromContext extracts an AppContext from a standard context.Context.
 func FromContext(ctx context.Context) (AppContext, bool) {
 	if ctx == nil {
 		return AppContext{}, false
@@ -87,12 +93,14 @@ func FromContext(ctx context.Context) (AppContext, bool) {
 	return c, true
 }
 
+// WithValue returns a copy of AppContext with the specified key-value pair added.
 func (c AppContext) WithValue(key, value any) AppContext {
 	c.BasicContext = c.BasicContext.WithValue(key, value)
 
 	return c
 }
 
+// WithContext creates a new context by combining the AppContext with the provided context.
 func (c AppContext) WithContext(ctx context.Context) context.Context {
 	l, ok := log.FromContextOk(ctx)
 	if !ok {
@@ -104,6 +112,7 @@ func (c AppContext) WithContext(ctx context.Context) context.Context {
 	return c
 }
 
+// Value retrieves the value associated with the given key from the AppContext.
 func (c AppContext) Value(key any) any {
 	if key == (appContextKey{}) {
 		return c
@@ -120,18 +129,23 @@ func (c AppContext) Value(key any) any {
 	return c.BasicContext.Value(key)
 }
 
-func (c AppContext) WithMongoSession(session mongo.SessionContext) {}
+// WithMongoSession associates a MongoDB session context with the AppContext.
+func (c AppContext) WithMongoSession(_ mongo.SessionContext) {}
 
+// GetMongoSession retrieves the MongoDB session context associated with the AppContext.
 func (c AppContext) GetMongoSession() mongo.SessionContext { return nil }
 
+// Notify sends websocket notifications to connected clients.
 func (c AppContext) Notify(ctx context.Context, data ...websocket.WsResponseInfo) {
 	c.ClientService.Notify(ctx, data...)
 }
 
+// Database returns the MongoDB database instance for the application.
 func (c AppContext) Database() *mongo.Database {
 	return c.DB
 }
 
+// GetCache retrieves or creates a cache client for the specified collection.
 func (c AppContext) GetCache(col string) *sturdyc.Client[any] {
 	c.cacheLock.RLock()
 
@@ -141,6 +155,7 @@ func (c AppContext) GetCache(col string) *sturdyc.Client[any] {
 
 		return cache
 	}
+
 	c.cacheLock.RUnlock()
 
 	c.cacheLock.Lock()
@@ -152,6 +167,7 @@ func (c AppContext) GetCache(col string) *sturdyc.Client[any] {
 	return cache
 }
 
+// ClearCache removes all cached data from the AppContext.
 func (c AppContext) ClearCache() {
 	c.cacheLock.Lock()
 	defer c.cacheLock.Unlock()
@@ -161,14 +177,17 @@ func (c AppContext) ClearCache() {
 	}
 }
 
-func (c AppContext) DispatchJob(jobName string, meta task_mod.TaskMetadata, pool task_mod.Pool) (task_mod.Task, error) {
+// DispatchJob submits a new job to the task service for asynchronous execution.
+func (c AppContext) DispatchJob(jobName string, meta task_mod.Metadata, pool task_mod.Pool) (task_mod.Task, error) {
 	return c.TaskService.DispatchJob(c, jobName, meta, pool)
 }
 
-func (c AppContext) GetFileService() file.FileService {
+// GetFileService returns the file service instance from the AppContext.
+func (c AppContext) GetFileService() file.Service {
 	return c.FileService
 }
 
-func (c AppContext) GetTowerId() string {
-	return c.LocalTowerId
+// GetTowerID returns the ID of the local tower.
+func (c AppContext) GetTowerID() string {
+	return c.LocalTowerID
 }

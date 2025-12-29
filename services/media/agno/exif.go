@@ -1,5 +1,6 @@
 package agno
 
+// EXIF tag constants.
 const (
 	InteropIndex                   = 0x0001
 	InteropVersion                 = 0x0002
@@ -100,7 +101,7 @@ const (
 	RelatedImageWidth              = 0x1001
 	RelatedImageHeight             = 0x1002
 	Rating                         = 0x4746
-	XP_DIP_XML                     = 0x4747
+	XPDIPXML                       = 0x4747
 	StitchInfo                     = 0x4748
 	RatingPercent                  = 0x4749
 	ResolutionXUnit                = 0x5001
@@ -179,7 +180,7 @@ const (
 	DistortionCorrParams           = 0x7037
 	SonyRawImageSize               = 0x7038
 	BlackLevel                     = 0x7310
-	WB_RGGBLevels                  = 0x7313
+	WBRGGBLevels                   = 0x7313
 	SonyCropTopLeft                = 0x74c7
 	SonyCropSize                   = 0x74c8
 	ImageID                        = 0x800d
@@ -225,7 +226,7 @@ const (
 	UIC2Tag                        = 0x835d
 	UIC3Tag                        = 0x835e
 	UIC4Tag                        = 0x835f
-	IPTC_NAA                       = 0x83bb
+	IPTCNAA                        = 0x83bb
 	IntergraphPacketData           = 0x847e
 	IntergraphFlagRegisters        = 0x847f
 	IntergraphMatrix               = 0x8480
@@ -249,29 +250,29 @@ const (
 	TrapIndicator                  = 0x84ef
 	CMYKEquivalent                 = 0x84f0
 	SEMInfo                        = 0x8546
-	AFCP_IPTC                      = 0x8568
+	AFCPIPTC                       = 0x8568
 	PixelMagicJBIGOptions          = 0x85b8
 	JPLCartoIFD                    = 0x85d7
 	ModelTransform                 = 0x85d8
-	WB_GRGBLevels                  = 0x8602
+	WBGRGBLevels                   = 0x8602
 	LeafData                       = 0x8606
 	PhotoshopSettings              = 0x8649
 	ExifOffset                     = 0x8769
-	ICC_Profile                    = 0x8773
-	TIFF_FXExtensions              = 0x877f
+	ICCProfile                     = 0x8773
+	TIFFFXExtensions               = 0x877f
 	MultiProfiles                  = 0x8780
 	SharedData                     = 0x8781
 	T88Options                     = 0x8782
 	ImageLayer                     = 0x87ac
 	GeoTiffDirectory               = 0x87af
 	GeoTiffDoubleParams            = 0x87b0
-	GeoTiffAsciiParams             = 0x87b1
+	GeoTiffASCIIParams             = 0x87b1
 	JBIGOptions                    = 0x87be
 	ExposureProgram                = 0x8822
 	SpectralSensitivity            = 0x8824
 	GPSInfo                        = 0x8825
 	ISO                            = 0x8827
-	Opto_ElectricConvFactor        = 0x8828
+	OptoElectricConvFactor         = 0x8828
 	Interlace                      = 0x8829
 	TimeZoneOffset                 = 0x882a
 	SelfTimerMode                  = 0x882b
@@ -316,7 +317,7 @@ const (
 	ImageHistory                   = 0x9213
 	SubjectArea                    = 0x9214
 	ExposureIndex                  = 0x9215
-	TIFF_EPStandardID              = 0x9216
+	TIFFEPStandardID               = 0x9216
 	SensingMethod                  = 0x9217
 	CIP3DataFile                   = 0x923a
 	CIP3Sheet                      = 0x923b
@@ -554,7 +555,7 @@ const (
 	Padding                        = 0xea1c
 	OffsetSchema                   = 0xea1d
 	Lens                           = 0xfdea
-	KDC_IFD                        = 0xfe00
+	KDCIFD                         = 0xfe00
 	RawFile                        = 0xfe4c
 	Converter                      = 0xfe4d
 	Exposure                       = 0xfe51

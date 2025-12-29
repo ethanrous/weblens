@@ -135,7 +135,7 @@ func (a *ApiKeysAPIService) CreateApiKeyExecute(r ApiCreateApiKeyRequest) (*Toke
 type ApiDeleteApiKeyRequest struct {
 	ctx context.Context
 	ApiService *ApiKeysAPIService
-	tokenId string
+	tokenID string
 }
 
 func (r ApiDeleteApiKeyRequest) Execute() (*http.Response, error) {
@@ -146,14 +146,14 @@ func (r ApiDeleteApiKeyRequest) Execute() (*http.Response, error) {
 DeleteApiKey Delete an api key
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param tokenId Api key id
+ @param tokenID Api key id
  @return ApiDeleteApiKeyRequest
 */
-func (a *ApiKeysAPIService) DeleteApiKey(ctx context.Context, tokenId string) ApiDeleteApiKeyRequest {
+func (a *ApiKeysAPIService) DeleteApiKey(ctx context.Context, tokenID string) ApiDeleteApiKeyRequest {
 	return ApiDeleteApiKeyRequest{
 		ApiService: a,
 		ctx: ctx,
-		tokenId: tokenId,
+		tokenID: tokenID,
 	}
 }
 
@@ -170,8 +170,8 @@ func (a *ApiKeysAPIService) DeleteApiKeyExecute(r ApiDeleteApiKeyRequest) (*http
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/keys/{tokenId}"
-	localVarPath = strings.Replace(localVarPath, "{"+"tokenId"+"}", url.PathEscape(parameterValueToString(r.tokenId, "tokenId")), -1)
+	localVarPath := localBasePath + "/keys/{tokenID}"
+	localVarPath = strings.Replace(localVarPath, "{"+"tokenID"+"}", url.PathEscape(parameterValueToString(r.tokenID, "tokenID")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}

@@ -15,6 +15,7 @@ import (
 
 func TestConnectToMongo(t *testing.T) {
 	defer tests.Recover(t)
+
 	ctx := tests.Setup(t)
 
 	cnf := config.GetConfig()

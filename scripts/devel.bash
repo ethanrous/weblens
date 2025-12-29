@@ -21,12 +21,11 @@ build_ui() {
 }
 
 build_agno() {
-    pushd /agno/ || exit 1 >/dev/null
+    # pushd /agno/ || exit 1 >/dev/null
 
-    . "$HOME/.cargo/env"
     cargo build --release --target aarch64-unknown-linux-musl
 
-    cp target/aarch64-unknown-linux-musl/release/libagno.a ./lib/
+    cp target/aarch64-unknown-linux-musl/release/libagno.a services/media/agno/lib/libagno.a
 
     popd || exit 1 >/dev/null
 }

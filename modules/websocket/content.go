@@ -1,11 +1,14 @@
+// Package websocket provides WebSocket communication functionality for real-time client-server messaging.
 package websocket
 
 import (
 	"time"
 )
 
+// WsData represents a map of key-value pairs for WebSocket message content.
 type WsData map[string]any
 
+// WsResponseInfo represents a WebSocket response message sent to clients.
 type WsResponseInfo struct {
 	Action          WsAction         `json:"action"`
 	EventTag        WsEvent          `json:"eventTag"`
@@ -30,27 +33,31 @@ type WsResponseInfo struct {
 type WsR interface {
 	GetKey() string
 	Action() WsAction
-	GetShareId() string
+	GetShareID() string
 }
 
+// Subscription represents a client's subscription to WebSocket events.
 type Subscription struct {
 	When           time.Time
 	Type           SubscriptionType
-	SubscriptionId string
+	SubscriptionID string
 }
 
+// SubscriptionInfo represents detailed information about a client's subscription including share context.
 type SubscriptionInfo struct {
 	When           time.Time
 	Type           SubscriptionType
-	SubscriptionId string
-	ShareId        string
+	SubscriptionID string
+	ShareID        string
 }
 
+// ScanInfo represents information about a file scanning operation.
 type ScanInfo struct {
-	FileId  string
-	ShareId string
+	FileID  string
+	ShareID string
 }
 
+// CancelInfo represents information for canceling a running task.
 type CancelInfo struct {
-	TaskId string
+	TaskID string
 }

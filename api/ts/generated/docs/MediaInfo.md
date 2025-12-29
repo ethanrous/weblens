@@ -5,7 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**contentId** | **string** | Hash of the file content, to ensure that the same files don\&#39;t get duplicated | [optional] [default to undefined]
+**contentID** | **string** | Hash of the file content, to ensure that the same files don\&#39;t get duplicated | [optional] [default to undefined]
 **createDate** | **number** |  | [optional] [default to undefined]
 **duration** | **number** | Total time, in milliseconds, of a video | [optional] [default to undefined]
 **enabled** | **boolean** | If the media disabled. This can happen when the backing file(s) are deleted, but the media stays behind because it can be re-used if needed. | [optional] [default to undefined]
@@ -27,7 +27,7 @@ Name | Type | Description | Notes
 import { MediaInfo } from './api';
 
 const instance: MediaInfo = {
-    contentId,
+    contentID,
     createDate,
     duration,
     enabled,

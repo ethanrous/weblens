@@ -7,8 +7,8 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **filename** | **string** |  | [optional] [default to undefined]
 **single** | **boolean** |  | [optional] [default to undefined]
-**takeoutId** | **string** |  | [optional] [default to undefined]
-**taskId** | **string** |  | [optional] [default to undefined]
+**takeoutID** | **string** |  | [optional] [default to undefined]
+**taskID** | **string** |  | [optional] [default to undefined]
 
 ## Example
 
@@ -18,8 +18,8 @@ import { TakeoutInfo } from './api';
 const instance: TakeoutInfo = {
     filename,
     single,
-    takeoutId,
-    taskId,
+    takeoutID,
+    taskID,
 };
 ```
 

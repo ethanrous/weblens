@@ -22,16 +22,16 @@ var _ MappedNullable = &FileActionInfo{}
 // FileActionInfo struct for FileActionInfo
 type FileActionInfo struct {
 	ActionType string `json:"actionType"`
-	ContentId *string `json:"contentId,omitempty"`
+	ContentID *string `json:"contentID,omitempty"`
 	DestinationPath *string `json:"destinationPath,omitempty"`
-	EventId string `json:"eventId"`
-	FileId string `json:"fileId"`
+	EventID string `json:"eventID"`
+	FileID string `json:"fileID"`
 	Filepath *string `json:"filepath,omitempty"`
 	OriginPath *string `json:"originPath,omitempty"`
-	ParentId string `json:"parentId"`
+	ParentID string `json:"parentID"`
 	Size int64 `json:"size"`
 	Timestamp int64 `json:"timestamp"`
-	TowerId string `json:"towerId"`
+	TowerID string `json:"towerID"`
 }
 
 type _FileActionInfo FileActionInfo
@@ -40,15 +40,15 @@ type _FileActionInfo FileActionInfo
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewFileActionInfo(actionType string, eventId string, fileId string, parentId string, size int64, timestamp int64, towerId string) *FileActionInfo {
+func NewFileActionInfo(actionType string, eventID string, fileID string, parentID string, size int64, timestamp int64, towerID string) *FileActionInfo {
 	this := FileActionInfo{}
 	this.ActionType = actionType
-	this.EventId = eventId
-	this.FileId = fileId
-	this.ParentId = parentId
+	this.EventID = eventID
+	this.FileID = fileID
+	this.ParentID = parentID
 	this.Size = size
 	this.Timestamp = timestamp
-	this.TowerId = towerId
+	this.TowerID = towerID
 	return &this
 }
 
@@ -84,36 +84,36 @@ func (o *FileActionInfo) SetActionType(v string) {
 	o.ActionType = v
 }
 
-// GetContentId returns the ContentId field value if set, zero value otherwise.
-func (o *FileActionInfo) GetContentId() string {
-	if o == nil || IsNil(o.ContentId) {
+// GetContentID returns the ContentID field value if set, zero value otherwise.
+func (o *FileActionInfo) GetContentID() string {
+	if o == nil || IsNil(o.ContentID) {
 		var ret string
 		return ret
 	}
-	return *o.ContentId
+	return *o.ContentID
 }
 
-// GetContentIdOk returns a tuple with the ContentId field value if set, nil otherwise
+// GetContentIDOk returns a tuple with the ContentID field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *FileActionInfo) GetContentIdOk() (*string, bool) {
-	if o == nil || IsNil(o.ContentId) {
+func (o *FileActionInfo) GetContentIDOk() (*string, bool) {
+	if o == nil || IsNil(o.ContentID) {
 		return nil, false
 	}
-	return o.ContentId, true
+	return o.ContentID, true
 }
 
-// HasContentId returns a boolean if a field has been set.
-func (o *FileActionInfo) HasContentId() bool {
-	if o != nil && !IsNil(o.ContentId) {
+// HasContentID returns a boolean if a field has been set.
+func (o *FileActionInfo) HasContentID() bool {
+	if o != nil && !IsNil(o.ContentID) {
 		return true
 	}
 
 	return false
 }
 
-// SetContentId gets a reference to the given string and assigns it to the ContentId field.
-func (o *FileActionInfo) SetContentId(v string) {
-	o.ContentId = &v
+// SetContentID gets a reference to the given string and assigns it to the ContentID field.
+func (o *FileActionInfo) SetContentID(v string) {
+	o.ContentID = &v
 }
 
 // GetDestinationPath returns the DestinationPath field value if set, zero value otherwise.
@@ -148,52 +148,52 @@ func (o *FileActionInfo) SetDestinationPath(v string) {
 	o.DestinationPath = &v
 }
 
-// GetEventId returns the EventId field value
-func (o *FileActionInfo) GetEventId() string {
+// GetEventID returns the EventID field value
+func (o *FileActionInfo) GetEventID() string {
 	if o == nil {
 		var ret string
 		return ret
 	}
 
-	return o.EventId
+	return o.EventID
 }
 
-// GetEventIdOk returns a tuple with the EventId field value
+// GetEventIDOk returns a tuple with the EventID field value
 // and a boolean to check if the value has been set.
-func (o *FileActionInfo) GetEventIdOk() (*string, bool) {
+func (o *FileActionInfo) GetEventIDOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.EventId, true
+	return &o.EventID, true
 }
 
-// SetEventId sets field value
-func (o *FileActionInfo) SetEventId(v string) {
-	o.EventId = v
+// SetEventID sets field value
+func (o *FileActionInfo) SetEventID(v string) {
+	o.EventID = v
 }
 
-// GetFileId returns the FileId field value
-func (o *FileActionInfo) GetFileId() string {
+// GetFileID returns the FileID field value
+func (o *FileActionInfo) GetFileID() string {
 	if o == nil {
 		var ret string
 		return ret
 	}
 
-	return o.FileId
+	return o.FileID
 }
 
-// GetFileIdOk returns a tuple with the FileId field value
+// GetFileIDOk returns a tuple with the FileID field value
 // and a boolean to check if the value has been set.
-func (o *FileActionInfo) GetFileIdOk() (*string, bool) {
+func (o *FileActionInfo) GetFileIDOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.FileId, true
+	return &o.FileID, true
 }
 
-// SetFileId sets field value
-func (o *FileActionInfo) SetFileId(v string) {
-	o.FileId = v
+// SetFileID sets field value
+func (o *FileActionInfo) SetFileID(v string) {
+	o.FileID = v
 }
 
 // GetFilepath returns the Filepath field value if set, zero value otherwise.
@@ -260,28 +260,28 @@ func (o *FileActionInfo) SetOriginPath(v string) {
 	o.OriginPath = &v
 }
 
-// GetParentId returns the ParentId field value
-func (o *FileActionInfo) GetParentId() string {
+// GetParentID returns the ParentID field value
+func (o *FileActionInfo) GetParentID() string {
 	if o == nil {
 		var ret string
 		return ret
 	}
 
-	return o.ParentId
+	return o.ParentID
 }
 
-// GetParentIdOk returns a tuple with the ParentId field value
+// GetParentIDOk returns a tuple with the ParentID field value
 // and a boolean to check if the value has been set.
-func (o *FileActionInfo) GetParentIdOk() (*string, bool) {
+func (o *FileActionInfo) GetParentIDOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.ParentId, true
+	return &o.ParentID, true
 }
 
-// SetParentId sets field value
-func (o *FileActionInfo) SetParentId(v string) {
-	o.ParentId = v
+// SetParentID sets field value
+func (o *FileActionInfo) SetParentID(v string) {
+	o.ParentID = v
 }
 
 // GetSize returns the Size field value
@@ -332,28 +332,28 @@ func (o *FileActionInfo) SetTimestamp(v int64) {
 	o.Timestamp = v
 }
 
-// GetTowerId returns the TowerId field value
-func (o *FileActionInfo) GetTowerId() string {
+// GetTowerID returns the TowerID field value
+func (o *FileActionInfo) GetTowerID() string {
 	if o == nil {
 		var ret string
 		return ret
 	}
 
-	return o.TowerId
+	return o.TowerID
 }
 
-// GetTowerIdOk returns a tuple with the TowerId field value
+// GetTowerIDOk returns a tuple with the TowerID field value
 // and a boolean to check if the value has been set.
-func (o *FileActionInfo) GetTowerIdOk() (*string, bool) {
+func (o *FileActionInfo) GetTowerIDOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.TowerId, true
+	return &o.TowerID, true
 }
 
-// SetTowerId sets field value
-func (o *FileActionInfo) SetTowerId(v string) {
-	o.TowerId = v
+// SetTowerID sets field value
+func (o *FileActionInfo) SetTowerID(v string) {
+	o.TowerID = v
 }
 
 func (o FileActionInfo) MarshalJSON() ([]byte, error) {
@@ -367,24 +367,24 @@ func (o FileActionInfo) MarshalJSON() ([]byte, error) {
 func (o FileActionInfo) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["actionType"] = o.ActionType
-	if !IsNil(o.ContentId) {
-		toSerialize["contentId"] = o.ContentId
+	if !IsNil(o.ContentID) {
+		toSerialize["contentID"] = o.ContentID
 	}
 	if !IsNil(o.DestinationPath) {
 		toSerialize["destinationPath"] = o.DestinationPath
 	}
-	toSerialize["eventId"] = o.EventId
-	toSerialize["fileId"] = o.FileId
+	toSerialize["eventID"] = o.EventID
+	toSerialize["fileID"] = o.FileID
 	if !IsNil(o.Filepath) {
 		toSerialize["filepath"] = o.Filepath
 	}
 	if !IsNil(o.OriginPath) {
 		toSerialize["originPath"] = o.OriginPath
 	}
-	toSerialize["parentId"] = o.ParentId
+	toSerialize["parentID"] = o.ParentID
 	toSerialize["size"] = o.Size
 	toSerialize["timestamp"] = o.Timestamp
-	toSerialize["towerId"] = o.TowerId
+	toSerialize["towerID"] = o.TowerID
 	return toSerialize, nil
 }
 
@@ -394,12 +394,12 @@ func (o *FileActionInfo) UnmarshalJSON(data []byte) (err error) {
 	// that every required field exists as a key in the generic map.
 	requiredProperties := []string{
 		"actionType",
-		"eventId",
-		"fileId",
-		"parentId",
+		"eventID",
+		"fileID",
+		"parentID",
 		"size",
 		"timestamp",
-		"towerId",
+		"towerID",
 	}
 
 	allProperties := make(map[string]interface{})

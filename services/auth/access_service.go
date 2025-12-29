@@ -1,3 +1,4 @@
+// Package auth provides authentication and authorization services for file and share access.
 package auth
 
 import (
@@ -17,18 +18,25 @@ import (
 	context_service "github.com/ethanrous/weblens/services/context"
 )
 
+// ErrBadAuthHeader is returned when the Authorization header has an invalid format.
 var ErrBadAuthHeader = errors.Statusf(http.StatusBadRequest, "invalid auth header format")
+
+// ErrMustAuthenticate is returned when authentication is required but not provided.
 var ErrMustAuthenticate = errors.Statusf(http.StatusUnauthorized, "user must authenticate to access this resource")
+
+// ErrFileAccessNotPermitted is returned when a user lacks permission to access a file.
 var ErrFileAccessNotPermitted = errors.Statusf(http.StatusForbidden, "file access not permitted")
+
+// ErrShareDoesNotPermitFile is returned when a share does not grant access to a specific file.
 var ErrShareDoesNotPermitFile = errors.Statusf(http.StatusForbidden, "share does not permit access to this file")
 
-func doesSharePermitFile(ctx context.Context, file *file_model.WeblensFileImpl, share *share_model.FileShare) bool {
+func doesSharePermitFile(_ context.Context, file *file_model.WeblensFileImpl, share *share_model.FileShare) bool {
 	if share == nil || !share.Enabled || file.IsPastFile() {
 		return false
 	}
 
 	for {
-		if share.FileId == file.ID() {
+		if share.FileID == file.ID() {
 			return true
 		}
 
@@ -42,6 +50,7 @@ func doesSharePermitFile(ctx context.Context, file *file_model.WeblensFileImpl, 
 	return false
 }
 
+// CanUserAccessFile checks if a user has permission to access a file through a share.
 func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_model.WeblensFileImpl, share *share_model.FileShare, requiredPerms ...share_model.Permission) (*share_model.Permissions, error) {
 	if file.GetPortablePath() == file_model.UsersRootPath {
 		if user.IsOwner() {
@@ -65,27 +74,28 @@ func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_mo
 
 	// Check that the share permits access to the specific file we are trying to access
 	if !doesSharePermitFile(ctx, file, share) {
-		shareId := ""
+		shareID := ""
 		if share != nil {
-			shareId = share.ShareId.Hex()
+			shareID = share.ShareID.Hex()
 		}
 
-		return &share_model.Permissions{}, errors.Errorf("invalid share [%s] for file [%s]: %w", shareId, file.ID(), ErrShareDoesNotPermitFile)
+		return &share_model.Permissions{}, errors.Errorf("invalid share [%s] for file [%s]: %w", shareID, file.ID(), ErrShareDoesNotPermitFile)
 	}
 
 	if user == nil || user.IsPublic() {
 		if share != nil && share.IsPublic() {
 			return share_model.NewPermissions(), nil
-		} else {
-			return &share_model.Permissions{}, ErrMustAuthenticate
 		}
+
+		return &share_model.Permissions{}, ErrMustAuthenticate
 	}
 
 	if user.IsSystemUser() && user.Username == "WEBLENS" {
 		return share_model.NewFullPermissions(), nil
 	}
 
-	if allowedPerms := share.GetUserPermissions(user.GetUsername()); allowedPerms == nil && !share.Public {
+	allowedPerms := share.GetUserPermissions(user.GetUsername())
+	if allowedPerms == nil && !share.Public {
 		// If the user is not in the accessors list, we cannot access it
 		return &share_model.Permissions{}, ErrFileAccessNotPermitted
 	} else if allowedPerms != nil {
@@ -99,16 +109,17 @@ func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_mo
 
 		// If the user has the required permissions, we can access it
 		return allowedPerms, nil
-	} else {
-		// If the share is public, and allows access to the specific file we want, we can access it regardless of the accessors list
-		return share.GetUserPermissions(user_model.PublicUserName), nil
 	}
+	// If the share is public, and allows access to the specific file we want, we can access it regardless of the accessors list
+	return share.GetUserPermissions(user_model.PublicUserName), nil
 }
 
+// CanUserModifyShare checks if a user has permission to modify a share.
 func CanUserModifyShare(user *user_model.User, share share_model.FileShare) bool {
 	return user.GetUsername() == share.GetOwner()
 }
 
+// SetSessionToken generates and sets session cookies for the authenticated user.
 func SetSessionToken(ctx context_service.RequestContext) error {
 	if ctx.Requester == nil {
 		return errors.New("requester is nil")
@@ -127,6 +138,7 @@ func SetSessionToken(ctx context_service.RequestContext) error {
 	return nil
 }
 
+// GenerateJWTCookie creates a session cookie containing a JWT for the user.
 func GenerateJWTCookie(user *user_model.User) (string, error) {
 	token, expires, err := crypto.GenerateJWT(user.GetUsername())
 	if err != nil {
@@ -138,6 +150,7 @@ func GenerateJWTCookie(user *user_model.User) (string, error) {
 	return cookie, nil
 }
 
+// GenerateUserCookie creates a cookie containing the username.
 func GenerateUserCookie(user *user_model.User) string {
 	expires := time.Now().Add(time.Hour * 24 * 7).In(time.UTC)
 	cookie := fmt.Sprintf("%s=%s;Path=/;Expires=%s;HttpOnly", crypto.UserCrumbCookie, user.Username, expires.Format(time.RFC1123))
@@ -145,6 +158,7 @@ func GenerateUserCookie(user *user_model.User) string {
 	return cookie
 }
 
+// GetUserFromJWT extracts and validates a user from a JWT token string.
 func GetUserFromJWT(ctx context.Context, tokenStr string) (*user_model.User, error) {
 	username, err := crypto.GetUsernameFromToken(tokenStr)
 	if err != nil {
@@ -159,6 +173,7 @@ func GetUserFromJWT(ctx context.Context, tokenStr string) (*user_model.User, err
 	return u, nil
 }
 
+// GetUserFromAuthHeader extracts and validates a user from an Authorization header.
 func GetUserFromAuthHeader(ctx context.Context, authHeader string) (*user_model.User, error) {
 	if len(authHeader) < 7 || authHeader[:7] != "Bearer " {
 		return nil, errors.WrapStatus(http.StatusBadRequest, ErrBadAuthHeader)
@@ -204,13 +219,13 @@ func GetUserFromAuthHeader(ctx context.Context, authHeader string) (*user_model.
 // 		return werror.WithStack(werror.ErrKeyInUse)
 // 	}
 //
-// 	newUsingId := ""
+// 	newUsingID := ""
 // 	if remote != nil {
-// 		newUsingId = remote.ServerId()
+// 		newUsingID = remote.ServerID()
 // 	}
 //
 // 	filter := bson.M{"key": key}
-// 	update := bson.M{"$set": bson.M{"remoteUsing": newUsingId}}
+// 	update := bson.M{"$set": bson.M{"remoteUsing": newUsingID}}
 // 	_, err := accSrv.collection.UpdateOne(context.Background(), filter, update)
 // 	if err != nil {
 // 		return werror.WithStack(err)

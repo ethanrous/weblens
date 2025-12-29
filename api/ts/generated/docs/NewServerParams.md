@@ -8,7 +8,7 @@ Name | Type | Description | Notes
 **coreAddress** | **string** |  | [optional] [default to undefined]
 **name** | **string** |  | [optional] [default to undefined]
 **role** | **string** |  | [optional] [default to undefined]
-**serverId** | **string** |  | [optional] [default to undefined]
+**serverID** | **string** |  | [optional] [default to undefined]
 **usingKey** | **string** |  | [optional] [default to undefined]
 
 ## Example
@@ -20,7 +20,7 @@ const instance: NewServerParams = {
     coreAddress,
     name,
     role,
-    serverId,
+    serverID,
     usingKey,
 };
 ```

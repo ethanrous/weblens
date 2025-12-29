@@ -18,11 +18,13 @@ docs/FilesApi.md
 docs/FilesListParams.md
 docs/FolderApi.md
 docs/FolderInfo.md
+docs/FsFilepath.md
+docs/HistoryFileAction.md
 docs/LoginBody.md
 docs/MediaApi.md
 docs/MediaBatchInfo.md
 docs/MediaBatchParams.md
-docs/MediaIdsParams.md
+docs/MediaIDsParams.md
 docs/MediaInfo.md
 docs/MediaTypeInfo.md
 docs/MediaTypesInfo.md

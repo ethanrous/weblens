@@ -17,12 +17,14 @@ import (
 	opensearchapi "github.com/opensearch-project/opensearch-go/v4/opensearchapi"
 )
 
-type LogMessage struct {
+// Message represents a structured log message for OpenSearch.
+type Message struct {
 	Timestamp time.Time `json:"@timestamp"`
 	Message   string    `json:"message"`
 	Level     string    `json:"level"`
 }
 
+// NewOpenSearchClient creates a new OpenSearch client with the given credentials.
 func NewOpenSearchClient(opensearchURL, username, password string) (*opensearch.Client, error) {
 	cfg := opensearch.Config{
 		Addresses: []string{opensearchURL},
@@ -57,7 +59,7 @@ func NewOpenSearchClient(opensearchURL, username, password string) (*opensearch.
 		return nil, errors.Errorf("error calling opensearch creating index: %v", err)
 	}
 
-	defer res.Body.Close()
+	defer res.Body.Close() //nolint:errcheck
 
 	var responseData map[string]any
 
@@ -84,20 +86,23 @@ func NewOpenSearchClient(opensearchURL, username, password string) (*opensearch.
 	return client, nil
 }
 
-func NewLogMessage(msg, level string) LogMessage {
-	return LogMessage{
+// NewLogMessage creates a new log message with the current timestamp.
+func NewLogMessage(msg, level string) Message {
+	return Message{
 		Timestamp: time.Now().UTC(),
 		Message:   msg,
 		Level:     level,
 	}
 }
 
+// OpensearchLogger is a logger that writes to OpenSearch.
 type OpensearchLogger struct {
 	client    *opensearch.Client
 	msgQueue  chan []byte
 	indexName string
 }
 
+// NewOpensearchLogger creates a new OpenSearch logger with worker goroutines.
 func NewOpensearchLogger(client *opensearch.Client, indexName string) *OpensearchLogger {
 	l := &OpensearchLogger{
 		client:    client,
@@ -118,6 +123,7 @@ func (l *OpensearchLogger) Write(msg []byte) (int, error) {
 	copy(msgCpy, msg)
 
 	l.msgQueue <- msgCpy
+
 	return len(msg), nil
 }
 
@@ -125,7 +131,7 @@ func (l *OpensearchLogger) worker() {
 	for msg := range l.msgQueue {
 		err := l.send(msg)
 		if err != nil {
-			NewZeroLogger(LogOpts{NoOpenSearch: true}).Error().Stack().Err(err).Msgf("failed sending log message to OpenSearch: %s", string(msg))
+			NewZeroLogger(CreateOpts{NoOpenSearch: true}).Error().Stack().Err(err).Msgf("failed sending log message to OpenSearch: %s", string(msg))
 		}
 	}
 }
@@ -150,11 +156,11 @@ func (l *OpensearchLogger) send(msg []byte) error {
 	}
 
 	resp, err := l.client.Do(context.Background(), req, nil)
-
 	if err != nil {
 		return errors.Errorf("error sending request to OpenSearch: %v", err)
 	}
-	defer resp.Body.Close()
+
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode >= 300 {
 		return errors.Errorf("error response from OpenSearch: %s", resp.String())

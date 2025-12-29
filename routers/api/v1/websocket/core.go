@@ -1,3 +1,4 @@
+// Package websocket provides WebSocket connection handlers and utilities.
 package websocket
 
 import (
@@ -21,14 +22,17 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// retryInterval defines the duration to wait between websocket connection retry attempts.
 const retryInterval = time.Minute
+
+// timeout specifies the maximum duration for the websocket handshake to complete.
 const timeout = time.Second * 10
 
 func init() {
-	startup.RegisterStartup(connectToCores)
+	startup.RegisterHook(connectToCores)
 }
 
-func connectToCores(c context.Context, cnf config.ConfigProvider) error {
+func connectToCores(c context.Context, _ config.Provider) error {
 	ctx, ok := context_service.FromContext(c)
 	if !ok {
 		return errors.New("Failed to get context from context")
@@ -59,53 +63,54 @@ func connectToCores(c context.Context, cnf config.ConfigProvider) error {
 
 		err = ConnectCore(ctx, &remote)
 		if err != nil {
-			ctx.Log().Error().Stack().Err(err).Msgf("Failed to connect to core %s [%s]", remote.Name, remote.TowerId)
+			ctx.Log().Error().Stack().Err(err).Msgf("Failed to connect to core %s [%s]", remote.Name, remote.TowerID)
 		}
 	}
 
 	return nil
 }
 
+// ConnectCore establishes and maintains a websocket connection to a core tower instance.
 func ConnectCore(c context.Context, core *tower_model.Instance) error {
 	ctx, ok := context_service.FromContext(c)
 	if !ok {
 		return errors.New("Failed to get context from context")
 	}
 
-	coreUrl, err := url.Parse(core.Address)
+	coreURL, err := url.Parse(core.Address)
 	if err != nil {
 		return errors.WithStack(err)
 	}
 
-	if coreUrl.Host == "" {
+	if coreURL.Host == "" {
 		return errors.Errorf("Failed to parse core address: [%s]", core.Address)
 	}
 
-	if coreUrl.Scheme == "https" {
-		coreUrl.Scheme = "wss"
+	if coreURL.Scheme == "https" {
+		coreURL.Scheme = "wss"
 	} else {
-		coreUrl.Scheme = "ws"
+		coreURL.Scheme = "ws"
 	}
 
-	coreUrl.Path = "/api/v1/ws"
+	coreURL.Path = "/api/v1/ws"
 
 	dialer := &websocket.Dialer{Proxy: http.ProxyFromEnvironment, HandshakeTimeout: timeout}
 
 	authHeader := http.Header{}
 	authHeader.Add("Authorization", "Bearer "+string(core.OutgoingKey))
-	authHeader.Add(tower_service.TowerIdHeader, ctx.LocalTowerId)
+	authHeader.Add(tower_service.TowerIDHeader, ctx.LocalTowerID)
 
-	log.Debug().Msgf("Websocket connecting to core \"%s\" [%s] using %s", core.Name, core.TowerId, core.OutgoingKey)
+	log.Debug().Msgf("Websocket connecting to core \"%s\" [%s] using %s", core.Name, core.TowerID, core.OutgoingKey)
 
 	var client *client_model.WsClient
 
 	dialWithRetry := func() {
 		for {
-			client, err = dial(ctx, dialer, *coreUrl, authHeader, core)
+			client, err = dial(ctx, dialer, *coreURL, authHeader, core)
 			if err != nil {
 				ctx.Log().Error().Msgf(
 					"Failed to connect to core server at %s: %s. Trying again in %s",
-					coreUrl.String(), err, retryInterval,
+					coreURL.String(), err, retryInterval,
 				)
 
 				select {
@@ -118,7 +123,7 @@ func ConnectCore(c context.Context, core *tower_model.Instance) error {
 			}
 
 			ctx.Log().Debug().Func(func(e *zerolog.Event) {
-				e.Msgf("Connection to core [%s] at [%s] successfully established", core.Name, coreUrl.String())
+				e.Msgf("Connection to core [%s] at [%s] successfully established", core.Name, coreURL.String())
 			})
 
 			err = coreWsHandler(ctx, client)
@@ -187,28 +192,28 @@ func wsCoreClientSwitchboard(ctx context_service.AppContext, msgBuf []byte, c *c
 	}
 
 	c.Log().Trace().Func(func(e *zerolog.Event) {
-		e.Msgf("Got wsmsg from %s [%s]: %v", c.GetInstance().Name, c.GetInstance().TowerId, msg)
+		e.Msgf("Got wsmsg from %s [%s]: %v", c.GetInstance().Name, c.GetInstance().TowerID, msg)
 	})
 
 	switch msg.EventTag {
 	case "do_backup":
-		coreIdI, ok := msg.Content["coreId"]
+		coreIDI, ok := msg.Content["coreID"]
 		if !ok {
-			c.Error(errors.Errorf("Missing coreId in do_backup message"))
+			c.Error(errors.Errorf("Missing coreID in do_backup message"))
 
 			return
 		}
 
-		coreId, ok := coreIdI.(string)
+		coreID, ok := coreIDI.(string)
 		if !ok {
-			c.Error(errors.Errorf("Invalid coreId in do_backup message: %v", coreIdI))
+			c.Error(errors.Errorf("Invalid coreID in do_backup message: %v", coreIDI))
 
 			return
 		}
 
-		coreTower, err := tower_model.GetTowerById(ctx, coreId)
+		coreTower, err := tower_model.GetTowerByID(ctx, coreID)
 		if err != nil {
-			c.Error(errors.Wrapf(err, "Invalid coreId in do_backup message: %s", coreId))
+			c.Error(errors.Wrapf(err, "Invalid coreID in do_backup message: %s", coreID))
 
 			return
 		}
@@ -244,7 +249,7 @@ func wsCoreClientSwitchboard(ctx context_service.AppContext, msgBuf []byte, c *c
 			c.Error(errors.Errorf("Invalid role in weblens_loaded message: %v", roleI))
 		}
 
-		ctx.Log().Debug().Msgf("Setting server [%s] reported role to [%s]", c.GetInstance().TowerId, role)
+		ctx.Log().Debug().Msgf("Setting server [%s] reported role to [%s]", c.GetInstance().TowerID, role)
 		c.GetInstance().SetReportedRole(role)
 
 		// Launch backup task whenever we reconnect to the core server

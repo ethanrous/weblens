@@ -12,6 +12,7 @@ api/ts/node_modules/
 
 # production
 /_build
+/services/media/agno/lib/*
 
 # ide
 .vscode/

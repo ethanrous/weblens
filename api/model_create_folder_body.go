@@ -23,7 +23,7 @@ var _ MappedNullable = &CreateFolderBody{}
 type CreateFolderBody struct {
 	Children []string `json:"children,omitempty"`
 	NewFolderName string `json:"newFolderName"`
-	ParentFolderId string `json:"parentFolderId"`
+	ParentFolderID string `json:"parentFolderID"`
 }
 
 type _CreateFolderBody CreateFolderBody
@@ -32,10 +32,10 @@ type _CreateFolderBody CreateFolderBody
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewCreateFolderBody(newFolderName string, parentFolderId string) *CreateFolderBody {
+func NewCreateFolderBody(newFolderName string, parentFolderID string) *CreateFolderBody {
 	this := CreateFolderBody{}
 	this.NewFolderName = newFolderName
-	this.ParentFolderId = parentFolderId
+	this.ParentFolderID = parentFolderID
 	return &this
 }
 
@@ -103,28 +103,28 @@ func (o *CreateFolderBody) SetNewFolderName(v string) {
 	o.NewFolderName = v
 }
 
-// GetParentFolderId returns the ParentFolderId field value
-func (o *CreateFolderBody) GetParentFolderId() string {
+// GetParentFolderID returns the ParentFolderID field value
+func (o *CreateFolderBody) GetParentFolderID() string {
 	if o == nil {
 		var ret string
 		return ret
 	}
 
-	return o.ParentFolderId
+	return o.ParentFolderID
 }
 
-// GetParentFolderIdOk returns a tuple with the ParentFolderId field value
+// GetParentFolderIDOk returns a tuple with the ParentFolderID field value
 // and a boolean to check if the value has been set.
-func (o *CreateFolderBody) GetParentFolderIdOk() (*string, bool) {
+func (o *CreateFolderBody) GetParentFolderIDOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.ParentFolderId, true
+	return &o.ParentFolderID, true
 }
 
-// SetParentFolderId sets field value
-func (o *CreateFolderBody) SetParentFolderId(v string) {
-	o.ParentFolderId = v
+// SetParentFolderID sets field value
+func (o *CreateFolderBody) SetParentFolderID(v string) {
+	o.ParentFolderID = v
 }
 
 func (o CreateFolderBody) MarshalJSON() ([]byte, error) {
@@ -141,7 +141,7 @@ func (o CreateFolderBody) ToMap() (map[string]interface{}, error) {
 		toSerialize["children"] = o.Children
 	}
 	toSerialize["newFolderName"] = o.NewFolderName
-	toSerialize["parentFolderId"] = o.ParentFolderId
+	toSerialize["parentFolderID"] = o.ParentFolderID
 	return toSerialize, nil
 }
 
@@ -151,7 +151,7 @@ func (o *CreateFolderBody) UnmarshalJSON(data []byte) (err error) {
 	// that every required field exists as a key in the generic map.
 	requiredProperties := []string{
 		"newFolderName",
-		"parentFolderId",
+		"parentFolderID",
 	}
 
 	allProperties := make(map[string]interface{})

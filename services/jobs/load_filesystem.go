@@ -9,6 +9,7 @@ import (
 	file_service "github.com/ethanrous/weblens/services/file"
 )
 
+// LoadAtPath recursively loads the filesystem tree starting from a specified path.
 func LoadAtPath(tsk task_mod.Task) {
 	t := tsk.(*task.Task)
 

@@ -1,4 +1,5 @@
-package file_tree
+// Package filetree provides file tree management functionality for organizing and navigating file hierarchies.
+package filetree
 
 // import (
 // 	"os"
@@ -156,7 +157,7 @@ package file_tree
 // 	ft.addInternal(f.ID(), f)
 //
 // 	if f.parent == nil {
-// 		parent := ft.Get(f.parentId)
+// 		parent := ft.Get(f.parentID)
 // 		if parent == nil {
 // 			return errors.Errorf("could not get parent of file to add")
 // 		}
@@ -263,10 +264,10 @@ package file_tree
 // 	return nil
 // }
 //
-// func (ft *FileTreeImpl) Get(fileId string) *file_model.WeblensFileImpl {
+// func (ft *FileTreeImpl) Get(fileID string) *file_model.WeblensFileImpl {
 // 	ft.fsTreeLock.RLock()
 // 	defer ft.fsTreeLock.RUnlock()
-// 	return ft.fMap[fileId]
+// 	return ft.fMap[fileID]
 // }
 //
 // func (ft *FileTreeImpl) Move(
@@ -399,16 +400,16 @@ package file_tree
 // 	}
 //
 // 	f := &file_model.WeblensFileImpl{
-// 		id:           ft.GenerateFileId(),
+// 		id:           ft.GenerateFileID(),
 // 		absolutePath: absPath,
 // 		portablePath: childPath,
 // 		filename:     newFileName,
 // 		isDir:        boolPointer(false),
 // 		modifyDate:   time.Now(),
-// 		parentId:     parentFolder.ID(),
+// 		parentID:     parentFolder.ID(),
 // 		parent:       parentFolder,
 // 		childrenMap:  map[string]*file_model.WeblensFileImpl{},
-// 		childIds:     []FileId{},
+// 		childIDs:     []FileID{},
 // 	}
 //
 // 	err = f.CreateSelf()
@@ -455,16 +456,16 @@ package file_tree
 // 	absPath := filepath.Join(parentFolder.AbsPath(), newDirName) + "/"
 //
 // 	d := &file_model.WeblensFileImpl{
-// 		id:           ft.GenerateFileId(),
+// 		id:           ft.GenerateFileID(),
 // 		absolutePath: absPath,
 // 		portablePath: fs.Filepath{},
 // 		filename:     newDirName,
 // 		isDir:        boolPointer(true),
 // 		modifyDate:   time.Now(),
-// 		parentId:     parentFolder.ID(),
+// 		parentID:     parentFolder.ID(),
 // 		parent:       parentFolder,
 // 		childrenMap:  map[string]*file_model.WeblensFileImpl{},
-// 		childIds:     []FileId{},
+// 		childIDs:     []FileID{},
 // 	}
 //
 // 	if d.Exists() {
@@ -519,15 +520,15 @@ package file_tree
 // 	return nil
 // }
 //
-// func (ft *FileTreeImpl) ReplaceId(existingId, newId string) error {
-// 	f := ft.Get(existingId)
+// func (ft *FileTreeImpl) ReplaceID(existingID, newID string) error {
+// 	f := ft.Get(existingID)
 // 	if f == nil {
 // 		return errors.WithStack(errors.ErrNoFile)
 // 	}
 //
-// 	ft.deleteInternal(existingId)
-// 	f.setIdInternal(newId)
-// 	ft.addInternal(newId, f)
+// 	ft.deleteInternal(existingID)
+// 	f.setIDInternal(newID)
+// 	ft.addInternal(newID, f)
 //
 // 	return nil
 // }
@@ -563,7 +564,7 @@ package file_tree
 // 	return ft.root
 // }
 //
-// func (ft *FileTreeImpl) GenerateFileId() string {
+// func (ft *FileTreeImpl) GenerateFileID() string {
 // 	return primitive.NewObjectID().Hex()
 // }
 //
@@ -673,7 +674,7 @@ package file_tree
 // 		// tree, we just put the path into the map as-is.
 // 		if doFileDiscovery {
 // 			lifetimesByPath[lt.GetLatestAction().DestinationPath] = lt
-// 			missing[lt.Id] = struct{}{}
+// 			missing[lt.ID] = struct{}{}
 // 			continue
 // 		}
 //
@@ -704,7 +705,7 @@ package file_tree
 // 		portablePath := fileToLoad.GetPortablePath().ToPortable()
 // 		if activeLt, ok := lifetimesByPath[portablePath]; ok {
 // 			// We found this lifetime, so it is not missing, remove it from the missing map
-// 			delete(missing, activeLt.Id)
+// 			delete(missing, activeLt.ID)
 //
 // 			if event.journal != nil && activeLt.GetIsDir() != fileToLoad.IsDir() {
 // 				activeLt.IsDir = fileToLoad.IsDir()
@@ -714,13 +715,13 @@ package file_tree
 // 				}
 // 			}
 //
-// 			fileToLoad.setIdInternal(activeLt.ID())
+// 			fileToLoad.setIDInternal(activeLt.ID())
 // 			if !fileToLoad.IsDir() {
-// 				fileToLoad.SetContentId(activeLt.ContentId)
+// 				fileToLoad.SetContentID(activeLt.ContentID)
 // 			}
 // 		} else if doFileDiscovery {
-// 			fileToLoad.setIdInternal(ft.GenerateFileId())
-// 			log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Discovering new file %s", fileToLoad.getIdInternal()) })
+// 			fileToLoad.setIDInternal(ft.GenerateFileID())
+// 			log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Discovering new file %s", fileToLoad.getIDInternal()) })
 // 			event.NewCreateAction(fileToLoad)
 // 		} else {
 // 			log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Skipping new file and children %s", portablePath) })
@@ -743,9 +744,9 @@ package file_tree
 //
 // 	if doFileDiscovery {
 // 		// If we have missing files, create delete actions for them
-// 		for missingId := range missing {
-// 			ft.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Removing file with missing id %s", missingId) })
-// 			_, err := event.NewDeleteAction(missingId)
+// 		for missingID := range missing {
+// 			ft.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("Removing file with missing id %s", missingID) })
+// 			_, err := event.NewDeleteAction(missingID)
 // 			if err != nil {
 // 				return err
 // 			}
@@ -791,7 +792,7 @@ package file_tree
 // 		isDir:        boolPointer(info.IsDir()),
 // 		modifyDate:   info.ModTime(),
 // 		childrenMap:  map[string]*file_model.WeblensFileImpl{},
-// 		childIds:     []FileId{},
+// 		childIDs:     []FileID{},
 // 	}
 //
 // 	f.setParentInternal(parent)
@@ -851,11 +852,11 @@ package file_tree
 // 	MkDir(parentFolder *file_model.WeblensFileImpl, newDirName string, event *history.FileEvent) (*file_model.WeblensFileImpl, error)
 //
 // 	SetRootAlias(alias string) error
-// 	ReplaceId(oldId, newId string) error
+// 	ReplaceID(oldID, newID string) error
 //
 // 	PortableToAbs(portable fs.Filepath) (string, error)
 // 	AbsToPortable(absPath string) (fs.Filepath, error)
-// 	GenerateFileId() string
+// 	GenerateFileID() string
 //
 // 	ResizeUp(anchor *file_model.WeblensFileImpl, event *history.FileEvent, updateCallback func(newFile *file_model.WeblensFileImpl)) error
 // 	ResizeDown(anchor *file_model.WeblensFileImpl, event *history.FileEvent, updateCallback func(newFile *file_model.WeblensFileImpl)) error

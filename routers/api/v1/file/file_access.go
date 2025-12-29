@@ -1,3 +1,4 @@
+// Package file provides HTTP handlers for file and folder operations in the Weblens API.
 package file
 
 import (
@@ -13,15 +14,15 @@ import (
 )
 
 func checkFileAccess(ctx context_service.RequestContext, perms ...share.Permission) (file *file_model.WeblensFileImpl, err error) {
-	fileId := ctx.Path("fileId")
-	if fileId == "" {
-		fileId = ctx.Path("folderId")
+	fileID := ctx.Path("fileID")
+	if fileID == "" {
+		fileID = ctx.Path("folderID")
 	}
 
 	// Check if the request is a takeout request (zip file)
 	isTakeout := ctx.Query("isTakeout")
 	if isTakeout == "true" {
-		file, err := ctx.FileService.GetFileById(ctx, fileId)
+		file, err := ctx.FileService.GetFileByID(ctx, fileID)
 		if err != nil {
 			ctx.Error(http.StatusNotFound, err)
 
@@ -39,16 +40,17 @@ func checkFileAccess(ctx context_service.RequestContext, perms ...share.Permissi
 	}
 
 	if ok {
-		ctx.Log().Trace().Msgf("Checking past file access for [%s] at %s", fileId, ts)
+		ctx.Log().Trace().Msgf("Checking past file access for [%s] at %s", fileID, ts)
 
-		return checkPastFileAccess(ctx, fileId, ts)
+		return checkPastFileAccess(ctx, fileID, ts)
 	}
 
-	return CheckFileAccessById(ctx, fileId, perms...)
+	return CheckFileAccessByID(ctx, fileID, perms...)
 }
 
-func CheckFileAccessById(ctx context_service.RequestContext, fileId string, perms ...share.Permission) (file *file_model.WeblensFileImpl, err error) {
-	file, err = ctx.FileService.GetFileById(ctx, fileId)
+// CheckFileAccessByID verifies that the requester has the specified permissions to access a file by its ID.
+func CheckFileAccessByID(ctx context_service.RequestContext, fileID string, perms ...share.Permission) (file *file_model.WeblensFileImpl, err error) {
+	file, err = ctx.FileService.GetFileByID(ctx, fileID)
 	if err != nil {
 		// Handle error if file not found
 		if errors.Is(err, file_model.ErrFileNotFound) {
@@ -73,8 +75,8 @@ func CheckFileAccessById(ctx context_service.RequestContext, fileId string, perm
 	return
 }
 
-func checkPastFileAccess(ctx context_service.RequestContext, fileId string, timestamp time.Time) (file *file_model.WeblensFileImpl, err error) {
-	file, err = journal.GetPastFileById(ctx, fileId, timestamp)
+func checkPastFileAccess(ctx context_service.RequestContext, fileID string, timestamp time.Time) (file *file_model.WeblensFileImpl, err error) {
+	file, err = journal.GetPastFileByID(ctx, fileID, timestamp)
 	if err != nil {
 		// Handle error if file not found, return 404.
 		// Here we both send the error to the client and return it so the caller can handle it as needed.

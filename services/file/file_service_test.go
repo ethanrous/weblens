@@ -1,4 +1,4 @@
-package file
+package file_test
 
 // import (
 // 	"context"
@@ -98,7 +98,7 @@ package file
 //
 // 	journalConfig := fileTree.JournalConfig{
 // 		Collection:    journalCol,
-// 		ServerId:      "TEST-SERVER",
+// 		ServerID:      "TEST-SERVER",
 // 		IgnoreLocal:   false,
 // 		HasherFactory: hasherFactory,
 // 		Logger:        logger,
@@ -248,7 +248,7 @@ package file
 // 		t.FailNow()
 // 	}
 //
-// 	assert.Equal(t, testF.GetContentId(), restoredFile.GetContentId())
+// 	assert.Equal(t, testF.GetContentID(), restoredFile.GetContentID())
 //
 // 	sz := restoredFile.Size()
 // 	assert.Equal(t, int(sz), len(testData))
@@ -283,7 +283,7 @@ package file
 // 	err = pack.UserService.Add(testUser)
 // 	require.NoError(t, err)
 //
-// 	userHome, err := pack.FileService.GetFileByTree(testUser.HomeId, service.UsersTreeKey)
+// 	userHome, err := pack.FileService.GetFileByTree(testUser.HomeID, service.UsersTreeKey)
 // 	require.NoError(t, err)
 //
 // 	usersJournal := pack.FileService.GetJournalByTree(service.UsersTreeKey)

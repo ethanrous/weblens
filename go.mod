@@ -3,7 +3,7 @@ module github.com/ethanrous/weblens
 go 1.25.0
 
 require (
-	github.com/ethanrous/weblens/api v0.0.0-00010101000000-000000000000
+	github.com/ethanrous/weblens/api v0.0.0
 	github.com/go-chi/chi/v5 v5.2.0
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
@@ -23,7 +23,7 @@ require (
 	golang.org/x/crypto v0.32.0
 )
 
-replace github.com/ethanrous/weblens/api => ./api/
+replace github.com/ethanrous/weblens/api v0.0.0 => ./api/
 
 require (
 	github.com/KyleBanks/depth v1.2.1 // indirect

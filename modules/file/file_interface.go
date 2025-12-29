@@ -1,3 +1,4 @@
+// Package file provides interfaces and types for file operations in the Weblens system.
 package file
 
 import (
@@ -7,11 +8,12 @@ import (
 	"github.com/ethanrous/weblens/modules/fs"
 )
 
+// WeblensFile defines the interface for file operations in the Weblens system.
 type WeblensFile interface {
 	ID() string
 	GetPortablePath() fs.Filepath
-	GetContentId() string
-	SetContentId(contentId string)
+	GetContentID() string
+	SetContentID(contentID string)
 	Size() int64
 	IsDir() bool
 	Exists() bool

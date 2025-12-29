@@ -9,10 +9,12 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+// TransactionHook modifies the context before a transaction callback is executed.
 type TransactionHook func(context.Context) context.Context
 
 var transactionHooks = []TransactionHook{}
 
+// InstallTransactionHook registers a hook to be called before each transaction callback.
 func InstallTransactionHook(hook TransactionHook) {
 	transactionHooks = append(transactionHooks, hook)
 }
@@ -21,6 +23,7 @@ func hasTransaction(ctx context.Context) bool {
 	return mongo.SessionFromContext(ctx) != nil
 }
 
+// WithTransaction executes a function within a database transaction.
 func WithTransaction(ctx context.Context, fn func(ctx context.Context) error) error {
 	db, err := getDbFromContext(ctx)
 	if err != nil {

@@ -27,9 +27,9 @@ func Test_openapi_ServersAPIService(t *testing.T) {
 
 		t.Skip("skip test") // remove to run test
 
-		var serverId string
+		var serverID string
 
-		httpRes, err := apiClient.TowersAPI.LaunchBackup(context.Background(), serverId).Execute()
+		httpRes, err := apiClient.TowersAPI.LaunchBackup(context.Background(), serverID).Execute()
 
 		require.Nil(t, err)
 		assert.Equal(t, 200, httpRes.StatusCode)

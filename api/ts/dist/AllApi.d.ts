@@ -26,49 +26,32 @@ declare class Configuration {
     /**
      * parameter for apiKey security
      * @param name security name
-     * @memberof Configuration
      */
     apiKey?: string | Promise<string> | ((name: string) => string) | ((name: string) => Promise<string>);
     /**
      * parameter for basic security
-     *
-     * @type {string}
-     * @memberof Configuration
      */
     username?: string;
     /**
      * parameter for basic security
-     *
-     * @type {string}
-     * @memberof Configuration
      */
     password?: string;
     /**
      * parameter for oauth2 security
      * @param name security name
      * @param scopes oauth2 scope
-     * @memberof Configuration
      */
     accessToken?: string | Promise<string> | ((name?: string, scopes?: string[]) => string) | ((name?: string, scopes?: string[]) => Promise<string>);
     /**
      * override base path
-     *
-     * @type {string}
-     * @memberof Configuration
      */
     basePath?: string;
     /**
      * override server index
-     *
-     * @type {number}
-     * @memberof Configuration
      */
     serverIndex?: number;
     /**
      * base options for axios calls
-     *
-     * @type {any}
-     * @memberof Configuration
      */
     baseOptions?: any;
     /**
@@ -105,20 +88,10 @@ declare class Configuration {
  * Do not edit the class manually.
  */
 
-/**
- *
- * @export
- * @interface RequestArgs
- */
 interface RequestArgs {
     url: string;
     options: RawAxiosRequestConfig;
 }
-/**
- *
- * @export
- * @class BaseAPI
- */
 declare class BaseAPI {
     protected basePath: string;
     protected axios: AxiosInstance;
@@ -126,1250 +99,304 @@ declare class BaseAPI {
     constructor(configuration?: Configuration, basePath?: string, axios?: AxiosInstance);
 }
 
-/**
- *
- * @export
- * @interface AddUserParams
- */
 interface AddUserParams {
-    /**
-     *
-     * @type {boolean}
-     * @memberof AddUserParams
-     */
     'canDelete'?: boolean;
-    /**
-     *
-     * @type {boolean}
-     * @memberof AddUserParams
-     */
     'canDownload'?: boolean;
-    /**
-     *
-     * @type {boolean}
-     * @memberof AddUserParams
-     */
     'canEdit'?: boolean;
-    /**
-     *
-     * @type {boolean}
-     * @memberof AddUserParams
-     */
     'canView'?: boolean;
-    /**
-     *
-     * @type {string}
-     * @memberof AddUserParams
-     */
     'username': string;
 }
-/**
- *
- * @export
- * @interface ApiKeyParams
- */
 interface ApiKeyParams {
-    /**
-     *
-     * @type {string}
-     * @memberof ApiKeyParams
-     */
     'name': string;
 }
-/**
- *
- * @export
- * @interface BackupInfo
- */
 interface BackupInfo {
-    /**
-     *
-     * @type {Array<FileActionInfo>}
-     * @memberof BackupInfo
-     */
     'fileHistory'?: Array<FileActionInfo>;
-    /**
-     *
-     * @type {Array<TowerInfo>}
-     * @memberof BackupInfo
-     */
     'instances'?: Array<TowerInfo>;
-    /**
-     *
-     * @type {number}
-     * @memberof BackupInfo
-     */
     'lifetimesCount'?: number;
-    /**
-     *
-     * @type {Array<TokenInfo>}
-     * @memberof BackupInfo
-     */
     'tokens'?: Array<TokenInfo>;
-    /**
-     *
-     * @type {Array<UserInfoArchive>}
-     * @memberof BackupInfo
-     */
     'users'?: Array<UserInfoArchive>;
 }
-/**
- *
- * @export
- * @interface Config
- */
 interface Config {
-    /**
-     *
-     * @type {boolean}
-     * @memberof Config
-     */
     'allowRegistrations'?: boolean;
-    /**
-     *
-     * @type {boolean}
-     * @memberof Config
-     */
     'enableHDIR'?: boolean;
 }
-/**
- *
- * @export
- * @interface CreateFolderBody
- */
 interface CreateFolderBody {
-    /**
-     *
-     * @type {Array<string>}
-     * @memberof CreateFolderBody
-     */
     'children'?: Array<string>;
-    /**
-     *
-     * @type {string}
-     * @memberof CreateFolderBody
-     */
     'newFolderName': string;
-    /**
-     *
-     * @type {string}
-     * @memberof CreateFolderBody
-     */
-    'parentFolderId': string;
+    'parentFolderID': string;
 }
-/**
- *
- * @export
- * @interface FileActionInfo
- */
 interface FileActionInfo {
-    /**
-     *
-     * @type {string}
-     * @memberof FileActionInfo
-     */
     'actionType': string;
-    /**
-     *
-     * @type {string}
-     * @memberof FileActionInfo
-     */
-    'contentId'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof FileActionInfo
-     */
+    'contentID'?: string;
     'destinationPath'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof FileActionInfo
-     */
-    'eventId': string;
-    /**
-     *
-     * @type {string}
-     * @memberof FileActionInfo
-     */
-    'fileId': string;
-    /**
-     *
-     * @type {string}
-     * @memberof FileActionInfo
-     */
+    'eventID': string;
+    'fileID': string;
     'filepath'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof FileActionInfo
-     */
     'originPath'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof FileActionInfo
-     */
-    'parentId': string;
-    /**
-     *
-     * @type {number}
-     * @memberof FileActionInfo
-     */
+    'parentID': string;
     'size': number;
-    /**
-     *
-     * @type {number}
-     * @memberof FileActionInfo
-     */
     'timestamp': number;
-    /**
-     *
-     * @type {string}
-     * @memberof FileActionInfo
-     */
-    'towerId': string;
+    'towerID': string;
 }
-/**
- *
- * @export
- * @interface FileInfo
- */
 interface FileInfo {
-    /**
-     *
-     * @type {Array<string>}
-     * @memberof FileInfo
-     */
     'childrenIds'?: Array<string>;
-    /**
-     *
-     * @type {string}
-     * @memberof FileInfo
-     */
-    'contentId'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof FileInfo
-     */
-    'currentId'?: string;
-    /**
-     *
-     * @type {boolean}
-     * @memberof FileInfo
-     */
+    'contentID'?: string;
+    'currentID'?: string;
     'hasRestoreMedia'?: boolean;
-    /**
-     *
-     * @type {string}
-     * @memberof FileInfo
-     */
     'id'?: string;
-    /**
-     *
-     * @type {boolean}
-     * @memberof FileInfo
-     */
     'isDir'?: boolean;
-    /**
-     *
-     * @type {boolean}
-     * @memberof FileInfo
-     */
     'modifiable'?: boolean;
-    /**
-     *
-     * @type {number}
-     * @memberof FileInfo
-     */
     'modifyTimestamp'?: number;
-    /**
-     *
-     * @type {string}
-     * @memberof FileInfo
-     */
     'owner'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof FileInfo
-     */
-    'parentId'?: string;
-    /**
-     *
-     * @type {boolean}
-     * @memberof FileInfo
-     */
+    'parentID'?: string;
     'pastFile'?: boolean;
-    /**
-     *
-     * @type {string}
-     * @memberof FileInfo
-     */
     'portablePath'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof FileInfo
-     */
-    'shareId'?: string;
-    /**
-     *
-     * @type {number}
-     * @memberof FileInfo
-     */
+    'shareID'?: string;
     'size'?: number;
 }
-/**
- *
- * @export
- * @interface FileShareParams
- */
 interface FileShareParams {
-    /**
-     *
-     * @type {string}
-     * @memberof FileShareParams
-     */
-    'fileId'?: string;
-    /**
-     *
-     * @type {boolean}
-     * @memberof FileShareParams
-     */
+    'fileID'?: string;
     'public'?: boolean;
-    /**
-     *
-     * @type {boolean}
-     * @memberof FileShareParams
-     */
     'timelineOnly'?: boolean;
-    /**
-     *
-     * @type {Array<string>}
-     * @memberof FileShareParams
-     */
     'users'?: Array<string>;
-    /**
-     *
-     * @type {boolean}
-     * @memberof FileShareParams
-     */
     'wormhole'?: boolean;
 }
-/**
- *
- * @export
- * @interface FilesListParams
- */
 interface FilesListParams {
-    /**
-     *
-     * @type {Array<string>}
-     * @memberof FilesListParams
-     */
     'fileIds'?: Array<string>;
 }
-/**
- *
- * @export
- * @interface FolderInfo
- */
 interface FolderInfo {
-    /**
-     *
-     * @type {Array<FileInfo>}
-     * @memberof FolderInfo
-     */
     'children'?: Array<FileInfo>;
-    /**
-     *
-     * @type {Array<MediaInfo>}
-     * @memberof FolderInfo
-     */
     'medias'?: Array<MediaInfo>;
-    /**
-     *
-     * @type {Array<FileInfo>}
-     * @memberof FolderInfo
-     */
     'parents'?: Array<FileInfo>;
-    /**
-     *
-     * @type {FileInfo}
-     * @memberof FolderInfo
-     */
     'self'?: FileInfo;
 }
-/**
- *
- * @export
- * @interface LoginBody
- */
+interface FsFilepath {
+    'relPath'?: string;
+    'rootAlias'?: string;
+}
+interface HistoryFileAction {
+    'actionType'?: string;
+    'contentID'?: string;
+    'destinationPath'?: FsFilepath;
+    /**
+     * The user or system that performed the action
+     */
+    'doer'?: string;
+    'eventID'?: string;
+    'fileID'?: string;
+    'filepath'?: FsFilepath;
+    'id'?: string;
+    'originPath'?: FsFilepath;
+    'size'?: number;
+    'timestamp'?: string;
+    'towerID'?: string;
+}
 interface LoginBody {
-    /**
-     *
-     * @type {string}
-     * @memberof LoginBody
-     */
     'password': string;
-    /**
-     *
-     * @type {string}
-     * @memberof LoginBody
-     */
     'username': string;
 }
-/**
- *
- * @export
- * @interface MediaBatchInfo
- */
 interface MediaBatchInfo {
-    /**
-     *
-     * @type {Array<MediaInfo>}
-     * @memberof MediaBatchInfo
-     */
     'Media'?: Array<MediaInfo>;
-    /**
-     *
-     * @type {number}
-     * @memberof MediaBatchInfo
-     */
     'mediaCount'?: number;
-    /**
-     *
-     * @type {number}
-     * @memberof MediaBatchInfo
-     */
     'totalMediaCount'?: number;
 }
-/**
- *
- * @export
- * @interface MediaBatchParams
- */
 interface MediaBatchParams {
-    /**
-     *
-     * @type {Array<string>}
-     * @memberof MediaBatchParams
-     */
-    'folderIds'?: Array<string>;
-    /**
-     *
-     * @type {boolean}
-     * @memberof MediaBatchParams
-     */
+    'folderIDs'?: Array<string>;
     'hidden'?: boolean;
-    /**
-     *
-     * @type {number}
-     * @memberof MediaBatchParams
-     */
     'limit'?: number;
-    /**
-     *
-     * @type {Array<string>}
-     * @memberof MediaBatchParams
-     */
-    'mediaIds'?: Array<string>;
-    /**
-     *
-     * @type {number}
-     * @memberof MediaBatchParams
-     */
+    'mediaIDs'?: Array<string>;
     'page'?: number;
-    /**
-     *
-     * @type {boolean}
-     * @memberof MediaBatchParams
-     */
     'raw'?: boolean;
-    /**
-     *
-     * @type {string}
-     * @memberof MediaBatchParams
-     */
     'search'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof MediaBatchParams
-     */
     'sort'?: MediaBatchParamsSortEnum;
-    /**
-     *
-     * @type {number}
-     * @memberof MediaBatchParams
-     */
     'sortDirection'?: number;
 }
 declare const MediaBatchParamsSortEnum: {
     readonly CreateDate: "createDate";
 };
 type MediaBatchParamsSortEnum = typeof MediaBatchParamsSortEnum[keyof typeof MediaBatchParamsSortEnum];
-/**
- *
- * @export
- * @interface MediaIdsParams
- */
-interface MediaIdsParams {
-    /**
-     *
-     * @type {Array<string>}
-     * @memberof MediaIdsParams
-     */
+interface MediaIDsParams {
     'mediaIds'?: Array<string>;
 }
-/**
- *
- * @export
- * @interface MediaInfo
- */
 interface MediaInfo {
     /**
      * Hash of the file content, to ensure that the same files don\'t get duplicated
-     * @type {string}
-     * @memberof MediaInfo
      */
-    'contentId'?: string;
-    /**
-     *
-     * @type {number}
-     * @memberof MediaInfo
-     */
+    'contentID'?: string;
     'createDate'?: number;
     /**
      * Total time, in milliseconds, of a video
-     * @type {number}
-     * @memberof MediaInfo
      */
     'duration'?: number;
     /**
      * If the media disabled. This can happen when the backing file(s) are deleted, but the media stays behind because it can be re-used if needed.
-     * @type {boolean}
-     * @memberof MediaInfo
      */
     'enabled'?: boolean;
     /**
      * Slices of files whos content hash to the contentId
-     * @type {Array<string>}
-     * @memberof MediaInfo
      */
     'fileIds'?: Array<string>;
-    /**
-     *
-     * @type {number}
-     * @memberof MediaInfo
-     */
     'height'?: number;
     /**
      * If the media is hidden from the timeline TODO - make this per user
-     * @type {boolean}
-     * @memberof MediaInfo
      */
     'hidden'?: boolean;
-    /**
-     *
-     * @type {boolean}
-     * @memberof MediaInfo
-     */
     'imported'?: boolean;
-    /**
-     *
-     * @type {Array<string>}
-     * @memberof MediaInfo
-     */
     'likedBy'?: Array<string>;
-    /**
-     *
-     * @type {Array<number>}
-     * @memberof MediaInfo
-     */
     'location'?: Array<number>;
     /**
      * Mime-type key of the media
-     * @type {string}
-     * @memberof MediaInfo
      */
     'mimeType'?: string;
     /**
      * User who owns the file that resulted in this media being created
-     * @type {string}
-     * @memberof MediaInfo
      */
     'owner'?: string;
     /**
      * Number of pages (typically 1, 0 in not a valid page count)
-     * @type {number}
-     * @memberof MediaInfo
      */
     'pageCount'?: number;
     /**
      * Tags from the ML image scan so searching for particular objects in the images can be done
-     * @type {Array<string>}
-     * @memberof MediaInfo
      */
     'recognitionTags'?: Array<string>;
     /**
      * Full-res image dimensions
-     * @type {number}
-     * @memberof MediaInfo
      */
     'width'?: number;
 }
-/**
- *
- * @export
- * @interface MediaTypeInfo
- */
 interface MediaTypeInfo {
-    /**
-     *
-     * @type {Array<string>}
-     * @memberof MediaTypeInfo
-     */
     'FileExtension'?: Array<string>;
-    /**
-     *
-     * @type {string}
-     * @memberof MediaTypeInfo
-     */
     'FriendlyName'?: string;
-    /**
-     *
-     * @type {boolean}
-     * @memberof MediaTypeInfo
-     */
     'IsDisplayable'?: boolean;
-    /**
-     *
-     * @type {boolean}
-     * @memberof MediaTypeInfo
-     */
     'IsRaw'?: boolean;
-    /**
-     *
-     * @type {boolean}
-     * @memberof MediaTypeInfo
-     */
     'IsVideo'?: boolean;
-    /**
-     *
-     * @type {boolean}
-     * @memberof MediaTypeInfo
-     */
     'MultiPage'?: boolean;
-    /**
-     *
-     * @type {string}
-     * @memberof MediaTypeInfo
-     */
     'RawThumbExifKey'?: string;
-    /**
-     *
-     * @type {boolean}
-     * @memberof MediaTypeInfo
-     */
     'SupportsImgRecog'?: boolean;
-    /**
-     *
-     * @type {string}
-     * @memberof MediaTypeInfo
-     */
     'mime'?: string;
 }
-/**
- *
- * @export
- * @interface MediaTypesInfo
- */
 interface MediaTypesInfo {
-    /**
-     *
-     * @type {{ [key: string]: MediaTypeInfo; }}
-     * @memberof MediaTypesInfo
-     */
     'extMap'?: {
         [key: string]: MediaTypeInfo;
     };
-    /**
-     *
-     * @type {{ [key: string]: MediaTypeInfo; }}
-     * @memberof MediaTypesInfo
-     */
     'mimeMap'?: {
         [key: string]: MediaTypeInfo;
     };
 }
-/**
- *
- * @export
- * @interface MoveFilesParams
- */
 interface MoveFilesParams {
-    /**
-     *
-     * @type {Array<string>}
-     * @memberof MoveFilesParams
-     */
     'fileIds'?: Array<string>;
-    /**
-     *
-     * @type {string}
-     * @memberof MoveFilesParams
-     */
-    'newParentId'?: string;
+    'newParentID'?: string;
 }
-/**
- *
- * @export
- * @interface NewFileParams
- */
 interface NewFileParams {
-    /**
-     *
-     * @type {number}
-     * @memberof NewFileParams
-     */
     'fileSize'?: number;
-    /**
-     *
-     * @type {boolean}
-     * @memberof NewFileParams
-     */
     'isDir'?: boolean;
-    /**
-     *
-     * @type {string}
-     * @memberof NewFileParams
-     */
     'newFileName'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof NewFileParams
-     */
-    'parentFolderId'?: string;
+    'parentFolderID'?: string;
 }
-/**
- *
- * @export
- * @interface NewFilesInfo
- */
 interface NewFilesInfo {
-    /**
-     *
-     * @type {Array<string>}
-     * @memberof NewFilesInfo
-     */
     'fileIds'?: Array<string>;
 }
-/**
- *
- * @export
- * @interface NewFilesParams
- */
 interface NewFilesParams {
-    /**
-     *
-     * @type {Array<NewFileParams>}
-     * @memberof NewFilesParams
-     */
     'newFiles'?: Array<NewFileParams>;
 }
-/**
- *
- * @export
- * @interface NewServerParams
- */
 interface NewServerParams {
-    /**
-     *
-     * @type {string}
-     * @memberof NewServerParams
-     */
     'coreAddress'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof NewServerParams
-     */
     'name'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof NewServerParams
-     */
     'role'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof NewServerParams
-     */
-    'serverId'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof NewServerParams
-     */
+    'serverID'?: string;
     'usingKey'?: string;
 }
-/**
- *
- * @export
- * @interface NewUploadInfo
- */
 interface NewUploadInfo {
-    /**
-     *
-     * @type {string}
-     * @memberof NewUploadInfo
-     */
-    'uploadId'?: string;
+    'uploadID'?: string;
 }
-/**
- *
- * @export
- * @interface NewUploadParams
- */
 interface NewUploadParams {
-    /**
-     *
-     * @type {number}
-     * @memberof NewUploadParams
-     */
     'chunkSize'?: number;
-    /**
-     *
-     * @type {string}
-     * @memberof NewUploadParams
-     */
-    'rootFolderId'?: string;
+    'rootFolderID'?: string;
 }
-/**
- *
- * @export
- * @interface NewUserParams
- */
 interface NewUserParams {
-    /**
-     *
-     * @type {boolean}
-     * @memberof NewUserParams
-     */
     'admin'?: boolean;
-    /**
-     *
-     * @type {boolean}
-     * @memberof NewUserParams
-     */
     'autoActivate'?: boolean;
-    /**
-     *
-     * @type {string}
-     * @memberof NewUserParams
-     */
     'fullName': string;
-    /**
-     *
-     * @type {string}
-     * @memberof NewUserParams
-     */
     'password': string;
-    /**
-     *
-     * @type {string}
-     * @memberof NewUserParams
-     */
     'username': string;
 }
-/**
- *
- * @export
- * @interface PasswordUpdateParams
- */
 interface PasswordUpdateParams {
-    /**
-     *
-     * @type {string}
-     * @memberof PasswordUpdateParams
-     */
     'newPassword': string;
-    /**
-     *
-     * @type {string}
-     * @memberof PasswordUpdateParams
-     */
     'oldPassword'?: string;
 }
-/**
- *
- * @export
- * @interface PermissionsInfo
- */
 interface PermissionsInfo {
-    /**
-     *
-     * @type {boolean}
-     * @memberof PermissionsInfo
-     */
     'canDelete'?: boolean;
-    /**
-     *
-     * @type {boolean}
-     * @memberof PermissionsInfo
-     */
     'canDownload'?: boolean;
-    /**
-     *
-     * @type {boolean}
-     * @memberof PermissionsInfo
-     */
     'canEdit'?: boolean;
-    /**
-     *
-     * @type {boolean}
-     * @memberof PermissionsInfo
-     */
     'canView'?: boolean;
 }
-/**
- *
- * @export
- * @interface PermissionsParams
- */
 interface PermissionsParams {
-    /**
-     *
-     * @type {boolean}
-     * @memberof PermissionsParams
-     */
     'canDelete'?: boolean;
-    /**
-     *
-     * @type {boolean}
-     * @memberof PermissionsParams
-     */
     'canDownload'?: boolean;
-    /**
-     *
-     * @type {boolean}
-     * @memberof PermissionsParams
-     */
     'canEdit'?: boolean;
-    /**
-     *
-     * @type {boolean}
-     * @memberof PermissionsParams
-     */
     'canView'?: boolean;
 }
-/**
- *
- * @export
- * @interface RestoreFilesBody
- */
 interface RestoreFilesBody {
-    /**
-     *
-     * @type {Array<string>}
-     * @memberof RestoreFilesBody
-     */
     'fileIds'?: Array<string>;
-    /**
-     *
-     * @type {string}
-     * @memberof RestoreFilesBody
-     */
-    'newParentId'?: string;
-    /**
-     *
-     * @type {number}
-     * @memberof RestoreFilesBody
-     */
+    'newParentID'?: string;
     'timestamp'?: number;
 }
-/**
- *
- * @export
- * @interface RestoreFilesInfo
- */
 interface RestoreFilesInfo {
-    /**
-     *
-     * @type {string}
-     * @memberof RestoreFilesInfo
-     */
-    'newParentId'?: string;
+    'newParentID'?: string;
 }
-/**
- *
- * @export
- * @interface ShareInfo
- */
 interface ShareInfo {
-    /**
-     *
-     * @type {Array<UserInfo>}
-     * @memberof ShareInfo
-     */
     'accessors'?: Array<UserInfo>;
-    /**
-     *
-     * @type {boolean}
-     * @memberof ShareInfo
-     */
     'enabled'?: boolean;
-    /**
-     *
-     * @type {number}
-     * @memberof ShareInfo
-     */
     'expires'?: number;
-    /**
-     *
-     * @type {string}
-     * @memberof ShareInfo
-     */
-    'fileId'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof ShareInfo
-     */
+    'fileID'?: string;
     'owner'?: string;
-    /**
-     *
-     * @type {{ [key: string]: PermissionsInfo; }}
-     * @memberof ShareInfo
-     */
     'permissions'?: {
         [key: string]: PermissionsInfo;
     };
-    /**
-     *
-     * @type {boolean}
-     * @memberof ShareInfo
-     */
     'public'?: boolean;
-    /**
-     *
-     * @type {string}
-     * @memberof ShareInfo
-     */
-    'shareId'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof ShareInfo
-     */
+    'shareID'?: string;
     'shareName'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof ShareInfo
-     */
     'shareType'?: string;
-    /**
-     *
-     * @type {boolean}
-     * @memberof ShareInfo
-     */
     'timelineOnly'?: boolean;
-    /**
-     *
-     * @type {number}
-     * @memberof ShareInfo
-     */
     'updated'?: number;
-    /**
-     *
-     * @type {boolean}
-     * @memberof ShareInfo
-     */
     'wormhole'?: boolean;
 }
-/**
- *
- * @export
- * @interface StructsInitServerParams
- */
 interface StructsInitServerParams {
-    /**
-     *
-     * @type {string}
-     * @memberof StructsInitServerParams
-     */
     'coreAddress'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof StructsInitServerParams
-     */
     'coreKey'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof StructsInitServerParams
-     */
     'fullName'?: string;
     /**
-     * For restoring a server, remoind the core of its serverId and api key the remote last used
-     * @type {string}
-     * @memberof StructsInitServerParams
+     * For restoring a server, remoind the core of its serverID and api key the remote last used
      */
-    'localId'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof StructsInitServerParams
-     */
+    'localID'?: string;
     'name'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof StructsInitServerParams
-     */
     'password'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof StructsInitServerParams
-     */
-    'remoteId'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof StructsInitServerParams
-     */
+    'remoteID'?: string;
     'role'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof StructsInitServerParams
-     */
     'username'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof StructsInitServerParams
-     */
     'usingKeyInfo'?: string;
 }
-/**
- *
- * @export
- * @interface StructsSetConfigParam
- */
 interface StructsSetConfigParam {
-    /**
-     *
-     * @type {string}
-     * @memberof StructsSetConfigParam
-     */
     'configKey'?: string;
-    /**
-     *
-     * @type {object}
-     * @memberof StructsSetConfigParam
-     */
     'configValue'?: object;
 }
-/**
- *
- * @export
- * @interface TakeoutInfo
- */
 interface TakeoutInfo {
-    /**
-     *
-     * @type {string}
-     * @memberof TakeoutInfo
-     */
     'filename'?: string;
-    /**
-     *
-     * @type {boolean}
-     * @memberof TakeoutInfo
-     */
     'single'?: boolean;
-    /**
-     *
-     * @type {string}
-     * @memberof TakeoutInfo
-     */
-    'takeoutId'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof TakeoutInfo
-     */
-    'taskId'?: string;
+    'takeoutID'?: string;
+    'taskID'?: string;
 }
-/**
- *
- * @export
- * @interface TaskInfo
- */
 interface TaskInfo {
-    /**
-     *
-     * @type {boolean}
-     * @memberof TaskInfo
-     */
     'Completed': boolean;
-    /**
-     *
-     * @type {string}
-     * @memberof TaskInfo
-     */
     'jobName': string;
-    /**
-     *
-     * @type {number}
-     * @memberof TaskInfo
-     */
     'progress': number;
-    /**
-     *
-     * @type {object}
-     * @memberof TaskInfo
-     */
     'result'?: object;
-    /**
-     *
-     * @type {string}
-     * @memberof TaskInfo
-     */
     'startTime'?: string;
-    /**
-     *
-     * @type {TaskTaskExitStatus}
-     * @memberof TaskInfo
-     */
     'status': TaskTaskExitStatus;
-    /**
-     *
-     * @type {string}
-     * @memberof TaskInfo
-     */
-    'taskId': string;
-    /**
-     *
-     * @type {number}
-     * @memberof TaskInfo
-     */
-    'workerId': number;
+    'taskID': string;
+    'workerID': number;
 }
-/**
- *
- * @export
- * @enum {string}
- */
 declare const TaskTaskExitStatus: {
     readonly TaskNoStatus: "";
     readonly TaskSuccess: "success";
@@ -1377,292 +404,70 @@ declare const TaskTaskExitStatus: {
     readonly TaskError: "error";
 };
 type TaskTaskExitStatus = typeof TaskTaskExitStatus[keyof typeof TaskTaskExitStatus];
-/**
- *
- * @export
- * @interface TokenInfo
- */
 interface TokenInfo {
-    /**
-     *
-     * @type {string}
-     * @memberof TokenInfo
-     */
     'createdBy': string;
-    /**
-     *
-     * @type {number}
-     * @memberof TokenInfo
-     */
     'createdTime': number;
-    /**
-     *
-     * @type {string}
-     * @memberof TokenInfo
-     */
     'id': string;
-    /**
-     *
-     * @type {number}
-     * @memberof TokenInfo
-     */
     'lastUsed': number;
-    /**
-     *
-     * @type {string}
-     * @memberof TokenInfo
-     */
     'nickname': string;
-    /**
-     *
-     * @type {string}
-     * @memberof TokenInfo
-     */
     'owner': string;
-    /**
-     *
-     * @type {string}
-     * @memberof TokenInfo
-     */
     'remoteUsing': string;
-    /**
-     *
-     * @type {string}
-     * @memberof TokenInfo
-     */
     'token': string;
 }
-/**
- *
- * @export
- * @interface TowerInfo
- */
 interface TowerInfo {
-    /**
-     *
-     * @type {number}
-     * @memberof TowerInfo
-     */
     'backupSize': number;
     /**
      * Address of the remote server, only if the instance is a core. Not set for any remotes/backups on core server, as it IS the core
-     * @type {string}
-     * @memberof TowerInfo
      */
     'coreAddress': string;
-    /**
-     *
-     * @type {string}
-     * @memberof TowerInfo
-     */
     'id': string;
-    /**
-     *
-     * @type {number}
-     * @memberof TowerInfo
-     */
     'lastBackup': number;
-    /**
-     *
-     * @type {string}
-     * @memberof TowerInfo
-     */
     'name': string;
-    /**
-     *
-     * @type {boolean}
-     * @memberof TowerInfo
-     */
     'online': boolean;
     /**
      * Role the server is currently reporting. This is used to determine if the server is online (and functional) or not
-     * @type {string}
-     * @memberof TowerInfo
      */
     'reportedRole': string;
     /**
      * Core or Backup
-     * @type {string}
-     * @memberof TowerInfo
      */
     'role': string;
-    /**
-     *
-     * @type {boolean}
-     * @memberof TowerInfo
-     */
     'started': boolean;
-    /**
-     *
-     * @type {number}
-     * @memberof TowerInfo
-     */
     'userCount': number;
 }
-/**
- *
- * @export
- * @interface UpdateFileParams
- */
 interface UpdateFileParams {
-    /**
-     *
-     * @type {string}
-     * @memberof UpdateFileParams
-     */
     'newName'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof UpdateFileParams
-     */
-    'newParentId'?: string;
+    'newParentID'?: string;
 }
-/**
- *
- * @export
- * @interface UserInfo
- */
 interface UserInfo {
-    /**
-     *
-     * @type {boolean}
-     * @memberof UserInfo
-     */
     'activated': boolean;
-    /**
-     *
-     * @type {string}
-     * @memberof UserInfo
-     */
     'fullName': string;
-    /**
-     *
-     * @type {string}
-     * @memberof UserInfo
-     */
-    'homeId': string;
-    /**
-     *
-     * @type {boolean}
-     * @memberof UserInfo
-     */
+    'homeID': string;
     'isOnline'?: boolean;
-    /**
-     *
-     * @type {number}
-     * @memberof UserInfo
-     */
     'permissionLevel': number;
-    /**
-     *
-     * @type {string}
-     * @memberof UserInfo
-     */
     'token'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof UserInfo
-     */
-    'trashId': string;
-    /**
-     *
-     * @type {string}
-     * @memberof UserInfo
-     */
+    'trashID': string;
     'username': string;
 }
-/**
- *
- * @export
- * @interface UserInfoArchive
- */
 interface UserInfoArchive {
-    /**
-     *
-     * @type {boolean}
-     * @memberof UserInfoArchive
-     */
     'activated': boolean;
-    /**
-     *
-     * @type {string}
-     * @memberof UserInfoArchive
-     */
     'fullName': string;
-    /**
-     *
-     * @type {string}
-     * @memberof UserInfoArchive
-     */
-    'homeId': string;
-    /**
-     *
-     * @type {boolean}
-     * @memberof UserInfoArchive
-     */
+    'homeID': string;
     'isOnline'?: boolean;
-    /**
-     *
-     * @type {string}
-     * @memberof UserInfoArchive
-     */
     'password'?: string;
-    /**
-     *
-     * @type {number}
-     * @memberof UserInfoArchive
-     */
     'permissionLevel': number;
-    /**
-     *
-     * @type {string}
-     * @memberof UserInfoArchive
-     */
     'token'?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof UserInfoArchive
-     */
-    'trashId': string;
-    /**
-     *
-     * @type {string}
-     * @memberof UserInfoArchive
-     */
+    'trashID': string;
     'username': string;
 }
-/**
- *
- * @export
- * @interface WLResponseInfo
- */
 interface WLResponseInfo {
-    /**
-     *
-     * @type {string}
-     * @memberof WLResponseInfo
-     */
     'message'?: string;
 }
-/**
- *
- * @export
- * @interface WeblensErrorInfo
- */
 interface WeblensErrorInfo {
-    /**
-     *
-     * @type {string}
-     * @memberof WeblensErrorInfo
-     */
     'error'?: string;
 }
 /**
  * ApiKeysApi - axios parameter creator
- * @export
  */
 declare const ApiKeysApiAxiosParamCreator: (configuration?: Configuration) => {
     /**
@@ -1676,11 +481,11 @@ declare const ApiKeysApiAxiosParamCreator: (configuration?: Configuration) => {
     /**
      *
      * @summary Delete an api key
-     * @param {string} tokenId Api key id
+     * @param {string} tokenID Api key id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    deleteApiKey: (tokenId: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    deleteApiKey: (tokenID: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Get all api keys
@@ -1691,7 +496,6 @@ declare const ApiKeysApiAxiosParamCreator: (configuration?: Configuration) => {
 };
 /**
  * ApiKeysApi - functional programming interface
- * @export
  */
 declare const ApiKeysApiFp: (configuration?: Configuration) => {
     /**
@@ -1705,11 +509,11 @@ declare const ApiKeysApiFp: (configuration?: Configuration) => {
     /**
      *
      * @summary Delete an api key
-     * @param {string} tokenId Api key id
+     * @param {string} tokenID Api key id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    deleteApiKey(tokenId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    deleteApiKey(tokenID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
     /**
      *
      * @summary Get all api keys
@@ -1720,7 +524,6 @@ declare const ApiKeysApiFp: (configuration?: Configuration) => {
 };
 /**
  * ApiKeysApi - factory interface
- * @export
  */
 declare const ApiKeysApiFactory: (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) => {
     /**
@@ -1734,11 +537,11 @@ declare const ApiKeysApiFactory: (configuration?: Configuration, basePath?: stri
     /**
      *
      * @summary Delete an api key
-     * @param {string} tokenId Api key id
+     * @param {string} tokenID Api key id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    deleteApiKey(tokenId: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    deleteApiKey(tokenID: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
     /**
      *
      * @summary Get all api keys
@@ -1749,9 +552,6 @@ declare const ApiKeysApiFactory: (configuration?: Configuration, basePath?: stri
 };
 /**
  * ApiKeysApi - object-oriented interface
- * @export
- * @class ApiKeysApi
- * @extends {BaseAPI}
  */
 declare class ApiKeysApi extends BaseAPI {
     /**
@@ -1760,30 +560,26 @@ declare class ApiKeysApi extends BaseAPI {
      * @param {ApiKeyParams} params The new token params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof ApiKeysApi
      */
     createApiKey(params: ApiKeyParams, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TokenInfo, any>>;
     /**
      *
      * @summary Delete an api key
-     * @param {string} tokenId Api key id
+     * @param {string} tokenID Api key id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof ApiKeysApi
      */
-    deleteApiKey(tokenId: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
+    deleteApiKey(tokenID: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
      *
      * @summary Get all api keys
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof ApiKeysApi
      */
     getApiKeys(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TokenInfo[], any>>;
 }
 /**
  * ConfigApi - axios parameter creator
- * @export
  */
 declare const ConfigApiAxiosParamCreator: (configuration?: Configuration) => {
     /**
@@ -1804,7 +600,6 @@ declare const ConfigApiAxiosParamCreator: (configuration?: Configuration) => {
 };
 /**
  * ConfigApi - functional programming interface
- * @export
  */
 declare const ConfigApiFp: (configuration?: Configuration) => {
     /**
@@ -1825,7 +620,6 @@ declare const ConfigApiFp: (configuration?: Configuration) => {
 };
 /**
  * ConfigApi - factory interface
- * @export
  */
 declare const ConfigApiFactory: (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) => {
     /**
@@ -1846,9 +640,6 @@ declare const ConfigApiFactory: (configuration?: Configuration, basePath?: strin
 };
 /**
  * ConfigApi - object-oriented interface
- * @export
- * @class ConfigApi
- * @extends {BaseAPI}
  */
 declare class ConfigApi extends BaseAPI {
     /**
@@ -1856,7 +647,6 @@ declare class ConfigApi extends BaseAPI {
      * @summary Get Config
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof ConfigApi
      */
     getConfig(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<Config, any>>;
     /**
@@ -1865,25 +655,23 @@ declare class ConfigApi extends BaseAPI {
      * @param {Array<StructsSetConfigParam>} request Set Config Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof ConfigApi
      */
     setConfig(request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
 }
 /**
  * FilesApi - axios parameter creator
- * @export
  */
 declare const FilesApiAxiosParamCreator: (configuration?: Configuration) => {
     /**
      *
      * @summary Add a file to an upload task
-     * @param {string} uploadId Upload Id
+     * @param {string} uploadID Upload ID
      * @param {NewFilesParams} request New file params
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    addFilesToUpload: (uploadId: string, request: NewFilesParams, shareId?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    addFilesToUpload: (uploadID: string, request: NewFilesParams, shareID?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Get path completion suggestions
@@ -1896,11 +684,11 @@ declare const FilesApiAxiosParamCreator: (configuration?: Configuration) => {
      * Dispatch a task to create a zip file of the given files, or get the id of a previously created zip file if it already exists
      * @summary Create a zip file
      * @param {FilesListParams} request File Ids
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    createTakeout: (request: FilesListParams, shareId?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    createTakeout: (request: FilesListParams, shareID?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Delete Files \"permanently\"
@@ -1914,40 +702,40 @@ declare const FilesApiAxiosParamCreator: (configuration?: Configuration) => {
     /**
      *
      * @summary Download a file
-     * @param {string} fileId File Id
-     * @param {string} [shareId] Share Id
+     * @param {string} fileID File ID
+     * @param {string} [shareID] Share ID
      * @param {string} [format] File format conversion
      * @param {boolean} [isTakeout] Is this a takeout file
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    downloadFile: (fileId: string, shareId?: string, format?: string, isTakeout?: boolean, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    downloadFile: (fileID: string, shareID?: string, format?: string, isTakeout?: boolean, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Get information about a file
-     * @param {string} fileId File Id
-     * @param {string} [shareId] Share Id
+     * @param {string} fileID File ID
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFile: (fileId: string, shareId?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    getFile: (fileID: string, shareID?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Get the statistics of a file
-     * @param {string} fileId File Id
+     * @param {string} fileID File ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFileStats: (fileId: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    getFileStats: (fileID: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Get the text of a text file
-     * @param {string} fileId File Id
-     * @param {string} [shareId] Share Id
+     * @param {string} fileID File ID
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFileText: (fileId: string, shareId?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    getFileText: (fileID: string, shareID?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Get files shared with the logged in user
@@ -1958,20 +746,20 @@ declare const FilesApiAxiosParamCreator: (configuration?: Configuration) => {
     /**
      *
      * @summary Get the result of an upload task. This will block until the upload is complete
-     * @param {string} uploadId Upload Id
+     * @param {string} uploadID Upload ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getUploadResult: (uploadId: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    getUploadResult: (uploadID: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Move a list of files to a new parent folder
      * @param {MoveFilesParams} request Move files request body
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    moveFiles: (request: MoveFilesParams, shareId?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    moveFiles: (request: MoveFilesParams, shareID?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary structsore files from some time in the past
@@ -1984,20 +772,20 @@ declare const FilesApiAxiosParamCreator: (configuration?: Configuration) => {
      *
      * @summary Search for files by filename
      * @param {string} search Filename to search for
-     * @param {string} [baseFolderId] The folder to search in, defaults to the user\&#39;s home folder
+     * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    searchByFilename: (search: string, baseFolderId?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    searchByFilename: (search: string, baseFolderID?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Begin a new upload task
      * @param {NewUploadParams} request New upload request body
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    startUpload: (request: NewUploadParams, shareId?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    startUpload: (request: NewUploadParams, shareID?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Move a list of files out of the trash, structsoring them to where they were before
@@ -2009,40 +797,39 @@ declare const FilesApiAxiosParamCreator: (configuration?: Configuration) => {
     /**
      *
      * @summary Update a File
-     * @param {string} fileId File Id
+     * @param {string} fileID File ID
      * @param {UpdateFileParams} request Update file request body
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    updateFile: (fileId: string, request: UpdateFileParams, shareId?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    updateFile: (fileID: string, request: UpdateFileParams, shareID?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Add a chunk to a file upload
-     * @param {string} uploadId Upload Id
-     * @param {string} fileId File Id
+     * @param {string} uploadID Upload ID
+     * @param {string} fileID File ID
      * @param {File} chunk File chunk
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    uploadFileChunk: (uploadId: string, fileId: string, chunk: File, shareId?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    uploadFileChunk: (uploadID: string, fileID: string, chunk: File, shareID?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
 };
 /**
  * FilesApi - functional programming interface
- * @export
  */
 declare const FilesApiFp: (configuration?: Configuration) => {
     /**
      *
      * @summary Add a file to an upload task
-     * @param {string} uploadId Upload Id
+     * @param {string} uploadID Upload ID
      * @param {NewFilesParams} request New file params
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    addFilesToUpload(uploadId: string, request: NewFilesParams, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<NewFilesInfo>>;
+    addFilesToUpload(uploadID: string, request: NewFilesParams, shareID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<NewFilesInfo>>;
     /**
      *
      * @summary Get path completion suggestions
@@ -2055,11 +842,11 @@ declare const FilesApiFp: (configuration?: Configuration) => {
      * Dispatch a task to create a zip file of the given files, or get the id of a previously created zip file if it already exists
      * @summary Create a zip file
      * @param {FilesListParams} request File Ids
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    createTakeout(request: FilesListParams, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TakeoutInfo>>;
+    createTakeout(request: FilesListParams, shareID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TakeoutInfo>>;
     /**
      *
      * @summary Delete Files \"permanently\"
@@ -2073,40 +860,40 @@ declare const FilesApiFp: (configuration?: Configuration) => {
     /**
      *
      * @summary Download a file
-     * @param {string} fileId File Id
-     * @param {string} [shareId] Share Id
+     * @param {string} fileID File ID
+     * @param {string} [shareID] Share ID
      * @param {string} [format] File format conversion
      * @param {boolean} [isTakeout] Is this a takeout file
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    downloadFile(fileId: string, shareId?: string, format?: string, isTakeout?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>>;
+    downloadFile(fileID: string, shareID?: string, format?: string, isTakeout?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>>;
     /**
      *
      * @summary Get information about a file
-     * @param {string} fileId File Id
-     * @param {string} [shareId] Share Id
+     * @param {string} fileID File ID
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFile(fileId: string, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FileInfo>>;
+    getFile(fileID: string, shareID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FileInfo>>;
     /**
      *
      * @summary Get the statistics of a file
-     * @param {string} fileId File Id
+     * @param {string} fileID File ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFileStats(fileId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    getFileStats(fileID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
     /**
      *
      * @summary Get the text of a text file
-     * @param {string} fileId File Id
-     * @param {string} [shareId] Share Id
+     * @param {string} fileID File ID
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFileText(fileId: string, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>>;
+    getFileText(fileID: string, shareID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>>;
     /**
      *
      * @summary Get files shared with the logged in user
@@ -2117,20 +904,20 @@ declare const FilesApiFp: (configuration?: Configuration) => {
     /**
      *
      * @summary Get the result of an upload task. This will block until the upload is complete
-     * @param {string} uploadId Upload Id
+     * @param {string} uploadID Upload ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getUploadResult(uploadId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    getUploadResult(uploadID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
     /**
      *
      * @summary Move a list of files to a new parent folder
      * @param {MoveFilesParams} request Move files request body
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    moveFiles(request: MoveFilesParams, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    moveFiles(request: MoveFilesParams, shareID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
     /**
      *
      * @summary structsore files from some time in the past
@@ -2143,20 +930,20 @@ declare const FilesApiFp: (configuration?: Configuration) => {
      *
      * @summary Search for files by filename
      * @param {string} search Filename to search for
-     * @param {string} [baseFolderId] The folder to search in, defaults to the user\&#39;s home folder
+     * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    searchByFilename(search: string, baseFolderId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<FileInfo>>>;
+    searchByFilename(search: string, baseFolderID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<FileInfo>>>;
     /**
      *
      * @summary Begin a new upload task
      * @param {NewUploadParams} request New upload request body
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    startUpload(request: NewUploadParams, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<NewUploadInfo>>;
+    startUpload(request: NewUploadParams, shareID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<NewUploadInfo>>;
     /**
      *
      * @summary Move a list of files out of the trash, structsoring them to where they were before
@@ -2168,40 +955,39 @@ declare const FilesApiFp: (configuration?: Configuration) => {
     /**
      *
      * @summary Update a File
-     * @param {string} fileId File Id
+     * @param {string} fileID File ID
      * @param {UpdateFileParams} request Update file request body
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    updateFile(fileId: string, request: UpdateFileParams, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    updateFile(fileID: string, request: UpdateFileParams, shareID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
     /**
      *
      * @summary Add a chunk to a file upload
-     * @param {string} uploadId Upload Id
-     * @param {string} fileId File Id
+     * @param {string} uploadID Upload ID
+     * @param {string} fileID File ID
      * @param {File} chunk File chunk
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    uploadFileChunk(uploadId: string, fileId: string, chunk: File, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    uploadFileChunk(uploadID: string, fileID: string, chunk: File, shareID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
 };
 /**
  * FilesApi - factory interface
- * @export
  */
 declare const FilesApiFactory: (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) => {
     /**
      *
      * @summary Add a file to an upload task
-     * @param {string} uploadId Upload Id
+     * @param {string} uploadID Upload ID
      * @param {NewFilesParams} request New file params
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    addFilesToUpload(uploadId: string, request: NewFilesParams, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<NewFilesInfo>;
+    addFilesToUpload(uploadID: string, request: NewFilesParams, shareID?: string, options?: RawAxiosRequestConfig): AxiosPromise<NewFilesInfo>;
     /**
      *
      * @summary Get path completion suggestions
@@ -2214,11 +1000,11 @@ declare const FilesApiFactory: (configuration?: Configuration, basePath?: string
      * Dispatch a task to create a zip file of the given files, or get the id of a previously created zip file if it already exists
      * @summary Create a zip file
      * @param {FilesListParams} request File Ids
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    createTakeout(request: FilesListParams, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<TakeoutInfo>;
+    createTakeout(request: FilesListParams, shareID?: string, options?: RawAxiosRequestConfig): AxiosPromise<TakeoutInfo>;
     /**
      *
      * @summary Delete Files \"permanently\"
@@ -2232,40 +1018,40 @@ declare const FilesApiFactory: (configuration?: Configuration, basePath?: string
     /**
      *
      * @summary Download a file
-     * @param {string} fileId File Id
-     * @param {string} [shareId] Share Id
+     * @param {string} fileID File ID
+     * @param {string} [shareID] Share ID
      * @param {string} [format] File format conversion
      * @param {boolean} [isTakeout] Is this a takeout file
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    downloadFile(fileId: string, shareId?: string, format?: string, isTakeout?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<string>;
+    downloadFile(fileID: string, shareID?: string, format?: string, isTakeout?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<string>;
     /**
      *
      * @summary Get information about a file
-     * @param {string} fileId File Id
-     * @param {string} [shareId] Share Id
+     * @param {string} fileID File ID
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFile(fileId: string, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<FileInfo>;
+    getFile(fileID: string, shareID?: string, options?: RawAxiosRequestConfig): AxiosPromise<FileInfo>;
     /**
      *
      * @summary Get the statistics of a file
-     * @param {string} fileId File Id
+     * @param {string} fileID File ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFileStats(fileId: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    getFileStats(fileID: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
     /**
      *
      * @summary Get the text of a text file
-     * @param {string} fileId File Id
-     * @param {string} [shareId] Share Id
+     * @param {string} fileID File ID
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFileText(fileId: string, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<string>;
+    getFileText(fileID: string, shareID?: string, options?: RawAxiosRequestConfig): AxiosPromise<string>;
     /**
      *
      * @summary Get files shared with the logged in user
@@ -2276,20 +1062,20 @@ declare const FilesApiFactory: (configuration?: Configuration, basePath?: string
     /**
      *
      * @summary Get the result of an upload task. This will block until the upload is complete
-     * @param {string} uploadId Upload Id
+     * @param {string} uploadID Upload ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getUploadResult(uploadId: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    getUploadResult(uploadID: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
     /**
      *
      * @summary Move a list of files to a new parent folder
      * @param {MoveFilesParams} request Move files request body
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    moveFiles(request: MoveFilesParams, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    moveFiles(request: MoveFilesParams, shareID?: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
     /**
      *
      * @summary structsore files from some time in the past
@@ -2302,20 +1088,20 @@ declare const FilesApiFactory: (configuration?: Configuration, basePath?: string
      *
      * @summary Search for files by filename
      * @param {string} search Filename to search for
-     * @param {string} [baseFolderId] The folder to search in, defaults to the user\&#39;s home folder
+     * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    searchByFilename(search: string, baseFolderId?: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<FileInfo>>;
+    searchByFilename(search: string, baseFolderID?: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<FileInfo>>;
     /**
      *
      * @summary Begin a new upload task
      * @param {NewUploadParams} request New upload request body
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    startUpload(request: NewUploadParams, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<NewUploadInfo>;
+    startUpload(request: NewUploadParams, shareID?: string, options?: RawAxiosRequestConfig): AxiosPromise<NewUploadInfo>;
     /**
      *
      * @summary Move a list of files out of the trash, structsoring them to where they were before
@@ -2327,62 +1113,56 @@ declare const FilesApiFactory: (configuration?: Configuration, basePath?: string
     /**
      *
      * @summary Update a File
-     * @param {string} fileId File Id
+     * @param {string} fileID File ID
      * @param {UpdateFileParams} request Update file request body
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    updateFile(fileId: string, request: UpdateFileParams, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    updateFile(fileID: string, request: UpdateFileParams, shareID?: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
     /**
      *
      * @summary Add a chunk to a file upload
-     * @param {string} uploadId Upload Id
-     * @param {string} fileId File Id
+     * @param {string} uploadID Upload ID
+     * @param {string} fileID File ID
      * @param {File} chunk File chunk
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    uploadFileChunk(uploadId: string, fileId: string, chunk: File, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    uploadFileChunk(uploadID: string, fileID: string, chunk: File, shareID?: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
 };
 /**
  * FilesApi - object-oriented interface
- * @export
- * @class FilesApi
- * @extends {BaseAPI}
  */
 declare class FilesApi extends BaseAPI {
     /**
      *
      * @summary Add a file to an upload task
-     * @param {string} uploadId Upload Id
+     * @param {string} uploadID Upload ID
      * @param {NewFilesParams} request New file params
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof FilesApi
      */
-    addFilesToUpload(uploadId: string, request: NewFilesParams, shareId?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<NewFilesInfo, any>>;
+    addFilesToUpload(uploadID: string, request: NewFilesParams, shareID?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<NewFilesInfo, any>>;
     /**
      *
      * @summary Get path completion suggestions
      * @param {string} searchPath Search path
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof FilesApi
      */
     autocompletePath(searchPath: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FolderInfo, any>>;
     /**
      * Dispatch a task to create a zip file of the given files, or get the id of a previously created zip file if it already exists
      * @summary Create a zip file
      * @param {FilesListParams} request File Ids
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof FilesApi
      */
-    createTakeout(request: FilesListParams, shareId?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TakeoutInfo, any>>;
+    createTakeout(request: FilesListParams, shareID?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TakeoutInfo, any>>;
     /**
      *
      * @summary Delete Files \"permanently\"
@@ -2391,357 +1171,331 @@ declare class FilesApi extends BaseAPI {
      * @param {boolean} [preserveFolder] Preserve parent folder if it is empty after deletion
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof FilesApi
      */
     deleteFiles(request: FilesListParams, ignoreTrash?: boolean, preserveFolder?: boolean, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
      *
      * @summary Download a file
-     * @param {string} fileId File Id
-     * @param {string} [shareId] Share Id
+     * @param {string} fileID File ID
+     * @param {string} [shareID] Share ID
      * @param {string} [format] File format conversion
      * @param {boolean} [isTakeout] Is this a takeout file
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof FilesApi
      */
-    downloadFile(fileId: string, shareId?: string, format?: string, isTakeout?: boolean, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<string, any>>;
+    downloadFile(fileID: string, shareID?: string, format?: string, isTakeout?: boolean, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<string, any>>;
     /**
      *
      * @summary Get information about a file
-     * @param {string} fileId File Id
-     * @param {string} [shareId] Share Id
+     * @param {string} fileID File ID
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof FilesApi
      */
-    getFile(fileId: string, shareId?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FileInfo, any>>;
+    getFile(fileID: string, shareID?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FileInfo, any>>;
     /**
      *
      * @summary Get the statistics of a file
-     * @param {string} fileId File Id
+     * @param {string} fileID File ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof FilesApi
      */
-    getFileStats(fileId: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
+    getFileStats(fileID: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
      *
      * @summary Get the text of a text file
-     * @param {string} fileId File Id
-     * @param {string} [shareId] Share Id
+     * @param {string} fileID File ID
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof FilesApi
      */
-    getFileText(fileId: string, shareId?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<string, any>>;
+    getFileText(fileID: string, shareID?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<string, any>>;
     /**
      *
      * @summary Get files shared with the logged in user
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof FilesApi
      */
     getSharedFiles(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FolderInfo, any>>;
     /**
      *
      * @summary Get the result of an upload task. This will block until the upload is complete
-     * @param {string} uploadId Upload Id
+     * @param {string} uploadID Upload ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof FilesApi
      */
-    getUploadResult(uploadId: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
+    getUploadResult(uploadID: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
      *
      * @summary Move a list of files to a new parent folder
      * @param {MoveFilesParams} request Move files request body
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof FilesApi
      */
-    moveFiles(request: MoveFilesParams, shareId?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
+    moveFiles(request: MoveFilesParams, shareID?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
      *
      * @summary structsore files from some time in the past
      * @param {RestoreFilesBody} request RestoreFiles files request body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof FilesApi
      */
     restoreFiles(request: RestoreFilesBody, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<RestoreFilesInfo, any>>;
     /**
      *
      * @summary Search for files by filename
      * @param {string} search Filename to search for
-     * @param {string} [baseFolderId] The folder to search in, defaults to the user\&#39;s home folder
+     * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof FilesApi
      */
-    searchByFilename(search: string, baseFolderId?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FileInfo[], any>>;
+    searchByFilename(search: string, baseFolderID?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FileInfo[], any>>;
     /**
      *
      * @summary Begin a new upload task
      * @param {NewUploadParams} request New upload request body
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof FilesApi
      */
-    startUpload(request: NewUploadParams, shareId?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<NewUploadInfo, any>>;
+    startUpload(request: NewUploadParams, shareID?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<NewUploadInfo, any>>;
     /**
      *
      * @summary Move a list of files out of the trash, structsoring them to where they were before
      * @param {FilesListParams} request Un-trash files request body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof FilesApi
      */
     unTrashFiles(request: FilesListParams, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
      *
      * @summary Update a File
-     * @param {string} fileId File Id
+     * @param {string} fileID File ID
      * @param {UpdateFileParams} request Update file request body
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof FilesApi
      */
-    updateFile(fileId: string, request: UpdateFileParams, shareId?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
+    updateFile(fileID: string, request: UpdateFileParams, shareID?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
      *
      * @summary Add a chunk to a file upload
-     * @param {string} uploadId Upload Id
-     * @param {string} fileId File Id
+     * @param {string} uploadID Upload ID
+     * @param {string} fileID File ID
      * @param {File} chunk File chunk
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof FilesApi
      */
-    uploadFileChunk(uploadId: string, fileId: string, chunk: File, shareId?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
+    uploadFileChunk(uploadID: string, fileID: string, chunk: File, shareID?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
 }
 /**
  * FolderApi - axios parameter creator
- * @export
  */
 declare const FolderApiAxiosParamCreator: (configuration?: Configuration) => {
     /**
      *
      * @summary Create a new folder
      * @param {CreateFolderBody} request New folder body
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    createFolder: (request: CreateFolderBody, shareId?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    createFolder: (request: CreateFolderBody, shareID?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Get a folder
-     * @param {string} folderId Folder Id
-     * @param {string} [shareId] Share Id
+     * @param {string} folderID Folder ID
+     * @param {string} [shareID] Share ID
      * @param {number} [timestamp] Past timestamp to view the folder at, in ms since epoch
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFolder: (folderId: string, shareId?: string, timestamp?: number, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    getFolder: (folderID: string, shareID?: string, timestamp?: number, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Get actions of a folder at a given time
-     * @param {string} fileId File Id
+     * @param {string} fileID File ID
      * @param {number} timestamp Past timestamp to view the folder at, in ms since epoch
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFolderHistory: (fileId: string, timestamp: number, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    getFolderHistory: (fileID: string, timestamp: number, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Dispatch a folder scan
-     * @param {string} folderId Folder Id
-     * @param {string} [shareId] Share Id
+     * @param {string} folderID Folder ID
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    scanFolder: (folderId: string, shareId?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    scanFolder: (folderID: string, shareID?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Set the cover image of a folder
-     * @param {string} folderId Folder Id
-     * @param {string} mediaId Media Id
+     * @param {string} folderID Folder ID
+     * @param {string} mediaID Media ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setFolderCover: (folderId: string, mediaId: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    setFolderCover: (folderID: string, mediaID: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
 };
 /**
  * FolderApi - functional programming interface
- * @export
  */
 declare const FolderApiFp: (configuration?: Configuration) => {
     /**
      *
      * @summary Create a new folder
      * @param {CreateFolderBody} request New folder body
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    createFolder(request: CreateFolderBody, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FileInfo>>;
+    createFolder(request: CreateFolderBody, shareID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FileInfo>>;
     /**
      *
      * @summary Get a folder
-     * @param {string} folderId Folder Id
-     * @param {string} [shareId] Share Id
+     * @param {string} folderID Folder ID
+     * @param {string} [shareID] Share ID
      * @param {number} [timestamp] Past timestamp to view the folder at, in ms since epoch
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFolder(folderId: string, shareId?: string, timestamp?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FolderInfo>>;
+    getFolder(folderID: string, shareID?: string, timestamp?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FolderInfo>>;
     /**
      *
      * @summary Get actions of a folder at a given time
-     * @param {string} fileId File Id
+     * @param {string} fileID File ID
      * @param {number} timestamp Past timestamp to view the folder at, in ms since epoch
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFolderHistory(fileId: string, timestamp: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<FileActionInfo>>>;
+    getFolderHistory(fileID: string, timestamp: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<FileActionInfo>>>;
     /**
      *
      * @summary Dispatch a folder scan
-     * @param {string} folderId Folder Id
-     * @param {string} [shareId] Share Id
+     * @param {string} folderID Folder ID
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    scanFolder(folderId: string, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TaskInfo>>;
+    scanFolder(folderID: string, shareID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TaskInfo>>;
     /**
      *
      * @summary Set the cover image of a folder
-     * @param {string} folderId Folder Id
-     * @param {string} mediaId Media Id
+     * @param {string} folderID Folder ID
+     * @param {string} mediaID Media ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setFolderCover(folderId: string, mediaId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    setFolderCover(folderID: string, mediaID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
 };
 /**
  * FolderApi - factory interface
- * @export
  */
 declare const FolderApiFactory: (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) => {
     /**
      *
      * @summary Create a new folder
      * @param {CreateFolderBody} request New folder body
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    createFolder(request: CreateFolderBody, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<FileInfo>;
+    createFolder(request: CreateFolderBody, shareID?: string, options?: RawAxiosRequestConfig): AxiosPromise<FileInfo>;
     /**
      *
      * @summary Get a folder
-     * @param {string} folderId Folder Id
-     * @param {string} [shareId] Share Id
+     * @param {string} folderID Folder ID
+     * @param {string} [shareID] Share ID
      * @param {number} [timestamp] Past timestamp to view the folder at, in ms since epoch
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFolder(folderId: string, shareId?: string, timestamp?: number, options?: RawAxiosRequestConfig): AxiosPromise<FolderInfo>;
+    getFolder(folderID: string, shareID?: string, timestamp?: number, options?: RawAxiosRequestConfig): AxiosPromise<FolderInfo>;
     /**
      *
      * @summary Get actions of a folder at a given time
-     * @param {string} fileId File Id
+     * @param {string} fileID File ID
      * @param {number} timestamp Past timestamp to view the folder at, in ms since epoch
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFolderHistory(fileId: string, timestamp: number, options?: RawAxiosRequestConfig): AxiosPromise<Array<FileActionInfo>>;
+    getFolderHistory(fileID: string, timestamp: number, options?: RawAxiosRequestConfig): AxiosPromise<Array<FileActionInfo>>;
     /**
      *
      * @summary Dispatch a folder scan
-     * @param {string} folderId Folder Id
-     * @param {string} [shareId] Share Id
+     * @param {string} folderID Folder ID
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    scanFolder(folderId: string, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<TaskInfo>;
+    scanFolder(folderID: string, shareID?: string, options?: RawAxiosRequestConfig): AxiosPromise<TaskInfo>;
     /**
      *
      * @summary Set the cover image of a folder
-     * @param {string} folderId Folder Id
-     * @param {string} mediaId Media Id
+     * @param {string} folderID Folder ID
+     * @param {string} mediaID Media ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setFolderCover(folderId: string, mediaId: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    setFolderCover(folderID: string, mediaID: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
 };
 /**
  * FolderApi - object-oriented interface
- * @export
- * @class FolderApi
- * @extends {BaseAPI}
  */
 declare class FolderApi extends BaseAPI {
     /**
      *
      * @summary Create a new folder
      * @param {CreateFolderBody} request New folder body
-     * @param {string} [shareId] Share Id
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof FolderApi
      */
-    createFolder(request: CreateFolderBody, shareId?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FileInfo, any>>;
+    createFolder(request: CreateFolderBody, shareID?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FileInfo, any>>;
     /**
      *
      * @summary Get a folder
-     * @param {string} folderId Folder Id
-     * @param {string} [shareId] Share Id
+     * @param {string} folderID Folder ID
+     * @param {string} [shareID] Share ID
      * @param {number} [timestamp] Past timestamp to view the folder at, in ms since epoch
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof FolderApi
      */
-    getFolder(folderId: string, shareId?: string, timestamp?: number, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FolderInfo, any>>;
+    getFolder(folderID: string, shareID?: string, timestamp?: number, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FolderInfo, any>>;
     /**
      *
      * @summary Get actions of a folder at a given time
-     * @param {string} fileId File Id
+     * @param {string} fileID File ID
      * @param {number} timestamp Past timestamp to view the folder at, in ms since epoch
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof FolderApi
      */
-    getFolderHistory(fileId: string, timestamp: number, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FileActionInfo[], any>>;
+    getFolderHistory(fileID: string, timestamp: number, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FileActionInfo[], any>>;
     /**
      *
      * @summary Dispatch a folder scan
-     * @param {string} folderId Folder Id
-     * @param {string} [shareId] Share Id
+     * @param {string} folderID Folder ID
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof FolderApi
      */
-    scanFolder(folderId: string, shareId?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TaskInfo, any>>;
+    scanFolder(folderID: string, shareID?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TaskInfo, any>>;
     /**
      *
      * @summary Set the cover image of a folder
-     * @param {string} folderId Folder Id
-     * @param {string} mediaId Media Id
+     * @param {string} folderID Folder ID
+     * @param {string} mediaID Media ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof FolderApi
      */
-    setFolderCover(folderId: string, mediaId: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
+    setFolderCover(folderID: string, mediaID: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
 }
 /**
  * MediaApi - axios parameter creator
- * @export
  */
 declare const MediaApiAxiosParamCreator: (configuration?: Configuration) => {
     /**
@@ -2769,38 +1523,38 @@ declare const MediaApiAxiosParamCreator: (configuration?: Configuration) => {
      *
      * @summary Get paginated media
      * @param {MediaBatchParams} request Media Batch Params
-     * @param {string} [shareId] File ShareId
+     * @param {string} [shareID] File ShareID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMedia: (request: MediaBatchParams, shareId?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    getMedia: (request: MediaBatchParams, shareID?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Get file of media by id
-     * @param {string} mediaId Id of media
+     * @param {string} mediaID ID of media
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMediaFile: (mediaId: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    getMediaFile: (mediaID: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Get a media image bytes
-     * @param {string} mediaId Media Id
+     * @param {string} mediaID Media ID
      * @param {string} extension Extension
      * @param {GetMediaImageQualityEnum} quality Image Quality
      * @param {number} [page] Page number
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMediaImage: (mediaId: string, extension: string, quality: GetMediaImageQualityEnum, page?: number, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    getMediaImage: (mediaID: string, extension: string, quality: GetMediaImageQualityEnum, page?: number, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Get media info
-     * @param {string} mediaId Media Id
+     * @param {string} mediaID Media ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMediaInfo: (mediaId: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    getMediaInfo: (mediaID: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Get media type dictionary
@@ -2819,34 +1573,33 @@ declare const MediaApiAxiosParamCreator: (configuration?: Configuration) => {
     /**
      *
      * @summary Like a media
-     * @param {string} mediaId Id of media
+     * @param {string} mediaID ID of media
      * @param {boolean} liked Liked status to set
-     * @param {string} [shareId] ShareId
+     * @param {string} [shareID] ShareID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setMediaLiked: (mediaId: string, liked: boolean, shareId?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    setMediaLiked: (mediaID: string, liked: boolean, shareID?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Set media visibility
      * @param {boolean} hidden Set the media visibility
-     * @param {MediaIdsParams} mediaIds MediaIds to change visibility of
+     * @param {MediaIDsParams} mediaIDs MediaIDs to change visibility of
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setMediaVisibility: (hidden: boolean, mediaIds: MediaIdsParams, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    setMediaVisibility: (hidden: boolean, mediaIDs: MediaIDsParams, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Stream a video
-     * @param {string} mediaId Id of media
+     * @param {string} mediaID ID of media
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    streamVideo: (mediaId: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    streamVideo: (mediaID: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
 };
 /**
  * MediaApi - functional programming interface
- * @export
  */
 declare const MediaApiFp: (configuration?: Configuration) => {
     /**
@@ -2874,38 +1627,38 @@ declare const MediaApiFp: (configuration?: Configuration) => {
      *
      * @summary Get paginated media
      * @param {MediaBatchParams} request Media Batch Params
-     * @param {string} [shareId] File ShareId
+     * @param {string} [shareID] File ShareID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMedia(request: MediaBatchParams, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MediaBatchInfo>>;
+    getMedia(request: MediaBatchParams, shareID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MediaBatchInfo>>;
     /**
      *
      * @summary Get file of media by id
-     * @param {string} mediaId Id of media
+     * @param {string} mediaID ID of media
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMediaFile(mediaId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FileInfo>>;
+    getMediaFile(mediaID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FileInfo>>;
     /**
      *
      * @summary Get a media image bytes
-     * @param {string} mediaId Media Id
+     * @param {string} mediaID Media ID
      * @param {string} extension Extension
      * @param {GetMediaImageQualityEnum} quality Image Quality
      * @param {number} [page] Page number
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMediaImage(mediaId: string, extension: string, quality: GetMediaImageQualityEnum, page?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>>;
+    getMediaImage(mediaID: string, extension: string, quality: GetMediaImageQualityEnum, page?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>>;
     /**
      *
      * @summary Get media info
-     * @param {string} mediaId Media Id
+     * @param {string} mediaID Media ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMediaInfo(mediaId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MediaInfo>>;
+    getMediaInfo(mediaID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MediaInfo>>;
     /**
      *
      * @summary Get media type dictionary
@@ -2924,34 +1677,33 @@ declare const MediaApiFp: (configuration?: Configuration) => {
     /**
      *
      * @summary Like a media
-     * @param {string} mediaId Id of media
+     * @param {string} mediaID ID of media
      * @param {boolean} liked Liked status to set
-     * @param {string} [shareId] ShareId
+     * @param {string} [shareID] ShareID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setMediaLiked(mediaId: string, liked: boolean, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    setMediaLiked(mediaID: string, liked: boolean, shareID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
     /**
      *
      * @summary Set media visibility
      * @param {boolean} hidden Set the media visibility
-     * @param {MediaIdsParams} mediaIds MediaIds to change visibility of
+     * @param {MediaIDsParams} mediaIDs MediaIDs to change visibility of
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setMediaVisibility(hidden: boolean, mediaIds: MediaIdsParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    setMediaVisibility(hidden: boolean, mediaIDs: MediaIDsParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
     /**
      *
      * @summary Stream a video
-     * @param {string} mediaId Id of media
+     * @param {string} mediaID ID of media
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    streamVideo(mediaId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    streamVideo(mediaID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
 };
 /**
  * MediaApi - factory interface
- * @export
  */
 declare const MediaApiFactory: (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) => {
     /**
@@ -2979,38 +1731,38 @@ declare const MediaApiFactory: (configuration?: Configuration, basePath?: string
      *
      * @summary Get paginated media
      * @param {MediaBatchParams} request Media Batch Params
-     * @param {string} [shareId] File ShareId
+     * @param {string} [shareID] File ShareID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMedia(request: MediaBatchParams, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<MediaBatchInfo>;
+    getMedia(request: MediaBatchParams, shareID?: string, options?: RawAxiosRequestConfig): AxiosPromise<MediaBatchInfo>;
     /**
      *
      * @summary Get file of media by id
-     * @param {string} mediaId Id of media
+     * @param {string} mediaID ID of media
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMediaFile(mediaId: string, options?: RawAxiosRequestConfig): AxiosPromise<FileInfo>;
+    getMediaFile(mediaID: string, options?: RawAxiosRequestConfig): AxiosPromise<FileInfo>;
     /**
      *
      * @summary Get a media image bytes
-     * @param {string} mediaId Media Id
+     * @param {string} mediaID Media ID
      * @param {string} extension Extension
      * @param {GetMediaImageQualityEnum} quality Image Quality
      * @param {number} [page] Page number
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMediaImage(mediaId: string, extension: string, quality: GetMediaImageQualityEnum, page?: number, options?: RawAxiosRequestConfig): AxiosPromise<string>;
+    getMediaImage(mediaID: string, extension: string, quality: GetMediaImageQualityEnum, page?: number, options?: RawAxiosRequestConfig): AxiosPromise<string>;
     /**
      *
      * @summary Get media info
-     * @param {string} mediaId Media Id
+     * @param {string} mediaID Media ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMediaInfo(mediaId: string, options?: RawAxiosRequestConfig): AxiosPromise<MediaInfo>;
+    getMediaInfo(mediaID: string, options?: RawAxiosRequestConfig): AxiosPromise<MediaInfo>;
     /**
      *
      * @summary Get media type dictionary
@@ -3029,36 +1781,33 @@ declare const MediaApiFactory: (configuration?: Configuration, basePath?: string
     /**
      *
      * @summary Like a media
-     * @param {string} mediaId Id of media
+     * @param {string} mediaID ID of media
      * @param {boolean} liked Liked status to set
-     * @param {string} [shareId] ShareId
+     * @param {string} [shareID] ShareID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setMediaLiked(mediaId: string, liked: boolean, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    setMediaLiked(mediaID: string, liked: boolean, shareID?: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
     /**
      *
      * @summary Set media visibility
      * @param {boolean} hidden Set the media visibility
-     * @param {MediaIdsParams} mediaIds MediaIds to change visibility of
+     * @param {MediaIDsParams} mediaIDs MediaIDs to change visibility of
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setMediaVisibility(hidden: boolean, mediaIds: MediaIdsParams, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    setMediaVisibility(hidden: boolean, mediaIDs: MediaIDsParams, options?: RawAxiosRequestConfig): AxiosPromise<void>;
     /**
      *
      * @summary Stream a video
-     * @param {string} mediaId Id of media
+     * @param {string} mediaID ID of media
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    streamVideo(mediaId: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    streamVideo(mediaID: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
 };
 /**
  * MediaApi - object-oriented interface
- * @export
- * @class MediaApi
- * @extends {BaseAPI}
  */
 declare class MediaApi extends BaseAPI {
     /**
@@ -3066,7 +1815,6 @@ declare class MediaApi extends BaseAPI {
      * @summary Make sure all media is correctly synced with the file system
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof MediaApi
      */
     cleanupMedia(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
@@ -3074,7 +1822,6 @@ declare class MediaApi extends BaseAPI {
      * @summary Drop all computed media HDIR data. Must be server owner.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof MediaApi
      */
     dropHDIRs(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
@@ -3082,55 +1829,49 @@ declare class MediaApi extends BaseAPI {
      * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof MediaApi
      */
     dropMedia(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
      *
      * @summary Get paginated media
      * @param {MediaBatchParams} request Media Batch Params
-     * @param {string} [shareId] File ShareId
+     * @param {string} [shareID] File ShareID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof MediaApi
      */
-    getMedia(request: MediaBatchParams, shareId?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<MediaBatchInfo, any>>;
+    getMedia(request: MediaBatchParams, shareID?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<MediaBatchInfo, any>>;
     /**
      *
      * @summary Get file of media by id
-     * @param {string} mediaId Id of media
+     * @param {string} mediaID ID of media
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof MediaApi
      */
-    getMediaFile(mediaId: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FileInfo, any>>;
+    getMediaFile(mediaID: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FileInfo, any>>;
     /**
      *
      * @summary Get a media image bytes
-     * @param {string} mediaId Media Id
+     * @param {string} mediaID Media ID
      * @param {string} extension Extension
      * @param {GetMediaImageQualityEnum} quality Image Quality
      * @param {number} [page] Page number
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof MediaApi
      */
-    getMediaImage(mediaId: string, extension: string, quality: GetMediaImageQualityEnum, page?: number, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<string, any>>;
+    getMediaImage(mediaID: string, extension: string, quality: GetMediaImageQualityEnum, page?: number, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<string, any>>;
     /**
      *
      * @summary Get media info
-     * @param {string} mediaId Media Id
+     * @param {string} mediaID Media ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof MediaApi
      */
-    getMediaInfo(mediaId: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<MediaInfo, any>>;
+    getMediaInfo(mediaID: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<MediaInfo, any>>;
     /**
      *
      * @summary Get media type dictionary
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof MediaApi
      */
     getMediaTypes(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<MediaTypesInfo, any>>;
     /**
@@ -3139,43 +1880,36 @@ declare class MediaApi extends BaseAPI {
      * @param {number} count Number of random medias to get
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof MediaApi
      */
     getRandomMedia(count: number, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<MediaBatchInfo, any>>;
     /**
      *
      * @summary Like a media
-     * @param {string} mediaId Id of media
+     * @param {string} mediaID ID of media
      * @param {boolean} liked Liked status to set
-     * @param {string} [shareId] ShareId
+     * @param {string} [shareID] ShareID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof MediaApi
      */
-    setMediaLiked(mediaId: string, liked: boolean, shareId?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
+    setMediaLiked(mediaID: string, liked: boolean, shareID?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
      *
      * @summary Set media visibility
      * @param {boolean} hidden Set the media visibility
-     * @param {MediaIdsParams} mediaIds MediaIds to change visibility of
+     * @param {MediaIDsParams} mediaIDs MediaIDs to change visibility of
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof MediaApi
      */
-    setMediaVisibility(hidden: boolean, mediaIds: MediaIdsParams, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
+    setMediaVisibility(hidden: boolean, mediaIDs: MediaIDsParams, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
      *
      * @summary Stream a video
-     * @param {string} mediaId Id of media
+     * @param {string} mediaID ID of media
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof MediaApi
      */
-    streamVideo(mediaId: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
+    streamVideo(mediaID: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
 }
-/**
- * @export
- */
 declare const GetMediaImageQualityEnum: {
     readonly Thumbnail: "thumbnail";
     readonly Fullres: "fullres";
@@ -3183,18 +1917,17 @@ declare const GetMediaImageQualityEnum: {
 type GetMediaImageQualityEnum = typeof GetMediaImageQualityEnum[keyof typeof GetMediaImageQualityEnum];
 /**
  * ShareApi - axios parameter creator
- * @export
  */
 declare const ShareApiAxiosParamCreator: (configuration?: Configuration) => {
     /**
      *
      * @summary Add a user to a file share
-     * @param {string} shareId Share Id
+     * @param {string} shareID Share ID
      * @param {AddUserParams} request Share Accessors
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    addUserToShare: (shareId: string, request: AddUserParams, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    addUserToShare: (shareID: string, request: AddUserParams, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Share a file
@@ -3206,62 +1939,61 @@ declare const ShareApiAxiosParamCreator: (configuration?: Configuration) => {
     /**
      *
      * @summary Delete a file share
-     * @param {string} shareId Share Id
+     * @param {string} shareID Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    deleteFileShare: (shareId: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    deleteFileShare: (shareID: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Get a file share
-     * @param {string} shareId Share Id
+     * @param {string} shareID Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFileShare: (shareId: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    getFileShare: (shareID: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Remove a user from a file share
-     * @param {string} shareId Share Id
+     * @param {string} shareID Share ID
      * @param {string} username Username
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    removeUserFromShare: (shareId: string, username: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    removeUserFromShare: (shareID: string, username: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Update a share\'s \"public\" status
-     * @param {string} shareId Share Id
+     * @param {string} shareID Share ID
      * @param {boolean} _public Share Public Status
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setSharePublic: (shareId: string, _public: boolean, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    setSharePublic: (shareID: string, _public: boolean, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Update a share\'s user permissions
-     * @param {string} shareId Share Id
+     * @param {string} shareID Share ID
      * @param {string} username Username
      * @param {PermissionsParams} request Share Permissions Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    updateShareAccessorPermissions: (shareId: string, username: string, request: PermissionsParams, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    updateShareAccessorPermissions: (shareID: string, username: string, request: PermissionsParams, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
 };
 /**
  * ShareApi - functional programming interface
- * @export
  */
 declare const ShareApiFp: (configuration?: Configuration) => {
     /**
      *
      * @summary Add a user to a file share
-     * @param {string} shareId Share Id
+     * @param {string} shareID Share ID
      * @param {AddUserParams} request Share Accessors
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    addUserToShare(shareId: string, request: AddUserParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ShareInfo>>;
+    addUserToShare(shareID: string, request: AddUserParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ShareInfo>>;
     /**
      *
      * @summary Share a file
@@ -3273,62 +2005,61 @@ declare const ShareApiFp: (configuration?: Configuration) => {
     /**
      *
      * @summary Delete a file share
-     * @param {string} shareId Share Id
+     * @param {string} shareID Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    deleteFileShare(shareId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    deleteFileShare(shareID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
     /**
      *
      * @summary Get a file share
-     * @param {string} shareId Share Id
+     * @param {string} shareID Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFileShare(shareId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ShareInfo>>;
+    getFileShare(shareID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ShareInfo>>;
     /**
      *
      * @summary Remove a user from a file share
-     * @param {string} shareId Share Id
+     * @param {string} shareID Share ID
      * @param {string} username Username
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    removeUserFromShare(shareId: string, username: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ShareInfo>>;
+    removeUserFromShare(shareID: string, username: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ShareInfo>>;
     /**
      *
      * @summary Update a share\'s \"public\" status
-     * @param {string} shareId Share Id
+     * @param {string} shareID Share ID
      * @param {boolean} _public Share Public Status
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setSharePublic(shareId: string, _public: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    setSharePublic(shareID: string, _public: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
     /**
      *
      * @summary Update a share\'s user permissions
-     * @param {string} shareId Share Id
+     * @param {string} shareID Share ID
      * @param {string} username Username
      * @param {PermissionsParams} request Share Permissions Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    updateShareAccessorPermissions(shareId: string, username: string, request: PermissionsParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ShareInfo>>;
+    updateShareAccessorPermissions(shareID: string, username: string, request: PermissionsParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ShareInfo>>;
 };
 /**
  * ShareApi - factory interface
- * @export
  */
 declare const ShareApiFactory: (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) => {
     /**
      *
      * @summary Add a user to a file share
-     * @param {string} shareId Share Id
+     * @param {string} shareID Share ID
      * @param {AddUserParams} request Share Accessors
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    addUserToShare(shareId: string, request: AddUserParams, options?: RawAxiosRequestConfig): AxiosPromise<ShareInfo>;
+    addUserToShare(shareID: string, request: AddUserParams, options?: RawAxiosRequestConfig): AxiosPromise<ShareInfo>;
     /**
      *
      * @summary Share a file
@@ -3340,127 +2071,116 @@ declare const ShareApiFactory: (configuration?: Configuration, basePath?: string
     /**
      *
      * @summary Delete a file share
-     * @param {string} shareId Share Id
+     * @param {string} shareID Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    deleteFileShare(shareId: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    deleteFileShare(shareID: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
     /**
      *
      * @summary Get a file share
-     * @param {string} shareId Share Id
+     * @param {string} shareID Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFileShare(shareId: string, options?: RawAxiosRequestConfig): AxiosPromise<ShareInfo>;
+    getFileShare(shareID: string, options?: RawAxiosRequestConfig): AxiosPromise<ShareInfo>;
     /**
      *
      * @summary Remove a user from a file share
-     * @param {string} shareId Share Id
+     * @param {string} shareID Share ID
      * @param {string} username Username
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    removeUserFromShare(shareId: string, username: string, options?: RawAxiosRequestConfig): AxiosPromise<ShareInfo>;
+    removeUserFromShare(shareID: string, username: string, options?: RawAxiosRequestConfig): AxiosPromise<ShareInfo>;
     /**
      *
      * @summary Update a share\'s \"public\" status
-     * @param {string} shareId Share Id
+     * @param {string} shareID Share ID
      * @param {boolean} _public Share Public Status
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setSharePublic(shareId: string, _public: boolean, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    setSharePublic(shareID: string, _public: boolean, options?: RawAxiosRequestConfig): AxiosPromise<void>;
     /**
      *
      * @summary Update a share\'s user permissions
-     * @param {string} shareId Share Id
+     * @param {string} shareID Share ID
      * @param {string} username Username
      * @param {PermissionsParams} request Share Permissions Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    updateShareAccessorPermissions(shareId: string, username: string, request: PermissionsParams, options?: RawAxiosRequestConfig): AxiosPromise<ShareInfo>;
+    updateShareAccessorPermissions(shareID: string, username: string, request: PermissionsParams, options?: RawAxiosRequestConfig): AxiosPromise<ShareInfo>;
 };
 /**
  * ShareApi - object-oriented interface
- * @export
- * @class ShareApi
- * @extends {BaseAPI}
  */
 declare class ShareApi extends BaseAPI {
     /**
      *
      * @summary Add a user to a file share
-     * @param {string} shareId Share Id
+     * @param {string} shareID Share ID
      * @param {AddUserParams} request Share Accessors
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof ShareApi
      */
-    addUserToShare(shareId: string, request: AddUserParams, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<ShareInfo, any>>;
+    addUserToShare(shareID: string, request: AddUserParams, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<ShareInfo, any>>;
     /**
      *
      * @summary Share a file
      * @param {FileShareParams} request New File Share Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof ShareApi
      */
     createFileShare(request: FileShareParams, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<ShareInfo, any>>;
     /**
      *
      * @summary Delete a file share
-     * @param {string} shareId Share Id
+     * @param {string} shareID Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof ShareApi
      */
-    deleteFileShare(shareId: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
+    deleteFileShare(shareID: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
      *
      * @summary Get a file share
-     * @param {string} shareId Share Id
+     * @param {string} shareID Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof ShareApi
      */
-    getFileShare(shareId: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<ShareInfo, any>>;
+    getFileShare(shareID: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<ShareInfo, any>>;
     /**
      *
      * @summary Remove a user from a file share
-     * @param {string} shareId Share Id
+     * @param {string} shareID Share ID
      * @param {string} username Username
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof ShareApi
      */
-    removeUserFromShare(shareId: string, username: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<ShareInfo, any>>;
+    removeUserFromShare(shareID: string, username: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<ShareInfo, any>>;
     /**
      *
      * @summary Update a share\'s \"public\" status
-     * @param {string} shareId Share Id
+     * @param {string} shareID Share ID
      * @param {boolean} _public Share Public Status
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof ShareApi
      */
-    setSharePublic(shareId: string, _public: boolean, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
+    setSharePublic(shareID: string, _public: boolean, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
      *
      * @summary Update a share\'s user permissions
-     * @param {string} shareId Share Id
+     * @param {string} shareID Share ID
      * @param {string} username Username
      * @param {PermissionsParams} request Share Permissions Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof ShareApi
      */
-    updateShareAccessorPermissions(shareId: string, username: string, request: PermissionsParams, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<ShareInfo, any>>;
+    updateShareAccessorPermissions(shareID: string, username: string, request: PermissionsParams, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<ShareInfo, any>>;
 }
 /**
  * TowersApi - axios parameter creator
- * @export
  */
 declare const TowersApiAxiosParamCreator: (configuration?: Configuration) => {
     /**
@@ -3474,11 +2194,11 @@ declare const TowersApiAxiosParamCreator: (configuration?: Configuration) => {
     /**
      *
      * @summary Delete a remote
-     * @param {string} serverId Server Id to delete
+     * @param {string} serverID Server ID to delete
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    deleteRemote: (serverId: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    deleteRemote: (serverID: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Flush Cache
@@ -3494,6 +2214,15 @@ declare const TowersApiAxiosParamCreator: (configuration?: Configuration) => {
      * @throws {RequiredError}
      */
     getBackupInfo: (timestamp: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    /**
+     *
+     * @summary Get a page of file actions
+     * @param {number} [page] Page number
+     * @param {number} [pageSize] Number of items per page
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getPagedHistoryActions: (page?: number, pageSize?: number, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Get all remotes
@@ -3526,11 +2255,11 @@ declare const TowersApiAxiosParamCreator: (configuration?: Configuration) => {
     /**
      *
      * @summary Launch backup on a tower
-     * @param {string} serverId Server ID
+     * @param {string} serverID Server ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    launchBackup: (serverId: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    launchBackup: (serverID: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Reset tower
@@ -3541,7 +2270,6 @@ declare const TowersApiAxiosParamCreator: (configuration?: Configuration) => {
 };
 /**
  * TowersApi - functional programming interface
- * @export
  */
 declare const TowersApiFp: (configuration?: Configuration) => {
     /**
@@ -3555,11 +2283,11 @@ declare const TowersApiFp: (configuration?: Configuration) => {
     /**
      *
      * @summary Delete a remote
-     * @param {string} serverId Server Id to delete
+     * @param {string} serverID Server ID to delete
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    deleteRemote(serverId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    deleteRemote(serverID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
     /**
      *
      * @summary Flush Cache
@@ -3575,6 +2303,15 @@ declare const TowersApiFp: (configuration?: Configuration) => {
      * @throws {RequiredError}
      */
     getBackupInfo(timestamp: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<BackupInfo>>;
+    /**
+     *
+     * @summary Get a page of file actions
+     * @param {number} [page] Page number
+     * @param {number} [pageSize] Number of items per page
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getPagedHistoryActions(page?: number, pageSize?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<HistoryFileAction>>>;
     /**
      *
      * @summary Get all remotes
@@ -3607,11 +2344,11 @@ declare const TowersApiFp: (configuration?: Configuration) => {
     /**
      *
      * @summary Launch backup on a tower
-     * @param {string} serverId Server ID
+     * @param {string} serverID Server ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    launchBackup(serverId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    launchBackup(serverID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
     /**
      *
      * @summary Reset tower
@@ -3622,7 +2359,6 @@ declare const TowersApiFp: (configuration?: Configuration) => {
 };
 /**
  * TowersApi - factory interface
- * @export
  */
 declare const TowersApiFactory: (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) => {
     /**
@@ -3636,11 +2372,11 @@ declare const TowersApiFactory: (configuration?: Configuration, basePath?: strin
     /**
      *
      * @summary Delete a remote
-     * @param {string} serverId Server Id to delete
+     * @param {string} serverID Server ID to delete
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    deleteRemote(serverId: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    deleteRemote(serverID: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
     /**
      *
      * @summary Flush Cache
@@ -3656,6 +2392,15 @@ declare const TowersApiFactory: (configuration?: Configuration, basePath?: strin
      * @throws {RequiredError}
      */
     getBackupInfo(timestamp: string, options?: RawAxiosRequestConfig): AxiosPromise<BackupInfo>;
+    /**
+     *
+     * @summary Get a page of file actions
+     * @param {number} [page] Page number
+     * @param {number} [pageSize] Number of items per page
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getPagedHistoryActions(page?: number, pageSize?: number, options?: RawAxiosRequestConfig): AxiosPromise<Array<HistoryFileAction>>;
     /**
      *
      * @summary Get all remotes
@@ -3688,11 +2433,11 @@ declare const TowersApiFactory: (configuration?: Configuration, basePath?: strin
     /**
      *
      * @summary Launch backup on a tower
-     * @param {string} serverId Server ID
+     * @param {string} serverID Server ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    launchBackup(serverId: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    launchBackup(serverID: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
     /**
      *
      * @summary Reset tower
@@ -3703,9 +2448,6 @@ declare const TowersApiFactory: (configuration?: Configuration, basePath?: strin
 };
 /**
  * TowersApi - object-oriented interface
- * @export
- * @class TowersApi
- * @extends {BaseAPI}
  */
 declare class TowersApi extends BaseAPI {
     /**
@@ -3714,24 +2456,21 @@ declare class TowersApi extends BaseAPI {
      * @param {NewServerParams} request New Server Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof TowersApi
      */
     createRemote(request: NewServerParams, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TowerInfo, any>>;
     /**
      *
      * @summary Delete a remote
-     * @param {string} serverId Server Id to delete
+     * @param {string} serverID Server ID to delete
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof TowersApi
      */
-    deleteRemote(serverId: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
+    deleteRemote(serverID: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
      *
      * @summary Flush Cache
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof TowersApi
      */
     flushCache(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<WLResponseInfo, any>>;
     /**
@@ -3740,15 +2479,22 @@ declare class TowersApi extends BaseAPI {
      * @param {string} timestamp Timestamp in milliseconds since epoch
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof TowersApi
      */
     getBackupInfo(timestamp: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<BackupInfo, any>>;
+    /**
+     *
+     * @summary Get a page of file actions
+     * @param {number} [page] Page number
+     * @param {number} [pageSize] Number of items per page
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getPagedHistoryActions(page?: number, pageSize?: number, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<HistoryFileAction[], any>>;
     /**
      *
      * @summary Get all remotes
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof TowersApi
      */
     getRemotes(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TowerInfo[], any>>;
     /**
@@ -3756,7 +2502,6 @@ declare class TowersApi extends BaseAPI {
      * @summary Get Running Tasks
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof TowersApi
      */
     getRunningTasks(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TaskInfo[], any>>;
     /**
@@ -3764,7 +2509,6 @@ declare class TowersApi extends BaseAPI {
      * @summary Get server info
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof TowersApi
      */
     getServerInfo(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TowerInfo, any>>;
     /**
@@ -3773,30 +2517,26 @@ declare class TowersApi extends BaseAPI {
      * @param {StructsInitServerParams} request Server initialization body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof TowersApi
      */
     initializeTower(request: StructsInitServerParams, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TowerInfo[], any>>;
     /**
      *
      * @summary Launch backup on a tower
-     * @param {string} serverId Server ID
+     * @param {string} serverID Server ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof TowersApi
      */
-    launchBackup(serverId: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
+    launchBackup(serverID: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
      *
      * @summary Reset tower
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof TowersApi
      */
     resetTower(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
 }
 /**
  * UsersApi - axios parameter creator
- * @export
  */
 declare const UsersApiAxiosParamCreator: (configuration?: Configuration) => {
     /**
@@ -3899,7 +2639,6 @@ declare const UsersApiAxiosParamCreator: (configuration?: Configuration) => {
 };
 /**
  * UsersApi - functional programming interface
- * @export
  */
 declare const UsersApiFp: (configuration?: Configuration) => {
     /**
@@ -4002,7 +2741,6 @@ declare const UsersApiFp: (configuration?: Configuration) => {
 };
 /**
  * UsersApi - factory interface
- * @export
  */
 declare const UsersApiFactory: (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) => {
     /**
@@ -4105,9 +2843,6 @@ declare const UsersApiFactory: (configuration?: Configuration, basePath?: string
 };
 /**
  * UsersApi - object-oriented interface
- * @export
- * @class UsersApi
- * @extends {BaseAPI}
  */
 declare class UsersApi extends BaseAPI {
     /**
@@ -4117,7 +2852,6 @@ declare class UsersApi extends BaseAPI {
      * @param {boolean} setActive Target activation status
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof UsersApi
      */
     activateUser(username: string, setActive: boolean, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
@@ -4127,7 +2861,6 @@ declare class UsersApi extends BaseAPI {
      * @param {string} newFullName New full name of user
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof UsersApi
      */
     changeDisplayName(username: string, newFullName: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
@@ -4136,7 +2869,6 @@ declare class UsersApi extends BaseAPI {
      * @param {string} username Username of user to check
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof UsersApi
      */
     checkExists(username: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
@@ -4145,7 +2877,6 @@ declare class UsersApi extends BaseAPI {
      * @param {NewUserParams} newUserParams New user params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof UsersApi
      */
     createUser(newUserParams: NewUserParams, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
@@ -4154,7 +2885,6 @@ declare class UsersApi extends BaseAPI {
      * @param {string} username Username of user to delete
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof UsersApi
      */
     deleteUser(username: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
@@ -4162,7 +2892,6 @@ declare class UsersApi extends BaseAPI {
      * @summary Gets the user based on the auth token
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof UsersApi
      */
     getUser(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<UserInfo, any>>;
     /**
@@ -4170,7 +2899,6 @@ declare class UsersApi extends BaseAPI {
      * @summary Get all users, including (possibly) sensitive information like password hashes
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof UsersApi
      */
     getUsers(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<UserInfoArchive[], any>>;
     /**
@@ -4179,7 +2907,6 @@ declare class UsersApi extends BaseAPI {
      * @param {LoginBody} loginParams Login params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof UsersApi
      */
     loginUser(loginParams: LoginBody, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<UserInfo, any>>;
     /**
@@ -4187,7 +2914,6 @@ declare class UsersApi extends BaseAPI {
      * @summary Logout User
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof UsersApi
      */
     logoutUser(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
@@ -4196,7 +2922,6 @@ declare class UsersApi extends BaseAPI {
      * @param {string} search Partial username to search for
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof UsersApi
      */
     searchUsers(search: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<UserInfo[], any>>;
     /**
@@ -4206,7 +2931,6 @@ declare class UsersApi extends BaseAPI {
      * @param {boolean} setAdmin Target admin status
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof UsersApi
      */
     setUserAdmin(username: string, setAdmin: boolean, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
@@ -4216,7 +2940,6 @@ declare class UsersApi extends BaseAPI {
      * @param {PasswordUpdateParams} passwordUpdateParams Password update params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof UsersApi
      */
     updateUserPassword(username: string, passwordUpdateParams: PasswordUpdateParams, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
 }
@@ -4231,4 +2954,4 @@ type WLAPI = {
 };
 declare function WeblensApiFactory(apiEndpoint: string): WLAPI;
 
-export { type AddUserParams, type ApiKeyParams, ApiKeysApi, ApiKeysApiAxiosParamCreator, ApiKeysApiFactory, ApiKeysApiFp, type BackupInfo, type Config, ConfigApi, ConfigApiAxiosParamCreator, ConfigApiFactory, ConfigApiFp, type CreateFolderBody, type FileActionInfo, type FileInfo, type FileShareParams, FilesApi, FilesApiAxiosParamCreator, FilesApiFactory, FilesApiFp, type FilesListParams, FolderApi, FolderApiAxiosParamCreator, FolderApiFactory, FolderApiFp, type FolderInfo, GetMediaImageQualityEnum, type LoginBody, MediaApi, MediaApiAxiosParamCreator, MediaApiFactory, MediaApiFp, type MediaBatchInfo, type MediaBatchParams, MediaBatchParamsSortEnum, type MediaIdsParams, type MediaInfo, type MediaTypeInfo, type MediaTypesInfo, type MoveFilesParams, type NewFileParams, type NewFilesInfo, type NewFilesParams, type NewServerParams, type NewUploadInfo, type NewUploadParams, type NewUserParams, type PasswordUpdateParams, type PermissionsInfo, type PermissionsParams, type RestoreFilesBody, type RestoreFilesInfo, ShareApi, ShareApiAxiosParamCreator, ShareApiFactory, ShareApiFp, type ShareInfo, type StructsInitServerParams, type StructsSetConfigParam, type TakeoutInfo, type TaskInfo, TaskTaskExitStatus, type TokenInfo, type TowerInfo, TowersApi, TowersApiAxiosParamCreator, TowersApiFactory, TowersApiFp, type UpdateFileParams, type UserInfo, type UserInfoArchive, UsersApi, UsersApiAxiosParamCreator, UsersApiFactory, UsersApiFp, type WLAPI, type WLResponseInfo, WeblensApiFactory, type WeblensErrorInfo };
+export { type AddUserParams, type ApiKeyParams, ApiKeysApi, ApiKeysApiAxiosParamCreator, ApiKeysApiFactory, ApiKeysApiFp, type BackupInfo, type Config, ConfigApi, ConfigApiAxiosParamCreator, ConfigApiFactory, ConfigApiFp, type CreateFolderBody, type FileActionInfo, type FileInfo, type FileShareParams, FilesApi, FilesApiAxiosParamCreator, FilesApiFactory, FilesApiFp, type FilesListParams, FolderApi, FolderApiAxiosParamCreator, FolderApiFactory, FolderApiFp, type FolderInfo, type FsFilepath, GetMediaImageQualityEnum, type HistoryFileAction, type LoginBody, MediaApi, MediaApiAxiosParamCreator, MediaApiFactory, MediaApiFp, type MediaBatchInfo, type MediaBatchParams, MediaBatchParamsSortEnum, type MediaIDsParams, type MediaInfo, type MediaTypeInfo, type MediaTypesInfo, type MoveFilesParams, type NewFileParams, type NewFilesInfo, type NewFilesParams, type NewServerParams, type NewUploadInfo, type NewUploadParams, type NewUserParams, type PasswordUpdateParams, type PermissionsInfo, type PermissionsParams, type RestoreFilesBody, type RestoreFilesInfo, ShareApi, ShareApiAxiosParamCreator, ShareApiFactory, ShareApiFp, type ShareInfo, type StructsInitServerParams, type StructsSetConfigParam, type TakeoutInfo, type TaskInfo, TaskTaskExitStatus, type TokenInfo, type TowerInfo, TowersApi, TowersApiAxiosParamCreator, TowersApiFactory, TowersApiFp, type UpdateFileParams, type UserInfo, type UserInfoArchive, UsersApi, UsersApiAxiosParamCreator, UsersApiFactory, UsersApiFp, type WLAPI, type WLResponseInfo, WeblensApiFactory, type WeblensErrorInfo };

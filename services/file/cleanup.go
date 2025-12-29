@@ -11,28 +11,29 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func (fs *FileServiceImpl) removeFileById(ctx context.Context, fileId string) error {
+func (fs *ServiceImpl) removeFileByID(ctx context.Context, fileID string) error {
 	context_mod.ToZ(ctx).Log().Trace().Func(func(e *zerolog.Event) {
-		e.Msgf("Removing file with id [%s] removed from file tree", fileId)
+		e.Msgf("Removing file with id [%s] removed from file tree", fileID)
 	})
 
 	fs.treeLock.Lock()
 	defer fs.treeLock.Unlock()
-	delete(fs.files, fileId)
+
+	delete(fs.files, fileID)
 
 	return nil
 }
 
 func linkToRestore(ctx context.Context, file *file_model.WeblensFileImpl) error {
-	if file.GetContentId() == "" {
-		_, err := file_model.GenerateContentId(ctx, file)
+	if file.GetContentID() == "" {
+		_, err := file_model.GenerateContentID(ctx, file)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Check if the restore file already exists, with the filename being the content id
-	restorePath := file_system.BuildFilePath(file_model.RestoreTreeKey, file.GetContentId())
+	restorePath := file_system.BuildFilePath(file_model.RestoreTreeKey, file.GetContentID())
 
 	if exists(restorePath) {
 		// If the file already exists in the restore tree, no action is needed
@@ -50,12 +51,12 @@ func linkToRestore(ctx context.Context, file *file_model.WeblensFileImpl) error 
 }
 
 func rmFileMedia(ctx context.Context, file *file_model.WeblensFileImpl) error {
-	contentId := file.GetContentId()
-	if contentId == "" {
+	contentID := file.GetContentID()
+	if contentID == "" {
 		return nil
 	}
 
-	m, err := media_model.GetMediaByContentId(ctx, contentId)
+	m, err := media_model.GetMediaByContentID(ctx, contentID)
 	// Remove the file from the media, if it exists
 	if err == nil {
 		err = media_model.RemoveFileFromMedia(ctx, m, file.ID())

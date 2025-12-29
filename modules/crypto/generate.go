@@ -1,3 +1,4 @@
+// Package crypto provides cryptographic utilities for generating random values and hashing.
 package crypto
 
 import (
@@ -13,30 +14,38 @@ func RandomInt(limit int64) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+
 	return rInt.Int64(), nil
 }
 
 const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
+// RandomString generates a cryptographically secure random string of the specified length.
 func RandomString(length int64) (string, error) {
 	buf := make([]byte, length)
+
 	limit := int64(len(chars))
 	for i := range buf {
 		num, err := RandomInt(limit)
 		if err != nil {
 			return "", err
 		}
+
 		buf[i] = chars[num]
 	}
+
 	return string(buf), nil
 }
 
+// RandomBytes generates cryptographically secure random bytes of the specified length.
 func RandomBytes(length int64) ([]byte, error) {
 	buf := make([]byte, length)
 	_, err := rand.Read(buf)
+
 	return buf, err
 }
 
+// HashString computes the SHA-256 hash of a string and returns it as a base64-encoded string.
 func HashString(stringToHash string) string {
 	h := sha256.New()
 

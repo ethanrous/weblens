@@ -5,10 +5,10 @@ All URIs are relative to *http://localhost:8080/api/v1*
 |Method | HTTP request | Description|
 |------------- | ------------- | -------------|
 |[**createFolder**](#createfolder) | **POST** /folder | Create a new folder|
-|[**getFolder**](#getfolder) | **GET** /folder/{folderId} | Get a folder|
-|[**getFolderHistory**](#getfolderhistory) | **GET** /files/{fileId}/history | Get actions of a folder at a given time|
-|[**scanFolder**](#scanfolder) | **POST** /folder/{folderId}/scan | Dispatch a folder scan|
-|[**setFolderCover**](#setfoldercover) | **PATCH** /folder/{folderId}/cover | Set the cover image of a folder|
+|[**getFolder**](#getfolder) | **GET** /folder/{folderID} | Get a folder|
+|[**getFolderHistory**](#getfolderhistory) | **GET** /files/{fileID}/history | Get actions of a folder at a given time|
+|[**scanFolder**](#scanfolder) | **POST** /folder/{folderID}/scan | Dispatch a folder scan|
+|[**setFolderCover**](#setfoldercover) | **PATCH** /folder/{folderID}/cover | Set the cover image of a folder|
 
 # **createFolder**
 > FileInfo createFolder(request)
@@ -27,11 +27,11 @@ const configuration = new Configuration();
 const apiInstance = new FolderApi(configuration);
 
 let request: CreateFolderBody; //New folder body
-let shareId: string; //Share Id (optional) (default to undefined)
+let shareID: string; //Share ID (optional) (default to undefined)
 
 const { status, data } = await apiInstance.createFolder(
     request,
-    shareId
+    shareID
 );
 ```
 
@@ -40,7 +40,7 @@ const { status, data } = await apiInstance.createFolder(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **request** | **CreateFolderBody**| New folder body | |
-| **shareId** | [**string**] | Share Id | (optional) defaults to undefined|
+| **shareID** | [**string**] | Share ID | (optional) defaults to undefined|
 
 
 ### Return type
@@ -79,13 +79,13 @@ import {
 const configuration = new Configuration();
 const apiInstance = new FolderApi(configuration);
 
-let folderId: string; //Folder Id (default to undefined)
-let shareId: string; //Share Id (optional) (default to undefined)
+let folderID: string; //Folder ID (default to undefined)
+let shareID: string; //Share ID (optional) (default to undefined)
 let timestamp: number; //Past timestamp to view the folder at, in ms since epoch (optional) (default to undefined)
 
 const { status, data } = await apiInstance.getFolder(
-    folderId,
-    shareId,
+    folderID,
+    shareID,
     timestamp
 );
 ```
@@ -94,8 +94,8 @@ const { status, data } = await apiInstance.getFolder(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **folderId** | [**string**] | Folder Id | defaults to undefined|
-| **shareId** | [**string**] | Share Id | (optional) defaults to undefined|
+| **folderID** | [**string**] | Folder ID | defaults to undefined|
+| **shareID** | [**string**] | Share ID | (optional) defaults to undefined|
 | **timestamp** | [**number**] | Past timestamp to view the folder at, in ms since epoch | (optional) defaults to undefined|
 
 
@@ -135,11 +135,11 @@ import {
 const configuration = new Configuration();
 const apiInstance = new FolderApi(configuration);
 
-let fileId: string; //File Id (default to undefined)
+let fileID: string; //File ID (default to undefined)
 let timestamp: number; //Past timestamp to view the folder at, in ms since epoch (default to undefined)
 
 const { status, data } = await apiInstance.getFolderHistory(
-    fileId,
+    fileID,
     timestamp
 );
 ```
@@ -148,7 +148,7 @@ const { status, data } = await apiInstance.getFolderHistory(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **fileId** | [**string**] | File Id | defaults to undefined|
+| **fileID** | [**string**] | File ID | defaults to undefined|
 | **timestamp** | [**number**] | Past timestamp to view the folder at, in ms since epoch | defaults to undefined|
 
 
@@ -190,12 +190,12 @@ import {
 const configuration = new Configuration();
 const apiInstance = new FolderApi(configuration);
 
-let folderId: string; //Folder Id (default to undefined)
-let shareId: string; //Share Id (optional) (default to undefined)
+let folderID: string; //Folder ID (default to undefined)
+let shareID: string; //Share ID (optional) (default to undefined)
 
 const { status, data } = await apiInstance.scanFolder(
-    folderId,
-    shareId
+    folderID,
+    shareID
 );
 ```
 
@@ -203,8 +203,8 @@ const { status, data } = await apiInstance.scanFolder(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **folderId** | [**string**] | Folder Id | defaults to undefined|
-| **shareId** | [**string**] | Share Id | (optional) defaults to undefined|
+| **folderID** | [**string**] | Folder ID | defaults to undefined|
+| **shareID** | [**string**] | Share ID | (optional) defaults to undefined|
 
 
 ### Return type
@@ -245,12 +245,12 @@ import {
 const configuration = new Configuration();
 const apiInstance = new FolderApi(configuration);
 
-let folderId: string; //Folder Id (default to undefined)
-let mediaId: string; //Media Id (default to undefined)
+let folderID: string; //Folder ID (default to undefined)
+let mediaID: string; //Media ID (default to undefined)
 
 const { status, data } = await apiInstance.setFolderCover(
-    folderId,
-    mediaId
+    folderID,
+    mediaID
 );
 ```
 
@@ -258,8 +258,8 @@ const { status, data } = await apiInstance.setFolderCover(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **folderId** | [**string**] | Folder Id | defaults to undefined|
-| **mediaId** | [**string**] | Media Id | defaults to undefined|
+| **folderID** | [**string**] | Folder ID | defaults to undefined|
+| **mediaID** | [**string**] | Media ID | defaults to undefined|
 
 
 ### Return type

@@ -1,3 +1,4 @@
+// Package notify provides websocket notification services for broadcasting events to connected clients.
 package notify
 
 import (
@@ -14,10 +15,11 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func NewTaskNotification(task *task_model.Task, event websocket_mod.WsEvent, result task_mod.TaskResult) websocket_mod.WsResponseInfo {
+// NewTaskNotification creates a websocket notification for a task event with the given result.
+func NewTaskNotification(task *task_model.Task, event websocket_mod.WsEvent, result task_mod.Result) websocket_mod.WsResponseInfo {
 	msg := websocket_mod.WsResponseInfo{
 		EventTag:        event,
-		SubscribeKey:    task.Id(),
+		SubscribeKey:    task.ID(),
 		Content:         result.ToMap(),
 		TaskType:        task.JobName(),
 		BroadcastType:   websocket_mod.TaskSubscribe,
@@ -29,7 +31,8 @@ func NewTaskNotification(task *task_model.Task, event websocket_mod.WsEvent, res
 	return msg
 }
 
-func NewPoolNotification(pool task_mod.Pool, event websocket_mod.WsEvent, result task_mod.TaskResult) websocket_mod.WsResponseInfo {
+// NewPoolNotification creates a websocket notification for a task pool event with the given result.
+func NewPoolNotification(pool task_mod.Pool, event websocket_mod.WsEvent, result task_mod.Result) websocket_mod.WsResponseInfo {
 	if pool.IsGlobal() {
 		log.Warn().Msg("Not pushing update on global pool")
 
@@ -40,7 +43,7 @@ func NewPoolNotification(pool task_mod.Pool, event websocket_mod.WsEvent, result
 
 	msg := websocket_mod.WsResponseInfo{
 		EventTag:        event,
-		SubscribeKey:    parentTask.Id(),
+		SubscribeKey:    parentTask.ID(),
 		Content:         result.ToMap(),
 		TaskType:        parentTask.JobName(),
 		BroadcastType:   websocket_mod.TaskSubscribe,
@@ -50,6 +53,7 @@ func NewPoolNotification(pool task_mod.Pool, event websocket_mod.WsEvent, result
 	return msg
 }
 
+// NewSystemNotification creates a websocket notification for a system-wide event with the given data.
 func NewSystemNotification(event websocket_mod.WsEvent, data websocket_mod.WsData) websocket_mod.WsResponseInfo {
 	msg := websocket_mod.WsResponseInfo{
 		SubscribeKey:    websocket_mod.SystemSubscriberKey,
@@ -62,6 +66,8 @@ func NewSystemNotification(event websocket_mod.WsEvent, data websocket_mod.WsDat
 	return msg
 }
 
+// NewFileNotification creates websocket notifications for a file event, including notifications for the file,
+// its parent folder, and optionally a pre-move parent if the file was moved.
 func NewFileNotification(
 	c context.Context,
 	file *file_model.WeblensFileImpl,
@@ -87,7 +93,7 @@ func NewFileNotification(
 	o := consolidateFileOptions(options...)
 
 	content := websocket_mod.WsData{"fileInfo": fileInfo}
-	if o.MediaInfo.ContentId != "" {
+	if o.MediaInfo.ContentID != "" {
 		content["mediaData"] = options[0].MediaInfo
 	}
 
@@ -107,9 +113,9 @@ func NewFileNotification(
 		notifs = append(notifs, parentMsg)
 	}
 
-	if o.PreMoveParentId != "" {
+	if o.PreMoveParentID != "" {
 		preMoveMsg := notifs[0]
-		preMoveMsg.SubscribeKey = o.PreMoveParentId
+		preMoveMsg.SubscribeKey = o.PreMoveParentID
 		notifs = append(notifs, preMoveMsg)
 	}
 

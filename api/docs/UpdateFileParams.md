@@ -5,7 +5,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **NewName** | Pointer to **string** |  | [optional] 
-**NewParentId** | Pointer to **string** |  | [optional] 
+**NewParentID** | Pointer to **string** |  | [optional] 
 
 ## Methods
 
@@ -51,30 +51,30 @@ SetNewName sets NewName field to given value.
 
 HasNewName returns a boolean if a field has been set.
 
-### GetNewParentId
+### GetNewParentID
 
-`func (o *UpdateFileParams) GetNewParentId() string`
+`func (o *UpdateFileParams) GetNewParentID() string`
 
-GetNewParentId returns the NewParentId field if non-nil, zero value otherwise.
+GetNewParentID returns the NewParentID field if non-nil, zero value otherwise.
 
-### GetNewParentIdOk
+### GetNewParentIDOk
 
-`func (o *UpdateFileParams) GetNewParentIdOk() (*string, bool)`
+`func (o *UpdateFileParams) GetNewParentIDOk() (*string, bool)`
 
-GetNewParentIdOk returns a tuple with the NewParentId field if it's non-nil, zero value otherwise
+GetNewParentIDOk returns a tuple with the NewParentID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetNewParentId
+### SetNewParentID
 
-`func (o *UpdateFileParams) SetNewParentId(v string)`
+`func (o *UpdateFileParams) SetNewParentID(v string)`
 
-SetNewParentId sets NewParentId field to given value.
+SetNewParentID sets NewParentID field to given value.
 
-### HasNewParentId
+### HasNewParentID
 
-`func (o *UpdateFileParams) HasNewParentId() bool`
+`func (o *UpdateFileParams) HasNewParentID() bool`
 
-HasNewParentId returns a boolean if a field has been set.
+HasNewParentID returns a boolean if a field has been set.
 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

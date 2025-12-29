@@ -6,7 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **chunkSize** | **number** |  | [optional] [default to undefined]
-**rootFolderId** | **string** |  | [optional] [default to undefined]
+**rootFolderID** | **string** |  | [optional] [default to undefined]
 
 ## Example
 
@@ -15,7 +15,7 @@ import { NewUploadParams } from './api';
 
 const instance: NewUploadParams = {
     chunkSize,
-    rootFolderId,
+    rootFolderID,
 };
 ```
 

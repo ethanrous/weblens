@@ -20,7 +20,7 @@ var _ MappedNullable = &MoveFilesParams{}
 // MoveFilesParams struct for MoveFilesParams
 type MoveFilesParams struct {
 	FileIds []string `json:"fileIds,omitempty"`
-	NewParentId *string `json:"newParentId,omitempty"`
+	NewParentID *string `json:"newParentID,omitempty"`
 }
 
 // NewMoveFilesParams instantiates a new MoveFilesParams object
@@ -72,36 +72,36 @@ func (o *MoveFilesParams) SetFileIds(v []string) {
 	o.FileIds = v
 }
 
-// GetNewParentId returns the NewParentId field value if set, zero value otherwise.
-func (o *MoveFilesParams) GetNewParentId() string {
-	if o == nil || IsNil(o.NewParentId) {
+// GetNewParentID returns the NewParentID field value if set, zero value otherwise.
+func (o *MoveFilesParams) GetNewParentID() string {
+	if o == nil || IsNil(o.NewParentID) {
 		var ret string
 		return ret
 	}
-	return *o.NewParentId
+	return *o.NewParentID
 }
 
-// GetNewParentIdOk returns a tuple with the NewParentId field value if set, nil otherwise
+// GetNewParentIDOk returns a tuple with the NewParentID field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *MoveFilesParams) GetNewParentIdOk() (*string, bool) {
-	if o == nil || IsNil(o.NewParentId) {
+func (o *MoveFilesParams) GetNewParentIDOk() (*string, bool) {
+	if o == nil || IsNil(o.NewParentID) {
 		return nil, false
 	}
-	return o.NewParentId, true
+	return o.NewParentID, true
 }
 
-// HasNewParentId returns a boolean if a field has been set.
-func (o *MoveFilesParams) HasNewParentId() bool {
-	if o != nil && !IsNil(o.NewParentId) {
+// HasNewParentID returns a boolean if a field has been set.
+func (o *MoveFilesParams) HasNewParentID() bool {
+	if o != nil && !IsNil(o.NewParentID) {
 		return true
 	}
 
 	return false
 }
 
-// SetNewParentId gets a reference to the given string and assigns it to the NewParentId field.
-func (o *MoveFilesParams) SetNewParentId(v string) {
-	o.NewParentId = &v
+// SetNewParentID gets a reference to the given string and assigns it to the NewParentID field.
+func (o *MoveFilesParams) SetNewParentID(v string) {
+	o.NewParentID = &v
 }
 
 func (o MoveFilesParams) MarshalJSON() ([]byte, error) {
@@ -117,8 +117,8 @@ func (o MoveFilesParams) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.FileIds) {
 		toSerialize["fileIds"] = o.FileIds
 	}
-	if !IsNil(o.NewParentId) {
-		toSerialize["newParentId"] = o.NewParentId
+	if !IsNil(o.NewParentID) {
+		toSerialize["newParentID"] = o.NewParentID
 	}
 	return toSerialize, nil
 }

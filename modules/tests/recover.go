@@ -1,3 +1,4 @@
+// Package tests provides utility functions for test setup and error recovery in test cases.
 package tests
 
 import (
@@ -8,6 +9,7 @@ import (
 	"github.com/ethanrous/weblens/modules/log"
 )
 
+// Setup initializes a test context with logging configured for the test.
 func Setup(t *testing.T) context.Context {
 	t.Helper()
 
@@ -17,6 +19,7 @@ func Setup(t *testing.T) context.Context {
 	return ctx
 }
 
+// Recover handles panic recovery in tests by converting panics to test errors with stack traces.
 func Recover(t *testing.T) {
 	if rvr := recover(); rvr != nil {
 		err, ok := rvr.(error)

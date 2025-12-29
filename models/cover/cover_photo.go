@@ -1,3 +1,4 @@
+// Package cover manages folder cover photos and their associations.
 package cover
 
 import (
@@ -8,40 +9,43 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// CoverPhotoCollectionKey is the MongoDB collection name for cover photos.
 var CoverPhotoCollectionKey = "coverPhoto"
 
-type CoverPhoto struct {
-	FolderId     string `bson:"folderId"`
-	CoverPhotoId string `bson:"coverPhotoId"`
+// Photo represents a folder's cover photo mapping.
+type Photo struct {
+	FolderID     string `bson:"folderID"`
+	CoverPhotoID string `bson:"coverPhotoID"`
 }
 
-func GetCoverByFolderId(ctx context.Context, folderId string) (*CoverPhoto, error) {
+// GetCoverByFolderID retrieves the cover photo for a folder by its ID.
+func GetCoverByFolderID(ctx context.Context, folderID string) (*Photo, error) {
 	col, err := db.GetCollection[any](ctx, CoverPhotoCollectionKey)
 	if err != nil {
 		return nil, err
 	}
 
-	var coverPhoto CoverPhoto
-	if err := col.FindOne(ctx, bson.M{"folderId": folderId}).Decode(&coverPhoto); err != nil {
-		return nil, db.WrapError(err, "failed to get cover photo by folder ID %s", folderId)
+	var coverPhoto Photo
+	if err := col.FindOne(ctx, bson.M{"folderID": folderID}).Decode(&coverPhoto); err != nil {
+		return nil, db.WrapError(err, "failed to get cover photo by folder ID %s", folderID)
 	}
 
 	return &coverPhoto, nil
 }
 
-func SetCoverPhoto(ctx context.Context, folderId string, coverPhotoId string) (*CoverPhoto, error) {
+// SetCoverPhoto sets or replaces the cover photo for a folder.
+func SetCoverPhoto(ctx context.Context, folderID string, coverPhotoID string) (*Photo, error) {
 	col, err := db.GetCollection[any](ctx, CoverPhotoCollectionKey)
 	if err != nil {
 		return nil, err
 	}
 
-	coverPhoto := &CoverPhoto{
-		FolderId:     folderId,
-		CoverPhotoId: coverPhotoId,
+	coverPhoto := &Photo{
+		FolderID:     folderID,
+		CoverPhotoID: coverPhotoID,
 	}
 
-	_, err = col.ReplaceOne(ctx, bson.M{"folderId": folderId}, coverPhoto, options.Replace().SetUpsert(true))
-
+	_, err = col.ReplaceOne(ctx, bson.M{"folderID": folderID}, coverPhoto, options.Replace().SetUpsert(true))
 	if err != nil {
 		return nil, db.WrapError(err, "failed to set cover photo")
 	}
@@ -49,13 +53,14 @@ func SetCoverPhoto(ctx context.Context, folderId string, coverPhotoId string) (*
 	return coverPhoto, nil
 }
 
-func DeleteCoverByFolderId(ctx context.Context, folderId string) error {
+// DeleteCoverByFolderID removes the cover photo for a folder.
+func DeleteCoverByFolderID(ctx context.Context, folderID string) error {
 	col, err := db.GetCollection[any](ctx, CoverPhotoCollectionKey)
 	if err != nil {
 		return err
 	}
 
-	result, err := col.DeleteOne(ctx, bson.M{"folderId": folderId})
+	result, err := col.DeleteOne(ctx, bson.M{"folderID": folderID})
 	if err != nil {
 		return db.WrapError(err, "failed to delete cover photo")
 	}
@@ -67,7 +72,8 @@ func DeleteCoverByFolderId(ctx context.Context, folderId string) error {
 	return nil
 }
 
-func UpsertCoverByFolderId(ctx context.Context, folderId, coverPhotoId string) error {
+// UpsertCoverByFolderID creates or updates the cover photo for a folder.
+func UpsertCoverByFolderID(ctx context.Context, folderID, coverPhotoID string) error {
 	col, err := db.GetCollection[any](ctx, CoverPhotoCollectionKey)
 	if err != nil {
 		return err
@@ -75,13 +81,13 @@ func UpsertCoverByFolderId(ctx context.Context, folderId, coverPhotoId string) e
 
 	update := bson.M{
 		"$set": bson.M{
-			"folderId":     folderId,
-			"coverPhotoId": coverPhotoId,
+			"folderID":     folderID,
+			"coverPhotoID": coverPhotoID,
 		},
 	}
 
 	opts := options.Update().SetUpsert(true)
-	if _, err = col.UpdateOne(ctx, bson.M{"folderId": folderId}, update, opts); err != nil {
+	if _, err = col.UpdateOne(ctx, bson.M{"folderID": folderID}, update, opts); err != nil {
 		return db.WrapError(err, "failed to upsert cover photo")
 	}
 

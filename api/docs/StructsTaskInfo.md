@@ -6,13 +6,13 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **JobName** | **string** |  | 
 **Progress** | **int32** |  | 
-**TaskId** | **string** |  | 
+**TaskID** | **string** |  | 
 
 ## Methods
 
 ### NewStructsTaskInfo
 
-`func NewStructsTaskInfo(jobName string, progress int32, taskId string, ) *StructsTaskInfo`
+`func NewStructsTaskInfo(jobName string, progress int32, taskID string, ) *StructsTaskInfo`
 
 NewStructsTaskInfo instantiates a new StructsTaskInfo object
 This constructor will assign default values to properties that have it defined,
@@ -69,22 +69,22 @@ SetProgress sets Progress field to given value.
 
 ### GetTaskId
 
-`func (o *StructsTaskInfo) GetTaskId() string`
+`func (o *StructsTaskInfo) GetTaskID() string`
 
-GetTaskId returns the TaskId field if non-nil, zero value otherwise.
+GetTaskID returns the TaskID field if non-nil, zero value otherwise.
 
-### GetTaskIdOk
+### GetTaskIDOk
 
-`func (o *StructsTaskInfo) GetTaskIdOk() (*string, bool)`
+`func (o *StructsTaskInfo) GetTaskIDOk() (*string, bool)`
 
-GetTaskIdOk returns a tuple with the TaskId field if it's non-nil, zero value otherwise
+GetTaskIDOk returns a tuple with the TaskID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
 ### SetTaskId
 
-`func (o *StructsTaskInfo) SetTaskId(v string)`
+`func (o *StructsTaskInfo) SetTaskID(v string)`
 
-SetTaskId sets TaskId field to given value.
+SetTaskID sets TaskID field to given value.
 
 
 

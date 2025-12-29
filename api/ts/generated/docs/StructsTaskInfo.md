@@ -7,7 +7,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **jobName** | **string** |  | [default to undefined]
 **progress** | **number** |  | [default to undefined]
-**taskId** | **string** |  | [default to undefined]
+**taskID** | **string** |  | [default to undefined]
 
 ## Example
 
@@ -17,7 +17,7 @@ import { StructsTaskInfo } from './api';
 const instance: StructsTaskInfo = {
     jobName,
     progress,
-    taskId,
+    taskID,
 };
 ```
 

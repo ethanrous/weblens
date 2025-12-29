@@ -19,7 +19,7 @@ var _ MappedNullable = &NewUploadInfo{}
 
 // NewUploadInfo struct for NewUploadInfo
 type NewUploadInfo struct {
-	UploadId *string `json:"uploadId,omitempty"`
+	UploadID *string `json:"uploadID,omitempty"`
 }
 
 // NewNewUploadInfo instantiates a new NewUploadInfo object
@@ -39,36 +39,36 @@ func NewNewUploadInfoWithDefaults() *NewUploadInfo {
 	return &this
 }
 
-// GetUploadId returns the UploadId field value if set, zero value otherwise.
-func (o *NewUploadInfo) GetUploadId() string {
-	if o == nil || IsNil(o.UploadId) {
+// GetUploadID returns the UploadID field value if set, zero value otherwise.
+func (o *NewUploadInfo) GetUploadID() string {
+	if o == nil || IsNil(o.UploadID) {
 		var ret string
 		return ret
 	}
-	return *o.UploadId
+	return *o.UploadID
 }
 
-// GetUploadIdOk returns a tuple with the UploadId field value if set, nil otherwise
+// GetUploadIDOk returns a tuple with the UploadID field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *NewUploadInfo) GetUploadIdOk() (*string, bool) {
-	if o == nil || IsNil(o.UploadId) {
+func (o *NewUploadInfo) GetUploadIDOk() (*string, bool) {
+	if o == nil || IsNil(o.UploadID) {
 		return nil, false
 	}
-	return o.UploadId, true
+	return o.UploadID, true
 }
 
-// HasUploadId returns a boolean if a field has been set.
-func (o *NewUploadInfo) HasUploadId() bool {
-	if o != nil && !IsNil(o.UploadId) {
+// HasUploadID returns a boolean if a field has been set.
+func (o *NewUploadInfo) HasUploadID() bool {
+	if o != nil && !IsNil(o.UploadID) {
 		return true
 	}
 
 	return false
 }
 
-// SetUploadId gets a reference to the given string and assigns it to the UploadId field.
-func (o *NewUploadInfo) SetUploadId(v string) {
-	o.UploadId = &v
+// SetUploadID gets a reference to the given string and assigns it to the UploadID field.
+func (o *NewUploadInfo) SetUploadID(v string) {
+	o.UploadID = &v
 }
 
 func (o NewUploadInfo) MarshalJSON() ([]byte, error) {
@@ -81,8 +81,8 @@ func (o NewUploadInfo) MarshalJSON() ([]byte, error) {
 
 func (o NewUploadInfo) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
-	if !IsNil(o.UploadId) {
-		toSerialize["uploadId"] = o.UploadId
+	if !IsNil(o.UploadID) {
+		toSerialize["uploadID"] = o.UploadID
 	}
 	return toSerialize, nil
 }

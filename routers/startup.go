@@ -1,3 +1,4 @@
+// Package routers provides HTTP routing and server startup functionality for the Weblens application.
 package routers
 
 import (
@@ -20,7 +21,7 @@ import (
 	file_service "github.com/ethanrous/weblens/services/file"
 	"github.com/ethanrous/weblens/services/jobs"
 	"github.com/ethanrous/weblens/services/notify"
-	_ "github.com/ethanrous/weblens/services/user"
+	_ "github.com/ethanrous/weblens/services/user" // Required to register user service routes
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -32,6 +33,7 @@ func startupRecover(l zerolog.Logger) {
 	}
 }
 
+// CaptureInterrupt sets up signal handling for graceful shutdown of the application.
 func CaptureInterrupt() (context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -47,19 +49,22 @@ func CaptureInterrupt() (context.Context, context.CancelFunc) {
 			// Docker stop
 			syscall.SIGTERM,
 		)
+
 		select {
 		case <-signalChannel:
 			log.Info().Msg("Received interrupt signal, shutting down...")
 			cancel()
 		case <-ctx.Done():
 		}
+
 		signal.Reset()
 	}()
 
 	return ctx, cancel
 }
 
-func Startup(ctx context_service.AppContext, cnf config.ConfigProvider) (*router.Router, error) {
+// Startup initializes all application services and configures the HTTP router.
+func Startup(ctx context_service.AppContext, cnf config.Provider) (*router.Router, error) {
 	defer startupRecover(*ctx.Log())
 
 	r := router.NewRouter()
@@ -92,8 +97,8 @@ func Startup(ctx context_service.AppContext, cnf config.ConfigProvider) (*router
 		ctx.Log().Fatal().Stack().Err(err).Msg("Failed to load initial state")
 	}
 
-	ctx.LocalTowerId = local.TowerId
-	ctx = ctx.WithValue("towerId", local.TowerId)
+	ctx.LocalTowerID = local.TowerID
+	ctx = ctx.WithValue("towerID", local.TowerID)
 
 	if local.Role == tower_model.RoleBackup {
 		ctx = ctx.WithValue(file_service.SkipJournalKey, true)
@@ -120,7 +125,7 @@ func Startup(ctx context_service.AppContext, cnf config.ConfigProvider) (*router
 
 	r.Use(router.Recoverer)
 	r.Mount("/docs", v1.Docs())
-	r.Mount("/", web.UiRoutes(web.NewMemFs(ctx, cnf)))
+	r.Mount("/", web.UIRoutes(web.NewMemFs(ctx, cnf)))
 
 	return r, nil
 }
@@ -129,21 +134,21 @@ func loadState(ctx context_service.AppContext) (local tower_model.Instance, err 
 	local, err = tower_model.GetLocal(ctx)
 	if err != nil {
 		ctx.Log().Info().Msgf("No local instance found, creating new one")
-		local, err = tower_model.CreateLocal(ctx)
 
+		local, err = tower_model.CreateLocal(ctx)
 		if err != nil {
 			return local, errors.Wrap(err, "Failed to create local instance")
 		}
 	}
 
-	ctx.Log().Info().Msgf("Local instance found: %s -- %s", local.TowerId, local.Role)
+	ctx.Log().Info().Msgf("Local instance found: %s -- %s", local.TowerID, local.Role)
 
 	if local.Role != tower_model.RoleInit {
 		_, err := user_model.GetServerOwner(ctx)
 		if err != nil {
 			ctx.Log().Warn().Err(err).Msgf("No server owner found, reverting to server init state")
-			local, err = tower_model.ResetLocal(ctx)
 
+			local, err = tower_model.ResetLocal(ctx)
 			if err != nil {
 				return local, errors.Wrap(err, "Failed to reset local instance")
 			}

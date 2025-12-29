@@ -22,7 +22,7 @@ type NewFileParams struct {
 	FileSize *int32 `json:"fileSize,omitempty"`
 	IsDir *bool `json:"isDir,omitempty"`
 	NewFileName *string `json:"newFileName,omitempty"`
-	ParentFolderId *string `json:"parentFolderId,omitempty"`
+	ParentFolderID *string `json:"parentFolderID,omitempty"`
 }
 
 // NewNewFileParams instantiates a new NewFileParams object
@@ -138,36 +138,36 @@ func (o *NewFileParams) SetNewFileName(v string) {
 	o.NewFileName = &v
 }
 
-// GetParentFolderId returns the ParentFolderId field value if set, zero value otherwise.
-func (o *NewFileParams) GetParentFolderId() string {
-	if o == nil || IsNil(o.ParentFolderId) {
+// GetParentFolderID returns the ParentFolderID field value if set, zero value otherwise.
+func (o *NewFileParams) GetParentFolderID() string {
+	if o == nil || IsNil(o.ParentFolderID) {
 		var ret string
 		return ret
 	}
-	return *o.ParentFolderId
+	return *o.ParentFolderID
 }
 
-// GetParentFolderIdOk returns a tuple with the ParentFolderId field value if set, nil otherwise
+// GetParentFolderIDOk returns a tuple with the ParentFolderID field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *NewFileParams) GetParentFolderIdOk() (*string, bool) {
-	if o == nil || IsNil(o.ParentFolderId) {
+func (o *NewFileParams) GetParentFolderIDOk() (*string, bool) {
+	if o == nil || IsNil(o.ParentFolderID) {
 		return nil, false
 	}
-	return o.ParentFolderId, true
+	return o.ParentFolderID, true
 }
 
-// HasParentFolderId returns a boolean if a field has been set.
-func (o *NewFileParams) HasParentFolderId() bool {
-	if o != nil && !IsNil(o.ParentFolderId) {
+// HasParentFolderID returns a boolean if a field has been set.
+func (o *NewFileParams) HasParentFolderID() bool {
+	if o != nil && !IsNil(o.ParentFolderID) {
 		return true
 	}
 
 	return false
 }
 
-// SetParentFolderId gets a reference to the given string and assigns it to the ParentFolderId field.
-func (o *NewFileParams) SetParentFolderId(v string) {
-	o.ParentFolderId = &v
+// SetParentFolderID gets a reference to the given string and assigns it to the ParentFolderID field.
+func (o *NewFileParams) SetParentFolderID(v string) {
+	o.ParentFolderID = &v
 }
 
 func (o NewFileParams) MarshalJSON() ([]byte, error) {
@@ -189,8 +189,8 @@ func (o NewFileParams) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.NewFileName) {
 		toSerialize["newFileName"] = o.NewFileName
 	}
-	if !IsNil(o.ParentFolderId) {
-		toSerialize["parentFolderId"] = o.ParentFolderId
+	if !IsNil(o.ParentFolderID) {
+		toSerialize["parentFolderID"] = o.ParentFolderID
 	}
 	return toSerialize, nil
 }

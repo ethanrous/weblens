@@ -6,7 +6,8 @@ import (
 	"github.com/ethanrous/weblens/modules/task"
 )
 
+// DispatcherContext provides the ability to dispatch jobs as tasks.
 type DispatcherContext interface {
 	context.Context
-	DispatchJob(string, task.TaskMetadata, task.Pool) (task.Task, error)
+	DispatchJob(jobName string, metadata task.Metadata, pool task.Pool) (task.Task, error)
 }

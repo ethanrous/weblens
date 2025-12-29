@@ -14,7 +14,7 @@ import (
 	"github.com/ethanrous/weblens/services/reshape"
 )
 
-// CreateUser godoc
+// Create godoc
 //
 //	@ID			CreateUser
 //
@@ -44,19 +44,21 @@ func Create(ctx context.RequestContext) {
 	err = ctx.GetFileService().CreateUserHome(ctx, newUser)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
 	err = user_model.SaveUser(ctx, newUser)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
 	ctx.Status(http.StatusCreated)
 }
 
-// LoginUser godoc
+// Login godoc
 //
 //	@ID			LoginUser
 //
@@ -71,19 +73,21 @@ func Login(ctx context.RequestContext) {
 	userCredentials, err := net.ReadRequestBody[structs.LoginParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusBadRequest, err)
+
 		return
 	}
 
 	u, err := user_model.GetUserByUsername(ctx, userCredentials.Username)
 	if err != nil {
 		ctx.Error(http.StatusNotFound, err)
+
 		return
 	}
 
 	if !u.CheckLogin(userCredentials.Password) {
 		ctx.Log().Debug().Msgf("Invalid login for [%s]", userCredentials.Username)
-
 		ctx.Error(http.StatusUnauthorized, errors.New("invalid login"))
+
 		return
 	}
 
@@ -92,6 +96,7 @@ func Login(ctx context.RequestContext) {
 	err = access_service.SetSessionToken(ctx)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
@@ -114,19 +119,21 @@ func CheckExists(ctx context.RequestContext) {
 	username := ctx.Path("username")
 	if username == "" {
 		ctx.Status(http.StatusBadRequest)
+
 		return
 	}
 
 	_, err := user_model.GetUserByUsername(ctx, username)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
+
 		return
 	}
 
 	ctx.Status(http.StatusOK)
 }
 
-// LogoutUser godoc
+// Logout godoc
 //
 //	@ID			LogoutUser
 //
@@ -139,6 +146,7 @@ func CheckExists(ctx context.RequestContext) {
 func Logout(ctx context.RequestContext) {
 	if ctx.Requester == nil {
 		ctx.Status(http.StatusNotFound)
+
 		return
 	}
 
@@ -147,7 +155,7 @@ func Logout(ctx context.RequestContext) {
 	ctx.Status(http.StatusOK)
 }
 
-// GetUsers godoc
+// GetAll godoc
 //
 //	@ID			GetUsers
 //
@@ -161,10 +169,10 @@ func Logout(ctx context.RequestContext) {
 //	@Router		/users [get]
 func GetAll(ctx context.RequestContext) {
 	users, err := user_model.GetAllUsers(ctx)
-
 	if err != nil {
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to get all users")
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
@@ -178,7 +186,7 @@ func GetAll(ctx context.RequestContext) {
 	ctx.JSON(http.StatusOK, results)
 }
 
-// GetUser godoc
+// GetMe godoc
 //
 //	@ID			GetUser
 //
@@ -195,6 +203,7 @@ func GetAll(ctx context.RequestContext) {
 func GetMe(ctx context.RequestContext) {
 	if !ctx.IsLoggedIn {
 		ctx.Status(http.StatusUnauthorized)
+
 		return
 	}
 
@@ -202,7 +211,7 @@ func GetMe(ctx context.RequestContext) {
 	ctx.JSON(http.StatusOK, newU)
 }
 
-// UpdateUserPassword godoc
+// UpdatePassword godoc
 //
 //	@ID			UpdateUserPassword
 //
@@ -226,17 +235,20 @@ func UpdatePassword(ctx context.RequestContext) {
 	userToUpdate, err := user_model.GetUserByUsername(ctx, updateUsername)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
+
 		return
 	}
 
 	if userToUpdate.Username != ctx.Requester.Username && !ctx.Requester.IsOwner() {
 		ctx.Status(http.StatusForbidden)
+
 		return
 	}
 
 	updateParams, err := net.ReadRequestBody[structs.PasswordUpdateParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusBadRequest, err)
+
 		return
 	}
 
@@ -246,6 +258,7 @@ func UpdatePassword(ctx context.RequestContext) {
 		if !ok {
 			ctx.Log().Debug().Msgf("Invalid password for user [%s]", updateUsername)
 			ctx.Error(http.StatusUnauthorized, errors.New("invalid password"))
+
 			return
 		}
 	}
@@ -254,13 +267,14 @@ func UpdatePassword(ctx context.RequestContext) {
 	if err != nil {
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to update user password")
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
 	ctx.Status(http.StatusOK)
 }
 
-// SetUserAdmin godoc
+// SetAdmin godoc
 //
 //	@ID			SetUserAdmin
 //
@@ -281,12 +295,14 @@ func UpdatePassword(ctx context.RequestContext) {
 func SetAdmin(ctx context.RequestContext) {
 	if !ctx.Requester.IsOwner() {
 		ctx.Status(http.StatusForbidden)
+
 		return
 	}
 
 	adminStr := ctx.Query("setAdmin")
 	if adminStr == "" {
 		ctx.Status(http.StatusBadRequest)
+
 		return
 	}
 
@@ -300,6 +316,7 @@ func SetAdmin(ctx context.RequestContext) {
 	user, err := user_model.GetUserByUsername(ctx, username)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
+
 		return
 	}
 
@@ -307,13 +324,14 @@ func SetAdmin(ctx context.RequestContext) {
 	if err != nil {
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to update user permission level")
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
 	ctx.Status(http.StatusOK)
 }
 
-// ActivateUser godoc
+// Activate godoc
 //
 //	@ID			ActivateUser
 //
@@ -334,12 +352,14 @@ func SetAdmin(ctx context.RequestContext) {
 func Activate(ctx context.RequestContext) {
 	if !ctx.Requester.IsAdmin() {
 		ctx.Status(http.StatusForbidden)
+
 		return
 	}
 
 	activeStr := ctx.Query("setActive")
 	if activeStr == "" {
 		ctx.Status(http.StatusBadRequest)
+
 		return
 	}
 
@@ -353,6 +373,7 @@ func Activate(ctx context.RequestContext) {
 	user, err := user_model.GetUserByUsername(ctx, username)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
+
 		return
 	}
 
@@ -360,6 +381,7 @@ func Activate(ctx context.RequestContext) {
 	if err != nil {
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to update user activation status")
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
@@ -390,17 +412,20 @@ func ChangeDisplayName(ctx context.RequestContext) {
 	newName := ctx.Query("newFullName")
 	if newName == "" {
 		ctx.Status(http.StatusBadRequest)
+
 		return
 	}
 
 	u, err := user_model.GetUserByUsername(ctx, username)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
+
 		return
 	}
 
 	if u.Username != ctx.Requester.Username && !ctx.Requester.IsAdmin() {
 		ctx.Status(http.StatusForbidden)
+
 		return
 	}
 
@@ -408,13 +433,14 @@ func ChangeDisplayName(ctx context.RequestContext) {
 	if err != nil {
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to update user full name")
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
 	ctx.JSON(http.StatusOK, reshape.UserToUserInfo(ctx, u))
 }
 
-// DeleteUser godoc
+// Delete godoc
 //
 //	@ID			DeleteUser
 //
@@ -434,18 +460,21 @@ func ChangeDisplayName(ctx context.RequestContext) {
 func Delete(ctx context.RequestContext) {
 	if !ctx.Requester.IsOwner() {
 		ctx.Status(http.StatusForbidden)
+
 		return
 	}
 
 	username := ctx.Path("username")
 	if username == "" {
 		ctx.Status(http.StatusBadRequest)
+
 		return
 	}
 
 	u, err := user_model.GetUserByUsername(ctx, username)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
+
 		return
 	}
 
@@ -453,6 +482,7 @@ func Delete(ctx context.RequestContext) {
 	if err != nil {
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to delete user")
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
@@ -461,7 +491,7 @@ func Delete(ctx context.RequestContext) {
 
 var minSearchLength = 2
 
-// SearchUsers godoc
+// Search godoc
 //
 //	@ID			SearchUsers
 //
@@ -482,6 +512,7 @@ func Search(ctx context.RequestContext) {
 	search := ctx.Query("search")
 	if len(search) < minSearchLength {
 		ctx.Error(http.StatusBadRequest, errors.New("Username autocomplete must contain at least 2 characters"))
+
 		return
 	}
 
@@ -489,6 +520,7 @@ func Search(ctx context.RequestContext) {
 	if err != nil {
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to search users by username")
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 

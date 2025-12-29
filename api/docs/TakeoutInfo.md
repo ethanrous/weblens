@@ -6,8 +6,8 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **Filename** | Pointer to **string** |  | [optional] 
 **Single** | Pointer to **bool** |  | [optional] 
-**TakeoutId** | Pointer to **string** |  | [optional] 
-**TaskId** | Pointer to **string** |  | [optional] 
+**TakeoutID** | Pointer to **string** |  | [optional] 
+**TaskID** | Pointer to **string** |  | [optional] 
 
 ## Methods
 
@@ -78,55 +78,55 @@ SetSingle sets Single field to given value.
 
 HasSingle returns a boolean if a field has been set.
 
-### GetTakeoutId
+### GetTakeoutID
 
-`func (o *TakeoutInfo) GetTakeoutId() string`
+`func (o *TakeoutInfo) GetTakeoutID() string`
 
-GetTakeoutId returns the TakeoutId field if non-nil, zero value otherwise.
+GetTakeoutID returns the TakeoutID field if non-nil, zero value otherwise.
 
-### GetTakeoutIdOk
+### GetTakeoutIDOk
 
-`func (o *TakeoutInfo) GetTakeoutIdOk() (*string, bool)`
+`func (o *TakeoutInfo) GetTakeoutIDOk() (*string, bool)`
 
-GetTakeoutIdOk returns a tuple with the TakeoutId field if it's non-nil, zero value otherwise
+GetTakeoutIDOk returns a tuple with the TakeoutID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetTakeoutId
+### SetTakeoutID
 
-`func (o *TakeoutInfo) SetTakeoutId(v string)`
+`func (o *TakeoutInfo) SetTakeoutID(v string)`
 
-SetTakeoutId sets TakeoutId field to given value.
+SetTakeoutID sets TakeoutID field to given value.
 
-### HasTakeoutId
+### HasTakeoutID
 
-`func (o *TakeoutInfo) HasTakeoutId() bool`
+`func (o *TakeoutInfo) HasTakeoutID() bool`
 
-HasTakeoutId returns a boolean if a field has been set.
+HasTakeoutID returns a boolean if a field has been set.
 
-### GetTaskId
+### GetTaskID
 
-`func (o *TakeoutInfo) GetTaskId() string`
+`func (o *TakeoutInfo) GetTaskID() string`
 
-GetTaskId returns the TaskId field if non-nil, zero value otherwise.
+GetTaskID returns the TaskID field if non-nil, zero value otherwise.
 
-### GetTaskIdOk
+### GetTaskIDOk
 
-`func (o *TakeoutInfo) GetTaskIdOk() (*string, bool)`
+`func (o *TakeoutInfo) GetTaskIDOk() (*string, bool)`
 
-GetTaskIdOk returns a tuple with the TaskId field if it's non-nil, zero value otherwise
+GetTaskIDOk returns a tuple with the TaskID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetTaskId
+### SetTaskID
 
-`func (o *TakeoutInfo) SetTaskId(v string)`
+`func (o *TakeoutInfo) SetTaskID(v string)`
 
-SetTaskId sets TaskId field to given value.
+SetTaskID sets TaskID field to given value.
 
-### HasTaskId
+### HasTaskID
 
-`func (o *TakeoutInfo) HasTaskId() bool`
+`func (o *TakeoutInfo) HasTaskID() bool`
 
-HasTaskId returns a boolean if a field has been set.
+HasTaskID returns a boolean if a field has been set.
 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

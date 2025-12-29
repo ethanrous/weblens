@@ -9,12 +9,15 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// BcryptDifficultyCtxKey is the context key for specifying bcrypt difficulty level.
 const BcryptDifficultyCtxKey = "bcryptDifficulty"
 const bcryptDefaultDifficulty = 11
 
+// HashUserPassword hashes a user password using bcrypt.
 func HashUserPassword(ctx context.Context, password string) (string, error) {
 	// For testing, we can set the bcrypt difficulty in the context
 	bcryptDifficultyI := ctx.Value(BcryptDifficultyCtxKey)
+
 	bcryptDifficulty, ok := bcryptDifficultyI.(int)
 	if !ok {
 		bcryptDifficulty = bcryptDefaultDifficulty
@@ -25,30 +28,39 @@ func HashUserPassword(ctx context.Context, password string) (string, error) {
 	return string(passHashBytes), err
 }
 
+// VerifyUserPassword verifies that an attempted password matches the hashed password.
 func VerifyUserPassword(attempt, password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(password), []byte(attempt))
 }
 
+// WlClaims represents the JWT claims for Weblens authentication tokens.
 type WlClaims struct {
-	Username string `json:"username"`
 	jwt.RegisteredClaims
+
+	Username string `json:"username"`
 }
 
+// SessionTokenCookie is the name of the HTTP cookie that stores the session token.
 const SessionTokenCookie = "weblens-session-token"
+
+// UserCrumbCookie is the name of the HTTP cookie that stores the username.
 const UserCrumbCookie = "weblens-user-name"
 
 var superSecretKey = []byte("weblens_super_secret_key")
 
+// GenerateJWT generates a JWT token for the specified username.
 func GenerateJWT(username string) (string, time.Time, error) {
 	expires := time.Now().Add(time.Hour * 24 * 7).In(time.UTC)
 	claims := WlClaims{
-		username,
 		jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expires),
 		},
+
+		username,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
 	signedToken, err := token.SignedString(superSecretKey)
 	if err != nil {
 		return "", time.Time{}, err
@@ -57,6 +69,7 @@ func GenerateJWT(username string) (string, time.Time, error) {
 	return signedToken, expires, nil
 }
 
+// GetUsernameFromToken extracts and validates the username from a JWT token string.
 func GetUsernameFromToken(tokenStr string) (string, error) {
 	if tokenStr == "" {
 		return "", errors.New("no jwt provided")
@@ -65,7 +78,7 @@ func GetUsernameFromToken(tokenStr string) (string, error) {
 	jwtToken, err := jwt.ParseWithClaims(
 		tokenStr,
 		&WlClaims{},
-		func(token *jwt.Token) (any, error) {
+		func(_ *jwt.Token) (any, error) {
 			return superSecretKey, nil
 		},
 	)
@@ -73,9 +86,11 @@ func GetUsernameFromToken(tokenStr string) (string, error) {
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			return "", errors.New("jwt expired")
 		}
+
 		return "", errors.WithStack(err)
 	}
 
 	username := jwtToken.Claims.(*WlClaims).Username
+
 	return username, nil
 }

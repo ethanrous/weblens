@@ -7,11 +7,11 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **activated** | **boolean** |  | [default to undefined]
 **fullName** | **string** |  | [default to undefined]
-**homeId** | **string** |  | [default to undefined]
+**homeID** | **string** |  | [default to undefined]
 **isOnline** | **boolean** |  | [optional] [default to undefined]
 **permissionLevel** | **number** |  | [default to undefined]
 **token** | **string** |  | [optional] [default to undefined]
-**trashId** | **string** |  | [default to undefined]
+**trashID** | **string** |  | [default to undefined]
 **username** | **string** |  | [default to undefined]
 
 ## Example
@@ -22,11 +22,11 @@ import { UserInfo } from './api';
 const instance: UserInfo = {
     activated,
     fullName,
-    homeId,
+    homeID,
     isOnline,
     permissionLevel,
     token,
-    trashId,
+    trashID,
     username,
 };
 ```

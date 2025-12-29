@@ -12,6 +12,7 @@ import (
 
 const asyncLogger = true
 
+// WLConsoleLogger is a development console logger with colored output.
 type WLConsoleLogger struct {
 	msgs chan []byte
 }
@@ -23,7 +24,7 @@ func newDevLogger() io.Writer {
 
 	go func() {
 		for msg := range l.msgs {
-			_, _ = l.write_(msg)
+			_, _ = l.write(msg)
 		}
 	}()
 
@@ -39,13 +40,14 @@ func (l WLConsoleLogger) Write(p []byte) (n int, err error) {
 		l.msgs <- cpyP
 
 		return len(p), nil
-	} else {
-		return l.write_(p)
 	}
+
+	return l.write(p)
 }
 
 func formatStack(traceback []any) string {
 	stackStr := "\n"
+
 	for _, block := range traceback {
 		blockMap, ok := block.(map[string]any)
 
@@ -92,7 +94,7 @@ func formatStack(traceback []any) string {
 	return stackStr
 }
 
-func (l WLConsoleLogger) write_(p []byte) (n int, err error) {
+func (l WLConsoleLogger) write(p []byte) (n int, err error) {
 	defer recoverLogger()
 
 	var target map[string]any
@@ -141,8 +143,8 @@ func (l WLConsoleLogger) write_(p []byte) (n int, err error) {
 
 	timeStr := time.Now().Format(time.TimeOnly + ".000")
 	msg := fmt.Sprintf("[ %s %s%30.30s %s%5s%s ] %s %s%s%s%s\n", timeStr, BLUE, caller, levelColor, level, RESET, logMsg, RED, msgErr, stackStr, RESET)
-	_, err = os.Stdout.Write([]byte(msg))
 
+	_, err = os.Stdout.Write([]byte(msg))
 	if err != nil {
 		return n, err
 	}

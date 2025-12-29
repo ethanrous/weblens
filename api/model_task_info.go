@@ -27,8 +27,8 @@ type TaskInfo struct {
 	Result map[string]interface{} `json:"result,omitempty"`
 	StartTime *string `json:"startTime,omitempty"`
 	Status TaskTaskExitStatus `json:"status"`
-	TaskId string `json:"taskId"`
-	WorkerId int32 `json:"workerId"`
+	TaskID string `json:"taskID"`
+	WorkerID int32 `json:"workerID"`
 }
 
 type _TaskInfo TaskInfo
@@ -37,14 +37,14 @@ type _TaskInfo TaskInfo
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewTaskInfo(completed bool, jobName string, progress int32, status TaskTaskExitStatus, taskId string, workerId int32) *TaskInfo {
+func NewTaskInfo(completed bool, jobName string, progress int32, status TaskTaskExitStatus, taskID string, workerID int32) *TaskInfo {
 	this := TaskInfo{}
 	this.Completed = completed
 	this.JobName = jobName
 	this.Progress = progress
 	this.Status = status
-	this.TaskId = taskId
-	this.WorkerId = workerId
+	this.TaskID = taskID
+	this.WorkerID = workerID
 	return &this
 }
 
@@ -216,52 +216,52 @@ func (o *TaskInfo) SetStatus(v TaskTaskExitStatus) {
 	o.Status = v
 }
 
-// GetTaskId returns the TaskId field value
-func (o *TaskInfo) GetTaskId() string {
+// GetTaskID returns the TaskID field value
+func (o *TaskInfo) GetTaskID() string {
 	if o == nil {
 		var ret string
 		return ret
 	}
 
-	return o.TaskId
+	return o.TaskID
 }
 
-// GetTaskIdOk returns a tuple with the TaskId field value
+// GetTaskIDOk returns a tuple with the TaskID field value
 // and a boolean to check if the value has been set.
-func (o *TaskInfo) GetTaskIdOk() (*string, bool) {
+func (o *TaskInfo) GetTaskIDOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.TaskId, true
+	return &o.TaskID, true
 }
 
-// SetTaskId sets field value
-func (o *TaskInfo) SetTaskId(v string) {
-	o.TaskId = v
+// SetTaskID sets field value
+func (o *TaskInfo) SetTaskID(v string) {
+	o.TaskID = v
 }
 
-// GetWorkerId returns the WorkerId field value
-func (o *TaskInfo) GetWorkerId() int32 {
+// GetWorkerID returns the WorkerID field value
+func (o *TaskInfo) GetWorkerID() int32 {
 	if o == nil {
 		var ret int32
 		return ret
 	}
 
-	return o.WorkerId
+	return o.WorkerID
 }
 
-// GetWorkerIdOk returns a tuple with the WorkerId field value
+// GetWorkerIDOk returns a tuple with the WorkerID field value
 // and a boolean to check if the value has been set.
-func (o *TaskInfo) GetWorkerIdOk() (*int32, bool) {
+func (o *TaskInfo) GetWorkerIDOk() (*int32, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.WorkerId, true
+	return &o.WorkerID, true
 }
 
-// SetWorkerId sets field value
-func (o *TaskInfo) SetWorkerId(v int32) {
-	o.WorkerId = v
+// SetWorkerID sets field value
+func (o *TaskInfo) SetWorkerID(v int32) {
+	o.WorkerID = v
 }
 
 func (o TaskInfo) MarshalJSON() ([]byte, error) {
@@ -284,8 +284,8 @@ func (o TaskInfo) ToMap() (map[string]interface{}, error) {
 		toSerialize["startTime"] = o.StartTime
 	}
 	toSerialize["status"] = o.Status
-	toSerialize["taskId"] = o.TaskId
-	toSerialize["workerId"] = o.WorkerId
+	toSerialize["taskID"] = o.TaskID
+	toSerialize["workerID"] = o.WorkerID
 	return toSerialize, nil
 }
 
@@ -298,8 +298,8 @@ func (o *TaskInfo) UnmarshalJSON(data []byte) (err error) {
 		"jobName",
 		"progress",
 		"status",
-		"taskId",
-		"workerId",
+		"taskID",
+		"workerID",
 	}
 
 	allProperties := make(map[string]interface{})

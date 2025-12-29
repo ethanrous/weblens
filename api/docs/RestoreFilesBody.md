@@ -5,7 +5,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **FileIds** | Pointer to **[]string** |  | [optional] 
-**NewParentId** | Pointer to **string** |  | [optional] 
+**NewParentID** | Pointer to **string** |  | [optional] 
 **Timestamp** | Pointer to **int32** |  | [optional] 
 
 ## Methods
@@ -52,30 +52,30 @@ SetFileIds sets FileIds field to given value.
 
 HasFileIds returns a boolean if a field has been set.
 
-### GetNewParentId
+### GetNewParentID
 
-`func (o *RestoreFilesBody) GetNewParentId() string`
+`func (o *RestoreFilesBody) GetNewParentID() string`
 
-GetNewParentId returns the NewParentId field if non-nil, zero value otherwise.
+GetNewParentID returns the NewParentID field if non-nil, zero value otherwise.
 
-### GetNewParentIdOk
+### GetNewParentIDOk
 
-`func (o *RestoreFilesBody) GetNewParentIdOk() (*string, bool)`
+`func (o *RestoreFilesBody) GetNewParentIDOk() (*string, bool)`
 
-GetNewParentIdOk returns a tuple with the NewParentId field if it's non-nil, zero value otherwise
+GetNewParentIDOk returns a tuple with the NewParentID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetNewParentId
+### SetNewParentID
 
-`func (o *RestoreFilesBody) SetNewParentId(v string)`
+`func (o *RestoreFilesBody) SetNewParentID(v string)`
 
-SetNewParentId sets NewParentId field to given value.
+SetNewParentID sets NewParentID field to given value.
 
-### HasNewParentId
+### HasNewParentID
 
-`func (o *RestoreFilesBody) HasNewParentId() bool`
+`func (o *RestoreFilesBody) HasNewParentID() bool`
 
-HasNewParentId returns a boolean if a field has been set.
+HasNewParentID returns a boolean if a field has been set.
 
 ### GetTimestamp
 

@@ -32,7 +32,7 @@ func StreamVideo(ctx context.Context, m *media_model.Media) (*media_model.VideoS
 		return streamerAny.(*media_model.VideoStreamer), nil
 	}
 
-	f, err := appCtx.FileService.GetFileById(ctx, m.FileIDs[0])
+	f, err := appCtx.FileService.GetFileByID(ctx, m.FileIDs[0])
 	if err != nil {
 		return nil, err
 	}
@@ -65,14 +65,14 @@ func generateVideoThumbnail(filepath string) ([]byte, error) {
 }
 
 func getVideoDurationMs(filepath string) (int, error) {
-	probeJson, err := ffmpeg.Probe(filepath)
+	probeJSON, err := ffmpeg.Probe(filepath)
 	if err != nil {
 		return 0, err
 	}
 
 	probeResult := map[string]any{}
 
-	err = json.Unmarshal([]byte(probeJson), &probeResult)
+	err = json.Unmarshal([]byte(probeJSON), &probeResult)
 	if err != nil {
 		return 0, err
 	}

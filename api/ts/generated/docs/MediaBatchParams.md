@@ -5,10 +5,10 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**folderIds** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
+**folderIDs** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
 **hidden** | **boolean** |  | [optional] [default to undefined]
 **limit** | **number** |  | [optional] [default to undefined]
-**mediaIds** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
+**mediaIDs** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
 **page** | **number** |  | [optional] [default to undefined]
 **raw** | **boolean** |  | [optional] [default to undefined]
 **search** | **string** |  | [optional] [default to undefined]
@@ -21,10 +21,10 @@ Name | Type | Description | Notes
 import { MediaBatchParams } from './api';
 
 const instance: MediaBatchParams = {
-    folderIds,
+    folderIDs,
     hidden,
     limit,
-    mediaIds,
+    mediaIDs,
     page,
     raw,
     search,

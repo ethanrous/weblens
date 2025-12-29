@@ -5,7 +5,7 @@ package reshape
 
 // func ApiKeyToApiKeyInfo(k auth.Token) structs.ApiKeyInfo {
 // 	return structs.ApiKeyInfo{
-// 		Id:           k.Id.Hex(),
+// 		ID:           k.ID.Hex(),
 // 		Name:         k.Nickname,
 // 		Key:          string(k.Token[:]),
 // 		Owner:        k.Owner,

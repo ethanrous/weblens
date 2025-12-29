@@ -1,3 +1,4 @@
+// Package router provides HTTP routing and handler functionality for the Weblens application.
 package router
 
 import (
@@ -6,14 +7,18 @@ import (
 	context_service "github.com/ethanrous/weblens/services/context"
 )
 
+// HandlerFunc defines a function type that handles requests using the Weblens request context.
 type HandlerFunc func(ctx context_service.RequestContext)
 
+// PassthroughHandler defines a function type that wraps a handler and returns a new handler.
 type PassthroughHandler func(Handler) Handler
 
+// Handler defines the interface for types that can handle Weblens requests.
 type Handler interface {
 	ServeHTTP(ctx context_service.RequestContext)
 }
 
+// ServeHTTP implements the Handler interface by invoking the function.
 func (f HandlerFunc) ServeHTTP(ctx context_service.RequestContext) {
 	f(ctx)
 }
@@ -39,6 +44,7 @@ func toStdHandlerFunc(h Handler) http.HandlerFunc {
 	}
 }
 
+// FromStdHandler converts a standard http.Handler to a Weblens HandlerFunc.
 func FromStdHandler(h http.Handler) HandlerFunc {
 	return func(ctx context_service.RequestContext) {
 		r := ctx.Req
@@ -57,6 +63,7 @@ func mdlwToStd(h PassthroughHandler) func(http.Handler) http.Handler {
 	}
 }
 
+// WrapHandlerProvider converts a standard middleware function to a PassthroughHandler.
 func WrapHandlerProvider(hp func(http.Handler) http.Handler) PassthroughHandler {
 	return func(next Handler) Handler {
 		h := hp(toStdHandlerFunc(next))

@@ -2,14 +2,15 @@ package share
 
 import "github.com/ethanrous/weblens/modules/log"
 
+// Permission represents a specific type of access permission for file shares.
 type Permission string
 
 const (
 	// SharePermissionView allows read access to the file share.
 	SharePermissionView Permission = "view"
-	// SharePermissionRead allows download access to the file share.
+	// SharePermissionDownload allows download access to the file share.
 	SharePermissionDownload Permission = "download"
-	// SharePermissionWrite allows write access to the file share.
+	// SharePermissionEdit allows write access to the file share.
 	SharePermissionEdit Permission = "edit"
 	// SharePermissionDelete allows delete access to the file share.
 	SharePermissionDelete Permission = "delete"
@@ -33,6 +34,7 @@ func NewPermissions() *Permissions {
 	}
 }
 
+// NewFullPermissions creates a new Permissions instance with all permissions enabled.
 func NewFullPermissions() *Permissions {
 	// Allow all permissions
 	return &Permissions{
@@ -68,7 +70,6 @@ func (p *Permissions) AddPermission(permission Permission, value bool) {
 	case SharePermissionDelete:
 		p.CanDelete = value
 	default:
-		// Handle unknown permissions if needed
 	}
 }
 
@@ -90,6 +91,7 @@ func (p *Permissions) HasPermission(permission Permission) bool {
 		return p.CanDelete
 	default:
 		log.GlobalLogger().Warn().Msgf("Unknown permission: %s", permission)
+
 		return false
 	}
 }

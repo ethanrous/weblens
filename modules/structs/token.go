@@ -1,7 +1,8 @@
 package structs
 
+// TokenInfo represents an authentication token with metadata about its creation and usage.
 type TokenInfo struct {
-	Id          string `json:"id" validate:"required"`
+	ID          string `json:"id" validate:"required"`
 	CreatedTime int64  `json:"createdTime" validate:"required" format:"int64"`
 	LastUsed    int64  `json:"lastUsed" validate:"required" format:"int64"`
 	Nickname    string `json:"nickname" validate:"required"`
@@ -12,7 +13,7 @@ type TokenInfo struct {
 } // @name TokenInfo
 
 // type ApiKeyInfo struct {
-// 	Id           string `json:"id" validate:"required"`
+// 	ID           string `json:"id" validate:"required"`
 // 	Name         string `json:"name" validate:"required"`
 // 	Key          string `json:"key" validate:"required"`
 // 	Owner        string `json:"owner" validate:"required"`

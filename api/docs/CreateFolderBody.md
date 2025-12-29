@@ -6,13 +6,13 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **Children** | Pointer to **[]string** |  | [optional] 
 **NewFolderName** | **string** |  | 
-**ParentFolderId** | **string** |  | 
+**ParentFolderID** | **string** |  | 
 
 ## Methods
 
 ### NewCreateFolderBody
 
-`func NewCreateFolderBody(newFolderName string, parentFolderId string, ) *CreateFolderBody`
+`func NewCreateFolderBody(newFolderName string, parentFolderID string, ) *CreateFolderBody`
 
 NewCreateFolderBody instantiates a new CreateFolderBody object
 This constructor will assign default values to properties that have it defined,
@@ -72,24 +72,24 @@ and a boolean to check if the value has been set.
 SetNewFolderName sets NewFolderName field to given value.
 
 
-### GetParentFolderId
+### GetParentFolderID
 
-`func (o *CreateFolderBody) GetParentFolderId() string`
+`func (o *CreateFolderBody) GetParentFolderID() string`
 
-GetParentFolderId returns the ParentFolderId field if non-nil, zero value otherwise.
+GetParentFolderID returns the ParentFolderID field if non-nil, zero value otherwise.
 
-### GetParentFolderIdOk
+### GetParentFolderIDOk
 
-`func (o *CreateFolderBody) GetParentFolderIdOk() (*string, bool)`
+`func (o *CreateFolderBody) GetParentFolderIDOk() (*string, bool)`
 
-GetParentFolderIdOk returns a tuple with the ParentFolderId field if it's non-nil, zero value otherwise
+GetParentFolderIDOk returns a tuple with the ParentFolderID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetParentFolderId
+### SetParentFolderID
 
-`func (o *CreateFolderBody) SetParentFolderId(v string)`
+`func (o *CreateFolderBody) SetParentFolderID(v string)`
 
-SetParentFolderId sets ParentFolderId field to given value.
+SetParentFolderID sets ParentFolderID field to given value.
 
 
 

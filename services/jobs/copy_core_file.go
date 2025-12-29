@@ -16,6 +16,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// CopyFileFromCore downloads a file from a core server during a backup operation.
 func CopyFileFromCore(tsk task_mod.Task) {
 	t := tsk.(*task_model.Task)
 	meta := t.GetMeta().(job.BackupCoreFileMeta)
@@ -29,7 +30,7 @@ func CopyFileFromCore(tsk task_mod.Task) {
 
 	t.SetErrorCleanup(func(tsk task_mod.Task) {
 		t := tsk.(*task_model.Task)
-		failNotif := notify.NewTaskNotification(t, websocket_mod.CopyFileFailedEvent, task_mod.TaskResult{"filename": meta.Filename, "coreId": meta.Core.TowerId})
+		failNotif := notify.NewTaskNotification(t, websocket_mod.CopyFileFailedEvent, task_mod.Result{"filename": meta.Filename, "coreID": meta.Core.TowerID})
 		ctx.Notify(ctx, failNotif)
 
 		rmErr := ctx.FileService.DeleteFiles(t.Ctx, meta.File)
@@ -43,8 +44,8 @@ func CopyFileFromCore(tsk task_mod.Task) {
 		filename = meta.File.GetPortablePath().Filename()
 	}
 
-	if meta.File.GetContentId() == "" {
-		t.Fail(errors.WithStack(file_model.ErrNoContentId))
+	if meta.File.GetContentID() == "" {
+		t.Fail(errors.WithStack(file_model.ErrNoContentID))
 
 		return
 	}
@@ -53,13 +54,13 @@ func CopyFileFromCore(tsk task_mod.Task) {
 		notify.NewPoolNotification(
 			t.GetTaskPool(),
 			websocket_mod.CopyFileStartedEvent,
-			task_mod.TaskResult{"filename": filename, "coreId": meta.Core.TowerId, "timestamp": time.Now().UnixMilli()},
+			task_mod.Result{"filename": filename, "coreID": meta.Core.TowerID, "timestamp": time.Now().UnixMilli()},
 		),
 	)
 
 	t.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Copying file from core [%s]", meta.File.GetPortablePath().Filename()) })
 
-	restoreFile, err := ctx.FileService.NewBackupRestoreFile(ctx, meta.File.GetContentId(), meta.Core.TowerId)
+	restoreFile, err := ctx.FileService.NewBackupRestoreFile(ctx, meta.File.GetContentID(), meta.Core.TowerID)
 	if err != nil {
 		t.Fail(err)
 
@@ -73,9 +74,9 @@ func CopyFileFromCore(tsk task_mod.Task) {
 		return
 	}
 
-	defer writeFile.Close()
+	defer writeFile.Close() //nolint:errcheck
 
-	err = tower_service.DownloadFileFromCore(ctx, meta.Core, meta.CoreFileId, writeFile)
+	err = tower_service.DownloadFileFromCore(ctx, meta.Core, meta.CoreFileID, writeFile)
 	if err != nil {
 		t.Fail(err)
 
@@ -91,7 +92,7 @@ func CopyFileFromCore(tsk task_mod.Task) {
 
 	poolProgress := getScanResult(t)
 	poolProgress["filename"] = filename
-	poolProgress["coreId"] = meta.Core.TowerId
+	poolProgress["coreID"] = meta.Core.TowerID
 
 	notif := notify.NewPoolNotification(t.GetTaskPool(), websocket_mod.CopyFileCompleteEvent, poolProgress)
 	if notif.SubscribeKey == "" {

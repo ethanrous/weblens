@@ -165,8 +165,8 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "query"
                     }
                 ],
@@ -240,7 +240,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "The folder to search in, defaults to the user's home folder",
-                        "name": "baseFolderId",
+                        "name": "baseFolderID",
                         "in": "query"
                     }
                 ],
@@ -381,7 +381,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/files/{fileId}": {
+        "/files/{fileID}": {
             "get": {
                 "security": [
                     {
@@ -399,15 +399,15 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "File Id",
-                        "name": "fileId",
+                        "description": "File ID",
+                        "name": "fileID",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "query"
                     }
                 ],
@@ -443,15 +443,15 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "File Id",
-                        "name": "fileId",
+                        "description": "File ID",
+                        "name": "fileID",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "query"
                     },
                     {
@@ -480,7 +480,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/files/{fileId}/download": {
+        "/files/{fileID}/download": {
             "get": {
                 "security": [
                     {
@@ -498,15 +498,15 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "File Id",
-                        "name": "fileId",
+                        "description": "File ID",
+                        "name": "fileID",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "query"
                     },
                     {
@@ -543,7 +543,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/files/{fileId}/history": {
+        "/files/{fileID}/history": {
             "get": {
                 "security": [
                     {
@@ -558,8 +558,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "File Id",
-                        "name": "fileId",
+                        "description": "File ID",
+                        "name": "fileID",
                         "in": "path",
                         "required": true
                     },
@@ -590,7 +590,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/files/{fileId}/stats": {
+        "/files/{fileID}/stats": {
             "get": {
                 "security": [
                     {
@@ -608,8 +608,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "File Id",
-                        "name": "fileId",
+                        "description": "File ID",
+                        "name": "fileID",
                         "in": "path",
                         "required": true
                     }
@@ -624,7 +624,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/files/{fileId}/text": {
+        "/files/{fileID}/text": {
             "get": {
                 "security": [
                     {
@@ -642,15 +642,15 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "File Id",
-                        "name": "fileId",
+                        "description": "File ID",
+                        "name": "fileID",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "query"
                     }
                 ],
@@ -697,8 +697,8 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "query"
                     }
                 ],
@@ -712,7 +712,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/folder/{folderId}": {
+        "/folder/{folderID}": {
             "get": {
                 "security": [
                     {
@@ -733,15 +733,15 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Folder Id",
-                        "name": "folderId",
+                        "description": "Folder ID",
+                        "name": "folderID",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "query"
                     },
                     {
@@ -761,7 +761,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/folder/{folderId}/cover": {
+        "/folder/{folderID}/cover": {
             "patch": {
                 "security": [
                     {
@@ -776,15 +776,15 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Folder Id",
-                        "name": "folderId",
+                        "description": "Folder ID",
+                        "name": "folderID",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Media Id",
-                        "name": "mediaId",
+                        "description": "Media ID",
+                        "name": "mediaID",
                         "in": "query",
                         "required": true
                     }
@@ -805,7 +805,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/folder/{folderId}/scan": {
+        "/folder/{folderID}/scan": {
             "post": {
                 "security": [
                     {
@@ -820,15 +820,15 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Folder Id",
-                        "name": "folderId",
+                        "description": "Folder ID",
+                        "name": "folderID",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "query"
                     }
                 ],
@@ -942,7 +942,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/keys/{tokenId}": {
+        "/keys/{tokenID}": {
             "delete": {
                 "security": [
                     {
@@ -963,7 +963,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "Api key id",
-                        "name": "tokenId",
+                        "name": "tokenID",
                         "in": "path",
                         "required": true
                     }
@@ -1006,8 +1006,8 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "File ShareId",
-                        "name": "shareId",
+                        "description": "File ShareID",
+                        "name": "shareID",
                         "in": "query"
                     }
                 ],
@@ -1207,12 +1207,12 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "MediaIds to change visibility of",
-                        "name": "mediaIds",
+                        "description": "MediaIDs to change visibility of",
+                        "name": "mediaIDs",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/MediaIdsParams"
+                            "$ref": "#/definitions/MediaIDsParams"
                         }
                     }
                 ],
@@ -1229,7 +1229,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/media/{mediaId}.{extension}": {
+        "/media/{mediaID}.{extension}": {
             "get": {
                 "produces": [
                     "image/*"
@@ -1242,8 +1242,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Media Id",
-                        "name": "mediaId",
+                        "description": "Media ID",
+                        "name": "mediaID",
                         "in": "path",
                         "required": true
                     },
@@ -1285,7 +1285,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/media/{mediaId}/file": {
+        "/media/{mediaID}/file": {
             "get": {
                 "security": [
                     {
@@ -1306,8 +1306,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Id of media",
-                        "name": "mediaId",
+                        "description": "ID of media",
+                        "name": "mediaID",
                         "in": "path",
                         "required": true
                     }
@@ -1328,7 +1328,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/media/{mediaId}/info": {
+        "/media/{mediaID}/info": {
             "get": {
                 "produces": [
                     "application/json"
@@ -1341,8 +1341,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Media Id",
-                        "name": "mediaId",
+                        "description": "Media ID",
+                        "name": "mediaID",
                         "in": "path",
                         "required": true
                     }
@@ -1357,7 +1357,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/media/{mediaId}/liked": {
+        "/media/{mediaID}/liked": {
             "patch": {
                 "security": [
                     {
@@ -1375,15 +1375,15 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Id of media",
-                        "name": "mediaId",
+                        "description": "ID of media",
+                        "name": "mediaID",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "ShareId",
-                        "name": "shareId",
+                        "description": "ShareID",
+                        "name": "shareID",
                         "in": "query"
                     },
                     {
@@ -1410,7 +1410,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/media/{mediaId}/video": {
+        "/media/{mediaID}/video": {
             "get": {
                 "security": [
                     {
@@ -1431,8 +1431,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Id of media",
-                        "name": "mediaId",
+                        "description": "ID of media",
+                        "name": "mediaID",
                         "in": "path",
                         "required": true
                     }
@@ -1484,7 +1484,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/share/{shareId}": {
+        "/share/{shareID}": {
             "get": {
                 "produces": [
                     "application/json"
@@ -1497,8 +1497,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "path",
                         "required": true
                     }
@@ -1527,8 +1527,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "path",
                         "required": true
                     }
@@ -1543,7 +1543,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/share/{shareId}/accessors": {
+        "/share/{shareID}/accessors": {
             "post": {
                 "produces": [
                     "application/json"
@@ -1556,8 +1556,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "path",
                         "required": true
                     },
@@ -1584,7 +1584,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/share/{shareId}/accessors/{username}": {
+        "/share/{shareID}/accessors/{username}": {
             "delete": {
                 "produces": [
                     "application/json"
@@ -1597,8 +1597,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "path",
                         "required": true
                     },
@@ -1634,8 +1634,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "path",
                         "required": true
                     },
@@ -1669,7 +1669,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/share/{shareId}/public": {
+        "/share/{shareID}/public": {
             "patch": {
                 "produces": [
                     "application/json"
@@ -1682,8 +1682,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "path",
                         "required": true
                     },
@@ -1721,8 +1721,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "query"
                     },
                     {
@@ -1865,6 +1865,59 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/WLResponseInfo"
                         }
+                    }
+                }
+            }
+        },
+        "/tower/history": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Towers"
+                ],
+                "summary": "Get a page of file actions",
+                "operationId": "GetPagedHistoryActions",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of items per page",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "File Actions",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/history.FileAction"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
                     }
                 }
             }
@@ -2023,7 +2076,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/tower/{serverId}": {
+        "/tower/{serverID}": {
             "delete": {
                 "security": [
                     {
@@ -2045,8 +2098,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Server Id to delete",
-                        "name": "serverId",
+                        "description": "Server ID to delete",
+                        "name": "serverID",
                         "in": "path",
                         "required": true
                     }
@@ -2064,7 +2117,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/tower/{serverId}/backup": {
+        "/tower/{serverID}/backup": {
             "post": {
                 "security": [
                     {
@@ -2087,7 +2140,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "Server ID",
-                        "name": "serverId",
+                        "name": "serverID",
                         "in": "path",
                         "required": true
                     }
@@ -2123,8 +2176,8 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "query"
                     }
                 ],
@@ -2147,7 +2200,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/upload/{uploadId}": {
+        "/upload/{uploadID}": {
             "get": {
                 "security": [
                     {
@@ -2162,8 +2215,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Upload Id",
-                        "name": "uploadId",
+                        "description": "Upload ID",
+                        "name": "uploadID",
                         "in": "path",
                         "required": true
                     }
@@ -2197,15 +2250,15 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Upload Id",
-                        "name": "uploadId",
+                        "description": "Upload ID",
+                        "name": "uploadID",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "query"
                     },
                     {
@@ -2237,7 +2290,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/upload/{uploadId}/file/{fileId}": {
+        "/upload/{uploadID}/file/{fileID}": {
             "put": {
                 "security": [
                     {
@@ -2252,22 +2305,22 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Upload Id",
-                        "name": "uploadId",
+                        "description": "Upload ID",
+                        "name": "uploadID",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "File Id",
-                        "name": "fileId",
+                        "description": "File ID",
+                        "name": "fileID",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "query"
                     },
                     {
@@ -2880,7 +2933,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "newFolderName",
-                "parentFolderId"
+                "parentFolderID"
             ],
             "properties": {
                 "children": {
@@ -2892,7 +2945,7 @@ const docTemplate = `{
                 "newFolderName": {
                     "type": "string"
                 },
-                "parentFolderId": {
+                "parentFolderID": {
                     "type": "string"
                 }
             }
@@ -2901,27 +2954,27 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "actionType",
-                "eventId",
-                "fileId",
-                "parentId",
+                "eventID",
+                "fileID",
+                "parentID",
                 "size",
                 "timestamp",
-                "towerId"
+                "towerID"
             ],
             "properties": {
                 "actionType": {
                     "type": "string"
                 },
-                "contentId": {
+                "contentID": {
                     "type": "string"
                 },
                 "destinationPath": {
                     "type": "string"
                 },
-                "eventId": {
+                "eventID": {
                     "type": "string"
                 },
-                "fileId": {
+                "fileID": {
                     "type": "string"
                 },
                 "filepath": {
@@ -2930,7 +2983,7 @@ const docTemplate = `{
                 "originPath": {
                     "type": "string"
                 },
-                "parentId": {
+                "parentID": {
                     "type": "string"
                 },
                 "size": {
@@ -2941,7 +2994,7 @@ const docTemplate = `{
                     "type": "integer",
                     "format": "int64"
                 },
-                "towerId": {
+                "towerID": {
                     "type": "string"
                 }
             }
@@ -2955,10 +3008,10 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
-                "contentId": {
+                "contentID": {
                     "type": "string"
                 },
-                "currentId": {
+                "currentID": {
                     "type": "string"
                 },
                 "hasRestoreMedia": {
@@ -2979,7 +3032,7 @@ const docTemplate = `{
                 "owner": {
                     "type": "string"
                 },
-                "parentId": {
+                "parentID": {
                     "type": "string"
                 },
                 "pastFile": {
@@ -2988,7 +3041,7 @@ const docTemplate = `{
                 "portablePath": {
                     "type": "string"
                 },
-                "shareId": {
+                "shareID": {
                     "type": "string"
                 },
                 "size": {
@@ -2999,7 +3052,7 @@ const docTemplate = `{
         "FileShareParams": {
             "type": "object",
             "properties": {
-                "fileId": {
+                "fileID": {
                     "type": "string"
                 },
                 "public": {
@@ -3091,14 +3144,14 @@ const docTemplate = `{
         "MediaBatchParams": {
             "type": "object",
             "properties": {
-                "folderIds": {
+                "folderIDs": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     },
                     "example": [
-                        "[fId1",
-                        "fId2]"
+                        "[fID1",
+                        "fID2]"
                     ]
                 },
                 "hidden": {
@@ -3113,14 +3166,14 @@ const docTemplate = `{
                     "type": "integer",
                     "example": 20
                 },
-                "mediaIds": {
+                "mediaIDs": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     },
                     "example": [
-                        "[mId1",
-                        "mId2]"
+                        "[mID1",
+                        "mID2]"
                     ]
                 },
                 "page": {
@@ -3156,7 +3209,7 @@ const docTemplate = `{
                 }
             }
         },
-        "MediaIdsParams": {
+        "MediaIDsParams": {
             "type": "object",
             "properties": {
                 "mediaIds": {
@@ -3170,7 +3223,7 @@ const docTemplate = `{
         "MediaInfo": {
             "type": "object",
             "properties": {
-                "contentId": {
+                "contentID": {
                     "description": "Hash of the file content, to ensure that the same files don't get duplicated",
                     "type": "string"
                 },
@@ -3300,7 +3353,7 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
-                "newParentId": {
+                "newParentID": {
                     "type": "string"
                 }
             }
@@ -3317,7 +3370,7 @@ const docTemplate = `{
                 "newFileName": {
                     "type": "string"
                 },
-                "parentFolderId": {
+                "parentFolderID": {
                     "type": "string"
                 }
             }
@@ -3356,7 +3409,7 @@ const docTemplate = `{
                 "role": {
                     "type": "string"
                 },
-                "serverId": {
+                "serverID": {
                     "type": "string"
                 },
                 "usingKey": {
@@ -3367,7 +3420,7 @@ const docTemplate = `{
         "NewUploadInfo": {
             "type": "object",
             "properties": {
-                "uploadId": {
+                "uploadID": {
                     "type": "string"
                 }
             }
@@ -3378,7 +3431,7 @@ const docTemplate = `{
                 "chunkSize": {
                     "type": "integer"
                 },
-                "rootFolderId": {
+                "rootFolderID": {
                     "type": "string"
                 }
             }
@@ -3465,7 +3518,7 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
-                "newParentId": {
+                "newParentID": {
                     "type": "string"
                 },
                 "timestamp": {
@@ -3476,7 +3529,7 @@ const docTemplate = `{
         "RestoreFilesInfo": {
             "type": "object",
             "properties": {
-                "newParentId": {
+                "newParentID": {
                     "type": "string"
                 }
             }
@@ -3496,7 +3549,7 @@ const docTemplate = `{
                 "expires": {
                     "type": "integer"
                 },
-                "fileId": {
+                "fileID": {
                     "type": "string"
                 },
                 "owner": {
@@ -3511,7 +3564,7 @@ const docTemplate = `{
                 "public": {
                     "type": "boolean"
                 },
-                "shareId": {
+                "shareID": {
                     "type": "string"
                 },
                 "shareName": {
@@ -3540,10 +3593,10 @@ const docTemplate = `{
                 "single": {
                     "type": "boolean"
                 },
-                "takeoutId": {
+                "takeoutID": {
                     "type": "string"
                 },
-                "taskId": {
+                "taskID": {
                     "type": "string"
                 }
             }
@@ -3555,8 +3608,8 @@ const docTemplate = `{
                 "jobName",
                 "progress",
                 "status",
-                "taskId",
-                "workerId"
+                "taskID",
+                "workerID"
             ],
             "properties": {
                 "Completed": {
@@ -3575,10 +3628,10 @@ const docTemplate = `{
                 "status": {
                     "$ref": "#/definitions/task.TaskExitStatus"
                 },
-                "taskId": {
+                "taskID": {
                     "type": "string"
                 },
-                "workerId": {
+                "workerID": {
                     "type": "integer"
                 }
             }
@@ -3682,7 +3735,7 @@ const docTemplate = `{
                 "newName": {
                     "type": "string"
                 },
-                "newParentId": {
+                "newParentID": {
                     "type": "string"
                 }
             }
@@ -3692,9 +3745,9 @@ const docTemplate = `{
             "required": [
                 "activated",
                 "fullName",
-                "homeId",
+                "homeID",
                 "permissionLevel",
-                "trashId",
+                "trashID",
                 "username"
             ],
             "properties": {
@@ -3704,7 +3757,7 @@ const docTemplate = `{
                 "fullName": {
                     "type": "string"
                 },
-                "homeId": {
+                "homeID": {
                     "type": "string"
                 },
                 "isOnline": {
@@ -3716,7 +3769,7 @@ const docTemplate = `{
                 "token": {
                     "type": "string"
                 },
-                "trashId": {
+                "trashID": {
                     "type": "string"
                 },
                 "username": {
@@ -3729,9 +3782,9 @@ const docTemplate = `{
             "required": [
                 "activated",
                 "fullName",
-                "homeId",
+                "homeID",
                 "permissionLevel",
-                "trashId",
+                "trashID",
                 "username"
             ],
             "properties": {
@@ -3741,7 +3794,7 @@ const docTemplate = `{
                 "fullName": {
                     "type": "string"
                 },
-                "homeId": {
+                "homeID": {
                     "type": "string"
                 },
                 "isOnline": {
@@ -3756,7 +3809,7 @@ const docTemplate = `{
                 "token": {
                     "type": "string"
                 },
-                "trashId": {
+                "trashID": {
                     "type": "string"
                 },
                 "username": {
@@ -3780,6 +3833,59 @@ const docTemplate = `{
                 }
             }
         },
+        "fs.Filepath": {
+            "type": "object",
+            "properties": {
+                "relPath": {
+                    "type": "string"
+                },
+                "rootAlias": {
+                    "type": "string"
+                }
+            }
+        },
+        "history.FileAction": {
+            "type": "object",
+            "properties": {
+                "actionType": {
+                    "type": "string"
+                },
+                "contentID": {
+                    "type": "string"
+                },
+                "destinationPath": {
+                    "$ref": "#/definitions/fs.Filepath"
+                },
+                "doer": {
+                    "description": "The user or system that performed the action",
+                    "type": "string"
+                },
+                "eventID": {
+                    "type": "string"
+                },
+                "fileID": {
+                    "type": "string"
+                },
+                "filepath": {
+                    "$ref": "#/definitions/fs.Filepath"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "originPath": {
+                    "$ref": "#/definitions/fs.Filepath"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "towerID": {
+                    "type": "string"
+                }
+            }
+        },
         "structs.InitServerParams": {
             "type": "object",
             "properties": {
@@ -3792,8 +3898,8 @@ const docTemplate = `{
                 "fullName": {
                     "type": "string"
                 },
-                "localId": {
-                    "description": "For restoring a server, remoind the core of its serverId and api key the remote last used",
+                "localID": {
+                    "description": "For restoring a server, remoind the core of its serverID and api key the remote last used",
                     "type": "string"
                 },
                 "name": {
@@ -3802,7 +3908,7 @@ const docTemplate = `{
                 "password": {
                     "type": "string"
                 },
-                "remoteId": {
+                "remoteID": {
                     "type": "string"
                 },
                 "role": {

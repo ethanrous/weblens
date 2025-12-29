@@ -5,14 +5,15 @@ All URIs are relative to *http://localhost:8080/api/v1*
 Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**CreateRemote**](TowersAPI.md#CreateRemote) | **Post** /tower/remote | Create a new remote
-[**DeleteRemote**](TowersAPI.md#DeleteRemote) | **Delete** /tower/{serverId} | Delete a remote
+[**DeleteRemote**](TowersAPI.md#DeleteRemote) | **Delete** /tower/{serverID} | Delete a remote
 [**FlushCache**](TowersAPI.md#FlushCache) | **Delete** /tower/cache | Flush Cache
 [**GetBackupInfo**](TowersAPI.md#GetBackupInfo) | **Get** /tower/backup | Get information about a file
+[**GetPagedHistoryActions**](TowersAPI.md#GetPagedHistoryActions) | **Get** /tower/history | Get a page of file actions
 [**GetRemotes**](TowersAPI.md#GetRemotes) | **Get** /tower | Get all remotes
 [**GetRunningTasks**](TowersAPI.md#GetRunningTasks) | **Get** /tower/tasks | Get Running Tasks
 [**GetServerInfo**](TowersAPI.md#GetServerInfo) | **Get** /info | Get server info
 [**InitializeTower**](TowersAPI.md#InitializeTower) | **Post** /tower/init | Initialize the target server
-[**LaunchBackup**](TowersAPI.md#LaunchBackup) | **Post** /tower/{serverId}/backup | Launch backup on a tower
+[**LaunchBackup**](TowersAPI.md#LaunchBackup) | **Post** /tower/{serverID}/backup | Launch backup on a tower
 [**ResetTower**](TowersAPI.md#ResetTower) | **Post** /tower/reset | Reset tower
 
 
@@ -83,7 +84,7 @@ Name | Type | Description  | Notes
 
 ## DeleteRemote
 
-> DeleteRemote(ctx, serverId).Execute()
+> DeleteRemote(ctx, serverID).Execute()
 
 Delete a remote
 
@@ -100,11 +101,11 @@ import (
 )
 
 func main() {
-	serverId := "serverId_example" // string | Server Id to delete
+	serverID := "serverID_example" // string | Server ID to delete
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	r, err := apiClient.TowersAPI.DeleteRemote(context.Background(), serverId).Execute()
+	r, err := apiClient.TowersAPI.DeleteRemote(context.Background(), serverID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `TowersAPI.DeleteRemote``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -118,7 +119,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**serverId** | **string** | Server Id to delete | 
+**serverID** | **string** | Server ID to delete | 
 
 ### Other Parameters
 
@@ -255,6 +256,72 @@ Name | Type | Description  | Notes
 ### Return type
 
 [**BackupInfo**](BackupInfo.md)
+
+### Authorization
+
+[ApiKeyAuth](../README.md#ApiKeyAuth)
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
+
+
+## GetPagedHistoryActions
+
+> []HistoryFileAction GetPagedHistoryActions(ctx).Page(page).PageSize(pageSize).Execute()
+
+Get a page of file actions
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/ethanrous/weblens/api"
+)
+
+func main() {
+	page := int32(56) // int32 | Page number (optional)
+	pageSize := int32(56) // int32 | Number of items per page (optional)
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	resp, r, err := apiClient.TowersAPI.GetPagedHistoryActions(context.Background()).Page(page).PageSize(pageSize).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `TowersAPI.GetPagedHistoryActions``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	// response from `GetPagedHistoryActions`: []HistoryFileAction
+	fmt.Fprintf(os.Stdout, "Response from `TowersAPI.GetPagedHistoryActions`: %v\n", resp)
+}
+```
+
+### Path Parameters
+
+
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiGetPagedHistoryActionsRequest struct via the builder pattern
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **page** | **int32** | Page number | 
+ **pageSize** | **int32** | Number of items per page | 
+
+### Return type
+
+[**[]HistoryFileAction**](HistoryFileAction.md)
 
 ### Authorization
 
@@ -513,7 +580,7 @@ No authorization required
 
 ## LaunchBackup
 
-> LaunchBackup(ctx, serverId).Execute()
+> LaunchBackup(ctx, serverID).Execute()
 
 Launch backup on a tower
 
@@ -530,11 +597,11 @@ import (
 )
 
 func main() {
-	serverId := "serverId_example" // string | Server ID
+	serverID := "serverID_example" // string | Server ID
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	r, err := apiClient.TowersAPI.LaunchBackup(context.Background(), serverId).Execute()
+	r, err := apiClient.TowersAPI.LaunchBackup(context.Background(), serverID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `TowersAPI.LaunchBackup``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -548,7 +615,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**serverId** | **string** | Server ID | 
+**serverID** | **string** | Server ID | 
 
 ### Other Parameters
 

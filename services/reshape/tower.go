@@ -9,6 +9,7 @@ import (
 	context_service "github.com/ethanrous/weblens/services/context"
 )
 
+// TowerToTowerInfo converts a tower Instance to a TowerInfo structure suitable for API responses.
 func TowerToTowerInfo(ctx context.Context, tower tower_model.Instance) structs.TowerInfo {
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
@@ -17,20 +18,21 @@ func TowerToTowerInfo(ctx context.Context, tower tower_model.Instance) structs.T
 
 	online := false
 	backupSize := int64(0)
+
 	if tower.IsThisTower {
 		online = true
 	} else {
-		client := appCtx.ClientService.GetClientByTowerId(tower.TowerId)
+		client := appCtx.ClientService.GetClientByTowerID(tower.TowerID)
 		online = client != nil
 
-		towerBackupDir, err := appCtx.FileService.GetFileById(ctx, tower.TowerId)
+		towerBackupDir, err := appCtx.FileService.GetFileByID(ctx, tower.TowerID)
 		if err == nil {
 			backupSize = towerBackupDir.Size()
 		}
 	}
 
 	return structs.TowerInfo{
-		Id:           tower.TowerId,
+		ID:           tower.TowerID,
 		Name:         tower.Name,
 		Role:         string(tower.Role),
 		Address:      tower.Address,
@@ -45,9 +47,10 @@ func TowerToTowerInfo(ctx context.Context, tower tower_model.Instance) structs.T
 	}
 }
 
+// TowerInfoToTower converts a TowerInfo from the API to a tower Instance.
 func TowerInfoToTower(t structs.TowerInfo) *tower_model.Instance {
 	return &tower_model.Instance{
-		TowerId:     t.Id,
+		TowerID:     t.ID,
 		Name:        t.Name,
 		Role:        tower_model.Role(t.Role),
 		IsThisTower: t.IsThisServer,
@@ -56,9 +59,10 @@ func TowerInfoToTower(t structs.TowerInfo) *tower_model.Instance {
 	}
 }
 
-func ApiTowerInfoToTower(t openapi.TowerInfo) tower_model.Instance {
+// APITowerInfoToTower converts an OpenAPI TowerInfo to a tower Instance.
+func APITowerInfoToTower(t openapi.TowerInfo) tower_model.Instance {
 	return tower_model.Instance{
-		TowerId:     t.Id,
+		TowerID:     t.Id,
 		Name:        t.Name,
 		Role:        tower_model.Role(t.Role),
 		IsThisTower: false,

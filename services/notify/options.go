@@ -4,8 +4,9 @@ import (
 	"github.com/ethanrous/weblens/modules/structs"
 )
 
+// FileNotificationOptions contains optional parameters for file notifications.
 type FileNotificationOptions struct {
-	PreMoveParentId string
+	PreMoveParentID string
 	MediaInfo       structs.MediaInfo
 }
 
@@ -13,14 +14,14 @@ func consolidateFileOptions(options ...FileNotificationOptions) FileNotification
 	var consolidated FileNotificationOptions
 
 	for _, opt := range options {
-		if opt.PreMoveParentId != "" {
-			consolidated.PreMoveParentId = opt.PreMoveParentId
+		if opt.PreMoveParentID != "" {
+			consolidated.PreMoveParentID = opt.PreMoveParentID
 		}
-		if opt.MediaInfo.ContentId != "" {
+
+		if opt.MediaInfo.ContentID != "" {
 			consolidated.MediaInfo = opt.MediaInfo
 		}
 	}
 
 	return consolidated
-
 }

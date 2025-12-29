@@ -11,8 +11,8 @@ Name | Type | Description | Notes
 **result** | **object** |  | [optional] [default to undefined]
 **startTime** | **string** |  | [optional] [default to undefined]
 **status** | [**TaskTaskExitStatus**](TaskTaskExitStatus.md) |  | [default to undefined]
-**taskId** | **string** |  | [default to undefined]
-**workerId** | **number** |  | [default to undefined]
+**taskID** | **string** |  | [default to undefined]
+**workerID** | **number** |  | [default to undefined]
 
 ## Example
 
@@ -26,8 +26,8 @@ const instance: TaskInfo = {
     result,
     startTime,
     status,
-    taskId,
-    workerId,
+    taskID,
+    workerID,
 };
 ```
 

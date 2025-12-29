@@ -8,6 +8,7 @@ import (
 	context_service "github.com/ethanrous/weblens/services/context"
 )
 
+// ResetTower resets the local tower to its initial state.
 func ResetTower(ctx context.Context) error {
 	_, err := tower_model.ResetLocal(ctx)
 	if err != nil {

@@ -19,7 +19,7 @@ var _ MappedNullable = &RestoreFilesInfo{}
 
 // RestoreFilesInfo struct for RestoreFilesInfo
 type RestoreFilesInfo struct {
-	NewParentId *string `json:"newParentId,omitempty"`
+	NewParentID *string `json:"newParentID,omitempty"`
 }
 
 // NewRestoreFilesInfo instantiates a new RestoreFilesInfo object
@@ -39,36 +39,36 @@ func NewRestoreFilesInfoWithDefaults() *RestoreFilesInfo {
 	return &this
 }
 
-// GetNewParentId returns the NewParentId field value if set, zero value otherwise.
-func (o *RestoreFilesInfo) GetNewParentId() string {
-	if o == nil || IsNil(o.NewParentId) {
+// GetNewParentID returns the NewParentID field value if set, zero value otherwise.
+func (o *RestoreFilesInfo) GetNewParentID() string {
+	if o == nil || IsNil(o.NewParentID) {
 		var ret string
 		return ret
 	}
-	return *o.NewParentId
+	return *o.NewParentID
 }
 
-// GetNewParentIdOk returns a tuple with the NewParentId field value if set, nil otherwise
+// GetNewParentIDOk returns a tuple with the NewParentID field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *RestoreFilesInfo) GetNewParentIdOk() (*string, bool) {
-	if o == nil || IsNil(o.NewParentId) {
+func (o *RestoreFilesInfo) GetNewParentIDOk() (*string, bool) {
+	if o == nil || IsNil(o.NewParentID) {
 		return nil, false
 	}
-	return o.NewParentId, true
+	return o.NewParentID, true
 }
 
-// HasNewParentId returns a boolean if a field has been set.
-func (o *RestoreFilesInfo) HasNewParentId() bool {
-	if o != nil && !IsNil(o.NewParentId) {
+// HasNewParentID returns a boolean if a field has been set.
+func (o *RestoreFilesInfo) HasNewParentID() bool {
+	if o != nil && !IsNil(o.NewParentID) {
 		return true
 	}
 
 	return false
 }
 
-// SetNewParentId gets a reference to the given string and assigns it to the NewParentId field.
-func (o *RestoreFilesInfo) SetNewParentId(v string) {
-	o.NewParentId = &v
+// SetNewParentID gets a reference to the given string and assigns it to the NewParentID field.
+func (o *RestoreFilesInfo) SetNewParentID(v string) {
+	o.NewParentID = &v
 }
 
 func (o RestoreFilesInfo) MarshalJSON() ([]byte, error) {
@@ -81,8 +81,8 @@ func (o RestoreFilesInfo) MarshalJSON() ([]byte, error) {
 
 func (o RestoreFilesInfo) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
-	if !IsNil(o.NewParentId) {
-		toSerialize["newParentId"] = o.NewParentId
+	if !IsNil(o.NewParentID) {
+		toSerialize["newParentID"] = o.NewParentID
 	}
 	return toSerialize, nil
 }

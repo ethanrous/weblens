@@ -1,3 +1,4 @@
+// Package config provides configuration management for Weblens server settings.
 package config
 
 import (
@@ -14,7 +15,7 @@ import (
 )
 
 var projectPackagePrefix string
-var cnf ConfigProvider
+var cnf Provider
 
 func init() {
 	_, filename, _, _ := runtime.Caller(0)
@@ -29,10 +30,10 @@ func init() {
 	getEnvOverride(&cnf)
 }
 
-// ConfigProvider provides configuration for Weblens options. All values provided are external to the application, and are expected to be set
+// Provider provides configuration for Weblens options. All values provided are external to the application, and are expected to be set
 // prior to initial startup using environment variables, etc. For management of runtime/mutable server settings, those will be stored in the
 // database at /models/settings/...
-type ConfigProvider struct {
+type Provider struct {
 	Host         string
 	Port         string
 	ProxyAddress string
@@ -40,7 +41,7 @@ type ConfigProvider struct {
 	MongoDBUri  string
 	MongoDBName string
 
-	HdirUri string
+	HdirURI string
 
 	UIPath            string
 	DataPath          string
@@ -68,13 +69,13 @@ func envBool(key string) (val bool, ok bool) {
 	return false, false
 }
 
-func getDefaultConfig() ConfigProvider {
-	return ConfigProvider{
+func getDefaultConfig() Provider {
+	return Provider{
 		Host:              "0.0.0.0",
 		Port:              "8080",
 		MongoDBUri:        "mongodb://weblens-mongo:27017/?replicaSet=rs0",
 		MongoDBName:       "weblensDB",
-		HdirUri:           "http://weblens-hdir:5000",
+		HdirURI:           "http://weblens-hdir:5000",
 		UIPath:            "/app/web",
 		StaticContentPath: "/app/static",
 
@@ -99,7 +100,7 @@ func handlePath(path string) string {
 	return path
 }
 
-func getEnvOverride(config *ConfigProvider) {
+func getEnvOverride(config *Provider) {
 	env := ".env"
 	if envPath := os.Getenv("WEBLENS_ENV_PATH"); envPath != "" {
 		env = envPath
@@ -195,10 +196,12 @@ func getEnvOverride(config *ConfigProvider) {
 	}
 }
 
-func GetConfig() ConfigProvider {
+// GetConfig returns the current configuration for the Weblens server.
+func GetConfig() Provider {
 	return cnf
 }
 
+// GetMongoDBUri returns the MongoDB connection URI from the current configuration.
 func GetMongoDBUri() string {
 	return cnf.MongoDBUri
 }
