@@ -47,6 +47,7 @@ jobs:
 
       - name: Lint go
         run: |
+          go install golangci-lint
           golangci-lint run
           exit $?
 
