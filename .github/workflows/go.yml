@@ -45,13 +45,12 @@ jobs:
           run_install: |
             - cwd: weblens-vue/weblens-nuxt
 
-      - name: Lint go
-        run: |
-          go install golangci-lint
-          golangci-lint run
-          exit $?
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.6
 
-      - name: Lint nuxt app
+      - name: pnpm lint
         working-directory: weblens-vue/weblens-nuxt
         run: |
           pnpm lint
