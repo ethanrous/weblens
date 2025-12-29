@@ -51,6 +51,7 @@ jobs:
 
       - name: setup agno deps
         run: |
+          mkdir -p ./services/media/agno/lib/
           cp ./agno/lib/agno.h ./services/media/agno/lib/
           cp ./agno/lib/libagno.a ./services/media/agno/lib/
 
