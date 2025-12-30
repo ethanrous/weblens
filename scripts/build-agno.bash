@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -euox pipefail
 
 build_agno() {
     agno_lib_path="${PWD}/services/media/agno/lib/"
