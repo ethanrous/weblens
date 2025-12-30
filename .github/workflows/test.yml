@@ -48,7 +48,7 @@ jobs:
 
       - name: Install pnpm dependencies
         working-directory: weblens-vue/weblens-nuxt
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
       - name: setup agno deps
         run: |
