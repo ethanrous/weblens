@@ -11,7 +11,7 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
-    "@ethanrous/weblens-api": "0.0.6",
+    "@ethanrous/weblens-api": "0.0.7",
     "@nuxt/eslint": "1.4.1",
     "@nuxt/image": "1.10.0",
     "@nuxt/kit": "^4.2.2",
