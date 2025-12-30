@@ -7,6 +7,7 @@ build_agno() {
     pushd agno >/dev/null
     printf "Building \e[38;2;255;165;0mAgno...\e[0m\n"
     ./build/sh/buildAgno.bash "$agno_lib_path" 2>&1 | sed $'s/^/\e[38;2;255;165;0m| \e[0m/'
+    cp ./agno/lib/agno.h "$agno_lib_path"
     popd >/dev/null
 }
 
