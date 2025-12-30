@@ -5,7 +5,7 @@ import (
 	"context"
 
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 )
 
 // HookFunc is a function that performs initialization tasks during application startup.
@@ -19,7 +19,7 @@ func RegisterHook(f HookFunc) {
 }
 
 // ErrDeferStartup signals that a startup function should be deferred and run later.
-var ErrDeferStartup = errors.New("defer startup")
+var ErrDeferStartup = wlerrors.New("defer startup")
 
 // RunStartups executes all registered startup functions in order, supporting deferral.
 func RunStartups(ctx context.Context, cnf config.Provider) error {
@@ -29,9 +29,9 @@ func RunStartups(ctx context.Context, cnf config.Provider) error {
 
 		startup, toRun = toRun[0], toRun[1:]
 		if err := startup(ctx, cnf); err != nil {
-			if errors.Is(err, ErrDeferStartup) {
+			if wlerrors.Is(err, ErrDeferStartup) {
 				if len(toRun) == 0 {
-					return errors.New("startup requested to be defered, but there are no more startups to run")
+					return wlerrors.New("startup requested to be defered, but there are no more startups to run")
 				}
 
 				// Defer the startup

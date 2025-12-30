@@ -1,4 +1,4 @@
-package context
+package wlcontext
 
 import "github.com/ethanrous/weblens/modules/task"
 

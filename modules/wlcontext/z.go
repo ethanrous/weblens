@@ -1,10 +1,10 @@
-package context
+package wlcontext
 
 import (
 	"context"
 	"sync"
 
-	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -71,12 +71,12 @@ const WgKey = "wg"
 // AddToWg increments the WaitGroup stored in the context by one.
 func AddToWg(ctx context.Context) error {
 	if ctx == nil {
-		return errors.New("AddToWg: context is nil")
+		return wlerrors.New("AddToWg: context is nil")
 	}
 
 	wg, ok := ctx.Value(WgKey).(*sync.WaitGroup)
 	if !ok {
-		return errors.New("AddToWg: context does not contain a WaitGroup")
+		return wlerrors.New("AddToWg: context does not contain a WaitGroup")
 	}
 
 	wg.Add(1)
@@ -87,12 +87,12 @@ func AddToWg(ctx context.Context) error {
 // WgDone decrements the WaitGroup stored in the context by one.
 func WgDone(ctx context.Context) error {
 	if ctx == nil {
-		return errors.New("AddToWg: context is nil")
+		return wlerrors.New("AddToWg: context is nil")
 	}
 
 	wg, ok := ctx.Value(WgKey).(*sync.WaitGroup)
 	if !ok {
-		return errors.New("AddToWg: context does not contain a WaitGroup")
+		return wlerrors.New("AddToWg: context does not contain a WaitGroup")
 	}
 
 	wg.Done()

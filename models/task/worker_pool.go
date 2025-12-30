@@ -8,28 +8,28 @@ import (
 	"sync/atomic"
 	"time"
 
-	context_mod "github.com/ethanrous/weblens/modules/context"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/log"
 	task_mod "github.com/ethanrous/weblens/modules/task"
+	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 )
 
 // ErrTaskError indicates a task encountered an error during execution.
-var ErrTaskError = errors.New("task error")
+var ErrTaskError = wlerrors.New("task error")
 
 // ErrTaskExit indicates a task has exited.
-var ErrTaskExit = errors.New("task exit")
+var ErrTaskExit = wlerrors.New("task exit")
 
 // ErrTaskTimeout indicates a task exceeded its timeout duration.
-var ErrTaskTimeout = errors.New("task timeout")
+var ErrTaskTimeout = wlerrors.New("task timeout")
 
 // ErrTaskCancelled indicates a task was cancelled before completion.
-var ErrTaskCancelled = errors.New("task cancelled")
+var ErrTaskCancelled = wlerrors.New("task cancelled")
 
 // ErrTaskAlreadyComplete indicates an attempt to execute an already completed task.
-var ErrTaskAlreadyComplete = errors.New("task already complete")
+var ErrTaskAlreadyComplete = wlerrors.New("task already complete")
 
 type hit struct {
 	time   time.Time
@@ -213,7 +213,7 @@ func (wp *WorkerPool) RegisterJob(jobName string, fn task_mod.CleanupFunc, opts 
 // DispatchJob creates and queues a new task for the specified registered job.
 func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta task_mod.Metadata, pool task_mod.Pool) (task_mod.Task, error) {
 	if meta.JobName() != jobName {
-		return nil, errors.Errorf("job name does not match task metadata")
+		return nil, wlerrors.Errorf("job name does not match task metadata")
 	}
 
 	if err := meta.Verify(); err != nil {
@@ -225,7 +225,7 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta task
 	if wp.registeredJobs[jobName].handler == nil {
 		wp.jobsMu.RUnlock()
 
-		return nil, errors.Errorf("trying to dispatch non-registered job: %s", jobName)
+		return nil, wlerrors.Errorf("trying to dispatch non-registered job: %s", jobName)
 	}
 
 	wp.jobsMu.RUnlock()
@@ -277,7 +277,7 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta task
 	select {
 	case _, ok := <-t.Ctx.Done():
 		if !ok {
-			return nil, errors.New("not queuing task while worker pool is going down")
+			return nil, wlerrors.New("not queuing task while worker pool is going down")
 		}
 	default:
 	}
@@ -286,12 +286,12 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta task
 		// Tasks that have failed will not be re-tried. If the errored task is removed from the
 		// task map, then it will be re-tried because the previous error was lost. This can be
 		// sometimes be useful, some tasks auto-remove themselves after they finish.
-		return nil, errors.New("Not re-queueing task that has error set")
+		return nil, wlerrors.New("Not re-queueing task that has error set")
 	}
 
 	tpool, ok := pool.(*Pool)
 	if !ok {
-		return nil, errors.Errorf("Task pool is not a TaskPool")
+		return nil, wlerrors.Errorf("Task pool is not a TaskPool")
 	}
 
 	if t.taskPool != nil && (t.taskPool != tpool || t.queueState != Created) {
@@ -299,7 +299,7 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta task
 		// We can call .ClearAndRecompute() on the task and it will queue it
 		// again, but it cannot be transferred
 		if t.taskPool != tpool {
-			return nil, errors.Errorf("Attempted to re-queue a [%s] task that is already in another queue", t.jobName)
+			return nil, wlerrors.Errorf("Attempted to re-queue a [%s] task that is already in another queue", t.jobName)
 		}
 
 		tpool.addTask(t)
@@ -309,7 +309,7 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta task
 
 	if tpool.allQueuedFlag.Load() {
 		// We cannot add tasks to a queue that has been closed
-		return nil, errors.Errorf("attempting to add task [%s] to closed task queue [pool created by %s]", t.JobName(), tpool.ID())
+		return nil, wlerrors.Errorf("attempting to add task [%s] to closed task queue [pool created by %s]", t.JobName(), tpool.ID())
 	}
 
 	tpool.totalTasks.Add(1)
@@ -757,15 +757,15 @@ func (wp *WorkerPool) workerRecover(task *Task, _ int64) {
 
 		switch e := recovered.(type) {
 		case error:
-			if errors.Is(e, ErrTaskError) {
+			if wlerrors.Is(e, ErrTaskError) {
 				return
-			} else if errors.Is(e, ErrTaskExit) {
+			} else if wlerrors.Is(e, ErrTaskExit) {
 				return
 			}
 
-			err = errors.WithStack(e)
+			err = wlerrors.WithStack(e)
 		default:
-			err = errors.Errorf("%s", recovered)
+			err = wlerrors.Errorf("%s", recovered)
 		}
 
 		task.error(err)

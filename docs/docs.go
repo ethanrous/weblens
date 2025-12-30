@@ -879,10 +879,10 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "ApiKeys"
+                    "APIKeys"
                 ],
                 "summary": "Get all api keys",
-                "operationId": "GetApiKeys",
+                "operationId": "GetAPIKeys",
                 "responses": {
                     "200": {
                         "description": "Tokens",
@@ -911,10 +911,10 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "ApiKeys"
+                    "APIKeys"
                 ],
                 "summary": "Create a new api key",
-                "operationId": "CreateApiKey",
+                "operationId": "CreateAPIKey",
                 "parameters": [
                     {
                         "description": "The new token params",
@@ -922,7 +922,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/ApiKeyParams"
+                            "$ref": "#/definitions/APIKeyParams"
                         }
                     }
                 ],
@@ -955,14 +955,14 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "ApiKeys"
+                    "APIKeys"
                 ],
                 "summary": "Delete an api key",
-                "operationId": "DeleteApiKey",
+                "operationId": "DeleteAPIKey",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Api key id",
+                        "description": "API key id",
                         "name": "tokenID",
                         "in": "path",
                         "required": true
@@ -2852,6 +2852,17 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "APIKeyParams": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "AddUserParams": {
             "type": "object",
             "required": [
@@ -2871,17 +2882,6 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "username": {
-                    "type": "string"
-                }
-            }
-        },
-        "ApiKeyParams": {
-            "type": "object",
-            "required": [
-                "name"
-            ],
-            "properties": {
-                "name": {
                     "type": "string"
                 }
             }
@@ -3075,7 +3075,7 @@ const docTemplate = `{
         "FilesListParams": {
             "type": "object",
             "properties": {
-                "fileIds": {
+                "fileIDs": {
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -3212,7 +3212,7 @@ const docTemplate = `{
         "MediaIDsParams": {
             "type": "object",
             "properties": {
-                "mediaIds": {
+                "mediaIDs": {
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -3347,7 +3347,7 @@ const docTemplate = `{
         "MoveFilesParams": {
             "type": "object",
             "properties": {
-                "fileIds": {
+                "fileIDs": {
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -3378,7 +3378,7 @@ const docTemplate = `{
         "NewFilesInfo": {
             "type": "object",
             "properties": {
-                "fileIds": {
+                "fileIDs": {
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -3512,7 +3512,7 @@ const docTemplate = `{
         "RestoreFilesBody": {
             "type": "object",
             "properties": {
-                "fileIds": {
+                "fileIDs": {
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -3626,7 +3626,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
-                    "$ref": "#/definitions/task.TaskExitStatus"
+                    "$ref": "#/definitions/task.ExitStatus"
                 },
                 "taskID": {
                     "type": "string"
@@ -3931,7 +3931,7 @@ const docTemplate = `{
                 "configValue": {}
             }
         },
-        "task.TaskExitStatus": {
+        "task.ExitStatus": {
             "type": "string",
             "enum": [
                 "",
@@ -3948,7 +3948,7 @@ const docTemplate = `{
         }
     },
     "securityDefinitions": {
-        "ApiKeyAuth": {
+        "APIKeyAuth": {
             "type": "apiKey",
             "name": "Authorization",
             "in": "header",

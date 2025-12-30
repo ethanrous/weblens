@@ -1,5 +1,5 @@
-// Package context provides custom error types for context-related operations.
-package context
+// Package wlcontext provides custom error types for context-related operations.
+package wlcontext
 
 import "fmt"
 

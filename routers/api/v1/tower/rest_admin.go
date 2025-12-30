@@ -6,12 +6,12 @@ import (
 
 	"github.com/ethanrous/weblens/models/config"
 	"github.com/ethanrous/weblens/models/task"
-	"github.com/ethanrous/weblens/modules/errors"
-	"github.com/ethanrous/weblens/modules/net"
+	"github.com/ethanrous/weblens/modules/netwrk"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
 	"github.com/ethanrous/weblens/modules/structs"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 
-	"github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/reshape"
 )
 
@@ -28,7 +28,7 @@ import (
 //
 //	@Success	200		{array}	structs.TaskInfo	"Task Infos"
 //	@Router		/tower/tasks [get]
-func GetRunningTasks(ctx context.RequestContext) {
+func GetRunningTasks(ctx ctxservice.RequestContext) {
 	tasksIter := ctx.TaskService.GetTasks()
 
 	tasks := slices_mod.Filter(tasksIter, func(t *task.Task) bool {
@@ -52,7 +52,7 @@ func GetRunningTasks(ctx context.RequestContext) {
 //
 //	@Success	200		{object}	structs.WLResponseInfo	"Cache flushed successfully"
 //	@Router		/tower/cache [delete]
-func FlushCache(ctx context.RequestContext) {
+func FlushCache(ctx ctxservice.RequestContext) {
 	ctx.ClearCache()
 	ctx.JSON(http.StatusOK, structs.WLResponseInfo{Message: "Cache flushed successfully"})
 }
@@ -70,10 +70,10 @@ func FlushCache(ctx context.RequestContext) {
 //
 //	@Success	200 {object}	config.Config "Config Info"
 //	@Router		/config [get]
-func GetConfig(ctx context.RequestContext) {
+func GetConfig(ctx ctxservice.RequestContext) {
 	cnf, err := config.GetConfig(ctx)
 	if err != nil {
-		ctx.Error(http.StatusInternalServerError, errors.Errorf("Failed to get config: %w", err))
+		ctx.Error(http.StatusInternalServerError, wlerrors.Errorf("Failed to get config: %w", err))
 
 		return
 	}
@@ -96,15 +96,15 @@ func GetConfig(ctx context.RequestContext) {
 //
 //	@Success	200
 //	@Router		/config [post]
-func SetConfig(ctx context.RequestContext) {
-	configParams, err := net.ReadRequestBody[structs.SetConfigParams](ctx.Req)
+func SetConfig(ctx ctxservice.RequestContext) {
+	configParams, err := netwrk.ReadRequestBody[structs.SetConfigParams](ctx.Req)
 	if err != nil {
 		return
 	}
 
 	cnf, err := config.GetConfig(ctx)
 	if err != nil {
-		ctx.Error(http.StatusInternalServerError, errors.Errorf("Failed to get config: %w", err))
+		ctx.Error(http.StatusInternalServerError, wlerrors.Errorf("Failed to get config: %w", err))
 
 		return
 	}
@@ -116,13 +116,13 @@ func SetConfig(ctx context.RequestContext) {
 		case config.EnableHDIR:
 			cnf.EnableHDIR = param.ConfigValue.(bool)
 		default:
-			ctx.Error(http.StatusBadRequest, errors.Errorf("Unknown config parameter: %s", param.ConfigKey))
+			ctx.Error(http.StatusBadRequest, wlerrors.Errorf("Unknown config parameter: %s", param.ConfigKey))
 		}
 	}
 
 	err = config.SaveConfig(ctx, cnf)
 	if err != nil {
-		ctx.Error(http.StatusInternalServerError, errors.Errorf("Failed to save config: %w", err))
+		ctx.Error(http.StatusInternalServerError, wlerrors.Errorf("Failed to save config: %w", err))
 
 		return
 	}

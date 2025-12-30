@@ -9,10 +9,10 @@ import (
 	"math"
 	"time"
 
-	"github.com/ethanrous/weblens/modules/errors"
 	file_system "github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/option"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -66,7 +66,7 @@ func NewWeblensFile(params NewFileOptions) *WeblensFileImpl {
 
 	if params.CreateNow {
 		err := f.CreateSelf()
-		if errors.Ignore(err, ErrFileAlreadyExists) != nil {
+		if wlerrors.Ignore(err, ErrFileAlreadyExists) != nil {
 			log.GlobalLogger().Error().Err(err).Msgf("Failed to create file %s", params.Path.ToAbsolute())
 
 			return nil
@@ -91,7 +91,7 @@ func GenerateContentID(ctx context.Context, f *WeblensFileImpl) (string, error) 
 	l := log.FromContext(ctx)
 
 	if f.IsDir() {
-		return "", errors.Errorf("cannot hash directory")
+		return "", wlerrors.Errorf("cannot hash directory")
 	}
 
 	if f.GetContentID() != "" {
@@ -103,7 +103,7 @@ func GenerateContentID(ctx context.Context, f *WeblensFileImpl) (string, error) 
 	fileSize := f.Size()
 
 	if fileSize == 0 {
-		return "", errors.WithStack(ErrEmptyFile)
+		return "", wlerrors.WithStack(ErrEmptyFile)
 	}
 
 	// Read up to 1MB at a time

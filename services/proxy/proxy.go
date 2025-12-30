@@ -9,7 +9,7 @@ import (
 	"net/url"
 
 	tower_model "github.com/ethanrous/weblens/models/tower"
-	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/rs/zerolog/log"
 )
 
@@ -69,7 +69,7 @@ func (r Request) OverwriteEndpoint(newEndpoint string) Request {
 func (r Request) WithBody(body any) Request {
 	bs, err := json.Marshal(body)
 	if err != nil {
-		r.err = errors.WithStack(err)
+		r.err = wlerrors.WithStack(err)
 
 		return r
 	}
@@ -98,11 +98,11 @@ func (r Request) Call() (*http.Response, error) {
 	}
 
 	if r.remote.OutgoingKey == "" {
-		return nil, errors.Errorf("Trying to dial core without api key")
+		return nil, wlerrors.Errorf("Trying to dial core without api key")
 	}
 
 	if len(r.url) == 0 {
-		return nil, errors.Errorf("Trying to dial core without endpoint")
+		return nil, wlerrors.Errorf("Trying to dial core without endpoint")
 	}
 
 	buf := bytes.NewBuffer(r.body)
@@ -145,15 +145,15 @@ func (r Request) Call() (*http.Response, error) {
 		if err != nil {
 			log.Error().Stack().Err(err).Msg("")
 
-			return nil, errors.Errorf("Failed to call home to [%s %s]: %s", r.method, req.URL.String(), resp.Status)
+			return nil, wlerrors.Errorf("Failed to call home to [%s %s]: %s", r.method, req.URL.String(), resp.Status)
 		}
 
 		err = json.Unmarshal(bs, &target)
 		if err != nil {
-			return nil, errors.Errorf("Failed to call home to [%s %s]: %s", r.method, req.URL.String(), resp.Status)
+			return nil, wlerrors.Errorf("Failed to call home to [%s %s]: %s", r.method, req.URL.String(), resp.Status)
 		}
 
-		return nil, errors.Errorf("Failed to call home to [%s %s]: %s", r.method, req.URL.String(), target.Error)
+		return nil, wlerrors.Errorf("Failed to call home to [%s %s]: %s", r.method, req.URL.String(), target.Error)
 	}
 
 	return resp, err
@@ -172,10 +172,10 @@ func CallHomeStruct[T any](req Request) (T, error) {
 
 	bs, err := io.ReadAll(res.Body)
 	if err != nil {
-		return target, errors.WithStack(err)
+		return target, wlerrors.WithStack(err)
 	}
 
 	err = json.Unmarshal(bs, &target)
 
-	return target, errors.WithStack(err)
+	return target, wlerrors.WithStack(err)
 }

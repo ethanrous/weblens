@@ -1,5 +1,5 @@
-// Package errors provides error handling with stack traces.
-package errors
+// Package wlerrors provides error handling with stack traces.
+package wlerrors
 
 import (
 	"fmt"

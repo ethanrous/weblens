@@ -13,11 +13,11 @@ import (
 	"github.com/ethanrous/weblens/models/job"
 	job_model "github.com/ethanrous/weblens/models/job"
 	"github.com/ethanrous/weblens/models/task"
-	"github.com/ethanrous/weblens/modules/errors"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/ethanrous/weblens/modules/websocket"
-	context_service "github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/notify"
 	"github.com/rs/zerolog"
 )
@@ -29,7 +29,7 @@ func removeTopLevels(t *task.Task, topLevels []*file_model.WeblensFileImpl) erro
 
 	appCtx, ok := context_service.FromContext(t.Ctx)
 	if !ok {
-		return errors.New("failed to get context")
+		return wlerrors.New("failed to get context")
 	}
 
 	ctx := context.WithoutCancel(t.Ctx)
@@ -53,7 +53,7 @@ func HandleFileUploads(tsk task_mod.Task) {
 
 	appCtx, ok := context_service.FromContext(t.Ctx)
 	if !ok {
-		t.Fail(errors.New("failed to get context"))
+		t.Fail(wlerrors.New("failed to get context"))
 
 		return
 	}
@@ -147,7 +147,7 @@ func HandleFileUploads(tsk task_mod.Task) {
 
 	appCtx, ok = context_service.FromContext(ctx)
 	if !ok {
-		t.Fail(errors.New("failed to add file event to context in upload task"))
+		t.Fail(wlerrors.New("failed to add file event to context in upload task"))
 
 		return
 	}
@@ -210,7 +210,7 @@ WriterLoop:
 			chnk := fileMap[chunk.FileID]
 
 			if chnk.FileSizeTotal != total {
-				t.Fail(errors.Errorf("upload size mismatch for file [%s / %s] (%d != %d)", chnk.File.GetPortablePath(), chnk.File.ID(), chnk.FileSizeTotal, total))
+				t.Fail(wlerrors.Errorf("upload size mismatch for file [%s / %s] (%d != %d)", chnk.File.GetPortablePath(), chnk.File.ID(), chnk.FileSizeTotal, total))
 			}
 
 			// Add the new bytes to the counter for the file-size of this file.
@@ -240,7 +240,7 @@ WriterLoop:
 				chnk.File.SetContentID(base64.URLEncoding.EncodeToString(chnk.Hash.Sum(nil))[:20])
 
 				if chnk.File.GetContentID() == "" {
-					t.Fail(errors.Errorf("failed to generate contentID for file upload [%s]", chnk.File.GetPortablePath()))
+					t.Fail(wlerrors.Errorf("failed to generate contentID for file upload [%s]", chnk.File.GetPortablePath()))
 				}
 
 				newAction := history.NewCreateAction(appCtx, chnk.File)

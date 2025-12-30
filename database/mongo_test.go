@@ -7,8 +7,8 @@ import (
 
 	"github.com/ethanrous/weblens/models/db"
 	"github.com/ethanrous/weblens/modules/config"
-	context_mod "github.com/ethanrous/weblens/modules/context"
 	"github.com/ethanrous/weblens/modules/tests"
+	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

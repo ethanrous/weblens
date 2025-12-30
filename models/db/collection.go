@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 
 	"github.com/ethanrous/weblens/modules/config"
-	context_mod "github.com/ethanrous/weblens/modules/context"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/log"
+	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/rs/zerolog"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -17,13 +17,13 @@ import (
 
 const (
 	// DatabaseContextKey is the context key for accessing the MongoDB database instance.
-	DatabaseContextKey   = "database"
+	DatabaseContextKey = "database"
 	// CollectionContextKey is the context key for accessing the collection name.
 	CollectionContextKey = "collection"
 )
 
 // ErrNoDatabase indicates that the context does not contain a database instance.
-var ErrNoDatabase = errors.New("context is not a DatabaseContext")
+var ErrNoDatabase = wlerrors.New("context is not a DatabaseContext")
 
 // ContextualizedCollection wraps a MongoDB collection with context for logging and caching.
 type ContextualizedCollection[T any] struct {
@@ -83,7 +83,7 @@ func (c *ContextualizedCollection[T]) UpdateOne(_ context.Context, filter, updat
 	}
 
 	if res.MatchedCount == 0 && res.UpsertedCount == 0 {
-		return res, errors.Errorf("no documents matched the filter: %v", filter)
+		return res, wlerrors.Errorf("no documents matched the filter: %v", filter)
 	}
 
 	return res, nil
@@ -199,7 +199,7 @@ func (c *ContextualizedCollection[T]) Aggregate(_ context.Context, pipeline any,
 		e.Msgf("Aggregate on collection [%s] got %d results", c.collection.Name(), cursor.RemainingBatchLength())
 	})
 
-	return cursor, errors.WithStack(err)
+	return cursor, wlerrors.WithStack(err)
 }
 
 // Drop removes the entire collection and invalidates the cache.
@@ -222,12 +222,12 @@ func (c *ContextualizedCollection[T]) Drop(ctx context.Context) error {
 
 func getDbFromContext(ctx context.Context) (*mongo.Database, error) {
 	if ctx == nil {
-		return nil, errors.WithStack(ErrNoDatabase)
+		return nil, wlerrors.WithStack(ErrNoDatabase)
 	}
 
 	dbAny := ctx.Value(DatabaseContextKey)
 	if dbAny == nil {
-		return nil, errors.WithStack(ErrNoDatabase)
+		return nil, wlerrors.WithStack(ErrNoDatabase)
 	}
 
 	db, ok := dbAny.(*mongo.Database)
@@ -235,7 +235,7 @@ func getDbFromContext(ctx context.Context) (*mongo.Database, error) {
 		return db, nil
 	}
 
-	return nil, errors.WithStack(ErrNoDatabase)
+	return nil, wlerrors.WithStack(ErrNoDatabase)
 }
 
 // GetCollection retrieves a contextualized collection from the database in the context.

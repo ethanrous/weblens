@@ -4,11 +4,11 @@ import (
 	share_model "github.com/ethanrous/weblens/models/share"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/structs"
-	"github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/services/ctxservice"
 )
 
 // ShareToShareInfo converts a FileShare model to a ShareInfo transfer object.
-func ShareToShareInfo(ctx context.RequestContext, s *share_model.FileShare) structs.ShareInfo {
+func ShareToShareInfo(ctx ctxservice.RequestContext, s *share_model.FileShare) structs.ShareInfo {
 	accessors := make([]structs.UserInfo, 0, len(s.Accessors))
 
 	for _, a := range s.Accessors {
@@ -43,7 +43,7 @@ func ShareToShareInfo(ctx context.RequestContext, s *share_model.FileShare) stru
 }
 
 // PermissionsToPermissionsInfo converts a map of Permissions models to PermissionsInfo transfer objects.
-func PermissionsToPermissionsInfo(_ context.RequestContext, perms map[string]*share_model.Permissions) map[string]structs.PermissionsInfo {
+func PermissionsToPermissionsInfo(_ ctxservice.RequestContext, perms map[string]*share_model.Permissions) map[string]structs.PermissionsInfo {
 	permsInfo := make(map[string]structs.PermissionsInfo, len(perms))
 	for k, v := range perms {
 		permsInfo[k] = structs.PermissionsInfo{
@@ -58,7 +58,7 @@ func PermissionsToPermissionsInfo(_ context.RequestContext, perms map[string]*sh
 }
 
 // PermissionsParamsToPermissions converts PermissionsParams to a Permissions model.
-func PermissionsParamsToPermissions(_ context.RequestContext, perms structs.PermissionsParams) (share_model.Permissions, error) {
+func PermissionsParamsToPermissions(_ ctxservice.RequestContext, perms structs.PermissionsParams) (share_model.Permissions, error) {
 	newPerms := share_model.Permissions{
 		CanView:     perms.CanView,
 		CanEdit:     perms.CanEdit,
@@ -70,7 +70,7 @@ func PermissionsParamsToPermissions(_ context.RequestContext, perms structs.Perm
 }
 
 // UnpackNewUserParams extracts the username and permissions from AddUserParams.
-func UnpackNewUserParams(ctx context.RequestContext, params structs.AddUserParams) (string, share_model.Permissions, error) {
+func UnpackNewUserParams(ctx ctxservice.RequestContext, params structs.AddUserParams) (string, share_model.Permissions, error) {
 	perms, err := PermissionsParamsToPermissions(ctx, params.PermissionsParams)
 	if err != nil {
 		return "", share_model.Permissions{}, err

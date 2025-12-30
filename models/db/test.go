@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/ethanrous/weblens/modules/config"
-	context_mod "github.com/ethanrous/weblens/modules/context"
+	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/mongo"
 )

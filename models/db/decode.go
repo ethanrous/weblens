@@ -5,15 +5,15 @@ import (
 	"reflect"
 
 	"github.com/ethanrous/weblens/modules/config"
-	context_mod "github.com/ethanrous/weblens/modules/context"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/log"
+	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 // ErrDecodeNotPointer indicates that a decode operation was attempted with a non-pointer value.
-var ErrDecodeNotPointer = errors.New("decode: value must be a pointer")
+var ErrDecodeNotPointer = wlerrors.New("decode: value must be a pointer")
 
 // Decoder provides an interface for decoding database results into typed values.
 type Decoder[T any] interface {
@@ -55,10 +55,10 @@ type mongoDecoder[T any] struct {
 
 func (d *mongoDecoder[T]) Decode(v T) error {
 	if d.err != nil {
-		if errors.Is(d.err, mongo.ErrNoDocuments) {
+		if wlerrors.Is(d.err, mongo.ErrNoDocuments) {
 			err := d.cacheResult(nil)
 			if err != nil {
-				return errors.Errorf("failed to negative cache result: %v", err)
+				return wlerrors.Errorf("failed to negative cache result: %v", err)
 			}
 		}
 
@@ -74,7 +74,7 @@ func (d *mongoDecoder[T]) Decode(v T) error {
 
 	err = d.cacheResult(v)
 	if err != nil {
-		return errors.Errorf("failed to cache result: %v", err)
+		return wlerrors.Errorf("failed to cache result: %v", err)
 	}
 
 	return nil
@@ -102,7 +102,7 @@ func (d *mongoDecoder[T]) cacheResult(v any) error {
 
 		m, ok := d.filter.(bson.M)
 		if !ok {
-			return errors.New("filter is not bson.M")
+			return wlerrors.New("filter is not bson.M")
 		}
 
 		if len(m) != 1 {
@@ -111,7 +111,7 @@ func (d *mongoDecoder[T]) cacheResult(v any) error {
 
 		filterString, err := bson.Marshal(m)
 		if err != nil {
-			return errors.Wrap(err, "failed to marshal filter")
+			return wlerrors.Wrap(err, "failed to marshal filter")
 		}
 
 		cache.Set(string(filterString), v)

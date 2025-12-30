@@ -12,11 +12,23 @@ import { RawAxiosRequestConfig, AxiosInstance, AxiosPromise } from 'axios';
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
+interface AWSv4Configuration {
+    options?: {
+        region?: string;
+        service?: string;
+    };
+    credentials?: {
+        accessKeyId?: string;
+        secretAccessKey?: string;
+        sessionToken?: string;
+    };
+}
 interface ConfigurationParameters {
     apiKey?: string | Promise<string> | ((name: string) => string) | ((name: string) => Promise<string>);
     username?: string;
     password?: string;
     accessToken?: string | Promise<string> | ((name?: string, scopes?: string[]) => string) | ((name?: string, scopes?: string[]) => Promise<string>);
+    awsv4?: AWSv4Configuration;
     basePath?: string;
     serverIndex?: number;
     baseOptions?: any;
@@ -42,6 +54,17 @@ declare class Configuration {
      * @param scopes oauth2 scope
      */
     accessToken?: string | Promise<string> | ((name?: string, scopes?: string[]) => string) | ((name?: string, scopes?: string[]) => Promise<string>);
+    /**
+     * parameter for aws4 signature security
+     * @param {Object} AWS4Signature - AWS4 Signature security
+     * @param {string} options.region - aws region
+     * @param {string} options.service - name of the service.
+     * @param {string} credentials.accessKeyId - aws access key id
+     * @param {string} credentials.secretAccessKey - aws access key
+     * @param {string} credentials.sessionToken - aws session token
+     * @memberof Configuration
+     */
+    awsv4?: AWSv4Configuration;
     /**
      * override base path
      */
@@ -99,15 +122,15 @@ declare class BaseAPI {
     constructor(configuration?: Configuration, basePath?: string, axios?: AxiosInstance);
 }
 
+interface APIKeyParams {
+    'name': string;
+}
 interface AddUserParams {
     'canDelete'?: boolean;
     'canDownload'?: boolean;
     'canEdit'?: boolean;
     'canView'?: boolean;
     'username': string;
-}
-interface ApiKeyParams {
-    'name': string;
 }
 interface BackupInfo {
     'fileHistory'?: Array<FileActionInfo>;
@@ -162,7 +185,7 @@ interface FileShareParams {
     'wormhole'?: boolean;
 }
 interface FilesListParams {
-    'fileIds'?: Array<string>;
+    'fileIDs'?: Array<string>;
 }
 interface FolderInfo {
     'children'?: Array<FileInfo>;
@@ -216,7 +239,7 @@ declare const MediaBatchParamsSortEnum: {
 };
 type MediaBatchParamsSortEnum = typeof MediaBatchParamsSortEnum[keyof typeof MediaBatchParamsSortEnum];
 interface MediaIDsParams {
-    'mediaIds'?: Array<string>;
+    'mediaIDs'?: Array<string>;
 }
 interface MediaInfo {
     /**
@@ -285,7 +308,7 @@ interface MediaTypesInfo {
     };
 }
 interface MoveFilesParams {
-    'fileIds'?: Array<string>;
+    'fileIDs'?: Array<string>;
     'newParentID'?: string;
 }
 interface NewFileParams {
@@ -295,7 +318,7 @@ interface NewFileParams {
     'parentFolderID'?: string;
 }
 interface NewFilesInfo {
-    'fileIds'?: Array<string>;
+    'fileIDs'?: Array<string>;
 }
 interface NewFilesParams {
     'newFiles'?: Array<NewFileParams>;
@@ -338,7 +361,7 @@ interface PermissionsParams {
     'canView'?: boolean;
 }
 interface RestoreFilesBody {
-    'fileIds'?: Array<string>;
+    'fileIDs'?: Array<string>;
     'newParentID'?: string;
     'timestamp'?: number;
 }
@@ -387,23 +410,23 @@ interface TakeoutInfo {
     'takeoutID'?: string;
     'taskID'?: string;
 }
+declare const TaskExitStatus: {
+    readonly TaskNoStatus: "";
+    readonly TaskSuccess: "success";
+    readonly TaskCanceled: "cancelled";
+    readonly TaskError: "error";
+};
+type TaskExitStatus = typeof TaskExitStatus[keyof typeof TaskExitStatus];
 interface TaskInfo {
     'Completed': boolean;
     'jobName': string;
     'progress': number;
     'result'?: object;
     'startTime'?: string;
-    'status': TaskTaskExitStatus;
+    'status': TaskExitStatus;
     'taskID': string;
     'workerID': number;
 }
-declare const TaskTaskExitStatus: {
-    readonly TaskNoStatus: "";
-    readonly TaskSuccess: "success";
-    readonly TaskCanceled: "cancelled";
-    readonly TaskError: "error";
-};
-type TaskTaskExitStatus = typeof TaskTaskExitStatus[keyof typeof TaskTaskExitStatus];
 interface TokenInfo {
     'createdBy': string;
     'createdTime': number;
@@ -467,116 +490,116 @@ interface WeblensErrorInfo {
     'error'?: string;
 }
 /**
- * ApiKeysApi - axios parameter creator
+ * APIKeysApi - axios parameter creator
  */
-declare const ApiKeysApiAxiosParamCreator: (configuration?: Configuration) => {
+declare const APIKeysApiAxiosParamCreator: (configuration?: Configuration) => {
     /**
      *
      * @summary Create a new api key
-     * @param {ApiKeyParams} params The new token params
+     * @param {APIKeyParams} params The new token params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    createApiKey: (params: ApiKeyParams, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    createAPIKey: (params: APIKeyParams, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Delete an api key
-     * @param {string} tokenID Api key id
+     * @param {string} tokenID API key id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    deleteApiKey: (tokenID: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    deleteAPIKey: (tokenID: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Get all api keys
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getApiKeys: (options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    getAPIKeys: (options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
 };
 /**
- * ApiKeysApi - functional programming interface
+ * APIKeysApi - functional programming interface
  */
-declare const ApiKeysApiFp: (configuration?: Configuration) => {
+declare const APIKeysApiFp: (configuration?: Configuration) => {
     /**
      *
      * @summary Create a new api key
-     * @param {ApiKeyParams} params The new token params
+     * @param {APIKeyParams} params The new token params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    createApiKey(params: ApiKeyParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TokenInfo>>;
+    createAPIKey(params: APIKeyParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TokenInfo>>;
     /**
      *
      * @summary Delete an api key
-     * @param {string} tokenID Api key id
+     * @param {string} tokenID API key id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    deleteApiKey(tokenID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    deleteAPIKey(tokenID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
     /**
      *
      * @summary Get all api keys
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getApiKeys(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<TokenInfo>>>;
+    getAPIKeys(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<TokenInfo>>>;
 };
 /**
- * ApiKeysApi - factory interface
+ * APIKeysApi - factory interface
  */
-declare const ApiKeysApiFactory: (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) => {
+declare const APIKeysApiFactory: (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) => {
     /**
      *
      * @summary Create a new api key
-     * @param {ApiKeyParams} params The new token params
+     * @param {APIKeyParams} params The new token params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    createApiKey(params: ApiKeyParams, options?: RawAxiosRequestConfig): AxiosPromise<TokenInfo>;
+    createAPIKey(params: APIKeyParams, options?: RawAxiosRequestConfig): AxiosPromise<TokenInfo>;
     /**
      *
      * @summary Delete an api key
-     * @param {string} tokenID Api key id
+     * @param {string} tokenID API key id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    deleteApiKey(tokenID: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    deleteAPIKey(tokenID: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
     /**
      *
      * @summary Get all api keys
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getApiKeys(options?: RawAxiosRequestConfig): AxiosPromise<Array<TokenInfo>>;
+    getAPIKeys(options?: RawAxiosRequestConfig): AxiosPromise<Array<TokenInfo>>;
 };
 /**
- * ApiKeysApi - object-oriented interface
+ * APIKeysApi - object-oriented interface
  */
-declare class ApiKeysApi extends BaseAPI {
+declare class APIKeysApi extends BaseAPI {
     /**
      *
      * @summary Create a new api key
-     * @param {ApiKeyParams} params The new token params
+     * @param {APIKeyParams} params The new token params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    createApiKey(params: ApiKeyParams, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TokenInfo, any>>;
+    createAPIKey(params: APIKeyParams, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TokenInfo, any>>;
     /**
      *
      * @summary Delete an api key
-     * @param {string} tokenID Api key id
+     * @param {string} tokenID API key id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    deleteApiKey(tokenID: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
+    deleteAPIKey(tokenID: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
      *
      * @summary Get all api keys
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getApiKeys(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TokenInfo[], any>>;
+    getAPIKeys(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TokenInfo[], any>>;
 }
 /**
  * ConfigApi - axios parameter creator
@@ -2945,13 +2968,13 @@ declare class UsersApi extends BaseAPI {
 }
 
 type WLAPI = {
-    MediaApi: ReturnType<typeof MediaApiFactory>;
-    FilesApi: ReturnType<typeof FilesApiFactory>;
-    FoldersApi: ReturnType<typeof FolderApiFactory>;
-    TowersApi: ReturnType<typeof TowersApiFactory>;
-    SharesApi: ReturnType<typeof ShareApiFactory>;
-    UsersApi: ReturnType<typeof UsersApiFactory>;
+    MediaAPI: ReturnType<typeof MediaApiFactory>;
+    FilesAPI: ReturnType<typeof FilesApiFactory>;
+    FoldersAPI: ReturnType<typeof FolderApiFactory>;
+    TowersAPI: ReturnType<typeof TowersApiFactory>;
+    SharesAPI: ReturnType<typeof ShareApiFactory>;
+    UsersAPI: ReturnType<typeof UsersApiFactory>;
 };
-declare function WeblensApiFactory(apiEndpoint: string): WLAPI;
+declare function WeblensAPIFactory(apiEndpoint: string): WLAPI;
 
-export { type AddUserParams, type ApiKeyParams, ApiKeysApi, ApiKeysApiAxiosParamCreator, ApiKeysApiFactory, ApiKeysApiFp, type BackupInfo, type Config, ConfigApi, ConfigApiAxiosParamCreator, ConfigApiFactory, ConfigApiFp, type CreateFolderBody, type FileActionInfo, type FileInfo, type FileShareParams, FilesApi, FilesApiAxiosParamCreator, FilesApiFactory, FilesApiFp, type FilesListParams, FolderApi, FolderApiAxiosParamCreator, FolderApiFactory, FolderApiFp, type FolderInfo, type FsFilepath, GetMediaImageQualityEnum, type HistoryFileAction, type LoginBody, MediaApi, MediaApiAxiosParamCreator, MediaApiFactory, MediaApiFp, type MediaBatchInfo, type MediaBatchParams, MediaBatchParamsSortEnum, type MediaIDsParams, type MediaInfo, type MediaTypeInfo, type MediaTypesInfo, type MoveFilesParams, type NewFileParams, type NewFilesInfo, type NewFilesParams, type NewServerParams, type NewUploadInfo, type NewUploadParams, type NewUserParams, type PasswordUpdateParams, type PermissionsInfo, type PermissionsParams, type RestoreFilesBody, type RestoreFilesInfo, ShareApi, ShareApiAxiosParamCreator, ShareApiFactory, ShareApiFp, type ShareInfo, type StructsInitServerParams, type StructsSetConfigParam, type TakeoutInfo, type TaskInfo, TaskTaskExitStatus, type TokenInfo, type TowerInfo, TowersApi, TowersApiAxiosParamCreator, TowersApiFactory, TowersApiFp, type UpdateFileParams, type UserInfo, type UserInfoArchive, UsersApi, UsersApiAxiosParamCreator, UsersApiFactory, UsersApiFp, type WLAPI, type WLResponseInfo, WeblensApiFactory, type WeblensErrorInfo };
+export { type APIKeyParams, APIKeysApi, APIKeysApiAxiosParamCreator, APIKeysApiFactory, APIKeysApiFp, type AddUserParams, type BackupInfo, type Config, ConfigApi, ConfigApiAxiosParamCreator, ConfigApiFactory, ConfigApiFp, type CreateFolderBody, type FileActionInfo, type FileInfo, type FileShareParams, FilesApi, FilesApiAxiosParamCreator, FilesApiFactory, FilesApiFp, type FilesListParams, FolderApi, FolderApiAxiosParamCreator, FolderApiFactory, FolderApiFp, type FolderInfo, type FsFilepath, GetMediaImageQualityEnum, type HistoryFileAction, type LoginBody, MediaApi, MediaApiAxiosParamCreator, MediaApiFactory, MediaApiFp, type MediaBatchInfo, type MediaBatchParams, MediaBatchParamsSortEnum, type MediaIDsParams, type MediaInfo, type MediaTypeInfo, type MediaTypesInfo, type MoveFilesParams, type NewFileParams, type NewFilesInfo, type NewFilesParams, type NewServerParams, type NewUploadInfo, type NewUploadParams, type NewUserParams, type PasswordUpdateParams, type PermissionsInfo, type PermissionsParams, type RestoreFilesBody, type RestoreFilesInfo, ShareApi, ShareApiAxiosParamCreator, ShareApiFactory, ShareApiFp, type ShareInfo, type StructsInitServerParams, type StructsSetConfigParam, type TakeoutInfo, TaskExitStatus, type TaskInfo, type TokenInfo, type TowerInfo, TowersApi, TowersApiAxiosParamCreator, TowersApiFactory, TowersApiFp, type UpdateFileParams, type UserInfo, type UserInfoArchive, UsersApi, UsersApiAxiosParamCreator, UsersApiFactory, UsersApiFp, type WLAPI, type WLResponseInfo, WeblensAPIFactory, type WeblensErrorInfo };

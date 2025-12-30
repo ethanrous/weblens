@@ -10,10 +10,10 @@ import (
 
 	api "github.com/ethanrous/weblens/api"
 	tower_model "github.com/ethanrous/weblens/models/tower"
-	context_mod "github.com/ethanrous/weblens/modules/context"
-	"github.com/ethanrous/weblens/modules/net"
+	"github.com/ethanrous/weblens/modules/netwrk"
 	"github.com/ethanrous/weblens/modules/structs"
-	context_service "github.com/ethanrous/weblens/services/context"
+	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 )
 
 // TowerIDHeader is the HTTP header name used to identify the source tower in requests.
@@ -70,7 +70,7 @@ func GetBackup(ctx context.Context, tower tower_model.Instance, since time.Time)
 
 	apiBackupInfo, resp, err := client.TowersAPI.GetBackupInfo(ctx).Timestamp(strconv.FormatInt(since.UnixMilli(), 10)).Execute()
 	if err != nil {
-		return nil, net.ReadError(ctx, resp, err)
+		return nil, netwrk.ReadError(ctx, resp, err)
 	}
 
 	// Convert API backup info to internal BackupInfo struct

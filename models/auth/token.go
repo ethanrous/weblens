@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/models/db"
-	"github.com/ethanrous/weblens/modules/crypto"
-	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/cryptography"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -16,7 +16,7 @@ import (
 const TokenCollectionKey = "tokens"
 
 // ErrTokenNotFound is returned when a requested token does not exist in the database.
-var ErrTokenNotFound = errors.New("no token found")
+var ErrTokenNotFound = wlerrors.New("no token found")
 
 // Token represents an authentication token with metadata about its creation, ownership, and usage.
 type Token struct {
@@ -32,7 +32,7 @@ type Token struct {
 
 // GenerateNewToken creates and saves a new authentication token with the specified nickname, owner, and creator.
 func GenerateNewToken(ctx context.Context, nickname, owner, createdBy string) (*Token, error) {
-	tok, err := crypto.RandomBytes(32)
+	tok, err := cryptography.RandomBytes(32)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func GenerateNewToken(ctx context.Context, nickname, owner, createdBy string) (*
 // SaveToken persists an authentication token to the database.
 func SaveToken(ctx context.Context, token *Token) error {
 	if token.Token == [32]byte{} {
-		return errors.New("token is empty")
+		return wlerrors.New("token is empty")
 	}
 
 	col, err := db.GetCollection[any](ctx, TokenCollectionKey)

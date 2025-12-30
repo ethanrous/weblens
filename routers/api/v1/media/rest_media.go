@@ -13,12 +13,12 @@ import (
 	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/models/share"
-	"github.com/ethanrous/weblens/modules/errors"
-	"github.com/ethanrous/weblens/modules/net"
+	"github.com/ethanrous/weblens/modules/netwrk"
 	"github.com/ethanrous/weblens/modules/slices"
 	"github.com/ethanrous/weblens/modules/structs"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	file_api "github.com/ethanrous/weblens/routers/api/v1/file"
-	"github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/services/ctxservice"
 	media_service "github.com/ethanrous/weblens/services/media"
 	"github.com/ethanrous/weblens/services/reshape"
 )
@@ -36,8 +36,8 @@ import (
 //	@Success	400
 //	@Success	500
 //	@Router		/media [post]
-func GetMediaBatch(ctx context.RequestContext) {
-	reqParams, err := net.ReadRequestBody[structs.MediaBatchParams](ctx.Req)
+func GetMediaBatch(ctx ctxservice.RequestContext) {
+	reqParams, err := netwrk.ReadRequestBody[structs.MediaBatchParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusBadRequest, err)
 
@@ -147,7 +147,7 @@ func GetMediaBatch(ctx context.RequestContext) {
 //	@Produce	json
 //	@Success	200	{object}	structs.MediaTypesInfo	"Media types"
 //	@Router		/media/types  [get]
-func GetMediaTypes(ctx context.RequestContext) {
+func GetMediaTypes(ctx ctxservice.RequestContext) {
 	mime, ext := media_model.GetMaps()
 
 	mimeInfo := make(map[string]structs.MediaTypeInfo)
@@ -180,7 +180,7 @@ func GetMediaTypes(ctx context.RequestContext) {
 //	@Success	200
 //	@Failure	500
 //	@Router		/media/cleanup  [post]
-func CleanupMedia(ctx context.RequestContext) {
+func CleanupMedia(ctx ctxservice.RequestContext) {
 	// pack := getServices(r)
 	// log := hlog.FromRequest(r)
 	// err := pack.MediaService.Cleanup()
@@ -204,7 +204,7 @@ func CleanupMedia(ctx context.RequestContext) {
 //	@Failure	403
 //	@Failure	500
 //	@Router		/media/drop  [post]
-func DropMedia(ctx context.RequestContext) {
+func DropMedia(ctx ctxservice.RequestContext) {
 	err := media_model.DropMediaCollection(ctx)
 	if err != nil {
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to drop media collection")
@@ -219,14 +219,14 @@ func DropMedia(ctx context.RequestContext) {
 
 	err = os.RemoveAll(file_model.ThumbsDirPath.ToAbsolute())
 	if err != nil {
-		ctx.Error(http.StatusInternalServerError, errors.Errorf("Failed to remove thumbnails directory: %w", err))
+		ctx.Error(http.StatusInternalServerError, wlerrors.Errorf("Failed to remove thumbnails directory: %w", err))
 
 		return
 	}
 
 	err = os.Mkdir(file_model.ThumbsDirPath.ToAbsolute(), 0755)
 	if err != nil {
-		ctx.Error(http.StatusInternalServerError, errors.Errorf("Failed to re-create thumbnails directory: %w", err))
+		ctx.Error(http.StatusInternalServerError, wlerrors.Errorf("Failed to re-create thumbnails directory: %w", err))
 
 		return
 	}
@@ -248,7 +248,7 @@ func DropMedia(ctx context.RequestContext) {
 //	@Failure	403
 //	@Failure	500
 //	@Router		/media/drop/hdirs  [post]
-func DropHDIRs(ctx context.RequestContext) {
+func DropHDIRs(ctx ctxservice.RequestContext) {
 	err := media_model.DropHDIRs(ctx)
 	if err != nil {
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to drop media hdir data")
@@ -270,7 +270,7 @@ func DropHDIRs(ctx context.RequestContext) {
 //	@Param		mediaID	path		string				true	"Media ID"
 //	@Success	200		{object}	structs.MediaInfo	"Media Info"
 //	@Router		/media/{mediaID}/info [get]
-func GetMediaInfo(ctx context.RequestContext) {
+func GetMediaInfo(ctx ctxservice.RequestContext) {
 	mediaID := ctx.Path("mediaID")
 
 	m, err := media_model.GetMediaByContentID(ctx, mediaID)
@@ -298,10 +298,10 @@ func GetMediaInfo(ctx context.RequestContext) {
 //	@Success	200			{string}	binary	"image bytes"
 //	@Success	500
 //	@Router		/media/{mediaID}.{extension} [get]
-func GetMediaImage(ctx context.RequestContext) {
+func GetMediaImage(ctx ctxservice.RequestContext) {
 	quality, ok := media_model.CheckMediaQuality(ctx.Query("quality"))
 	if !ok {
-		ctx.Error(http.StatusBadRequest, errors.New("Invalid quality parameter"))
+		ctx.Error(http.StatusBadRequest, wlerrors.New("Invalid quality parameter"))
 
 		return
 	}
@@ -310,7 +310,7 @@ func GetMediaImage(ctx context.RequestContext) {
 	getProcessedMedia(ctx, quality, format)
 }
 
-func streamVideo(ctx context.RequestContext) {
+func streamVideo(ctx ctxservice.RequestContext) {
 	chunkName := ctx.Path("chunkName")
 
 	ctx.Log().Debug().Msgf("Streaming video %s", chunkName)
@@ -323,7 +323,7 @@ func streamVideo(ctx context.RequestContext) {
 
 		return
 	} else if !media_model.ParseMime(m.MimeType).IsVideo {
-		ctx.Error(http.StatusBadRequest, errors.New("media is not of type video"))
+		ctx.Error(http.StatusBadRequest, wlerrors.New("media is not of type video"))
 
 		return
 	}
@@ -354,7 +354,7 @@ func streamVideo(ctx context.RequestContext) {
 
 				return
 			}
-		} else if !errors.Is(err, media_model.ErrChunkNotFound) {
+		} else if !wlerrors.Is(err, media_model.ErrChunkNotFound) {
 			ctx.Error(http.StatusInternalServerError, err)
 
 			return
@@ -418,7 +418,7 @@ func streamVideo(ctx context.RequestContext) {
 //	@Success	404
 //	@Success	500
 //	@Router		/media/visibility [patch]
-func HideMedia(ctx context.RequestContext) {
+func HideMedia(ctx ctxservice.RequestContext) {
 	ctx.Status(http.StatusNotImplemented)
 	// pack := getServices(r)
 	// log := hlog.FromRequest(r)
@@ -452,7 +452,7 @@ func HideMedia(ctx context.RequestContext) {
 }
 
 // AdjustMediaDate adjusts the date metadata for a media item.
-func AdjustMediaDate(ctx context.RequestContext) {
+func AdjustMediaDate(ctx ctxservice.RequestContext) {
 	ctx.Status(http.StatusNotImplemented)
 
 	// pack := getServices(r)
@@ -498,7 +498,7 @@ func AdjustMediaDate(ctx context.RequestContext) {
 //	@Failure	404
 //	@Failure	500
 //	@Router		/media/{mediaID}/liked [patch]
-func SetMediaLiked(ctx context.RequestContext) {
+func SetMediaLiked(ctx ctxservice.RequestContext) {
 	ctx.Status(http.StatusNotImplemented)
 }
 
@@ -517,7 +517,7 @@ func SetMediaLiked(ctx context.RequestContext) {
 //	@Success	404
 //	@Success	500
 //	@Router		/media/{mediaID}/file [get]
-func GetMediaFile(ctx context.RequestContext) {
+func GetMediaFile(ctx ctxservice.RequestContext) {
 	ctx.Status(http.StatusNotImplemented)
 }
 
@@ -536,7 +536,7 @@ func GetMediaFile(ctx context.RequestContext) {
 //	@Success	404
 //	@Success	500
 //	@Router		/media/{mediaID}/video [get]
-func StreamVideo(ctx context.RequestContext) {
+func StreamVideo(ctx ctxservice.RequestContext) {
 	streamVideo(ctx)
 }
 
@@ -552,7 +552,7 @@ func StreamVideo(ctx context.RequestContext) {
 //	@Success	404
 //	@Success	500
 //	@Router		/media/random [get]
-func GetRandomMedia(ctx context.RequestContext) {
+func GetRandomMedia(ctx ctxservice.RequestContext) {
 	countStr := ctx.Query("count")
 
 	count, err := strconv.Atoi(countStr)
@@ -565,7 +565,7 @@ func GetRandomMedia(ctx context.RequestContext) {
 	username := ctx.AttemptGetUsername()
 
 	if username == "" {
-		ctx.Error(http.StatusUnauthorized, errors.New("unauthorized: no username provided"))
+		ctx.Error(http.StatusUnauthorized, wlerrors.New("unauthorized: no username provided"))
 
 		return
 	}
@@ -582,7 +582,7 @@ func GetRandomMedia(ctx context.RequestContext) {
 }
 
 // Helper function
-func getMediaInFolders(ctx context.RequestContext, folderIDs []string, limit, page, sortDirection int, includeRaw bool) ([]*media_model.Media, int, error) {
+func getMediaInFolders(ctx ctxservice.RequestContext, folderIDs []string, limit, page, sortDirection int, includeRaw bool) ([]*media_model.Media, int, error) {
 	allContentIDs := []string{}
 
 	for _, folderID := range folderIDs {
@@ -619,7 +619,7 @@ func getMediaInFolders(ctx context.RequestContext, folderIDs []string, limit, pa
 }
 
 // Helper function
-func getProcessedMedia(ctx context.RequestContext, q media_model.Quality, format string) {
+func getProcessedMedia(ctx ctxservice.RequestContext, q media_model.Quality, format string) {
 	mediaID := ctx.Path("mediaID")
 
 	m, err := media_model.GetMediaByContentID(ctx, mediaID)
@@ -668,7 +668,7 @@ func getProcessedMedia(ctx context.RequestContext, q media_model.Quality, format
 	}
 
 	if q == media_model.Video && mt.IsVideo {
-		ctx.Error(http.StatusBadRequest, errors.New("media type is not video"))
+		ctx.Error(http.StatusBadRequest, wlerrors.New("media type is not video"))
 
 		return
 	}

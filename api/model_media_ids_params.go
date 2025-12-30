@@ -19,7 +19,7 @@ var _ MappedNullable = &MediaIDsParams{}
 
 // MediaIDsParams struct for MediaIDsParams
 type MediaIDsParams struct {
-	MediaIds []string `json:"mediaIds,omitempty"`
+	MediaIDs []string `json:"mediaIDs,omitempty"`
 }
 
 // NewMediaIDsParams instantiates a new MediaIDsParams object
@@ -39,36 +39,36 @@ func NewMediaIDsParamsWithDefaults() *MediaIDsParams {
 	return &this
 }
 
-// GetMediaIds returns the MediaIds field value if set, zero value otherwise.
-func (o *MediaIDsParams) GetMediaIds() []string {
-	if o == nil || IsNil(o.MediaIds) {
+// GetMediaIDs returns the MediaIDs field value if set, zero value otherwise.
+func (o *MediaIDsParams) GetMediaIDs() []string {
+	if o == nil || IsNil(o.MediaIDs) {
 		var ret []string
 		return ret
 	}
-	return o.MediaIds
+	return o.MediaIDs
 }
 
-// GetMediaIdsOk returns a tuple with the MediaIds field value if set, nil otherwise
+// GetMediaIDsOk returns a tuple with the MediaIDs field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *MediaIDsParams) GetMediaIdsOk() ([]string, bool) {
-	if o == nil || IsNil(o.MediaIds) {
+func (o *MediaIDsParams) GetMediaIDsOk() ([]string, bool) {
+	if o == nil || IsNil(o.MediaIDs) {
 		return nil, false
 	}
-	return o.MediaIds, true
+	return o.MediaIDs, true
 }
 
-// HasMediaIds returns a boolean if a field has been set.
-func (o *MediaIDsParams) HasMediaIds() bool {
-	if o != nil && !IsNil(o.MediaIds) {
+// HasMediaIDs returns a boolean if a field has been set.
+func (o *MediaIDsParams) HasMediaIDs() bool {
+	if o != nil && !IsNil(o.MediaIDs) {
 		return true
 	}
 
 	return false
 }
 
-// SetMediaIds gets a reference to the given []string and assigns it to the MediaIds field.
-func (o *MediaIDsParams) SetMediaIds(v []string) {
-	o.MediaIds = v
+// SetMediaIDs gets a reference to the given []string and assigns it to the MediaIDs field.
+func (o *MediaIDsParams) SetMediaIDs(v []string) {
+	o.MediaIDs = v
 }
 
 func (o MediaIDsParams) MarshalJSON() ([]byte, error) {
@@ -81,8 +81,8 @@ func (o MediaIDsParams) MarshalJSON() ([]byte, error) {
 
 func (o MediaIDsParams) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
-	if !IsNil(o.MediaIds) {
-		toSerialize["mediaIds"] = o.MediaIds
+	if !IsNil(o.MediaIDs) {
+		toSerialize["mediaIDs"] = o.MediaIDs
 	}
 	return toSerialize, nil
 }

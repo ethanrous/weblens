@@ -11,14 +11,14 @@ import (
 
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/slices"
-	context_service "github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 )
 
 // ErrNoSimilarity indicates that no images matched the search text.
-var ErrNoSimilarity = errors.Statusf(http.StatusNotFound, "no images matched the search text")
+var ErrNoSimilarity = wlerrors.Statusf(http.StatusNotFound, "no images matched the search text")
 
 // ScoreWrapper represents a media item along with its similarity score.
 type ScoreWrapper struct {
@@ -55,7 +55,7 @@ func SortMediaByTextSimilarity(ctx context_service.AppContext, search string, ms
 	}
 
 	if len(scores) != len(ms) {
-		return nil, errors.Errorf("expected %d similarity scores, got %d", len(ms), len(scores))
+		return nil, wlerrors.Errorf("expected %d similarity scores, got %d", len(ms), len(scores))
 	}
 
 	msScores := slices.MapI(ms, func(m *media_model.Media, i int) ScoreWrapper {
@@ -80,7 +80,7 @@ func SortMediaByTextSimilarity(ctx context_service.AppContext, search string, ms
 	})
 
 	if len(msScores) == 0 {
-		return nil, errors.WithStack(ErrNoSimilarity)
+		return nil, wlerrors.WithStack(ErrNoSimilarity)
 	}
 
 	msScores = skimTop(msScores)
@@ -95,7 +95,7 @@ var serviceAvailable = true
 // GetHighDimensionImageEncoding retrieves the high-dimensional image encoding for the given media.
 func GetHighDimensionImageEncoding(ctx context_service.AppContext, m *media_model.Media) ([]float64, error) {
 	if !serviceAvailable {
-		return nil, errors.WithStack(errors.Statusf(http.StatusServiceUnavailable, "HDIR service is not available"))
+		return nil, wlerrors.WithStack(wlerrors.Statusf(http.StatusServiceUnavailable, "HDIR service is not available"))
 	}
 
 	f, err := getCacheFile(ctx, m, media_model.LowRes, 0)
@@ -140,7 +140,7 @@ func getSimilarityScores(ctx context_service.AppContext, text string, m ...*medi
 		if len(media.HDIR) == 0 {
 			hdir, err := GetHighDimensionImageEncoding(ctx, media)
 			if err != nil {
-				return nil, errors.WithStack(err)
+				return nil, wlerrors.WithStack(err)
 			}
 
 			hdirs = append(hdirs, hdir)

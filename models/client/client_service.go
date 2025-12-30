@@ -9,9 +9,9 @@ import (
 	task_model "github.com/ethanrous/weblens/models/task"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
-	context_mod "github.com/ethanrous/weblens/modules/context"
 	"github.com/ethanrous/weblens/modules/task"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
+	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 	"github.com/gorilla/websocket"
 )
 

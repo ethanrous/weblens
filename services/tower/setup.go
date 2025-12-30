@@ -9,11 +9,11 @@ import (
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/startup"
 	"github.com/ethanrous/weblens/modules/structs"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	access_service "github.com/ethanrous/weblens/services/auth"
-	context_service "github.com/ethanrous/weblens/services/context"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 )
 
 func init() {
@@ -73,7 +73,7 @@ func newOwner(ctx context.Context, initBody structs.InitServerParams) (*user_mod
 
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
-		return nil, errors.New("failed to get request context")
+		return nil, wlerrors.New("failed to get request context")
 	}
 
 	if exists, err := user_model.GetUserByUsername(ctx, owner.Username); err == nil {
@@ -91,7 +91,7 @@ func newOwner(ctx context.Context, initBody structs.InitServerParams) (*user_mod
 		}
 
 		if owner.HomeID == "" {
-			return nil, errors.New("failed to create user home directory")
+			return nil, wlerrors.New("failed to create user home directory")
 		}
 	}
 
@@ -116,7 +116,7 @@ func newOwner(ctx context.Context, initBody structs.InitServerParams) (*user_mod
 // InitializeCoreServer initializes a tower as a core server with the provided configuration.
 func InitializeCoreServer(ctx context.Context, initBody structs.InitServerParams) error {
 	if initBody.Name == "" || initBody.Username == "" || initBody.Password == "" {
-		return errors.New("missing required fields for core server initialization")
+		return wlerrors.New("missing required fields for core server initialization")
 	}
 
 	local, err := tower_model.GetLocal(ctx)

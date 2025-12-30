@@ -9,10 +9,10 @@ import (
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/log"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	auth_service "github.com/ethanrous/weblens/services/auth"
-	context_service "github.com/ethanrous/weblens/services/context"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	tower_service "github.com/ethanrous/weblens/services/tower"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -41,10 +41,10 @@ const (
 )
 
 // ErrNotAuthenticated indicates that the request lacks valid authentication credentials.
-var ErrNotAuthenticated = errors.New("not authenticated")
+var ErrNotAuthenticated = wlerrors.New("not authenticated")
 
 // ErrNotAuthorized indicates that the authenticated user lacks permission for the requested action.
-var ErrNotAuthorized = errors.New("not authorized")
+var ErrNotAuthorized = wlerrors.New("not authorized")
 
 // RequireSignIn returns a middleware that ensures the requester is authenticated before proceeding.
 func RequireSignIn(next Handler) Handler {
@@ -63,7 +63,7 @@ func RequireSignIn(next Handler) Handler {
 func RequireAdmin(next Handler) Handler {
 	return HandlerFunc(func(ctx context_service.RequestContext) {
 		if ctx.Requester == nil || !ctx.Requester.IsAdmin() {
-			ctx.Error(http.StatusUnauthorized, errors.Wrap(ErrNotAuthorized, "not an admin"))
+			ctx.Error(http.StatusUnauthorized, wlerrors.Wrap(ErrNotAuthorized, "not an admin"))
 
 			return
 		}
@@ -76,7 +76,7 @@ func RequireAdmin(next Handler) Handler {
 func RequireOwner(next Handler) Handler {
 	return HandlerFunc(func(ctx context_service.RequestContext) {
 		if ctx.Requester == nil || !ctx.Requester.IsOwner() {
-			ctx.Error(http.StatusUnauthorized, errors.Wrap(ErrNotAuthorized, "not an owner"))
+			ctx.Error(http.StatusUnauthorized, wlerrors.Wrap(ErrNotAuthorized, "not an owner"))
 
 			return
 		}
@@ -90,13 +90,13 @@ func RequireCoreTower(next Handler) Handler {
 	return HandlerFunc(func(ctx context_service.RequestContext) {
 		local, err := tower_model.GetLocal(ctx)
 		if err != nil {
-			ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "failed to get local instance"))
+			ctx.Error(http.StatusInternalServerError, wlerrors.Wrap(err, "failed to get local instance"))
 
 			return
 		}
 
 		if local.Role != tower_model.RoleCore {
-			ctx.Error(http.StatusUnauthorized, errors.New("endpoint is not allowed when not a core tower"))
+			ctx.Error(http.StatusUnauthorized, wlerrors.New("endpoint is not allowed when not a core tower"))
 
 			return
 		}
@@ -114,7 +114,7 @@ func ShareInjector(next Handler) Handler {
 		if err == nil && !shareID.IsZero() {
 			share, err := share_model.GetShareByID(ctx, shareID)
 			if err != nil {
-				ctx.Error(http.StatusNotFound, errors.Wrap(err, "failed to get share"))
+				ctx.Error(http.StatusNotFound, wlerrors.Wrap(err, "failed to get share"))
 
 				return
 			}
@@ -133,7 +133,7 @@ func WeblensAuth(next Handler) Handler {
 	return HandlerFunc(func(ctx context_service.RequestContext) {
 		local, err := tower_model.GetLocal(ctx)
 		if err != nil {
-			ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "failed to get local instance"))
+			ctx.Error(http.StatusInternalServerError, wlerrors.Wrap(err, "failed to get local instance"))
 
 			return
 		}
@@ -150,7 +150,7 @@ func WeblensAuth(next Handler) Handler {
 		if remoteTowerID != "" {
 			remote, err := tower_model.GetTowerByID(ctx, remoteTowerID)
 			if err != nil {
-				ctx.Error(http.StatusNotFound, errors.Wrapf(err, "failed to get remote instance [%s]", remoteTowerID))
+				ctx.Error(http.StatusNotFound, wlerrors.Wrapf(err, "failed to get remote instance [%s]", remoteTowerID))
 
 				return
 			}
@@ -162,7 +162,7 @@ func WeblensAuth(next Handler) Handler {
 		if authHeader != "" {
 			usr, err := auth_service.GetUserFromAuthHeader(ctx, authHeader)
 			if err != nil {
-				ctx.Error(http.StatusUnauthorized, errors.Wrap(err, "failed to validate authorization header"))
+				ctx.Error(http.StatusUnauthorized, wlerrors.Wrap(err, "failed to validate authorization header"))
 
 				return
 			}
@@ -171,7 +171,7 @@ func WeblensAuth(next Handler) Handler {
 
 			ctx = ctx.WithRequester(usr)
 		} else if ctx.Remote.TowerID != "" {
-			ctx.Error(http.StatusUnauthorized, errors.Wrap(ErrNotAuthenticated, "towers must authenticate with a token"))
+			ctx.Error(http.StatusUnauthorized, wlerrors.Wrap(ErrNotAuthenticated, "towers must authenticate with a token"))
 
 			return
 		}
@@ -183,7 +183,7 @@ func WeblensAuth(next Handler) Handler {
 				usr, err := auth_service.GetUserFromJWT(ctx, sessionCookie)
 				if err != nil {
 					ctx.ExpireCookie()
-					ctx.Error(http.StatusUnauthorized, errors.WrapStatus(http.StatusUnauthorized, errors.Wrap(err, "failed to validate sesion token")))
+					ctx.Error(http.StatusUnauthorized, wlerrors.WrapStatus(http.StatusUnauthorized, wlerrors.Wrap(err, "failed to validate sesion token")))
 
 					return
 				}
@@ -238,10 +238,10 @@ func Recoverer(next Handler) Handler {
 
 				err, ok := rvr.(error)
 				if !ok {
-					err = errors.Errorf("Non-error panic in request handler: %v", rvr)
+					err = wlerrors.Errorf("Non-error panic in request handler: %v", rvr)
 				}
 
-				err = errors.WithStack(err)
+				err = wlerrors.WithStack(err)
 				if ctx.Header("Connection") != "Upgrade" {
 					ctx.Error(http.StatusInternalServerError, err)
 				}

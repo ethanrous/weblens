@@ -20,33 +20,33 @@ import (
 )
 
 
-// ApiKeysAPIService ApiKeysAPI service
-type ApiKeysAPIService service
+// APIKeysAPIService APIKeysAPI service
+type APIKeysAPIService service
 
-type ApiCreateApiKeyRequest struct {
+type ApiCreateAPIKeyRequest struct {
 	ctx context.Context
-	ApiService *ApiKeysAPIService
-	params *ApiKeyParams
+	ApiService *APIKeysAPIService
+	params *APIKeyParams
 }
 
 // The new token params
-func (r ApiCreateApiKeyRequest) Params(params ApiKeyParams) ApiCreateApiKeyRequest {
+func (r ApiCreateAPIKeyRequest) Params(params APIKeyParams) ApiCreateAPIKeyRequest {
 	r.params = &params
 	return r
 }
 
-func (r ApiCreateApiKeyRequest) Execute() (*TokenInfo, *http.Response, error) {
-	return r.ApiService.CreateApiKeyExecute(r)
+func (r ApiCreateAPIKeyRequest) Execute() (*TokenInfo, *http.Response, error) {
+	return r.ApiService.CreateAPIKeyExecute(r)
 }
 
 /*
-CreateApiKey Create a new api key
+CreateAPIKey Create a new api key
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @return ApiCreateApiKeyRequest
+ @return ApiCreateAPIKeyRequest
 */
-func (a *ApiKeysAPIService) CreateApiKey(ctx context.Context) ApiCreateApiKeyRequest {
-	return ApiCreateApiKeyRequest{
+func (a *APIKeysAPIService) CreateAPIKey(ctx context.Context) ApiCreateAPIKeyRequest {
+	return ApiCreateAPIKeyRequest{
 		ApiService: a,
 		ctx: ctx,
 	}
@@ -54,7 +54,7 @@ func (a *ApiKeysAPIService) CreateApiKey(ctx context.Context) ApiCreateApiKeyReq
 
 // Execute executes the request
 //  @return TokenInfo
-func (a *ApiKeysAPIService) CreateApiKeyExecute(r ApiCreateApiKeyRequest) (*TokenInfo, *http.Response, error) {
+func (a *APIKeysAPIService) CreateAPIKeyExecute(r ApiCreateAPIKeyRequest) (*TokenInfo, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodPost
 		localVarPostBody     interface{}
@@ -62,7 +62,7 @@ func (a *ApiKeysAPIService) CreateApiKeyExecute(r ApiCreateApiKeyRequest) (*Toke
 		localVarReturnValue  *TokenInfo
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ApiKeysAPIService.CreateApiKey")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "APIKeysAPIService.CreateAPIKey")
 	if err != nil {
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
@@ -132,25 +132,25 @@ func (a *ApiKeysAPIService) CreateApiKeyExecute(r ApiCreateApiKeyRequest) (*Toke
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
-type ApiDeleteApiKeyRequest struct {
+type ApiDeleteAPIKeyRequest struct {
 	ctx context.Context
-	ApiService *ApiKeysAPIService
+	ApiService *APIKeysAPIService
 	tokenID string
 }
 
-func (r ApiDeleteApiKeyRequest) Execute() (*http.Response, error) {
-	return r.ApiService.DeleteApiKeyExecute(r)
+func (r ApiDeleteAPIKeyRequest) Execute() (*http.Response, error) {
+	return r.ApiService.DeleteAPIKeyExecute(r)
 }
 
 /*
-DeleteApiKey Delete an api key
+DeleteAPIKey Delete an api key
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param tokenID Api key id
- @return ApiDeleteApiKeyRequest
+ @param tokenID API key id
+ @return ApiDeleteAPIKeyRequest
 */
-func (a *ApiKeysAPIService) DeleteApiKey(ctx context.Context, tokenID string) ApiDeleteApiKeyRequest {
-	return ApiDeleteApiKeyRequest{
+func (a *APIKeysAPIService) DeleteAPIKey(ctx context.Context, tokenID string) ApiDeleteAPIKeyRequest {
+	return ApiDeleteAPIKeyRequest{
 		ApiService: a,
 		ctx: ctx,
 		tokenID: tokenID,
@@ -158,14 +158,14 @@ func (a *ApiKeysAPIService) DeleteApiKey(ctx context.Context, tokenID string) Ap
 }
 
 // Execute executes the request
-func (a *ApiKeysAPIService) DeleteApiKeyExecute(r ApiDeleteApiKeyRequest) (*http.Response, error) {
+func (a *APIKeysAPIService) DeleteAPIKeyExecute(r ApiDeleteAPIKeyRequest) (*http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodDelete
 		localVarPostBody     interface{}
 		formFiles            []formFile
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ApiKeysAPIService.DeleteApiKey")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "APIKeysAPIService.DeleteAPIKey")
 	if err != nil {
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
@@ -222,23 +222,23 @@ func (a *ApiKeysAPIService) DeleteApiKeyExecute(r ApiDeleteApiKeyRequest) (*http
 	return localVarHTTPResponse, nil
 }
 
-type ApiGetApiKeysRequest struct {
+type ApiGetAPIKeysRequest struct {
 	ctx context.Context
-	ApiService *ApiKeysAPIService
+	ApiService *APIKeysAPIService
 }
 
-func (r ApiGetApiKeysRequest) Execute() ([]TokenInfo, *http.Response, error) {
-	return r.ApiService.GetApiKeysExecute(r)
+func (r ApiGetAPIKeysRequest) Execute() ([]TokenInfo, *http.Response, error) {
+	return r.ApiService.GetAPIKeysExecute(r)
 }
 
 /*
-GetApiKeys Get all api keys
+GetAPIKeys Get all api keys
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @return ApiGetApiKeysRequest
+ @return ApiGetAPIKeysRequest
 */
-func (a *ApiKeysAPIService) GetApiKeys(ctx context.Context) ApiGetApiKeysRequest {
-	return ApiGetApiKeysRequest{
+func (a *APIKeysAPIService) GetAPIKeys(ctx context.Context) ApiGetAPIKeysRequest {
+	return ApiGetAPIKeysRequest{
 		ApiService: a,
 		ctx: ctx,
 	}
@@ -246,7 +246,7 @@ func (a *ApiKeysAPIService) GetApiKeys(ctx context.Context) ApiGetApiKeysRequest
 
 // Execute executes the request
 //  @return []TokenInfo
-func (a *ApiKeysAPIService) GetApiKeysExecute(r ApiGetApiKeysRequest) ([]TokenInfo, *http.Response, error) {
+func (a *APIKeysAPIService) GetAPIKeysExecute(r ApiGetAPIKeysRequest) ([]TokenInfo, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodGet
 		localVarPostBody     interface{}
@@ -254,7 +254,7 @@ func (a *ApiKeysAPIService) GetApiKeysExecute(r ApiGetApiKeysRequest) ([]TokenIn
 		localVarReturnValue  []TokenInfo
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ApiKeysAPIService.GetApiKeys")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "APIKeysAPIService.GetAPIKeys")
 	if err != nil {
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}

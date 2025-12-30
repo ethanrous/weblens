@@ -6,7 +6,7 @@ import (
 	openapi "github.com/ethanrous/weblens/api"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/modules/structs"
-	context_service "github.com/ethanrous/weblens/services/context"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 )
 
 // TowerToTowerInfo converts a tower Instance to a TowerInfo structure suitable for API responses.

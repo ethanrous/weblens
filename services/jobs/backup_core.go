@@ -17,13 +17,13 @@ import (
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/config"
-	context_mod "github.com/ethanrous/weblens/modules/context"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/set"
 	"github.com/ethanrous/weblens/modules/startup"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
-	context_service "github.com/ethanrous/weblens/services/context"
+	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	file_service "github.com/ethanrous/weblens/services/file"
 	"github.com/ethanrous/weblens/services/notify"
 	"github.com/ethanrous/weblens/services/reshape"
@@ -62,7 +62,7 @@ func BackupD(ctx context_mod.Z, interval time.Duration) {
 			if remote.Role != tower_model.RoleCore {
 				continue
 			} else if remote.Address == "" {
-				ctx.Log().Error().Stack().Err(errors.Errorf("remote \"%s\" [%s] has no address", remote.Name, remote.TowerID)).Msgf("Skipping backup for remote \"%s\"", remote.Name)
+				ctx.Log().Error().Stack().Err(wlerrors.Errorf("remote \"%s\" [%s] has no address", remote.Name, remote.TowerID)).Msgf("Skipping backup for remote \"%s\"", remote.Name)
 
 				continue
 			}
@@ -94,7 +94,7 @@ func BackupOne(ctx context.Context, core tower_model.Instance) (task_mod.Task, e
 
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
-		return nil, errors.New("Failed to cast context to AppContext")
+		return nil, wlerrors.New("Failed to cast context to AppContext")
 	}
 
 	return appCtx.DispatchJob(job.BackupTask, meta, nil)
@@ -107,13 +107,13 @@ func DoBackup(tsk task_mod.Task) {
 
 	ctx, ok := context_service.FromContext(t.Ctx)
 	if !ok {
-		t.Fail(errors.New("Failed to cast context to FilerContext"))
+		t.Fail(wlerrors.New("Failed to cast context to FilerContext"))
 
 		return
 	}
 
 	if meta.Core.Role != tower_model.RoleCore || (meta.Core.GetReportedRole() != "" && meta.Core.GetReportedRole() != tower_model.RoleCore) {
-		t.Fail(errors.Errorf("Remote role is [%s -- %s], expected core", meta.Core.Role, meta.Core.GetReportedRole()))
+		t.Fail(wlerrors.Errorf("Remote role is [%s -- %s], expected core", meta.Core.Role, meta.Core.GetReportedRole()))
 	}
 
 	t.Log().Debug().Msgf("Starting backup of [%s] with adddress [%s] using key [%s]", meta.Core.Name, meta.Core.Address, meta.Core.OutgoingKey)
@@ -174,7 +174,7 @@ func DoBackup(tsk task_mod.Task) {
 	err = db.WithTransaction(ctx, func(ctx context.Context) error {
 		appCtx, ok := context_service.FromContext(ctx)
 		if !ok {
-			return errors.New("Failed to cast context to AppContext")
+			return wlerrors.New("Failed to cast context to AppContext")
 		}
 
 		appCtx.Log().Trace().Msgf("Got %d users from core", len(backupResponse.Users))
@@ -206,7 +206,7 @@ func DoBackup(tsk task_mod.Task) {
 			// Check if token already exists
 			_, err = token_model.GetTokenByID(t.Ctx, token.ID)
 			if err != nil {
-				if errors.Is(err, token_model.ErrTokenNotFound) {
+				if wlerrors.Is(err, token_model.ErrTokenNotFound) {
 					continue
 				}
 
@@ -298,7 +298,7 @@ func DoBackup(tsk task_mod.Task) {
 		pool.Wait(true)
 
 		if len(pool.Errors()) != 0 {
-			return errors.Errorf("%d of %d backup file copies have failed", len(pool.Errors()), pool.Status().Total)
+			return wlerrors.Errorf("%d of %d backup file copies have failed", len(pool.Errors()), pool.Status().Total)
 		}
 
 		err = tower_model.SetLastBackup(t.Ctx, meta.Core.TowerID, time.Now())
@@ -340,7 +340,7 @@ func getExistingFile(ctx context_service.AppContext, a history_model.FileAction,
 	}
 
 	existingFile, err := ctx.FileService.GetFileByFilepath(ctx, path)
-	if err != nil && !errors.Is(err, file_model.ErrFileNotFound) {
+	if err != nil && !wlerrors.Is(err, file_model.ErrFileNotFound) {
 		return nil, err
 	}
 
@@ -395,7 +395,7 @@ func handleFileAction(ctx context_service.AppContext, a history_model.FileAction
 
 		// If the file is a directory, create it and return
 		_, err = ctx.FileService.CreateFolder(ctx, parent, backupFilePath.Filename())
-		if err != nil && !errors.Is(err, file_model.ErrDirectoryAlreadyExists) {
+		if err != nil && !wlerrors.Is(err, file_model.ErrDirectoryAlreadyExists) {
 			return err
 		}
 

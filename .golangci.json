@@ -20,7 +20,8 @@
       "mnd",
       "nestif",
       "tagalign",
-      "wsl"
+      "wsl",
+      "gocritic"
     ]
   }
 }

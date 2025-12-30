@@ -12,9 +12,9 @@ api_towers.go
 api_users.go
 client.go
 configuration.go
+docs/APIKeyParams.md
+docs/APIKeysAPI.md
 docs/AddUserParams.md
-docs/ApiKeyParams.md
-docs/ApiKeysAPI.md
 docs/BackupInfo.md
 docs/Config.md
 docs/ConfigAPI.md
@@ -54,8 +54,8 @@ docs/ShareInfo.md
 docs/StructsInitServerParams.md
 docs/StructsSetConfigParam.md
 docs/TakeoutInfo.md
+docs/TaskExitStatus.md
 docs/TaskInfo.md
-docs/TaskTaskExitStatus.md
 docs/TokenInfo.md
 docs/TowerInfo.md
 docs/TowersAPI.md
@@ -104,8 +104,8 @@ model_share_info.go
 model_structs_init_server_params.go
 model_structs_set_config_param.go
 model_takeout_info.go
+model_task_exit_status.go
 model_task_info.go
-model_task_task_exit_status.go
 model_token_info.go
 model_tower_info.go
 model_update_file_params.go

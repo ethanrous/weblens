@@ -9,10 +9,10 @@ import (
 	"github.com/ethanrous/weblens/models/job"
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/models/task"
-	"github.com/ethanrous/weblens/modules/errors"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/ethanrous/weblens/modules/websocket"
-	context_service "github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	media_service "github.com/ethanrous/weblens/services/media"
 	"github.com/ethanrous/weblens/services/notify"
 	"github.com/ethanrous/weblens/services/reshape"
@@ -26,7 +26,7 @@ func ScanDirectory(tsk task_mod.Task) {
 
 	ctx, ok := context_service.FromContext(t.Ctx)
 	if !ok {
-		t.Fail(errors.New("failed to get context"))
+		t.Fail(wlerrors.New("failed to get context"))
 
 		return
 	}
@@ -77,7 +77,7 @@ func ScanDirectory(tsk task_mod.Task) {
 
 	cnf, err := config.GetConfig(ctx)
 	if err != nil {
-		t.Fail(errors.WithStack(err))
+		t.Fail(wlerrors.WithStack(err))
 
 		return
 	}
@@ -142,7 +142,7 @@ func ScanDirectory(tsk task_mod.Task) {
 		poolNotif := notify.NewPoolNotification(pool, websocket.TaskFailedEvent, result)
 		ctx.Notify(ctx, poolNotif)
 
-		t.Fail(errors.WithStack(task_mod.ErrChildTaskFailed))
+		t.Fail(wlerrors.WithStack(task_mod.ErrChildTaskFailed))
 
 		return
 	}
@@ -167,7 +167,7 @@ func ScanFile(tsk task_mod.Task) {
 
 	ctx, ok := context_service.FromContext(t.Ctx)
 	if !ok {
-		t.Fail(errors.New("failed to get context"))
+		t.Fail(wlerrors.New("failed to get context"))
 
 		return
 	}
@@ -187,12 +187,12 @@ func ScanFile(tsk task_mod.Task) {
 // ScanFileTsk is the internal implementation for scanning a file with the given context and metadata.
 func ScanFileTsk(ctx context_service.AppContext, meta job.ScanMeta) error {
 	if !media_model.ParseExtension(meta.File.GetPortablePath().Ext()).Displayable {
-		return errors.WithStack(media_model.ErrNotDisplayable)
+		return wlerrors.WithStack(media_model.ErrNotDisplayable)
 	}
 
 	cnf, err := config.GetConfig(ctx)
 	if err != nil {
-		return errors.WithStack(err)
+		return wlerrors.WithStack(err)
 	}
 
 	existingMedia, err := media_model.GetMediaByContentID(ctx, meta.File.GetContentID())
@@ -338,7 +338,7 @@ func reportSubscanStatus(t task_mod.Task) {
 
 	ctx, ok := context_service.FromContext(tsk.Ctx)
 	if !ok {
-		tsk.Fail(errors.New("failed to get context"))
+		tsk.Fail(wlerrors.New("failed to get context"))
 
 		return
 	}

@@ -7,9 +7,9 @@ import (
 
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/share"
-	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/services/auth"
-	context_service "github.com/ethanrous/weblens/services/context"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/journal"
 )
 
@@ -53,7 +53,7 @@ func CheckFileAccessByID(ctx context_service.RequestContext, fileID string, perm
 	file, err = ctx.FileService.GetFileByID(ctx, fileID)
 	if err != nil {
 		// Handle error if file not found
-		if errors.Is(err, file_model.ErrFileNotFound) {
+		if wlerrors.Is(err, file_model.ErrFileNotFound) {
 			ctx.Error(http.StatusNotFound, err)
 
 			return

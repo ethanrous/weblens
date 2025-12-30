@@ -9,10 +9,10 @@ import (
 	"github.com/ethanrous/weblens/models/job"
 	job_model "github.com/ethanrous/weblens/models/job"
 	"github.com/ethanrous/weblens/models/task"
-	"github.com/ethanrous/weblens/modules/errors"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/ethanrous/weblens/modules/websocket"
-	context_service "github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/notify"
 	"github.com/rs/zerolog"
 )
@@ -130,7 +130,7 @@ func HashFile(tsk task_mod.Task) {
 
 	appCtx, ok := context_service.FromContext(t.Ctx)
 	if !ok {
-		t.Fail(errors.New("failed to get context"))
+		t.Fail(wlerrors.New("failed to get context"))
 
 		return
 	}

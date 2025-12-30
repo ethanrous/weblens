@@ -571,8 +571,9 @@ func (a *FilesAPIService) DownloadFileExecute(r ApiDownloadFileRequest) (string,
 	if r.isTakeout != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "isTakeout", r.isTakeout, "", "")
 	} else {
-		var defaultValue bool = false
-		r.isTakeout = &defaultValue
+        var defaultValue bool = false
+        parameterAddToHeaderOrQuery(localVarQueryParams, "isTakeout", defaultValue, "", "")
+        r.isTakeout = &defaultValue
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}

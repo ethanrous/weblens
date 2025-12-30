@@ -1,5 +1,12 @@
 basePath: /api/v1/
 definitions:
+  APIKeyParams:
+    properties:
+      name:
+        type: string
+    required:
+    - name
+    type: object
   AddUserParams:
     properties:
       canDelete:
@@ -14,13 +21,6 @@ definitions:
         type: string
     required:
     - username
-    type: object
-  ApiKeyParams:
-    properties:
-      name:
-        type: string
-    required:
-    - name
     type: object
   BackupInfo:
     properties:
@@ -149,7 +149,7 @@ definitions:
     type: object
   FilesListParams:
     properties:
-      fileIds:
+      fileIDs:
         items:
           type: string
         type: array
@@ -243,7 +243,7 @@ definitions:
     type: object
   MediaIDsParams:
     properties:
-      mediaIds:
+      mediaIDs:
         items:
           type: string
         type: array
@@ -341,7 +341,7 @@ definitions:
     type: object
   MoveFilesParams:
     properties:
-      fileIds:
+      fileIDs:
         items:
           type: string
         type: array
@@ -361,7 +361,7 @@ definitions:
     type: object
   NewFilesInfo:
     properties:
-      fileIds:
+      fileIDs:
         items:
           type: string
         type: array
@@ -448,7 +448,7 @@ definitions:
     type: object
   RestoreFilesBody:
     properties:
-      fileIds:
+      fileIDs:
         items:
           type: string
         type: array
@@ -518,7 +518,7 @@ definitions:
       startTime:
         type: string
       status:
-        $ref: '#/definitions/task.TaskExitStatus'
+        $ref: '#/definitions/task.ExitStatus'
       taskID:
         type: string
       workerID:
@@ -740,7 +740,7 @@ definitions:
         type: string
       configValue: {}
     type: object
-  task.TaskExitStatus:
+  task.ExitStatus:
     enum:
     - ""
     - success
@@ -1296,7 +1296,7 @@ paths:
       - Towers
   /keys:
     get:
-      operationId: GetApiKeys
+      operationId: GetAPIKeys
       produces:
       - application/json
       responses:
@@ -1314,16 +1314,16 @@ paths:
       - SessionAuth: []
       summary: Get all api keys
       tags:
-      - ApiKeys
+      - APIKeys
     post:
-      operationId: CreateApiKey
+      operationId: CreateAPIKey
       parameters:
       - description: The new token params
         in: body
         name: params
         required: true
         schema:
-          $ref: '#/definitions/ApiKeyParams'
+          $ref: '#/definitions/APIKeyParams'
       produces:
       - application/json
       responses:
@@ -1339,12 +1339,12 @@ paths:
       - SessionAuth: []
       summary: Create a new api key
       tags:
-      - ApiKeys
+      - APIKeys
   /keys/{tokenID}:
     delete:
-      operationId: DeleteApiKey
+      operationId: DeleteAPIKey
       parameters:
-      - description: Api key id
+      - description: API key id
         in: path
         name: tokenID
         required: true
@@ -1365,7 +1365,7 @@ paths:
         - admin
       summary: Delete an api key
       tags:
-      - ApiKeys
+      - APIKeys
   /media:
     post:
       operationId: GetMedia
@@ -2541,7 +2541,7 @@ schemes:
 - http
 - https
 securityDefinitions:
-  ApiKeyAuth:
+  APIKeyAuth:
     in: header
     name: Authorization
     scopes:

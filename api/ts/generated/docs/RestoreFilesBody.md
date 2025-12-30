@@ -5,7 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**fileIds** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
+**fileIDs** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
 **newParentID** | **string** |  | [optional] [default to undefined]
 **timestamp** | **number** |  | [optional] [default to undefined]
 
@@ -15,7 +15,7 @@ Name | Type | Description | Notes
 import { RestoreFilesBody } from './api';
 
 const instance: RestoreFilesBody = {
-    fileIds,
+    fileIDs,
     newParentID,
     timestamp,
 };

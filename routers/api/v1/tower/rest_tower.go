@@ -7,10 +7,10 @@ import (
 
 	"github.com/ethanrous/weblens/models/db"
 	tower_model "github.com/ethanrous/weblens/models/tower"
-	"github.com/ethanrous/weblens/modules/net"
+	"github.com/ethanrous/weblens/modules/netwrk"
 	"github.com/ethanrous/weblens/modules/structs"
 	"github.com/ethanrous/weblens/routers/api/v1/websocket"
-	context_service "github.com/ethanrous/weblens/services/context"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/reshape"
 	tower_service "github.com/ethanrous/weblens/services/tower"
 )
@@ -79,7 +79,7 @@ func GetRemotes(ctx context_service.RequestContext) {
 //	@Success	400
 //	@Router		/tower/remote [post]
 func AttachRemote(ctx context_service.RequestContext) {
-	params, err := net.ReadRequestBody[structs.NewServerParams](ctx.Req)
+	params, err := netwrk.ReadRequestBody[structs.NewServerParams](ctx.Req)
 	if err != nil {
 		return
 	}
@@ -223,7 +223,7 @@ func InitializeTower(ctx context_service.RequestContext) {
 	}
 
 	// Read the initialization parameters from the request body
-	initBody, err := net.ReadRequestBody[structs.InitServerParams](ctx.Req)
+	initBody, err := netwrk.ReadRequestBody[structs.InitServerParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusBadRequest, err)
 

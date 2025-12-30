@@ -9,8 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethanrous/weblens/modules/errors"
 	task_mod "github.com/ethanrous/weblens/modules/task"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/rs/zerolog"
 )
 
@@ -343,7 +343,7 @@ func (tp *Pool) QueueTask(task task_mod.Task) (err error) {
 
 	if tp.allQueuedFlag.Load() {
 		// We cannot add tasks to a queue that has been closed
-		return errors.WithStack(errors.New("attempting to add task to closed task queue"))
+		return wlerrors.WithStack(wlerrors.New("attempting to add task to closed task queue"))
 	}
 
 	tp.totalTasks.Add(1)
@@ -440,7 +440,7 @@ func (tp *Pool) addTask(task *Task) {
 func (tp *Pool) runCleanups() {
 	defer func() {
 		if r := recover(); r != nil {
-			tp.log.Error().Stack().Err(errors.New(fmt.Sprint(r))).Msg("Failed to execute taskPool cleanup")
+			tp.log.Error().Stack().Err(wlerrors.New(fmt.Sprint(r))).Msg("Failed to execute taskPool cleanup")
 		}
 
 		tp.cleanupsDone.Store(true)

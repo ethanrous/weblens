@@ -8,14 +8,14 @@ import (
 	cover_model "github.com/ethanrous/weblens/models/cover"
 	media_model "github.com/ethanrous/weblens/models/media"
 	share_model "github.com/ethanrous/weblens/models/share"
-	"github.com/ethanrous/weblens/modules/errors"
-	"github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/rs/zerolog/log"
 )
 
 const apiBasePath = "/api/v1"
 
-func getIndexFields(ctx context.RequestContext, proxyAddress string) (fields indexFields) {
+func getIndexFields(ctx ctxservice.RequestContext, proxyAddress string) (fields indexFields) {
 	path := ctx.Req.URL.Path
 
 	if path[0] == '/' {
@@ -36,7 +36,7 @@ func getIndexFields(ctx context.RequestContext, proxyAddress string) (fields ind
 		ctx.Log().Debug().Msgf("Share ID: %s", shareID)
 
 		share, err := share_model.GetShareByID(ctx, shareID)
-		if err != nil && errors.Is(err, share_model.ErrShareNotFound) {
+		if err != nil && wlerrors.Is(err, share_model.ErrShareNotFound) {
 			log.Error().Stack().Err(err).Msg("")
 
 			return fields
@@ -90,7 +90,7 @@ func getIndexFields(ctx context.RequestContext, proxyAddress string) (fields ind
 	return fields
 }
 
-func handleMediaPage(ctx context.RequestContext, mediaID string, fields *indexFields) {
+func handleMediaPage(ctx ctxservice.RequestContext, mediaID string, fields *indexFields) {
 	m, err := media_model.GetMediaByContentID(ctx, mediaID)
 	if err != nil {
 		log.Error().Stack().Err(err).Msg("")

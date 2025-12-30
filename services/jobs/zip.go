@@ -11,27 +11,27 @@ import (
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/job"
 	"github.com/ethanrous/weblens/models/task"
-	"github.com/ethanrous/weblens/modules/crypto"
-	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/cryptography"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/ethanrous/weblens/modules/websocket"
-	"github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/services/ctxservice"
 	file_service "github.com/ethanrous/weblens/services/file"
 	"github.com/ethanrous/weblens/services/notify"
 	"github.com/saracen/fastzip"
 )
 
 // ErrEmptyZip error reporting that a zip file is empty
-var ErrEmptyZip = errors.New("zip file is empty")
+var ErrEmptyZip = wlerrors.New("zip file is empty")
 
 // CreateZip creates a zip archive from the files specified in the task metadata.
 func CreateZip(tsk task_mod.Task) {
 	t := tsk.(*task.Task)
 
-	ctx, ok := context.FromContext(t.Ctx)
+	ctx, ok := ctxservice.FromContext(t.Ctx)
 	if !ok {
-		t.Fail(errors.New("context is not a RequestContext"))
+		t.Fail(wlerrors.New("context is not a RequestContext"))
 
 		return
 	}
@@ -70,7 +70,7 @@ func CreateZip(tsk task_mod.Task) {
 	if len(zipMeta.Files) == 1 {
 		takeoutKey = zipMeta.Files[0].GetPortablePath().Filename()
 	} else {
-		takeoutKey = crypto.HashString(strings.Join(paths, ""))[:8]
+		takeoutKey = cryptography.HashString(strings.Join(paths, ""))[:8]
 	}
 
 	zipName := takeoutKey

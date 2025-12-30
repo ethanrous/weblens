@@ -19,24 +19,24 @@ type UpdateFileParams struct {
 // MoveFilesParams represents parameters for moving multiple files to a new parent folder.
 type MoveFilesParams struct {
 	NewParentID string   `json:"newParentID"`
-	Files       []string `json:"fileIds"`
+	Files       []string `json:"fileIDs"`
 } // @name MoveFilesParams
 
 // FilesListParams represents a list of file IDs for batch operations.
 type FilesListParams struct {
-	FileIDs []string `json:"fileIds"`
+	FileIDs []string `json:"fileIDs"`
 } // @name FilesListParams
 
 // MediaIDsParams represents a list of media IDs for batch operations.
 type MediaIDsParams struct {
-	MediaIDs []string `json:"mediaIds"`
+	MediaIDs []string `json:"mediaIDs"`
 } // @name MediaIDsParams
 
 // MediaTimeBody represents parameters for adjusting media timestamps.
 type MediaTimeBody struct {
 	AnchorID string    `json:"anchorID"`
 	NewTime  time.Time `json:"newTime"`
-	MediaIDs []string  `json:"mediaIds"`
+	MediaIDs []string  `json:"mediaIDs"`
 }
 
 // NewFileParams represents parameters for creating a new file or folder.
@@ -92,7 +92,7 @@ type DeleteRemoteBody struct {
 
 // RestoreBody represents parameters for restoring files from a backup.
 type RestoreBody struct {
-	FileIDs   []string `json:"fileIds"`
+	FileIDs   []string `json:"fileIDs"`
 	Timestamp int64    `json:"timestamp"`
 }
 
@@ -159,7 +159,7 @@ type ScanBody struct {
 // RestoreFilesParams represents parameters for restoring files from backup.
 type RestoreFilesParams struct {
 	NewParentID string   `json:"newParentID"`
-	FileIDs     []string `json:"fileIds"`
+	FileIDs     []string `json:"fileIDs"`
 	Timestamp   int64    `json:"timestamp"`
 } // @name RestoreFilesBody
 
@@ -172,7 +172,7 @@ type RestoreCoreParams struct {
 // APIKeyParams represents parameters for creating an API key.
 type APIKeyParams struct {
 	Name string `json:"name" validate:"required"`
-} // @name ApiKeyParams
+} // @name APIKeyParams
 
 // MediaBatchParams represents parameters for retrieving a batch of media items.
 type MediaBatchParams struct {

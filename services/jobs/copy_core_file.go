@@ -7,10 +7,10 @@ import (
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/job"
 	task_model "github.com/ethanrous/weblens/models/task"
-	"github.com/ethanrous/weblens/modules/errors"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
-	context_service "github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/notify"
 	tower_service "github.com/ethanrous/weblens/services/tower"
 	"github.com/rs/zerolog"
@@ -23,7 +23,7 @@ func CopyFileFromCore(tsk task_mod.Task) {
 
 	ctx, ok := context_service.FromContext(t.Ctx)
 	if !ok {
-		t.Fail(errors.New("Failed to cast context to FilerContext"))
+		t.Fail(wlerrors.New("Failed to cast context to FilerContext"))
 
 		return
 	}
@@ -45,7 +45,7 @@ func CopyFileFromCore(tsk task_mod.Task) {
 	}
 
 	if meta.File.GetContentID() == "" {
-		t.Fail(errors.WithStack(file_model.ErrNoContentID))
+		t.Fail(wlerrors.WithStack(file_model.ErrNoContentID))
 
 		return
 	}

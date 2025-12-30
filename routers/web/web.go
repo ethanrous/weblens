@@ -11,7 +11,7 @@ import (
 
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/routers/router"
-	context_service "github.com/ethanrous/weblens/services/context"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 )
 
 // CacheMiddleware creates a middleware that sets cache headers and optionally enables gzip encoding.

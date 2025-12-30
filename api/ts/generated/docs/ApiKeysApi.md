@@ -1,32 +1,32 @@
-# ApiKeysApi
+# APIKeysApi
 
 All URIs are relative to *http://localhost:8080/api/v1*
 
 |Method | HTTP request | Description|
 |------------- | ------------- | -------------|
-|[**createApiKey**](#createapikey) | **POST** /keys | Create a new api key|
-|[**deleteApiKey**](#deleteapikey) | **DELETE** /keys/{tokenID} | Delete an api key|
-|[**getApiKeys**](#getapikeys) | **GET** /keys | Get all api keys|
+|[**createAPIKey**](#createapikey) | **POST** /keys | Create a new api key|
+|[**deleteAPIKey**](#deleteapikey) | **DELETE** /keys/{tokenID} | Delete an api key|
+|[**getAPIKeys**](#getapikeys) | **GET** /keys | Get all api keys|
 
-# **createApiKey**
-> TokenInfo createApiKey(params)
+# **createAPIKey**
+> TokenInfo createAPIKey(params)
 
 
 ### Example
 
 ```typescript
 import {
-    ApiKeysApi,
+    APIKeysApi,
     Configuration,
-    ApiKeyParams
+    APIKeyParams
 } from './api';
 
 const configuration = new Configuration();
-const apiInstance = new ApiKeysApi(configuration);
+const apiInstance = new APIKeysApi(configuration);
 
-let params: ApiKeyParams; //The new token params
+let params: APIKeyParams; //The new token params
 
-const { status, data } = await apiInstance.createApiKey(
+const { status, data } = await apiInstance.createAPIKey(
     params
 );
 ```
@@ -35,7 +35,7 @@ const { status, data } = await apiInstance.createApiKey(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **params** | **ApiKeyParams**| The new token params | |
+| **params** | **APIKeyParams**| The new token params | |
 
 
 ### Return type
@@ -61,24 +61,24 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **deleteApiKey**
-> deleteApiKey()
+# **deleteAPIKey**
+> deleteAPIKey()
 
 
 ### Example
 
 ```typescript
 import {
-    ApiKeysApi,
+    APIKeysApi,
     Configuration
 } from './api';
 
 const configuration = new Configuration();
-const apiInstance = new ApiKeysApi(configuration);
+const apiInstance = new APIKeysApi(configuration);
 
-let tokenID: string; //Api key id (default to undefined)
+let tokenID: string; //API key id (default to undefined)
 
-const { status, data } = await apiInstance.deleteApiKey(
+const { status, data } = await apiInstance.deleteAPIKey(
     tokenID
 );
 ```
@@ -87,7 +87,7 @@ const { status, data } = await apiInstance.deleteApiKey(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **tokenID** | [**string**] | Api key id | defaults to undefined|
+| **tokenID** | [**string**] | API key id | defaults to undefined|
 
 
 ### Return type
@@ -114,22 +114,22 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **getApiKeys**
-> Array<TokenInfo> getApiKeys()
+# **getAPIKeys**
+> Array<TokenInfo> getAPIKeys()
 
 
 ### Example
 
 ```typescript
 import {
-    ApiKeysApi,
+    APIKeysApi,
     Configuration
 } from './api';
 
 const configuration = new Configuration();
-const apiInstance = new ApiKeysApi(configuration);
+const apiInstance = new APIKeysApi(configuration);
 
-const { status, data } = await apiInstance.getApiKeys();
+const { status, data } = await apiInstance.getAPIKeys();
 ```
 
 ### Parameters

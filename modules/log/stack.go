@@ -3,7 +3,7 @@ package log
 import (
 	"fmt"
 
-	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 )
 
 var (
@@ -46,7 +46,7 @@ func (s *state) Flag(c int) bool {
 	}
 }
 
-func frameField(f errors.Frame, s *state, c rune) string {
+func frameField(f wlerrors.Frame, s *state, c rune) string {
 	f.Format(s, c)
 
 	return string(s.b)
@@ -55,7 +55,7 @@ func frameField(f errors.Frame, s *state, c rune) string {
 // MarshalStack extracts and marshals the stack trace from an error.
 func MarshalStack(err error) any {
 	type stackTracer interface {
-		StackTrace() errors.StackTrace
+		StackTrace() wlerrors.StackTrace
 	}
 
 	s := &state{}
@@ -108,7 +108,7 @@ func MarshalStack(err error) any {
 
 // PrintStackTrace captures and prints the current stack trace.
 func PrintStackTrace() {
-	err := errors.New("stack trace")
+	err := wlerrors.New("stack trace")
 	st := MarshalStack(err)
 
 	stm, ok := st.([]map[string]string)

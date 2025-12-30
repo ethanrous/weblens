@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/opensearch-project/opensearch-go/v4"
 	opensearchapi "github.com/opensearch-project/opensearch-go/v4/opensearchapi"
 )
@@ -37,7 +37,7 @@ func NewOpenSearchClient(opensearchURL, username, password string) (*opensearch.
 
 	client, err := opensearch.NewClient(cfg)
 	if err != nil {
-		return nil, errors.Errorf("error creating OpenSearch client: %v", err)
+		return nil, wlerrors.Errorf("error creating OpenSearch client: %v", err)
 	}
 
 	settings := strings.NewReader(`{
@@ -56,7 +56,7 @@ func NewOpenSearchClient(opensearchURL, username, password string) (*opensearch.
 
 	res, err := client.Do(context.Background(), newIndexReq, nil)
 	if err != nil {
-		return nil, errors.Errorf("error calling opensearch creating index: %v", err)
+		return nil, wlerrors.Errorf("error calling opensearch creating index: %v", err)
 	}
 
 	defer res.Body.Close() //nolint:errcheck
@@ -66,12 +66,12 @@ func NewOpenSearchClient(opensearchURL, username, password string) (*opensearch.
 	if res.StatusCode >= http.StatusBadRequest {
 		bodyBytes, err := io.ReadAll(res.Body)
 		if err != nil {
-			return nil, errors.Errorf("error reading response body: %v", err)
+			return nil, wlerrors.Errorf("error reading response body: %v", err)
 		}
 
 		err = json.Unmarshal(bodyBytes, &responseData)
 		if err != nil {
-			return nil, errors.Errorf("error unmarshaling create index body: %v", err)
+			return nil, wlerrors.Errorf("error unmarshaling create index body: %v", err)
 		}
 
 		if res.StatusCode == http.StatusBadRequest && responseData["error"].(map[string]any)["type"] == "resource_already_exists_exception" {
@@ -80,7 +80,7 @@ func NewOpenSearchClient(opensearchURL, username, password string) (*opensearch.
 
 		fmt.Printf("REASON: %v\n", responseData)
 
-		return nil, errors.Errorf("opensearch error creating index: %s", res.String())
+		return nil, wlerrors.Errorf("opensearch error creating index: %s", res.String())
 	}
 
 	return client, nil
@@ -157,13 +157,13 @@ func (l *OpensearchLogger) send(msg []byte) error {
 
 	resp, err := l.client.Do(context.Background(), req, nil)
 	if err != nil {
-		return errors.Errorf("error sending request to OpenSearch: %v", err)
+		return wlerrors.Errorf("error sending request to OpenSearch: %v", err)
 	}
 
 	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode >= 300 {
-		return errors.Errorf("error response from OpenSearch: %s", resp.String())
+		return wlerrors.Errorf("error response from OpenSearch: %s", resp.String())
 	}
 
 	return nil

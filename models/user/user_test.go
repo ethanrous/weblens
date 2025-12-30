@@ -7,7 +7,7 @@ import (
 
 	"github.com/ethanrous/weblens/models/db"
 	"github.com/ethanrous/weblens/models/user"
-	"github.com/ethanrous/weblens/modules/crypto"
+	"github.com/ethanrous/weblens/modules/cryptography"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -21,7 +21,7 @@ const (
 
 func getTestCtx(t *testing.T) context.Context {
 	ctx := db.SetupTestDB(t, user.UserCollectionKey)
-	ctx = context.WithValue(ctx, crypto.BcryptDifficultyCtxKey, 4) // Set bcrypt difficulty for testing
+	ctx = context.WithValue(ctx, cryptography.BcryptDifficultyCtxKey, 4) // Set bcrypt difficulty for testing
 
 	return ctx
 }
@@ -42,7 +42,7 @@ func TestUser_Creation(t *testing.T) {
 
 		// Verify password was hashed
 		assert.NotEqual(t, testPassword, usr.Password)
-		assert.True(t, crypto.VerifyUserPassword(testPassword, usr.Password) == nil)
+		assert.True(t, cryptography.VerifyUserPassword(testPassword, usr.Password) == nil)
 	})
 
 	t.Run("CreateDuplicateUser", func(t *testing.T) {
@@ -316,8 +316,8 @@ func TestUser_Updates(t *testing.T) {
 		// Verify password was updated and hashed
 		retrievedUser, err := user.GetUserByUsername(ctx, usr.Username)
 		assert.NoError(t, err)
-		assert.True(t, crypto.VerifyUserPassword(newPassword, retrievedUser.Password) == nil)
-		assert.False(t, crypto.VerifyUserPassword(testPassword, retrievedUser.Password) == nil)
+		assert.True(t, cryptography.VerifyUserPassword(newPassword, retrievedUser.Password) == nil)
+		assert.False(t, cryptography.VerifyUserPassword(testPassword, retrievedUser.Password) == nil)
 	})
 
 	t.Run("UpdateDisplayName", func(t *testing.T) {

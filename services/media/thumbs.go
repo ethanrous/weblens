@@ -3,8 +3,8 @@ package media
 import (
 	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
-	"github.com/ethanrous/weblens/modules/errors"
-	context_service "github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/media/agno"
 )
 
@@ -27,7 +27,7 @@ func HandleCacheCreation(ctx context_service.AppContext, m *media_model.Media, f
 		ctx.Log().Debug().Msgf("Loaded image dimensions for %s: %dx%d (pages: %d)", file.GetPortablePath(), m.Width, m.Height, m.PageCount)
 
 		if mType.IsMultiPage() {
-			return nil, errors.New("multi-page media not yet supported")
+			return nil, wlerrors.New("multi-page media not yet supported")
 		}
 
 		err = handleNewHighRes(ctx, m, img, 0)
@@ -46,14 +46,14 @@ func HandleCacheCreation(ctx context_service.AppContext, m *media_model.Media, f
 
 			err = img.Resize(float64(thumbHeight) / float64(m.Height))
 			if err != nil {
-				return nil, errors.WithStack(err)
+				return nil, wlerrors.WithStack(err)
 			}
 		}
 
 		// Create and write thumb cache file
 		thumb, err := ctx.FileService.NewCacheFile(m.ID(), string(media_model.LowRes), 0)
-		if err != nil && !errors.Is(err, file_model.ErrFileAlreadyExists) {
-			return nil, errors.WithStack(err)
+		if err != nil && !wlerrors.Is(err, file_model.ErrFileAlreadyExists) {
+			return nil, wlerrors.WithStack(err)
 		} else if err == nil {
 			err = agno.WriteWebp(thumb.GetPortablePath().ToAbsolute(), img)
 			if err != nil {
@@ -64,8 +64,8 @@ func HandleCacheCreation(ctx context_service.AppContext, m *media_model.Media, f
 		}
 	} else {
 		thumb, err := ctx.FileService.NewCacheFile(m.ID(), string(media_model.LowRes), 0)
-		if err != nil && !errors.Is(err, file_model.ErrFileAlreadyExists) {
-			return nil, errors.WithStack(err)
+		if err != nil && !wlerrors.Is(err, file_model.ErrFileAlreadyExists) {
+			return nil, wlerrors.WithStack(err)
 		} else if err == nil {
 			thumbBytes, err = generateVideoThumbnail(file.GetPortablePath().ToAbsolute())
 			if err != nil {
@@ -96,13 +96,13 @@ func handleNewHighRes(ctx context_service.AppContext, m *media_model.Media, img 
 
 		err := img.Resize(float64(fullHeight) / float64(m.Height))
 		if err != nil {
-			return errors.WithStack(err)
+			return wlerrors.WithStack(err)
 		}
 	}
 
 	// Create and write highres cache file
 	highres, err := ctx.FileService.NewCacheFile(m.ID(), string(media_model.HighRes), page)
-	if err != nil && !errors.Is(err, file_model.ErrFileAlreadyExists) {
+	if err != nil && !wlerrors.Is(err, file_model.ErrFileAlreadyExists) {
 		return err
 	} else if err == nil {
 		err = agno.WriteWebp(highres.GetPortablePath().ToAbsolute(), img)

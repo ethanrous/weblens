@@ -12,8 +12,8 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/log"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 )
 
 // Image represents an image loaded via the agno library.
@@ -64,7 +64,7 @@ func GetExifValue[T any](img *Image, exifTag int) (T, error) {
 	if v == -1 {
 		var zero T
 
-		return zero, errors.Errorf("failed to get exif value, unknown type")
+		return zero, wlerrors.Errorf("failed to get exif value, unknown type")
 	}
 
 	if val, ok := v.(T); ok {
@@ -73,7 +73,7 @@ func GetExifValue[T any](img *Image, exifTag int) (T, error) {
 
 	var zero T
 
-	return zero, errors.Errorf("failed to convert exif value to T (%T): value is %T with value %s", zero, v, v)
+	return zero, wlerrors.Errorf("failed to convert exif value to T (%T): value is %T with value %s", zero, v, v)
 }
 
 // ImageByFilepath loads an image from the given file path.
@@ -85,7 +85,7 @@ func ImageByFilepath(path string) (*Image, error) {
 	cAgnoImg := C.load_image_from_path(cPathStr, C.size_t(len(path)))
 
 	if cAgnoImg == nil || cAgnoImg.len == 0 || cAgnoImg.width == 0 || cAgnoImg.height == 0 {
-		return nil, errors.Errorf("load_image_from_path returned nil loading [%s]", path)
+		return nil, wlerrors.Errorf("load_image_from_path returned nil loading [%s]", path)
 	}
 
 	img := &Image{img: cAgnoImg}

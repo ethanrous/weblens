@@ -7,7 +7,7 @@ import (
 	file_model "github.com/ethanrous/weblens/models/file"
 	user_model "github.com/ethanrous/weblens/models/user"
 	file_system "github.com/ethanrous/weblens/modules/fs"
-	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 )
 
 // GetFileOwner retrieves the user who owns the specified file.
@@ -27,7 +27,7 @@ func MakeUniqueChildName(parent file_system.Filepath, childName string, childIsD
 	dupeCount := 0
 
 	if !exists(parent) {
-		return childPath, errors.New("parent does not exist")
+		return childPath, wlerrors.New("parent does not exist")
 	}
 
 	// Check if the child already exists
@@ -38,7 +38,7 @@ func MakeUniqueChildName(parent file_system.Filepath, childName string, childIsD
 		childPath = parent.Child(tmpName, childIsDir)
 
 		if dupeCount > maxDupeCount {
-			return childPath, errors.New("too many duplicates")
+			return childPath, wlerrors.New("too many duplicates")
 		}
 	}
 

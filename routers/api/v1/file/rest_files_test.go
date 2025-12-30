@@ -11,9 +11,9 @@ import (
 
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/models/user"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/structs"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/services/proxy"
 	"github.com/rs/zerolog"
 )
@@ -95,7 +95,7 @@ func simpleCreate(core *tower_model.Instance, owner *user.User) error {
 	}
 
 	if folderInfo.ParentID != owner.HomeID {
-		return errors.Errorf("Parent folder mismatch %s != %s", folderInfo.ParentID, owner.HomeID)
+		return wlerrors.Errorf("Parent folder mismatch %s != %s", folderInfo.ParentID, owner.HomeID)
 	}
 
 	getFileRequest := proxy.NewCoreRequest(core, "GET", "/files/"+folderInfo.ID)
@@ -111,7 +111,7 @@ func simpleCreate(core *tower_model.Instance, owner *user.User) error {
 	}
 
 	if folderPath.Filename() != "test-folder" {
-		return errors.Errorf("Folder name mismatch %s != %s", folderPath.Filename(), "test-folder")
+		return wlerrors.Errorf("Folder name mismatch %s != %s", folderPath.Filename(), "test-folder")
 	}
 
 	_, err = proxy.NewCoreRequest(core, "DELETE", "/files").WithQuery("ignore_trash", "true").WithBody(structs.FilesListParams{FileIDs: []string{getFolderInfo.ID}}).Call()
@@ -171,11 +171,11 @@ func uploadFile(core *tower_model.Instance, owner *user.User, logger zerolog.Log
 	}
 
 	if filePath.Filename() != "test-file.txt" {
-		return errors.Errorf("File name mismatch %s != %s", filePath.Filename(), "test-file.txt")
+		return wlerrors.Errorf("File name mismatch %s != %s", filePath.Filename(), "test-file.txt")
 	}
 
 	if getFileInfo.ParentID != owner.HomeID {
-		return errors.Errorf("Parent folder mismatch %s != %s", getFileInfo.ParentID, owner.HomeID)
+		return wlerrors.Errorf("Parent folder mismatch %s != %s", getFileInfo.ParentID, owner.HomeID)
 	}
 
 	returnedSize := getFileInfo.Size
@@ -187,7 +187,7 @@ func uploadFile(core *tower_model.Instance, owner *user.User, logger zerolog.Log
 
 		timeout--
 		if timeout == 0 {
-			return errors.Errorf("Did not receive expected file size %d != %d", returnedSize, fileSize)
+			return wlerrors.Errorf("Did not receive expected file size %d != %d", returnedSize, fileSize)
 		}
 
 		getFileRequest := proxy.NewCoreRequest(core, "GET", "/files/"+newFilesInfo.FileIDs[0])
@@ -213,11 +213,11 @@ func uploadFile(core *tower_model.Instance, owner *user.User, logger zerolog.Log
 	}
 
 	if len(bodyBytes) != int(fileSize) {
-		return errors.Errorf("Downloaded file size mismatch %d != %d", len(bodyBytes), fileSize)
+		return wlerrors.Errorf("Downloaded file size mismatch %d != %d", len(bodyBytes), fileSize)
 	}
 
 	if string(bodyBytes) != string(randomBytes) {
-		return errors.Errorf("Downloaded file content mismatch")
+		return wlerrors.Errorf("Downloaded file content mismatch")
 	}
 
 	_, err = proxy.NewCoreRequest(core, "DELETE", "/files").WithQuery("ignore_trash", "true").WithBody(structs.FilesListParams{FileIDs: []string{newFilesInfo.FileIDs[0]}}).Call()
@@ -301,7 +301,7 @@ func moveFiles(core *tower_model.Instance, owner *user.User) error {
 	}
 
 	if len(folder1Info.Children) != 0 {
-		return errors.Errorf("Folder 1 should be empty")
+		return wlerrors.Errorf("Folder 1 should be empty")
 	}
 
 	getFolder2Request := proxy.NewCoreRequest(core, "GET", "/folder/"+folder2.ID)
@@ -312,11 +312,11 @@ func moveFiles(core *tower_model.Instance, owner *user.User) error {
 	}
 
 	if len(folder2Info.Children) != 1 {
-		return errors.Errorf("Folder 2 should have 1 child")
+		return wlerrors.Errorf("Folder 2 should have 1 child")
 	}
 
 	if folder2Info.Children[0].ID != subFolder.ID {
-		return errors.Errorf("Folder 2 should have sub-folder as child")
+		return wlerrors.Errorf("Folder 2 should have sub-folder as child")
 	}
 
 	_, err = proxy.NewCoreRequest(core, "DELETE", "/files").WithQuery("ignore_trash", "true").WithBody(structs.FilesListParams{FileIDs: []string{folder1.ID, folder2.ID}}).Call()

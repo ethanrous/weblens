@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/fs"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 )
 
 const (
@@ -47,7 +47,7 @@ var RestoreDirPath = fs.Filepath{RootAlias: RestoreTreeKey}
 // GetFileOwnerName retrieves the username of the file owner from a file instance.
 func GetFileOwnerName(ctx context.Context, file *WeblensFileImpl) (string, error) {
 	if file == nil {
-		return "", errors.WithStack(ErrNilFile)
+		return "", wlerrors.WithStack(ErrNilFile)
 	}
 
 	return GetFileOwnerNameFromPath(ctx, file.GetPortablePath())
@@ -64,7 +64,7 @@ func GetFileOwnerNameFromPath(_ context.Context, portable fs.Filepath) (string, 
 	// }
 
 	if portable.RootName() != UsersTreeKey {
-		return "", errors.Errorf("trying to get owner of file not in USERS tree: [%s]", portable)
+		return "", wlerrors.Errorf("trying to get owner of file not in USERS tree: [%s]", portable)
 	}
 
 	slashIndex := strings.Index(portable.RelativePath(), "/")
@@ -77,7 +77,7 @@ func GetFileOwnerNameFromPath(_ context.Context, portable fs.Filepath) (string, 
 	}
 
 	if username == "" {
-		return "", errors.Errorf("could not find username in file path [%s]", portable.RelativePath())
+		return "", wlerrors.Errorf("could not find username in file path [%s]", portable.RelativePath())
 	}
 
 	return username, nil

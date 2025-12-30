@@ -1,4 +1,4 @@
-GO_SOURCE=$(shell find . -path ./_build -prune -o -iname "*.go")
+# GO_SOURCE=$(shell find . -path ./_build -prune -o -iname "*.go")
 # TS_SOURCE=$(shell find ./weblens-vue/weblens-nuxt/ -iname "*.ts*")
 
 all: run
@@ -10,22 +10,25 @@ run: gen-ui gen-go
 run\:go: gen-go
 	./_build/bin/weblens
 
-gen-go: $(GO_SOURCE)
+gen-go: FORCE
 	./scripts/startWeblens
 
-gen-ui: $(TS_SOURCE)
+gen-ui: FORCE
 	cd weblens-vue/weblens-nuxt && \
 	pnpm i && \
 	pnpm generate
 
-ui: $(TS_SOURCE) FORCE
+ui: FORCE
 	cd ui && pnpm run dev
 
-test: $(GO_SOURCE) $(TS_SOURCE)
+test: FORCE
 	./scripts/testWeblens
 
+cover:
+	go tool cover -html=./_build/cover/coverage.out
+
 dev: FORCE
-	./scripts/start.bash --dev --dynamic "${@:1}"
+	./scripts/start.bash --dynamic "${@:1}"
 
 dev-s: FORCE
 	./scripts/start.bash --dev --secure $(ARGS)
@@ -51,6 +54,10 @@ really-clean:
 	rm -rf ./_build
 	rm -rf ./ui/dist
 	rm -rf ./ui/node_modules
+
+lint:
+	golangci-lint run ./...
+	cd weblens-vue/weblens-nuxt && pnpm run lint
 
 # Publish the full docker image
 docker\:build: $(GO_SOURCE) $(TS_SOURCE)

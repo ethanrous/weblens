@@ -7,9 +7,9 @@ import (
 
 	"github.com/ethanrous/weblens/models/db"
 	user_model "github.com/ethanrous/weblens/models/user"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/slices"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -20,10 +20,10 @@ import (
 const ShareCollectionKey = "shares"
 
 // ErrShareNotFound is returned when a share cannot be found.
-var ErrShareNotFound = errors.New("share not found")
+var ErrShareNotFound = wlerrors.New("share not found")
 
 // ErrShareAlreadyExists is returned when attempting to create a share that already exists.
-var ErrShareAlreadyExists = errors.New("share already exists")
+var ErrShareAlreadyExists = wlerrors.New("share already exists")
 
 // FileShare represents a file share configuration.
 type FileShare struct {
@@ -131,7 +131,7 @@ func GetShareByID(ctx context.Context, shareID primitive.ObjectID) (*FileShare, 
 
 	err = collection.FindOne(ctx, bson.M{"_id": shareID}).Decode(share)
 	if err != nil {
-		return nil, db.WrapError(errors.WithStack(err), "failed to get share by id [%s]", shareID)
+		return nil, db.WrapError(wlerrors.WithStack(err), "failed to get share by id [%s]", shareID)
 	}
 
 	return share, nil
@@ -148,7 +148,7 @@ func GetShareByFileID(ctx context.Context, fileID string) (*FileShare, error) {
 
 	err = collection.FindOne(ctx, bson.M{"fileID": fileID}).Decode(&share)
 	if err != nil {
-		return nil, db.WrapError(errors.WithStack(err), "failed to get share by fileID [%s]", fileID)
+		return nil, db.WrapError(wlerrors.WithStack(err), "failed to get share by fileID [%s]", fileID)
 	}
 
 	return &share, nil
@@ -185,7 +185,7 @@ func DeleteShare(ctx context.Context, shareID primitive.ObjectID) error {
 
 	_, err = collection.DeleteOne(ctx, bson.M{"_id": shareID})
 	if err != nil {
-		return errors.WithStack(err)
+		return wlerrors.WithStack(err)
 	}
 
 	return nil
@@ -202,7 +202,7 @@ func (s *FileShare) SetPublic(ctx context.Context, pub bool) error {
 
 	_, err = collection.UpdateOne(ctx, bson.M{"_id": s.ShareID}, bson.M{"$set": bson.M{"public": pub}})
 	if err != nil {
-		return errors.WithStack(err)
+		return wlerrors.WithStack(err)
 	}
 
 	return nil
@@ -303,7 +303,7 @@ func (s *FileShare) RemoveUsers(ctx context.Context, usernames []string) error {
 	// Update the database with the new Accessors list and permissions
 	_, err = collection.UpdateOne(ctx, bson.M{"_id": s.ShareID}, bson.M{"$set": bson.M{"accessors": s.Accessors, "permissions": s.Permissions}})
 	if err != nil {
-		return errors.WithStack(err)
+		return wlerrors.WithStack(err)
 	}
 
 	return nil

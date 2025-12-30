@@ -15,9 +15,9 @@ import (
 	"github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
 
-	"github.com/ethanrous/weblens/modules/errors"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
 	task_mod "github.com/ethanrous/weblens/modules/task"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/rs/zerolog/log"
 )
 
@@ -50,7 +50,7 @@ func (m ScanMeta) MetaString() string {
 
 	bs, err := json.Marshal(data)
 	if err != nil {
-		err = errors.WithStack(err)
+		err = wlerrors.WithStack(err)
 		log.Error().Stack().Err(err).Msg("Could not marshal scan metadata")
 
 		return ""
@@ -78,7 +78,7 @@ func (m ScanMeta) JobName() string {
 // Verify checks that the scan metadata contains all required fields.
 func (m ScanMeta) Verify() error {
 	if m.File == nil {
-		return errors.New("no file in scan metadata")
+		return wlerrors.New("no file in scan metadata")
 	}
 
 	return nil
@@ -104,7 +104,7 @@ func (m ZipMeta) MetaString() string {
 
 	idsString, err := json.Marshal(ids)
 	if err != nil {
-		err = errors.WithStack(err)
+		err = wlerrors.WithStack(err)
 		log.Error().Stack().Err(err).Msg("could not marshal zip metadata")
 
 		return ""
@@ -139,9 +139,9 @@ func (m ZipMeta) JobName() string {
 // Verify checks that the zip metadata contains all required fields.
 func (m ZipMeta) Verify() error {
 	if len(m.Files) == 0 {
-		return errors.New("no files in zip metadata")
+		return wlerrors.New("no files in zip metadata")
 	} else if m.Requester == nil {
-		return errors.New("no requester in zip metadata")
+		return wlerrors.New("no requester in zip metadata")
 	}
 
 	if m.Share == nil {
@@ -170,7 +170,7 @@ func (m MoveMeta) MetaString() string {
 
 	bs, err := json.Marshal(data)
 	if err != nil {
-		err = errors.WithStack(err)
+		err = wlerrors.WithStack(err)
 		log.Error().Stack().Err(err).Msg("could not marshal move metadata")
 
 		return ""
@@ -233,13 +233,13 @@ func (m UploadFilesMeta) JobName() string {
 // Verify checks that the upload metadata contains all required fields.
 func (m UploadFilesMeta) Verify() error {
 	if m.ChunkStream == nil {
-		return errors.New("no chunk stream in upload metadata")
+		return wlerrors.New("no chunk stream in upload metadata")
 	} else if m.RootFolderID == "" {
-		return errors.New("no root folder in upload metadata")
+		return wlerrors.New("no root folder in upload metadata")
 	} else if m.ChunkSize == 0 {
-		return errors.New("no chunk size in upload metadata")
+		return wlerrors.New("no chunk size in upload metadata")
 	} else if m.User == nil {
-		return errors.New("no user in upload metadata")
+		return wlerrors.New("no user in upload metadata")
 	}
 
 	return nil
@@ -259,7 +259,7 @@ func (m FsStatMeta) MetaString() string {
 
 	bs, err := json.Marshal(data)
 	if err != nil {
-		err = errors.WithStack(err)
+		err = wlerrors.WithStack(err)
 		log.Error().Stack().Err(err).Msg("could not marshal fs stat metadata")
 
 		return ""
@@ -305,7 +305,7 @@ func (m BackupMeta) MetaString() string {
 
 	bs, err := json.Marshal(data)
 	if err != nil {
-		err = errors.WithStack(err)
+		err = wlerrors.WithStack(err)
 		log.Error().Stack().Err(err).Msg("could not marshal backup metadata")
 
 		return ""
@@ -327,7 +327,7 @@ func (m BackupMeta) JobName() string {
 // Verify checks that the backup metadata contains all required fields.
 func (m BackupMeta) Verify() error {
 	if m.Core.TowerID == "" {
-		return errors.New("no core id in backup metadata")
+		return wlerrors.New("no core id in backup metadata")
 	}
 
 	return nil
@@ -347,7 +347,7 @@ func (m HashFileMeta) MetaString() string {
 
 	bs, err := json.Marshal(data)
 	if err != nil {
-		err = errors.WithStack(err)
+		err = wlerrors.WithStack(err)
 		log.Error().Stack().Err(err).Msg("Could not marshal hasher metadata")
 	}
 
@@ -383,7 +383,7 @@ func (m LoadFilesystemMeta) MetaString() string {
 
 	bs, err := json.Marshal(data)
 	if err != nil {
-		err = errors.WithStack(err)
+		err = wlerrors.WithStack(err)
 		log.Error().Stack().Err(err).Msg("Could not marshal hasher metadata")
 	}
 
@@ -422,7 +422,7 @@ func (m BackupCoreFileMeta) MetaString() string {
 
 	bs, err := json.Marshal(data)
 	if err != nil {
-		err = errors.WithStack(err)
+		err = wlerrors.WithStack(err)
 		log.Error().Stack().Err(err).Msg("could not marshal backup core metadata")
 
 		return ""
@@ -444,11 +444,11 @@ func (m BackupCoreFileMeta) JobName() string {
 // Verify checks that the backup core file metadata contains all required fields.
 func (m BackupCoreFileMeta) Verify() error {
 	if m.Core.TowerID == "" {
-		return errors.New("no core id in backup core metadata")
+		return wlerrors.New("no core id in backup core metadata")
 	}
 
 	if m.File == nil {
-		return errors.New("no file in backup core metadata")
+		return wlerrors.New("no file in backup core metadata")
 	}
 
 	return nil
@@ -468,7 +468,7 @@ func (m RestoreCoreMeta) MetaString() string {
 
 	bs, err := json.Marshal(data)
 	if err != nil {
-		err = errors.WithStack(err)
+		err = wlerrors.WithStack(err)
 		log.Error().Stack().Err(err).Msg("could not marshal restore core metadata")
 
 		return ""
@@ -490,11 +490,11 @@ func (m RestoreCoreMeta) JobName() string {
 // Verify checks that the restore core metadata contains all required fields.
 func (m RestoreCoreMeta) Verify() error {
 	if m.Core == nil {
-		return errors.New("no core in restore core metadata")
+		return wlerrors.New("no core in restore core metadata")
 	}
 
 	if m.Local == nil {
-		return errors.New("no local in restore core metadata")
+		return wlerrors.New("no local in restore core metadata")
 	}
 
 	return nil
@@ -524,7 +524,7 @@ func NewBackupTaskStages() *TaskStages {
 			"connecting":           {Key: "connecting", Name: "Connecting to Remote", index: 0},
 			"fetching_backup_data": {Key: "fetching_backup_data", Name: "Fetching Backup Data", index: 1},
 			"writing_users":        {Key: "writing_users", Name: "Writing Users", index: 2},
-			"writing_keys":         {Key: "writing_keys", Name: "Writing Api Keys", index: 4},
+			"writing_keys":         {Key: "writing_keys", Name: "Writing API Keys", index: 4},
 			"writing_instances":    {Key: "writing_instances", Name: "Writing Instances", index: 6},
 			"sync_journal":         {Key: "sync_journal", Name: "Calculating New File History", index: 7},
 			"sync_fs":              {Key: "sync_fs", Name: "Sync Filesystem", index: 8},

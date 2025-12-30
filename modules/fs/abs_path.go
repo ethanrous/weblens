@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/rs/zerolog/log"
 )
 
@@ -18,7 +18,7 @@ func RegisterAbsolutePrefix(alias, path string) error {
 	log.Trace().Msgf("Registering absolute path alias: %s -> %s", alias, path)
 
 	if !strings.HasPrefix(path, "/") {
-		return errors.New("absolute path must start with /")
+		return wlerrors.New("absolute path must start with /")
 	}
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -48,7 +48,7 @@ func getAbsolutePrefix(alias string) (string, error) {
 
 	root, ok := absPathMap[alias]
 	if !ok {
-		return "", errors.Errorf("no absolute path registered for alias: %s", alias)
+		return "", wlerrors.Errorf("no absolute path registered for alias: %s", alias)
 	}
 
 	return root, nil

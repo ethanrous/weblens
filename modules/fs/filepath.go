@@ -5,14 +5,14 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/log"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/bsontype"
 )
 
 // ErrInvalidPortablePath is returned when a portable path string has an invalid format.
-var ErrInvalidPortablePath = errors.New("invalid portable path format")
+var ErrInvalidPortablePath = wlerrors.New("invalid portable path format")
 
 // Filepath represents a file path with a root alias and relative path.
 type Filepath struct {
@@ -185,7 +185,7 @@ func (wf Filepath) Ext() string {
 // ReplacePrefix replaces the prefix of the Filepath with a new prefix.
 func (wf Filepath) ReplacePrefix(prefixPath, newPrefix Filepath) (Filepath, error) {
 	if !strings.HasPrefix(wf.RelPath, prefixPath.RelPath) {
-		return Filepath{}, errors.Errorf("prefix %s not found in path %s", prefixPath, wf)
+		return Filepath{}, wlerrors.Errorf("prefix %s not found in path %s", prefixPath, wf)
 	}
 
 	newRelPath := newPrefix.RelPath + strings.TrimPrefix(wf.RelPath, prefixPath.RelPath)

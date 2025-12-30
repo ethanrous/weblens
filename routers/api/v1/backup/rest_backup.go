@@ -7,9 +7,9 @@ import (
 
 	"github.com/ethanrous/weblens/models/task"
 	tower_model "github.com/ethanrous/weblens/models/tower"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/websocket"
-	"github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/jobs"
 	"github.com/ethanrous/weblens/services/proxy"
 )
@@ -28,11 +28,11 @@ import (
 //
 //	@Success	200
 //	@Router		/tower/{serverID}/backup [post]
-func LaunchBackup(ctx context.RequestContext) {
+func LaunchBackup(ctx ctxservice.RequestContext) {
 	serverID := ctx.Path("serverID")
 
 	if serverID == "" {
-		ctx.Error(http.StatusBadRequest, errors.New("Server ID is required"))
+		ctx.Error(http.StatusBadRequest, wlerrors.New("Server ID is required"))
 
 		return
 	}

@@ -13,7 +13,7 @@ import (
 	user_api "github.com/ethanrous/weblens/routers/api/v1/user"
 	"github.com/ethanrous/weblens/routers/api/v1/websocket"
 	"github.com/ethanrous/weblens/routers/router"
-	context_service "github.com/ethanrous/weblens/services/context"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )

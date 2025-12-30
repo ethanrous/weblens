@@ -8,10 +8,10 @@ import (
 
 	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
-	context_mod "github.com/ethanrous/weblens/modules/context"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/log"
+	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -229,7 +229,7 @@ func SaveAction(ctx context.Context, action *FileAction) error {
 	}
 
 	if action.TowerID == "" {
-		return errors.New("towerID is empty")
+		return wlerrors.New("towerID is empty")
 	}
 
 	if action.ID.IsZero() {
@@ -379,7 +379,7 @@ func GetLastActionByFileIDBefore(ctx context.Context, fileID string, ts time.Tim
 // UpdateAction updates an existing FileAction in the database.
 func UpdateAction(ctx context.Context, action *FileAction) error {
 	if action.ID.IsZero() {
-		return errors.New("cannot update action with zero ID")
+		return wlerrors.New("cannot update action with zero ID")
 	}
 
 	col, err := db.GetCollection[any](ctx, FileHistoryCollectionKey)

@@ -34,7 +34,7 @@ package jobs_test
 //
 // 	coreKeys, err := coreServices.AccessService.GetKeysByUser(coreServices.UserService.Get("test-username"))
 // 	require.NoError(t, err)
-// 	coreApiKey := coreKeys[0].Key
+// 	coreAPIKey := coreKeys[0].Key
 // 	coreAddress := env.GetProxyAddress(coreServices.Cnf)
 //
 // 	cnf := env.Config{
@@ -73,7 +73,7 @@ package jobs_test
 // 		t.Fatal(err)
 // 	}
 //
-// 	core, err := instanceService.AttachRemoteCore(coreAddress, coreApiKey)
+// 	core, err := instanceService.AttachRemoteCore(coreAddress, coreAPIKey)
 // 	if err != nil {
 // 		t.Fatal(err)
 // 	}

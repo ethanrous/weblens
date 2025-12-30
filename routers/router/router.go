@@ -3,8 +3,8 @@ package router
 import (
 	"net/http"
 
-	"github.com/ethanrous/weblens/modules/errors"
-	"github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -30,7 +30,7 @@ type Router struct {
 // @in							cookie
 // @name						weblens-session-token
 //
-// @securityDefinitions.apikey	ApiKeyAuth
+// @securityDefinitions.apikey	APIKeyAuth
 // @in							header
 // @name						Authorization
 //
@@ -64,22 +64,27 @@ func (r *Router) Method(method, path string, h ...any) {
 func (r *Router) Get(path string, h ...any) {
 	r.Method(http.MethodGet, path, h...)
 }
+
 // Post registers a handler for POST requests at the specified path with optional middleware.
 func (r *Router) Post(path string, h ...any) {
 	r.Method(http.MethodPost, path, h...)
 }
+
 // Put registers a handler for PUT requests at the specified path with optional middleware.
 func (r *Router) Put(path string, h ...any) {
 	r.Method(http.MethodPut, path, h...)
 }
+
 // Patch registers a handler for PATCH requests at the specified path with optional middleware.
 func (r *Router) Patch(path string, h ...any) {
 	r.Method(http.MethodPatch, path, h...)
 }
+
 // Head registers a handler for HEAD requests at the specified path with optional middleware.
 func (r *Router) Head(path string, h ...any) {
 	r.Method(http.MethodHead, path, h...)
 }
+
 // Delete registers a handler for DELETE requests at the specified path with optional middleware.
 func (r *Router) Delete(path string, h ...any) {
 	r.Method(http.MethodDelete, path, h...)
@@ -150,10 +155,10 @@ func parseHandlerFunc(h any) http.HandlerFunc {
 	switch h := h.(type) {
 	case http.HandlerFunc:
 		return h
-	case func(context.RequestContext):
+	case func(ctxservice.RequestContext):
 		return toStdHandlerFunc(HandlerFunc(h))
 	default:
-		panic(errors.Errorf("handler is not a valid function: %T", h))
+		panic(wlerrors.Errorf("handler is not a valid function: %T", h))
 	}
 }
 
@@ -174,10 +179,10 @@ func parseMiddlewares(middlewares ...any) []func(http.Handler) http.Handler {
 			}
 		case []any:
 			parsedMiddlewares = append(parsedMiddlewares, parseMiddlewares(mw...)...)
-		case func(context.RequestContext):
+		case func(ctxservice.RequestContext):
 			parsedMiddlewares = append(parsedMiddlewares, middlewareWrapper(HandlerFunc(mw)))
 		default:
-			panic(errors.Errorf("middleware is not a valid function: %T", mw))
+			panic(wlerrors.Errorf("middleware is not a valid function: %T", mw))
 		}
 	}
 

@@ -618,7 +618,7 @@ paths:
       - Towers
   /keys:
     get:
-      operationId: GetApiKeys
+      operationId: GetAPIKeys
       responses:
         "200":
           content:
@@ -638,14 +638,14 @@ paths:
       - SessionAuth: []
       summary: Get all api keys
       tags:
-      - ApiKeys
+      - APIKeys
     post:
-      operationId: CreateApiKey
+      operationId: CreateAPIKey
       requestBody:
         content:
           '*/*':
             schema:
-              $ref: "#/components/schemas/ApiKeyParams"
+              $ref: "#/components/schemas/APIKeyParams"
         description: The new token params
         required: true
       responses:
@@ -665,13 +665,13 @@ paths:
       - SessionAuth: []
       summary: Create a new api key
       tags:
-      - ApiKeys
+      - APIKeys
       x-codegen-request-body-name: params
   /keys/{tokenID}:
     delete:
-      operationId: DeleteApiKey
+      operationId: DeleteAPIKey
       parameters:
-      - description: Api key id
+      - description: API key id
         in: path
         name: tokenID
         required: true
@@ -695,7 +695,7 @@ paths:
         - admin
       summary: Delete an api key
       tags:
-      - ApiKeys
+      - APIKeys
   /media:
     post:
       operationId: GetMedia
@@ -2022,6 +2022,15 @@ paths:
       x-codegen-request-body-name: passwordUpdateParams
 components:
   schemas:
+    APIKeyParams:
+      example:
+        name: name
+      properties:
+        name:
+          type: string
+      required:
+      - name
+      type: object
     AddUserParams:
       example:
         canView: true
@@ -2042,15 +2051,6 @@ components:
           type: string
       required:
       - username
-      type: object
-    ApiKeyParams:
-      example:
-        name: name
-      properties:
-        name:
-          type: string
-      required:
-      - name
       type: object
     BackupInfo:
       example:
@@ -2307,11 +2307,11 @@ components:
       type: object
     FilesListParams:
       example:
-        fileIds:
-        - fileIds
-        - fileIds
+        fileIDs:
+        - fileIDs
+        - fileIDs
       properties:
-        fileIds:
+        fileIDs:
           items:
             type: string
           type: array
@@ -2594,11 +2594,11 @@ components:
       type: object
     MediaIDsParams:
       example:
-        mediaIds:
-        - mediaIds
-        - mediaIds
+        mediaIDs:
+        - mediaIDs
+        - mediaIDs
       properties:
-        mediaIds:
+        mediaIDs:
           items:
             type: string
           type: array
@@ -2759,12 +2759,12 @@ components:
       type: object
     MoveFilesParams:
       example:
-        fileIds:
-        - fileIds
-        - fileIds
+        fileIDs:
+        - fileIDs
+        - fileIDs
         newParentID: newParentID
       properties:
-        fileIds:
+        fileIDs:
           items:
             type: string
           type: array
@@ -2789,11 +2789,11 @@ components:
       type: object
     NewFilesInfo:
       example:
-        fileIds:
-        - fileIds
-        - fileIds
+        fileIDs:
+        - fileIDs
+        - fileIDs
       properties:
-        fileIds:
+        fileIDs:
           items:
             type: string
           type: array
@@ -2920,13 +2920,13 @@ components:
       type: object
     RestoreFilesBody:
       example:
-        fileIds:
-        - fileIds
-        - fileIds
+        fileIDs:
+        - fileIDs
+        - fileIDs
         newParentID: newParentID
         timestamp: 0
       properties:
-        fileIds:
+        fileIDs:
           items:
             type: string
           type: array
@@ -3048,7 +3048,7 @@ components:
         startTime:
           type: string
         status:
-          $ref: "#/components/schemas/task.TaskExitStatus"
+          $ref: "#/components/schemas/task.ExitStatus"
         taskID:
           type: string
         workerID:
@@ -3339,7 +3339,7 @@ components:
         configValue:
           type: object
       type: object
-    task.TaskExitStatus:
+    task.ExitStatus:
       enum:
       - ""
       - success
@@ -3361,7 +3361,7 @@ components:
       - chunk
       type: object
   securitySchemes:
-    ApiKeyAuth:
+    APIKeyAuth:
       in: header
       name: Authorization
       type: apiKey

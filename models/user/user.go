@@ -1,9 +1,9 @@
 package user
 
 import (
-	"github.com/ethanrous/weblens/modules/crypto"
-	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/cryptography"
 	"github.com/ethanrous/weblens/modules/websocket"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -23,7 +23,7 @@ const (
 )
 
 // ErrUserNotFound is returned when a user cannot be found.
-var ErrUserNotFound = errors.New("user not found")
+var ErrUserNotFound = wlerrors.New("user not found")
 
 // User represents a user account in the Weblens system with authentication and permission information.
 type User struct {
@@ -102,7 +102,7 @@ func (u *User) CheckLogin(attempt string) bool {
 		return false
 	}
 
-	return crypto.VerifyUserPassword(attempt, u.Password) == nil
+	return cryptography.VerifyUserPassword(attempt, u.Password) == nil
 }
 
 // SocketType returns the websocket client type for this user.

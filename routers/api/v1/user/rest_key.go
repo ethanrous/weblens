@@ -5,10 +5,10 @@ import (
 	"net/http"
 
 	auth_model "github.com/ethanrous/weblens/models/auth"
-	"github.com/ethanrous/weblens/modules/errors"
-	"github.com/ethanrous/weblens/modules/net"
+	"github.com/ethanrous/weblens/modules/netwrk"
 	"github.com/ethanrous/weblens/modules/structs"
-	"github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/reshape"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -20,17 +20,17 @@ import (
 //	@Security	SessionAuth
 //
 //	@Summary	Create a new api key
-//	@Tags		ApiKeys
+//	@Tags		APIKeys
 //	@Produce	json
 //
-//	@Param		params	body		structs.ApiKeyParams	true	"The new token params"
+//	@Param		params	body		structs.APIKeyParams	true	"The new token params"
 //
 //	@Success	200		{object}	structs.TokenInfo		"The new token"
 //	@Failure	403
 //	@Failure	500
 //	@Router		/keys [post]
-func CreateAPIKey(ctx context.RequestContext) {
-	tokenParams, err := net.ReadRequestBody[structs.APIKeyParams](ctx.Req)
+func CreateAPIKey(ctx ctxservice.RequestContext) {
+	tokenParams, err := netwrk.ReadRequestBody[structs.APIKeyParams](ctx.Req)
 	if err != nil {
 		return
 	}
@@ -47,20 +47,20 @@ func CreateAPIKey(ctx context.RequestContext) {
 
 // GetMyTokens godoc
 //
-//	@ID	GetApiKeys
+//	@ID	GetAPIKeys
 //
 //	@Security
 //	@Security	SessionAuth
 //
 //	@Summary	Get all api keys
-//	@Tags		ApiKeys
+//	@Tags		APIKeys
 //	@Produce	json
 //
 //	@Success	200	{array}	structs.TokenInfo	"Tokens"
 //	@Failure	403
 //	@Failure	500
 //	@Router		/keys [get]
-func GetMyTokens(ctx context.RequestContext) {
+func GetMyTokens(ctx ctxservice.RequestContext) {
 	tokens, err := auth_model.GetTokensByUser(ctx, ctx.Requester.Username)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
@@ -73,23 +73,23 @@ func GetMyTokens(ctx context.RequestContext) {
 
 // DeleteToken godoc
 //
-//	@ID	DeleteApiKey
+//	@ID	DeleteAPIKey
 //
 //	@Security
 //	@Security	SessionAuth[admin]
 //
 //	@Summary	Delete an api key
-//	@Tags		ApiKeys
+//	@Tags		APIKeys
 //	@Produce	json
 //
-//	@Param		tokenID	path	string	true	"Api key id"
+//	@Param		tokenID	path	string	true	"API key id"
 //
 //	@Success	200
 //	@Failure	403
 //	@Failure	404
 //	@Failure	500
 //	@Router		/keys/{tokenID} [delete]
-func DeleteToken(ctx context.RequestContext) {
+func DeleteToken(ctx ctxservice.RequestContext) {
 	tokenID := ctx.Path("tokenID")
 
 	objToken, err := primitive.ObjectIDFromHex(tokenID)
@@ -102,7 +102,7 @@ func DeleteToken(ctx context.RequestContext) {
 	// Check if the token exists
 	_, err = auth_model.GetTokenByID(ctx, objToken)
 	if err != nil {
-		if errors.Is(err, auth_model.ErrTokenNotFound) {
+		if wlerrors.Is(err, auth_model.ErrTokenNotFound) {
 			ctx.Status(http.StatusNotFound)
 
 			return

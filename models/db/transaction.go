@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/log"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -41,7 +41,7 @@ func WithTransaction(ctx context.Context, fn func(ctx context.Context) error) er
 
 	session, err := db.Client().StartSession()
 	if err != nil {
-		return errors.WithStack(err)
+		return wlerrors.WithStack(err)
 	}
 
 	defer session.EndSession(ctx)
@@ -59,7 +59,7 @@ func WithTransaction(ctx context.Context, fn func(ctx context.Context) error) er
 
 		err := fn(ctx)
 		if err != nil {
-			l.Error().Msg("Transaction func returned error, aborting")
+			l.Error().Stack().Err(err).Msg("Transaction func returned error, aborting")
 
 			return nil, err
 		}
@@ -68,7 +68,7 @@ func WithTransaction(ctx context.Context, fn func(ctx context.Context) error) er
 
 		err = sessCtx.CommitTransaction(sessCtx)
 		if err != nil {
-			return nil, errors.WithStack(err)
+			return nil, wlerrors.WithStack(err)
 		}
 
 		return nil, nil

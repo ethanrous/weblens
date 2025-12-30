@@ -5,7 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**mediaIds** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
+**mediaIDs** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
 
 ## Example
 
@@ -13,7 +13,7 @@ Name | Type | Description | Notes
 import { MediaIDsParams } from './api';
 
 const instance: MediaIDsParams = {
-    mediaIds,
+    mediaIDs,
 };
 ```
 

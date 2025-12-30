@@ -15,10 +15,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethanrous/weblens/modules/errors"
 	file_system "github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/option"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/rs/zerolog/log"
 )
 
@@ -37,49 +37,49 @@ import (
 */
 
 // ErrFileNotFound is returned when a requested file cannot be found.
-var ErrFileNotFound = errors.New("file not found")
+var ErrFileNotFound = wlerrors.New("file not found")
 
 // ErrNoFileID is returned when a file operation requires an ID but none is present.
-var ErrNoFileID = errors.New("file has no id")
+var ErrNoFileID = wlerrors.New("file has no id")
 
 // ErrNilFile is returned when a file pointer is unexpectedly nil.
-var ErrNilFile = errors.New("file is nil")
+var ErrNilFile = wlerrors.New("file is nil")
 
 // ErrNoContentID is returned when a file operation requires a content ID but none is present.
-var ErrNoContentID = errors.New("file has no content id")
+var ErrNoContentID = wlerrors.New("file has no content id")
 
 // ErrFileTreeNotFound is returned when a requested file tree cannot be found.
-var ErrFileTreeNotFound = errors.New("file tree not found")
+var ErrFileTreeNotFound = wlerrors.New("file tree not found")
 
 // ErrEmptyFile is returned when an operation cannot be performed on an empty file.
-var ErrEmptyFile = errors.New("file is empty")
+var ErrEmptyFile = wlerrors.New("file is empty")
 
 // ErrFileAlreadyHasTask is returned when attempting to assign a task to a file that already has one.
-var ErrFileAlreadyHasTask = errors.New("file already has task")
+var ErrFileAlreadyHasTask = wlerrors.New("file already has task")
 
 // ErrFileNoTask is returned when a file operation requires a task but none is present.
-var ErrFileNoTask = errors.New("file has no task")
+var ErrFileNoTask = wlerrors.New("file has no task")
 
 // ErrDirectoryNotAllowed is returned when a directory is provided but not allowed for the operation.
-var ErrDirectoryNotAllowed = errors.New("directory not allowed")
+var ErrDirectoryNotAllowed = wlerrors.New("directory not allowed")
 
 // ErrDirectoryRequired is returned when an operation requires a directory but a regular file was provided.
-var ErrDirectoryRequired = errors.New("directory required")
+var ErrDirectoryRequired = wlerrors.New("directory required")
 
 // ErrNoChildren is returned when a directory operation requires children but the directory has none.
-var ErrNoChildren = errors.New("directory has no children")
+var ErrNoChildren = wlerrors.New("directory has no children")
 
 // ErrNoParent is returned when a file operation requires a parent but none is present.
-var ErrNoParent = errors.New("file has no parent")
+var ErrNoParent = wlerrors.New("file has no parent")
 
 // ErrNotChild is returned when a file is not a child of the specified directory.
-var ErrNotChild = errors.New("file is not a child of given directory")
+var ErrNotChild = wlerrors.New("file is not a child of given directory")
 
 // ErrDirectoryAlreadyExists is returned when attempting to create a directory that already exists.
-var ErrDirectoryAlreadyExists = errors.New("directory already exists")
+var ErrDirectoryAlreadyExists = wlerrors.New("directory already exists")
 
 // ErrFileAlreadyExists is returned when attempting to create a file that already exists.
-var ErrFileAlreadyExists = errors.New("file already exists")
+var ErrFileAlreadyExists = wlerrors.New("file already exists")
 
 // WeblensFileImpl implements the http.File interface.
 var _ http.File = (*WeblensFileImpl)(nil)
@@ -406,14 +406,14 @@ func (f *WeblensFileImpl) ReadAll() ([]byte, error) {
 
 	osFile, err := os.Open(f.portablePath.ToAbsolute())
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, wlerrors.WithStack(err)
 	}
 
 	defer osFile.Close() //nolint:errcheck
 
 	data, err := io.ReadAll(osFile)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, wlerrors.WithStack(err)
 	}
 
 	return data, nil
@@ -421,7 +421,7 @@ func (f *WeblensFileImpl) ReadAll() ([]byte, error) {
 
 func (f *WeblensFileImpl) Write(data []byte) (int, error) {
 	if f.IsDir() {
-		return 0, errors.WithStack(ErrDirectoryNotAllowed)
+		return 0, wlerrors.WithStack(ErrDirectoryNotAllowed)
 	}
 
 	if f.memOnly {
@@ -436,7 +436,7 @@ func (f *WeblensFileImpl) Write(data []byte) (int, error) {
 		f.setModifyDate(time.Now())
 	}
 
-	return len(data), errors.WithStack(err)
+	return len(data), wlerrors.WithStack(err)
 }
 
 // WriteAt writes data to the file at the specified offset.
@@ -507,12 +507,12 @@ func (f *WeblensFileImpl) GetChild(childName string) (*WeblensFileImpl, error) {
 	defer f.childLock.RUnlock()
 
 	if len(f.childrenMap) == 0 || childName == "" {
-		return nil, errors.Errorf("%w: file %s [%p] has no children", ErrFileNotFound, f.portablePath.String(), f)
+		return nil, wlerrors.Errorf("%w: file %s [%p] has no children", ErrFileNotFound, f.portablePath.String(), f)
 	}
 
 	child := f.childrenMap[childName]
 	if child == nil {
-		return nil, errors.Errorf("%w: %s is not a child of %s", ErrFileNotFound, childName, f.portablePath.String())
+		return nil, wlerrors.Errorf("%w: %s is not a child of %s", ErrFileNotFound, childName, f.portablePath.String())
 	}
 
 	return child, nil
@@ -548,7 +548,7 @@ func (f *WeblensFileImpl) InitChildren() {
 // AddChild adds a child file to the directory.
 func (f *WeblensFileImpl) AddChild(child *WeblensFileImpl) error {
 	if !f.IsDir() {
-		return errors.WithStack(ErrDirectoryRequired)
+		return wlerrors.WithStack(ErrDirectoryRequired)
 	}
 
 	f.childLock.Lock()
@@ -559,15 +559,15 @@ func (f *WeblensFileImpl) AddChild(child *WeblensFileImpl) error {
 	}
 
 	if f.childrenMap[child.portablePath.Filename()] != nil {
-		return errors.Errorf("failed to add %s as child of %s: %w", child.GetPortablePath(), f.GetPortablePath().String(), ErrFileAlreadyExists)
+		return wlerrors.Errorf("failed to add %s as child of %s: %w", child.GetPortablePath(), f.GetPortablePath().String(), ErrFileAlreadyExists)
 	}
 
 	if child.GetPortablePath().Dir() == child.GetPortablePath() {
-		return errors.Errorf("Cannot add %s as a child because it is a root folder", child.GetPortablePath())
+		return wlerrors.Errorf("Cannot add %s as a child because it is a root folder", child.GetPortablePath())
 	}
 
 	if child.GetPortablePath().Dir() != f.GetPortablePath() {
-		return errors.Errorf("Cannot make %s a child of %s: %w", child.GetPortablePath().Dir(), f.GetPortablePath(), ErrNotChild)
+		return wlerrors.Errorf("Cannot make %s a child of %s: %w", child.GetPortablePath().Dir(), f.GetPortablePath(), ErrNotChild)
 	}
 
 	f.childrenMap[child.portablePath.Filename()] = child
@@ -578,14 +578,14 @@ func (f *WeblensFileImpl) AddChild(child *WeblensFileImpl) error {
 // RemoveChild removes a child file from the directory by name.
 func (f *WeblensFileImpl) RemoveChild(child string) error {
 	if len(f.childrenMap) == 0 {
-		return errors.WithStack(ErrNoChildren)
+		return wlerrors.WithStack(ErrNoChildren)
 	}
 
 	f.childLock.Lock()
 	defer f.childLock.Unlock()
 
 	if _, ok := f.childrenMap[child]; !ok {
-		return errors.WithStack(ErrFileNotFound)
+		return wlerrors.WithStack(ErrFileNotFound)
 	}
 
 	delete(f.childrenMap, child)
@@ -598,7 +598,7 @@ func (f *WeblensFileImpl) RemoveChild(child string) error {
 // SetParent sets the parent directory for the file.
 func (f *WeblensFileImpl) SetParent(p *WeblensFileImpl) error {
 	if f.GetPortablePath().Dir() != p.GetPortablePath() {
-		return errors.Wrapf(ErrNotChild, "%s is not the parent of %s", p.GetPortablePath(), f.GetPortablePath())
+		return wlerrors.Wrapf(ErrNotChild, "%s is not the parent of %s", p.GetPortablePath(), f.GetPortablePath())
 	}
 
 	f.updateLock.Lock()
@@ -641,11 +641,11 @@ func (f *WeblensFileImpl) CreateSelf() error {
 	}
 
 	if err != nil {
-		if errors.Is(err, fs.ErrExist) {
-			return errors.Errorf("failed to create file %s: %w", f.portablePath.String(), ErrFileAlreadyExists)
+		if wlerrors.Is(err, fs.ErrExist) {
+			return wlerrors.Errorf("failed to create file %s: %w", f.portablePath.String(), ErrFileAlreadyExists)
 		}
 
-		return errors.WithStack(err)
+		return wlerrors.WithStack(err)
 	}
 
 	return nil
@@ -783,7 +783,7 @@ Files are acted on in the order of their index number here, starting with the le
 */
 func (f *WeblensFileImpl) LeafMap(fn func(*WeblensFileImpl) error) error {
 	if f == nil {
-		return errors.WithStack(ErrNilFile)
+		return wlerrors.WithStack(ErrNilFile)
 	}
 
 	if f.IsDir() {
@@ -861,7 +861,7 @@ func (f *WeblensFileImpl) LoadStat() (newSize int64, err error) {
 
 	stat, err := os.Stat(f.portablePath.ToAbsolute())
 	if err != nil {
-		return -1, errors.WithStack(err)
+		return -1, wlerrors.WithStack(err)
 	}
 
 	f.modifyDate = stat.ModTime()

@@ -4,7 +4,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**MediaIds** | Pointer to **[]string** |  | [optional] 
+**MediaIDs** | Pointer to **[]string** |  | [optional] 
 
 ## Methods
 
@@ -25,30 +25,30 @@ NewMediaIDsParamsWithDefaults instantiates a new MediaIDsParams object
 This constructor will only assign default values to properties that have it defined,
 but it doesn't guarantee that properties required by API are set
 
-### GetMediaIds
+### GetMediaIDs
 
-`func (o *MediaIDsParams) GetMediaIds() []string`
+`func (o *MediaIDsParams) GetMediaIDs() []string`
 
-GetMediaIds returns the MediaIds field if non-nil, zero value otherwise.
+GetMediaIDs returns the MediaIDs field if non-nil, zero value otherwise.
 
-### GetMediaIdsOk
+### GetMediaIDsOk
 
-`func (o *MediaIDsParams) GetMediaIdsOk() (*[]string, bool)`
+`func (o *MediaIDsParams) GetMediaIDsOk() (*[]string, bool)`
 
-GetMediaIdsOk returns a tuple with the MediaIds field if it's non-nil, zero value otherwise
+GetMediaIDsOk returns a tuple with the MediaIDs field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetMediaIds
+### SetMediaIDs
 
-`func (o *MediaIDsParams) SetMediaIds(v []string)`
+`func (o *MediaIDsParams) SetMediaIDs(v []string)`
 
-SetMediaIds sets MediaIds field to given value.
+SetMediaIDs sets MediaIDs field to given value.
 
-### HasMediaIds
+### HasMediaIDs
 
-`func (o *MediaIDsParams) HasMediaIds() bool`
+`func (o *MediaIDsParams) HasMediaIDs() bool`
 
-HasMediaIds returns a boolean if a field has been set.
+HasMediaIDs returns a boolean if a field has been set.
 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

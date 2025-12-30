@@ -1,5 +1,5 @@
-// Package crypto provides cryptographic utilities for generating random values and hashing.
-package crypto
+// Package cryptography provides cryptographic utilities for generating random values and hashing.
+package cryptography
 
 import (
 	"crypto/rand"

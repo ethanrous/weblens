@@ -16,36 +16,36 @@ import (
 	"fmt"
 )
 
-// checks if the ApiKeyParams type satisfies the MappedNullable interface at compile time
-var _ MappedNullable = &ApiKeyParams{}
+// checks if the APIKeyParams type satisfies the MappedNullable interface at compile time
+var _ MappedNullable = &APIKeyParams{}
 
-// ApiKeyParams struct for ApiKeyParams
-type ApiKeyParams struct {
+// APIKeyParams struct for APIKeyParams
+type APIKeyParams struct {
 	Name string `json:"name"`
 }
 
-type _ApiKeyParams ApiKeyParams
+type _APIKeyParams APIKeyParams
 
-// NewApiKeyParams instantiates a new ApiKeyParams object
+// NewAPIKeyParams instantiates a new APIKeyParams object
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewApiKeyParams(name string) *ApiKeyParams {
-	this := ApiKeyParams{}
+func NewAPIKeyParams(name string) *APIKeyParams {
+	this := APIKeyParams{}
 	this.Name = name
 	return &this
 }
 
-// NewApiKeyParamsWithDefaults instantiates a new ApiKeyParams object
+// NewAPIKeyParamsWithDefaults instantiates a new APIKeyParams object
 // This constructor will only assign default values to properties that have it defined,
 // but it doesn't guarantee that properties required by API are set
-func NewApiKeyParamsWithDefaults() *ApiKeyParams {
-	this := ApiKeyParams{}
+func NewAPIKeyParamsWithDefaults() *APIKeyParams {
+	this := APIKeyParams{}
 	return &this
 }
 
 // GetName returns the Name field value
-func (o *ApiKeyParams) GetName() string {
+func (o *APIKeyParams) GetName() string {
 	if o == nil {
 		var ret string
 		return ret
@@ -56,7 +56,7 @@ func (o *ApiKeyParams) GetName() string {
 
 // GetNameOk returns a tuple with the Name field value
 // and a boolean to check if the value has been set.
-func (o *ApiKeyParams) GetNameOk() (*string, bool) {
+func (o *APIKeyParams) GetNameOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -64,11 +64,11 @@ func (o *ApiKeyParams) GetNameOk() (*string, bool) {
 }
 
 // SetName sets field value
-func (o *ApiKeyParams) SetName(v string) {
+func (o *APIKeyParams) SetName(v string) {
 	o.Name = v
 }
 
-func (o ApiKeyParams) MarshalJSON() ([]byte, error) {
+func (o APIKeyParams) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
@@ -76,13 +76,13 @@ func (o ApiKeyParams) MarshalJSON() ([]byte, error) {
 	return json.Marshal(toSerialize)
 }
 
-func (o ApiKeyParams) ToMap() (map[string]interface{}, error) {
+func (o APIKeyParams) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["name"] = o.Name
 	return toSerialize, nil
 }
 
-func (o *ApiKeyParams) UnmarshalJSON(data []byte) (err error) {
+func (o *APIKeyParams) UnmarshalJSON(data []byte) (err error) {
 	// This validates that all required properties are included in the JSON object
 	// by unmarshalling the object into a generic map with string keys and checking
 	// that every required field exists as a key in the generic map.
@@ -104,53 +104,53 @@ func (o *ApiKeyParams) UnmarshalJSON(data []byte) (err error) {
 		}
 	}
 
-	varApiKeyParams := _ApiKeyParams{}
+	varAPIKeyParams := _APIKeyParams{}
 
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
-	err = decoder.Decode(&varApiKeyParams)
+	err = decoder.Decode(&varAPIKeyParams)
 
 	if err != nil {
 		return err
 	}
 
-	*o = ApiKeyParams(varApiKeyParams)
+	*o = APIKeyParams(varAPIKeyParams)
 
 	return err
 }
 
-type NullableApiKeyParams struct {
-	value *ApiKeyParams
+type NullableAPIKeyParams struct {
+	value *APIKeyParams
 	isSet bool
 }
 
-func (v NullableApiKeyParams) Get() *ApiKeyParams {
+func (v NullableAPIKeyParams) Get() *APIKeyParams {
 	return v.value
 }
 
-func (v *NullableApiKeyParams) Set(val *ApiKeyParams) {
+func (v *NullableAPIKeyParams) Set(val *APIKeyParams) {
 	v.value = val
 	v.isSet = true
 }
 
-func (v NullableApiKeyParams) IsSet() bool {
+func (v NullableAPIKeyParams) IsSet() bool {
 	return v.isSet
 }
 
-func (v *NullableApiKeyParams) Unset() {
+func (v *NullableAPIKeyParams) Unset() {
 	v.value = nil
 	v.isSet = false
 }
 
-func NewNullableApiKeyParams(val *ApiKeyParams) *NullableApiKeyParams {
-	return &NullableApiKeyParams{value: val, isSet: true}
+func NewNullableAPIKeyParams(val *APIKeyParams) *NullableAPIKeyParams {
+	return &NullableAPIKeyParams{value: val, isSet: true}
 }
 
-func (v NullableApiKeyParams) MarshalJSON() ([]byte, error) {
+func (v NullableAPIKeyParams) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v.value)
 }
 
-func (v *NullableApiKeyParams) UnmarshalJSON(src []byte) error {
+func (v *NullableAPIKeyParams) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }

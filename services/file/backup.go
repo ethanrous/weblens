@@ -6,9 +6,9 @@ import (
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/history"
 	tower_model "github.com/ethanrous/weblens/models/tower"
-	"github.com/ethanrous/weblens/modules/errors"
 	file_system "github.com/ethanrous/weblens/modules/fs"
-	context_service "github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/journal"
 )
 
@@ -22,7 +22,7 @@ func (fs *ServiceImpl) NewBackupRestoreFile(ctx context.Context, contentID, remo
 	restorePath := restoreRoot.GetPortablePath().Child(remoteTowerID, true).Child(contentID, false)
 
 	if exists(restorePath) {
-		return nil, errors.Errorf("restore file [%s] already exists", restorePath)
+		return nil, wlerrors.Errorf("restore file [%s] already exists", restorePath)
 	}
 
 	f, err := touch(restorePath)
@@ -43,7 +43,7 @@ func IsBackupTowerRoot(path file_system.Filepath) bool {
 // TranslateBackupPath translates a user path to its corresponding backup path for a given tower.
 func TranslateBackupPath(ctx context_service.AppContext, path file_system.Filepath, core tower_model.Instance) (file_system.Filepath, error) {
 	if path.RootName() != file_model.UsersTreeKey {
-		return file_system.Filepath{}, errors.Errorf("Path %s is not a user path", path)
+		return file_system.Filepath{}, wlerrors.Errorf("Path %s is not a user path", path)
 	}
 
 	newPath, err := path.ReplacePrefix(file_model.UsersRootPath, file_model.BackupRootPath.Child(core.TowerID, true))
@@ -59,7 +59,7 @@ func TranslateBackupPath(ctx context_service.AppContext, path file_system.Filepa
 func loadFsTransactionBackup(ctx context.Context) error {
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
-		return errors.New("not an app context")
+		return wlerrors.New("not an app context")
 	}
 
 	appCtx.Log().Debug().Msg("Loading backup file system")
@@ -105,7 +105,7 @@ func loadFsTransactionBackup(ctx context.Context) error {
 		}
 
 		remoteDir, err := appCtx.FileService.CreateFolder(ctx, backupRoot, remote.TowerID)
-		if err != nil && !errors.Is(err, file_model.ErrDirectoryAlreadyExists) {
+		if err != nil && !wlerrors.Is(err, file_model.ErrDirectoryAlreadyExists) {
 			return err
 		} else if err != nil {
 			remoteDir = file_model.NewWeblensFile(file_model.NewFileOptions{

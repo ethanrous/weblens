@@ -12,7 +12,7 @@ type TokenInfo struct {
 	Token       string `json:"token" validate:"required"`
 } // @name TokenInfo
 
-// type ApiKeyInfo struct {
+// type APIKeyInfo struct {
 // 	ID           string `json:"id" validate:"required"`
 // 	Name         string `json:"name" validate:"required"`
 // 	Key          string `json:"key" validate:"required"`
@@ -21,4 +21,4 @@ type TokenInfo struct {
 // 	CreatedBy    string `json:"createdBy" validate:"required"`
 // 	CreatedTime  int64  `json:"createdTime" validate:"required"`
 // 	LastUsedTime int64  `json:"lastUsedTime" validate:"required"`
-// } // @name ApiKeyInfo
+// } // @name APIKeyInfo

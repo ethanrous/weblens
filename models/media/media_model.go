@@ -9,8 +9,8 @@ import (
 
 	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
-	"github.com/ethanrous/weblens/modules/errors"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -20,19 +20,19 @@ import (
 const MediaCollectionKey = "media"
 
 // ErrMediaNotFound is returned when a requested media item does not exist.
-var ErrMediaNotFound = errors.New("media not found")
+var ErrMediaNotFound = wlerrors.New("media not found")
 
 // ErrMediaAlreadyExists is returned when attempting to create a media that already exists.
-var ErrMediaAlreadyExists = errors.New("media already exists")
+var ErrMediaAlreadyExists = wlerrors.New("media already exists")
 
 // ErrNotDisplayable is returned when media cannot be displayed.
-var ErrNotDisplayable = errors.New("media is not displayable")
+var ErrNotDisplayable = wlerrors.New("media is not displayable")
 
 // ErrMediaBadMimeType is returned when media has an unsupported mime type.
-var ErrMediaBadMimeType = errors.New("media has a bad mime type")
+var ErrMediaBadMimeType = wlerrors.New("media has a bad mime type")
 
 // ErrInvalidQuality is returned when an invalid media quality is specified.
-var ErrInvalidQuality = errors.Errorf("invalid media quality")
+var ErrInvalidQuality = wlerrors.Errorf("invalid media quality")
 
 // Media represents a media item stored in the database.
 type Media struct {
@@ -177,7 +177,7 @@ func GetMediaByPath(_ context.Context, _ string) ([]*Media, error) {
 	// }
 	//
 	// return media, nil
-	return nil, errors.New("not implemented")
+	return nil, wlerrors.New("not implemented")
 }
 
 // GetMedia retrieves media items for a user with filtering and sorting options.
@@ -215,14 +215,14 @@ func GetMedia(ctx context.Context, username string, sort string, sortDirection i
 
 	cur, err := col.Aggregate(ctx, pipe)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, wlerrors.WithStack(err)
 	}
 
 	medias := []*Media{}
 
 	err = cur.All(ctx, &medias)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, wlerrors.WithStack(err)
 	}
 
 	return medias, nil
@@ -535,7 +535,7 @@ func RemoveFileFromMedia(ctx context.Context, media *Media, fileID string) error
 		{Key: "contentID", Value: media.ContentID},
 	}, bson.D{{Key: "$pull", Value: bson.D{{Key: "fileIds", Value: fileID}}}})
 	if err != nil {
-		return errors.WithStack(err)
+		return wlerrors.WithStack(err)
 	}
 
 	return nil
@@ -552,7 +552,7 @@ func (m *Media) AddFileToMedia(ctx context.Context, fileID string) error {
 		{Key: "contentID", Value: m.ContentID},
 	}, bson.D{{Key: "$addToSet", Value: bson.D{{Key: "fileIds", Value: fileID}}}})
 	if err != nil {
-		return errors.WithStack(err)
+		return wlerrors.WithStack(err)
 	}
 
 	return nil

@@ -9,11 +9,11 @@ import (
 	task_model "github.com/ethanrous/weblens/models/task"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/structs"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
-	"github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/journal"
 	"github.com/ethanrous/weblens/services/notify"
 	"github.com/ethanrous/weblens/services/proxy"
@@ -27,9 +27,9 @@ func RestoreCore(tsk task_mod.Task) {
 
 	meta := t.GetMeta().(job.RestoreCoreMeta)
 
-	ctx, ok := t.Ctx.(context.AppContext)
+	ctx, ok := t.Ctx.(ctxservice.AppContext)
 	if !ok {
-		t.Fail(errors.New("Failed to cast context to FilerContext"))
+		t.Fail(wlerrors.New("Failed to cast context to FilerContext"))
 
 		return
 	}

@@ -1,5 +1,5 @@
-// Package context provides application context and dependency injection for Weblens services.
-package context
+// Package ctxservice provides application context and dependency injection for Weblens services.
+package ctxservice
 
 import (
 	"context"
@@ -10,11 +10,11 @@ import (
 	"github.com/ethanrous/weblens/models/db"
 	"github.com/ethanrous/weblens/models/file"
 	task_model "github.com/ethanrous/weblens/models/task"
-	context_mod "github.com/ethanrous/weblens/modules/context"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/log"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/ethanrous/weblens/modules/websocket"
+	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/viccon/sturdyc"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -37,7 +37,7 @@ func init() {
 var _ context_mod.Z = AppContext{}
 
 // ErrNoContext is returned when a context is not an AppContext.
-var ErrNoContext = errors.New("context is not an AppContext")
+var ErrNoContext = wlerrors.New("context is not an AppContext")
 
 type appContextKey struct{}
 

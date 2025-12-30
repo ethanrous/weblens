@@ -9,11 +9,11 @@ import (
 	media_model "github.com/ethanrous/weblens/models/media"
 	share_model "github.com/ethanrous/weblens/models/share"
 	"github.com/ethanrous/weblens/models/task"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/option"
 	"github.com/ethanrous/weblens/modules/structs"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/services/auth"
-	context_service "github.com/ethanrous/weblens/services/context"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	file_service "github.com/ethanrous/weblens/services/file"
 	"github.com/ethanrous/weblens/services/reshape"
 	"github.com/rs/zerolog"
@@ -53,7 +53,7 @@ func ScanDir(ctx context_service.RequestContext) {
 
 	t, err := ctx.TaskService.DispatchJob(ctx, jobName, meta, nil)
 	if err != nil {
-		ctx.Error(http.StatusInternalServerError, errors.Errorf("Failed to dispatch scan task: %w", err))
+		ctx.Error(http.StatusInternalServerError, wlerrors.Errorf("Failed to dispatch scan task: %w", err))
 
 		return
 	}

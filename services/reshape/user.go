@@ -6,7 +6,7 @@ import (
 	"github.com/ethanrous/weblens/models/user"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/structs"
-	context_service "github.com/ethanrous/weblens/services/context"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 )
 
 // UserToUserInfo converts a User model to a UserInfo transfer object.

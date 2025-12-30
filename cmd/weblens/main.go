@@ -9,7 +9,7 @@ import (
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/routers"
-	context_service "github.com/ethanrous/weblens/services/context"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 
 	_ "net/http/pprof"
 )
@@ -56,3 +56,4 @@ func main() {
 
 	appCtx.WG.Wait()
 }
+

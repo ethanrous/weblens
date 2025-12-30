@@ -5,8 +5,8 @@ import (
 
 	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
-	"github.com/ethanrous/weblens/modules/errors"
-	context_service "github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/media/agno"
 )
 
@@ -34,7 +34,7 @@ func NewMediaFromFile(ctx context_service.AppContext, f *file_model.WeblensFileI
 	}
 
 	if f.GetContentID() == "" {
-		return nil, errors.WithStack(file_model.ErrNoContentID)
+		return nil, wlerrors.WithStack(file_model.ErrNoContentID)
 	}
 
 	m, err = newMedia(ctx, f)

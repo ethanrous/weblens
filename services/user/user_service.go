@@ -10,7 +10,7 @@ import (
 	"github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/startup"
-	context_service "github.com/ethanrous/weblens/services/context"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 )
 
 func init() {

@@ -12,15 +12,15 @@ import (
 	"time"
 
 	file_model "github.com/ethanrous/weblens/models/file"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/log"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/rs/zerolog"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
 
 // ErrChunkNotFound is returned when a requested video chunk does not exist.
-var ErrChunkNotFound = errors.New("chunk not found")
+var ErrChunkNotFound = wlerrors.New("chunk not found")
 
 // VideoStreamer manages the transcoding and streaming of video files in HLS format.
 type VideoStreamer struct {
@@ -93,7 +93,7 @@ func (vs *VideoStreamer) GetChunkModified(chunkName string) (time.Time, error) {
 			return time.Time{}, ErrChunkNotFound
 		}
 
-		return time.Time{}, errors.WithStack(err)
+		return time.Time{}, wlerrors.WithStack(err)
 	}
 
 	return stat.ModTime(), nil
@@ -124,12 +124,12 @@ func (vs *VideoStreamer) GetListFile() ([]byte, time.Time, error) {
 
 	listFile, err := os.ReadFile(listPath.ToAbsolute())
 	if err != nil {
-		return nil, time.Time{}, errors.WithStack(err)
+		return nil, time.Time{}, wlerrors.WithStack(err)
 	}
 
 	stat, err := os.Stat(listPath.ToAbsolute())
 	if err != nil {
-		return nil, time.Time{}, errors.WithStack(err)
+		return nil, time.Time{}, wlerrors.WithStack(err)
 	}
 
 	// Cache the list file only if transcoding is finished and no errors
@@ -171,17 +171,17 @@ func (vs *VideoStreamer) probeSourceBitrate(f *file_model.WeblensFileImpl) (vide
 
 	formatChunk, ok := probeResult["format"].(map[string]any)
 	if !ok {
-		return 0, 0, errors.New("invalid movie format")
+		return 0, 0, wlerrors.New("invalid movie format")
 	}
 
 	streamsChunk, ok := probeResult["streams"].([]any)
 	if !ok {
-		return 0, 0, errors.New("invalid movie format")
+		return 0, 0, wlerrors.New("invalid movie format")
 	}
 
 	bitRateStr, ok := formatChunk["bit_rate"].(string)
 	if !ok {
-		return 0, 0, errors.New("bitrate does not exist or is not a string")
+		return 0, 0, wlerrors.New("bitrate does not exist or is not a string")
 	}
 
 	videoBitrate, err = strconv.ParseInt(bitRateStr, 10, 64)

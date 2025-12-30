@@ -877,10 +877,10 @@
                     "application/json"
                 ],
                 "tags": [
-                    "ApiKeys"
+                    "APIKeys"
                 ],
                 "summary": "Get all api keys",
-                "operationId": "GetApiKeys",
+                "operationId": "GetAPIKeys",
                 "responses": {
                     "200": {
                         "description": "Tokens",
@@ -909,10 +909,10 @@
                     "application/json"
                 ],
                 "tags": [
-                    "ApiKeys"
+                    "APIKeys"
                 ],
                 "summary": "Create a new api key",
-                "operationId": "CreateApiKey",
+                "operationId": "CreateAPIKey",
                 "parameters": [
                     {
                         "description": "The new token params",
@@ -920,7 +920,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/ApiKeyParams"
+                            "$ref": "#/definitions/APIKeyParams"
                         }
                     }
                 ],
@@ -953,14 +953,14 @@
                     "application/json"
                 ],
                 "tags": [
-                    "ApiKeys"
+                    "APIKeys"
                 ],
                 "summary": "Delete an api key",
-                "operationId": "DeleteApiKey",
+                "operationId": "DeleteAPIKey",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Api key id",
+                        "description": "API key id",
                         "name": "tokenID",
                         "in": "path",
                         "required": true
@@ -2850,6 +2850,17 @@
         }
     },
     "definitions": {
+        "APIKeyParams": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "AddUserParams": {
             "type": "object",
             "required": [
@@ -2869,17 +2880,6 @@
                     "type": "boolean"
                 },
                 "username": {
-                    "type": "string"
-                }
-            }
-        },
-        "ApiKeyParams": {
-            "type": "object",
-            "required": [
-                "name"
-            ],
-            "properties": {
-                "name": {
                     "type": "string"
                 }
             }
@@ -3073,7 +3073,7 @@
         "FilesListParams": {
             "type": "object",
             "properties": {
-                "fileIds": {
+                "fileIDs": {
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -3210,7 +3210,7 @@
         "MediaIDsParams": {
             "type": "object",
             "properties": {
-                "mediaIds": {
+                "mediaIDs": {
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -3345,7 +3345,7 @@
         "MoveFilesParams": {
             "type": "object",
             "properties": {
-                "fileIds": {
+                "fileIDs": {
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -3376,7 +3376,7 @@
         "NewFilesInfo": {
             "type": "object",
             "properties": {
-                "fileIds": {
+                "fileIDs": {
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -3510,7 +3510,7 @@
         "RestoreFilesBody": {
             "type": "object",
             "properties": {
-                "fileIds": {
+                "fileIDs": {
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -3624,7 +3624,7 @@
                     "type": "string"
                 },
                 "status": {
-                    "$ref": "#/definitions/task.TaskExitStatus"
+                    "$ref": "#/definitions/task.ExitStatus"
                 },
                 "taskID": {
                     "type": "string"
@@ -3929,7 +3929,7 @@
                 "configValue": {}
             }
         },
-        "task.TaskExitStatus": {
+        "task.ExitStatus": {
             "type": "string",
             "enum": [
                 "",
@@ -3946,7 +3946,7 @@
         }
     },
     "securityDefinitions": {
-        "ApiKeyAuth": {
+        "APIKeyAuth": {
             "type": "apiKey",
             "name": "Authorization",
             "in": "header",

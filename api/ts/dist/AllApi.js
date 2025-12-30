@@ -51,12 +51,6 @@ var assertParamExists = function(functionName, paramName, paramValue) {
     throw new RequiredError(paramName, `Required parameter ${paramName} was null or undefined when calling ${functionName}.`);
   }
 };
-var setApiKeyToObject = async function(object, keyParamName, configuration) {
-  if (configuration && configuration.apiKey) {
-    const localVarApiKeyValue = typeof configuration.apiKey === "function" ? await configuration.apiKey(keyParamName) : await configuration.apiKey;
-    object[keyParamName] = localVarApiKeyValue;
-  }
-};
 function setFlattenedQueryParams(urlSearchParams, parameter, key = "") {
   if (parameter == null) return;
   if (typeof parameter === "object") {
@@ -100,23 +94,23 @@ var createRequestFunction = function(axiosArgs, globalAxios3, BASE_PATH2, config
 var MediaBatchParamsSortEnum = {
   CreateDate: "createDate"
 };
-var TaskTaskExitStatus = {
+var TaskExitStatus = {
   TaskNoStatus: "",
   TaskSuccess: "success",
   TaskCanceled: "cancelled",
   TaskError: "error"
 };
-var ApiKeysApiAxiosParamCreator = function(configuration) {
+var APIKeysApiAxiosParamCreator = function(configuration) {
   return {
     /**
      * 
      * @summary Create a new api key
-     * @param {ApiKeyParams} params The new token params
+     * @param {APIKeyParams} params The new token params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    createApiKey: async (params, options = {}) => {
-      assertParamExists("createApiKey", "params", params);
+    createAPIKey: async (params, options = {}) => {
+      assertParamExists("createAPIKey", "params", params);
       const localVarPath = `/keys`;
       const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
       let baseOptions;
@@ -127,6 +121,7 @@ var ApiKeysApiAxiosParamCreator = function(configuration) {
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
       localVarHeaderParameter["Content-Type"] = "application/json";
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -139,12 +134,12 @@ var ApiKeysApiAxiosParamCreator = function(configuration) {
     /**
      * 
      * @summary Delete an api key
-     * @param {string} tokenID Api key id
+     * @param {string} tokenID API key id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    deleteApiKey: async (tokenID, options = {}) => {
-      assertParamExists("deleteApiKey", "tokenID", tokenID);
+    deleteAPIKey: async (tokenID, options = {}) => {
+      assertParamExists("deleteAPIKey", "tokenID", tokenID);
       const localVarPath = `/keys/{tokenID}`.replace(`{${"tokenID"}}`, encodeURIComponent(String(tokenID)));
       const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
       let baseOptions;
@@ -168,7 +163,7 @@ var ApiKeysApiAxiosParamCreator = function(configuration) {
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getApiKeys: async (options = {}) => {
+    getAPIKeys: async (options = {}) => {
       const localVarPath = `/keys`;
       const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
       let baseOptions;
@@ -178,6 +173,7 @@ var ApiKeysApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -188,35 +184,35 @@ var ApiKeysApiAxiosParamCreator = function(configuration) {
     }
   };
 };
-var ApiKeysApiFp = function(configuration) {
-  const localVarAxiosParamCreator = ApiKeysApiAxiosParamCreator(configuration);
+var APIKeysApiFp = function(configuration) {
+  const localVarAxiosParamCreator = APIKeysApiAxiosParamCreator(configuration);
   return {
     /**
      * 
      * @summary Create a new api key
-     * @param {ApiKeyParams} params The new token params
+     * @param {APIKeyParams} params The new token params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    async createApiKey(params, options) {
+    async createAPIKey(params, options) {
       var _a, _b, _c;
-      const localVarAxiosArgs = await localVarAxiosParamCreator.createApiKey(params, options);
+      const localVarAxiosArgs = await localVarAxiosParamCreator.createAPIKey(params, options);
       const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
-      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["ApiKeysApi.createApiKey"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
+      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["APIKeysApi.createAPIKey"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
       return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
     },
     /**
      * 
      * @summary Delete an api key
-     * @param {string} tokenID Api key id
+     * @param {string} tokenID API key id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    async deleteApiKey(tokenID, options) {
+    async deleteAPIKey(tokenID, options) {
       var _a, _b, _c;
-      const localVarAxiosArgs = await localVarAxiosParamCreator.deleteApiKey(tokenID, options);
+      const localVarAxiosArgs = await localVarAxiosParamCreator.deleteAPIKey(tokenID, options);
       const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
-      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["ApiKeysApi.deleteApiKey"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
+      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["APIKeysApi.deleteAPIKey"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
       return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
     },
     /**
@@ -225,37 +221,37 @@ var ApiKeysApiFp = function(configuration) {
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    async getApiKeys(options) {
+    async getAPIKeys(options) {
       var _a, _b, _c;
-      const localVarAxiosArgs = await localVarAxiosParamCreator.getApiKeys(options);
+      const localVarAxiosArgs = await localVarAxiosParamCreator.getAPIKeys(options);
       const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
-      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["ApiKeysApi.getApiKeys"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
+      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["APIKeysApi.getAPIKeys"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
       return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
     }
   };
 };
-var ApiKeysApiFactory = function(configuration, basePath, axios) {
-  const localVarFp = ApiKeysApiFp(configuration);
+var APIKeysApiFactory = function(configuration, basePath, axios) {
+  const localVarFp = APIKeysApiFp(configuration);
   return {
     /**
      * 
      * @summary Create a new api key
-     * @param {ApiKeyParams} params The new token params
+     * @param {APIKeyParams} params The new token params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    createApiKey(params, options) {
-      return localVarFp.createApiKey(params, options).then((request) => request(axios, basePath));
+    createAPIKey(params, options) {
+      return localVarFp.createAPIKey(params, options).then((request) => request(axios, basePath));
     },
     /**
      * 
      * @summary Delete an api key
-     * @param {string} tokenID Api key id
+     * @param {string} tokenID API key id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    deleteApiKey(tokenID, options) {
-      return localVarFp.deleteApiKey(tokenID, options).then((request) => request(axios, basePath));
+    deleteAPIKey(tokenID, options) {
+      return localVarFp.deleteAPIKey(tokenID, options).then((request) => request(axios, basePath));
     },
     /**
      * 
@@ -263,31 +259,31 @@ var ApiKeysApiFactory = function(configuration, basePath, axios) {
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getApiKeys(options) {
-      return localVarFp.getApiKeys(options).then((request) => request(axios, basePath));
+    getAPIKeys(options) {
+      return localVarFp.getAPIKeys(options).then((request) => request(axios, basePath));
     }
   };
 };
-var ApiKeysApi = class extends BaseAPI {
+var APIKeysApi = class extends BaseAPI {
   /**
    * 
    * @summary Create a new api key
-   * @param {ApiKeyParams} params The new token params
+   * @param {APIKeyParams} params The new token params
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */
-  createApiKey(params, options) {
-    return ApiKeysApiFp(this.configuration).createApiKey(params, options).then((request) => request(this.axios, this.basePath));
+  createAPIKey(params, options) {
+    return APIKeysApiFp(this.configuration).createAPIKey(params, options).then((request) => request(this.axios, this.basePath));
   }
   /**
    * 
    * @summary Delete an api key
-   * @param {string} tokenID Api key id
+   * @param {string} tokenID API key id
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */
-  deleteApiKey(tokenID, options) {
-    return ApiKeysApiFp(this.configuration).deleteApiKey(tokenID, options).then((request) => request(this.axios, this.basePath));
+  deleteAPIKey(tokenID, options) {
+    return APIKeysApiFp(this.configuration).deleteAPIKey(tokenID, options).then((request) => request(this.axios, this.basePath));
   }
   /**
    * 
@@ -295,8 +291,8 @@ var ApiKeysApi = class extends BaseAPI {
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */
-  getApiKeys(options) {
-    return ApiKeysApiFp(this.configuration).getApiKeys(options).then((request) => request(this.axios, this.basePath));
+  getAPIKeys(options) {
+    return APIKeysApiFp(this.configuration).getAPIKeys(options).then((request) => request(this.axios, this.basePath));
   }
 };
 var ConfigApiAxiosParamCreator = function(configuration) {
@@ -317,7 +313,7 @@ var ConfigApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
-      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -344,7 +340,6 @@ var ConfigApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "POST" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
-      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
       localVarHeaderParameter["Content-Type"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
@@ -461,6 +456,7 @@ var FilesApiAxiosParamCreator = function(configuration) {
         localVarQueryParameter["shareID"] = shareID;
       }
       localVarHeaderParameter["Content-Type"] = "application/json";
+      localVarHeaderParameter["Accept"] = "*/*";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -491,6 +487,7 @@ var FilesApiAxiosParamCreator = function(configuration) {
       if (searchPath !== void 0) {
         localVarQueryParameter["searchPath"] = searchPath;
       }
+      localVarHeaderParameter["Accept"] = "*/*";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -522,6 +519,7 @@ var FilesApiAxiosParamCreator = function(configuration) {
         localVarQueryParameter["shareID"] = shareID;
       }
       localVarHeaderParameter["Content-Type"] = "application/json";
+      localVarHeaderParameter["Accept"] = "*/*";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -597,6 +595,7 @@ var FilesApiAxiosParamCreator = function(configuration) {
       if (isTakeout !== void 0) {
         localVarQueryParameter["isTakeout"] = isTakeout;
       }
+      localVarHeaderParameter["Accept"] = "application/octet-stream";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -627,6 +626,7 @@ var FilesApiAxiosParamCreator = function(configuration) {
       if (shareID !== void 0) {
         localVarQueryParameter["shareID"] = shareID;
       }
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -683,6 +683,7 @@ var FilesApiAxiosParamCreator = function(configuration) {
       if (shareID !== void 0) {
         localVarQueryParameter["shareID"] = shareID;
       }
+      localVarHeaderParameter["Accept"] = "text/plain";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -707,6 +708,7 @@ var FilesApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
+      localVarHeaderParameter["Accept"] = "*/*";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -792,6 +794,7 @@ var FilesApiAxiosParamCreator = function(configuration) {
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
       localVarHeaderParameter["Content-Type"] = "application/json";
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -826,6 +829,7 @@ var FilesApiAxiosParamCreator = function(configuration) {
       if (baseFolderID !== void 0) {
         localVarQueryParameter["baseFolderID"] = baseFolderID;
       }
+      localVarHeaderParameter["Accept"] = "*/*";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -857,6 +861,7 @@ var FilesApiAxiosParamCreator = function(configuration) {
         localVarQueryParameter["shareID"] = shareID;
       }
       localVarHeaderParameter["Content-Type"] = "application/json";
+      localVarHeaderParameter["Accept"] = "*/*";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -1636,6 +1641,7 @@ var FolderApiAxiosParamCreator = function(configuration) {
         localVarQueryParameter["shareID"] = shareID;
       }
       localVarHeaderParameter["Content-Type"] = "application/json";
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -1671,6 +1677,7 @@ var FolderApiAxiosParamCreator = function(configuration) {
       if (timestamp !== void 0) {
         localVarQueryParameter["timestamp"] = timestamp;
       }
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -1702,6 +1709,7 @@ var FolderApiAxiosParamCreator = function(configuration) {
       if (timestamp !== void 0) {
         localVarQueryParameter["timestamp"] = timestamp;
       }
+      localVarHeaderParameter["Accept"] = "*/*";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -1732,6 +1740,7 @@ var FolderApiAxiosParamCreator = function(configuration) {
       if (shareID !== void 0) {
         localVarQueryParameter["shareID"] = shareID;
       }
+      localVarHeaderParameter["Accept"] = "*/*";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -1991,7 +2000,6 @@ var MediaApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "POST" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
-      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -2016,7 +2024,6 @@ var MediaApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "POST" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
-      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -2041,7 +2048,6 @@ var MediaApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "POST" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
-      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -2073,6 +2079,7 @@ var MediaApiAxiosParamCreator = function(configuration) {
         localVarQueryParameter["shareID"] = shareID;
       }
       localVarHeaderParameter["Content-Type"] = "application/json";
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -2100,7 +2107,7 @@ var MediaApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
-      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -2138,6 +2145,7 @@ var MediaApiAxiosParamCreator = function(configuration) {
       if (page !== void 0) {
         localVarQueryParameter["page"] = page;
       }
+      localVarHeaderParameter["Accept"] = "image/*";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -2164,6 +2172,7 @@ var MediaApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -2188,6 +2197,7 @@ var MediaApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -2217,6 +2227,7 @@ var MediaApiAxiosParamCreator = function(configuration) {
       if (count !== void 0) {
         localVarQueryParameter["count"] = count;
       }
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -2311,7 +2322,6 @@ var MediaApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
-      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -2778,6 +2788,7 @@ var ShareApiAxiosParamCreator = function(configuration) {
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
       localVarHeaderParameter["Content-Type"] = "application/json";
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -2806,6 +2817,7 @@ var ShareApiAxiosParamCreator = function(configuration) {
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
       localVarHeaderParameter["Content-Type"] = "application/json";
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -2859,6 +2871,7 @@ var ShareApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -2887,6 +2900,7 @@ var ShareApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "DELETE" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -2949,6 +2963,7 @@ var ShareApiAxiosParamCreator = function(configuration) {
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
       localVarHeaderParameter["Content-Type"] = "application/json";
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -3245,8 +3260,8 @@ var TowersApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "POST" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
-      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
       localVarHeaderParameter["Content-Type"] = "application/json";
+      localVarHeaderParameter["Accept"] = "*/*";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -3274,7 +3289,6 @@ var TowersApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "DELETE" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
-      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -3299,7 +3313,7 @@ var TowersApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "DELETE" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
-      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -3326,10 +3340,10 @@ var TowersApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
-      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
       if (timestamp !== void 0) {
         localVarQueryParameter["timestamp"] = timestamp;
       }
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -3356,13 +3370,13 @@ var TowersApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
-      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
       if (page !== void 0) {
         localVarQueryParameter["page"] = page;
       }
       if (pageSize !== void 0) {
         localVarQueryParameter["pageSize"] = pageSize;
       }
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -3387,7 +3401,7 @@ var TowersApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
-      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
+      localVarHeaderParameter["Accept"] = "*/*";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -3412,7 +3426,7 @@ var TowersApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
-      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -3437,6 +3451,7 @@ var TowersApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -3464,6 +3479,7 @@ var TowersApiAxiosParamCreator = function(configuration) {
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
       localVarHeaderParameter["Content-Type"] = "application/json";
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -3491,7 +3507,6 @@ var TowersApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "POST" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
-      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -3516,7 +3531,6 @@ var TowersApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "POST" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
-      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -3923,10 +3937,10 @@ var UsersApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "PATCH" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
-      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
       if (setActive !== void 0) {
         localVarQueryParameter["setActive"] = setActive;
       }
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -3955,10 +3969,10 @@ var UsersApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "PATCH" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
-      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
       if (newFullName !== void 0) {
         localVarQueryParameter["newFullName"] = newFullName;
       }
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -4011,7 +4025,6 @@ var UsersApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "POST" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
-      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
       localVarHeaderParameter["Content-Type"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
@@ -4040,7 +4053,6 @@ var UsersApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "DELETE" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
-      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -4065,6 +4077,7 @@ var UsersApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -4089,6 +4102,7 @@ var UsersApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -4116,6 +4130,7 @@ var UsersApiAxiosParamCreator = function(configuration) {
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
       localVarHeaderParameter["Content-Type"] = "application/json";
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -4170,6 +4185,7 @@ var UsersApiAxiosParamCreator = function(configuration) {
       if (search !== void 0) {
         localVarQueryParameter["search"] = search;
       }
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -4198,10 +4214,10 @@ var UsersApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "PATCH" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
-      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
       if (setAdmin !== void 0) {
         localVarQueryParameter["setAdmin"] = setAdmin;
       }
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -4230,8 +4246,8 @@ var UsersApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "PATCH" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
-      await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration);
       localVarHeaderParameter["Content-Type"] = "application/json";
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -4668,21 +4684,21 @@ var UsersApi = class extends BaseAPI {
 };
 
 // AllApi.ts
-function WeblensApiFactory(apiEndpoint) {
+function WeblensAPIFactory(apiEndpoint) {
   return {
-    MediaApi: MediaApiFactory({}, apiEndpoint),
-    FilesApi: FilesApiFactory({}, apiEndpoint),
-    FoldersApi: FolderApiFactory({}, apiEndpoint),
-    TowersApi: TowersApiFactory({}, apiEndpoint),
-    SharesApi: ShareApiFactory({}, apiEndpoint),
-    UsersApi: UsersApiFactory({}, apiEndpoint)
+    MediaAPI: MediaApiFactory({}, apiEndpoint),
+    FilesAPI: FilesApiFactory({}, apiEndpoint),
+    FoldersAPI: FolderApiFactory({}, apiEndpoint),
+    TowersAPI: TowersApiFactory({}, apiEndpoint),
+    SharesAPI: ShareApiFactory({}, apiEndpoint),
+    UsersAPI: UsersApiFactory({}, apiEndpoint)
   };
 }
 export {
-  ApiKeysApi,
-  ApiKeysApiAxiosParamCreator,
-  ApiKeysApiFactory,
-  ApiKeysApiFp,
+  APIKeysApi,
+  APIKeysApiAxiosParamCreator,
+  APIKeysApiFactory,
+  APIKeysApiFp,
   ConfigApi,
   ConfigApiAxiosParamCreator,
   ConfigApiFactory,
@@ -4705,7 +4721,7 @@ export {
   ShareApiAxiosParamCreator,
   ShareApiFactory,
   ShareApiFp,
-  TaskTaskExitStatus,
+  TaskExitStatus,
   TowersApi,
   TowersApiAxiosParamCreator,
   TowersApiFactory,
@@ -4714,5 +4730,5 @@ export {
   UsersApiAxiosParamCreator,
   UsersApiFactory,
   UsersApiFp,
-  WeblensApiFactory
+  WeblensAPIFactory
 };

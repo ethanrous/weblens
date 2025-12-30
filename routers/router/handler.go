@@ -4,7 +4,7 @@ package router
 import (
 	"net/http"
 
-	context_service "github.com/ethanrous/weblens/services/context"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 )
 
 // HandlerFunc defines a function type that handles requests using the Weblens request context.

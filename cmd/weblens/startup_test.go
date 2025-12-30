@@ -141,7 +141,7 @@ package main
 //
 // 	coreKeys, err := coreServices.AccessService.GetKeysByUser(coreServices.UserService.Get("test-username"))
 // 	require.NoError(t, err)
-// 	coreApiKey := coreKeys[0].Key
+// 	coreAPIKey := coreKeys[0].Key
 // 	coreAddress := config.GetProxyAddress(coreServices.Cnf)
 //
 // 	backupConfig := config.ConfigProvider{
@@ -183,7 +183,7 @@ package main
 //
 // 	// Initialize the server as a backup server
 //
-// 	err = service.InitBackup(backupServices, "TEST-BACKUP", coreAddress, coreApiKey)
+// 	err = service.InitBackup(backupServices, "TEST-BACKUP", coreAddress, coreAPIKey)
 // 	require.NoError(t, err)
 //
 // 	require.Equal(t, models.BackupServerRole, backupServices.InstanceService.GetLocal().Role)

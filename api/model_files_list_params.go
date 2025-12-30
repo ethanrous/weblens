@@ -19,7 +19,7 @@ var _ MappedNullable = &FilesListParams{}
 
 // FilesListParams struct for FilesListParams
 type FilesListParams struct {
-	FileIds []string `json:"fileIds,omitempty"`
+	FileIDs []string `json:"fileIDs,omitempty"`
 }
 
 // NewFilesListParams instantiates a new FilesListParams object
@@ -39,36 +39,36 @@ func NewFilesListParamsWithDefaults() *FilesListParams {
 	return &this
 }
 
-// GetFileIds returns the FileIds field value if set, zero value otherwise.
-func (o *FilesListParams) GetFileIds() []string {
-	if o == nil || IsNil(o.FileIds) {
+// GetFileIDs returns the FileIDs field value if set, zero value otherwise.
+func (o *FilesListParams) GetFileIDs() []string {
+	if o == nil || IsNil(o.FileIDs) {
 		var ret []string
 		return ret
 	}
-	return o.FileIds
+	return o.FileIDs
 }
 
-// GetFileIdsOk returns a tuple with the FileIds field value if set, nil otherwise
+// GetFileIDsOk returns a tuple with the FileIDs field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *FilesListParams) GetFileIdsOk() ([]string, bool) {
-	if o == nil || IsNil(o.FileIds) {
+func (o *FilesListParams) GetFileIDsOk() ([]string, bool) {
+	if o == nil || IsNil(o.FileIDs) {
 		return nil, false
 	}
-	return o.FileIds, true
+	return o.FileIDs, true
 }
 
-// HasFileIds returns a boolean if a field has been set.
-func (o *FilesListParams) HasFileIds() bool {
-	if o != nil && !IsNil(o.FileIds) {
+// HasFileIDs returns a boolean if a field has been set.
+func (o *FilesListParams) HasFileIDs() bool {
+	if o != nil && !IsNil(o.FileIDs) {
 		return true
 	}
 
 	return false
 }
 
-// SetFileIds gets a reference to the given []string and assigns it to the FileIds field.
-func (o *FilesListParams) SetFileIds(v []string) {
-	o.FileIds = v
+// SetFileIDs gets a reference to the given []string and assigns it to the FileIDs field.
+func (o *FilesListParams) SetFileIDs(v []string) {
+	o.FileIDs = v
 }
 
 func (o FilesListParams) MarshalJSON() ([]byte, error) {
@@ -81,8 +81,8 @@ func (o FilesListParams) MarshalJSON() ([]byte, error) {
 
 func (o FilesListParams) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
-	if !IsNil(o.FileIds) {
-		toSerialize["fileIds"] = o.FileIds
+	if !IsNil(o.FileIDs) {
+		toSerialize["fileIDs"] = o.FileIDs
 	}
 	return toSerialize, nil
 }

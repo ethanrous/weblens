@@ -7,17 +7,17 @@ import (
 
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/startup"
-	context_service "github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/media/agno"
 )
 
 type cacheKey string
 
 // ErrMediaNotVideo indicates that the media is not a video.
-var ErrMediaNotVideo = errors.New("media is not a video")
+var ErrMediaNotVideo = wlerrors.New("media is not a video")
 
 // Cache keys
 const (
@@ -55,12 +55,12 @@ func mediaServiceStartup(_ context.Context, _ config.Provider) error {
 // GetConverted returns the media in the specified format, currently only supports JPEG.
 func GetConverted(ctx context.Context, m *media_model.Media, format media_model.MType) ([]byte, error) {
 	if !format.IsMime("image/jpeg") {
-		return nil, errors.New("unsupported format")
+		return nil, wlerrors.New("unsupported format")
 	}
 
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
-		return nil, errors.WithStack(context_service.ErrNoContext)
+		return nil, wlerrors.WithStack(context_service.ErrNoContext)
 	}
 
 	file, err := appCtx.FileService.GetFileByID(ctx, m.FileIDs[0])

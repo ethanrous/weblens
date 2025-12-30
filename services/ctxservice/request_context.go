@@ -1,4 +1,4 @@
-package context
+package ctxservice
 
 import (
 	"context"
@@ -14,11 +14,11 @@ import (
 	share_model "github.com/ethanrous/weblens/models/share"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
-	context_mod "github.com/ethanrous/weblens/modules/context"
-	"github.com/ethanrous/weblens/modules/crypto"
-	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/cryptography"
 	"github.com/ethanrous/weblens/modules/log"
-	"github.com/ethanrous/weblens/modules/net"
+	"github.com/ethanrous/weblens/modules/netwrk"
+	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -141,7 +141,7 @@ func (c RequestContext) QueryInt(paramName string) (int64, error) {
 
 	num, err := strconv.ParseInt(queryStr, 10, 32)
 	if err != nil {
-		return 0, errors.New("Invalid query int")
+		return 0, wlerrors.New("Invalid query int")
 	}
 
 	return num, nil
@@ -159,14 +159,14 @@ func (c RequestContext) QueryIntDefault(paramName string, defaultValue int64) (i
 
 func (c RequestContext) Error(code int, err error) {
 	if err == nil {
-		err = errors.New("error is nil")
+		err = wlerrors.New("error is nil")
 		c.Log().Error().Stack().Err(err).Msg("")
 		c.W.WriteHeader(code)
 
 		return
 	}
 
-	code, errMsg := errors.AsStatus(err, code)
+	code, errMsg := wlerrors.AsStatus(err, code)
 
 	var e *zerolog.Event
 	if code >= http.StatusInternalServerError {
@@ -181,12 +181,12 @@ func (c RequestContext) Error(code int, err error) {
 
 	e.CallerSkipFrame(1).Caller().Err(err).Msgf("API Error %d %s", code, http.StatusText(code))
 
-	c.JSON(code, net.Error{Error: errMsg})
+	c.JSON(code, netwrk.Error{Error: errMsg})
 }
 
 // ExpireCookie sets a cookie header that expires the session cookie.
 func (c RequestContext) ExpireCookie() {
-	cookie := fmt.Sprintf("%s=;Path=/;Expires=Thu, 01 Jan 1970 00:00:00 GMT;HttpOnly", crypto.SessionTokenCookie)
+	cookie := fmt.Sprintf("%s=;Path=/;Expires=Thu, 01 Jan 1970 00:00:00 GMT;HttpOnly", cryptography.SessionTokenCookie)
 	c.W.Header().Set("Set-Cookie", cookie)
 }
 
@@ -266,13 +266,13 @@ func (c RequestContext) ContentRange() (start, end, total int, err error) {
 
 	// If the Range header is empty or not in the expected format, return an error.
 	if rangeHeader == "" {
-		err = errors.New("Range header not provided")
+		err = wlerrors.New("Range header not provided")
 
 		return
 	}
 
 	if !rangeMatchR.MatchString(rangeHeader) {
-		err = errors.New("Invalid Range header format, must match 'bytes=start-end/total'")
+		err = wlerrors.New("Invalid Range header format, must match 'bytes=start-end/total'")
 
 		return
 	}
@@ -280,7 +280,7 @@ func (c RequestContext) ContentRange() (start, end, total int, err error) {
 	// Parse the range header to extract start, end, and total values.
 	_, err = fmt.Sscanf(rangeHeader, "bytes=%d-%d/%d", &start, &end, &total)
 	if err != nil {
-		err = errors.WithStack(err)
+		err = wlerrors.WithStack(err)
 
 		return
 	}
@@ -292,7 +292,7 @@ func (c RequestContext) ContentRange() (start, end, total int, err error) {
 func (c RequestContext) JSON(code int, data any) {
 	bs, err := json.Marshal(data)
 	if err != nil {
-		c.Error(http.StatusInternalServerError, errors.WithStack(err))
+		c.Error(http.StatusInternalServerError, wlerrors.WithStack(err))
 
 		return
 	}
@@ -327,7 +327,7 @@ func (c RequestContext) AttemptGetUsername() string {
 		return c.Requester.Username
 	}
 
-	usernameCookie, err := c.GetCookie(crypto.UserCrumbCookie)
+	usernameCookie, err := c.GetCookie(cryptography.UserCrumbCookie)
 	if err != nil {
 		return ""
 	}
@@ -377,7 +377,7 @@ func TimestampFromCtx(ctx RequestContext) (time.Time, bool, error) {
 
 	millis, err := strconv.ParseInt(ts, 10, 64)
 	if err != nil {
-		return time.Time{}, false, errors.WithStack(err)
+		return time.Time{}, false, wlerrors.WithStack(err)
 	}
 
 	return time.UnixMilli(millis), true, nil

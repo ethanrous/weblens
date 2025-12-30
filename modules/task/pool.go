@@ -3,11 +3,11 @@ package task
 import (
 	"time"
 
-	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 )
 
 // ErrChildTaskFailed indicates that one or more child tasks in a pool failed.
-var ErrChildTaskFailed = errors.New("child task failed")
+var ErrChildTaskFailed = wlerrors.New("child task failed")
 
 // PoolStatus represents the current state and progress of a task pool.
 type PoolStatus struct {

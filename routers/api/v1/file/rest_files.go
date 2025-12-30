@@ -17,14 +17,14 @@ import (
 	"github.com/ethanrous/weblens/models/job"
 	media_model "github.com/ethanrous/weblens/models/media"
 	share_model "github.com/ethanrous/weblens/models/share"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/fs"
-	"github.com/ethanrous/weblens/modules/net"
+	"github.com/ethanrous/weblens/modules/netwrk"
 	"github.com/ethanrous/weblens/modules/structs"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/ethanrous/weblens/modules/websocket"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/services/auth"
-	context_service "github.com/ethanrous/weblens/services/context"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	file_service "github.com/ethanrous/weblens/services/file"
 	"github.com/ethanrous/weblens/services/journal"
 	media_service "github.com/ethanrous/weblens/services/media"
@@ -90,7 +90,7 @@ func GetFileText(ctx context_service.RequestContext) {
 
 	dotIndex := strings.LastIndex(filename, ".")
 	if filename[dotIndex:] != ".txt" {
-		ctx.Error(http.StatusBadRequest, errors.New("file is not a text file"))
+		ctx.Error(http.StatusBadRequest, wlerrors.New("file is not a text file"))
 
 		return
 	}
@@ -162,14 +162,14 @@ func DownloadFile(ctx context_service.RequestContext) {
 	if acceptType != "" && acceptType != "image/webp" {
 		mt := media_model.ParseMime(acceptType)
 		if mt.Name == "" {
-			ctx.Error(http.StatusBadRequest, errors.New("invalid format"))
+			ctx.Error(http.StatusBadRequest, wlerrors.New("invalid format"))
 
 			return
 		}
 
 		m, err := media_model.GetMediaByContentID(ctx, file.GetContentID())
 		if err != nil {
-			if errors.Is(err, media_model.ErrMediaNotFound) {
+			if wlerrors.Is(err, media_model.ErrMediaNotFound) {
 				ctx.Error(http.StatusNotFound, err)
 
 				return
@@ -226,7 +226,7 @@ func GetFolder(ctx context_service.RequestContext) {
 	if milliStr != "" {
 		millis, err := strconv.ParseInt(milliStr, 10, 64)
 		if err != nil {
-			ctx.Error(http.StatusBadRequest, errors.New("invalid timestamp format"))
+			ctx.Error(http.StatusBadRequest, wlerrors.New("invalid timestamp format"))
 
 			return
 		}
@@ -324,7 +324,7 @@ func GetFolderHistory(ctx context_service.RequestContext) {
 func SearchByFilename(ctx context_service.RequestContext) {
 	filenameSearch := ctx.Query("search")
 	if filenameSearch == "" {
-		ctx.Error(http.StatusBadRequest, errors.New("missing 'search' query parameter"))
+		ctx.Error(http.StatusBadRequest, wlerrors.New("missing 'search' query parameter"))
 
 		return
 	}
@@ -340,7 +340,7 @@ func SearchByFilename(ctx context_service.RequestContext) {
 	}
 
 	if !baseFolder.IsDir() {
-		ctx.Error(http.StatusBadRequest, errors.New("the provided base folder ID is not a directory"))
+		ctx.Error(http.StatusBadRequest, wlerrors.New("the provided base folder ID is not a directory"))
 
 		return
 	}
@@ -407,20 +407,20 @@ func SearchByFilename(ctx context_service.RequestContext) {
 //	@Success	200		{object}	structs.FileInfo			"File Info"
 //	@Router		/folder [post]
 func CreateFolder(ctx context_service.RequestContext) {
-	body, err := net.ReadRequestBody[structs.CreateFolderBody](ctx.Req)
+	body, err := netwrk.ReadRequestBody[structs.CreateFolderBody](ctx.Req)
 	if err != nil {
 		return
 	}
 
 	if body.NewFolderName == "" {
-		ctx.Error(http.StatusBadRequest, errors.New("Missing body parameter 'newFolderName'"))
+		ctx.Error(http.StatusBadRequest, wlerrors.New("Missing body parameter 'newFolderName'"))
 
 		return
 	}
 
 	parentFolder, err := CheckFileAccessByID(ctx, body.ParentFolderID, share_model.SharePermissionEdit)
 	if err != nil {
-		ctx.Error(http.StatusForbidden, errors.New("You do not have permission to create a folder in this location"))
+		ctx.Error(http.StatusForbidden, wlerrors.New("You do not have permission to create a folder in this location"))
 
 		return
 	}
@@ -487,7 +487,7 @@ func SetFolderCover(ctx context_service.RequestContext) {
 
 	media, err := media_model.GetMediaByContentID(ctx, mediaID)
 	if err != nil {
-		if errors.Is(err, media_model.ErrMediaNotFound) {
+		if wlerrors.Is(err, media_model.ErrMediaNotFound) {
 			// If the media doesn't exist, we can still set the cover to an empty state
 			// This allows us to remove the cover if needed
 			ctx.Error(http.StatusBadRequest, err)
@@ -538,7 +538,7 @@ func GetSharedFiles(ctx context_service.RequestContext) {
 	for _, share := range shares {
 		f, err := ctx.FileService.GetFileByID(ctx, share.FileID)
 		if err != nil {
-			if errors.Is(err, file_model.ErrFileNotFound) {
+			if wlerrors.Is(err, file_model.ErrFileNotFound) {
 				ctx.Log().Error().Stack().Err(err).Msg("Could not find file acompanying a file share")
 
 				continue
@@ -558,7 +558,7 @@ func GetSharedFiles(ctx context_service.RequestContext) {
 		fInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, child)
 		if err != nil {
 			// If we can't convert the file to a FileInfo, log the error and continue
-			ctx.Error(http.StatusInternalServerError, errors.New("failed to convert file to FileInfo"))
+			ctx.Error(http.StatusInternalServerError, wlerrors.New("failed to convert file to FileInfo"))
 
 			return
 		}
@@ -629,13 +629,13 @@ func GetSharedFiles(ctx context_service.RequestContext) {
 //	@Failure		500
 //	@Router			/takeout [post]
 func CreateTakeout(ctx context_service.RequestContext) {
-	takeoutRequest, err := net.ReadRequestBody[structs.FilesListParams](ctx.Req)
+	takeoutRequest, err := netwrk.ReadRequestBody[structs.FilesListParams](ctx.Req)
 	if err != nil {
 		return
 	}
 
 	if len(takeoutRequest.FileIDs) == 0 {
-		ctx.Error(http.StatusBadRequest, errors.New("Cannot takeout 0 files"))
+		ctx.Error(http.StatusBadRequest, wlerrors.New("Cannot takeout 0 files"))
 
 		return
 	}
@@ -657,7 +657,7 @@ func CreateTakeout(ctx context_service.RequestContext) {
 	// If we only have 1 file, and it is not a directory, we should have requested to just
 	// simply download that file on it's own, not zip it.
 	if len(files) == 1 && !files[0].IsDir() {
-		ctx.Error(http.StatusBadRequest, errors.New("Single non-directory file should not be zipped"))
+		ctx.Error(http.StatusBadRequest, wlerrors.New("Single non-directory file should not be zipped"))
 
 		return
 	}
@@ -670,7 +670,7 @@ func CreateTakeout(ctx context_service.RequestContext) {
 
 	t, err := ctx.TaskService.DispatchJob(ctx, job.CreateZipTask, meta, nil)
 	if err != nil {
-		ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "Failed to dispatch zip task"))
+		ctx.Error(http.StatusInternalServerError, wlerrors.Wrap(err, "Failed to dispatch zip task"))
 
 		return
 	}
@@ -700,7 +700,7 @@ func CreateTakeout(ctx context_service.RequestContext) {
 func AutocompletePath(ctx context_service.RequestContext) {
 	searchPath := ctx.Query("searchPath")
 	if len(searchPath) == 0 {
-		ctx.Error(http.StatusBadRequest, errors.New("Missing 'searchPath' query parameter"))
+		ctx.Error(http.StatusBadRequest, wlerrors.New("Missing 'searchPath' query parameter"))
 
 		return
 	}
@@ -755,7 +755,7 @@ func AutocompletePath(ctx context_service.RequestContext) {
 
 		childInfo, err := reshape.WeblensFileToFileInfo(ctx.AppContext, f)
 		if err != nil {
-			ctx.Error(http.StatusInternalServerError, errors.New("failed to convert file to FileInfo"))
+			ctx.Error(http.StatusInternalServerError, wlerrors.New("failed to convert file to FileInfo"))
 
 			return
 		}
@@ -765,7 +765,7 @@ func AutocompletePath(ctx context_service.RequestContext) {
 
 	selfInfo, err := reshape.WeblensFileToFileInfo(ctx.AppContext, folder)
 	if err != nil {
-		ctx.Error(http.StatusInternalServerError, errors.New("failed to convert folder to FileInfo"))
+		ctx.Error(http.StatusInternalServerError, wlerrors.New("failed to convert folder to FileInfo"))
 
 		return
 	}
@@ -791,13 +791,13 @@ func AutocompletePath(ctx context_service.RequestContext) {
 //	@Failure	500
 //	@Router		/files/structsore [post]
 func RestoreFiles(ctx context_service.RequestContext) {
-	body, err := net.ReadRequestBody[structs.RestoreFilesParams](ctx.Req)
+	body, err := netwrk.ReadRequestBody[structs.RestoreFilesParams](ctx.Req)
 	if err != nil {
-		ctx.Error(http.StatusInternalServerError, errors.New("Failed to read request body"))
+		ctx.Error(http.StatusInternalServerError, wlerrors.New("Failed to read request body"))
 	}
 
 	if body.Timestamp == 0 {
-		ctx.Error(http.StatusBadRequest, errors.New("Missing body parameter 'timestamp'"))
+		ctx.Error(http.StatusBadRequest, wlerrors.New("Missing body parameter 'timestamp'"))
 
 		return
 	}
@@ -872,14 +872,14 @@ func UpdateFile(ctx context_service.RequestContext) {
 	}
 
 	if file_model.IsFileInTrash(file) {
-		ctx.Error(http.StatusForbidden, errors.New("cannot rename file in trash"))
+		ctx.Error(http.StatusForbidden, wlerrors.New("cannot rename file in trash"))
 
 		return
 	}
 
-	updateInfo, err := net.ReadRequestBody[structs.UpdateFileParams](ctx.Req)
+	updateInfo, err := netwrk.ReadRequestBody[structs.UpdateFileParams](ctx.Req)
 	if err != nil {
-		ctx.Error(http.StatusInternalServerError, errors.New("Failed to read request body"))
+		ctx.Error(http.StatusInternalServerError, wlerrors.New("Failed to read request body"))
 
 		return
 	}
@@ -910,7 +910,7 @@ func UpdateFile(ctx context_service.RequestContext) {
 //	@Failure	500
 //	@Router		/files [patch]
 func MoveFiles(ctx context_service.RequestContext) {
-	filesData, err := net.ReadRequestBody[structs.MoveFilesParams](ctx.Req)
+	filesData, err := netwrk.ReadRequestBody[structs.MoveFilesParams](ctx.Req)
 	if err != nil {
 		return
 	}
@@ -921,7 +921,7 @@ func MoveFiles(ctx context_service.RequestContext) {
 	}
 
 	if newParent.IsDir() == false {
-		ctx.Error(http.StatusBadRequest, errors.New("New parent is not a directory"))
+		ctx.Error(http.StatusBadRequest, wlerrors.New("New parent is not a directory"))
 
 		return
 	}
@@ -936,7 +936,7 @@ func MoveFiles(ctx context_service.RequestContext) {
 	}
 
 	if len(filesData.Files) == 0 {
-		ctx.Error(http.StatusBadRequest, errors.New("No file ids provided"))
+		ctx.Error(http.StatusBadRequest, wlerrors.New("No file ids provided"))
 
 		return
 	}
@@ -952,7 +952,7 @@ func MoveFiles(ctx context_service.RequestContext) {
 	for _, fileID := range filesData.Files {
 		f, err := ctx.FileService.GetFileByID(ctx, fileID)
 		if err != nil {
-			ctx.Error(http.StatusNotFound, errors.New("Could not find file with id "+fileID))
+			ctx.Error(http.StatusNotFound, wlerrors.New("Could not find file with id "+fileID))
 
 			return
 		}
@@ -994,7 +994,7 @@ func MoveFiles(ctx context_service.RequestContext) {
 //	@Failure	500
 //	@Router		/files/untrash [patch]
 func UnTrashFiles(ctx context_service.RequestContext) {
-	params, err := net.ReadRequestBody[structs.FilesListParams](ctx.Req)
+	params, err := netwrk.ReadRequestBody[structs.FilesListParams](ctx.Req)
 	if err != nil {
 		return
 	}
@@ -1005,7 +1005,7 @@ func UnTrashFiles(ctx context_service.RequestContext) {
 	for _, fileID := range fileIDs {
 		file, err := ctx.FileService.GetFileByID(ctx, fileID)
 		if err != nil {
-			ctx.Error(http.StatusNotFound, errors.New("Could not find file with id "+fileID))
+			ctx.Error(http.StatusNotFound, wlerrors.New("Could not find file with id "+fileID))
 
 			return
 		}
@@ -1015,7 +1015,7 @@ func UnTrashFiles(ctx context_service.RequestContext) {
 
 	err = ctx.FileService.ReturnFilesFromTrash(ctx, files)
 	if err != nil {
-		ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "Failed to un-trash files"))
+		ctx.Error(http.StatusInternalServerError, wlerrors.Wrap(err, "Failed to un-trash files"))
 	}
 
 	ctx.Status(http.StatusOK)
@@ -1038,7 +1038,7 @@ func UnTrashFiles(ctx context_service.RequestContext) {
 //	@Failure	500
 //	@Router		/files [delete]
 func DeleteFiles(ctx context_service.RequestContext) {
-	params, err := net.ReadRequestBody[structs.FilesListParams](ctx.Req)
+	params, err := netwrk.ReadRequestBody[structs.FilesListParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 
@@ -1046,7 +1046,7 @@ func DeleteFiles(ctx context_service.RequestContext) {
 	}
 
 	if len(params.FileIDs) == 0 {
-		ctx.Error(http.StatusBadRequest, errors.New("No file ids provided"))
+		ctx.Error(http.StatusBadRequest, wlerrors.New("No file ids provided"))
 
 		return
 	}
@@ -1119,7 +1119,7 @@ const chunkChanSize = 10
 //	@Failure	500
 //	@Router		/upload [post]
 func NewUploadTask(ctx context_service.RequestContext) {
-	upInfo, err := net.ReadRequestBody[structs.NewUploadParams](ctx.Req)
+	upInfo, err := netwrk.ReadRequestBody[structs.NewUploadParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 
@@ -1170,7 +1170,7 @@ func NewUploadTask(ctx context_service.RequestContext) {
 func NewFileUpload(ctx context_service.RequestContext) {
 	uploadTaskID := ctx.Path("uploadID")
 
-	params, err := net.ReadRequestBody[structs.NewFilesParams](ctx.Req)
+	params, err := netwrk.ReadRequestBody[structs.NewFilesParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 
@@ -1179,14 +1179,14 @@ func NewFileUpload(ctx context_service.RequestContext) {
 
 	uTask := ctx.TaskService.GetTask(uploadTaskID)
 	if uTask == nil {
-		ctx.Error(http.StatusNotFound, errors.New("No upload task exists with the given id"))
+		ctx.Error(http.StatusNotFound, wlerrors.New("No upload task exists with the given id"))
 
 		return
 	}
 
 	completed, _ := uTask.Status()
 	if completed {
-		ctx.Error(http.StatusNotFound, errors.New("Upload task has already completed"))
+		ctx.Error(http.StatusNotFound, wlerrors.New("Upload task has already completed"))
 
 		return
 	}
@@ -1196,14 +1196,14 @@ func NewFileUpload(ctx context_service.RequestContext) {
 	for _, newFInfo := range params.NewFiles {
 		parent, err := ctx.FileService.GetFileByID(ctx, newFInfo.ParentFolderID)
 		if err != nil {
-			ctx.Error(http.StatusNotFound, errors.Wrap(err, "Could not find parent folder for new file"))
+			ctx.Error(http.StatusNotFound, wlerrors.Wrap(err, "Could not find parent folder for new file"))
 
 			return
 		}
 
 		child, _ := parent.GetChild(newFInfo.NewFileName)
 		if child != nil {
-			ctx.Error(http.StatusConflict, errors.New("File with the same name already exists in folder"))
+			ctx.Error(http.StatusConflict, wlerrors.New("File with the same name already exists in folder"))
 
 			return
 		}
@@ -1240,7 +1240,7 @@ func NewFileUpload(ctx context_service.RequestContext) {
 			},
 		)
 		if err != nil {
-			ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "Failed to add new file to upload task"))
+			ctx.Error(http.StatusInternalServerError, wlerrors.Wrap(err, "Failed to add new file to upload task"))
 
 			return
 		}
@@ -1273,7 +1273,7 @@ func HandleUploadChunk(ctx context_service.RequestContext) {
 
 	t := ctx.TaskService.GetTask(uploadID)
 	if t == nil {
-		ctx.Error(http.StatusNotFound, errors.New("No upload exists with given id"))
+		ctx.Error(http.StatusNotFound, wlerrors.New("No upload exists with given id"))
 
 		return
 	}
@@ -1328,7 +1328,7 @@ func HandleUploadChunk(ctx context_service.RequestContext) {
 		},
 	)
 	if err != nil {
-		ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "Failed to add chunk to upload task"))
+		ctx.Error(http.StatusInternalServerError, wlerrors.Wrap(err, "Failed to add chunk to upload task"))
 
 		return
 	}
@@ -1354,14 +1354,14 @@ func HandleUploadChunk(ctx context_service.RequestContext) {
 func GetUploadResult(ctx context_service.RequestContext) {
 	uploadID := ctx.Path("uploadID")
 	if uploadID == "" {
-		ctx.Error(http.StatusBadRequest, errors.New("Missing uploadID path parameter"))
+		ctx.Error(http.StatusBadRequest, wlerrors.New("Missing uploadID path parameter"))
 
 		return
 	}
 
 	t := ctx.TaskService.GetTask(uploadID)
 	if t == nil {
-		ctx.Error(http.StatusNotFound, errors.New("No upload task exists with the given id"))
+		ctx.Error(http.StatusNotFound, wlerrors.New("No upload task exists with the given id"))
 
 		return
 	}

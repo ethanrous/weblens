@@ -4,9 +4,9 @@ api.ts
 base.ts
 common.ts
 configuration.ts
+docs/APIKeyParams.md
+docs/APIKeysApi.md
 docs/AddUserParams.md
-docs/ApiKeyParams.md
-docs/ApiKeysApi.md
 docs/BackupInfo.md
 docs/Config.md
 docs/ConfigApi.md
@@ -46,8 +46,8 @@ docs/ShareInfo.md
 docs/StructsInitServerParams.md
 docs/StructsSetConfigParam.md
 docs/TakeoutInfo.md
+docs/TaskExitStatus.md
 docs/TaskInfo.md
-docs/TaskTaskExitStatus.md
 docs/TokenInfo.md
 docs/TowerInfo.md
 docs/TowersApi.md

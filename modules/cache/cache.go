@@ -4,15 +4,15 @@ package cache
 import (
 	"context"
 
-	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/viccon/sturdyc"
 )
 
 // ErrNotCacher is returned when the context does not implement the cacher interface.
-var ErrNotCacher = errors.Errorf("context does not implement cacher interface")
+var ErrNotCacher = wlerrors.Errorf("context does not implement cacher interface")
 
 // ErrNoCache is returned when the requested cache is not found.
-var ErrNoCache = errors.Errorf("cache not found")
+var ErrNoCache = wlerrors.Errorf("cache not found")
 
 type cacher interface {
 	GetCache(col string) *sturdyc.Client[any]
@@ -44,12 +44,12 @@ func GetOneAs[T any](ctx context.Context, cacheKey, itemKey string) (T, bool) {
 func SetOne[T any](ctx context.Context, cacheKey, itemKey string, item T) error {
 	cacheCtx, ok := ctx.(cacher)
 	if !ok {
-		return errors.WithStack(ErrNotCacher)
+		return wlerrors.WithStack(ErrNotCacher)
 	}
 
 	cache := cacheCtx.GetCache(cacheKey)
 	if cache == nil {
-		return errors.WithStack(ErrNoCache)
+		return wlerrors.WithStack(ErrNoCache)
 	}
 
 	cache.Set(itemKey, item)
@@ -61,12 +61,12 @@ func SetOne[T any](ctx context.Context, cacheKey, itemKey string, item T) error 
 func Drop(ctx context.Context, cacheKey string) error {
 	cacheCtx, ok := ctx.(cacher)
 	if !ok {
-		return errors.WithStack(ErrNotCacher)
+		return wlerrors.WithStack(ErrNotCacher)
 	}
 
 	cache := cacheCtx.GetCache(cacheKey)
 	if cache == nil {
-		return errors.WithStack(ErrNoCache)
+		return wlerrors.WithStack(ErrNoCache)
 	}
 
 	for _, k := range cache.ScanKeys() {

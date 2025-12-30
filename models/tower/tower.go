@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/models/db"
-	"github.com/ethanrous/weblens/modules/errors"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -28,22 +28,22 @@ const (
 )
 
 // ErrTowerNotFound is returned when a tower cannot be found.
-var ErrTowerNotFound = errors.New("no tower found")
+var ErrTowerNotFound = wlerrors.New("no tower found")
 
 // ErrTowerNotInitialized is returned when a tower has not been initialized.
-var ErrTowerNotInitialized = errors.New("tower not initialized")
+var ErrTowerNotInitialized = wlerrors.New("tower not initialized")
 
 // ErrTowerAlreadyInitialized is returned when attempting to initialize an already initialized tower.
-var ErrTowerAlreadyInitialized = errors.New("tower is already initialized")
+var ErrTowerAlreadyInitialized = wlerrors.New("tower is already initialized")
 
 // ErrTowerIsBackup is returned when a tower is a backup but shouldn't be.
-var ErrTowerIsBackup = errors.New("tower is a backup")
+var ErrTowerIsBackup = wlerrors.New("tower is a backup")
 
 // ErrTowerNotBackup is returned when a tower was expected to be a backup but is not.
-var ErrTowerNotBackup = errors.New("tower was expected to be a backup tower, but is not")
+var ErrTowerNotBackup = wlerrors.New("tower was expected to be a backup tower, but is not")
 
 // ErrNotCore is returned when a tower was expected to be a core but is not.
-var ErrNotCore = errors.New("tower was expected to be a core tower, but is not")
+var ErrNotCore = wlerrors.New("tower was expected to be a core tower, but is not")
 
 // Instance represents a Weblens tower.
 // For clarity: Core and Backup are "absolute" tower roles, and each tower
@@ -97,12 +97,12 @@ func CreateLocal(ctx context.Context) (t Instance, err error) {
 
 	col, err := db.GetCollection[any](ctx, TowerCollectionKey)
 	if err != nil {
-		return t, errors.WithStack(err)
+		return t, wlerrors.WithStack(err)
 	}
 
 	_, err = col.InsertOne(ctx, t)
 	if err != nil {
-		return t, errors.WithStack(err)
+		return t, wlerrors.WithStack(err)
 	}
 
 	return t, nil
@@ -112,12 +112,12 @@ func CreateLocal(ctx context.Context) (t Instance, err error) {
 func ResetLocal(ctx context.Context) (t Instance, err error) {
 	col, err := db.GetCollection[any](ctx, TowerCollectionKey)
 	if err != nil {
-		return t, errors.WithStack(err)
+		return t, wlerrors.WithStack(err)
 	}
 
 	_, err = col.DeleteMany(ctx, bson.M{"isThisTower": true})
 	if err != nil {
-		return t, errors.WithStack(err)
+		return t, wlerrors.WithStack(err)
 	}
 
 	return CreateLocal(ctx)
@@ -145,7 +145,7 @@ func SaveTower(ctx context.Context, tower *Instance) error {
 
 	_, err = col.InsertOne(ctx, tower)
 	if err != nil {
-		return errors.WithStack(err)
+		return wlerrors.WithStack(err)
 	}
 
 	return nil
@@ -160,11 +160,11 @@ func GetTowerByID(ctx context.Context, towerID string) (tower Instance, err erro
 
 	err = col.FindOne(ctx, bson.M{"towerID": towerID}).Decode(&tower)
 	if err != nil {
-		if errors.Is(err, mongo.ErrNoDocuments) {
+		if wlerrors.Is(err, mongo.ErrNoDocuments) {
 			return tower, ErrTowerNotFound
 		}
 
-		return tower, errors.WithStack(err)
+		return tower, wlerrors.WithStack(err)
 	}
 
 	return
@@ -211,7 +211,7 @@ func GetLocal(ctx context.Context) (t Instance, err error) {
 
 	err = col.FindOne(ctx, bson.M{"isThisTower": true}).Decode(&tower)
 	if err != nil {
-		return t, errors.WithStack(err)
+		return t, wlerrors.WithStack(err)
 	}
 
 	return tower, nil
@@ -235,7 +235,7 @@ func SetLastBackup(ctx context.Context, towerID string, lastBackup time.Time) er
 // UpdateTower updates a tower instance in the database.
 func UpdateTower(ctx context.Context, tower *Instance) error {
 	if tower.DbID.IsZero() {
-		return errors.New("tower DBID is not set")
+		return wlerrors.New("tower DBID is not set")
 	}
 
 	col, err := db.GetCollection[any](ctx, TowerCollectionKey)

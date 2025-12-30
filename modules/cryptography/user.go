@@ -1,10 +1,10 @@
-package crypto
+package cryptography
 
 import (
 	"context"
 	"time"
 
-	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -72,7 +72,7 @@ func GenerateJWT(username string) (string, time.Time, error) {
 // GetUsernameFromToken extracts and validates the username from a JWT token string.
 func GetUsernameFromToken(tokenStr string) (string, error) {
 	if tokenStr == "" {
-		return "", errors.New("no jwt provided")
+		return "", wlerrors.New("no jwt provided")
 	}
 
 	jwtToken, err := jwt.ParseWithClaims(
@@ -83,11 +83,11 @@ func GetUsernameFromToken(tokenStr string) (string, error) {
 		},
 	)
 	if err != nil {
-		if errors.Is(err, jwt.ErrTokenExpired) {
-			return "", errors.New("jwt expired")
+		if wlerrors.Is(err, jwt.ErrTokenExpired) {
+			return "", wlerrors.New("jwt expired")
 		}
 
-		return "", errors.WithStack(err)
+		return "", wlerrors.WithStack(err)
 	}
 
 	username := jwtToken.Claims.(*WlClaims).Username

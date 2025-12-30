@@ -1,5 +1,5 @@
-// Package net provides HTTP networking utilities for making requests and handling errors.
-package net
+// Package netwrk provides HTTP networking utilities for making requests and handling errors.
+package netwrk
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"io"
 	"net/http"
 
-	context_mod "github.com/ethanrous/weblens/modules/context"
+	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 )
 
 // Error represents an error response from an HTTP request.

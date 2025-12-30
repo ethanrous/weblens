@@ -18,7 +18,7 @@ package auth_test
 //
 // 	logger := log.NewZeroLogger()
 //
-// 	keysCol := mondb.Collection(string(database.ApiKeysCollectionKey) + "-" + t.Name())
+// 	keysCol := mondb.Collection(string(database.APIKeysCollectionKey) + "-" + t.Name())
 // 	err := keysCol.Drop(context.Background())
 // 	if err != nil {
 // 		logger.Error().Stack().Err(err).Msg("")
@@ -89,12 +89,12 @@ package auth_test
 // 	assert.True(t, acc.CanUserAccessFile(weblensRootUser, billHome, nil))
 // }
 //
-// func TestAccessServiceImpl_GenerateApiKey(t *testing.T) {
+// func TestAccessServiceImpl_GenerateAPIKey(t *testing.T) {
 // 	t.Parallel()
 //
 // 	logger := log.NewZeroLogger()
 //
-// 	keysCol := mondb.Collection(string(database.ApiKeysCollectionKey) + "-" + t.Name())
+// 	keysCol := mondb.Collection(string(database.APIKeysCollectionKey) + "-" + t.Name())
 // 	err := keysCol.Drop(context.Background())
 // 	if err != nil {
 // 		logger.Error().Stack().Err(err).Msg("")
@@ -127,21 +127,21 @@ package auth_test
 //
 // 	local := models.NewInstance("", "test-instance", "", models.CoreServerRole, true, "", "")
 //
-// 	key, err := acc.GenerateApiKey(billUser, local, "test-key")
+// 	key, err := acc.GenerateAPIKey(billUser, local, "test-key")
 // 	require.NoError(t, err)
 // 	assert.Equal(t, billUser.Username, key.Owner)
 //
-// 	fetchedKey, err := acc.GetApiKey(key.Key)
+// 	fetchedKey, err := acc.GetAPIKey(key.Key)
 // 	require.NoError(t, err)
 //
 // 	if !assert.NotNil(t, fetchedKey) {
 // 		t.FailNow()
 // 	}
 //
-// 	err = acc.DeleteApiKey(key.Key)
+// 	err = acc.DeleteAPIKey(key.Key)
 // 	require.NoError(t, err)
 //
-// 	_, err = acc.GetApiKey(key.Key)
+// 	_, err = acc.GetAPIKey(key.Key)
 // 	assert.Error(t, err)
 // }
 //
@@ -150,7 +150,7 @@ package auth_test
 //
 // 	logger := log.NewZeroLogger()
 //
-// 	keysCol := mondb.Collection(string(database.ApiKeysCollectionKey) + "-" + t.Name())
+// 	keysCol := mondb.Collection(string(database.APIKeysCollectionKey) + "-" + t.Name())
 // 	err := keysCol.Drop(context.Background())
 // 	if err != nil {
 // 		logger.Error().Stack().Err(err).Msg("")
@@ -183,7 +183,7 @@ package auth_test
 //
 // 	local := models.NewInstance("", "test-instance", "", models.CoreServerRole, true, "", "")
 //
-// 	key, err := acc.GenerateApiKey(billUser, local, "test-key")
+// 	key, err := acc.GenerateAPIKey(billUser, local, "test-key")
 // 	require.NoError(t, err)
 //
 // 	backupServer := models.NewInstance("", "test-instance", key.Key, models.BackupServerRole, false, "", t.Name())
@@ -191,7 +191,7 @@ package auth_test
 // 	err = acc.SetKeyUsedBy(key.Key, backupServer)
 // 	require.NoError(t, err)
 //
-// 	fetchedKey, err := acc.GetApiKey(key.Key)
+// 	fetchedKey, err := acc.GetAPIKey(key.Key)
 // 	require.NoError(t, err)
 //
 // 	assert.Equal(t, backupServer.ServerID(), fetchedKey.RemoteUsing)

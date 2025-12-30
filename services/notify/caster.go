@@ -7,10 +7,10 @@ import (
 
 	file_model "github.com/ethanrous/weblens/models/file"
 	task_model "github.com/ethanrous/weblens/models/task"
-	"github.com/ethanrous/weblens/modules/errors"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
-	context_service "github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/reshape"
 	"github.com/rs/zerolog/log"
 )
@@ -84,7 +84,7 @@ func NewFileNotification(
 	}
 
 	if file.ID() == "" {
-		err = errors.Errorf("File ID is empty")
+		err = wlerrors.Errorf("File ID is empty")
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to create new file notification")
 
 		return []websocket_mod.WsResponseInfo{}

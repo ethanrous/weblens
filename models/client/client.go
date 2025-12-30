@@ -12,9 +12,9 @@ import (
 
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
-	"github.com/ethanrous/weblens/modules/context"
-	"github.com/ethanrous/weblens/modules/errors"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
+	"github.com/ethanrous/weblens/modules/wlcontext"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog"
@@ -45,7 +45,7 @@ const (
 )
 
 // NewClient creates a new websocket client instance.
-func NewClient(ctx context.LoggerContext, conn *websocket.Conn, socketUser SocketUser) *WsClient {
+func NewClient(ctx wlcontext.LoggerContext, conn *websocket.Conn, socketUser SocketUser) *WsClient {
 	clientID := uuid.New().String()
 
 	newClient := &WsClient{
@@ -111,7 +111,7 @@ func (wsc *WsClient) GetInstance() *tower_model.Instance {
 // ReadOne reads a single message from the websocket connection.
 func (wsc *WsClient) ReadOne() (int, []byte, error) {
 	if wsc.conn == nil || !wsc.Active.Load() {
-		return 0, nil, errors.Errorf("client is closed")
+		return 0, nil, wlerrors.Errorf("client is closed")
 	}
 
 	return wsc.conn.ReadMessage()
@@ -194,10 +194,10 @@ func (wsc *WsClient) Send(msg websocket_mod.WsResponseInfo) error {
 
 		err := wsc.conn.WriteJSON(msg)
 		if err != nil {
-			return errors.WithStack(err)
+			return wlerrors.WithStack(err)
 		}
 	} else {
-		return errors.Errorf("trying to send to closed client")
+		return wlerrors.Errorf("trying to send to closed client")
 	}
 
 	return nil
@@ -211,7 +211,7 @@ func (wsc *WsClient) Disconnect() {
 	defer wsc.updateMu.Unlock()
 
 	err := wsc.conn.Close()
-	if err != nil && !errors.Is(err, net.ErrClosed) {
+	if err != nil && !wlerrors.Is(err, net.ErrClosed) {
 		wsc.log.Error().Stack().Err(err).Msg("")
 
 		return

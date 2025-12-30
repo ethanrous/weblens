@@ -8,7 +8,7 @@ import (
 
 	"github.com/ethanrous/weblens/models/db"
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson"
@@ -54,14 +54,14 @@ func TestContextualizedCollection_Basic(t *testing.T) {
 		collection, err := db.GetCollection[any](context.Background(), testCollectionKey)
 		assert.Error(t, err)
 		assert.Nil(t, collection)
-		assert.True(t, errors.Is(err, db.ErrNoDatabase))
+		assert.True(t, wlerrors.Is(err, db.ErrNoDatabase))
 	})
 
 	t.Run("GetCollection_NilContext", func(t *testing.T) {
 		collection, err := db.GetCollection[any](context.TODO(), testCollectionKey)
 		assert.Error(t, err)
 		assert.Nil(t, collection)
-		assert.True(t, errors.Is(err, db.ErrNoDatabase))
+		assert.True(t, wlerrors.Is(err, db.ErrNoDatabase))
 	})
 }
 
@@ -368,7 +368,7 @@ func TestContextualizedCollection_Transactions(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			return errors.New("force rollback")
+			return wlerrors.New("force rollback")
 		})
 		assert.Error(t, err)
 

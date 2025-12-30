@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/errors"
-	"github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/rs/zerolog/log"
 )
 
@@ -23,7 +23,7 @@ type InMemoryFS struct {
 
 	proxyAddress string
 	uiPath       string
-	ctx          context.AppContext
+	ctx          ctxservice.AppContext
 }
 
 // Open opens the named file from the in-memory filesystem, implementing the http.FileSystem interface.
@@ -31,7 +31,7 @@ func (fs *InMemoryFS) Open(name string) (http.File, error) {
 	log.Trace().Msgf("MemFs Opening file: %s", name)
 
 	if name == "/index" {
-		return nil, errors.New("index.html should be provided through the template")
+		return nil, wlerrors.New("index.html should be provided through the template")
 	}
 
 	var f *memFileReal
@@ -124,7 +124,7 @@ type indexFields struct {
 }
 
 // Index returns the index.html file with template fields populated based on the request context.
-func (fs InMemoryFS) Index(ctx context.RequestContext) *MemFileWrap {
+func (fs InMemoryFS) Index(ctx ctxservice.RequestContext) *MemFileWrap {
 	index := newWrapFile(fs.index.Copy())
 	fields := getIndexFields(ctx, fs.proxyAddress)
 
@@ -154,7 +154,7 @@ func (fs *InMemoryFS) loadIndex(uiDir string) string {
 
 	fs.index = readFile(indexPath, fs)
 	if !fs.index.exists {
-		panic(errors.Errorf("Could not find index file at %s", indexPath))
+		panic(wlerrors.Errorf("Could not find index file at %s", indexPath))
 	}
 
 	fs.uiPath = uiDir

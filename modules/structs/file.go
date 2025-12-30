@@ -38,7 +38,7 @@ type NewFileInfo struct {
 
 // NewFilesInfo represents the response containing multiple newly created file identifiers.
 type NewFilesInfo struct {
-	FileIDs []string `json:"fileIds"`
+	FileIDs []string `json:"fileIDs"`
 } // @name NewFilesInfo
 
 // RestoreFilesInfo represents the response containing the new parent identifier after restoring files.

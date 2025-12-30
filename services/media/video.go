@@ -9,8 +9,8 @@ import (
 
 	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
-	"github.com/ethanrous/weblens/modules/errors"
-	context_service "github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
 
@@ -18,11 +18,11 @@ import (
 func StreamVideo(ctx context.Context, m *media_model.Media) (*media_model.VideoStreamer, error) {
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
-		return nil, errors.WithStack(context_service.ErrNoContext)
+		return nil, wlerrors.WithStack(context_service.ErrNoContext)
 	}
 
 	if !media_model.ParseMime(m.MimeType).IsVideo {
-		return nil, errors.WithStack(ErrMediaNotVideo)
+		return nil, wlerrors.WithStack(ErrMediaNotVideo)
 	}
 
 	cache := appCtx.GetCache(videoStreamerContextKey)
@@ -58,7 +58,7 @@ func generateVideoThumbnail(filepath string) ([]byte, error) {
 		"pipe:", ffmpeg.KwArgs{"frames:v": 1, "format": "image2", "vcodec": "mjpeg"},
 	).WithOutput(buf).WithErrorOutput(errOut).Run()
 	if err != nil {
-		return nil, errors.WithStack(errors.New(err.Error() + errOut.String()))
+		return nil, wlerrors.WithStack(wlerrors.New(err.Error() + errOut.String()))
 	}
 
 	return buf.Bytes(), nil
@@ -79,7 +79,7 @@ func getVideoDurationMs(filepath string) (int, error) {
 
 	formatChunk, ok := probeResult["format"].(map[string]any)
 	if !ok {
-		return 0, errors.Errorf("invalid movie format")
+		return 0, wlerrors.Errorf("invalid movie format")
 	}
 
 	duration, err := strconv.ParseFloat(formatChunk["duration"].(string), 32)

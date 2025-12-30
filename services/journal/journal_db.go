@@ -7,7 +7,7 @@ import (
 
 	"github.com/ethanrous/weblens/models/db"
 	"github.com/ethanrous/weblens/models/history"
-	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -29,14 +29,14 @@ func getActionsSince(ctx context.Context, date time.Time, serverID string) ([]*h
 
 	ret, err := col.Aggregate(context.Background(), pipe)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, wlerrors.WithStack(err)
 	}
 
 	var target []*history.FileAction
 
 	err = ret.All(context.Background(), &target)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, wlerrors.WithStack(err)
 	}
 
 	return target, nil
@@ -64,14 +64,14 @@ func getActionsPage(ctx context.Context, pageSize, pageNum int, _ string) ([]his
 
 	ret, err := col.Aggregate(ctx, pipe)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, wlerrors.WithStack(err)
 	}
 
 	var target []history.FileAction
 
 	err = ret.All(context.Background(), &target)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, wlerrors.WithStack(err)
 	}
 
 	return target, nil

@@ -5,7 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**fileIds** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
+**fileIDs** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
 
 ## Example
 
@@ -13,7 +13,7 @@ Name | Type | Description | Notes
 import { NewFilesInfo } from './api';
 
 const instance: NewFilesInfo = {
-    fileIds,
+    fileIDs,
 };
 ```
 

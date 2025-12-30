@@ -9,10 +9,10 @@ import (
 	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/history"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/option"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -75,7 +75,7 @@ func getPastFileIDAtPath(ctx context.Context, path fs.Filepath, time time.Time) 
 	}
 
 	if len(actions) != 1 {
-		return "", errors.Errorf("could not determine past file ID at path [%s] (ambiguous, %d actions found)", path, len(actions))
+		return "", wlerrors.Errorf("could not determine past file ID at path [%s] (ambiguous, %d actions found)", path, len(actions))
 	}
 
 	lastAction := actions[len(actions)-1]
@@ -219,14 +219,14 @@ func GetActionsByPathSince(ctx context.Context, path fs.Filepath, since time.Tim
 
 	ret, err := col.Aggregate(context.Background(), pipe)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, wlerrors.WithStack(err)
 	}
 
 	var target []history.FileAction
 
 	err = ret.All(context.Background(), &target)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, wlerrors.WithStack(err)
 	}
 
 	return target, nil
@@ -259,14 +259,14 @@ func GetAllActionsByTowerID(ctx context.Context, towerID string) ([]*history.Fil
 
 	ret, err := col.Aggregate(context.Background(), pipe)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, wlerrors.WithStack(err)
 	}
 
 	var target []*history.FileAction
 
 	err = ret.All(context.Background(), &target)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, wlerrors.WithStack(err)
 	}
 
 	return target, nil
@@ -289,7 +289,7 @@ func GetLatestPathByID(ctx context.Context, fileID string) (fs.Filepath, error) 
 
 	ret, err := col.Aggregate(ctx, pipe)
 	if err != nil {
-		return fs.Filepath{}, errors.WithStack(err)
+		return fs.Filepath{}, wlerrors.WithStack(err)
 	}
 
 	var result struct {
@@ -298,12 +298,12 @@ func GetLatestPathByID(ctx context.Context, fileID string) (fs.Filepath, error) 
 	}
 
 	if !ret.Next(ctx) {
-		return fs.Filepath{}, errors.New("no results found")
+		return fs.Filepath{}, wlerrors.New("no results found")
 	}
 
 	err = ret.Decode(&result)
 	if err != nil {
-		return fs.Filepath{}, errors.WithStack(err)
+		return fs.Filepath{}, wlerrors.WithStack(err)
 	}
 
 	if result.DestinationPath != "" {

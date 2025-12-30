@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/log"
 	task_mod "github.com/ethanrous/weblens/modules/task"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/rs/zerolog"
 )
 
@@ -276,7 +276,7 @@ func (t *Task) ReqNoErr(err error) {
 // function to exit the task with the error that is set, and not treat it as a real panic.
 func (t *Task) Fail(err error) {
 	if err == nil {
-		panic(errors.Errorf("Trying to fail task with nil error"))
+		panic(wlerrors.Errorf("Trying to fail task with nil error"))
 	}
 
 	t.error(err)
@@ -327,7 +327,7 @@ func (t *Task) ReadError() error {
 	case error:
 		return t.err
 	default:
-		return errors.Errorf("%s", t.err)
+		return wlerrors.Errorf("%s", t.err)
 	}
 }
 

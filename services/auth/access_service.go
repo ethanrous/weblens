@@ -12,23 +12,23 @@ import (
 	file_model "github.com/ethanrous/weblens/models/file"
 	share_model "github.com/ethanrous/weblens/models/share"
 	user_model "github.com/ethanrous/weblens/models/user"
-	"github.com/ethanrous/weblens/modules/crypto"
-	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/cryptography"
 	"github.com/ethanrous/weblens/modules/log"
-	context_service "github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 )
 
 // ErrBadAuthHeader is returned when the Authorization header has an invalid format.
-var ErrBadAuthHeader = errors.Statusf(http.StatusBadRequest, "invalid auth header format")
+var ErrBadAuthHeader = wlerrors.Statusf(http.StatusBadRequest, "invalid auth header format")
 
 // ErrMustAuthenticate is returned when authentication is required but not provided.
-var ErrMustAuthenticate = errors.Statusf(http.StatusUnauthorized, "user must authenticate to access this resource")
+var ErrMustAuthenticate = wlerrors.Statusf(http.StatusUnauthorized, "user must authenticate to access this resource")
 
 // ErrFileAccessNotPermitted is returned when a user lacks permission to access a file.
-var ErrFileAccessNotPermitted = errors.Statusf(http.StatusForbidden, "file access not permitted")
+var ErrFileAccessNotPermitted = wlerrors.Statusf(http.StatusForbidden, "file access not permitted")
 
 // ErrShareDoesNotPermitFile is returned when a share does not grant access to a specific file.
-var ErrShareDoesNotPermitFile = errors.Statusf(http.StatusForbidden, "share does not permit access to this file")
+var ErrShareDoesNotPermitFile = wlerrors.Statusf(http.StatusForbidden, "share does not permit access to this file")
 
 func doesSharePermitFile(_ context.Context, file *file_model.WeblensFileImpl, share *share_model.FileShare) bool {
 	if share == nil || !share.Enabled || file.IsPastFile() {
@@ -57,7 +57,7 @@ func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_mo
 			return share_model.NewPermissions(), nil
 		}
 
-		return &share_model.Permissions{}, errors.Statusf(http.StatusForbidden, "cannot access the USERS root path")
+		return &share_model.Permissions{}, wlerrors.Statusf(http.StatusForbidden, "cannot access the USERS root path")
 	}
 
 	ownerName, err := file_model.GetFileOwnerName(ctx, file)
@@ -79,7 +79,7 @@ func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_mo
 			shareID = share.ShareID.Hex()
 		}
 
-		return &share_model.Permissions{}, errors.Errorf("invalid share [%s] for file [%s]: %w", shareID, file.ID(), ErrShareDoesNotPermitFile)
+		return &share_model.Permissions{}, wlerrors.Errorf("invalid share [%s] for file [%s]: %w", shareID, file.ID(), ErrShareDoesNotPermitFile)
 	}
 
 	if user == nil || user.IsPublic() {
@@ -122,7 +122,7 @@ func CanUserModifyShare(user *user_model.User, share share_model.FileShare) bool
 // SetSessionToken generates and sets session cookies for the authenticated user.
 func SetSessionToken(ctx context_service.RequestContext) error {
 	if ctx.Requester == nil {
-		return errors.New("requester is nil")
+		return wlerrors.New("requester is nil")
 	}
 
 	sessionCookie, err := GenerateJWTCookie(ctx.Requester)
@@ -140,12 +140,12 @@ func SetSessionToken(ctx context_service.RequestContext) error {
 
 // GenerateJWTCookie creates a session cookie containing a JWT for the user.
 func GenerateJWTCookie(user *user_model.User) (string, error) {
-	token, expires, err := crypto.GenerateJWT(user.GetUsername())
+	token, expires, err := cryptography.GenerateJWT(user.GetUsername())
 	if err != nil {
 		return "", err
 	}
 
-	cookie := fmt.Sprintf("%s=%s;Path=/;Expires=%s;HttpOnly", crypto.SessionTokenCookie, token, expires.Format(time.RFC1123))
+	cookie := fmt.Sprintf("%s=%s;Path=/;Expires=%s;HttpOnly", cryptography.SessionTokenCookie, token, expires.Format(time.RFC1123))
 
 	return cookie, nil
 }
@@ -153,14 +153,14 @@ func GenerateJWTCookie(user *user_model.User) (string, error) {
 // GenerateUserCookie creates a cookie containing the username.
 func GenerateUserCookie(user *user_model.User) string {
 	expires := time.Now().Add(time.Hour * 24 * 7).In(time.UTC)
-	cookie := fmt.Sprintf("%s=%s;Path=/;Expires=%s;HttpOnly", crypto.UserCrumbCookie, user.Username, expires.Format(time.RFC1123))
+	cookie := fmt.Sprintf("%s=%s;Path=/;Expires=%s;HttpOnly", cryptography.UserCrumbCookie, user.Username, expires.Format(time.RFC1123))
 
 	return cookie
 }
 
 // GetUserFromJWT extracts and validates a user from a JWT token string.
 func GetUserFromJWT(ctx context.Context, tokenStr string) (*user_model.User, error) {
-	username, err := crypto.GetUsernameFromToken(tokenStr)
+	username, err := cryptography.GetUsernameFromToken(tokenStr)
 	if err != nil {
 		return nil, err
 	}
@@ -176,17 +176,17 @@ func GetUserFromJWT(ctx context.Context, tokenStr string) (*user_model.User, err
 // GetUserFromAuthHeader extracts and validates a user from an Authorization header.
 func GetUserFromAuthHeader(ctx context.Context, authHeader string) (*user_model.User, error) {
 	if len(authHeader) < 7 || authHeader[:7] != "Bearer " {
-		return nil, errors.WrapStatus(http.StatusBadRequest, ErrBadAuthHeader)
+		return nil, wlerrors.WrapStatus(http.StatusBadRequest, ErrBadAuthHeader)
 	}
 
 	_, err := fmt.Sscanf(authHeader, "Bearer %s", &authHeader)
 	if err != nil {
-		return nil, errors.WrapStatus(http.StatusInternalServerError, err)
+		return nil, wlerrors.WrapStatus(http.StatusInternalServerError, err)
 	}
 
 	tokenByteSlice, err := base64.StdEncoding.DecodeString(authHeader)
 	if err != nil {
-		return nil, errors.WrapStatus(http.StatusInternalServerError, err)
+		return nil, wlerrors.WrapStatus(http.StatusInternalServerError, err)
 	}
 
 	var tokenBytes [32]byte
@@ -206,7 +206,7 @@ func GetUserFromAuthHeader(ctx context.Context, authHeader string) (*user_model.
 	return u, nil
 }
 
-// func (accSrv *AccessServiceImpl) SetKeyUsedBy(key models.WeblensApiKey, remote *models.Instance) error {
+// func (accSrv *AccessServiceImpl) SetKeyUsedBy(key models.WeblensAPIKey, remote *models.Instance) error {
 // 	accSrv.keyMapMu.RLock()
 // 	keyInfo, ok := accSrv.apiKeyMap[key]
 // 	accSrv.keyMapMu.RUnlock()

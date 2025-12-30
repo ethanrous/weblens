@@ -6,10 +6,10 @@ import (
 	"github.com/ethanrous/weblens/models/db"
 	share_model "github.com/ethanrous/weblens/models/share"
 	user_model "github.com/ethanrous/weblens/models/user"
-	"github.com/ethanrous/weblens/modules/errors"
-	"github.com/ethanrous/weblens/modules/net"
+	"github.com/ethanrous/weblens/modules/netwrk"
 	"github.com/ethanrous/weblens/modules/structs"
-	"github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/services/ctxservice"
 	file_service "github.com/ethanrous/weblens/services/file"
 	"github.com/ethanrous/weblens/services/reshape"
 )
@@ -25,8 +25,8 @@ import (
 //	@Success	200		{object}	structs.ShareInfo		"New File Share"
 //	@Success	409
 //	@Router		/share/file [post]
-func CreateFileShare(ctx context.RequestContext) {
-	shareParams, err := net.ReadRequestBody[structs.FileShareParams](ctx.Req)
+func CreateFileShare(ctx ctxservice.RequestContext) {
+	shareParams, err := netwrk.ReadRequestBody[structs.FileShareParams](ctx.Req)
 	if err != nil {
 		return
 	}
@@ -47,7 +47,7 @@ func CreateFileShare(ctx context.RequestContext) {
 
 	if owner.GetUsername() != ctx.Requester.GetUsername() {
 		// TODO: Obfuscate error message so that it doesn't leak information about existing files
-		ctx.Error(http.StatusNotFound, errors.New("you are not the owner of this file"))
+		ctx.Error(http.StatusNotFound, wlerrors.New("you are not the owner of this file"))
 
 		return
 	}
@@ -154,7 +154,7 @@ func CreateFileShare(ctx context.RequestContext) {
 //	@Success	200		{object}	structs.ShareInfo	"File Share"
 //	@Failure	404
 //	@Router		/share/{shareID} [get]
-func GetFileShare(ctx context.RequestContext) {
+func GetFileShare(ctx ctxservice.RequestContext) {
 	shareID := share_model.IDFromString(ctx.Path("shareID"))
 
 	share, err := share_model.GetShareByID(ctx, shareID)
@@ -182,7 +182,7 @@ func GetFileShare(ctx context.RequestContext) {
 //	@Success	200
 //	@Failure	404
 //	@Router		/share/{shareID}/public [patch]
-func SetSharePublic(ctx context.RequestContext) {
+func SetSharePublic(ctx ctxservice.RequestContext) {
 	shareID := share_model.IDFromString(ctx.Path("shareID"))
 
 	share, err := share_model.GetShareByID(ctx, shareID)
@@ -194,7 +194,7 @@ func SetSharePublic(ctx context.RequestContext) {
 
 	publicStr := ctx.Query("public")
 	if publicStr != "true" && publicStr != "false" {
-		ctx.Error(http.StatusBadRequest, errors.New("public query parameter must be 'true' or 'false'"))
+		ctx.Error(http.StatusBadRequest, wlerrors.New("public query parameter must be 'true' or 'false'"))
 
 		return
 	}
@@ -221,7 +221,7 @@ func SetSharePublic(ctx context.RequestContext) {
 //	@Success	200		{object}	structs.ShareInfo
 //	@Failure	404
 //	@Router		/share/{shareID}/accessors [post]
-func AddUserToShare(ctx context.RequestContext) {
+func AddUserToShare(ctx ctxservice.RequestContext) {
 	shareID := share_model.IDFromString(ctx.Path("shareID"))
 
 	share, err := share_model.GetShareByID(ctx, shareID)
@@ -231,7 +231,7 @@ func AddUserToShare(ctx context.RequestContext) {
 		return
 	}
 
-	addUserBody, err := net.ReadRequestBody[structs.AddUserParams](ctx.Req)
+	addUserBody, err := netwrk.ReadRequestBody[structs.AddUserParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 
@@ -251,7 +251,7 @@ func AddUserToShare(ctx context.RequestContext) {
 
 		return
 	} else if !exists {
-		ctx.Error(http.StatusNotFound, errors.New("user does not exist"))
+		ctx.Error(http.StatusNotFound, wlerrors.New("user does not exist"))
 
 		return
 	}
@@ -279,7 +279,7 @@ func AddUserToShare(ctx context.RequestContext) {
 //	@Success	200			{object}	structs.ShareInfo
 //	@Failure	404
 //	@Router		/share/{shareID}/accessors/{username} [delete]
-func RemoveUserFromShare(ctx context.RequestContext) {
+func RemoveUserFromShare(ctx ctxservice.RequestContext) {
 	shareID := share_model.IDFromString(ctx.Path("shareID"))
 
 	share, err := share_model.GetShareByID(ctx, shareID)
@@ -293,7 +293,7 @@ func RemoveUserFromShare(ctx context.RequestContext) {
 
 	perms := share.GetUserPermissions(username)
 	if perms == nil {
-		ctx.Error(http.StatusNotFound, errors.New("share does not include user"))
+		ctx.Error(http.StatusNotFound, wlerrors.New("share does not include user"))
 
 		return
 	}
@@ -322,7 +322,7 @@ func RemoveUserFromShare(ctx context.RequestContext) {
 //	@Success	200			{object}	structs.ShareInfo
 //	@Failure	404
 //	@Router		/share/{shareID}/accessors/{username} [patch]
-func SetShareAccessors(ctx context.RequestContext) {
+func SetShareAccessors(ctx ctxservice.RequestContext) {
 	shareID := share_model.IDFromString(ctx.Path("shareID"))
 
 	share, err := share_model.GetShareByID(ctx, shareID)
@@ -332,7 +332,7 @@ func SetShareAccessors(ctx context.RequestContext) {
 		return
 	}
 
-	permissionsBody, err := net.ReadRequestBody[structs.PermissionsParams](ctx.Req)
+	permissionsBody, err := netwrk.ReadRequestBody[structs.PermissionsParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 
@@ -343,7 +343,7 @@ func SetShareAccessors(ctx context.RequestContext) {
 
 	existingPerms := share.GetUserPermissions(username)
 	if existingPerms == nil {
-		ctx.Error(http.StatusNotFound, errors.New("user does not exist"))
+		ctx.Error(http.StatusNotFound, wlerrors.New("user does not exist"))
 
 		return
 	}
@@ -383,7 +383,7 @@ func SetShareAccessors(ctx context.RequestContext) {
 //	@Success	200
 //	@Failure	404
 //	@Router		/share/{shareID} [delete]
-func DeleteShare(ctx context.RequestContext) {
+func DeleteShare(ctx ctxservice.RequestContext) {
 	shareID := share_model.IDFromString(ctx.Path("shareID"))
 
 	err := share_model.DeleteShare(ctx, shareID)

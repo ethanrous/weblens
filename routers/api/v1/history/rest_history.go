@@ -10,9 +10,9 @@ import (
 	"github.com/ethanrous/weblens/models/history"
 	"github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/models/user"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/structs"
-	"github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/journal"
 	"github.com/ethanrous/weblens/services/reshape"
 )
@@ -31,23 +31,23 @@ import (
 //	@Failure	404
 //	@Failure	500
 //	@Router		/tower/backup [get]
-func DoFullBackup(ctx context.RequestContext) {
+func DoFullBackup(ctx ctxservice.RequestContext) {
 	if ctx.Remote.TowerID == "" {
-		ctx.Error(http.StatusUnauthorized, errors.New("missing tower in request context"))
+		ctx.Error(http.StatusUnauthorized, wlerrors.New("missing tower in request context"))
 
 		return
 	}
 
 	millisString := ctx.Query("timestamp")
 	if millisString == "" {
-		ctx.Error(http.StatusBadRequest, errors.New("missing timestamp"))
+		ctx.Error(http.StatusBadRequest, wlerrors.New("missing timestamp"))
 
 		return
 	}
 
 	millis, err := strconv.ParseInt(millisString, 10, 64)
 	if err != nil || millis < 0 {
-		ctx.Error(http.StatusBadRequest, errors.New("invalid timestamp"))
+		ctx.Error(http.StatusBadRequest, wlerrors.New("invalid timestamp"))
 
 		return
 	}
@@ -56,21 +56,21 @@ func DoFullBackup(ctx context.RequestContext) {
 
 	fileActions, err := history.GetActionsAfter(ctx, since)
 	if err != nil {
-		ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "failed to get actions"))
+		ctx.Error(http.StatusInternalServerError, wlerrors.Wrap(err, "failed to get actions"))
 
 		return
 	}
 
 	users, err := user.GetAllUsers(ctx)
 	if err != nil {
-		ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "failed to get users"))
+		ctx.Error(http.StatusInternalServerError, wlerrors.Wrap(err, "failed to get users"))
 
 		return
 	}
 
 	towers, err := tower.GetAllTowersByTowerID(ctx, ctx.LocalTowerID)
 	if err != nil {
-		ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "failed to get towers"))
+		ctx.Error(http.StatusInternalServerError, wlerrors.Wrap(err, "failed to get towers"))
 
 		return
 	}
@@ -110,24 +110,24 @@ func DoFullBackup(ctx context.RequestContext) {
 //	@Failure	404
 //	@Failure	500
 //	@Router		/tower/history [get]
-func GetPagedHistoryActions(ctx context.RequestContext) {
+func GetPagedHistoryActions(ctx ctxservice.RequestContext) {
 	page, err := ctx.QueryInt("page")
 	if err != nil {
-		ctx.Error(http.StatusBadRequest, errors.New("invalid page number"))
+		ctx.Error(http.StatusBadRequest, wlerrors.New("invalid page number"))
 
 		return
 	}
 
 	pageSize, err := ctx.QueryIntDefault("pageSize", 50)
 	if err != nil {
-		ctx.Error(http.StatusBadRequest, errors.New("invalid page size"))
+		ctx.Error(http.StatusBadRequest, wlerrors.New("invalid page size"))
 
 		return
 	}
 
 	actions, err := journal.GetActionsPage(ctx, int(pageSize), int(page))
 	if err != nil {
-		ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "failed to get actions"))
+		ctx.Error(http.StatusInternalServerError, wlerrors.Wrap(err, "failed to get actions"))
 
 		return
 	}

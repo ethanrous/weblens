@@ -12,12 +12,12 @@ import (
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/startup"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	v1 "github.com/ethanrous/weblens/routers/api/v1"
 	"github.com/ethanrous/weblens/routers/router"
 	"github.com/ethanrous/weblens/routers/web"
-	context_service "github.com/ethanrous/weblens/services/context"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	file_service "github.com/ethanrous/weblens/services/file"
 	"github.com/ethanrous/weblens/services/jobs"
 	"github.com/ethanrous/weblens/services/notify"
@@ -28,7 +28,7 @@ import (
 
 func startupRecover(l zerolog.Logger) {
 	if r := recover(); r != nil {
-		err := errors.Errorf("%v", r)
+		err := wlerrors.Errorf("%v", r)
 		l.Fatal().Stack().Err(err).Msgf("Startup failed:")
 	}
 }
@@ -76,7 +76,7 @@ func Startup(ctx context_service.AppContext, cnf config.Provider) (*router.Route
 
 	ctx.DB = mongo
 
-	fileService, err := file_service.NewFileService(nil)
+	fileService, err := file_service.NewFileService(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -94,10 +94,14 @@ func Startup(ctx context_service.AppContext, cnf config.Provider) (*router.Route
 	var local tower_model.Instance
 
 	if local, err = loadState(ctx); err != nil {
-		ctx.Log().Fatal().Stack().Err(err).Msg("Failed to load initial state")
+		return nil, wlerrors.Errorf("Failed to load initial state: %w", err)
 	}
 
 	ctx.LocalTowerID = local.TowerID
+	if local.TowerID == "" {
+		return nil, wlerrors.Errorf("Local tower ID is empty after load")
+	}
+
 	ctx = ctx.WithValue("towerID", local.TowerID)
 
 	if local.Role == tower_model.RoleBackup {
@@ -137,7 +141,7 @@ func loadState(ctx context_service.AppContext) (local tower_model.Instance, err 
 
 		local, err = tower_model.CreateLocal(ctx)
 		if err != nil {
-			return local, errors.Wrap(err, "Failed to create local instance")
+			return local, wlerrors.Wrap(err, "Failed to create local instance")
 		}
 	}
 
@@ -150,7 +154,7 @@ func loadState(ctx context_service.AppContext) (local tower_model.Instance, err 
 
 			local, err = tower_model.ResetLocal(ctx)
 			if err != nil {
-				return local, errors.Wrap(err, "Failed to reset local instance")
+				return local, wlerrors.Wrap(err, "Failed to reset local instance")
 			}
 		}
 	}

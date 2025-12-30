@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/ethanrous/weblens/models/db"
-	"github.com/ethanrous/weblens/modules/crypto"
-	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/cryptography"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -21,7 +21,7 @@ func SaveUser(ctx context.Context, u *User) (err error) {
 		return err
 	}
 
-	if u.Password, err = crypto.HashUserPassword(ctx, u.Password); err != nil {
+	if u.Password, err = cryptography.HashUserPassword(ctx, u.Password); err != nil {
 		return err
 	}
 
@@ -89,7 +89,7 @@ func GetAllUsers(ctx context.Context) (us []*User, err error) {
 		return
 	}
 
-	err = errors.WithStack(res.All(ctx, &us))
+	err = wlerrors.WithStack(res.All(ctx, &us))
 
 	return
 }
@@ -120,7 +120,7 @@ func (u *User) UpdatePassword(ctx context.Context, newPass string) (err error) {
 		return
 	}
 
-	if u.Password, err = crypto.HashUserPassword(ctx, newPass); err != nil {
+	if u.Password, err = cryptography.HashUserPassword(ctx, newPass); err != nil {
 		return err
 	}
 
@@ -131,7 +131,7 @@ func (u *User) UpdatePassword(ctx context.Context, newPass string) (err error) {
 
 	_, err = col.UpdateOne(ctx, bson.M{"_id": u.ID}, bson.M{"$set": bson.M{"password": u.Password}})
 	if err != nil {
-		return errors.WithStack(err)
+		return wlerrors.WithStack(err)
 	}
 
 	return
@@ -161,7 +161,7 @@ func (u *User) UpdateHomeID(ctx context.Context, newHomeID string) (err error) {
 
 	_, err = col.UpdateOne(ctx, bson.M{"_id": u.ID}, bson.M{"$set": bson.M{"homeID": newHomeID}})
 	if err != nil {
-		return errors.WithStack(err)
+		return wlerrors.WithStack(err)
 	}
 
 	u.HomeID = newHomeID
@@ -178,7 +178,7 @@ func (u *User) UpdateTrashID(ctx context.Context, newTrashID string) (err error)
 
 	_, err = col.UpdateOne(ctx, bson.M{"_id": u.ID}, bson.M{"$set": bson.M{"trashID": newTrashID}})
 	if err != nil {
-		return errors.WithStack(err)
+		return wlerrors.WithStack(err)
 	}
 
 	u.TrashID = newTrashID
@@ -195,7 +195,7 @@ func (u *User) UpdateActivationStatus(ctx context.Context, active bool) (err err
 
 	_, err = col.UpdateOne(ctx, bson.M{"_id": u.ID}, bson.M{"$set": bson.M{"activated": active}})
 	if err != nil {
-		return errors.WithStack(err)
+		return wlerrors.WithStack(err)
 	}
 
 	return
@@ -210,7 +210,7 @@ func (u *User) UpdateDisplayName(ctx context.Context, newName string) (err error
 
 	_, err = col.UpdateOne(ctx, bson.M{"_id": u.ID}, bson.M{"$set": bson.M{"fullName": newName}})
 	if err != nil {
-		return errors.WithStack(err)
+		return wlerrors.WithStack(err)
 	}
 
 	u.DisplayName = newName
@@ -227,7 +227,7 @@ func (u *User) Delete(ctx context.Context) (err error) {
 
 	_, err = col.DeleteOne(ctx, bson.M{"username": u.Username})
 	if err != nil {
-		return errors.WithStack(err)
+		return wlerrors.WithStack(err)
 	}
 
 	return
@@ -266,7 +266,7 @@ func DeleteAllUsers(ctx context.Context) (err error) {
 
 	_, err = col.DeleteMany(ctx, bson.M{})
 	if err != nil {
-		return errors.WithStack(err)
+		return wlerrors.WithStack(err)
 	}
 
 	return

@@ -17,11 +17,11 @@ import (
 	task_model "github.com/ethanrous/weblens/models/task"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
-	context_mod "github.com/ethanrous/weblens/modules/context"
-	"github.com/ethanrous/weblens/modules/errors"
 	file_system "github.com/ethanrous/weblens/modules/fs"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
-	context_service "github.com/ethanrous/weblens/services/context"
+	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/journal"
 	"github.com/ethanrous/weblens/services/notify"
 	"github.com/rs/zerolog"
@@ -72,20 +72,20 @@ func (fs *ServiceImpl) Size(_ string) int64 {
 func (fs *ServiceImpl) AddFile(c context.Context, files ...*file_model.WeblensFileImpl) (err error) {
 	ctx, ok := context_service.FromContext(c)
 	if !ok {
-		return errors.New("failed to get context from context")
+		return wlerrors.New("failed to get context from context")
 	}
 
 	for _, f := range files {
 		newID := f.ID()
 		if newID == "" {
-			return errors.WithStack(file_model.ErrNoFileID)
+			return wlerrors.WithStack(file_model.ErrNoFileID)
 		} else if !f.IsDir() && f.Size() != 0 && f.GetContentID() == "" && f.GetPortablePath().RootName() == file_model.UsersTreeKey {
-			return errors.Wrapf(file_model.ErrNoContentID, "failed to add [%s] to file service", f.GetPortablePath())
+			return wlerrors.Wrapf(file_model.ErrNoContentID, "failed to add [%s] to file service", f.GetPortablePath())
 		}
 
 		p := f.GetParent()
 		if p == nil {
-			return errors.WithStack(file_model.ErrNoParent)
+			return wlerrors.WithStack(file_model.ErrNoParent)
 		}
 
 		if _, err = p.GetChild(f.GetPortablePath().Filename()); err != nil {
@@ -115,7 +115,7 @@ func (fs *ServiceImpl) GetFileByID(ctx context.Context, id string) (*file_model.
 
 	if ok {
 		if f.ID() != id {
-			return nil, errors.Errorf("Mismatched fileID getting file by id %s != %s", f.ID(), id)
+			return nil, wlerrors.Errorf("Mismatched fileID getting file by id %s != %s", f.ID(), id)
 		}
 
 		return f, nil
@@ -123,7 +123,7 @@ func (fs *ServiceImpl) GetFileByID(ctx context.Context, id string) (*file_model.
 
 	path, err := journal.GetLatestPathByID(ctx, id)
 	if err != nil {
-		return nil, errors.WrapStatus(http.StatusNotFound, errors.Wrap(file_model.ErrFileNotFound, err.Error()))
+		return nil, wlerrors.WrapStatus(http.StatusNotFound, wlerrors.Wrap(file_model.ErrFileNotFound, err.Error()))
 	}
 
 	return fs.GetFileByFilepath(ctx, path)
@@ -140,7 +140,7 @@ func (fs *ServiceImpl) GetFileByFilepath(ctx context.Context, filepath file_syst
 
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
-		return nil, errors.WithStack(context_service.ErrNoContext)
+		return nil, wlerrors.WithStack(context_service.ErrNoContext)
 	}
 
 	shouldLoadNew := true
@@ -181,7 +181,7 @@ func (fs *ServiceImpl) GetFileByContentID(ctx context.Context, contentID string)
 	for _, fID := range media.FileIDs {
 		f, err := fs.GetFileByID(ctx, fID)
 		if err != nil {
-			if errors.Is(err, file_model.ErrFileNotFound) {
+			if wlerrors.Is(err, file_model.ErrFileNotFound) {
 				continue // Skip files that are not found
 			}
 
@@ -192,17 +192,17 @@ func (fs *ServiceImpl) GetFileByContentID(ctx context.Context, contentID string)
 			return f, nil
 		}
 
-		return nil, errors.Errorf("file [%s] does not match media content ID [%s]", f.GetPortablePath(), media.ContentID)
+		return nil, wlerrors.Errorf("file [%s] does not match media content ID [%s]", f.GetPortablePath(), media.ContentID)
 	}
 
-	return nil, errors.Errorf("Failed getting file from media: %w", file_model.ErrFileNotFound)
+	return nil, wlerrors.Errorf("Failed getting file from media: %w", file_model.ErrFileNotFound)
 }
 
 // GetMediaCacheByFilename retrieves a cached media file by its thumbnail filename.
 func (fs *ServiceImpl) GetMediaCacheByFilename(_ context.Context, thumbFileName string) (*file_model.WeblensFileImpl, error) {
 	f := file_model.NewWeblensFile(file_model.NewFileOptions{Path: file_model.ThumbsDirPath.Child(thumbFileName, false)})
 	if !f.Exists() {
-		return nil, errors.WithStack(file_model.ErrFileNotFound)
+		return nil, wlerrors.WithStack(file_model.ErrFileNotFound)
 	}
 
 	return f, nil
@@ -223,7 +223,7 @@ func (fs *ServiceImpl) NewCacheFile(mediaID string, quality string, pageNum int)
 // DeleteCacheFile removes a cache file from the filesystem.
 func (fs *ServiceImpl) DeleteCacheFile(f *file_model.WeblensFileImpl) error {
 	if !isCacheFile(f.GetPortablePath()) {
-		return errors.New("trying to delete non-cache file")
+		return wlerrors.New("trying to delete non-cache file")
 	}
 
 	return remove(f.GetPortablePath())
@@ -320,7 +320,7 @@ func (fs *ServiceImpl) ReturnFilesFromTrash(_ context.Context, trashFiles []*fil
 	// journal.LogEvent(event)
 	//
 	// return nil
-	return errors.New("not implemented")
+	return wlerrors.New("not implemented")
 }
 
 // MoveFiles moves one or more files to a destination folder.
@@ -339,9 +339,9 @@ func (fs *ServiceImpl) MoveFiles(ctx context.Context, files []*file_model.Weblen
 func (fs *ServiceImpl) DeleteFiles(ctx context.Context, files ...*file_model.WeblensFileImpl) error {
 	for _, f := range files {
 		if f.GetPortablePath().Dir().IsRoot() {
-			return errors.Errorf("cannot delete user home directory [%s]", f.GetPortablePath())
+			return wlerrors.Errorf("cannot delete user home directory [%s]", f.GetPortablePath())
 		} else if f.GetPortablePath().Filename() == file_model.UserTrashDirName {
-			return errors.Errorf("cannot delete user trash directory [%s]", f.GetPortablePath())
+			return wlerrors.Errorf("cannot delete user trash directory [%s]", f.GetPortablePath())
 		}
 	}
 
@@ -496,12 +496,12 @@ func (fs *ServiceImpl) RestoreFiles(ctx context.Context, ids []string, newParent
 	// }
 	//
 	// return nil
-	return errors.New("not implemented")
+	return wlerrors.New("not implemented")
 }
 
 // RestoreHistory replays a series of file actions to restore file history.
 func (fs *ServiceImpl) RestoreHistory(ctx context.Context, actions []*history.FileAction) error { //nolint:revive
-	return errors.New("not implemented")
+	return wlerrors.New("not implemented")
 }
 
 // NewZip creates a new zip file for archiving purposes.
@@ -540,7 +540,7 @@ func (fs *ServiceImpl) GetZip(ctx context.Context, id string) (*file_model.Weble
 func (fs *ServiceImpl) RenameFile(ctx context.Context, file *file_model.WeblensFileImpl, newName string) error {
 	parent := file.GetParent()
 	if _, err := parent.GetChild(newName); err == nil {
-		return errors.WithStack(file_model.ErrFileAlreadyExists)
+		return wlerrors.WithStack(file_model.ErrFileAlreadyExists)
 	}
 
 	oldPath := file.GetPortablePath()
@@ -578,7 +578,7 @@ func (fs *ServiceImpl) RenameFile(ctx context.Context, file *file_model.WeblensF
 
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
-		return errors.WithStack(context_service.ErrNoContext)
+		return wlerrors.WithStack(context_service.ErrNoContext)
 	}
 
 	appCtx.Log().Debug().Msgf("Renaming file [%s] to [%s]", file.GetPortablePath(), newPath)
@@ -592,13 +592,13 @@ func (fs *ServiceImpl) RenameFile(ctx context.Context, file *file_model.WeblensF
 // GetChildren retrieves all child files of a directory, loading them if necessary.
 func (fs *ServiceImpl) GetChildren(ctx context.Context, folder *file_model.WeblensFileImpl) ([]*file_model.WeblensFileImpl, error) {
 	if !folder.IsDir() {
-		return nil, errors.WithStack(file_model.ErrDirectoryRequired)
+		return nil, wlerrors.WithStack(file_model.ErrDirectoryRequired)
 	}
 
 	if !folder.ChildrenLoaded() {
 		appCtx, ok := context_service.FromContext(ctx)
 		if !ok {
-			return nil, errors.WithStack(context_service.ErrNoContext)
+			return nil, wlerrors.WithStack(context_service.ErrNoContext)
 		}
 
 		appCtx = appCtx.WithValue(doFileCreationContextKey{}, true)
@@ -615,7 +615,7 @@ func (fs *ServiceImpl) GetChildren(ctx context.Context, folder *file_model.Weble
 // RecursiveEnsureChildrenLoaded ensures all children are loaded for a directory and all its subdirectories.
 func (fs *ServiceImpl) RecursiveEnsureChildrenLoaded(ctx context.Context, folder *file_model.WeblensFileImpl) error {
 	if !folder.IsDir() {
-		return errors.WithStack(file_model.ErrDirectoryRequired)
+		return wlerrors.WithStack(file_model.ErrDirectoryRequired)
 	}
 
 	err := folder.RecursiveMap(func(wfi *file_model.WeblensFileImpl) error {
@@ -732,13 +732,13 @@ func (fs *ServiceImpl) CreateUserHome(ctx context.Context, user *user_model.User
 
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
-		return errors.WithStack(context_service.ErrNoContext)
+		return wlerrors.WithStack(context_service.ErrNoContext)
 	}
 
 	appCtx = appCtx.WithValue(doFileCreationContextKey{}, true)
 
 	home, err := fs.CreateFolder(ctx, parent, user.GetUsername())
-	if errors.Is(err, file_model.ErrDirectoryAlreadyExists) {
+	if wlerrors.Is(err, file_model.ErrDirectoryAlreadyExists) {
 		home, err = fs.GetFileByFilepath(appCtx, file_model.UsersRootPath.Child(user.GetUsername(), true))
 		if err != nil {
 			return err
@@ -750,7 +750,7 @@ func (fs *ServiceImpl) CreateUserHome(ctx context.Context, user *user_model.User
 	user.HomeID = home.ID()
 
 	trash, err := fs.CreateFolder(appCtx, home, file_model.UserTrashDirName)
-	if errors.Is(err, file_model.ErrDirectoryAlreadyExists) {
+	if wlerrors.Is(err, file_model.ErrDirectoryAlreadyExists) {
 		trash, err = fs.GetFileByFilepath(appCtx, home.GetPortablePath().Child(file_model.UserTrashDirName, true))
 		if err != nil {
 			return err
@@ -818,7 +818,7 @@ func (fs *ServiceImpl) createCommon(ctx context.Context, newF, parent *file_mode
 
 	notifier, ok := context_service.FromContext(ctx)
 	if !ok {
-		return errors.New("failed to get notifier from context")
+		return wlerrors.New("failed to get notifier from context")
 	}
 
 	notif := notify.NewFileNotification(ctx, newF, websocket_mod.FileCreatedEvent)
@@ -838,7 +838,7 @@ func (fs *ServiceImpl) moveFilesWithTransaction(ctx context.Context, files []*fi
 
 	notifier, ok := context_service.FromContext(ctx)
 	if !ok {
-		return errors.New("failed to get notifier from context")
+		return wlerrors.New("failed to get notifier from context")
 	}
 
 	oldParents := []*file_model.WeblensFileImpl{}
@@ -963,7 +963,7 @@ func (fs *ServiceImpl) deleteFilesWithTransaction(ctx context.Context, files []*
 
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
-		return errors.New("failed to get app context from context")
+		return wlerrors.New("failed to get app context from context")
 	}
 
 	// All files *should* share the same parent: the trash folder, so pulling

@@ -12,15 +12,15 @@ import (
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/errors"
 	file_system "github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/startup"
-	context_service "github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/journal"
 )
 
 // ErrChildrenAlreadyLoaded indicates that a directory's children have already been loaded.
-var ErrChildrenAlreadyLoaded = errors.Errorf("children already loaded")
+var ErrChildrenAlreadyLoaded = wlerrors.Errorf("children already loaded")
 
 type doFileCreationContextKey struct{}
 
@@ -46,7 +46,7 @@ func LoadFilesRecursively(ctx context_service.AppContext, root *file_model.Weble
 
 		newChildren, err := loadOneDirectory(ctx, file)
 		if err != nil {
-			return errors.Errorf("Failed to load directory %s: %w", file.GetPortablePath(), err)
+			return wlerrors.Errorf("Failed to load directory %s: %w", file.GetPortablePath(), err)
 		}
 
 		searchFiles = append(searchFiles, newChildren...)
@@ -67,7 +67,7 @@ func (fs *ServiceImpl) makeRoot(ctx context.Context, rootPath file_system.Filepa
 	})
 
 	if f == nil {
-		return errors.New("failed to create root file")
+		return wlerrors.New("failed to create root file")
 	}
 
 	if rootPath.RelPath == "" {
@@ -95,7 +95,7 @@ func (fs *ServiceImpl) makeRoot(ctx context.Context, rootPath file_system.Filepa
 func loadFs(ctx context.Context, cnf config.Provider) error {
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
-		return errors.WithStack(context_service.ErrNoContext)
+		return wlerrors.WithStack(context_service.ErrNoContext)
 	}
 
 	err := file_system.RegisterAbsolutePrefix(file_model.RestoreTreeKey, filepath.Join(cnf.DataPath, ".restore"))
@@ -180,7 +180,7 @@ func handleFileCreation(ctx context_service.AppContext, filepath file_system.Fil
 		}
 
 		if existingAction != nil {
-			return nil, errors.Errorf("File [%s] not found in pathMap but exists in history, inconsistent state", filepath)
+			return nil, wlerrors.Errorf("File [%s] not found in pathMap but exists in history, inconsistent state", filepath)
 		}
 
 		ctx.Log().Trace().Msgf("File [%s] not found in history, creating new file", filepath)
@@ -194,7 +194,7 @@ func handleFileCreation(ctx context_service.AppContext, filepath file_system.Fil
 			f.SetContentID(newContentID)
 		}
 
-		action = history.NewCreateAction(ctx, f)
+		action := history.NewCreateAction(ctx, f)
 
 		err = history.SaveAction(ctx, &action)
 		if err != nil {
@@ -233,11 +233,11 @@ func handleFileCreation(ctx context_service.AppContext, filepath file_system.Fil
 
 func loadOneDirectory(ctx context_service.AppContext, dir *file_model.WeblensFileImpl) ([]*file_model.WeblensFileImpl, error) {
 	if dir.ChildrenLoaded() {
-		return nil, errors.WithStack(ErrChildrenAlreadyLoaded)
+		return nil, wlerrors.WithStack(ErrChildrenAlreadyLoaded)
 	}
 
 	if !dir.IsDir() {
-		return nil, errors.WithStack(file_model.ErrDirectoryRequired)
+		return nil, wlerrors.WithStack(file_model.ErrDirectoryRequired)
 	}
 
 	pathMap, err := loadLifetimes(ctx)
@@ -275,7 +275,7 @@ func loadOneDirectory(ctx context_service.AppContext, dir *file_model.WeblensFil
 
 			err = appCtx.FileService.AddFile(appCtx, child)
 			if err != nil {
-				return errors.Errorf("failed to add child [%s] to tree: %w", child.GetPortablePath(), err)
+				return wlerrors.Errorf("failed to add child [%s] to tree: %w", child.GetPortablePath(), err)
 			}
 
 			children = append(children, child)
@@ -293,7 +293,7 @@ func loadOneDirectory(ctx context_service.AppContext, dir *file_model.WeblensFil
 func loadFsCore(ctx context.Context) error {
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
-		return errors.New("not an app context")
+		return wlerrors.New("not an app context")
 	}
 
 	appCtx.Log().Debug().Msg("Loading file system")
