@@ -119,9 +119,7 @@ if [[ $local == false ]] && ! docker image ls | grep "$imageName-$arch" &>/dev/n
     fi
 fi
 
-if [[ $WEBLENS_LOG_LEVEL == "" ]]; then
-    WEBLENS_LOG_LEVEL="debug"
-fi
+WEBLENS_LOG_LEVEL="${WEBLENS_LOG_LEVEL:-debug}"
 
 ./scripts/start-mongo.sh "$mongoName" | sed $'s/^/\e[32m[] \e[0m/'
 
