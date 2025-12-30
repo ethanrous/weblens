@@ -24,7 +24,8 @@ run_native_tests() {
     export WEBLENS_MONGODB_URI=${WEBLENS_MONGODB_URI:-"mongodb://127.0.0.1:27018/?replicaSet=rs0&directConnection=true"}
 
     echo "Running tests with mongo [$WEBLENS_MONGODB_URI] and test target: [$target]"
-    # /usr/local/go/bin/go test -v -cover -race -coverprofile=/cover/coverage.out "$target" | grep -v -e "=== RUN" -e "=== PAUSE" -e "--- PASS"
+
+    mkdir -p ./_build/cover/
     go test -v -cover -race -coverprofile=_build/cover/coverage.out "$target" | grep -v -e "=== RUN" -e "=== PAUSE" -e "--- PASS"
     exit $?
 }
