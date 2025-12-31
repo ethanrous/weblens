@@ -18,7 +18,7 @@ FROM clux/muslrust:stable AS agno-builder
 WORKDIR /src
 COPY . .
 
-WORKDIR /src
+RUN chmod +x ./scripts/build-agno.bash;
 RUN ./scripts/build-agno.bash
 
 # Build server binary
