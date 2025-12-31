@@ -15,6 +15,8 @@ RUN pnpm generate;
 
 # Build agno static library
 FROM rust:alpine AS agno-builder
+RUN apk add --no-cache bash;
+
 WORKDIR /src
 COPY . .
 
