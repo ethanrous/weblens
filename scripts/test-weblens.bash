@@ -1,19 +1,10 @@
 #!/bin/bash
-set -euox pipefail
+set -euo pipefail
 
-source ./scripts/build-agno.bash
-
-usage="Usage: $0 [-n|--native [package_target]]"
+source ./scripts/lib/all.bash
 
 run_native_tests() {
-    pushd ./weblens-vue/weblens-nuxt
-    echo "Installing UI Dependencies..."
-    pnpm install >/dev/null 2>&1
-
-    echo "Building UI..."
-    pnpm run generate >/dev/null 2>&1
-
-    popd >/dev/null
+    build_frontend
 
     target="${1:-./...}" # Default to ./... if no target specified
 
@@ -28,7 +19,7 @@ run_native_tests() {
     echo "Running tests with mongo [$WEBLENS_MONGODB_URI] and test target: [$target]"
 
     mkdir -p ./_build/cover/
-    go test -v -cover -race -coverprofile=_build/cover/coverage.out "$target" | grep -v -e "=== RUN" -e "=== PAUSE" -e "--- PASS"
+    go test -v -cover -race -coverprofile=_build/cover/coverage.out -tags=test "$target" | grep -v -e "=== RUN" -e "=== PAUSE" -e "--- PASS"
     exit $?
 }
 
@@ -66,6 +57,7 @@ while [ "${1:-}" != "" ]; do
         baseVersion="$1"
         ;;
     "-h" | "--help")
+        usage="Usage: $0 [-n|--native [package_target]]"
         echo "$usage"
         exit 0
         ;;
@@ -76,10 +68,8 @@ while [ "${1:-}" != "" ]; do
     shift
 done
 
-sudo docker stop weblens-test-mongo >/dev/null 2>&1 || true
-sudo docker rm weblens-test-mongo >/dev/null 2>&1 || true
-sudo docker volume rm weblens-test-mongo >/dev/null 2>&1 || true
-./scripts/start-mongo.sh "weblens-test-mongo"
+cleanup_mongo "weblens-test-mongo" | show_as_subtask "Resetting mongo testing volumes..." "green"
+launch_mongo "weblens-test-mongo" | show_as_subtask "Launching mongo..." "green"
 if [ "$containerize" = false ]; then
     build_agno
     run_native_tests "${tests}"
