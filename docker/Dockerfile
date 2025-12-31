@@ -18,8 +18,8 @@ FROM clux/muslrust:stable AS agno-builder
 WORKDIR /src
 COPY . .
 
-WORKDIR /src/agno
-RUN cargo build --release;
+WORKDIR /src
+RUN ./scripts/build-agno.bash
 
 # Build server binary
 FROM --platform=linux/${ARCHITECTURE} golang:${GO_VERSION}-alpine AS backend
@@ -32,8 +32,8 @@ RUN /tmp/install-deps.sh -b -a;
 WORKDIR /src
 COPY . .
 
-RUN mkdir -p /agno/lib; cp /src/agno/lib/agno.h /agno/lib/agno.h;
-COPY --from=agno-builder /src/agno/target/x86_64-unknown-linux-musl/release/libagno.a /src/services/media/agno/lib/libagno.a
+RUN mkdir -p /src/services/media/agno/lib; cp /src/agno/lib/agno.h /src/services/media/agno/lib/agno.h;
+COPY --from=agno-builder /src/services/media/agno/lib/libagno.a /src/services/media/agno/lib/libagno.a
 
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=1 CGO_CFLAGS_ALLOW='-Xpreprocessor' GOOS=linux GOARCH=${ARCHITECTURE} go build -v -ldflags="-s -w" -o /server/weblens ./cmd/weblens/main.go;
 
