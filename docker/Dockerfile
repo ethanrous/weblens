@@ -19,7 +19,7 @@ WORKDIR /src
 COPY . .
 
 RUN chmod +x ./scripts/build-agno.bash;
-RUN ./scripts/build-agno.bash
+RUN source ./scripts/build-agno.bash; build_agno;
 
 # Build server binary
 FROM --platform=linux/${ARCHITECTURE} golang:${GO_VERSION}-alpine AS backend
