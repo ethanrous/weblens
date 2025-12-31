@@ -38,7 +38,7 @@ jobs:
           # Restart docker to fix networking bug...
           sudo systemctl restart docker
 
-          ./scripts/testWeblens 
+          ./scripts/test-weblens.bash
           exit $?
 
   lint:

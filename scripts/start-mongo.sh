@@ -62,4 +62,5 @@ launch_mongo() {
     ensure_repl_set
 }
 
+sudo docker network create weblens-net >/dev/null 2>&1 || true
 launch_mongo

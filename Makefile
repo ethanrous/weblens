@@ -22,7 +22,7 @@ ui: FORCE
 	cd ui && pnpm run dev
 
 test: FORCE
-	./scripts/testWeblens
+	./scripts/test-weblens.bash
 
 cover:
 	go tool cover -html=./_build/cover/coverage.out

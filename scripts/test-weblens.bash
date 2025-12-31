@@ -33,12 +33,6 @@ run_native_tests() {
 }
 
 run_container_tests() {
-    sudo docker network create weblens-net >/dev/null 2>&1 || true
-    sudo docker volume rm weblens-test-mongo >/dev/null 2>&1 || true
-
-    sudo docker stop weblens-test-mongo >/dev/null 2>&1 || true
-    sudo docker rm weblens-test-mongo >/dev/null 2>&1 || true
-
     rm -rf ./_build/fs/test-container
 
     if ! sudo docker run --rm --platform="linux/amd64" \
@@ -51,7 +45,7 @@ run_container_tests() {
         -v /src/weblens-vue/weblens-nuxt/node_modules \
         -v /src/build \
         -e WEBLENS_MONGODB_URI="mongodb://weblens-test-mongo:27017/?replicaSet=rs0" \
-        ethrous/weblens-roux":$baseVersion" /src/scripts/testWeblens "${tests}"; then
+        ethrous/weblens-roux":$baseVersion" /src/scripts/test-weblens.bash "${tests}"; then
         echo "Tests failed, exiting..."
         exit 1
     fi
@@ -82,6 +76,9 @@ while [ "${1:-}" != "" ]; do
     shift
 done
 
+sudo docker stop weblens-test-mongo >/dev/null 2>&1 || true
+sudo docker rm weblens-test-mongo >/dev/null 2>&1 || true
+sudo docker volume rm weblens-test-mongo >/dev/null 2>&1 || true
 ./scripts/start-mongo.sh "weblens-test-mongo"
 if [ "$containerize" = false ]; then
     build_agno

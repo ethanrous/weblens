@@ -69,10 +69,10 @@ fi
 
 if [[ $do_push == true && $skip_tests != true ]]; then
     printf "Running tests..."
-    if ! ./scripts/testWeblens -a &>./_build/logs/container-build-pretest.log; then
+    if ! ./scripts/test-weblens.bash -a &>./_build/logs/container-build-pretest.log; then
         printf " FAILED\n"
         cat ./_build/logs/container-build-pretest.log
-        echo "Aborting container build. Ensure ./scripts/testWeblens passes before building container"
+        echo "Aborting container build. Ensure ./scripts/test-weblens.bash passes before building container"
         exit 1
     else
         printf " PASS\n"
