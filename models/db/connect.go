@@ -4,23 +4,25 @@ import (
 	"context"
 	"time"
 
-	context_mod "github.com/ethanrous/weblens/modules/context"
 	"github.com/ethanrous/weblens/modules/log"
+	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// DB is an interface that wraps the mongo.Database type.
 type DB interface {
 	mongo.Database
 }
 
 const maxRetries = 5
 
-func ConnectToMongo(ctx context.Context, mongoUri, mongoDbName string) (*mongo.Database, error) {
+// ConnectToMongo establishes a connection to MongoDB with automatic retries and context-aware cleanup.
+func ConnectToMongo(ctx context.Context, mongoURI, mongoDbName string) (*mongo.Database, error) {
 	l := log.FromContext(ctx)
-	l.Debug().CallerSkipFrame(1).Msgf("Connecting to Mongo at %s with name %s ...", mongoUri, mongoDbName)
+	l.Debug().CallerSkipFrame(1).Msgf("Connecting to Mongo at %s with name %s ...", mongoURI, mongoDbName)
 
-	clientOptions := options.Client().ApplyURI(mongoUri).SetTimeout(5 * time.Second)
+	clientOptions := options.Client().ApplyURI(mongoURI).SetTimeout(5 * time.Second)
 
 	var err error
 

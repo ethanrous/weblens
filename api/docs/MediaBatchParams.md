@@ -4,10 +4,10 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**FolderIds** | Pointer to **[]string** |  | [optional] 
+**FolderIDs** | Pointer to **[]string** |  | [optional] 
 **Hidden** | Pointer to **bool** |  | [optional] 
 **Limit** | Pointer to **int32** |  | [optional] 
-**MediaIds** | Pointer to **[]string** |  | [optional] 
+**MediaIDs** | Pointer to **[]string** |  | [optional] 
 **Page** | Pointer to **int32** |  | [optional] 
 **Raw** | Pointer to **bool** |  | [optional] 
 **Search** | Pointer to **string** |  | [optional] 
@@ -33,30 +33,30 @@ NewMediaBatchParamsWithDefaults instantiates a new MediaBatchParams object
 This constructor will only assign default values to properties that have it defined,
 but it doesn't guarantee that properties required by API are set
 
-### GetFolderIds
+### GetFolderIDs
 
-`func (o *MediaBatchParams) GetFolderIds() []string`
+`func (o *MediaBatchParams) GetFolderIDs() []string`
 
-GetFolderIds returns the FolderIds field if non-nil, zero value otherwise.
+GetFolderIDs returns the FolderIDs field if non-nil, zero value otherwise.
 
-### GetFolderIdsOk
+### GetFolderIDsOk
 
-`func (o *MediaBatchParams) GetFolderIdsOk() (*[]string, bool)`
+`func (o *MediaBatchParams) GetFolderIDsOk() (*[]string, bool)`
 
-GetFolderIdsOk returns a tuple with the FolderIds field if it's non-nil, zero value otherwise
+GetFolderIDsOk returns a tuple with the FolderIDs field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetFolderIds
+### SetFolderIDs
 
-`func (o *MediaBatchParams) SetFolderIds(v []string)`
+`func (o *MediaBatchParams) SetFolderIDs(v []string)`
 
-SetFolderIds sets FolderIds field to given value.
+SetFolderIDs sets FolderIDs field to given value.
 
-### HasFolderIds
+### HasFolderIDs
 
-`func (o *MediaBatchParams) HasFolderIds() bool`
+`func (o *MediaBatchParams) HasFolderIDs() bool`
 
-HasFolderIds returns a boolean if a field has been set.
+HasFolderIDs returns a boolean if a field has been set.
 
 ### GetHidden
 
@@ -108,30 +108,30 @@ SetLimit sets Limit field to given value.
 
 HasLimit returns a boolean if a field has been set.
 
-### GetMediaIds
+### GetMediaIDs
 
-`func (o *MediaBatchParams) GetMediaIds() []string`
+`func (o *MediaBatchParams) GetMediaIDs() []string`
 
-GetMediaIds returns the MediaIds field if non-nil, zero value otherwise.
+GetMediaIDs returns the MediaIDs field if non-nil, zero value otherwise.
 
-### GetMediaIdsOk
+### GetMediaIDsOk
 
-`func (o *MediaBatchParams) GetMediaIdsOk() (*[]string, bool)`
+`func (o *MediaBatchParams) GetMediaIDsOk() (*[]string, bool)`
 
-GetMediaIdsOk returns a tuple with the MediaIds field if it's non-nil, zero value otherwise
+GetMediaIDsOk returns a tuple with the MediaIDs field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetMediaIds
+### SetMediaIDs
 
-`func (o *MediaBatchParams) SetMediaIds(v []string)`
+`func (o *MediaBatchParams) SetMediaIDs(v []string)`
 
-SetMediaIds sets MediaIds field to given value.
+SetMediaIDs sets MediaIDs field to given value.
 
-### HasMediaIds
+### HasMediaIDs
 
-`func (o *MediaBatchParams) HasMediaIds() bool`
+`func (o *MediaBatchParams) HasMediaIDs() bool`
 
-HasMediaIds returns a boolean if a field has been set.
+HasMediaIDs returns a boolean if a field has been set.
 
 ### GetPage
 

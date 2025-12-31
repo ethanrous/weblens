@@ -4,7 +4,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**UploadId** | Pointer to **string** |  | [optional] 
+**UploadID** | Pointer to **string** |  | [optional] 
 
 ## Methods
 
@@ -25,30 +25,30 @@ NewNewUploadInfoWithDefaults instantiates a new NewUploadInfo object
 This constructor will only assign default values to properties that have it defined,
 but it doesn't guarantee that properties required by API are set
 
-### GetUploadId
+### GetUploadID
 
-`func (o *NewUploadInfo) GetUploadId() string`
+`func (o *NewUploadInfo) GetUploadID() string`
 
-GetUploadId returns the UploadId field if non-nil, zero value otherwise.
+GetUploadID returns the UploadID field if non-nil, zero value otherwise.
 
-### GetUploadIdOk
+### GetUploadIDOk
 
-`func (o *NewUploadInfo) GetUploadIdOk() (*string, bool)`
+`func (o *NewUploadInfo) GetUploadIDOk() (*string, bool)`
 
-GetUploadIdOk returns a tuple with the UploadId field if it's non-nil, zero value otherwise
+GetUploadIDOk returns a tuple with the UploadID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetUploadId
+### SetUploadID
 
-`func (o *NewUploadInfo) SetUploadId(v string)`
+`func (o *NewUploadInfo) SetUploadID(v string)`
 
-SetUploadId sets UploadId field to given value.
+SetUploadID sets UploadID field to given value.
 
-### HasUploadId
+### HasUploadID
 
-`func (o *NewUploadInfo) HasUploadId() bool`
+`func (o *NewUploadInfo) HasUploadID() bool`
 
-HasUploadId returns a boolean if a field has been set.
+HasUploadID returns a boolean if a field has been set.
 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

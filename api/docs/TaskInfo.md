@@ -9,15 +9,15 @@ Name | Type | Description | Notes
 **Progress** | **int32** |  | 
 **Result** | Pointer to **map[string]interface{}** |  | [optional] 
 **StartTime** | Pointer to **string** |  | [optional] 
-**Status** | [**TaskTaskExitStatus**](TaskTaskExitStatus.md) |  | 
-**TaskId** | **string** |  | 
-**WorkerId** | **int32** |  | 
+**Status** | [**TaskExitStatus**](TaskExitStatus.md) |  | 
+**TaskID** | **string** |  | 
+**WorkerID** | **int32** |  | 
 
 ## Methods
 
 ### NewTaskInfo
 
-`func NewTaskInfo(completed bool, jobName string, progress int32, status TaskTaskExitStatus, taskId string, workerId int32, ) *TaskInfo`
+`func NewTaskInfo(completed bool, jobName string, progress int32, status TaskExitStatus, taskID string, workerID int32, ) *TaskInfo`
 
 NewTaskInfo instantiates a new TaskInfo object
 This constructor will assign default values to properties that have it defined,
@@ -144,62 +144,62 @@ HasStartTime returns a boolean if a field has been set.
 
 ### GetStatus
 
-`func (o *TaskInfo) GetStatus() TaskTaskExitStatus`
+`func (o *TaskInfo) GetStatus() TaskExitStatus`
 
 GetStatus returns the Status field if non-nil, zero value otherwise.
 
 ### GetStatusOk
 
-`func (o *TaskInfo) GetStatusOk() (*TaskTaskExitStatus, bool)`
+`func (o *TaskInfo) GetStatusOk() (*TaskExitStatus, bool)`
 
 GetStatusOk returns a tuple with the Status field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
 ### SetStatus
 
-`func (o *TaskInfo) SetStatus(v TaskTaskExitStatus)`
+`func (o *TaskInfo) SetStatus(v TaskExitStatus)`
 
 SetStatus sets Status field to given value.
 
 
-### GetTaskId
+### GetTaskID
 
-`func (o *TaskInfo) GetTaskId() string`
+`func (o *TaskInfo) GetTaskID() string`
 
-GetTaskId returns the TaskId field if non-nil, zero value otherwise.
+GetTaskID returns the TaskID field if non-nil, zero value otherwise.
 
-### GetTaskIdOk
+### GetTaskIDOk
 
-`func (o *TaskInfo) GetTaskIdOk() (*string, bool)`
+`func (o *TaskInfo) GetTaskIDOk() (*string, bool)`
 
-GetTaskIdOk returns a tuple with the TaskId field if it's non-nil, zero value otherwise
+GetTaskIDOk returns a tuple with the TaskID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetTaskId
+### SetTaskID
 
-`func (o *TaskInfo) SetTaskId(v string)`
+`func (o *TaskInfo) SetTaskID(v string)`
 
-SetTaskId sets TaskId field to given value.
+SetTaskID sets TaskID field to given value.
 
 
-### GetWorkerId
+### GetWorkerID
 
-`func (o *TaskInfo) GetWorkerId() int32`
+`func (o *TaskInfo) GetWorkerID() int32`
 
-GetWorkerId returns the WorkerId field if non-nil, zero value otherwise.
+GetWorkerID returns the WorkerID field if non-nil, zero value otherwise.
 
-### GetWorkerIdOk
+### GetWorkerIDOk
 
-`func (o *TaskInfo) GetWorkerIdOk() (*int32, bool)`
+`func (o *TaskInfo) GetWorkerIDOk() (*int32, bool)`
 
-GetWorkerIdOk returns a tuple with the WorkerId field if it's non-nil, zero value otherwise
+GetWorkerIDOk returns a tuple with the WorkerID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetWorkerId
+### SetWorkerID
 
-`func (o *TaskInfo) SetWorkerId(v int32)`
+`func (o *TaskInfo) SetWorkerID(v int32)`
 
-SetWorkerId sets WorkerId field to given value.
+SetWorkerID sets WorkerID field to given value.
 
 
 

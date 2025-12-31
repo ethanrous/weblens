@@ -5,8 +5,8 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**fileIds** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
-**newParentId** | **string** |  | [optional] [default to undefined]
+**fileIDs** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
+**newParentID** | **string** |  | [optional] [default to undefined]
 
 ## Example
 
@@ -14,8 +14,8 @@ Name | Type | Description | Notes
 import { MoveFilesParams } from './api';
 
 const instance: MoveFilesParams = {
-    fileIds,
-    newParentId,
+    fileIDs,
+    newParentID,
 };
 ```
 

@@ -1,6 +1,5 @@
 #!/bin/bash
-set -e
-set -o pipefail
+set -euo pipefail
 
 usage="./scripts/quickCore.bash [-r|--rebuild] [-t|--role <role>] [-c|--clean]
 	-r, --rebuild   Rebuild the container
@@ -16,7 +15,7 @@ shouldClean=false
 shouldRebuild=false
 doDevMode=false
 doDynamic=false
-local=false
+local=true
 
 arch=$(uname -m)
 
@@ -25,8 +24,8 @@ while [ "${1:-}" != "" ]; do
     "-r" | "--rebuild")
         shouldRebuild=true
         ;;
-    "-l" | "--local")
-        local=true
+    "-z" | "--containerize")
+        local=false
         ;;
     "-t" | "--role")
         shift
@@ -112,40 +111,33 @@ fi
 
 # Build image if it doesn't exist
 if [[ $local == false ]] && ! docker image ls | grep "$imageName-$arch" &>/dev/null; then
-    echo "Image does not exist, building..."
+    printf "Image does not exist, \e[34mbuilding...\e[0m\n"
 
-    printf "\n---- gogogadgetdocker ----\n"
-    if ! ./scripts/gogogadgetdocker.bash -t "$imageName" -a "$arch" -d "$dockerfile" | sed 's/^/  /'; then
+    if ! ./scripts/gogogadgetdocker.bash -t "$imageName" -a "$arch" -d "$dockerfile" | sed $'s/^/\e[34m| \e[0m/'; then
         printf "\n---- FAILED ----\n\n"
         exit 1
     fi
-    printf "\n---- gogogadgetdocker succeeded ----\n\n"
 fi
 
-if [[ $WEBLENS_LOG_LEVEL == "" ]]; then
-    WEBLENS_LOG_LEVEL="debug"
-fi
+WEBLENS_LOG_LEVEL="${WEBLENS_LOG_LEVEL:-debug}"
 
-./scripts/start-mongo.sh "$mongoName" || exit 1
+./scripts/start-mongo.sh "$mongoName" | sed $'s/^/\e[32m[] \e[0m/'
 
 export WEBLENS_DATA_PATH="./_build/fs/$fsName/data"
 export WEBLENS_LOG_FORMAT=dev
 export WEBLENS_MONGODB_NAME="$containerName"
 
 if [[ $local == true ]]; then
-    echo "Running Weblens locally for development..."
+    printf "Running \e[34mWeblens\e[0m locally for development...\n"
 
     export WEBLENS_MONGODB_URI="mongodb://127.0.0.1:27018/?replicaSet=rs0&directConnection=true"
 
-    ./scripts/devel.bash
+    ./scripts/devel.bash "$runCmd" | sed $'s/^/\e[34m| \e[0m/'
 
     exit 0
 fi
 
-echo "Starting development container for Weblens..."
-
-# FIXME: Tempporray fix for cache issues
-# rm -rf ./_build/cache/"$fsName"
+printf "Starting development container for \e[34mWeblens...\e[0m\n"
 
 docker run \
     -t \
@@ -179,4 +171,4 @@ docker run \
     --network weblens-net \
     --platform linux/"$arch" \
     ethrous/weblens:"$imageName-$arch" \
-    "$runCmd"
+    "$runCmd" | sed $'s/^/\e[34m[] \e[0m/'

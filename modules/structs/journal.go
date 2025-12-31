@@ -1,15 +1,16 @@
 package structs
 
+// FileActionInfo represents a file system action event in the journal.
 type FileActionInfo struct {
-	FileId          string `json:"fileId" validate:"required"`
+	FileID          string `json:"fileID" validate:"required"`
 	ActionType      string `json:"actionType" validate:"required"`
 	Filepath        string `json:"filepath,omitempty"`
 	OriginPath      string `json:"originPath,omitempty"`
 	DestinationPath string `json:"destinationPath,omitempty"`
-	EventId         string `json:"eventId" validate:"required"`
-	ParentId        string `json:"parentId" validate:"required"`
-	TowerId         string `json:"towerId" validate:"required"`
+	EventID         string `json:"eventID" validate:"required"`
+	ParentID        string `json:"parentID" validate:"required"`
+	TowerID         string `json:"towerID" validate:"required"`
 	Timestamp       int64  `json:"timestamp" validate:"required" format:"int64"`
 	Size            int64  `json:"size" validate:"required" format:"int64"`
-	ContentId       string `json:"contentId,omitempty"`
+	ContentID       string `json:"contentID,omitempty"`
 } // @name FileActionInfo

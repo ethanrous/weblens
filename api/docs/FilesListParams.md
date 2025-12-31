@@ -4,7 +4,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**FileIds** | Pointer to **[]string** |  | [optional] 
+**FileIDs** | Pointer to **[]string** |  | [optional] 
 
 ## Methods
 
@@ -25,30 +25,30 @@ NewFilesListParamsWithDefaults instantiates a new FilesListParams object
 This constructor will only assign default values to properties that have it defined,
 but it doesn't guarantee that properties required by API are set
 
-### GetFileIds
+### GetFileIDs
 
-`func (o *FilesListParams) GetFileIds() []string`
+`func (o *FilesListParams) GetFileIDs() []string`
 
-GetFileIds returns the FileIds field if non-nil, zero value otherwise.
+GetFileIDs returns the FileIDs field if non-nil, zero value otherwise.
 
-### GetFileIdsOk
+### GetFileIDsOk
 
-`func (o *FilesListParams) GetFileIdsOk() (*[]string, bool)`
+`func (o *FilesListParams) GetFileIDsOk() (*[]string, bool)`
 
-GetFileIdsOk returns a tuple with the FileIds field if it's non-nil, zero value otherwise
+GetFileIDsOk returns a tuple with the FileIDs field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetFileIds
+### SetFileIDs
 
-`func (o *FilesListParams) SetFileIds(v []string)`
+`func (o *FilesListParams) SetFileIDs(v []string)`
 
-SetFileIds sets FileIds field to given value.
+SetFileIDs sets FileIDs field to given value.
 
-### HasFileIds
+### HasFileIDs
 
-`func (o *FilesListParams) HasFileIds() bool`
+`func (o *FilesListParams) HasFileIDs() bool`
 
-HasFileIds returns a boolean if a field has been set.
+HasFileIDs returns a boolean if a field has been set.
 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

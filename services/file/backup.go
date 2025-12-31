@@ -6,22 +6,23 @@ import (
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/history"
 	tower_model "github.com/ethanrous/weblens/models/tower"
-	"github.com/ethanrous/weblens/modules/errors"
 	file_system "github.com/ethanrous/weblens/modules/fs"
-	context_service "github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/journal"
 )
 
-func (fs *FileServiceImpl) NewBackupRestoreFile(ctx context.Context, contentId, remoteTowerId string) (*file_model.WeblensFileImpl, error) {
-	restoreRoot, err := fs.GetFileById(ctx, file_model.RestoreTreeKey)
+// NewBackupRestoreFile creates a new restore file in the backup restore tree for a specific content and tower.
+func (fs *ServiceImpl) NewBackupRestoreFile(ctx context.Context, contentID, remoteTowerID string) (*file_model.WeblensFileImpl, error) {
+	restoreRoot, err := fs.GetFileByID(ctx, file_model.RestoreTreeKey)
 	if err != nil {
 		return nil, err
 	}
 
-	restorePath := restoreRoot.GetPortablePath().Child(remoteTowerId, true).Child(contentId, false)
+	restorePath := restoreRoot.GetPortablePath().Child(remoteTowerID, true).Child(contentID, false)
 
 	if exists(restorePath) {
-		return nil, errors.Errorf("restore file [%s] already exists", restorePath)
+		return nil, wlerrors.Errorf("restore file [%s] already exists", restorePath)
 	}
 
 	f, err := touch(restorePath)
@@ -32,18 +33,20 @@ func (fs *FileServiceImpl) NewBackupRestoreFile(ctx context.Context, contentId, 
 	return f, nil
 }
 
+// IsBackupTowerRoot checks if the given path is a backup tower root directory.
 // Backup paths are in the form of BACKUP:<tower_id>/<path>
 // So we check if the root name is BACKUP and the parent of the path is the root (i.e. BACKUP:)
 func IsBackupTowerRoot(path file_system.Filepath) bool {
 	return path.RootName() == file_model.BackupTreeKey && !path.IsRoot() && path.Dir().IsRoot()
 }
 
+// TranslateBackupPath translates a user path to its corresponding backup path for a given tower.
 func TranslateBackupPath(ctx context_service.AppContext, path file_system.Filepath, core tower_model.Instance) (file_system.Filepath, error) {
 	if path.RootName() != file_model.UsersTreeKey {
-		return file_system.Filepath{}, errors.Errorf("Path %s is not a user path", path)
+		return file_system.Filepath{}, wlerrors.Errorf("Path %s is not a user path", path)
 	}
 
-	newPath, err := path.ReplacePrefix(file_model.UsersRootPath, file_model.BackupRootPath.Child(core.TowerId, true))
+	newPath, err := path.ReplacePrefix(file_model.UsersRootPath, file_model.BackupRootPath.Child(core.TowerID, true))
 	if err != nil {
 		return file_system.Filepath{}, err
 	}
@@ -56,12 +59,12 @@ func TranslateBackupPath(ctx context_service.AppContext, path file_system.Filepa
 func loadFsTransactionBackup(ctx context.Context) error {
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
-		return errors.New("not an app context")
+		return wlerrors.New("not an app context")
 	}
 
 	appCtx.Log().Debug().Msg("Loading backup file system")
 
-	backupRoot, err := appCtx.FileService.GetFileById(ctx, file_model.BackupTreeKey)
+	backupRoot, err := appCtx.FileService.GetFileByID(ctx, file_model.BackupTreeKey)
 	if err != nil {
 		return err
 	}
@@ -77,7 +80,7 @@ func loadFsTransactionBackup(ctx context.Context) error {
 			continue
 		}
 
-		lifetimes, err := journal.GetLifetimesByTowerId(ctx, remote.TowerId, journal.GetLifetimesOptions{ActiveOnly: true})
+		lifetimes, err := journal.GetLifetimesByTowerID(ctx, remote.TowerID, journal.GetLifetimesOptions{ActiveOnly: true})
 		if err != nil {
 			return err
 		}
@@ -91,7 +94,7 @@ func loadFsTransactionBackup(ctx context.Context) error {
 				continue
 			}
 
-			a.ContentId = lt.Actions[0].ContentId
+			a.ContentID = lt.Actions[0].ContentID
 
 			translatedPath, err := TranslateBackupPath(appCtx, a.GetRelevantPath(), remote)
 			if err != nil {
@@ -101,13 +104,13 @@ func loadFsTransactionBackup(ctx context.Context) error {
 			fpMap[translatedPath] = a
 		}
 
-		remoteDir, err := appCtx.FileService.CreateFolder(ctx, backupRoot, remote.TowerId)
-		if err != nil && !errors.Is(err, file_model.ErrDirectoryAlreadyExists) {
+		remoteDir, err := appCtx.FileService.CreateFolder(ctx, backupRoot, remote.TowerID)
+		if err != nil && !wlerrors.Is(err, file_model.ErrDirectoryAlreadyExists) {
 			return err
 		} else if err != nil {
 			remoteDir = file_model.NewWeblensFile(file_model.NewFileOptions{
-				Path:   backupRoot.GetPortablePath().Child(remote.TowerId, true),
-				FileId: remote.TowerId,
+				Path:   backupRoot.GetPortablePath().Child(remote.TowerID, true),
+				FileID: remote.TowerID,
 			})
 
 			err = remoteDir.SetParent(backupRoot)
@@ -121,7 +124,7 @@ func loadFsTransactionBackup(ctx context.Context) error {
 			}
 		}
 
-		restorePath := file_model.RestoreDirPath.Child(remote.TowerId, true)
+		restorePath := file_model.RestoreDirPath.Child(remote.TowerID, true)
 		if !exists(restorePath) {
 			appCtx.Log().Debug().Msgf("Creating restore path [%s]", restorePath.ToAbsolute())
 

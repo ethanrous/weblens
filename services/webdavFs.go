@@ -1,9 +1,11 @@
+// Package services provides WebDAV filesystem implementation for Weblens.
 package services
 
 // import "golang.org/x/net/webdav"
 
 // var _ webdav.FileSystem = (*WebdavFs)(nil)
 
+// WebdavFs is a placeholder type for WebDAV filesystem functionality.
 type WebdavFs struct{}
 
 // func (w WebdavFs) Mkdir(ctx context.Context, name string, perm os.FileMode) error {

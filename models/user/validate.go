@@ -8,19 +8,24 @@ import (
 	"strings"
 
 	"github.com/ethanrous/weblens/models/db"
-	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
 var (
 	// ErrUsernameTooShort is returned when the username is too short.
-	ErrUsernameTooShort     = errors.Statusf(http.StatusBadRequest, "username is too short")
-	ErrUsernameTooLong      = errors.Statusf(http.StatusBadRequest, "username is too long")
-	ErrUsernameInvalidChars = errors.Statusf(http.StatusBadRequest, "username contains invalid characters, only alphanumeric, _ and - are allowed")
-	ErrUsernameNotAllowed   = errors.Statusf(http.StatusBadRequest, "username is not allowed")
+	ErrUsernameTooShort = wlerrors.Statusf(http.StatusBadRequest, "username is too short")
+	// ErrUsernameTooLong is returned when the username exceeds the maximum length.
+	ErrUsernameTooLong = wlerrors.Statusf(http.StatusBadRequest, "username is too long")
+	// ErrUsernameInvalidChars is returned when the username contains invalid characters.
+	ErrUsernameInvalidChars = wlerrors.Statusf(http.StatusBadRequest, "username contains invalid characters, only alphanumeric, _ and - are allowed")
+	// ErrUsernameNotAllowed is returned when the username is reserved or disallowed.
+	ErrUsernameNotAllowed = wlerrors.Statusf(http.StatusBadRequest, "username is not allowed")
 
-	ErrPasswordTooShort = errors.Statusf(http.StatusBadRequest, "password is too short")
-	ErrPasswordNoDigits = errors.Statusf(http.StatusBadRequest, "password must contain at least one digit")
+	// ErrPasswordTooShort is returned when the password is too short.
+	ErrPasswordTooShort = wlerrors.Statusf(http.StatusBadRequest, "password is too short")
+	// ErrPasswordNoDigits is returned when the password contains no digits.
+	ErrPasswordNoDigits = wlerrors.Statusf(http.StatusBadRequest, "password must contain at least one digit")
 )
 
 var disallowedUsernames = []string{"PUBLIC", "WEBLENS"}
@@ -55,9 +60,10 @@ func validateUsername(ctx context.Context, username string) error {
 	}
 
 	err = col.FindOne(ctx, bson.M{"username": username}).Decode(&User{})
+
 	err = db.WrapError(err, "failed to check if username exists [%s]", username)
 	if err == nil {
-		return errors.Statusf(http.StatusConflict, "username already exists")
+		return wlerrors.Statusf(http.StatusConflict, "username already exists")
 	} else if !db.IsNotFound(err) {
 		return err
 	}

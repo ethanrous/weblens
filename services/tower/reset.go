@@ -4,10 +4,11 @@ import (
 	"context"
 
 	tower_model "github.com/ethanrous/weblens/models/tower"
-	"github.com/ethanrous/weblens/modules/errors"
-	context_service "github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 )
 
+// ResetTower resets the local tower to its initial state.
 func ResetTower(ctx context.Context) error {
 	_, err := tower_model.ResetLocal(ctx)
 	if err != nil {
@@ -16,7 +17,7 @@ func ResetTower(ctx context.Context) error {
 
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
-		return errors.New("failed to get app context")
+		return wlerrors.New("failed to get app context")
 	}
 
 	appCtx.ClearCache()

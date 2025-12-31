@@ -8,8 +8,10 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
+// FileHistoryCollectionKey is the MongoDB collection name for storing file history.
 const FileHistoryCollectionKey = "fileHistory"
 
+// DoesFileExistInHistory checks if a file exists at the given filepath according to the file history.
 func DoesFileExistInHistory(ctx context.Context, filepath file_system.Filepath) (*FileAction, error) {
 	pipe := bson.A{
 		bson.D{
@@ -36,7 +38,7 @@ func DoesFileExistInHistory(ctx context.Context, filepath file_system.Filepath) 
 					{Key: "from", Value: "fileHistory"},
 					{Key: "let",
 						Value: bson.D{
-							{Key: "fileId", Value: "$fileId"},
+							{Key: "fileID", Value: "$fileID"},
 							{Key: "arrivalTime", Value: "$timestamp"},
 						},
 					},
@@ -52,8 +54,8 @@ func DoesFileExistInHistory(ctx context.Context, filepath file_system.Filepath) 
 														bson.D{
 															{Key: "$eq",
 																Value: bson.A{
-																	"$fileId",
-																	"$$fileId",
+																	"$fileID",
+																	"$$fileID",
 																},
 															},
 														},
@@ -96,7 +98,7 @@ func DoesFileExistInHistory(ctx context.Context, filepath file_system.Filepath) 
 		bson.D{
 			{Key: "$project",
 				Value: bson.D{
-					{Key: "fileId", Value: 1},
+					{Key: "fileID", Value: 1},
 					{Key: "filepath",
 						Value: bson.D{
 							{Key: "$ifNull",

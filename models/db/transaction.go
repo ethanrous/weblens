@@ -4,15 +4,17 @@ import (
 	"context"
 	"time"
 
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/log"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+// TransactionHook modifies the context before a transaction callback is executed.
 type TransactionHook func(context.Context) context.Context
 
 var transactionHooks = []TransactionHook{}
 
+// InstallTransactionHook registers a hook to be called before each transaction callback.
 func InstallTransactionHook(hook TransactionHook) {
 	transactionHooks = append(transactionHooks, hook)
 }
@@ -21,6 +23,7 @@ func hasTransaction(ctx context.Context) bool {
 	return mongo.SessionFromContext(ctx) != nil
 }
 
+// WithTransaction executes a function within a database transaction.
 func WithTransaction(ctx context.Context, fn func(ctx context.Context) error) error {
 	db, err := getDbFromContext(ctx)
 	if err != nil {
@@ -38,7 +41,7 @@ func WithTransaction(ctx context.Context, fn func(ctx context.Context) error) er
 
 	session, err := db.Client().StartSession()
 	if err != nil {
-		return errors.WithStack(err)
+		return wlerrors.WithStack(err)
 	}
 
 	defer session.EndSession(ctx)
@@ -56,7 +59,7 @@ func WithTransaction(ctx context.Context, fn func(ctx context.Context) error) er
 
 		err := fn(ctx)
 		if err != nil {
-			l.Error().Msg("Transaction func returned error, aborting")
+			l.Error().Stack().Err(err).Msg("Transaction func returned error, aborting")
 
 			return nil, err
 		}
@@ -65,7 +68,7 @@ func WithTransaction(ctx context.Context, fn func(ctx context.Context) error) er
 
 		err = sessCtx.CommitTransaction(sessCtx)
 		if err != nil {
-			return nil, errors.WithStack(err)
+			return nil, wlerrors.WithStack(err)
 		}
 
 		return nil, nil

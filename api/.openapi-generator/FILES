@@ -12,9 +12,9 @@ api_towers.go
 api_users.go
 client.go
 configuration.go
+docs/APIKeyParams.md
+docs/APIKeysAPI.md
 docs/AddUserParams.md
-docs/ApiKeyParams.md
-docs/ApiKeysAPI.md
 docs/BackupInfo.md
 docs/Config.md
 docs/ConfigAPI.md
@@ -26,11 +26,13 @@ docs/FilesAPI.md
 docs/FilesListParams.md
 docs/FolderAPI.md
 docs/FolderInfo.md
+docs/FsFilepath.md
+docs/HistoryFileAction.md
 docs/LoginBody.md
 docs/MediaAPI.md
 docs/MediaBatchInfo.md
 docs/MediaBatchParams.md
-docs/MediaIdsParams.md
+docs/MediaIDsParams.md
 docs/MediaInfo.md
 docs/MediaTypeInfo.md
 docs/MediaTypesInfo.md
@@ -52,8 +54,8 @@ docs/ShareInfo.md
 docs/StructsInitServerParams.md
 docs/StructsSetConfigParam.md
 docs/TakeoutInfo.md
+docs/TaskExitStatus.md
 docs/TaskInfo.md
-docs/TaskTaskExitStatus.md
 docs/TokenInfo.md
 docs/TowerInfo.md
 docs/TowersAPI.md
@@ -76,6 +78,8 @@ model_file_info.go
 model_file_share_params.go
 model_files_list_params.go
 model_folder_info.go
+model_fs_filepath.go
+model_history_file_action.go
 model_login_body.go
 model_media_batch_info.go
 model_media_batch_params.go
@@ -100,8 +104,8 @@ model_share_info.go
 model_structs_init_server_params.go
 model_structs_set_config_param.go
 model_takeout_info.go
+model_task_exit_status.go
 model_task_info.go
-model_task_task_exit_status.go
 model_token_info.go
 model_tower_info.go
 model_update_file_params.go

@@ -1,3 +1,4 @@
+// Package backup provides REST API handlers for backup operations.
 package backup
 
 import (
@@ -7,10 +8,10 @@ import (
 	"github.com/ethanrous/weblens/models/task"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/modules/websocket"
-	"github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/jobs"
 	"github.com/ethanrous/weblens/services/proxy"
-	"github.com/ethanrous/weblens/modules/errors"
 )
 
 // LaunchBackup godoc
@@ -23,15 +24,15 @@ import (
 //	@Security	SessionAuth[admin]
 //	@Security	ApiKeyAuth[admin]
 //
-//	@Param		serverId	path	string	true	"Server ID"
+//	@Param		serverID	path	string	true	"Server ID"
 //
 //	@Success	200
-//	@Router		/tower/{serverId}/backup [post]
-func LaunchBackup(ctx context.RequestContext) {
-	serverId := ctx.Path("serverId")
+//	@Router		/tower/{serverID}/backup [post]
+func LaunchBackup(ctx ctxservice.RequestContext) {
+	serverID := ctx.Path("serverID")
 
-	if serverId == "" {
-		ctx.Error(http.StatusBadRequest, errors.New("Server ID is required"))
+	if serverID == "" {
+		ctx.Error(http.StatusBadRequest, wlerrors.New("Server ID is required"))
 
 		return
 	}
@@ -45,7 +46,7 @@ func LaunchBackup(ctx context.RequestContext) {
 
 	// If the local is core, we send the backup request to the specied backup server
 	if local.IsCore() {
-		remote, err := tower_model.GetTowerById(ctx, serverId)
+		remote, err := tower_model.GetTowerByID(ctx, serverID)
 		if err != nil {
 			ctx.Error(http.StatusNotFound, err)
 
@@ -59,21 +60,20 @@ func LaunchBackup(ctx context.RequestContext) {
 			return
 		}
 
-		client := ctx.ClientService.GetClientByTowerId(serverId)
+		client := ctx.ClientService.GetClientByTowerID(serverID)
 		msg := websocket.WsResponseInfo{
 			EventTag: "do_backup",
-			Content:  websocket.WsData{"coreId": local.TowerId},
+			Content:  websocket.WsData{"coreID": local.TowerID},
 		}
 
 		err = client.Send(msg)
-
 		if err != nil {
 			ctx.Error(http.StatusInternalServerError, err)
 
 			return
 		}
 	} else {
-		core, err := tower_model.GetTowerById(ctx, serverId)
+		core, err := tower_model.GetTowerByID(ctx, serverID)
 		if err != nil {
 			ctx.Error(http.StatusNotFound, err)
 

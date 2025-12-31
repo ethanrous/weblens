@@ -2,13 +2,13 @@ package structs
 
 // FileInfo is a structure for safely sending file information to the client.
 type FileInfo struct {
-	Id              string   `json:"id"`
+	ID              string   `json:"id"`
 	PortablePath    string   `json:"portablePath"`
-	ParentId        string   `json:"parentId"`
-	ContentId       string   `json:"contentId"`
+	ParentID        string   `json:"parentID"`
+	ContentID       string   `json:"contentID"`
 	Owner           string   `json:"owner"`
-	ShareId         string   `json:"shareId,omitempty"`
-	PastId          string   `json:"currentId"`
+	ShareID         string   `json:"shareID,omitempty"`
+	PastID          string   `json:"currentID"`
 	Children        []string `json:"childrenIds"`
 	Size            int64    `json:"size"`
 	ModTime         int64    `json:"modifyTimestamp"`
@@ -18,6 +18,7 @@ type FileInfo struct {
 	HasRestoreMedia bool     `json:"hasRestoreMedia"`
 } // @name FileInfo
 
+// FolderInfoResponse represents the complete information about a folder including its children, parents, media, and self reference.
 type FolderInfoResponse struct {
 	Children []FileInfo  `json:"children"`
 	Parents  []FileInfo  `json:"parents"`
@@ -25,18 +26,22 @@ type FolderInfoResponse struct {
 	Self     FileInfo    `json:"self"`
 } // @name FolderInfo
 
+// NewUploadInfo represents the response containing a new upload identifier.
 type NewUploadInfo struct {
-	UploadId string `json:"uploadId"`
+	UploadID string `json:"uploadID"`
 } // @name NewUploadInfo
 
+// NewFileInfo represents the response containing a newly created file identifier.
 type NewFileInfo struct {
-	FileId string `json:"fileId"`
+	FileID string `json:"fileID"`
 } // @name NewFileInfo
 
+// NewFilesInfo represents the response containing multiple newly created file identifiers.
 type NewFilesInfo struct {
-	FileIds []string `json:"fileIds"`
+	FileIDs []string `json:"fileIDs"`
 } // @name NewFilesInfo
 
+// RestoreFilesInfo represents the response containing the new parent identifier after restoring files.
 type RestoreFilesInfo struct {
-	NewParentId string `json:"newParentId"`
+	NewParentID string `json:"newParentID"`
 } //	@name	RestoreFilesInfo

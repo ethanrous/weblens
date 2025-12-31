@@ -6,14 +6,15 @@ import (
 	"github.com/ethanrous/weblens/modules/task"
 )
 
+// TaskInfo represents task status information for API responses.
 type TaskInfo struct {
-	TaskId string `json:"taskId" validate:"required"`
+	TaskID string `json:"taskID" validate:"required"`
 
-	Completed bool                `json:"Completed" validate:"required"`
-	JobName   string              `json:"jobName" validate:"required"`
-	Progress  int                 `json:"progress" validate:"required"`
-	Status    task.TaskExitStatus `json:"status" validate:"required"`
-	WorkerId  int                 `json:"workerId" validate:"required"`
-	StartTime time.Time           `json:"startTime"`
-	Result    any                 `json:"result,omitempty"`
+	Completed bool            `json:"Completed" validate:"required"`
+	JobName   string          `json:"jobName" validate:"required"`
+	Progress  int             `json:"progress" validate:"required"`
+	Status    task.ExitStatus `json:"status" validate:"required"`
+	WorkerID  int             `json:"workerID" validate:"required"`
+	StartTime time.Time       `json:"startTime"`
+	Result    any             `json:"result,omitempty"`
 } // @name TaskInfo

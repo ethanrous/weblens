@@ -3,33 +3,39 @@ package tower
 import (
 	"context"
 
-	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 )
 
 var (
-	ErrNilTower     = errors.New("tower is nil")
-	ErrEmptyID      = errors.New("tower ID is empty")
-	ErrEmptyName    = errors.New("tower name is empty")
-	ErrEmptyRole    = errors.New("tower role is empty")
-	ErrEmptyAddress = errors.New("tower address is empty")
-	ErrEmptyPort    = errors.New("tower port is empty")
+	// ErrNilTower indicates a nil tower instance was provided.
+	ErrNilTower = wlerrors.New("tower is nil")
+	// ErrEmptyID indicates a tower has an empty ID.
+	ErrEmptyID = wlerrors.New("tower ID is empty")
+	// ErrEmptyName indicates a tower has an empty name.
+	ErrEmptyName = wlerrors.New("tower name is empty")
+	// ErrEmptyRole indicates a tower has an empty role.
+	ErrEmptyRole = wlerrors.New("tower role is empty")
+	// ErrEmptyAddress indicates a tower has an empty address.
+	ErrEmptyAddress = wlerrors.New("tower address is empty")
+	// ErrEmptyPort indicates a tower has an empty port.
+	ErrEmptyPort = wlerrors.New("tower port is empty")
 )
 
-func validateNewTower(ctx context.Context, t *Instance) error {
+func validateNewTower(_ context.Context, t *Instance) error {
 	if t == nil {
-		return errors.WithStack(ErrNilTower)
+		return wlerrors.WithStack(ErrNilTower)
 	}
 
-	if t.TowerId == "" {
-		return errors.WithStack(ErrEmptyID)
+	if t.TowerID == "" {
+		return wlerrors.WithStack(ErrEmptyID)
 	}
 
 	if t.Name == "" {
-		return errors.WithStack(ErrEmptyName)
+		return wlerrors.WithStack(ErrEmptyName)
 	}
 
 	if t.Role == "" {
-		return errors.WithStack(ErrEmptyRole)
+		return wlerrors.WithStack(ErrEmptyRole)
 	}
 
 	// local, err := GetLocal(ctx)

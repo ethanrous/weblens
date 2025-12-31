@@ -9,17 +9,17 @@ import (
 	media_model "github.com/ethanrous/weblens/models/media"
 	share_model "github.com/ethanrous/weblens/models/share"
 	"github.com/ethanrous/weblens/models/task"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/option"
 	"github.com/ethanrous/weblens/modules/structs"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/services/auth"
-	context_service "github.com/ethanrous/weblens/services/context"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	file_service "github.com/ethanrous/weblens/services/file"
 	"github.com/ethanrous/weblens/services/reshape"
 	"github.com/rs/zerolog"
 )
 
-// ScanFolder godoc
+// ScanDir godoc
 //
 //	@ID	ScanFolder
 //
@@ -28,12 +28,12 @@ import (
 //
 //	@Summary	Dispatch a folder scan
 //	@Tags		Folder
-//	@Param		folderId	path		string				true	"Folder Id"
-//	@Param		shareId	query	string				false	"Share Id"
+//	@Param		folderID	path		string				true	"Folder ID"
+//	@Param		shareID	query	string				false	"Share ID"
 //	@Success	200 {object} structs.TaskInfo "Task Info"
 //	@Failure	404
 //	@Failure	500
-//	@Router		/folder/{folderId}/scan [post]
+//	@Router		/folder/{folderID}/scan [post]
 func ScanDir(ctx context_service.RequestContext) {
 	folder, err := checkFileAccess(ctx)
 	if err != nil {
@@ -53,7 +53,7 @@ func ScanDir(ctx context_service.RequestContext) {
 
 	t, err := ctx.TaskService.DispatchJob(ctx, jobName, meta, nil)
 	if err != nil {
-		ctx.Error(http.StatusInternalServerError, errors.Errorf("Failed to dispatch scan task: %w", err))
+		ctx.Error(http.StatusInternalServerError, wlerrors.Errorf("Failed to dispatch scan task: %w", err))
 
 		return
 	}
@@ -81,6 +81,7 @@ func formatRespondFolderInfo(ctx context_service.RequestContext, dir *file_model
 
 	for parent != nil && !parent.GetPortablePath().IsRoot() && !owner.IsSystemUser() {
 		var perms *share_model.Permissions
+
 		if perms, err = auth.CanUserAccessFile(ctx, ctx.Requester, parent, ctx.Share); err != nil {
 			break
 		}
@@ -190,8 +191,7 @@ func formatRespondPastFolderInfo(ctx context_service.RequestContext, folder *fil
 	medias := []*media_model.Media{}
 
 	for _, child := range children {
-		m, err := media_model.GetMediaByContentId(ctx, child.GetContentId())
-
+		m, err := media_model.GetMediaByContentID(ctx, child.GetContentID())
 		if err == nil {
 			medias = append(medias, m)
 		}

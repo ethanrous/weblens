@@ -1,4 +1,4 @@
-package file
+package file_test
 
 import (
 	"crypto/rand"
@@ -13,12 +13,12 @@ import (
 	"github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/structs"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/services/proxy"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/rs/zerolog"
 )
 
-func TestFiles(t *testing.T) {
+func TestFiles(_ *testing.T) {
 	// t.Parallel()
 	//
 	// logger := log.NewZeroLogger()
@@ -41,7 +41,7 @@ func TestFiles(t *testing.T) {
 	// coreApiKey := keys[0].Key
 	//
 	// localCoreInstance := &tower_model.Instance{
-	// 	TowerId:     coreInstance.Id,
+	// 	TowerID:     coreInstance.ID,
 	// 	Name:        coreInstance.Name,
 	// 	OutgoingKey: coreApiKey,
 	// 	Role:        tower_model.CoreServerRole,
@@ -71,33 +71,35 @@ func TestFiles(t *testing.T) {
 	// 	t.FailNow()
 	// }
 	//
-	// ownerHomeInfoRequest := proxy.NewCoreRequest(localCoreInstance, "GET", "/folder/"+owner.HomeId)
+	// ownerHomeInfoRequest := proxy.NewCoreRequest(localCoreInstance, "GET", "/folder/"+owner.HomeID)
 	// ownerHomeInfo, err := proxy.CallHomeStruct[structs.FolderInfoResponse](ownerHomeInfoRequest)
 	// if err != nil {
 	// 	logger.Error().Stack().Err(err).Msg("")
 	// 	t.FailNow()
 	// }
 	//
-	// if len(ownerHomeInfo.Children) != 1 || ownerHomeInfo.Children[0].Id != owner.TrashId {
+	// if len(ownerHomeInfo.Children) != 1 || ownerHomeInfo.Children[0].ID != owner.TrashID {
 	// 	t.Fatalf("Owner home should be empty: %v", ownerHomeInfo.Children)
 	// }
 }
 
 func simpleCreate(core *tower_model.Instance, owner *user.User) error {
 	createFolderRequest := proxy.NewCoreRequest(core, "POST", "/folder").WithBody(structs.CreateFolderBody{
-		ParentFolderId: owner.HomeId,
+		ParentFolderID: owner.HomeID,
 		NewFolderName:  "test-folder",
 	})
+
 	folderInfo, err := proxy.CallHomeStruct[structs.FileInfo](createFolderRequest)
 	if err != nil {
 		return err
 	}
 
-	if folderInfo.ParentId != owner.HomeId {
-		return errors.Errorf("Parent folder mismatch %s != %s", folderInfo.ParentId, owner.HomeId)
+	if folderInfo.ParentID != owner.HomeID {
+		return wlerrors.Errorf("Parent folder mismatch %s != %s", folderInfo.ParentID, owner.HomeID)
 	}
 
-	getFileRequest := proxy.NewCoreRequest(core, "GET", "/files/"+folderInfo.Id)
+	getFileRequest := proxy.NewCoreRequest(core, "GET", "/files/"+folderInfo.ID)
+
 	getFolderInfo, err := proxy.CallHomeStruct[structs.FileInfo](getFileRequest)
 	if err != nil {
 		return err
@@ -109,10 +111,10 @@ func simpleCreate(core *tower_model.Instance, owner *user.User) error {
 	}
 
 	if folderPath.Filename() != "test-folder" {
-		return errors.Errorf("Folder name mismatch %s != %s", folderPath.Filename(), "test-folder")
+		return wlerrors.Errorf("Folder name mismatch %s != %s", folderPath.Filename(), "test-folder")
 	}
 
-	_, err = proxy.NewCoreRequest(core, "DELETE", "/files").WithQuery("ignore_trash", "true").WithBody(structs.FilesListParams{FileIds: []string{getFolderInfo.Id}}).Call()
+	_, err = proxy.NewCoreRequest(core, "DELETE", "/files").WithQuery("ignore_trash", "true").WithBody(structs.FilesListParams{FileIDs: []string{getFolderInfo.ID}}).Call()
 	if err != nil {
 		return err
 	}
@@ -127,34 +129,37 @@ func uploadFile(core *tower_model.Instance, owner *user.User, logger zerolog.Log
 	}
 
 	createUploadRequest := proxy.NewCoreRequest(core, "POST", "/upload").WithBody(structs.NewUploadParams{
-		RootFolderId: owner.HomeId,
+		RootFolderID: owner.HomeID,
 		ChunkSize:    fileSize,
 	})
+
 	uploadInfo, err := proxy.CallHomeStruct[structs.NewUploadInfo](createUploadRequest)
 	if err != nil {
 		return err
 	}
 
-	newFileRequest := proxy.NewCoreRequest(core, "POST", "/upload/"+uploadInfo.UploadId).WithBody(structs.NewFilesParams{
+	newFileRequest := proxy.NewCoreRequest(core, "POST", "/upload/"+uploadInfo.UploadID).WithBody(structs.NewFilesParams{
 		NewFiles: []structs.NewFileParams{
 			{
 				NewFileName:    "test-file.txt",
-				ParentFolderId: owner.HomeId,
+				ParentFolderID: owner.HomeID,
 				FileSize:       fileSize,
 			},
 		},
 	})
+
 	newFilesInfo, err := proxy.CallHomeStruct[structs.NewFilesInfo](newFileRequest)
 	if err != nil {
 		return err
 	}
 
-	_, err = proxy.NewCoreRequest(core, "PUT", "/upload/"+uploadInfo.UploadId+"/file/"+newFilesInfo.FileIds[0]).WithHeader("Content-Range", fmt.Sprintf("0-%d/%d", fileSize, fileSize)).WithBodyBytes(randomBytes).Call()
+	_, err = proxy.NewCoreRequest(core, "PUT", "/upload/"+uploadInfo.UploadID+"/file/"+newFilesInfo.FileIDs[0]).WithHeader("Content-Range", fmt.Sprintf("0-%d/%d", fileSize, fileSize)).WithBodyBytes(randomBytes).Call()
 	if err != nil {
 		return err
 	}
 
-	getFileRequest := proxy.NewCoreRequest(core, "GET", "/files/"+newFilesInfo.FileIds[0])
+	getFileRequest := proxy.NewCoreRequest(core, "GET", "/files/"+newFilesInfo.FileIDs[0])
+
 	getFileInfo, err := proxy.CallHomeStruct[structs.FileInfo](getFileRequest)
 	if err != nil {
 		return err
@@ -166,11 +171,11 @@ func uploadFile(core *tower_model.Instance, owner *user.User, logger zerolog.Log
 	}
 
 	if filePath.Filename() != "test-file.txt" {
-		return errors.Errorf("File name mismatch %s != %s", filePath.Filename(), "test-file.txt")
+		return wlerrors.Errorf("File name mismatch %s != %s", filePath.Filename(), "test-file.txt")
 	}
 
-	if getFileInfo.ParentId != owner.HomeId {
-		return errors.Errorf("Parent folder mismatch %s != %s", getFileInfo.ParentId, owner.HomeId)
+	if getFileInfo.ParentID != owner.HomeID {
+		return wlerrors.Errorf("Parent folder mismatch %s != %s", getFileInfo.ParentID, owner.HomeID)
 	}
 
 	returnedSize := getFileInfo.Size
@@ -182,10 +187,11 @@ func uploadFile(core *tower_model.Instance, owner *user.User, logger zerolog.Log
 
 		timeout--
 		if timeout == 0 {
-			return errors.Errorf("Did not receive expected file size %d != %d", returnedSize, fileSize)
+			return wlerrors.Errorf("Did not receive expected file size %d != %d", returnedSize, fileSize)
 		}
 
-		getFileRequest := proxy.NewCoreRequest(core, "GET", "/files/"+newFilesInfo.FileIds[0])
+		getFileRequest := proxy.NewCoreRequest(core, "GET", "/files/"+newFilesInfo.FileIDs[0])
+
 		getFileInfo, err := proxy.CallHomeStruct[structs.FileInfo](getFileRequest)
 		if err != nil {
 			return err
@@ -194,8 +200,9 @@ func uploadFile(core *tower_model.Instance, owner *user.User, logger zerolog.Log
 		returnedSize = getFileInfo.Size
 	}
 
-	downloadUrl := fmt.Sprintf("/files/%s/download", newFilesInfo.FileIds[0])
-	downloadResponse, err := proxy.NewCoreRequest(core, "GET", downloadUrl).Call()
+	downloadURL := fmt.Sprintf("/files/%s/download", newFilesInfo.FileIDs[0])
+
+	downloadResponse, err := proxy.NewCoreRequest(core, "GET", downloadURL).Call()
 	if err != nil {
 		return err
 	}
@@ -206,13 +213,14 @@ func uploadFile(core *tower_model.Instance, owner *user.User, logger zerolog.Log
 	}
 
 	if len(bodyBytes) != int(fileSize) {
-		return errors.Errorf("Downloaded file size mismatch %d != %d", len(bodyBytes), fileSize)
-	}
-	if string(bodyBytes) != string(randomBytes) {
-		return errors.Errorf("Downloaded file content mismatch")
+		return wlerrors.Errorf("Downloaded file size mismatch %d != %d", len(bodyBytes), fileSize)
 	}
 
-	_, err = proxy.NewCoreRequest(core, "DELETE", "/files").WithQuery("ignore_trash", "true").WithBody(structs.FilesListParams{FileIds: []string{newFilesInfo.FileIds[0]}}).Call()
+	if string(bodyBytes) != string(randomBytes) {
+		return wlerrors.Errorf("Downloaded file content mismatch")
+	}
+
+	_, err = proxy.NewCoreRequest(core, "DELETE", "/files").WithQuery("ignore_trash", "true").WithBody(structs.FilesListParams{FileIDs: []string{newFilesInfo.FileIDs[0]}}).Call()
 	if err != nil {
 		return err
 	}
@@ -221,17 +229,17 @@ func uploadFile(core *tower_model.Instance, owner *user.User, logger zerolog.Log
 }
 
 func moveFiles(core *tower_model.Instance, owner *user.User) error {
-	folder1, err := makeFolder("top-folder-1", owner.HomeId, core)
+	folder1, err := makeFolder("top-folder-1", owner.HomeID, core)
 	if err != nil {
 		return err
 	}
 
-	folder2, err := makeFolder("top-folder-2", owner.HomeId, core)
+	folder2, err := makeFolder("top-folder-2", owner.HomeID, core)
 	if err != nil {
 		return err
 	}
 
-	subFolder, err := makeFolder("sub-folder", folder1.Id, core)
+	subFolder, err := makeFolder("sub-folder", folder1.ID, core)
 	if err != nil {
 		return err
 	}
@@ -242,7 +250,7 @@ func moveFiles(core *tower_model.Instance, owner *user.User) error {
 	}
 
 	createUploadRequest := proxy.NewCoreRequest(core, "POST", "/upload").WithBody(structs.NewUploadParams{
-		RootFolderId: subFolder.Id,
+		RootFolderID: subFolder.ID,
 		ChunkSize:    fileSize,
 	})
 
@@ -251,11 +259,11 @@ func moveFiles(core *tower_model.Instance, owner *user.User) error {
 		return err
 	}
 
-	newFileRequest := proxy.NewCoreRequest(core, "POST", "/upload/"+uploadInfo.UploadId).WithBody(structs.NewFilesParams{
+	newFileRequest := proxy.NewCoreRequest(core, "POST", "/upload/"+uploadInfo.UploadID).WithBody(structs.NewFilesParams{
 		NewFiles: []structs.NewFileParams{
 			{
 				NewFileName:    "test-file.txt",
-				ParentFolderId: subFolder.Id,
+				ParentFolderID: subFolder.ID,
 				FileSize:       fileSize,
 			},
 		},
@@ -266,50 +274,52 @@ func moveFiles(core *tower_model.Instance, owner *user.User) error {
 		return err
 	}
 
-	_, err = proxy.NewCoreRequest(core, "PUT", "/upload/"+uploadInfo.UploadId+"/file/"+newFilesInfo.FileIds[0]).WithHeader("Content-Range", fmt.Sprintf("0-%d/%d", fileSize, fileSize)).WithBodyBytes(bytes).Call()
+	_, err = proxy.NewCoreRequest(core, "PUT", "/upload/"+uploadInfo.UploadID+"/file/"+newFilesInfo.FileIDs[0]).WithHeader("Content-Range", fmt.Sprintf("0-%d/%d", fileSize, fileSize)).WithBodyBytes(bytes).Call()
 	if err != nil {
 		return err
 	}
 
 	// Wait for upload to complete
-	_, err = proxy.NewCoreRequest(core, "GET", "/upload/"+uploadInfo.UploadId).Call()
+	_, err = proxy.NewCoreRequest(core, "GET", "/upload/"+uploadInfo.UploadID).Call()
 	if err != nil {
 		return err
 	}
 
 	_, err = proxy.NewCoreRequest(core, "PATCH", "/files/").WithBody(structs.MoveFilesParams{
-		NewParentId: folder2.Id,
-		Files:       []string{subFolder.Id},
+		NewParentID: folder2.ID,
+		Files:       []string{subFolder.ID},
 	}).Call()
 	if err != nil {
 		return err
 	}
 
-	getFolder1Request := proxy.NewCoreRequest(core, "GET", "/folder/"+folder1.Id)
+	getFolder1Request := proxy.NewCoreRequest(core, "GET", "/folder/"+folder1.ID)
+
 	folder1Info, err := proxy.CallHomeStruct[structs.FolderInfoResponse](getFolder1Request)
 	if err != nil {
 		return err
 	}
 
 	if len(folder1Info.Children) != 0 {
-		return errors.Errorf("Folder 1 should be empty")
+		return wlerrors.Errorf("Folder 1 should be empty")
 	}
 
-	getFolder2Request := proxy.NewCoreRequest(core, "GET", "/folder/"+folder2.Id)
+	getFolder2Request := proxy.NewCoreRequest(core, "GET", "/folder/"+folder2.ID)
+
 	folder2Info, err := proxy.CallHomeStruct[structs.FolderInfoResponse](getFolder2Request)
 	if err != nil {
 		return err
 	}
 
 	if len(folder2Info.Children) != 1 {
-		return errors.Errorf("Folder 2 should have 1 child")
+		return wlerrors.Errorf("Folder 2 should have 1 child")
 	}
 
-	if folder2Info.Children[0].Id != subFolder.Id {
-		return errors.Errorf("Folder 2 should have sub-folder as child")
+	if folder2Info.Children[0].ID != subFolder.ID {
+		return wlerrors.Errorf("Folder 2 should have sub-folder as child")
 	}
 
-	_, err = proxy.NewCoreRequest(core, "DELETE", "/files").WithQuery("ignore_trash", "true").WithBody(structs.FilesListParams{FileIds: []string{folder1.Id, folder2.Id}}).Call()
+	_, err = proxy.NewCoreRequest(core, "DELETE", "/files").WithQuery("ignore_trash", "true").WithBody(structs.FilesListParams{FileIDs: []string{folder1.ID, folder2.ID}}).Call()
 	if err != nil {
 		return err
 	}
@@ -317,11 +327,12 @@ func moveFiles(core *tower_model.Instance, owner *user.User) error {
 	return nil
 }
 
-func makeFolder(name string, parentFolderId string, core *tower_model.Instance) (structs.FileInfo, error) {
+func makeFolder(name string, parentFolderID string, core *tower_model.Instance) (structs.FileInfo, error) {
 	createFolderRequest := proxy.NewCoreRequest(core, "POST", "/folder").WithBody(structs.CreateFolderBody{
-		ParentFolderId: parentFolderId,
+		ParentFolderID: parentFolderID,
 		NewFolderName:  name,
 	})
+
 	folderInfo, err := proxy.CallHomeStruct[structs.FileInfo](createFolderRequest)
 	if err != nil {
 		return structs.FileInfo{}, err
@@ -331,14 +342,15 @@ func makeFolder(name string, parentFolderId string, core *tower_model.Instance) 
 }
 
 func makeRandomFile() ([]byte, int64, error) {
-
 	nBig, err := rand.Int(rand.Reader, big.NewInt(int64(math.Pow(2, 14))))
 	if err != nil {
 		return nil, 0, err
 	}
+
 	fileSize := nBig.Int64()
 
 	randomBytes := make([]byte, fileSize)
+
 	_, err = rand.Read(randomBytes)
 	if err != nil {
 		return nil, 0, err

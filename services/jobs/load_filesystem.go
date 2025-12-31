@@ -3,25 +3,26 @@ package jobs
 import (
 	job_model "github.com/ethanrous/weblens/models/job"
 	"github.com/ethanrous/weblens/models/task"
-	"github.com/ethanrous/weblens/modules/errors"
 	task_mod "github.com/ethanrous/weblens/modules/task"
-	"github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/services/ctxservice"
 	file_service "github.com/ethanrous/weblens/services/file"
 )
 
+// LoadAtPath recursively loads the filesystem tree starting from a specified path.
 func LoadAtPath(tsk task_mod.Task) {
 	t := tsk.(*task.Task)
 
-	appCtx, ok := context.FromContext(t.Ctx)
+	appCtx, ok := ctxservice.FromContext(t.Ctx)
 	if !ok {
-		t.Fail(errors.Errorf("failed to get context"))
+		t.Fail(wlerrors.Errorf("failed to get context"))
 
 		return
 	}
 
 	meta, ok := t.GetMeta().(job_model.LoadFilesystemMeta)
 	if !ok {
-		t.Fail(errors.Errorf("failed to get meta"))
+		t.Fail(wlerrors.Errorf("failed to get meta"))
 
 		return
 	}

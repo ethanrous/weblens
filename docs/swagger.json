@@ -163,8 +163,8 @@
                     },
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "query"
                     }
                 ],
@@ -238,7 +238,7 @@
                     {
                         "type": "string",
                         "description": "The folder to search in, defaults to the user's home folder",
-                        "name": "baseFolderId",
+                        "name": "baseFolderID",
                         "in": "query"
                     }
                 ],
@@ -379,7 +379,7 @@
                 }
             }
         },
-        "/files/{fileId}": {
+        "/files/{fileID}": {
             "get": {
                 "security": [
                     {
@@ -397,15 +397,15 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "File Id",
-                        "name": "fileId",
+                        "description": "File ID",
+                        "name": "fileID",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "query"
                     }
                 ],
@@ -441,15 +441,15 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "File Id",
-                        "name": "fileId",
+                        "description": "File ID",
+                        "name": "fileID",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "query"
                     },
                     {
@@ -478,7 +478,7 @@
                 }
             }
         },
-        "/files/{fileId}/download": {
+        "/files/{fileID}/download": {
             "get": {
                 "security": [
                     {
@@ -496,15 +496,15 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "File Id",
-                        "name": "fileId",
+                        "description": "File ID",
+                        "name": "fileID",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "query"
                     },
                     {
@@ -541,7 +541,7 @@
                 }
             }
         },
-        "/files/{fileId}/history": {
+        "/files/{fileID}/history": {
             "get": {
                 "security": [
                     {
@@ -556,8 +556,8 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "File Id",
-                        "name": "fileId",
+                        "description": "File ID",
+                        "name": "fileID",
                         "in": "path",
                         "required": true
                     },
@@ -588,7 +588,7 @@
                 }
             }
         },
-        "/files/{fileId}/stats": {
+        "/files/{fileID}/stats": {
             "get": {
                 "security": [
                     {
@@ -606,8 +606,8 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "File Id",
-                        "name": "fileId",
+                        "description": "File ID",
+                        "name": "fileID",
                         "in": "path",
                         "required": true
                     }
@@ -622,7 +622,7 @@
                 }
             }
         },
-        "/files/{fileId}/text": {
+        "/files/{fileID}/text": {
             "get": {
                 "security": [
                     {
@@ -640,15 +640,15 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "File Id",
-                        "name": "fileId",
+                        "description": "File ID",
+                        "name": "fileID",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "query"
                     }
                 ],
@@ -695,8 +695,8 @@
                     },
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "query"
                     }
                 ],
@@ -710,7 +710,7 @@
                 }
             }
         },
-        "/folder/{folderId}": {
+        "/folder/{folderID}": {
             "get": {
                 "security": [
                     {
@@ -731,15 +731,15 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Folder Id",
-                        "name": "folderId",
+                        "description": "Folder ID",
+                        "name": "folderID",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "query"
                     },
                     {
@@ -759,7 +759,7 @@
                 }
             }
         },
-        "/folder/{folderId}/cover": {
+        "/folder/{folderID}/cover": {
             "patch": {
                 "security": [
                     {
@@ -774,15 +774,15 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Folder Id",
-                        "name": "folderId",
+                        "description": "Folder ID",
+                        "name": "folderID",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Media Id",
-                        "name": "mediaId",
+                        "description": "Media ID",
+                        "name": "mediaID",
                         "in": "query",
                         "required": true
                     }
@@ -803,7 +803,7 @@
                 }
             }
         },
-        "/folder/{folderId}/scan": {
+        "/folder/{folderID}/scan": {
             "post": {
                 "security": [
                     {
@@ -818,15 +818,15 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Folder Id",
-                        "name": "folderId",
+                        "description": "Folder ID",
+                        "name": "folderID",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "query"
                     }
                 ],
@@ -877,10 +877,10 @@
                     "application/json"
                 ],
                 "tags": [
-                    "ApiKeys"
+                    "APIKeys"
                 ],
                 "summary": "Get all api keys",
-                "operationId": "GetApiKeys",
+                "operationId": "GetAPIKeys",
                 "responses": {
                     "200": {
                         "description": "Tokens",
@@ -909,10 +909,10 @@
                     "application/json"
                 ],
                 "tags": [
-                    "ApiKeys"
+                    "APIKeys"
                 ],
                 "summary": "Create a new api key",
-                "operationId": "CreateApiKey",
+                "operationId": "CreateAPIKey",
                 "parameters": [
                     {
                         "description": "The new token params",
@@ -920,7 +920,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/ApiKeyParams"
+                            "$ref": "#/definitions/APIKeyParams"
                         }
                     }
                 ],
@@ -940,7 +940,7 @@
                 }
             }
         },
-        "/keys/{tokenId}": {
+        "/keys/{tokenID}": {
             "delete": {
                 "security": [
                     {
@@ -953,15 +953,15 @@
                     "application/json"
                 ],
                 "tags": [
-                    "ApiKeys"
+                    "APIKeys"
                 ],
                 "summary": "Delete an api key",
-                "operationId": "DeleteApiKey",
+                "operationId": "DeleteAPIKey",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Api key id",
-                        "name": "tokenId",
+                        "description": "API key id",
+                        "name": "tokenID",
                         "in": "path",
                         "required": true
                     }
@@ -1004,8 +1004,8 @@
                     },
                     {
                         "type": "string",
-                        "description": "File ShareId",
-                        "name": "shareId",
+                        "description": "File ShareID",
+                        "name": "shareID",
                         "in": "query"
                     }
                 ],
@@ -1205,12 +1205,12 @@
                         "required": true
                     },
                     {
-                        "description": "MediaIds to change visibility of",
-                        "name": "mediaIds",
+                        "description": "MediaIDs to change visibility of",
+                        "name": "mediaIDs",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/MediaIdsParams"
+                            "$ref": "#/definitions/MediaIDsParams"
                         }
                     }
                 ],
@@ -1227,7 +1227,7 @@
                 }
             }
         },
-        "/media/{mediaId}.{extension}": {
+        "/media/{mediaID}.{extension}": {
             "get": {
                 "produces": [
                     "image/*"
@@ -1240,8 +1240,8 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Media Id",
-                        "name": "mediaId",
+                        "description": "Media ID",
+                        "name": "mediaID",
                         "in": "path",
                         "required": true
                     },
@@ -1283,7 +1283,7 @@
                 }
             }
         },
-        "/media/{mediaId}/file": {
+        "/media/{mediaID}/file": {
             "get": {
                 "security": [
                     {
@@ -1304,8 +1304,8 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Id of media",
-                        "name": "mediaId",
+                        "description": "ID of media",
+                        "name": "mediaID",
                         "in": "path",
                         "required": true
                     }
@@ -1326,7 +1326,7 @@
                 }
             }
         },
-        "/media/{mediaId}/info": {
+        "/media/{mediaID}/info": {
             "get": {
                 "produces": [
                     "application/json"
@@ -1339,8 +1339,8 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Media Id",
-                        "name": "mediaId",
+                        "description": "Media ID",
+                        "name": "mediaID",
                         "in": "path",
                         "required": true
                     }
@@ -1355,7 +1355,7 @@
                 }
             }
         },
-        "/media/{mediaId}/liked": {
+        "/media/{mediaID}/liked": {
             "patch": {
                 "security": [
                     {
@@ -1373,15 +1373,15 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Id of media",
-                        "name": "mediaId",
+                        "description": "ID of media",
+                        "name": "mediaID",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "ShareId",
-                        "name": "shareId",
+                        "description": "ShareID",
+                        "name": "shareID",
                         "in": "query"
                     },
                     {
@@ -1408,7 +1408,7 @@
                 }
             }
         },
-        "/media/{mediaId}/video": {
+        "/media/{mediaID}/video": {
             "get": {
                 "security": [
                     {
@@ -1429,8 +1429,8 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Id of media",
-                        "name": "mediaId",
+                        "description": "ID of media",
+                        "name": "mediaID",
                         "in": "path",
                         "required": true
                     }
@@ -1482,7 +1482,7 @@
                 }
             }
         },
-        "/share/{shareId}": {
+        "/share/{shareID}": {
             "get": {
                 "produces": [
                     "application/json"
@@ -1495,8 +1495,8 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "path",
                         "required": true
                     }
@@ -1525,8 +1525,8 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "path",
                         "required": true
                     }
@@ -1541,7 +1541,7 @@
                 }
             }
         },
-        "/share/{shareId}/accessors": {
+        "/share/{shareID}/accessors": {
             "post": {
                 "produces": [
                     "application/json"
@@ -1554,8 +1554,8 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "path",
                         "required": true
                     },
@@ -1582,7 +1582,7 @@
                 }
             }
         },
-        "/share/{shareId}/accessors/{username}": {
+        "/share/{shareID}/accessors/{username}": {
             "delete": {
                 "produces": [
                     "application/json"
@@ -1595,8 +1595,8 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "path",
                         "required": true
                     },
@@ -1632,8 +1632,8 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "path",
                         "required": true
                     },
@@ -1667,7 +1667,7 @@
                 }
             }
         },
-        "/share/{shareId}/public": {
+        "/share/{shareID}/public": {
             "patch": {
                 "produces": [
                     "application/json"
@@ -1680,8 +1680,8 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "path",
                         "required": true
                     },
@@ -1719,8 +1719,8 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "query"
                     },
                     {
@@ -1863,6 +1863,59 @@
                         "schema": {
                             "$ref": "#/definitions/WLResponseInfo"
                         }
+                    }
+                }
+            }
+        },
+        "/tower/history": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Towers"
+                ],
+                "summary": "Get a page of file actions",
+                "operationId": "GetPagedHistoryActions",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of items per page",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "File Actions",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/history.FileAction"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
                     }
                 }
             }
@@ -2021,7 +2074,7 @@
                 }
             }
         },
-        "/tower/{serverId}": {
+        "/tower/{serverID}": {
             "delete": {
                 "security": [
                     {
@@ -2043,8 +2096,8 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Server Id to delete",
-                        "name": "serverId",
+                        "description": "Server ID to delete",
+                        "name": "serverID",
                         "in": "path",
                         "required": true
                     }
@@ -2062,7 +2115,7 @@
                 }
             }
         },
-        "/tower/{serverId}/backup": {
+        "/tower/{serverID}/backup": {
             "post": {
                 "security": [
                     {
@@ -2085,7 +2138,7 @@
                     {
                         "type": "string",
                         "description": "Server ID",
-                        "name": "serverId",
+                        "name": "serverID",
                         "in": "path",
                         "required": true
                     }
@@ -2121,8 +2174,8 @@
                     },
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "query"
                     }
                 ],
@@ -2145,7 +2198,7 @@
                 }
             }
         },
-        "/upload/{uploadId}": {
+        "/upload/{uploadID}": {
             "get": {
                 "security": [
                     {
@@ -2160,8 +2213,8 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Upload Id",
-                        "name": "uploadId",
+                        "description": "Upload ID",
+                        "name": "uploadID",
                         "in": "path",
                         "required": true
                     }
@@ -2195,15 +2248,15 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Upload Id",
-                        "name": "uploadId",
+                        "description": "Upload ID",
+                        "name": "uploadID",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "query"
                     },
                     {
@@ -2235,7 +2288,7 @@
                 }
             }
         },
-        "/upload/{uploadId}/file/{fileId}": {
+        "/upload/{uploadID}/file/{fileID}": {
             "put": {
                 "security": [
                     {
@@ -2250,22 +2303,22 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Upload Id",
-                        "name": "uploadId",
+                        "description": "Upload ID",
+                        "name": "uploadID",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "File Id",
-                        "name": "fileId",
+                        "description": "File ID",
+                        "name": "fileID",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
+                        "description": "Share ID",
+                        "name": "shareID",
                         "in": "query"
                     },
                     {
@@ -2797,6 +2850,17 @@
         }
     },
     "definitions": {
+        "APIKeyParams": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "AddUserParams": {
             "type": "object",
             "required": [
@@ -2816,17 +2880,6 @@
                     "type": "boolean"
                 },
                 "username": {
-                    "type": "string"
-                }
-            }
-        },
-        "ApiKeyParams": {
-            "type": "object",
-            "required": [
-                "name"
-            ],
-            "properties": {
-                "name": {
                     "type": "string"
                 }
             }
@@ -2878,7 +2931,7 @@
             "type": "object",
             "required": [
                 "newFolderName",
-                "parentFolderId"
+                "parentFolderID"
             ],
             "properties": {
                 "children": {
@@ -2890,7 +2943,7 @@
                 "newFolderName": {
                     "type": "string"
                 },
-                "parentFolderId": {
+                "parentFolderID": {
                     "type": "string"
                 }
             }
@@ -2899,27 +2952,27 @@
             "type": "object",
             "required": [
                 "actionType",
-                "eventId",
-                "fileId",
-                "parentId",
+                "eventID",
+                "fileID",
+                "parentID",
                 "size",
                 "timestamp",
-                "towerId"
+                "towerID"
             ],
             "properties": {
                 "actionType": {
                     "type": "string"
                 },
-                "contentId": {
+                "contentID": {
                     "type": "string"
                 },
                 "destinationPath": {
                     "type": "string"
                 },
-                "eventId": {
+                "eventID": {
                     "type": "string"
                 },
-                "fileId": {
+                "fileID": {
                     "type": "string"
                 },
                 "filepath": {
@@ -2928,7 +2981,7 @@
                 "originPath": {
                     "type": "string"
                 },
-                "parentId": {
+                "parentID": {
                     "type": "string"
                 },
                 "size": {
@@ -2939,7 +2992,7 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "towerId": {
+                "towerID": {
                     "type": "string"
                 }
             }
@@ -2953,10 +3006,10 @@
                         "type": "string"
                     }
                 },
-                "contentId": {
+                "contentID": {
                     "type": "string"
                 },
-                "currentId": {
+                "currentID": {
                     "type": "string"
                 },
                 "hasRestoreMedia": {
@@ -2977,7 +3030,7 @@
                 "owner": {
                     "type": "string"
                 },
-                "parentId": {
+                "parentID": {
                     "type": "string"
                 },
                 "pastFile": {
@@ -2986,7 +3039,7 @@
                 "portablePath": {
                     "type": "string"
                 },
-                "shareId": {
+                "shareID": {
                     "type": "string"
                 },
                 "size": {
@@ -2997,7 +3050,7 @@
         "FileShareParams": {
             "type": "object",
             "properties": {
-                "fileId": {
+                "fileID": {
                     "type": "string"
                 },
                 "public": {
@@ -3020,7 +3073,7 @@
         "FilesListParams": {
             "type": "object",
             "properties": {
-                "fileIds": {
+                "fileIDs": {
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -3089,14 +3142,14 @@
         "MediaBatchParams": {
             "type": "object",
             "properties": {
-                "folderIds": {
+                "folderIDs": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     },
                     "example": [
-                        "[fId1",
-                        "fId2]"
+                        "[fID1",
+                        "fID2]"
                     ]
                 },
                 "hidden": {
@@ -3111,14 +3164,14 @@
                     "type": "integer",
                     "example": 20
                 },
-                "mediaIds": {
+                "mediaIDs": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     },
                     "example": [
-                        "[mId1",
-                        "mId2]"
+                        "[mID1",
+                        "mID2]"
                     ]
                 },
                 "page": {
@@ -3154,10 +3207,10 @@
                 }
             }
         },
-        "MediaIdsParams": {
+        "MediaIDsParams": {
             "type": "object",
             "properties": {
-                "mediaIds": {
+                "mediaIDs": {
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -3168,7 +3221,7 @@
         "MediaInfo": {
             "type": "object",
             "properties": {
-                "contentId": {
+                "contentID": {
                     "description": "Hash of the file content, to ensure that the same files don't get duplicated",
                     "type": "string"
                 },
@@ -3292,13 +3345,13 @@
         "MoveFilesParams": {
             "type": "object",
             "properties": {
-                "fileIds": {
+                "fileIDs": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
-                "newParentId": {
+                "newParentID": {
                     "type": "string"
                 }
             }
@@ -3315,7 +3368,7 @@
                 "newFileName": {
                     "type": "string"
                 },
-                "parentFolderId": {
+                "parentFolderID": {
                     "type": "string"
                 }
             }
@@ -3323,7 +3376,7 @@
         "NewFilesInfo": {
             "type": "object",
             "properties": {
-                "fileIds": {
+                "fileIDs": {
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -3354,7 +3407,7 @@
                 "role": {
                     "type": "string"
                 },
-                "serverId": {
+                "serverID": {
                     "type": "string"
                 },
                 "usingKey": {
@@ -3365,7 +3418,7 @@
         "NewUploadInfo": {
             "type": "object",
             "properties": {
-                "uploadId": {
+                "uploadID": {
                     "type": "string"
                 }
             }
@@ -3376,7 +3429,7 @@
                 "chunkSize": {
                     "type": "integer"
                 },
-                "rootFolderId": {
+                "rootFolderID": {
                     "type": "string"
                 }
             }
@@ -3457,13 +3510,13 @@
         "RestoreFilesBody": {
             "type": "object",
             "properties": {
-                "fileIds": {
+                "fileIDs": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
-                "newParentId": {
+                "newParentID": {
                     "type": "string"
                 },
                 "timestamp": {
@@ -3474,7 +3527,7 @@
         "RestoreFilesInfo": {
             "type": "object",
             "properties": {
-                "newParentId": {
+                "newParentID": {
                     "type": "string"
                 }
             }
@@ -3494,7 +3547,7 @@
                 "expires": {
                     "type": "integer"
                 },
-                "fileId": {
+                "fileID": {
                     "type": "string"
                 },
                 "owner": {
@@ -3509,7 +3562,7 @@
                 "public": {
                     "type": "boolean"
                 },
-                "shareId": {
+                "shareID": {
                     "type": "string"
                 },
                 "shareName": {
@@ -3538,10 +3591,10 @@
                 "single": {
                     "type": "boolean"
                 },
-                "takeoutId": {
+                "takeoutID": {
                     "type": "string"
                 },
-                "taskId": {
+                "taskID": {
                     "type": "string"
                 }
             }
@@ -3553,8 +3606,8 @@
                 "jobName",
                 "progress",
                 "status",
-                "taskId",
-                "workerId"
+                "taskID",
+                "workerID"
             ],
             "properties": {
                 "Completed": {
@@ -3571,12 +3624,12 @@
                     "type": "string"
                 },
                 "status": {
-                    "$ref": "#/definitions/task.TaskExitStatus"
+                    "$ref": "#/definitions/task.ExitStatus"
                 },
-                "taskId": {
+                "taskID": {
                     "type": "string"
                 },
-                "workerId": {
+                "workerID": {
                     "type": "integer"
                 }
             }
@@ -3680,7 +3733,7 @@
                 "newName": {
                     "type": "string"
                 },
-                "newParentId": {
+                "newParentID": {
                     "type": "string"
                 }
             }
@@ -3690,9 +3743,9 @@
             "required": [
                 "activated",
                 "fullName",
-                "homeId",
+                "homeID",
                 "permissionLevel",
-                "trashId",
+                "trashID",
                 "username"
             ],
             "properties": {
@@ -3702,7 +3755,7 @@
                 "fullName": {
                     "type": "string"
                 },
-                "homeId": {
+                "homeID": {
                     "type": "string"
                 },
                 "isOnline": {
@@ -3714,7 +3767,7 @@
                 "token": {
                     "type": "string"
                 },
-                "trashId": {
+                "trashID": {
                     "type": "string"
                 },
                 "username": {
@@ -3727,9 +3780,9 @@
             "required": [
                 "activated",
                 "fullName",
-                "homeId",
+                "homeID",
                 "permissionLevel",
-                "trashId",
+                "trashID",
                 "username"
             ],
             "properties": {
@@ -3739,7 +3792,7 @@
                 "fullName": {
                     "type": "string"
                 },
-                "homeId": {
+                "homeID": {
                     "type": "string"
                 },
                 "isOnline": {
@@ -3754,7 +3807,7 @@
                 "token": {
                     "type": "string"
                 },
-                "trashId": {
+                "trashID": {
                     "type": "string"
                 },
                 "username": {
@@ -3778,6 +3831,59 @@
                 }
             }
         },
+        "fs.Filepath": {
+            "type": "object",
+            "properties": {
+                "relPath": {
+                    "type": "string"
+                },
+                "rootAlias": {
+                    "type": "string"
+                }
+            }
+        },
+        "history.FileAction": {
+            "type": "object",
+            "properties": {
+                "actionType": {
+                    "type": "string"
+                },
+                "contentID": {
+                    "type": "string"
+                },
+                "destinationPath": {
+                    "$ref": "#/definitions/fs.Filepath"
+                },
+                "doer": {
+                    "description": "The user or system that performed the action",
+                    "type": "string"
+                },
+                "eventID": {
+                    "type": "string"
+                },
+                "fileID": {
+                    "type": "string"
+                },
+                "filepath": {
+                    "$ref": "#/definitions/fs.Filepath"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "originPath": {
+                    "$ref": "#/definitions/fs.Filepath"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "towerID": {
+                    "type": "string"
+                }
+            }
+        },
         "structs.InitServerParams": {
             "type": "object",
             "properties": {
@@ -3790,8 +3896,8 @@
                 "fullName": {
                     "type": "string"
                 },
-                "localId": {
-                    "description": "For restoring a server, remoind the core of its serverId and api key the remote last used",
+                "localID": {
+                    "description": "For restoring a server, remoind the core of its serverID and api key the remote last used",
                     "type": "string"
                 },
                 "name": {
@@ -3800,7 +3906,7 @@
                 "password": {
                     "type": "string"
                 },
-                "remoteId": {
+                "remoteID": {
                     "type": "string"
                 },
                 "role": {
@@ -3823,7 +3929,7 @@
                 "configValue": {}
             }
         },
-        "task.TaskExitStatus": {
+        "task.ExitStatus": {
             "type": "string",
             "enum": [
                 "",
@@ -3840,7 +3946,7 @@
         }
     },
     "securityDefinitions": {
-        "ApiKeyAuth": {
+        "APIKeyAuth": {
             "type": "apiKey",
             "name": "Authorization",
             "in": "header",

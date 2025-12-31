@@ -1,4 +1,4 @@
-package jobs
+package jobs_test
 
 // import (
 // 	"context"
@@ -34,7 +34,7 @@ package jobs
 //
 // 	coreKeys, err := coreServices.AccessService.GetKeysByUser(coreServices.UserService.Get("test-username"))
 // 	require.NoError(t, err)
-// 	coreApiKey := coreKeys[0].Key
+// 	coreAPIKey := coreKeys[0].Key
 // 	coreAddress := env.GetProxyAddress(coreServices.Cnf)
 //
 // 	cnf := env.Config{
@@ -73,13 +73,13 @@ package jobs
 // 		t.Fatal(err)
 // 	}
 //
-// 	core, err := instanceService.AttachRemoteCore(coreAddress, coreApiKey)
+// 	core, err := instanceService.AttachRemoteCore(coreAddress, coreAPIKey)
 // 	if err != nil {
 // 		t.Fatal(err)
 // 	}
 //
 // 	journal := mock.NewHollowJournalService()
-// 	coreTree := mock.NewMemFileTree(core.Id)
+// 	coreTree := mock.NewMemFileTree(core.ID)
 // 	coreTree.SetJournal(journal)
 //
 // 	fileService := mock.NewMockFileService()
@@ -91,7 +91,7 @@ package jobs
 // 		t.Fatal(err)
 // 	}
 //
-// 	_, err = proxy.NewCoreRequest(core, "POST", "/folder").WithBody(structs.CreateFolderBody{ParentFolderId: user.HomeId, NewFolderName: "newFolder"}).Call()
+// 	_, err = proxy.NewCoreRequest(core, "POST", "/folder").WithBody(structs.CreateFolderBody{ParentFolderID: user.HomeID, NewFolderName: "newFolder"}).Call()
 // 	if err != nil {
 // 		t.Fatal(err)
 // 	}

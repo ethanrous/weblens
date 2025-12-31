@@ -1,3 +1,4 @@
+// Package media provides media processing and caching functionality.
 package media
 
 import (
@@ -7,8 +8,8 @@ import (
 )
 
 // FmtCacheFileName generates the cache file name for the given media, quality, and page number.
-func FmtCacheFileName(mId string, quality MediaQuality, pageNum int) (string, error) {
-	switch MediaQuality(quality) {
+func FmtCacheFileName(mID string, quality Quality, pageNum int) (string, error) {
+	switch Quality(quality) {
 	case LowRes, HighRes:
 		break
 	default:
@@ -20,7 +21,7 @@ func FmtCacheFileName(mId string, quality MediaQuality, pageNum int) (string, er
 		pageNumStr = fmt.Sprintf("_%d", pageNum)
 	}
 
-	filename := fmt.Sprintf("%s-%s%s.webp", mId, quality, pageNumStr)
+	filename := fmt.Sprintf("%s-%s%s.webp", mID, quality, pageNumStr)
 
 	return filename, nil
 }

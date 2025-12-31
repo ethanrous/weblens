@@ -19,10 +19,10 @@ var _ MappedNullable = &MediaBatchParams{}
 
 // MediaBatchParams struct for MediaBatchParams
 type MediaBatchParams struct {
-	FolderIds []string `json:"folderIds,omitempty"`
+	FolderIDs []string `json:"folderIDs,omitempty"`
 	Hidden *bool `json:"hidden,omitempty"`
 	Limit *int32 `json:"limit,omitempty"`
-	MediaIds []string `json:"mediaIds,omitempty"`
+	MediaIDs []string `json:"mediaIDs,omitempty"`
 	Page *int32 `json:"page,omitempty"`
 	Raw *bool `json:"raw,omitempty"`
 	Search *string `json:"search,omitempty"`
@@ -47,36 +47,36 @@ func NewMediaBatchParamsWithDefaults() *MediaBatchParams {
 	return &this
 }
 
-// GetFolderIds returns the FolderIds field value if set, zero value otherwise.
-func (o *MediaBatchParams) GetFolderIds() []string {
-	if o == nil || IsNil(o.FolderIds) {
+// GetFolderIDs returns the FolderIDs field value if set, zero value otherwise.
+func (o *MediaBatchParams) GetFolderIDs() []string {
+	if o == nil || IsNil(o.FolderIDs) {
 		var ret []string
 		return ret
 	}
-	return o.FolderIds
+	return o.FolderIDs
 }
 
-// GetFolderIdsOk returns a tuple with the FolderIds field value if set, nil otherwise
+// GetFolderIDsOk returns a tuple with the FolderIDs field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *MediaBatchParams) GetFolderIdsOk() ([]string, bool) {
-	if o == nil || IsNil(o.FolderIds) {
+func (o *MediaBatchParams) GetFolderIDsOk() ([]string, bool) {
+	if o == nil || IsNil(o.FolderIDs) {
 		return nil, false
 	}
-	return o.FolderIds, true
+	return o.FolderIDs, true
 }
 
-// HasFolderIds returns a boolean if a field has been set.
-func (o *MediaBatchParams) HasFolderIds() bool {
-	if o != nil && !IsNil(o.FolderIds) {
+// HasFolderIDs returns a boolean if a field has been set.
+func (o *MediaBatchParams) HasFolderIDs() bool {
+	if o != nil && !IsNil(o.FolderIDs) {
 		return true
 	}
 
 	return false
 }
 
-// SetFolderIds gets a reference to the given []string and assigns it to the FolderIds field.
-func (o *MediaBatchParams) SetFolderIds(v []string) {
-	o.FolderIds = v
+// SetFolderIDs gets a reference to the given []string and assigns it to the FolderIDs field.
+func (o *MediaBatchParams) SetFolderIDs(v []string) {
+	o.FolderIDs = v
 }
 
 // GetHidden returns the Hidden field value if set, zero value otherwise.
@@ -143,36 +143,36 @@ func (o *MediaBatchParams) SetLimit(v int32) {
 	o.Limit = &v
 }
 
-// GetMediaIds returns the MediaIds field value if set, zero value otherwise.
-func (o *MediaBatchParams) GetMediaIds() []string {
-	if o == nil || IsNil(o.MediaIds) {
+// GetMediaIDs returns the MediaIDs field value if set, zero value otherwise.
+func (o *MediaBatchParams) GetMediaIDs() []string {
+	if o == nil || IsNil(o.MediaIDs) {
 		var ret []string
 		return ret
 	}
-	return o.MediaIds
+	return o.MediaIDs
 }
 
-// GetMediaIdsOk returns a tuple with the MediaIds field value if set, nil otherwise
+// GetMediaIDsOk returns a tuple with the MediaIDs field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *MediaBatchParams) GetMediaIdsOk() ([]string, bool) {
-	if o == nil || IsNil(o.MediaIds) {
+func (o *MediaBatchParams) GetMediaIDsOk() ([]string, bool) {
+	if o == nil || IsNil(o.MediaIDs) {
 		return nil, false
 	}
-	return o.MediaIds, true
+	return o.MediaIDs, true
 }
 
-// HasMediaIds returns a boolean if a field has been set.
-func (o *MediaBatchParams) HasMediaIds() bool {
-	if o != nil && !IsNil(o.MediaIds) {
+// HasMediaIDs returns a boolean if a field has been set.
+func (o *MediaBatchParams) HasMediaIDs() bool {
+	if o != nil && !IsNil(o.MediaIDs) {
 		return true
 	}
 
 	return false
 }
 
-// SetMediaIds gets a reference to the given []string and assigns it to the MediaIds field.
-func (o *MediaBatchParams) SetMediaIds(v []string) {
-	o.MediaIds = v
+// SetMediaIDs gets a reference to the given []string and assigns it to the MediaIDs field.
+func (o *MediaBatchParams) SetMediaIDs(v []string) {
+	o.MediaIDs = v
 }
 
 // GetPage returns the Page field value if set, zero value otherwise.
@@ -345,8 +345,8 @@ func (o MediaBatchParams) MarshalJSON() ([]byte, error) {
 
 func (o MediaBatchParams) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
-	if !IsNil(o.FolderIds) {
-		toSerialize["folderIds"] = o.FolderIds
+	if !IsNil(o.FolderIDs) {
+		toSerialize["folderIDs"] = o.FolderIDs
 	}
 	if !IsNil(o.Hidden) {
 		toSerialize["hidden"] = o.Hidden
@@ -354,8 +354,8 @@ func (o MediaBatchParams) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Limit) {
 		toSerialize["limit"] = o.Limit
 	}
-	if !IsNil(o.MediaIds) {
-		toSerialize["mediaIds"] = o.MediaIds
+	if !IsNil(o.MediaIDs) {
+		toSerialize["mediaIDs"] = o.MediaIDs
 	}
 	if !IsNil(o.Page) {
 		toSerialize["page"] = o.Page

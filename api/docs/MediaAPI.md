@@ -8,14 +8,14 @@ Method | HTTP request | Description
 [**DropHDIRs**](MediaAPI.md#DropHDIRs) | **Post** /media/drop/hdirs | Drop all computed media HDIR data. Must be server owner.
 [**DropMedia**](MediaAPI.md#DropMedia) | **Post** /media/drop | DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
 [**GetMedia**](MediaAPI.md#GetMedia) | **Post** /media | Get paginated media
-[**GetMediaFile**](MediaAPI.md#GetMediaFile) | **Get** /media/{mediaId}/file | Get file of media by id
-[**GetMediaImage**](MediaAPI.md#GetMediaImage) | **Get** /media/{mediaId}.{extension} | Get a media image bytes
-[**GetMediaInfo**](MediaAPI.md#GetMediaInfo) | **Get** /media/{mediaId}/info | Get media info
+[**GetMediaFile**](MediaAPI.md#GetMediaFile) | **Get** /media/{mediaID}/file | Get file of media by id
+[**GetMediaImage**](MediaAPI.md#GetMediaImage) | **Get** /media/{mediaID}.{extension} | Get a media image bytes
+[**GetMediaInfo**](MediaAPI.md#GetMediaInfo) | **Get** /media/{mediaID}/info | Get media info
 [**GetMediaTypes**](MediaAPI.md#GetMediaTypes) | **Get** /media/types | Get media type dictionary
 [**GetRandomMedia**](MediaAPI.md#GetRandomMedia) | **Get** /media/random | Get random media
-[**SetMediaLiked**](MediaAPI.md#SetMediaLiked) | **Patch** /media/{mediaId}/liked | Like a media
+[**SetMediaLiked**](MediaAPI.md#SetMediaLiked) | **Patch** /media/{mediaID}/liked | Like a media
 [**SetMediaVisibility**](MediaAPI.md#SetMediaVisibility) | **Patch** /media/visibility | Set media visibility
-[**StreamVideo**](MediaAPI.md#StreamVideo) | **Get** /media/{mediaId}/video | Stream a video
+[**StreamVideo**](MediaAPI.md#StreamVideo) | **Get** /media/{mediaID}/video | Stream a video
 
 
 
@@ -64,7 +64,7 @@ Other parameters are passed through a pointer to a apiCleanupMediaRequest struct
 
 ### Authorization
 
-[ApiKeyAuth](../README.md#ApiKeyAuth)
+No authorization required
 
 ### HTTP request headers
 
@@ -121,7 +121,7 @@ Other parameters are passed through a pointer to a apiDropHDIRsRequest struct vi
 
 ### Authorization
 
-[ApiKeyAuth](../README.md#ApiKeyAuth)
+No authorization required
 
 ### HTTP request headers
 
@@ -178,7 +178,7 @@ Other parameters are passed through a pointer to a apiDropMediaRequest struct vi
 
 ### Authorization
 
-[ApiKeyAuth](../README.md#ApiKeyAuth)
+No authorization required
 
 ### HTTP request headers
 
@@ -192,7 +192,7 @@ Other parameters are passed through a pointer to a apiDropMediaRequest struct vi
 
 ## GetMedia
 
-> MediaBatchInfo GetMedia(ctx).Request(request).ShareId(shareId).Execute()
+> MediaBatchInfo GetMedia(ctx).Request(request).ShareID(shareID).Execute()
 
 Get paginated media
 
@@ -210,11 +210,11 @@ import (
 
 func main() {
 	request := *openapiclient.NewMediaBatchParams() // MediaBatchParams | Media Batch Params
-	shareId := "shareId_example" // string | File ShareId (optional)
+	shareID := "shareID_example" // string | File ShareID (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.MediaAPI.GetMedia(context.Background()).Request(request).ShareId(shareId).Execute()
+	resp, r, err := apiClient.MediaAPI.GetMedia(context.Background()).Request(request).ShareID(shareID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `MediaAPI.GetMedia``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -236,7 +236,7 @@ Other parameters are passed through a pointer to a apiGetMediaRequest struct via
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **request** | [**MediaBatchParams**](MediaBatchParams.md) | Media Batch Params | 
- **shareId** | **string** | File ShareId | 
+ **shareID** | **string** | File ShareID | 
 
 ### Return type
 
@@ -258,7 +258,7 @@ No authorization required
 
 ## GetMediaFile
 
-> FileInfo GetMediaFile(ctx, mediaId).Execute()
+> FileInfo GetMediaFile(ctx, mediaID).Execute()
 
 Get file of media by id
 
@@ -275,11 +275,11 @@ import (
 )
 
 func main() {
-	mediaId := "mediaId_example" // string | Id of media
+	mediaID := "mediaID_example" // string | ID of media
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.MediaAPI.GetMediaFile(context.Background(), mediaId).Execute()
+	resp, r, err := apiClient.MediaAPI.GetMediaFile(context.Background(), mediaID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `MediaAPI.GetMediaFile``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -295,7 +295,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**mediaId** | **string** | Id of media | 
+**mediaID** | **string** | ID of media | 
 
 ### Other Parameters
 
@@ -312,7 +312,7 @@ Name | Type | Description  | Notes
 
 ### Authorization
 
-[ApiKeyAuth](../README.md#ApiKeyAuth)
+No authorization required
 
 ### HTTP request headers
 
@@ -326,7 +326,7 @@ Name | Type | Description  | Notes
 
 ## GetMediaImage
 
-> string GetMediaImage(ctx, mediaId, extension).Quality(quality).Page(page).Execute()
+> string GetMediaImage(ctx, mediaID, extension).Quality(quality).Page(page).Execute()
 
 Get a media image bytes
 
@@ -343,14 +343,14 @@ import (
 )
 
 func main() {
-	mediaId := "mediaId_example" // string | Media Id
+	mediaID := "mediaID_example" // string | Media ID
 	extension := "extension_example" // string | Extension
 	quality := "quality_example" // string | Image Quality
 	page := int32(56) // int32 | Page number (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.MediaAPI.GetMediaImage(context.Background(), mediaId, extension).Quality(quality).Page(page).Execute()
+	resp, r, err := apiClient.MediaAPI.GetMediaImage(context.Background(), mediaID, extension).Quality(quality).Page(page).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `MediaAPI.GetMediaImage``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -366,7 +366,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**mediaId** | **string** | Media Id | 
+**mediaID** | **string** | Media ID | 
 **extension** | **string** | Extension | 
 
 ### Other Parameters
@@ -401,7 +401,7 @@ No authorization required
 
 ## GetMediaInfo
 
-> MediaInfo GetMediaInfo(ctx, mediaId).Execute()
+> MediaInfo GetMediaInfo(ctx, mediaID).Execute()
 
 Get media info
 
@@ -418,11 +418,11 @@ import (
 )
 
 func main() {
-	mediaId := "mediaId_example" // string | Media Id
+	mediaID := "mediaID_example" // string | Media ID
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.MediaAPI.GetMediaInfo(context.Background(), mediaId).Execute()
+	resp, r, err := apiClient.MediaAPI.GetMediaInfo(context.Background(), mediaID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `MediaAPI.GetMediaInfo``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -438,7 +438,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**mediaId** | **string** | Media Id | 
+**mediaID** | **string** | Media ID | 
 
 ### Other Parameters
 
@@ -592,7 +592,7 @@ No authorization required
 
 ## SetMediaLiked
 
-> SetMediaLiked(ctx, mediaId).Liked(liked).ShareId(shareId).Execute()
+> SetMediaLiked(ctx, mediaID).Liked(liked).ShareID(shareID).Execute()
 
 Like a media
 
@@ -609,13 +609,13 @@ import (
 )
 
 func main() {
-	mediaId := "mediaId_example" // string | Id of media
+	mediaID := "mediaID_example" // string | ID of media
 	liked := true // bool | Liked status to set
-	shareId := "shareId_example" // string | ShareId (optional)
+	shareID := "shareID_example" // string | ShareID (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	r, err := apiClient.MediaAPI.SetMediaLiked(context.Background(), mediaId).Liked(liked).ShareId(shareId).Execute()
+	r, err := apiClient.MediaAPI.SetMediaLiked(context.Background(), mediaID).Liked(liked).ShareID(shareID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `MediaAPI.SetMediaLiked``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -629,7 +629,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**mediaId** | **string** | Id of media | 
+**mediaID** | **string** | ID of media | 
 
 ### Other Parameters
 
@@ -640,7 +640,7 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
  **liked** | **bool** | Liked status to set | 
- **shareId** | **string** | ShareId | 
+ **shareID** | **string** | ShareID | 
 
 ### Return type
 
@@ -662,7 +662,7 @@ No authorization required
 
 ## SetMediaVisibility
 
-> SetMediaVisibility(ctx).Hidden(hidden).MediaIds(mediaIds).Execute()
+> SetMediaVisibility(ctx).Hidden(hidden).MediaIDs(mediaIDs).Execute()
 
 Set media visibility
 
@@ -680,11 +680,11 @@ import (
 
 func main() {
 	hidden := true // bool | Set the media visibility
-	mediaIds := *openapiclient.NewMediaIdsParams() // MediaIdsParams | MediaIds to change visibility of
+	mediaIDs := *openapiclient.NewMediaIDsParams() // MediaIDsParams | MediaIDs to change visibility of
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	r, err := apiClient.MediaAPI.SetMediaVisibility(context.Background()).Hidden(hidden).MediaIds(mediaIds).Execute()
+	r, err := apiClient.MediaAPI.SetMediaVisibility(context.Background()).Hidden(hidden).MediaIDs(mediaIDs).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `MediaAPI.SetMediaVisibility``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -704,7 +704,7 @@ Other parameters are passed through a pointer to a apiSetMediaVisibilityRequest 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **hidden** | **bool** | Set the media visibility | 
- **mediaIds** | [**MediaIdsParams**](MediaIdsParams.md) | MediaIds to change visibility of | 
+ **mediaIDs** | [**MediaIDsParams**](MediaIDsParams.md) | MediaIDs to change visibility of | 
 
 ### Return type
 
@@ -726,7 +726,7 @@ No authorization required
 
 ## StreamVideo
 
-> StreamVideo(ctx, mediaId).Execute()
+> StreamVideo(ctx, mediaID).Execute()
 
 Stream a video
 
@@ -743,11 +743,11 @@ import (
 )
 
 func main() {
-	mediaId := "mediaId_example" // string | Id of media
+	mediaID := "mediaID_example" // string | ID of media
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	r, err := apiClient.MediaAPI.StreamVideo(context.Background(), mediaId).Execute()
+	r, err := apiClient.MediaAPI.StreamVideo(context.Background(), mediaID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `MediaAPI.StreamVideo``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -761,7 +761,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**mediaId** | **string** | Id of media | 
+**mediaID** | **string** | ID of media | 
 
 ### Other Parameters
 
@@ -778,7 +778,7 @@ Name | Type | Description  | Notes
 
 ### Authorization
 
-[ApiKeyAuth](../README.md#ApiKeyAuth)
+No authorization required
 
 ### HTTP request headers
 

@@ -1,0 +1,92 @@
+name: Weblens Fulltest
+
+on:
+  workflow_dispatch:
+    inputs:
+      trace:
+        description: "Trace"
+        required: true
+        default: false
+        type: boolean
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  test-server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: "recursive"
+
+      - uses: docker/setup-docker-action@v4
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+          run_install: |
+            - cwd: weblens-vue/weblens-nuxt
+
+      - name: Run Tests
+        run: |
+          # Restart docker to fix networking bug...
+          sudo systemctl restart docker
+
+          ./scripts/test-weblens.bash
+          exit $?
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: "recursive"
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+          run_install: |
+            - cwd: weblens-vue/weblens-nuxt
+
+      - name: setup agno deps
+        run: |
+          mkdir -p ./services/media/agno/lib/
+          cp ./agno/lib/agno.h ./services/media/agno/lib/
+          cp ./agno/lib/libagno.a ./services/media/agno/lib/
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: "v2.6"
+
+      - name: pnpm lint
+        working-directory: weblens-vue/weblens-nuxt
+        run: |
+          pnpm lint
+          exit $?
+
+  test-build-container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: "recursive"
+
+      - uses: docker/setup-docker-action@v4
+
+      - name: GoGoGadgetDocker
+        run: |
+          sudo systemctl restart docker
+
+          ./scripts/gogogadgetdocker.bash -s -t devel
+          exit $?

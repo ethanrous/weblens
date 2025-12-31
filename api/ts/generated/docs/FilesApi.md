@@ -4,23 +4,23 @@ All URIs are relative to *http://localhost:8080/api/v1*
 
 |Method | HTTP request | Description|
 |------------- | ------------- | -------------|
-|[**addFilesToUpload**](#addfilestoupload) | **POST** /upload/{uploadId} | Add a file to an upload task|
+|[**addFilesToUpload**](#addfilestoupload) | **POST** /upload/{uploadID} | Add a file to an upload task|
 |[**autocompletePath**](#autocompletepath) | **GET** /files/autocomplete | Get path completion suggestions|
 |[**createTakeout**](#createtakeout) | **POST** /takeout | Create a zip file|
 |[**deleteFiles**](#deletefiles) | **DELETE** /files | Delete Files \&quot;permanently\&quot;|
-|[**downloadFile**](#downloadfile) | **GET** /files/{fileId}/download | Download a file|
-|[**getFile**](#getfile) | **GET** /files/{fileId} | Get information about a file|
-|[**getFileStats**](#getfilestats) | **GET** /files/{fileId}/stats | Get the statistics of a file|
-|[**getFileText**](#getfiletext) | **GET** /files/{fileId}/text | Get the text of a text file|
+|[**downloadFile**](#downloadfile) | **GET** /files/{fileID}/download | Download a file|
+|[**getFile**](#getfile) | **GET** /files/{fileID} | Get information about a file|
+|[**getFileStats**](#getfilestats) | **GET** /files/{fileID}/stats | Get the statistics of a file|
+|[**getFileText**](#getfiletext) | **GET** /files/{fileID}/text | Get the text of a text file|
 |[**getSharedFiles**](#getsharedfiles) | **GET** /files/shared | Get files shared with the logged in user|
-|[**getUploadResult**](#getuploadresult) | **GET** /upload/{uploadId} | Get the result of an upload task. This will block until the upload is complete|
+|[**getUploadResult**](#getuploadresult) | **GET** /upload/{uploadID} | Get the result of an upload task. This will block until the upload is complete|
 |[**moveFiles**](#movefiles) | **PATCH** /files | Move a list of files to a new parent folder|
 |[**restoreFiles**](#restorefiles) | **POST** /files/structsore | structsore files from some time in the past|
 |[**searchByFilename**](#searchbyfilename) | **GET** /files/search | Search for files by filename|
 |[**startUpload**](#startupload) | **POST** /upload | Begin a new upload task|
 |[**unTrashFiles**](#untrashfiles) | **PATCH** /files/untrash | Move a list of files out of the trash, structsoring them to where they were before|
-|[**updateFile**](#updatefile) | **PATCH** /files/{fileId} | Update a File|
-|[**uploadFileChunk**](#uploadfilechunk) | **PUT** /upload/{uploadId}/file/{fileId} | Add a chunk to a file upload|
+|[**updateFile**](#updatefile) | **PATCH** /files/{fileID} | Update a File|
+|[**uploadFileChunk**](#uploadfilechunk) | **PUT** /upload/{uploadID}/file/{fileID} | Add a chunk to a file upload|
 
 # **addFilesToUpload**
 > NewFilesInfo addFilesToUpload(request)
@@ -38,14 +38,14 @@ import {
 const configuration = new Configuration();
 const apiInstance = new FilesApi(configuration);
 
-let uploadId: string; //Upload Id (default to undefined)
+let uploadID: string; //Upload ID (default to undefined)
 let request: NewFilesParams; //New file params
-let shareId: string; //Share Id (optional) (default to undefined)
+let shareID: string; //Share ID (optional) (default to undefined)
 
 const { status, data } = await apiInstance.addFilesToUpload(
-    uploadId,
+    uploadID,
     request,
-    shareId
+    shareID
 );
 ```
 
@@ -54,8 +54,8 @@ const { status, data } = await apiInstance.addFilesToUpload(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **request** | **NewFilesParams**| New file params | |
-| **uploadId** | [**string**] | Upload Id | defaults to undefined|
-| **shareId** | [**string**] | Share Id | (optional) defaults to undefined|
+| **uploadID** | [**string**] | Upload ID | defaults to undefined|
+| **shareID** | [**string**] | Share ID | (optional) defaults to undefined|
 
 
 ### Return type
@@ -151,11 +151,11 @@ const configuration = new Configuration();
 const apiInstance = new FilesApi(configuration);
 
 let request: FilesListParams; //File Ids
-let shareId: string; //Share Id (optional) (default to undefined)
+let shareID: string; //Share ID (optional) (default to undefined)
 
 const { status, data } = await apiInstance.createTakeout(
     request,
-    shareId
+    shareID
 );
 ```
 
@@ -164,7 +164,7 @@ const { status, data } = await apiInstance.createTakeout(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **request** | **FilesListParams**| File Ids | |
-| **shareId** | [**string**] | Share Id | (optional) defaults to undefined|
+| **shareID** | [**string**] | Share ID | (optional) defaults to undefined|
 
 
 ### Return type
@@ -267,14 +267,14 @@ import {
 const configuration = new Configuration();
 const apiInstance = new FilesApi(configuration);
 
-let fileId: string; //File Id (default to undefined)
-let shareId: string; //Share Id (optional) (default to undefined)
+let fileID: string; //File ID (default to undefined)
+let shareID: string; //Share ID (optional) (default to undefined)
 let format: string; //File format conversion (optional) (default to undefined)
 let isTakeout: boolean; //Is this a takeout file (optional) (default to false)
 
 const { status, data } = await apiInstance.downloadFile(
-    fileId,
-    shareId,
+    fileID,
+    shareID,
     format,
     isTakeout
 );
@@ -284,8 +284,8 @@ const { status, data } = await apiInstance.downloadFile(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **fileId** | [**string**] | File Id | defaults to undefined|
-| **shareId** | [**string**] | Share Id | (optional) defaults to undefined|
+| **fileID** | [**string**] | File ID | defaults to undefined|
+| **shareID** | [**string**] | Share ID | (optional) defaults to undefined|
 | **format** | [**string**] | File format conversion | (optional) defaults to undefined|
 | **isTakeout** | [**boolean**] | Is this a takeout file | (optional) defaults to false|
 
@@ -327,12 +327,12 @@ import {
 const configuration = new Configuration();
 const apiInstance = new FilesApi(configuration);
 
-let fileId: string; //File Id (default to undefined)
-let shareId: string; //Share Id (optional) (default to undefined)
+let fileID: string; //File ID (default to undefined)
+let shareID: string; //Share ID (optional) (default to undefined)
 
 const { status, data } = await apiInstance.getFile(
-    fileId,
-    shareId
+    fileID,
+    shareID
 );
 ```
 
@@ -340,8 +340,8 @@ const { status, data } = await apiInstance.getFile(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **fileId** | [**string**] | File Id | defaults to undefined|
-| **shareId** | [**string**] | Share Id | (optional) defaults to undefined|
+| **fileID** | [**string**] | File ID | defaults to undefined|
+| **shareID** | [**string**] | Share ID | (optional) defaults to undefined|
 
 
 ### Return type
@@ -382,10 +382,10 @@ import {
 const configuration = new Configuration();
 const apiInstance = new FilesApi(configuration);
 
-let fileId: string; //File Id (default to undefined)
+let fileID: string; //File ID (default to undefined)
 
 const { status, data } = await apiInstance.getFileStats(
-    fileId
+    fileID
 );
 ```
 
@@ -393,7 +393,7 @@ const { status, data } = await apiInstance.getFileStats(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **fileId** | [**string**] | File Id | defaults to undefined|
+| **fileID** | [**string**] | File ID | defaults to undefined|
 
 
 ### Return type
@@ -433,12 +433,12 @@ import {
 const configuration = new Configuration();
 const apiInstance = new FilesApi(configuration);
 
-let fileId: string; //File Id (default to undefined)
-let shareId: string; //Share Id (optional) (default to undefined)
+let fileID: string; //File ID (default to undefined)
+let shareID: string; //Share ID (optional) (default to undefined)
 
 const { status, data } = await apiInstance.getFileText(
-    fileId,
-    shareId
+    fileID,
+    shareID
 );
 ```
 
@@ -446,8 +446,8 @@ const { status, data } = await apiInstance.getFileText(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **fileId** | [**string**] | File Id | defaults to undefined|
-| **shareId** | [**string**] | Share Id | (optional) defaults to undefined|
+| **fileID** | [**string**] | File ID | defaults to undefined|
+| **shareID** | [**string**] | Share ID | (optional) defaults to undefined|
 
 
 ### Return type
@@ -532,10 +532,10 @@ import {
 const configuration = new Configuration();
 const apiInstance = new FilesApi(configuration);
 
-let uploadId: string; //Upload Id (default to undefined)
+let uploadID: string; //Upload ID (default to undefined)
 
 const { status, data } = await apiInstance.getUploadResult(
-    uploadId
+    uploadID
 );
 ```
 
@@ -543,7 +543,7 @@ const { status, data } = await apiInstance.getUploadResult(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **uploadId** | [**string**] | Upload Id | defaults to undefined|
+| **uploadID** | [**string**] | Upload ID | defaults to undefined|
 
 
 ### Return type
@@ -587,11 +587,11 @@ const configuration = new Configuration();
 const apiInstance = new FilesApi(configuration);
 
 let request: MoveFilesParams; //Move files request body
-let shareId: string; //Share Id (optional) (default to undefined)
+let shareID: string; //Share ID (optional) (default to undefined)
 
 const { status, data } = await apiInstance.moveFiles(
     request,
-    shareId
+    shareID
 );
 ```
 
@@ -600,7 +600,7 @@ const { status, data } = await apiInstance.moveFiles(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **request** | **MoveFilesParams**| Move files request body | |
-| **shareId** | [**string**] | Share Id | (optional) defaults to undefined|
+| **shareID** | [**string**] | Share ID | (optional) defaults to undefined|
 
 
 ### Return type
@@ -696,11 +696,11 @@ const configuration = new Configuration();
 const apiInstance = new FilesApi(configuration);
 
 let search: string; //Filename to search for (default to undefined)
-let baseFolderId: string; //The folder to search in, defaults to the user\'s home folder (optional) (default to undefined)
+let baseFolderID: string; //The folder to search in, defaults to the user\'s home folder (optional) (default to undefined)
 
 const { status, data } = await apiInstance.searchByFilename(
     search,
-    baseFolderId
+    baseFolderID
 );
 ```
 
@@ -709,7 +709,7 @@ const { status, data } = await apiInstance.searchByFilename(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **search** | [**string**] | Filename to search for | defaults to undefined|
-| **baseFolderId** | [**string**] | The folder to search in, defaults to the user\&#39;s home folder | (optional) defaults to undefined|
+| **baseFolderID** | [**string**] | The folder to search in, defaults to the user\&#39;s home folder | (optional) defaults to undefined|
 
 
 ### Return type
@@ -753,11 +753,11 @@ const configuration = new Configuration();
 const apiInstance = new FilesApi(configuration);
 
 let request: NewUploadParams; //New upload request body
-let shareId: string; //Share Id (optional) (default to undefined)
+let shareID: string; //Share ID (optional) (default to undefined)
 
 const { status, data } = await apiInstance.startUpload(
     request,
-    shareId
+    shareID
 );
 ```
 
@@ -766,7 +766,7 @@ const { status, data } = await apiInstance.startUpload(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **request** | **NewUploadParams**| New upload request body | |
-| **shareId** | [**string**] | Share Id | (optional) defaults to undefined|
+| **shareID** | [**string**] | Share ID | (optional) defaults to undefined|
 
 
 ### Return type
@@ -863,14 +863,14 @@ import {
 const configuration = new Configuration();
 const apiInstance = new FilesApi(configuration);
 
-let fileId: string; //File Id (default to undefined)
+let fileID: string; //File ID (default to undefined)
 let request: UpdateFileParams; //Update file request body
-let shareId: string; //Share Id (optional) (default to undefined)
+let shareID: string; //Share ID (optional) (default to undefined)
 
 const { status, data } = await apiInstance.updateFile(
-    fileId,
+    fileID,
     request,
-    shareId
+    shareID
 );
 ```
 
@@ -879,8 +879,8 @@ const { status, data } = await apiInstance.updateFile(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **request** | **UpdateFileParams**| Update file request body | |
-| **fileId** | [**string**] | File Id | defaults to undefined|
-| **shareId** | [**string**] | Share Id | (optional) defaults to undefined|
+| **fileID** | [**string**] | File ID | defaults to undefined|
+| **shareID** | [**string**] | Share ID | (optional) defaults to undefined|
 
 
 ### Return type
@@ -922,16 +922,16 @@ import {
 const configuration = new Configuration();
 const apiInstance = new FilesApi(configuration);
 
-let uploadId: string; //Upload Id (default to undefined)
-let fileId: string; //File Id (default to undefined)
+let uploadID: string; //Upload ID (default to undefined)
+let fileID: string; //File ID (default to undefined)
 let chunk: File; //File chunk (default to undefined)
-let shareId: string; //Share Id (optional) (default to undefined)
+let shareID: string; //Share ID (optional) (default to undefined)
 
 const { status, data } = await apiInstance.uploadFileChunk(
-    uploadId,
-    fileId,
+    uploadID,
+    fileID,
     chunk,
-    shareId
+    shareID
 );
 ```
 
@@ -939,10 +939,10 @@ const { status, data } = await apiInstance.uploadFileChunk(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **uploadId** | [**string**] | Upload Id | defaults to undefined|
-| **fileId** | [**string**] | File Id | defaults to undefined|
+| **uploadID** | [**string**] | Upload ID | defaults to undefined|
+| **fileID** | [**string**] | File ID | defaults to undefined|
 | **chunk** | [**File**] | File chunk | defaults to undefined|
-| **shareId** | [**string**] | Share Id | (optional) defaults to undefined|
+| **shareID** | [**string**] | Share ID | (optional) defaults to undefined|
 
 
 ### Return type

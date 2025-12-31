@@ -8,7 +8,7 @@ Name | Type | Description | Notes
 **fileSize** | **number** |  | [optional] [default to undefined]
 **isDir** | **boolean** |  | [optional] [default to undefined]
 **newFileName** | **string** |  | [optional] [default to undefined]
-**parentFolderId** | **string** |  | [optional] [default to undefined]
+**parentFolderID** | **string** |  | [optional] [default to undefined]
 
 ## Example
 
@@ -19,7 +19,7 @@ const instance: NewFileParams = {
     fileSize,
     isDir,
     newFileName,
-    parentFolderId,
+    parentFolderID,
 };
 ```
 

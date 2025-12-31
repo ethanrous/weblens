@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
-	. "github.com/ethanrous/weblens/models/tower"
+	"github.com/ethanrous/weblens/models/tower"
 )
 
 const (
@@ -17,204 +17,204 @@ const (
 )
 
 func TestTower_Creation(t *testing.T) {
-	ctx := db.SetupTestDB(t, TowerCollectionKey)
+	ctx := db.SetupTestDB(t, tower.TowerCollectionKey)
 
 	t.Run("CreateLocal", func(t *testing.T) {
-		tower, err := CreateLocal(ctx)
+		instance, err := tower.CreateLocal(ctx)
 		assert.NoError(t, err)
-		assert.NotNil(t, tower)
-		assert.Equal(t, RoleInit, tower.Role)
-		assert.True(t, tower.IsThisTower)
+		assert.NotNil(t, instance)
+		assert.Equal(t, tower.RoleInit, instance.Role)
+		assert.True(t, instance.IsThisTower)
 
 		// Verify tower was saved to database
-		savedTower, err := GetTowerById(ctx, tower.TowerId)
+		savedTower, err := tower.GetTowerByID(ctx, instance.TowerID)
 		assert.NoError(t, err)
-		assert.Equal(t, tower.TowerId, savedTower.TowerId)
+		assert.Equal(t, instance.TowerID, savedTower.TowerID)
 	})
 
 	t.Run("CreateTower", func(t *testing.T) {
-		tower := &Instance{
-			TowerId: primitive.NewObjectID().Hex(),
+		instance := &tower.Instance{
+			TowerID: primitive.NewObjectID().Hex(),
 			Name:    testTowerName,
-			Role:    RoleCore,
+			Role:    tower.RoleCore,
 		}
 
-		err := SaveTower(ctx, tower)
+		err := tower.SaveTower(ctx, instance)
 		assert.NoError(t, err)
 
 		// Verify tower was saved
-		savedTower, err := GetTowerById(ctx, tower.TowerId)
+		savedTower, err := tower.GetTowerByID(ctx, instance.TowerID)
 		assert.NoError(t, err)
-		assert.Equal(t, tower.TowerId, savedTower.TowerId)
+		assert.Equal(t, instance.TowerID, savedTower.TowerID)
 		assert.Equal(t, testTowerName, savedTower.Name)
 	})
 
 	t.Run("CreateInvalidTower", func(t *testing.T) {
-		tower := &Instance{
-			TowerId: primitive.NewObjectID().Hex(),
-			Role:    RoleCore,
+		instance := &tower.Instance{
+			TowerID: primitive.NewObjectID().Hex(),
+			Role:    tower.RoleCore,
 			// Missing Name
 		}
 
-		err := SaveTower(ctx, tower)
+		err := tower.SaveTower(ctx, instance)
 		assert.Error(t, err)
 	})
 }
 
 func TestTower_Retrieval(t *testing.T) {
-	ctx := db.SetupTestDB(t, TowerCollectionKey)
+	ctx := db.SetupTestDB(t, tower.TowerCollectionKey)
 
-	t.Run("GetTowerById", func(t *testing.T) {
-		tower := &Instance{
-			TowerId: primitive.NewObjectID().Hex(),
+	t.Run("GetTowerByID", func(t *testing.T) {
+		instance := &tower.Instance{
+			TowerID: primitive.NewObjectID().Hex(),
 			Name:    testTowerName,
-			Role:    RoleCore,
+			Role:    tower.RoleCore,
 		}
 
-		err := SaveTower(ctx, tower)
+		err := tower.SaveTower(ctx, instance)
 		require.NoError(t, err)
 
-		retrieved, err := GetTowerById(ctx, tower.TowerId)
+		retrieved, err := tower.GetTowerByID(ctx, instance.TowerID)
 		assert.NoError(t, err)
-		assert.Equal(t, tower.TowerId, retrieved.TowerId)
-		assert.Equal(t, tower.Name, retrieved.Name)
-		assert.Equal(t, tower.Role, retrieved.Role)
+		assert.Equal(t, instance.TowerID, retrieved.TowerID)
+		assert.Equal(t, instance.Name, retrieved.Name)
+		assert.Equal(t, instance.Role, retrieved.Role)
 	})
 
 	t.Run("GetNonexistentTower", func(t *testing.T) {
-		_, err := GetTowerById(ctx, "nonexistent")
+		_, err := tower.GetTowerByID(ctx, "nonexistent")
 		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrTowerNotFound)
+		assert.ErrorIs(t, err, tower.ErrTowerNotFound)
 	})
 
 	t.Run("GetLocal", func(t *testing.T) {
-		tower := &Instance{
-			TowerId:     primitive.NewObjectID().Hex(),
+		instance := &tower.Instance{
+			TowerID:     primitive.NewObjectID().Hex(),
 			Name:        testTowerName,
-			Role:        RoleCore,
+			Role:        tower.RoleCore,
 			IsThisTower: true,
 		}
 
-		err := SaveTower(ctx, tower)
+		err := tower.SaveTower(ctx, instance)
 		require.NoError(t, err)
 
-		local, err := GetLocal(ctx)
+		local, err := tower.GetLocal(ctx)
 		assert.NoError(t, err)
 		assert.NotNil(t, local)
 		assert.True(t, local.IsThisTower)
-		assert.Equal(t, tower.TowerId, local.TowerId)
+		assert.Equal(t, instance.TowerID, local.TowerID)
 	})
 
-	t.Run("GetAllTowersByTowerId", func(t *testing.T) {
-		creatorId := primitive.NewObjectID().Hex()
+	t.Run("GetAllTowersByTowerID", func(t *testing.T) {
+		creatorID := primitive.NewObjectID().Hex()
 		numTowers := 3
 
 		// Create multiple towers with same creator
 		for i := 0; i < numTowers; i++ {
-			tower := &Instance{
-				TowerId:   primitive.NewObjectID().Hex(),
+			instance := &tower.Instance{
+				TowerID:   primitive.NewObjectID().Hex(),
 				Name:      testTowerName,
-				Role:      RoleCore,
-				CreatedBy: creatorId,
+				Role:      tower.RoleCore,
+				CreatedBy: creatorID,
 			}
-			err := SaveTower(ctx, tower)
+			err := tower.SaveTower(ctx, instance)
 			require.NoError(t, err)
 		}
 
 		// Create a tower with different creator
-		otherTower := &Instance{
-			TowerId:   primitive.NewObjectID().Hex(),
+		otherTower := &tower.Instance{
+			TowerID:   primitive.NewObjectID().Hex(),
 			Name:      testTowerName,
-			Role:      RoleCore,
+			Role:      tower.RoleCore,
 			CreatedBy: "different_creator",
 		}
-		err := SaveTower(ctx, otherTower)
+		err := tower.SaveTower(ctx, otherTower)
 		require.NoError(t, err)
 
 		// Test retrieval
-		towers, err := GetAllTowersByTowerId(ctx, creatorId)
+		towers, err := tower.GetAllTowersByTowerID(ctx, creatorID)
 		assert.NoError(t, err)
 		assert.Len(t, towers, numTowers)
 
 		for _, tower := range towers {
-			assert.Equal(t, creatorId, tower.CreatedBy)
+			assert.Equal(t, creatorID, tower.CreatedBy)
 		}
 	})
 }
 
 func TestTower_Updates(t *testing.T) {
-	ctx := db.SetupTestDB(t, TowerCollectionKey)
+	ctx := db.SetupTestDB(t, tower.TowerCollectionKey)
 
 	t.Run("SetLastBackup", func(t *testing.T) {
-		tower := &Instance{
-			TowerId: primitive.NewObjectID().Hex(),
+		instance := &tower.Instance{
+			TowerID: primitive.NewObjectID().Hex(),
 			Name:    testTowerName,
-			Role:    RoleCore,
+			Role:    tower.RoleCore,
 		}
 
-		err := SaveTower(ctx, tower)
+		err := tower.SaveTower(ctx, instance)
 		require.NoError(t, err)
 
 		backupTime := time.Now()
-		err = SetLastBackup(ctx, tower.TowerId, backupTime)
+		err = tower.SetLastBackup(ctx, instance.TowerID, backupTime)
 		assert.NoError(t, err)
 
 		// Verify update
-		updated, err := GetTowerById(ctx, tower.TowerId)
+		updated, err := tower.GetTowerByID(ctx, instance.TowerID)
 		assert.NoError(t, err)
 		assert.Equal(t, backupTime.UnixMilli(), updated.LastBackup)
 	})
 
 	t.Run("UpdateRole", func(t *testing.T) {
-		tower := &Instance{
-			TowerId: primitive.NewObjectID().Hex(),
+		instance := &tower.Instance{
+			TowerID: primitive.NewObjectID().Hex(),
 			Name:    testTowerName,
-			Role:    RoleInit,
+			Role:    tower.RoleInit,
 		}
 
-		err := SaveTower(ctx, tower)
+		err := tower.SaveTower(ctx, instance)
 		require.NoError(t, err)
 
-		tower.Role = RoleCore
-		err = SaveTower(ctx, tower)
+		instance.Role = tower.RoleCore
+		err = tower.SaveTower(ctx, instance)
 		assert.NoError(t, err)
 
 		// Verify update
-		updated, err := GetTowerById(ctx, tower.TowerId)
+		updated, err := tower.GetTowerByID(ctx, instance.TowerID)
 		assert.NoError(t, err)
-		assert.Equal(t, RoleCore, updated.Role)
+		assert.Equal(t, tower.RoleCore, updated.Role)
 	})
 }
 
 func TestTower_RoleChecks(t *testing.T) {
-	ctx := db.SetupTestDB(t, TowerCollectionKey)
+	ctx := db.SetupTestDB(t, tower.TowerCollectionKey)
 
 	t.Run("RoleValidation", func(t *testing.T) {
-		tower := &Instance{
-			TowerId: primitive.NewObjectID().Hex(),
+		instance := &tower.Instance{
+			TowerID: primitive.NewObjectID().Hex(),
 			Name:    testTowerName,
-			Role:    RoleCore,
+			Role:    tower.RoleCore,
 		}
 
-		err := SaveTower(ctx, tower)
+		err := tower.SaveTower(ctx, instance)
 		require.NoError(t, err)
 
-		assert.True(t, tower.IsCore())
-		assert.False(t, tower.IsBackup())
+		assert.True(t, instance.IsCore())
+		assert.False(t, instance.IsBackup())
 
-		tower.Role = RoleBackup
-		assert.False(t, tower.IsCore())
-		assert.True(t, tower.IsBackup())
+		instance.Role = tower.RoleBackup
+		assert.False(t, instance.IsCore())
+		assert.True(t, instance.IsBackup())
 	})
 
 	t.Run("ReportedRole", func(t *testing.T) {
-		tower := &Instance{
-			TowerId: primitive.NewObjectID().Hex(),
+		instance := &tower.Instance{
+			TowerID: primitive.NewObjectID().Hex(),
 			Name:    testTowerName,
-			Role:    RoleCore,
+			Role:    tower.RoleCore,
 		}
 
-		tower.SetReportedRole(RoleBackup)
-		assert.Equal(t, RoleBackup, tower.GetReportedRole())
+		instance.SetReportedRole(tower.RoleBackup)
+		assert.Equal(t, tower.RoleBackup, instance.GetReportedRole())
 	})
 }

@@ -49,7 +49,7 @@ type APIClient struct {
 
 	// API Services
 
-	ApiKeysAPI *ApiKeysAPIService
+	APIKeysAPI *APIKeysAPIService
 
 	ConfigAPI *ConfigAPIService
 
@@ -82,7 +82,7 @@ func NewAPIClient(cfg *Configuration) *APIClient {
 	c.common.client = c
 
 	// API Services
-	c.ApiKeysAPI = (*ApiKeysAPIService)(&c.common)
+	c.APIKeysAPI = (*APIKeysAPIService)(&c.common)
 	c.ConfigAPI = (*ConfigAPIService)(&c.common)
 	c.FilesAPI = (*FilesAPIService)(&c.common)
 	c.FolderAPI = (*FolderAPIService)(&c.common)

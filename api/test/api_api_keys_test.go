@@ -38,9 +38,9 @@ func Test_openapi_ApiKeysAPIService(t *testing.T) {
 
 		t.Skip("skip test")  // remove to run test
 
-		var tokenId string
+		var tokenID string
 
-		httpRes, err := apiClient.ApiKeysAPI.DeleteApiKey(context.Background(), tokenId).Execute()
+		httpRes, err := apiClient.ApiKeysAPI.DeleteApiKey(context.Background(), tokenID).Execute()
 
 		require.Nil(t, err)
 		assert.Equal(t, 200, httpRes.StatusCode)

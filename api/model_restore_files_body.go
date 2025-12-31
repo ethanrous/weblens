@@ -19,8 +19,8 @@ var _ MappedNullable = &RestoreFilesBody{}
 
 // RestoreFilesBody struct for RestoreFilesBody
 type RestoreFilesBody struct {
-	FileIds []string `json:"fileIds,omitempty"`
-	NewParentId *string `json:"newParentId,omitempty"`
+	FileIDs []string `json:"fileIDs,omitempty"`
+	NewParentID *string `json:"newParentID,omitempty"`
 	Timestamp *int32 `json:"timestamp,omitempty"`
 }
 
@@ -41,68 +41,68 @@ func NewRestoreFilesBodyWithDefaults() *RestoreFilesBody {
 	return &this
 }
 
-// GetFileIds returns the FileIds field value if set, zero value otherwise.
-func (o *RestoreFilesBody) GetFileIds() []string {
-	if o == nil || IsNil(o.FileIds) {
+// GetFileIDs returns the FileIDs field value if set, zero value otherwise.
+func (o *RestoreFilesBody) GetFileIDs() []string {
+	if o == nil || IsNil(o.FileIDs) {
 		var ret []string
 		return ret
 	}
-	return o.FileIds
+	return o.FileIDs
 }
 
-// GetFileIdsOk returns a tuple with the FileIds field value if set, nil otherwise
+// GetFileIDsOk returns a tuple with the FileIDs field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *RestoreFilesBody) GetFileIdsOk() ([]string, bool) {
-	if o == nil || IsNil(o.FileIds) {
+func (o *RestoreFilesBody) GetFileIDsOk() ([]string, bool) {
+	if o == nil || IsNil(o.FileIDs) {
 		return nil, false
 	}
-	return o.FileIds, true
+	return o.FileIDs, true
 }
 
-// HasFileIds returns a boolean if a field has been set.
-func (o *RestoreFilesBody) HasFileIds() bool {
-	if o != nil && !IsNil(o.FileIds) {
+// HasFileIDs returns a boolean if a field has been set.
+func (o *RestoreFilesBody) HasFileIDs() bool {
+	if o != nil && !IsNil(o.FileIDs) {
 		return true
 	}
 
 	return false
 }
 
-// SetFileIds gets a reference to the given []string and assigns it to the FileIds field.
-func (o *RestoreFilesBody) SetFileIds(v []string) {
-	o.FileIds = v
+// SetFileIDs gets a reference to the given []string and assigns it to the FileIDs field.
+func (o *RestoreFilesBody) SetFileIDs(v []string) {
+	o.FileIDs = v
 }
 
-// GetNewParentId returns the NewParentId field value if set, zero value otherwise.
-func (o *RestoreFilesBody) GetNewParentId() string {
-	if o == nil || IsNil(o.NewParentId) {
+// GetNewParentID returns the NewParentID field value if set, zero value otherwise.
+func (o *RestoreFilesBody) GetNewParentID() string {
+	if o == nil || IsNil(o.NewParentID) {
 		var ret string
 		return ret
 	}
-	return *o.NewParentId
+	return *o.NewParentID
 }
 
-// GetNewParentIdOk returns a tuple with the NewParentId field value if set, nil otherwise
+// GetNewParentIDOk returns a tuple with the NewParentID field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *RestoreFilesBody) GetNewParentIdOk() (*string, bool) {
-	if o == nil || IsNil(o.NewParentId) {
+func (o *RestoreFilesBody) GetNewParentIDOk() (*string, bool) {
+	if o == nil || IsNil(o.NewParentID) {
 		return nil, false
 	}
-	return o.NewParentId, true
+	return o.NewParentID, true
 }
 
-// HasNewParentId returns a boolean if a field has been set.
-func (o *RestoreFilesBody) HasNewParentId() bool {
-	if o != nil && !IsNil(o.NewParentId) {
+// HasNewParentID returns a boolean if a field has been set.
+func (o *RestoreFilesBody) HasNewParentID() bool {
+	if o != nil && !IsNil(o.NewParentID) {
 		return true
 	}
 
 	return false
 }
 
-// SetNewParentId gets a reference to the given string and assigns it to the NewParentId field.
-func (o *RestoreFilesBody) SetNewParentId(v string) {
-	o.NewParentId = &v
+// SetNewParentID gets a reference to the given string and assigns it to the NewParentID field.
+func (o *RestoreFilesBody) SetNewParentID(v string) {
+	o.NewParentID = &v
 }
 
 // GetTimestamp returns the Timestamp field value if set, zero value otherwise.
@@ -147,11 +147,11 @@ func (o RestoreFilesBody) MarshalJSON() ([]byte, error) {
 
 func (o RestoreFilesBody) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
-	if !IsNil(o.FileIds) {
-		toSerialize["fileIds"] = o.FileIds
+	if !IsNil(o.FileIDs) {
+		toSerialize["fileIDs"] = o.FileIDs
 	}
-	if !IsNil(o.NewParentId) {
-		toSerialize["newParentId"] = o.NewParentId
+	if !IsNil(o.NewParentID) {
+		toSerialize["newParentID"] = o.NewParentID
 	}
 	if !IsNil(o.Timestamp) {
 		toSerialize["timestamp"] = o.Timestamp

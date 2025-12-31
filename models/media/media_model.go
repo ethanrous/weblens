@@ -9,21 +9,32 @@ import (
 
 	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
-	"github.com/ethanrous/weblens/modules/errors"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// MediaCollectionKey is the MongoDB collection name for media documents.
 const MediaCollectionKey = "media"
 
-var ErrMediaNotFound = errors.New("media not found")
-var ErrMediaAlreadyExists = errors.New("media already exists")
-var ErrNotDisplayable = errors.New("media is not displayable")
-var ErrMediaBadMimeType = errors.New("media has a bad mime type")
-var ErrInvalidQuality = errors.Errorf("invalid media quality")
+// ErrMediaNotFound is returned when a requested media item does not exist.
+var ErrMediaNotFound = wlerrors.New("media not found")
 
+// ErrMediaAlreadyExists is returned when attempting to create a media that already exists.
+var ErrMediaAlreadyExists = wlerrors.New("media already exists")
+
+// ErrNotDisplayable is returned when media cannot be displayed.
+var ErrNotDisplayable = wlerrors.New("media is not displayable")
+
+// ErrMediaBadMimeType is returned when media has an unsupported mime type.
+var ErrMediaBadMimeType = wlerrors.New("media has a bad mime type")
+
+// ErrInvalidQuality is returned when an invalid media quality is specified.
+var ErrInvalidQuality = wlerrors.Errorf("invalid media quality")
+
+// Media represents a media item stored in the database.
 type Media struct {
 	CreateDate time.Time `bson:"createDate"`
 
@@ -31,7 +42,7 @@ type Media struct {
 	lowresCacheFile *file_model.WeblensFileImpl
 
 	// Hash of the file content, to ensure that the same files don't get duplicated
-	ContentID ContentId `bson:"contentId"`
+	ContentID ContentID `bson:"contentID"`
 
 	// User who owns the file that resulted in this media being created
 	Owner string `bson:"owner"`
@@ -89,6 +100,7 @@ type Media struct {
 	imported bool
 }
 
+// SaveMedia persists a media item to the database, upserting by content ID.
 func SaveMedia(ctx context.Context, media *Media) error {
 	if media.MediaID.IsZero() {
 		media.MediaID = primitive.NewObjectID()
@@ -99,7 +111,7 @@ func SaveMedia(ctx context.Context, media *Media) error {
 		return err
 	}
 
-	_, err = col.ReplaceOne(ctx, bson.M{"contentId": media.ContentID}, media, options.Replace().SetUpsert(true))
+	_, err = col.ReplaceOne(ctx, bson.M{"contentID": media.ContentID}, media, options.Replace().SetUpsert(true))
 	if err != nil {
 		return db.WrapError(err, "insert media")
 	}
@@ -107,7 +119,8 @@ func SaveMedia(ctx context.Context, media *Media) error {
 	return nil
 }
 
-func GetMediaByContentId(ctx context.Context, contentId ContentId) (*Media, error) {
+// GetMediaByContentID retrieves a media item by its content ID.
+func GetMediaByContentID(ctx context.Context, contentID ContentID) (*Media, error) {
 	col, err := db.GetCollection[any](ctx, MediaCollectionKey)
 	if err != nil {
 		return nil, err
@@ -115,7 +128,7 @@ func GetMediaByContentId(ctx context.Context, contentId ContentId) (*Media, erro
 
 	media := Media{}
 
-	err = col.FindOne(ctx, bson.M{"contentId": contentId}).Decode(&media)
+	err = col.FindOne(ctx, bson.M{"contentID": contentID}).Decode(&media)
 	if err != nil {
 		return nil, db.WrapError(err, "get media by content id")
 	}
@@ -123,7 +136,8 @@ func GetMediaByContentId(ctx context.Context, contentId ContentId) (*Media, erro
 	return &media, nil
 }
 
-func GetMediasByContentIds(ctx context.Context, limit, page, sortDirection int, includeRaw bool, contentIds ...ContentId) ([]*Media, error) {
+// GetMediasByContentIDs retrieves multiple media items by their content IDs with pagination.
+func GetMediasByContentIDs(ctx context.Context, limit, page, sortDirection int, includeRaw bool, contentIDs ...ContentID) ([]*Media, error) {
 	col, err := db.GetCollection[any](ctx, MediaCollectionKey)
 	if err != nil {
 		return nil, err
@@ -131,7 +145,7 @@ func GetMediasByContentIds(ctx context.Context, limit, page, sortDirection int, 
 
 	media := []*Media{}
 
-	filter := bson.M{"contentId": bson.M{"$in": contentIds}, "duration": bson.M{"$eq": 0}}
+	filter := bson.M{"contentID": bson.M{"$in": contentIDs}, "duration": bson.M{"$eq": 0}}
 	if !includeRaw {
 		filter["mimeType"] = bson.M{"$not": bson.M{"$in": rawMimes()}}
 	}
@@ -149,7 +163,8 @@ func GetMediasByContentIds(ctx context.Context, limit, page, sortDirection int, 
 	return media, nil
 }
 
-func GetMediaByPath(ctx context.Context, path string) ([]*Media, error) {
+// GetMediaByPath retrieves media items by file path.
+func GetMediaByPath(_ context.Context, _ string) ([]*Media, error) {
 	// col, err := db.GetCollection[any](ctx, MediaCollectionKey)
 	// if err != nil {
 	// 	return nil, err
@@ -162,12 +177,13 @@ func GetMediaByPath(ctx context.Context, path string) ([]*Media, error) {
 	// }
 	//
 	// return media, nil
-	return nil, errors.New("not implemented")
+	return nil, wlerrors.New("not implemented")
 }
 
-func GetMedia(ctx context.Context, username string, sort string, sortDirection int, excludeIds []ContentId,
-	allowRaw bool, allowHidden bool, search string) ([]*Media, error) {
-	slices.Sort(excludeIds)
+// GetMedia retrieves media items for a user with filtering and sorting options.
+func GetMedia(ctx context.Context, username string, sort string, sortDirection int, excludeIDs []ContentID,
+	_ bool, allowHidden bool, search string) ([]*Media, error) {
+	slices.Sort(excludeIDs)
 
 	pipe := bson.A{
 		bson.D{
@@ -190,7 +206,7 @@ func GetMedia(ctx context.Context, username string, sort string, sortDirection i
 	}
 
 	pipe = append(pipe, bson.D{{Key: "$sort", Value: bson.D{{Key: sort, Value: sortDirection}}}})
-	// pipe = append(pipe, bson.D{{Key: "$project", Value: bson.D{{Key: "_id", Value: false}, {Key: "contentId", Value: true}}}})
+	// pipe = append(pipe, bson.D{{Key: "$project", Value: bson.D{{Key: "_id", Value: false}, {Key: "contentID", Value: true}}}})
 
 	col, err := db.GetCollection[any](ctx, MediaCollectionKey)
 	if err != nil {
@@ -199,25 +215,27 @@ func GetMedia(ctx context.Context, username string, sort string, sortDirection i
 
 	cur, err := col.Aggregate(ctx, pipe)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, wlerrors.WithStack(err)
 	}
 
 	medias := []*Media{}
 
 	err = cur.All(ctx, &medias)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, wlerrors.WithStack(err)
 	}
 
 	return medias, nil
 }
 
+// RandomMediaOptions specifies options for retrieving random media items.
 type RandomMediaOptions struct {
 	Count  int
 	Owner  string
 	NoRaws bool // If true, do not return raw media files
 }
 
+// GetRandomMedias retrieves a random sample of media items based on the given options.
 func GetRandomMedias(ctx context.Context, opts RandomMediaOptions) ([]*Media, error) {
 	col, err := db.GetCollection[any](ctx, MediaCollectionKey)
 	if err != nil {
@@ -259,6 +277,7 @@ func GetRandomMedias(ctx context.Context, opts RandomMediaOptions) ([]*Media, er
 	return target, nil
 }
 
+// DropMediaCollection removes the entire media collection from the database.
 func DropMediaCollection(ctx context.Context) error {
 	col, err := db.GetCollection[any](ctx, MediaCollectionKey)
 	if err != nil {
@@ -273,6 +292,7 @@ func DropMediaCollection(ctx context.Context) error {
 	return nil
 }
 
+// DropHDIRs removes all HDIR (High Dimensional Image Representation) data from media documents.
 func DropHDIRs(ctx context.Context) error {
 	col, err := db.GetCollection[any](ctx, MediaCollectionKey)
 	if err != nil {
@@ -287,24 +307,29 @@ func DropHDIRs(ctx context.Context) error {
 	return nil
 }
 
-func NewMedia(contentId ContentId) *Media {
+// NewMedia creates a new Media instance with the given content ID.
+func NewMedia(contentID ContentID) *Media {
 	return &Media{
-		ContentID: contentId,
+		ContentID: contentID,
 	}
 }
 
-func (m *Media) ID() ContentId {
+// ID returns the content ID of the media.
+func (m *Media) ID() ContentID {
 	return m.ContentID
 }
 
-func (m *Media) SetContentId(id ContentId) {
+// SetContentID sets the content ID of the media.
+func (m *Media) SetContentID(id ContentID) {
 	m.ContentID = id
 }
 
+// IsHidden returns true if the media is marked as hidden.
 func (m *Media) IsHidden() bool {
 	return m.Hidden
 }
 
+// GetCreateDate returns the creation date of the media.
 func (m *Media) GetCreateDate() time.Time {
 	m.updateMu.RLock()
 	defer m.updateMu.RUnlock()
@@ -312,12 +337,15 @@ func (m *Media) GetCreateDate() time.Time {
 	return m.CreateDate
 }
 
+// SetCreateDate sets the creation date of the media.
 func (m *Media) SetCreateDate(t time.Time) {
 	m.updateMu.Lock()
 	defer m.updateMu.Unlock()
+
 	m.CreateDate = t
 }
 
+// GetPageCount returns the number of pages in the media.
 func (m *Media) GetPageCount() int {
 	return m.PageCount
 }
@@ -330,12 +358,15 @@ func (m *Media) GetVideoLength() int {
 	return m.Duration
 }
 
+// SetOwner sets the owner username for the media.
 func (m *Media) SetOwner(owner string) {
 	m.updateMu.Lock()
 	defer m.updateMu.Unlock()
+
 	m.Owner = owner
 }
 
+// GetOwner returns the owner username of the media.
 func (m *Media) GetOwner() string {
 	m.updateMu.RLock()
 	defer m.updateMu.RUnlock()
@@ -343,6 +374,7 @@ func (m *Media) GetOwner() string {
 	return m.Owner
 }
 
+// GetFiles returns the list of file IDs associated with the media.
 func (m *Media) GetFiles() []string {
 	m.updateMu.RLock()
 	defer m.updateMu.RUnlock()
@@ -350,26 +382,32 @@ func (m *Media) GetFiles() []string {
 	return m.FileIDs
 }
 
+// AddFile adds a file ID to the media's file list.
 func (m *Media) AddFile(f *file_model.WeblensFileImpl) {
 	m.updateMu.Lock()
 	defer m.updateMu.Unlock()
+
 	m.FileIDs = slices_mod.AddToSet(m.FileIDs, f.ID())
 }
 
-func (m *Media) RemoveFile(fileIdToRemove string) {
+// RemoveFile removes a file from this media's list of associated files.
+func (m *Media) RemoveFile(fileIDToRemove string) {
 	m.updateMu.Lock()
 	defer m.updateMu.Unlock()
+
 	m.FileIDs = slices_mod.Filter(
-		m.FileIDs, func(fId string) bool {
-			return fId != fileIdToRemove
+		m.FileIDs, func(fID string) bool {
+			return fID != fileIDToRemove
 		},
 	)
 }
 
+// SetImported sets whether the media has been imported.
 func (m *Media) SetImported(i bool) {
 	m.imported = i
 }
 
+// IsImported returns true if the media has been imported.
 func (m *Media) IsImported() bool {
 	if m == nil {
 		return false
@@ -378,20 +416,25 @@ func (m *Media) IsImported() bool {
 	return m.imported
 }
 
+// SetEnabled sets whether the media is enabled.
 func (m *Media) SetEnabled(e bool) {
 	m.Enabled = e
 }
 
+// IsEnabled returns true if the media is enabled.
 func (m *Media) IsEnabled() bool {
 	return m.Enabled
 }
 
+// SetRecognitionTags sets the object recognition tags for the media.
 func (m *Media) SetRecognitionTags(tags []string) {
 	m.updateMu.Lock()
 	defer m.updateMu.Unlock()
+
 	m.RecognitionTags = tags
 }
 
+// GetRecognitionTags returns the object recognition tags for the media.
 func (m *Media) GetRecognitionTags() []string {
 	m.updateMu.RLock()
 	defer m.updateMu.RUnlock()
@@ -399,12 +442,15 @@ func (m *Media) GetRecognitionTags() []string {
 	return m.RecognitionTags
 }
 
+// SetLowresCacheFile sets the thumbnail/low-resolution cache file.
 func (m *Media) SetLowresCacheFile(thumb *file_model.WeblensFileImpl) {
 	m.updateMu.Lock()
 	defer m.updateMu.Unlock()
+
 	m.lowresCacheFile = thumb
 }
 
+// GetLowresCacheFile returns the thumbnail/low-resolution cache file.
 func (m *Media) GetLowresCacheFile() *file_model.WeblensFileImpl {
 	m.updateMu.RLock()
 	defer m.updateMu.RUnlock()
@@ -412,6 +458,7 @@ func (m *Media) GetLowresCacheFile() *file_model.WeblensFileImpl {
 	return m.lowresCacheFile
 }
 
+// SetHighresCacheFiles sets the high-resolution cache file for a specific page.
 func (m *Media) SetHighresCacheFiles(highresFile *file_model.WeblensFileImpl, pageNum int) {
 	m.updateMu.Lock()
 	defer m.updateMu.Unlock()
@@ -423,6 +470,7 @@ func (m *Media) SetHighresCacheFiles(highresFile *file_model.WeblensFileImpl, pa
 	m.highResCacheFiles[pageNum] = highresFile
 }
 
+// GetHighresCacheFiles returns the high-resolution cache file for a specific page.
 func (m *Media) GetHighresCacheFiles(pageNum int) *file_model.WeblensFileImpl {
 	m.updateMu.RLock()
 	defer m.updateMu.RUnlock()
@@ -434,6 +482,7 @@ func (m *Media) GetHighresCacheFiles(pageNum int) *file_model.WeblensFileImpl {
 	return m.highResCacheFiles[pageNum]
 }
 
+// IsSufficentlyProcessed returns true if the media has been sufficiently processed.
 func (m *Media) IsSufficentlyProcessed(requireHDIR bool) bool {
 	m.updateMu.RLock()
 	defer m.updateMu.RUnlock()
@@ -449,53 +498,61 @@ func (m *Media) IsSufficentlyProcessed(requireHDIR bool) bool {
 	return true
 }
 
+// ThumbnailHeight is the standard height for thumbnail images.
 const ThumbnailHeight float32 = 500
 
-type ContentId = string
-type MediaQuality string
+// ContentID is a unique identifier for media content.
+type ContentID = string
 
+// Quality represents the quality level of media.
+type Quality string
+
+// Media quality constants.
 const (
-	LowRes  MediaQuality = "thumbnail"
-	HighRes MediaQuality = "fullres"
-	Video   MediaQuality = "video"
+	LowRes  Quality = "thumbnail"
+	HighRes Quality = "fullres"
+	Video   Quality = "video"
 )
 
-func CheckMediaQuality(quality string) (MediaQuality, bool) {
+// CheckMediaQuality validates and converts a quality string to MediaQuality.
+func CheckMediaQuality(quality string) (Quality, bool) {
 	switch quality {
 	case string(LowRes), string(HighRes), string(Video):
-		return MediaQuality(quality), true
+		return Quality(quality), true
 	}
 
 	return "", false
 }
 
-func RemoveFileFromMedia(ctx context.Context, media *Media, fileId string) error {
+// RemoveFileFromMedia removes a file from a media's list of associated files in the database.
+func RemoveFileFromMedia(ctx context.Context, media *Media, fileID string) error {
 	col, err := db.GetCollection[any](ctx, MediaCollectionKey)
 	if err != nil {
 		return err
 	}
 
 	_, err = col.UpdateOne(ctx, bson.D{
-		{Key: "contentId", Value: media.ContentID},
-	}, bson.D{{Key: "$pull", Value: bson.D{{Key: "fileIds", Value: fileId}}}})
+		{Key: "contentID", Value: media.ContentID},
+	}, bson.D{{Key: "$pull", Value: bson.D{{Key: "fileIds", Value: fileID}}}})
 	if err != nil {
-		return errors.WithStack(err)
+		return wlerrors.WithStack(err)
 	}
 
 	return nil
 }
 
-func (media *Media) AddFileToMedia(ctx context.Context, fileId string) error {
+// AddFileToMedia adds a file to this media's list of associated files in the database.
+func (m *Media) AddFileToMedia(ctx context.Context, fileID string) error {
 	col, err := db.GetCollection[any](ctx, MediaCollectionKey)
 	if err != nil {
 		return err
 	}
 
 	_, err = col.UpdateOne(ctx, bson.D{
-		{Key: "contentId", Value: media.ContentID},
-	}, bson.D{{Key: "$addToSet", Value: bson.D{{Key: "fileIds", Value: fileId}}}})
+		{Key: "contentID", Value: m.ContentID},
+	}, bson.D{{Key: "$addToSet", Value: bson.D{{Key: "fileIds", Value: fileID}}}})
 	if err != nil {
-		return errors.WithStack(err)
+		return wlerrors.WithStack(err)
 	}
 
 	return nil

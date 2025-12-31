@@ -1,4 +1,5 @@
-#!/bin/bash -eux
+#!/bin/bash
+set -euo pipefail
 
 start_ui() {
     pushd ./weblens-vue/weblens-nuxt || exit 1
@@ -18,17 +19,6 @@ build_ui() {
     fi
 
     popd || exit 1
-}
-
-build_agno() {
-    pushd /agno/ || exit 1 >/dev/null
-
-    . "$HOME/.cargo/env"
-    cargo build --release --target aarch64-unknown-linux-musl
-
-    cp target/aarch64-unknown-linux-musl/release/libagno.a ./lib/
-
-    popd || exit 1 >/dev/null
 }
 
 devel_weblens_locally() {
@@ -53,20 +43,16 @@ debug_weblens() {
     export CGO_CXXFLAGS='-g -O0'
     export CGO_LDFLAGS='-g'
     export CGO_ENABLED=1
-    export GOARCH=arm64
-    export GOOS=linux
-    export CC=aarch64-linux-musl-gcc
-    export CXX=aarch64-linux-musl-g++
+    # export GOARCH=arm64
+    # export GOOS=linux
+    # export CC=aarch64-linux-musl-gcc
+    # export CXX=aarch64-linux-musl-g++
 
     rm -f $debug_bin
 
-    go build -v -gcflags=all="-N -l" -ldflags=-compressdwarf=false -o $debug_bin ./cmd/weblens/main.go
+    go build -v -gcflags=all="-N -l" -ldflags=-compressdwarf=false -o $debug_bin ./cmd/weblens/main.go 2>&1
 
     $debug_bin
-
-    # mkdir -p /root/.config/gdb/
-    # echo "set auto-load safe-path /usr/local/go/src/runtime/runtime-gdb.py" >/root/.config/gdb/gdbinit
-    # gdb $debug_bin
 }
 
 usage() {
@@ -88,6 +74,8 @@ while [ "${1:-}" != "" ]; do
     esac
     shift
 done
+
+source ./scripts/build-agno.bash
 
 if [[ $dynamic == true ]]; then
     echo "Dynamic mode enabled"

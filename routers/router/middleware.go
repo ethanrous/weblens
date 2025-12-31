@@ -9,10 +9,10 @@ import (
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/log"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	auth_service "github.com/ethanrous/weblens/services/auth"
-	context_service "github.com/ethanrous/weblens/services/context"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	tower_service "github.com/ethanrous/weblens/services/tower"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -21,21 +21,32 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+// SessionTokenCookie defines the cookie name used for storing session authentication tokens.
 const SessionTokenCookie = "weblens-session-token"
 
+// ContextKey defines the type for context keys used in request contexts.
 type ContextKey string
 
 const (
+	// UserContextKey is the context key for storing user information.
 	UserContextKey ContextKey = "user"
-	ServerKey      ContextKey = "server"
+	// ServerKey is the context key for storing server information.
+	ServerKey ContextKey = "server"
+	// AllowPublicKey is the context key for indicating if public access is allowed.
 	AllowPublicKey ContextKey = "allow_public"
-	ServicesKey    ContextKey = "services"
-	FuncNameKey    ContextKey = "func_name"
+	// ServicesKey is the context key for storing service references.
+	ServicesKey ContextKey = "services"
+	// FuncNameKey is the context key for storing the function name being executed.
+	FuncNameKey ContextKey = "func_name"
 )
 
-var ErrNotAuthenticated = errors.New("not authenticated")
-var ErrNotAuthorized = errors.New("not authorized")
+// ErrNotAuthenticated indicates that the request lacks valid authentication credentials.
+var ErrNotAuthenticated = wlerrors.New("not authenticated")
 
+// ErrNotAuthorized indicates that the authenticated user lacks permission for the requested action.
+var ErrNotAuthorized = wlerrors.New("not authorized")
+
+// RequireSignIn returns a middleware that ensures the requester is authenticated before proceeding.
 func RequireSignIn(next Handler) Handler {
 	return HandlerFunc(func(ctx context_service.RequestContext) {
 		if !ctx.IsLoggedIn {
@@ -48,10 +59,11 @@ func RequireSignIn(next Handler) Handler {
 	})
 }
 
+// RequireAdmin returns a middleware that ensures the requester has admin privileges before proceeding.
 func RequireAdmin(next Handler) Handler {
 	return HandlerFunc(func(ctx context_service.RequestContext) {
 		if ctx.Requester == nil || !ctx.Requester.IsAdmin() {
-			ctx.Error(http.StatusUnauthorized, errors.Wrap(ErrNotAuthorized, "not an admin"))
+			ctx.Error(http.StatusUnauthorized, wlerrors.Wrap(ErrNotAuthorized, "not an admin"))
 
 			return
 		}
@@ -60,10 +72,11 @@ func RequireAdmin(next Handler) Handler {
 	})
 }
 
+// RequireOwner returns a middleware that ensures the requester is the owner before proceeding.
 func RequireOwner(next Handler) Handler {
 	return HandlerFunc(func(ctx context_service.RequestContext) {
 		if ctx.Requester == nil || !ctx.Requester.IsOwner() {
-			ctx.Error(http.StatusUnauthorized, errors.Wrap(ErrNotAuthorized, "not an owner"))
+			ctx.Error(http.StatusUnauthorized, wlerrors.Wrap(ErrNotAuthorized, "not an owner"))
 
 			return
 		}
@@ -72,17 +85,18 @@ func RequireOwner(next Handler) Handler {
 	})
 }
 
+// RequireCoreTower returns a middleware that ensures the local tower is in core role before proceeding.
 func RequireCoreTower(next Handler) Handler {
 	return HandlerFunc(func(ctx context_service.RequestContext) {
 		local, err := tower_model.GetLocal(ctx)
 		if err != nil {
-			ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "failed to get local instance"))
+			ctx.Error(http.StatusInternalServerError, wlerrors.Wrap(err, "failed to get local instance"))
 
 			return
 		}
 
 		if local.Role != tower_model.RoleCore {
-			ctx.Error(http.StatusUnauthorized, errors.New("endpoint is not allowed when not a core tower"))
+			ctx.Error(http.StatusUnauthorized, wlerrors.New("endpoint is not allowed when not a core tower"))
 
 			return
 		}
@@ -91,20 +105,21 @@ func RequireCoreTower(next Handler) Handler {
 	})
 }
 
+// ShareInjector returns a middleware that loads share information from the shareID query parameter into the request context.
 func ShareInjector(next Handler) Handler {
 	return HandlerFunc(func(ctx context_service.RequestContext) {
-		shareIdStr := ctx.Query("shareId")
+		shareIDStr := ctx.Query("shareID")
 
-		shareId, err := primitive.ObjectIDFromHex(shareIdStr)
-		if err == nil && !shareId.IsZero() {
-			share, err := share_model.GetShareById(ctx, shareId)
+		shareID, err := primitive.ObjectIDFromHex(shareIDStr)
+		if err == nil && !shareID.IsZero() {
+			share, err := share_model.GetShareByID(ctx, shareID)
 			if err != nil {
-				ctx.Error(http.StatusNotFound, errors.Wrap(err, "failed to get share"))
+				ctx.Error(http.StatusNotFound, wlerrors.Wrap(err, "failed to get share"))
 
 				return
 			}
 
-			ctx.Log().Debug().Msgf("Share found: %s", shareIdStr)
+			ctx.Log().Debug().Msgf("Share found: %s", shareIDStr)
 
 			ctx.Share = share
 		}
@@ -113,11 +128,12 @@ func ShareInjector(next Handler) Handler {
 	})
 }
 
+// WeblensAuth returns a middleware that handles authentication for Weblens requests using auth headers, session tokens, or tower credentials.
 func WeblensAuth(next Handler) Handler {
 	return HandlerFunc(func(ctx context_service.RequestContext) {
 		local, err := tower_model.GetLocal(ctx)
 		if err != nil {
-			ctx.Error(http.StatusInternalServerError, errors.Wrap(err, "failed to get local instance"))
+			ctx.Error(http.StatusInternalServerError, wlerrors.Wrap(err, "failed to get local instance"))
 
 			return
 		}
@@ -130,11 +146,11 @@ func WeblensAuth(next Handler) Handler {
 
 		ctx = ctx.WithRequester(user_model.GetPublicUser())
 
-		remoteTowerId := ctx.Header(tower_service.TowerIdHeader)
-		if remoteTowerId != "" {
-			remote, err := tower_model.GetTowerById(ctx, remoteTowerId)
+		remoteTowerID := ctx.Header(tower_service.TowerIDHeader)
+		if remoteTowerID != "" {
+			remote, err := tower_model.GetTowerByID(ctx, remoteTowerID)
 			if err != nil {
-				ctx.Error(http.StatusNotFound, errors.Wrapf(err, "failed to get remote instance [%s]", remoteTowerId))
+				ctx.Error(http.StatusNotFound, wlerrors.Wrapf(err, "failed to get remote instance [%s]", remoteTowerID))
 
 				return
 			}
@@ -146,7 +162,7 @@ func WeblensAuth(next Handler) Handler {
 		if authHeader != "" {
 			usr, err := auth_service.GetUserFromAuthHeader(ctx, authHeader)
 			if err != nil {
-				ctx.Error(http.StatusUnauthorized, errors.Wrap(err, "failed to validate authorization header"))
+				ctx.Error(http.StatusUnauthorized, wlerrors.Wrap(err, "failed to validate authorization header"))
 
 				return
 			}
@@ -154,8 +170,8 @@ func WeblensAuth(next Handler) Handler {
 			ctx.Log().Trace().Msgf("Authenticated user via auth header: %s", usr.Username)
 
 			ctx = ctx.WithRequester(usr)
-		} else if ctx.Remote.TowerId != "" {
-			ctx.Error(http.StatusUnauthorized, errors.Wrap(ErrNotAuthenticated, "towers must authenticate with a token"))
+		} else if ctx.Remote.TowerID != "" {
+			ctx.Error(http.StatusUnauthorized, wlerrors.Wrap(ErrNotAuthenticated, "towers must authenticate with a token"))
 
 			return
 		}
@@ -167,7 +183,7 @@ func WeblensAuth(next Handler) Handler {
 				usr, err := auth_service.GetUserFromJWT(ctx, sessionCookie)
 				if err != nil {
 					ctx.ExpireCookie()
-					ctx.Error(http.StatusUnauthorized, errors.WrapStatus(http.StatusUnauthorized, errors.Wrap(err, "failed to validate sesion token")))
+					ctx.Error(http.StatusUnauthorized, wlerrors.WrapStatus(http.StatusUnauthorized, wlerrors.Wrap(err, "failed to validate sesion token")))
 
 					return
 				}
@@ -186,6 +202,7 @@ func WeblensAuth(next Handler) Handler {
 	})
 }
 
+// CORSMiddleware returns a middleware that sets CORS headers for cross-origin requests.
 func CORSMiddleware(next Handler) Handler {
 	proxyAddress := config.GetConfig().ProxyAddress
 
@@ -208,6 +225,7 @@ func CORSMiddleware(next Handler) Handler {
 	})
 }
 
+// Recoverer returns a middleware that recovers from panics and returns appropriate error responses.
 func Recoverer(next Handler) Handler {
 	return HandlerFunc(func(ctx context_service.RequestContext) {
 		defer func() {
@@ -220,21 +238,21 @@ func Recoverer(next Handler) Handler {
 
 				err, ok := rvr.(error)
 				if !ok {
-					err = errors.Errorf("Non-error panic in request handler: %v", rvr)
+					err = wlerrors.Errorf("Non-error panic in request handler: %v", rvr)
 				}
 
-				err = errors.WithStack(err)
+				err = wlerrors.WithStack(err)
 				if ctx.Header("Connection") != "Upgrade" {
 					ctx.Error(http.StatusInternalServerError, err)
 				}
 			}
 		}()
+
 		next.ServeHTTP(ctx)
 	})
 }
 
-// URLHandler adds the requested URL as a field to the context's logger
-// using fieldKey as field key.
+// URLGroupHandler adds the route pattern as a field to the context's logger using fieldKey as field key.
 func URLGroupHandler(fieldKey string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -249,6 +267,7 @@ func URLGroupHandler(fieldKey string) func(next http.Handler) http.Handler {
 	}
 }
 
+// QueryParamHandler adds query parameters as fields to the context's logger using fieldKey as a prefix.
 func QueryParamHandler(fieldKey string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -261,7 +280,6 @@ func QueryParamHandler(fieldKey string) func(next http.Handler) http.Handler {
 				for key, values := range queryParams {
 					value := strings.Join(values, ",")
 					c = c.Str(fieldKey+"_"+key, value)
-
 				}
 
 				return c
@@ -270,6 +288,7 @@ func QueryParamHandler(fieldKey string) func(next http.Handler) http.Handler {
 	}
 }
 
+// HeaderHandler adds request headers as fields to the context's logger when trace logging is enabled.
 func HeaderHandler(fieldKey string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -295,6 +314,7 @@ func HeaderHandler(fieldKey string) func(next http.Handler) http.Handler {
 	}
 }
 
+// LoggerMiddlewares returns a collection of middleware functions that handle request logging.
 func LoggerMiddlewares(logger zerolog.Logger) []func(http.Handler) http.Handler {
 	doDevLog := config.GetConfig().LogFormat == "dev"
 
@@ -305,7 +325,7 @@ func LoggerMiddlewares(logger zerolog.Logger) []func(http.Handler) http.Handler 
 		HeaderHandler("header"),
 		hlog.RemoteIPHandler("ip"),
 		hlog.RefererHandler("referer"),
-		hlog.RequestIDHandler("req_id", "Request-Id"),
+		hlog.RequestIDHandler("req_id", "Request-ID"),
 		func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				start := time.Now()

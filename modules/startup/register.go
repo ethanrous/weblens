@@ -1,32 +1,37 @@
+// Package startup provides a mechanism for registering and running initialization functions during application startup.
 package startup
 
 import (
 	"context"
 
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 )
 
-type StartupFunc func(context.Context, config.ConfigProvider) error
+// HookFunc is a function that performs initialization tasks during application startup.
+type HookFunc func(context.Context, config.Provider) error
 
-var startups []StartupFunc
+var startups []HookFunc
 
-func RegisterStartup(f StartupFunc) {
+// RegisterHook adds a startup function to be executed during application initialization.
+func RegisterHook(f HookFunc) {
 	startups = append(startups, f)
 }
 
-var ErrDeferStartup = errors.New("defer startup")
+// ErrDeferStartup signals that a startup function should be deferred and run later.
+var ErrDeferStartup = wlerrors.New("defer startup")
 
-func RunStartups(ctx context.Context, cnf config.ConfigProvider) error {
+// RunStartups executes all registered startup functions in order, supporting deferral.
+func RunStartups(ctx context.Context, cnf config.Provider) error {
 	toRun := startups
 	for len(toRun) != 0 {
-		var startup StartupFunc
+		var startup HookFunc
 
 		startup, toRun = toRun[0], toRun[1:]
 		if err := startup(ctx, cnf); err != nil {
-			if errors.Is(err, ErrDeferStartup) {
+			if wlerrors.Is(err, ErrDeferStartup) {
 				if len(toRun) == 0 {
-					return errors.New("startup requested to be defered, but there are no more startups to run")
+					return wlerrors.New("startup requested to be defered, but there are no more startups to run")
 				}
 
 				// Defer the startup

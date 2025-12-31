@@ -26,7 +26,7 @@ type ShareAPIService service
 type ApiAddUserToShareRequest struct {
 	ctx context.Context
 	ApiService *ShareAPIService
-	shareId string
+	shareID string
 	request *AddUserParams
 }
 
@@ -44,14 +44,14 @@ func (r ApiAddUserToShareRequest) Execute() (*ShareInfo, *http.Response, error) 
 AddUserToShare Add a user to a file share
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param shareId Share Id
+ @param shareID Share ID
  @return ApiAddUserToShareRequest
 */
-func (a *ShareAPIService) AddUserToShare(ctx context.Context, shareId string) ApiAddUserToShareRequest {
+func (a *ShareAPIService) AddUserToShare(ctx context.Context, shareID string) ApiAddUserToShareRequest {
 	return ApiAddUserToShareRequest{
 		ApiService: a,
 		ctx: ctx,
-		shareId: shareId,
+		shareID: shareID,
 	}
 }
 
@@ -70,8 +70,8 @@ func (a *ShareAPIService) AddUserToShareExecute(r ApiAddUserToShareRequest) (*Sh
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/share/{shareId}/accessors"
-	localVarPath = strings.Replace(localVarPath, "{"+"shareId"+"}", url.PathEscape(parameterValueToString(r.shareId, "shareId")), -1)
+	localVarPath := localBasePath + "/share/{shareID}/accessors"
+	localVarPath = strings.Replace(localVarPath, "{"+"shareID"+"}", url.PathEscape(parameterValueToString(r.shareID, "shareID")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -248,7 +248,7 @@ func (a *ShareAPIService) CreateFileShareExecute(r ApiCreateFileShareRequest) (*
 type ApiDeleteFileShareRequest struct {
 	ctx context.Context
 	ApiService *ShareAPIService
-	shareId string
+	shareID string
 }
 
 func (r ApiDeleteFileShareRequest) Execute() (*http.Response, error) {
@@ -259,14 +259,14 @@ func (r ApiDeleteFileShareRequest) Execute() (*http.Response, error) {
 DeleteFileShare Delete a file share
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param shareId Share Id
+ @param shareID Share ID
  @return ApiDeleteFileShareRequest
 */
-func (a *ShareAPIService) DeleteFileShare(ctx context.Context, shareId string) ApiDeleteFileShareRequest {
+func (a *ShareAPIService) DeleteFileShare(ctx context.Context, shareID string) ApiDeleteFileShareRequest {
 	return ApiDeleteFileShareRequest{
 		ApiService: a,
 		ctx: ctx,
-		shareId: shareId,
+		shareID: shareID,
 	}
 }
 
@@ -283,8 +283,8 @@ func (a *ShareAPIService) DeleteFileShareExecute(r ApiDeleteFileShareRequest) (*
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/share/{shareId}"
-	localVarPath = strings.Replace(localVarPath, "{"+"shareId"+"}", url.PathEscape(parameterValueToString(r.shareId, "shareId")), -1)
+	localVarPath := localBasePath + "/share/{shareID}"
+	localVarPath = strings.Replace(localVarPath, "{"+"shareID"+"}", url.PathEscape(parameterValueToString(r.shareID, "shareID")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -338,7 +338,7 @@ func (a *ShareAPIService) DeleteFileShareExecute(r ApiDeleteFileShareRequest) (*
 type ApiGetFileShareRequest struct {
 	ctx context.Context
 	ApiService *ShareAPIService
-	shareId string
+	shareID string
 }
 
 func (r ApiGetFileShareRequest) Execute() (*ShareInfo, *http.Response, error) {
@@ -349,14 +349,14 @@ func (r ApiGetFileShareRequest) Execute() (*ShareInfo, *http.Response, error) {
 GetFileShare Get a file share
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param shareId Share Id
+ @param shareID Share ID
  @return ApiGetFileShareRequest
 */
-func (a *ShareAPIService) GetFileShare(ctx context.Context, shareId string) ApiGetFileShareRequest {
+func (a *ShareAPIService) GetFileShare(ctx context.Context, shareID string) ApiGetFileShareRequest {
 	return ApiGetFileShareRequest{
 		ApiService: a,
 		ctx: ctx,
-		shareId: shareId,
+		shareID: shareID,
 	}
 }
 
@@ -375,8 +375,8 @@ func (a *ShareAPIService) GetFileShareExecute(r ApiGetFileShareRequest) (*ShareI
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/share/{shareId}"
-	localVarPath = strings.Replace(localVarPath, "{"+"shareId"+"}", url.PathEscape(parameterValueToString(r.shareId, "shareId")), -1)
+	localVarPath := localBasePath + "/share/{shareID}"
+	localVarPath = strings.Replace(localVarPath, "{"+"shareID"+"}", url.PathEscape(parameterValueToString(r.shareID, "shareID")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -439,7 +439,7 @@ func (a *ShareAPIService) GetFileShareExecute(r ApiGetFileShareRequest) (*ShareI
 type ApiRemoveUserFromShareRequest struct {
 	ctx context.Context
 	ApiService *ShareAPIService
-	shareId string
+	shareID string
 	username string
 }
 
@@ -451,15 +451,15 @@ func (r ApiRemoveUserFromShareRequest) Execute() (*ShareInfo, *http.Response, er
 RemoveUserFromShare Remove a user from a file share
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param shareId Share Id
+ @param shareID Share ID
  @param username Username
  @return ApiRemoveUserFromShareRequest
 */
-func (a *ShareAPIService) RemoveUserFromShare(ctx context.Context, shareId string, username string) ApiRemoveUserFromShareRequest {
+func (a *ShareAPIService) RemoveUserFromShare(ctx context.Context, shareID string, username string) ApiRemoveUserFromShareRequest {
 	return ApiRemoveUserFromShareRequest{
 		ApiService: a,
 		ctx: ctx,
-		shareId: shareId,
+		shareID: shareID,
 		username: username,
 	}
 }
@@ -479,8 +479,8 @@ func (a *ShareAPIService) RemoveUserFromShareExecute(r ApiRemoveUserFromShareReq
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/share/{shareId}/accessors/{username}"
-	localVarPath = strings.Replace(localVarPath, "{"+"shareId"+"}", url.PathEscape(parameterValueToString(r.shareId, "shareId")), -1)
+	localVarPath := localBasePath + "/share/{shareID}/accessors/{username}"
+	localVarPath = strings.Replace(localVarPath, "{"+"shareID"+"}", url.PathEscape(parameterValueToString(r.shareID, "shareID")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"username"+"}", url.PathEscape(parameterValueToString(r.username, "username")), -1)
 
 	localVarHeaderParams := make(map[string]string)
@@ -544,7 +544,7 @@ func (a *ShareAPIService) RemoveUserFromShareExecute(r ApiRemoveUserFromShareReq
 type ApiSetSharePublicRequest struct {
 	ctx context.Context
 	ApiService *ShareAPIService
-	shareId string
+	shareID string
 	public *bool
 }
 
@@ -562,14 +562,14 @@ func (r ApiSetSharePublicRequest) Execute() (*http.Response, error) {
 SetSharePublic Update a share's \"public\" status
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param shareId Share Id
+ @param shareID Share ID
  @return ApiSetSharePublicRequest
 */
-func (a *ShareAPIService) SetSharePublic(ctx context.Context, shareId string) ApiSetSharePublicRequest {
+func (a *ShareAPIService) SetSharePublic(ctx context.Context, shareID string) ApiSetSharePublicRequest {
 	return ApiSetSharePublicRequest{
 		ApiService: a,
 		ctx: ctx,
-		shareId: shareId,
+		shareID: shareID,
 	}
 }
 
@@ -586,8 +586,8 @@ func (a *ShareAPIService) SetSharePublicExecute(r ApiSetSharePublicRequest) (*ht
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/share/{shareId}/public"
-	localVarPath = strings.Replace(localVarPath, "{"+"shareId"+"}", url.PathEscape(parameterValueToString(r.shareId, "shareId")), -1)
+	localVarPath := localBasePath + "/share/{shareID}/public"
+	localVarPath = strings.Replace(localVarPath, "{"+"shareID"+"}", url.PathEscape(parameterValueToString(r.shareID, "shareID")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -645,7 +645,7 @@ func (a *ShareAPIService) SetSharePublicExecute(r ApiSetSharePublicRequest) (*ht
 type ApiUpdateShareAccessorPermissionsRequest struct {
 	ctx context.Context
 	ApiService *ShareAPIService
-	shareId string
+	shareID string
 	username string
 	request *PermissionsParams
 }
@@ -664,15 +664,15 @@ func (r ApiUpdateShareAccessorPermissionsRequest) Execute() (*ShareInfo, *http.R
 UpdateShareAccessorPermissions Update a share's user permissions
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param shareId Share Id
+ @param shareID Share ID
  @param username Username
  @return ApiUpdateShareAccessorPermissionsRequest
 */
-func (a *ShareAPIService) UpdateShareAccessorPermissions(ctx context.Context, shareId string, username string) ApiUpdateShareAccessorPermissionsRequest {
+func (a *ShareAPIService) UpdateShareAccessorPermissions(ctx context.Context, shareID string, username string) ApiUpdateShareAccessorPermissionsRequest {
 	return ApiUpdateShareAccessorPermissionsRequest{
 		ApiService: a,
 		ctx: ctx,
-		shareId: shareId,
+		shareID: shareID,
 		username: username,
 	}
 }
@@ -692,8 +692,8 @@ func (a *ShareAPIService) UpdateShareAccessorPermissionsExecute(r ApiUpdateShare
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/share/{shareId}/accessors/{username}"
-	localVarPath = strings.Replace(localVarPath, "{"+"shareId"+"}", url.PathEscape(parameterValueToString(r.shareId, "shareId")), -1)
+	localVarPath := localBasePath + "/share/{shareID}/accessors/{username}"
+	localVarPath = strings.Replace(localVarPath, "{"+"shareID"+"}", url.PathEscape(parameterValueToString(r.shareID, "shareID")), -1)
 	localVarPath = strings.Replace(localVarPath, "{"+"username"+"}", url.PathEscape(parameterValueToString(r.username, "username")), -1)
 
 	localVarHeaderParams := make(map[string]string)

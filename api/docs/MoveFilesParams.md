@@ -4,8 +4,8 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**FileIds** | Pointer to **[]string** |  | [optional] 
-**NewParentId** | Pointer to **string** |  | [optional] 
+**FileIDs** | Pointer to **[]string** |  | [optional] 
+**NewParentID** | Pointer to **string** |  | [optional] 
 
 ## Methods
 
@@ -26,55 +26,55 @@ NewMoveFilesParamsWithDefaults instantiates a new MoveFilesParams object
 This constructor will only assign default values to properties that have it defined,
 but it doesn't guarantee that properties required by API are set
 
-### GetFileIds
+### GetFileIDs
 
-`func (o *MoveFilesParams) GetFileIds() []string`
+`func (o *MoveFilesParams) GetFileIDs() []string`
 
-GetFileIds returns the FileIds field if non-nil, zero value otherwise.
+GetFileIDs returns the FileIDs field if non-nil, zero value otherwise.
 
-### GetFileIdsOk
+### GetFileIDsOk
 
-`func (o *MoveFilesParams) GetFileIdsOk() (*[]string, bool)`
+`func (o *MoveFilesParams) GetFileIDsOk() (*[]string, bool)`
 
-GetFileIdsOk returns a tuple with the FileIds field if it's non-nil, zero value otherwise
+GetFileIDsOk returns a tuple with the FileIDs field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetFileIds
+### SetFileIDs
 
-`func (o *MoveFilesParams) SetFileIds(v []string)`
+`func (o *MoveFilesParams) SetFileIDs(v []string)`
 
-SetFileIds sets FileIds field to given value.
+SetFileIDs sets FileIDs field to given value.
 
-### HasFileIds
+### HasFileIDs
 
-`func (o *MoveFilesParams) HasFileIds() bool`
+`func (o *MoveFilesParams) HasFileIDs() bool`
 
-HasFileIds returns a boolean if a field has been set.
+HasFileIDs returns a boolean if a field has been set.
 
-### GetNewParentId
+### GetNewParentID
 
-`func (o *MoveFilesParams) GetNewParentId() string`
+`func (o *MoveFilesParams) GetNewParentID() string`
 
-GetNewParentId returns the NewParentId field if non-nil, zero value otherwise.
+GetNewParentID returns the NewParentID field if non-nil, zero value otherwise.
 
-### GetNewParentIdOk
+### GetNewParentIDOk
 
-`func (o *MoveFilesParams) GetNewParentIdOk() (*string, bool)`
+`func (o *MoveFilesParams) GetNewParentIDOk() (*string, bool)`
 
-GetNewParentIdOk returns a tuple with the NewParentId field if it's non-nil, zero value otherwise
+GetNewParentIDOk returns a tuple with the NewParentID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetNewParentId
+### SetNewParentID
 
-`func (o *MoveFilesParams) SetNewParentId(v string)`
+`func (o *MoveFilesParams) SetNewParentID(v string)`
 
-SetNewParentId sets NewParentId field to given value.
+SetNewParentID sets NewParentID field to given value.
 
-### HasNewParentId
+### HasNewParentID
 
-`func (o *MoveFilesParams) HasNewParentId() bool`
+`func (o *MoveFilesParams) HasNewParentID() bool`
 
-HasNewParentId returns a boolean if a field has been set.
+HasNewParentID returns a boolean if a field has been set.
 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

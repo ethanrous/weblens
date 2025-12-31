@@ -5,7 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**newParentId** | **string** |  | [optional] [default to undefined]
+**newParentID** | **string** |  | [optional] [default to undefined]
 
 ## Example
 
@@ -13,7 +13,7 @@ Name | Type | Description | Notes
 import { RestoreFilesInfo } from './api';
 
 const instance: RestoreFilesInfo = {
-    newParentId,
+    newParentID,
 };
 ```
 

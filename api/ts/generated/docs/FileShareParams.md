@@ -5,7 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**fileId** | **string** |  | [optional] [default to undefined]
+**fileID** | **string** |  | [optional] [default to undefined]
 **_public** | **boolean** |  | [optional] [default to undefined]
 **timelineOnly** | **boolean** |  | [optional] [default to undefined]
 **users** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
@@ -17,7 +17,7 @@ Name | Type | Description | Notes
 import { FileShareParams } from './api';
 
 const instance: FileShareParams = {
-    fileId,
+    fileID,
     _public,
     timelineOnly,
     users,

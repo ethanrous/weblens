@@ -4,7 +4,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**NewParentId** | Pointer to **string** |  | [optional] 
+**NewParentID** | Pointer to **string** |  | [optional] 
 
 ## Methods
 
@@ -25,30 +25,30 @@ NewRestoreFilesInfoWithDefaults instantiates a new RestoreFilesInfo object
 This constructor will only assign default values to properties that have it defined,
 but it doesn't guarantee that properties required by API are set
 
-### GetNewParentId
+### GetNewParentID
 
-`func (o *RestoreFilesInfo) GetNewParentId() string`
+`func (o *RestoreFilesInfo) GetNewParentID() string`
 
-GetNewParentId returns the NewParentId field if non-nil, zero value otherwise.
+GetNewParentID returns the NewParentID field if non-nil, zero value otherwise.
 
-### GetNewParentIdOk
+### GetNewParentIDOk
 
-`func (o *RestoreFilesInfo) GetNewParentIdOk() (*string, bool)`
+`func (o *RestoreFilesInfo) GetNewParentIDOk() (*string, bool)`
 
-GetNewParentIdOk returns a tuple with the NewParentId field if it's non-nil, zero value otherwise
+GetNewParentIDOk returns a tuple with the NewParentID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetNewParentId
+### SetNewParentID
 
-`func (o *RestoreFilesInfo) SetNewParentId(v string)`
+`func (o *RestoreFilesInfo) SetNewParentID(v string)`
 
-SetNewParentId sets NewParentId field to given value.
+SetNewParentID sets NewParentID field to given value.
 
-### HasNewParentId
+### HasNewParentID
 
-`func (o *RestoreFilesInfo) HasNewParentId() bool`
+`func (o *RestoreFilesInfo) HasNewParentID() bool`
 
-HasNewParentId returns a boolean if a field has been set.
+HasNewParentID returns a boolean if a field has been set.
 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

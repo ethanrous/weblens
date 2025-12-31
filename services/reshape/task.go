@@ -5,6 +5,7 @@ import (
 	"github.com/ethanrous/weblens/modules/structs"
 )
 
+// TasksToTaskInfos converts a slice of Task models to TaskInfo transfer objects.
 func TasksToTaskInfos(tasks []*task.Task) []structs.TaskInfo {
 	taskInfos := make([]structs.TaskInfo, 0, len(tasks))
 	for _, t := range tasks {
@@ -14,17 +15,18 @@ func TasksToTaskInfos(tasks []*task.Task) []structs.TaskInfo {
 	return taskInfos
 }
 
+// TaskToTaskInfo converts a Task model to a TaskInfo transfer object.
 func TaskToTaskInfo(t *task.Task) structs.TaskInfo {
 	complete, status := t.Status()
 	result := t.GetResults()
 
 	return structs.TaskInfo{
-		TaskId:    t.Id(),
+		TaskID:    t.ID(),
 		JobName:   t.JobName(),
 		Progress:  0,
 		Status:    status,
 		Completed: complete,
-		WorkerId:  t.GetWorkerId(),
+		WorkerID:  t.GetWorkerID(),
 		Result:    result,
 		StartTime: t.StartTime,
 	}

@@ -1,3 +1,4 @@
+// Package fs provides filesystem abstraction and path manipulation utilities.
 package fs
 
 import (
@@ -5,18 +6,19 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/rs/zerolog/log"
 )
 
 var absPathMap = make(map[string]string)
 var pathMapLock = sync.RWMutex{}
 
+// RegisterAbsolutePrefix registers an alias for an absolute filesystem path.
 func RegisterAbsolutePrefix(alias, path string) error {
 	log.Trace().Msgf("Registering absolute path alias: %s -> %s", alias, path)
 
 	if !strings.HasPrefix(path, "/") {
-		return errors.New("absolute path must start with /")
+		return wlerrors.New("absolute path must start with /")
 	}
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -46,12 +48,13 @@ func getAbsolutePrefix(alias string) (string, error) {
 
 	root, ok := absPathMap[alias]
 	if !ok {
-		return "", errors.Errorf("no absolute path registered for alias: %s", alias)
+		return "", wlerrors.Errorf("no absolute path registered for alias: %s", alias)
 	}
 
 	return root, nil
 }
 
+// ToAbsolute converts the Filepath to an absolute filesystem path.
 func (wf Filepath) ToAbsolute() string {
 	if wf.RootAlias == "" {
 		return ""
@@ -60,6 +63,7 @@ func (wf Filepath) ToAbsolute() string {
 	absPrefix, err := getAbsolutePrefix(wf.RootAlias)
 	if err != nil {
 		log.Error().Err(err).Msgf("Failed to get absolute prefix for alias: %s", wf.RootAlias)
+
 		return ""
 	}
 

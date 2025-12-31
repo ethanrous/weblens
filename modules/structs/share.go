@@ -1,8 +1,9 @@
 package structs
 
+// ShareInfo represents file share information for API responses.
 type ShareInfo struct {
-	ShareId      string                     `json:"shareId"`
-	FileId       string                     `json:"fileId"`
+	ShareID      string                     `json:"shareID"`
+	FileID       string                     `json:"fileID"`
 	ShareName    string                     `json:"shareName"`
 	Owner        string                     `json:"owner"`
 	ShareType    string                     `json:"shareType"`
@@ -16,6 +17,7 @@ type ShareInfo struct {
 	Enabled      bool                       `json:"enabled"`
 } // @name ShareInfo
 
+// PermissionsInfo represents permission settings for API responses.
 type PermissionsInfo struct {
 	CanView     bool `json:"canView"`
 	CanEdit     bool `json:"canEdit"`

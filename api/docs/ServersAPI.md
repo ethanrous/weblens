@@ -4,13 +4,13 @@ All URIs are relative to *http://localhost:8080/api/v1*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
-[**LaunchBackup**](ServersAPI.md#LaunchBackup) | **Post** /servers/{serverId}/backup | Launch backup on a server
+[**LaunchBackup**](ServersAPI.md#LaunchBackup) | **Post** /servers/{serverID}/backup | Launch backup on a server
 
 
 
 ## LaunchBackup
 
-> LaunchBackup(ctx, serverId).Execute()
+> LaunchBackup(ctx, serverID).Execute()
 
 Launch backup on a server
 
@@ -27,11 +27,11 @@ import (
 )
 
 func main() {
-	serverId := "serverId_example" // string | Server ID
+	serverID := "serverID_example" // string | Server ID
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	r, err := apiClient.ServersAPI.LaunchBackup(context.Background(), serverId).Execute()
+	r, err := apiClient.ServersAPI.LaunchBackup(context.Background(), serverID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `ServersAPI.LaunchBackup``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -45,7 +45,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**serverId** | **string** | Server ID | 
+**serverID** | **string** | Server ID | 
 
 ### Other Parameters
 

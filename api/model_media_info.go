@@ -20,7 +20,7 @@ var _ MappedNullable = &MediaInfo{}
 // MediaInfo struct for MediaInfo
 type MediaInfo struct {
 	// Hash of the file content, to ensure that the same files don't get duplicated
-	ContentId *string `json:"contentId,omitempty"`
+	ContentID *string `json:"contentID,omitempty"`
 	CreateDate *int32 `json:"createDate,omitempty"`
 	// Total time, in milliseconds, of a video
 	Duration *int32 `json:"duration,omitempty"`
@@ -63,36 +63,36 @@ func NewMediaInfoWithDefaults() *MediaInfo {
 	return &this
 }
 
-// GetContentId returns the ContentId field value if set, zero value otherwise.
-func (o *MediaInfo) GetContentId() string {
-	if o == nil || IsNil(o.ContentId) {
+// GetContentID returns the ContentID field value if set, zero value otherwise.
+func (o *MediaInfo) GetContentID() string {
+	if o == nil || IsNil(o.ContentID) {
 		var ret string
 		return ret
 	}
-	return *o.ContentId
+	return *o.ContentID
 }
 
-// GetContentIdOk returns a tuple with the ContentId field value if set, nil otherwise
+// GetContentIDOk returns a tuple with the ContentID field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *MediaInfo) GetContentIdOk() (*string, bool) {
-	if o == nil || IsNil(o.ContentId) {
+func (o *MediaInfo) GetContentIDOk() (*string, bool) {
+	if o == nil || IsNil(o.ContentID) {
 		return nil, false
 	}
-	return o.ContentId, true
+	return o.ContentID, true
 }
 
-// HasContentId returns a boolean if a field has been set.
-func (o *MediaInfo) HasContentId() bool {
-	if o != nil && !IsNil(o.ContentId) {
+// HasContentID returns a boolean if a field has been set.
+func (o *MediaInfo) HasContentID() bool {
+	if o != nil && !IsNil(o.ContentID) {
 		return true
 	}
 
 	return false
 }
 
-// SetContentId gets a reference to the given string and assigns it to the ContentId field.
-func (o *MediaInfo) SetContentId(v string) {
-	o.ContentId = &v
+// SetContentID gets a reference to the given string and assigns it to the ContentID field.
+func (o *MediaInfo) SetContentID(v string) {
+	o.ContentID = &v
 }
 
 // GetCreateDate returns the CreateDate field value if set, zero value otherwise.
@@ -553,8 +553,8 @@ func (o MediaInfo) MarshalJSON() ([]byte, error) {
 
 func (o MediaInfo) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
-	if !IsNil(o.ContentId) {
-		toSerialize["contentId"] = o.ContentId
+	if !IsNil(o.ContentID) {
+		toSerialize["contentID"] = o.ContentID
 	}
 	if !IsNil(o.CreateDate) {
 		toSerialize["createDate"] = o.CreateDate

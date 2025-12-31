@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	. "github.com/ethanrous/weblens/modules/fs"
+	"github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/tests"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,37 +19,37 @@ func TestBuildFilePath(t *testing.T) {
 		name     string
 		root     string
 		relPaths []string
-		want     Filepath
+		want     fs.Filepath
 	}{
 		{
 			name:     "simple path",
 			root:     "test",
 			relPaths: []string{"foo", "bar.txt"},
-			want:     Filepath{RootAlias: "test", RelPath: "foo/bar.txt"},
+			want:     fs.Filepath{RootAlias: "test", RelPath: "foo/bar.txt"},
 		},
 		{
 			name:     "directory path",
 			root:     "test",
 			relPaths: []string{"foo", "bar/"},
-			want:     Filepath{RootAlias: "test", RelPath: "foo/bar/"},
+			want:     fs.Filepath{RootAlias: "test", RelPath: "foo/bar/"},
 		},
 		{
 			name:     "empty path",
 			root:     "test",
 			relPaths: []string{},
-			want:     Filepath{RootAlias: "test", RelPath: ""},
+			want:     fs.Filepath{RootAlias: "test", RelPath: ""},
 		},
 		{
 			name:     "single file",
 			root:     "test",
 			relPaths: []string{"file.txt"},
-			want:     Filepath{RootAlias: "test", RelPath: "file.txt"},
+			want:     fs.Filepath{RootAlias: "test", RelPath: "file.txt"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := BuildFilePath(tt.root, tt.relPaths...)
+			got := fs.BuildFilePath(tt.root, tt.relPaths...)
 
 			assert.Equal(t, tt.want, got)
 		})
@@ -61,7 +61,7 @@ func TestNewFilePath(t *testing.T) {
 
 	// Setup test directory structure
 	tmpDir := t.TempDir()
-	err := RegisterAbsolutePrefix("test", tmpDir)
+	err := fs.RegisterAbsolutePrefix("test", tmpDir)
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -86,7 +86,7 @@ func TestNewFilePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewFilePath(tt.rootAlias, tt.absolutePath)
+			_, err := fs.NewFilePath(tt.rootAlias, tt.absolutePath)
 			if tt.wantErr {
 				assert.Error(t, err)
 
@@ -100,16 +100,17 @@ func TestNewFilePath(t *testing.T) {
 
 func TestParsePortable(t *testing.T) {
 	tests.Setup(t)
+
 	tests := []struct {
 		name        string
 		portableStr string
-		want        Filepath
+		want        fs.Filepath
 		wantErr     bool
 	}{
 		{
 			name:        "valid portable path",
 			portableStr: "test:foo/bar.txt",
-			want:        Filepath{RootAlias: "test", RelPath: "foo/bar.txt"},
+			want:        fs.Filepath{RootAlias: "test", RelPath: "foo/bar.txt"},
 			wantErr:     false,
 		},
 		{
@@ -120,14 +121,14 @@ func TestParsePortable(t *testing.T) {
 		{
 			name:        "empty path after colon",
 			portableStr: "test:",
-			want:        Filepath{RootAlias: "test", RelPath: ""},
+			want:        fs.Filepath{RootAlias: "test", RelPath: ""},
 			wantErr:     false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParsePortable(tt.portableStr)
+			got, err := fs.ParsePortable(tt.portableStr)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -146,17 +147,17 @@ func TestBSONMarshaling(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		filepath Filepath
+		filepath fs.Filepath
 		wantErr  bool
 	}{
 		{
 			name:     "marshal regular path",
-			filepath: Filepath{RootAlias: "test", RelPath: "foo/bar.txt"},
+			filepath: fs.Filepath{RootAlias: "test", RelPath: "foo/bar.txt"},
 			wantErr:  false,
 		},
 		{
 			name:     "marshal empty path",
-			filepath: Filepath{},
+			filepath: fs.Filepath{},
 			wantErr:  false,
 		},
 	}
@@ -174,7 +175,8 @@ func TestBSONMarshaling(t *testing.T) {
 			assert.NoError(t, err)
 
 			// Test unmarshaling
-			var fp Filepath
+			var fp fs.Filepath
+
 			err = fp.UnmarshalBSONValue(bsonType, data)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.filepath, fp)
@@ -187,20 +189,20 @@ func TestMarshalJSON(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		filepath Filepath
+		filepath fs.Filepath
 		want     string
 		err      error
 	}{
 		{
 			name:     "marshal regular path",
-			filepath: Filepath{RootAlias: "test", RelPath: "foo/bar.txt"},
+			filepath: fs.Filepath{RootAlias: "test", RelPath: "foo/bar.txt"},
 			want:     `"test:foo/bar.txt"`,
 		},
 		{
 			name:     "marshal empty path",
-			filepath: Filepath{},
+			filepath: fs.Filepath{},
 			want:     `""`,
-			err:      ErrInvalidPortablePath,
+			err:      fs.ErrInvalidPortablePath,
 		},
 	}
 
@@ -211,7 +213,8 @@ func TestMarshalJSON(t *testing.T) {
 			assert.Equal(t, tt.want, string(got))
 
 			// Test unmarshaling
-			var fp Filepath
+			var fp fs.Filepath
+
 			err = (&fp).UnmarshalJSON(got)
 
 			if tt.err != nil {
@@ -232,58 +235,58 @@ func TestFilepathMethods(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		filepath Filepath
-		checks   func(*testing.T, Filepath)
+		filepath fs.Filepath
+		checks   func(*testing.T, fs.Filepath)
 	}{
 		{
 			name:     "IsZero check",
-			filepath: Filepath{},
-			checks: func(t *testing.T, fp Filepath) {
+			filepath: fs.Filepath{},
+			checks: func(t *testing.T, fp fs.Filepath) {
 				assert.True(t, fp.IsZero())
-				assert.True(t, IsZeroFilepath(fp))
+				assert.True(t, fs.IsZeroFilepath(fp))
 			},
 		},
 		{
 			name:     "IsRoot check",
-			filepath: Filepath{RootAlias: "test", RelPath: ""},
-			checks: func(t *testing.T, fp Filepath) {
+			filepath: fs.Filepath{RootAlias: "test", RelPath: ""},
+			checks: func(t *testing.T, fp fs.Filepath) {
 				assert.True(t, fp.IsRoot())
 			},
 		},
 		{
 			name:     "Dir path",
-			filepath: Filepath{RootAlias: "test", RelPath: "foo/bar/file.txt"},
-			checks: func(t *testing.T, fp Filepath) {
+			filepath: fs.Filepath{RootAlias: "test", RelPath: "foo/bar/file.txt"},
+			checks: func(t *testing.T, fp fs.Filepath) {
 				dir := fp.Dir()
 				assert.Equal(t, "foo/bar/", dir.RelPath)
 			},
 		},
 		{
 			name:     "Filename",
-			filepath: Filepath{RootAlias: "test", RelPath: "foo/bar/file.txt"},
-			checks: func(t *testing.T, fp Filepath) {
+			filepath: fs.Filepath{RootAlias: "test", RelPath: "foo/bar/file.txt"},
+			checks: func(t *testing.T, fp fs.Filepath) {
 				assert.Equal(t, "file.txt", fp.Filename())
 			},
 		},
 		{
 			name:     "IsDir check",
-			filepath: Filepath{RootAlias: "test", RelPath: "foo/bar/"},
-			checks: func(t *testing.T, fp Filepath) {
+			filepath: fs.Filepath{RootAlias: "test", RelPath: "foo/bar/"},
+			checks: func(t *testing.T, fp fs.Filepath) {
 				assert.True(t, fp.IsDir())
 			},
 		},
 		{
 			name:     "Child path",
-			filepath: Filepath{RootAlias: "test", RelPath: "foo/"},
-			checks: func(t *testing.T, fp Filepath) {
+			filepath: fs.Filepath{RootAlias: "test", RelPath: "foo/"},
+			checks: func(t *testing.T, fp fs.Filepath) {
 				child := fp.Child("bar.txt", false)
 				assert.Equal(t, "foo/bar.txt", child.RelPath)
 			},
 		},
 		{
 			name:     "Extension",
-			filepath: Filepath{RootAlias: "test", RelPath: "foo/bar.txt"},
-			checks: func(t *testing.T, fp Filepath) {
+			filepath: fs.Filepath{RootAlias: "test", RelPath: "foo/bar.txt"},
+			checks: func(t *testing.T, fp fs.Filepath) {
 				assert.Equal(t, ".txt", fp.Ext())
 			},
 		},
@@ -301,25 +304,25 @@ func TestReplacePrefix(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		path      Filepath
-		prefix    Filepath
-		newPrefix Filepath
-		want      Filepath
+		path      fs.Filepath
+		prefix    fs.Filepath
+		newPrefix fs.Filepath
+		want      fs.Filepath
 		wantErr   bool
 	}{
 		{
 			name:      "valid prefix replacement",
-			path:      Filepath{RootAlias: "old", RelPath: "prefix/path/file.txt"},
-			prefix:    Filepath{RootAlias: "old", RelPath: "prefix/"},
-			newPrefix: Filepath{RootAlias: "new", RelPath: "newprefix/"},
-			want:      Filepath{RootAlias: "new", RelPath: "newprefix/path/file.txt"},
+			path:      fs.Filepath{RootAlias: "old", RelPath: "prefix/path/file.txt"},
+			prefix:    fs.Filepath{RootAlias: "old", RelPath: "prefix/"},
+			newPrefix: fs.Filepath{RootAlias: "new", RelPath: "newprefix/"},
+			want:      fs.Filepath{RootAlias: "new", RelPath: "newprefix/path/file.txt"},
 			wantErr:   false,
 		},
 		{
 			name:      "invalid prefix",
-			path:      Filepath{RootAlias: "old", RelPath: "path/file.txt"},
-			prefix:    Filepath{RootAlias: "old", RelPath: "prefix/"},
-			newPrefix: Filepath{RootAlias: "new", RelPath: "newprefix/"},
+			path:      fs.Filepath{RootAlias: "old", RelPath: "path/file.txt"},
+			prefix:    fs.Filepath{RootAlias: "old", RelPath: "prefix/"},
+			newPrefix: fs.Filepath{RootAlias: "new", RelPath: "newprefix/"},
 			wantErr:   true,
 		},
 	}
@@ -373,7 +376,7 @@ func TestAbsolutePathRegistration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := RegisterAbsolutePrefix(tt.alias, tt.path)
+			err := fs.RegisterAbsolutePrefix(tt.alias, tt.path)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -409,7 +412,7 @@ func TestConcurrentPathOperations(t *testing.T) {
 				alias := fmt.Sprintf("test%d_%d", id, op)
 				path := filepath.Join(tmpDir, alias)
 
-				err := RegisterAbsolutePrefix(alias, path)
+				err := fs.RegisterAbsolutePrefix(alias, path)
 				if err != nil {
 					errs <- fmt.Errorf("failed to register path: %v", err)
 
@@ -417,7 +420,7 @@ func TestConcurrentPathOperations(t *testing.T) {
 				}
 
 				// Create a filepath using the registered alias
-				fp := BuildFilePath(alias, "test.txt")
+				fp := fs.BuildFilePath(alias, "test.txt")
 
 				// Access the absolute path
 				absPath := fp.ToAbsolute()
@@ -427,6 +430,7 @@ func TestConcurrentPathOperations(t *testing.T) {
 					return
 				}
 			}
+
 			done <- true
 		}(id)
 	}
@@ -445,22 +449,22 @@ func TestToAbsolute(t *testing.T) {
 	tests.Setup(t)
 
 	tmpDir := t.TempDir()
-	err := RegisterAbsolutePrefix("test", tmpDir)
+	err := fs.RegisterAbsolutePrefix("test", tmpDir)
 	require.NoError(t, err)
 
 	tests := []struct {
 		name     string
-		filepath Filepath
+		filepath fs.Filepath
 		want     string
 	}{
 		{
 			name:     "valid path",
-			filepath: Filepath{RootAlias: "test", RelPath: "foo/bar.txt"},
+			filepath: fs.Filepath{RootAlias: "test", RelPath: "foo/bar.txt"},
 			want:     filepath.Join(tmpDir, "foo/bar.txt"),
 		},
 		{
 			name:     "empty filepath",
-			filepath: Filepath{},
+			filepath: fs.Filepath{},
 			want:     "",
 		},
 	}

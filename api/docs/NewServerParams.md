@@ -7,7 +7,7 @@ Name | Type | Description | Notes
 **CoreAddress** | Pointer to **string** |  | [optional] 
 **Name** | Pointer to **string** |  | [optional] 
 **Role** | Pointer to **string** |  | [optional] 
-**ServerId** | Pointer to **string** |  | [optional] 
+**ServerID** | Pointer to **string** |  | [optional] 
 **UsingKey** | Pointer to **string** |  | [optional] 
 
 ## Methods
@@ -104,30 +104,30 @@ SetRole sets Role field to given value.
 
 HasRole returns a boolean if a field has been set.
 
-### GetServerId
+### GetServerID
 
-`func (o *NewServerParams) GetServerId() string`
+`func (o *NewServerParams) GetServerID() string`
 
-GetServerId returns the ServerId field if non-nil, zero value otherwise.
+GetServerID returns the ServerID field if non-nil, zero value otherwise.
 
-### GetServerIdOk
+### GetServerIDOk
 
-`func (o *NewServerParams) GetServerIdOk() (*string, bool)`
+`func (o *NewServerParams) GetServerIDOk() (*string, bool)`
 
-GetServerIdOk returns a tuple with the ServerId field if it's non-nil, zero value otherwise
+GetServerIDOk returns a tuple with the ServerID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetServerId
+### SetServerID
 
-`func (o *NewServerParams) SetServerId(v string)`
+`func (o *NewServerParams) SetServerID(v string)`
 
-SetServerId sets ServerId field to given value.
+SetServerID sets ServerID field to given value.
 
-### HasServerId
+### HasServerID
 
-`func (o *NewServerParams) HasServerId() bool`
+`func (o *NewServerParams) HasServerID() bool`
 
-HasServerId returns a boolean if a field has been set.
+HasServerID returns a boolean if a field has been set.
 
 ### GetUsingKey
 

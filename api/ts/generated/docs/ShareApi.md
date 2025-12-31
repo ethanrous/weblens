@@ -4,13 +4,13 @@ All URIs are relative to *http://localhost:8080/api/v1*
 
 |Method | HTTP request | Description|
 |------------- | ------------- | -------------|
-|[**addUserToShare**](#addusertoshare) | **POST** /share/{shareId}/accessors | Add a user to a file share|
+|[**addUserToShare**](#addusertoshare) | **POST** /share/{shareID}/accessors | Add a user to a file share|
 |[**createFileShare**](#createfileshare) | **POST** /share/file | Share a file|
-|[**deleteFileShare**](#deletefileshare) | **DELETE** /share/{shareId} | Delete a file share|
-|[**getFileShare**](#getfileshare) | **GET** /share/{shareId} | Get a file share|
-|[**removeUserFromShare**](#removeuserfromshare) | **DELETE** /share/{shareId}/accessors/{username} | Remove a user from a file share|
-|[**setSharePublic**](#setsharepublic) | **PATCH** /share/{shareId}/public | Update a share\&#39;s \&quot;public\&quot; status|
-|[**updateShareAccessorPermissions**](#updateshareaccessorpermissions) | **PATCH** /share/{shareId}/accessors/{username} | Update a share\&#39;s user permissions|
+|[**deleteFileShare**](#deletefileshare) | **DELETE** /share/{shareID} | Delete a file share|
+|[**getFileShare**](#getfileshare) | **GET** /share/{shareID} | Get a file share|
+|[**removeUserFromShare**](#removeuserfromshare) | **DELETE** /share/{shareID}/accessors/{username} | Remove a user from a file share|
+|[**setSharePublic**](#setsharepublic) | **PATCH** /share/{shareID}/public | Update a share\&#39;s \&quot;public\&quot; status|
+|[**updateShareAccessorPermissions**](#updateshareaccessorpermissions) | **PATCH** /share/{shareID}/accessors/{username} | Update a share\&#39;s user permissions|
 
 # **addUserToShare**
 > ShareInfo addUserToShare(request)
@@ -28,11 +28,11 @@ import {
 const configuration = new Configuration();
 const apiInstance = new ShareApi(configuration);
 
-let shareId: string; //Share Id (default to undefined)
+let shareID: string; //Share ID (default to undefined)
 let request: AddUserParams; //Share Accessors
 
 const { status, data } = await apiInstance.addUserToShare(
-    shareId,
+    shareID,
     request
 );
 ```
@@ -42,7 +42,7 @@ const { status, data } = await apiInstance.addUserToShare(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **request** | **AddUserParams**| Share Accessors | |
-| **shareId** | [**string**] | Share Id | defaults to undefined|
+| **shareID** | [**string**] | Share ID | defaults to undefined|
 
 
 ### Return type
@@ -134,10 +134,10 @@ import {
 const configuration = new Configuration();
 const apiInstance = new ShareApi(configuration);
 
-let shareId: string; //Share Id (default to undefined)
+let shareID: string; //Share ID (default to undefined)
 
 const { status, data } = await apiInstance.deleteFileShare(
-    shareId
+    shareID
 );
 ```
 
@@ -145,7 +145,7 @@ const { status, data } = await apiInstance.deleteFileShare(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **shareId** | [**string**] | Share Id | defaults to undefined|
+| **shareID** | [**string**] | Share ID | defaults to undefined|
 
 
 ### Return type
@@ -185,10 +185,10 @@ import {
 const configuration = new Configuration();
 const apiInstance = new ShareApi(configuration);
 
-let shareId: string; //Share Id (default to undefined)
+let shareID: string; //Share ID (default to undefined)
 
 const { status, data } = await apiInstance.getFileShare(
-    shareId
+    shareID
 );
 ```
 
@@ -196,7 +196,7 @@ const { status, data } = await apiInstance.getFileShare(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **shareId** | [**string**] | Share Id | defaults to undefined|
+| **shareID** | [**string**] | Share ID | defaults to undefined|
 
 
 ### Return type
@@ -236,11 +236,11 @@ import {
 const configuration = new Configuration();
 const apiInstance = new ShareApi(configuration);
 
-let shareId: string; //Share Id (default to undefined)
+let shareID: string; //Share ID (default to undefined)
 let username: string; //Username (default to undefined)
 
 const { status, data } = await apiInstance.removeUserFromShare(
-    shareId,
+    shareID,
     username
 );
 ```
@@ -249,7 +249,7 @@ const { status, data } = await apiInstance.removeUserFromShare(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **shareId** | [**string**] | Share Id | defaults to undefined|
+| **shareID** | [**string**] | Share ID | defaults to undefined|
 | **username** | [**string**] | Username | defaults to undefined|
 
 
@@ -290,11 +290,11 @@ import {
 const configuration = new Configuration();
 const apiInstance = new ShareApi(configuration);
 
-let shareId: string; //Share Id (default to undefined)
+let shareID: string; //Share ID (default to undefined)
 let _public: boolean; //Share Public Status (default to undefined)
 
 const { status, data } = await apiInstance.setSharePublic(
-    shareId,
+    shareID,
     _public
 );
 ```
@@ -303,7 +303,7 @@ const { status, data } = await apiInstance.setSharePublic(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **shareId** | [**string**] | Share Id | defaults to undefined|
+| **shareID** | [**string**] | Share ID | defaults to undefined|
 | **_public** | [**boolean**] | Share Public Status | defaults to undefined|
 
 
@@ -345,12 +345,12 @@ import {
 const configuration = new Configuration();
 const apiInstance = new ShareApi(configuration);
 
-let shareId: string; //Share Id (default to undefined)
+let shareID: string; //Share ID (default to undefined)
 let username: string; //Username (default to undefined)
 let request: PermissionsParams; //Share Permissions Params
 
 const { status, data } = await apiInstance.updateShareAccessorPermissions(
-    shareId,
+    shareID,
     username,
     request
 );
@@ -361,7 +361,7 @@ const { status, data } = await apiInstance.updateShareAccessorPermissions(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **request** | **PermissionsParams**| Share Permissions Params | |
-| **shareId** | [**string**] | Share Id | defaults to undefined|
+| **shareID** | [**string**] | Share ID | defaults to undefined|
 | **username** | [**string**] | Username | defaults to undefined|
 
 

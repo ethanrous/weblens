@@ -9,16 +9,18 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethanrous/weblens/modules/errors"
 	task_mod "github.com/ethanrous/weblens/modules/task"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/rs/zerolog"
 )
 
-const GlobalTaskPoolId = "GLOBAL"
+// GlobalTaskPoolID is the identifier for the global task pool that is always available.
+const GlobalTaskPoolID = "GLOBAL"
 
-var _ task_mod.Pool = (*TaskPool)(nil)
+var _ task_mod.Pool = (*Pool)(nil)
 
-type TaskPool struct {
+// Pool manages a collection of tasks and tracks their execution progress.
+type Pool struct {
 	allQueuedFlag  atomic.Bool
 	cleanupFn      []task_mod.PoolCleanupFunc
 	cleanupsDone   atomic.Bool
@@ -30,7 +32,7 @@ type TaskPool struct {
 	hasQueueThread bool
 	id             string
 	log            zerolog.Logger
-	parentTaskPool *TaskPool
+	parentTaskPool *Pool
 	taskLock       sync.RWMutex
 	tasks          map[string]*Task
 	totalTasks     atomic.Int64
@@ -40,7 +42,8 @@ type TaskPool struct {
 	workerPool     *WorkerPool
 }
 
-func (tp *TaskPool) IsRoot() bool {
+// IsRoot returns true if this task pool has no parent or its parent is global.
+func (tp *Pool) IsRoot() bool {
 	if tp == nil {
 		return false
 	}
@@ -48,37 +51,46 @@ func (tp *TaskPool) IsRoot() bool {
 	return tp.parentTaskPool == nil || tp.parentTaskPool.IsGlobal()
 }
 
-func (tp *TaskPool) GetWorkerPool() task_mod.WorkerPool {
+// GetWorkerPool returns the worker pool that manages this task pool.
+func (tp *Pool) GetWorkerPool() task_mod.WorkerPool {
 	return tp.workerPool
 }
 
-func (tp *TaskPool) ID() string {
+// ID returns the unique identifier for this task pool.
+func (tp *Pool) ID() string {
 	return tp.id
 }
 
-func (tp *TaskPool) IncTaskCount(count int) {
+// IncTaskCount increments the total task count for this pool by the specified amount.
+func (tp *Pool) IncTaskCount(count int) {
 	tp.totalTasks.Add(int64(count))
 }
 
-func (tp *TaskPool) GetTotalTaskCount() int {
+// GetTotalTaskCount returns the total number of tasks that have been added to this pool.
+func (tp *Pool) GetTotalTaskCount() int {
 	return int(tp.totalTasks.Load())
 }
 
-func (tp *TaskPool) IncCompletedTasks(count int) {
+// IncCompletedTasks increments the completed task count for this pool by the specified amount.
+func (tp *Pool) IncCompletedTasks(count int) {
 	tp.completedTasks.Add(int64(count))
 }
 
-func (tp *TaskPool) GetCompletedTaskCount() int {
+// GetCompletedTaskCount returns the number of tasks that have completed in this pool.
+func (tp *Pool) GetCompletedTaskCount() int {
 	return int(tp.completedTasks.Load())
 }
 
-func (tp *TaskPool) RemoveTask(taskId string) {
+// RemoveTask removes the task with the specified ID from this pool.
+func (tp *Pool) RemoveTask(taskID string) {
 	tp.taskLock.Lock()
 	defer tp.taskLock.Unlock()
-	delete(tp.tasks, taskId)
+
+	delete(tp.tasks, taskID)
 }
 
-func (tp *TaskPool) HandleTaskExit(replacementThread bool) (canContinue bool) {
+// HandleTaskExit processes task completion and determines if the worker should continue.
+func (tp *Pool) HandleTaskExit(replacementThread bool) (canContinue bool) {
 	// Global queues do not finish and cannot be waited on. If this is NOT a global queue,
 	// we check if we are empty and finished, and if so, wake any waiters.
 	if !tp.treatAsGlobal {
@@ -110,8 +122,6 @@ func (tp *TaskPool) HandleTaskExit(replacementThread bool) (canContinue bool) {
 	if replacementThread && tp.workerPool.currentWorkers.Load() > tp.workerPool.maxWorkers.Load() {
 		// Important to decrement alive workers inside the exitLock, so
 		// we don't have multiple workers exiting when we only need the 1
-		// tp.workerPool.currentWorkers.Add(-1)
-
 		return false
 	}
 
@@ -127,7 +137,8 @@ func (tp *TaskPool) HandleTaskExit(replacementThread bool) (canContinue bool) {
 	}
 }
 
-func (tp *TaskPool) GetRootPool() task_mod.Pool {
+// GetRootPool returns the root task pool in the hierarchy.
+func (tp *Pool) GetRootPool() task_mod.Pool {
 	if tp.IsRoot() {
 		return tp
 	}
@@ -140,7 +151,8 @@ func (tp *TaskPool) GetRootPool() task_mod.Pool {
 	return tmpTp
 }
 
-func (tp *TaskPool) Status() task_mod.PoolStatus {
+// Status returns the current status of the task pool including completion progress.
+func (tp *Pool) Status() task_mod.PoolStatus {
 	complete := tp.completedTasks.Load()
 	total := tp.totalTasks.Load()
 
@@ -168,7 +180,7 @@ func (tp *TaskPool) Status() task_mod.PoolStatus {
 // loading tasks.
 // If you are parking a thread that is currently executing a task, you can
 // pass that task in as well, and that task will also listen for exit events.
-func (tp *TaskPool) Wait(supplementWorker bool, task ...task_mod.Task) {
+func (tp *Pool) Wait(supplementWorker bool, task ...task_mod.Task) {
 	// Waiting on global queues does not make sense, they are not meant to end
 	// or
 	// All the tasks were queued, and they have all finished,
@@ -204,7 +216,7 @@ func (tp *TaskPool) Wait(supplementWorker bool, task ...task_mod.Task) {
 
 	for _, t := range task {
 		t.(*Task).SetQueueState(Sleeping)
-		t.SetResult(task_mod.TaskResult{
+		t.SetResult(task_mod.Result{
 			"waiting": true,
 		})
 	}
@@ -212,7 +224,7 @@ func (tp *TaskPool) Wait(supplementWorker bool, task ...task_mod.Task) {
 	defer func() {
 		for _, t := range task {
 			t.(*Task).SetQueueState(Executing)
-			t.SetResult(task_mod.TaskResult{
+			t.SetResult(task_mod.Result{
 				"waiting": false,
 			})
 		}
@@ -240,21 +252,26 @@ func (tp *TaskPool) Wait(supplementWorker bool, task ...task_mod.Task) {
 	})
 }
 
-func (tp *TaskPool) LockExit() {
+// LockExit acquires the exit lock for this task pool.
+func (tp *Pool) LockExit() {
 	tp.exitLock.Lock()
 }
 
-func (tp *TaskPool) UnlockExit() {
+// UnlockExit releases the exit lock for this task pool.
+func (tp *Pool) UnlockExit() {
 	tp.exitLock.Unlock()
 }
 
-func (tp *TaskPool) AddError(t task_mod.Task) {
+// AddError adds a task that encountered an error to the pool's error list.
+func (tp *Pool) AddError(t task_mod.Task) {
 	tp.taskLock.Lock()
 	defer tp.taskLock.Unlock()
+
 	tp.erroredTasks = append(tp.erroredTasks, t)
 }
 
-func (tp *TaskPool) AddCleanup(fn task_mod.PoolCleanupFunc) {
+// AddCleanup registers a cleanup function to run when the pool completes.
+func (tp *Pool) AddCleanup(fn task_mod.PoolCleanupFunc) {
 	tp.exitLock.Lock()
 	defer tp.exitLock.Unlock()
 
@@ -269,11 +286,13 @@ func (tp *TaskPool) AddCleanup(fn task_mod.PoolCleanupFunc) {
 	tp.cleanupFn = append(tp.cleanupFn, fn)
 }
 
-func (tp *TaskPool) Errors() []task_mod.Task {
+// Errors returns the list of tasks that encountered errors in this pool.
+func (tp *Pool) Errors() []task_mod.Task {
 	return tp.erroredTasks
 }
 
-func (tp *TaskPool) Cancel() {
+// Cancel cancels all tasks in this pool.
+func (tp *Pool) Cancel() {
 	// Dont allow more tasks to join the queue while we are cancelling them
 	tp.taskLock.Lock()
 
@@ -282,10 +301,12 @@ func (tp *TaskPool) Cancel() {
 	for _, t := range tp.tasks {
 		t.Cancel()
 	}
+
 	tp.taskLock.Unlock()
 }
 
-func (tp *TaskPool) QueueTask(task task_mod.Task) (err error) {
+// QueueTask adds a task to this pool for execution.
+func (tp *Pool) QueueTask(task task_mod.Task) (err error) {
 	t := task.(*Task)
 
 	select {
@@ -315,14 +336,14 @@ func (tp *TaskPool) QueueTask(task task_mod.Task) (err error) {
 			return err
 		}
 
-		t.taskPool.tasks[t.taskId] = t
+		t.taskPool.tasks[t.taskID] = t
 
 		return err
 	}
 
 	if tp.allQueuedFlag.Load() {
 		// We cannot add tasks to a queue that has been closed
-		return errors.WithStack(errors.New("attempting to add task to closed task queue"))
+		return wlerrors.WithStack(wlerrors.New("attempting to add task to closed task queue"))
 	}
 
 	tp.totalTasks.Add(1)
@@ -351,21 +372,23 @@ func (tp *TaskPool) QueueTask(task task_mod.Task) (err error) {
 		tp.workerPool.taskStream <- t
 	}
 
-	t.taskPool.tasks[t.taskId] = t
+	t.taskPool.tasks[t.taskID] = t
 
 	return err
 }
 
 // MarkGlobal specifies the work queue as being a "global" one
-func (tp *TaskPool) MarkGlobal() {
+func (tp *Pool) MarkGlobal() {
 	tp.treatAsGlobal = true
 }
 
-func (tp *TaskPool) IsGlobal() bool {
+// IsGlobal returns true if this task pool is treated as a global pool.
+func (tp *Pool) IsGlobal() bool {
 	return tp.treatAsGlobal
 }
 
-func (tp *TaskPool) CreatedInTask() task_mod.Task {
+// CreatedInTask returns the task that created this pool, or nil if created outside a task.
+func (tp *Pool) CreatedInTask() task_mod.Task {
 	if tp.createdBy == nil {
 		return nil
 	}
@@ -373,7 +396,8 @@ func (tp *TaskPool) CreatedInTask() task_mod.Task {
 	return tp.createdBy
 }
 
-func (tp *TaskPool) SignalAllQueued() {
+// SignalAllQueued marks that all tasks have been queued to this pool.
+func (tp *Pool) SignalAllQueued() {
 	if tp.treatAsGlobal {
 		tp.log.Error().Msg("Attempt to signal all queued for global queue")
 	}
@@ -406,16 +430,17 @@ func (tp *TaskPool) SignalAllQueued() {
 	}
 }
 
-func (tp *TaskPool) addTask(task *Task) {
+func (tp *Pool) addTask(task *Task) {
 	tp.taskLock.Lock()
 	defer tp.taskLock.Unlock()
-	tp.tasks[task.taskId] = task
+
+	tp.tasks[task.taskID] = task
 }
 
-func (tp *TaskPool) runCleanups() {
+func (tp *Pool) runCleanups() {
 	defer func() {
 		if r := recover(); r != nil {
-			tp.log.Error().Stack().Err(errors.New(fmt.Sprint(r))).Msg("Failed to execute taskPool cleanup")
+			tp.log.Error().Stack().Err(wlerrors.New(fmt.Sprint(r))).Msg("Failed to execute taskPool cleanup")
 		}
 
 		tp.cleanupsDone.Store(true)

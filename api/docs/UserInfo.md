@@ -6,18 +6,18 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **Activated** | **bool** |  | 
 **FullName** | **string** |  | 
-**HomeId** | **string** |  | 
+**HomeID** | **string** |  | 
 **IsOnline** | Pointer to **bool** |  | [optional] 
 **PermissionLevel** | **int32** |  | 
 **Token** | Pointer to **string** |  | [optional] 
-**TrashId** | **string** |  | 
+**TrashID** | **string** |  | 
 **Username** | **string** |  | 
 
 ## Methods
 
 ### NewUserInfo
 
-`func NewUserInfo(activated bool, fullName string, homeId string, permissionLevel int32, trashId string, username string, ) *UserInfo`
+`func NewUserInfo(activated bool, fullName string, homeID string, permissionLevel int32, trashID string, username string, ) *UserInfo`
 
 NewUserInfo instantiates a new UserInfo object
 This constructor will assign default values to properties that have it defined,
@@ -72,24 +72,24 @@ and a boolean to check if the value has been set.
 SetFullName sets FullName field to given value.
 
 
-### GetHomeId
+### GetHomeID
 
-`func (o *UserInfo) GetHomeId() string`
+`func (o *UserInfo) GetHomeID() string`
 
-GetHomeId returns the HomeId field if non-nil, zero value otherwise.
+GetHomeID returns the HomeID field if non-nil, zero value otherwise.
 
-### GetHomeIdOk
+### GetHomeIDOk
 
-`func (o *UserInfo) GetHomeIdOk() (*string, bool)`
+`func (o *UserInfo) GetHomeIDOk() (*string, bool)`
 
-GetHomeIdOk returns a tuple with the HomeId field if it's non-nil, zero value otherwise
+GetHomeIDOk returns a tuple with the HomeID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetHomeId
+### SetHomeID
 
-`func (o *UserInfo) SetHomeId(v string)`
+`func (o *UserInfo) SetHomeID(v string)`
 
-SetHomeId sets HomeId field to given value.
+SetHomeID sets HomeID field to given value.
 
 
 ### GetIsOnline
@@ -162,24 +162,24 @@ SetToken sets Token field to given value.
 
 HasToken returns a boolean if a field has been set.
 
-### GetTrashId
+### GetTrashID
 
-`func (o *UserInfo) GetTrashId() string`
+`func (o *UserInfo) GetTrashID() string`
 
-GetTrashId returns the TrashId field if non-nil, zero value otherwise.
+GetTrashID returns the TrashID field if non-nil, zero value otherwise.
 
-### GetTrashIdOk
+### GetTrashIDOk
 
-`func (o *UserInfo) GetTrashIdOk() (*string, bool)`
+`func (o *UserInfo) GetTrashIDOk() (*string, bool)`
 
-GetTrashIdOk returns a tuple with the TrashId field if it's non-nil, zero value otherwise
+GetTrashIDOk returns a tuple with the TrashID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetTrashId
+### SetTrashID
 
-`func (o *UserInfo) SetTrashId(v string)`
+`func (o *UserInfo) SetTrashID(v string)`
 
-SetTrashId sets TrashId field to given value.
+SetTrashID sets TrashID field to given value.
 
 
 ### GetUsername

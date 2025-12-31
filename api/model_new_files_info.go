@@ -19,7 +19,7 @@ var _ MappedNullable = &NewFilesInfo{}
 
 // NewFilesInfo struct for NewFilesInfo
 type NewFilesInfo struct {
-	FileIds []string `json:"fileIds,omitempty"`
+	FileIDs []string `json:"fileIDs,omitempty"`
 }
 
 // NewNewFilesInfo instantiates a new NewFilesInfo object
@@ -39,36 +39,36 @@ func NewNewFilesInfoWithDefaults() *NewFilesInfo {
 	return &this
 }
 
-// GetFileIds returns the FileIds field value if set, zero value otherwise.
-func (o *NewFilesInfo) GetFileIds() []string {
-	if o == nil || IsNil(o.FileIds) {
+// GetFileIDs returns the FileIDs field value if set, zero value otherwise.
+func (o *NewFilesInfo) GetFileIDs() []string {
+	if o == nil || IsNil(o.FileIDs) {
 		var ret []string
 		return ret
 	}
-	return o.FileIds
+	return o.FileIDs
 }
 
-// GetFileIdsOk returns a tuple with the FileIds field value if set, nil otherwise
+// GetFileIDsOk returns a tuple with the FileIDs field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *NewFilesInfo) GetFileIdsOk() ([]string, bool) {
-	if o == nil || IsNil(o.FileIds) {
+func (o *NewFilesInfo) GetFileIDsOk() ([]string, bool) {
+	if o == nil || IsNil(o.FileIDs) {
 		return nil, false
 	}
-	return o.FileIds, true
+	return o.FileIDs, true
 }
 
-// HasFileIds returns a boolean if a field has been set.
-func (o *NewFilesInfo) HasFileIds() bool {
-	if o != nil && !IsNil(o.FileIds) {
+// HasFileIDs returns a boolean if a field has been set.
+func (o *NewFilesInfo) HasFileIDs() bool {
+	if o != nil && !IsNil(o.FileIDs) {
 		return true
 	}
 
 	return false
 }
 
-// SetFileIds gets a reference to the given []string and assigns it to the FileIds field.
-func (o *NewFilesInfo) SetFileIds(v []string) {
-	o.FileIds = v
+// SetFileIDs gets a reference to the given []string and assigns it to the FileIDs field.
+func (o *NewFilesInfo) SetFileIDs(v []string) {
+	o.FileIDs = v
 }
 
 func (o NewFilesInfo) MarshalJSON() ([]byte, error) {
@@ -81,8 +81,8 @@ func (o NewFilesInfo) MarshalJSON() ([]byte, error) {
 
 func (o NewFilesInfo) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
-	if !IsNil(o.FileIds) {
-		toSerialize["fileIds"] = o.FileIds
+	if !IsNil(o.FileIDs) {
+		toSerialize["fileIDs"] = o.FileIDs
 	}
 	return toSerialize, nil
 }

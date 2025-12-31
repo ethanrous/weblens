@@ -9,18 +9,18 @@ import (
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/startup"
 	"github.com/ethanrous/weblens/modules/structs"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	access_service "github.com/ethanrous/weblens/services/auth"
-	context_service "github.com/ethanrous/weblens/services/context"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 )
 
 func init() {
-	startup.RegisterStartup(initTower)
+	startup.RegisterHook(initTower)
 }
 
-func initTower(ctx context.Context, cnf config.ConfigProvider) error {
+func initTower(ctx context.Context, cnf config.Provider) error {
 	initRole := tower_model.Role(cnf.InitRole)
 
 	appCtx, ok := context_service.FromContext(ctx)
@@ -29,7 +29,7 @@ func initTower(ctx context.Context, cnf config.ConfigProvider) error {
 	}
 
 	if initRole != tower_model.RoleInit {
-		_, err := appCtx.FileService.GetFileById(appCtx, file_model.UsersTreeKey)
+		_, err := appCtx.FileService.GetFileByID(appCtx, file_model.UsersTreeKey)
 		if err != nil {
 			return startup.ErrDeferStartup
 		}
@@ -54,7 +54,6 @@ func initTower(ctx context.Context, cnf config.ConfigProvider) error {
 				Role:     string(tower_model.RoleCore),
 			})
 		})
-
 		if err != nil {
 			return err
 		}
@@ -74,7 +73,7 @@ func newOwner(ctx context.Context, initBody structs.InitServerParams) (*user_mod
 
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
-		return nil, errors.New("failed to get request context")
+		return nil, wlerrors.New("failed to get request context")
 	}
 
 	if exists, err := user_model.GetUserByUsername(ctx, owner.Username); err == nil {
@@ -91,8 +90,8 @@ func newOwner(ctx context.Context, initBody structs.InitServerParams) (*user_mod
 			return nil, err
 		}
 
-		if owner.HomeId == "" {
-			return nil, errors.New("failed to create user home directory")
+		if owner.HomeID == "" {
+			return nil, wlerrors.New("failed to create user home directory")
 		}
 	}
 
@@ -114,9 +113,10 @@ func newOwner(ctx context.Context, initBody structs.InitServerParams) (*user_mod
 	return owner, nil
 }
 
+// InitializeCoreServer initializes a tower as a core server with the provided configuration.
 func InitializeCoreServer(ctx context.Context, initBody structs.InitServerParams) error {
 	if initBody.Name == "" || initBody.Username == "" || initBody.Password == "" {
-		return errors.New("missing required fields for core server initialization")
+		return wlerrors.New("missing required fields for core server initialization")
 	}
 
 	local, err := tower_model.GetLocal(ctx)
@@ -135,8 +135,8 @@ func InitializeCoreServer(ctx context.Context, initBody structs.InitServerParams
 
 	cnf := config.GetConfig()
 	cnf.InitRole = string(tower_model.RoleCore)
-	err = startup.RunStartups(ctx, cnf)
 
+	err = startup.RunStartups(ctx, cnf)
 	if err != nil {
 		return err
 	}
@@ -149,6 +149,7 @@ func InitializeCoreServer(ctx context.Context, initBody structs.InitServerParams
 	return nil
 }
 
+// InitializeBackupServer initializes a tower as a backup server connected to a core server.
 func InitializeBackupServer(ctx context.Context, initBody structs.InitServerParams) error {
 	local, err := tower_model.GetLocal(ctx)
 	if err != nil {
@@ -178,7 +179,7 @@ func InitializeBackupServer(ctx context.Context, initBody structs.InitServerPara
 		return tower_model.ErrNotCore
 	}
 
-	core.TowerId = coreInfo.GetId()
+	core.TowerID = coreInfo.GetId()
 	core.Name = coreInfo.GetName()
 
 	err = tower_model.SaveTower(ctx, &core)

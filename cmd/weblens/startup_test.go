@@ -141,7 +141,7 @@ package main
 //
 // 	coreKeys, err := coreServices.AccessService.GetKeysByUser(coreServices.UserService.Get("test-username"))
 // 	require.NoError(t, err)
-// 	coreApiKey := coreKeys[0].Key
+// 	coreAPIKey := coreKeys[0].Key
 // 	coreAddress := config.GetProxyAddress(coreServices.Cnf)
 //
 // 	backupConfig := config.ConfigProvider{
@@ -183,7 +183,7 @@ package main
 //
 // 	// Initialize the server as a backup server
 //
-// 	err = service.InitBackup(backupServices, "TEST-BACKUP", coreAddress, coreApiKey)
+// 	err = service.InitBackup(backupServices, "TEST-BACKUP", coreAddress, coreAPIKey)
 // 	require.NoError(t, err)
 //
 // 	require.Equal(t, models.BackupServerRole, backupServices.InstanceService.GetLocal().Role)
@@ -196,13 +196,13 @@ package main
 // 	err = http.WebsocketToCore(core, backupServices)
 // 	require.NoError(t, err)
 //
-// 	coreClient := backupServices.ClientService.GetClientByServerId(core.ServerId())
+// 	coreClient := backupServices.ClientService.GetClientByServerID(core.ServerID())
 // 	retries := 0
 // 	for coreClient == nil && retries < 10 {
 // 		retries++
 // 		time.Sleep(time.Millisecond * 100)
 //
-// 		coreClient = backupServices.ClientService.GetClientByServerId(core.ServerId())
+// 		coreClient = backupServices.ClientService.GetClientByServerID(core.ServerID())
 // 	}
 // 	require.NotNil(t, coreClient)
 // 	assert.True(t, coreClient.Active.Load())

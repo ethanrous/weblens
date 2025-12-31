@@ -60,9 +60,9 @@ func Test_openapi_MediaAPIService(t *testing.T) {
 
 		t.Skip("skip test")  // remove to run test
 
-		var mediaId string
+		var mediaID string
 
-		resp, httpRes, err := apiClient.MediaAPI.GetMediaFile(context.Background(), mediaId).Execute()
+		resp, httpRes, err := apiClient.MediaAPI.GetMediaFile(context.Background(), mediaID).Execute()
 
 		require.Nil(t, err)
 		require.NotNil(t, resp)
@@ -74,10 +74,10 @@ func Test_openapi_MediaAPIService(t *testing.T) {
 
 		t.Skip("skip test")  // remove to run test
 
-		var mediaId string
+		var mediaID string
 		var extension string
 
-		resp, httpRes, err := apiClient.MediaAPI.GetMediaImage(context.Background(), mediaId, extension).Execute()
+		resp, httpRes, err := apiClient.MediaAPI.GetMediaImage(context.Background(), mediaID, extension).Execute()
 
 		require.Nil(t, err)
 		require.NotNil(t, resp)
@@ -89,9 +89,9 @@ func Test_openapi_MediaAPIService(t *testing.T) {
 
 		t.Skip("skip test")  // remove to run test
 
-		var mediaId string
+		var mediaID string
 
-		resp, httpRes, err := apiClient.MediaAPI.GetMediaInfo(context.Background(), mediaId).Execute()
+		resp, httpRes, err := apiClient.MediaAPI.GetMediaInfo(context.Background(), mediaID).Execute()
 
 		require.Nil(t, err)
 		require.NotNil(t, resp)
@@ -115,9 +115,9 @@ func Test_openapi_MediaAPIService(t *testing.T) {
 
 		t.Skip("skip test")  // remove to run test
 
-		var mediaId string
+		var mediaID string
 
-		httpRes, err := apiClient.MediaAPI.SetMediaLiked(context.Background(), mediaId).Execute()
+		httpRes, err := apiClient.MediaAPI.SetMediaLiked(context.Background(), mediaID).Execute()
 
 		require.Nil(t, err)
 		assert.Equal(t, 200, httpRes.StatusCode)
@@ -139,9 +139,9 @@ func Test_openapi_MediaAPIService(t *testing.T) {
 
 		t.Skip("skip test")  // remove to run test
 
-		var mediaId string
+		var mediaID string
 
-		httpRes, err := apiClient.MediaAPI.StreamVideo(context.Background(), mediaId).Execute()
+		httpRes, err := apiClient.MediaAPI.StreamVideo(context.Background(), mediaID).Execute()
 
 		require.Nil(t, err)
 		assert.Equal(t, 200, httpRes.StatusCode)

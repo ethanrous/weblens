@@ -1,3 +1,4 @@
+// Package share provides file sharing functionality and permissions management for the Weblens system.
 package share
 
 import (
@@ -6,20 +7,25 @@ import (
 
 	"github.com/ethanrous/weblens/models/db"
 	user_model "github.com/ethanrous/weblens/models/user"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/slices"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// ShareCollectionKey is the MongoDB collection name for shares.
 const ShareCollectionKey = "shares"
 
-var ErrShareNotFound = errors.New("share not found")
-var ErrShareAlreadyExists = errors.New("share already exists")
+// ErrShareNotFound is returned when a share cannot be found.
+var ErrShareNotFound = wlerrors.New("share not found")
 
+// ErrShareAlreadyExists is returned when attempting to create a share that already exists.
+var ErrShareAlreadyExists = wlerrors.New("share already exists")
+
+// FileShare represents a file share configuration.
 type FileShare struct {
 	// Accessors is a list of users that have access to the share
 	Accessors []string `bson:"accessors"`
@@ -27,33 +33,35 @@ type FileShare struct {
 	Permissions  map[string]*Permissions `bson:"permissions"`
 	Enabled      bool                    `bson:"enabled"`
 	Expires      time.Time               `bson:"expires"`
-	FileId       string                  `bson:"fileId"`
+	FileID       string                  `bson:"fileID"`
 	Owner        string                  `bson:"owner"`
 	Public       bool                    `bson:"public"`
-	ShareId      primitive.ObjectID      `bson:"_id"`
+	ShareID      primitive.ObjectID      `bson:"_id"`
 	ShareName    string                  `bson:"shareName"`
 	Updated      time.Time               `bson:"updated"`
 	Wormhole     bool                    `bson:"wormhole"`
 	TimelineOnly bool                    `bson:"timelineOnly"`
 }
 
+// IndexModels defines MongoDB indexes for the shares collection.
 var IndexModels = []mongo.IndexModel{
 	{
 		Keys: bson.M{
-			"fileId": -1,
+			"fileID": -1,
 		},
 		Options: options.Index().SetUnique(true),
 	},
 }
 
-func ShareIdFromString(shareId string) primitive.ObjectID {
-	if shareId == "" {
+// IDFromString parses a share ID string into a MongoDB ObjectID.
+func IDFromString(shareID string) primitive.ObjectID {
+	if shareID == "" {
 		return primitive.NilObjectID
 	}
 
-	id, err := primitive.ObjectIDFromHex(shareId)
+	id, err := primitive.ObjectIDFromHex(shareID)
 	if err != nil {
-		log.FromContext(context.TODO()).Error().Err(err).Msgf("failed to parse share ID [%s]", shareId)
+		log.FromContext(context.TODO()).Error().Err(err).Msgf("failed to parse share ID [%s]", shareID)
 
 		return primitive.NilObjectID
 	}
@@ -61,14 +69,15 @@ func ShareIdFromString(shareId string) primitive.ObjectID {
 	return id
 }
 
-func NewFileShare(ctx context.Context, fileId string, owner *user_model.User, accessors []*user_model.User, public bool, wormhole bool, timelineOnly bool) (*FileShare, error) {
+// NewFileShare creates a new FileShare with the given parameters.
+func NewFileShare(_ context.Context, fileID string, owner *user_model.User, accessors []*user_model.User, public bool, wormhole bool, timelineOnly bool) (*FileShare, error) {
 	permissions := make(map[string]*Permissions)
 	for _, u := range accessors {
 		permissions[u.GetUsername()] = NewPermissions() // default permissions
 	}
 
 	return &FileShare{
-		FileId: fileId,
+		FileID: fileID,
 		Owner:  owner.GetUsername(),
 		Accessors: slices.Map(
 			accessors, func(u *user_model.User) string {
@@ -84,14 +93,15 @@ func NewFileShare(ctx context.Context, fileId string, owner *user_model.User, ac
 	}, nil
 }
 
+// SaveFileShare saves a FileShare to the database.
 func SaveFileShare(ctx context.Context, share *FileShare) error {
 	collection, err := db.GetCollection[any](ctx, ShareCollectionKey)
 	if err != nil {
 		return err
 	}
 
-	if share.ShareId.IsZero() {
-		share.ShareId = primitive.NewObjectID()
+	if share.ShareID.IsZero() {
+		share.ShareID = primitive.NewObjectID()
 	}
 
 	if share.Accessors == nil {
@@ -104,13 +114,14 @@ func SaveFileShare(ctx context.Context, share *FileShare) error {
 
 	_, err = collection.InsertOne(ctx, share)
 	if err != nil {
-		return db.WrapError(err, "failed to save share [%s]", share.ShareId)
+		return db.WrapError(err, "failed to save share [%s]", share.ShareID)
 	}
 
 	return nil
 }
 
-func GetShareById(ctx context.Context, shareId primitive.ObjectID) (*FileShare, error) {
+// GetShareByID retrieves a FileShare by its ID.
+func GetShareByID(ctx context.Context, shareID primitive.ObjectID) (*FileShare, error) {
 	collection, err := db.GetCollection[any](ctx, ShareCollectionKey)
 	if err != nil {
 		return nil, err
@@ -118,30 +129,32 @@ func GetShareById(ctx context.Context, shareId primitive.ObjectID) (*FileShare, 
 
 	share := &FileShare{}
 
-	err = collection.FindOne(ctx, bson.M{"_id": shareId}).Decode(share)
+	err = collection.FindOne(ctx, bson.M{"_id": shareID}).Decode(share)
 	if err != nil {
-		return nil, db.WrapError(errors.WithStack(err), "failed to get share by id [%s]", shareId)
+		return nil, db.WrapError(wlerrors.WithStack(err), "failed to get share by id [%s]", shareID)
 	}
 
 	return share, nil
 }
 
-func GetShareByFileId(ctx context.Context, fileId string) (*FileShare, error) {
+// GetShareByFileID retrieves a FileShare by the file ID it shares.
+func GetShareByFileID(ctx context.Context, fileID string) (*FileShare, error) {
 	collection, err := db.GetCollection[any](ctx, ShareCollectionKey)
 	if err != nil {
 		return nil, err
 	}
 
 	var share FileShare
-	err = collection.FindOne(ctx, bson.M{"fileId": fileId}).Decode(&share)
 
+	err = collection.FindOne(ctx, bson.M{"fileID": fileID}).Decode(&share)
 	if err != nil {
-		return nil, db.WrapError(errors.WithStack(err), "failed to get share by fileId [%s]", fileId)
+		return nil, db.WrapError(wlerrors.WithStack(err), "failed to get share by fileID [%s]", fileID)
 	}
 
 	return &share, nil
 }
 
+// GetSharedWithUser retrieves all FileShares that are shared with a specific user.
 func GetSharedWithUser(ctx context.Context, username string) ([]FileShare, error) {
 	collection, err := db.GetCollection[any](ctx, ShareCollectionKey)
 	if err != nil {
@@ -154,29 +167,31 @@ func GetSharedWithUser(ctx context.Context, username string) ([]FileShare, error
 	}
 
 	var shares []FileShare
+
 	err = cursor.All(ctx, &shares)
 	if err != nil {
 		return nil, db.WrapError(err, "failed to get shares for user [%s]", username)
 	}
 
 	return shares, nil
-
 }
 
-func DeleteShare(ctx context.Context, shareId primitive.ObjectID) error {
+// DeleteShare deletes a FileShare from the database.
+func DeleteShare(ctx context.Context, shareID primitive.ObjectID) error {
 	collection, err := db.GetCollection[any](ctx, ShareCollectionKey)
 	if err != nil {
 		return err
 	}
 
-	_, err = collection.DeleteOne(ctx, bson.M{"_id": shareId})
+	_, err = collection.DeleteOne(ctx, bson.M{"_id": shareID})
 	if err != nil {
-		return errors.WithStack(err)
+		return wlerrors.WithStack(err)
 	}
 
 	return nil
 }
 
+// SetPublic sets whether the share is public.
 func (s *FileShare) SetPublic(ctx context.Context, pub bool) error {
 	collection, err := db.GetCollection[any](ctx, ShareCollectionKey)
 	if err != nil {
@@ -185,14 +200,15 @@ func (s *FileShare) SetPublic(ctx context.Context, pub bool) error {
 
 	s.Public = pub
 
-	_, err = collection.UpdateOne(ctx, bson.M{"_id": s.ShareId}, bson.M{"$set": bson.M{"public": pub}})
+	_, err = collection.UpdateOne(ctx, bson.M{"_id": s.ShareID}, bson.M{"$set": bson.M{"public": pub}})
 	if err != nil {
-		return errors.WithStack(err)
+		return wlerrors.WithStack(err)
 	}
 
 	return nil
 }
 
+// AddUser adds a user to the share with the specified permissions.
 func (s *FileShare) AddUser(ctx context.Context, username string, perms *Permissions) error {
 	collection, err := db.GetCollection[any](ctx, ShareCollectionKey)
 	if err != nil {
@@ -217,14 +233,15 @@ func (s *FileShare) AddUser(ctx context.Context, username string, perms *Permiss
 	}
 
 	// Update the database with the new Accessors list and permissions
-	_, err = collection.UpdateOne(ctx, bson.M{"_id": s.ShareId}, bson.M{"$set": bson.M{"accessors": s.Accessors, "permissions": s.Permissions}})
+	_, err = collection.UpdateOne(ctx, bson.M{"_id": s.ShareID}, bson.M{"$set": bson.M{"accessors": s.Accessors, "permissions": s.Permissions}})
 	if err != nil {
-		return db.WrapError(err, "failed to add users to share [%s]", s.ShareId)
+		return db.WrapError(err, "failed to add users to share [%s]", s.ShareID)
 	}
 
 	return nil
 }
 
+// SetUserPerms sets permissions for multiple users on the share.
 func (s *FileShare) SetUserPerms(ctx context.Context, perms map[string]*Permissions) error {
 	collection, err := db.GetCollection[any](ctx, ShareCollectionKey)
 	if err != nil {
@@ -247,14 +264,15 @@ func (s *FileShare) SetUserPerms(ctx context.Context, perms map[string]*Permissi
 	}
 
 	// Update the database with the new Accessors list and permissions
-	_, err = collection.UpdateOne(ctx, bson.M{"_id": s.ShareId}, bson.M{"$set": bson.M{"accessors": s.Accessors, "permissions": s.Permissions}})
+	_, err = collection.UpdateOne(ctx, bson.M{"_id": s.ShareID}, bson.M{"$set": bson.M{"accessors": s.Accessors, "permissions": s.Permissions}})
 	if err != nil {
-		return db.WrapError(err, "failed to add users to share [%s]", s.ShareId)
+		return db.WrapError(err, "failed to add users to share [%s]", s.ShareID)
 	}
 
 	return nil
 }
 
+// RemoveUsers removes specified users from the share.
 func (s *FileShare) RemoveUsers(ctx context.Context, usernames []string) error {
 	collection, err := db.GetCollection[any](ctx, ShareCollectionKey)
 	if err != nil {
@@ -269,6 +287,7 @@ func (s *FileShare) RemoveUsers(ctx context.Context, usernames []string) error {
 
 	s.Accessors = slices.Filter(s.Accessors, func(accessor string) bool {
 		_, found := toRemove[accessor]
+
 		return !found
 	})
 
@@ -282,30 +301,41 @@ func (s *FileShare) RemoveUsers(ctx context.Context, usernames []string) error {
 	}
 
 	// Update the database with the new Accessors list and permissions
-	_, err = collection.UpdateOne(ctx, bson.M{"_id": s.ShareId}, bson.M{"$set": bson.M{"accessors": s.Accessors, "permissions": s.Permissions}})
+	_, err = collection.UpdateOne(ctx, bson.M{"_id": s.ShareID}, bson.M{"$set": bson.M{"accessors": s.Accessors, "permissions": s.Permissions}})
 	if err != nil {
-		return errors.WithStack(err)
+		return wlerrors.WithStack(err)
 	}
 
 	return nil
 }
 
-func (s *FileShare) ID() primitive.ObjectID  { return s.ShareId }
-func (s *FileShare) GetItemId() string       { return string(s.FileId) }
-func (s *FileShare) SetItemId(fileId string) { s.FileId = fileId }
-func (s *FileShare) GetAccessors() []string  { return s.Accessors }
+// ID returns the share's unique identifier.
+func (s *FileShare) ID() primitive.ObjectID { return s.ShareID }
+
+// GetItemID returns the file ID associated with this share.
+func (s *FileShare) GetItemID() string { return string(s.FileID) }
+
+// SetItemID sets the file ID associated with this share.
+func (s *FileShare) SetItemID(fileID string) { s.FileID = fileID }
+
+// GetAccessors returns the list of users who have access to this share.
+func (s *FileShare) GetAccessors() []string { return s.Accessors }
 
 // SetUserPermissions sets the permissions for a specific user on this share.
 func (s *FileShare) SetUserPermissions(ctx context.Context, username string, perms *Permissions) error {
 	if s.Permissions == nil {
 		s.Permissions = make(map[string]*Permissions)
 	}
+
 	s.Permissions[username] = perms
+
 	collection, err := db.GetCollection[any](ctx, ShareCollectionKey)
 	if err != nil {
 		return err
 	}
-	_, err = collection.UpdateOne(ctx, bson.M{"_id": s.ShareId}, bson.M{"$set": bson.M{"permissions": s.Permissions}})
+
+	_, err = collection.UpdateOne(ctx, bson.M{"_id": s.ShareID}, bson.M{"$set": bson.M{"permissions": s.Permissions}})
+
 	return err
 }
 
@@ -314,6 +344,7 @@ func (s *FileShare) GetUserPermissions(username string) *Permissions {
 	if s.Permissions == nil {
 		return nil
 	}
+
 	return s.Permissions[username]
 }
 
@@ -322,30 +353,43 @@ func (s *FileShare) HasPermission(username string, perm Permission) bool {
 	if s.Permissions == nil {
 		return false
 	}
+
 	userPerms := s.Permissions[username]
 	if userPerms == nil {
 		return false
 	}
+
 	return userPerms.HasPermission(perm)
 }
 
+// SetAccessors sets the list of users who have access to this share.
 func (s *FileShare) SetAccessors(usernames []string) {
 	s.Accessors = usernames
 }
 
+// GetOwner returns the username of the share's owner.
 func (s *FileShare) GetOwner() string { return s.Owner }
-func (s *FileShare) IsPublic() bool   { return s.Public }
+
+// IsPublic returns true if the share is public.
+func (s *FileShare) IsPublic() bool { return s.Public }
+
+// IsWormhole returns true if the share is a wormhole share.
 func (s *FileShare) IsWormhole() bool { return s.Wormhole }
 
+// IsEnabled returns true if the share is enabled.
 func (s *FileShare) IsEnabled() bool { return s.Enabled }
+
+// SetEnabled sets whether the share is enabled.
 func (s *FileShare) SetEnabled(enable bool) {
 	s.Enabled = enable
 }
 
+// UpdatedNow updates the share's last modified timestamp to the current time.
 func (s *FileShare) UpdatedNow() {
 	s.Updated = time.Now()
 }
 
+// LastUpdated returns the last modified timestamp of the share.
 func (s *FileShare) LastUpdated() time.Time {
 	return s.Updated
 }

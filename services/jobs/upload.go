@@ -13,11 +13,11 @@ import (
 	"github.com/ethanrous/weblens/models/job"
 	job_model "github.com/ethanrous/weblens/models/job"
 	"github.com/ethanrous/weblens/models/task"
-	"github.com/ethanrous/weblens/modules/errors"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/ethanrous/weblens/modules/websocket"
-	context_service "github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/notify"
 	"github.com/rs/zerolog"
 )
@@ -29,7 +29,7 @@ func removeTopLevels(t *task.Task, topLevels []*file_model.WeblensFileImpl) erro
 
 	appCtx, ok := context_service.FromContext(t.Ctx)
 	if !ok {
-		return errors.New("failed to get context")
+		return wlerrors.New("failed to get context")
 	}
 
 	ctx := context.WithoutCancel(t.Ctx)
@@ -50,16 +50,17 @@ func removeTopLevels(t *task.Task, topLevels []*file_model.WeblensFileImpl) erro
 // of the upload
 func HandleFileUploads(tsk task_mod.Task) {
 	t := tsk.(*task.Task)
+
 	appCtx, ok := context_service.FromContext(t.Ctx)
 	if !ok {
-		t.Fail(errors.New("failed to get context"))
+		t.Fail(wlerrors.New("failed to get context"))
 
 		return
 	}
 
 	meta := t.GetMeta().(job.UploadFilesMeta)
 
-	rootFile, err := appCtx.FileService.GetFileById(appCtx, meta.RootFolderId)
+	rootFile, err := appCtx.FileService.GetFileByID(appCtx, meta.RootFolderID)
 	if err != nil {
 		t.Fail(err)
 
@@ -87,10 +88,10 @@ func HandleFileUploads(tsk task_mod.Task) {
 		select {
 		case <-t.Ctx.Done():
 			err = removeTopLevels(t, topLevels)
-
 			if err != nil {
 				t.Log().Error().Stack().Err(err).Msg("Failed to remove top level files")
 			}
+
 			return
 		default:
 		}
@@ -112,6 +113,7 @@ func HandleFileUploads(tsk task_mod.Task) {
 					scanMeta := job_model.ScanMeta{
 						File: tl,
 					}
+
 					_, err = appCtx.DispatchJob(job_model.ScanDirectoryTask, scanMeta, newTp)
 					if err != nil {
 						t.Log().Error().Stack().Err(err).Msg("")
@@ -123,12 +125,14 @@ func HandleFileUploads(tsk task_mod.Task) {
 				scanMeta := job_model.ScanMeta{
 					File: rootFile,
 				}
+
 				_, err = appCtx.DispatchJob(job_model.ScanDirectoryTask, scanMeta, newTp)
 				if err != nil {
 					t.Log().Error().Stack().Err(err).Msg("")
 
 					continue
 				}
+
 				doingRootScan = true
 			}
 		}
@@ -140,24 +144,30 @@ func HandleFileUploads(tsk task_mod.Task) {
 	timeoutTicker := time.NewTicker(time.Minute)
 
 	ctx := history.WithFileEvent(t.Ctx)
+
 	appCtx, ok = context_service.FromContext(ctx)
 	if !ok {
-		t.Fail(errors.New("failed to add file event to context in upload task"))
+		t.Fail(wlerrors.New("failed to add file event to context in upload task"))
+
 		return
 	}
 
 WriterLoop:
 	for {
 		timeoutTicker.Reset(time.Minute)
+
 		select {
 		case <-t.Ctx.Done(): // Listen for cancellation
 			t.Log().Debug().Func(func(e *zerolog.Event) { e.Msgf("Context done, exiting upload task") })
 			t.Fail(task.ErrTaskCancelled)
+
 			return
 		case <-timeoutTicker.C:
 			t.Log().Debug().Func(func(e *zerolog.Event) { e.Msgf("Timeout, exiting upload task") })
 			t.Fail(task.ErrTaskTimeout)
+
 			timeout = true
+
 			return
 		case chunk := <-meta.ChunkStream:
 			bottom, top, total, err := parseRangeHeader(chunk.ContentRange)
@@ -192,15 +202,15 @@ WriterLoop:
 			// We use `0-0/-1` as a fake "range header" to indicate that the upload for
 			// the specific file has had an error or been canceled, and should be removed.
 			if total == -1 {
-				delete(fileMap, chunk.FileId)
+				delete(fileMap, chunk.FileID)
 
 				continue
 			}
 
-			chnk := fileMap[chunk.FileId]
+			chnk := fileMap[chunk.FileID]
 
 			if chnk.FileSizeTotal != total {
-				t.Fail(errors.Errorf("upload size mismatch for file [%s / %s] (%d != %d)", chnk.File.GetPortablePath(), chnk.File.ID(), chnk.FileSizeTotal, total))
+				t.Fail(wlerrors.Errorf("upload size mismatch for file [%s / %s] (%d != %d)", chnk.File.GetPortablePath(), chnk.File.ID(), chnk.FileSizeTotal, total))
 			}
 
 			// Add the new bytes to the counter for the file-size of this file.
@@ -227,12 +237,14 @@ WriterLoop:
 				})
 
 				// Hash file content to get content ID.
-				chnk.File.SetContentId(base64.URLEncoding.EncodeToString(chnk.Hash.Sum(nil))[:20])
-				if chnk.File.GetContentId() == "" {
-					t.Fail(errors.Errorf("failed to generate contentId for file upload [%s]", chnk.File.GetPortablePath()))
+				chnk.File.SetContentID(base64.URLEncoding.EncodeToString(chnk.Hash.Sum(nil))[:20])
+
+				if chnk.File.GetContentID() == "" {
+					t.Fail(wlerrors.Errorf("failed to generate contentID for file upload [%s]", chnk.File.GetPortablePath()))
 				}
 
 				newAction := history.NewCreateAction(appCtx, chnk.File)
+
 				err = history.SaveAction(appCtx, &newAction)
 				if err != nil {
 					t.Fail(err)
@@ -245,14 +257,16 @@ WriterLoop:
 
 				// Remove the file from our local map
 				i, e := slices.BinarySearchFunc(
-					usingFiles, chunk.FileId,
+					usingFiles, chunk.FileID,
 					func(a, b string) int { return strings.Compare(a, b) },
 				)
 				if e {
 					usingFiles = slices.Delete(usingFiles, i, i+1)
 				}
-				delete(fileMap, chunk.FileId)
+
+				delete(fileMap, chunk.FileID)
 			}
+
 			t.Log().Trace().Func(func(e *zerolog.Event) {
 				if chnk.BytesWritten < chnk.FileSizeTotal {
 					e.Msgf("%s has not finished uploading yet %d of %d", chnk.File.GetPortablePath(), chnk.BytesWritten, chnk.FileSizeTotal)

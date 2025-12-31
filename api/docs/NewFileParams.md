@@ -7,7 +7,7 @@ Name | Type | Description | Notes
 **FileSize** | Pointer to **int32** |  | [optional] 
 **IsDir** | Pointer to **bool** |  | [optional] 
 **NewFileName** | Pointer to **string** |  | [optional] 
-**ParentFolderId** | Pointer to **string** |  | [optional] 
+**ParentFolderID** | Pointer to **string** |  | [optional] 
 
 ## Methods
 
@@ -103,30 +103,30 @@ SetNewFileName sets NewFileName field to given value.
 
 HasNewFileName returns a boolean if a field has been set.
 
-### GetParentFolderId
+### GetParentFolderID
 
-`func (o *NewFileParams) GetParentFolderId() string`
+`func (o *NewFileParams) GetParentFolderID() string`
 
-GetParentFolderId returns the ParentFolderId field if non-nil, zero value otherwise.
+GetParentFolderID returns the ParentFolderID field if non-nil, zero value otherwise.
 
-### GetParentFolderIdOk
+### GetParentFolderIDOk
 
-`func (o *NewFileParams) GetParentFolderIdOk() (*string, bool)`
+`func (o *NewFileParams) GetParentFolderIDOk() (*string, bool)`
 
-GetParentFolderIdOk returns a tuple with the ParentFolderId field if it's non-nil, zero value otherwise
+GetParentFolderIDOk returns a tuple with the ParentFolderID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetParentFolderId
+### SetParentFolderID
 
-`func (o *NewFileParams) SetParentFolderId(v string)`
+`func (o *NewFileParams) SetParentFolderID(v string)`
 
-SetParentFolderId sets ParentFolderId field to given value.
+SetParentFolderID sets ParentFolderID field to given value.
 
-### HasParentFolderId
+### HasParentFolderID
 
-`func (o *NewFileParams) HasParentFolderId() bool`
+`func (o *NewFileParams) HasParentFolderID() bool`
 
-HasParentFolderId returns a boolean if a field has been set.
+HasParentFolderID returns a boolean if a field has been set.
 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

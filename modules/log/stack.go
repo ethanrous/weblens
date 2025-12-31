@@ -3,12 +3,15 @@ package log
 import (
 	"fmt"
 
-	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 )
 
 var (
-	StackSourceFileName     = "source"
-	StackSourceLineName     = "line"
+	// StackSourceFileName is the key for the source file name in stack traces.
+	StackSourceFileName = "source"
+	// StackSourceLineName is the key for the line number in stack traces.
+	StackSourceLineName = "line"
+	// StackSourceFunctionName is the key for the function name in stack traces.
 	StackSourceFunctionName = "func"
 )
 
@@ -19,6 +22,7 @@ type state struct {
 // Write implement fmt.Formatter interface.
 func (s *state) Write(b []byte) (n int, err error) {
 	s.b = b
+
 	return len(b), nil
 }
 
@@ -42,25 +46,31 @@ func (s *state) Flag(c int) bool {
 	}
 }
 
-func frameField(f errors.Frame, s *state, c rune) string {
+func frameField(f wlerrors.Frame, s *state, c rune) string {
 	f.Format(s, c)
+
 	return string(s.b)
 }
 
+// MarshalStack extracts and marshals the stack trace from an error.
 func MarshalStack(err error) any {
 	type stackTracer interface {
-		StackTrace() errors.StackTrace
+		StackTrace() wlerrors.StackTrace
 	}
 
 	s := &state{}
 
 	var sterr stackTracer
+
 	var ok bool
+
 	for err != nil {
 		var tmpStacker stackTracer
+
 		tmpStacker, ok = err.(stackTracer)
 		if ok {
 			tmpStacker.StackTrace()[0].Format(s, 'n')
+
 			if string(s.b) == "init" {
 				break
 			}
@@ -77,12 +87,14 @@ func MarshalStack(err error) any {
 
 		err = u.Unwrap()
 	}
+
 	if sterr == nil {
 		return nil
 	}
 
 	st := sterr.StackTrace()
 	out := make([]map[string]string, 0, len(st))
+
 	for _, frame := range st {
 		out = append(out, map[string]string{
 			StackSourceFileName:     frameField(frame, s, 's'),
@@ -90,16 +102,19 @@ func MarshalStack(err error) any {
 			StackSourceFunctionName: frameField(frame, s, 'n'),
 		})
 	}
+
 	return out
 }
 
+// PrintStackTrace captures and prints the current stack trace.
 func PrintStackTrace() {
-	err := errors.New("stack trace")
+	err := wlerrors.New("stack trace")
 	st := MarshalStack(err)
 
 	stm, ok := st.([]map[string]string)
 	if !ok {
 		fmt.Println("Could not marshal stack trace", st)
+
 		return
 	}
 
@@ -108,6 +123,7 @@ func PrintStackTrace() {
 	}
 
 	stma := make([]any, 0, len(stm)-1)
+
 	for i, frame := range stm {
 		if i == 0 {
 			continue

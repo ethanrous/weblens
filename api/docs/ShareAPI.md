@@ -4,19 +4,19 @@ All URIs are relative to *http://localhost:8080/api/v1*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
-[**AddUserToShare**](ShareAPI.md#AddUserToShare) | **Post** /share/{shareId}/accessors | Add a user to a file share
+[**AddUserToShare**](ShareAPI.md#AddUserToShare) | **Post** /share/{shareID}/accessors | Add a user to a file share
 [**CreateFileShare**](ShareAPI.md#CreateFileShare) | **Post** /share/file | Share a file
-[**DeleteFileShare**](ShareAPI.md#DeleteFileShare) | **Delete** /share/{shareId} | Delete a file share
-[**GetFileShare**](ShareAPI.md#GetFileShare) | **Get** /share/{shareId} | Get a file share
-[**RemoveUserFromShare**](ShareAPI.md#RemoveUserFromShare) | **Delete** /share/{shareId}/accessors/{username} | Remove a user from a file share
-[**SetSharePublic**](ShareAPI.md#SetSharePublic) | **Patch** /share/{shareId}/public | Update a share&#39;s \&quot;public\&quot; status
-[**UpdateShareAccessorPermissions**](ShareAPI.md#UpdateShareAccessorPermissions) | **Patch** /share/{shareId}/accessors/{username} | Update a share&#39;s user permissions
+[**DeleteFileShare**](ShareAPI.md#DeleteFileShare) | **Delete** /share/{shareID} | Delete a file share
+[**GetFileShare**](ShareAPI.md#GetFileShare) | **Get** /share/{shareID} | Get a file share
+[**RemoveUserFromShare**](ShareAPI.md#RemoveUserFromShare) | **Delete** /share/{shareID}/accessors/{username} | Remove a user from a file share
+[**SetSharePublic**](ShareAPI.md#SetSharePublic) | **Patch** /share/{shareID}/public | Update a share&#39;s \&quot;public\&quot; status
+[**UpdateShareAccessorPermissions**](ShareAPI.md#UpdateShareAccessorPermissions) | **Patch** /share/{shareID}/accessors/{username} | Update a share&#39;s user permissions
 
 
 
 ## AddUserToShare
 
-> ShareInfo AddUserToShare(ctx, shareId).Request(request).Execute()
+> ShareInfo AddUserToShare(ctx, shareID).Request(request).Execute()
 
 Add a user to a file share
 
@@ -33,12 +33,12 @@ import (
 )
 
 func main() {
-	shareId := "shareId_example" // string | Share Id
+	shareID := "shareID_example" // string | Share ID
 	request := *openapiclient.NewAddUserParams("Username_example") // AddUserParams | Share Accessors
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.ShareAPI.AddUserToShare(context.Background(), shareId).Request(request).Execute()
+	resp, r, err := apiClient.ShareAPI.AddUserToShare(context.Background(), shareID).Request(request).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `ShareAPI.AddUserToShare``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -54,7 +54,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**shareId** | **string** | Share Id | 
+**shareID** | **string** | Share ID | 
 
 ### Other Parameters
 
@@ -150,7 +150,7 @@ No authorization required
 
 ## DeleteFileShare
 
-> DeleteFileShare(ctx, shareId).Execute()
+> DeleteFileShare(ctx, shareID).Execute()
 
 Delete a file share
 
@@ -167,11 +167,11 @@ import (
 )
 
 func main() {
-	shareId := "shareId_example" // string | Share Id
+	shareID := "shareID_example" // string | Share ID
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	r, err := apiClient.ShareAPI.DeleteFileShare(context.Background(), shareId).Execute()
+	r, err := apiClient.ShareAPI.DeleteFileShare(context.Background(), shareID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `ShareAPI.DeleteFileShare``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -185,7 +185,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**shareId** | **string** | Share Id | 
+**shareID** | **string** | Share ID | 
 
 ### Other Parameters
 
@@ -216,7 +216,7 @@ No authorization required
 
 ## GetFileShare
 
-> ShareInfo GetFileShare(ctx, shareId).Execute()
+> ShareInfo GetFileShare(ctx, shareID).Execute()
 
 Get a file share
 
@@ -233,11 +233,11 @@ import (
 )
 
 func main() {
-	shareId := "shareId_example" // string | Share Id
+	shareID := "shareID_example" // string | Share ID
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.ShareAPI.GetFileShare(context.Background(), shareId).Execute()
+	resp, r, err := apiClient.ShareAPI.GetFileShare(context.Background(), shareID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `ShareAPI.GetFileShare``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -253,7 +253,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**shareId** | **string** | Share Id | 
+**shareID** | **string** | Share ID | 
 
 ### Other Parameters
 
@@ -284,7 +284,7 @@ No authorization required
 
 ## RemoveUserFromShare
 
-> ShareInfo RemoveUserFromShare(ctx, shareId, username).Execute()
+> ShareInfo RemoveUserFromShare(ctx, shareID, username).Execute()
 
 Remove a user from a file share
 
@@ -301,12 +301,12 @@ import (
 )
 
 func main() {
-	shareId := "shareId_example" // string | Share Id
+	shareID := "shareID_example" // string | Share ID
 	username := "username_example" // string | Username
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.ShareAPI.RemoveUserFromShare(context.Background(), shareId, username).Execute()
+	resp, r, err := apiClient.ShareAPI.RemoveUserFromShare(context.Background(), shareID, username).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `ShareAPI.RemoveUserFromShare``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -322,7 +322,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**shareId** | **string** | Share Id | 
+**shareID** | **string** | Share ID | 
 **username** | **string** | Username | 
 
 ### Other Parameters
@@ -355,7 +355,7 @@ No authorization required
 
 ## SetSharePublic
 
-> SetSharePublic(ctx, shareId).Public(public).Execute()
+> SetSharePublic(ctx, shareID).Public(public).Execute()
 
 Update a share's \"public\" status
 
@@ -372,12 +372,12 @@ import (
 )
 
 func main() {
-	shareId := "shareId_example" // string | Share Id
+	shareID := "shareID_example" // string | Share ID
 	public := true // bool | Share Public Status
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	r, err := apiClient.ShareAPI.SetSharePublic(context.Background(), shareId).Public(public).Execute()
+	r, err := apiClient.ShareAPI.SetSharePublic(context.Background(), shareID).Public(public).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `ShareAPI.SetSharePublic``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -391,7 +391,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**shareId** | **string** | Share Id | 
+**shareID** | **string** | Share ID | 
 
 ### Other Parameters
 
@@ -423,7 +423,7 @@ No authorization required
 
 ## UpdateShareAccessorPermissions
 
-> ShareInfo UpdateShareAccessorPermissions(ctx, shareId, username).Request(request).Execute()
+> ShareInfo UpdateShareAccessorPermissions(ctx, shareID, username).Request(request).Execute()
 
 Update a share's user permissions
 
@@ -440,13 +440,13 @@ import (
 )
 
 func main() {
-	shareId := "shareId_example" // string | Share Id
+	shareID := "shareID_example" // string | Share ID
 	username := "username_example" // string | Username
 	request := *openapiclient.NewPermissionsParams() // PermissionsParams | Share Permissions Params
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.ShareAPI.UpdateShareAccessorPermissions(context.Background(), shareId, username).Request(request).Execute()
+	resp, r, err := apiClient.ShareAPI.UpdateShareAccessorPermissions(context.Background(), shareID, username).Request(request).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `ShareAPI.UpdateShareAccessorPermissions``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -462,7 +462,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**shareId** | **string** | Share Id | 
+**shareID** | **string** | Share ID | 
 **username** | **string** | Username | 
 
 ### Other Parameters

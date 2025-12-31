@@ -27,5 +27,5 @@ ENV WEBLENS_ENV_PATH=/src/.env
 ENV WEBLENS_DO_CACHE=false
 ENV GOCACHE=/tmp/go-cache
 
-ENTRYPOINT ["./scripts/testWeblens"]
+ENTRYPOINT ["./scripts/test-weblens.bash"]
 CMD ["-n"]

@@ -3,55 +3,54 @@ package cover_test
 import (
 	"testing"
 
+	"github.com/ethanrous/weblens/models/cover"
 	"github.com/ethanrous/weblens/models/db"
 	"github.com/stretchr/testify/require"
-
-	. "github.com/ethanrous/weblens/models/cover"
 )
 
 func TestCoverPhoto_CRUD(t *testing.T) {
-	ctx := db.SetupTestDB(t, CoverPhotoCollectionKey)
+	ctx := db.SetupTestDB(t, cover.CoverPhotoCollectionKey)
 
-	folderId := "test-folder"
-	coverPhotoId := "test-photo"
-	coverPhotoId2 := "test-photo-2"
+	folderID := "test-folder"
+	coverPhotoID := "test-photo"
+	coverPhotoID2 := "test-photo-2"
 
 	// Test SetCoverPhoto (insert)
-	cp, err := SetCoverPhoto(ctx, folderId, coverPhotoId)
+	cp, err := cover.SetCoverPhoto(ctx, folderID, coverPhotoID)
 	require.NoError(t, err)
-	require.Equal(t, folderId, cp.FolderId)
-	require.Equal(t, coverPhotoId, cp.CoverPhotoId)
+	require.Equal(t, folderID, cp.FolderID)
+	require.Equal(t, coverPhotoID, cp.CoverPhotoID)
 
-	// Test GetCoverByFolderId (found)
-	cp2, err := GetCoverByFolderId(ctx, folderId)
+	// Test GetCoverByFolderID (found)
+	cp2, err := cover.GetCoverByFolderID(ctx, folderID)
 	require.NoError(t, err)
-	require.Equal(t, coverPhotoId, cp2.CoverPhotoId)
+	require.Equal(t, coverPhotoID, cp2.CoverPhotoID)
 
 	// Test SetCoverPhoto (replace)
-	cp3, err := SetCoverPhoto(ctx, folderId, coverPhotoId2)
+	cp3, err := cover.SetCoverPhoto(ctx, folderID, coverPhotoID2)
 	require.NoError(t, err)
-	require.Equal(t, coverPhotoId2, cp3.CoverPhotoId)
+	require.Equal(t, coverPhotoID2, cp3.CoverPhotoID)
 
-	// Test GetCoverByFolderId (after replace)
-	cp4, err := GetCoverByFolderId(ctx, folderId)
+	// Test GetCoverByFolderID (after replace)
+	cp4, err := cover.GetCoverByFolderID(ctx, folderID)
 	require.NoError(t, err)
-	require.Equal(t, coverPhotoId2, cp4.CoverPhotoId)
+	require.Equal(t, coverPhotoID2, cp4.CoverPhotoID)
 
-	// Test UpsertCoverByFolderId (upsert new)
-	folderId2 := "test-folder-2"
-	err = UpsertCoverByFolderId(ctx, folderId2, coverPhotoId)
+	// Test UpsertCoverByFolderID (upsert new)
+	folderID2 := "test-folder-2"
+	err = cover.UpsertCoverByFolderID(ctx, folderID2, coverPhotoID)
 	require.NoError(t, err)
-	cp5, err := GetCoverByFolderId(ctx, folderId2)
+	cp5, err := cover.GetCoverByFolderID(ctx, folderID2)
 	require.NoError(t, err)
-	require.Equal(t, coverPhotoId, cp5.CoverPhotoId)
+	require.Equal(t, coverPhotoID, cp5.CoverPhotoID)
 
-	// Test DeleteCoverByFolderId (existing)
-	err = DeleteCoverByFolderId(ctx, folderId)
+	// Test DeleteCoverByFolderID (existing)
+	err = cover.DeleteCoverByFolderID(ctx, folderID)
 	require.NoError(t, err)
-	_, err = GetCoverByFolderId(ctx, folderId)
+	_, err = cover.GetCoverByFolderID(ctx, folderID)
 	require.Error(t, err)
 
-	// Test DeleteCoverByFolderId (non-existing)
-	err = DeleteCoverByFolderId(ctx, "nonexistent-folder")
+	// Test DeleteCoverByFolderID (non-existing)
+	err = cover.DeleteCoverByFolderID(ctx, "nonexistent-folder")
 	require.Error(t, err)
 }

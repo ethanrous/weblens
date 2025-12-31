@@ -20,18 +20,18 @@ var _ MappedNullable = &FileInfo{}
 // FileInfo struct for FileInfo
 type FileInfo struct {
 	ChildrenIds []string `json:"childrenIds,omitempty"`
-	ContentId *string `json:"contentId,omitempty"`
-	CurrentId *string `json:"currentId,omitempty"`
+	ContentID *string `json:"contentID,omitempty"`
+	CurrentID *string `json:"currentID,omitempty"`
 	HasRestoreMedia *bool `json:"hasRestoreMedia,omitempty"`
 	Id *string `json:"id,omitempty"`
 	IsDir *bool `json:"isDir,omitempty"`
 	Modifiable *bool `json:"modifiable,omitempty"`
 	ModifyTimestamp *int32 `json:"modifyTimestamp,omitempty"`
 	Owner *string `json:"owner,omitempty"`
-	ParentId *string `json:"parentId,omitempty"`
+	ParentID *string `json:"parentID,omitempty"`
 	PastFile *bool `json:"pastFile,omitempty"`
 	PortablePath *string `json:"portablePath,omitempty"`
-	ShareId *string `json:"shareId,omitempty"`
+	ShareID *string `json:"shareID,omitempty"`
 	Size *int32 `json:"size,omitempty"`
 }
 
@@ -84,68 +84,68 @@ func (o *FileInfo) SetChildrenIds(v []string) {
 	o.ChildrenIds = v
 }
 
-// GetContentId returns the ContentId field value if set, zero value otherwise.
-func (o *FileInfo) GetContentId() string {
-	if o == nil || IsNil(o.ContentId) {
+// GetContentID returns the ContentID field value if set, zero value otherwise.
+func (o *FileInfo) GetContentID() string {
+	if o == nil || IsNil(o.ContentID) {
 		var ret string
 		return ret
 	}
-	return *o.ContentId
+	return *o.ContentID
 }
 
-// GetContentIdOk returns a tuple with the ContentId field value if set, nil otherwise
+// GetContentIDOk returns a tuple with the ContentID field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *FileInfo) GetContentIdOk() (*string, bool) {
-	if o == nil || IsNil(o.ContentId) {
+func (o *FileInfo) GetContentIDOk() (*string, bool) {
+	if o == nil || IsNil(o.ContentID) {
 		return nil, false
 	}
-	return o.ContentId, true
+	return o.ContentID, true
 }
 
-// HasContentId returns a boolean if a field has been set.
-func (o *FileInfo) HasContentId() bool {
-	if o != nil && !IsNil(o.ContentId) {
+// HasContentID returns a boolean if a field has been set.
+func (o *FileInfo) HasContentID() bool {
+	if o != nil && !IsNil(o.ContentID) {
 		return true
 	}
 
 	return false
 }
 
-// SetContentId gets a reference to the given string and assigns it to the ContentId field.
-func (o *FileInfo) SetContentId(v string) {
-	o.ContentId = &v
+// SetContentID gets a reference to the given string and assigns it to the ContentID field.
+func (o *FileInfo) SetContentID(v string) {
+	o.ContentID = &v
 }
 
-// GetCurrentId returns the CurrentId field value if set, zero value otherwise.
-func (o *FileInfo) GetCurrentId() string {
-	if o == nil || IsNil(o.CurrentId) {
+// GetCurrentID returns the CurrentID field value if set, zero value otherwise.
+func (o *FileInfo) GetCurrentID() string {
+	if o == nil || IsNil(o.CurrentID) {
 		var ret string
 		return ret
 	}
-	return *o.CurrentId
+	return *o.CurrentID
 }
 
-// GetCurrentIdOk returns a tuple with the CurrentId field value if set, nil otherwise
+// GetCurrentIDOk returns a tuple with the CurrentID field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *FileInfo) GetCurrentIdOk() (*string, bool) {
-	if o == nil || IsNil(o.CurrentId) {
+func (o *FileInfo) GetCurrentIDOk() (*string, bool) {
+	if o == nil || IsNil(o.CurrentID) {
 		return nil, false
 	}
-	return o.CurrentId, true
+	return o.CurrentID, true
 }
 
-// HasCurrentId returns a boolean if a field has been set.
-func (o *FileInfo) HasCurrentId() bool {
-	if o != nil && !IsNil(o.CurrentId) {
+// HasCurrentID returns a boolean if a field has been set.
+func (o *FileInfo) HasCurrentID() bool {
+	if o != nil && !IsNil(o.CurrentID) {
 		return true
 	}
 
 	return false
 }
 
-// SetCurrentId gets a reference to the given string and assigns it to the CurrentId field.
-func (o *FileInfo) SetCurrentId(v string) {
-	o.CurrentId = &v
+// SetCurrentID gets a reference to the given string and assigns it to the CurrentID field.
+func (o *FileInfo) SetCurrentID(v string) {
+	o.CurrentID = &v
 }
 
 // GetHasRestoreMedia returns the HasRestoreMedia field value if set, zero value otherwise.
@@ -340,36 +340,36 @@ func (o *FileInfo) SetOwner(v string) {
 	o.Owner = &v
 }
 
-// GetParentId returns the ParentId field value if set, zero value otherwise.
-func (o *FileInfo) GetParentId() string {
-	if o == nil || IsNil(o.ParentId) {
+// GetParentID returns the ParentID field value if set, zero value otherwise.
+func (o *FileInfo) GetParentID() string {
+	if o == nil || IsNil(o.ParentID) {
 		var ret string
 		return ret
 	}
-	return *o.ParentId
+	return *o.ParentID
 }
 
-// GetParentIdOk returns a tuple with the ParentId field value if set, nil otherwise
+// GetParentIDOk returns a tuple with the ParentID field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *FileInfo) GetParentIdOk() (*string, bool) {
-	if o == nil || IsNil(o.ParentId) {
+func (o *FileInfo) GetParentIDOk() (*string, bool) {
+	if o == nil || IsNil(o.ParentID) {
 		return nil, false
 	}
-	return o.ParentId, true
+	return o.ParentID, true
 }
 
-// HasParentId returns a boolean if a field has been set.
-func (o *FileInfo) HasParentId() bool {
-	if o != nil && !IsNil(o.ParentId) {
+// HasParentID returns a boolean if a field has been set.
+func (o *FileInfo) HasParentID() bool {
+	if o != nil && !IsNil(o.ParentID) {
 		return true
 	}
 
 	return false
 }
 
-// SetParentId gets a reference to the given string and assigns it to the ParentId field.
-func (o *FileInfo) SetParentId(v string) {
-	o.ParentId = &v
+// SetParentID gets a reference to the given string and assigns it to the ParentID field.
+func (o *FileInfo) SetParentID(v string) {
+	o.ParentID = &v
 }
 
 // GetPastFile returns the PastFile field value if set, zero value otherwise.
@@ -436,36 +436,36 @@ func (o *FileInfo) SetPortablePath(v string) {
 	o.PortablePath = &v
 }
 
-// GetShareId returns the ShareId field value if set, zero value otherwise.
-func (o *FileInfo) GetShareId() string {
-	if o == nil || IsNil(o.ShareId) {
+// GetShareID returns the ShareID field value if set, zero value otherwise.
+func (o *FileInfo) GetShareID() string {
+	if o == nil || IsNil(o.ShareID) {
 		var ret string
 		return ret
 	}
-	return *o.ShareId
+	return *o.ShareID
 }
 
-// GetShareIdOk returns a tuple with the ShareId field value if set, nil otherwise
+// GetShareIDOk returns a tuple with the ShareID field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *FileInfo) GetShareIdOk() (*string, bool) {
-	if o == nil || IsNil(o.ShareId) {
+func (o *FileInfo) GetShareIDOk() (*string, bool) {
+	if o == nil || IsNil(o.ShareID) {
 		return nil, false
 	}
-	return o.ShareId, true
+	return o.ShareID, true
 }
 
-// HasShareId returns a boolean if a field has been set.
-func (o *FileInfo) HasShareId() bool {
-	if o != nil && !IsNil(o.ShareId) {
+// HasShareID returns a boolean if a field has been set.
+func (o *FileInfo) HasShareID() bool {
+	if o != nil && !IsNil(o.ShareID) {
 		return true
 	}
 
 	return false
 }
 
-// SetShareId gets a reference to the given string and assigns it to the ShareId field.
-func (o *FileInfo) SetShareId(v string) {
-	o.ShareId = &v
+// SetShareID gets a reference to the given string and assigns it to the ShareID field.
+func (o *FileInfo) SetShareID(v string) {
+	o.ShareID = &v
 }
 
 // GetSize returns the Size field value if set, zero value otherwise.
@@ -513,11 +513,11 @@ func (o FileInfo) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.ChildrenIds) {
 		toSerialize["childrenIds"] = o.ChildrenIds
 	}
-	if !IsNil(o.ContentId) {
-		toSerialize["contentId"] = o.ContentId
+	if !IsNil(o.ContentID) {
+		toSerialize["contentID"] = o.ContentID
 	}
-	if !IsNil(o.CurrentId) {
-		toSerialize["currentId"] = o.CurrentId
+	if !IsNil(o.CurrentID) {
+		toSerialize["currentID"] = o.CurrentID
 	}
 	if !IsNil(o.HasRestoreMedia) {
 		toSerialize["hasRestoreMedia"] = o.HasRestoreMedia
@@ -537,8 +537,8 @@ func (o FileInfo) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Owner) {
 		toSerialize["owner"] = o.Owner
 	}
-	if !IsNil(o.ParentId) {
-		toSerialize["parentId"] = o.ParentId
+	if !IsNil(o.ParentID) {
+		toSerialize["parentID"] = o.ParentID
 	}
 	if !IsNil(o.PastFile) {
 		toSerialize["pastFile"] = o.PastFile
@@ -546,8 +546,8 @@ func (o FileInfo) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.PortablePath) {
 		toSerialize["portablePath"] = o.PortablePath
 	}
-	if !IsNil(o.ShareId) {
-		toSerialize["shareId"] = o.ShareId
+	if !IsNil(o.ShareID) {
+		toSerialize["shareID"] = o.ShareID
 	}
 	if !IsNil(o.Size) {
 		toSerialize["size"] = o.Size

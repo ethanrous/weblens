@@ -1,3 +1,4 @@
+// Package web provides HTTP handlers for serving the Weblens web UI and static content.
 package web
 
 import (
@@ -7,21 +8,21 @@ import (
 	cover_model "github.com/ethanrous/weblens/models/cover"
 	media_model "github.com/ethanrous/weblens/models/media"
 	share_model "github.com/ethanrous/weblens/models/share"
-	"github.com/ethanrous/weblens/modules/errors"
-	"github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/rs/zerolog/log"
 )
 
 const apiBasePath = "/api/v1"
 
-func getIndexFields(ctx context.RequestContext, proxyAddress string) (fields indexFields) {
+func getIndexFields(ctx ctxservice.RequestContext, proxyAddress string) (fields indexFields) {
 	path := ctx.Req.URL.Path
 
 	if path[0] == '/' {
 		path = path[1:]
 	}
 
-	fields.Url = fmt.Sprintf("%s/%s", proxyAddress, path)
+	fields.URL = fmt.Sprintf("%s/%s", proxyAddress, path)
 
 	if strings.HasPrefix(path, "files/share/") {
 		path = path[len("files/share/"):]
@@ -31,18 +32,18 @@ func getIndexFields(ctx context.RequestContext, proxyAddress string) (fields ind
 			path = path[:slashIndex]
 		}
 
-		shareId := share_model.ShareIdFromString(path)
-		ctx.Log().Debug().Msgf("Share ID: %s", shareId)
+		shareID := share_model.IDFromString(path)
+		ctx.Log().Debug().Msgf("Share ID: %s", shareID)
 
-		share, err := share_model.GetShareById(ctx, shareId)
-		if err != nil && errors.Is(err, share_model.ErrShareNotFound) {
+		share, err := share_model.GetShareByID(ctx, shareID)
+		if err != nil && wlerrors.Is(err, share_model.ErrShareNotFound) {
 			log.Error().Stack().Err(err).Msg("")
 
 			return fields
 		}
 
 		if share != nil {
-			f, err := ctx.FileService.GetFileById(ctx, share.FileId)
+			f, err := ctx.FileService.GetFileByID(ctx, share.FileID)
 			if err != nil {
 				log.Error().Stack().Err(err).Msg("")
 
@@ -64,18 +65,18 @@ func getIndexFields(ctx context.RequestContext, proxyAddress string) (fields ind
 			var m *media_model.Media
 
 			if f.IsDir() {
-				cover, err := cover_model.GetCoverByFolderId(ctx, f.ID())
+				cover, err := cover_model.GetCoverByFolderID(ctx, f.ID())
 				if err == nil {
-					m, _ = media_model.GetMediaByContentId(ctx, cover.CoverPhotoId)
+					m, _ = media_model.GetMediaByContentID(ctx, cover.CoverPhotoID)
 				} else {
 					fields.Image = "/static/folder.png"
 				}
 			} else {
-				m, _ = media_model.GetMediaByContentId(ctx, f.GetContentId())
+				m, _ = media_model.GetMediaByContentID(ctx, f.GetContentID())
 			}
 
 			if m != nil && fields.Image == "" {
-				fields.Image = fmt.Sprintf("%s/media/%s.webp?quality=thumbnail&shareId=%s", apiBasePath, m.ContentID, share.ID().Hex())
+				fields.Image = fmt.Sprintf("%s/media/%s.webp?quality=thumbnail&shareID=%s", apiBasePath, m.ContentID, share.ID().Hex())
 			}
 		}
 	} else if strings.HasPrefix(path, "media/") {
@@ -89,8 +90,8 @@ func getIndexFields(ctx context.RequestContext, proxyAddress string) (fields ind
 	return fields
 }
 
-func handleMediaPage(ctx context.RequestContext, mediaId string, fields *indexFields) {
-	m, err := media_model.GetMediaByContentId(ctx, mediaId)
+func handleMediaPage(ctx ctxservice.RequestContext, mediaID string, fields *indexFields) {
+	m, err := media_model.GetMediaByContentID(ctx, mediaID)
 	if err != nil {
 		log.Error().Stack().Err(err).Msg("")
 

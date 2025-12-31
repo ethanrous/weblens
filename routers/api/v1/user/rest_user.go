@@ -5,16 +5,16 @@ import (
 	"net/http"
 
 	user_model "github.com/ethanrous/weblens/models/user"
-	"github.com/ethanrous/weblens/modules/crypto"
-	"github.com/ethanrous/weblens/modules/errors"
-	"github.com/ethanrous/weblens/modules/net"
+	"github.com/ethanrous/weblens/modules/cryptography"
+	"github.com/ethanrous/weblens/modules/netwrk"
 	"github.com/ethanrous/weblens/modules/structs"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	access_service "github.com/ethanrous/weblens/services/auth"
-	"github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/reshape"
 )
 
-// CreateUser godoc
+// Create godoc
 //
 //	@ID			CreateUser
 //
@@ -27,8 +27,8 @@ import (
 //	@Success	201
 //	@Failure	401
 //	@Router		/users [post]
-func Create(ctx context.RequestContext) {
-	userParams, err := net.ReadRequestBody[structs.NewUserParams](ctx.Req)
+func Create(ctx ctxservice.RequestContext) {
+	userParams, err := netwrk.ReadRequestBody[structs.NewUserParams](ctx.Req)
 	if err != nil {
 		return
 	}
@@ -44,19 +44,21 @@ func Create(ctx context.RequestContext) {
 	err = ctx.GetFileService().CreateUserHome(ctx, newUser)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
 	err = user_model.SaveUser(ctx, newUser)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
 	ctx.Status(http.StatusCreated)
 }
 
-// LoginUser godoc
+// Login godoc
 //
 //	@ID			LoginUser
 //
@@ -67,23 +69,25 @@ func Create(ctx context.RequestContext) {
 //	@Success	200			{object}	structs.UserInfo	"Logged-in users info"
 //	@Failure	401
 //	@Router		/users/auth [post]
-func Login(ctx context.RequestContext) {
-	userCredentials, err := net.ReadRequestBody[structs.LoginParams](ctx.Req)
+func Login(ctx ctxservice.RequestContext) {
+	userCredentials, err := netwrk.ReadRequestBody[structs.LoginParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusBadRequest, err)
+
 		return
 	}
 
 	u, err := user_model.GetUserByUsername(ctx, userCredentials.Username)
 	if err != nil {
 		ctx.Error(http.StatusNotFound, err)
+
 		return
 	}
 
 	if !u.CheckLogin(userCredentials.Password) {
 		ctx.Log().Debug().Msgf("Invalid login for [%s]", userCredentials.Username)
+		ctx.Error(http.StatusUnauthorized, wlerrors.New("invalid login"))
 
-		ctx.Error(http.StatusUnauthorized, errors.New("invalid login"))
 		return
 	}
 
@@ -92,6 +96,7 @@ func Login(ctx context.RequestContext) {
 	err = access_service.SetSessionToken(ctx)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
@@ -110,23 +115,25 @@ func Login(ctx context.RequestContext) {
 //	@Failure	400
 //	@Failure	404
 //	@Router		/users/{username} [head]
-func CheckExists(ctx context.RequestContext) {
+func CheckExists(ctx ctxservice.RequestContext) {
 	username := ctx.Path("username")
 	if username == "" {
 		ctx.Status(http.StatusBadRequest)
+
 		return
 	}
 
 	_, err := user_model.GetUserByUsername(ctx, username)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
+
 		return
 	}
 
 	ctx.Status(http.StatusOK)
 }
 
-// LogoutUser godoc
+// Logout godoc
 //
 //	@ID			LogoutUser
 //
@@ -136,18 +143,19 @@ func CheckExists(ctx context.RequestContext) {
 //	@Tags		Users
 //	@Success	200
 //	@Router		/users/logout [post]
-func Logout(ctx context.RequestContext) {
+func Logout(ctx ctxservice.RequestContext) {
 	if ctx.Requester == nil {
 		ctx.Status(http.StatusNotFound)
+
 		return
 	}
 
-	cookie := fmt.Sprintf("%s=;Path=/;Expires=Thu, 01 Jan 1970 00:00:00 GMT;HttpOnly", crypto.SessionTokenCookie)
+	cookie := fmt.Sprintf("%s=;Path=/;Expires=Thu, 01 Jan 1970 00:00:00 GMT;HttpOnly", cryptography.SessionTokenCookie)
 	ctx.W.Header().Set("Set-Cookie", cookie)
 	ctx.Status(http.StatusOK)
 }
 
-// GetUsers godoc
+// GetAll godoc
 //
 //	@ID			GetUsers
 //
@@ -159,12 +167,12 @@ func Logout(ctx context.RequestContext) {
 //	@Success	200	{array}	structs.UserInfoArchive	"List of users"
 //	@Failure	401
 //	@Router		/users [get]
-func GetAll(ctx context.RequestContext) {
+func GetAll(ctx ctxservice.RequestContext) {
 	users, err := user_model.GetAllUsers(ctx)
-
 	if err != nil {
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to get all users")
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
@@ -178,7 +186,7 @@ func GetAll(ctx context.RequestContext) {
 	ctx.JSON(http.StatusOK, results)
 }
 
-// GetUser godoc
+// GetMe godoc
 //
 //	@ID			GetUser
 //
@@ -192,9 +200,10 @@ func GetAll(ctx context.RequestContext) {
 //	@Failure	404
 //	@Failure	500
 //	@Router		/users/me [get]
-func GetMe(ctx context.RequestContext) {
+func GetMe(ctx ctxservice.RequestContext) {
 	if !ctx.IsLoggedIn {
 		ctx.Status(http.StatusUnauthorized)
+
 		return
 	}
 
@@ -202,7 +211,7 @@ func GetMe(ctx context.RequestContext) {
 	ctx.JSON(http.StatusOK, newU)
 }
 
-// UpdateUserPassword godoc
+// UpdatePassword godoc
 //
 //	@ID			UpdateUserPassword
 //
@@ -220,23 +229,26 @@ func GetMe(ctx context.RequestContext) {
 //	@Failure	403
 //	@Failure	404
 //	@Router		/users/{username}/password [patch]
-func UpdatePassword(ctx context.RequestContext) {
+func UpdatePassword(ctx ctxservice.RequestContext) {
 	updateUsername := ctx.Path("username")
 
 	userToUpdate, err := user_model.GetUserByUsername(ctx, updateUsername)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
+
 		return
 	}
 
 	if userToUpdate.Username != ctx.Requester.Username && !ctx.Requester.IsOwner() {
 		ctx.Status(http.StatusForbidden)
+
 		return
 	}
 
-	updateParams, err := net.ReadRequestBody[structs.PasswordUpdateParams](ctx.Req)
+	updateParams, err := netwrk.ReadRequestBody[structs.PasswordUpdateParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusBadRequest, err)
+
 		return
 	}
 
@@ -245,7 +257,8 @@ func UpdatePassword(ctx context.RequestContext) {
 
 		if !ok {
 			ctx.Log().Debug().Msgf("Invalid password for user [%s]", updateUsername)
-			ctx.Error(http.StatusUnauthorized, errors.New("invalid password"))
+			ctx.Error(http.StatusUnauthorized, wlerrors.New("invalid password"))
+
 			return
 		}
 	}
@@ -254,13 +267,14 @@ func UpdatePassword(ctx context.RequestContext) {
 	if err != nil {
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to update user password")
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
 	ctx.Status(http.StatusOK)
 }
 
-// SetUserAdmin godoc
+// SetAdmin godoc
 //
 //	@ID			SetUserAdmin
 //
@@ -278,15 +292,17 @@ func UpdatePassword(ctx context.RequestContext) {
 //	@Failure	403
 //	@Failure	404
 //	@Router		/users/{username}/admin [patch]
-func SetAdmin(ctx context.RequestContext) {
+func SetAdmin(ctx ctxservice.RequestContext) {
 	if !ctx.Requester.IsOwner() {
 		ctx.Status(http.StatusForbidden)
+
 		return
 	}
 
 	adminStr := ctx.Query("setAdmin")
 	if adminStr == "" {
 		ctx.Status(http.StatusBadRequest)
+
 		return
 	}
 
@@ -300,6 +316,7 @@ func SetAdmin(ctx context.RequestContext) {
 	user, err := user_model.GetUserByUsername(ctx, username)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
+
 		return
 	}
 
@@ -307,13 +324,14 @@ func SetAdmin(ctx context.RequestContext) {
 	if err != nil {
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to update user permission level")
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
 	ctx.Status(http.StatusOK)
 }
 
-// ActivateUser godoc
+// Activate godoc
 //
 //	@ID			ActivateUser
 //
@@ -331,15 +349,17 @@ func SetAdmin(ctx context.RequestContext) {
 //	@Failure	401
 //	@Failure	404
 //	@Router		/users/{username}/active [patch]
-func Activate(ctx context.RequestContext) {
+func Activate(ctx ctxservice.RequestContext) {
 	if !ctx.Requester.IsAdmin() {
 		ctx.Status(http.StatusForbidden)
+
 		return
 	}
 
 	activeStr := ctx.Query("setActive")
 	if activeStr == "" {
 		ctx.Status(http.StatusBadRequest)
+
 		return
 	}
 
@@ -353,6 +373,7 @@ func Activate(ctx context.RequestContext) {
 	user, err := user_model.GetUserByUsername(ctx, username)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
+
 		return
 	}
 
@@ -360,6 +381,7 @@ func Activate(ctx context.RequestContext) {
 	if err != nil {
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to update user activation status")
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
@@ -384,23 +406,26 @@ func Activate(ctx context.RequestContext) {
 //	@Failure	401	{object}	structs.WeblensErrorInfo
 //	@Failure	404	{object}	structs.WeblensErrorInfo
 //	@Router		/users/{username}/fullName [patch]
-func ChangeDisplayName(ctx context.RequestContext) {
+func ChangeDisplayName(ctx ctxservice.RequestContext) {
 	username := ctx.Path("username")
 
 	newName := ctx.Query("newFullName")
 	if newName == "" {
 		ctx.Status(http.StatusBadRequest)
+
 		return
 	}
 
 	u, err := user_model.GetUserByUsername(ctx, username)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
+
 		return
 	}
 
 	if u.Username != ctx.Requester.Username && !ctx.Requester.IsAdmin() {
 		ctx.Status(http.StatusForbidden)
+
 		return
 	}
 
@@ -408,13 +433,14 @@ func ChangeDisplayName(ctx context.RequestContext) {
 	if err != nil {
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to update user full name")
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
 	ctx.JSON(http.StatusOK, reshape.UserToUserInfo(ctx, u))
 }
 
-// DeleteUser godoc
+// Delete godoc
 //
 //	@ID			DeleteUser
 //
@@ -431,21 +457,24 @@ func ChangeDisplayName(ctx context.RequestContext) {
 //	@Failure	404
 //	@Failure	500
 //	@Router		/users/{username} [delete]
-func Delete(ctx context.RequestContext) {
+func Delete(ctx ctxservice.RequestContext) {
 	if !ctx.Requester.IsOwner() {
 		ctx.Status(http.StatusForbidden)
+
 		return
 	}
 
 	username := ctx.Path("username")
 	if username == "" {
 		ctx.Status(http.StatusBadRequest)
+
 		return
 	}
 
 	u, err := user_model.GetUserByUsername(ctx, username)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
+
 		return
 	}
 
@@ -453,6 +482,7 @@ func Delete(ctx context.RequestContext) {
 	if err != nil {
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to delete user")
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 
@@ -461,7 +491,7 @@ func Delete(ctx context.RequestContext) {
 
 var minSearchLength = 2
 
-// SearchUsers godoc
+// Search godoc
 //
 //	@ID			SearchUsers
 //
@@ -478,10 +508,11 @@ var minSearchLength = 2
 //	@Failure	404
 //	@Failure	500
 //	@Router		/users/search [get]
-func Search(ctx context.RequestContext) {
+func Search(ctx ctxservice.RequestContext) {
 	search := ctx.Query("search")
 	if len(search) < minSearchLength {
-		ctx.Error(http.StatusBadRequest, errors.New("Username autocomplete must contain at least 2 characters"))
+		ctx.Error(http.StatusBadRequest, wlerrors.New("Username autocomplete must contain at least 2 characters"))
+
 		return
 	}
 
@@ -489,6 +520,7 @@ func Search(ctx context.RequestContext) {
 	if err != nil {
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to search users by username")
 		ctx.Error(http.StatusInternalServerError, err)
+
 		return
 	}
 

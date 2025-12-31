@@ -6,7 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **newName** | **string** |  | [optional] [default to undefined]
-**newParentId** | **string** |  | [optional] [default to undefined]
+**newParentID** | **string** |  | [optional] [default to undefined]
 
 ## Example
 
@@ -15,7 +15,7 @@ import { UpdateFileParams } from './api';
 
 const instance: UpdateFileParams = {
     newName,
-    newParentId,
+    newParentID,
 };
 ```
 

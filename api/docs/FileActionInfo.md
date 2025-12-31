@@ -5,22 +5,22 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **ActionType** | **string** |  | 
-**ContentId** | Pointer to **string** |  | [optional] 
+**ContentID** | Pointer to **string** |  | [optional] 
 **DestinationPath** | Pointer to **string** |  | [optional] 
-**EventId** | **string** |  | 
-**FileId** | **string** |  | 
+**EventID** | **string** |  | 
+**FileID** | **string** |  | 
 **Filepath** | Pointer to **string** |  | [optional] 
 **OriginPath** | Pointer to **string** |  | [optional] 
-**ParentId** | **string** |  | 
+**ParentID** | **string** |  | 
 **Size** | **int64** |  | 
 **Timestamp** | **int64** |  | 
-**TowerId** | **string** |  | 
+**TowerID** | **string** |  | 
 
 ## Methods
 
 ### NewFileActionInfo
 
-`func NewFileActionInfo(actionType string, eventId string, fileId string, parentId string, size int64, timestamp int64, towerId string, ) *FileActionInfo`
+`func NewFileActionInfo(actionType string, eventID string, fileID string, parentID string, size int64, timestamp int64, towerID string, ) *FileActionInfo`
 
 NewFileActionInfo instantiates a new FileActionInfo object
 This constructor will assign default values to properties that have it defined,
@@ -55,30 +55,30 @@ and a boolean to check if the value has been set.
 SetActionType sets ActionType field to given value.
 
 
-### GetContentId
+### GetContentID
 
-`func (o *FileActionInfo) GetContentId() string`
+`func (o *FileActionInfo) GetContentID() string`
 
-GetContentId returns the ContentId field if non-nil, zero value otherwise.
+GetContentID returns the ContentID field if non-nil, zero value otherwise.
 
-### GetContentIdOk
+### GetContentIDOk
 
-`func (o *FileActionInfo) GetContentIdOk() (*string, bool)`
+`func (o *FileActionInfo) GetContentIDOk() (*string, bool)`
 
-GetContentIdOk returns a tuple with the ContentId field if it's non-nil, zero value otherwise
+GetContentIDOk returns a tuple with the ContentID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetContentId
+### SetContentID
 
-`func (o *FileActionInfo) SetContentId(v string)`
+`func (o *FileActionInfo) SetContentID(v string)`
 
-SetContentId sets ContentId field to given value.
+SetContentID sets ContentID field to given value.
 
-### HasContentId
+### HasContentID
 
-`func (o *FileActionInfo) HasContentId() bool`
+`func (o *FileActionInfo) HasContentID() bool`
 
-HasContentId returns a boolean if a field has been set.
+HasContentID returns a boolean if a field has been set.
 
 ### GetDestinationPath
 
@@ -105,44 +105,44 @@ SetDestinationPath sets DestinationPath field to given value.
 
 HasDestinationPath returns a boolean if a field has been set.
 
-### GetEventId
+### GetEventID
 
-`func (o *FileActionInfo) GetEventId() string`
+`func (o *FileActionInfo) GetEventID() string`
 
-GetEventId returns the EventId field if non-nil, zero value otherwise.
+GetEventID returns the EventID field if non-nil, zero value otherwise.
 
-### GetEventIdOk
+### GetEventIDOk
 
-`func (o *FileActionInfo) GetEventIdOk() (*string, bool)`
+`func (o *FileActionInfo) GetEventIDOk() (*string, bool)`
 
-GetEventIdOk returns a tuple with the EventId field if it's non-nil, zero value otherwise
+GetEventIDOk returns a tuple with the EventID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetEventId
+### SetEventID
 
-`func (o *FileActionInfo) SetEventId(v string)`
+`func (o *FileActionInfo) SetEventID(v string)`
 
-SetEventId sets EventId field to given value.
+SetEventID sets EventID field to given value.
 
 
-### GetFileId
+### GetFileID
 
-`func (o *FileActionInfo) GetFileId() string`
+`func (o *FileActionInfo) GetFileID() string`
 
-GetFileId returns the FileId field if non-nil, zero value otherwise.
+GetFileID returns the FileID field if non-nil, zero value otherwise.
 
-### GetFileIdOk
+### GetFileIDOk
 
-`func (o *FileActionInfo) GetFileIdOk() (*string, bool)`
+`func (o *FileActionInfo) GetFileIDOk() (*string, bool)`
 
-GetFileIdOk returns a tuple with the FileId field if it's non-nil, zero value otherwise
+GetFileIDOk returns a tuple with the FileID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetFileId
+### SetFileID
 
-`func (o *FileActionInfo) SetFileId(v string)`
+`func (o *FileActionInfo) SetFileID(v string)`
 
-SetFileId sets FileId field to given value.
+SetFileID sets FileID field to given value.
 
 
 ### GetFilepath
@@ -195,24 +195,24 @@ SetOriginPath sets OriginPath field to given value.
 
 HasOriginPath returns a boolean if a field has been set.
 
-### GetParentId
+### GetParentID
 
-`func (o *FileActionInfo) GetParentId() string`
+`func (o *FileActionInfo) GetParentID() string`
 
-GetParentId returns the ParentId field if non-nil, zero value otherwise.
+GetParentID returns the ParentID field if non-nil, zero value otherwise.
 
-### GetParentIdOk
+### GetParentIDOk
 
-`func (o *FileActionInfo) GetParentIdOk() (*string, bool)`
+`func (o *FileActionInfo) GetParentIDOk() (*string, bool)`
 
-GetParentIdOk returns a tuple with the ParentId field if it's non-nil, zero value otherwise
+GetParentIDOk returns a tuple with the ParentID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetParentId
+### SetParentID
 
-`func (o *FileActionInfo) SetParentId(v string)`
+`func (o *FileActionInfo) SetParentID(v string)`
 
-SetParentId sets ParentId field to given value.
+SetParentID sets ParentID field to given value.
 
 
 ### GetSize
@@ -255,24 +255,24 @@ and a boolean to check if the value has been set.
 SetTimestamp sets Timestamp field to given value.
 
 
-### GetTowerId
+### GetTowerID
 
-`func (o *FileActionInfo) GetTowerId() string`
+`func (o *FileActionInfo) GetTowerID() string`
 
-GetTowerId returns the TowerId field if non-nil, zero value otherwise.
+GetTowerID returns the TowerID field if non-nil, zero value otherwise.
 
-### GetTowerIdOk
+### GetTowerIDOk
 
-`func (o *FileActionInfo) GetTowerIdOk() (*string, bool)`
+`func (o *FileActionInfo) GetTowerIDOk() (*string, bool)`
 
-GetTowerIdOk returns a tuple with the TowerId field if it's non-nil, zero value otherwise
+GetTowerIDOk returns a tuple with the TowerID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetTowerId
+### SetTowerID
 
-`func (o *FileActionInfo) SetTowerId(v string)`
+`func (o *FileActionInfo) SetTowerID(v string)`
 
-SetTowerId sets TowerId field to given value.
+SetTowerID sets TowerID field to given value.
 
 
 

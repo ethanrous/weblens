@@ -1,5 +1,6 @@
 package structs
 
+// NewUserParams contains parameters for creating a new user.
 type NewUserParams struct {
 	FullName     string `json:"fullName" validate:"required"`
 	Username     string `json:"username" validate:"required"`
@@ -8,22 +9,25 @@ type NewUserParams struct {
 	AutoActivate bool   `json:"autoActivate"`
 } // @name NewUserParams
 
+// LoginParams contains parameters for user login.
 type LoginParams struct {
 	Username string `json:"username" validate:"required"`
 	Password string `json:"password" validate:"required"`
 } // @name LoginBody
 
+// UserInfo represents user information for API responses.
 type UserInfo struct {
 	Activated       bool   `json:"activated" validate:"required"`
 	FullName        string `json:"fullName" validate:"required"`
-	HomeId          string `json:"homeId" validate:"required"`
+	HomeID          string `json:"homeID" validate:"required"`
 	PermissionLevel int    `json:"permissionLevel" validate:"required"`
 	Token           string `json:"token" omitEmpty:"true"`
-	TrashId         string `json:"trashId" validate:"required"`
+	TrashID         string `json:"trashID" validate:"required"`
 	Username        string `json:"username" validate:"required"`
 	IsOnline        bool   `json:"isOnline"`
 } // @name UserInfo
 
+// UserInfoArchive extends UserInfo with password for backup/restore operations.
 type UserInfoArchive struct {
 	UserInfo
 

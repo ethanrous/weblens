@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/ethanrous/weblens/modules/config"
-	context_mod "github.com/ethanrous/weblens/modules/context"
+	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -18,8 +18,8 @@ func initMongo() {
 		var err error
 
 		ctx := context.WithValue(context.Background(), context_mod.WgKey, &sync.WaitGroup{})
-		testDB, err = ConnectToMongo(ctx, config.GetMongoDBUri(), "weblensTestDB")
 
+		testDB, err = ConnectToMongo(ctx, config.GetMongoDBUri(), "weblensTestDB")
 		if err != nil {
 			panic(err)
 		}
@@ -28,18 +28,18 @@ func initMongo() {
 	}
 }
 
+// SetupTestDB creates a test database context with a clean collection and optional indexes.
 func SetupTestDB(t *testing.T, collectionKey string, indexModels ...mongo.IndexModel) context.Context {
 	// ctx, cancel := context.WithCancel(context.Background())
 	// mongodb, err := ConnectToMongo(ctx, config.GetMongoDBUri(), "weblensTestDB")
 	// require.NoError(t, err)
-
 	if testDB == nil {
 		initMongo()
 	}
 
 	// Set the MongoDB instance in the context
 	// Connecting to mongo with test context would cancel before the cleanup is run. We must use our own context and cancel.
-	ctx := context.WithValue(context.Background(), DatabaseContextKey, testDB)
+	ctx := context.WithValue(context.Background(), DatabaseContextKey, testDB) //nolint:revive
 
 	// Clean up test collection before each test
 	col, err := GetCollection[any](ctx, collectionKey)
@@ -63,9 +63,6 @@ func SetupTestDB(t *testing.T, collectionKey string, indexModels ...mongo.IndexM
 		if err != nil {
 			t.Logf("Failed to cleanup test collection: %v", err)
 		}
-
-		// Close the MongoDB connection
-		// cancel()
 	}
 
 	t.Cleanup(cleanup)

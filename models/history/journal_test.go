@@ -1,10 +1,10 @@
-package history
+package history_test
 
 import (
 	"testing"
 )
 
-func TestJournalImplSimple(t *testing.T) {
+func TestJournalImplSimple(_ *testing.T) {
 	// logger := log.NewZeroLogger()
 	// ctx := context.Background()
 	//
@@ -24,7 +24,7 @@ func TestJournalImplSimple(t *testing.T) {
 	// col := mondb.Collection(t.Name())
 	// journalConfig := JournalConfig{
 	// 	Collection:    col,
-	// 	ServerId:      "weblens_test_server",
+	// 	ServerID:      "weblens_test_server",
 	// 	IgnoreLocal:   false,
 	// 	HasherFactory: hasherFactory,
 	// 	Logger:        logger,
@@ -59,7 +59,7 @@ func TestJournalImplSimple(t *testing.T) {
 	// require.Equal(t, 1, len(newDirLifetime.Actions))
 }
 
-func TestJournalImpl_GetPastFile(t *testing.T) {
+func TestJournalImpl_GetPastFile(_ *testing.T) {
 	// logger := log.NewZeroLogger()
 	//
 	// mondb, err := database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName(env.Config{}), logger)
@@ -76,7 +76,7 @@ func TestJournalImpl_GetPastFile(t *testing.T) {
 	// col := mondb.Collection(t.Name() + "-journal")
 	// journalConfig := JournalConfig{
 	// 	Collection:    col,
-	// 	ServerId:      "weblens_test_server",
+	// 	ServerID:      "weblens_test_server",
 	// 	IgnoreLocal:   false,
 	// 	HasherFactory: hasherFactory,
 	// 	Logger:        logger,

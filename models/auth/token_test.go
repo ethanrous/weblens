@@ -10,12 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
-	. "github.com/ethanrous/weblens/models/auth"
+	"github.com/ethanrous/weblens/models/auth"
 )
 
 // BSON keys.
 const (
-	KeyTokenId   = "_id"
+	KeyTokenID   = "_id"
 	KeyOwner     = "owner"
 	KeyCreatedBy = "createdBy"
 	KeyToken     = "token"
@@ -33,11 +33,11 @@ func makeSampleToken() [32]byte {
 }
 
 func TestGenerateNewToken(t *testing.T) {
-	ctx := db.SetupTestDB(t, TokenCollectionKey)
+	ctx := db.SetupTestDB(t, auth.TokenCollectionKey)
 
 	t.Run("success", func(t *testing.T) {
-		ctx = context.WithValue(ctx, "towerId", "towerId")
-		token, err := GenerateNewToken(ctx, "nickname", "owner", "createdBy")
+		ctx = context.WithValue(ctx, "towerID", "towerID") //nolint:revive
+		token, err := auth.GenerateNewToken(ctx, "nickname", "owner", "createdBy")
 
 		assert.NoError(t, err)
 		assert.NotNil(t, token)
@@ -47,12 +47,12 @@ func TestGenerateNewToken(t *testing.T) {
 }
 
 func TestSaveToken(t *testing.T) {
-	ctx := db.SetupTestDB(t, TokenCollectionKey)
+	ctx := db.SetupTestDB(t, auth.TokenCollectionKey)
 
 	t.Run("success", func(t *testing.T) {
-		ctx = context.WithValue(ctx, "towerId", "towerId")
-		token := &Token{
-			Id:          primitive.NewObjectID(),
+		ctx = context.WithValue(ctx, "towerID", "towerID") //nolint:revive
+		token := &auth.Token{
+			ID:          primitive.NewObjectID(),
 			Token:       makeSampleToken(),
 			CreatedTime: time.Now(),
 			LastUsed:    time.Now(),
@@ -61,31 +61,31 @@ func TestSaveToken(t *testing.T) {
 			CreatedBy:   "createdBy",
 		}
 
-		err := SaveToken(ctx, token)
+		err := auth.SaveToken(ctx, token)
 
 		assert.NoError(t, err)
 	})
 }
 
 func TestGetTokensByUser(t *testing.T) {
-	ctx := db.SetupTestDB(t, TokenCollectionKey)
+	ctx := db.SetupTestDB(t, auth.TokenCollectionKey)
 
 	t.Run("found", func(t *testing.T) {
-		ctx = context.WithValue(ctx, "towerId", "towerId")
+		ctx = context.WithValue(ctx, "towerID", "towerID") //nolint:revive
 		// Create a mock token
-		token := &Token{
-			Id:          primitive.NewObjectID(),
+		token := &auth.Token{
+			ID:          primitive.NewObjectID(),
 			Token:       makeSampleToken(),
 			CreatedTime: time.Now(),
 			LastUsed:    time.Now(),
 			Nickname:    "nickname",
 			Owner:       "owner",
-			CreatedBy:   "towerId",
+			CreatedBy:   "towerID",
 		}
-		err := SaveToken(ctx, token)
+		err := auth.SaveToken(ctx, token)
 		assert.NoError(t, err)
 
-		tokens, err := GetTokensByUser(ctx, "owner")
+		tokens, err := auth.GetTokensByUser(ctx, "owner")
 
 		assert.NoError(t, err)
 		assert.NotNil(t, tokens)
@@ -93,23 +93,23 @@ func TestGetTokensByUser(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		ctx = context.WithValue(ctx, "towerId", "towerId")
-		tokens, err := GetTokensByUser(ctx, "nonexistent")
+		ctx = context.WithValue(ctx, "towerID", "towerID") //nolint:revive
+		tokens, err := auth.GetTokensByUser(ctx, "nonexistent")
 
 		assert.NoError(t, err)
 		assert.Empty(t, tokens)
 	})
 }
 
-func TestGetTokenById(t *testing.T) {
-	ctx := db.SetupTestDB(t, TokenCollectionKey)
+func TestGetTokenByID(t *testing.T) {
+	ctx := db.SetupTestDB(t, auth.TokenCollectionKey)
 
 	t.Run("found", func(t *testing.T) {
-		ctx = context.WithValue(ctx, "towerId", "towerId")
-		tokenId := primitive.NewObjectID()
+		ctx = context.WithValue(ctx, "towerID", "towerID") //nolint:revive
+		tokenID := primitive.NewObjectID()
 		// Create a mock token
-		token := &Token{
-			Id:          tokenId,
+		token := &auth.Token{
+			ID:          tokenID,
 			Token:       makeSampleToken(),
 			CreatedTime: time.Now(),
 			LastUsed:    time.Now(),
@@ -117,34 +117,34 @@ func TestGetTokenById(t *testing.T) {
 			Owner:       "owner",
 			CreatedBy:   "createdBy",
 		}
-		err := SaveToken(ctx, token)
+		err := auth.SaveToken(ctx, token)
 		assert.NoError(t, err)
 
-		token, err = GetTokenById(ctx, tokenId)
+		token, err = auth.GetTokenByID(ctx, tokenID)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, token)
-		assert.Equal(t, tokenId, token.Id)
+		assert.Equal(t, tokenID, token.ID)
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		ctx = context.WithValue(ctx, "towerId", "towerId")
-		token, err := GetTokenById(ctx, primitive.NewObjectID())
+		ctx = context.WithValue(ctx, "towerID", "towerID") //nolint:revive
+		token, err := auth.GetTokenByID(ctx, primitive.NewObjectID())
 
 		assert.Nil(t, token)
-		assert.Equal(t, ErrTokenNotFound, err)
+		assert.Equal(t, auth.ErrTokenNotFound, err)
 	})
 }
 
 func TestGetToken(t *testing.T) {
-	ctx := db.SetupTestDB(t, TokenCollectionKey)
+	ctx := db.SetupTestDB(t, auth.TokenCollectionKey)
 
 	t.Run("found", func(t *testing.T) {
-		ctx = context.WithValue(ctx, "towerId", "towerId")
+		ctx = context.WithValue(ctx, "towerID", "towerID") //nolint:revive
 		// Create a mock token
 		sampleToken := makeSampleToken()
-		token := Token{
-			Id:          primitive.NewObjectID(),
+		token := auth.Token{
+			ID:          primitive.NewObjectID(),
 			Token:       sampleToken,
 			CreatedTime: time.Now(),
 			LastUsed:    time.Now(),
@@ -152,44 +152,44 @@ func TestGetToken(t *testing.T) {
 			Owner:       "owner",
 			CreatedBy:   "createdBy",
 		}
-		err := SaveToken(ctx, &token)
+		err := auth.SaveToken(ctx, &token)
 		assert.NoError(t, err)
 
-		token, err = GetToken(ctx, sampleToken)
+		token, err = auth.GetToken(ctx, sampleToken)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, token)
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		ctx = context.WithValue(ctx, "towerId", "towerId")
+		ctx = context.WithValue(ctx, "towerID", "towerID") //nolint:revive
 		tokenBytes := [32]byte{}
-		token, err := GetToken(ctx, tokenBytes)
+		token, err := auth.GetToken(ctx, tokenBytes)
 
 		assert.Error(t, err)
-		assert.Equal(t, Token{}, token)
+		assert.Equal(t, auth.Token{}, token)
 	})
 }
 
-func TestGetAllTokensByTowerId(t *testing.T) {
-	ctx := db.SetupTestDB(t, TokenCollectionKey)
+func TestGetAllTokensByTowerID(t *testing.T) {
+	ctx := db.SetupTestDB(t, auth.TokenCollectionKey)
 
 	t.Run("found", func(t *testing.T) {
-		towerId := "mockTowerId"
+		towerID := "mockTowerID"
 		// Create a mock token
-		token := &Token{
-			Id:          primitive.NewObjectID(),
+		token := &auth.Token{
+			ID:          primitive.NewObjectID(),
 			Token:       makeSampleToken(),
 			CreatedTime: time.Now(),
 			LastUsed:    time.Now(),
 			Nickname:    "nickname",
 			Owner:       "owner",
-			CreatedBy:   towerId,
+			CreatedBy:   towerID,
 		}
-		err := SaveToken(ctx, token)
+		err := auth.SaveToken(ctx, token)
 		assert.NoError(t, err)
 
-		tokens, err := GetAllTokensByTowerId(ctx, towerId)
+		tokens, err := auth.GetAllTokensByTowerID(ctx, towerID)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, tokens)
@@ -197,8 +197,8 @@ func TestGetAllTokensByTowerId(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		ctx = context.WithValue(ctx, "towerId", "towerId")
-		tokens, err := GetAllTokensByTowerId(ctx, "nonexistent")
+		ctx = context.WithValue(ctx, "towerID", "towerID") //nolint:revive
+		tokens, err := auth.GetAllTokensByTowerID(ctx, "nonexistent")
 
 		assert.NoError(t, err)
 		assert.Empty(t, tokens)
@@ -206,14 +206,14 @@ func TestGetAllTokensByTowerId(t *testing.T) {
 }
 
 func TestDeleteToken(t *testing.T) {
-	ctx := db.SetupTestDB(t, TokenCollectionKey)
+	ctx := db.SetupTestDB(t, auth.TokenCollectionKey)
 
 	t.Run("success", func(t *testing.T) {
-		ctx = context.WithValue(ctx, "towerId", "towerId")
-		tokenId := primitive.NewObjectID()
+		ctx = context.WithValue(ctx, "towerID", "towerID") //nolint:revive
+		tokenID := primitive.NewObjectID()
 		// Create a mock token
-		token := &Token{
-			Id:          tokenId,
+		token := &auth.Token{
+			ID:          tokenID,
 			Token:       makeSampleToken(),
 			CreatedTime: time.Now(),
 			LastUsed:    time.Now(),
@@ -221,17 +221,17 @@ func TestDeleteToken(t *testing.T) {
 			Owner:       "owner",
 			CreatedBy:   "createdBy",
 		}
-		err := SaveToken(ctx, token)
+		err := auth.SaveToken(ctx, token)
 		assert.NoError(t, err)
 
-		err = DeleteToken(ctx, tokenId)
+		err = auth.DeleteToken(ctx, tokenID)
 
 		assert.NoError(t, err)
 
 		// Verify deletion
-		token, err = GetTokenById(ctx, tokenId)
+		token, err = auth.GetTokenByID(ctx, tokenID)
 		assert.Error(t, err)
 		assert.Nil(t, token)
-		assert.Equal(t, ErrTokenNotFound, err)
+		assert.Equal(t, auth.ErrTokenNotFound, err)
 	})
 }

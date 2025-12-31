@@ -11,10 +11,11 @@ package openapi
 
 import (
 	"context"
+	"testing"
+
+	openapiclient "github.com/ethanrous/weblens/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
-	openapiclient "github.com/ethanrous/weblens/api"
 )
 
 func Test_openapi_FolderAPIService(t *testing.T) {
@@ -24,7 +25,7 @@ func Test_openapi_FolderAPIService(t *testing.T) {
 
 	t.Run("Test FolderAPIService CreateFolder", func(t *testing.T) {
 
-		t.Skip("skip test")  // remove to run test
+		t.Skip("skip test") // remove to run test
 
 		resp, httpRes, err := apiClient.FolderAPI.CreateFolder(context.Background()).Execute()
 
@@ -36,11 +37,11 @@ func Test_openapi_FolderAPIService(t *testing.T) {
 
 	t.Run("Test FolderAPIService GetFolder", func(t *testing.T) {
 
-		t.Skip("skip test")  // remove to run test
+		t.Skip("skip test") // remove to run test
 
-		var folderId string
+		var folderID string
 
-		resp, httpRes, err := apiClient.FolderAPI.GetFolder(context.Background(), folderId).Execute()
+		resp, httpRes, err := apiClient.FolderAPI.GetFolder(context.Background(), folderID).Execute()
 
 		require.Nil(t, err)
 		require.NotNil(t, resp)
@@ -50,11 +51,11 @@ func Test_openapi_FolderAPIService(t *testing.T) {
 
 	t.Run("Test FolderAPIService GetFolderHistory", func(t *testing.T) {
 
-		t.Skip("skip test")  // remove to run test
+		t.Skip("skip test") // remove to run test
 
-		var fileId string
+		var fileID string
 
-		resp, httpRes, err := apiClient.FolderAPI.GetFolderHistory(context.Background(), fileId).Execute()
+		resp, httpRes, err := apiClient.FolderAPI.GetFolderHistory(context.Background(), fileID).Execute()
 
 		require.Nil(t, err)
 		require.NotNil(t, resp)
@@ -64,22 +65,22 @@ func Test_openapi_FolderAPIService(t *testing.T) {
 
 	t.Run("Test FolderAPIService ScanFolder", func(t *testing.T) {
 
-		t.Skip("skip test")  // remove to run test
+		t.Skip("skip test") // remove to run test
 
-		httpRes, err := apiClient.FolderAPI.ScanFolder(context.Background()).Execute()
+		// httpRes, err := apiClient.FolderAPI.ScanFolder(context.Background()).Execute()
 
-		require.Nil(t, err)
-		assert.Equal(t, 200, httpRes.StatusCode)
+		// require.Nil(t, err)
+		// assert.Equal(t, 200, httpRes.StatusCode)
 
 	})
 
 	t.Run("Test FolderAPIService SetFolderCover", func(t *testing.T) {
 
-		t.Skip("skip test")  // remove to run test
+		t.Skip("skip test") // remove to run test
 
-		var folderId string
+		var folderID string
 
-		httpRes, err := apiClient.FolderAPI.SetFolderCover(context.Background(), folderId).Execute()
+		httpRes, err := apiClient.FolderAPI.SetFolderCover(context.Background(), folderID).Execute()
 
 		require.Nil(t, err)
 		assert.Equal(t, 200, httpRes.StatusCode)

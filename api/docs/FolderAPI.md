@@ -5,16 +5,16 @@ All URIs are relative to *http://localhost:8080/api/v1*
 Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**CreateFolder**](FolderAPI.md#CreateFolder) | **Post** /folder | Create a new folder
-[**GetFolder**](FolderAPI.md#GetFolder) | **Get** /folder/{folderId} | Get a folder
-[**GetFolderHistory**](FolderAPI.md#GetFolderHistory) | **Get** /files/{fileId}/history | Get actions of a folder at a given time
-[**ScanFolder**](FolderAPI.md#ScanFolder) | **Post** /folder/{folderId}/scan | Dispatch a folder scan
-[**SetFolderCover**](FolderAPI.md#SetFolderCover) | **Patch** /folder/{folderId}/cover | Set the cover image of a folder
+[**GetFolder**](FolderAPI.md#GetFolder) | **Get** /folder/{folderID} | Get a folder
+[**GetFolderHistory**](FolderAPI.md#GetFolderHistory) | **Get** /files/{fileID}/history | Get actions of a folder at a given time
+[**ScanFolder**](FolderAPI.md#ScanFolder) | **Post** /folder/{folderID}/scan | Dispatch a folder scan
+[**SetFolderCover**](FolderAPI.md#SetFolderCover) | **Patch** /folder/{folderID}/cover | Set the cover image of a folder
 
 
 
 ## CreateFolder
 
-> FileInfo CreateFolder(ctx).Request(request).ShareId(shareId).Execute()
+> FileInfo CreateFolder(ctx).Request(request).ShareID(shareID).Execute()
 
 Create a new folder
 
@@ -31,12 +31,12 @@ import (
 )
 
 func main() {
-	request := *openapiclient.NewCreateFolderBody("NewFolderName_example", "ParentFolderId_example") // CreateFolderBody | New folder body
-	shareId := "shareId_example" // string | Share Id (optional)
+	request := *openapiclient.NewCreateFolderBody("NewFolderName_example", "ParentFolderID_example") // CreateFolderBody | New folder body
+	shareID := "shareID_example" // string | Share ID (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.FolderAPI.CreateFolder(context.Background()).Request(request).ShareId(shareId).Execute()
+	resp, r, err := apiClient.FolderAPI.CreateFolder(context.Background()).Request(request).ShareID(shareID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FolderAPI.CreateFolder``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -58,7 +58,7 @@ Other parameters are passed through a pointer to a apiCreateFolderRequest struct
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **request** | [**CreateFolderBody**](CreateFolderBody.md) | New folder body | 
- **shareId** | **string** | Share Id | 
+ **shareID** | **string** | Share ID | 
 
 ### Return type
 
@@ -80,7 +80,7 @@ No authorization required
 
 ## GetFolder
 
-> FolderInfo GetFolder(ctx, folderId).ShareId(shareId).Timestamp(timestamp).Execute()
+> FolderInfo GetFolder(ctx, folderID).ShareID(shareID).Timestamp(timestamp).Execute()
 
 Get a folder
 
@@ -97,13 +97,13 @@ import (
 )
 
 func main() {
-	folderId := "folderId_example" // string | Folder Id
-	shareId := "shareId_example" // string | Share Id (optional)
+	folderID := "folderID_example" // string | Folder ID
+	shareID := "shareID_example" // string | Share ID (optional)
 	timestamp := int32(56) // int32 | Past timestamp to view the folder at, in ms since epoch (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.FolderAPI.GetFolder(context.Background(), folderId).ShareId(shareId).Timestamp(timestamp).Execute()
+	resp, r, err := apiClient.FolderAPI.GetFolder(context.Background(), folderID).ShareID(shareID).Timestamp(timestamp).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FolderAPI.GetFolder``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -119,7 +119,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**folderId** | **string** | Folder Id | 
+**folderID** | **string** | Folder ID | 
 
 ### Other Parameters
 
@@ -129,7 +129,7 @@ Other parameters are passed through a pointer to a apiGetFolderRequest struct vi
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
- **shareId** | **string** | Share Id | 
+ **shareID** | **string** | Share ID | 
  **timestamp** | **int32** | Past timestamp to view the folder at, in ms since epoch | 
 
 ### Return type
@@ -152,7 +152,7 @@ No authorization required
 
 ## GetFolderHistory
 
-> []FileActionInfo GetFolderHistory(ctx, fileId).Timestamp(timestamp).Execute()
+> []FileActionInfo GetFolderHistory(ctx, fileID).Timestamp(timestamp).Execute()
 
 Get actions of a folder at a given time
 
@@ -169,12 +169,12 @@ import (
 )
 
 func main() {
-	fileId := "fileId_example" // string | File Id
+	fileID := "fileID_example" // string | File ID
 	timestamp := int32(56) // int32 | Past timestamp to view the folder at, in ms since epoch
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.FolderAPI.GetFolderHistory(context.Background(), fileId).Timestamp(timestamp).Execute()
+	resp, r, err := apiClient.FolderAPI.GetFolderHistory(context.Background(), fileID).Timestamp(timestamp).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FolderAPI.GetFolderHistory``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -190,7 +190,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**fileId** | **string** | File Id | 
+**fileID** | **string** | File ID | 
 
 ### Other Parameters
 
@@ -222,7 +222,7 @@ No authorization required
 
 ## ScanFolder
 
-> TaskInfo ScanFolder(ctx, folderId).ShareId(shareId).Execute()
+> TaskInfo ScanFolder(ctx, folderID).ShareID(shareID).Execute()
 
 Dispatch a folder scan
 
@@ -239,12 +239,12 @@ import (
 )
 
 func main() {
-	folderId := "folderId_example" // string | Folder Id
-	shareId := "shareId_example" // string | Share Id (optional)
+	folderID := "folderID_example" // string | Folder ID
+	shareID := "shareID_example" // string | Share ID (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.FolderAPI.ScanFolder(context.Background(), folderId).ShareId(shareId).Execute()
+	resp, r, err := apiClient.FolderAPI.ScanFolder(context.Background(), folderID).ShareID(shareID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FolderAPI.ScanFolder``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -260,7 +260,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**folderId** | **string** | Folder Id | 
+**folderID** | **string** | Folder ID | 
 
 ### Other Parameters
 
@@ -270,7 +270,7 @@ Other parameters are passed through a pointer to a apiScanFolderRequest struct v
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
- **shareId** | **string** | Share Id | 
+ **shareID** | **string** | Share ID | 
 
 ### Return type
 
@@ -292,7 +292,7 @@ No authorization required
 
 ## SetFolderCover
 
-> SetFolderCover(ctx, folderId).MediaId(mediaId).Execute()
+> SetFolderCover(ctx, folderID).MediaID(mediaID).Execute()
 
 Set the cover image of a folder
 
@@ -309,12 +309,12 @@ import (
 )
 
 func main() {
-	folderId := "folderId_example" // string | Folder Id
-	mediaId := "mediaId_example" // string | Media Id
+	folderID := "folderID_example" // string | Folder ID
+	mediaID := "mediaID_example" // string | Media ID
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	r, err := apiClient.FolderAPI.SetFolderCover(context.Background(), folderId).MediaId(mediaId).Execute()
+	r, err := apiClient.FolderAPI.SetFolderCover(context.Background(), folderID).MediaID(mediaID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FolderAPI.SetFolderCover``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -328,7 +328,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**folderId** | **string** | Folder Id | 
+**folderID** | **string** | Folder ID | 
 
 ### Other Parameters
 
@@ -338,7 +338,7 @@ Other parameters are passed through a pointer to a apiSetFolderCoverRequest stru
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
- **mediaId** | **string** | Media Id | 
+ **mediaID** | **string** | Media ID | 
 
 ### Return type
 

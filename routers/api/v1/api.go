@@ -1,3 +1,4 @@
+// Package v1 provides the version 1 API routes and handlers for the Weblens application.
 package v1
 
 import (
@@ -12,12 +13,13 @@ import (
 	user_api "github.com/ethanrous/weblens/routers/api/v1/user"
 	"github.com/ethanrous/weblens/routers/api/v1/websocket"
 	"github.com/ethanrous/weblens/routers/router"
-	context_service "github.com/ethanrous/weblens/services/context"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
-func Routes(ctx context_service.AppContext) *router.Router {
+// Routes creates and configures the version 1 API router with all route handlers and middleware.
+func Routes(_ context_service.AppContext) *router.Router {
 	r := router.NewRouter()
 
 	r.Use(
@@ -32,7 +34,7 @@ func Routes(ctx context_service.AppContext) *router.Router {
 	r.Group("/media", func() {
 		r.Get("/types", media_api.GetMediaTypes)
 
-		r.Group("/{mediaId}", func() {
+		r.Group("/{mediaID}", func() {
 			r.Get("/info", media_api.GetMediaInfo)
 			r.Get(".{extension}", media_api.GetMediaImage)
 			r.Get("/stream", media_api.StreamVideo)
@@ -41,7 +43,7 @@ func Routes(ctx context_service.AppContext) *router.Router {
 		})
 
 		r.Group("", func() {
-			r.Get("/{mediaId}/file", media_api.GetMediaFile)
+			r.Get("/{mediaID}/file", media_api.GetMediaFile)
 			r.Post("/cleanup", media_api.CleanupMedia)
 			r.Post("/drop", router.RequireOwner, media_api.DropMedia)
 			r.Post("/drop/hdirs", router.RequireOwner, media_api.DropHDIRs)
@@ -66,7 +68,7 @@ func Routes(ctx context_service.AppContext) *router.Router {
 		r.Post("/restore", file_api.RestoreFiles)
 		r.Get("/shared", file_api.GetSharedFiles)
 
-		r.Group("/{fileId}", func() {
+		r.Group("/{fileID}", func() {
 			r.Get("", file_api.GetFile)
 			r.Patch("", file_api.UpdateFile)
 			r.Get("/text", file_api.GetFileText)
@@ -78,7 +80,7 @@ func Routes(ctx context_service.AppContext) *router.Router {
 
 	// Folder
 	r.Group("/folder", func() {
-		r.Group("/{folderId}", func() {
+		r.Group("/{folderID}", func() {
 			r.Get("", file_api.GetFolder)
 			r.Post("/scan", file_api.ScanDir)
 			r.Patch("/cover", router.RequireSignIn, file_api.SetFolderCover)
@@ -93,10 +95,10 @@ func Routes(ctx context_service.AppContext) *router.Router {
 	// Upload
 	r.Group("/upload", func() {
 		r.Post("", file_api.NewUploadTask)
-		r.Group("/{uploadId}", func() {
+		r.Group("/{uploadID}", func() {
 			r.Get("", file_api.GetUploadResult)
 			r.Post("", file_api.NewFileUpload)
-			r.Put("/file/{fileId}", file_api.HandleUploadChunk)
+			r.Put("/file/{fileID}", file_api.HandleUploadChunk)
 		})
 	}, router.RequireSignIn, router.RequireCoreTower)
 
@@ -129,7 +131,7 @@ func Routes(ctx context_service.AppContext) *router.Router {
 	// Share
 	r.Group("/share", func() {
 		r.Post("/file", file_api.CreateFileShare)
-		r.Group("/{shareId}", func() {
+		r.Group("/{shareID}", func() {
 			r.Get("", file_api.GetFileShare)
 			r.Patch("/public", router.RequireSignIn, file_api.SetSharePublic)
 			r.Delete("", router.RequireSignIn, file_api.DeleteShare)
@@ -145,8 +147,8 @@ func Routes(ctx context_service.AppContext) *router.Router {
 	// ApiKeys
 	r.Group("/keys", func() {
 		r.Get("", user_api.GetMyTokens)
-		r.Post("", user_api.CreateApiKey)
-		r.Delete("/{keyId}", user_api.DeleteToken)
+		r.Post("", user_api.CreateAPIKey)
+		r.Delete("/{keyID}", user_api.DeleteToken)
 	}, router.RequireSignIn, router.RequireCoreTower)
 
 	// Servers
@@ -162,10 +164,10 @@ func Routes(ctx context_service.AppContext) *router.Router {
 
 			r.Get("/backup", history_api.DoFullBackup)
 
-			r.Post("/{serverId}/backup", backup_api.LaunchBackup)
-			// r.Post("/{serverId}/restore", restoreToCore)
-			// r.Patch("/{serverId}", updateRemote)
-			r.Delete("/{serverId}", tower_api.DeleteRemote)
+			r.Post("/{serverID}/backup", backup_api.LaunchBackup)
+			// r.Post("/{serverID}/restore", restoreToCore)
+			// r.Patch("/{serverID}", updateRemote)
+			r.Delete("/{serverID}", tower_api.DeleteRemote)
 
 			r.Delete("/cache", tower_api.DeleteRemote)
 		}, router.RequireAdmin)
@@ -179,6 +181,7 @@ func Routes(ctx context_service.AppContext) *router.Router {
 	return r
 }
 
+// Docs returns an HTTP handler that serves the Swagger API documentation.
 func Docs() http.Handler {
 	// Kinda hacky, but allows for docs to be served from /docs/ instead of /docs/index.html
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {

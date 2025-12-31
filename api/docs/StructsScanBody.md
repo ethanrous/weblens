@@ -5,7 +5,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **Filename** | Pointer to **string** |  | [optional] 
-**FolderId** | Pointer to **string** |  | [optional] 
+**FolderID** | Pointer to **string** |  | [optional] 
 
 ## Methods
 
@@ -53,28 +53,28 @@ HasFilename returns a boolean if a field has been set.
 
 ### GetFolderId
 
-`func (o *StructsScanBody) GetFolderId() string`
+`func (o *StructsScanBody) GetFolderID() string`
 
-GetFolderId returns the FolderId field if non-nil, zero value otherwise.
+GetFolderID returns the FolderID field if non-nil, zero value otherwise.
 
-### GetFolderIdOk
+### GetFolderIDOk
 
-`func (o *StructsScanBody) GetFolderIdOk() (*string, bool)`
+`func (o *StructsScanBody) GetFolderIDOk() (*string, bool)`
 
-GetFolderIdOk returns a tuple with the FolderId field if it's non-nil, zero value otherwise
+GetFolderIDOk returns a tuple with the FolderID field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
 ### SetFolderId
 
-`func (o *StructsScanBody) SetFolderId(v string)`
+`func (o *StructsScanBody) SetFolderID(v string)`
 
-SetFolderId sets FolderId field to given value.
+SetFolderID sets FolderID field to given value.
 
 ### HasFolderId
 
-`func (o *StructsScanBody) HasFolderId() bool`
+`func (o *StructsScanBody) HasFolderID() bool`
 
-HasFolderId returns a boolean if a field has been set.
+HasFolderID returns a boolean if a field has been set.
 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

@@ -5,17 +5,17 @@ import (
 	"encoding/base64"
 	"time"
 
-	openapi "github.com/ethanrous/weblens/api"
 	auth_model "github.com/ethanrous/weblens/models/auth"
 	"github.com/ethanrous/weblens/modules/structs"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func TokenToTokenInfo(ctx context.Context, t *auth_model.Token) structs.TokenInfo {
+// TokenToTokenInfo converts an auth Token to a TokenInfo structure suitable for API responses.
+func TokenToTokenInfo(_ context.Context, t *auth_model.Token) structs.TokenInfo {
 	tokenStr := base64.StdEncoding.EncodeToString(t.Token[:])
 
 	return structs.TokenInfo{
-		Id:          t.Id.Hex(),
+		ID:          t.ID.Hex(),
 		CreatedTime: t.CreatedTime.UnixMilli(),
 		LastUsed:    t.LastUsed.UnixMilli(),
 		Nickname:    t.Nickname,
@@ -26,8 +26,9 @@ func TokenToTokenInfo(ctx context.Context, t *auth_model.Token) structs.TokenInf
 	}
 }
 
-func TokenInfoToToken(ctx context.Context, t openapi.TokenInfo) (*auth_model.Token, error) {
-	id, _ := primitive.ObjectIDFromHex(t.Id)
+// TokenInfoToToken converts a TokenInfo from the API to an auth Token.
+func TokenInfoToToken(_ context.Context, t structs.TokenInfo) (*auth_model.Token, error) {
+	id, _ := primitive.ObjectIDFromHex(t.ID)
 
 	tokenSlice, err := base64.StdEncoding.DecodeString(t.Token)
 	if err != nil {
@@ -39,7 +40,7 @@ func TokenInfoToToken(ctx context.Context, t openapi.TokenInfo) (*auth_model.Tok
 	copy(token[:], tokenSlice)
 
 	return &auth_model.Token{
-		Id:          id,
+		ID:          id,
 		CreatedTime: time.UnixMilli(t.CreatedTime),
 		LastUsed:    time.UnixMilli(t.LastUsed),
 		Nickname:    t.Nickname,
@@ -50,10 +51,12 @@ func TokenInfoToToken(ctx context.Context, t openapi.TokenInfo) (*auth_model.Tok
 	}, nil
 }
 
+// TokensToTokenInfos converts a slice of auth Tokens to a slice of TokenInfo structures suitable for API responses.
 func TokensToTokenInfos(ctx context.Context, tokens []*auth_model.Token) []structs.TokenInfo {
 	tokenInfos := make([]structs.TokenInfo, len(tokens))
 	for i, t := range tokens {
 		tokenInfos[i] = TokenToTokenInfo(ctx, t)
 	}
+
 	return tokenInfos
 }

@@ -1,3 +1,4 @@
+// Package db provides MongoDB database operations with context integration and caching support.
 package db
 
 import (
@@ -5,9 +6,9 @@ import (
 	"encoding/json"
 
 	"github.com/ethanrous/weblens/modules/config"
-	context_mod "github.com/ethanrous/weblens/modules/context"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/log"
+	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/rs/zerolog"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -15,21 +16,27 @@ import (
 )
 
 const (
-	DatabaseContextKey   = "database"
+	// DatabaseContextKey is the context key for accessing the MongoDB database instance.
+	DatabaseContextKey = "database"
+	// CollectionContextKey is the context key for accessing the collection name.
 	CollectionContextKey = "collection"
 )
 
-var ErrNoDatabase = errors.New("context is not a DatabaseContext")
+// ErrNoDatabase indicates that the context does not contain a database instance.
+var ErrNoDatabase = wlerrors.New("context is not a DatabaseContext")
 
+// ContextualizedCollection wraps a MongoDB collection with context for logging and caching.
 type ContextualizedCollection[T any] struct {
 	ctx        context.Context
 	collection *mongo.Collection
 }
 
+// GetCollection returns the underlying MongoDB collection.
 func (c *ContextualizedCollection[T]) GetCollection() *mongo.Collection {
 	return c.collection
 }
 
+// InsertOne inserts a single document into the collection and invalidates the cache.
 func (c *ContextualizedCollection[T]) InsertOne(_ context.Context, document any, opts ...*options.InsertOneOptions) (*mongo.InsertOneResult, error) {
 	log.FromContext(c.ctx).Trace().Func(func(e *zerolog.Event) {
 		docStr, err := json.Marshal(document)
@@ -52,12 +59,14 @@ func (c *ContextualizedCollection[T]) InsertOne(_ context.Context, document any,
 	return c.collection.InsertOne(c.ctx, document, opts...)
 }
 
+// InsertMany inserts multiple documents into the collection.
 func (c *ContextualizedCollection[T]) InsertMany(_ context.Context, documents []any, opts ...*options.InsertManyOptions) (*mongo.InsertManyResult, error) {
 	log.FromContext(c.ctx).Trace().Msgf("Insert many on collection [%s] with %d documents", c.collection.Name(), len(documents))
 
 	return c.collection.InsertMany(c.ctx, documents, opts...)
 }
 
+// UpdateOne updates a single document matching the filter and invalidates the cache.
 func (c *ContextualizedCollection[T]) UpdateOne(_ context.Context, filter, update any, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error) {
 	log.FromContext(c.ctx).Trace().Msgf("UpdateOne on collection [%s] with filter %v", c.collection.Name(), filter)
 
@@ -74,12 +83,13 @@ func (c *ContextualizedCollection[T]) UpdateOne(_ context.Context, filter, updat
 	}
 
 	if res.MatchedCount == 0 && res.UpsertedCount == 0 {
-		return res, errors.Errorf("no documents matched the filter: %v", filter)
+		return res, wlerrors.Errorf("no documents matched the filter: %v", filter)
 	}
 
 	return res, nil
 }
 
+// UpdateMany updates all documents matching the filter and invalidates the cache.
 func (c *ContextualizedCollection[T]) UpdateMany(_ context.Context, filter, update any, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error) {
 	log.FromContext(c.ctx).Trace().Msgf("UpdateMany on collection [%s] with filter %v", c.collection.Name(), filter)
 
@@ -98,6 +108,7 @@ func (c *ContextualizedCollection[T]) UpdateMany(_ context.Context, filter, upda
 	return res, nil
 }
 
+// ReplaceOne replaces a single document matching the filter and invalidates the cache.
 func (c *ContextualizedCollection[T]) ReplaceOne(_ context.Context, filter, replacement any, opts ...*options.ReplaceOptions) (*mongo.UpdateResult, error) {
 	log.FromContext(c.ctx).Trace().Msgf("ReplaceOne on collection [%s] with filter %v", c.collection.Name(), filter)
 
@@ -111,6 +122,7 @@ func (c *ContextualizedCollection[T]) ReplaceOne(_ context.Context, filter, repl
 	return c.collection.ReplaceOne(c.ctx, filter, replacement, opts...)
 }
 
+// FindOne finds a single document matching the filter with cache support.
 func (c *ContextualizedCollection[T]) FindOne(_ context.Context, filter any, opts ...*options.FindOneOptions) Decoder[T] {
 	if config.GetConfig().DoCache {
 		cache := context_mod.ToZ(c.ctx).GetCache(c.collection.Name())
@@ -135,6 +147,7 @@ func (c *ContextualizedCollection[T]) FindOne(_ context.Context, filter any, opt
 	return &mongoDecoder[T]{ctx: c.ctx, res: ret, filter: filter, col: c.collection.Name(), err: ret.Err()}
 }
 
+// FindOneAs finds a single document matching the filter and decodes it into the result type.
 func (c *ContextualizedCollection[T]) FindOneAs(_ context.Context, filter any, opts ...*options.FindOneOptions) (T, error) {
 	log.FromContext(c.ctx).Trace().Msgf("FindOneAs on collection [%s] with filter %v", c.collection.Name(), filter)
 
@@ -148,26 +161,31 @@ func (c *ContextualizedCollection[T]) FindOneAs(_ context.Context, filter any, o
 	return result, nil
 }
 
+// Find finds all documents matching the filter and returns a cursor.
 func (c *ContextualizedCollection[T]) Find(_ context.Context, filter any, opts ...*options.FindOptions) (*mongo.Cursor, error) {
 	log.FromContext(c.ctx).Trace().Msgf("Find on collection [%s] with filter %v", c.collection.Name(), filter)
 
 	return c.collection.Find(c.ctx, filter, opts...)
 }
 
+// CountDocuments counts the number of documents matching the filter.
 func (c *ContextualizedCollection[T]) CountDocuments(_ context.Context, filter any, opts ...*options.CountOptions) (int64, error) {
 	log.FromContext(c.ctx).Trace().Msgf("CountDocuments on collection [%s] with filter %v", c.collection.Name(), filter)
 
 	return c.collection.CountDocuments(c.ctx, filter, opts...)
 }
 
+// DeleteOne deletes a single document matching the filter.
 func (c *ContextualizedCollection[T]) DeleteOne(_ context.Context, filter any, opts ...*options.DeleteOptions) (*mongo.DeleteResult, error) {
 	return c.collection.DeleteOne(c.ctx, filter, opts...)
 }
 
+// DeleteMany deletes all documents matching the filter.
 func (c *ContextualizedCollection[T]) DeleteMany(_ context.Context, filter any, opts ...*options.DeleteOptions) (*mongo.DeleteResult, error) {
 	return c.collection.DeleteMany(c.ctx, filter, opts...)
 }
 
+// Aggregate executes an aggregation pipeline and returns a cursor with the results.
 func (c *ContextualizedCollection[T]) Aggregate(_ context.Context, pipeline any, opts ...*options.AggregateOptions) (*mongo.Cursor, error) {
 	cursor, err := c.collection.Aggregate(c.ctx, pipeline, opts...)
 
@@ -181,9 +199,10 @@ func (c *ContextualizedCollection[T]) Aggregate(_ context.Context, pipeline any,
 		e.Msgf("Aggregate on collection [%s] got %d results", c.collection.Name(), cursor.RemainingBatchLength())
 	})
 
-	return cursor, errors.WithStack(err)
+	return cursor, wlerrors.WithStack(err)
 }
 
+// Drop removes the entire collection and invalidates the cache.
 func (c *ContextualizedCollection[T]) Drop(ctx context.Context) error {
 	select {
 	case <-c.ctx.Done():
@@ -203,12 +222,12 @@ func (c *ContextualizedCollection[T]) Drop(ctx context.Context) error {
 
 func getDbFromContext(ctx context.Context) (*mongo.Database, error) {
 	if ctx == nil {
-		return nil, errors.WithStack(ErrNoDatabase)
+		return nil, wlerrors.WithStack(ErrNoDatabase)
 	}
 
 	dbAny := ctx.Value(DatabaseContextKey)
 	if dbAny == nil {
-		return nil, errors.WithStack(ErrNoDatabase)
+		return nil, wlerrors.WithStack(ErrNoDatabase)
 	}
 
 	db, ok := dbAny.(*mongo.Database)
@@ -216,9 +235,10 @@ func getDbFromContext(ctx context.Context) (*mongo.Database, error) {
 		return db, nil
 	}
 
-	return nil, errors.WithStack(ErrNoDatabase)
+	return nil, wlerrors.WithStack(ErrNoDatabase)
 }
 
+// GetCollection retrieves a contextualized collection from the database in the context.
 func GetCollection[T any](ctx context.Context, collectionName string) (*ContextualizedCollection[T], error) {
 	db, err := getDbFromContext(ctx)
 	if err != nil {

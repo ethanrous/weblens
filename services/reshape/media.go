@@ -5,11 +5,12 @@ import (
 	"github.com/ethanrous/weblens/modules/structs"
 )
 
+// MediaToMediaInfo converts a Media model to a MediaInfo transfer object.
 func MediaToMediaInfo(m *media_model.Media) structs.MediaInfo {
 	return structs.MediaInfo{
-		MediaId:         m.MediaID.Hex(),
-		ContentId:       m.ContentID,
-		FileIds:         m.FileIDs,
+		MediaID:         m.MediaID.Hex(),
+		ContentID:       m.ContentID,
+		FileIDs:         m.FileIDs,
 		CreateDate:      m.CreateDate.UnixMilli(),
 		Owner:           m.Owner,
 		Width:           m.Width,
@@ -26,6 +27,7 @@ func MediaToMediaInfo(m *media_model.Media) structs.MediaInfo {
 	}
 }
 
+// NewMediaBatchInfo creates a batch media information object from a slice of Media models.
 func NewMediaBatchInfo(m []*media_model.Media) structs.MediaBatchInfo {
 	if len(m) == 0 {
 		return structs.MediaBatchInfo{
@@ -45,7 +47,8 @@ func NewMediaBatchInfo(m []*media_model.Media) structs.MediaBatchInfo {
 	}
 }
 
-func MediaTypeToMediaTypeInfo(mt media_model.MediaType) structs.MediaTypeInfo {
+// MediaTypeToMediaTypeInfo converts a MediaType model to a MediaTypeInfo transfer object.
+func MediaTypeToMediaTypeInfo(mt media_model.MType) structs.MediaTypeInfo {
 	return structs.MediaTypeInfo{
 		Mime:            mt.Mime,
 		Name:            mt.Name,

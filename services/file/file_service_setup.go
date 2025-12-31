@@ -12,22 +12,23 @@ import (
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/errors"
-	"github.com/ethanrous/weblens/modules/fs"
 	file_system "github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/startup"
-	context_service "github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/journal"
 )
 
-var ErrChildrenAlreadyLoaded = errors.Errorf("children already loaded")
+// ErrChildrenAlreadyLoaded indicates that a directory's children have already been loaded.
+var ErrChildrenAlreadyLoaded = wlerrors.Errorf("children already loaded")
 
 type doFileCreationContextKey struct{}
 
 func init() {
-	startup.RegisterStartup(loadFs)
+	startup.RegisterHook(loadFs)
 }
 
+// LoadFilesRecursively loads a directory and all its subdirectories into the file service.
 func LoadFilesRecursively(ctx context_service.AppContext, root *file_model.WeblensFileImpl) error {
 	appCtx, _ := context_service.FromContext(ctx)
 	searchFiles := []*file_model.WeblensFileImpl{root}
@@ -36,6 +37,7 @@ func LoadFilesRecursively(ctx context_service.AppContext, root *file_model.Weble
 
 	for len(searchFiles) != 0 {
 		var file *file_model.WeblensFileImpl
+
 		file, searchFiles = searchFiles[0], searchFiles[1:]
 
 		if !file.IsDir() {
@@ -44,7 +46,7 @@ func LoadFilesRecursively(ctx context_service.AppContext, root *file_model.Weble
 
 		newChildren, err := loadOneDirectory(ctx, file)
 		if err != nil {
-			return errors.Errorf("Failed to load directory %s: %w", file.GetPortablePath(), err)
+			return wlerrors.Errorf("Failed to load directory %s: %w", file.GetPortablePath(), err)
 		}
 
 		searchFiles = append(searchFiles, newChildren...)
@@ -55,23 +57,23 @@ func LoadFilesRecursively(ctx context_service.AppContext, root *file_model.Weble
 	return nil
 }
 
-func (fs *FileServiceImpl) makeRoot(ctx context.Context, rootPath file_system.Filepath) error {
+func (fs *ServiceImpl) makeRoot(ctx context.Context, rootPath file_system.Filepath) error {
 	var f *file_model.WeblensFileImpl
 
 	f = file_model.NewWeblensFile(file_model.NewFileOptions{
 		Path:       rootPath,
 		CreateNow:  true,
-		GenerateId: true,
+		GenerateID: true,
 	})
 
 	if f == nil {
-		return errors.New("failed to create root file")
+		return wlerrors.New("failed to create root file")
 	}
 
 	if rootPath.RelPath == "" {
 		fs.setFileInternal(rootPath.RootName(), f)
 	} else {
-		parent, err := fs.GetFileById(ctx, rootPath.RootName())
+		parent, err := fs.GetFileByID(ctx, rootPath.RootName())
 		if err != nil {
 			return err
 		}
@@ -90,10 +92,10 @@ func (fs *FileServiceImpl) makeRoot(ctx context.Context, rootPath file_system.Fi
 	return nil
 }
 
-func loadFs(ctx context.Context, cnf config.ConfigProvider) error {
+func loadFs(ctx context.Context, cnf config.Provider) error {
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
-		return errors.WithStack(context_service.ErrNoContext)
+		return wlerrors.WithStack(context_service.ErrNoContext)
 	}
 
 	err := file_system.RegisterAbsolutePrefix(file_model.RestoreTreeKey, filepath.Join(cnf.DataPath, ".restore"))
@@ -106,7 +108,7 @@ func loadFs(ctx context.Context, cnf config.ConfigProvider) error {
 		return err
 	}
 
-	fs := appCtx.FileService.(*FileServiceImpl)
+	fs := appCtx.FileService.(*ServiceImpl)
 
 	start := time.Now()
 
@@ -138,7 +140,7 @@ func loadFs(ctx context.Context, cnf config.ConfigProvider) error {
 			return err
 		}
 
-		if err := appCtx.FileService.(*FileServiceImpl).makeRoot(ctx, file_model.BackupRootPath); err != nil {
+		if err := appCtx.FileService.(*ServiceImpl).makeRoot(ctx, file_model.BackupRootPath); err != nil {
 			return err
 		}
 
@@ -178,34 +180,21 @@ func handleFileCreation(ctx context_service.AppContext, filepath file_system.Fil
 		}
 
 		if existingAction != nil {
-			return nil, errors.Errorf("File [%s] not found in pathMap but exists in history, inconsistent state", filepath)
+			return nil, wlerrors.Errorf("File [%s] not found in pathMap but exists in history, inconsistent state", filepath)
 		}
 
 		ctx.Log().Trace().Msgf("File [%s] not found in history, creating new file", filepath)
 
-		if needsContentId(f) {
-			// tsk, err := ctx.TaskService.DispatchJob(ctx, job_model.HashFileTask, job_model.HashFileMeta{File: f}, taskPool)
-			//
-			// if err != nil {
-			// 	return nil, err
-			// }
-			//
-			// tsk.Wait()
-			//
-			// contentId, ok := tsk.GetResult()["contentId"].(string)
-			// if !ok {
-			// 	return nil, errors.New("failed to get contentId from task result")
-			// }
-
-			newContentId, err := file_model.GenerateContentId(ctx, f)
+		if needsContentID(f) {
+			newContentID, err := file_model.GenerateContentID(ctx, f)
 			if err != nil {
 				return nil, err
 			}
 
-			f.SetContentId(newContentId)
+			f.SetContentID(newContentID)
 		}
 
-		action = history.NewCreateAction(ctx, f)
+		action := history.NewCreateAction(ctx, f)
 
 		err = history.SaveAction(ctx, &action)
 		if err != nil {
@@ -213,15 +202,15 @@ func handleFileCreation(ctx context_service.AppContext, filepath file_system.Fil
 		}
 
 		pathMap[filepath] = action
-	} else if doFileCreation && action.ContentId == "" && needsContentId(f) {
-		newContentId, err := file_model.GenerateContentId(ctx, f)
+	} else if doFileCreation && action.ContentID == "" && needsContentID(f) {
+		newContentID, err := file_model.GenerateContentID(ctx, f)
 		if err != nil {
 			return nil, err
 		}
 
-		action.ContentId = newContentId
+		action.ContentID = newContentID
 
-		ctx.Log().Debug().Msgf("File [%s] found in history, but contentId is empty, generating new one: %s", filepath, newContentId)
+		ctx.Log().Debug().Msgf("File [%s] found in history, but contentID is empty, generating new one: %s", filepath, newContentID)
 
 		err = history.UpdateAction(ctx, &action)
 		if err != nil {
@@ -230,28 +219,28 @@ func handleFileCreation(ctx context_service.AppContext, filepath file_system.Fil
 
 		pathMap[filepath] = action
 	} else {
-		existing, ok := ctx.FileService.(*FileServiceImpl).getFileInternal(action.FileId)
+		existing, ok := ctx.FileService.(*ServiceImpl).getFileInternal(action.FileID)
 		if ok {
 			return existing, nil
 		}
 	}
 
-	f.SetId(action.FileId)
-	f.SetContentId(action.ContentId)
+	f.SetID(action.FileID)
+	f.SetContentID(action.ContentID)
 
 	return f, nil
 }
 
 func loadOneDirectory(ctx context_service.AppContext, dir *file_model.WeblensFileImpl) ([]*file_model.WeblensFileImpl, error) {
 	if dir.ChildrenLoaded() {
-		return nil, errors.WithStack(ErrChildrenAlreadyLoaded)
+		return nil, wlerrors.WithStack(ErrChildrenAlreadyLoaded)
 	}
 
 	if !dir.IsDir() {
-		return nil, errors.WithStack(file_model.ErrDirectoryRequired)
+		return nil, wlerrors.WithStack(file_model.ErrDirectoryRequired)
 	}
 
-	pathMap, err := loadLifetimes(ctx, dir.GetPortablePath())
+	pathMap, err := loadLifetimes(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -286,7 +275,7 @@ func loadOneDirectory(ctx context_service.AppContext, dir *file_model.WeblensFil
 
 			err = appCtx.FileService.AddFile(appCtx, child)
 			if err != nil {
-				return errors.Errorf("failed to add child [%s] to tree: %w", child.GetPortablePath(), err)
+				return wlerrors.Errorf("failed to add child [%s] to tree: %w", child.GetPortablePath(), err)
 			}
 
 			children = append(children, child)
@@ -294,7 +283,6 @@ func loadOneDirectory(ctx context_service.AppContext, dir *file_model.WeblensFil
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -305,14 +293,14 @@ func loadOneDirectory(ctx context_service.AppContext, dir *file_model.WeblensFil
 func loadFsCore(ctx context.Context) error {
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
-		return errors.New("not an app context")
+		return wlerrors.New("not an app context")
 	}
 
 	appCtx.Log().Debug().Msg("Loading file system")
 
 	start := time.Now()
 
-	root, err := appCtx.FileService.GetFileById(ctx, file_model.UsersTreeKey)
+	root, err := appCtx.FileService.GetFileByID(ctx, file_model.UsersTreeKey)
 	if err != nil {
 		return err
 	}
@@ -356,27 +344,16 @@ func loadFsCore(ctx context.Context) error {
 
 var fpMap = make(map[file_system.Filepath]history.FileAction)
 
-func loadLifetimes(ctx context_service.AppContext, pathPrefix fs.Filepath) (map[file_system.Filepath]history.FileAction, error) {
+func loadLifetimes(ctx context_service.AppContext) (map[file_system.Filepath]history.FileAction, error) {
 	if len(fpMap) != 0 {
 		// Already loaded
 		return fpMap, nil
 	}
 
-	lifetimes, err := journal.GetLifetimesByTowerId(ctx, ctx.LocalTowerId, journal.GetLifetimesOptions{ActiveOnly: true})
+	lifetimes, err := journal.GetLifetimesByTowerID(ctx, ctx.LocalTowerID, journal.GetLifetimesOptions{ActiveOnly: true})
 	if err != nil {
 		return nil, err
 	}
-
-	// fpMap := make(map[file_system.Filepath]history.FileAction, len(lifetimes))
-
-	// Might be faster than map
-	// lifetimes = slices.SortFunc(lifetimes, func(a, b history.FileLifetime) int {
-	// 	return strings.Compare(a.Actions[0].GetRelevantPath().String(), b.Actions[0].GetRelevantPath().String())
-	// })
-	//
-	// slices.BinarySearchFunc(lifetimes, pathPrefix, func(lt history.FileLifetime, t file_system.Filepath) int {
-	// 	return strings.Compare(lt.Actions[0].GetRelevantPath().String(), t.String())
-	// })
 
 	for _, lt := range lifetimes {
 		a := lt.Actions[len(lt.Actions)-1]
@@ -385,7 +362,7 @@ func loadLifetimes(ctx context_service.AppContext, pathPrefix fs.Filepath) (map[
 			continue
 		}
 
-		a.ContentId = lt.Actions[0].ContentId
+		a.ContentID = lt.Actions[0].ContentID
 
 		fpMap[a.GetRelevantPath()] = a
 	}
@@ -393,6 +370,6 @@ func loadLifetimes(ctx context_service.AppContext, pathPrefix fs.Filepath) (map[
 	return fpMap, nil
 }
 
-func needsContentId(f *file_model.WeblensFileImpl) bool {
-	return !f.IsDir() && f.Size() != 0 && f.GetContentId() == ""
+func needsContentID(f *file_model.WeblensFileImpl) bool {
+	return !f.IsDir() && f.Size() != 0 && f.GetContentID() == ""
 }

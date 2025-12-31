@@ -1,3 +1,4 @@
+// Package user manages higher level user operations
 package user
 
 import (
@@ -9,14 +10,14 @@ import (
 	"github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/startup"
-	context_service "github.com/ethanrous/weblens/services/context"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 )
 
 func init() {
-	startup.RegisterStartup(loadUserService)
+	startup.RegisterHook(loadUserService)
 }
 
-func loadUserService(ctx context.Context, cnf config.ConfigProvider) error {
+func loadUserService(ctx context.Context, _ config.Provider) error {
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
 		return context_service.ErrNoContext
@@ -33,7 +34,7 @@ func loadUserService(ctx context.Context, cnf config.ConfigProvider) error {
 		return nil
 	}
 
-	userRoot, err := appCtx.FileService.GetFileById(appCtx, file_model.UsersTreeKey)
+	userRoot, err := appCtx.FileService.GetFileByID(appCtx, file_model.UsersTreeKey)
 	if err != nil {
 		appCtx.Log().Debug().Msg("Deferring user service load")
 
@@ -48,13 +49,13 @@ func loadUserService(ctx context.Context, cnf config.ConfigProvider) error {
 	}
 
 	for _, u := range users {
-		homeFolder, err := appCtx.FileService.GetFileById(appCtx, u.HomeId)
+		homeFolder, err := appCtx.FileService.GetFileByID(appCtx, u.HomeID)
 		if errors.Is(err, file_model.ErrFileNotFound) {
 			homePath := file_model.UsersRootPath.Child(u.Username, true)
 
 			homeFolder, err = appCtx.FileService.GetFileByFilepath(appCtx, homePath)
 			if err != nil {
-				appCtx.Log().Debug().Msgf("Home folder [%s][%s] not found, creating for user %s", u.HomeId, homePath, u.Username)
+				appCtx.Log().Debug().Msgf("Home folder [%s][%s] not found, creating for user %s", u.HomeID, homePath, u.Username)
 
 				homeFolder, err = appCtx.FileService.CreateFolder(appCtx, userRoot, u.Username)
 				if err != nil {
@@ -62,7 +63,7 @@ func loadUserService(ctx context.Context, cnf config.ConfigProvider) error {
 				}
 			}
 
-			err = u.UpdateHomeId(appCtx, homeFolder.ID())
+			err = u.UpdateHomeID(appCtx, homeFolder.ID())
 			if err != nil {
 				return err
 			}
@@ -70,8 +71,8 @@ func loadUserService(ctx context.Context, cnf config.ConfigProvider) error {
 			return err
 		}
 
-		trashFile, err := appCtx.FileService.GetFileById(appCtx, u.TrashId)
-		if errors.Is(err, file_model.ErrFileNotFound) || trashFile.ID() != u.TrashId {
+		trashFile, err := appCtx.FileService.GetFileByID(appCtx, u.TrashID)
+		if errors.Is(err, file_model.ErrFileNotFound) || trashFile.ID() != u.TrashID {
 			trashPath := file_model.UsersRootPath.Child(u.Username, true).Child(file_model.UserTrashDirName, true)
 
 			trashFolder, err := appCtx.FileService.GetFileByFilepath(appCtx, trashPath)
@@ -84,7 +85,7 @@ func loadUserService(ctx context.Context, cnf config.ConfigProvider) error {
 				}
 			}
 
-			err = u.UpdateTrashId(appCtx, trashFolder.ID())
+			err = u.UpdateTrashID(appCtx, trashFolder.ID())
 			if err != nil {
 				return err
 			}

@@ -1,4 +1,4 @@
-# ApiKeyParams
+# APIKeyParams
 
 
 ## Properties
@@ -10,9 +10,9 @@ Name | Type | Description | Notes
 ## Example
 
 ```typescript
-import { ApiKeyParams } from './api';
+import { APIKeyParams } from './api';
 
-const instance: ApiKeyParams = {
+const instance: APIKeyParams = {
     name,
 };
 ```

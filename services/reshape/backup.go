@@ -1,3 +1,4 @@
+// Package reshape provides functions for converting between domain models and API transfer objects.
 package reshape
 
 import (
@@ -10,6 +11,7 @@ import (
 	"github.com/ethanrous/weblens/modules/structs"
 )
 
+// NewBackupInfo creates a backup information object from file history, users, instances, and tokens.
 func NewBackupInfo(ctx context.Context, fileHistory []history.FileAction, users []*user.User, instances []tower.Instance, tokens []*auth.Token) structs.BackupInfo {
 	fileActionInfos := make([]structs.FileActionInfo, 0, len(fileHistory))
 	for _, a := range fileHistory {

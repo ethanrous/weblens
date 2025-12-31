@@ -9,19 +9,22 @@ import (
 	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/history"
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/option"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
+// GetLifetimesOptions specifies filtering options for retrieving file lifetimes.
 type GetLifetimesOptions struct {
 	ActiveOnly bool
 	PathPrefix fs.Filepath
 	Depth      int
 }
 
+// compileLifetimeOpts merges multiple GetLifetimesOptions into a single compiled option set.
+// The function applies the last non-zero value for each option field, with a minimum depth of 1.
 func compileLifetimeOpts(opts ...GetLifetimesOptions) GetLifetimesOptions {
 	o := GetLifetimesOptions{}
 	o.Depth = 1 // Minimum depth
@@ -43,6 +46,8 @@ func compileLifetimeOpts(opts ...GetLifetimesOptions) GetLifetimesOptions {
 	return o
 }
 
+// pathPrefixReFilter creates a MongoDB query filter that matches file actions at the given path
+// and its descendants up to the specified depth using regular expressions.
 func pathPrefixReFilter(path fs.Filepath, depth int) bson.M {
 	pathRe := regexp.QuoteMeta(path.ToPortable())
 	pathRe += `([^/]+/?){0,` + strconv.Itoa(depth) + `}/?$`
@@ -56,7 +61,9 @@ func pathPrefixReFilter(path fs.Filepath, depth int) bson.M {
 	}
 }
 
-func getPastFileIdAtPath(ctx context.Context, path fs.Filepath, time time.Time) (string, error) {
+// getPastFileIDAtPath retrieves the file ID that existed at the given path at a specific point in time.
+// Returns the root alias for root paths, otherwise queries the action history to find the file ID.
+func getPastFileIDAtPath(ctx context.Context, path fs.Filepath, time time.Time) (string, error) {
 	if path.IsRoot() {
 		// The root path's file ID is always the root alias
 		return path.RootAlias, nil
@@ -68,12 +75,12 @@ func getPastFileIdAtPath(ctx context.Context, path fs.Filepath, time time.Time) 
 	}
 
 	if len(actions) != 1 {
-		return "", errors.Errorf("could not determine past file ID at path [%s] (ambiguous, %d actions found)", path, len(actions))
+		return "", wlerrors.Errorf("could not determine past file ID at path [%s] (ambiguous, %d actions found)", path, len(actions))
 	}
 
 	lastAction := actions[len(actions)-1]
 
-	return lastAction.FileId, nil
+	return lastAction.FileID, nil
 }
 
 // getPastFileChildren retrieves the children of a past file at a specific point in time.
@@ -116,10 +123,10 @@ func getPastFileChildren(ctx context.Context, pastFile *file_model.WeblensFileIm
 
 		child := file_model.NewWeblensFile(file_model.NewFileOptions{
 			Path:         destPath,
-			FileId:       action.FileId,
+			FileID:       action.FileID,
 			IsPastFile:   true,
 			Size:         action.Size,
-			ContentId:    action.ContentId,
+			ContentID:    action.ContentID,
 			ModifiedDate: option.Of(action.Timestamp),
 		})
 
@@ -139,8 +146,10 @@ func getPastFileChildren(ctx context.Context, pastFile *file_model.WeblensFileIm
 	return children, nil
 }
 
-func GetPastFileById(ctx context.Context, fileId string, time time.Time) (*file_model.WeblensFileImpl, error) {
-	lastAction, err := history.GetLastActionByFileIdBefore(ctx, fileId, time)
+// GetPastFileByID retrieves the historical state of a file by its ID at a specific point in time.
+// It finds the file's path at the given time and delegates to GetPastFileByPath.
+func GetPastFileByID(ctx context.Context, fileID string, time time.Time) (*file_model.WeblensFileImpl, error) {
+	lastAction, err := history.GetLastActionByFileIDBefore(ctx, fileID, time)
 	if err != nil {
 		return nil, err
 	}
@@ -148,13 +157,15 @@ func GetPastFileById(ctx context.Context, fileId string, time time.Time) (*file_
 	return GetPastFileByPath(ctx, lastAction.GetRelevantPath(), time)
 }
 
+// GetPastFileByPath retrieves the historical state of a file at a given path and point in time.
+// It reconstructs the file's state including its children and parent relationships as they existed at that time.
 func GetPastFileByPath(ctx context.Context, path fs.Filepath, time time.Time) (*file_model.WeblensFileImpl, error) {
-	pastFileId, err := getPastFileIdAtPath(ctx, path, time)
+	pastFileID, err := getPastFileIDAtPath(ctx, path, time)
 	if err != nil {
 		return nil, err
 	}
 
-	newFile := file_model.NewWeblensFile(file_model.NewFileOptions{Path: path, FileId: pastFileId, IsPastFile: true})
+	newFile := file_model.NewWeblensFile(file_model.NewFileOptions{Path: path, FileID: pastFileID, IsPastFile: true})
 
 	_, err = getPastFileChildren(ctx, newFile, time)
 	if err != nil {
@@ -163,12 +174,12 @@ func GetPastFileByPath(ctx context.Context, path fs.Filepath, time time.Time) (*
 
 	parentPath := path.Dir()
 
-	parentFileId, err := getPastFileIdAtPath(ctx, parentPath, time)
+	parentFileID, err := getPastFileIDAtPath(ctx, parentPath, time)
 	if err != nil {
 		return nil, err
 	}
 
-	parent := file_model.NewWeblensFile(file_model.NewFileOptions{Path: parentPath, FileId: parentFileId, IsPastFile: true})
+	parent := file_model.NewWeblensFile(file_model.NewFileOptions{Path: parentPath, FileID: parentFileID, IsPastFile: true})
 
 	err = newFile.SetParent(parent)
 	if err != nil {
@@ -183,6 +194,8 @@ func GetPastFileByPath(ctx context.Context, path fs.Filepath, time time.Time) (*
 	return newFile, nil
 }
 
+// GetActionsByPathSince retrieves all file actions at or under the given path since the specified time.
+// The noChildren parameter controls whether to include descendant paths or only exact path matches.
 func GetActionsByPathSince(ctx context.Context, path fs.Filepath, since time.Time, noChildren bool) ([]history.FileAction, error) {
 	col, err := db.GetCollection[any](ctx, history.FileHistoryCollectionKey)
 	if err != nil {
@@ -191,12 +204,7 @@ func GetActionsByPathSince(ctx context.Context, path fs.Filepath, since time.Tim
 
 	var pathMatch bson.M
 
-	if noChildren {
-		// pathMatch = bson.A{
-		// 	bson.D{{Key: "actions.originPath", Value: path.ToPortable()}},
-		// 	bson.D{{Key: "actions.destinationPath", Value: path.ToPortable()}},
-		// }
-	} else {
+	if !noChildren {
 		pathMatch = pathPrefixReFilter(path, 1)
 	}
 
@@ -211,35 +219,39 @@ func GetActionsByPathSince(ctx context.Context, path fs.Filepath, since time.Tim
 
 	ret, err := col.Aggregate(context.Background(), pipe)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, wlerrors.WithStack(err)
 	}
 
 	var target []history.FileAction
 
 	err = ret.All(context.Background(), &target)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, wlerrors.WithStack(err)
 	}
 
 	return target, nil
 }
 
+// GetActionsSince retrieves all file actions since the specified time.
 func GetActionsSince(ctx context.Context, time time.Time) ([]*history.FileAction, error) {
 	return getActionsSince(ctx, time, "")
 }
 
+// GetActionsPage retrieves a paginated list of file actions.
 func GetActionsPage(ctx context.Context, pageSize, pageNum int) ([]history.FileAction, error) {
 	return getActionsPage(ctx, pageSize, pageNum, "")
 }
 
-func GetAllActionsByTowerId(ctx context.Context, towerId string) ([]*history.FileAction, error) {
+// GetAllActionsByTowerID retrieves all file actions associated with a specific tower,
+// sorted by timestamp in descending order (most recent first).
+func GetAllActionsByTowerID(ctx context.Context, towerID string) ([]*history.FileAction, error) {
 	col, err := db.GetCollection[any](ctx, history.FileHistoryCollectionKey)
 	if err != nil {
 		return nil, err
 	}
 
 	pipe := bson.A{
-		bson.D{{Key: "$match", Value: bson.D{{Key: "serverId", Value: towerId}}}},
+		bson.D{{Key: "$match", Value: bson.D{{Key: "serverID", Value: towerID}}}},
 		bson.D{{Key: "$unwind", Value: bson.D{{Key: "path", Value: "$actions"}}}},
 		bson.D{{Key: "$replaceRoot", Value: bson.D{{Key: "newRoot", Value: "$actions"}}}},
 		bson.D{{Key: "$sort", Value: bson.D{{Key: "timestamp", Value: -1}}}},
@@ -247,27 +259,29 @@ func GetAllActionsByTowerId(ctx context.Context, towerId string) ([]*history.Fil
 
 	ret, err := col.Aggregate(context.Background(), pipe)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, wlerrors.WithStack(err)
 	}
 
 	var target []*history.FileAction
 
 	err = ret.All(context.Background(), &target)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, wlerrors.WithStack(err)
 	}
 
 	return target, nil
 }
 
-func GetLatestPathById(ctx context.Context, fileId string) (fs.Filepath, error) {
+// GetLatestPathByID retrieves the most recent path where a file with the given ID was located.
+// Returns the destination path if available, otherwise falls back to the filepath field.
+func GetLatestPathByID(ctx context.Context, fileID string) (fs.Filepath, error) {
 	col, err := db.GetCollection[any](ctx, history.FileHistoryCollectionKey)
 	if err != nil {
 		return fs.Filepath{}, err
 	}
 
 	pipe := bson.A{
-		bson.M{"$match": bson.M{"fileId": fileId}},
+		bson.M{"$match": bson.M{"fileID": fileID}},
 		bson.M{"$sort": bson.M{"timestamp": -1}},
 		bson.M{"$limit": 1},
 		bson.M{"$project": bson.M{"destinationPath": 1, "filepath": 1}},
@@ -275,7 +289,7 @@ func GetLatestPathById(ctx context.Context, fileId string) (fs.Filepath, error) 
 
 	ret, err := col.Aggregate(ctx, pipe)
 	if err != nil {
-		return fs.Filepath{}, errors.WithStack(err)
+		return fs.Filepath{}, wlerrors.WithStack(err)
 	}
 
 	var result struct {
@@ -284,22 +298,24 @@ func GetLatestPathById(ctx context.Context, fileId string) (fs.Filepath, error) 
 	}
 
 	if !ret.Next(ctx) {
-		return fs.Filepath{}, errors.New("no results found")
+		return fs.Filepath{}, wlerrors.New("no results found")
 	}
 
 	err = ret.Decode(&result)
 	if err != nil {
-		return fs.Filepath{}, errors.WithStack(err)
+		return fs.Filepath{}, wlerrors.WithStack(err)
 	}
 
 	if result.DestinationPath != "" {
 		return fs.ParsePortable(result.DestinationPath)
-	} else {
-		return fs.ParsePortable(result.Filepath)
 	}
+
+	return fs.ParsePortable(result.Filepath)
 }
 
-func GetLifetimesByTowerId(ctx context.Context, towerId string, opts ...GetLifetimesOptions) ([]history.FileLifetime, error) {
+// GetLifetimesByTowerID retrieves file lifetimes (grouped actions by file ID) for files on a specific tower.
+// The opts parameter allows filtering by path prefix, depth, and whether to include only active (non-deleted) files.
+func GetLifetimesByTowerID(ctx context.Context, towerID string, opts ...GetLifetimesOptions) ([]history.FileLifetime, error) {
 	col, err := db.GetCollection[any](ctx, history.FileHistoryCollectionKey)
 	if err != nil {
 		return nil, err
@@ -310,16 +326,16 @@ func GetLifetimesByTowerId(ctx context.Context, towerId string, opts ...GetLifet
 	pipe := bson.A{
 		bson.D{
 			{Key: "$match", Value: bson.D{
-				{Key: "towerId", Value: towerId},
+				{Key: "towerID", Value: towerID},
 				{Key: "$or", Value: pathPrefixReFilter(o.PathPrefix, o.Depth)["$or"]},
 			},
 			},
 		},
 	}
 
-	fileIdGroup := bson.D{
+	fileIDGroup := bson.D{
 		{Key: "$group", Value: bson.D{
-			{Key: "_id", Value: "$fileId"},
+			{Key: "_id", Value: "$fileID"},
 			{Key: "actions", Value: bson.D{{Key: "$push", Value: "$$ROOT"}}},
 		},
 		},
@@ -328,7 +344,7 @@ func GetLifetimesByTowerId(ctx context.Context, towerId string, opts ...GetLifet
 	if o.ActiveOnly {
 		pipe = append(pipe,
 			bson.D{{Key: "$sort", Value: bson.D{{Key: "timestamp", Value: 1}}}},
-			fileIdGroup,
+			fileIDGroup,
 			bson.D{{Key: "$match", Value: bson.D{{Key: "actions", Value: bson.D{{Key: "$not", Value: bson.D{{Key: "$elemMatch", Value: bson.D{{Key: "actionType", Value: "fileDelete"}}}}}}}}}},
 			bson.D{
 				{Key: "$addFields", Value: bson.D{
@@ -356,7 +372,7 @@ func GetLifetimesByTowerId(ctx context.Context, towerId string, opts ...GetLifet
 			},
 			bson.D{
 				{Key: "$project", Value: bson.D{
-					{Key: "originalGroupId", Value: "$_id"},
+					{Key: "originalGroupID", Value: "$_id"},
 					{Key: "actions", Value: 1},
 					{Key: "fileCreateAction", Value: 1},
 					{Key: "fileCreateTimestamp", Value: "$fileCreateAction.timestamp"},
@@ -375,7 +391,7 @@ func GetLifetimesByTowerId(ctx context.Context, towerId string, opts ...GetLifet
 			bson.D{{Key: "$replaceRoot", Value: bson.D{{Key: "newRoot", Value: "$doc"}}}},
 			bson.D{
 				{Key: "$project", Value: bson.D{
-					{Key: "originalGroupId", Value: 0},
+					{Key: "originalGroupID", Value: 0},
 					{Key: "fileCreateAction", Value: 0},
 					{Key: "fileCreateTimestamp", Value: 0},
 					{Key: "fileCreateFilepath", Value: 0},
@@ -384,7 +400,7 @@ func GetLifetimesByTowerId(ctx context.Context, towerId string, opts ...GetLifet
 			},
 		)
 	} else {
-		pipe = append(pipe, fileIdGroup)
+		pipe = append(pipe, fileIDGroup)
 	}
 
 	cur, err := col.Aggregate(ctx, pipe)
@@ -393,8 +409,8 @@ func GetLifetimesByTowerId(ctx context.Context, towerId string, opts ...GetLifet
 	}
 
 	var lifetimes []history.FileLifetime
-	err = cur.All(ctx, &lifetimes)
 
+	err = cur.All(ctx, &lifetimes)
 	if err != nil {
 		return nil, db.WrapError(err, "GetLifetimes")
 	}

@@ -1,7 +1,8 @@
 package structs
 
+// TowerInfo represents information about a server instance in the Weblens cluster.
 type TowerInfo struct {
-	Id   string `json:"id" validate:"required"`
+	ID   string `json:"id" validate:"required"`
 	Name string `json:"name" validate:"required"`
 
 	// Only applies to "core" server entries. This is the apiKey that remote server is using to connect to local,

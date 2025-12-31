@@ -26,9 +26,9 @@ func Test_openapi_FilesAPIService(t *testing.T) {
 
 		t.Skip("skip test")  // remove to run test
 
-		var uploadId string
+		var uploadID string
 
-		resp, httpRes, err := apiClient.FilesAPI.AddFilesToUpload(context.Background(), uploadId).Execute()
+		resp, httpRes, err := apiClient.FilesAPI.AddFilesToUpload(context.Background(), uploadID).Execute()
 
 		require.Nil(t, err)
 		require.NotNil(t, resp)
@@ -75,9 +75,9 @@ func Test_openapi_FilesAPIService(t *testing.T) {
 
 		t.Skip("skip test")  // remove to run test
 
-		var fileId string
+		var fileID string
 
-		resp, httpRes, err := apiClient.FilesAPI.DownloadFile(context.Background(), fileId).Execute()
+		resp, httpRes, err := apiClient.FilesAPI.DownloadFile(context.Background(), fileID).Execute()
 
 		require.Nil(t, err)
 		require.NotNil(t, resp)
@@ -89,9 +89,9 @@ func Test_openapi_FilesAPIService(t *testing.T) {
 
 		t.Skip("skip test")  // remove to run test
 
-		var fileId string
+		var fileID string
 
-		resp, httpRes, err := apiClient.FilesAPI.GetFile(context.Background(), fileId).Execute()
+		resp, httpRes, err := apiClient.FilesAPI.GetFile(context.Background(), fileID).Execute()
 
 		require.Nil(t, err)
 		require.NotNil(t, resp)
@@ -103,9 +103,9 @@ func Test_openapi_FilesAPIService(t *testing.T) {
 
 		t.Skip("skip test")  // remove to run test
 
-		var fileId string
+		var fileID string
 
-		httpRes, err := apiClient.FilesAPI.GetFileStats(context.Background(), fileId).Execute()
+		httpRes, err := apiClient.FilesAPI.GetFileStats(context.Background(), fileID).Execute()
 
 		require.Nil(t, err)
 		assert.Equal(t, 200, httpRes.StatusCode)
@@ -116,9 +116,9 @@ func Test_openapi_FilesAPIService(t *testing.T) {
 
 		t.Skip("skip test")  // remove to run test
 
-		var fileId string
+		var fileID string
 
-		resp, httpRes, err := apiClient.FilesAPI.GetFileText(context.Background(), fileId).Execute()
+		resp, httpRes, err := apiClient.FilesAPI.GetFileText(context.Background(), fileID).Execute()
 
 		require.Nil(t, err)
 		require.NotNil(t, resp)
@@ -142,9 +142,9 @@ func Test_openapi_FilesAPIService(t *testing.T) {
 
 		t.Skip("skip test")  // remove to run test
 
-		var uploadId string
+		var uploadID string
 
-		httpRes, err := apiClient.FilesAPI.GetUploadResult(context.Background(), uploadId).Execute()
+		httpRes, err := apiClient.FilesAPI.GetUploadResult(context.Background(), uploadID).Execute()
 
 		require.Nil(t, err)
 		assert.Equal(t, 200, httpRes.StatusCode)
@@ -213,9 +213,9 @@ func Test_openapi_FilesAPIService(t *testing.T) {
 
 		t.Skip("skip test")  // remove to run test
 
-		var fileId string
+		var fileID string
 
-		httpRes, err := apiClient.FilesAPI.UpdateFile(context.Background(), fileId).Execute()
+		httpRes, err := apiClient.FilesAPI.UpdateFile(context.Background(), fileID).Execute()
 
 		require.Nil(t, err)
 		assert.Equal(t, 200, httpRes.StatusCode)
@@ -226,10 +226,10 @@ func Test_openapi_FilesAPIService(t *testing.T) {
 
 		t.Skip("skip test")  // remove to run test
 
-		var uploadId string
-		var fileId string
+		var uploadID string
+		var fileID string
 
-		httpRes, err := apiClient.FilesAPI.UploadFileChunk(context.Background(), uploadId, fileId).Execute()
+		httpRes, err := apiClient.FilesAPI.UploadFileChunk(context.Background(), uploadID, fileID).Execute()
 
 		require.Nil(t, err)
 		assert.Equal(t, 200, httpRes.StatusCode)

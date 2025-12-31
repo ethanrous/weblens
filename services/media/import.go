@@ -5,8 +5,8 @@ import (
 
 	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
-	"github.com/ethanrous/weblens/modules/errors"
-	context_service "github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/media/agno"
 )
 
@@ -17,7 +17,7 @@ func newMedia(ctx context_service.AppContext, f *file_model.WeblensFileImpl) (*m
 	}
 
 	return &media_model.Media{
-		ContentID:       f.GetContentId(),
+		ContentID:       f.GetContentID(),
 		Owner:           ownerName,
 		FileIDs:         []string{f.ID()},
 		RecognitionTags: []string{},
@@ -26,15 +26,15 @@ func newMedia(ctx context_service.AppContext, f *file_model.WeblensFileImpl) (*m
 	}, nil
 }
 
+// NewMediaFromFile creates a new Media object from a file by extracting metadata from EXIF data.
 func NewMediaFromFile(ctx context_service.AppContext, f *file_model.WeblensFileImpl) (m *media_model.Media, err error) {
-
 	img, err := agno.ImageByFilepath(f.GetPortablePath().ToAbsolute())
 	if err != nil {
 		return nil, err
 	}
 
-	if f.GetContentId() == "" {
-		return nil, errors.WithStack(file_model.ErrNoContentId)
+	if f.GetContentID() == "" {
+		return nil, wlerrors.WithStack(file_model.ErrNoContentID)
 	}
 
 	m, err = newMedia(ctx, f)
@@ -57,17 +57,18 @@ func NewMediaFromFile(ctx context_service.AppContext, f *file_model.WeblensFileI
 		m.MimeType = mType.Mime
 
 		if media_model.ParseMime(m.MimeType).IsVideo {
-
 			width, err := agno.GetExifValue[int](img, agno.ImageWidth)
 			if err != nil {
 				return nil, err
 			}
+
 			m.Width = width
 
 			height, err := agno.GetExifValue[int](img, agno.ImageHeight)
 			if err != nil {
 				return nil, err
 			}
+
 			m.Height = height
 
 			duration, err := getVideoDurationMs(f.GetPortablePath().ToAbsolute())
@@ -110,7 +111,7 @@ func NewMediaFromFile(ctx context_service.AppContext, f *file_model.WeblensFileI
 	return m, nil
 }
 
-func loadImageFromFile(f *file_model.WeblensFileImpl, mType media_model.MediaType) (*agno.Image, error) {
+func loadImageFromFile(f *file_model.WeblensFileImpl, _ media_model.MType) (*agno.Image, error) {
 	filePath := f.GetPortablePath().ToAbsolute()
 
 	img, err := agno.ImageByFilepath(filePath)
@@ -119,13 +120,11 @@ func loadImageFromFile(f *file_model.WeblensFileImpl, mType media_model.MediaTyp
 	}
 
 	return img, nil
-
 	// return nil, errors.Errorf("agno loading not yet implemented")
 	// img, err := vips.NewImageFromFile(filePath, nil)
 	// if err != nil {
 	// 	return nil, errors.WithStack(err)
 	// }
-	//
 	// return img, nil
 }
 

@@ -39,9 +39,9 @@ func Test_openapi_ShareAPIService(t *testing.T) {
 
 		t.Skip("skip test") // remove to run test
 
-		var shareId string
+		var shareID string
 
-		httpRes, err := apiClient.ShareAPI.DeleteFileShare(context.Background(), shareId).Execute()
+		httpRes, err := apiClient.ShareAPI.DeleteFileShare(context.Background(), shareID).Execute()
 
 		require.Nil(t, err)
 		assert.Equal(t, 200, httpRes.StatusCode)
@@ -52,9 +52,9 @@ func Test_openapi_ShareAPIService(t *testing.T) {
 
 		t.Skip("skip test") // remove to run test
 
-		var shareId string
+		var shareID string
 
-		resp, httpRes, err := apiClient.ShareAPI.GetFileShare(context.Background(), shareId).Execute()
+		resp, httpRes, err := apiClient.ShareAPI.GetFileShare(context.Background(), shareID).Execute()
 
 		require.Nil(t, err)
 		require.NotNil(t, resp)
@@ -66,9 +66,9 @@ func Test_openapi_ShareAPIService(t *testing.T) {
 
 		t.Skip("skip test") // remove to run test
 
-		// var shareId string
+		// var shareID string
 		//
-		// resp, httpRes, err := apiClient.ShareAPI.SetShareAccessors(context.Background(), shareId).Execute()
+		// resp, httpRes, err := apiClient.ShareAPI.SetShareAccessors(context.Background(), shareID).Execute()
 		//
 		// require.Nil(t, err)
 		// require.NotNil(t, resp)
@@ -79,9 +79,9 @@ func Test_openapi_ShareAPIService(t *testing.T) {
 
 		t.Skip("skip test") // remove to run test
 
-		var shareId string
+		var shareID string
 
-		httpRes, err := apiClient.ShareAPI.SetSharePublic(context.Background(), shareId).Execute()
+		httpRes, err := apiClient.ShareAPI.SetSharePublic(context.Background(), shareID).Execute()
 
 		require.Nil(t, err)
 		assert.Equal(t, 200, httpRes.StatusCode)

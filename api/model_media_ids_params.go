@@ -14,64 +14,64 @@ import (
 	"encoding/json"
 )
 
-// checks if the MediaIdsParams type satisfies the MappedNullable interface at compile time
-var _ MappedNullable = &MediaIdsParams{}
+// checks if the MediaIDsParams type satisfies the MappedNullable interface at compile time
+var _ MappedNullable = &MediaIDsParams{}
 
-// MediaIdsParams struct for MediaIdsParams
-type MediaIdsParams struct {
-	MediaIds []string `json:"mediaIds,omitempty"`
+// MediaIDsParams struct for MediaIDsParams
+type MediaIDsParams struct {
+	MediaIDs []string `json:"mediaIDs,omitempty"`
 }
 
-// NewMediaIdsParams instantiates a new MediaIdsParams object
+// NewMediaIDsParams instantiates a new MediaIDsParams object
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewMediaIdsParams() *MediaIdsParams {
-	this := MediaIdsParams{}
+func NewMediaIDsParams() *MediaIDsParams {
+	this := MediaIDsParams{}
 	return &this
 }
 
-// NewMediaIdsParamsWithDefaults instantiates a new MediaIdsParams object
+// NewMediaIDsParamsWithDefaults instantiates a new MediaIDsParams object
 // This constructor will only assign default values to properties that have it defined,
 // but it doesn't guarantee that properties required by API are set
-func NewMediaIdsParamsWithDefaults() *MediaIdsParams {
-	this := MediaIdsParams{}
+func NewMediaIDsParamsWithDefaults() *MediaIDsParams {
+	this := MediaIDsParams{}
 	return &this
 }
 
-// GetMediaIds returns the MediaIds field value if set, zero value otherwise.
-func (o *MediaIdsParams) GetMediaIds() []string {
-	if o == nil || IsNil(o.MediaIds) {
+// GetMediaIDs returns the MediaIDs field value if set, zero value otherwise.
+func (o *MediaIDsParams) GetMediaIDs() []string {
+	if o == nil || IsNil(o.MediaIDs) {
 		var ret []string
 		return ret
 	}
-	return o.MediaIds
+	return o.MediaIDs
 }
 
-// GetMediaIdsOk returns a tuple with the MediaIds field value if set, nil otherwise
+// GetMediaIDsOk returns a tuple with the MediaIDs field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *MediaIdsParams) GetMediaIdsOk() ([]string, bool) {
-	if o == nil || IsNil(o.MediaIds) {
+func (o *MediaIDsParams) GetMediaIDsOk() ([]string, bool) {
+	if o == nil || IsNil(o.MediaIDs) {
 		return nil, false
 	}
-	return o.MediaIds, true
+	return o.MediaIDs, true
 }
 
-// HasMediaIds returns a boolean if a field has been set.
-func (o *MediaIdsParams) HasMediaIds() bool {
-	if o != nil && !IsNil(o.MediaIds) {
+// HasMediaIDs returns a boolean if a field has been set.
+func (o *MediaIDsParams) HasMediaIDs() bool {
+	if o != nil && !IsNil(o.MediaIDs) {
 		return true
 	}
 
 	return false
 }
 
-// SetMediaIds gets a reference to the given []string and assigns it to the MediaIds field.
-func (o *MediaIdsParams) SetMediaIds(v []string) {
-	o.MediaIds = v
+// SetMediaIDs gets a reference to the given []string and assigns it to the MediaIDs field.
+func (o *MediaIDsParams) SetMediaIDs(v []string) {
+	o.MediaIDs = v
 }
 
-func (o MediaIdsParams) MarshalJSON() ([]byte, error) {
+func (o MediaIDsParams) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
@@ -79,46 +79,46 @@ func (o MediaIdsParams) MarshalJSON() ([]byte, error) {
 	return json.Marshal(toSerialize)
 }
 
-func (o MediaIdsParams) ToMap() (map[string]interface{}, error) {
+func (o MediaIDsParams) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
-	if !IsNil(o.MediaIds) {
-		toSerialize["mediaIds"] = o.MediaIds
+	if !IsNil(o.MediaIDs) {
+		toSerialize["mediaIDs"] = o.MediaIDs
 	}
 	return toSerialize, nil
 }
 
-type NullableMediaIdsParams struct {
-	value *MediaIdsParams
+type NullableMediaIDsParams struct {
+	value *MediaIDsParams
 	isSet bool
 }
 
-func (v NullableMediaIdsParams) Get() *MediaIdsParams {
+func (v NullableMediaIDsParams) Get() *MediaIDsParams {
 	return v.value
 }
 
-func (v *NullableMediaIdsParams) Set(val *MediaIdsParams) {
+func (v *NullableMediaIDsParams) Set(val *MediaIDsParams) {
 	v.value = val
 	v.isSet = true
 }
 
-func (v NullableMediaIdsParams) IsSet() bool {
+func (v NullableMediaIDsParams) IsSet() bool {
 	return v.isSet
 }
 
-func (v *NullableMediaIdsParams) Unset() {
+func (v *NullableMediaIDsParams) Unset() {
 	v.value = nil
 	v.isSet = false
 }
 
-func NewNullableMediaIdsParams(val *MediaIdsParams) *NullableMediaIdsParams {
-	return &NullableMediaIdsParams{value: val, isSet: true}
+func NewNullableMediaIDsParams(val *MediaIDsParams) *NullableMediaIDsParams {
+	return &NullableMediaIDsParams{value: val, isSet: true}
 }
 
-func (v NullableMediaIdsParams) MarshalJSON() ([]byte, error) {
+func (v NullableMediaIDsParams) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v.value)
 }
 
-func (v *NullableMediaIdsParams) UnmarshalJSON(src []byte) error {
+func (v *NullableMediaIDsParams) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }

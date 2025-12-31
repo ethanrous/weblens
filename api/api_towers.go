@@ -95,20 +95,6 @@ func (a *TowersAPIService) CreateRemoteExecute(r ApiCreateRemoteRequest) (*Tower
 	}
 	// body params
 	localVarPostBody = r.request
-	if r.ctx != nil {
-		// API Key Authentication
-		if auth, ok := r.ctx.Value(ContextAPIKeys).(map[string]APIKey); ok {
-			if apiKey, ok := auth["ApiKeyAuth"]; ok {
-				var key string
-				if apiKey.Prefix != "" {
-					key = apiKey.Prefix + " " + apiKey.Key
-				} else {
-					key = apiKey.Key
-				}
-				localVarHeaderParams["Authorization"] = key
-			}
-		}
-	}
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err
@@ -149,7 +135,7 @@ func (a *TowersAPIService) CreateRemoteExecute(r ApiCreateRemoteRequest) (*Tower
 type ApiDeleteRemoteRequest struct {
 	ctx context.Context
 	ApiService *TowersAPIService
-	serverId string
+	serverID string
 }
 
 func (r ApiDeleteRemoteRequest) Execute() (*http.Response, error) {
@@ -160,14 +146,14 @@ func (r ApiDeleteRemoteRequest) Execute() (*http.Response, error) {
 DeleteRemote Delete a remote
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param serverId Server Id to delete
+ @param serverID Server ID to delete
  @return ApiDeleteRemoteRequest
 */
-func (a *TowersAPIService) DeleteRemote(ctx context.Context, serverId string) ApiDeleteRemoteRequest {
+func (a *TowersAPIService) DeleteRemote(ctx context.Context, serverID string) ApiDeleteRemoteRequest {
 	return ApiDeleteRemoteRequest{
 		ApiService: a,
 		ctx: ctx,
-		serverId: serverId,
+		serverID: serverID,
 	}
 }
 
@@ -184,8 +170,8 @@ func (a *TowersAPIService) DeleteRemoteExecute(r ApiDeleteRemoteRequest) (*http.
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/tower/{serverId}"
-	localVarPath = strings.Replace(localVarPath, "{"+"serverId"+"}", url.PathEscape(parameterValueToString(r.serverId, "serverId")), -1)
+	localVarPath := localBasePath + "/tower/{serverID}"
+	localVarPath = strings.Replace(localVarPath, "{"+"serverID"+"}", url.PathEscape(parameterValueToString(r.serverID, "serverID")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -207,20 +193,6 @@ func (a *TowersAPIService) DeleteRemoteExecute(r ApiDeleteRemoteRequest) (*http.
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
 	if localVarHTTPHeaderAccept != "" {
 		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
-	}
-	if r.ctx != nil {
-		// API Key Authentication
-		if auth, ok := r.ctx.Value(ContextAPIKeys).(map[string]APIKey); ok {
-			if apiKey, ok := auth["ApiKeyAuth"]; ok {
-				var key string
-				if apiKey.Prefix != "" {
-					key = apiKey.Prefix + " " + apiKey.Key
-				} else {
-					key = apiKey.Key
-				}
-				localVarHeaderParams["Authorization"] = key
-			}
-		}
 	}
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
@@ -309,20 +281,6 @@ func (a *TowersAPIService) FlushCacheExecute(r ApiFlushCacheRequest) (*WLRespons
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
 	if localVarHTTPHeaderAccept != "" {
 		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
-	}
-	if r.ctx != nil {
-		// API Key Authentication
-		if auth, ok := r.ctx.Value(ContextAPIKeys).(map[string]APIKey); ok {
-			if apiKey, ok := auth["ApiKeyAuth"]; ok {
-				var key string
-				if apiKey.Prefix != "" {
-					key = apiKey.Prefix + " " + apiKey.Key
-				} else {
-					key = apiKey.Key
-				}
-				localVarHeaderParams["Authorization"] = key
-			}
-		}
 	}
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
@@ -432,19 +390,122 @@ func (a *TowersAPIService) GetBackupInfoExecute(r ApiGetBackupInfoRequest) (*Bac
 	if localVarHTTPHeaderAccept != "" {
 		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
 	}
-	if r.ctx != nil {
-		// API Key Authentication
-		if auth, ok := r.ctx.Value(ContextAPIKeys).(map[string]APIKey); ok {
-			if apiKey, ok := auth["ApiKeyAuth"]; ok {
-				var key string
-				if apiKey.Prefix != "" {
-					key = apiKey.Prefix + " " + apiKey.Key
-				} else {
-					key = apiKey.Key
-				}
-				localVarHeaderParams["Authorization"] = key
-			}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
 		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type ApiGetPagedHistoryActionsRequest struct {
+	ctx context.Context
+	ApiService *TowersAPIService
+	page *int32
+	pageSize *int32
+}
+
+// Page number
+func (r ApiGetPagedHistoryActionsRequest) Page(page int32) ApiGetPagedHistoryActionsRequest {
+	r.page = &page
+	return r
+}
+
+// Number of items per page
+func (r ApiGetPagedHistoryActionsRequest) PageSize(pageSize int32) ApiGetPagedHistoryActionsRequest {
+	r.pageSize = &pageSize
+	return r
+}
+
+func (r ApiGetPagedHistoryActionsRequest) Execute() ([]HistoryFileAction, *http.Response, error) {
+	return r.ApiService.GetPagedHistoryActionsExecute(r)
+}
+
+/*
+GetPagedHistoryActions Get a page of file actions
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return ApiGetPagedHistoryActionsRequest
+*/
+func (a *TowersAPIService) GetPagedHistoryActions(ctx context.Context) ApiGetPagedHistoryActionsRequest {
+	return ApiGetPagedHistoryActionsRequest{
+		ApiService: a,
+		ctx: ctx,
+	}
+}
+
+// Execute executes the request
+//  @return []HistoryFileAction
+func (a *TowersAPIService) GetPagedHistoryActionsExecute(r ApiGetPagedHistoryActionsRequest) ([]HistoryFileAction, *http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  []HistoryFileAction
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "TowersAPIService.GetPagedHistoryActions")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/tower/history"
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+
+	if r.page != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "page", r.page, "", "")
+	}
+	if r.pageSize != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "pageSize", r.pageSize, "", "")
+	}
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
 	}
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
@@ -543,20 +604,6 @@ func (a *TowersAPIService) GetRemotesExecute(r ApiGetRemotesRequest) ([]TowerInf
 	if localVarHTTPHeaderAccept != "" {
 		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
 	}
-	if r.ctx != nil {
-		// API Key Authentication
-		if auth, ok := r.ctx.Value(ContextAPIKeys).(map[string]APIKey); ok {
-			if apiKey, ok := auth["ApiKeyAuth"]; ok {
-				var key string
-				if apiKey.Prefix != "" {
-					key = apiKey.Prefix + " " + apiKey.Key
-				} else {
-					key = apiKey.Key
-				}
-				localVarHeaderParams["Authorization"] = key
-			}
-		}
-	}
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err
@@ -653,20 +700,6 @@ func (a *TowersAPIService) GetRunningTasksExecute(r ApiGetRunningTasksRequest) (
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
 	if localVarHTTPHeaderAccept != "" {
 		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
-	}
-	if r.ctx != nil {
-		// API Key Authentication
-		if auth, ok := r.ctx.Value(ContextAPIKeys).(map[string]APIKey); ok {
-			if apiKey, ok := auth["ApiKeyAuth"]; ok {
-				var key string
-				if apiKey.Prefix != "" {
-					key = apiKey.Prefix + " " + apiKey.Key
-				} else {
-					key = apiKey.Key
-				}
-				localVarHeaderParams["Authorization"] = key
-			}
-		}
 	}
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
@@ -914,7 +947,7 @@ func (a *TowersAPIService) InitializeTowerExecute(r ApiInitializeTowerRequest) (
 type ApiLaunchBackupRequest struct {
 	ctx context.Context
 	ApiService *TowersAPIService
-	serverId string
+	serverID string
 }
 
 func (r ApiLaunchBackupRequest) Execute() (*http.Response, error) {
@@ -925,14 +958,14 @@ func (r ApiLaunchBackupRequest) Execute() (*http.Response, error) {
 LaunchBackup Launch backup on a tower
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param serverId Server ID
+ @param serverID Server ID
  @return ApiLaunchBackupRequest
 */
-func (a *TowersAPIService) LaunchBackup(ctx context.Context, serverId string) ApiLaunchBackupRequest {
+func (a *TowersAPIService) LaunchBackup(ctx context.Context, serverID string) ApiLaunchBackupRequest {
 	return ApiLaunchBackupRequest{
 		ApiService: a,
 		ctx: ctx,
-		serverId: serverId,
+		serverID: serverID,
 	}
 }
 
@@ -949,8 +982,8 @@ func (a *TowersAPIService) LaunchBackupExecute(r ApiLaunchBackupRequest) (*http.
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/tower/{serverId}/backup"
-	localVarPath = strings.Replace(localVarPath, "{"+"serverId"+"}", url.PathEscape(parameterValueToString(r.serverId, "serverId")), -1)
+	localVarPath := localBasePath + "/tower/{serverID}/backup"
+	localVarPath = strings.Replace(localVarPath, "{"+"serverID"+"}", url.PathEscape(parameterValueToString(r.serverID, "serverID")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -972,20 +1005,6 @@ func (a *TowersAPIService) LaunchBackupExecute(r ApiLaunchBackupRequest) (*http.
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
 	if localVarHTTPHeaderAccept != "" {
 		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
-	}
-	if r.ctx != nil {
-		// API Key Authentication
-		if auth, ok := r.ctx.Value(ContextAPIKeys).(map[string]APIKey); ok {
-			if apiKey, ok := auth["ApiKeyAuth"]; ok {
-				var key string
-				if apiKey.Prefix != "" {
-					key = apiKey.Prefix + " " + apiKey.Key
-				} else {
-					key = apiKey.Key
-				}
-				localVarHeaderParams["Authorization"] = key
-			}
-		}
 	}
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
@@ -1072,20 +1091,6 @@ func (a *TowersAPIService) ResetTowerExecute(r ApiResetTowerRequest) (*http.Resp
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
 	if localVarHTTPHeaderAccept != "" {
 		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
-	}
-	if r.ctx != nil {
-		// API Key Authentication
-		if auth, ok := r.ctx.Value(ContextAPIKeys).(map[string]APIKey); ok {
-			if apiKey, ok := auth["ApiKeyAuth"]; ok {
-				var key string
-				if apiKey.Prefix != "" {
-					key = apiKey.Prefix + " " + apiKey.Key
-				} else {
-					key = apiKey.Key
-				}
-				localVarHeaderParams["Authorization"] = key
-			}
-		}
 	}
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {

@@ -96,9 +96,9 @@ paths:
     patch:
       operationId: MoveFiles
       parameters:
-      - description: Share Id
+      - description: Share ID
         in: query
-        name: shareId
+        name: shareID
         schema:
           type: string
       requestBody:
@@ -161,7 +161,7 @@ paths:
           type: string
       - description: "The folder to search in, defaults to the user's home folder"
         in: query
-        name: baseFolderId
+        name: baseFolderID
         schema:
           type: string
       responses:
@@ -270,19 +270,19 @@ paths:
       tags:
       - Files
       x-codegen-request-body-name: request
-  /files/{fileId}:
+  /files/{fileID}:
     get:
       operationId: GetFile
       parameters:
-      - description: File Id
+      - description: File ID
         in: path
-        name: fileId
+        name: fileID
         required: true
         schema:
           type: string
-      - description: Share Id
+      - description: Share ID
         in: query
-        name: shareId
+        name: shareID
         schema:
           type: string
       responses:
@@ -306,15 +306,15 @@ paths:
     patch:
       operationId: UpdateFile
       parameters:
-      - description: File Id
+      - description: File ID
         in: path
-        name: fileId
+        name: fileID
         required: true
         schema:
           type: string
-      - description: Share Id
+      - description: Share ID
         in: query
-        name: shareId
+        name: shareID
         schema:
           type: string
       requestBody:
@@ -343,19 +343,19 @@ paths:
       tags:
       - Files
       x-codegen-request-body-name: request
-  /files/{fileId}/download:
+  /files/{fileID}/download:
     get:
       operationId: DownloadFile
       parameters:
-      - description: File Id
+      - description: File ID
         in: path
-        name: fileId
+        name: fileID
         required: true
         schema:
           type: string
-      - description: Share Id
+      - description: Share ID
         in: query
-        name: shareId
+        name: shareID
         schema:
           type: string
       - description: File format conversion
@@ -387,13 +387,13 @@ paths:
       summary: Download a file
       tags:
       - Files
-  /files/{fileId}/history:
+  /files/{fileID}/history:
     get:
       operationId: GetFolderHistory
       parameters:
-      - description: File Id
+      - description: File ID
         in: path
-        name: fileId
+        name: fileID
         required: true
         schema:
           type: string
@@ -423,13 +423,13 @@ paths:
       summary: Get actions of a folder at a given time
       tags:
       - Folder
-  /files/{fileId}/stats:
+  /files/{fileID}/stats:
     get:
       operationId: GetFileStats
       parameters:
-      - description: File Id
+      - description: File ID
         in: path
-        name: fileId
+        name: fileID
         required: true
         schema:
           type: string
@@ -445,19 +445,19 @@ paths:
       summary: Get the statistics of a file
       tags:
       - Files
-  /files/{fileId}/text:
+  /files/{fileID}/text:
     get:
       operationId: GetFileText
       parameters:
-      - description: File Id
+      - description: File ID
         in: path
-        name: fileId
+        name: fileID
         required: true
         schema:
           type: string
-      - description: Share Id
+      - description: Share ID
         in: query
-        name: shareId
+        name: shareID
         schema:
           type: string
       responses:
@@ -479,9 +479,9 @@ paths:
     post:
       operationId: CreateFolder
       parameters:
-      - description: Share Id
+      - description: Share ID
         in: query
-        name: shareId
+        name: shareID
         schema:
           type: string
       requestBody:
@@ -504,19 +504,19 @@ paths:
       tags:
       - Folder
       x-codegen-request-body-name: request
-  /folder/{folderId}:
+  /folder/{folderID}:
     get:
       operationId: GetFolder
       parameters:
-      - description: Folder Id
+      - description: Folder ID
         in: path
-        name: folderId
+        name: folderID
         required: true
         schema:
           type: string
-      - description: Share Id
+      - description: Share ID
         in: query
-        name: shareId
+        name: shareID
         schema:
           type: string
       - description: "Past timestamp to view the folder at, in ms since epoch"
@@ -536,19 +536,19 @@ paths:
       summary: Get a folder
       tags:
       - Folder
-  /folder/{folderId}/cover:
+  /folder/{folderID}/cover:
     patch:
       operationId: SetFolderCover
       parameters:
-      - description: Folder Id
+      - description: Folder ID
         in: path
-        name: folderId
+        name: folderID
         required: true
         schema:
           type: string
-      - description: Media Id
+      - description: Media ID
         in: query
-        name: mediaId
+        name: mediaID
         required: true
         schema:
           type: string
@@ -570,19 +570,19 @@ paths:
       summary: Set the cover image of a folder
       tags:
       - Folder
-  /folder/{folderId}/scan:
+  /folder/{folderID}/scan:
     post:
       operationId: ScanFolder
       parameters:
-      - description: Folder Id
+      - description: Folder ID
         in: path
-        name: folderId
+        name: folderID
         required: true
         schema:
           type: string
-      - description: Share Id
+      - description: Share ID
         in: query
-        name: shareId
+        name: shareID
         schema:
           type: string
       responses:
@@ -618,7 +618,7 @@ paths:
       - Towers
   /keys:
     get:
-      operationId: GetApiKeys
+      operationId: GetAPIKeys
       responses:
         "200":
           content:
@@ -638,14 +638,14 @@ paths:
       - SessionAuth: []
       summary: Get all api keys
       tags:
-      - ApiKeys
+      - APIKeys
     post:
-      operationId: CreateApiKey
+      operationId: CreateAPIKey
       requestBody:
         content:
           '*/*':
             schema:
-              $ref: "#/components/schemas/ApiKeyParams"
+              $ref: "#/components/schemas/APIKeyParams"
         description: The new token params
         required: true
       responses:
@@ -665,15 +665,15 @@ paths:
       - SessionAuth: []
       summary: Create a new api key
       tags:
-      - ApiKeys
+      - APIKeys
       x-codegen-request-body-name: params
-  /keys/{tokenId}:
+  /keys/{tokenID}:
     delete:
-      operationId: DeleteApiKey
+      operationId: DeleteAPIKey
       parameters:
-      - description: Api key id
+      - description: API key id
         in: path
-        name: tokenId
+        name: tokenID
         required: true
         schema:
           type: string
@@ -695,14 +695,14 @@ paths:
         - admin
       summary: Delete an api key
       tags:
-      - ApiKeys
+      - APIKeys
   /media:
     post:
       operationId: GetMedia
       parameters:
-      - description: File ShareId
+      - description: File ShareID
         in: query
-        name: shareId
+        name: shareID
         schema:
           type: string
       requestBody:
@@ -843,8 +843,8 @@ paths:
         content:
           '*/*':
             schema:
-              $ref: "#/components/schemas/MediaIdsParams"
-        description: MediaIds to change visibility of
+              $ref: "#/components/schemas/MediaIDsParams"
+        description: MediaIDs to change visibility of
         required: true
       responses:
         "200":
@@ -859,14 +859,14 @@ paths:
       summary: Set media visibility
       tags:
       - Media
-      x-codegen-request-body-name: mediaIds
-  /media/{mediaId}.{extension}:
+      x-codegen-request-body-name: mediaIDs
+  /media/{mediaID}.{extension}:
     get:
       operationId: GetMediaImage
       parameters:
-      - description: Media Id
+      - description: Media ID
         in: path
-        name: mediaId
+        name: mediaID
         required: true
         schema:
           type: string
@@ -903,13 +903,13 @@ paths:
       summary: Get a media image bytes
       tags:
       - Media
-  /media/{mediaId}/file:
+  /media/{mediaID}/file:
     get:
       operationId: GetMediaFile
       parameters:
-      - description: Id of media
+      - description: ID of media
         in: path
-        name: mediaId
+        name: mediaID
         required: true
         schema:
           type: string
@@ -932,13 +932,13 @@ paths:
       summary: Get file of media by id
       tags:
       - Media
-  /media/{mediaId}/info:
+  /media/{mediaID}/info:
     get:
       operationId: GetMediaInfo
       parameters:
-      - description: Media Id
+      - description: Media ID
         in: path
-        name: mediaId
+        name: mediaID
         required: true
         schema:
           type: string
@@ -952,19 +952,19 @@ paths:
       summary: Get media info
       tags:
       - Media
-  /media/{mediaId}/liked:
+  /media/{mediaID}/liked:
     patch:
       operationId: SetMediaLiked
       parameters:
-      - description: Id of media
+      - description: ID of media
         in: path
-        name: mediaId
+        name: mediaID
         required: true
         schema:
           type: string
-      - description: ShareId
+      - description: ShareID
         in: query
-        name: shareId
+        name: shareID
         schema:
           type: string
       - description: Liked status to set
@@ -991,13 +991,13 @@ paths:
       summary: Like a media
       tags:
       - Media
-  /media/{mediaId}/video:
+  /media/{mediaID}/video:
     get:
       operationId: StreamVideo
       parameters:
-      - description: Id of media
+      - description: ID of media
         in: path
-        name: mediaId
+        name: mediaID
         required: true
         schema:
           type: string
@@ -1041,13 +1041,13 @@ paths:
       tags:
       - Share
       x-codegen-request-body-name: request
-  /share/{shareId}:
+  /share/{shareID}:
     delete:
       operationId: DeleteFileShare
       parameters:
-      - description: Share Id
+      - description: Share ID
         in: path
-        name: shareId
+        name: shareID
         required: true
         schema:
           type: string
@@ -1064,9 +1064,9 @@ paths:
     get:
       operationId: GetFileShare
       parameters:
-      - description: Share Id
+      - description: Share ID
         in: path
-        name: shareId
+        name: shareID
         required: true
         schema:
           type: string
@@ -1083,13 +1083,13 @@ paths:
       summary: Get a file share
       tags:
       - Share
-  /share/{shareId}/accessors:
+  /share/{shareID}/accessors:
     post:
       operationId: AddUserToShare
       parameters:
-      - description: Share Id
+      - description: Share ID
         in: path
-        name: shareId
+        name: shareID
         required: true
         schema:
           type: string
@@ -1114,13 +1114,13 @@ paths:
       tags:
       - Share
       x-codegen-request-body-name: request
-  /share/{shareId}/accessors/{username}:
+  /share/{shareID}/accessors/{username}:
     delete:
       operationId: RemoveUserFromShare
       parameters:
-      - description: Share Id
+      - description: Share ID
         in: path
-        name: shareId
+        name: shareID
         required: true
         schema:
           type: string
@@ -1146,9 +1146,9 @@ paths:
     patch:
       operationId: UpdateShareAccessorPermissions
       parameters:
-      - description: Share Id
+      - description: Share ID
         in: path
-        name: shareId
+        name: shareID
         required: true
         schema:
           type: string
@@ -1179,13 +1179,13 @@ paths:
       tags:
       - Share
       x-codegen-request-body-name: request
-  /share/{shareId}/public:
+  /share/{shareID}/public:
     patch:
       operationId: SetSharePublic
       parameters:
-      - description: Share Id
+      - description: Share ID
         in: path
-        name: shareId
+        name: shareID
         required: true
         schema:
           type: string
@@ -1211,9 +1211,9 @@ paths:
         \ the id of a previously created zip file if it already exists"
       operationId: CreateTakeout
       parameters:
-      - description: Share Id
+      - description: Share ID
         in: query
-        name: shareId
+        name: shareID
         schema:
           type: string
       requestBody:
@@ -1321,6 +1321,44 @@ paths:
       summary: Flush Cache
       tags:
       - Towers
+  /tower/history:
+    get:
+      operationId: GetPagedHistoryActions
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        schema:
+          type: integer
+      - description: Number of items per page
+        in: query
+        name: pageSize
+        schema:
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/history.FileAction"
+                type: array
+          description: File Actions
+        "400":
+          content: {}
+          description: Bad Request
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - ApiKeyAuth:
+        - admin
+      summary: Get a page of file actions
+      tags:
+      - Towers
   /tower/init:
     post:
       operationId: InitializeTower
@@ -1421,13 +1459,13 @@ paths:
       summary: Get Running Tasks
       tags:
       - Towers
-  /tower/{serverId}:
+  /tower/{serverID}:
     delete:
       operationId: DeleteRemote
       parameters:
-      - description: Server Id to delete
+      - description: Server ID to delete
         in: path
-        name: serverId
+        name: serverID
         required: true
         schema:
           type: string
@@ -1449,13 +1487,13 @@ paths:
       summary: Delete a remote
       tags:
       - Towers
-  /tower/{serverId}/backup:
+  /tower/{serverID}/backup:
     post:
       operationId: LaunchBackup
       parameters:
       - description: Server ID
         in: path
-        name: serverId
+        name: serverID
         required: true
         schema:
           type: string
@@ -1475,9 +1513,9 @@ paths:
     post:
       operationId: StartUpload
       parameters:
-      - description: Share Id
+      - description: Share ID
         in: query
-        name: shareId
+        name: shareID
         schema:
           type: string
       requestBody:
@@ -1509,13 +1547,13 @@ paths:
       tags:
       - Files
       x-codegen-request-body-name: request
-  /upload/{uploadId}:
+  /upload/{uploadID}:
     get:
       operationId: GetUploadResult
       parameters:
-      - description: Upload Id
+      - description: Upload ID
         in: path
-        name: uploadId
+        name: uploadID
         required: true
         schema:
           type: string
@@ -1541,15 +1579,15 @@ paths:
     post:
       operationId: AddFilesToUpload
       parameters:
-      - description: Upload Id
+      - description: Upload ID
         in: path
-        name: uploadId
+        name: uploadID
         required: true
         schema:
           type: string
-      - description: Share Id
+      - description: Share ID
         in: query
-        name: shareId
+        name: shareID
         schema:
           type: string
       requestBody:
@@ -1581,25 +1619,25 @@ paths:
       tags:
       - Files
       x-codegen-request-body-name: request
-  /upload/{uploadId}/file/{fileId}:
+  /upload/{uploadID}/file/{fileID}:
     put:
       operationId: UploadFileChunk
       parameters:
-      - description: Upload Id
+      - description: Upload ID
         in: path
-        name: uploadId
+        name: uploadID
         required: true
         schema:
           type: string
-      - description: File Id
+      - description: File ID
         in: path
-        name: fileId
+        name: fileID
         required: true
         schema:
           type: string
-      - description: Share Id
+      - description: Share ID
         in: query
-        name: shareId
+        name: shareID
         schema:
           type: string
       requestBody:
@@ -1984,6 +2022,15 @@ paths:
       x-codegen-request-body-name: passwordUpdateParams
 components:
   schemas:
+    APIKeyParams:
+      example:
+        name: name
+      properties:
+        name:
+          type: string
+      required:
+      - name
+      type: object
     AddUserParams:
       example:
         canView: true
@@ -2005,39 +2052,30 @@ components:
       required:
       - username
       type: object
-    ApiKeyParams:
-      example:
-        name: name
-      properties:
-        name:
-          type: string
-      required:
-      - name
-      type: object
     BackupInfo:
       example:
         fileHistory:
         - actionType: actionType
-          eventId: eventId
+          eventID: eventID
           filepath: filepath
           originPath: originPath
           size: 0
-          contentId: contentId
+          contentID: contentID
           destinationPath: destinationPath
-          towerId: towerId
-          parentId: parentId
-          fileId: fileId
+          towerID: towerID
+          parentID: parentID
+          fileID: fileID
           timestamp: 6
         - actionType: actionType
-          eventId: eventId
+          eventID: eventID
           filepath: filepath
           originPath: originPath
           size: 0
-          contentId: contentId
+          contentID: contentID
           destinationPath: destinationPath
-          towerId: towerId
-          parentId: parentId
-          fileId: fileId
+          towerID: towerID
+          parentID: parentID
+          fileID: fileID
           timestamp: 6
         lifetimesCount: 0
         instances:
@@ -2083,8 +2121,8 @@ components:
           permissionLevel: 6
           fullName: fullName
           isOnline: true
-          trashId: trashId
-          homeId: homeId
+          trashID: trashID
+          homeID: homeID
           activated: true
           token: token
           username: username
@@ -2092,8 +2130,8 @@ components:
           permissionLevel: 6
           fullName: fullName
           isOnline: true
-          trashId: trashId
-          homeId: homeId
+          trashID: trashID
+          homeID: homeID
           activated: true
           token: token
           username: username
@@ -2132,7 +2170,7 @@ components:
         children:
         - children
         - children
-        parentFolderId: parentFolderId
+        parentFolderID: parentFolderID
         newFolderName: newFolderName
       properties:
         children:
@@ -2141,41 +2179,41 @@ components:
           type: array
         newFolderName:
           type: string
-        parentFolderId:
+        parentFolderID:
           type: string
       required:
       - newFolderName
-      - parentFolderId
+      - parentFolderID
       type: object
     FileActionInfo:
       example:
         actionType: actionType
-        eventId: eventId
+        eventID: eventID
         filepath: filepath
         originPath: originPath
         size: 0
-        contentId: contentId
+        contentID: contentID
         destinationPath: destinationPath
-        towerId: towerId
-        parentId: parentId
-        fileId: fileId
+        towerID: towerID
+        parentID: parentID
+        fileID: fileID
         timestamp: 6
       properties:
         actionType:
           type: string
-        contentId:
+        contentID:
           type: string
         destinationPath:
           type: string
-        eventId:
+        eventID:
           type: string
-        fileId:
+        fileID:
           type: string
         filepath:
           type: string
         originPath:
           type: string
-        parentId:
+        parentID:
           type: string
         size:
           format: int64
@@ -2183,29 +2221,29 @@ components:
         timestamp:
           format: int64
           type: integer
-        towerId:
+        towerID:
           type: string
       required:
       - actionType
-      - eventId
-      - fileId
-      - parentId
+      - eventID
+      - fileID
+      - parentID
       - size
       - timestamp
-      - towerId
+      - towerID
       type: object
     FileInfo:
       example:
         owner: owner
-        currentId: currentId
+        currentID: currentID
         childrenIds:
         - childrenIds
         - childrenIds
-        contentId: contentId
+        contentID: contentID
         hasRestoreMedia: true
-        shareId: shareId
+        shareID: shareID
         portablePath: portablePath
-        parentId: parentId
+        parentID: parentID
         modifyTimestamp: 0
         pastFile: true
         size: 6
@@ -2217,9 +2255,9 @@ components:
           items:
             type: string
           type: array
-        contentId:
+        contentID:
           type: string
-        currentId:
+        currentID:
           type: string
         hasRestoreMedia:
           type: boolean
@@ -2233,13 +2271,13 @@ components:
           type: integer
         owner:
           type: string
-        parentId:
+        parentID:
           type: string
         pastFile:
           type: boolean
         portablePath:
           type: string
-        shareId:
+        shareID:
           type: string
         size:
           type: integer
@@ -2252,9 +2290,9 @@ components:
         users:
         - users
         - users
-        fileId: fileId
+        fileID: fileID
       properties:
-        fileId:
+        fileID:
           type: string
         public:
           type: boolean
@@ -2269,11 +2307,11 @@ components:
       type: object
     FilesListParams:
       example:
-        fileIds:
-        - fileIds
-        - fileIds
+        fileIDs:
+        - fileIDs
+        - fileIDs
       properties:
-        fileIds:
+        fileIDs:
           items:
             type: string
           type: array
@@ -2287,7 +2325,7 @@ components:
           likedBy:
           - likedBy
           - likedBy
-          contentId: contentId
+          contentID: contentID
           mimeType: mimeType
           enabled: true
           duration: 5
@@ -2310,7 +2348,7 @@ components:
           likedBy:
           - likedBy
           - likedBy
-          contentId: contentId
+          contentID: contentID
           mimeType: mimeType
           enabled: true
           duration: 5
@@ -2329,15 +2367,15 @@ components:
           height: 5
         children:
         - owner: owner
-          currentId: currentId
+          currentID: currentID
           childrenIds:
           - childrenIds
           - childrenIds
-          contentId: contentId
+          contentID: contentID
           hasRestoreMedia: true
-          shareId: shareId
+          shareID: shareID
           portablePath: portablePath
-          parentId: parentId
+          parentID: parentID
           modifyTimestamp: 0
           pastFile: true
           size: 6
@@ -2345,15 +2383,15 @@ components:
           modifiable: true
           isDir: true
         - owner: owner
-          currentId: currentId
+          currentID: currentID
           childrenIds:
           - childrenIds
           - childrenIds
-          contentId: contentId
+          contentID: contentID
           hasRestoreMedia: true
-          shareId: shareId
+          shareID: shareID
           portablePath: portablePath
-          parentId: parentId
+          parentID: parentID
           modifyTimestamp: 0
           pastFile: true
           size: 6
@@ -2362,15 +2400,15 @@ components:
           isDir: true
         self:
           owner: owner
-          currentId: currentId
+          currentID: currentID
           childrenIds:
           - childrenIds
           - childrenIds
-          contentId: contentId
+          contentID: contentID
           hasRestoreMedia: true
-          shareId: shareId
+          shareID: shareID
           portablePath: portablePath
-          parentId: parentId
+          parentID: parentID
           modifyTimestamp: 0
           pastFile: true
           size: 6
@@ -2379,15 +2417,15 @@ components:
           isDir: true
         parents:
         - owner: owner
-          currentId: currentId
+          currentID: currentID
           childrenIds:
           - childrenIds
           - childrenIds
-          contentId: contentId
+          contentID: contentID
           hasRestoreMedia: true
-          shareId: shareId
+          shareID: shareID
           portablePath: portablePath
-          parentId: parentId
+          parentID: parentID
           modifyTimestamp: 0
           pastFile: true
           size: 6
@@ -2395,15 +2433,15 @@ components:
           modifiable: true
           isDir: true
         - owner: owner
-          currentId: currentId
+          currentID: currentID
           childrenIds:
           - childrenIds
           - childrenIds
-          contentId: contentId
+          contentID: contentID
           hasRestoreMedia: true
-          shareId: shareId
+          shareID: shareID
           portablePath: portablePath
-          parentId: parentId
+          parentID: parentID
           modifyTimestamp: 0
           pastFile: true
           size: 6
@@ -2448,7 +2486,7 @@ components:
           likedBy:
           - likedBy
           - likedBy
-          contentId: contentId
+          contentID: contentID
           mimeType: mimeType
           enabled: true
           duration: 5
@@ -2471,7 +2509,7 @@ components:
           likedBy:
           - likedBy
           - likedBy
-          contentId: contentId
+          contentID: contentID
           mimeType: mimeType
           enabled: true
           duration: 5
@@ -2507,19 +2545,19 @@ components:
         hidden: false
         limit: 20
         raw: false
-        folderIds:
-        - "[fId1"
-        - "fId2]"
-        mediaIds:
-        - "[mId1"
-        - "mId2]"
+        folderIDs:
+        - "[fID1"
+        - "fID2]"
+        mediaIDs:
+        - "[mID1"
+        - "mID2]"
         page: 1
         sort: createDate
       properties:
-        folderIds:
+        folderIDs:
           example:
-          - "[fId1"
-          - "fId2]"
+          - "[fID1"
+          - "fID2]"
           items:
             type: string
           type: array
@@ -2529,10 +2567,10 @@ components:
         limit:
           example: 20
           type: integer
-        mediaIds:
+        mediaIDs:
           example:
-          - "[mId1"
-          - "mId2]"
+          - "[mID1"
+          - "mID2]"
           items:
             type: string
           type: array
@@ -2554,13 +2592,13 @@ components:
           example: 1
           type: integer
       type: object
-    MediaIdsParams:
+    MediaIDsParams:
       example:
-        mediaIds:
-        - mediaIds
-        - mediaIds
+        mediaIDs:
+        - mediaIDs
+        - mediaIDs
       properties:
-        mediaIds:
+        mediaIDs:
           items:
             type: string
           type: array
@@ -2573,7 +2611,7 @@ components:
         likedBy:
         - likedBy
         - likedBy
-        contentId: contentId
+        contentID: contentID
         mimeType: mimeType
         enabled: true
         duration: 5
@@ -2591,7 +2629,7 @@ components:
         createDate: 1
         height: 5
       properties:
-        contentId:
+        contentID:
           description: "Hash of the file content, to ensure that the same files don't\
             \ get duplicated"
           type: string
@@ -2721,22 +2759,22 @@ components:
       type: object
     MoveFilesParams:
       example:
-        fileIds:
-        - fileIds
-        - fileIds
-        newParentId: newParentId
+        fileIDs:
+        - fileIDs
+        - fileIDs
+        newParentID: newParentID
       properties:
-        fileIds:
+        fileIDs:
           items:
             type: string
           type: array
-        newParentId:
+        newParentID:
           type: string
       type: object
     NewFileParams:
       example:
         fileSize: 0
-        parentFolderId: parentFolderId
+        parentFolderID: parentFolderID
         newFileName: newFileName
         isDir: true
       properties:
@@ -2746,16 +2784,16 @@ components:
           type: boolean
         newFileName:
           type: string
-        parentFolderId:
+        parentFolderID:
           type: string
       type: object
     NewFilesInfo:
       example:
-        fileIds:
-        - fileIds
-        - fileIds
+        fileIDs:
+        - fileIDs
+        - fileIDs
       properties:
-        fileIds:
+        fileIDs:
           items:
             type: string
           type: array
@@ -2764,11 +2802,11 @@ components:
       example:
         newFiles:
         - fileSize: 0
-          parentFolderId: parentFolderId
+          parentFolderID: parentFolderID
           newFileName: newFileName
           isDir: true
         - fileSize: 0
-          parentFolderId: parentFolderId
+          parentFolderID: parentFolderID
           newFileName: newFileName
           isDir: true
       properties:
@@ -2783,7 +2821,7 @@ components:
         name: name
         usingKey: usingKey
         coreAddress: coreAddress
-        serverId: serverId
+        serverID: serverID
       properties:
         coreAddress:
           type: string
@@ -2791,26 +2829,26 @@ components:
           type: string
         role:
           type: string
-        serverId:
+        serverID:
           type: string
         usingKey:
           type: string
       type: object
     NewUploadInfo:
       example:
-        uploadId: uploadId
+        uploadID: uploadID
       properties:
-        uploadId:
+        uploadID:
           type: string
       type: object
     NewUploadParams:
       example:
         chunkSize: 0
-        rootFolderId: rootFolderId
+        rootFolderID: rootFolderID
       properties:
         chunkSize:
           type: integer
-        rootFolderId:
+        rootFolderID:
           type: string
       type: object
     NewUserParams:
@@ -2882,26 +2920,26 @@ components:
       type: object
     RestoreFilesBody:
       example:
-        fileIds:
-        - fileIds
-        - fileIds
-        newParentId: newParentId
+        fileIDs:
+        - fileIDs
+        - fileIDs
+        newParentID: newParentID
         timestamp: 0
       properties:
-        fileIds:
+        fileIDs:
           items:
             type: string
           type: array
-        newParentId:
+        newParentID:
           type: string
         timestamp:
           type: integer
       type: object
     RestoreFilesInfo:
       example:
-        newParentId: newParentId
+        newParentID: newParentID
       properties:
-        newParentId:
+        newParentID:
           type: string
       type: object
     ShareInfo:
@@ -2912,21 +2950,21 @@ components:
         - permissionLevel: 0
           fullName: fullName
           isOnline: true
-          trashId: trashId
-          homeId: homeId
+          trashID: trashID
+          homeID: homeID
           activated: true
           token: token
           username: username
         - permissionLevel: 0
           fullName: fullName
           isOnline: true
-          trashId: trashId
-          homeId: homeId
+          trashID: trashID
+          homeID: homeID
           activated: true
           token: token
           username: username
         timelineOnly: true
-        shareId: shareId
+        shareID: shareID
         wormhole: true
         shareType: shareType
         enabled: true
@@ -2939,7 +2977,7 @@ components:
             canDelete: true
         shareName: shareName
         updated: 1
-        fileId: fileId
+        fileID: fileID
       properties:
         accessors:
           items:
@@ -2949,7 +2987,7 @@ components:
           type: boolean
         expires:
           type: integer
-        fileId:
+        fileID:
           type: string
         owner:
           type: string
@@ -2959,7 +2997,7 @@ components:
           type: object
         public:
           type: boolean
-        shareId:
+        shareID:
           type: string
         shareName:
           type: string
@@ -2976,27 +3014,27 @@ components:
       example:
         single: true
         filename: filename
-        takeoutId: takeoutId
-        taskId: taskId
+        takeoutID: takeoutID
+        taskID: taskID
       properties:
         filename:
           type: string
         single:
           type: boolean
-        takeoutId:
+        takeoutID:
           type: string
-        taskId:
+        taskID:
           type: string
       type: object
     TaskInfo:
       example:
         jobName: jobName
         result: "{}"
-        workerId: 6
+        workerID: 6
         Completed: true
         progress: 0
         startTime: startTime
-        taskId: taskId
+        taskID: taskID
         status: ""
       properties:
         Completed:
@@ -3010,18 +3048,18 @@ components:
         startTime:
           type: string
         status:
-          $ref: "#/components/schemas/task.TaskExitStatus"
-        taskId:
+          $ref: "#/components/schemas/task.ExitStatus"
+        taskID:
           type: string
-        workerId:
+        workerID:
           type: integer
       required:
       - Completed
       - jobName
       - progress
       - status
-      - taskId
-      - workerId
+      - taskID
+      - workerID
       type: object
     TokenInfo:
       example:
@@ -3118,11 +3156,11 @@ components:
     UpdateFileParams:
       example:
         newName: newName
-        newParentId: newParentId
+        newParentID: newParentID
       properties:
         newName:
           type: string
-        newParentId:
+        newParentID:
           type: string
       type: object
     UserInfo:
@@ -3130,8 +3168,8 @@ components:
         permissionLevel: 0
         fullName: fullName
         isOnline: true
-        trashId: trashId
-        homeId: homeId
+        trashID: trashID
+        homeID: homeID
         activated: true
         token: token
         username: username
@@ -3140,7 +3178,7 @@ components:
           type: boolean
         fullName:
           type: string
-        homeId:
+        homeID:
           type: string
         isOnline:
           type: boolean
@@ -3148,16 +3186,16 @@ components:
           type: integer
         token:
           type: string
-        trashId:
+        trashID:
           type: string
         username:
           type: string
       required:
       - activated
       - fullName
-      - homeId
+      - homeID
       - permissionLevel
-      - trashId
+      - trashID
       - username
       type: object
     UserInfoArchive:
@@ -3166,8 +3204,8 @@ components:
         permissionLevel: 6
         fullName: fullName
         isOnline: true
-        trashId: trashId
-        homeId: homeId
+        trashID: trashID
+        homeID: homeID
         activated: true
         token: token
         username: username
@@ -3176,7 +3214,7 @@ components:
           type: boolean
         fullName:
           type: string
-        homeId:
+        homeID:
           type: string
         isOnline:
           type: boolean
@@ -3186,16 +3224,16 @@ components:
           type: integer
         token:
           type: string
-        trashId:
+        trashID:
           type: string
         username:
           type: string
       required:
       - activated
       - fullName
-      - homeId
+      - homeID
       - permissionLevel
-      - trashId
+      - trashID
       - username
       type: object
     WLResponseInfo:
@@ -3212,6 +3250,63 @@ components:
         error:
           type: string
       type: object
+    fs.Filepath:
+      example:
+        rootAlias: rootAlias
+        relPath: relPath
+      properties:
+        relPath:
+          type: string
+        rootAlias:
+          type: string
+      type: object
+    history.FileAction:
+      example:
+        actionType: actionType
+        eventID: eventID
+        filepath:
+          rootAlias: rootAlias
+          relPath: relPath
+        originPath:
+          rootAlias: rootAlias
+          relPath: relPath
+        size: 0
+        doer: doer
+        contentID: contentID
+        id: id
+        destinationPath:
+          rootAlias: rootAlias
+          relPath: relPath
+        towerID: towerID
+        fileID: fileID
+        timestamp: timestamp
+      properties:
+        actionType:
+          type: string
+        contentID:
+          type: string
+        destinationPath:
+          $ref: "#/components/schemas/fs.Filepath"
+        doer:
+          description: The user or system that performed the action
+          type: string
+        eventID:
+          type: string
+        fileID:
+          type: string
+        filepath:
+          $ref: "#/components/schemas/fs.Filepath"
+        id:
+          type: string
+        originPath:
+          $ref: "#/components/schemas/fs.Filepath"
+        size:
+          type: integer
+        timestamp:
+          type: string
+        towerID:
+          type: string
+      type: object
     structs.InitServerParams:
       properties:
         coreAddress:
@@ -3220,15 +3315,15 @@ components:
           type: string
         fullName:
           type: string
-        localId:
-          description: "For restoring a server, remoind the core of its serverId and\
+        localID:
+          description: "For restoring a server, remoind the core of its serverID and\
             \ api key the remote last used"
           type: string
         name:
           type: string
         password:
           type: string
-        remoteId:
+        remoteID:
           type: string
         role:
           type: string
@@ -3244,7 +3339,7 @@ components:
         configValue:
           type: object
       type: object
-    task.TaskExitStatus:
+    task.ExitStatus:
       enum:
       - ""
       - success
@@ -3266,7 +3361,7 @@ components:
       - chunk
       type: object
   securitySchemes:
-    ApiKeyAuth:
+    APIKeyAuth:
       in: header
       name: Authorization
       type: apiKey

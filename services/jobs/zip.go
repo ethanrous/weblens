@@ -11,25 +11,28 @@ import (
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/job"
 	"github.com/ethanrous/weblens/models/task"
-	"github.com/ethanrous/weblens/modules/crypto"
-	"github.com/ethanrous/weblens/modules/errors"
+	"github.com/ethanrous/weblens/modules/cryptography"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
 	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/ethanrous/weblens/modules/websocket"
-	"github.com/ethanrous/weblens/services/context"
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/services/ctxservice"
 	file_service "github.com/ethanrous/weblens/services/file"
 	"github.com/ethanrous/weblens/services/notify"
 	"github.com/saracen/fastzip"
 )
 
-var ErrEmptyZip = errors.New("zip file is empty")
+// ErrEmptyZip error reporting that a zip file is empty
+var ErrEmptyZip = wlerrors.New("zip file is empty")
 
+// CreateZip creates a zip archive from the files specified in the task metadata.
 func CreateZip(tsk task_mod.Task) {
 	t := tsk.(*task.Task)
 
-	ctx, ok := context.FromContext(t.Ctx)
+	ctx, ok := ctxservice.FromContext(t.Ctx)
 	if !ok {
-		t.Fail(errors.New("context is not a RequestContext"))
+		t.Fail(wlerrors.New("context is not a RequestContext"))
+
 		return
 	}
 
@@ -47,11 +50,14 @@ func CreateZip(tsk task_mod.Task) {
 			return file.RecursiveMap(
 				func(f *file_model.WeblensFileImpl) error {
 					fAbs := f.GetPortablePath().ToAbsolute()
+
 					stat, err := os.Stat(fAbs)
 					if err != nil {
 						t.ReqNoErr(err)
 					}
+
 					filesInfoMap[fAbs] = stat
+
 					return nil
 				},
 			)
@@ -64,7 +70,7 @@ func CreateZip(tsk task_mod.Task) {
 	if len(zipMeta.Files) == 1 {
 		takeoutKey = zipMeta.Files[0].GetPortablePath().Filename()
 	} else {
-		takeoutKey = crypto.HashString(strings.Join(paths, ""))[:8]
+		takeoutKey = cryptography.HashString(strings.Join(paths, ""))[:8]
 	}
 
 	zipName := takeoutKey
@@ -77,7 +83,7 @@ func CreateZip(tsk task_mod.Task) {
 
 	zipFile, err := ctx.FileService.GetZip(ctx, zipName)
 	if err == nil {
-		t.SetResult(task_mod.TaskResult{"takeoutId": zipFile.ID(), "filename": zipFile.GetPortablePath().Filename()})
+		t.SetResult(task_mod.Result{"takeoutID": zipFile.ID(), "filename": zipFile.GetPortablePath().Filename()})
 		// Let any client subscribers know we are done
 		notif := notify.NewTaskNotification(t, websocket.ZipCompleteEvent, t.GetResults())
 		ctx.Notify(ctx, notif)
@@ -93,7 +99,7 @@ func CreateZip(tsk task_mod.Task) {
 		return
 	}
 
-	notif := notify.NewTaskNotification(t, websocket.TaskCreatedEvent, task_mod.TaskResult{"totalFiles": len(filesInfoMap)})
+	notif := notify.NewTaskNotification(t, websocket.TaskCreatedEvent, task_mod.Result{"totalFiles": len(filesInfoMap)})
 	ctx.Notify(ctx, notif)
 
 	zw, err := zipFile.Writer()
@@ -103,7 +109,7 @@ func CreateZip(tsk task_mod.Task) {
 		return
 	}
 
-	defer zw.Close()
+	defer zw.Close() //nolint:errcheck
 
 	a, err := fastzip.NewArchiver(
 		zw, zipMeta.Files[0].GetParent().GetPortablePath().ToAbsolute(),
@@ -111,14 +117,13 @@ func CreateZip(tsk task_mod.Task) {
 		fastzip.WithArchiverBufferSize(1024*1024*1024),
 		fastzip.WithArchiverMethod(zip.Store),
 	)
-
 	if err != nil {
 		t.Fail(err)
 
 		return
 	}
 
-	defer a.Close()
+	defer a.Close() //nolint:errcheck
 
 	var archiveErr *error
 
@@ -133,19 +138,23 @@ func CreateZip(tsk task_mod.Task) {
 	bytesTotal := slices_mod.Reduce(
 		zipMeta.Files, func(file *file_model.WeblensFileImpl, acc int64) int64 {
 			num := file.Size()
+
 			return acc + num
 		}, 0,
 	)
 
-	var entries int64
-	var bytes int64
-	var prevBytes int64 = -1
-	var sinceUpdate int64 = 0
+	var (
+		entries     int64
+		bytes       int64
+		prevBytes   int64 = -1
+		sinceUpdate int64
+	)
+
 	totalFiles := len(filesInfoMap)
 
 	const updateInterval = 500 * int64(time.Millisecond)
 
-	t.OnResult(func(result task_mod.TaskResult) {
+	t.OnResult(func(result task_mod.Result) {
 		notif := notify.NewTaskNotification(t, websocket.ZipProgressEvent, result)
 		ctx.Notify(ctx, notif)
 	})
@@ -155,13 +164,15 @@ func CreateZip(tsk task_mod.Task) {
 		if archiveErr != nil {
 			break
 		}
+
 		sinceUpdate++
+
 		bytes, entries = a.Written()
 		if bytes != prevBytes {
 			byteDiff := bytes - prevBytes
 			timeNs := updateInterval * sinceUpdate
 
-			t.SetResult(task_mod.TaskResult{
+			t.SetResult(task_mod.Result{
 				"completedFiles": int(entries), "totalFiles": totalFiles,
 				"bytesSoFar": bytes,
 				"bytesTotal": bytesTotal,
@@ -183,8 +194,8 @@ func CreateZip(tsk task_mod.Task) {
 
 	t.ClearOnResult()
 
-	t.SetResult(task_mod.TaskResult{
-		"takeoutId":      zipFile.ID(),
+	t.SetResult(task_mod.Result{
+		"takeoutID":      zipFile.ID(),
 		"filename":       zipFile.GetPortablePath().Filename(),
 		"completedFiles": totalFiles,
 		"bytesSoFar":     bytesTotal,

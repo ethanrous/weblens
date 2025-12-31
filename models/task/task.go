@@ -9,12 +9,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/log"
 	task_mod "github.com/ethanrous/weblens/modules/task"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/rs/zerolog"
 )
 
+// Task represents a unit of work that can be queued and executed by a worker pool.
 type Task struct {
 	QueueTime  time.Time
 	StartTime  time.Time
@@ -24,26 +25,26 @@ type Task struct {
 	cancelFunc context.CancelCauseFunc
 
 	timeout  time.Time
-	metadata task_mod.TaskMetadata
+	metadata task_mod.Metadata
 
 	err error
 
-	taskPool      *TaskPool
-	childTaskPool *TaskPool
+	taskPool      *Pool
+	childTaskPool *Pool
 	work          job
-	result        task_mod.TaskResult
+	result        task_mod.Result
 
 	// Function to be run to clean up when the task completes, only if the task is successful
-	postAction func(result task_mod.TaskResult)
+	postAction func(result task_mod.Result)
 
 	// Function to run whenever the task results update
-	resultsCallback func(result task_mod.TaskResult)
+	resultsCallback func(result task_mod.Result)
 
-	taskId     string
+	taskID     string
 	jobName    string
 	queueState QueueState
 
-	exitStatus task_mod.TaskExitStatus // "success", "error" or "cancelled"
+	exitStatus task_mod.ExitStatus // "success", "error" or "cancelled"
 
 	// Function to be run to clean up when the task completes, no matter the exit status
 	cleanups []task_mod.CleanupFunc
@@ -57,16 +58,19 @@ type Task struct {
 
 	waitChan chan struct{}
 
-	WorkerId int64
+	WorkerID int64
 }
 
-type TaskOptions struct {
+// Options specifies configuration options for task behavior.
+type Options struct {
 	Persistent bool
 	Unique     bool
 }
 
+// QueueState represents the current state of a task in the queue.
 type QueueState int
 
+// Task queue state constants.
 const (
 	Created QueueState = iota
 	InQueue
@@ -75,14 +79,17 @@ const (
 	Exited
 )
 
-func (t *Task) Id() string {
-	return t.taskId
+// ID returns the unique identifier of the task.
+func (t *Task) ID() string {
+	return t.taskID
 }
 
+// Log returns the logger associated with the task.
 func (t *Task) Log() *zerolog.Logger {
 	return log.FromContext(t.Ctx)
 }
 
+// JobName returns the name of the job this task is executing.
 func (t *Task) JobName() string {
 	t.updateMu.RLock()
 	defer t.updateMu.RUnlock()
@@ -90,6 +97,7 @@ func (t *Task) JobName() string {
 	return t.jobName
 }
 
+// GetTaskPool returns the task pool this task belongs to.
 func (t *Task) GetTaskPool() task_mod.Pool {
 	t.updateMu.RLock()
 	defer t.updateMu.RUnlock()
@@ -97,44 +105,32 @@ func (t *Task) GetTaskPool() task_mod.Pool {
 	return t.taskPool
 }
 
-func (t *Task) GetWorkerId() int {
+// GetWorkerID returns the ID of the worker executing this task.
+func (t *Task) GetWorkerID() int {
 	t.updateMu.RLock()
 	defer t.updateMu.RUnlock()
 
-	return int(t.WorkerId)
+	return int(t.WorkerID)
 }
 
-func (t *Task) setWorkerId(workerId int64) {
-	t.updateMu.Lock()
-	defer t.updateMu.Unlock()
-
-	t.WorkerId = workerId
-}
-
-func (t *Task) setTaskPoolInternal(pool *TaskPool) {
-	t.updateMu.Lock()
-	defer t.updateMu.Unlock()
-	t.taskPool = pool
-	t.Log().UpdateContext(func(c zerolog.Context) zerolog.Context {
-		return c.Str("task_pool", pool.ID())
-	})
-}
-
-func (t *Task) GetChildTaskPool() *TaskPool {
+// GetChildTaskPool returns the child task pool, if any.
+func (t *Task) GetChildTaskPool() *Pool {
 	t.updateMu.RLock()
 	defer t.updateMu.RUnlock()
 
 	return t.childTaskPool
 }
 
+// SetChildTaskPool sets the child task pool for this task.
 func (t *Task) SetChildTaskPool(pool task_mod.Pool) {
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
-	t.childTaskPool = pool.(*TaskPool)
+
+	t.childTaskPool = pool.(*Pool)
 }
 
 // Status returns a boolean representing if a task has completed, and a string describing its exit type, if completed.
-func (t *Task) Status() (bool, task_mod.TaskExitStatus) {
+func (t *Task) Status() (bool, task_mod.ExitStatus) {
 	t.updateMu.RLock()
 	defer t.updateMu.RUnlock()
 
@@ -145,7 +141,7 @@ func (t *Task) Status() (bool, task_mod.TaskExitStatus) {
 // if tp is nil, will default to the global task pool.
 // Essentially an alias for tp.QueueTask(t), so you can
 // NewTask(...).Q(). Returns the given task to further support this
-func (t *Task) Q(tp *TaskPool) *Task {
+func (t *Task) Q(tp *Pool) *Task {
 	if tp == nil {
 		t.Log().Error().Msg("nil task pool")
 
@@ -185,7 +181,7 @@ func (t *Task) Wait() {
 // If a task finds itself not required to continue, and should exit early,
 // success should be returned instead of cancel.
 func (t *Task) Cancel() {
-	t.Log().Trace().Msgf("Cancelling task T[%s]", t.taskId)
+	t.Log().Trace().Msgf("Cancelling task T[%s]", t.taskID)
 
 	t.cancelFunc(nil)
 
@@ -204,8 +200,10 @@ func (t *Task) Cancel() {
 	// Do not exit task here, so that .Wait() -ing on a task will wait until the task actually exits,
 	// before starting again
 	// t.queueState = Exited
+	_ = ""
 }
 
+// ClearAndRecompute cancels the task, clears its state, and re-queues it.
 func (t *Task) ClearAndRecompute() {
 	t.Cancel()
 	t.Wait()
@@ -231,25 +229,28 @@ func (t *Task) ClearAndRecompute() {
 		return
 	}
 
-	t.GetTaskPool().GetWorkerPool().(*WorkerPool).taskMap[t.taskId] = t
+	t.GetTaskPool().GetWorkerPool().(*WorkerPool).taskMap[t.taskID] = t
 }
 
-// TODO: get rid of one of these
-func (t *Task) GetResult() task_mod.TaskResult {
+// GetResult returns the task result.
+func (t *Task) GetResult() task_mod.Result {
 	return t.GetResults()
 }
 
-func (t *Task) GetResults() task_mod.TaskResult {
+// GetResults returns a copy of the task result.
+func (t *Task) GetResults() task_mod.Result {
 	t.updateMu.RLock()
 	defer t.updateMu.RUnlock()
+
 	if t.result == nil {
-		t.result = task_mod.TaskResult{}
+		t.result = task_mod.Result{}
 	}
 
 	return maps.Clone(t.result)
 }
 
-func (t *Task) GetMeta() task_mod.TaskMetadata {
+// GetMeta returns the task metadata.
+func (t *Task) GetMeta() task_mod.Metadata {
 	return t.metadata
 }
 
@@ -258,11 +259,226 @@ Manipulate is used to change the metadata of a task while it is running.
 This can be useful to have a task be waiting for input from a client,
 and this function can be used to send that data to the task via a chan, for example.
 */
-func (t *Task) Manipulate(fn func(meta task_mod.TaskMetadata) error) error {
+func (t *Task) Manipulate(fn func(meta task_mod.Metadata) error) error {
 	return fn(t.metadata)
 }
 
-// Set the error of the  This *should* be the last operation performed before returning from the
+// ReqNoErr is a wrapper around t.Fail, but only fails if the error is not nil
+func (t *Task) ReqNoErr(err error) {
+	if err == nil {
+		return
+	}
+
+	t.Fail(err)
+}
+
+// Fail will set the error on the task, and then panic with ErrTaskError, which informs the worker recovery
+// function to exit the task with the error that is set, and not treat it as a real panic.
+func (t *Task) Fail(err error) {
+	if err == nil {
+		panic(wlerrors.Errorf("Trying to fail task with nil error"))
+	}
+
+	t.error(err)
+	panic(ErrTaskError)
+}
+
+// SetPostAction takes a function to be run after the task has successfully completed
+// with the task results as the input of the function
+func (t *Task) SetPostAction(action func(task_mod.Result)) {
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
+
+	// If the task has already completed, run the post task in this thread instead
+	switch t.exitStatus {
+	case task_mod.TaskSuccess:
+		action(t.result)
+	case task_mod.TaskNoStatus:
+		t.postAction = action
+	}
+}
+
+// SetErrorCleanup works the same as t.SetCleanup(), but only runs if the task errors
+func (t *Task) SetErrorCleanup(cleanup task_mod.CleanupFunc) {
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
+
+	t.errorCleanups = append(t.errorCleanups, cleanup)
+}
+
+// SetCleanup takes a function to be run after the task has completed, no matter the exit status.
+// Many cleanup functions can be registered to run in sequence after the task completes. The cleanup
+// functions are run in the order they are registered.
+// Modifications to the task state should not be made in the cleanup functions (i.e. read-only), as the task has already completed, and may result in a deadlock.
+// If the task has already completed, this function will NOT be called. Therefore, it is only safe to call SetCleanup() from inside of a task handler.
+// If you want to register a function from outside the task handler, or to run after the task has completed successfully, use t.SetPostAction() instead.
+func (t *Task) SetCleanup(cleanup task_mod.CleanupFunc) {
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
+
+	t.cleanups = append(t.cleanups, cleanup)
+}
+
+// ReadError returns the error that caused the task to fail, if any.
+func (t *Task) ReadError() error {
+	switch t.err.(type) {
+	case nil:
+		return nil
+	case error:
+		return t.err
+	default:
+		return wlerrors.Errorf("%s", t.err)
+	}
+}
+
+// Success marks the task as successfully completed.
+func (t *Task) Success(msg ...any) {
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
+
+	t.queueState = Exited
+
+	t.exitStatus = task_mod.TaskSuccess
+	if len(msg) != 0 {
+		t.Log().Info().Msgf("Task succeeded with a message: %s", fmt.Sprint(msg...))
+	}
+}
+
+// QueueState returns the current queue state of the task.
+func (t *Task) QueueState() QueueState {
+	t.updateMu.RLock()
+	defer t.updateMu.RUnlock()
+
+	return t.queueState
+}
+
+// SetQueueState sets the queue state of the task.
+func (t *Task) SetQueueState(s QueueState) {
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
+
+	t.queueState = s
+}
+
+// SetTimeout sets a timeout for the task.
+func (t *Task) SetTimeout(timeout time.Time) {
+	t.timerLock.Lock()
+	defer t.timerLock.Unlock()
+
+	t.timeout = timeout
+	wp := t.GetTaskPool().GetWorkerPool()
+	wp.AddHit(timeout, t)
+	t.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Setting timeout for task [%s] to [%s]", t.ID(), timeout) })
+}
+
+// ClearTimeout clears the task timeout.
+func (t *Task) ClearTimeout() {
+	t.timerLock.Lock()
+	defer t.timerLock.Unlock()
+
+	t.timeout = time.Unix(0, 0)
+	t.Log().Trace().Func(func(e *zerolog.Event) { e.Msg("Clearing timeout") })
+}
+
+// GetTimeout returns the task timeout.
+func (t *Task) GetTimeout() time.Time {
+	t.timerLock.RLock()
+	defer t.timerLock.RUnlock()
+
+	return t.timeout
+}
+
+// OnResult installs a callback function that is called every time the task result is set
+func (t *Task) OnResult(callback func(task_mod.Result)) {
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
+
+	t.resultsCallback = callback
+}
+
+// ClearOnResult removes the result callback.
+func (t *Task) ClearOnResult() {
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
+
+	t.resultsCallback = nil
+}
+
+// SetResult sets the task result.
+func (t *Task) SetResult(results task_mod.Result) {
+	t.updateMu.Lock()
+
+	if t.result == nil {
+		t.result = results
+	} else {
+		maps.Copy(t.result, results)
+	}
+
+	t.Log().Trace().Func(func(e *zerolog.Event) {
+		e.Interface("result", results).Msgf("Task [%s][%s] updated its result", t.taskID, t.jobName)
+	})
+
+	if t.resultsCallback != nil {
+		resultClone := maps.Clone(t.result)
+		t.updateMu.Unlock()
+		t.resultsCallback(resultClone)
+
+		return
+	}
+
+	t.updateMu.Unlock()
+}
+
+// ExeTime returns the execution duration of the task.
+func (t *Task) ExeTime() time.Duration {
+	t.updateMu.RLock()
+	defer t.updateMu.RUnlock()
+
+	if t.FinishTime.IsZero() {
+		return time.Since(t.StartTime)
+	}
+
+	return t.FinishTime.Sub(t.StartTime)
+}
+
+// QueueTimeDuration returns how long the task waited in the queue.
+func (t *Task) QueueTimeDuration() time.Duration {
+	t.updateMu.RLock()
+	defer t.updateMu.RUnlock()
+
+	if t.StartTime.IsZero() {
+		return time.Since(t.QueueTime)
+	}
+
+	return t.StartTime.Sub(t.QueueTime)
+}
+
+// SetQueueTime sets the time when the task was queued.
+func (t *Task) SetQueueTime(qt time.Time) {
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
+
+	t.QueueTime = qt
+}
+
+func (t *Task) setWorkerID(workerID int64) {
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
+
+	t.WorkerID = workerID
+}
+
+func (t *Task) setTaskPoolInternal(pool *Pool) {
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
+
+	t.taskPool = pool
+	t.Log().UpdateContext(func(c zerolog.Context) zerolog.Context {
+		return c.Str("task_pool", pool.ID())
+	})
+}
+
+// Set the error of the task. This *should* be the last operation performed before returning from the
 // However, sometimes that is not possible, so we must check if the task has been cancelled before setting
 // the error, as errors occurring inside the task body, after a task is cancelled, are not valid.
 // If an error has caused the task to be cancelled, t.Cancel() must be called after t.error()
@@ -279,7 +495,7 @@ func (t *Task) error(err error) {
 		return
 	}
 
-	t.Log().Error().CallerSkipFrame(2).Stack().Err(err).Msgf("A [%s] task [%s] encountered an error", t.jobName, t.taskId)
+	t.Log().Error().CallerSkipFrame(2).Stack().Err(err).Msgf("A [%s] task [%s] encountered an error", t.jobName, t.taskID)
 
 	t.cancelFunc(err)
 
@@ -289,184 +505,6 @@ func (t *Task) error(err error) {
 	t.exitStatus = task_mod.TaskError
 
 	t.updateMu.Unlock()
-}
-
-// ReqNoErr is a wrapper around t.Fail, but only fails if the error is not nil
-func (t *Task) ReqNoErr(err error) {
-	if err == nil {
-		return
-	}
-
-	t.Fail(err)
-}
-
-// Fail will set the error on the task, and then panic with ErrTaskError, which informs the worker recovery
-// function to exit the task with the error that is set, and not treat it as a real panic.
-func (t *Task) Fail(err error) {
-	if err == nil {
-		panic(errors.Errorf("Trying to fail task with nil error"))
-	}
-
-	t.error(err)
-	panic(ErrTaskError)
-}
-
-// SetPostAction takes a function to be run after the task has successfully completed
-// with the task results as the input of the function
-func (t *Task) SetPostAction(action func(task_mod.TaskResult)) {
-	t.updateMu.Lock()
-	defer t.updateMu.Unlock()
-
-	// If the task has already completed, run the post task in this thread instead
-	if t.exitStatus == task_mod.TaskSuccess {
-		action(t.result)
-	} else if t.exitStatus == task_mod.TaskNoStatus {
-		t.postAction = action
-	}
-}
-
-// SetErrorCleanup works the same as t.SetCleanup(), but only runs if the task errors
-func (t *Task) SetErrorCleanup(cleanup task_mod.CleanupFunc) {
-	t.updateMu.Lock()
-	defer t.updateMu.Unlock()
-	t.errorCleanups = append(t.errorCleanups, cleanup)
-}
-
-// SetCleanup takes a function to be run after the task has completed, no matter the exit status.
-// Many cleanup functions can be registered to run in sequence after the task completes. The cleanup
-// functions are run in the order they are registered.
-// Modifications to the task state should not be made in the cleanup functions (i.e. read-only), as the task has already completed, and may result in a deadlock.
-// If the task has already completed, this function will NOT be called. Therefore, it is only safe to call SetCleanup() from inside of a task handler.
-// If you want to register a function from outside the task handler, or to run after the task has completed successfully, use t.SetPostAction() instead.
-func (t *Task) SetCleanup(cleanup task_mod.CleanupFunc) {
-	t.updateMu.Lock()
-	defer t.updateMu.Unlock()
-	t.cleanups = append(t.cleanups, cleanup)
-}
-
-func (t *Task) ReadError() error {
-	switch t.err.(type) {
-	case nil:
-
-		return nil
-	case error:
-
-		return t.err
-	default:
-
-		return errors.Errorf("%s", t.err)
-	}
-}
-
-func (t *Task) Success(msg ...any) {
-	t.updateMu.Lock()
-	defer t.updateMu.Unlock()
-
-	t.queueState = Exited
-	t.exitStatus = task_mod.TaskSuccess
-	if len(msg) != 0 {
-		t.Log().Info().Msgf("Task succeeded with a message: %s", fmt.Sprint(msg...))
-	}
-}
-
-func (t *Task) QueueState() QueueState {
-	t.updateMu.RLock()
-	defer t.updateMu.RUnlock()
-
-	return t.queueState
-}
-
-func (t *Task) SetQueueState(s QueueState) {
-	t.updateMu.Lock()
-	defer t.updateMu.Unlock()
-
-	t.queueState = s
-}
-
-func (t *Task) SetTimeout(timeout time.Time) {
-	t.timerLock.Lock()
-	defer t.timerLock.Unlock()
-	t.timeout = timeout
-	wp := t.GetTaskPool().GetWorkerPool()
-	wp.AddHit(timeout, t)
-	t.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Setting timeout for task [%s] to [%s]", t.Id(), timeout) })
-}
-
-func (t *Task) ClearTimeout() {
-	t.timerLock.Lock()
-	defer t.timerLock.Unlock()
-	t.timeout = time.Unix(0, 0)
-	t.Log().Trace().Func(func(e *zerolog.Event) { e.Msg("Clearing timeout") })
-}
-
-func (t *Task) GetTimeout() time.Time {
-	t.timerLock.RLock()
-	defer t.timerLock.RUnlock()
-
-	return t.timeout
-}
-
-// OnResult installs a callback function that is called every time the task result is set
-func (t *Task) OnResult(callback func(task_mod.TaskResult)) {
-	t.updateMu.Lock()
-	defer t.updateMu.Unlock()
-	t.resultsCallback = callback
-}
-
-func (t *Task) ClearOnResult() {
-	t.updateMu.Lock()
-	defer t.updateMu.Unlock()
-	t.resultsCallback = nil
-}
-
-func (t *Task) SetResult(results task_mod.TaskResult) {
-	t.updateMu.Lock()
-	if t.result == nil {
-		t.result = results
-	} else {
-		maps.Copy(t.result, results)
-	}
-
-	t.Log().Trace().Func(func(e *zerolog.Event) {
-		e.Interface("result", results).Msgf("Task [%s][%s] updated its result", t.taskId, t.jobName)
-	})
-
-	if t.resultsCallback != nil {
-		resultClone := maps.Clone(t.result)
-		t.updateMu.Unlock()
-		t.resultsCallback(resultClone)
-
-		return
-	}
-	t.updateMu.Unlock()
-}
-
-func (t *Task) ExeTime() time.Duration {
-	t.updateMu.RLock()
-	defer t.updateMu.RUnlock()
-
-	if t.FinishTime.IsZero() {
-		return time.Since(t.StartTime)
-	}
-
-	return t.FinishTime.Sub(t.StartTime)
-}
-
-func (t *Task) QueueTimeDuration() time.Duration {
-	t.updateMu.RLock()
-	defer t.updateMu.RUnlock()
-
-	if t.StartTime.IsZero() {
-		return time.Since(t.QueueTime)
-	}
-
-	return t.StartTime.Sub(t.QueueTime)
-}
-
-func (t *Task) SetQueueTime(qt time.Time) {
-	t.updateMu.Lock()
-	defer t.updateMu.Unlock()
-	t.QueueTime = qt
 }
 
 func globbyHash(charLimit int, dataToHash ...any) string {

@@ -6,7 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **filename** | **string** |  | [optional] [default to undefined]
-**folderId** | **string** |  | [optional] [default to undefined]
+**folderID** | **string** |  | [optional] [default to undefined]
 
 ## Example
 
@@ -15,7 +15,7 @@ import { StructsScanBody } from './api';
 
 const instance: StructsScanBody = {
     filename,
-    folderId,
+    folderID,
 };
 ```
 

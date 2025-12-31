@@ -23,12 +23,12 @@ var _ MappedNullable = &UserInfoArchive{}
 type UserInfoArchive struct {
 	Activated bool `json:"activated"`
 	FullName string `json:"fullName"`
-	HomeId string `json:"homeId"`
+	HomeID string `json:"homeID"`
 	IsOnline *bool `json:"isOnline,omitempty"`
 	Password *string `json:"password,omitempty"`
 	PermissionLevel int32 `json:"permissionLevel"`
 	Token *string `json:"token,omitempty"`
-	TrashId string `json:"trashId"`
+	TrashID string `json:"trashID"`
 	Username string `json:"username"`
 }
 
@@ -38,13 +38,13 @@ type _UserInfoArchive UserInfoArchive
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewUserInfoArchive(activated bool, fullName string, homeId string, permissionLevel int32, trashId string, username string) *UserInfoArchive {
+func NewUserInfoArchive(activated bool, fullName string, homeID string, permissionLevel int32, trashID string, username string) *UserInfoArchive {
 	this := UserInfoArchive{}
 	this.Activated = activated
 	this.FullName = fullName
-	this.HomeId = homeId
+	this.HomeID = homeID
 	this.PermissionLevel = permissionLevel
-	this.TrashId = trashId
+	this.TrashID = trashID
 	this.Username = username
 	return &this
 }
@@ -105,28 +105,28 @@ func (o *UserInfoArchive) SetFullName(v string) {
 	o.FullName = v
 }
 
-// GetHomeId returns the HomeId field value
-func (o *UserInfoArchive) GetHomeId() string {
+// GetHomeID returns the HomeID field value
+func (o *UserInfoArchive) GetHomeID() string {
 	if o == nil {
 		var ret string
 		return ret
 	}
 
-	return o.HomeId
+	return o.HomeID
 }
 
-// GetHomeIdOk returns a tuple with the HomeId field value
+// GetHomeIDOk returns a tuple with the HomeID field value
 // and a boolean to check if the value has been set.
-func (o *UserInfoArchive) GetHomeIdOk() (*string, bool) {
+func (o *UserInfoArchive) GetHomeIDOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.HomeId, true
+	return &o.HomeID, true
 }
 
-// SetHomeId sets field value
-func (o *UserInfoArchive) SetHomeId(v string) {
-	o.HomeId = v
+// SetHomeID sets field value
+func (o *UserInfoArchive) SetHomeID(v string) {
+	o.HomeID = v
 }
 
 // GetIsOnline returns the IsOnline field value if set, zero value otherwise.
@@ -249,28 +249,28 @@ func (o *UserInfoArchive) SetToken(v string) {
 	o.Token = &v
 }
 
-// GetTrashId returns the TrashId field value
-func (o *UserInfoArchive) GetTrashId() string {
+// GetTrashID returns the TrashID field value
+func (o *UserInfoArchive) GetTrashID() string {
 	if o == nil {
 		var ret string
 		return ret
 	}
 
-	return o.TrashId
+	return o.TrashID
 }
 
-// GetTrashIdOk returns a tuple with the TrashId field value
+// GetTrashIDOk returns a tuple with the TrashID field value
 // and a boolean to check if the value has been set.
-func (o *UserInfoArchive) GetTrashIdOk() (*string, bool) {
+func (o *UserInfoArchive) GetTrashIDOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
-	return &o.TrashId, true
+	return &o.TrashID, true
 }
 
-// SetTrashId sets field value
-func (o *UserInfoArchive) SetTrashId(v string) {
-	o.TrashId = v
+// SetTrashID sets field value
+func (o *UserInfoArchive) SetTrashID(v string) {
+	o.TrashID = v
 }
 
 // GetUsername returns the Username field value
@@ -309,7 +309,7 @@ func (o UserInfoArchive) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["activated"] = o.Activated
 	toSerialize["fullName"] = o.FullName
-	toSerialize["homeId"] = o.HomeId
+	toSerialize["homeID"] = o.HomeID
 	if !IsNil(o.IsOnline) {
 		toSerialize["isOnline"] = o.IsOnline
 	}
@@ -320,7 +320,7 @@ func (o UserInfoArchive) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Token) {
 		toSerialize["token"] = o.Token
 	}
-	toSerialize["trashId"] = o.TrashId
+	toSerialize["trashID"] = o.TrashID
 	toSerialize["username"] = o.Username
 	return toSerialize, nil
 }
@@ -332,9 +332,9 @@ func (o *UserInfoArchive) UnmarshalJSON(data []byte) (err error) {
 	requiredProperties := []string{
 		"activated",
 		"fullName",
-		"homeId",
+		"homeID",
 		"permissionLevel",
-		"trashId",
+		"trashID",
 		"username",
 	}
 

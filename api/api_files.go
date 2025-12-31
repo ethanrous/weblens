@@ -27,9 +27,9 @@ type FilesAPIService service
 type ApiAddFilesToUploadRequest struct {
 	ctx context.Context
 	ApiService *FilesAPIService
-	uploadId string
+	uploadID string
 	request *NewFilesParams
-	shareId *string
+	shareID *string
 }
 
 // New file params
@@ -38,9 +38,9 @@ func (r ApiAddFilesToUploadRequest) Request(request NewFilesParams) ApiAddFilesT
 	return r
 }
 
-// Share Id
-func (r ApiAddFilesToUploadRequest) ShareId(shareId string) ApiAddFilesToUploadRequest {
-	r.shareId = &shareId
+// Share ID
+func (r ApiAddFilesToUploadRequest) ShareID(shareID string) ApiAddFilesToUploadRequest {
+	r.shareID = &shareID
 	return r
 }
 
@@ -52,14 +52,14 @@ func (r ApiAddFilesToUploadRequest) Execute() (*NewFilesInfo, *http.Response, er
 AddFilesToUpload Add a file to an upload task
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param uploadId Upload Id
+ @param uploadID Upload ID
  @return ApiAddFilesToUploadRequest
 */
-func (a *FilesAPIService) AddFilesToUpload(ctx context.Context, uploadId string) ApiAddFilesToUploadRequest {
+func (a *FilesAPIService) AddFilesToUpload(ctx context.Context, uploadID string) ApiAddFilesToUploadRequest {
 	return ApiAddFilesToUploadRequest{
 		ApiService: a,
 		ctx: ctx,
-		uploadId: uploadId,
+		uploadID: uploadID,
 	}
 }
 
@@ -78,8 +78,8 @@ func (a *FilesAPIService) AddFilesToUploadExecute(r ApiAddFilesToUploadRequest) 
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/upload/{uploadId}"
-	localVarPath = strings.Replace(localVarPath, "{"+"uploadId"+"}", url.PathEscape(parameterValueToString(r.uploadId, "uploadId")), -1)
+	localVarPath := localBasePath + "/upload/{uploadID}"
+	localVarPath = strings.Replace(localVarPath, "{"+"uploadID"+"}", url.PathEscape(parameterValueToString(r.uploadID, "uploadID")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -88,8 +88,8 @@ func (a *FilesAPIService) AddFilesToUploadExecute(r ApiAddFilesToUploadRequest) 
 		return localVarReturnValue, nil, reportError("request is required and must be specified")
 	}
 
-	if r.shareId != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "shareId", r.shareId, "", "")
+	if r.shareID != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "shareID", r.shareID, "", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -259,7 +259,7 @@ type ApiCreateTakeoutRequest struct {
 	ctx context.Context
 	ApiService *FilesAPIService
 	request *FilesListParams
-	shareId *string
+	shareID *string
 }
 
 // File Ids
@@ -268,9 +268,9 @@ func (r ApiCreateTakeoutRequest) Request(request FilesListParams) ApiCreateTakeo
 	return r
 }
 
-// Share Id
-func (r ApiCreateTakeoutRequest) ShareId(shareId string) ApiCreateTakeoutRequest {
-	r.shareId = &shareId
+// Share ID
+func (r ApiCreateTakeoutRequest) ShareID(shareID string) ApiCreateTakeoutRequest {
+	r.shareID = &shareID
 	return r
 }
 
@@ -317,8 +317,8 @@ func (a *FilesAPIService) CreateTakeoutExecute(r ApiCreateTakeoutRequest) (*Take
 		return localVarReturnValue, nil, reportError("request is required and must be specified")
 	}
 
-	if r.shareId != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "shareId", r.shareId, "", "")
+	if r.shareID != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "shareID", r.shareID, "", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -497,15 +497,15 @@ func (a *FilesAPIService) DeleteFilesExecute(r ApiDeleteFilesRequest) (*http.Res
 type ApiDownloadFileRequest struct {
 	ctx context.Context
 	ApiService *FilesAPIService
-	fileId string
-	shareId *string
+	fileID string
+	shareID *string
 	format *string
 	isTakeout *bool
 }
 
-// Share Id
-func (r ApiDownloadFileRequest) ShareId(shareId string) ApiDownloadFileRequest {
-	r.shareId = &shareId
+// Share ID
+func (r ApiDownloadFileRequest) ShareID(shareID string) ApiDownloadFileRequest {
+	r.shareID = &shareID
 	return r
 }
 
@@ -529,14 +529,14 @@ func (r ApiDownloadFileRequest) Execute() (string, *http.Response, error) {
 DownloadFile Download a file
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param fileId File Id
+ @param fileID File ID
  @return ApiDownloadFileRequest
 */
-func (a *FilesAPIService) DownloadFile(ctx context.Context, fileId string) ApiDownloadFileRequest {
+func (a *FilesAPIService) DownloadFile(ctx context.Context, fileID string) ApiDownloadFileRequest {
 	return ApiDownloadFileRequest{
 		ApiService: a,
 		ctx: ctx,
-		fileId: fileId,
+		fileID: fileID,
 	}
 }
 
@@ -555,15 +555,15 @@ func (a *FilesAPIService) DownloadFileExecute(r ApiDownloadFileRequest) (string,
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/files/{fileId}/download"
-	localVarPath = strings.Replace(localVarPath, "{"+"fileId"+"}", url.PathEscape(parameterValueToString(r.fileId, "fileId")), -1)
+	localVarPath := localBasePath + "/files/{fileID}/download"
+	localVarPath = strings.Replace(localVarPath, "{"+"fileID"+"}", url.PathEscape(parameterValueToString(r.fileID, "fileID")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
-	if r.shareId != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "shareId", r.shareId, "", "")
+	if r.shareID != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "shareID", r.shareID, "", "")
 	}
 	if r.format != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "format", r.format, "", "")
@@ -571,8 +571,9 @@ func (a *FilesAPIService) DownloadFileExecute(r ApiDownloadFileRequest) (string,
 	if r.isTakeout != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "isTakeout", r.isTakeout, "", "")
 	} else {
-		var defaultValue bool = false
-		r.isTakeout = &defaultValue
+        var defaultValue bool = false
+        parameterAddToHeaderOrQuery(localVarQueryParams, "isTakeout", defaultValue, "", "")
+        r.isTakeout = &defaultValue
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -641,13 +642,13 @@ func (a *FilesAPIService) DownloadFileExecute(r ApiDownloadFileRequest) (string,
 type ApiGetFileRequest struct {
 	ctx context.Context
 	ApiService *FilesAPIService
-	fileId string
-	shareId *string
+	fileID string
+	shareID *string
 }
 
-// Share Id
-func (r ApiGetFileRequest) ShareId(shareId string) ApiGetFileRequest {
-	r.shareId = &shareId
+// Share ID
+func (r ApiGetFileRequest) ShareID(shareID string) ApiGetFileRequest {
+	r.shareID = &shareID
 	return r
 }
 
@@ -659,14 +660,14 @@ func (r ApiGetFileRequest) Execute() (*FileInfo, *http.Response, error) {
 GetFile Get information about a file
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param fileId File Id
+ @param fileID File ID
  @return ApiGetFileRequest
 */
-func (a *FilesAPIService) GetFile(ctx context.Context, fileId string) ApiGetFileRequest {
+func (a *FilesAPIService) GetFile(ctx context.Context, fileID string) ApiGetFileRequest {
 	return ApiGetFileRequest{
 		ApiService: a,
 		ctx: ctx,
-		fileId: fileId,
+		fileID: fileID,
 	}
 }
 
@@ -685,15 +686,15 @@ func (a *FilesAPIService) GetFileExecute(r ApiGetFileRequest) (*FileInfo, *http.
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/files/{fileId}"
-	localVarPath = strings.Replace(localVarPath, "{"+"fileId"+"}", url.PathEscape(parameterValueToString(r.fileId, "fileId")), -1)
+	localVarPath := localBasePath + "/files/{fileID}"
+	localVarPath = strings.Replace(localVarPath, "{"+"fileID"+"}", url.PathEscape(parameterValueToString(r.fileID, "fileID")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
-	if r.shareId != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "shareId", r.shareId, "", "")
+	if r.shareID != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "shareID", r.shareID, "", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -752,7 +753,7 @@ func (a *FilesAPIService) GetFileExecute(r ApiGetFileRequest) (*FileInfo, *http.
 type ApiGetFileStatsRequest struct {
 	ctx context.Context
 	ApiService *FilesAPIService
-	fileId string
+	fileID string
 }
 
 func (r ApiGetFileStatsRequest) Execute() (*http.Response, error) {
@@ -763,14 +764,14 @@ func (r ApiGetFileStatsRequest) Execute() (*http.Response, error) {
 GetFileStats Get the statistics of a file
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param fileId File Id
+ @param fileID File ID
  @return ApiGetFileStatsRequest
 */
-func (a *FilesAPIService) GetFileStats(ctx context.Context, fileId string) ApiGetFileStatsRequest {
+func (a *FilesAPIService) GetFileStats(ctx context.Context, fileID string) ApiGetFileStatsRequest {
 	return ApiGetFileStatsRequest{
 		ApiService: a,
 		ctx: ctx,
-		fileId: fileId,
+		fileID: fileID,
 	}
 }
 
@@ -787,8 +788,8 @@ func (a *FilesAPIService) GetFileStatsExecute(r ApiGetFileStatsRequest) (*http.R
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/files/{fileId}/stats"
-	localVarPath = strings.Replace(localVarPath, "{"+"fileId"+"}", url.PathEscape(parameterValueToString(r.fileId, "fileId")), -1)
+	localVarPath := localBasePath + "/files/{fileID}/stats"
+	localVarPath = strings.Replace(localVarPath, "{"+"fileID"+"}", url.PathEscape(parameterValueToString(r.fileID, "fileID")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -842,13 +843,13 @@ func (a *FilesAPIService) GetFileStatsExecute(r ApiGetFileStatsRequest) (*http.R
 type ApiGetFileTextRequest struct {
 	ctx context.Context
 	ApiService *FilesAPIService
-	fileId string
-	shareId *string
+	fileID string
+	shareID *string
 }
 
-// Share Id
-func (r ApiGetFileTextRequest) ShareId(shareId string) ApiGetFileTextRequest {
-	r.shareId = &shareId
+// Share ID
+func (r ApiGetFileTextRequest) ShareID(shareID string) ApiGetFileTextRequest {
+	r.shareID = &shareID
 	return r
 }
 
@@ -860,14 +861,14 @@ func (r ApiGetFileTextRequest) Execute() (string, *http.Response, error) {
 GetFileText Get the text of a text file
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param fileId File Id
+ @param fileID File ID
  @return ApiGetFileTextRequest
 */
-func (a *FilesAPIService) GetFileText(ctx context.Context, fileId string) ApiGetFileTextRequest {
+func (a *FilesAPIService) GetFileText(ctx context.Context, fileID string) ApiGetFileTextRequest {
 	return ApiGetFileTextRequest{
 		ApiService: a,
 		ctx: ctx,
-		fileId: fileId,
+		fileID: fileID,
 	}
 }
 
@@ -886,15 +887,15 @@ func (a *FilesAPIService) GetFileTextExecute(r ApiGetFileTextRequest) (string, *
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/files/{fileId}/text"
-	localVarPath = strings.Replace(localVarPath, "{"+"fileId"+"}", url.PathEscape(parameterValueToString(r.fileId, "fileId")), -1)
+	localVarPath := localBasePath + "/files/{fileID}/text"
+	localVarPath = strings.Replace(localVarPath, "{"+"fileID"+"}", url.PathEscape(parameterValueToString(r.fileID, "fileID")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
-	if r.shareId != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "shareId", r.shareId, "", "")
+	if r.shareID != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "shareID", r.shareID, "", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -1050,7 +1051,7 @@ func (a *FilesAPIService) GetSharedFilesExecute(r ApiGetSharedFilesRequest) (*Fo
 type ApiGetUploadResultRequest struct {
 	ctx context.Context
 	ApiService *FilesAPIService
-	uploadId string
+	uploadID string
 }
 
 func (r ApiGetUploadResultRequest) Execute() (*http.Response, error) {
@@ -1061,14 +1062,14 @@ func (r ApiGetUploadResultRequest) Execute() (*http.Response, error) {
 GetUploadResult Get the result of an upload task. This will block until the upload is complete
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param uploadId Upload Id
+ @param uploadID Upload ID
  @return ApiGetUploadResultRequest
 */
-func (a *FilesAPIService) GetUploadResult(ctx context.Context, uploadId string) ApiGetUploadResultRequest {
+func (a *FilesAPIService) GetUploadResult(ctx context.Context, uploadID string) ApiGetUploadResultRequest {
 	return ApiGetUploadResultRequest{
 		ApiService: a,
 		ctx: ctx,
-		uploadId: uploadId,
+		uploadID: uploadID,
 	}
 }
 
@@ -1085,8 +1086,8 @@ func (a *FilesAPIService) GetUploadResultExecute(r ApiGetUploadResultRequest) (*
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/upload/{uploadId}"
-	localVarPath = strings.Replace(localVarPath, "{"+"uploadId"+"}", url.PathEscape(parameterValueToString(r.uploadId, "uploadId")), -1)
+	localVarPath := localBasePath + "/upload/{uploadID}"
+	localVarPath = strings.Replace(localVarPath, "{"+"uploadID"+"}", url.PathEscape(parameterValueToString(r.uploadID, "uploadID")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -1141,7 +1142,7 @@ type ApiMoveFilesRequest struct {
 	ctx context.Context
 	ApiService *FilesAPIService
 	request *MoveFilesParams
-	shareId *string
+	shareID *string
 }
 
 // Move files request body
@@ -1150,9 +1151,9 @@ func (r ApiMoveFilesRequest) Request(request MoveFilesParams) ApiMoveFilesReques
 	return r
 }
 
-// Share Id
-func (r ApiMoveFilesRequest) ShareId(shareId string) ApiMoveFilesRequest {
-	r.shareId = &shareId
+// Share ID
+func (r ApiMoveFilesRequest) ShareID(shareID string) ApiMoveFilesRequest {
+	r.shareID = &shareID
 	return r
 }
 
@@ -1195,8 +1196,8 @@ func (a *FilesAPIService) MoveFilesExecute(r ApiMoveFilesRequest) (*http.Respons
 		return nil, reportError("request is required and must be specified")
 	}
 
-	if r.shareId != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "shareId", r.shareId, "", "")
+	if r.shareID != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "shareID", r.shareID, "", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -1358,7 +1359,7 @@ type ApiSearchByFilenameRequest struct {
 	ctx context.Context
 	ApiService *FilesAPIService
 	search *string
-	baseFolderId *string
+	baseFolderID *string
 }
 
 // Filename to search for
@@ -1368,8 +1369,8 @@ func (r ApiSearchByFilenameRequest) Search(search string) ApiSearchByFilenameReq
 }
 
 // The folder to search in, defaults to the user&#39;s home folder
-func (r ApiSearchByFilenameRequest) BaseFolderId(baseFolderId string) ApiSearchByFilenameRequest {
-	r.baseFolderId = &baseFolderId
+func (r ApiSearchByFilenameRequest) BaseFolderID(baseFolderID string) ApiSearchByFilenameRequest {
+	r.baseFolderID = &baseFolderID
 	return r
 }
 
@@ -1415,8 +1416,8 @@ func (a *FilesAPIService) SearchByFilenameExecute(r ApiSearchByFilenameRequest) 
 	}
 
 	parameterAddToHeaderOrQuery(localVarQueryParams, "search", r.search, "", "")
-	if r.baseFolderId != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "baseFolderId", r.baseFolderId, "", "")
+	if r.baseFolderID != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "baseFolderID", r.baseFolderID, "", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -1476,7 +1477,7 @@ type ApiStartUploadRequest struct {
 	ctx context.Context
 	ApiService *FilesAPIService
 	request *NewUploadParams
-	shareId *string
+	shareID *string
 }
 
 // New upload request body
@@ -1485,9 +1486,9 @@ func (r ApiStartUploadRequest) Request(request NewUploadParams) ApiStartUploadRe
 	return r
 }
 
-// Share Id
-func (r ApiStartUploadRequest) ShareId(shareId string) ApiStartUploadRequest {
-	r.shareId = &shareId
+// Share ID
+func (r ApiStartUploadRequest) ShareID(shareID string) ApiStartUploadRequest {
+	r.shareID = &shareID
 	return r
 }
 
@@ -1532,8 +1533,8 @@ func (a *FilesAPIService) StartUploadExecute(r ApiStartUploadRequest) (*NewUploa
 		return localVarReturnValue, nil, reportError("request is required and must be specified")
 	}
 
-	if r.shareId != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "shareId", r.shareId, "", "")
+	if r.shareID != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "shareID", r.shareID, "", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -1692,9 +1693,9 @@ func (a *FilesAPIService) UnTrashFilesExecute(r ApiUnTrashFilesRequest) (*http.R
 type ApiUpdateFileRequest struct {
 	ctx context.Context
 	ApiService *FilesAPIService
-	fileId string
+	fileID string
 	request *UpdateFileParams
-	shareId *string
+	shareID *string
 }
 
 // Update file request body
@@ -1703,9 +1704,9 @@ func (r ApiUpdateFileRequest) Request(request UpdateFileParams) ApiUpdateFileReq
 	return r
 }
 
-// Share Id
-func (r ApiUpdateFileRequest) ShareId(shareId string) ApiUpdateFileRequest {
-	r.shareId = &shareId
+// Share ID
+func (r ApiUpdateFileRequest) ShareID(shareID string) ApiUpdateFileRequest {
+	r.shareID = &shareID
 	return r
 }
 
@@ -1717,14 +1718,14 @@ func (r ApiUpdateFileRequest) Execute() (*http.Response, error) {
 UpdateFile Update a File
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param fileId File Id
+ @param fileID File ID
  @return ApiUpdateFileRequest
 */
-func (a *FilesAPIService) UpdateFile(ctx context.Context, fileId string) ApiUpdateFileRequest {
+func (a *FilesAPIService) UpdateFile(ctx context.Context, fileID string) ApiUpdateFileRequest {
 	return ApiUpdateFileRequest{
 		ApiService: a,
 		ctx: ctx,
-		fileId: fileId,
+		fileID: fileID,
 	}
 }
 
@@ -1741,8 +1742,8 @@ func (a *FilesAPIService) UpdateFileExecute(r ApiUpdateFileRequest) (*http.Respo
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/files/{fileId}"
-	localVarPath = strings.Replace(localVarPath, "{"+"fileId"+"}", url.PathEscape(parameterValueToString(r.fileId, "fileId")), -1)
+	localVarPath := localBasePath + "/files/{fileID}"
+	localVarPath = strings.Replace(localVarPath, "{"+"fileID"+"}", url.PathEscape(parameterValueToString(r.fileID, "fileID")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -1751,8 +1752,8 @@ func (a *FilesAPIService) UpdateFileExecute(r ApiUpdateFileRequest) (*http.Respo
 		return nil, reportError("request is required and must be specified")
 	}
 
-	if r.shareId != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "shareId", r.shareId, "", "")
+	if r.shareID != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "shareID", r.shareID, "", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{"application/json"}
@@ -1804,10 +1805,10 @@ func (a *FilesAPIService) UpdateFileExecute(r ApiUpdateFileRequest) (*http.Respo
 type ApiUploadFileChunkRequest struct {
 	ctx context.Context
 	ApiService *FilesAPIService
-	uploadId string
-	fileId string
+	uploadID string
+	fileID string
 	chunk *os.File
-	shareId *string
+	shareID *string
 }
 
 // File chunk
@@ -1816,9 +1817,9 @@ func (r ApiUploadFileChunkRequest) Chunk(chunk *os.File) ApiUploadFileChunkReque
 	return r
 }
 
-// Share Id
-func (r ApiUploadFileChunkRequest) ShareId(shareId string) ApiUploadFileChunkRequest {
-	r.shareId = &shareId
+// Share ID
+func (r ApiUploadFileChunkRequest) ShareID(shareID string) ApiUploadFileChunkRequest {
+	r.shareID = &shareID
 	return r
 }
 
@@ -1830,16 +1831,16 @@ func (r ApiUploadFileChunkRequest) Execute() (*http.Response, error) {
 UploadFileChunk Add a chunk to a file upload
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param uploadId Upload Id
- @param fileId File Id
+ @param uploadID Upload ID
+ @param fileID File ID
  @return ApiUploadFileChunkRequest
 */
-func (a *FilesAPIService) UploadFileChunk(ctx context.Context, uploadId string, fileId string) ApiUploadFileChunkRequest {
+func (a *FilesAPIService) UploadFileChunk(ctx context.Context, uploadID string, fileID string) ApiUploadFileChunkRequest {
 	return ApiUploadFileChunkRequest{
 		ApiService: a,
 		ctx: ctx,
-		uploadId: uploadId,
-		fileId: fileId,
+		uploadID: uploadID,
+		fileID: fileID,
 	}
 }
 
@@ -1856,9 +1857,9 @@ func (a *FilesAPIService) UploadFileChunkExecute(r ApiUploadFileChunkRequest) (*
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/upload/{uploadId}/file/{fileId}"
-	localVarPath = strings.Replace(localVarPath, "{"+"uploadId"+"}", url.PathEscape(parameterValueToString(r.uploadId, "uploadId")), -1)
-	localVarPath = strings.Replace(localVarPath, "{"+"fileId"+"}", url.PathEscape(parameterValueToString(r.fileId, "fileId")), -1)
+	localVarPath := localBasePath + "/upload/{uploadID}/file/{fileID}"
+	localVarPath = strings.Replace(localVarPath, "{"+"uploadID"+"}", url.PathEscape(parameterValueToString(r.uploadID, "uploadID")), -1)
+	localVarPath = strings.Replace(localVarPath, "{"+"fileID"+"}", url.PathEscape(parameterValueToString(r.fileID, "fileID")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -1867,8 +1868,8 @@ func (a *FilesAPIService) UploadFileChunkExecute(r ApiUploadFileChunkRequest) (*
 		return nil, reportError("chunk is required and must be specified")
 	}
 
-	if r.shareId != nil {
-		parameterAddToHeaderOrQuery(localVarQueryParams, "shareId", r.shareId, "", "")
+	if r.shareID != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "shareID", r.shareID, "", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{"multipart/form-data"}

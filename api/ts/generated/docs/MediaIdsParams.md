@@ -1,19 +1,19 @@
-# MediaIdsParams
+# MediaIDsParams
 
 
 ## Properties
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**mediaIds** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
+**mediaIDs** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
 
 ## Example
 
 ```typescript
-import { MediaIdsParams } from './api';
+import { MediaIDsParams } from './api';
 
-const instance: MediaIdsParams = {
-    mediaIds,
+const instance: MediaIDsParams = {
+    mediaIDs,
 };
 ```
 

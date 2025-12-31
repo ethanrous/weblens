@@ -1,8 +1,10 @@
+// Package agno provides CGO bindings for the AGNO image processing library.
 package agno
 
 /*
-#cgo LDFLAGS: -L/agno/lib -lagno -lstdc++
-#include "/agno/lib/agno.h"
+#cgo LDFLAGS: -L${SRCDIR}/lib -lagno -lstdc++ -lm
+#cgo CFLAGS: -I${SRCDIR}/lib
+#include "lib/agno.h"
 */
 import "C"
 import (
@@ -10,16 +12,18 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/ethanrous/weblens/modules/errors"
 	"github.com/ethanrous/weblens/modules/log"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 )
 
+// Image represents an image loaded via the agno library.
 type Image struct {
 	img   *C.struct_AgnoImage
 	mu    sync.Mutex
 	freed bool
 }
 
+// ExifData holds EXIF metadata from an image.
 type ExifData struct {
 	data uint
 	len  C.size_t
@@ -30,6 +34,7 @@ func init() {
 	C.init_agno()
 }
 
+// Dimensions returns the width and height of the image.
 func (img *Image) Dimensions() (width, height int) {
 	return int(img.img.width), int(img.img.height)
 }
@@ -42,22 +47,100 @@ func (img *Image) Dimensions() (width, height int) {
 // 	return nil
 // }
 
+// Resize scales the image by the given factor.
 func (img *Image) Resize(scale float64) error {
 	newWidth := int(float64(img.img.width) * scale)
 	newHeight := int(float64(img.img.height) * scale)
 
-	newImg := C.resize_image(img.img, C.size_t(newWidth), C.size_t(newHeight))
-
+	newImg := C.resize_image(img.img, C.size_t(newWidth), C.size_t(newHeight)) //nolint:nlreturn
 	img.img = newImg
 
 	return nil
 }
 
-func (img *Image) getExifValue(exifTag int) any {
+// GetExifValue retrieves an EXIF value of type T from the image.
+func GetExifValue[T any](img *Image, exifTag int) (T, error) {
+	v := img.getExifValue(exifTag)
+	if v == -1 {
+		var zero T
+
+		return zero, wlerrors.Errorf("failed to get exif value, unknown type")
+	}
+
+	if val, ok := v.(T); ok {
+		return val, nil
+	}
+
+	var zero T
+
+	return zero, wlerrors.Errorf("failed to convert exif value to T (%T): value is %T with value %s", zero, v, v)
+}
+
+// ImageByFilepath loads an image from the given file path.
+func ImageByFilepath(path string) (*Image, error) {
+	cPathStr := C.CString(path)
+
+	defer C.free(unsafe.Pointer(cPathStr)) //nolint:nlreturn
+
+	cAgnoImg := C.load_image_from_path(cPathStr, C.size_t(len(path)))
+
+	if cAgnoImg == nil || cAgnoImg.len == 0 || cAgnoImg.width == 0 || cAgnoImg.height == 0 {
+		return nil, wlerrors.Errorf("load_image_from_path returned nil loading [%s]", path)
+	}
+
+	img := &Image{img: cAgnoImg}
+	runtime.SetFinalizer(img, func(img *Image) {
+		img.Free()
+	})
+
+	return img, nil
+}
+
+// WriteWebp writes the image to a WebP file at the given path.
+func WriteWebp(path string, img *Image) error {
+	cPathStr := C.CString(path)
+
+	defer C.free(unsafe.Pointer(cPathStr)) //nolint:nlreturn
+
 	img.mu.Lock()
 	defer img.mu.Unlock()
 
-	v := C.get_exif_value(img.img, C.int16_t(exifTag))
+	C.write_agno_image_to_webp(cPathStr, C.size_t(len(path)), img.img)
+
+	return nil
+}
+
+// GetImageSize returns the width and height of the image.
+func GetImageSize(img *Image) (int, int) {
+	img.mu.Lock()
+	defer img.mu.Unlock()
+
+	width := int(img.img.width)
+	height := int(img.img.height)
+
+	return width, height
+}
+
+// Free releases the image resources.
+func (img *Image) Free() {
+	img.mu.Lock()
+	defer img.mu.Unlock()
+
+	if img.freed {
+		return
+	}
+
+	if img.img != nil {
+		C.free_agno_image(img.img)
+	}
+
+	img.freed = true
+}
+
+func (img *Image) getExifValue(exifTag int) any {
+	img.mu.Lock()
+	defer img.mu.Unlock()
+	v := C.get_exif_value(img.img, C.int16_t(exifTag)) //nolint:nlreturn
 
 	switch v.typ {
 	case 1: // BYTE
@@ -65,7 +148,7 @@ func (img *Image) getExifValue(exifTag int) any {
 	case 2: // ASCII
 		s := make([]byte, v.len)
 		for i := 0; i < int(v.len); i++ {
-			s[i] = *(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(v.data)) + uintptr(i)))
+			s[i] = *(*byte)(unsafe.Add(unsafe.Pointer(v.data), i))
 		}
 
 		return string(s)
@@ -86,77 +169,4 @@ func (img *Image) getExifValue(exifTag int) any {
 	}
 
 	return -1
-}
-
-func GetExifValue[T any](img *Image, exifTag int) (T, error) {
-	v := img.getExifValue(exifTag)
-	if v == -1 {
-		var zero T
-		return zero, errors.Errorf("failed to get exif value, unknown type")
-	}
-
-	if val, ok := v.(T); ok {
-		return val, nil
-	}
-
-	var zero T
-	return zero, errors.Errorf("failed to convert exif value to T (%T): value is %T with value %s", zero, v, v)
-}
-
-// ImageByFilepath loads an image from the given file path.
-func ImageByFilepath(path string) (*Image, error) {
-	c_path_str := C.CString(path)
-
-	defer C.free(unsafe.Pointer(c_path_str))
-
-	c_agno_img := C.load_image_from_path(c_path_str, C.size_t(len(path)))
-
-	if c_agno_img == nil || c_agno_img.len == 0 || c_agno_img.width == 0 || c_agno_img.height == 0 {
-		return nil, errors.Errorf("load_image_from_path returned nil loading [%s]", path)
-	}
-
-	img := &Image{img: c_agno_img}
-	runtime.SetFinalizer(img, func(img *Image) {
-		img.Free()
-	})
-
-	return img, nil
-}
-
-func WriteWebp(path string, img *Image) error {
-	c_path_str := C.CString(path)
-
-	defer C.free(unsafe.Pointer(c_path_str))
-
-	img.mu.Lock()
-	defer img.mu.Unlock()
-
-	C.write_agno_image_to_webp(c_path_str, C.size_t(len(path)), img.img)
-
-	return nil
-}
-
-func GetImageSize(img *Image) (int, int) {
-	img.mu.Lock()
-	defer img.mu.Unlock()
-
-	width := int(img.img.width)
-	height := int(img.img.height)
-
-	return width, height
-}
-
-func (img *Image) Free() {
-	img.mu.Lock()
-	defer img.mu.Unlock()
-
-	if img.freed {
-		return
-	}
-
-	if img.img != nil {
-		C.free_agno_image(img.img)
-	}
-
-	img.freed = true
 }

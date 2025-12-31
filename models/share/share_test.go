@@ -4,12 +4,11 @@ import (
 	"testing"
 
 	"github.com/ethanrous/weblens/models/db"
+	share_model "github.com/ethanrous/weblens/models/share"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-
-	. "github.com/ethanrous/weblens/models/share"
 )
 
 const (
@@ -19,116 +18,116 @@ const (
 
 func createTestUser(suffix string) *user_model.User {
 	return &user_model.User{
-		Id:          primitive.NewObjectID(),
+		ID:          primitive.NewObjectID(),
 		Username:    testUsername + "_" + suffix,
 		DisplayName: "Test User " + suffix,
 	}
 }
 
 func TestFileShare_Creation(t *testing.T) {
-	ctx := db.SetupTestDB(t, ShareCollectionKey, IndexModels...)
+	ctx := db.SetupTestDB(t, share_model.ShareCollectionKey, share_model.IndexModels...)
 
 	t.Run("CreateBasicShare", func(t *testing.T) {
-		fileId := primitive.NewObjectID().Hex()
+		fileID := primitive.NewObjectID().Hex()
 		owner := createTestUser("basic")
 		accessors := []*user_model.User{createTestUser("basic_accessor")}
 
-		share, err := NewFileShare(ctx, fileId, owner, accessors, false, false, false)
+		share, err := share_model.NewFileShare(ctx, fileID, owner, accessors, false, false, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, share)
 
-		err = SaveFileShare(ctx, share)
+		err = share_model.SaveFileShare(ctx, share)
 		assert.NoError(t, err)
 
 		// Verify share was saved
-		savedShare, err := GetShareByFileId(ctx, fileId)
+		savedShare, err := share_model.GetShareByFileID(ctx, fileID)
 		assert.NoError(t, err)
-		assert.Equal(t, fileId, savedShare.FileId)
+		assert.Equal(t, fileID, savedShare.FileID)
 		assert.Equal(t, owner.GetUsername(), savedShare.Owner)
 		assert.Contains(t, savedShare.Accessors, accessors[0].GetUsername())
 	})
 
 	t.Run("CreatePublicShare", func(t *testing.T) {
-		fileId := primitive.NewObjectID().Hex()
+		fileID := primitive.NewObjectID().Hex()
 		owner := createTestUser("public")
-		share, err := NewFileShare(ctx, fileId, owner, nil, true, false, false)
+		share, err := share_model.NewFileShare(ctx, fileID, owner, nil, true, false, false)
 		assert.NoError(t, err)
 
-		err = SaveFileShare(ctx, share)
+		err = share_model.SaveFileShare(ctx, share)
 		assert.NoError(t, err)
 
-		savedShare, err := GetShareByFileId(ctx, fileId)
+		savedShare, err := share_model.GetShareByFileID(ctx, fileID)
 		assert.NoError(t, err)
 		assert.True(t, savedShare.Public)
 	})
 
 	t.Run("CreateWormholeShare", func(t *testing.T) {
-		fileId := primitive.NewObjectID().Hex()
+		fileID := primitive.NewObjectID().Hex()
 		owner := createTestUser("wormhole")
-		share, err := NewFileShare(ctx, fileId, owner, nil, false, true, false)
+		share, err := share_model.NewFileShare(ctx, fileID, owner, nil, false, true, false)
 		assert.NoError(t, err)
 
-		err = SaveFileShare(ctx, share)
+		err = share_model.SaveFileShare(ctx, share)
 		assert.NoError(t, err)
 
-		savedShare, err := GetShareByFileId(ctx, fileId)
+		savedShare, err := share_model.GetShareByFileID(ctx, fileID)
 		assert.NoError(t, err)
 		assert.True(t, savedShare.Wormhole)
 	})
 
 	t.Run("CreateDuplicateShare", func(t *testing.T) {
-		fileId := primitive.NewObjectID().Hex()
+		fileID := primitive.NewObjectID().Hex()
 		owner := createTestUser("duplicate")
-		share1, err := NewFileShare(ctx, fileId, owner, nil, false, false, false)
+		share1, err := share_model.NewFileShare(ctx, fileID, owner, nil, false, false, false)
 		require.NoError(t, err)
-		err = SaveFileShare(ctx, share1)
+		err = share_model.SaveFileShare(ctx, share1)
 		require.NoError(t, err)
 
-		share2, err := NewFileShare(ctx, fileId, owner, nil, false, false, false)
+		share2, err := share_model.NewFileShare(ctx, fileID, owner, nil, false, false, false)
 		require.NoError(t, err)
-		err = SaveFileShare(ctx, share2)
+		err = share_model.SaveFileShare(ctx, share2)
 		assert.Error(t, err)
 		assert.True(t, db.IsAlreadyExists(err), "Expected AlreadyExistsError, got: %v", err)
 	})
 }
 
 func TestFileShare_Retrieval(t *testing.T) {
-	ctx := db.SetupTestDB(t, ShareCollectionKey)
+	ctx := db.SetupTestDB(t, share_model.ShareCollectionKey)
 
-	t.Run("GetShareById", func(t *testing.T) {
-		fileId := primitive.NewObjectID().Hex()
+	t.Run("GetShareByID", func(t *testing.T) {
+		fileID := primitive.NewObjectID().Hex()
 		owner := createTestUser("retrieve_by_id")
-		share, err := NewFileShare(ctx, fileId, owner, nil, false, false, false)
+		share, err := share_model.NewFileShare(ctx, fileID, owner, nil, false, false, false)
 		require.NoError(t, err)
-		err = SaveFileShare(ctx, share)
+		err = share_model.SaveFileShare(ctx, share)
 		require.NoError(t, err)
 
-		retrieved, err := GetShareById(ctx, share.ShareId)
+		retrieved, err := share_model.GetShareByID(ctx, share.ShareID)
 		assert.NoError(t, err)
-		assert.Equal(t, share.ShareId, retrieved.ShareId)
-		assert.Equal(t, share.FileId, retrieved.FileId)
+		assert.Equal(t, share.ShareID, retrieved.ShareID)
+		assert.Equal(t, share.FileID, retrieved.FileID)
 	})
 
-	t.Run("GetShareByFileId", func(t *testing.T) {
-		fileId := primitive.NewObjectID().Hex()
+	t.Run("GetShareByFileID", func(t *testing.T) {
+		fileID := primitive.NewObjectID().Hex()
 		owner := createTestUser("retrieve_by_file")
-		share, err := NewFileShare(ctx, fileId, owner, nil, false, false, false)
+		share, err := share_model.NewFileShare(ctx, fileID, owner, nil, false, false, false)
 		require.NoError(t, err)
-		err = SaveFileShare(ctx, share)
+		err = share_model.SaveFileShare(ctx, share)
 		require.NoError(t, err)
 
-		retrieved, err := GetShareByFileId(ctx, fileId)
+		retrieved, err := share_model.GetShareByFileID(ctx, fileID)
 		assert.NoError(t, err)
-		assert.Equal(t, share.ShareId, retrieved.ShareId)
-		assert.Equal(t, fileId, retrieved.FileId)
+		assert.Equal(t, share.ShareID, retrieved.ShareID)
+		assert.Equal(t, fileID, retrieved.FileID)
 	})
 
 	t.Run("GetNonexistentShare", func(t *testing.T) {
-		_, err := GetShareById(ctx, primitive.NewObjectID())
+		_, err := share_model.GetShareByID(ctx, primitive.NewObjectID())
 		assert.Error(t, err)
 		assert.True(t, db.IsNotFound(err), "Expected NotFoundError, got: %v", err)
 
-		_, err = GetShareByFileId(ctx, primitive.NewObjectID().Hex())
+		_, err = share_model.GetShareByFileID(ctx, primitive.NewObjectID().Hex())
 		assert.Error(t, err)
 	})
 
@@ -139,21 +138,21 @@ func TestFileShare_Retrieval(t *testing.T) {
 		// Create multiple shares with the same accessor
 		numShares := 3
 		for range numShares {
-			fileId := primitive.NewObjectID().Hex()
-			share, err := NewFileShare(ctx, fileId, owner, []*user_model.User{accessor}, false, false, false)
+			fileID := primitive.NewObjectID().Hex()
+			share, err := share_model.NewFileShare(ctx, fileID, owner, []*user_model.User{accessor}, false, false, false)
 			require.NoError(t, err)
-			err = SaveFileShare(ctx, share)
+			err = share_model.SaveFileShare(ctx, share)
 			require.NoError(t, err)
 		}
 
 		// Create a share with different accessor
-		otherFileId := primitive.NewObjectID().Hex()
-		otherShare, err := NewFileShare(ctx, otherFileId, owner, []*user_model.User{createTestUser("other")}, false, false, false)
+		otherFileID := primitive.NewObjectID().Hex()
+		otherShare, err := share_model.NewFileShare(ctx, otherFileID, owner, []*user_model.User{createTestUser("other")}, false, false, false)
 		require.NoError(t, err)
-		err = SaveFileShare(ctx, otherShare)
+		err = share_model.SaveFileShare(ctx, otherShare)
 		require.NoError(t, err)
 
-		shares, err := GetSharedWithUser(ctx, accessor.Username)
+		shares, err := share_model.GetSharedWithUser(ctx, accessor.Username)
 		assert.NoError(t, err)
 		assert.Len(t, shares, numShares)
 
@@ -164,30 +163,30 @@ func TestFileShare_Retrieval(t *testing.T) {
 }
 
 func TestFileShare_Updates(t *testing.T) {
-	ctx := db.SetupTestDB(t, ShareCollectionKey)
+	ctx := db.SetupTestDB(t, share_model.ShareCollectionKey)
 
 	t.Run("SetPublic", func(t *testing.T) {
-		fileId := primitive.NewObjectID().Hex()
+		fileID := primitive.NewObjectID().Hex()
 		owner := createTestUser("public_update")
-		share, err := NewFileShare(ctx, fileId, owner, nil, false, false, false)
+		share, err := share_model.NewFileShare(ctx, fileID, owner, nil, false, false, false)
 		require.NoError(t, err)
-		err = SaveFileShare(ctx, share)
+		err = share_model.SaveFileShare(ctx, share)
 		require.NoError(t, err)
 
 		err = share.SetPublic(ctx, true)
 		assert.NoError(t, err)
 
-		updated, err := GetShareById(ctx, share.ShareId)
+		updated, err := share_model.GetShareByID(ctx, share.ShareID)
 		assert.NoError(t, err)
 		assert.True(t, updated.Public)
 	})
 
 	t.Run("AddUsers", func(t *testing.T) {
-		fileId := primitive.NewObjectID().Hex()
+		fileID := primitive.NewObjectID().Hex()
 		owner := createTestUser("add_users")
-		share, err := NewFileShare(ctx, fileId, owner, nil, false, false, false)
+		share, err := share_model.NewFileShare(ctx, fileID, owner, nil, false, false, false)
 		require.NoError(t, err)
-		err = SaveFileShare(ctx, share)
+		err = share_model.SaveFileShare(ctx, share)
 		require.NoError(t, err)
 
 		newUsers := []string{
@@ -195,34 +194,36 @@ func TestFileShare_Updates(t *testing.T) {
 			createTestUser("add2").Username,
 		}
 		for _, user := range newUsers {
-			err = share.AddUser(ctx, user, NewPermissions())
+			err = share.AddUser(ctx, user, share_model.NewPermissions())
 			assert.NoError(t, err)
 		}
 
-		updated, err := GetShareById(ctx, share.ShareId)
+		updated, err := share_model.GetShareByID(ctx, share.ShareID)
 		assert.NoError(t, err)
 		assert.Subset(t, updated.Accessors, newUsers)
 	})
 
 	t.Run("RemoveUsers", func(t *testing.T) {
-		fileId := primitive.NewObjectID().Hex()
+		fileID := primitive.NewObjectID().Hex()
 		owner := createTestUser("remove_users")
 		initialUsers := []string{
 			createTestUser("remove1").Username,
 			createTestUser("remove2").Username,
 			createTestUser("remove3").Username,
 		}
-		share, err := NewFileShare(ctx, fileId, owner, nil, false, false, false)
+		share, err := share_model.NewFileShare(ctx, fileID, owner, nil, false, false, false)
 		require.NoError(t, err)
+
 		share.Accessors = initialUsers
-		err = SaveFileShare(ctx, share)
+
+		err = share_model.SaveFileShare(ctx, share)
 		require.NoError(t, err)
 
 		usersToRemove := []string{initialUsers[0], initialUsers[1]}
 		err = share.RemoveUsers(ctx, usersToRemove)
 		assert.NoError(t, err)
 
-		updated, err := GetShareById(ctx, share.ShareId)
+		updated, err := share_model.GetShareByID(ctx, share.ShareID)
 		assert.NoError(t, err)
 		assert.NotContains(t, updated.Accessors, initialUsers[0])
 		assert.NotContains(t, updated.Accessors, initialUsers[1])
@@ -230,36 +231,36 @@ func TestFileShare_Updates(t *testing.T) {
 	})
 
 	t.Run("Permissions", func(t *testing.T) {
-		fileId := primitive.NewObjectID().Hex()
+		fileID := primitive.NewObjectID().Hex()
 		owner := createTestUser("perm_owner")
 		user := createTestUser("perm_user")
-		share, err := NewFileShare(ctx, fileId, owner, []*user_model.User{user}, false, false, false)
+		share, err := share_model.NewFileShare(ctx, fileID, owner, []*user_model.User{user}, false, false, false)
 		require.NoError(t, err)
-		err = SaveFileShare(ctx, share)
+		err = share_model.SaveFileShare(ctx, share)
 		require.NoError(t, err)
 
 		// Default permission should be download
 		perms := share.GetUserPermissions(user.Username)
 		assert.True(t, perms.CanDownload)
-		assert.True(t, share.HasPermission(user.Username, SharePermissionDownload))
-		assert.False(t, share.HasPermission(user.Username, SharePermissionEdit))
+		assert.True(t, share.HasPermission(user.Username, share_model.SharePermissionDownload))
+		assert.False(t, share.HasPermission(user.Username, share_model.SharePermissionEdit))
 
 		// Set new permissions
-		newPerms := &Permissions{CanDownload: true, CanEdit: true, CanDelete: false}
+		newPerms := &share_model.Permissions{CanDownload: true, CanEdit: true, CanDelete: false}
 		err = share.SetUserPermissions(ctx, user.Username, newPerms)
 		assert.NoError(t, err)
-		updated, err := GetShareById(ctx, share.ShareId)
+		updated, err := share_model.GetShareByID(ctx, share.ShareID)
 		assert.NoError(t, err)
-		assert.True(t, updated.HasPermission(user.Username, SharePermissionEdit))
-		assert.True(t, updated.HasPermission(user.Username, SharePermissionDownload))
-		assert.False(t, updated.HasPermission(user.Username, SharePermissionDelete))
+		assert.True(t, updated.HasPermission(user.Username, share_model.SharePermissionEdit))
+		assert.True(t, updated.HasPermission(user.Username, share_model.SharePermissionDownload))
+		assert.False(t, updated.HasPermission(user.Username, share_model.SharePermissionDelete))
 
 		// Remove user and check permissions are gone
 		err = updated.RemoveUsers(ctx, []string{user.Username})
 		assert.NoError(t, err)
-		final, err := GetShareById(ctx, share.ShareId)
+		final, err := share_model.GetShareByID(ctx, share.ShareID)
 		assert.NoError(t, err)
 		assert.Nil(t, final.GetUserPermissions(user.Username))
-		assert.False(t, final.HasPermission(user.Username, SharePermissionEdit))
+		assert.False(t, final.HasPermission(user.Username, share_model.SharePermissionEdit))
 	})
 }
