@@ -14,7 +14,7 @@ RUN pnpm install;
 RUN pnpm generate;
 
 # Build agno static library
-FROM clux/muslrust:stable AS agno-builder
+FROM rust:alpine AS agno-builder
 WORKDIR /src
 COPY . .
 
