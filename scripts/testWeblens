@@ -38,7 +38,6 @@ run_container_tests() {
 
     sudo docker stop weblens-test-mongo >/dev/null 2>&1 || true
     sudo docker rm weblens-test-mongo >/dev/null 2>&1 || true
-    ./scripts/start-mongo.sh "weblens-test-mongo"
 
     rm -rf ./_build/fs/test-container
 
@@ -83,6 +82,7 @@ while [ "${1:-}" != "" ]; do
     shift
 done
 
+./scripts/start-mongo.sh "weblens-test-mongo"
 if [ "$containerize" = false ]; then
     build_agno
     run_native_tests "${tests}"

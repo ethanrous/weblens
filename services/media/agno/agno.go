@@ -2,7 +2,7 @@
 package agno
 
 /*
-#cgo LDFLAGS: -L${SRCDIR}/lib -lagno -lstdc++
+#cgo LDFLAGS: -L${SRCDIR}/lib -lagno -lstdc++ -lm
 #cgo CFLAGS: -I${SRCDIR}/lib
 #include "lib/agno.h"
 */
