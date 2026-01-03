@@ -1,5 +1,15 @@
-WEBLENS_ROOT=$(git rev-parse --show-toplevel)
-export WEBLENS_ROOT
+#!/bin/bash
+set -euo pipefail
+
+if [[ -z "${WEBLENS_ROOT:-}" ]]; then
+    if [[ $(basename "$PWD") != "weblens" ]]; then
+        echo "Please run this script from the repository root (weblens/) folder."
+        exit 1
+    fi
+
+    WEBLENS_ROOT=$PWD
+    export WEBLENS_ROOT
+fi
 
 if [[ -z "${WEBLENS_VERBOSE+x}" ]]; then
     echo "Use WEBLENS_VERBOSE=true to enable verbose output"

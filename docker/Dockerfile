@@ -20,8 +20,8 @@ RUN apk add --no-cache bash;
 WORKDIR /src
 COPY . .
 
-RUN chmod +x ./scripts/lib/build.bash;
-RUN bash -c 'source ./scripts/lib/build.bash; build_agno;';
+RUN chmod +x ./scripts/lib/*.bash;
+RUN bash -c 'export WEBLENS_VERBOSE=true; export WEBLENS_ROOT=/src; source ./scripts/lib/all.bash; build_agno;';
 
 # Build server binary
 FROM --platform=linux/${ARCHITECTURE} golang:${GO_VERSION}-alpine AS backend
