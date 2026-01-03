@@ -62,7 +62,7 @@ func Connect(ctx context_service.RequestContext) {
 
 func wsMain(ctx context_service.RequestContext, c *client_model.WsClient) {
 	defer wsRecover(ctx, c)
-	defer ctx.ClientService.ClientDisconnect(ctx, c)
+	defer ctx.ClientService.ClientDisconnect(ctx, c) //nolint:errcheck
 
 	var switchboard func(context_service.RequestContext, []byte, *client_model.WsClient) error
 
@@ -80,7 +80,10 @@ func wsMain(ctx context_service.RequestContext, c *client_model.WsClient) {
 	}
 
 	defer context.AfterFunc(ctx, func() {
-		ctx.ClientService.ClientDisconnect(ctx, c)
+		err := ctx.ClientService.ClientDisconnect(ctx, c)
+		if err != nil {
+			ctx.Log().Error().Stack().Err(err).Msg("Failed to disconnect websocket client")
+		}
 	})()
 
 	for {
@@ -135,6 +138,7 @@ func handleActionSubscribe(msg websocket_mod.WsResponseInfo, ctx context_service
 			if err != nil {
 				return err
 			}
+
 			fileNotif := notify.NewFileNotification(ctx, fInfo, websocket_mod.FileUpdatedEvent)
 			ctx.ClientService.Notify(ctx, fileNotif...)
 		}
@@ -326,7 +330,10 @@ func wsTowerClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte,
 
 	switch msg.EventTag {
 	case websocket_mod.ServerGoingDownEvent:
-		c.Disconnect()
+		err = c.Disconnect()
+		if err != nil {
+			return err
+		}
 
 		return nil
 	case websocket_mod.BackupCompleteEvent:

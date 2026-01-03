@@ -1,4 +1,3 @@
-
 package slices_test
 
 import (
@@ -74,6 +73,7 @@ func TestAddToSet(t *testing.T) {
 
 	t.Run("adds to empty slice", func(t *testing.T) {
 		var s []string
+
 		result := slices.AddToSet(s, "a", "b")
 		assert.Equal(t, []string{"a", "b"}, result)
 	})
@@ -106,6 +106,7 @@ func TestInsertFunc(t *testing.T) {
 
 	t.Run("inserts into empty slice", func(t *testing.T) {
 		var s []int
+
 		result := slices.InsertFunc(s, 1, cmp.Compare)
 		assert.Equal(t, []int{1}, result)
 	})
@@ -169,7 +170,9 @@ func TestDiff(t *testing.T) {
 
 	t.Run("returns all when s2 is empty", func(t *testing.T) {
 		s1 := []int{1, 2, 3}
+
 		var s2 []int
+
 		result := slices.Diff(s1, s2)
 		assert.ElementsMatch(t, []int{1, 2, 3}, result)
 	})
@@ -200,6 +203,7 @@ func TestMap(t *testing.T) {
 
 	t.Run("handles empty slice", func(t *testing.T) {
 		var s []int
+
 		result := slices.Map(s, func(i int) int { return i * 2 })
 		assert.Equal(t, []int{}, result)
 	})
@@ -208,7 +212,7 @@ func TestMap(t *testing.T) {
 func TestMapI(t *testing.T) {
 	t.Run("transforms with index", func(t *testing.T) {
 		s := []string{"a", "b", "c"}
-		result := slices.MapI(s, func(s string, i int) int { return i })
+		result := slices.MapI(s, func(_ string, i int) int { return i })
 		assert.Equal(t, []int{0, 1, 2}, result)
 	})
 
@@ -296,7 +300,8 @@ func TestFilter(t *testing.T) {
 
 	t.Run("handles empty slice", func(t *testing.T) {
 		var s []int
-		result := slices.Filter(s, func(i int) bool { return true })
+
+		result := slices.Filter(s, func(_ int) bool { return true })
 		assert.Empty(t, result)
 	})
 }
@@ -308,6 +313,7 @@ func TestFilterMap(t *testing.T) {
 			if i%2 == 0 {
 				return string(rune('a' + i)), true
 			}
+
 			return "", false
 		})
 		assert.Equal(t, []string{"c", "e"}, result)
@@ -319,6 +325,7 @@ func TestFilterMap(t *testing.T) {
 			if i%2 == 0 {
 				return i * 2, true
 			}
+
 			return 0, false
 		})
 		assert.Empty(t, result)
@@ -340,6 +347,7 @@ func TestReduce(t *testing.T) {
 
 	t.Run("handles empty slice", func(t *testing.T) {
 		var s []int
+
 		result := slices.Reduce(s, func(v int, acc int) int { return acc + v }, 10)
 		assert.Equal(t, 10, result)
 	})
@@ -354,6 +362,7 @@ func TestConvert(t *testing.T) {
 
 	t.Run("handles empty slice", func(t *testing.T) {
 		var s []any
+
 		result := slices.Convert[string](s)
 		assert.Empty(t, result)
 	})
@@ -394,7 +403,8 @@ func TestIndexFunc(t *testing.T) {
 
 	t.Run("handles empty slice", func(t *testing.T) {
 		var s []int
-		idx := slices.IndexFunc(s, func(i int) bool { return true })
+
+		idx := slices.IndexFunc(s, func(_ int) bool { return true })
 		assert.Equal(t, -1, idx)
 	})
 }

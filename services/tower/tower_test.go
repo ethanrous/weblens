@@ -1,4 +1,3 @@
-
 package tower_test
 
 import (
@@ -84,7 +83,7 @@ func TestTowerRoleConstants(t *testing.T) {
 		assert.NotEmpty(t, string(tower_model.RoleBackup))
 	})
 
-	t.Run("RoleInit is defined", func(t *testing.T) {
+	t.Run("RoleInit is defined", func(_ *testing.T) {
 		// RoleInit might be empty string, just ensure it's a valid type
 		_ = tower_model.RoleInit
 	})

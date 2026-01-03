@@ -1,4 +1,3 @@
-
 package proxy_test
 
 import (
@@ -169,7 +168,9 @@ func TestRequest_Call(t *testing.T) {
 
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		defer resp.Body.Close()
+
+		defer resp.Body.Close() //nolint:errcheck
+
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
 
@@ -193,7 +194,8 @@ func TestRequest_Call(t *testing.T) {
 		resp, err := req.Call()
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		defer resp.Body.Close()
+
+		defer resp.Body.Close() //nolint:errcheck
 	})
 
 	t.Run("includes custom headers in request", func(t *testing.T) {
@@ -216,11 +218,12 @@ func TestRequest_Call(t *testing.T) {
 		resp, err := req.Call()
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		defer resp.Body.Close()
+
+		defer resp.Body.Close() //nolint:errcheck
 	})
 
 	t.Run("returns error for 4xx status codes", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			json.NewEncoder(w).Encode(proxy.ErrorInfo{Error: "not found"}) //nolint:errcheck
 		}))
@@ -240,7 +243,7 @@ func TestRequest_Call(t *testing.T) {
 	})
 
 	t.Run("returns error for 5xx status codes", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(proxy.ErrorInfo{Error: "internal error"}) //nolint:errcheck
 		}))
@@ -267,7 +270,7 @@ func TestCallHomeStruct(t *testing.T) {
 			Count int    `json:"count"`
 		}
 
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
 			json.NewEncoder(w).Encode(TestResponse{Name: "test", Count: 42}) //nolint:errcheck
 		}))
@@ -324,9 +327,10 @@ func TestErrorInfo(t *testing.T) {
 
 	t.Run("json unmarshaling", func(t *testing.T) {
 		data := []byte(`{"error": "unmarshaled error"}`)
-		var errInfo proxy.ErrorInfo
-		err := json.Unmarshal(data, &errInfo)
 
+		var errInfo proxy.ErrorInfo
+
+		err := json.Unmarshal(data, &errInfo)
 		require.NoError(t, err)
 		assert.Equal(t, "unmarshaled error", errInfo.Error)
 	})

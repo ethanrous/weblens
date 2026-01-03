@@ -10,7 +10,6 @@ import (
 
 // LoadAtPath recursively loads the filesystem tree starting from a specified path.
 func LoadAtPath(tsk *task.Task) {
-
 	appCtx, ok := ctxservice.FromContext(tsk.Ctx)
 	if !ok {
 		tsk.Fail(wlerrors.Errorf("failed to get context"))

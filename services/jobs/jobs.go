@@ -47,7 +47,6 @@ type extSize struct {
 
 // GatherFilesystemStats collects statistics about file sizes grouped by extension in a directory tree.
 func GatherFilesystemStats(tsk *task.Task) {
-
 	meta := tsk.GetMeta().(job.FsStatMeta)
 
 	filetypeSizeMap := map[string]int64{}
@@ -96,7 +95,6 @@ func GatherFilesystemStats(tsk *task.Task) {
 
 // HashFile generates a content ID hash for a file.
 func HashFile(tsk *task.Task) {
-
 	meta := tsk.GetMeta().(job.HashFileMeta)
 
 	contentID, err := file_model.GenerateContentID(tsk.Ctx, meta.File)

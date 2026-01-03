@@ -26,7 +26,6 @@ var ErrEmptyZip = wlerrors.New("zip file is empty")
 
 // CreateZip creates a zip archive from the files specified in the task metadata.
 func CreateZip(tsk *task.Task) {
-
 	ctx, ok := ctxservice.FromContext(tsk.Ctx)
 	if !ok {
 		tsk.Fail(wlerrors.New("context is not a RequestContext"))

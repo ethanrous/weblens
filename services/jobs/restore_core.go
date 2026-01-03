@@ -21,7 +21,6 @@ import (
 
 // RestoreCore restores a core server from backup data.
 func RestoreCore(tsk *task.Task) {
-
 	meta := tsk.GetMeta().(job.RestoreCoreMeta)
 
 	ctx, ok := tsk.Ctx.(ctxservice.AppContext)

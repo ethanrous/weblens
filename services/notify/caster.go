@@ -12,6 +12,7 @@ import (
 	"github.com/ethanrous/weblens/modules/wlerrors"
 )
 
+// Jobber is an interface representing a job or task with an ID and job name.
 type Jobber interface {
 	ID() string
 	JobName() string

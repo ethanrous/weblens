@@ -39,11 +39,12 @@ type workChannel chan *Task
 type hitChannel chan hit
 
 type job struct {
-	handler TaskFunc
+	handler HandlerFunc
 	opts    Options
 }
 
-type TaskFunc func(task *Task)
+// HandlerFunc defines the function signature for task execution functions.
+type HandlerFunc func(task *Task)
 
 // WorkerPool manages a pool of workers that execute tasks from task pools.
 type WorkerPool struct {
@@ -197,7 +198,7 @@ func (wp *WorkerPool) GetTaskPoolByJobName(jobName string) *Pool {
 }
 
 // RegisterJob adds a template for a repeatable job that can be called upon later in the program
-func (wp *WorkerPool) RegisterJob(jobName string, fn TaskFunc, opts ...Options) {
+func (wp *WorkerPool) RegisterJob(jobName string, fn HandlerFunc, opts ...Options) {
 	wp.jobsMu.Lock()
 	defer wp.jobsMu.Unlock()
 
@@ -853,7 +854,7 @@ func makeTaskID(meta Metadata, unique bool) string {
 	return taskID
 }
 
-func taskNoCancel(task *Task, cf TaskFunc) {
+func taskNoCancel(task *Task, cf HandlerFunc) {
 	// We do not want cleanup functions to be cancelable, so we use a context
 	// that cannot be canceled. This prevents cleanup functions from being
 	// interrupted by task cancelation, which would be bad

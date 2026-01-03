@@ -1,4 +1,3 @@
-
 package journal_test
 
 import (
@@ -118,6 +117,7 @@ func TestGetActionsSince(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
+
 		if len(result) != 0 {
 			t.Errorf("expected 0 actions, got %d", len(result))
 		}
@@ -129,8 +129,9 @@ func TestGetActionsPage(t *testing.T) {
 
 	// Create 10 test actions
 	actions := make([]history.FileAction, 10)
+
 	baseTime := time.Now()
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		actions[i] = *createTestAction(t, testActionOptions{
 			Timestamp:  baseTime.Add(time.Duration(i) * time.Minute),
 			ActionType: history.FileCreate,
@@ -151,6 +152,7 @@ func TestGetActionsPage(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
+
 		if len(result) != 5 {
 			t.Errorf("expected 5 actions, got %d", len(result))
 		}
@@ -161,6 +163,7 @@ func TestGetActionsPage(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
+
 		if len(result) != 5 {
 			t.Errorf("expected 5 actions, got %d", len(result))
 		}
@@ -171,6 +174,7 @@ func TestGetActionsPage(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
+
 		if len(result) != 0 {
 			t.Errorf("expected 0 actions, got %d", len(result))
 		}
@@ -233,6 +237,7 @@ func TestGetAllActionsByTowerID(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
+
 		if len(result) != 0 {
 			t.Errorf("expected 0 actions for tower-gamma, got %d", len(result))
 		}
@@ -436,6 +441,7 @@ func TestGetLifetimesByTowerID(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
+
 		if len(result) != 0 {
 			t.Errorf("expected 0 lifetimes, got %d", len(result))
 		}

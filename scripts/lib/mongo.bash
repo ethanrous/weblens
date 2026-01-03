@@ -53,6 +53,8 @@ ensure_repl_set() {
 launch_mongo() {
     local mongo_name="${1?[ERROR] launch_mongo called with no container name. Aborting}"
 
+    ensure_weblens_net
+
     if ! dockerc image ls | grep ethrous/weblens-mongo &>/dev/null; then
         ./scripts/build-mongo.bash || exit 1
     fi

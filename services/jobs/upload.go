@@ -49,7 +49,6 @@ func removeTopLevels(t *task.Task, topLevels []*file_model.WeblensFileImpl) erro
 // everything *after* the client has had its data read into memory, this is the "bottom half"
 // of the upload
 func HandleFileUploads(tsk *task.Task) {
-
 	appCtx, ok := context_service.FromContext(tsk.Ctx)
 	if !ok {
 		tsk.Fail(wlerrors.New("failed to get context"))
@@ -75,7 +74,6 @@ func HandleFileUploads(tsk *task.Task) {
 
 	// Cleanup routine. This must be run even if the upload fails
 	tsk.SetCleanup(func(tsk *task.Task) {
-
 		for _, f := range fileMap {
 			tsk.Log().Debug().Func(func(e *zerolog.Event) {
 				e.Msgf("Cleaning up file [%+v]", *f)

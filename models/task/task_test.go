@@ -874,30 +874,26 @@ func TestWorkerPool_ConcurrentAccess(t *testing.T) {
 		}
 	})
 
-	t.Run("handles concurrent status reads", func(t *testing.T) {
+	t.Run("handles concurrent status reads", func(_ *testing.T) {
 		wp := task.NewTestWorkerPool(1)
 
 		var wg sync.WaitGroup
 
-		for i := 0; i < 100; i++ {
-			wg.Add(1)
-
-			go func() {
-				defer wg.Done()
-
+		for range 100 {
+			wg.Go(func() {
 				_, _, _, _, _ = wp.Status()
-			}()
+			})
 		}
 
 		wg.Wait()
 	})
 
-	t.Run("handles concurrent job registration", func(t *testing.T) {
+	t.Run("handles concurrent job registration", func(_ *testing.T) {
 		wp := task.NewTestWorkerPool(1)
 
 		var wg sync.WaitGroup
 
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 			wg.Add(1)
 
 			go func(idx int) {
@@ -1089,7 +1085,7 @@ func TestTask_SetPostAction(t *testing.T) {
 		tsk, err := wp.DispatchJob(context.Background(), "post-action-job", meta, nil)
 		assert.NoError(t, err)
 
-		tsk.SetPostAction(func(result task.Result) {
+		tsk.SetPostAction(func(_ task.Result) {
 			postActionRan <- true
 		})
 
@@ -1107,6 +1103,7 @@ func TestTask_SetPostAction(t *testing.T) {
 		tsk := task.NewTestTask("task-1", "TestJob", 0, task.TaskSuccess, task.Result{"key": "value"}, time.Now())
 
 		postActionRan := false
+
 		tsk.SetPostAction(func(_ task.Result) {
 			postActionRan = true
 		})
@@ -1327,6 +1324,7 @@ func TestTask_ExeTime_Running(t *testing.T) {
 
 		wp.RegisterJob("exetime-job", func(tsk *task.Task) {
 			time.Sleep(50 * time.Millisecond)
+
 			exeTime = tsk.ExeTime()
 			tsk.Success()
 		})

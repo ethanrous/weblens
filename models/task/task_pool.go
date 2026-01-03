@@ -61,6 +61,7 @@ type PoolStatus struct {
 	Runtime time.Duration
 }
 
+// PoolCleanupFunc defines a function type for cleaning up resources associated with a task pool.
 type PoolCleanupFunc func(tp *Pool)
 
 // IsRoot returns true if this task pool has no parent or its parent is global.

@@ -1,4 +1,3 @@
-
 package wlerrors_test
 
 import (
@@ -227,7 +226,9 @@ func TestIs(t *testing.T) {
 func TestAs(t *testing.T) {
 	t.Run("extracts status error", func(t *testing.T) {
 		err := wlerrors.Statusf(http.StatusNotFound, "not found")
+
 		var statusErr wlerrors.StatusErr
+
 		found := wlerrors.As(err, &statusErr)
 		assert.True(t, found)
 		assert.Equal(t, http.StatusNotFound, statusErr.Status())
@@ -235,7 +236,9 @@ func TestAs(t *testing.T) {
 
 	t.Run("returns false for non-matching type", func(t *testing.T) {
 		err := errors.New("regular error")
+
 		var statusErr wlerrors.StatusErr
+
 		found := wlerrors.As(err, &statusErr)
 		assert.False(t, found)
 	})

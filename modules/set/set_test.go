@@ -1,4 +1,3 @@
-
 package set_test
 
 import (
@@ -100,6 +99,7 @@ func TestRemove(t *testing.T) {
 
 	t.Run("removes from empty set without panic", func(t *testing.T) {
 		s := set.New[string]()
+
 		assert.NotPanics(t, func() {
 			s.Remove("item")
 		})
@@ -148,10 +148,12 @@ func TestSetOperations(t *testing.T) {
 
 	t.Run("set can be iterated", func(t *testing.T) {
 		s := set.New("a", "b", "c")
+
 		count := 0
 		for range s {
 			count++
 		}
+
 		assert.Equal(t, 3, count)
 	})
 }

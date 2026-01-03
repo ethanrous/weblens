@@ -1,4 +1,3 @@
-
 package option_test
 
 import (
@@ -39,6 +38,7 @@ func TestOf(t *testing.T) {
 
 	t.Run("creates option with nil pointer", func(t *testing.T) {
 		var ptr *string
+
 		opt := option.Of(ptr)
 		assert.True(t, opt.Has())
 

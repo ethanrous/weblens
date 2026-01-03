@@ -1,4 +1,3 @@
-
 package media_test
 
 import (
@@ -137,6 +136,7 @@ func TestCheckMediaQuality(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, ok := media.CheckMediaQuality(tt.quality)
 			assert.Equal(t, tt.valid, ok)
+
 			if tt.valid {
 				assert.Equal(t, tt.want, got)
 			}

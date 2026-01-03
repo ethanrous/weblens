@@ -34,6 +34,7 @@ func NewTestTask(id, jobName string, workerID int64, exitStatus ExitStatus, resu
 // testContext is a simple context that implements context_mod.Z for testing.
 type testContext struct {
 	context.Context
+
 	logger *zerolog.Logger
 	wg     *sync.WaitGroup
 }

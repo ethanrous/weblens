@@ -47,10 +47,10 @@ type Task struct {
 	exitStatus ExitStatus // "success", "error" or "canceled"
 
 	// Function to be run to clean up when the task completes, no matter the exit status
-	cleanups []TaskFunc
+	cleanups []HandlerFunc
 
 	// Function to be run to clean up if the task errors
-	errorCleanups []TaskFunc
+	errorCleanups []HandlerFunc
 
 	updateMu sync.RWMutex
 
@@ -318,7 +318,7 @@ func (t *Task) SetPostAction(action func(Result)) {
 }
 
 // SetErrorCleanup works the same as t.SetCleanup(), but only runs if the task errors
-func (t *Task) SetErrorCleanup(cleanup TaskFunc) {
+func (t *Task) SetErrorCleanup(cleanup HandlerFunc) {
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
 
@@ -331,7 +331,7 @@ func (t *Task) SetErrorCleanup(cleanup TaskFunc) {
 // Modifications to the task state should not be made in the cleanup functions (i.e. read-only), as the task has already completed, and may result in a deadlock.
 // If the task has already completed, this function will NOT be called. Therefore, it is only safe to call SetCleanup() from inside of a task handler.
 // If you want to register a function from outside the task handler, or to run after the task has completed successfully, use t.SetPostAction() instead.
-func (t *Task) SetCleanup(cleanup TaskFunc) {
+func (t *Task) SetCleanup(cleanup HandlerFunc) {
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
 

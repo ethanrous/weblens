@@ -21,7 +21,6 @@ import (
 
 // ScanDirectory scans a directory and processes all files within it.
 func ScanDirectory(t *task.Task) {
-
 	ctx, ok := context_service.FromContext(t.Ctx)
 	if !ok {
 		t.Fail(wlerrors.New("failed to get context"))
@@ -60,7 +59,11 @@ func ScanDirectory(t *task.Task) {
 		// Make sure we finish sending any messages to the client
 		// before we close unsubscribe from the task
 		ctx.ClientService.Flush(t.Ctx)
-		ctx.ClientService.UnsubscribeAllByID(t.Ctx, tsk.ID(), websocket.TaskSubscribe)
+
+		err := ctx.ClientService.UnsubscribeAllByID(t.Ctx, tsk.ID(), websocket.TaskSubscribe)
+		if err != nil {
+			tsk.Log().Error().Err(err).Msg("Failed to unsubscribe from task")
+		}
 	})
 
 	t.Log().Debug().Func(func(e *zerolog.Event) {
@@ -165,7 +168,6 @@ func ScanDirectory(t *task.Task) {
 
 // ScanFile scans an individual file and processes its metadata.
 func ScanFile(tsk *task.Task) {
-
 	reportSubscanStatus(tsk)
 
 	meta := tsk.GetMeta().(job.ScanMeta)

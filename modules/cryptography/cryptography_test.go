@@ -1,4 +1,3 @@
-
 package cryptography_test
 
 import (
@@ -13,7 +12,7 @@ import (
 
 func TestRandomInt(t *testing.T) {
 	t.Run("generates random int within limit", func(t *testing.T) {
-		for i := 0; i < 100; i++ {
+		for range 100 {
 			result, err := cryptography.RandomInt(10)
 			require.NoError(t, err)
 			assert.GreaterOrEqual(t, result, int64(0))
@@ -30,9 +29,11 @@ func TestRandomInt(t *testing.T) {
 
 	t.Run("generates different values", func(t *testing.T) {
 		seen := make(map[int64]bool)
-		for i := 0; i < 100; i++ {
+
+		for range 100 {
 			result, err := cryptography.RandomInt(1000)
 			require.NoError(t, err)
+
 			seen[result] = true
 		}
 		// Should have generated multiple different values
@@ -50,6 +51,7 @@ func TestRandomString(t *testing.T) {
 	t.Run("generates string with only alphanumeric chars", func(t *testing.T) {
 		result, err := cryptography.RandomString(100)
 		require.NoError(t, err)
+
 		for _, c := range result {
 			isLower := c >= 'a' && c <= 'z'
 			isUpper := c >= 'A' && c <= 'Z'

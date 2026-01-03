@@ -90,7 +90,7 @@ func TestFromContext(t *testing.T) {
 	})
 
 	t.Run("returns false for nil context", func(t *testing.T) {
-		_, ok := ctxservice.FromContext(nil)
+		_, ok := ctxservice.FromContext(t.Context())
 
 		assert.False(t, ok)
 	})
@@ -201,7 +201,7 @@ func TestAppContext_WithContext(t *testing.T) {
 		basicCtx := ctxservice.NewBasicContext(context.Background(), logger)
 		appCtx := ctxservice.NewAppContext(basicCtx)
 
-		newBaseCtx := context.WithValue(context.Background(), "newKey", "newValue")
+		newBaseCtx := context.WithValue(context.Background(), "newKey", "newValue") //nolint:revive
 		combined := appCtx.WithContext(newBaseCtx)
 
 		// The combined context should be usable
