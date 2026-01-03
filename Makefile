@@ -25,7 +25,9 @@ test: FORCE
 	./scripts/test-weblens.bash
 
 cover:
-	go tool cover -html=./_build/cover/coverage.out
+	go tool cover -func ./_build/cover/coverage.out
+cover-view:
+	go tool cover -html ./_build/cover/coverage.out
 
 dev: FORCE
 	./scripts/start.bash --dynamic "${@:1}"

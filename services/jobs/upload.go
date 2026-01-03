@@ -14,11 +14,11 @@ import (
 	job_model "github.com/ethanrous/weblens/models/job"
 	"github.com/ethanrous/weblens/models/task"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
-	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/notify"
+	"github.com/ethanrous/weblens/services/reshape"
 	"github.com/rs/zerolog"
 )
 
@@ -48,21 +48,19 @@ func removeTopLevels(t *task.Task, topLevels []*file_model.WeblensFileImpl) erro
 // possible, hopefully as fast as the slower of the 2 network speeds. This task handles
 // everything *after* the client has had its data read into memory, this is the "bottom half"
 // of the upload
-func HandleFileUploads(tsk task_mod.Task) {
-	t := tsk.(*task.Task)
-
-	appCtx, ok := context_service.FromContext(t.Ctx)
+func HandleFileUploads(tsk *task.Task) {
+	appCtx, ok := context_service.FromContext(tsk.Ctx)
 	if !ok {
-		t.Fail(wlerrors.New("failed to get context"))
+		tsk.Fail(wlerrors.New("failed to get context"))
 
 		return
 	}
 
-	meta := t.GetMeta().(job.UploadFilesMeta)
+	meta := tsk.GetMeta().(job.UploadFilesMeta)
 
 	rootFile, err := appCtx.FileService.GetFileByID(appCtx, meta.RootFolderID)
 	if err != nil {
-		t.Fail(err)
+		tsk.Fail(err)
 
 		return
 	}
@@ -75,21 +73,19 @@ func HandleFileUploads(tsk task_mod.Task) {
 	timeout := false
 
 	// Cleanup routine. This must be run even if the upload fails
-	t.SetCleanup(func(tsk task_mod.Task) {
-		t := tsk.(*task.Task)
-
+	tsk.SetCleanup(func(tsk *task.Task) {
 		for _, f := range fileMap {
-			t.Log().Debug().Func(func(e *zerolog.Event) {
+			tsk.Log().Debug().Func(func(e *zerolog.Event) {
 				e.Msgf("Cleaning up file [%+v]", *f)
 			})
 		}
 		// e.Msgf("Upload fileMap has %d remaining - and chunk stream has %d remaining", len(fileMap), len(meta.ChunkStream))
 
 		select {
-		case <-t.Ctx.Done():
-			err = removeTopLevels(t, topLevels)
+		case <-tsk.Ctx.Done():
+			err = removeTopLevels(tsk, topLevels)
 			if err != nil {
-				t.Log().Error().Stack().Err(err).Msg("Failed to remove top level files")
+				tsk.Log().Error().Stack().Err(err).Msg("Failed to remove top level files")
 			}
 
 			return
@@ -97,15 +93,26 @@ func HandleFileUploads(tsk task_mod.Task) {
 		}
 
 		rootFile.Size()
-		notifs := notify.NewFileNotification(appCtx, rootFile, websocket.FileUpdatedEvent)
+
+		fInfo, err := reshape.WeblensFileToFileInfo(appCtx, rootFile)
+		if err != nil {
+			appCtx.Log().Error().Stack().Err(err).Msg("Failed to reshape root file to file info")
+		}
+
+		notifs := notify.NewFileNotification(appCtx, fInfo, websocket.FileUpdatedEvent)
 
 		doingRootScan := false
 		// Do not report that this task pool was created by this task, we want to detach
 		// and allow these scans to take place independently
-		newTp := t.GetTaskPool().GetWorkerPool().NewTaskPool(false, nil)
+		newTp := tsk.GetTaskPool().GetWorkerPool().NewTaskPool(false, nil)
 
 		for _, tl := range topLevels {
-			notif := notify.NewFileNotification(appCtx, tl, websocket.FileUpdatedEvent)
+			fInfo, err := reshape.WeblensFileToFileInfo(appCtx, tl)
+			if err != nil {
+				appCtx.Log().Error().Stack().Err(err).Msg("Failed to reshape top level to file info")
+			}
+
+			notif := notify.NewFileNotification(appCtx, fInfo, websocket.FileUpdatedEvent)
 			notifs = append(notifs, notif...)
 
 			if tl.IsDir() {
@@ -116,7 +123,7 @@ func HandleFileUploads(tsk task_mod.Task) {
 
 					_, err = appCtx.DispatchJob(job_model.ScanDirectoryTask, scanMeta, newTp)
 					if err != nil {
-						t.Log().Error().Stack().Err(err).Msg("")
+						tsk.Log().Error().Stack().Err(err).Msg("")
 
 						continue
 					}
@@ -128,7 +135,7 @@ func HandleFileUploads(tsk task_mod.Task) {
 
 				_, err = appCtx.DispatchJob(job_model.ScanDirectoryTask, scanMeta, newTp)
 				if err != nil {
-					t.Log().Error().Stack().Err(err).Msg("")
+					tsk.Log().Error().Stack().Err(err).Msg("")
 
 					continue
 				}
@@ -143,11 +150,11 @@ func HandleFileUploads(tsk task_mod.Task) {
 
 	timeoutTicker := time.NewTicker(time.Minute)
 
-	ctx := history.WithFileEvent(t.Ctx)
+	ctx := history.WithFileEvent(tsk.Ctx)
 
 	appCtx, ok = context_service.FromContext(ctx)
 	if !ok {
-		t.Fail(wlerrors.New("failed to add file event to context in upload task"))
+		tsk.Fail(wlerrors.New("failed to add file event to context in upload task"))
 
 		return
 	}
@@ -157,21 +164,21 @@ WriterLoop:
 		timeoutTicker.Reset(time.Minute)
 
 		select {
-		case <-t.Ctx.Done(): // Listen for cancellation
-			t.Log().Debug().Func(func(e *zerolog.Event) { e.Msgf("Context done, exiting upload task") })
-			t.Fail(task.ErrTaskCancelled)
+		case <-tsk.Ctx.Done(): // Listen for cancellation
+			tsk.Log().Debug().Func(func(e *zerolog.Event) { e.Msgf("Context done, exiting upload task") })
+			tsk.Fail(task.ErrTaskCanceled)
 
 			return
 		case <-timeoutTicker.C:
-			t.Log().Debug().Func(func(e *zerolog.Event) { e.Msgf("Timeout, exiting upload task") })
-			t.Fail(task.ErrTaskTimeout)
+			tsk.Log().Debug().Func(func(e *zerolog.Event) { e.Msgf("Timeout, exiting upload task") })
+			tsk.Fail(task.ErrTaskTimeout)
 
 			timeout = true
 
 			return
 		case chunk := <-meta.ChunkStream:
 			bottom, top, total, err := parseRangeHeader(chunk.ContentRange)
-			t.ReqNoErr(err)
+			tsk.ReqNoErr(err)
 
 			if chunk.NewFile != nil {
 				tmpFile := chunk.NewFile
@@ -192,7 +199,7 @@ WriterLoop:
 					func(a, b string) int { return strings.Compare(string(a), string(b)) },
 				)
 
-				t.Log().Trace().Func(func(e *zerolog.Event) {
+				tsk.Log().Trace().Func(func(e *zerolog.Event) {
 					e.Msgf("New upload [%s] of size [%d bytes]", chunk.NewFile.GetPortablePath(), total)
 				})
 
@@ -210,7 +217,7 @@ WriterLoop:
 			chnk := fileMap[chunk.FileID]
 
 			if chnk.FileSizeTotal != total {
-				t.Fail(wlerrors.Errorf("upload size mismatch for file [%s / %s] (%d != %d)", chnk.File.GetPortablePath(), chnk.File.ID(), chnk.FileSizeTotal, total))
+				tsk.Fail(wlerrors.Errorf("upload size mismatch for file [%s / %s] (%d != %d)", chnk.File.GetPortablePath(), chnk.File.ID(), chnk.FileSizeTotal, total))
 			}
 
 			// Add the new bytes to the counter for the file-size of this file.
@@ -221,18 +228,18 @@ WriterLoop:
 			// Write the bytes to the real file
 			err = chnk.File.WriteAt(chunk.Chunk, bottom)
 			if err != nil {
-				t.ReqNoErr(err)
+				tsk.ReqNoErr(err)
 			}
 
 			// Add the bytes for this chunk to the Hash
 			_, err = chnk.Hash.Write(chunk.Chunk)
 			if err != nil {
-				t.ReqNoErr(err)
+				tsk.ReqNoErr(err)
 			}
 
 			// When file is finished writing
 			if chnk.BytesWritten >= chnk.FileSizeTotal {
-				t.Log().Debug().Func(func(e *zerolog.Event) {
+				tsk.Log().Debug().Func(func(e *zerolog.Event) {
 					e.Msgf("Finished writing file [%s] with %d bytes", chnk.File.GetPortablePath(), chnk.BytesWritten)
 				})
 
@@ -240,19 +247,24 @@ WriterLoop:
 				chnk.File.SetContentID(base64.URLEncoding.EncodeToString(chnk.Hash.Sum(nil))[:20])
 
 				if chnk.File.GetContentID() == "" {
-					t.Fail(wlerrors.Errorf("failed to generate contentID for file upload [%s]", chnk.File.GetPortablePath()))
+					tsk.Fail(wlerrors.Errorf("failed to generate contentID for file upload [%s]", chnk.File.GetPortablePath()))
 				}
 
 				newAction := history.NewCreateAction(appCtx, chnk.File)
 
 				err = history.SaveAction(appCtx, &newAction)
 				if err != nil {
-					t.Fail(err)
+					tsk.Fail(err)
 
 					return
 				}
 
-				notif := notify.NewFileNotification(appCtx, chnk.File, websocket.FileCreatedEvent)
+				fInfo, err := reshape.WeblensFileToFileInfo(appCtx, chnk.File)
+				if err != nil {
+					appCtx.Log().Error().Stack().Err(err).Msg("Failed to reshape file to file info")
+				}
+
+				notif := notify.NewFileNotification(appCtx, fInfo, websocket.FileCreatedEvent)
 				appCtx.Notify(appCtx, notif...)
 
 				// Remove the file from our local map
@@ -267,7 +279,7 @@ WriterLoop:
 				delete(fileMap, chunk.FileID)
 			}
 
-			t.Log().Trace().Func(func(e *zerolog.Event) {
+			tsk.Log().Trace().Func(func(e *zerolog.Event) {
 				if chnk.BytesWritten < chnk.FileSizeTotal {
 					e.Msgf("%s has not finished uploading yet %d of %d", chnk.File.GetPortablePath(), chnk.BytesWritten, chnk.FileSizeTotal)
 				}
@@ -283,6 +295,6 @@ WriterLoop:
 		}
 	}
 
-	t.Log().Debug().Func(func(e *zerolog.Event) { e.Msgf("Finished writing upload files for %s", rootFile.GetPortablePath()) })
-	t.Success()
+	tsk.Log().Debug().Func(func(e *zerolog.Event) { e.Msgf("Finished writing upload files for %s", rootFile.GetPortablePath()) })
+	tsk.Success()
 }

@@ -308,29 +308,16 @@ export interface TakeoutInfo {
     'takeoutID'?: string;
     'taskID'?: string;
 }
-
-export const TaskExitStatus = {
-    TaskNoStatus: '',
-    TaskSuccess: 'success',
-    TaskCanceled: 'cancelled',
-    TaskError: 'error'
-} as const;
-
-export type TaskExitStatus = typeof TaskExitStatus[keyof typeof TaskExitStatus];
-
-
 export interface TaskInfo {
     'Completed': boolean;
     'jobName': string;
     'progress': number;
     'result'?: object;
     'startTime'?: string;
-    'status': TaskExitStatus;
+    'status': string;
     'taskID': string;
     'workerID': number;
 }
-
-
 export interface TokenInfo {
     'createdBy': string;
     'createdTime': number;

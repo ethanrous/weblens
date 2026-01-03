@@ -147,10 +147,10 @@ const MediaTypeJSON = `{
         "SupportsImgRecog": false
     },
     "video/quicktime": {
-        "FriendlyName": "MP4",
+        "FriendlyName": "QuickTime",
         "FileExtension": [
-            "MP4",
-            "mp4"
+			"MOV",
+			"mov"
         ],
         "IsDisplayable": true,
         "IsRaw": false,

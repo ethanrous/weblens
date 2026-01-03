@@ -43,7 +43,7 @@ func compileOptions(opts ...FileInfoOptions) FileInfoOptions {
 	return compiled
 }
 
-func checkModifyable(_ context.Context, f *file_model.WeblensFileImpl, o FileInfoOptions) bool {
+func checkModifiable(_ context.Context, f *file_model.WeblensFileImpl, o FileInfoOptions) bool {
 	if override, ok := o.ModifiableOverride.Get(); ok {
 		return override
 	}
@@ -105,7 +105,7 @@ func WeblensFileToFileInfo(ctx context.Context, f *file_model.WeblensFileImpl, o
 
 	exists := f.Exists()
 
-	modifiable := checkModifyable(ctx, f, o)
+	modifiable := checkModifiable(ctx, f, o)
 
 	var hasRestoreMedia bool
 	if exists || !o.IsPastFile || f.IsDir() {
@@ -140,7 +140,6 @@ func WeblensFileToFileInfo(ctx context.Context, f *file_model.WeblensFileImpl, o
 		Owner:           ownerName,
 		ParentID:        parentID,
 		PastFile:        o.IsPastFile,
-		PastID:          f.GetPastID(),
 		PortablePath:    portablePath.String(),
 		ShareID:         shareID,
 		Size:            size,

@@ -187,7 +187,6 @@ Class | Method | HTTP request | Description
  - [StructsInitServerParams](docs/StructsInitServerParams.md)
  - [StructsSetConfigParam](docs/StructsSetConfigParam.md)
  - [TakeoutInfo](docs/TakeoutInfo.md)
- - [TaskExitStatus](docs/TaskExitStatus.md)
  - [TaskInfo](docs/TaskInfo.md)
  - [TokenInfo](docs/TokenInfo.md)
  - [TowerInfo](docs/TowerInfo.md)

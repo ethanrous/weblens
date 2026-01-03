@@ -518,7 +518,7 @@ definitions:
       startTime:
         type: string
       status:
-        $ref: '#/definitions/task.ExitStatus'
+        type: string
       taskID:
         type: string
       workerID:
@@ -740,18 +740,6 @@ definitions:
         type: string
       configValue: {}
     type: object
-  task.ExitStatus:
-    enum:
-    - ""
-    - success
-    - cancelled
-    - error
-    type: string
-    x-enum-varnames:
-    - TaskNoStatus
-    - TaskSuccess
-    - TaskCanceled
-    - TaskError
 host: localhost:8080
 info:
   contact: {}

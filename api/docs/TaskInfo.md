@@ -9,7 +9,7 @@ Name | Type | Description | Notes
 **Progress** | **int32** |  | 
 **Result** | Pointer to **map[string]interface{}** |  | [optional] 
 **StartTime** | Pointer to **string** |  | [optional] 
-**Status** | [**TaskExitStatus**](TaskExitStatus.md) |  | 
+**Status** | **string** |  | 
 **TaskID** | **string** |  | 
 **WorkerID** | **int32** |  | 
 
@@ -17,7 +17,7 @@ Name | Type | Description | Notes
 
 ### NewTaskInfo
 
-`func NewTaskInfo(completed bool, jobName string, progress int32, status TaskExitStatus, taskID string, workerID int32, ) *TaskInfo`
+`func NewTaskInfo(completed bool, jobName string, progress int32, status string, taskID string, workerID int32, ) *TaskInfo`
 
 NewTaskInfo instantiates a new TaskInfo object
 This constructor will assign default values to properties that have it defined,
@@ -144,20 +144,20 @@ HasStartTime returns a boolean if a field has been set.
 
 ### GetStatus
 
-`func (o *TaskInfo) GetStatus() TaskExitStatus`
+`func (o *TaskInfo) GetStatus() string`
 
 GetStatus returns the Status field if non-nil, zero value otherwise.
 
 ### GetStatusOk
 
-`func (o *TaskInfo) GetStatusOk() (*TaskExitStatus, bool)`
+`func (o *TaskInfo) GetStatusOk() (*string, bool)`
 
 GetStatusOk returns a tuple with the Status field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
 ### SetStatus
 
-`func (o *TaskInfo) SetStatus(v TaskExitStatus)`
+`func (o *TaskInfo) SetStatus(v string)`
 
 SetStatus sets Status field to given value.
 

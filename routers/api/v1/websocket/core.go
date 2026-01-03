@@ -39,7 +39,10 @@ func connectToCores(c context.Context, _ config.Provider) error {
 	}
 
 	context.AfterFunc(ctx, func() {
-		ctx.ClientService.DisconnectAll(ctx)
+		err := ctx.ClientService.DisconnectAll(ctx)
+		if err != nil {
+			ctx.Log().Error().Stack().Err(err).Msg("Failed to disconnect all clients")
+		}
 	})
 
 	local, err := tower_model.GetLocal(ctx)
@@ -161,7 +164,12 @@ func dial(ctx context_service.AppContext, dialer *websocket.Dialer, host url.URL
 }
 
 func coreWsHandler(ctx context_service.AppContext, c *client_model.WsClient) error {
-	defer func() { ctx.ClientService.ClientDisconnect(ctx, c) }()
+	defer func() {
+		err := ctx.ClientService.ClientDisconnect(ctx, c)
+		if err != nil {
+			ctx.Log().Error().Stack().Err(err).Msg("Failed to disconnect client")
+		}
+	}()
 
 	for {
 		select {

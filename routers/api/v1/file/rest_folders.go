@@ -8,7 +8,6 @@ import (
 	"github.com/ethanrous/weblens/models/job"
 	media_model "github.com/ethanrous/weblens/models/media"
 	share_model "github.com/ethanrous/weblens/models/share"
-	"github.com/ethanrous/weblens/models/task"
 	"github.com/ethanrous/weblens/modules/option"
 	"github.com/ethanrous/weblens/modules/structs"
 	"github.com/ethanrous/weblens/modules/wlerrors"
@@ -58,7 +57,7 @@ func ScanDir(ctx context_service.RequestContext) {
 		return
 	}
 
-	taskInfo := reshape.TaskToTaskInfo(t.(*task.Task))
+	taskInfo := reshape.TaskToTaskInfo(t)
 
 	ctx.JSON(http.StatusOK, taskInfo)
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/ethanrous/weblens/models/job"
 	job_model "github.com/ethanrous/weblens/models/job"
 	"github.com/ethanrous/weblens/models/task"
-	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
@@ -47,10 +46,8 @@ type extSize struct {
 }
 
 // GatherFilesystemStats collects statistics about file sizes grouped by extension in a directory tree.
-func GatherFilesystemStats(tsk task_mod.Task) {
-	t := tsk.(*task.Task)
-
-	meta := t.GetMeta().(job.FsStatMeta)
+func GatherFilesystemStats(tsk *task.Task) {
+	meta := tsk.GetMeta().(job.FsStatMeta)
 
 	filetypeSizeMap := map[string]int64{}
 	folderCount := 0
@@ -81,7 +78,7 @@ func GatherFilesystemStats(tsk task_mod.Task) {
 
 	err := meta.RootDir.RecursiveMap(sizeFunc)
 	if err != nil {
-		t.ReqNoErr(err)
+		tsk.ReqNoErr(err)
 	}
 
 	returned := make([]extSize, 0, len(filetypeSizeMap))
@@ -92,24 +89,22 @@ func GatherFilesystemStats(tsk task_mod.Task) {
 	// freeSpace := dataStore.GetFreeSpace(meta.rootDir.GetAbsPath())
 	freeSpace := 0
 
-	t.SetResult(task_mod.Result{"sizesByExtension": returned, "bytesFree": freeSpace})
-	t.Success()
+	tsk.SetResult(task.Result{"sizesByExtension": returned, "bytesFree": freeSpace})
+	tsk.Success()
 }
 
 // HashFile generates a content ID hash for a file.
-func HashFile(tsk task_mod.Task) {
-	t := tsk.(*task.Task)
+func HashFile(tsk *task.Task) {
+	meta := tsk.GetMeta().(job.HashFileMeta)
 
-	meta := t.GetMeta().(job.HashFileMeta)
-
-	contentID, err := file_model.GenerateContentID(t.Ctx, meta.File)
-	t.ReqNoErr(err)
+	contentID, err := file_model.GenerateContentID(tsk.Ctx, meta.File)
+	tsk.ReqNoErr(err)
 
 	if contentID == "" && meta.File.Size() != 0 {
-		t.Fail(file_model.ErrNoContentID)
+		tsk.Fail(file_model.ErrNoContentID)
 	}
 
-	t.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Hashed file [%s] to [%s]", meta.File.GetPortablePath(), contentID) })
+	tsk.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Hashed file [%s] to [%s]", meta.File.GetPortablePath(), contentID) })
 
 	// TODO: sync database content id if this file is created before being added to db (i.e upload)
 	// err = dataStore.SetContentID(meta.file, contentID)
@@ -117,27 +112,27 @@ func HashFile(tsk task_mod.Task) {
 	// 	t.ErrorAndExit(err)
 	// }
 
-	t.SetResult(task_mod.Result{"contentID": contentID})
+	tsk.SetResult(task.Result{"contentID": contentID})
 
-	poolStatus := t.GetTaskPool().Status()
+	poolStatus := tsk.GetTaskPool().Status()
 	notif := notify.NewTaskNotification(
-		t, websocket.TaskCompleteEvent, task_mod.Result{
+		tsk, websocket.TaskCompleteEvent, task.Result{
 			"filename":      meta.File.GetPortablePath().Filename(),
 			"tasksTotal":    poolStatus.Total,
 			"tasksComplete": poolStatus.Complete,
 		},
 	)
 
-	appCtx, ok := context_service.FromContext(t.Ctx)
+	appCtx, ok := context_service.FromContext(tsk.Ctx)
 	if !ok {
-		t.Fail(wlerrors.New("failed to get context"))
+		tsk.Fail(wlerrors.New("failed to get context"))
 
 		return
 	}
 
-	appCtx.Notify(t.Ctx, notif)
+	appCtx.Notify(tsk.Ctx, notif)
 
-	t.Success()
+	tsk.Success()
 }
 
 // RegisterJobs registers all available job handlers with the worker pool.

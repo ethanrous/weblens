@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ethanrous/weblens/models/task"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/modules/wlerrors"
@@ -87,7 +86,7 @@ func LaunchBackup(ctx ctxservice.RequestContext) {
 			return
 		}
 
-		err = ctx.ClientService.SubscribeToTask(ctx, ctx.Client(), t.(*task.Task), time.Now())
+		err = ctx.ClientService.SubscribeToTask(ctx, ctx.Client(), t, time.Now())
 		if err != nil {
 			// TODO: Return situational error here because the task still was created, but the client was not subscribed
 			ctx.Error(http.StatusInternalServerError, err)

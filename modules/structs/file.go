@@ -8,7 +8,6 @@ type FileInfo struct {
 	ContentID       string   `json:"contentID"`
 	Owner           string   `json:"owner"`
 	ShareID         string   `json:"shareID,omitempty"`
-	PastID          string   `json:"currentID"`
 	Children        []string `json:"childrenIds"`
 	Size            int64    `json:"size"`
 	ModTime         int64    `json:"modifyTimestamp"`

@@ -54,7 +54,6 @@ docs/ShareInfo.md
 docs/StructsInitServerParams.md
 docs/StructsSetConfigParam.md
 docs/TakeoutInfo.md
-docs/TaskExitStatus.md
 docs/TaskInfo.md
 docs/TokenInfo.md
 docs/TowerInfo.md
@@ -104,7 +103,6 @@ model_share_info.go
 model_structs_init_server_params.go
 model_structs_set_config_param.go
 model_takeout_info.go
-model_task_exit_status.go
 model_task_info.go
 model_token_info.go
 model_tower_info.go

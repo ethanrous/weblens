@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+source ./scripts/lib/all.bash
+
 usage="./scripts/quickCore.bash [-r|--rebuild] [-t|--role <role>] [-c|--clean]
 	-r, --rebuild   Rebuild the container
 	-t, --role      Specify the tower role (default: core)
@@ -96,18 +98,8 @@ if [[ $shouldRebuild == true ]]; then
     docker image rm -f ethrous/weblens:"$imageName-$arch" &>/dev/null || :
 fi
 
-printf "Removing old '%s' containers... " "$containerName"
-
-docker stop "$containerName" 2>/dev/null || :
-docker rm "$containerName" 2>/dev/null || :
-
-printf "Done\n"
-
-if ! docker network ls | grep weblens-net &>/dev/null; then
-    printf "Creating weblens docker network... "
-    docker network create weblens-net &>/dev/null
-    printf "Done\n"
-fi
+cleanup_mongo | show_as_subtask "Killing old mongo containers..." "green"
+launch_mongo "$containerName" | show_as_subtask "Launching mongo..." "green"
 
 # Build image if it doesn't exist
 if [[ $local == false ]] && ! docker image ls | grep "$imageName-$arch" &>/dev/null; then
@@ -120,8 +112,6 @@ if [[ $local == false ]] && ! docker image ls | grep "$imageName-$arch" &>/dev/n
 fi
 
 WEBLENS_LOG_LEVEL="${WEBLENS_LOG_LEVEL:-debug}"
-
-./scripts/start-mongo.sh "$mongoName" | sed $'s/^/\e[32m[] \e[0m/'
 
 export WEBLENS_DATA_PATH="./_build/fs/$fsName/data"
 export WEBLENS_LOG_FORMAT=dev

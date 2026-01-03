@@ -5,18 +5,21 @@ import (
 	"context"
 	"time"
 
-	file_model "github.com/ethanrous/weblens/models/file"
-	task_model "github.com/ethanrous/weblens/models/task"
-	task_mod "github.com/ethanrous/weblens/modules/task"
+	"github.com/ethanrous/weblens/models/task"
+	"github.com/ethanrous/weblens/modules/log"
+	"github.com/ethanrous/weblens/modules/structs"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/modules/wlerrors"
-	context_service "github.com/ethanrous/weblens/services/ctxservice"
-	"github.com/ethanrous/weblens/services/reshape"
-	"github.com/rs/zerolog/log"
 )
 
+// Jobber is an interface representing a job or task with an ID and job name.
+type Jobber interface {
+	ID() string
+	JobName() string
+}
+
 // NewTaskNotification creates a websocket notification for a task event with the given result.
-func NewTaskNotification(task *task_model.Task, event websocket_mod.WsEvent, result task_mod.Result) websocket_mod.WsResponseInfo {
+func NewTaskNotification(task Jobber, event websocket_mod.WsEvent, result task.Result) websocket_mod.WsResponseInfo {
 	msg := websocket_mod.WsResponseInfo{
 		EventTag:        event,
 		SubscribeKey:    task.ID(),
@@ -32,9 +35,9 @@ func NewTaskNotification(task *task_model.Task, event websocket_mod.WsEvent, res
 }
 
 // NewPoolNotification creates a websocket notification for a task pool event with the given result.
-func NewPoolNotification(pool task_mod.Pool, event websocket_mod.WsEvent, result task_mod.Result) websocket_mod.WsResponseInfo {
+func NewPoolNotification(pool *task.Pool, event websocket_mod.WsEvent, result task.Result) websocket_mod.WsResponseInfo {
 	if pool.IsGlobal() {
-		log.Warn().Msg("Not pushing update on global pool")
+		log.GlobalLogger().Warn().Msg("Not pushing update on global pool")
 
 		return websocket_mod.WsResponseInfo{}
 	}
@@ -69,23 +72,14 @@ func NewSystemNotification(event websocket_mod.WsEvent, data websocket_mod.WsDat
 // NewFileNotification creates websocket notifications for a file event, including notifications for the file,
 // its parent folder, and optionally a pre-move parent if the file was moved.
 func NewFileNotification(
-	c context.Context,
-	file *file_model.WeblensFileImpl,
+	ctx context.Context,
+	fileInfo structs.FileInfo,
 	event websocket_mod.WsEvent,
 	options ...FileNotificationOptions,
 ) []websocket_mod.WsResponseInfo {
-	ctx, _ := context_service.FromContext(c)
-
-	fileInfo, err := reshape.WeblensFileToFileInfo(ctx, file)
-	if err != nil {
-		ctx.Log().Error().Stack().Err(err).Msg("Failed to create new file notification")
-
-		return []websocket_mod.WsResponseInfo{}
-	}
-
-	if file.ID() == "" {
-		err = wlerrors.Errorf("File ID is empty")
-		ctx.Log().Error().Stack().Err(err).Msg("Failed to create new file notification")
+	if fileInfo.ID == "" {
+		err := wlerrors.Errorf("File ID is empty")
+		log.FromContext(ctx).Error().Stack().Err(err).Msg("Failed to create new file notification")
 
 		return []websocket_mod.WsResponseInfo{}
 	}
@@ -101,15 +95,15 @@ func NewFileNotification(
 
 	notifs = append(notifs, websocket_mod.WsResponseInfo{
 		EventTag:        event,
-		SubscribeKey:    file.ID(),
+		SubscribeKey:    fileInfo.ID,
 		Content:         content,
 		BroadcastType:   websocket_mod.FolderSubscribe,
 		ConstructedTime: time.Now().Unix(),
 	})
 
-	if file.GetParent() != nil && !file.GetParent().GetPortablePath().IsRoot() {
+	if fileInfo.ParentID != "" {
 		parentMsg := notifs[0]
-		parentMsg.SubscribeKey = file.GetParent().ID()
+		parentMsg.SubscribeKey = fileInfo.ParentID
 		notifs = append(notifs, parentMsg)
 	}
 

@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+source ./scripts/lib/all.bash
+
 start_ui() {
     pushd ./weblens-vue/weblens-nuxt || exit 1
 
@@ -74,8 +76,6 @@ while [ "${1:-}" != "" ]; do
     esac
     shift
 done
-
-source ./scripts/build-agno.bash
 
 if [[ $dynamic == true ]]; then
     echo "Dynamic mode enabled"

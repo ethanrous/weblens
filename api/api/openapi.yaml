@@ -3035,7 +3035,7 @@ components:
         progress: 0
         startTime: startTime
         taskID: taskID
-        status: ""
+        status: status
       properties:
         Completed:
           type: boolean
@@ -3048,7 +3048,7 @@ components:
         startTime:
           type: string
         status:
-          $ref: "#/components/schemas/task.ExitStatus"
+          type: string
         taskID:
           type: string
         workerID:
@@ -3339,18 +3339,6 @@ components:
         configValue:
           type: object
       type: object
-    task.ExitStatus:
-      enum:
-      - ""
-      - success
-      - cancelled
-      - error
-      type: string
-      x-enum-varnames:
-      - TaskNoStatus
-      - TaskSuccess
-      - TaskCanceled
-      - TaskError
     UploadFileChunk_request:
       properties:
         chunk:
