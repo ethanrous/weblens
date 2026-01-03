@@ -249,16 +249,26 @@ func (f *WeblensFileImpl) IsDir() bool {
 
 // ModTime returns the last modification time of the file.
 func (f *WeblensFileImpl) ModTime() (t time.Time) {
+	f.updateLock.RLock()
+
 	if f.pastFile {
+		defer f.updateLock.RUnlock()
+
 		return f.modifyDate
 	}
 
 	if f.modifyDate.Unix() <= 0 {
+		f.updateLock.RUnlock()
+
 		_, err := f.LoadStat()
 		if err != nil {
 			log.Error().Stack().Err(err).Msg("")
 		}
+
+		f.updateLock.RLock()
 	}
+
+	defer f.updateLock.RUnlock()
 
 	return f.modifyDate
 }
@@ -897,13 +907,6 @@ func (f *WeblensFileImpl) IsPastFile() bool {
 	return f.pastFile
 }
 
-func (f *WeblensFileImpl) getModifyDate() time.Time {
-	f.updateLock.RLock()
-	defer f.updateLock.RUnlock()
-
-	return f.modifyDate
-}
-
 func (f *WeblensFileImpl) dirComputeSize() int64 {
 	size := int64(0)
 
@@ -924,20 +927,6 @@ func (f *WeblensFileImpl) setModifyDate(newModifyDate time.Time) {
 	defer f.updateLock.Unlock()
 
 	f.modifyDate = newModifyDate
-}
-
-func (f *WeblensFileImpl) setPortable(portable file_system.Filepath) {
-	f.updateLock.Lock()
-	defer f.updateLock.Unlock()
-
-	f.portablePath = portable
-}
-
-func (f *WeblensFileImpl) setParentInternal(parent *WeblensFileImpl) {
-	f.updateLock.Lock()
-	defer f.updateLock.Unlock()
-
-	f.parent = parent
 }
 
 func (f *WeblensFileImpl) modifiedNow() {

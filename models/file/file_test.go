@@ -2,6 +2,7 @@ package file_test
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
@@ -475,6 +476,38 @@ func TestWeblensFile_Identity(t *testing.T) {
 		newPath := file_system.BuildFilePath(TestRoot, "renamed.txt")
 		f.SetPortablePath(newPath)
 		assert.Equal(t, newPath, f.GetPortablePath())
+	})
+
+	t.Run("GetFileOwnerName", func(t *testing.T) {
+		originalPath := file_system.BuildFilePath(file.UsersTreeKey, "someuser", "file.txt")
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path: originalPath,
+		})
+
+		ownerName, err := file.GetFileOwnerName(context.Background(), f)
+		if err != nil {
+			t.Fatalf("Failed to get file owner name: %v", err)
+		}
+
+		assert.Equal(t, "someuser", ownerName)
+	})
+
+	t.Run("IsFileInTrash", func(t *testing.T) {
+		trashPath := file_system.BuildFilePath(file.UsersTreeKey, "someuser", file.UserTrashDirName, "file.txt")
+		trashF := file.NewWeblensFile(file.NewFileOptions{
+			Path: trashPath,
+		})
+
+		isInTrash := file.IsFileInTrash(trashF)
+		assert.True(t, isInTrash)
+
+		nonTrashPath := file_system.BuildFilePath(file.UsersTreeKey, "someuser2", "anyotherpath", "file.txt")
+		nonTrashF := file.NewWeblensFile(file.NewFileOptions{
+			Path: nonTrashPath,
+		})
+
+		isInTrash = file.IsFileInTrash(nonTrashF)
+		assert.False(t, isInTrash)
 	})
 }
 
@@ -1134,17 +1167,16 @@ func TestWeblensFile_Lifecycle(t *testing.T) {
 		assert.Equal(t, newTime, f.ModTime())
 	})
 
-	// t.Run("ReplaceRoot changes root alias", func(t *testing.T) {
-	// 	f := file.NewTestFile(file.TestFileOptions{
-	// 		RootName: "oldroot",
-	// 		RelPath:  "somefile.txt",
-	// 	})
-	//
-	// 	assert.Equal(t, "oldroot", f.GetPortablePath().RootName())
-	//
-	// 	f.ReplaceRoot("newroot")
-	// 	assert.Equal(t, "newroot", f.GetPortablePath().RootName())
-	// })
+	t.Run("ReplaceRoot changes root alias", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path: file_system.BuildFilePath("oldroot", "somefile.txt"),
+		})
+
+		assert.Equal(t, "oldroot", f.GetPortablePath().RootName())
+
+		f.ReplaceRoot("newroot")
+		assert.Equal(t, "newroot", f.GetPortablePath().RootName())
+	})
 
 	t.Run("SetPastFile and IsPastFile", func(t *testing.T) {
 		f := file.NewWeblensFile(file.NewFileOptions{
