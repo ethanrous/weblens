@@ -105,9 +105,6 @@ type WeblensFileImpl struct {
 
 	contentID string
 
-	// the id of the file in the past, if a new file is occupying the same path as this file
-	pastID string
-
 	childIDs []string
 
 	buffer []byte
@@ -161,7 +158,6 @@ func (f *WeblensFileImpl) Freeze() *WeblensFileImpl {
 		memOnly:      f.memOnly,
 		parent:       f.parent,
 		pastFile:     f.pastFile,
-		pastID:       f.pastID,
 		portablePath: f.portablePath,
 		readOnly:     f.readOnly,
 		watching:     f.watching,
@@ -219,14 +215,6 @@ func (f *WeblensFileImpl) SetPortablePath(path file_system.Filepath) {
 	defer f.updateLock.Unlock()
 
 	f.portablePath = path
-}
-
-// GetPastID returns the ID of the file in the past if a new file is occupying the same path.
-func (f *WeblensFileImpl) GetPastID() string {
-	f.updateLock.RLock()
-	defer f.updateLock.RUnlock()
-
-	return f.pastID
 }
 
 // Exists check if the file exists on the real filesystem below.

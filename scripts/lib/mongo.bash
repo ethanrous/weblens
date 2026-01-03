@@ -2,11 +2,7 @@
 set -euo pipefail
 
 is_mongo_running() {
-    local mongo_name=${1+x}
-    if [[ -z "$mongo_name" ]]; then
-        echo "[ERROR] is_mongo_running called with no container name. Aborting"
-        exit 1
-    fi
+    local mongo_name=${1?"[ERROR] is_mongo_running called with no container name. Aborting"}
 
     if dockerc ps | grep "$mongo_name" &>/dev/null; then
         return 0

@@ -140,7 +140,6 @@ func WeblensFileToFileInfo(ctx context.Context, f *file_model.WeblensFileImpl, o
 		Owner:           ownerName,
 		ParentID:        parentID,
 		PastFile:        o.IsPastFile,
-		PastID:          f.GetPastID(),
 		PortablePath:    portablePath.String(),
 		ShareID:         shareID,
 		Size:            size,

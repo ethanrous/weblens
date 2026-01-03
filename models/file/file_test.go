@@ -3,7 +3,9 @@ package file_test
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"sync"
 	"testing"
@@ -428,6 +430,1026 @@ func TestWeblensFile_TreeOperations(t *testing.T) {
 			"leaftest",
 		}
 		assert.Equal(t, expectedOrder, visited, "Files should be visited in depth-first order")
+	})
+}
+
+func TestWeblensFile_Identity(t *testing.T) {
+	testSetup(t)
+
+	t.Run("ID and SetID", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path:   file_system.BuildFilePath(TestRoot, "identity.txt"),
+			FileID: "initial-id",
+		})
+
+		assert.Equal(t, "initial-id", f.ID())
+
+		f.SetID("new-id")
+		assert.Equal(t, "new-id", f.ID())
+	})
+
+	t.Run("Name returns filename", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path: file_system.BuildFilePath(TestRoot, "subdir/myfile.txt"),
+		})
+
+		assert.Equal(t, "myfile.txt", f.Name())
+	})
+
+	t.Run("Name returns directory name", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path: file_system.BuildFilePath(TestRoot, "subdir/mydir/"),
+		})
+
+		assert.Equal(t, "mydir", f.Name())
+	})
+
+	t.Run("GetPortablePath and SetPortablePath", func(t *testing.T) {
+		originalPath := file_system.BuildFilePath(TestRoot, "original.txt")
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path: originalPath,
+		})
+
+		assert.Equal(t, originalPath, f.GetPortablePath())
+
+		newPath := file_system.BuildFilePath(TestRoot, "renamed.txt")
+		f.SetPortablePath(newPath)
+		assert.Equal(t, newPath, f.GetPortablePath())
+	})
+}
+
+func TestWeblensFile_FileInfo(t *testing.T) {
+	testSetup(t)
+
+	t.Run("Mode returns 0", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path: file_system.BuildFilePath(TestRoot, "mode.txt"),
+		})
+
+		assert.Equal(t, os.FileMode(0), f.Mode())
+	})
+
+	t.Run("Sys returns nil", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path: file_system.BuildFilePath(TestRoot, "sys.txt"),
+		})
+
+		assert.Nil(t, f.Sys())
+	})
+
+	// t.Run("ModTime returns modification time", func(t *testing.T) {
+	// 	modTime := time.Now().Add(-1 * time.Hour).Truncate(time.Second)
+	// 	f := file.NewWeblensFile(file.NewFileOptions{
+	// 		Path: file_system.BuildFilePath(TestRoot, "modtime.txt"),
+	// 		ModTime:  modTime,
+	// 	})
+	//
+	// 	// For memory-only files that are past files, it should return the set mod time
+	// 	f.SetPastFile(true)
+	// 	assert.Equal(t, modTime, f.ModTime())
+	// })
+
+	t.Run("Stat returns file info", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path:   file_system.BuildFilePath(TestRoot, "stat.txt"),
+			FileID: "stat-id",
+		})
+
+		info, err := f.Stat()
+		assert.NoError(t, err)
+		assert.NotNil(t, info)
+		assert.Equal(t, "stat.txt", info.Name())
+	})
+
+	t.Run("Size and SetSize", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path: file_system.BuildFilePath(TestRoot, "size.txt"),
+			Size: 100,
+		})
+
+		assert.Equal(t, int64(100), f.Size())
+
+		f.SetSize(200)
+		assert.Equal(t, int64(200), f.Size())
+	})
+
+	// t.Run("Size for memory-only past file", func(t *testing.T) {
+	// 	f := file.NewTestFile(file.TestFileOptions{
+	// 		RootName:   TestRoot,
+	// 		RelPath:    "pastsize.txt",
+	// 		Size:       500,
+	// 		IsPastFile: true,
+	// 	})
+	//
+	// 	assert.Equal(t, int64(500), f.Size())
+	// })
+
+	t.Run("LoadStat for existing file", func(t *testing.T) {
+		path := file_system.BuildFilePath(TestRoot, "loadstat.txt")
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path:      path,
+			CreateNow: true,
+		})
+
+		data := []byte("test content for loadstat")
+		_, err := f.Write(data)
+		require.NoError(t, err)
+
+		// Reset size to force reload
+		f.SetSize(-1)
+
+		newSize, err := f.LoadStat()
+		assert.NoError(t, err)
+		assert.Equal(t, int64(len(data)), newSize)
+	})
+
+	t.Run("LoadStat for non-existent file returns error", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path: file_system.BuildFilePath(TestRoot, "nonexistent_loadstat.txt"),
+		})
+
+		_, err := f.LoadStat()
+		assert.Error(t, err)
+	})
+}
+
+func TestWeblensFile_IOOperations(t *testing.T) {
+	testSetup(t)
+
+	t.Run("Read reads into buffer", func(t *testing.T) {
+		path := file_system.BuildFilePath(TestRoot, "read.txt")
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path:      path,
+			CreateNow: true,
+		})
+
+		data := []byte("hello world")
+		_, err := f.Write(data)
+		require.NoError(t, err)
+
+		buf := make([]byte, 5)
+		n, err := f.Read(buf)
+		assert.NoError(t, err)
+		assert.Equal(t, 5, n)
+		assert.Equal(t, []byte("hello"), buf)
+	})
+
+	t.Run("Read on memory-only file", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path:    file_system.BuildFilePath("memory", "memread.txt"),
+			FileID:  "memread-id",
+			MemOnly: true,
+		})
+
+		data := []byte("memory content")
+		_, err := f.Write(data)
+		require.NoError(t, err)
+
+		buf := make([]byte, 6)
+		_, err = f.Read(buf)
+		assert.NoError(t, err)
+	})
+
+	t.Run("Close returns nil", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path: file_system.BuildFilePath(TestRoot, "close.txt"),
+		})
+
+		err := f.Close()
+		assert.NoError(t, err)
+	})
+
+	t.Run("Readdir returns children", func(t *testing.T) {
+		parent := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "readdir/"),
+			CreateNow: true,
+		})
+
+		child1 := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "readdir/child1.txt"),
+			CreateNow: true,
+		})
+		child2 := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "readdir/child2.txt"),
+			CreateNow: true,
+		})
+
+		require.NoError(t, parent.AddChild(child1))
+		require.NoError(t, parent.AddChild(child2))
+
+		entries, err := parent.Readdir(0)
+		assert.NoError(t, err)
+		assert.Len(t, entries, 2)
+	})
+
+	t.Run("Readdir with count limit", func(t *testing.T) {
+		parent := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "readdir_limit/"),
+			CreateNow: true,
+		})
+
+		for i := range 5 {
+			child := file.NewWeblensFile(file.NewFileOptions{
+				Path:      file_system.BuildFilePath(TestRoot, fmt.Sprintf("readdir_limit/child%d.txt", i)),
+				CreateNow: true,
+			})
+			require.NoError(t, parent.AddChild(child))
+		}
+
+		entries, err := parent.Readdir(2)
+		assert.NoError(t, err)
+		assert.Len(t, entries, 2)
+	})
+
+	t.Run("Seek with SeekStart", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path: file_system.BuildFilePath(TestRoot, "seek.txt"),
+			Size: 100,
+		})
+
+		pos, err := f.Seek(50, io.SeekStart)
+		assert.NoError(t, err)
+		assert.Equal(t, int64(50), pos)
+	})
+
+	t.Run("Seek with SeekCurrent", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path: file_system.BuildFilePath(TestRoot, "seek_current.txt"),
+			Size: 100,
+		})
+
+		// First seek to position 30
+		_, err := f.Seek(30, io.SeekStart)
+		require.NoError(t, err)
+
+		// Now seek 20 more from current
+		pos, err := f.Seek(20, io.SeekCurrent)
+		assert.NoError(t, err)
+		assert.Equal(t, int64(50), pos)
+	})
+
+	t.Run("Seek with SeekEnd", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path: file_system.BuildFilePath(TestRoot, "seek_end.txt"),
+			Size: 100,
+		})
+
+		pos, err := f.Seek(10, io.SeekEnd)
+		assert.NoError(t, err)
+		assert.Equal(t, int64(90), pos) // 100 - 10 = 90
+	})
+
+	t.Run("Writer returns write closer", func(t *testing.T) {
+		path := file_system.BuildFilePath(TestRoot, "writer.txt")
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path:      path,
+			CreateNow: true,
+		})
+
+		writer, err := f.Writer()
+		assert.NoError(t, err)
+		assert.NotNil(t, writer)
+
+		n, err := writer.Write([]byte("written via writer"))
+		assert.NoError(t, err)
+		assert.Equal(t, 18, n)
+
+		err = writer.Close()
+		assert.NoError(t, err)
+
+		content, err := f.ReadAll()
+		assert.NoError(t, err)
+		assert.Equal(t, []byte("written via writer"), content)
+	})
+
+	t.Run("Writer on directory returns error", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "writer_dir/"),
+			CreateNow: true,
+		})
+
+		_, err := f.Writer()
+		assert.Error(t, err)
+	})
+
+	t.Run("Readable on directory returns error", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "readable_dir/"),
+			CreateNow: true,
+		})
+
+		_, err := f.Readable()
+		assert.Error(t, err)
+	})
+}
+
+func TestWeblensFile_StateOperations(t *testing.T) {
+	testSetup(t)
+
+	t.Run("SetMemOnly", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path:   file_system.BuildFilePath(TestRoot, "memonly.txt"),
+			FileID: "memonly-id",
+		})
+
+		// Initially not memory-only
+		assert.True(t, f.Exists() == false) // File not created yet
+
+		f.SetMemOnly(true)
+
+		// Write should only go to buffer
+		_, err := f.Write([]byte("memory content"))
+		assert.NoError(t, err)
+
+		// Should not exist on disk
+		assert.False(t, f.Exists())
+	})
+
+	t.Run("WithLock executes function under lock", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "withlock.txt"),
+			CreateNow: true,
+		})
+
+		executed := false
+		err := f.WithLock(func() error {
+			executed = true
+
+			return nil
+		})
+
+		assert.NoError(t, err)
+		assert.True(t, executed)
+	})
+
+	t.Run("WithLock propagates error", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "withlock_err.txt"),
+			CreateNow: true,
+		})
+
+		expectedErr := fmt.Errorf("test error")
+		err := f.WithLock(func() error {
+			return expectedErr
+		})
+
+		assert.Error(t, err)
+		assert.Equal(t, expectedErr, err)
+	})
+
+	t.Run("SetWatching marks file as watched", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path: file_system.BuildFilePath(TestRoot, "watching.txt"),
+		})
+
+		err := f.SetWatching()
+		assert.NoError(t, err)
+	})
+
+	t.Run("IsReadOnly returns read-only status", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path: file_system.BuildFilePath(TestRoot, "readonly.txt"),
+		})
+
+		// Default should be not read-only
+		assert.False(t, f.IsReadOnly())
+	})
+
+	t.Run("Freeze creates shallow copy", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "freeze.txt"),
+			FileID:    "freeze-id",
+			ContentID: "content-123",
+			Size:      500,
+		})
+
+		frozen := f.Freeze()
+
+		assert.Equal(t, f.ID(), frozen.ID())
+		assert.Equal(t, f.GetContentID(), frozen.GetContentID())
+		assert.Equal(t, f.Size(), frozen.Size())
+		assert.Equal(t, f.GetPortablePath(), frozen.GetPortablePath())
+
+		// Verify it's a different instance
+		f.SetID("modified-id")
+		assert.NotEqual(t, f.ID(), frozen.ID())
+	})
+}
+
+func TestWeblensFile_ContentID(t *testing.T) {
+	testSetup(t)
+
+	t.Run("GetContentID and SetContentID", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "contentid.txt"),
+			ContentID: "initial-content-id",
+		})
+
+		assert.Equal(t, "initial-content-id", f.GetContentID())
+
+		f.SetContentID("new-content-id")
+		assert.Equal(t, "new-content-id", f.GetContentID())
+	})
+
+	t.Run("GenerateContentID for file", func(t *testing.T) {
+		path := file_system.BuildFilePath(TestRoot, "generateid.txt")
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path:      path,
+			CreateNow: true,
+		})
+
+		data := []byte("content for hashing")
+		_, err := f.Write(data)
+		require.NoError(t, err)
+
+		ctx := t.Context()
+		contentID, err := file.GenerateContentID(ctx, f)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, contentID)
+		assert.Equal(t, 20, len(contentID))
+
+		// Calling again should return same ID
+		contentID2, err := file.GenerateContentID(ctx, f)
+		assert.NoError(t, err)
+		assert.Equal(t, contentID, contentID2)
+	})
+
+	t.Run("GenerateContentID for directory returns error", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "contentid_dir/"),
+			CreateNow: true,
+		})
+
+		ctx := t.Context()
+		_, err := file.GenerateContentID(ctx, f)
+		assert.Error(t, err)
+	})
+
+	t.Run("GenerateContentID for empty file returns error", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "empty_contentid.txt"),
+			CreateNow: true,
+		})
+
+		ctx := t.Context()
+		_, err := file.GenerateContentID(ctx, f)
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, file.ErrEmptyFile)
+	})
+}
+
+func TestWeblensFile_HierarchyExtended(t *testing.T) {
+	testSetup(t)
+
+	t.Run("ChildrenLoaded returns false for uninitialized", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path: file_system.BuildFilePath(TestRoot, "unloaded_dir/"),
+		})
+
+		assert.False(t, f.ChildrenLoaded())
+	})
+
+	t.Run("ChildrenLoaded returns true after InitChildren", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "loaded_dir/"),
+			CreateNow: true,
+		})
+
+		f.InitChildren()
+		assert.True(t, f.ChildrenLoaded())
+	})
+
+	t.Run("InitChildren initializes map", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "init_children_dir/"),
+			CreateNow: true,
+		})
+
+		f.InitChildren()
+
+		// Should now be able to add children
+		child := file.NewWeblensFile(file.NewFileOptions{
+			Path: file_system.BuildFilePath(TestRoot, "init_children_dir/child.txt"),
+		})
+
+		err := f.AddChild(child)
+		assert.NoError(t, err)
+	})
+
+	t.Run("BubbleMap traverses up tree", func(t *testing.T) {
+		grandparent := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "grandparent/"),
+			CreateNow: true,
+		})
+
+		parent := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "grandparent/parent/"),
+			CreateNow: true,
+		})
+		require.NoError(t, parent.SetParent(grandparent))
+		require.NoError(t, grandparent.AddChild(parent))
+
+		child := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "grandparent/parent/child.txt"),
+			CreateNow: true,
+		})
+		require.NoError(t, child.SetParent(parent))
+		require.NoError(t, parent.AddChild(child))
+
+		visited := make([]string, 0)
+		err := child.BubbleMap(func(f *file.WeblensFileImpl) error {
+			visited = append(visited, f.Name())
+
+			return nil
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"child.txt", "parent", "grandparent"}, visited)
+	})
+
+	t.Run("BubbleMap on nil file returns nil", func(t *testing.T) {
+		var f *file.WeblensFileImpl
+
+		err := f.BubbleMap(func(_ *file.WeblensFileImpl) error {
+			return nil
+		})
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("BubbleMap propagates error", func(t *testing.T) {
+		parent := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "bubble_err_parent/"),
+			CreateNow: true,
+		})
+
+		child := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "bubble_err_parent/child.txt"),
+			CreateNow: true,
+		})
+		require.NoError(t, child.SetParent(parent))
+
+		expectedErr := fmt.Errorf("bubble error")
+		err := child.BubbleMap(func(f *file.WeblensFileImpl) error {
+			if f.Name() == "bubble_err_parent" {
+				return expectedErr
+			}
+
+			return nil
+		})
+
+		assert.Error(t, err)
+		assert.Equal(t, expectedErr, err)
+	})
+
+	t.Run("IsParentOf returns true for child", func(t *testing.T) {
+		parent := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "isparent/"),
+			CreateNow: true,
+		})
+
+		child := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "isparent/child.txt"),
+			CreateNow: true,
+		})
+
+		assert.True(t, parent.IsParentOf(child))
+	})
+
+	// t.Run("IsParentOf returns true for grandchild", func(t *testing.T) {
+	// 	// Using test files that don't need to exist on disk
+	// 	grandparent := file.NewTestFile(file.TestFileOptions{
+	// 		RootName: TestRoot,
+	// 		RelPath:  "isgrandparent/",
+	// 		IsDir:    true,
+	// 	})
+	//
+	// 	grandchild := file.NewTestFile(file.TestFileOptions{
+	// 		RootName: TestRoot,
+	// 		RelPath:  "isgrandparent/parent/child.txt",
+	// 	})
+	//
+	// 	assert.True(t, grandparent.IsParentOf(grandchild))
+	// })
+
+	// t.Run("IsParentOf returns false for unrelated files", func(t *testing.T) {
+	// 	// Using test files that don't need to exist on disk
+	// 	f1 := file.NewTestFile(file.TestFileOptions{
+	// 		RootName: TestRoot,
+	// 		RelPath:  "unrelated1/",
+	// 		IsDir:    true,
+	// 	})
+	//
+	// 	f2 := file.NewTestFile(file.TestFileOptions{
+	// 		RootName: TestRoot,
+	// 		RelPath:  "unrelated2/file.txt",
+	// 	})
+	//
+	// 	assert.False(t, f1.IsParentOf(f2))
+	// })
+
+	// t.Run("IsParentOf returns false for different roots", func(t *testing.T) {
+	// 	f1 := file.NewTestFile(file.TestFileOptions{
+	// 		RootName: "root1",
+	// 		RelPath:  "parent/",
+	// 		IsDir:    true,
+	// 	})
+	//
+	// 	f2 := file.NewTestFile(file.TestFileOptions{
+	// 		RootName: "root2",
+	// 		RelPath:  "parent/child.txt",
+	// 	})
+	//
+	// 	assert.False(t, f1.IsParentOf(f2))
+	// })
+}
+
+func TestWeblensFile_Lifecycle(t *testing.T) {
+	testSetup(t)
+
+	t.Run("Remove deletes file", func(t *testing.T) {
+		path := file_system.BuildFilePath(TestRoot, "remove_file.txt")
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path:      path,
+			CreateNow: true,
+		})
+
+		_, err := f.Write([]byte("content"))
+		require.NoError(t, err)
+		assert.True(t, f.Exists())
+
+		err = f.Remove()
+		assert.NoError(t, err)
+		assert.False(t, f.Exists())
+	})
+
+	t.Run("Remove deletes directory", func(t *testing.T) {
+		path := file_system.BuildFilePath(TestRoot, "remove_dir/")
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path:      path,
+			CreateNow: true,
+		})
+
+		assert.True(t, f.Exists())
+
+		err := f.Remove()
+		assert.NoError(t, err)
+		assert.False(t, f.Exists())
+	})
+
+	t.Run("Remove deletes directory with contents", func(t *testing.T) {
+		parentPath := file_system.BuildFilePath(TestRoot, "remove_dir_contents/")
+		parent := file.NewWeblensFile(file.NewFileOptions{
+			Path:      parentPath,
+			CreateNow: true,
+		})
+
+		childPath := file_system.BuildFilePath(TestRoot, "remove_dir_contents/child.txt")
+		child := file.NewWeblensFile(file.NewFileOptions{
+			Path:      childPath,
+			CreateNow: true,
+		})
+		_, err := child.Write([]byte("child content"))
+		require.NoError(t, err)
+
+		assert.True(t, parent.Exists())
+		assert.True(t, child.Exists())
+
+		err = parent.Remove()
+		assert.NoError(t, err)
+		assert.False(t, parent.Exists())
+		assert.False(t, child.Exists())
+	})
+
+	t.Run("SetModifiedTime updates modification time", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path: file_system.BuildFilePath(TestRoot, "setmodtime.txt"),
+		})
+
+		newTime := time.Date(2023, 6, 15, 12, 0, 0, 0, time.UTC)
+		f.SetModifiedTime(newTime)
+
+		// For past files, ModTime returns the set time directly
+		f.SetPastFile(true)
+		assert.Equal(t, newTime, f.ModTime())
+	})
+
+	// t.Run("ReplaceRoot changes root alias", func(t *testing.T) {
+	// 	f := file.NewTestFile(file.TestFileOptions{
+	// 		RootName: "oldroot",
+	// 		RelPath:  "somefile.txt",
+	// 	})
+	//
+	// 	assert.Equal(t, "oldroot", f.GetPortablePath().RootName())
+	//
+	// 	f.ReplaceRoot("newroot")
+	// 	assert.Equal(t, "newroot", f.GetPortablePath().RootName())
+	// })
+
+	t.Run("SetPastFile and IsPastFile", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path: file_system.BuildFilePath(TestRoot, "pastfile.txt"),
+		})
+
+		assert.False(t, f.IsPastFile())
+
+		f.SetPastFile(true)
+		assert.True(t, f.IsPastFile())
+
+		f.SetPastFile(false)
+		assert.False(t, f.IsPastFile())
+	})
+}
+
+func TestWeblensFile_JSONSerialization(t *testing.T) {
+	testSetup(t)
+
+	t.Run("MarshalJSON produces valid JSON", func(t *testing.T) {
+		parent := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "json_parent/"),
+			FileID:    "parent-id",
+			CreateNow: true,
+		})
+
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "json_parent/marshal.txt"),
+			FileID:    "file-id",
+			ContentID: "content-id",
+			Size:      100,
+			CreateNow: true,
+		})
+		require.NoError(t, f.SetParent(parent))
+
+		data, err := f.MarshalJSON()
+		assert.NoError(t, err)
+		assert.NotEmpty(t, data)
+
+		// Verify it's valid JSON by unmarshaling into a map
+		var result map[string]any
+
+		err = json.Unmarshal(data, &result)
+		assert.NoError(t, err)
+
+		assert.Equal(t, float64(100), result["size"])
+		assert.Equal(t, false, result["isDir"])
+		assert.Equal(t, "content-id", result["contentID"])
+		assert.Equal(t, "parent-id", result["parentID"])
+	})
+
+	t.Run("MarshalJSON for directory", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "json_dir/"),
+			FileID:    "dir-id",
+			CreateNow: true,
+		})
+
+		child := file.NewWeblensFile(file.NewFileOptions{
+			Path:   file_system.BuildFilePath(TestRoot, "json_dir/child.txt"),
+			FileID: "child-id",
+		})
+		require.NoError(t, f.AddChild(child))
+
+		data, err := f.MarshalJSON()
+		assert.NoError(t, err)
+
+		var result map[string]any
+
+		err = json.Unmarshal(data, &result)
+		assert.NoError(t, err)
+
+		assert.Equal(t, true, result["isDir"])
+		childrenIDs := result["childrenIds"].([]any)
+		assert.Len(t, childrenIDs, 1)
+		assert.Equal(t, "child-id", childrenIDs[0])
+	})
+
+	t.Run("UnmarshalJSON restores file", func(t *testing.T) {
+		// Create a JSON structure that matches what UnmarshalJSON expects
+		jsonData := `{
+			"portablePath": "test://unmarshal.txt",
+			"size": 250,
+			"isDir": false,
+			"modifyTimestamp": 1704067200000,
+			"contentID": "unmarshal-content",
+			"childrenIDs": []
+		}`
+
+		restored := &file.WeblensFileImpl{}
+		err := restored.UnmarshalJSON([]byte(jsonData))
+		assert.NoError(t, err)
+
+		assert.Equal(t, int64(250), restored.Size())
+		assert.Equal(t, "unmarshal-content", restored.GetContentID())
+		assert.False(t, restored.IsDir())
+	})
+
+	t.Run("UnmarshalJSON for directory", func(t *testing.T) {
+		// Create a JSON structure that matches what UnmarshalJSON expects
+		jsonData := `{
+			"portablePath": "test://unmarshal_dir/",
+			"size": 0,
+			"isDir": true,
+			"modifyTimestamp": 1704067200000,
+			"contentID": "",
+			"childrenIDs": ["child1", "child2"]
+		}`
+
+		restored := &file.WeblensFileImpl{}
+		err := restored.UnmarshalJSON([]byte(jsonData))
+		assert.NoError(t, err)
+
+		assert.True(t, restored.IsDir())
+	})
+
+	t.Run("UnmarshalJSON with invalid JSON returns error", func(t *testing.T) {
+		f := &file.WeblensFileImpl{}
+		err := f.UnmarshalJSON([]byte("invalid json"))
+		assert.Error(t, err)
+	})
+}
+
+func TestWeblensFile_DirectorySize(t *testing.T) {
+	testSetup(t)
+
+	t.Run("Size calculates directory size from children", func(t *testing.T) {
+		parent := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "dirsize/"),
+			CreateNow: true,
+		})
+
+		child1 := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "dirsize/child1.txt"),
+			CreateNow: true,
+		})
+		_, err := child1.Write([]byte("12345"))
+		require.NoError(t, err)
+		require.NoError(t, child1.SetParent(parent))
+		require.NoError(t, parent.AddChild(child1))
+
+		child2 := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "dirsize/child2.txt"),
+			CreateNow: true,
+		})
+		_, err = child2.Write([]byte("1234567890"))
+		require.NoError(t, err)
+		require.NoError(t, child2.SetParent(parent))
+		require.NoError(t, parent.AddChild(child2))
+
+		// Directory size should be sum of children
+		size := parent.Size()
+		assert.Equal(t, int64(15), size)
+	})
+}
+
+func TestWeblensFile_AddChildErrors(t *testing.T) {
+	testSetup(t)
+
+	t.Run("AddChild to non-directory returns error", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "notadir.txt"),
+			CreateNow: true,
+		})
+
+		child := file.NewWeblensFile(file.NewFileOptions{
+			Path: file_system.BuildFilePath(TestRoot, "notadir.txt/child.txt"),
+		})
+
+		err := f.AddChild(child)
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, file.ErrDirectoryRequired)
+	})
+
+	t.Run("AddChild duplicate returns error", func(t *testing.T) {
+		parent := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "dupparent/"),
+			CreateNow: true,
+		})
+
+		child := file.NewWeblensFile(file.NewFileOptions{
+			Path: file_system.BuildFilePath(TestRoot, "dupparent/child.txt"),
+		})
+
+		err := parent.AddChild(child)
+		require.NoError(t, err)
+
+		// Add same child again
+		err = parent.AddChild(child)
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, file.ErrFileAlreadyExists)
+	})
+}
+
+func TestWeblensFile_RemoveChildErrors(t *testing.T) {
+	testSetup(t)
+
+	t.Run("RemoveChild from empty directory returns error", func(t *testing.T) {
+		f := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "empty_remove/"),
+			CreateNow: true,
+		})
+
+		err := f.RemoveChild("nonexistent")
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, file.ErrNoChildren)
+	})
+
+	t.Run("RemoveChild nonexistent returns error", func(t *testing.T) {
+		parent := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "remove_nonexistent/"),
+			CreateNow: true,
+		})
+
+		child := file.NewWeblensFile(file.NewFileOptions{
+			Path: file_system.BuildFilePath(TestRoot, "remove_nonexistent/exists.txt"),
+		})
+		require.NoError(t, parent.AddChild(child))
+
+		err := parent.RemoveChild("nonexistent.txt")
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, file.ErrFileNotFound)
+	})
+}
+
+func TestWeblensFile_GetChildErrors(t *testing.T) {
+	testSetup(t)
+
+	t.Run("GetChild with empty name returns error", func(t *testing.T) {
+		parent := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "getchild_empty/"),
+			CreateNow: true,
+		})
+		parent.InitChildren()
+
+		_, err := parent.GetChild("")
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, file.ErrFileNotFound)
+	})
+}
+
+func TestWeblensFile_RecursiveMapError(t *testing.T) {
+	testSetup(t)
+
+	t.Run("RecursiveMap propagates error", func(t *testing.T) {
+		root := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "recursive_err/"),
+			CreateNow: true,
+		})
+
+		child := file.NewWeblensFile(file.NewFileOptions{
+			Path: file_system.BuildFilePath(TestRoot, "recursive_err/child.txt"),
+		})
+		require.NoError(t, root.AddChild(child))
+
+		expectedErr := fmt.Errorf("recursive error")
+		err := root.RecursiveMap(func(f *file.WeblensFileImpl) error {
+			if f.Name() == "child.txt" {
+				return expectedErr
+			}
+
+			return nil
+		})
+
+		assert.Error(t, err)
+		assert.Equal(t, expectedErr, err)
+	})
+}
+
+func TestWeblensFile_LeafMapError(t *testing.T) {
+	testSetup(t)
+
+	t.Run("LeafMap on nil returns error", func(t *testing.T) {
+		var f *file.WeblensFileImpl
+
+		err := f.LeafMap(func(_ *file.WeblensFileImpl) error {
+			return nil
+		})
+
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, file.ErrNilFile)
+	})
+
+	t.Run("LeafMap propagates error", func(t *testing.T) {
+		root := file.NewWeblensFile(file.NewFileOptions{
+			Path:      file_system.BuildFilePath(TestRoot, "leafmap_err/"),
+			CreateNow: true,
+		})
+
+		child := file.NewWeblensFile(file.NewFileOptions{
+			Path: file_system.BuildFilePath(TestRoot, "leafmap_err/child.txt"),
+		})
+		require.NoError(t, root.AddChild(child))
+
+		expectedErr := fmt.Errorf("leaf error")
+		err := root.LeafMap(func(f *file.WeblensFileImpl) error {
+			if f.Name() == "child.txt" {
+				return expectedErr
+			}
+
+			return nil
+		})
+
+		assert.Error(t, err)
+		assert.Equal(t, expectedErr, err)
 	})
 }
 
