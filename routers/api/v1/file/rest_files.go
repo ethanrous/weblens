@@ -17,10 +17,10 @@ import (
 	"github.com/ethanrous/weblens/models/job"
 	media_model "github.com/ethanrous/weblens/models/media"
 	share_model "github.com/ethanrous/weblens/models/share"
+	"github.com/ethanrous/weblens/models/task"
 	"github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/netwrk"
 	"github.com/ethanrous/weblens/modules/structs"
-	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/services/auth"
@@ -507,7 +507,14 @@ func SetFolderCover(ctx context_service.RequestContext) {
 		return
 	}
 
-	notif := notify.NewFileNotification(ctx, folder, websocket.FileUpdatedEvent)
+	fInfo, err := reshape.WeblensFileToFileInfo(ctx, folder)
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, err)
+
+		return
+	}
+
+	notif := notify.NewFileNotification(ctx, fInfo, websocket.FileUpdatedEvent)
 	ctx.Notify(ctx, notif...)
 
 	ctx.Status(http.StatusOK)
@@ -676,7 +683,7 @@ func CreateTakeout(ctx context_service.RequestContext) {
 	}
 
 	completed, status := t.Status()
-	if completed && status == task_mod.TaskSuccess {
+	if completed && status == task.TaskSuccess {
 		result := t.GetResult()
 		res := structs.TakeoutInfo{TakeoutID: result["takeoutID"].(string), Single: false, Filename: result["filename"].(string)}
 		ctx.JSON(http.StatusOK, res)
@@ -1211,7 +1218,7 @@ func NewFileUpload(ctx context_service.RequestContext) {
 		uTask.ClearTimeout()
 
 		err = uTask.Manipulate(
-			func(meta task_mod.Metadata) error {
+			func(meta task.Metadata) error {
 				uploadMeta := meta.(job.UploadFilesMeta)
 
 				var newF *file_model.WeblensFileImpl
@@ -1320,7 +1327,7 @@ func HandleUploadChunk(ctx context_service.RequestContext) {
 	}
 
 	err = t.Manipulate(
-		func(meta task_mod.Metadata) error {
+		func(meta task.Metadata) error {
 			chunkData := job.FileChunk{FileID: fileID, Chunk: chunk, ContentRange: ctx.Header("Content-Range")}
 			meta.(job.UploadFilesMeta).ChunkStream <- chunkData
 

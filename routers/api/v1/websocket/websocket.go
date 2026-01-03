@@ -76,11 +76,11 @@ func wsMain(ctx context_service.RequestContext, c *client_model.WsClient) {
 			return
 		}
 	} else {
-		switchboard = wsServerClientSwitchboard
+		switchboard = wsTowerClientSwitchboard
 	}
 
 	defer context.AfterFunc(ctx, func() {
-		c.Disconnect()
+		ctx.ClientService.ClientDisconnect(ctx, c)
 	})()
 
 	for {
@@ -121,15 +121,22 @@ func handleActionSubscribe(msg websocket_mod.WsResponseInfo, ctx context_service
 				}
 			}
 
-			f, err := ctx.FileService.GetFileByID(ctx, subscription.SubscriptionID)
+			file, err := ctx.FileService.GetFileByID(ctx, subscription.SubscriptionID)
 			if err != nil {
 				return wlerrors.WithStack(err)
 			}
 
-			err = ctx.ClientService.SubscribeToFile(ctx, c, f, share, time.UnixMilli(msg.SentTime))
+			err = ctx.ClientService.SubscribeToFile(ctx, c, file, share, time.UnixMilli(msg.SentTime))
 			if err != nil {
 				return wlerrors.WithStack(err)
 			}
+
+			fInfo, err := reshape.WeblensFileToFileInfo(ctx, file)
+			if err != nil {
+				return err
+			}
+			fileNotif := notify.NewFileNotification(ctx, fInfo, websocket_mod.FileUpdatedEvent)
+			ctx.ClientService.Notify(ctx, fileNotif...)
 		}
 	case websocket_mod.TaskSubscribe:
 		key := subscription.SubscriptionID
@@ -211,7 +218,7 @@ func handleScanDirectory(ctx context_service.RequestContext, msg websocket_mod.W
 		return err
 	}
 
-	err = ctx.ClientService.SubscribeToTask(ctx, c, t.(*task_model.Task), time.UnixMilli(msg.SentTime))
+	err = ctx.ClientService.SubscribeToTask(ctx, c, t, time.UnixMilli(msg.SentTime))
 	if err != nil {
 		return err
 	}
@@ -298,7 +305,7 @@ func wsWebClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte, c
 	return nil
 }
 
-func wsServerClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte, c *client_model.WsClient) error {
+func wsTowerClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte, c *client_model.WsClient) error {
 	defer wsRecover(ctx, c)
 
 	var msg websocket.WsResponseInfo

@@ -16,7 +16,6 @@ import (
 	user_model "github.com/ethanrous/weblens/models/user"
 
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
-	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/rs/zerolog/log"
 )
@@ -30,7 +29,7 @@ type TaskSubscriber interface {
 
 // TaskDispatcher provides methods for dispatching jobs to task pools.
 type TaskDispatcher interface {
-	DispatchJob(jobName string, meta task_mod.Metadata, pool *task.Pool) (*task.Task, error)
+	DispatchJob(jobName string, meta task.Metadata, pool *task.Pool) (*task.Task, error)
 }
 
 // ScanMeta holds metadata for file scanning tasks.
@@ -60,8 +59,8 @@ func (m ScanMeta) MetaString() string {
 }
 
 // FormatToResult converts the scan metadata to a task result.
-func (m ScanMeta) FormatToResult() task_mod.Result {
-	return task_mod.Result{
+func (m ScanMeta) FormatToResult() task.Result {
+	return task.Result{
 		"filename": m.File.GetPortablePath(),
 	}
 }
@@ -121,8 +120,8 @@ func (m ZipMeta) MetaString() string {
 }
 
 // FormatToResult converts the zip metadata to a task result.
-func (m ZipMeta) FormatToResult() task_mod.Result {
-	return task_mod.Result{
+func (m ZipMeta) FormatToResult() task.Result {
+	return task.Result{
 		"filenames": slices_mod.Map(
 			m.Files, func(f *file_model.WeblensFileImpl) string {
 				return f.GetPortablePath().ToPortable()
@@ -180,8 +179,8 @@ func (m MoveMeta) MetaString() string {
 }
 
 // FormatToResult converts the move metadata to a task result.
-func (m MoveMeta) FormatToResult() task_mod.Result {
-	return task_mod.Result{}
+func (m MoveMeta) FormatToResult() task.Result {
+	return task.Result{}
 }
 
 // JobName returns the job name for file move tasks.
@@ -221,8 +220,8 @@ func (m UploadFilesMeta) MetaString() string {
 }
 
 // FormatToResult converts the upload metadata to a task result.
-func (m UploadFilesMeta) FormatToResult() task_mod.Result {
-	return task_mod.Result{}
+func (m UploadFilesMeta) FormatToResult() task.Result {
+	return task.Result{}
 }
 
 // JobName returns the job name for file upload tasks.
@@ -269,8 +268,8 @@ func (m FsStatMeta) MetaString() string {
 }
 
 // FormatToResult converts the filesystem statistics metadata to a task result.
-func (m FsStatMeta) FormatToResult() task_mod.Result {
-	return task_mod.Result{}
+func (m FsStatMeta) FormatToResult() task.Result {
+	return task.Result{}
 }
 
 // JobName returns the job name for filesystem statistics gathering tasks.
@@ -315,8 +314,8 @@ func (m BackupMeta) MetaString() string {
 }
 
 // FormatToResult converts the backup metadata to a task result.
-func (m BackupMeta) FormatToResult() task_mod.Result {
-	return task_mod.Result{}
+func (m BackupMeta) FormatToResult() task.Result {
+	return task.Result{}
 }
 
 // JobName returns the job name for backup tasks.
@@ -355,8 +354,8 @@ func (m HashFileMeta) MetaString() string {
 }
 
 // FormatToResult converts the hash metadata to a task result.
-func (m HashFileMeta) FormatToResult() task_mod.Result {
-	return task_mod.Result{}
+func (m HashFileMeta) FormatToResult() task.Result {
+	return task.Result{}
 }
 
 // JobName returns the job name for file hashing tasks.
@@ -391,8 +390,8 @@ func (m LoadFilesystemMeta) MetaString() string {
 }
 
 // FormatToResult converts the filesystem loading metadata to a task result.
-func (m LoadFilesystemMeta) FormatToResult() task_mod.Result {
-	return task_mod.Result{}
+func (m LoadFilesystemMeta) FormatToResult() task.Result {
+	return task.Result{}
 }
 
 // JobName returns the job name for filesystem loading tasks.
@@ -432,8 +431,8 @@ func (m BackupCoreFileMeta) MetaString() string {
 }
 
 // FormatToResult converts the backup core file metadata to a task result.
-func (m BackupCoreFileMeta) FormatToResult() task_mod.Result {
-	return task_mod.Result{}
+func (m BackupCoreFileMeta) FormatToResult() task.Result {
+	return task.Result{}
 }
 
 // JobName returns the job name for backup core file copying tasks.
@@ -478,8 +477,8 @@ func (m RestoreCoreMeta) MetaString() string {
 }
 
 // FormatToResult converts the restore core metadata to a task result.
-func (m RestoreCoreMeta) FormatToResult() task_mod.Result {
-	return task_mod.Result{}
+func (m RestoreCoreMeta) FormatToResult() task.Result {
+	return task.Result{}
 }
 
 // JobName returns the job name for core restoration tasks.

@@ -4,7 +4,7 @@ set -euo pipefail
 source ./scripts/lib/all.bash
 
 run_native_tests() {
-    build_frontend
+    build_frontend ${lazy:=false}
 
     target="${1:-./...}" # Default to ./... if no target specified
 
@@ -15,6 +15,8 @@ run_native_tests() {
     export WEBLENS_ENV_PATH=/tmp/weblens.env
     export WEBLENS_DO_CACHE=false
     export WEBLENS_MONGODB_URI=${WEBLENS_MONGODB_URI:-"mongodb://127.0.0.1:27018/?replicaSet=rs0&directConnection=true"}
+    export WEBLENS_LOG_LEVEL="${WEBLENS_LOG_LEVEL:-debug}"
+    export WEBLENS_LOG_FORMAT="dev"
 
     echo "Running tests with mongo [$WEBLENS_MONGODB_URI] and test target: [$target]"
 
@@ -26,7 +28,7 @@ run_native_tests() {
 run_container_tests() {
     rm -rf ./_build/fs/test-container
 
-    if ! sudo docker run --rm --platform="linux/amd64" \
+    if ! dockerc run --rm --platform="linux/amd64" \
         --network weblens-net \
         -v ./_build/fs/test-container/data:/data \
         -v ./_build/fs/test-container/cache:/cache \
@@ -46,6 +48,7 @@ run_container_tests() {
 tests=""
 baseVersion="v0"
 containerize=false
+lazy=true
 
 while [ "${1:-}" != "" ]; do
     case "$1" in
@@ -55,6 +58,9 @@ while [ "${1:-}" != "" ]; do
     "-b" | "--base-version")
         shift
         baseVersion="$1"
+        ;;
+    "--no-lazy")
+        lazy=false
         ;;
     "-h" | "--help")
         usage="Usage: $0 [-n|--native [package_target]]"
@@ -68,10 +74,20 @@ while [ "${1:-}" != "" ]; do
     shift
 done
 
-cleanup_mongo "weblens-test-mongo" | show_as_subtask "Resetting mongo testing volumes..." "green"
-launch_mongo "weblens-test-mongo" | show_as_subtask "Launching mongo..." "green"
-if [ "$containerize" = false ]; then
-    build_agno
+if [[ "$lazy" = true ]] && is_mongo_running "weblens-test-mongo"; then
+    printf "Skipping mongo container re-deploy (lazy mode)...\n"
+else
+    cleanup_mongo "weblens-test-mongo" | show_as_subtask "Resetting mongo testing volumes..." "green"
+    launch_mongo "weblens-test-mongo" | show_as_subtask "Launching mongo..." "green"
+fi
+
+if [[ "$containerize" = false ]]; then
+    if [[ "$lazy" = false ]] || [[ ! -e "$WEBLENS_ROOT/services/media/agno/lib/libagno.a" ]]; then
+        build_agno
+    else
+        printf "Skipping Agno build (lazy mode)...\n"
+    fi
+
     run_native_tests "${tests}"
 else
     run_container_tests

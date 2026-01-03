@@ -12,6 +12,18 @@ build_agno() {
 export -f build_agno
 
 build_frontend() {
+    local lazy
+    if [[ ! -z "${1+x}" ]]; then
+        lazy="$1"
+    else
+        lazy=false
+    fi
+
+    if [[ "$lazy" = true ]] && [[ -e "${WEBLENS_ROOT}/weblens-vue/weblens-nuxt/.output/public/index.html" ]]; then
+        printf "Skipping UI build (lazy mode)...\n"
+        return
+    fi
+
     pushd "${WEBLENS_ROOT}/weblens-vue/weblens-nuxt" >/dev/null
 
     pnpm install 2>&1 | show_as_subtask "Installing UI Dependencies..."

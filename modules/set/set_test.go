@@ -1,4 +1,3 @@
-//go:build test
 
 package set_test
 

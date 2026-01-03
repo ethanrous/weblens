@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/joho/godotenv"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -111,6 +112,23 @@ func getEnvOverride(config *Provider) {
 		log.Trace().Msgf("No .env file found, using default config: %s", err.Error())
 	}
 
+	if logLevel := os.Getenv("WEBLENS_LOG_LEVEL"); logLevel != "" {
+		parsedLevel, err := zerolog.ParseLevel(logLevel)
+		if err != nil {
+			panic(wlerrors.Errorf("invalid log level in WEBLENS_LOG_LEVEL (%s): %w", logLevel, err))
+		}
+
+		zerolog.SetGlobalLevel(parsedLevel)
+
+		log.Level(parsedLevel)
+		log.Trace().Msgf("Overriding LogLevel with WEBLENS_LOG_LEVEL: %s (parsed: %v)", logLevel, parsedLevel)
+		config.LogLevel = parsedLevel
+
+		if config.LogLevel == zerolog.NoLevel {
+			config.LogLevel = zerolog.InfoLevel
+		}
+	}
+
 	if logFormat := os.Getenv("WEBLENS_LOG_FORMAT"); logFormat != "" {
 		if logFormat != "dev" {
 			logFormat = "json"
@@ -118,16 +136,6 @@ func getEnvOverride(config *Provider) {
 
 		log.Trace().Msgf("Overriding LogFormat with WEBLENS_LOG_FORMAT: %s", logFormat)
 		config.LogFormat = logFormat
-	}
-
-	if logLevel := os.Getenv("WEBLENS_LOG_LEVEL"); logLevel != "" {
-		parsedLevel, _ := zerolog.ParseLevel(logLevel)
-		log.Trace().Msgf("Overriding LogLevel with WEBLENS_LOG_LEVEL: %s (parsed: %v)", logLevel, parsedLevel)
-		config.LogLevel = parsedLevel
-
-		if config.LogLevel == zerolog.NoLevel {
-			config.LogLevel = zerolog.InfoLevel
-		}
 	}
 
 	if host := os.Getenv("WEBLENS_HOST"); host != "" {

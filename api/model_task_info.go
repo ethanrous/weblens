@@ -26,7 +26,7 @@ type TaskInfo struct {
 	Progress int32 `json:"progress"`
 	Result map[string]interface{} `json:"result,omitempty"`
 	StartTime *string `json:"startTime,omitempty"`
-	Status TaskExitStatus `json:"status"`
+	Status string `json:"status"`
 	TaskID string `json:"taskID"`
 	WorkerID int32 `json:"workerID"`
 }
@@ -37,7 +37,7 @@ type _TaskInfo TaskInfo
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewTaskInfo(completed bool, jobName string, progress int32, status TaskExitStatus, taskID string, workerID int32) *TaskInfo {
+func NewTaskInfo(completed bool, jobName string, progress int32, status string, taskID string, workerID int32) *TaskInfo {
 	this := TaskInfo{}
 	this.Completed = completed
 	this.JobName = jobName
@@ -193,9 +193,9 @@ func (o *TaskInfo) SetStartTime(v string) {
 }
 
 // GetStatus returns the Status field value
-func (o *TaskInfo) GetStatus() TaskExitStatus {
+func (o *TaskInfo) GetStatus() string {
 	if o == nil {
-		var ret TaskExitStatus
+		var ret string
 		return ret
 	}
 
@@ -204,7 +204,7 @@ func (o *TaskInfo) GetStatus() TaskExitStatus {
 
 // GetStatusOk returns a tuple with the Status field value
 // and a boolean to check if the value has been set.
-func (o *TaskInfo) GetStatusOk() (*TaskExitStatus, bool) {
+func (o *TaskInfo) GetStatusOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -212,7 +212,7 @@ func (o *TaskInfo) GetStatusOk() (*TaskExitStatus, bool) {
 }
 
 // SetStatus sets field value
-func (o *TaskInfo) SetStatus(v TaskExitStatus) {
+func (o *TaskInfo) SetStatus(v string) {
 	o.Status = v
 }
 

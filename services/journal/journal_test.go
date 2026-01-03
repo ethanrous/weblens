@@ -1,4 +1,3 @@
-//go:build test
 
 package journal_test
 

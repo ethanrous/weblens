@@ -19,7 +19,6 @@ import (
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/set"
 	"github.com/ethanrous/weblens/modules/startup"
-	task_mod "github.com/ethanrous/weblens/modules/task"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 	"github.com/ethanrous/weblens/modules/wlerrors"
@@ -87,7 +86,7 @@ func BackupD(ctx context_mod.Z, interval time.Duration) {
 }
 
 // BackupOne initiates a backup task for a single core server.
-func BackupOne(ctx context.Context, core tower_model.Instance) (task_mod.Task, error) {
+func BackupOne(ctx context.Context, core tower_model.Instance) (*task.Task, error) {
 	meta := job.BackupMeta{
 		Core: core,
 	}
@@ -101,45 +100,44 @@ func BackupOne(ctx context.Context, core tower_model.Instance) (task_mod.Task, e
 }
 
 // DoBackup executes the backup task for a core server, downloading all changed data and metadata.
-func DoBackup(tsk task_mod.Task) {
-	t := tsk.(*task.Task)
-	meta := t.GetMeta().(job.BackupMeta)
+func DoBackup(tsk *task.Task) {
+	meta := tsk.GetMeta().(job.BackupMeta)
 
-	ctx, ok := context_service.FromContext(t.Ctx)
+	ctx, ok := context_service.FromContext(tsk.Ctx)
 	if !ok {
-		t.Fail(wlerrors.New("Failed to cast context to FilerContext"))
+		tsk.Fail(wlerrors.New("Failed to cast context to FilerContext"))
 
 		return
 	}
 
 	if meta.Core.Role != tower_model.RoleCore || (meta.Core.GetReportedRole() != "" && meta.Core.GetReportedRole() != tower_model.RoleCore) {
-		t.Fail(wlerrors.Errorf("Remote role is [%s -- %s], expected core", meta.Core.Role, meta.Core.GetReportedRole()))
+		tsk.Fail(wlerrors.Errorf("Remote role is [%s -- %s], expected core", meta.Core.Role, meta.Core.GetReportedRole()))
 	}
 
-	t.Log().Debug().Msgf("Starting backup of [%s] with adddress [%s] using key [%s]", meta.Core.Name, meta.Core.Address, meta.Core.OutgoingKey)
+	tsk.Log().Debug().Msgf("Starting backup of [%s] with adddress [%s] using key [%s]", meta.Core.Name, meta.Core.Address, meta.Core.OutgoingKey)
 
-	t.OnResult(
-		func(r task_mod.Result) {
-			notif := notify.NewTaskNotification(t, websocket_mod.BackupProgressEvent, r)
+	tsk.OnResult(
+		func(r task.Result) {
+			notif := notify.NewTaskNotification(tsk, websocket_mod.BackupProgressEvent, r)
 			ctx.Notify(ctx, notif)
 		},
 	)
 
-	t.SetErrorCleanup(
-		func(errTsk task_mod.Task) {
+	tsk.SetErrorCleanup(
+		func(errTsk *task.Task) {
 			err := errTsk.ReadError()
-			notif := notify.NewTaskNotification(t, websocket_mod.BackupFailedEvent, task_mod.Result{"coreID": meta.Core.TowerID, "error": err.Error()})
+			notif := notify.NewTaskNotification(tsk, websocket_mod.BackupFailedEvent, task.Result{"coreID": meta.Core.TowerID, "error": err.Error()})
 			ctx.Notify(ctx, notif)
 		},
 	)
 
-	local, err := tower_model.GetLocal(t.Ctx)
+	local, err := tower_model.GetLocal(tsk.Ctx)
 	if err != nil {
-		t.Fail(err)
+		tsk.Fail(err)
 	}
 
 	if local.Role != tower_model.RoleBackup {
-		t.Fail(tower_model.ErrTowerNotBackup)
+		tsk.Fail(tower_model.ErrTowerNotBackup)
 
 		return
 	}
@@ -147,7 +145,7 @@ func DoBackup(tsk task_mod.Task) {
 	// Check if the core is reachable
 	_, err = tower_service.Ping(ctx, meta.Core)
 	if err != nil {
-		t.Fail(err)
+		tsk.Fail(err)
 
 		return
 	}
@@ -157,16 +155,16 @@ func DoBackup(tsk task_mod.Task) {
 
 	latestAction, err := history_model.GetLatestAction(ctx)
 	if err != nil && !db.IsNotFound(err) {
-		t.Fail(err)
+		tsk.Fail(err)
 	} else if err == nil {
 		latestTime = latestAction.Timestamp
 	}
 
-	t.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Backup latest action is %s", latestTime) })
+	tsk.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Backup latest action is %s", latestTime) })
 
 	backupResponse, err := tower_service.GetBackup(ctx, meta.Core, latestTime)
 	if err != nil {
-		t.Fail(err)
+		tsk.Fail(err)
 
 		return
 	}
@@ -182,14 +180,14 @@ func DoBackup(tsk task_mod.Task) {
 		for _, userInfo := range backupResponse.Users {
 			u := reshape.UserInfoArchiveToUser(userInfo)
 
-			_, err = user_model.GetUserByUsername(t.Ctx, u.Username)
+			_, err = user_model.GetUserByUsername(tsk.Ctx, u.Username)
 			if err == nil {
 				continue
 			}
 
 			u.CreatedBy = meta.Core.TowerID
 
-			err = user_model.SaveUser(t.Ctx, u)
+			err = user_model.SaveUser(tsk.Ctx, u)
 			if err != nil {
 				return err
 			}
@@ -198,13 +196,13 @@ func DoBackup(tsk task_mod.Task) {
 		appCtx.Log().Trace().Msgf("Got %d tokens from core", len(backupResponse.Tokens))
 		// Write new keys to db
 		for _, key := range backupResponse.Tokens {
-			token, err := reshape.TokenInfoToToken(t.Ctx, key)
+			token, err := reshape.TokenInfoToToken(tsk.Ctx, key)
 			if err != nil {
 				return err
 			}
 
 			// Check if token already exists
-			_, err = token_model.GetTokenByID(t.Ctx, token.ID)
+			_, err = token_model.GetTokenByID(tsk.Ctx, token.ID)
 			if err != nil {
 				if wlerrors.Is(err, token_model.ErrTokenNotFound) {
 					continue
@@ -213,7 +211,7 @@ func DoBackup(tsk task_mod.Task) {
 				return err
 			}
 
-			err = token_model.SaveToken(t.Ctx, token)
+			err = token_model.SaveToken(tsk.Ctx, token)
 			if err != nil {
 				return err
 			}
@@ -223,7 +221,7 @@ func DoBackup(tsk task_mod.Task) {
 		// Write new towers to db
 		for _, serverInfo := range backupResponse.Instances {
 			// Check if we already have this tower
-			_, err := tower_model.GetBackupTowerByID(t.Ctx, serverInfo.ID, meta.Core.TowerID)
+			_, err := tower_model.GetBackupTowerByID(tsk.Ctx, serverInfo.ID, meta.Core.TowerID)
 			if err == nil {
 				continue
 			} else if !db.IsNotFound(err) {
@@ -233,7 +231,7 @@ func DoBackup(tsk task_mod.Task) {
 			instance := reshape.TowerInfoToTower(serverInfo)
 			instance.CreatedBy = meta.Core.TowerID
 
-			err = tower_model.SaveTower(t.Ctx, instance)
+			err = tower_model.SaveTower(tsk.Ctx, instance)
 			if err != nil {
 				return err
 			}
@@ -249,7 +247,7 @@ func DoBackup(tsk task_mod.Task) {
 			actions = append(actions, newAction)
 		}
 
-		err = history.SaveActions(t.Ctx, actions)
+		err = history.SaveActions(tsk.Ctx, actions)
 		if err != nil {
 			return err
 		}
@@ -275,13 +273,13 @@ func DoBackup(tsk task_mod.Task) {
 
 		appCtx.WithValue(file_service.SkipJournalKey, true)
 
-		remoteDataDir, err := appCtx.FileService.InitBackupDirectory(t.Ctx, meta.Core)
+		remoteDataDir, err := appCtx.FileService.InitBackupDirectory(tsk.Ctx, meta.Core)
 		if err != nil {
 			return err
 		}
 
-		pool := appCtx.TaskService.NewTaskPool(true, t)
-		t.SetChildTaskPool(pool)
+		pool := appCtx.TaskService.NewTaskPool(true, tsk)
+		tsk.SetChildTaskPool(pool)
 
 		for _, a := range filteredActions {
 			// Check if the file already exists on the server and copy/move/delete it if it is in the wrong place
@@ -291,7 +289,7 @@ func DoBackup(tsk task_mod.Task) {
 			}
 		}
 
-		t.Log().Debug().Func(func(e *zerolog.Event) { e.Msgf("Waiting for %d copy file tasks", pool.Status().Total) })
+		tsk.Log().Debug().Func(func(e *zerolog.Event) { e.Msgf("Waiting for %d copy file tasks", pool.Status().Total) })
 
 		// Wait for all copy file tasks to finish
 		pool.SignalAllQueued()
@@ -301,36 +299,36 @@ func DoBackup(tsk task_mod.Task) {
 			return wlerrors.Errorf("%d of %d backup file copies have failed", len(pool.Errors()), pool.Status().Total)
 		}
 
-		err = tower_model.SetLastBackup(t.Ctx, meta.Core.TowerID, time.Now())
+		err = tower_model.SetLastBackup(tsk.Ctx, meta.Core.TowerID, time.Now())
 		if err != nil {
 			return err
 		}
 
 		// Don't broadcast this last event set
-		t.OnResult(nil)
+		tsk.OnResult(nil)
 
 		_, err = remoteDataDir.LoadStat()
 		if err != nil {
 			return err
 		}
 
-		t.SetResult(task_mod.Result{
+		tsk.SetResult(task.Result{
 			"backupSize": remoteDataDir.Size(),
-			"totalTime":  t.ExeTime(),
+			"totalTime":  tsk.ExeTime(),
 		})
 
-		endNotif := notify.NewTaskNotification(t, websocket_mod.BackupCompleteEvent, t.GetResults())
+		endNotif := notify.NewTaskNotification(tsk, websocket_mod.BackupCompleteEvent, tsk.GetResults())
 		appCtx.Notify(ctx, endNotif)
 
 		return nil
 	})
 	if err != nil {
-		t.Fail(err)
+		tsk.Fail(err)
 
 		return
 	}
 
-	t.Success()
+	tsk.Success()
 }
 
 func getExistingFile(ctx context_service.AppContext, a history_model.FileAction, core tower_model.Instance) (*file_model.WeblensFileImpl, error) {
@@ -359,7 +357,7 @@ func getExistingFile(ctx context_service.AppContext, a history_model.FileAction,
 	return existingFile, nil
 }
 
-func handleFileAction(ctx context_service.AppContext, a history_model.FileAction, core tower_model.Instance, pool task_mod.Pool) error {
+func handleFileAction(ctx context_service.AppContext, a history_model.FileAction, core tower_model.Instance, pool *task.Pool) error {
 	existingFile, err := getExistingFile(ctx, a, core)
 	if err != nil {
 		return err

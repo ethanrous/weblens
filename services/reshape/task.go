@@ -24,7 +24,7 @@ func TaskToTaskInfo(t *task.Task) structs.TaskInfo {
 		TaskID:    t.ID(),
 		JobName:   t.JobName(),
 		Progress:  0,
-		Status:    status,
+		Status:    string(status),
 		Completed: complete,
 		WorkerID:  t.GetWorkerID(),
 		Result:    result,

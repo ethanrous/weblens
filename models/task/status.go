@@ -9,7 +9,7 @@ const (
 	// TaskSuccess indicates the task completed successfully.
 	TaskSuccess ExitStatus = "success"
 	// TaskCanceled indicates the task was canceled before completion.
-	TaskCanceled ExitStatus = "cancelled"
+	TaskCanceled ExitStatus = "canceled"
 	// TaskError indicates the task failed with an error.
 	TaskError ExitStatus = "error"
 )

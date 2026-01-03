@@ -3626,7 +3626,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
-                    "$ref": "#/definitions/task.ExitStatus"
+                    "type": "string"
                 },
                 "taskID": {
                     "type": "string"
@@ -3930,21 +3930,6 @@ const docTemplate = `{
                 },
                 "configValue": {}
             }
-        },
-        "task.ExitStatus": {
-            "type": "string",
-            "enum": [
-                "",
-                "success",
-                "cancelled",
-                "error"
-            ],
-            "x-enum-varnames": [
-                "TaskNoStatus",
-                "TaskSuccess",
-                "TaskCanceled",
-                "TaskError"
-            ]
         }
     },
     "securityDefinitions": {

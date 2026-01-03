@@ -13,7 +13,6 @@ import (
 	"github.com/ethanrous/weblens/models/task"
 	"github.com/ethanrous/weblens/modules/cryptography"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
-	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/services/ctxservice"
@@ -26,20 +25,19 @@ import (
 var ErrEmptyZip = wlerrors.New("zip file is empty")
 
 // CreateZip creates a zip archive from the files specified in the task metadata.
-func CreateZip(tsk task_mod.Task) {
-	t := tsk.(*task.Task)
+func CreateZip(tsk *task.Task) {
 
-	ctx, ok := ctxservice.FromContext(t.Ctx)
+	ctx, ok := ctxservice.FromContext(tsk.Ctx)
 	if !ok {
-		t.Fail(wlerrors.New("context is not a RequestContext"))
+		tsk.Fail(wlerrors.New("context is not a RequestContext"))
 
 		return
 	}
 
-	zipMeta := t.GetMeta().(job.ZipMeta)
+	zipMeta := tsk.GetMeta().(job.ZipMeta)
 
 	if len(zipMeta.Files) == 0 {
-		t.ReqNoErr(ErrEmptyZip)
+		tsk.ReqNoErr(ErrEmptyZip)
 	}
 
 	filesInfoMap := map[string]os.FileInfo{}
@@ -53,7 +51,7 @@ func CreateZip(tsk task_mod.Task) {
 
 					stat, err := os.Stat(fAbs)
 					if err != nil {
-						t.ReqNoErr(err)
+						tsk.ReqNoErr(err)
 					}
 
 					filesInfoMap[fAbs] = stat
@@ -83,28 +81,28 @@ func CreateZip(tsk task_mod.Task) {
 
 	zipFile, err := ctx.FileService.GetZip(ctx, zipName)
 	if err == nil {
-		t.SetResult(task_mod.Result{"takeoutID": zipFile.ID(), "filename": zipFile.GetPortablePath().Filename()})
+		tsk.SetResult(task.Result{"takeoutID": zipFile.ID(), "filename": zipFile.GetPortablePath().Filename()})
 		// Let any client subscribers know we are done
-		notif := notify.NewTaskNotification(t, websocket.ZipCompleteEvent, t.GetResults())
+		notif := notify.NewTaskNotification(tsk, websocket.ZipCompleteEvent, tsk.GetResults())
 		ctx.Notify(ctx, notif)
-		t.Success()
+		tsk.Success()
 
 		return
 	}
 
 	zipFile, err = ctx.FileService.NewZip(ctx, zipName, zipMeta.Requester)
 	if err != nil {
-		t.Fail(err)
+		tsk.Fail(err)
 
 		return
 	}
 
-	notif := notify.NewTaskNotification(t, websocket.TaskCreatedEvent, task_mod.Result{"totalFiles": len(filesInfoMap)})
+	notif := notify.NewTaskNotification(tsk, websocket.TaskCreatedEvent, task.Result{"totalFiles": len(filesInfoMap)})
 	ctx.Notify(ctx, notif)
 
 	zw, err := zipFile.Writer()
 	if err != nil {
-		t.Fail(err)
+		tsk.Fail(err)
 
 		return
 	}
@@ -118,7 +116,7 @@ func CreateZip(tsk task_mod.Task) {
 		fastzip.WithArchiverMethod(zip.Store),
 	)
 	if err != nil {
-		t.Fail(err)
+		tsk.Fail(err)
 
 		return
 	}
@@ -129,7 +127,7 @@ func CreateZip(tsk task_mod.Task) {
 
 	// Shove archive to child thread so we can send updates with main thread
 	go func() {
-		err := a.Archive(t.Ctx, filesInfoMap)
+		err := a.Archive(tsk.Ctx, filesInfoMap)
 		if err != nil {
 			archiveErr = &err
 		}
@@ -154,8 +152,8 @@ func CreateZip(tsk task_mod.Task) {
 
 	const updateInterval = 500 * int64(time.Millisecond)
 
-	t.OnResult(func(result task_mod.Result) {
-		notif := notify.NewTaskNotification(t, websocket.ZipProgressEvent, result)
+	tsk.OnResult(func(result task.Result) {
+		notif := notify.NewTaskNotification(tsk, websocket.ZipProgressEvent, result)
 		ctx.Notify(ctx, notif)
 	})
 
@@ -172,7 +170,7 @@ func CreateZip(tsk task_mod.Task) {
 			byteDiff := bytes - prevBytes
 			timeNs := updateInterval * sinceUpdate
 
-			t.SetResult(task_mod.Result{
+			tsk.SetResult(task.Result{
 				"completedFiles": int(entries), "totalFiles": totalFiles,
 				"bytesSoFar": bytes,
 				"bytesTotal": bytesTotal,
@@ -187,22 +185,22 @@ func CreateZip(tsk task_mod.Task) {
 	}
 
 	if archiveErr != nil {
-		t.Fail(*archiveErr)
+		tsk.Fail(*archiveErr)
 
 		return
 	}
 
-	t.ClearOnResult()
+	tsk.ClearOnResult()
 
-	t.SetResult(task_mod.Result{
+	tsk.SetResult(task.Result{
 		"takeoutID":      zipFile.ID(),
 		"filename":       zipFile.GetPortablePath().Filename(),
 		"completedFiles": totalFiles,
 		"bytesSoFar":     bytesTotal,
 	})
 
-	notif = notify.NewTaskNotification(t, websocket.ZipCompleteEvent, t.GetResults())
+	notif = notify.NewTaskNotification(tsk, websocket.ZipCompleteEvent, tsk.GetResults())
 	ctx.Notify(ctx, notif)
 
-	t.Success()
+	tsk.Success()
 }

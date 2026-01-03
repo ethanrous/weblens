@@ -24,6 +24,7 @@ import (
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/journal"
 	"github.com/ethanrous/weblens/services/notify"
+	"github.com/ethanrous/weblens/services/reshape"
 	"github.com/rs/zerolog"
 )
 
@@ -583,7 +584,12 @@ func (fs *ServiceImpl) RenameFile(ctx context.Context, file *file_model.WeblensF
 
 	appCtx.Log().Debug().Msgf("Renaming file [%s] to [%s]", file.GetPortablePath(), newPath)
 
-	notif := notify.NewFileNotification(ctx, file, websocket_mod.FileUpdatedEvent)
+	fInfo, err := reshape.WeblensFileToFileInfo(ctx, file)
+	if err != nil {
+		return err
+	}
+
+	notif := notify.NewFileNotification(ctx, fInfo, websocket_mod.FileUpdatedEvent)
 	appCtx.Notify(ctx, notif...)
 
 	return nil
@@ -821,7 +827,12 @@ func (fs *ServiceImpl) createCommon(ctx context.Context, newF, parent *file_mode
 		return wlerrors.New("failed to get notifier from context")
 	}
 
-	notif := notify.NewFileNotification(ctx, newF, websocket_mod.FileCreatedEvent)
+	fInfo, err := reshape.WeblensFileToFileInfo(ctx, newF)
+	if err != nil {
+		return err
+	}
+
+	notif := notify.NewFileNotification(ctx, fInfo, websocket_mod.FileCreatedEvent)
 	notifier.Notify(ctx, notif...)
 
 	context_mod.ToZ(ctx).Log().Trace().Func(func(e *zerolog.Event) {
@@ -922,19 +933,34 @@ func (fs *ServiceImpl) moveFilesWithTransaction(ctx context.Context, files []*fi
 			oldParents = append(oldParents, oldParent)
 		}
 
-		notif := notify.NewFileNotification(ctx, file, websocket_mod.FileUpdatedEvent, notify.FileNotificationOptions{PreMoveParentID: oldParent.ID()})
+		fInfo, err := reshape.WeblensFileToFileInfo(ctx, file)
+		if err != nil {
+			return err
+		}
+
+		notif := notify.NewFileNotification(ctx, fInfo, websocket_mod.FileUpdatedEvent, notify.FileNotificationOptions{PreMoveParentID: oldParent.ID()})
 		notifier.Notify(ctx, notif...)
 	}
 
 	for _, oldParent := range oldParents {
 		// Notify the old parent that it has been updated
-		notif := notify.NewFileNotification(ctx, oldParent, websocket_mod.FileUpdatedEvent)
+		oldParentInfo, err := reshape.WeblensFileToFileInfo(ctx, oldParent)
+		if err != nil {
+			return err
+		}
+
+		notif := notify.NewFileNotification(ctx, oldParentInfo, websocket_mod.FileUpdatedEvent)
 		notifier.Notify(ctx, notif...)
 	}
 
 	destFolder.Size()
 
-	notif := notify.NewFileNotification(ctx, destFolder, websocket_mod.FileUpdatedEvent)
+	destFInfo, err := reshape.WeblensFileToFileInfo(ctx, destFolder)
+	if err != nil {
+		return err
+	}
+
+	notif := notify.NewFileNotification(ctx, destFInfo, websocket_mod.FileUpdatedEvent)
 	notifier.Notify(ctx, notif...)
 
 	return nil
@@ -992,7 +1018,12 @@ func (fs *ServiceImpl) deleteFilesWithTransaction(ctx context.Context, files []*
 					}
 				}
 
-				notifs = append(notifs, notify.NewFileNotification(ctx, f, websocket_mod.FileDeletedEvent)...)
+				fInfo, err := reshape.WeblensFileToFileInfo(ctx, f)
+				if err != nil {
+					return err
+				}
+
+				notifs = append(notifs, notify.NewFileNotification(ctx, fInfo, websocket_mod.FileDeletedEvent)...)
 
 				return nil
 			},
@@ -1043,7 +1074,12 @@ func (fs *ServiceImpl) deleteFilesWithTransaction(ctx context.Context, files []*
 		return err
 	}
 
-	notif := notify.NewFileNotification(ctx, trash, websocket_mod.FileUpdatedEvent)
+	trashInfo, err := reshape.WeblensFileToFileInfo(ctx, trash)
+	if err != nil {
+		return err
+	}
+
+	notif := notify.NewFileNotification(ctx, trashInfo, websocket_mod.FileUpdatedEvent)
 	appCtx.Notify(ctx, notif...)
 
 	return nil

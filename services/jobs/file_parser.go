@@ -9,7 +9,6 @@ import (
 	"github.com/ethanrous/weblens/models/job"
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/models/task"
-	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
@@ -21,8 +20,7 @@ import (
 )
 
 // ScanDirectory scans a directory and processes all files within it.
-func ScanDirectory(tsk task_mod.Task) {
-	t := tsk.(*task.Task)
+func ScanDirectory(t *task.Task) {
 
 	ctx, ok := context_service.FromContext(t.Ctx)
 	if !ok {
@@ -33,15 +31,15 @@ func ScanDirectory(tsk task_mod.Task) {
 
 	meta := t.GetMeta().(job.ScanMeta)
 
-	t.SetErrorCleanup(func(_ task_mod.Task) {
+	t.SetErrorCleanup(func(_ *task.Task) {
 		err := t.ReadError()
-		notif := notify.NewTaskNotification(t, websocket.TaskFailedEvent, task_mod.Result{"error": err.Error()})
+		notif := notify.NewTaskNotification(t, websocket.TaskFailedEvent, task.Result{"error": err.Error()})
 		ctx.Notify(t.Ctx, notif)
 	})
 
 	if file_model.IsFileInTrash(meta.File) {
 		// Let any client subscribers know we are done
-		notif := notify.NewTaskNotification(t, websocket.FolderScanCompleteEvent, task_mod.Result{"executionTime": t.ExeTime()})
+		notif := notify.NewTaskNotification(t, websocket.FolderScanCompleteEvent, task.Result{"executionTime": t.ExeTime()})
 		ctx.Notify(ctx, notif)
 		t.Success("No media to scan")
 
@@ -58,11 +56,11 @@ func ScanDirectory(tsk task_mod.Task) {
 		ctx.ClientService.FolderSubToTask(ctx, parent.ID(), t)
 	}
 
-	t.SetCleanup(func(tsk task_mod.Task) {
+	t.SetCleanup(func(tsk *task.Task) {
 		// Make sure we finish sending any messages to the client
 		// before we close unsubscribe from the task
 		ctx.ClientService.Flush(t.Ctx)
-		ctx.ClientService.UnsubTask(t.Ctx, tsk.ID())
+		ctx.ClientService.UnsubscribeAllByID(t.Ctx, tsk.ID(), websocket.TaskSubscribe)
 	})
 
 	t.Log().Debug().Func(func(e *zerolog.Event) {
@@ -82,7 +80,7 @@ func ScanDirectory(tsk task_mod.Task) {
 		return
 	}
 
-	t.SetResult(task_mod.Result{
+	t.SetResult(task.Result{
 		"filepath": meta.File.GetPortablePath().String(),
 		"state":    "Discovering files",
 	})
@@ -93,7 +91,7 @@ func ScanDirectory(tsk task_mod.Task) {
 		},
 	)
 
-	t.SetResult(task_mod.Result{
+	t.SetResult(task.Result{
 		"filepath": meta.File.GetPortablePath().String(),
 		"state":    "Done discovering files",
 	})
@@ -111,7 +109,15 @@ func ScanDirectory(tsk task_mod.Task) {
 		for i := range alreadyFiles {
 			mediaInfo := reshape.MediaToMediaInfo(alreadyMedia[i])
 			o := notify.FileNotificationOptions{MediaInfo: mediaInfo}
-			updates = append(updates, notify.NewFileNotification(ctx, alreadyFiles[i], websocket.FileUpdatedEvent, o)...)
+
+			fInfo, err := reshape.WeblensFileToFileInfo(ctx, alreadyFiles[i])
+			if err != nil {
+				t.Fail(err)
+
+				return
+			}
+
+			updates = append(updates, notify.NewFileNotification(ctx, fInfo, websocket.FileUpdatedEvent, o)...)
 		}
 
 		ctx.Notify(ctx, updates...)
@@ -133,7 +139,7 @@ func ScanDirectory(tsk task_mod.Task) {
 	errs := pool.Errors()
 	if len(errs) != 0 {
 		// Let any client subscribers know we failed
-		result := task_mod.Result{
+		result := task.Result{
 			"failedCount": len(errs),
 		}
 		taskNotif := notify.NewTaskNotification(t, websocket.TaskFailedEvent, result)
@@ -142,7 +148,7 @@ func ScanDirectory(tsk task_mod.Task) {
 		poolNotif := notify.NewPoolNotification(pool, websocket.TaskFailedEvent, result)
 		ctx.Notify(ctx, poolNotif)
 
-		t.Fail(wlerrors.WithStack(task_mod.ErrChildTaskFailed))
+		t.Fail(wlerrors.WithStack(task.ErrChildTaskFailed))
 
 		return
 	}
@@ -158,30 +164,29 @@ func ScanDirectory(tsk task_mod.Task) {
 }
 
 // ScanFile scans an individual file and processes its metadata.
-func ScanFile(tsk task_mod.Task) {
-	t := tsk.(*task.Task)
+func ScanFile(tsk *task.Task) {
 
-	reportSubscanStatus(t)
+	reportSubscanStatus(tsk)
 
-	meta := t.GetMeta().(job.ScanMeta)
+	meta := tsk.GetMeta().(job.ScanMeta)
 
-	ctx, ok := context_service.FromContext(t.Ctx)
+	ctx, ok := context_service.FromContext(tsk.Ctx)
 	if !ok {
-		t.Fail(wlerrors.New("failed to get context"))
+		tsk.Fail(wlerrors.New("failed to get context"))
 
 		return
 	}
 
-	t.SetResult(task_mod.Result{
+	tsk.SetResult(task.Result{
 		"filepath": meta.File.GetPortablePath().String(),
 	})
 
 	err := ScanFileTsk(ctx, meta)
 	if err != nil {
-		t.Fail(err)
+		tsk.Fail(err)
 	}
 
-	t.Success()
+	tsk.Success()
 }
 
 // ScanFileTsk is the internal implementation for scanning a file with the given context and metadata.
@@ -250,13 +255,19 @@ func ScanFileTsk(ctx context_service.AppContext, meta job.ScanMeta) error {
 	mediaInfo := reshape.MediaToMediaInfo(media)
 
 	o := notify.FileNotificationOptions{MediaInfo: mediaInfo}
-	notif := notify.NewFileNotification(ctx, meta.File, websocket.FileUpdatedEvent, o)
+
+	fInfo, err := reshape.WeblensFileToFileInfo(ctx, meta.File)
+	if err != nil {
+		return err
+	}
+
+	notif := notify.NewFileNotification(ctx, fInfo, websocket.FileUpdatedEvent, o)
 	ctx.Notify(ctx, notif...)
 
 	return nil
 }
 
-func queueScanFileIfNeeded(ctx context_service.AppContext, t *task.Task, mf *file_model.WeblensFileImpl, doHdir bool, alreadyFiles *[]*file_model.WeblensFileImpl, alreadyMedia *[]*media_model.Media, pool task_mod.Pool) error {
+func queueScanFileIfNeeded(ctx context_service.AppContext, t *task.Task, mf *file_model.WeblensFileImpl, doHdir bool, alreadyFiles *[]*file_model.WeblensFileImpl, alreadyMedia *[]*media_model.Media, pool *task.Pool) error {
 	if mf.IsDir() {
 		t.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Skipping file %s, not regular file", mf.GetPortablePath()) })
 
@@ -313,24 +324,22 @@ func queueScanFileIfNeeded(ctx context_service.AppContext, t *task.Task, mf *fil
 	return nil
 }
 
-func reportSubscanStatus(t task_mod.Task) {
+func reportSubscanStatus(tsk *task.Task) {
 	event := websocket.FileScanStartedEvent
 
-	if complete, exitStat := t.Status(); complete {
+	if complete, exitStat := tsk.Status(); complete {
 		switch exitStat {
-		case task_mod.TaskSuccess:
+		case task.TaskSuccess:
 			event = websocket.FileScanCompleteEvent
-		case task_mod.TaskError:
+		case task.TaskError:
 			event = websocket.FileScanFailedEvent
-		case task_mod.TaskCanceled:
+		case task.TaskCanceled:
 			event = websocket.FileScanCancelledEvent
 		}
 	}
 
-	tsk := t.(*task.Task)
-
 	var notif websocket.WsResponseInfo
-	if t.GetTaskPool().IsGlobal() {
+	if tsk.GetTaskPool().IsGlobal() {
 		notif = notify.NewTaskNotification(tsk, event, getScanResult(tsk))
 	} else {
 		notif = notify.NewPoolNotification(tsk.GetTaskPool(), event, getScanResult(tsk))
@@ -346,18 +355,18 @@ func reportSubscanStatus(t task_mod.Task) {
 	ctx.Notify(tsk.Ctx, notif)
 }
 
-func getScanResult(t *task.Task) task_mod.Result {
+func getScanResult(t *task.Task) task.Result {
 	var tp *task.Pool
 
 	if t.GetTaskPool() != nil {
-		tp = t.GetTaskPool().GetRootPool().(*task.Pool)
+		tp = t.GetTaskPool().GetRootPool()
 	}
 
-	var result = task_mod.Result{}
+	var result = task.Result{}
 
 	meta, ok := t.GetMeta().(job.ScanMeta)
 	if ok {
-		result = task_mod.Result{
+		result = task.Result{
 			"filename": meta.File.GetPortablePath().Filename(),
 			"fileID":   meta.File.ID(),
 		}

@@ -1,10 +1,26 @@
 #!/bin/bash
 set -euo pipefail
 
+is_mongo_running() {
+    local mongo_name=${1+x}
+    if [[ -z "$mongo_name" ]]; then
+        echo "[ERROR] is_mongo_running called with no container name. Aborting"
+        exit 1
+    fi
+
+    if dockerc ps | grep "$mongo_name" &>/dev/null; then
+        return 0
+    fi
+
+    return 1
+}
+
+export -f is_mongo_running
+
 ensure_repl_set() {
     mongoWaitCount=0
     while [[ $mongoWaitCount -lt 10 ]]; do
-        status="$(sudo docker inspect "$mongo_name" --format '{{.State.Health.Status}}')"
+        status="$(dockerc inspect "$mongo_name" --format '{{.State.Health.Status}}')"
         if [[ $status == "starting" ]]; then
             mongoWaitCount=$((mongoWaitCount + 1))
             echo "MongoDB is starting, waiting ${mongoWaitCount}s..."
@@ -35,20 +51,16 @@ ensure_repl_set() {
 }
 
 launch_mongo() {
-    local mongo_name=$1
-    if [[ -z "$mongo_name" ]]; then
-        echo "[ERROR] launch_mongo called with no container name. Aborting"
-        exit 1
-    fi
+    local mongo_name="${1?[ERROR] launch_mongo called with no container name. Aborting}"
 
-    if ! sudo docker image ls | grep ethrous/weblens-mongo &>/dev/null; then
+    if ! dockerc image ls | grep ethrous/weblens-mongo &>/dev/null; then
         ./scripts/build-mongo.bash || exit 1
     fi
 
-    if ! sudo docker ps | grep "$mongo_name" &>/dev/null; then
+    if ! dockerc ps | grep "$mongo_name" &>/dev/null; then
         echo "Starting MongoDB container [$mongo_name] ..."
 
-        sudo docker run \
+        dockerc run \
             -d \
             --rm \
             --name "$mongo_name" \
@@ -73,17 +85,20 @@ cleanup_mongo() {
         while IFS= read -r container; do
             local container_id
             container_id=$(sed -E 's/^([^ ]+).*/\1/' <<<"$container")
-            sudo docker stop "$container_id" 2>&1 || true
-            sudo docker rm "$container_id" 2>&1 || true
+
+            echo "Stopping mongo container [$container_id] ..."
+            dockerc stop "$container_id"
         done <<<"$running_mongos"
+    else
+        echo "No running mongo containers found."
     fi
 
-    if [[ -z "${1+x}" ]]; then
+    if [[ -z "${1:-}" ]]; then
         return
     fi
 
     local mongo_name=$1
-    sudo docker volume rm "$mongo_name" 2>&1 || true
+    dockerc volume rm "$mongo_name" 2>&1 || true
 }
 
 export -f cleanup_mongo

@@ -59,15 +59,6 @@ func newTestAppContext(t *testing.T, opts ...testAppContextOption) context.Conte
 		opt(options)
 	}
 
-	// Create mock client manager
-	mockClient := newMockClientManager()
-	for user, online := range options.onlineUsers {
-		mockClient.setUserOnline(user, online)
-	}
-	for tower, online := range options.onlineTowers {
-		mockClient.setTowerOnline(tower, online)
-	}
-
 	// Create a logger for the test
 	logger := log.NewZeroLogger()
 
@@ -77,7 +68,7 @@ func newTestAppContext(t *testing.T, opts ...testAppContextOption) context.Conte
 	// Create AppContext with mock services
 	appCtx := ctxservice.AppContext{
 		BasicContext:  basicCtx,
-		ClientService: mockClient,
+		ClientService: nil,
 		FileService:   options.fileService,
 		Cache:         make(map[string]*sturdyc.Client[any]),
 		WG:            &sync.WaitGroup{},
@@ -104,15 +95,6 @@ func newTestAppContextWithDB(t *testing.T, opts ...testAppContextOption) context
 		opt(options)
 	}
 
-	// Create mock client manager
-	mockClient := newMockClientManager()
-	for user, online := range options.onlineUsers {
-		mockClient.setUserOnline(user, online)
-	}
-	for tower, online := range options.onlineTowers {
-		mockClient.setTowerOnline(tower, online)
-	}
-
 	// Get the database from the context
 	dbAny := dbCtx.Value(db.DatabaseContextKey)
 	database, _ := dbAny.(*mongo.Database)
@@ -126,7 +108,7 @@ func newTestAppContextWithDB(t *testing.T, opts ...testAppContextOption) context
 	// Create AppContext with mock services and real DB
 	appCtx := ctxservice.AppContext{
 		BasicContext:  basicCtx,
-		ClientService: mockClient,
+		ClientService: nil,
 		FileService:   options.fileService,
 		DB:            database,
 		Cache:         make(map[string]*sturdyc.Client[any]),
@@ -139,7 +121,7 @@ func newTestAppContextWithDB(t *testing.T, opts ...testAppContextOption) context
 
 // createTestUser creates a user in the test database.
 // The password meets validation requirements (6+ chars with a digit).
-func createTestUser(t *testing.T, ctx context.Context, username string) *user_model.User {
+func createTestUser(ctx context.Context, t *testing.T, username string) *user_model.User {
 	t.Helper()
 
 	u := &user_model.User{
@@ -173,15 +155,6 @@ func newTestRequestContextWithDB(t *testing.T, opts ...testAppContextOption) ctx
 		opt(options)
 	}
 
-	// Create mock client manager
-	mockClient := newMockClientManager()
-	for user, online := range options.onlineUsers {
-		mockClient.setUserOnline(user, online)
-	}
-	for tower, online := range options.onlineTowers {
-		mockClient.setTowerOnline(tower, online)
-	}
-
 	// Get the database from the context
 	dbAny := dbCtx.Value(db.DatabaseContextKey)
 	database, _ := dbAny.(*mongo.Database)
@@ -195,7 +168,7 @@ func newTestRequestContextWithDB(t *testing.T, opts ...testAppContextOption) ctx
 	// Create AppContext with mock services and real DB
 	appCtx := ctxservice.AppContext{
 		BasicContext:  basicCtx,
-		ClientService: mockClient,
+		ClientService: nil,
 		FileService:   options.fileService,
 		DB:            database,
 		Cache:         make(map[string]*sturdyc.Client[any]),

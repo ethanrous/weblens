@@ -2,6 +2,7 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"iter"
 	"net"
@@ -12,8 +13,8 @@ import (
 
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
+	"github.com/ethanrous/weblens/modules/log"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
-	"github.com/ethanrous/weblens/modules/wlcontext"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -45,7 +46,7 @@ const (
 )
 
 // NewClient creates a new websocket client instance.
-func NewClient(ctx wlcontext.LoggerContext, conn *websocket.Conn, socketUser SocketUser) *WsClient {
+func NewClient(ctx context.Context, conn *websocket.Conn, socketUser SocketUser) *WsClient {
 	clientID := uuid.New().String()
 
 	newClient := &WsClient{
@@ -62,7 +63,7 @@ func NewClient(ctx wlcontext.LoggerContext, conn *websocket.Conn, socketUser Soc
 		newClient.tower = socketUser.(*tower_model.Instance)
 	}
 
-	newLogger := ctx.Log().With().Str(clientIDLogKey, newClient.getClientName()).Str(websocketIDLogKey, newClient.GetClientID()).Logger()
+	newLogger := log.FromContext(ctx).With().Str(clientIDLogKey, newClient.getClientName()).Str(websocketIDLogKey, newClient.GetClientID()).Logger()
 	newClient.log = newLogger
 
 	newClient.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("New client connected") })
@@ -204,7 +205,7 @@ func (wsc *WsClient) Send(msg websocket_mod.WsResponseInfo) error {
 }
 
 // Disconnect closes the websocket connection and marks the client as inactive.
-func (wsc *WsClient) Disconnect() {
+func (wsc *WsClient) Disconnect() error {
 	wsc.Active.Store(false)
 
 	wsc.updateMu.Lock()
@@ -212,14 +213,14 @@ func (wsc *WsClient) Disconnect() {
 
 	err := wsc.conn.Close()
 	if err != nil && !wlerrors.Is(err, net.ErrClosed) {
-		wsc.log.Error().Stack().Err(err).Msg("")
-
-		return
+		return err
 	}
 
 	wsc.log.Trace().Func(func(e *zerolog.Event) {
 		e.Msgf("Disconnected %s client %s [%s]", wsc.getClientType(), wsc.getClientName(), wsc.GetClientID())
 	})
+
+	return nil
 }
 
 // Log returns the logger instance for this client.

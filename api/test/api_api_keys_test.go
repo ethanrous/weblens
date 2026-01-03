@@ -1,7 +1,7 @@
 /*
 Weblens API
 
-Testing ApiKeysAPIService
+Testing APIKeysAPIService
 
 */
 
@@ -11,22 +11,23 @@ package openapi
 
 import (
 	"context"
+	"testing"
+
+	openapiclient "github.com/ethanrous/weblens/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
-	openapiclient "github.com/ethanrous/weblens/api"
 )
 
-func Test_openapi_ApiKeysAPIService(t *testing.T) {
+func Test_openapi_APIKeysAPIService(t *testing.T) {
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
 
-	t.Run("Test ApiKeysAPIService CreateApiKey", func(t *testing.T) {
+	t.Run("Test APIKeysAPIService CreateAPIKey", func(t *testing.T) {
 
-		t.Skip("skip test")  // remove to run test
+		t.Skip("skip test") // remove to run test
 
-		resp, httpRes, err := apiClient.ApiKeysAPI.CreateApiKey(context.Background()).Execute()
+		resp, httpRes, err := apiClient.APIKeysAPI.CreateAPIKey(context.Background()).Execute()
 
 		require.Nil(t, err)
 		require.NotNil(t, resp)
@@ -34,24 +35,24 @@ func Test_openapi_ApiKeysAPIService(t *testing.T) {
 
 	})
 
-	t.Run("Test ApiKeysAPIService DeleteApiKey", func(t *testing.T) {
+	t.Run("Test APIKeysAPIService DeleteAPIKey", func(t *testing.T) {
 
-		t.Skip("skip test")  // remove to run test
+		t.Skip("skip test") // remove to run test
 
 		var tokenID string
 
-		httpRes, err := apiClient.ApiKeysAPI.DeleteApiKey(context.Background(), tokenID).Execute()
+		httpRes, err := apiClient.APIKeysAPI.DeleteAPIKey(context.Background(), tokenID).Execute()
 
 		require.Nil(t, err)
 		assert.Equal(t, 200, httpRes.StatusCode)
 
 	})
 
-	t.Run("Test ApiKeysAPIService GetApiKeys", func(t *testing.T) {
+	t.Run("Test APIKeysAPIService GetAPIKeys", func(t *testing.T) {
 
-		t.Skip("skip test")  // remove to run test
+		t.Skip("skip test") // remove to run test
 
-		resp, httpRes, err := apiClient.ApiKeysAPI.GetApiKeys(context.Background()).Execute()
+		resp, httpRes, err := apiClient.APIKeysAPI.GetAPIKeys(context.Background()).Execute()
 
 		require.Nil(t, err)
 		require.NotNil(t, resp)

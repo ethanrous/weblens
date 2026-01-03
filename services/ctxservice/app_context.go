@@ -6,15 +6,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethanrous/weblens/models/client"
 	"github.com/ethanrous/weblens/models/db"
 	"github.com/ethanrous/weblens/models/file"
-	task_model "github.com/ethanrous/weblens/models/task"
+	"github.com/ethanrous/weblens/models/task"
 	"github.com/ethanrous/weblens/modules/log"
-	task_mod "github.com/ethanrous/weblens/modules/task"
 	"github.com/ethanrous/weblens/modules/websocket"
 	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/services/notify"
 	"github.com/viccon/sturdyc"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -49,8 +48,8 @@ type AppContext struct {
 	LocalTowerID string
 
 	FileService   file.Service
-	TaskService   *task_model.WorkerPool
-	ClientService client.Manager
+	TaskService   *task.WorkerPool
+	ClientService *notify.ClientManager
 	DB            *mongo.Database
 
 	Cache     map[string]*sturdyc.Client[any]
@@ -91,6 +90,15 @@ func FromContext(ctx context.Context) (AppContext, bool) {
 	c.BasicContext = NewBasicContext(ctx, c.Log())
 
 	return c, true
+}
+
+// NewTestContext creates a new AppContext for testing purposes with a zero logger.
+func NewTestContext(ctx context.Context) AppContext {
+	logger := log.NewZeroLogger()
+	basicCtx := NewBasicContext(ctx, logger)
+	appCtx := NewAppContext(basicCtx)
+
+	return appCtx
 }
 
 // WithValue returns a copy of AppContext with the specified key-value pair added.
@@ -178,7 +186,7 @@ func (c AppContext) ClearCache() {
 }
 
 // DispatchJob submits a new job to the task service for asynchronous execution.
-func (c AppContext) DispatchJob(jobName string, meta task_mod.Metadata, pool task_mod.Pool) (task_mod.Task, error) {
+func (c AppContext) DispatchJob(jobName string, meta task.Metadata, pool *task.Pool) (*task.Task, error) {
 	return c.TaskService.DispatchJob(c, jobName, meta, pool)
 }
 

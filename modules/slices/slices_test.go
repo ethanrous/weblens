@@ -1,4 +1,3 @@
-//go:build test
 
 package slices_test
 

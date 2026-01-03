@@ -94,12 +94,6 @@ var createRequestFunction = function(axiosArgs, globalAxios3, BASE_PATH2, config
 var MediaBatchParamsSortEnum = {
   CreateDate: "createDate"
 };
-var TaskExitStatus = {
-  TaskNoStatus: "",
-  TaskSuccess: "success",
-  TaskCanceled: "cancelled",
-  TaskError: "error"
-};
 var APIKeysApiAxiosParamCreator = function(configuration) {
   return {
     /**
@@ -4721,7 +4715,6 @@ export {
   ShareApiAxiosParamCreator,
   ShareApiFactory,
   ShareApiFp,
-  TaskExitStatus,
   TowersApi,
   TowersApiAxiosParamCreator,
   TowersApiFactory,
