@@ -76,12 +76,17 @@ import { useWeblensAPI } from '~/api/AllApi'
 import Logo from '~/components/atom/Logo.vue'
 import WeblensButton from '~/components/atom/WeblensButton.vue'
 import WeblensInput from '~/components/atom/WeblensInput.vue'
+import useLocationStore from '~/stores/location'
 import User from '~/types/user'
 
 const username = ref('')
 const password = ref('')
 const loading = ref(false)
 const formError = ref<string | null>(null)
+
+// Hook into location store to ensure redirects work
+// properly before and after login
+useLocationStore()
 
 onKeyDown('Enter', doLogin)
 

@@ -202,7 +202,7 @@ func DeleteTowerByID(ctx context.Context, towerID string) error {
 
 // GetLocal retrieves the local tower instance.
 func GetLocal(ctx context.Context) (t Instance, err error) {
-	col, err := db.GetCollection[any](ctx, TowerCollectionKey)
+	col, err := db.GetCollection[*Instance](ctx, TowerCollectionKey)
 	if err != nil {
 		return t, err
 	}

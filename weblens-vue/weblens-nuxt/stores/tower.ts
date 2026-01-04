@@ -1,8 +1,14 @@
 import { defineStore } from 'pinia'
 import { useWeblensAPI } from '~/api/AllApi'
 
+export enum TowerRole {
+    CORE = 'core',
+    BACKUP = 'backup',
+    INIT = 'init',
+}
+
 export const useTowerStore = defineStore('tower', () => {
-    const { data: towerInfo } = useAsyncData(
+    const { data: towerInfo, refresh } = useAsyncData(
         'tower',
         async () => {
             const towerRes = await useWeblensAPI().TowersAPI.getServerInfo()
@@ -11,5 +17,8 @@ export const useTowerStore = defineStore('tower', () => {
         { immediate: true, lazy: false },
     )
 
-    return { towerInfo }
+    return {
+        towerInfo,
+        refreshTowerInfo: refresh,
+    }
 })

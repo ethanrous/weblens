@@ -14,6 +14,7 @@ export enum FbModeT {
 const useLocationStore = defineStore('location', () => {
     const route = useRoute()
     const userStore = useUserStore()
+    const towerStore = useTowerStore()
 
     const user = computed(() => userStore.user)
 
@@ -64,9 +65,19 @@ const useLocationStore = defineStore('location', () => {
     })
 
     watchEffect(() => {
+        const loggedIn = userStore.user.isLoggedIn
+        if (route.path !== '/setup' && towerStore.towerInfo?.role === TowerRole.INIT) {
+            return navigateTo('/setup')
+        } else if (route.path === '/setup' && towerStore.towerInfo?.role !== TowerRole.INIT) {
+            if (loggedIn.isSet() && loggedIn.get()) {
+                return navigateTo('/files/home')
+            }
+
+            return navigateTo('/login')
+        }
+
         if (!isInFiles.value) return
 
-        const loggedIn = userStore.user.isLoggedIn
         if ((!isInShare.value || !activeShareID.value) && loggedIn.isSet() && !loggedIn.get()) {
             console.warn('User is not logged in and not in share, redirecting to login page')
 

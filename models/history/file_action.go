@@ -223,13 +223,17 @@ func (fa *FileAction) SetFile(file *file_model.WeblensFileImpl) {
 // SaveAction saves a FileAction to the database.
 // It returns an error if the operation fails.
 func SaveAction(ctx context.Context, action *FileAction) error {
-	col, err := db.GetCollection[any](ctx, FileHistoryCollectionKey)
-	if err != nil {
-		return err
+	if action.TowerID == "" {
+		return wlerrors.New("TowerID is empty")
 	}
 
-	if action.TowerID == "" {
-		return wlerrors.New("towerID is empty")
+	if action.FileID == "" {
+		return wlerrors.New("FileID is empty")
+	}
+
+	col, err := db.GetCollection[*FileAction](ctx, FileHistoryCollectionKey)
+	if err != nil {
+		return err
 	}
 
 	if action.ID.IsZero() {

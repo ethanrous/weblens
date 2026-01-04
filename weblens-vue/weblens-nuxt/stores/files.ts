@@ -421,6 +421,8 @@ const useFilesStore = defineStore('files', () => {
             })
         }
 
+        files = files.filter((f) => !f.IsTrash())
+
         return files
     })
 

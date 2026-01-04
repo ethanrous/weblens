@@ -13,7 +13,7 @@ export -f build_agno
 
 build_frontend() {
     local lazy
-    if [[ ! -z "${1+x}" ]]; then
+    if [[ ! -z "${1:-}" ]]; then
         lazy="$1"
     else
         lazy=false
@@ -32,3 +32,17 @@ build_frontend() {
     popd >/dev/null
 }
 export -f build_frontend
+
+build_weblens_binary() {
+    debug_bin="$WEBLENS_ROOT/_build/bin/weblens_debug"
+
+    export CGO_CFLAGS='-g -O0'
+    export CGO_CXXFLAGS='-g -O0'
+    export CGO_LDFLAGS='-g'
+    export CGO_ENABLED=1
+
+    rm -f "$debug_bin"
+
+    go build -v -gcflags=all="-N -l" -ldflags=-compressdwarf=false -o "$debug_bin" ./cmd/weblens/main.go 2>&1
+}
+export -f build_weblens_binary
