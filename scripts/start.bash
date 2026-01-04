@@ -116,6 +116,7 @@ WEBLENS_LOG_LEVEL="${WEBLENS_LOG_LEVEL:-debug}"
 export WEBLENS_DATA_PATH="./_build/fs/$fsName/data"
 export WEBLENS_LOG_FORMAT=dev
 export WEBLENS_MONGODB_NAME="$containerName"
+export WEBLENS_DO_CACHE=false
 
 if [[ $local == true ]]; then
     printf "Running \e[34mWeblens\e[0m locally for development...\n"

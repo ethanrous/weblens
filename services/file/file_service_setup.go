@@ -160,8 +160,10 @@ func loadFs(ctx context.Context, cnf config.Provider) error {
 }
 
 func handleFileCreation(ctx context_service.AppContext, filepath file_system.Filepath, pathMap map[file_system.Filepath]history.FileAction, doFileCreation bool) (*file_model.WeblensFileImpl, error) {
-	if f, _ := ctx.FileService.GetFileByFilepath(ctx, filepath, true); f != nil {
+	if f, err := ctx.FileService.GetFileByFilepath(ctx, filepath, true); err == nil {
 		return f, nil
+	} else if !wlerrors.Is(err, file_model.ErrFileNotFound) {
+		return nil, err
 	}
 
 	f := file_model.NewWeblensFile(file_model.NewFileOptions{Path: filepath})
@@ -194,7 +196,7 @@ func handleFileCreation(ctx context_service.AppContext, filepath file_system.Fil
 			f.SetContentID(newContentID)
 		}
 
-		action := history.NewCreateAction(ctx, f)
+		action = history.NewCreateAction(ctx, f)
 
 		err = history.SaveAction(ctx, &action)
 		if err != nil {
@@ -223,6 +225,10 @@ func handleFileCreation(ctx context_service.AppContext, filepath file_system.Fil
 		if ok {
 			return existing, nil
 		}
+	}
+
+	if action.FileID == "" {
+		return nil, wlerrors.Errorf("File [%s] has no action file ID in history, inconsistent state", filepath)
 	}
 
 	f.SetID(action.FileID)

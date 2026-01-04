@@ -9,6 +9,7 @@ import (
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/config"
+	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/startup"
 	"github.com/ethanrous/weblens/modules/structs"
 	"github.com/ethanrous/weblens/modules/wlerrors"
@@ -118,6 +119,8 @@ func InitializeCoreServer(ctx context.Context, initBody structs.InitServerParams
 	if initBody.Name == "" || initBody.Username == "" || initBody.Password == "" {
 		return wlerrors.New("missing required fields for core server initialization")
 	}
+
+	log.FromContext(ctx).Info().Msgf("Initializing server as CORE with name [%s]", initBody.Name)
 
 	local, err := tower_model.GetLocal(ctx)
 	if err != nil {

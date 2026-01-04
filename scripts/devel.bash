@@ -4,23 +4,9 @@ set -euo pipefail
 source ./scripts/lib/all.bash
 
 start_ui() {
-    pushd ./weblens-vue/weblens-nuxt || exit 1
-
+    pushd "$WEBLENS_ROOT/weblens-vue/weblens-nuxt" >/dev/null
     pnpm dev &>/dev/null &
-
-    popd || exit 1
-}
-
-build_ui() {
-    pushd ./weblens-vue/weblens-nuxt || exit 1
-
-    pnpm install
-    if [[ $1 == true || ! -e ./.output/public/index.html ]]; then
-        echo "Rebuilding UI..."
-        pnpm generate
-    fi
-
-    popd || exit 1
+    popd >/dev/null
 }
 
 devel_weblens_locally() {
@@ -28,33 +14,10 @@ devel_weblens_locally() {
 
     build_agno
 
-    build_ui false
+    build_frontend
     start_ui
 
     air
-}
-
-debug_weblens() {
-    debug_bin="./_build/bin/weblens_debug"
-
-    build_agno
-
-    build_ui true
-
-    export CGO_CFLAGS='-g -O0'
-    export CGO_CXXFLAGS='-g -O0'
-    export CGO_LDFLAGS='-g'
-    export CGO_ENABLED=1
-    # export GOARCH=arm64
-    # export GOOS=linux
-    # export CC=aarch64-linux-musl-gcc
-    # export CXX=aarch64-linux-musl-g++
-
-    rm -f $debug_bin
-
-    go build -v -gcflags=all="-N -l" -ldflags=-compressdwarf=false -o $debug_bin ./cmd/weblens/main.go 2>&1
-
-    $debug_bin
 }
 
 usage() {
@@ -81,5 +44,7 @@ if [[ $dynamic == true ]]; then
     echo "Dynamic mode enabled"
     devel_weblens_locally
 else
-    debug_weblens
+    debug_bin="$WEBLENS_ROOT/_build/bin/weblens_debug"
+    build_weblens_binary
+    "$debug_bin"
 fi
