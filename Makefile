@@ -1,17 +1,4 @@
-# GO_SOURCE=$(shell find . -path ./_build -prune -o -iname "*.go")
-# TS_SOURCE=$(shell find ./weblens-vue/weblens-nuxt/ -iname "*.ts*")
-
 all: run
-
-# WEBLENS_ENV_PATH=./scripts/.env ./_build/bin/weblens
-run: gen-ui gen-go
-	./_build/bin/weblens
-
-run\:go: gen-go
-	./_build/bin/weblens
-
-gen-go: FORCE
-	./scripts/startWeblens
 
 gen-ui: FORCE
 	cd weblens-vue/weblens-nuxt && \
@@ -67,5 +54,7 @@ docker\:build: $(GO_SOURCE) $(TS_SOURCE)
 
 docker: FORCE
 	./scripts/gogogadgetdocker.bash -p --skip-tests
+
+precommit: lint test
 
 FORCE:

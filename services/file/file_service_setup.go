@@ -2,7 +2,6 @@ package file
 
 import (
 	"context"
-	"maps"
 	"path/filepath"
 	"time"
 
@@ -352,11 +351,9 @@ func loadFsCore(ctx context.Context) error {
 var fpMap = make(map[file_system.Filepath]history.FileAction)
 
 func loadLifetimes(ctx context_service.AppContext) (map[file_system.Filepath]history.FileAction, error) {
-	ctx.Log().Debug().Msgf("Loading lifetimes for tower %s", ctx.LocalTowerID)
-
 	if len(fpMap) != 0 {
 		// Already loaded
-		return maps.Clone(fpMap), nil
+		return fpMap, nil
 	}
 
 	lifetimes, err := journal.GetLifetimesByTowerID(ctx, ctx.LocalTowerID, journal.GetLifetimesOptions{ActiveOnly: true})
@@ -373,11 +370,10 @@ func loadLifetimes(ctx context_service.AppContext) (map[file_system.Filepath]his
 
 		a.ContentID = lt.Actions[0].ContentID
 
-		ctx.Log().Debug().Msgf("Loaded lifetime action for file [%s]: %+v", a.GetRelevantPath(), a)
 		fpMap[a.GetRelevantPath()] = a
 	}
 
-	return maps.Clone(fpMap), nil
+	return fpMap, nil
 }
 
 func needsContentID(f *file_model.WeblensFileImpl) bool {

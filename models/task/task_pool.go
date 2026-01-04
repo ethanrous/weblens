@@ -112,36 +112,19 @@ func (tp *Pool) RemoveTask(taskID string) {
 }
 
 // HandleTaskExit processes task completion and determines if the worker should continue.
-func (tp *Pool) HandleTaskExit(replacementThread bool) (canContinue bool) {
+func (tp *Pool) HandleTaskExit(isReplacementThread bool) (canContinue bool) {
 	// Global queues do not finish and cannot be waited on. If this is NOT a global queue,
 	// we check if we are empty and finished, and if so, wake any waiters.
 	if !tp.treatAsGlobal {
 		uncompletedTasks := tp.totalTasks.Load() - tp.completedTasks.Load()
 
-		// Even if we are out of tasks, if we have not been told all tasks
-		// were queued, we do not wake the waiters
-		if uncompletedTasks == 0 && tp.allQueuedFlag.Load() {
-			tp.log.Debug().Msg("All tasks completed, closing task pool")
-			close(tp.waiterGate)
-
-			// Check if all waiters have awoken before closing the queue, spin and sleep for 10ms if not
-			// Should only loop a handful of times, if at all, we just need to wait for the waiters to
-			// lock and then release immediately. Should take, like, nanoseconds (?) each
-			for tp.waiterCount.Load() != 0 {
-				time.Sleep(time.Millisecond * 1)
-			}
-
-			// Once all the tasks have exited, this worker pool is now closing, and so we must run
-			// its cleanup routine(s)
-			if len(tp.cleanupFn) != 0 {
-				tp.runCleanups()
-			}
-
-			tp.workerPool.removeTaskPool(tp.ID())
+		if uncompletedTasks == 0 {
+			tp.handlePoolDeconstruction()
 		}
 	}
+
 	// If this is a replacement task, and we have more workers than the target for the pool, we exit
-	if replacementThread && tp.workerPool.currentWorkers.Load() > tp.workerPool.maxWorkers.Load() {
+	if isReplacementThread && tp.workerPool.currentWorkers.Load() > tp.workerPool.maxWorkers.Load() {
 		// Important to decrement alive workers inside the exitLock, so
 		// we don't have multiple workers exiting when we only need the 1
 		return false
@@ -149,7 +132,7 @@ func (tp *Pool) HandleTaskExit(replacementThread bool) (canContinue bool) {
 
 	// If we have already begun running the task,
 	// we must finish and clean up before checking exitFlag again here.
-	// The task *could* be cancelled to speed things up, but that
+	// The task *could* be canceled to speed things up, but that
 	// is not our job.
 	select {
 	case <-tp.workerPool.ctx.Done():
@@ -435,8 +418,7 @@ func (tp *Pool) SignalAllQueued() {
 	if tp.completedTasks.Load() == tp.totalTasks.Load() {
 		tp.log.Debug().Msgf("SignalAllQueued: Task pool [%s] already complete, waking up waiters and removing task pool from worker pool", tp.ID())
 
-		close(tp.waiterGate)
-		tp.workerPool.removeTaskPool(tp.ID())
+		tp.handlePoolDeconstruction()
 	} else {
 		tp.log.Trace().Msg("Task Pool NOT Complete")
 	}
@@ -447,6 +429,35 @@ func (tp *Pool) SignalAllQueued() {
 	if tp.hasQueueThread {
 		tp.workerPool.removeWorker()
 		tp.hasQueueThread = false
+	}
+}
+
+func (tp *Pool) handlePoolDeconstruction() {
+	// Check if the task pool is still active in the worker pool. If it is not,
+	// we do not attempt to wake the waiters or remove it again
+	poolStillActive := tp.workerPool.GetTaskPool(tp.ID()) != nil
+
+	// Even if we are out of tasks, if we have not been told all tasks
+	// were queued, we do not wake the waiters
+	if poolStillActive && tp.allQueuedFlag.Load() {
+		tp.log.Debug().Msgf("All tasks completed, closing task pool [%s]", tp.ID())
+
+		close(tp.waiterGate)
+
+		// Check if all waiters have awoken before closing the queue, spin and sleep for 1ms if not
+		// Should only loop a handful of times, if at all, we just need to wait for the waiters to
+		// lock and then release immediately. Should take, like, microseconds (?) each
+		for tp.waiterCount.Load() != 0 {
+			time.Sleep(time.Millisecond * 1)
+		}
+
+		// Once all the tasks have exited, this worker pool is now closing, and so we must run
+		// its cleanup routine(s)
+		if len(tp.cleanupFn) != 0 {
+			tp.runCleanups()
+		}
+
+		tp.workerPool.removeTaskPool(tp.ID())
 	}
 }
 

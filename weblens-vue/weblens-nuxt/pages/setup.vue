@@ -141,7 +141,6 @@ function setupServer() {
             role: towerTypeSelection.value,
         })
         .then(() => {
-            console.log('Tower initialized successfully.')
             return towerStore.refreshTowerInfo()
         })
         .finally(() => {
