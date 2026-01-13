@@ -13,21 +13,13 @@ import (
 
 // SaveUser validates and saves a new user to the database, hashing the password before storage.
 func SaveUser(ctx context.Context, u *User) (err error) {
-	if err := validateUsername(ctx, u.Username); err != nil {
-		return err
-	}
-
-	if err := validatePassword(u.Password); err != nil {
+	if err := ValidateUser(ctx, u); err != nil {
 		return err
 	}
 
 	if u.Password, err = cryptography.HashUserPassword(ctx, u.Password); err != nil {
 		return err
 	}
-
-	// if u.HomeID == "" {
-	// 	return errors.New("homeID cannot be empty")
-	// }
 
 	if u.ID.IsZero() {
 		u.ID = primitive.NewObjectID()

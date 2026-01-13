@@ -194,52 +194,10 @@ func GetPastFileByPath(ctx context.Context, path fs.Filepath, time time.Time) (*
 	return newFile, nil
 }
 
-// GetActionsByPathSince retrieves all file actions at or under the given path since the specified time.
-// The noChildren parameter controls whether to include descendant paths or only exact path matches.
-func GetActionsByPathSince(ctx context.Context, path fs.Filepath, since time.Time, noChildren bool) ([]history.FileAction, error) {
-	col, err := db.GetCollection[any](ctx, history.FileHistoryCollectionKey)
-	if err != nil {
-		return nil, err
-	}
-
-	var pathMatch bson.M
-
-	if !noChildren {
-		pathMatch = pathPrefixReFilter(path, 1)
-	}
-
-	pipe := bson.A{
-		bson.M{"$match": bson.M{"timestamp": bson.M{"$gt": since}}},
-		bson.M{"$match": pathMatch},
-		// bson.D{{Key: "$unwind", Value: bson.D{{Key: "path", Value: "$actions"}}}},
-		// bson.D{{Key: "$match", Value: bson.D{{Key: "$or", Value: pathMatch}}}},
-		// bson.D{{Key: "$replaceRoot", Value: bson.D{{Key: "newRoot", Value: "$actions"}}}},
-		bson.D{{Key: "$sort", Value: bson.D{{Key: "timestamp", Value: -1}}}},
-	}
-
-	ret, err := col.Aggregate(context.Background(), pipe)
-	if err != nil {
-		return nil, wlerrors.WithStack(err)
-	}
-
-	var target []history.FileAction
-
-	err = ret.All(context.Background(), &target)
-	if err != nil {
-		return nil, wlerrors.WithStack(err)
-	}
-
-	return target, nil
-}
-
-// GetActionsSince retrieves all file actions since the specified time.
-func GetActionsSince(ctx context.Context, time time.Time) ([]*history.FileAction, error) {
-	return getActionsSince(ctx, time, "")
-}
 
 // GetActionsPage retrieves a paginated list of file actions.
 func GetActionsPage(ctx context.Context, pageSize, pageNum int) ([]history.FileAction, error) {
-	return getActionsPage(ctx, pageSize, pageNum, "")
+	return history.GetActionsPage(ctx, pageSize, pageNum, "")
 }
 
 // GetAllActionsByTowerID retrieves all file actions associated with a specific tower,

@@ -1,5 +1,8 @@
 <template>
-    <div :class="{ 'page-root items-center p-8': true }">
+    <div
+        v-if="!userStore.user.isLoggedIn.get({ default: false })"
+        :class="{ 'page-root items-center p-8': true }"
+    >
         <div
             :class="{
                 'bg-background-primary border-border-primary relative z-10 m-auto flex h-max max-h-screen min-w-0 flex-col items-center justify-center gap-2 rounded-2xl border p-8 shadow-2xl sm:justify-normal lg:my-0': true,
@@ -76,7 +79,6 @@ import { useWeblensAPI } from '~/api/AllApi'
 import Logo from '~/components/atom/Logo.vue'
 import WeblensButton from '~/components/atom/WeblensButton.vue'
 import WeblensInput from '~/components/atom/WeblensInput.vue'
-import useLocationStore from '~/stores/location'
 import User from '~/types/user'
 
 const username = ref('')
@@ -84,9 +86,7 @@ const password = ref('')
 const loading = ref(false)
 const formError = ref<string | null>(null)
 
-// Hook into location store to ensure redirects work
-// properly before and after login
-useLocationStore()
+const userStore = useUserStore()
 
 onKeyDown('Enter', doLogin)
 
@@ -106,7 +106,7 @@ async function doLogin() {
             // useFileBrowserStore.getState().reset()
             const user = new User(res.data)
 
-            useUserStore().setUser(user, true)
+            userStore.setUser(user, true)
 
             navigateTo({ path: '/files/home' })
         })

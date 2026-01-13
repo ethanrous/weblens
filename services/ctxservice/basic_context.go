@@ -26,6 +26,11 @@ func (b BasicContext) Log() *zerolog.Logger {
 	return log.FromContext(b.Context)
 }
 
+// ReplaceLogger returns a copy of BasicContext with the specified logger.
+func (b BasicContext) ReplaceLogger(newLogger *zerolog.Logger) BasicContext {
+	return NewBasicContext(b.Context, newLogger)
+}
+
 // WithValue returns a copy of BasicContext with the specified key-value pair added.
 func (b BasicContext) WithValue(key, value any) BasicContext {
 	b.Context = context.WithValue(b.Context, key, value)

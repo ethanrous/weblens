@@ -122,6 +122,7 @@
     --color-card-background-primary: light-dark(var(--color-aurora-300), var(--color-abyss-400));
     --color-card-background-hover: light-dark(var(--color-aurora-400), var(--color-aurora-800));
     --color-card-background-selected: light-dark(var(--color-bluenova-200), var(--color-amethyst-900));
+    --color-card-background-selected-hover: light-dark(var(--color-bluenova-300), var(--color-amethyst-800));
     --color-card-background-disabled: light-dark(var(--color-aurora-400), var(--color-abyss-50));
 
     --color-shadow: light-dark(var(--color-abyss-50), var(--color-abyss-900));

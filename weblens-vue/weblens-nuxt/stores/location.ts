@@ -65,25 +65,50 @@ const useLocationStore = defineStore('location', () => {
     })
 
     watchEffect(() => {
-        const loggedIn = userStore.user.isLoggedIn
-        if (route.path !== '/setup' && towerStore.towerInfo?.role === TowerRole.INIT) {
+        // Wait until user login state is known
+        if (!userStore.user.isLoggedIn.isSet()) return
+
+        const isLoggedIn = userStore.user.isLoggedIn.get({ default: false })
+        const towerRole = towerStore.towerInfo?.role
+
+        // If the tower is uninitialized, always redirect to setup page
+        if (route.path !== '/setup' && towerRole === TowerRole.UNINITIALIZED) {
             return navigateTo('/setup')
-        } else if (route.path === '/setup' && towerStore.towerInfo?.role !== TowerRole.INIT) {
-            if (loggedIn.isSet() && loggedIn.get()) {
-                return navigateTo('/files/home')
-            }
+        } else if (route.path === '/setup' && towerRole !== TowerRole.UNINITIALIZED) {
+            // If the tower is initialized, redirect away from setup page
+            if (isLoggedIn) return navigateTo('/files/home')
 
             return navigateTo('/login')
         }
 
+        // Handle backup tower redirection
+        if (towerRole === TowerRole.BACKUP) {
+            // If not logged in, redirect to login page
+            if (!isLoggedIn) return navigateTo('/login')
+
+            // If logged in, redirect to backup page
+            if (route.path.startsWith('/files')) return navigateTo('/backup')
+
+            return
+        }
+
+        if (route.path === '/login' && isLoggedIn) {
+            console.warn('User is already logged in, redirecting to /files/home')
+
+            return navigateTo('/files/home')
+        }
+
         if (!isInFiles.value) return
 
-        if ((!isInShare.value || !activeShareID.value) && loggedIn.isSet() && !loggedIn.get()) {
+        // If not logged in and not in share, redirect to login
+        if ((!isInShare.value || !activeShareID.value) && !isLoggedIn) {
             console.warn('User is not logged in and not in share, redirecting to login page')
 
             return navigateTo({ path: '/login' })
         }
 
+        // If in share but no fileID, redirect to share root. This allows sharing links to be shorter
+        // e.g. /files/share/:shareID instead of /files/share/:shareID/:fileID
         if (isInShare && activeShare.value && !route.params.fileID) {
             return navigateTo({
                 path: `/files/share/${activeShareID.value}/${activeShare.value?.fileID}`,

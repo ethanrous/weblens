@@ -80,7 +80,18 @@ func CopyFileFromCore(tsk *task.Task) {
 		return
 	}
 
+	tsk.Log().Trace().Func(func(e *zerolog.Event) {
+		e.Msgf("Copy file is linking %s -> %s", restoreFile.GetPortablePath().ToAbsolute(), meta.File.GetPortablePath().ToAbsolute())
+	})
+
 	err = os.Link(restoreFile.GetPortablePath().ToAbsolute(), meta.File.GetPortablePath().ToAbsolute())
+	if err != nil {
+		tsk.Fail(err)
+
+		return
+	}
+
+	err = ctx.FileService.AddFile(tsk.Ctx, meta.File)
 	if err != nil {
 		tsk.Fail(err)
 

@@ -55,11 +55,11 @@ class WeblensMedia implements MediaInfo {
     }
 
     public get id(): string {
-        return this.contentId
+        return this.contentID
     }
 
     ID(): string {
-        return this.contentId
+        return this.contentID
     }
 
     GetOwner(): string {

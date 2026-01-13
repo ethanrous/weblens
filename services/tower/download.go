@@ -9,7 +9,7 @@ import (
 
 // DownloadFileFromCore downloads a file from a core server and writes it to the destination.
 func DownloadFileFromCore(ctx context.Context, core tower_model.Instance, fileID string, dest io.Writer) error {
-	client, err := getAPIClient(ctx, core)
+	client, err := getAPIClient(ctx, core, clientOpts{})
 	if err != nil {
 		return err
 	}

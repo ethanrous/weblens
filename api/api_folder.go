@@ -267,13 +267,6 @@ type ApiGetFolderHistoryRequest struct {
 	ctx context.Context
 	ApiService *FolderAPIService
 	fileID string
-	timestamp *int32
-}
-
-// Past timestamp to view the folder at, in ms since epoch
-func (r ApiGetFolderHistoryRequest) Timestamp(timestamp int32) ApiGetFolderHistoryRequest {
-	r.timestamp = &timestamp
-	return r
 }
 
 func (r ApiGetFolderHistoryRequest) Execute() ([]FileActionInfo, *http.Response, error) {
@@ -316,11 +309,7 @@ func (a *FolderAPIService) GetFolderHistoryExecute(r ApiGetFolderHistoryRequest)
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
-	if r.timestamp == nil {
-		return localVarReturnValue, nil, reportError("timestamp is required and must be specified")
-	}
 
-	parameterAddToHeaderOrQuery(localVarQueryParams, "timestamp", r.timestamp, "", "")
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 

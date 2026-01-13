@@ -50,6 +50,8 @@ var ErrNotAuthorized = wlerrors.New("not authorized")
 func RequireSignIn(next Handler) Handler {
 	return HandlerFunc(func(ctx context_service.RequestContext) {
 		if !ctx.IsLoggedIn {
+			ctx.Log().Trace().Msg("Expected authenticated user, but none found, returning 401")
+
 			ctx.Error(http.StatusUnauthorized, ErrNotAuthenticated)
 
 			return
@@ -138,7 +140,7 @@ func WeblensAuth(next Handler) Handler {
 			return
 		}
 
-		if local.Role == tower_model.RoleInit {
+		if local.Role == tower_model.RoleUninitialized {
 			next.ServeHTTP(ctx)
 
 			return
@@ -160,6 +162,8 @@ func WeblensAuth(next Handler) Handler {
 
 		authHeader := ctx.Header("Authorization")
 		if authHeader != "" {
+			ctx.Log().Trace().Msg("Authorization header found, attempting to authenticate via header")
+
 			usr, err := auth_service.GetUserFromAuthHeader(ctx, authHeader)
 			if err != nil {
 				ctx.Error(http.StatusUnauthorized, wlerrors.Wrap(err, "failed to validate authorization header"))
@@ -314,12 +318,35 @@ func HeaderHandler(fieldKey string) func(next http.Handler) http.Handler {
 	}
 }
 
+// NewHandler injects log into request contexts.
+// Each request gets its own copy of the logger to avoid data races
+// when UpdateContext is called by downstream middleware.
+func NewHandler() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			appCtx, ok := context_service.FromContext(r.Context())
+			if !ok {
+				next.ServeHTTP(w, r)
+
+				return
+			}
+
+			// Create a copy of the logger for this request to avoid races
+			// when UpdateContext is called concurrently by multiple requests
+			logger := appCtx.Log().With().Logger()
+			r = r.WithContext(logger.WithContext(r.Context()))
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 // LoggerMiddlewares returns a collection of middleware functions that handle request logging.
-func LoggerMiddlewares(logger zerolog.Logger) []func(http.Handler) http.Handler {
+func LoggerMiddlewares() []func(http.Handler) http.Handler {
 	doDevLog := config.GetConfig().LogFormat == "dev"
 
 	return []func(http.Handler) http.Handler{
-		hlog.NewHandler(logger),
+		NewHandler(),
 		URLGroupHandler("url_group"),
 		QueryParamHandler("query"),
 		HeaderHandler("header"),
@@ -331,7 +358,7 @@ func LoggerMiddlewares(logger zerolog.Logger) []func(http.Handler) http.Handler 
 				start := time.Now()
 
 				ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
-				l := hlog.FromRequest(r).With().Logger()
+				l := zerolog.Ctx(r.Context()).With().Logger()
 				r = r.WithContext(log.WithContext(r.Context(), &l))
 
 				next.ServeHTTP(ww, r)

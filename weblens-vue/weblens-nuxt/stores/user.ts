@@ -5,7 +5,7 @@ import User from '~/types/user'
 export const useUserStore = defineStore('user', () => {
     const user = shallowRef(new User())
 
-    const loggedIn = computed(() => user.value.isLoggedIn.get(false))
+    const loggedIn = computed(() => user.value.isLoggedIn.get({ default: false }))
 
     function setUser(info: UserInfo, isLoggedIn: boolean = false) {
         console.debug('Setting user info:', info, 'Logged in:', isLoggedIn)

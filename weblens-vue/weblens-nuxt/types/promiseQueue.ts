@@ -30,7 +30,7 @@ export default class TaskQueue {
         }
 
         if (this.activeRunnerCount < this.maxConcurrentRunners) {
-            this.noCollide[this.activeRunnerCount] = taskGroupId
+            this.noCollide[this.activeRunnerCount] = taskGroupID
             this.activeRunnerCount++
             await this.run(this.activeRunnerCount - 1, taskGroupID)
         } else if (taskGroupID) {

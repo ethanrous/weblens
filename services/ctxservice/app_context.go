@@ -14,6 +14,7 @@ import (
 	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/services/notify"
+	"github.com/rs/zerolog"
 	"github.com/viccon/sturdyc"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -198,4 +199,11 @@ func (c AppContext) GetFileService() file.Service {
 // GetTowerID returns the ID of the local tower.
 func (c AppContext) GetTowerID() string {
 	return c.LocalTowerID
+}
+
+// ReplaceLogger returns a copy of AppContext with the specified logger.
+func (c AppContext) ReplaceLogger(newLogger *zerolog.Logger) AppContext {
+	c.BasicContext = c.BasicContext.ReplaceLogger(newLogger)
+
+	return c
 }

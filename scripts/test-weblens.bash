@@ -14,15 +14,18 @@ run_native_tests() {
     touch /tmp/weblens.env
     export WEBLENS_ENV_PATH=/tmp/weblens.env
     export WEBLENS_DO_CACHE=false
-    export WEBLENS_MONGODB_URI=${WEBLENS_MONGODB_URI:-"mongodb://127.0.0.1:27018/?replicaSet=rs0&directConnection=true"}
+    export WEBLENS_MONGODB_URI=${WEBLENS_MONGODB_URI:-"mongodb://127.0.0.1:27019/?replicaSet=rs0&directConnection=true"}
     export WEBLENS_LOG_LEVEL="${WEBLENS_LOG_LEVEL:-debug}"
     export WEBLENS_LOG_FORMAT="dev"
 
     echo "Running tests with mongo [$WEBLENS_MONGODB_URI] and test target: [$target]"
 
     mkdir -p ./_build/cover/
-    go test -v -cover -race -coverprofile=_build/cover/coverage.out -tags=test "$target" | grep -v -e "=== RUN" -e "=== PAUSE" -e "--- PASS"
-    exit $?
+
+    # shellcheck disable=SC2086
+    go test -v -cover -race -coverprofile=_build/cover/coverage.out -coverpkg ./... -tags=test ${target} 2>&1 | grep -v -e "=== RUN" -e "=== PAUSE" -e "--- PASS" -e "coverage:" -e "=== CONT" -e "ld: warning:"
+
+    sed -i '' '/github\.com\/ethanrous\/weblens\/api/d' ./_build/cover/coverage.out
 }
 
 run_container_tests() {
@@ -78,7 +81,7 @@ if [[ "$lazy" = true ]] && is_mongo_running "weblens-test-mongo"; then
     printf "Skipping mongo container re-deploy (lazy mode)...\n"
 else
     cleanup_mongo "weblens-test-mongo" | show_as_subtask "Resetting mongo testing volumes..." "green"
-    launch_mongo "weblens-test-mongo" | show_as_subtask "Launching mongo..." "green"
+    launch_mongo "weblens-test-mongo" 27019 | show_as_subtask "Launching mongo..." "green"
 fi
 
 if [[ "$containerize" = false ]]; then

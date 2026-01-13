@@ -14,6 +14,7 @@ import (
 	cover_model "github.com/ethanrous/weblens/models/cover"
 	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
+	"github.com/ethanrous/weblens/models/history"
 	"github.com/ethanrous/weblens/models/job"
 	media_model "github.com/ethanrous/weblens/models/media"
 	share_model "github.com/ethanrous/weblens/models/share"
@@ -26,7 +27,6 @@ import (
 	"github.com/ethanrous/weblens/services/auth"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	file_service "github.com/ethanrous/weblens/services/file"
-	"github.com/ethanrous/weblens/services/journal"
 	media_service "github.com/ethanrous/weblens/services/media"
 	"github.com/ethanrous/weblens/services/notify"
 	"github.com/ethanrous/weblens/services/reshape"
@@ -157,7 +157,7 @@ func DownloadFile(ctx context_service.RequestContext) {
 	ctx.Log().Debug().Msgf("Headers?: %v", ctx.Req.Header)
 
 	acceptType := ctx.Query("format")
-	ctx.Log().Debug().Msgf("Accept type: %s", acceptType)
+	ctx.Log().Debug().Msgf("Accept type: [%s]", acceptType)
 
 	if acceptType != "" && acceptType != "image/webp" {
 		mt := media_model.ParseMime(acceptType)
@@ -258,7 +258,6 @@ func GetFolder(ctx context_service.RequestContext) {
 //	@Summary	Get actions of a folder at a given time
 //	@Tags		Folder
 //	@Param		fileID		path	string					true	"File ID"
-//	@Param		timestamp	query	int						true	"Past timestamp to view the folder at, in ms since epoch"
 //	@Success	200			{array}	structs.FileActionInfo	"File actions"
 //	@Failure	400
 //	@Failure	500
@@ -269,28 +268,7 @@ func GetFolderHistory(ctx context_service.RequestContext) {
 		return
 	}
 
-	// pastTime := time.Now()
-	//
-	// milliStr := ctx.Query("timestamp")
-	// if milliStr != "" && milliStr != "0" {
-	// 	millis, err := strconv.ParseInt(milliStr, 10, 64)
-	// 	if err != nil {
-	// 		ctx.Error(http.StatusBadRequest, errors.New("invalid timestamp format"))
-	//
-	// 		return
-	// 	}
-	//
-	// 	pastTime = time.UnixMilli(millis)
-	// }
-
-	// pastFile, err := journal.GetPastFile(ctx, file.GetPortablePath(), pastTime)
-	// if err != nil {
-	// 	ctx.Error(http.StatusNotFound, err)
-	//
-	// 	return
-	// }
-
-	actions, err := journal.GetActionsByPathSince(ctx, file.GetPortablePath(), time.Time{}, false)
+	actions, err := history.GetActionsAtPathAfter(ctx, file.GetPortablePath(), time.Time{}, false)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 
@@ -425,7 +403,7 @@ func CreateFolder(ctx context_service.RequestContext) {
 		return
 	}
 
-	ctx.Log().Debug().Msgf("User %s DOES have permission to create a folder in %s", ctx.Doer(), parentFolder.GetPortablePath())
+	ctx.Log().Trace().Msgf("User [%s] DOES have permission to create a folder in [%s]", ctx.Doer().Username, parentFolder.GetPortablePath())
 
 	// var children []*file_model.WeblensFileImpl
 	// if len(body.Children) != 0 {

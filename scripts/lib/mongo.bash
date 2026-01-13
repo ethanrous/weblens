@@ -48,6 +48,7 @@ ensure_repl_set() {
 
 launch_mongo() {
     local mongo_name="${1?[ERROR] launch_mongo called with no container name. Aborting}"
+    local mongo_port="${2:-27017}"
 
     ensure_weblens_net
 
@@ -56,7 +57,7 @@ launch_mongo() {
     fi
 
     if ! dockerc ps | grep "$mongo_name" &>/dev/null; then
-        echo "Starting MongoDB container [$mongo_name] ..."
+        echo "Starting MongoDB container [$mongo_name] on port [:$mongo_port] ..."
 
         dockerc run \
             -d \
@@ -64,7 +65,7 @@ launch_mongo() {
             --name "$mongo_name" \
             -v ./_build/log/syslog:/var/log/syslog \
             --mount type=volume,src="$mongo_name",dst=/data/db \
-            --publish 27018:27017 \
+            --publish "$mongo_port":27017 \
             --network weblens-net \
             -e WEBLENS_MONGO_HOST_NAME="$mongo_name" \
             ethrous/weblens-mongo || exit 1

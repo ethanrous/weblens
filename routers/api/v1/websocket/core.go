@@ -23,7 +23,8 @@ import (
 )
 
 // retryInterval defines the duration to wait between websocket connection retry attempts.
-const retryInterval = time.Minute
+const retryInterval = time.Second
+const maxRetryInterval = time.Minute * 5
 
 // timeout specifies the maximum duration for the websocket handshake to complete.
 const timeout = time.Second * 10
@@ -103,31 +104,36 @@ func ConnectCore(c context.Context, core *tower_model.Instance) error {
 	authHeader.Add("Authorization", "Bearer "+string(core.OutgoingKey))
 	authHeader.Add(tower_service.TowerIDHeader, ctx.LocalTowerID)
 
-	log.Debug().Msgf("Websocket connecting to core \"%s\" [%s] using %s", core.Name, core.TowerID, core.OutgoingKey)
+	log.Debug().Msgf("Websocket connecting to core \"%s\" [%s]", core.Name, core.TowerID)
 
 	var client *client_model.WsClient
 
 	dialWithRetry := func() {
+		activeRetry := retryInterval
+
 		for {
 			client, err = dial(ctx, dialer, *coreURL, authHeader, core)
 			if err != nil {
 				ctx.Log().Error().Msgf(
 					"Failed to connect to core server at %s: %s. Trying again in %s",
-					coreURL.String(), err, retryInterval,
+					coreURL.String(), err, activeRetry,
 				)
 
 				select {
 				case <-c.Done():
 					return
-				case <-time.After(retryInterval):
+				case <-time.After(activeRetry):
+				}
+
+				activeRetry *= 2
+				if activeRetry > maxRetryInterval {
+					activeRetry = maxRetryInterval
 				}
 
 				continue
 			}
 
-			ctx.Log().Debug().Func(func(e *zerolog.Event) {
-				e.Msgf("Connection to core [%s] at [%s] successfully established", core.Name, coreURL.String())
-			})
+			ctx.Log().Debug().Msgf("Connection to core [%s] at [%s] successfully established", core.Name, coreURL.String())
 
 			err = coreWsHandler(ctx, client)
 
@@ -151,7 +157,7 @@ func ConnectCore(c context.Context, core *tower_model.Instance) error {
 }
 
 func dial(ctx context_service.AppContext, dialer *websocket.Dialer, host url.URL, authHeader http.Header, core *tower_model.Instance) (*client_model.WsClient, error) {
-	log.Trace().Msgf("Dialing %s", host.String())
+	ctx.Log().Trace().Msgf("Dialing %s", host.String())
 
 	conn, _, err := dialer.Dial(host.String(), authHeader)
 	if err != nil {
@@ -251,7 +257,7 @@ func wsCoreClientSwitchboard(ctx context_service.AppContext, msgBuf []byte, c *c
 		var role tower_model.Role
 
 		switch tower_model.Role(roleStr) {
-		case tower_model.RoleCore, tower_model.RoleBackup, tower_model.RoleInit:
+		case tower_model.RoleCore, tower_model.RoleBackup, tower_model.RoleUninitialized:
 			role = tower_model.Role(roleStr)
 		default:
 			c.Error(wlerrors.Errorf("Invalid role in weblens_loaded message: %v", roleI))

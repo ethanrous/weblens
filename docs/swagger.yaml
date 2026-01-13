@@ -107,8 +107,6 @@ definitions:
         type: array
       contentID:
         type: string
-      currentID:
-        type: string
       hasRestoreMedia:
         type: boolean
       id:
@@ -118,6 +116,7 @@ definitions:
       modifiable:
         type: boolean
       modifyTimestamp:
+        format: int64
         type: integer
       owner:
         type: string
@@ -130,6 +129,7 @@ definitions:
       shareID:
         type: string
       size:
+        format: int64
         type: integer
     type: object
   FileShareParams:
@@ -471,6 +471,7 @@ definitions:
       enabled:
         type: boolean
       expires:
+        format: int64
         type: integer
       fileID:
         type: string
@@ -491,6 +492,7 @@ definitions:
       timelineOnly:
         type: boolean
       updated:
+        format: int64
         type: integer
       wormhole:
         type: boolean
@@ -576,6 +578,8 @@ definitions:
       lastBackup:
         format: int64
         type: integer
+      logLevel:
+        type: string
       name:
         type: string
       online:
@@ -962,11 +966,6 @@ paths:
         name: fileID
         required: true
         type: string
-      - description: Past timestamp to view the folder at, in ms since epoch
-        in: query
-        name: timestamp
-        required: true
-        type: integer
       responses:
         "200":
           description: File actions
@@ -2086,6 +2085,22 @@ paths:
       summary: Get Running Tasks
       tags:
       - Towers
+  /tower/trace:
+    post:
+      operationId: EnableTraceLogging
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Enable trace logging
+      tags:
+      - Towers
   /upload:
     post:
       operationId: StartUpload
@@ -2386,6 +2401,8 @@ paths:
       responses:
         "200":
           description: OK
+          schema:
+            $ref: '#/definitions/UserInfo'
         "400":
           description: Bad Request
           schema:

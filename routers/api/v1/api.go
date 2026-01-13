@@ -109,7 +109,7 @@ func Routes(_ context_service.AppContext) *router.Router {
 	r.Group("/users", func() {
 		// Must not use weblens auth here, as the user is not logged in yet
 		r.Post("/auth", user_api.Login)
-		r.Head("/unique", user_api.CheckExists)
+		r.Head("/{username}", user_api.CheckExists)
 
 		r.Group("", func() {
 			r.Get("", user_api.GetAll)
@@ -148,7 +148,7 @@ func Routes(_ context_service.AppContext) *router.Router {
 	r.Group("/keys", func() {
 		r.Get("", user_api.GetMyTokens)
 		r.Post("", user_api.CreateAPIKey)
-		r.Delete("/{keyID}", user_api.DeleteToken)
+		r.Delete("/{tokenID}", user_api.DeleteToken)
 	}, router.RequireSignIn, router.RequireCoreTower)
 
 	// Servers
@@ -165,8 +165,8 @@ func Routes(_ context_service.AppContext) *router.Router {
 			r.Get("/backup", history_api.DoFullBackup)
 
 			r.Post("/{serverID}/backup", backup_api.LaunchBackup)
-			// r.Post("/{serverID}/restore", restoreToCore)
-			// r.Patch("/{serverID}", updateRemote)
+
+			r.Post("/trace", tower_api.EnableTraceLogging)
 			r.Delete("/{serverID}", tower_api.DeleteRemote)
 
 			r.Delete("/cache", tower_api.DeleteRemote)

@@ -4,7 +4,6 @@ package client
 import (
 	"context"
 	"encoding/json"
-	"iter"
 	"net"
 	"slices"
 	"sync"
@@ -31,7 +30,7 @@ type WsClient struct {
 	tower         *tower_model.Instance
 	connID        ID
 	subscriptions []websocket_mod.Subscription
-	updateMu      sync.Mutex
+	updateMu      sync.RWMutex
 	subsMu        sync.Mutex
 	Active        atomic.Bool
 
@@ -52,7 +51,7 @@ func NewClient(ctx context.Context, conn *websocket.Conn, socketUser SocketUser)
 	newClient := &WsClient{
 		connID:   ID(clientID),
 		conn:     conn,
-		updateMu: sync.Mutex{},
+		updateMu: sync.RWMutex{},
 		subsMu:   sync.Mutex{},
 	}
 	newClient.Active.Store(true)
@@ -131,11 +130,11 @@ func (wsc *WsClient) Error(err error) {
 }
 
 // GetSubscriptions returns an iterator over the client's current subscriptions.
-func (wsc *WsClient) GetSubscriptions() iter.Seq[websocket_mod.Subscription] {
-	wsc.updateMu.Lock()
-	defer wsc.updateMu.Unlock()
+func (wsc *WsClient) GetSubscriptions() []websocket_mod.Subscription {
+	wsc.updateMu.RLock()
+	defer wsc.updateMu.RUnlock()
 
-	return slices.Values(wsc.subscriptions)
+	return wsc.subscriptions
 }
 
 // AddSubscription adds a new subscription to the client.

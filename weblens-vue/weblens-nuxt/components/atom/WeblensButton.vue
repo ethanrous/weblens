@@ -7,7 +7,7 @@
             'aspect-square': !textContent || justIcon,
             'rounded-none first:rounded-l last:rounded-r': merge === 'row',
             'rounded-none first:rounded-t last:rounded-b': merge === 'column',
-            '!p-0': !textContent,
+            'p-0!': !textContent,
         }"
         :data-flavor="buttonError ? 'danger' : flavor"
         :data-type="type"

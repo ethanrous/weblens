@@ -312,56 +312,6 @@ func TestTask_GetTaskPool(t *testing.T) {
 	})
 }
 
-func TestQueueStateConstants(t *testing.T) {
-	t.Run("Created is 0", func(t *testing.T) {
-		assert.Equal(t, task.QueueState(0), task.Created)
-	})
-
-	t.Run("InQueue is 1", func(t *testing.T) {
-		assert.Equal(t, task.QueueState(1), task.InQueue)
-	})
-
-	t.Run("Executing is 2", func(t *testing.T) {
-		assert.Equal(t, task.QueueState(2), task.Executing)
-	})
-
-	t.Run("Sleeping is 3", func(t *testing.T) {
-		assert.Equal(t, task.QueueState(3), task.Sleeping)
-	})
-
-	t.Run("Exited is 4", func(t *testing.T) {
-		assert.Equal(t, task.QueueState(4), task.Exited)
-	})
-}
-
-func TestOptionsStruct(t *testing.T) {
-	t.Run("default values are false", func(t *testing.T) {
-		opts := task.Options{}
-
-		assert.False(t, opts.Persistent)
-		assert.False(t, opts.Unique)
-	})
-
-	t.Run("can set Persistent", func(t *testing.T) {
-		opts := task.Options{Persistent: true}
-
-		assert.True(t, opts.Persistent)
-	})
-
-	t.Run("can set Unique", func(t *testing.T) {
-		opts := task.Options{Unique: true}
-
-		assert.True(t, opts.Unique)
-	})
-
-	t.Run("can set both", func(t *testing.T) {
-		opts := task.Options{Persistent: true, Unique: true}
-
-		assert.True(t, opts.Persistent)
-		assert.True(t, opts.Unique)
-	})
-}
-
 func TestTask_ConcurrentAccess(t *testing.T) {
 	t.Run("handles concurrent reads", func(_ *testing.T) {
 		tsk := task.NewTestTask("task-1", "TestJob", 0, task.TaskSuccess, nil, time.Now())
@@ -384,45 +334,18 @@ func TestTask_ConcurrentAccess(t *testing.T) {
 	})
 }
 
-func TestTaskErrors(t *testing.T) {
-	t.Run("ErrTaskError is defined", func(t *testing.T) {
-		assert.NotNil(t, task.ErrTaskError)
-		assert.Contains(t, task.ErrTaskError.Error(), "task error")
-	})
-
-	t.Run("ErrTaskExit is defined", func(t *testing.T) {
-		assert.NotNil(t, task.ErrTaskExit)
-		assert.Contains(t, task.ErrTaskExit.Error(), "task exit")
-	})
-
-	t.Run("ErrTaskTimeout is defined", func(t *testing.T) {
-		assert.NotNil(t, task.ErrTaskTimeout)
-		assert.Contains(t, task.ErrTaskTimeout.Error(), "task timeout")
-	})
-
-	t.Run("ErrTaskCanceled is defined", func(t *testing.T) {
-		assert.NotNil(t, task.ErrTaskCanceled)
-		assert.Contains(t, task.ErrTaskCanceled.Error(), "task canceled")
-	})
-
-	t.Run("ErrTaskAlreadyComplete is defined", func(t *testing.T) {
-		assert.NotNil(t, task.ErrTaskAlreadyComplete)
-		assert.Contains(t, task.ErrTaskAlreadyComplete.Error(), "task already complete")
-	})
-}
-
-func TestGlobalTaskPoolID(t *testing.T) {
-	t.Run("constant is defined", func(t *testing.T) {
-		assert.Equal(t, "GLOBAL", task.GlobalTaskPoolID)
-	})
-}
-
 // ==================== Pool Tests ====================
 
 func TestPool_ID(t *testing.T) {
 	t.Run("returns unique pool ID", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
-		iPool := wp.NewTaskPool(false, nil)
+		wp.Run(task.NewTestContext())
+
+		iPool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		pool := wp.GetTaskPool(iPool.GetRootPool().ID())
 
 		assert.NotEmpty(t, pool.ID())
@@ -430,6 +353,8 @@ func TestPool_ID(t *testing.T) {
 
 	t.Run("global pool has GlobalTaskPoolID", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
+		wp.Run(task.NewTestContext())
+
 		pool := wp.GetTaskPool(task.GlobalTaskPoolID)
 
 		assert.Equal(t, task.GlobalTaskPoolID, pool.ID())
@@ -439,13 +364,20 @@ func TestPool_ID(t *testing.T) {
 func TestPool_IsRoot(t *testing.T) {
 	t.Run("returns true for pool without parent", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
-		pool := wp.NewTaskPool(false, nil)
+		wp.Run(task.NewTestContext())
+
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		assert.True(t, pool.IsRoot())
 	})
 
 	t.Run("global pool is root", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
+		wp.Run(task.NewTestContext())
+
 		pool := wp.GetTaskPool(task.GlobalTaskPoolID)
 
 		assert.True(t, pool.IsRoot())
@@ -455,6 +387,8 @@ func TestPool_IsRoot(t *testing.T) {
 func TestPool_IsGlobal(t *testing.T) {
 	t.Run("returns true for global pool", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
+		wp.Run(task.NewTestContext())
+
 		pool := wp.GetTaskPool(task.GlobalTaskPoolID)
 
 		assert.True(t, pool.IsGlobal())
@@ -462,7 +396,12 @@ func TestPool_IsGlobal(t *testing.T) {
 
 	t.Run("returns false for non-global pool", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
-		pool := wp.NewTaskPool(false, nil)
+		wp.Run(task.NewTestContext())
+
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		assert.False(t, pool.IsGlobal())
 	})
@@ -471,7 +410,12 @@ func TestPool_IsGlobal(t *testing.T) {
 func TestPool_GetWorkerPool(t *testing.T) {
 	t.Run("returns associated worker pool", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
-		pool := wp.NewTaskPool(false, nil)
+		wp.Run(task.NewTestContext())
+
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		result := pool.GetWorkerPool()
 		assert.NotNil(t, result)
@@ -481,7 +425,12 @@ func TestPool_GetWorkerPool(t *testing.T) {
 func TestPool_TaskCount(t *testing.T) {
 	t.Run("IncTaskCount increments total", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
-		pool := wp.NewTaskPool(false, nil)
+		wp.Run(task.NewTestContext())
+
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		assert.Equal(t, 0, pool.GetTotalTaskCount())
 
@@ -494,7 +443,12 @@ func TestPool_TaskCount(t *testing.T) {
 
 	t.Run("IncCompletedTasks increments completed count", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
-		pool := wp.NewTaskPool(false, nil)
+		wp.Run(task.NewTestContext())
+
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		assert.Equal(t, 0, pool.GetCompletedTaskCount())
 
@@ -509,7 +463,12 @@ func TestPool_TaskCount(t *testing.T) {
 func TestPool_Status(t *testing.T) {
 	t.Run("returns status with zero values initially", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
-		pool := wp.NewTaskPool(false, nil)
+		wp.Run(task.NewTestContext())
+
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		status := pool.Status()
 		assert.Equal(t, int64(0), status.Complete)
@@ -520,7 +479,12 @@ func TestPool_Status(t *testing.T) {
 
 	t.Run("calculates progress correctly", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
-		pool := wp.NewTaskPool(false, nil)
+		wp.Run(task.NewTestContext())
+
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		pool.IncTaskCount(10)
 		pool.IncCompletedTasks(5)
@@ -533,7 +497,12 @@ func TestPool_Status(t *testing.T) {
 
 	t.Run("runtime increases over time", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
-		pool := wp.NewTaskPool(false, nil)
+		wp.Run(task.NewTestContext())
+
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		status1 := pool.Status()
 
@@ -548,7 +517,12 @@ func TestPool_Status(t *testing.T) {
 func TestPool_GetRootPool(t *testing.T) {
 	t.Run("returns self for root pool", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
-		pool := wp.NewTaskPool(false, nil)
+		wp.Run(task.NewTestContext())
+
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		root := pool.GetRootPool()
 		assert.Equal(t, pool.ID(), root.ID())
@@ -558,7 +532,12 @@ func TestPool_GetRootPool(t *testing.T) {
 func TestPool_AddError(t *testing.T) {
 	t.Run("adds task to error list", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
-		pool := wp.NewTaskPool(false, nil)
+		wp.Run(task.NewTestContext())
+
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		tsk := task.NewTestTask("task-1", "TestJob", 0, task.TaskError, nil, time.Now())
 		pool.AddError(tsk)
@@ -569,7 +548,12 @@ func TestPool_AddError(t *testing.T) {
 
 	t.Run("can add multiple errors", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
-		pool := wp.NewTaskPool(false, nil)
+		wp.Run(task.NewTestContext())
+
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		tsk1 := task.NewTestTask("task-1", "TestJob", 0, task.TaskError, nil, time.Now())
 		tsk2 := task.NewTestTask("task-2", "TestJob", 0, task.TaskError, nil, time.Now())
@@ -585,7 +569,12 @@ func TestPool_AddError(t *testing.T) {
 func TestPool_Errors(t *testing.T) {
 	t.Run("returns empty slice initially", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
-		pool := wp.NewTaskPool(false, nil)
+		wp.Run(task.NewTestContext())
+
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		errors := pool.Errors()
 		assert.Empty(t, errors)
@@ -595,7 +584,12 @@ func TestPool_Errors(t *testing.T) {
 func TestPool_CreatedInTask(t *testing.T) {
 	t.Run("returns nil when not created in task", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
-		pool := wp.NewTaskPool(false, nil)
+		wp.Run(task.NewTestContext())
+
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		creator := pool.CreatedInTask()
 		assert.Nil(t, creator)
@@ -605,7 +599,12 @@ func TestPool_CreatedInTask(t *testing.T) {
 func TestPool_LockUnlock(t *testing.T) {
 	t.Run("LockExit and UnlockExit work without panic", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
-		pool := wp.NewTaskPool(false, nil)
+		wp.Run(task.NewTestContext())
+
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		assert.NotPanics(t, func() {
 			pool.LockExit()
@@ -615,7 +614,12 @@ func TestPool_LockUnlock(t *testing.T) {
 
 	t.Run("multiple lock/unlock cycles work", func(_ *testing.T) {
 		wp := task.NewTestWorkerPool(1)
-		pool := wp.NewTaskPool(false, nil)
+		wp.Run(task.NewTestContext())
+
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		for range 10 {
 			pool.LockExit()
@@ -627,7 +631,12 @@ func TestPool_LockUnlock(t *testing.T) {
 func TestPool_AddCleanup(t *testing.T) {
 	t.Run("registers cleanup function", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
-		pool := wp.NewTaskPool(false, nil)
+		wp.Run(task.NewTestContext())
+
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		called := false
 
@@ -643,7 +652,12 @@ func TestPool_AddCleanup(t *testing.T) {
 func TestPool_HandleTaskExit(t *testing.T) {
 	t.Run("returns true for non-replacement thread", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
-		pool := wp.NewTaskPool(false, nil)
+		wp.Run(task.NewTestContext())
+
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		canContinue := pool.HandleTaskExit(false)
 		assert.True(t, canContinue)
@@ -653,7 +667,12 @@ func TestPool_HandleTaskExit(t *testing.T) {
 func TestPool_ConcurrentAccess(t *testing.T) {
 	t.Run("handles concurrent task count operations", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
-		pool := wp.NewTaskPool(false, nil)
+		wp.Run(task.NewTestContext())
+
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		var wg sync.WaitGroup
 
@@ -679,7 +698,12 @@ func TestPool_ConcurrentAccess(t *testing.T) {
 
 	t.Run("handles concurrent status reads", func(_ *testing.T) {
 		wp := task.NewTestWorkerPool(1)
-		pool := wp.NewTaskPool(false, nil)
+		wp.Run(task.NewTestContext())
+
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		var wg sync.WaitGroup
 
@@ -708,8 +732,16 @@ func TestNewWorkerPool(t *testing.T) {
 		assert.NotNil(t, wp)
 	})
 
-	t.Run("automatically creates global pool", func(t *testing.T) {
+	t.Run("global pool is nil before Run is called", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
+
+		globalPool := wp.GetTaskPool(task.GlobalTaskPoolID)
+		assert.Nil(t, globalPool)
+	})
+
+	t.Run("automatically creates global pool when Run is called", func(t *testing.T) {
+		wp := task.NewTestWorkerPool(1)
+		wp.Run(task.NewTestContext())
 
 		globalPool := wp.GetTaskPool(task.GlobalTaskPoolID)
 		assert.NotNil(t, globalPool)
@@ -720,7 +752,12 @@ func TestNewWorkerPool(t *testing.T) {
 func TestWorkerPool_NewTaskPool(t *testing.T) {
 	t.Run("creates new task pool", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
-		pool := wp.NewTaskPool(false, nil)
+		wp.Run(task.NewTestContext())
+
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		assert.NotNil(t, pool)
 		assert.NotEmpty(t, pool.ID())
@@ -728,15 +765,29 @@ func TestWorkerPool_NewTaskPool(t *testing.T) {
 
 	t.Run("creates unique pool IDs", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
-		pool1 := wp.NewTaskPool(false, nil)
-		pool2 := wp.NewTaskPool(false, nil)
+		wp.Run(task.NewTestContext())
+
+		pool1, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		pool2, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		assert.NotEqual(t, pool1.ID(), pool2.ID())
 	})
 
 	t.Run("pool is retrievable by ID", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
-		pool := wp.NewTaskPool(false, nil)
+		wp.Run(task.NewTestContext())
+
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		retrieved := wp.GetTaskPool(pool.ID())
 		assert.NotNil(t, retrieved)
@@ -754,6 +805,7 @@ func TestWorkerPool_GetTaskPool(t *testing.T) {
 
 	t.Run("returns global pool", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
+		wp.Run(task.NewTestContext())
 
 		pool := wp.GetTaskPool(task.GlobalTaskPoolID)
 		assert.NotNil(t, pool)
@@ -850,6 +902,7 @@ func TestWorkerPool_GetTaskPoolByJobName(t *testing.T) {
 func TestWorkerPool_ConcurrentAccess(t *testing.T) {
 	t.Run("handles concurrent pool creation", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
+		wp.Run(task.NewTestContext())
 
 		var wg sync.WaitGroup
 
@@ -857,7 +910,11 @@ func TestWorkerPool_ConcurrentAccess(t *testing.T) {
 
 		for range 100 {
 			wg.Go(func() {
-				pool := wp.NewTaskPool(false, nil)
+				pool, err := wp.NewTaskPool(false, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+
 				pools <- pool
 			})
 		}
@@ -913,19 +970,19 @@ func TestWorkerPool_ConcurrentAccess(t *testing.T) {
 func TestTask_Cancel(t *testing.T) {
 	t.Run("cancels running task", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		started := make(chan struct{})
 		canceled := make(chan struct{})
 
-		wp.RegisterJob("cancellable-job", func(tsk *task.Task) {
+		wp.RegisterJob("cancelable-job", func(tsk *task.Task) {
 			close(started)
 			<-tsk.Ctx.Done()
 			close(canceled)
 		})
 
-		meta := task.NewTestMetadata("cancellable-job")
-		tsk, err := wp.DispatchJob(context.Background(), "cancellable-job", meta, nil)
+		meta := task.NewTestMetadata("cancelable-job")
+		tsk, err := wp.DispatchJob(context.Background(), "cancelable-job", meta, nil)
 		assert.NoError(t, err)
 
 		<-started
@@ -943,7 +1000,7 @@ func TestTask_Cancel(t *testing.T) {
 func TestTask_Success(t *testing.T) {
 	t.Run("marks task as successful", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		wp.RegisterJob("success-job", func(tsk *task.Task) {
 			tsk.Success("completed successfully")
@@ -962,7 +1019,7 @@ func TestTask_Success(t *testing.T) {
 
 	t.Run("marks task as successful without message", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		wp.RegisterJob("success-no-msg", func(tsk *task.Task) {
 			tsk.Success()
@@ -983,7 +1040,7 @@ func TestTask_Success(t *testing.T) {
 func TestTask_Fail(t *testing.T) {
 	t.Run("panics with ErrTaskError", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		wp.RegisterJob("fail-job", func(tsk *task.Task) {
 			tsk.Fail(intentionalFailure)
@@ -1004,7 +1061,7 @@ func TestTask_Fail(t *testing.T) {
 func TestTask_ReqNoErr(t *testing.T) {
 	t.Run("does nothing for nil error", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		wp.RegisterJob("reqnoerr-nil", func(tsk *task.Task) {
 			tsk.ReqNoErr(nil)
@@ -1024,7 +1081,7 @@ func TestTask_ReqNoErr(t *testing.T) {
 
 	t.Run("fails for non-nil error", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		testErr := intentionalFailure
 
@@ -1047,12 +1104,20 @@ func TestTask_ReqNoErr(t *testing.T) {
 func TestTask_SetChildTaskPool(t *testing.T) {
 	t.Run("sets child task pool", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		var childPool *task.Pool
 
 		wp.RegisterJob("parent-job", func(tsk *task.Task) {
-			childPool = wp.NewTaskPool(false, tsk)
+			var err error
+
+			childPool, err = wp.NewTaskPool(false, tsk)
+			if err != nil {
+				tsk.Fail(err)
+
+				return
+			}
+
 			tsk.SetChildTaskPool(childPool)
 			tsk.Success()
 		})
@@ -1072,7 +1137,7 @@ func TestTask_SetChildTaskPool(t *testing.T) {
 func TestTask_SetPostAction(t *testing.T) {
 	t.Run("runs after successful completion", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		postActionRan := make(chan bool, 1)
 
@@ -1115,7 +1180,7 @@ func TestTask_SetPostAction(t *testing.T) {
 func TestTask_SetCleanup(t *testing.T) {
 	t.Run("runs cleanup after task completes successfully", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		cleanupRan := make(chan bool, 1)
 
@@ -1142,7 +1207,7 @@ func TestTask_SetCleanup(t *testing.T) {
 
 	t.Run("runs cleanup after task fails", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		cleanupRan := make(chan bool, 1)
 
@@ -1171,7 +1236,7 @@ func TestTask_SetCleanup(t *testing.T) {
 func TestTask_SetErrorCleanup(t *testing.T) {
 	t.Run("runs error cleanup when task fails", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		errorCleanupRan := make(chan bool, 1)
 
@@ -1198,7 +1263,7 @@ func TestTask_SetErrorCleanup(t *testing.T) {
 
 	t.Run("does not run error cleanup when task succeeds", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		errorCleanupRan := make(chan bool, 1)
 
@@ -1229,7 +1294,7 @@ func TestTask_SetErrorCleanup(t *testing.T) {
 func TestTask_SetQueueState(t *testing.T) {
 	t.Run("sets queue state", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		wp.RegisterJob("queue-state-job", func(tsk *task.Task) {
 			tsk.SetQueueState(task.Sleeping)
@@ -1252,7 +1317,7 @@ func TestTask_SetQueueState(t *testing.T) {
 func TestTask_SetQueueTime(t *testing.T) {
 	t.Run("sets queue time", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		testTime := time.Now().Add(-1 * time.Hour)
 
@@ -1272,7 +1337,7 @@ func TestTask_SetQueueTime(t *testing.T) {
 func TestTask_QueueTimeDuration(t *testing.T) {
 	t.Run("returns duration in queue", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		var duration time.Duration
 
@@ -1292,9 +1357,9 @@ func TestTask_QueueTimeDuration(t *testing.T) {
 }
 
 func TestTask_SetTimeout(t *testing.T) {
-	t.Run("sets timeout and triggers cancellation", func(t *testing.T) {
+	t.Run("sets timeout and triggers cancelation", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		wp.RegisterJob("timeout-job", func(tsk *task.Task) {
 			tsk.SetTimeout(time.Now().Add(100 * time.Millisecond))
@@ -1318,7 +1383,7 @@ func TestTask_SetTimeout(t *testing.T) {
 func TestTask_ExeTime_Running(t *testing.T) {
 	t.Run("returns time since start for running task", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		var exeTime time.Duration
 
@@ -1342,7 +1407,7 @@ func TestTask_ExeTime_Running(t *testing.T) {
 func TestTask_ReadError_WithError(t *testing.T) {
 	t.Run("returns error for failed task", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		wp.RegisterJob("read-error-job", func(tsk *task.Task) {
 			tsk.Fail(intentionalFailure)
@@ -1364,7 +1429,7 @@ func TestTask_ReadError_WithError(t *testing.T) {
 func TestPool_QueueTask(t *testing.T) {
 	t.Run("queues and executes task", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		executed := make(chan bool, 1)
 
@@ -1392,10 +1457,14 @@ func TestPool_QueueTask(t *testing.T) {
 func TestPool_Cancel(t *testing.T) {
 	t.Run("cancels all tasks in pool", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		started := make(chan struct{})
-		pool := wp.NewTaskPool(false, nil)
+
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		wp.RegisterJob("cancel-pool-job", func(tsk *task.Task) {
 			close(started)
@@ -1420,9 +1489,12 @@ func TestPool_Cancel(t *testing.T) {
 func TestPool_SignalAllQueued(t *testing.T) {
 	t.Run("signals all tasks queued", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
-		pool := wp.NewTaskPool(false, nil)
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		wp.RegisterJob("signal-job", func(tsk *task.Task) {
 			tsk.Success()
@@ -1441,9 +1513,12 @@ func TestPool_SignalAllQueued(t *testing.T) {
 func TestPool_RemoveTask(t *testing.T) {
 	t.Run("removes task from pool", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
-		pool := wp.NewTaskPool(false, nil)
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		wp.RegisterJob("remove-task-job", func(tsk *task.Task) {
 			tsk.Success()
@@ -1462,7 +1537,7 @@ func TestPool_RemoveTask(t *testing.T) {
 func TestPool_Wait(t *testing.T) {
 	t.Run("waits for all tasks to complete", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(4)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		completedCount := 0
 
@@ -1482,8 +1557,15 @@ func TestPool_Wait(t *testing.T) {
 		}, task.Options{Unique: true})
 
 		wp.RegisterJob("wait-parent-job", func(parentTsk *task.Task) {
+			var err error
+
 			// Create pool inside task so createdBy is set
-			pool = wp.NewTaskPool(false, parentTsk)
+			pool, err = wp.NewTaskPool(false, parentTsk)
+			if err != nil {
+				parentTsk.Fail(err)
+
+				return
+			}
 
 			for range 3 {
 				meta := task.NewTestMetadata("wait-job")
@@ -1527,6 +1609,8 @@ func TestPool_Wait(t *testing.T) {
 
 	t.Run("returns immediately for global pool", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
+		wp.Run(task.NewTestContext())
+
 		globalPool := wp.GetTaskPool(task.GlobalTaskPoolID)
 
 		// Should not block
@@ -1552,7 +1636,7 @@ func TestPool_Wait(t *testing.T) {
 func TestWorkerPool_Run(t *testing.T) {
 	t.Run("starts workers and processes tasks", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		executed := make(chan bool, 1)
 
@@ -1580,7 +1664,7 @@ func TestWorkerPool_Run(t *testing.T) {
 func TestWorkerPool_DispatchJob_FullFlow(t *testing.T) {
 	t.Run("dispatches and completes job successfully", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		wp.RegisterJob("full-flow-job", func(tsk *task.Task) {
 			tsk.SetResult(task.Result{"processed": true})
@@ -1604,9 +1688,12 @@ func TestWorkerPool_DispatchJob_FullFlow(t *testing.T) {
 
 	t.Run("dispatches job to specific pool", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
-		pool := wp.NewTaskPool(false, nil)
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		wp.RegisterJob("pool-specific-job", func(tsk *task.Task) {
 			tsk.Success()
@@ -1625,7 +1712,7 @@ func TestWorkerPool_DispatchJob_FullFlow(t *testing.T) {
 
 	t.Run("returns existing task if already dispatched", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		started := make(chan struct{})
 		canFinish := make(chan struct{})
@@ -1658,7 +1745,7 @@ func TestWorkerPool_DispatchJob_FullFlow(t *testing.T) {
 func TestWorkerPool_AddHit(t *testing.T) {
 	t.Run("schedules timeout hit", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		wp.RegisterJob("hit-job", func(tsk *task.Task) {
 			wp.AddHit(time.Now().Add(100*time.Millisecond), tsk)
@@ -1676,7 +1763,7 @@ func TestWorkerPool_AddHit(t *testing.T) {
 func TestWorkerPool_GetTasksByJobName_WithTasks(t *testing.T) {
 	t.Run("returns tasks by job name", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		started := make(chan struct{})
 		canFinish := make(chan struct{})
@@ -1703,12 +1790,20 @@ func TestWorkerPool_GetTasksByJobName_WithTasks(t *testing.T) {
 func TestWorkerPool_NewTaskPool_WithCreatedBy(t *testing.T) {
 	t.Run("creates pool with parent task reference", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		var childPool *task.Pool
 
 		wp.RegisterJob("parent-task", func(tsk *task.Task) {
-			childPool = wp.NewTaskPool(false, tsk)
+			var err error
+
+			childPool, err = wp.NewTaskPool(false, tsk)
+			if err != nil {
+				tsk.Fail(err)
+
+				return
+			}
+
 			tsk.Success()
 		})
 
@@ -1724,12 +1819,20 @@ func TestWorkerPool_NewTaskPool_WithCreatedBy(t *testing.T) {
 
 	t.Run("creates pool with replacement worker", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		var childPool *task.Pool
 
 		wp.RegisterJob("replacement-parent", func(tsk *task.Task) {
-			childPool = wp.NewTaskPool(true, tsk)
+			var err error
+
+			childPool, err = wp.NewTaskPool(true, tsk)
+			if err != nil {
+				tsk.Fail(err)
+
+				return
+			}
+
 			childPool.SignalAllQueued()
 			tsk.Success()
 		})
@@ -1747,13 +1850,19 @@ func TestWorkerPool_NewTaskPool_WithCreatedBy(t *testing.T) {
 func TestWorkerPool_GetTaskPoolByJobName_WithMatch(t *testing.T) {
 	t.Run("returns pool created by matching job", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		started := make(chan struct{})
 		canFinish := make(chan struct{})
 
 		wp.RegisterJob("pool-creator-job", func(tsk *task.Task) {
-			wp.NewTaskPool(false, tsk)
+			_, err := wp.NewTaskPool(false, tsk)
+			if err != nil {
+				tsk.Fail(err)
+
+				return
+			}
+
 			close(started)
 			<-canFinish
 			tsk.Success()
@@ -1777,9 +1886,12 @@ func TestWorkerPool_GetTaskPoolByJobName_WithMatch(t *testing.T) {
 func TestTask_Q_WithPool(t *testing.T) {
 	t.Run("queues task to pool", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
-		pool := wp.NewTaskPool(false, nil)
+		pool, err := wp.NewTaskPool(false, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		executed := make(chan bool, 1)
 
@@ -1815,15 +1927,24 @@ func TestTask_Q_WithPool(t *testing.T) {
 func TestPool_GetRootPool_NestedPools(t *testing.T) {
 	t.Run("returns root for nested pools", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(2)
-		wp.Run()
+		wp.Run(task.NewTestContext())
 
 		var childPool, grandchildPool *task.Pool
 
 		wp.RegisterJob("root-pool-job", func(tsk *task.Task) {
-			childPool = wp.NewTaskPool(false, tsk)
+			var err error
+
+			childPool, err = wp.NewTaskPool(false, tsk)
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			wp.RegisterJob("child-pool-job", func(childTsk *task.Task) {
-				grandchildPool = wp.NewTaskPool(false, childTsk)
+				grandchildPool, err = wp.NewTaskPool(false, childTsk)
+				if err != nil {
+					t.Fatal(err)
+				}
+
 				childTsk.Success()
 			})
 

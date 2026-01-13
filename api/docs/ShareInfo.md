@@ -6,7 +6,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **Accessors** | Pointer to [**[]UserInfo**](UserInfo.md) |  | [optional] 
 **Enabled** | Pointer to **bool** |  | [optional] 
-**Expires** | Pointer to **int32** |  | [optional] 
+**Expires** | Pointer to **int64** |  | [optional] 
 **FileID** | Pointer to **string** |  | [optional] 
 **Owner** | Pointer to **string** |  | [optional] 
 **Permissions** | Pointer to [**map[string]PermissionsInfo**](PermissionsInfo.md) |  | [optional] 
@@ -15,7 +15,7 @@ Name | Type | Description | Notes
 **ShareName** | Pointer to **string** |  | [optional] 
 **ShareType** | Pointer to **string** |  | [optional] 
 **TimelineOnly** | Pointer to **bool** |  | [optional] 
-**Updated** | Pointer to **int32** |  | [optional] 
+**Updated** | Pointer to **int64** |  | [optional] 
 **Wormhole** | Pointer to **bool** |  | [optional] 
 
 ## Methods
@@ -89,20 +89,20 @@ HasEnabled returns a boolean if a field has been set.
 
 ### GetExpires
 
-`func (o *ShareInfo) GetExpires() int32`
+`func (o *ShareInfo) GetExpires() int64`
 
 GetExpires returns the Expires field if non-nil, zero value otherwise.
 
 ### GetExpiresOk
 
-`func (o *ShareInfo) GetExpiresOk() (*int32, bool)`
+`func (o *ShareInfo) GetExpiresOk() (*int64, bool)`
 
 GetExpiresOk returns a tuple with the Expires field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
 ### SetExpires
 
-`func (o *ShareInfo) SetExpires(v int32)`
+`func (o *ShareInfo) SetExpires(v int64)`
 
 SetExpires sets Expires field to given value.
 
@@ -314,20 +314,20 @@ HasTimelineOnly returns a boolean if a field has been set.
 
 ### GetUpdated
 
-`func (o *ShareInfo) GetUpdated() int32`
+`func (o *ShareInfo) GetUpdated() int64`
 
 GetUpdated returns the Updated field if non-nil, zero value otherwise.
 
 ### GetUpdatedOk
 
-`func (o *ShareInfo) GetUpdatedOk() (*int32, bool)`
+`func (o *ShareInfo) GetUpdatedOk() (*int64, bool)`
 
 GetUpdatedOk returns a tuple with the Updated field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
 ### SetUpdated
 
-`func (o *ShareInfo) SetUpdated(v int32)`
+`func (o *ShareInfo) SetUpdated(v int64)`
 
 SetUpdated sets Updated field to given value.
 

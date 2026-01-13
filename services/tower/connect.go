@@ -13,13 +13,20 @@ import (
 	"github.com/ethanrous/weblens/modules/netwrk"
 	"github.com/ethanrous/weblens/modules/structs"
 	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 )
 
 // TowerIDHeader is the HTTP header name used to identify the source tower in requests.
 const TowerIDHeader = "Weblens-TowerID"
 
-func getAPIClient(ctx context.Context, tower tower_model.Instance) (*api.APIClient, error) {
+type clientOpts struct {
+	// noTowerIDHeader indicates whether to omit the TowerID header in requests.
+	// This is useful for initial connections where the tower local tower is not yet known by the remote.
+	noTowerIDHeader bool
+}
+
+func getAPIClient(ctx context.Context, tower tower_model.Instance, o clientOpts) (*api.APIClient, error) {
 	if tower.Address == "" {
 		return nil, fmt.Errorf("tower address is empty")
 	}
@@ -41,21 +48,23 @@ func getAPIClient(ctx context.Context, tower tower_model.Instance) (*api.APIClie
 		return nil, fmt.Errorf("failed to get appContext from context")
 	}
 
-	cnf.DefaultHeader[TowerIDHeader] = appCtx.LocalTowerID
+	if !o.noTowerIDHeader {
+		cnf.DefaultHeader[TowerIDHeader] = appCtx.LocalTowerID
+	}
 
 	return api.NewAPIClient(cnf), nil
 }
 
 // Ping checks if a tower is reachable and returns its information.
 func Ping(ctx context.Context, tower tower_model.Instance) (*api.TowerInfo, error) {
-	client, err := getAPIClient(ctx, tower)
+	client, err := getAPIClient(ctx, tower, clientOpts{noTowerIDHeader: true})
 	if err != nil {
-		return nil, err
+		return nil, wlerrors.Wrapf(err, "failed to create API client for tower at [%s]", tower.Address)
 	}
 
 	towerInfo, _, err := client.TowersAPI.GetServerInfo(ctx).Execute()
 	if err != nil {
-		return nil, err
+		return nil, wlerrors.Wrapf(err, "failed to ping tower at [%s]", tower.Address)
 	}
 
 	return towerInfo, nil
@@ -63,7 +72,7 @@ func Ping(ctx context.Context, tower tower_model.Instance) (*api.TowerInfo, erro
 
 // GetBackup retrieves backup information from a tower for all changes since the specified time.
 func GetBackup(ctx context.Context, tower tower_model.Instance, since time.Time) (*structs.BackupInfo, error) {
-	client, err := getAPIClient(ctx, tower)
+	client, err := getAPIClient(ctx, tower, clientOpts{})
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +186,7 @@ func GetBackup(ctx context.Context, tower tower_model.Instance, since time.Time)
 
 // AttachToCore registers this tower as a remote with a core tower.
 func AttachToCore(ctx context.Context, core tower_model.Instance) error {
-	client, err := getAPIClient(ctx, core)
+	client, err := getAPIClient(ctx, core, clientOpts{noTowerIDHeader: true})
 	if err != nil {
 		return err
 	}

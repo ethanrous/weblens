@@ -6,18 +6,17 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **ChildrenIds** | Pointer to **[]string** |  | [optional] 
 **ContentID** | Pointer to **string** |  | [optional] 
-**CurrentID** | Pointer to **string** |  | [optional] 
 **HasRestoreMedia** | Pointer to **bool** |  | [optional] 
 **Id** | Pointer to **string** |  | [optional] 
 **IsDir** | Pointer to **bool** |  | [optional] 
 **Modifiable** | Pointer to **bool** |  | [optional] 
-**ModifyTimestamp** | Pointer to **int32** |  | [optional] 
+**ModifyTimestamp** | Pointer to **int64** |  | [optional] 
 **Owner** | Pointer to **string** |  | [optional] 
 **ParentID** | Pointer to **string** |  | [optional] 
 **PastFile** | Pointer to **bool** |  | [optional] 
 **PortablePath** | Pointer to **string** |  | [optional] 
 **ShareID** | Pointer to **string** |  | [optional] 
-**Size** | Pointer to **int32** |  | [optional] 
+**Size** | Pointer to **int64** |  | [optional] 
 
 ## Methods
 
@@ -87,31 +86,6 @@ SetContentID sets ContentID field to given value.
 `func (o *FileInfo) HasContentID() bool`
 
 HasContentID returns a boolean if a field has been set.
-
-### GetCurrentID
-
-`func (o *FileInfo) GetCurrentID() string`
-
-GetCurrentID returns the CurrentID field if non-nil, zero value otherwise.
-
-### GetCurrentIDOk
-
-`func (o *FileInfo) GetCurrentIDOk() (*string, bool)`
-
-GetCurrentIDOk returns a tuple with the CurrentID field if it's non-nil, zero value otherwise
-and a boolean to check if the value has been set.
-
-### SetCurrentID
-
-`func (o *FileInfo) SetCurrentID(v string)`
-
-SetCurrentID sets CurrentID field to given value.
-
-### HasCurrentID
-
-`func (o *FileInfo) HasCurrentID() bool`
-
-HasCurrentID returns a boolean if a field has been set.
 
 ### GetHasRestoreMedia
 
@@ -215,20 +189,20 @@ HasModifiable returns a boolean if a field has been set.
 
 ### GetModifyTimestamp
 
-`func (o *FileInfo) GetModifyTimestamp() int32`
+`func (o *FileInfo) GetModifyTimestamp() int64`
 
 GetModifyTimestamp returns the ModifyTimestamp field if non-nil, zero value otherwise.
 
 ### GetModifyTimestampOk
 
-`func (o *FileInfo) GetModifyTimestampOk() (*int32, bool)`
+`func (o *FileInfo) GetModifyTimestampOk() (*int64, bool)`
 
 GetModifyTimestampOk returns a tuple with the ModifyTimestamp field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
 ### SetModifyTimestamp
 
-`func (o *FileInfo) SetModifyTimestamp(v int32)`
+`func (o *FileInfo) SetModifyTimestamp(v int64)`
 
 SetModifyTimestamp sets ModifyTimestamp field to given value.
 
@@ -365,20 +339,20 @@ HasShareID returns a boolean if a field has been set.
 
 ### GetSize
 
-`func (o *FileInfo) GetSize() int32`
+`func (o *FileInfo) GetSize() int64`
 
 GetSize returns the Size field if non-nil, zero value otherwise.
 
 ### GetSizeOk
 
-`func (o *FileInfo) GetSizeOk() (*int32, bool)`
+`func (o *FileInfo) GetSizeOk() (*int64, bool)`
 
 GetSizeOk returns a tuple with the Size field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
 ### SetSize
 
-`func (o *FileInfo) SetSize(v int32)`
+`func (o *FileInfo) SetSize(v int64)`
 
 SetSize sets Size field to given value.
 

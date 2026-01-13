@@ -48,7 +48,7 @@ type HandlerFunc func(task *Task)
 
 // WorkerPool manages a pool of workers that execute tasks from task pools.
 type WorkerPool struct {
-	ctx context_mod.Z
+	ctx context.Context
 
 	busyCount *atomic.Int64 // Number of workers currently executing a task
 
@@ -76,13 +76,12 @@ type WorkerPool struct {
 }
 
 // NewWorkerPool creates and initializes a new worker pool with the specified number of workers.
-func NewWorkerPool(ctx context_mod.Z, initWorkers int) *WorkerPool {
+func NewWorkerPool(initWorkers int) *WorkerPool {
 	if initWorkers == 0 {
 		initWorkers = 1
 	}
 
 	newWp := &WorkerPool{
-		ctx:            ctx,
 		registeredJobs: map[string]job{},
 		taskMap:        map[string]*Task{},
 		taskPoolMap:    map[string]*Pool{},
@@ -97,13 +96,6 @@ func NewWorkerPool(ctx context_mod.Z, initWorkers int) *WorkerPool {
 
 	newWp.maxWorkers.Store(int64(initWorkers))
 
-	// Worker pool always has one global queue
-	globalPool := newWp.newTaskPoolInternal()
-	globalPool.id = GlobalTaskPoolID
-	globalPool.MarkGlobal()
-
-	newWp.taskPoolMap[GlobalTaskPoolID] = globalPool
-
 	return newWp
 }
 
@@ -114,7 +106,11 @@ func NewWorkerPool(ctx context_mod.Z, initWorkers int) *WorkerPool {
 // it possible for clients to subscribe to a single task, and get notified about
 // all of the sub-updates of that task
 // See taskPool.go
-func (wp *WorkerPool) NewTaskPool(replace bool, createdBy *Task) *Pool {
+func (wp *WorkerPool) NewTaskPool(replace bool, createdBy *Task) (*Pool, error) {
+	if wp.ctx == nil {
+		return nil, wlerrors.New("worker pool not running, cannot create task pool")
+	}
+
 	tp := wp.newTaskPoolInternal()
 
 	if createdBy != nil {
@@ -145,7 +141,7 @@ func (wp *WorkerPool) NewTaskPool(replace bool, createdBy *Task) *Pool {
 		createdBy.SetChildTaskPool(tp)
 	}
 
-	return tp
+	return tp, nil
 }
 
 // Status returns the count of tasks in the queue, the total number of tasks accepted,
@@ -339,21 +335,30 @@ func (wp *WorkerPool) AddHit(time time.Time, target *Task) {
 }
 
 // Run launches the standard threads for this worker pool
-func (wp *WorkerPool) Run() {
+func (wp *WorkerPool) Run(ctx context.Context) {
+	wp.ctx = ctx
+
+	// Worker pool always has one global queue
+	globalPool := wp.newTaskPoolInternal()
+	globalPool.id = GlobalTaskPoolID
+	globalPool.MarkGlobal()
+
+	wp.taskPoolMap[GlobalTaskPoolID] = globalPool
+
 	// Spawn the timeout checker
-	go wp.reaper()
+	go wp.reaper(ctx)
 
 	// Spawn the buffer worker
-	go wp.bufferDrainer()
+	go wp.bufferDrainer(ctx)
 
 	// Spawn the status printer
-	go wp.statusReporter()
+	go wp.statusReporter(ctx)
 
 	for range wp.maxWorkers.Load() {
 		// These are the base, 'omnipresent' threads for this pool,
 		// so they are NOT replacement workers. See wp.execWorker
 		// for more info
-		wp.execWorker(wp.ctx, false)
+		wp.execWorker(ctx, false)
 	}
 }
 
@@ -405,11 +410,11 @@ func (wp *WorkerPool) removeTask(taskID string) {
 // differently in attempt to minimize parked time of the other task.
 func (wp *WorkerPool) execWorker(ctx context.Context, isReplacement bool) {
 	go func(workerID int64) {
-		wp.ctx.Log().Debug().Msgf("Spinning up worker with id [%d] o7", workerID)
+		log.FromContext(wp.ctx).Debug().Msgf("Spinning up worker with id [%d] o7", workerID)
 
 		err := context_mod.AddToWg(ctx)
 		if err != nil {
-			wp.ctx.Log().Error().Stack().Err(err).Msg("Failed to add worker to wait group")
+			log.FromContext(wp.ctx).Error().Stack().Err(err).Msg("Failed to add worker to wait group")
 
 			return
 		}
@@ -417,12 +422,12 @@ func (wp *WorkerPool) execWorker(ctx context.Context, isReplacement bool) {
 		defer func() {
 			err = context_mod.WgDone(ctx)
 			if err != nil {
-				wp.ctx.Log().Error().Stack().Err(err).Msg("Failed to remove worker from wait group")
+				log.FromContext(wp.ctx).Error().Stack().Err(err).Msg("Failed to remove worker from wait group")
 
 				return
 			}
 
-			wp.ctx.Log().Debug().Msgf("worker %d exiting, %d workers remain", workerID, wp.currentWorkers.Add(-1))
+			log.FromContext(wp.ctx).Debug().Msgf("worker %d exiting, %d workers remain", workerID, wp.currentWorkers.Add(-1))
 		}()
 
 		// WorkLoop:
@@ -577,7 +582,7 @@ func (wp *WorkerPool) execWorker(ctx context.Context, isReplacement bool) {
 
 						directParent.LockExit()
 						uncompletedTasks := directParent.GetTotalTaskCount() - directParent.GetCompletedTaskCount()
-						wp.ctx.Log().Debug().Msgf(
+						log.FromContext(wp.ctx).Debug().Msgf(
 							"Uncompleted tasks on tp created by %s: %d",
 							directParent.CreatedInTask().ID(), uncompletedTasks-1,
 						)
@@ -624,7 +629,7 @@ func (wp *WorkerPool) removeWorker() {
 func (wp *WorkerPool) newTaskPoolInternal() *Pool {
 	tpID, err := uuid.NewUUID()
 	if err != nil {
-		wp.ctx.Log().Error().Err(err).Msg("Failed to generate UUID for new task pool")
+		log.FromContext(wp.ctx).Error().Err(err).Msg("Failed to generate UUID for new task pool")
 
 		return nil
 	}
@@ -636,7 +641,7 @@ func (wp *WorkerPool) newTaskPoolInternal() *Pool {
 		createdAt:    time.Now(),
 		erroredTasks: make([]*Task, 0),
 		waiterGate:   make(chan struct{}),
-		log:          wp.ctx.Log().With().Str("task_pool", tpID.String()).Logger(),
+		log:          log.FromContext(wp.ctx).With().Str("task_pool", tpID.String()).Logger(),
 	}
 
 	return newQueue
@@ -652,14 +657,14 @@ func (wp *WorkerPool) removeTaskPool(tpID string) {
 // The reaper handles timed cancelation of tasks. If a task might
 // wait on some action from the client, it should queue a timeout with
 // the reaper so it doesn't hang forever
-func (wp *WorkerPool) reaper() {
+func (wp *WorkerPool) reaper(ctx context.Context) {
 	timerStream := make(chan *Task)
 
 	for {
 		select {
-		case _, ok := <-wp.ctx.Done():
+		case _, ok := <-ctx.Done():
 			if !ok {
-				log.GlobalLogger().Debug().Msg("Task reaper exiting")
+				log.FromContext(ctx).Debug().Msg("Task reaper exiting")
 
 				return
 			}
@@ -682,18 +687,18 @@ func (wp *WorkerPool) reaper() {
 	}
 }
 
-func (wp *WorkerPool) statusReporter() {
+func (wp *WorkerPool) statusReporter(ctx context.Context) {
 	var lastCount int
 
 	ticker := time.NewTicker(time.Second * 10)
 
 	defer func() {
-		wp.ctx.Log().Debug().Msg("status reporter exiting")
+		log.FromContext(ctx).Debug().Msg("status reporter exiting")
 	}()
 
 	for {
 		select {
-		case _, ok := <-wp.ctx.Done():
+		case _, ok := <-ctx.Done():
 			if !ok {
 				return
 			}
@@ -701,7 +706,7 @@ func (wp *WorkerPool) statusReporter() {
 			remaining, total, busy, alive, retrySize := wp.Status()
 			if lastCount != remaining || busy != 0 {
 				lastCount = remaining
-				wp.ctx.Log().Debug().Int("queue_remaining", remaining).Int("queue_total", total).Int("queue_buffered", retrySize).Int("busy_workers", busy).Int("alive_workers", alive).Msgf(
+				log.FromContext(ctx).Debug().Int("queue_remaining", remaining).Int("queue_total", total).Int("queue_buffered", retrySize).Int("busy_workers", busy).Int("alive_workers", alive).Msgf(
 					"Worker pool status - %d tasks in queue, %d total tasks queued, %d busy workers, %d alive workers", remaining, total, busy, alive,
 				)
 			}
@@ -709,21 +714,21 @@ func (wp *WorkerPool) statusReporter() {
 	}
 }
 
-func (wp *WorkerPool) bufferDrainer() {
+func (wp *WorkerPool) bufferDrainer(ctx context.Context) {
 	ticker := time.NewTicker(time.Second * 10)
 
 	defer func() {
-		wp.ctx.Log().Debug().Msg("buffer drainer exiting")
+		log.FromContext(ctx).Debug().Msg("buffer drainer exiting")
 	}()
 
 	for {
 		select {
-		case _, ok := <-wp.ctx.Done():
+		case _, ok := <-ctx.Done():
 			if !ok {
 				return
 			}
 
-			wp.ctx.Log().Warn().Msg("buffer drainer not exiting?")
+			log.FromContext(ctx).Warn().Msg("buffer drainer not exiting?")
 		case <-ticker.C:
 			wp.taskBufferMu.Lock()
 
@@ -787,9 +792,15 @@ func (wp *WorkerPool) safetyWork(task *Task, workerID int64) {
 	if task.exitStatus != TaskNoStatus {
 		task.Log().Trace().Msgf("Task [%s] already has exit status [%s], not running", task.taskID, task.exitStatus)
 	} else {
+		task.updateMu.Lock()
 		task.StartTime = time.Now()
+		task.updateMu.Unlock()
+
 		task.work.handler(task)
+
+		task.updateMu.Lock()
 		task.FinishTime = time.Now()
+		task.updateMu.Unlock()
 	}
 }
 

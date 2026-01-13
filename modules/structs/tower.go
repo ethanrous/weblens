@@ -31,4 +31,6 @@ type TowerInfo struct {
 	Online bool `json:"online" validate:"required"`
 
 	Started bool `json:"started" validate:"required"`
+
+	LogLevel string `json:"logLevel,omitempty"`
 } // @name TowerInfo

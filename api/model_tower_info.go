@@ -26,6 +26,7 @@ type TowerInfo struct {
 	CoreAddress string `json:"coreAddress"`
 	Id string `json:"id"`
 	LastBackup int64 `json:"lastBackup"`
+	LogLevel *string `json:"logLevel,omitempty"`
 	Name string `json:"name"`
 	Online bool `json:"online"`
 	// Role the server is currently reporting. This is used to determine if the server is online (and functional) or not
@@ -159,6 +160,38 @@ func (o *TowerInfo) GetLastBackupOk() (*int64, bool) {
 // SetLastBackup sets field value
 func (o *TowerInfo) SetLastBackup(v int64) {
 	o.LastBackup = v
+}
+
+// GetLogLevel returns the LogLevel field value if set, zero value otherwise.
+func (o *TowerInfo) GetLogLevel() string {
+	if o == nil || IsNil(o.LogLevel) {
+		var ret string
+		return ret
+	}
+	return *o.LogLevel
+}
+
+// GetLogLevelOk returns a tuple with the LogLevel field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *TowerInfo) GetLogLevelOk() (*string, bool) {
+	if o == nil || IsNil(o.LogLevel) {
+		return nil, false
+	}
+	return o.LogLevel, true
+}
+
+// HasLogLevel returns a boolean if a field has been set.
+func (o *TowerInfo) HasLogLevel() bool {
+	if o != nil && !IsNil(o.LogLevel) {
+		return true
+	}
+
+	return false
+}
+
+// SetLogLevel gets a reference to the given string and assigns it to the LogLevel field.
+func (o *TowerInfo) SetLogLevel(v string) {
+	o.LogLevel = &v
 }
 
 // GetName returns the Name field value
@@ -319,6 +352,9 @@ func (o TowerInfo) ToMap() (map[string]interface{}, error) {
 	toSerialize["coreAddress"] = o.CoreAddress
 	toSerialize["id"] = o.Id
 	toSerialize["lastBackup"] = o.LastBackup
+	if !IsNil(o.LogLevel) {
+		toSerialize["logLevel"] = o.LogLevel
+	}
 	toSerialize["name"] = o.Name
 	toSerialize["online"] = o.Online
 	toSerialize["reportedRole"] = o.ReportedRole

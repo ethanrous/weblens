@@ -5,6 +5,7 @@ import { WsAction, WsSubscriptionType } from '~/types/websocket.js'
 import { API_ENDPOINT, useWeblensAPI } from './AllApi.js'
 import useFilesStore from '~/stores/files.js'
 import { FilesApiAxiosParamCreator, type FolderInfo, type TakeoutInfo } from '@ethanrous/weblens-api'
+import useWebsocketStore from '~/stores/websocket.js'
 
 export function SubToFolder(subID: string, shareID: string) {
     if (!subID) {
@@ -61,7 +62,7 @@ export function UnsubFromFolder(subID: string) {
 }
 
 export async function GetTrashChildIds(): Promise<string[]> {
-    const { data: folder } = await useWeblensAPI().FoldersApi.getFolder(useUserStore().user.trashID)
+    const { data: folder } = await useWeblensAPI().FoldersAPI.getFolder(useUserStore().user.trashID)
 
     if (!folder || !folder.children) {
         console.error('No children found in trash folder')
@@ -92,7 +93,7 @@ export async function GetFolderData(
         throw new Error('Folder ID cannot be empty')
     }
 
-    const res = await useWeblensAPI().FoldersApi.getFolder(
+    const res = await useWeblensAPI().FoldersAPI.getFolder(
         folderID,
         shareID ? shareID : undefined,
         viewingTime?.getTime(),

@@ -89,7 +89,7 @@ No authorization required
 
 ## ChangeDisplayName
 
-> ChangeDisplayName(ctx, username).NewFullName(newFullName).Execute()
+> UserInfo ChangeDisplayName(ctx, username).NewFullName(newFullName).Execute()
 
 Update display name of a user
 
@@ -111,11 +111,13 @@ func main() {
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	r, err := apiClient.UsersAPI.ChangeDisplayName(context.Background(), username).NewFullName(newFullName).Execute()
+	resp, r, err := apiClient.UsersAPI.ChangeDisplayName(context.Background(), username).NewFullName(newFullName).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `UsersAPI.ChangeDisplayName``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
+	// response from `ChangeDisplayName`: UserInfo
+	fmt.Fprintf(os.Stdout, "Response from `UsersAPI.ChangeDisplayName`: %v\n", resp)
 }
 ```
 
@@ -139,7 +141,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
- (empty response body)
+[**UserInfo**](UserInfo.md)
 
 ### Authorization
 

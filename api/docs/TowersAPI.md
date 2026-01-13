@@ -6,6 +6,7 @@ Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**CreateRemote**](TowersAPI.md#CreateRemote) | **Post** /tower/remote | Create a new remote
 [**DeleteRemote**](TowersAPI.md#DeleteRemote) | **Delete** /tower/{serverID} | Delete a remote
+[**EnableTraceLogging**](TowersAPI.md#EnableTraceLogging) | **Post** /tower/trace | Enable trace logging
 [**FlushCache**](TowersAPI.md#FlushCache) | **Delete** /tower/cache | Flush Cache
 [**GetBackupInfo**](TowersAPI.md#GetBackupInfo) | **Get** /tower/backup | Get information about a file
 [**GetPagedHistoryActions**](TowersAPI.md#GetPagedHistoryActions) | **Get** /tower/history | Get a page of file actions
@@ -128,6 +129,63 @@ Other parameters are passed through a pointer to a apiDeleteRemoteRequest struct
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
+
+
+### Return type
+
+ (empty response body)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: Not defined
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
+
+
+## EnableTraceLogging
+
+> EnableTraceLogging(ctx).Execute()
+
+Enable trace logging
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/ethanrous/weblens/api"
+)
+
+func main() {
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	r, err := apiClient.TowersAPI.EnableTraceLogging(context.Background()).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `TowersAPI.EnableTraceLogging``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+}
+```
+
+### Path Parameters
+
+This endpoint does not need any parameter.
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiEnableTraceLoggingRequest struct via the builder pattern
 
 
 ### Return type
