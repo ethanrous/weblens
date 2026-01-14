@@ -8,6 +8,7 @@ import (
 	"github.com/ethanrous/weblens/models/history"
 	"github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/services/journal"
+	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -289,10 +290,8 @@ func TestGetLifetimesByTowerID(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		// Should only get the active file lifetime
-		if len(result) != 1 {
-			t.Errorf("expected 1 active lifetime, got %d", len(result))
-		}
+
+		require.Equal(t, 1, len(result), "expected 1 active lifetime")
 	})
 
 	t.Run("get lifetimes for non-existent tower", func(t *testing.T) {
@@ -313,9 +312,8 @@ func TestGetLifetimesByTowerID(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
+
 		// Should get lifetimes under testuser path
-		if len(result) < 1 {
-			t.Errorf("expected at least 1 lifetime, got %d", len(result))
-		}
+		require.GreaterOrEqual(t, len(result), 2, "expected at least 2 lifetimes with path prefix")
 	})
 }
