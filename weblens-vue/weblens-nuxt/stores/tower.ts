@@ -4,7 +4,7 @@ import { useWeblensAPI } from '~/api/AllApi'
 export enum TowerRole {
     CORE = 'core',
     BACKUP = 'backup',
-    INIT = 'init',
+    UNINITIALIZED = 'init',
 }
 
 export const useTowerStore = defineStore('tower', () => {

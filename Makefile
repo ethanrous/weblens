@@ -29,7 +29,7 @@ dev\:static: FORCE
 	./scripts/start.bash --rebuild --dev "${@:2}"
 
 swag: FORCE
-	./scripts/swaggo
+	./scripts/swaggo.bash
 
 roux: FORCE
 	./scripts/build-base-image.bash -t v0

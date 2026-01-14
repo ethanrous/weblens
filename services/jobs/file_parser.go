@@ -46,7 +46,12 @@ func ScanDirectory(t *task.Task) {
 	}
 
 	// Create a new task pool for the file scans this directory scan will spawn
-	pool := t.GetTaskPool().GetWorkerPool().NewTaskPool(true, t)
+	pool, err := t.GetTaskPool().GetWorkerPool().NewTaskPool(true, t)
+	if err != nil {
+		t.Fail(wlerrors.WithStack(err))
+
+		return
+	}
 
 	ctx.ClientService.FolderSubToTask(ctx, meta.File.ID(), t)
 

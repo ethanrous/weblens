@@ -32,26 +32,39 @@ var disallowedUsernames = []string{"PUBLIC", "WEBLENS"}
 
 var usernameRe = regexp.MustCompile(`^[a-zA-Z0-9_\-]+$`)
 
-const minUsernameLength = 3
+const minUsernameLength = 2
 const maxUsernameLength = 25
 
 const minPasswordLength = 6
 
+// ValidateUser checks if the user's username and password meet the required criteria.
+func ValidateUser(ctx context.Context, user *User) error {
+	if err := validateUsername(ctx, user.Username); err != nil {
+		return err
+	}
+
+	if err := validatePassword(user.Password); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func validateUsername(ctx context.Context, username string) error {
 	if len(username) < minUsernameLength {
-		return ErrUsernameTooShort
+		return wlerrors.ReplaceStack(ErrUsernameTooShort)
 	}
 
 	if len(username) > maxUsernameLength {
-		return ErrUsernameTooShort
+		return wlerrors.ReplaceStack(ErrUsernameTooLong)
 	}
 
 	if slices.Contains(disallowedUsernames, username) {
-		return ErrUsernameNotAllowed
+		return wlerrors.ReplaceStack(ErrUsernameNotAllowed)
 	}
 
 	if !usernameRe.MatchString(username) {
-		return ErrUsernameInvalidChars
+		return wlerrors.Wrap(ErrUsernameInvalidChars, "")
 	}
 
 	col, err := db.GetCollection[any](ctx, UserCollectionKey)
@@ -73,11 +86,11 @@ func validateUsername(ctx context.Context, username string) error {
 
 func validatePassword(password string) error {
 	if len(password) < minPasswordLength {
-		return ErrPasswordTooShort
+		return wlerrors.ReplaceStack(ErrPasswordTooShort)
 	}
 
 	if !strings.ContainsAny(password, "0123456789") {
-		return ErrPasswordNoDigits
+		return wlerrors.ReplaceStack(ErrPasswordNoDigits)
 	}
 
 	return nil

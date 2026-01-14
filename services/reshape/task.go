@@ -28,6 +28,6 @@ func TaskToTaskInfo(t *task.Task) structs.TaskInfo {
 		Completed: complete,
 		WorkerID:  t.GetWorkerID(),
 		Result:    result,
-		StartTime: t.StartTime,
+		StartTime: t.GetStartTime(),
 	}
 }

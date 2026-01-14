@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ethanrous/weblens/modules/wlerrors"
@@ -17,6 +18,7 @@ import (
 
 var projectPackagePrefix string
 var cnf Provider
+var cnfMu sync.RWMutex
 
 func init() {
 	_, filename, _, _ := runtime.Caller(0)
@@ -49,13 +51,104 @@ type Provider struct {
 	CachePath         string
 	StaticContentPath string
 
-	LogLevel        zerolog.Level
-	LogFormat       string
-	BackupInterval  time.Duration
-	WorkerCount     int
-	DoCache         bool
-	InitRole        string
+	LogLevel       zerolog.Level
+	LogFormat      string
+	BackupInterval time.Duration
+	WorkerCount    int
+
+	// Tower auto-initialization config options //
+	// If set, the server will attempt to initialize itself with the specified role on first startup.
+	InitRole string
+	// The address of the Core tower to connect to when initializing as a Backup tower.
+	CoreAddress string
+	// The API token to use when connecting to the Core tower during initialization as a Backup tower.
+	CoreToken string
+	// Whether to generate an initial admin API token on first startup. (Core server only)
+	GenerateAdminAPIToken bool
+
+	// Indicates whether to use caching for database operations.
+	DoCache bool
+
+	// Indicates whether to enable profiling endpoints.
+	DoProfile bool
+
+	// Indicates whether to perform file discovery on startup. This is only set to true when running the main Weblens server,
+	// and not during tests or other auxiliary binaries.
 	DoFileDiscovery bool
+}
+
+// Merge merges another Provider into the current one, overriding any non-zero values.
+func (c Provider) Merge(o Provider) Provider {
+	if o.Host != "" {
+		c.Host = o.Host
+	}
+
+	if o.Port != "" {
+		c.Port = o.Port
+	}
+
+	if o.ProxyAddress != "" {
+		c.ProxyAddress = o.ProxyAddress
+	}
+
+	if o.MongoDBUri != "" {
+		c.MongoDBUri = o.MongoDBUri
+	}
+
+	if o.MongoDBName != "" {
+		c.MongoDBName = o.MongoDBName
+	}
+
+	if o.UIPath != "" {
+		c.UIPath = o.UIPath
+	}
+
+	if o.DataPath != "" {
+		c.DataPath = o.DataPath
+	}
+
+	if o.CachePath != "" {
+		c.CachePath = o.CachePath
+	}
+
+	if o.StaticContentPath != "" {
+		c.StaticContentPath = o.StaticContentPath
+	}
+
+	if o.LogLevel != zerolog.NoLevel {
+		c.LogLevel = o.LogLevel
+	}
+
+	if o.LogFormat != "" {
+		c.LogFormat = o.LogFormat
+	}
+
+	if o.WorkerCount != 0 {
+		c.WorkerCount = o.WorkerCount
+	}
+
+	if o.BackupInterval != 0 {
+		c.BackupInterval = o.BackupInterval
+	}
+
+	if o.InitRole != "" {
+		c.InitRole = o.InitRole
+	}
+
+	if o.CoreToken != "" {
+		c.CoreToken = o.CoreToken
+	}
+
+	if o.CoreAddress != "" {
+		c.CoreAddress = o.CoreAddress
+	}
+
+	c.DoCache = o.DoCache
+	c.DoProfile = o.DoProfile
+	c.GenerateAdminAPIToken = o.GenerateAdminAPIToken
+	c.DoFileDiscovery = o.DoFileDiscovery
+
+	return c
 }
 
 func envBool(key string) (val bool, ok bool) {
@@ -74,7 +167,7 @@ func getDefaultConfig() Provider {
 	return Provider{
 		Host:              "0.0.0.0",
 		Port:              "8080",
-		MongoDBUri:        "mongodb://127.0.0.1:27018/?replicaSet=rs0&directConnection=true",
+		MongoDBUri:        "mongodb://127.0.0.1:27017/?replicaSet=rs0&directConnection=true",
 		MongoDBName:       "weblensDB",
 		HdirURI:           "http://weblens-hdir:5000",
 		UIPath:            "/app/web",
@@ -89,7 +182,8 @@ func getDefaultConfig() Provider {
 		WorkerCount:    runtime.NumCPU(),
 		BackupInterval: time.Hour,
 
-		DoCache: true,
+		DoCache:   true,
+		DoProfile: false,
 	}
 }
 
@@ -202,14 +296,33 @@ func getEnvOverride(config *Provider) {
 		log.Trace().Msgf("Overriding DoCache with WEBLENS_DO_CACHE: %v", doCache)
 		config.DoCache = doCache
 	}
+
+	if doProfile, ok := envBool("WEBLENS_DO_PROFILING"); ok {
+		log.Trace().Msgf("Overriding DoProfile with WEBLENS_DO_PROFILING: %v", doProfile)
+		config.DoProfile = doProfile
+	}
 }
 
 // GetConfig returns the current configuration for the Weblens server.
 func GetConfig() Provider {
+	cnfMu.RLock()
+	defer cnfMu.RUnlock()
+
 	return cnf
 }
 
 // GetMongoDBUri returns the MongoDB connection URI from the current configuration.
 func GetMongoDBUri() string {
+	cnfMu.RLock()
+	defer cnfMu.RUnlock()
+
 	return cnf.MongoDBUri
+}
+
+// SetLogLevel sets the global log level in the configuration.
+func SetLogLevel(level zerolog.Level) {
+	cnfMu.Lock()
+	defer cnfMu.Unlock()
+
+	cnf.LogLevel = level
 }

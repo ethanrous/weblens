@@ -104,7 +104,12 @@ func HandleFileUploads(tsk *task.Task) {
 		doingRootScan := false
 		// Do not report that this task pool was created by this task, we want to detach
 		// and allow these scans to take place independently
-		newTp := tsk.GetTaskPool().GetWorkerPool().NewTaskPool(false, nil)
+		newTp, err := tsk.GetTaskPool().GetWorkerPool().NewTaskPool(false, nil)
+		if err != nil {
+			tsk.Fail(wlerrors.WithStack(err))
+
+			return
+		}
 
 		for _, tl := range topLevels {
 			fInfo, err := reshape.WeblensFileToFileInfo(appCtx, tl)

@@ -68,18 +68,20 @@ func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_mo
 	}
 
 	// If the user is the owner of the file, we can access it regardless of the share
-	if ownerName == user.GetUsername() {
+	// FIXME: Make admin access more granular. The current behavior is only to support backup operations
+	if ownerName == user.GetUsername() || user.IsAdmin() {
 		return share_model.NewFullPermissions(), nil
 	}
 
 	// Check that the share permits access to the specific file we are trying to access
 	if !doesSharePermitFile(ctx, file, share) {
-		shareID := ""
 		if share != nil {
-			shareID = share.ShareID.Hex()
+			shareID := share.ShareID.Hex()
+
+			return &share_model.Permissions{}, wlerrors.ReplaceStack(wlerrors.Errorf("denying user [%s] access to file [%s] using share [%s]: %w", user.Username, file.ID(), shareID, ErrShareDoesNotPermitFile))
 		}
 
-		return &share_model.Permissions{}, wlerrors.Errorf("invalid share [%s] for file [%s]: %w", shareID, file.ID(), ErrShareDoesNotPermitFile)
+		return &share_model.Permissions{}, wlerrors.ReplaceStack(wlerrors.Errorf("denying user [%s] access to file [%s]: %w", user.Username, file.ID(), ErrFileAccessNotPermitted))
 	}
 
 	if user == nil || user.IsPublic() {
@@ -179,12 +181,14 @@ func GetUserFromAuthHeader(ctx context.Context, authHeader string) (*user_model.
 		return nil, wlerrors.WrapStatus(http.StatusBadRequest, ErrBadAuthHeader)
 	}
 
-	_, err := fmt.Sscanf(authHeader, "Bearer %s", &authHeader)
+	var tokenStr string
+
+	_, err := fmt.Sscanf(authHeader, "Bearer %s", &tokenStr)
 	if err != nil {
 		return nil, wlerrors.WrapStatus(http.StatusInternalServerError, err)
 	}
 
-	tokenByteSlice, err := base64.StdEncoding.DecodeString(authHeader)
+	tokenByteSlice, err := base64.StdEncoding.DecodeString(tokenStr)
 	if err != nil {
 		return nil, wlerrors.WrapStatus(http.StatusInternalServerError, err)
 	}

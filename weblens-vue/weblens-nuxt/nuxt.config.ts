@@ -10,6 +10,7 @@ if (!process.env.VITE_PROXY_PORT && process.env.VITE_BUILD !== 'true') {
     process.env.VITE_PROXY_PORT = '8080'
     console.warn(`VITE_PROXY_PORT not set\nDefaulting proxy to ${process.env.VITE_PROXY_PORT}`)
 }
+
 if (!process.env.VITE_PROXY_HOST && process.env.VITE_BUILD !== 'true') {
     process.env.VITE_PROXY_HOST = '127.0.0.1'
     console.warn(`VITE_PROXY_HOST not set\nDefaulting proxy to ${process.env.VITE_PROXY_HOST}`)
@@ -33,7 +34,7 @@ export default defineNuxtConfig({
     modules: ['@nuxt/eslint', '@nuxt/image', '@pinia/nuxt'],
     css: ['~/assets/css/base.css', '~/assets/css/main.css'],
     devServer: {
-        port: 3000,
+        port: vitePort,
         host: '0.0.0.0',
         cors: {
             origin: '*',

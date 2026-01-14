@@ -129,7 +129,11 @@ func handleActionSubscribe(msg websocket_mod.WsResponseInfo, ctx context_service
 				return wlerrors.WithStack(err)
 			}
 
-			err = ctx.ClientService.SubscribeToFile(ctx, c, file, share, time.UnixMilli(msg.SentTime))
+			if _, err = auth.CanUserAccessFile(ctx, c.GetUser(), file, share, share_model.SharePermissionView); err != nil {
+				return err
+			}
+
+			err = ctx.ClientService.SubscribeToFile(ctx, c, file, time.UnixMilli(msg.SentTime))
 			if err != nil {
 				return wlerrors.WithStack(err)
 			}
@@ -337,9 +341,13 @@ func wsTowerClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte,
 
 		return nil
 	case websocket_mod.BackupCompleteEvent:
-		// Log the backup time, but don't return so the
+		backupSize := int64(0)
+
+		ctx.Log().Trace().Msgf("Received backup complete event from server [%s]: %+v", relaySourceID, msg.Content)
+
+		// Log the backup time and size, but don't return so the
 		// message can be relayed to the web client
-		err = tower_model.SetLastBackup(ctx, relaySourceID, sentTime)
+		err = tower_model.SetLastBackup(ctx, relaySourceID, sentTime, backupSize)
 		if err != nil {
 			return err
 		}
@@ -351,7 +359,7 @@ func wsTowerClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte,
 
 		if local.IsCore() {
 			// Also update the local core server's last backup time
-			err = tower_model.SetLastBackup(ctx, local.TowerID, sentTime)
+			err = tower_model.SetLastBackup(ctx, local.TowerID, sentTime, backupSize)
 			if err != nil {
 				return err
 			}

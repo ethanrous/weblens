@@ -23,7 +23,7 @@ func TestTower_Creation(t *testing.T) {
 		instance, err := tower.CreateLocal(ctx)
 		assert.NoError(t, err)
 		assert.NotNil(t, instance)
-		assert.Equal(t, tower.RoleInit, instance.Role)
+		assert.Equal(t, tower.RoleUninitialized, instance.Role)
 		assert.True(t, instance.IsThisTower)
 
 		// Verify tower was saved to database
@@ -110,7 +110,7 @@ func TestTower_Retrieval(t *testing.T) {
 		numTowers := 3
 
 		// Create multiple towers with same creator
-		for i := 0; i < numTowers; i++ {
+		for range numTowers {
 			instance := &tower.Instance{
 				TowerID:   primitive.NewObjectID().Hex(),
 				Name:      testTowerName,
@@ -156,7 +156,7 @@ func TestTower_Updates(t *testing.T) {
 		require.NoError(t, err)
 
 		backupTime := time.Now()
-		err = tower.SetLastBackup(ctx, instance.TowerID, backupTime)
+		err = tower.SetLastBackup(ctx, instance.TowerID, backupTime, 10)
 		assert.NoError(t, err)
 
 		// Verify update
@@ -169,7 +169,7 @@ func TestTower_Updates(t *testing.T) {
 		instance := &tower.Instance{
 			TowerID: primitive.NewObjectID().Hex(),
 			Name:    testTowerName,
-			Role:    tower.RoleInit,
+			Role:    tower.RoleUninitialized,
 		}
 
 		err := tower.SaveTower(ctx, instance)

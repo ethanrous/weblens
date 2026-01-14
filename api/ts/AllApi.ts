@@ -1,6 +1,7 @@
 import type { Configuration } from "./generated/configuration";
 
 import {
+  APIKeysApiFactory,
   FilesApiFactory,
   FolderApiFactory,
   MediaApiFactory,
@@ -18,6 +19,7 @@ export type WLAPI = {
   TowersAPI: ReturnType<typeof TowersApiFactory>;
   SharesAPI: ReturnType<typeof ShareApiFactory>;
   UsersAPI: ReturnType<typeof UsersApiFactory>;
+  APIKeysAPI: ReturnType<typeof APIKeysApiFactory>;
 };
 
 export function WeblensAPIFactory(apiEndpoint: string): WLAPI {
@@ -28,5 +30,6 @@ export function WeblensAPIFactory(apiEndpoint: string): WLAPI {
     TowersAPI: TowersApiFactory({} as Configuration, apiEndpoint),
     SharesAPI: ShareApiFactory({} as Configuration, apiEndpoint),
     UsersAPI: UsersApiFactory({} as Configuration, apiEndpoint),
+    APIKeysAPI: APIKeysApiFactory({} as Configuration, apiEndpoint),
   };
 }

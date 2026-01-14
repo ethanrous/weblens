@@ -3,6 +3,8 @@ package startup
 
 import (
 	"context"
+	"reflect"
+	"runtime"
 
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/wlerrors"
@@ -31,7 +33,10 @@ func RunStartups(ctx context.Context, cnf config.Provider) error {
 		if err := startup(ctx, cnf); err != nil {
 			if wlerrors.Is(err, ErrDeferStartup) {
 				if len(toRun) == 0 {
-					return wlerrors.New("startup requested to be defered, but there are no more startups to run")
+					// Grab the function name for better error reporting
+					funcName := runtime.FuncForPC(reflect.ValueOf(startup).Pointer()).Name()
+
+					return wlerrors.Errorf("startup function [%s] requested to be deferred, but there are no more startups to run", funcName)
 				}
 
 				// Defer the startup

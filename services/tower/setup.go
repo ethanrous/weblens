@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/ethanrous/weblens/models/auth"
 	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
 	tower_model "github.com/ethanrous/weblens/models/tower"
@@ -22,30 +23,46 @@ func init() {
 }
 
 func initTower(ctx context.Context, cnf config.Provider) error {
-	initRole := tower_model.Role(cnf.InitRole)
-
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
 		return context_service.ErrNoContext
 	}
 
-	if initRole != tower_model.RoleInit {
-		_, err := appCtx.FileService.GetFileByID(appCtx, file_model.UsersTreeKey)
-		if err != nil {
-			return startup.ErrDeferStartup
-		}
-	}
+	// Check if initialization is needed based on the configured role. If the
+	// config has an init role, and the tower is uninitialized, we set up the server automatically.
+	initRole := tower_model.Role(cnf.InitRole)
 
 	localTower, err := tower_model.GetLocal(ctx)
 	if err != nil {
 		return err
 	}
 
-	if localTower.Role != tower_model.RoleInit {
+	// If no init role is set, skip automatic initialization.
+	if localTower.Role != tower_model.RoleUninitialized {
 		return nil
 	}
 
-	if localTower.Role != initRole && initRole == tower_model.RoleCore {
+	// Check for required files based on the init role. If they are not present, defer initialization.
+	switch initRole {
+	case tower_model.RoleCore:
+		_, err := appCtx.FileService.GetFileByID(appCtx, file_model.UsersTreeKey)
+		if err != nil {
+			return startup.ErrDeferStartup
+		}
+	case tower_model.RoleBackup:
+		_, err := appCtx.FileService.GetFileByID(appCtx, file_model.BackupTreeKey)
+		if err != nil {
+			return startup.ErrDeferStartup
+		}
+	}
+
+	if localTower.Role == initRole {
+		return nil
+	}
+
+	// Perform initialization based on the configured role.
+	switch initRole {
+	case tower_model.RoleCore:
 		err = db.WithTransaction(ctx, func(sessionCtx context.Context) error {
 			return InitializeCoreServer(sessionCtx, structs.InitServerParams{
 				Name:     "Weblens Core",
@@ -53,7 +70,20 @@ func initTower(ctx context.Context, cnf config.Provider) error {
 				Password: "adminadmin1",
 				FullName: "Weblens Admin",
 				Role:     string(tower_model.RoleCore),
-			})
+			}, cnf)
+		})
+		if err != nil {
+			return err
+		}
+	case tower_model.RoleBackup:
+		err = db.WithTransaction(ctx, func(sessionCtx context.Context) error {
+			return InitializeBackupServer(sessionCtx, structs.InitServerParams{
+				Name:     "Weblens Backup",
+				Username: "admin",
+				Password: "adminadmin1",
+				FullName: "Weblens Backup Admin",
+				Role:     string(tower_model.RoleBackup),
+			}, cnf)
 		})
 		if err != nil {
 			return err
@@ -63,7 +93,7 @@ func initTower(ctx context.Context, cnf config.Provider) error {
 	return nil
 }
 
-func newOwner(ctx context.Context, initBody structs.InitServerParams) (*user_model.User, error) {
+func newOwner(ctx context.Context, initBody structs.InitServerParams, withAPIKey bool) (*user_model.User, error) {
 	owner := &user_model.User{
 		Username:    initBody.Username,
 		Password:    initBody.Password,
@@ -84,8 +114,8 @@ func newOwner(ctx context.Context, initBody structs.InitServerParams) (*user_mod
 		}
 	}
 
+	// Create user home directory if this is a core server
 	if tower_model.Role(initBody.Role) == tower_model.RoleCore {
-		// Create user home directory
 		err := appCtx.FileService.CreateUserHome(ctx, owner)
 		if err != nil {
 			return nil, err
@@ -96,7 +126,14 @@ func newOwner(ctx context.Context, initBody structs.InitServerParams) (*user_mod
 		}
 	}
 
-	err := user_model.SaveUser(ctx, owner)
+	localTower, err := tower_model.GetLocal(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	owner.CreatedBy = localTower.TowerID
+
+	err = user_model.SaveUser(ctx, owner)
 	if err != nil {
 		return nil, err
 	}
@@ -111,11 +148,20 @@ func newOwner(ctx context.Context, initBody structs.InitServerParams) (*user_mod
 		}
 	}
 
+	if withAPIKey {
+		log.FromContext(ctx).Debug().Msgf("Generating initial admin API token for user [%s]", owner.GetUsername())
+
+		_, err = auth.GenerateNewToken(ctx, "Initial Admin API Token", owner.GetUsername(), localTower.TowerID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return owner, nil
 }
 
 // InitializeCoreServer initializes a tower as a core server with the provided configuration.
-func InitializeCoreServer(ctx context.Context, initBody structs.InitServerParams) error {
+func InitializeCoreServer(ctx context.Context, initBody structs.InitServerParams, cnf config.Provider) error {
 	if initBody.Name == "" || initBody.Username == "" || initBody.Password == "" {
 		return wlerrors.New("missing required fields for core server initialization")
 	}
@@ -136,7 +182,6 @@ func InitializeCoreServer(ctx context.Context, initBody structs.InitServerParams
 		return err
 	}
 
-	cnf := config.GetConfig()
 	cnf.InitRole = string(tower_model.RoleCore)
 
 	err = startup.RunStartups(ctx, cnf)
@@ -144,7 +189,7 @@ func InitializeCoreServer(ctx context.Context, initBody structs.InitServerParams
 		return err
 	}
 
-	_, err = newOwner(ctx, initBody)
+	_, err = newOwner(ctx, initBody, cnf.GenerateAdminAPIToken)
 	if err != nil {
 		return err
 	}
@@ -153,7 +198,7 @@ func InitializeCoreServer(ctx context.Context, initBody structs.InitServerParams
 }
 
 // InitializeBackupServer initializes a tower as a backup server connected to a core server.
-func InitializeBackupServer(ctx context.Context, initBody structs.InitServerParams) error {
+func InitializeBackupServer(ctx context.Context, initBody structs.InitServerParams, cnf config.Provider) error {
 	local, err := tower_model.GetLocal(ctx)
 	if err != nil {
 		return err
@@ -167,10 +212,26 @@ func InitializeBackupServer(ctx context.Context, initBody structs.InitServerPara
 		return err
 	}
 
+	coreAddress := initBody.CoreAddress
+	if cnf.CoreAddress != "" {
+		coreAddress = cnf.CoreAddress
+	} else if coreAddress == "" {
+		return wlerrors.New("core address is required for backup server initialization")
+	}
+
+	coreKey := initBody.CoreKey
+	if cnf.CoreToken != "" {
+		coreKey = cnf.CoreToken
+	} else if coreKey == "" {
+		return wlerrors.New("core token is required for backup server initialization")
+	}
+
+	log.FromContext(ctx).Info().Msgf("Initializing server as BACKUP connecting to CORE at [%s]", coreAddress)
+
 	core := tower_model.Instance{
 		Role:        tower_model.RoleCore,
-		Address:     initBody.CoreAddress,
-		OutgoingKey: initBody.CoreKey,
+		Address:     coreAddress,
+		OutgoingKey: coreKey,
 	}
 
 	coreInfo, err := Ping(ctx, core)
@@ -190,7 +251,17 @@ func InitializeBackupServer(ctx context.Context, initBody structs.InitServerPara
 		return err
 	}
 
-	_, err = newOwner(ctx, initBody)
+	_, err = newOwner(ctx, initBody, false)
+	if err != nil {
+		return err
+	}
+
+	err = AttachToCore(ctx, core)
+	if err != nil {
+		return err
+	}
+
+	err = startup.RunStartups(ctx, cnf)
 	if err != nil {
 		return err
 	}

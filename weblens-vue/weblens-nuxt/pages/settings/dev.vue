@@ -22,6 +22,13 @@
             @click="scanAllMedia"
         />
 
+        <WeblensButton
+            label="Enable trace logging"
+            center-content
+            :disabled="towerStore.towerInfo?.logLevel === 'trace'"
+            @click="enableTraceLogging()"
+        />
+
         <Divider />
 
         <WeblensButton
@@ -55,6 +62,8 @@ import Table from '~/components/atom/Table.vue'
 import WeblensButton from '~/components/atom/WeblensButton.vue'
 import { TableType, type TableColumn } from '~/types/table'
 
+const towerStore = useTowerStore()
+
 useIntervalFn(() => {
     refresh()
 }, 5000)
@@ -73,6 +82,11 @@ async function handleCleanMedia() {
 
 async function handleClearHDIRs() {
     await useWeblensAPI().MediaAPI.dropHDIRs()
+}
+
+async function enableTraceLogging() {
+    await useWeblensAPI().TowersAPI.enableTraceLogging()
+    await towerStore.refreshTowerInfo()
 }
 
 const {

@@ -9,7 +9,6 @@ import (
 	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/modules/fs"
-	"github.com/ethanrous/weblens/modules/log"
 	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"go.mongodb.org/mongo-driver/bson"
@@ -290,17 +289,18 @@ func ActionSorter(a, b FileAction) int {
 	return len(a.GetRelevantPath().RelPath) - len(b.GetRelevantPath().RelPath)
 }
 
-// GetLatestAction retrieves the latest FileAction from the database.
+// GetLatestActionByTowerID retrieves the latest FileAction from the database belinging to a specific towerID.
 // It returns the latest FileAction and an error if the operation fails.
-func GetLatestAction(ctx context_mod.DatabaseContext) (*FileAction, error) {
-	col, err := db.GetCollection[any](ctx, FileHistoryCollectionKey)
+func GetLatestActionByTowerID(ctx context_mod.DatabaseContext, towerID string) (*FileAction, error) {
+	col, err := db.GetCollection[*FileAction](ctx, FileHistoryCollectionKey)
 	if err != nil {
 		return nil, err
 	}
 
-	action := &FileAction{}
-	filter := bson.M{}                                         // No filter to get all documents
+	filter := bson.M{"towerID": towerID}
 	opts := options.FindOne().SetSort(bson.M{"timestamp": -1}) // Sort by timestamp descending
+
+	action := &FileAction{}
 
 	err = col.FindOne(ctx, filter, opts).Decode(action)
 	if err != nil {
@@ -401,39 +401,32 @@ func UpdateAction(ctx context.Context, action *FileAction) error {
 	return nil
 }
 
-// GetActionsAfter retrieves all FileActions that occurred after a given timestamp.
-func GetActionsAfter(ctx context.Context, timestamp time.Time) ([]FileAction, error) {
-	col, err := db.GetCollection[any](ctx, FileHistoryCollectionKey)
-	if err != nil {
-		return nil, err
-	}
-
-	filter := bson.M{"timestamp": bson.M{"$gt": timestamp}}
-
-	cursor, err := col.Find(ctx, filter)
-	if err != nil {
-		return nil, err
-	}
-
-	var actions []FileAction
-
-	err = cursor.All(ctx, &actions)
-	if err != nil {
-		return nil, err
-	}
-
-	return actions, nil
-}
-
 // GetActionsAtPathBefore retrieves FileActions at a path before a given timestamp, optionally including child paths.
 func GetActionsAtPathBefore(ctx context.Context, path fs.Filepath, timestamp time.Time, includeChildren bool) ([]FileAction, error) {
+	return getActionsAtPath(ctx, path, timestamp, true, includeChildren)
+}
+
+// GetActionsAtPathAfter retrieves FileActions at a path after a given timestamp, optionally including child paths.
+func GetActionsAtPathAfter(ctx context.Context, path fs.Filepath, timestamp time.Time, includeChildren bool) ([]FileAction, error) {
+	return getActionsAtPath(ctx, path, timestamp, false, includeChildren)
+}
+
+func getActionsAtPath(ctx context.Context, path fs.Filepath, timestamp time.Time, before, includeChildren bool) ([]FileAction, error) {
 	col, err := db.GetCollection[any](ctx, FileHistoryCollectionKey)
 	if err != nil {
 		return nil, err
 	}
 
-	filter := pathPrefixReFilter(path, includeChildren)
-	filter["timestamp"] = bson.M{"$lte": timestamp}
+	filter := bson.M{}
+	if !path.IsZero() {
+		filter = pathPrefixReFilter(path, includeChildren)
+	}
+
+	if before {
+		filter["timestamp"] = bson.M{"$lt": timestamp}
+	} else {
+		filter["timestamp"] = bson.M{"$gt": timestamp}
+	}
 
 	opts := options.Find().SetSort(bson.M{"timestamp": -1})
 
@@ -452,6 +445,42 @@ func GetActionsAtPathBefore(ctx context.Context, path fs.Filepath, timestamp tim
 	return actions, nil
 }
 
+// GetActionsPage retrieves a paginated list of FileActions from the database.
+func GetActionsPage(ctx context.Context, pageSize, pageNum int, _ string) ([]FileAction, error) {
+	col, err := db.GetCollection[any](ctx, FileHistoryCollectionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	skip := pageSize * pageNum
+
+	pipe := bson.A{
+		// bson.D{
+		// 	{
+		// 		Key:   "$match",
+		// 		Value: bson.D{{Key: "serverID", Value: serverID}},
+		// 	},
+		// },
+		bson.D{{Key: "$sort", Value: bson.D{{Key: "actions.timestamp", Value: -1}}}},
+		bson.D{{Key: "$skip", Value: skip}},
+		bson.D{{Key: "$limit", Value: pageSize}},
+	}
+
+	ret, err := col.Aggregate(ctx, pipe)
+	if err != nil {
+		return nil, wlerrors.WithStack(err)
+	}
+
+	var target []FileAction
+
+	err = ret.All(context.Background(), &target)
+	if err != nil {
+		return nil, wlerrors.WithStack(err)
+	}
+
+	return target, nil
+}
+
 func pathPrefixReFilter(path fs.Filepath, includeChildren bool) bson.M {
 	pathRe := regexp.QuoteMeta(path.ToPortable())
 	if includeChildren {
@@ -459,8 +488,6 @@ func pathPrefixReFilter(path fs.Filepath, includeChildren bool) bson.M {
 	} else {
 		pathRe = "^" + pathRe + "$"
 	}
-
-	log.GlobalLogger().Println("Generated path regex:", pathRe)
 
 	return bson.M{
 		"$or": bson.A{

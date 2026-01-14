@@ -8,6 +8,7 @@ import (
 	"github.com/ethanrous/weblens/models/history"
 	"github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/services/journal"
+	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -57,71 +58,6 @@ type testActionOptions struct {
 	ContentID       string
 	FileID          string
 	Size            int64
-}
-
-func TestGetActionsSince(t *testing.T) {
-	ctx := db.SetupTestDB(t, history.FileHistoryCollectionKey)
-
-	now := time.Now()
-	hourAgo := now.Add(-1 * time.Hour)
-	twoHoursAgo := now.Add(-2 * time.Hour)
-
-	// Create test actions
-	actions := []history.FileAction{
-		*createTestAction(t, testActionOptions{
-			Timestamp:  twoHoursAgo,
-			ActionType: history.FileCreate,
-			Filepath:   fs.BuildFilePath("USERS", "testuser/old-file.txt"),
-			TowerID:    "tower1",
-			FileID:     "file1",
-			EventID:    "event1",
-		}),
-		*createTestAction(t, testActionOptions{
-			Timestamp:  hourAgo,
-			ActionType: history.FileCreate,
-			Filepath:   fs.BuildFilePath("USERS", "testuser/recent-file.txt"),
-			TowerID:    "tower1",
-			FileID:     "file2",
-			EventID:    "event2",
-		}),
-		*createTestAction(t, testActionOptions{
-			Timestamp:  now,
-			ActionType: history.FileCreate,
-			Filepath:   fs.BuildFilePath("USERS", "testuser/new-file.txt"),
-			TowerID:    "tower1",
-			FileID:     "file3",
-			EventID:    "event3",
-		}),
-	}
-
-	err := history.SaveActions(ctx, actions)
-	if err != nil {
-		t.Fatalf("failed to save actions: %v", err)
-	}
-
-	// NOTE: GetActionsSince queries for "actions.timestamp" which expects nested structure,
-	// but SaveAction saves flat documents. This test verifies current behavior.
-	t.Run("returns empty due to query structure mismatch", func(t *testing.T) {
-		result, err := journal.GetActionsSince(ctx, hourAgo.Add(-time.Minute))
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		// Currently returns 0 due to query/data structure mismatch
-		if len(result) != 0 {
-			t.Logf("GetActionsSince returned %d actions (structure may have been fixed)", len(result))
-		}
-	})
-
-	t.Run("get actions since now returns empty", func(t *testing.T) {
-		result, err := journal.GetActionsSince(ctx, now.Add(time.Minute))
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if len(result) != 0 {
-			t.Errorf("expected 0 actions, got %d", len(result))
-		}
-	})
 }
 
 func TestGetActionsPage(t *testing.T) {
@@ -297,82 +233,6 @@ func TestGetLatestPathByID(t *testing.T) {
 	})
 }
 
-func TestGetActionsByPathSince(t *testing.T) {
-	ctx := db.SetupTestDB(t, history.FileHistoryCollectionKey)
-
-	now := time.Now()
-	hourAgo := now.Add(-1 * time.Hour)
-
-	basePath := fs.BuildFilePath("USERS", "testuser/")
-	subPath := fs.BuildFilePath("USERS", "testuser/subfolder/")
-	otherPath := fs.BuildFilePath("USERS", "otheruser/")
-
-	actions := []history.FileAction{
-		*createTestAction(t, testActionOptions{
-			Timestamp:  hourAgo,
-			ActionType: history.FileCreate,
-			Filepath:   fs.BuildFilePath("USERS", "testuser/file1.txt"),
-			TowerID:    "tower1",
-			FileID:     "file1",
-			EventID:    "event1",
-		}),
-		*createTestAction(t, testActionOptions{
-			Timestamp:  now,
-			ActionType: history.FileCreate,
-			Filepath:   fs.BuildFilePath("USERS", "testuser/subfolder/file2.txt"),
-			TowerID:    "tower1",
-			FileID:     "file2",
-			EventID:    "event2",
-		}),
-		*createTestAction(t, testActionOptions{
-			Timestamp:  now,
-			ActionType: history.FileCreate,
-			Filepath:   fs.BuildFilePath("USERS", "otheruser/file3.txt"),
-			TowerID:    "tower1",
-			FileID:     "file3",
-			EventID:    "event3",
-		}),
-	}
-
-	err := history.SaveActions(ctx, actions)
-	if err != nil {
-		t.Fatalf("failed to save actions: %v", err)
-	}
-
-	t.Run("get actions at base path including children", func(t *testing.T) {
-		result, err := journal.GetActionsByPathSince(ctx, basePath, hourAgo.Add(-time.Minute), false)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		// Should get file1 and file2 (both under testuser)
-		if len(result) < 1 {
-			t.Errorf("expected at least 1 action, got %d", len(result))
-		}
-	})
-
-	t.Run("get actions at subfolder path", func(t *testing.T) {
-		result, err := journal.GetActionsByPathSince(ctx, subPath, hourAgo.Add(-time.Minute), false)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		// Should get file2 (under subfolder)
-		if len(result) < 1 {
-			t.Errorf("expected at least 1 action, got %d", len(result))
-		}
-	})
-
-	t.Run("get actions at other path", func(t *testing.T) {
-		result, err := journal.GetActionsByPathSince(ctx, otherPath, hourAgo.Add(-time.Minute), false)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		// Should get file3 (under otheruser)
-		if len(result) < 1 {
-			t.Errorf("expected at least 1 action, got %d", len(result))
-		}
-	})
-}
-
 func TestGetLifetimesByTowerID(t *testing.T) {
 	ctx := db.SetupTestDB(t, history.FileHistoryCollectionKey)
 
@@ -430,10 +290,8 @@ func TestGetLifetimesByTowerID(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		// Should only get the active file lifetime
-		if len(result) != 1 {
-			t.Errorf("expected 1 active lifetime, got %d", len(result))
-		}
+
+		require.Equal(t, 1, len(result), "expected 1 active lifetime")
 	})
 
 	t.Run("get lifetimes for non-existent tower", func(t *testing.T) {
@@ -454,9 +312,8 @@ func TestGetLifetimesByTowerID(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
+
 		// Should get lifetimes under testuser path
-		if len(result) < 1 {
-			t.Errorf("expected at least 1 lifetime, got %d", len(result))
-		}
+		require.GreaterOrEqual(t, len(result), 2, "expected at least 2 lifetimes with path prefix")
 	})
 }

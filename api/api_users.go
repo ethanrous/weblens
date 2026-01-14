@@ -148,7 +148,7 @@ func (r ApiChangeDisplayNameRequest) NewFullName(newFullName string) ApiChangeDi
 	return r
 }
 
-func (r ApiChangeDisplayNameRequest) Execute() (*http.Response, error) {
+func (r ApiChangeDisplayNameRequest) Execute() (*UserInfo, *http.Response, error) {
 	return r.ApiService.ChangeDisplayNameExecute(r)
 }
 
@@ -168,16 +168,18 @@ func (a *UsersAPIService) ChangeDisplayName(ctx context.Context, username string
 }
 
 // Execute executes the request
-func (a *UsersAPIService) ChangeDisplayNameExecute(r ApiChangeDisplayNameRequest) (*http.Response, error) {
+//  @return UserInfo
+func (a *UsersAPIService) ChangeDisplayNameExecute(r ApiChangeDisplayNameRequest) (*UserInfo, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodPatch
 		localVarPostBody     interface{}
 		formFiles            []formFile
+		localVarReturnValue  *UserInfo
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "UsersAPIService.ChangeDisplayName")
 	if err != nil {
-		return nil, &GenericOpenAPIError{error: err.Error()}
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
 	localVarPath := localBasePath + "/users/{username}/fullName"
@@ -187,7 +189,7 @@ func (a *UsersAPIService) ChangeDisplayNameExecute(r ApiChangeDisplayNameRequest
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 	if r.newFullName == nil {
-		return nil, reportError("newFullName is required and must be specified")
+		return localVarReturnValue, nil, reportError("newFullName is required and must be specified")
 	}
 
 	parameterAddToHeaderOrQuery(localVarQueryParams, "newFullName", r.newFullName, "", "")
@@ -210,19 +212,19 @@ func (a *UsersAPIService) ChangeDisplayNameExecute(r ApiChangeDisplayNameRequest
 	}
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
-		return nil, err
+		return localVarReturnValue, nil, err
 	}
 
 	localVarHTTPResponse, err := a.client.callAPI(req)
 	if err != nil || localVarHTTPResponse == nil {
-		return localVarHTTPResponse, err
+		return localVarReturnValue, localVarHTTPResponse, err
 	}
 
 	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
 	localVarHTTPResponse.Body.Close()
 	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
 	if err != nil {
-		return localVarHTTPResponse, err
+		return localVarReturnValue, localVarHTTPResponse, err
 	}
 
 	if localVarHTTPResponse.StatusCode >= 300 {
@@ -235,37 +237,46 @@ func (a *UsersAPIService) ChangeDisplayNameExecute(r ApiChangeDisplayNameRequest
 			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
 			if err != nil {
 				newErr.error = err.Error()
-				return localVarHTTPResponse, newErr
+				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarHTTPResponse, newErr
+			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 401 {
 			var v WeblensErrorInfo
 			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
 			if err != nil {
 				newErr.error = err.Error()
-				return localVarHTTPResponse, newErr
+				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarHTTPResponse, newErr
+			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		if localVarHTTPResponse.StatusCode == 404 {
 			var v WeblensErrorInfo
 			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
 			if err != nil {
 				newErr.error = err.Error()
-				return localVarHTTPResponse, newErr
+				return localVarReturnValue, localVarHTTPResponse, newErr
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
 		}
-		return localVarHTTPResponse, newErr
+		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
 
-	return localVarHTTPResponse, nil
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
 type ApiCheckExistsRequest struct {

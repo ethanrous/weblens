@@ -1684,13 +1684,11 @@ var FolderApiAxiosParamCreator = function(configuration) {
      * 
      * @summary Get actions of a folder at a given time
      * @param {string} fileID File ID
-     * @param {number} timestamp Past timestamp to view the folder at, in ms since epoch
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFolderHistory: async (fileID, timestamp, options = {}) => {
+    getFolderHistory: async (fileID, options = {}) => {
       assertParamExists("getFolderHistory", "fileID", fileID);
-      assertParamExists("getFolderHistory", "timestamp", timestamp);
       const localVarPath = `/files/{fileID}/history`.replace(`{${"fileID"}}`, encodeURIComponent(String(fileID)));
       const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
       let baseOptions;
@@ -1700,9 +1698,6 @@ var FolderApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
-      if (timestamp !== void 0) {
-        localVarQueryParameter["timestamp"] = timestamp;
-      }
       localVarHeaderParameter["Accept"] = "*/*";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
@@ -1814,13 +1809,12 @@ var FolderApiFp = function(configuration) {
      * 
      * @summary Get actions of a folder at a given time
      * @param {string} fileID File ID
-     * @param {number} timestamp Past timestamp to view the folder at, in ms since epoch
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    async getFolderHistory(fileID, timestamp, options) {
+    async getFolderHistory(fileID, options) {
       var _a, _b, _c;
-      const localVarAxiosArgs = await localVarAxiosParamCreator.getFolderHistory(fileID, timestamp, options);
+      const localVarAxiosArgs = await localVarAxiosParamCreator.getFolderHistory(fileID, options);
       const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
       const localVarOperationServerBasePath = (_c = (_b = operationServerMap["FolderApi.getFolderHistory"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
       return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -1887,12 +1881,11 @@ var FolderApiFactory = function(configuration, basePath, axios) {
      * 
      * @summary Get actions of a folder at a given time
      * @param {string} fileID File ID
-     * @param {number} timestamp Past timestamp to view the folder at, in ms since epoch
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFolderHistory(fileID, timestamp, options) {
-      return localVarFp.getFolderHistory(fileID, timestamp, options).then((request) => request(axios, basePath));
+    getFolderHistory(fileID, options) {
+      return localVarFp.getFolderHistory(fileID, options).then((request) => request(axios, basePath));
     },
     /**
      * 
@@ -1946,12 +1939,11 @@ var FolderApi = class extends BaseAPI {
    * 
    * @summary Get actions of a folder at a given time
    * @param {string} fileID File ID
-   * @param {number} timestamp Past timestamp to view the folder at, in ms since epoch
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */
-  getFolderHistory(fileID, timestamp, options) {
-    return FolderApiFp(this.configuration).getFolderHistory(fileID, timestamp, options).then((request) => request(this.axios, this.basePath));
+  getFolderHistory(fileID, options) {
+    return FolderApiFp(this.configuration).getFolderHistory(fileID, options).then((request) => request(this.axios, this.basePath));
   }
   /**
    * 
@@ -3293,6 +3285,30 @@ var TowersApiAxiosParamCreator = function(configuration) {
     },
     /**
      * 
+     * @summary Enable trace logging
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    enableTraceLogging: async (options = {}) => {
+      const localVarPath = `/tower/trace`;
+      const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+      let baseOptions;
+      if (configuration) {
+        baseOptions = configuration.baseOptions;
+      }
+      const localVarRequestOptions = __spreadValues(__spreadValues({ method: "POST" }, baseOptions), options);
+      const localVarHeaderParameter = {};
+      const localVarQueryParameter = {};
+      setSearchParams(localVarUrlObj, localVarQueryParameter);
+      let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+      localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
+      return {
+        url: toPathString(localVarUrlObj),
+        options: localVarRequestOptions
+      };
+    },
+    /**
+     * 
      * @summary Flush Cache
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
@@ -3568,6 +3584,19 @@ var TowersApiFp = function(configuration) {
     },
     /**
      * 
+     * @summary Enable trace logging
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    async enableTraceLogging(options) {
+      var _a, _b, _c;
+      const localVarAxiosArgs = await localVarAxiosParamCreator.enableTraceLogging(options);
+      const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
+      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["TowersApi.enableTraceLogging"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
+      return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+    },
+    /**
+     * 
      * @summary Flush Cache
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
@@ -3715,6 +3744,15 @@ var TowersApiFactory = function(configuration, basePath, axios) {
     },
     /**
      * 
+     * @summary Enable trace logging
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    enableTraceLogging(options) {
+      return localVarFp.enableTraceLogging(options).then((request) => request(axios, basePath));
+    },
+    /**
+     * 
      * @summary Flush Cache
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
@@ -3821,6 +3859,15 @@ var TowersApi = class extends BaseAPI {
    */
   deleteRemote(serverID, options) {
     return TowersApiFp(this.configuration).deleteRemote(serverID, options).then((request) => request(this.axios, this.basePath));
+  }
+  /**
+   * 
+   * @summary Enable trace logging
+   * @param {*} [options] Override http request option.
+   * @throws {RequiredError}
+   */
+  enableTraceLogging(options) {
+    return TowersApiFp(this.configuration).enableTraceLogging(options).then((request) => request(this.axios, this.basePath));
   }
   /**
    * 
@@ -4685,7 +4732,8 @@ function WeblensAPIFactory(apiEndpoint) {
     FoldersAPI: FolderApiFactory({}, apiEndpoint),
     TowersAPI: TowersApiFactory({}, apiEndpoint),
     SharesAPI: ShareApiFactory({}, apiEndpoint),
-    UsersAPI: UsersApiFactory({}, apiEndpoint)
+    UsersAPI: UsersApiFactory({}, apiEndpoint),
+    APIKeysAPI: APIKeysApiFactory({}, apiEndpoint)
   };
 }
 export {

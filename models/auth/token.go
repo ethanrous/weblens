@@ -84,7 +84,7 @@ func SaveToken(ctx context.Context, token *Token) error {
 
 // GetTokensByUser retrieves all tokens owned by a specific user that were created by the local tower.
 func GetTokensByUser(ctx context.Context, username string) ([]*Token, error) {
-	col, err := db.GetCollection[any](ctx, TokenCollectionKey)
+	col, err := db.GetCollection[*Token](ctx, TokenCollectionKey)
 	if err != nil {
 		return nil, err
 	}

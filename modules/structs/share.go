@@ -9,8 +9,8 @@ type ShareInfo struct {
 	ShareType    string                     `json:"shareType"`
 	Accessors    []UserInfo                 `json:"accessors"`
 	Permissions  map[string]PermissionsInfo `json:"permissions"`
-	Expires      int64                      `json:"expires"`
-	Updated      int64                      `json:"updated"`
+	Expires      int64                      `json:"expires" swaggertype:"integer" format:"int64"`
+	Updated      int64                      `json:"updated" swaggertype:"integer" format:"int64"`
 	Public       bool                       `json:"public"`
 	Wormhole     bool                       `json:"wormhole"`
 	TimelineOnly bool                       `json:"timelineOnly"`

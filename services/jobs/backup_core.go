@@ -114,7 +114,7 @@ func DoBackup(tsk *task.Task) {
 		tsk.Fail(wlerrors.Errorf("Remote role is [%s -- %s], expected core", meta.Core.Role, meta.Core.GetReportedRole()))
 	}
 
-	tsk.Log().Debug().Msgf("Starting backup of [%s] with adddress [%s] using key [%s]", meta.Core.Name, meta.Core.Address, meta.Core.OutgoingKey)
+	tsk.Log().Info().Msgf("Starting backup of [%s] with address [%s]", meta.Core.Name, meta.Core.Address)
 
 	tsk.OnResult(
 		func(r task.Result) {
@@ -153,14 +153,14 @@ func DoBackup(tsk *task.Task) {
 	// Find most recent action timestamp
 	latestTime := time.UnixMilli(0)
 
-	latestAction, err := history_model.GetLatestAction(ctx)
+	latestAction, err := history_model.GetLatestActionByTowerID(ctx, meta.Core.TowerID)
 	if err != nil && !db.IsNotFound(err) {
 		tsk.Fail(err)
 	} else if err == nil {
 		latestTime = latestAction.Timestamp
 	}
 
-	tsk.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Backup latest action is %s", latestTime) })
+	tsk.Log().Trace().Msgf("Backup latest action was at [%s]", latestTime)
 
 	backupResponse, err := tower_service.GetBackup(ctx, meta.Core, latestTime)
 	if err != nil {
@@ -168,6 +168,11 @@ func DoBackup(tsk *task.Task) {
 
 		return
 	}
+
+	ctx.Log().Debug().Msgf("Received backup response from core [%s]: %+v",
+		meta.Core.Name,
+		backupResponse,
+	)
 
 	err = db.WithTransaction(ctx, func(ctx context.Context) error {
 		appCtx, ok := context_service.FromContext(ctx)
@@ -278,7 +283,13 @@ func DoBackup(tsk *task.Task) {
 			return err
 		}
 
-		pool := appCtx.TaskService.NewTaskPool(true, tsk)
+		// Create a task pool to keep track of copy file tasks,
+		// and set it as a child of the main backup task (this task)
+		pool, err := appCtx.TaskService.NewTaskPool(true, tsk)
+		if err != nil {
+			return err
+		}
+
 		tsk.SetChildTaskPool(pool)
 
 		for _, a := range filteredActions {
@@ -299,18 +310,18 @@ func DoBackup(tsk *task.Task) {
 			return wlerrors.Errorf("%d of %d backup file copies have failed", len(pool.Errors()), pool.Status().Total)
 		}
 
-		err = tower_model.SetLastBackup(tsk.Ctx, meta.Core.TowerID, time.Now())
+		_, err = remoteDataDir.LoadStat()
+		if err != nil {
+			return err
+		}
+
+		err = tower_model.SetLastBackup(tsk.Ctx, meta.Core.TowerID, time.Now(), remoteDataDir.Size())
 		if err != nil {
 			return err
 		}
 
 		// Don't broadcast this last event set
 		tsk.OnResult(nil)
-
-		_, err = remoteDataDir.LoadStat()
-		if err != nil {
-			return err
-		}
 
 		tsk.SetResult(task.Result{
 			"backupSize": remoteDataDir.Size(),
@@ -385,6 +396,7 @@ func handleFileAction(ctx context_service.AppContext, a history_model.FileAction
 		return nil
 	}
 
+	// Handle directory creation, no need to continue afterwards since directories have no content to copy
 	if backupFilePath.IsDir() && a.ActionType == history_model.FileCreate {
 		parent, err := ctx.FileService.GetFileByFilepath(ctx, backupFilePath.Dir())
 		if err != nil {
@@ -402,6 +414,7 @@ func handleFileAction(ctx context_service.AppContext, a history_model.FileAction
 		return nil
 	}
 
+	// If the action has no contentID, it means the file was created but has no content
 	if a.ContentID == "" {
 		ctx.Log().Trace().Msgf("File %s has no contentID", a.GetRelevantPath())
 
@@ -414,6 +427,16 @@ func handleFileAction(ctx context_service.AppContext, a history_model.FileAction
 		ContentID: a.ContentID,
 	})
 
+	parentDir, err := ctx.FileService.GetFileByFilepath(ctx, restoreFile.GetPortablePath().Dir())
+	if err != nil {
+		return err
+	}
+
+	err = restoreFile.SetParent(parentDir)
+	if err != nil {
+		return err
+	}
+
 	ctx.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Queuing copy file task for %s", restoreFile.GetPortablePath()) })
 
 	// Spawn subtask to copy the file from the core server
@@ -424,6 +447,7 @@ func handleFileAction(ctx context_service.AppContext, a history_model.FileAction
 		Filename:   backupFilePath.Filename(),
 	}
 
+	// Launch the copy file task in the provided pool to copy the file from the core server
 	_, err = ctx.DispatchJob(job.CopyFileFromCoreTask, copyFileMeta, pool)
 	if err != nil {
 		return err

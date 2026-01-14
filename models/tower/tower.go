@@ -21,10 +21,10 @@ const TowerCollectionKey = "towers"
 
 // Tower role constants.
 const (
-	RoleInit    Role = "init"
-	RoleCore    Role = "core"
-	RoleBackup  Role = "backup"
-	RoleRestore Role = "restore"
+	RoleUninitialized Role = "init"
+	RoleCore          Role = "core"
+	RoleBackup        Role = "backup"
+	RoleRestore       Role = "restore"
 )
 
 // ErrTowerNotFound is returned when a tower cannot be found.
@@ -91,7 +91,7 @@ func CreateLocal(ctx context.Context) (t Instance, err error) {
 	t = Instance{
 		DbID:        primitive.NewObjectID(),
 		TowerID:     primitive.NewObjectID().Hex(),
-		Role:        RoleInit,
+		Role:        RoleUninitialized,
 		IsThisTower: true,
 	}
 
@@ -218,13 +218,16 @@ func GetLocal(ctx context.Context) (t Instance, err error) {
 }
 
 // SetLastBackup updates the last backup timestamp for a tower.
-func SetLastBackup(ctx context.Context, towerID string, lastBackup time.Time) error {
+func SetLastBackup(ctx context.Context, towerID string, lastBackup time.Time, backupSizeBytes int64) error {
 	col, err := db.GetCollection[any](ctx, TowerCollectionKey)
 	if err != nil {
 		return err
 	}
 
-	_, err = col.UpdateOne(ctx, bson.M{"towerID": towerID}, bson.M{"$set": bson.M{"lastBackup": lastBackup.UnixMilli()}})
+	_, err = col.UpdateOne(ctx, bson.M{"towerID": towerID}, bson.M{"$set": bson.M{
+		"lastBackup":          lastBackup.UnixMilli(),
+		"lastBackupSizeBytes": backupSizeBytes,
+	}})
 	if err != nil {
 		return err
 	}

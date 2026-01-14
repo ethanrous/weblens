@@ -8,6 +8,7 @@ Name | Type | Description | Notes
 **CoreAddress** | **string** | Address of the remote server, only if the instance is a core. Not set for any remotes/backups on core server, as it IS the core | 
 **Id** | **string** |  | 
 **LastBackup** | **int64** |  | 
+**LogLevel** | Pointer to **string** |  | [optional] 
 **Name** | **string** |  | 
 **Online** | **bool** |  | 
 **ReportedRole** | **string** | Role the server is currently reporting. This is used to determine if the server is online (and functional) or not | 
@@ -113,6 +114,31 @@ and a boolean to check if the value has been set.
 
 SetLastBackup sets LastBackup field to given value.
 
+
+### GetLogLevel
+
+`func (o *TowerInfo) GetLogLevel() string`
+
+GetLogLevel returns the LogLevel field if non-nil, zero value otherwise.
+
+### GetLogLevelOk
+
+`func (o *TowerInfo) GetLogLevelOk() (*string, bool)`
+
+GetLogLevelOk returns a tuple with the LogLevel field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetLogLevel
+
+`func (o *TowerInfo) SetLogLevel(v string)`
+
+SetLogLevel sets LogLevel field to given value.
+
+### HasLogLevel
+
+`func (o *TowerInfo) HasLogLevel() bool`
+
+HasLogLevel returns a boolean if a field has been set.
 
 ### GetName
 

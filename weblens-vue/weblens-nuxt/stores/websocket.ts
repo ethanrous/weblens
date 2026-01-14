@@ -4,7 +4,10 @@ import { API_WS_ENDPOINT } from '~/api/ApiEndpoint'
 import { handleWebsocketMessage } from '~/api/websocketHandlers'
 import type { WsMessage } from '~/types/websocket'
 
-export const useWebsocketStore = defineStore('websocket', () => {
+const useWebsocketStore = defineStore('websocket', () => {
+    const userStore = useUserStore()
+    const openedOnce = ref(false)
+
     const {
         status,
         data,
@@ -12,6 +15,7 @@ export const useWebsocketStore = defineStore('websocket', () => {
         open,
         close,
     } = useWebSocket(API_WS_ENDPOINT, {
+        immediate: userStore.user.isLoggedIn.get({ default: false }),
         autoReconnect: {
             retries: 3,
             delay: 1000,
@@ -26,6 +30,15 @@ export const useWebsocketStore = defineStore('websocket', () => {
         handleWebsocketMessage(msg)
     })
 
+    watchEffect(() => {
+        // Automatically open websocket when user logs in. This might not happen on initial load
+        // if the user store loads after the websocket store (likely).
+        if (userStore.user.isLoggedIn.get({ default: false }) && status.value !== 'OPEN' && !openedOnce.value) {
+            openedOnce.value = true
+            open()
+        }
+    })
+
     function send(data: object) {
         const dataStr = JSON.stringify(data)
         sendRaw(dataStr)
@@ -35,3 +48,5 @@ export const useWebsocketStore = defineStore('websocket', () => {
 
     return { status, data, send, open, close }
 })
+
+export default useWebsocketStore

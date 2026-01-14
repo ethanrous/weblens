@@ -43,7 +43,7 @@ func LaunchBackup(ctx ctxservice.RequestContext) {
 		return
 	}
 
-	// If the local is core, we send the backup request to the specied backup server
+	// If the local is core, we send the backup request to the specified backup server
 	if local.IsCore() {
 		remote, err := tower_model.GetTowerByID(ctx, serverID)
 		if err != nil {

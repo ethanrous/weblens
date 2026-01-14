@@ -2,6 +2,7 @@ package wlerrors
 
 import (
 	"errors"
+	"fmt"
 )
 
 // StatusErr is an error that includes an HTTP status code.
@@ -43,7 +44,7 @@ func AsStatus(err error, defaultStatus int) (int, string) {
 
 // Statusf creates a new error with the specified HTTP status code and formatted message.
 func Statusf(code int, format string, args ...any) error {
-	err := Errorf(format, args...)
+	err := fmt.Errorf(format, args...)
 
 	return &statusError{
 		code: code,

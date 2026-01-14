@@ -86,7 +86,7 @@ func (fs *ServiceImpl) AddFile(c context.Context, files ...*file_model.WeblensFi
 
 		p := f.GetParent()
 		if p == nil {
-			return wlerrors.WithStack(file_model.ErrNoParent)
+			return wlerrors.Wrapf(file_model.ErrNoParent, "failed to add file [%s] to file service", f.GetPortablePath())
 		}
 
 		if _, err = p.GetChild(f.GetPortablePath().Filename()); err != nil {
@@ -160,7 +160,7 @@ func (fs *ServiceImpl) GetFileByFilepath(ctx context.Context, filepath file_syst
 				return nil, err
 			}
 		} else if !shouldLoadNew {
-			return nil, file_model.ErrFileNotFound
+			return nil, wlerrors.ReplaceStack(wlerrors.Errorf("failed to load childFile [%s]: %w", childFile.GetPortablePath().String(), file_model.ErrFileNotFound))
 		}
 
 		childFile, err = childFile.GetChild(child)
@@ -241,8 +241,15 @@ func (fs *ServiceImpl) CreateFile(ctx context.Context, parent *file_model.Weblen
 		return nil, err
 	}
 
-	for _, d := range data {
-		_, err = newF.Write(d)
+	if len(data) != 0 {
+		for _, d := range data {
+			_, err = newF.Write(d)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		_, err = file_model.GenerateContentID(ctx, newF)
 		if err != nil {
 			return nil, err
 		}
@@ -731,6 +738,10 @@ func (fs *ServiceImpl) ResizeUp(ctx context.Context, f *file_model.WeblensFileIm
 
 // CreateUserHome initializes a home directory and trash for a new user.
 func (fs *ServiceImpl) CreateUserHome(ctx context.Context, user *user_model.User) error {
+	if user.Username == "" {
+		return wlerrors.Wrapf(user_model.ErrUsernameTooShort, "failed to create home folder for user")
+	}
+
 	parent, err := fs.GetFileByID(ctx, file_model.UsersTreeKey)
 	if err != nil {
 		return err
@@ -738,7 +749,7 @@ func (fs *ServiceImpl) CreateUserHome(ctx context.Context, user *user_model.User
 
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
-		return wlerrors.WithStack(context_service.ErrNoContext)
+		return wlerrors.ReplaceStack(context_service.ErrNoContext)
 	}
 
 	appCtx = appCtx.WithValue(doFileCreationContextKey{}, true)
@@ -769,7 +780,7 @@ func (fs *ServiceImpl) CreateUserHome(ctx context.Context, user *user_model.User
 
 	err = fs.AddFile(appCtx, home, trash)
 	if err != nil {
-		return err
+		return wlerrors.Wrapf(err, "failed to add home and trash for user [%s]", user.GetUsername())
 	}
 
 	return nil

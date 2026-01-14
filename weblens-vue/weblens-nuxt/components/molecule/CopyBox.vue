@@ -21,7 +21,7 @@
         </span>
         <IconClipboard
             :class="{
-                'ml-auto shrink-0 rounded p-0.5': true,
+                'mr-1 ml-auto shrink-0 rounded p-0.5': true,
                 'hover:bg-card-background-hover cursor-pointer': canCopy,
                 'text-text-tertiary': !canCopy,
             }"

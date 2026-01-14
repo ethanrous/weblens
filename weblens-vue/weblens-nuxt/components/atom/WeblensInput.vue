@@ -14,15 +14,15 @@
             v-model="value"
             :placeholder="placeholder"
             :type="type"
-            :autofocus="autoFocus"
+            :value="value"
             @input="
                 (e) => {
-                    emit('update', (e.target as HTMLInputElement).value)
+                    emit('update:value', (e.target as HTMLInputElement).value)
                 }
             "
             @keydown.escape="
                 () => {
-                    if (focused.focused.value) {
+                    if (focused) {
                         input?.blur()
                     }
                 }
@@ -31,8 +31,8 @@
         <div
             v-if="keyName"
             :class="{
-                'text-text-tertiary pointer-events-none p-1 text-nowrap transition': true,
-                'opacity-0': focused.focused.value || value,
+                'text-text-tertiary pointer-events-none absolute right-2 p-1 text-nowrap transition': true,
+                'opacity-0': focused || value,
             }"
         >
             <span>
@@ -40,7 +40,7 @@
             </span>
         </div>
         <div
-            v-if="value && focused.focused.value && showSubmit"
+            v-if="value && focused && showSubmit"
             :class="{
                 'text-text-tertiary hover:text-text-primary hover:bg-card-background-secondary absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 transition': true,
             }"
@@ -54,7 +54,7 @@
             <IconArrowRight />
         </div>
         <div
-            v-if="clearButton && value && focused.focused.value"
+            v-if="clearButton && value && focused"
             :class="{
                 'text-text-tertiary hover:text-text-primary hover:bg-card-background-secondary z-90 cursor-pointer rounded p-1 transition': true,
             }"
@@ -72,7 +72,7 @@ import { onKeyDown, useFocusWithin } from '@vueuse/core'
 
 const inputContainer = ref<HTMLDivElement>()
 const input = ref<HTMLInputElement>()
-const focused = useFocusWithin(inputContainer)
+const { focused } = useFocusWithin(inputContainer)
 
 const props = defineProps<{
     placeholder?: string
@@ -99,7 +99,7 @@ const type = computed(() => {
 })
 
 const emit = defineEmits<{
-    (e: 'update' | 'submit', value: string): void
+    (e: 'update:value' | 'submit', value: string): void
     (e: 'clear' | 'focused'): void
 }>()
 
@@ -123,14 +123,14 @@ defineExpose({
 })
 
 onKeyDown(['Enter'], (e) => {
-    if (!focused.focused.value) return
+    if (!focused.value) return
     e.preventDefault()
     emit('submit', value.value ?? '')
     input.value?.blur()
 })
 
 watchEffect(() => {
-    if (focused.focused.value) {
+    if (focused.value) {
         if (props.search) {
             input.value?.select()
         }
@@ -141,7 +141,11 @@ watchEffect(() => {
 
 onMounted(() => {
     if (props.autoFocus) {
-        input.value?.focus()
+        // vueuse useFocusWithin won't see the focus event if we do it immediately on mounted,
+        // so we wait for the next tick.
+        nextTick().then(() => {
+            input.value?.focus()
+        })
     }
 })
 </script>

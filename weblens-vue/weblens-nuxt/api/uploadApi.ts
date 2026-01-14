@@ -426,7 +426,7 @@ export async function HandleFileSelect(files: FileList, rootFolderID: string, is
                     return
                 }
 
-                const createRes = await useWeblensAPI().FoldersApi.createFolder({
+                const createRes = await useWeblensAPI().FoldersAPI.createFolder({
                     parentFolderID: parentDirID,
                     newFolderName: pathPart,
                 })

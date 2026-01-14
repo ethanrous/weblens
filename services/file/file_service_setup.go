@@ -46,7 +46,7 @@ func LoadFilesRecursively(ctx context_service.AppContext, root *file_model.Weble
 
 		newChildren, err := loadOneDirectory(ctx, file)
 		if err != nil {
-			return wlerrors.Errorf("Failed to load directory %s: %w", file.GetPortablePath(), err)
+			return wlerrors.Errorf("Failed to load directory [%s]: %w", file.GetPortablePath(), err)
 		}
 
 		searchFiles = append(searchFiles, newChildren...)
@@ -161,6 +161,8 @@ func loadFs(ctx context.Context, cnf config.Provider) error {
 
 func handleFileCreation(ctx context_service.AppContext, filepath file_system.Filepath, pathMap map[file_system.Filepath]history.FileAction, doFileCreation bool) (*file_model.WeblensFileImpl, error) {
 	if f, err := ctx.FileService.GetFileByFilepath(ctx, filepath, true); err == nil {
+		ctx.Log().Trace().Msgf("File [%s] found by filepath in file service", filepath)
+
 		return f, nil
 	} else if !wlerrors.Is(err, file_model.ErrFileNotFound) {
 		return nil, err
@@ -170,9 +172,7 @@ func handleFileCreation(ctx context_service.AppContext, filepath file_system.Fil
 	action, ok := pathMap[filepath]
 
 	if !doFileCreation && !ok {
-		ctx.Log().Warn().Msgf("File [%s] not found in history, and doFileDiscovery is false", filepath)
-
-		return f, nil
+		return nil, wlerrors.ReplaceStack(file_model.ErrFileHistoryMissing)
 	}
 
 	if !ok {
@@ -265,8 +265,12 @@ func loadOneDirectory(ctx context_service.AppContext, dir *file_model.WeblensFil
 
 		for _, childPath := range childPaths {
 			child, err := handleFileCreation(appCtx, childPath, pathMap, doFileCreation)
-			if err != nil {
-				return err
+			if err != nil && wlerrors.Is(err, file_model.ErrFileHistoryMissing) {
+				appCtx.Log().Warn().Msgf("File [%s] missing history entry, skipping", childPath)
+
+				continue
+			} else if err != nil {
+				return wlerrors.Errorf("failed to handle file creation for [%s]: %w", childPath, err)
 			}
 
 			err = child.SetParent(dir)

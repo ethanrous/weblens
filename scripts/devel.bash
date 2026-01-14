@@ -4,17 +4,20 @@ set -euo pipefail
 source ./scripts/lib/all.bash
 
 start_ui() {
+    export VITE_PROXY_PORT="$WEBLENS_PORT"
+    echo "Starting Weblens development UI..."
+
     pushd "$WEBLENS_ROOT/weblens-vue/weblens-nuxt" >/dev/null
     pnpm dev &>/dev/null &
     popd >/dev/null
 }
 
 devel_weblens_locally() {
-    echo "Running Weblens locally for development..."
+    if [[ ! -e "$WEBLENS_ROOT/services/media/agno/lib/libagno.a" ]]; then
+        build_agno
+    fi
 
-    build_agno
-
-    build_frontend
+    build_frontend true
     start_ui
 
     air

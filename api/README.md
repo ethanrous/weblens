@@ -126,6 +126,7 @@ Class | Method | HTTP request | Description
 *ShareAPI* | [**UpdateShareAccessorPermissions**](docs/ShareAPI.md#updateshareaccessorpermissions) | **Patch** /share/{shareID}/accessors/{username} | Update a share&#39;s user permissions
 *TowersAPI* | [**CreateRemote**](docs/TowersAPI.md#createremote) | **Post** /tower/remote | Create a new remote
 *TowersAPI* | [**DeleteRemote**](docs/TowersAPI.md#deleteremote) | **Delete** /tower/{serverID} | Delete a remote
+*TowersAPI* | [**EnableTraceLogging**](docs/TowersAPI.md#enabletracelogging) | **Post** /tower/trace | Enable trace logging
 *TowersAPI* | [**FlushCache**](docs/TowersAPI.md#flushcache) | **Delete** /tower/cache | Flush Cache
 *TowersAPI* | [**GetBackupInfo**](docs/TowersAPI.md#getbackupinfo) | **Get** /tower/backup | Get information about a file
 *TowersAPI* | [**GetPagedHistoryActions**](docs/TowersAPI.md#getpagedhistoryactions) | **Get** /tower/history | Get a page of file actions

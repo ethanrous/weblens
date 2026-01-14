@@ -7,12 +7,15 @@ import (
 
 	"github.com/ethanrous/weblens/models/db"
 	tower_model "github.com/ethanrous/weblens/models/tower"
+	"github.com/ethanrous/weblens/modules/config"
+	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/netwrk"
 	"github.com/ethanrous/weblens/modules/structs"
 	"github.com/ethanrous/weblens/routers/api/v1/websocket"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/reshape"
 	tower_service "github.com/ethanrous/weblens/services/tower"
+	"github.com/rs/zerolog"
 )
 
 // GetServerInfo godoc
@@ -33,6 +36,11 @@ func GetServerInfo(ctx context_service.RequestContext) {
 	}
 
 	towerInfo := reshape.TowerToTowerInfo(ctx, tower)
+
+	if ctx.Doer().IsAdmin() {
+		towerInfo.LogLevel = config.GetConfig().LogLevel.String()
+	}
+
 	ctx.JSON(http.StatusOK, towerInfo)
 }
 
@@ -216,7 +224,7 @@ func InitializeTower(ctx context_service.RequestContext) {
 	}
 
 	// Check if the server is already initialized
-	if local.Role != tower_model.RoleInit {
+	if local.Role != tower_model.RoleUninitialized {
 		ctx.Error(http.StatusConflict, tower_model.ErrTowerAlreadyInitialized)
 
 		return
@@ -234,11 +242,11 @@ func InitializeTower(ctx context_service.RequestContext) {
 		// Initialize the server based on the specified role
 		switch tower_model.Role(initBody.Role) {
 		case tower_model.RoleCore:
-			if err := tower_service.InitializeCoreServer(sessionCtx, initBody); err != nil {
+			if err := tower_service.InitializeCoreServer(sessionCtx, initBody, config.Provider{}); err != nil {
 				return err
 			}
 		case tower_model.RoleBackup:
-			if err := tower_service.InitializeBackupServer(sessionCtx, initBody); err != nil {
+			if err := tower_service.InitializeBackupServer(sessionCtx, initBody, config.Provider{}); err != nil {
 				return err
 			}
 		case tower_model.RoleRestore:
@@ -301,5 +309,23 @@ func ResetServer(ctx context_service.RequestContext) {
 		return
 	}
 
+	ctx.Status(http.StatusOK)
+}
+
+// EnableTraceLogging godoc
+//
+//	@ID			EnableTraceLogging
+//
+//	@Security	SessionAuth[admin]
+//	@Security	ApiKeyAuth[admin]
+//
+//	@Summary	Enable trace logging
+//	@Tags		Towers
+//	@Produce	json
+//
+//	@Success	200
+//	@Router		/tower/trace [post]
+func EnableTraceLogging(ctx context_service.RequestContext) {
+	log.SetLogLevel(zerolog.TraceLevel)
 	ctx.Status(http.StatusOK)
 }

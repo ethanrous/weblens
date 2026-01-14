@@ -148,6 +148,22 @@ func (t *Task) Status() (bool, ExitStatus) {
 	return t.queueState == Exited, t.exitStatus
 }
 
+// GetStartTime returns the time when the task started executing.
+func (t *Task) GetStartTime() time.Time {
+	t.updateMu.RLock()
+	defer t.updateMu.RUnlock()
+
+	return t.StartTime
+}
+
+// GetFinishTime returns the time when the task finished executing.
+func (t *Task) GetFinishTime() time.Time {
+	t.updateMu.RLock()
+	defer t.updateMu.RUnlock()
+
+	return t.FinishTime
+}
+
 // Q queues task on given taskPool tp,
 // if tp is nil, will default to the global task pool.
 // Essentially an alias for tp.QueueTask(t), so you can

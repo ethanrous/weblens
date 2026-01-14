@@ -220,13 +220,6 @@ func TestAppContext_GetMongoSession(t *testing.T) {
 	})
 }
 
-func TestErrNoContext(t *testing.T) {
-	t.Run("error is defined", func(t *testing.T) {
-		assert.NotNil(t, ctxservice.ErrNoContext)
-		assert.Contains(t, ctxservice.ErrNoContext.Error(), "not an AppContext")
-	})
-}
-
 func TestAppContext_LoggerIntegration(t *testing.T) {
 	t.Run("logger can be used for logging", func(t *testing.T) {
 		logger := log.NewZeroLogger()

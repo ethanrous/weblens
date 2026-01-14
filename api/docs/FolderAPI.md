@@ -152,7 +152,7 @@ No authorization required
 
 ## GetFolderHistory
 
-> []FileActionInfo GetFolderHistory(ctx, fileID).Timestamp(timestamp).Execute()
+> []FileActionInfo GetFolderHistory(ctx, fileID).Execute()
 
 Get actions of a folder at a given time
 
@@ -170,11 +170,10 @@ import (
 
 func main() {
 	fileID := "fileID_example" // string | File ID
-	timestamp := int32(56) // int32 | Past timestamp to view the folder at, in ms since epoch
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.FolderAPI.GetFolderHistory(context.Background(), fileID).Timestamp(timestamp).Execute()
+	resp, r, err := apiClient.FolderAPI.GetFolderHistory(context.Background(), fileID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FolderAPI.GetFolderHistory``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -200,7 +199,6 @@ Other parameters are passed through a pointer to a apiGetFolderHistoryRequest st
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
- **timestamp** | **int32** | Past timestamp to view the folder at, in ms since epoch | 
 
 ### Return type
 

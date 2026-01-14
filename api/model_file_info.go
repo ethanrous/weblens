@@ -21,18 +21,17 @@ var _ MappedNullable = &FileInfo{}
 type FileInfo struct {
 	ChildrenIds []string `json:"childrenIds,omitempty"`
 	ContentID *string `json:"contentID,omitempty"`
-	CurrentID *string `json:"currentID,omitempty"`
 	HasRestoreMedia *bool `json:"hasRestoreMedia,omitempty"`
 	Id *string `json:"id,omitempty"`
 	IsDir *bool `json:"isDir,omitempty"`
 	Modifiable *bool `json:"modifiable,omitempty"`
-	ModifyTimestamp *int32 `json:"modifyTimestamp,omitempty"`
+	ModifyTimestamp *int64 `json:"modifyTimestamp,omitempty"`
 	Owner *string `json:"owner,omitempty"`
 	ParentID *string `json:"parentID,omitempty"`
 	PastFile *bool `json:"pastFile,omitempty"`
 	PortablePath *string `json:"portablePath,omitempty"`
 	ShareID *string `json:"shareID,omitempty"`
-	Size *int32 `json:"size,omitempty"`
+	Size *int64 `json:"size,omitempty"`
 }
 
 // NewFileInfo instantiates a new FileInfo object
@@ -114,38 +113,6 @@ func (o *FileInfo) HasContentID() bool {
 // SetContentID gets a reference to the given string and assigns it to the ContentID field.
 func (o *FileInfo) SetContentID(v string) {
 	o.ContentID = &v
-}
-
-// GetCurrentID returns the CurrentID field value if set, zero value otherwise.
-func (o *FileInfo) GetCurrentID() string {
-	if o == nil || IsNil(o.CurrentID) {
-		var ret string
-		return ret
-	}
-	return *o.CurrentID
-}
-
-// GetCurrentIDOk returns a tuple with the CurrentID field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *FileInfo) GetCurrentIDOk() (*string, bool) {
-	if o == nil || IsNil(o.CurrentID) {
-		return nil, false
-	}
-	return o.CurrentID, true
-}
-
-// HasCurrentID returns a boolean if a field has been set.
-func (o *FileInfo) HasCurrentID() bool {
-	if o != nil && !IsNil(o.CurrentID) {
-		return true
-	}
-
-	return false
-}
-
-// SetCurrentID gets a reference to the given string and assigns it to the CurrentID field.
-func (o *FileInfo) SetCurrentID(v string) {
-	o.CurrentID = &v
 }
 
 // GetHasRestoreMedia returns the HasRestoreMedia field value if set, zero value otherwise.
@@ -277,9 +244,9 @@ func (o *FileInfo) SetModifiable(v bool) {
 }
 
 // GetModifyTimestamp returns the ModifyTimestamp field value if set, zero value otherwise.
-func (o *FileInfo) GetModifyTimestamp() int32 {
+func (o *FileInfo) GetModifyTimestamp() int64 {
 	if o == nil || IsNil(o.ModifyTimestamp) {
-		var ret int32
+		var ret int64
 		return ret
 	}
 	return *o.ModifyTimestamp
@@ -287,7 +254,7 @@ func (o *FileInfo) GetModifyTimestamp() int32 {
 
 // GetModifyTimestampOk returns a tuple with the ModifyTimestamp field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *FileInfo) GetModifyTimestampOk() (*int32, bool) {
+func (o *FileInfo) GetModifyTimestampOk() (*int64, bool) {
 	if o == nil || IsNil(o.ModifyTimestamp) {
 		return nil, false
 	}
@@ -303,8 +270,8 @@ func (o *FileInfo) HasModifyTimestamp() bool {
 	return false
 }
 
-// SetModifyTimestamp gets a reference to the given int32 and assigns it to the ModifyTimestamp field.
-func (o *FileInfo) SetModifyTimestamp(v int32) {
+// SetModifyTimestamp gets a reference to the given int64 and assigns it to the ModifyTimestamp field.
+func (o *FileInfo) SetModifyTimestamp(v int64) {
 	o.ModifyTimestamp = &v
 }
 
@@ -469,9 +436,9 @@ func (o *FileInfo) SetShareID(v string) {
 }
 
 // GetSize returns the Size field value if set, zero value otherwise.
-func (o *FileInfo) GetSize() int32 {
+func (o *FileInfo) GetSize() int64 {
 	if o == nil || IsNil(o.Size) {
-		var ret int32
+		var ret int64
 		return ret
 	}
 	return *o.Size
@@ -479,7 +446,7 @@ func (o *FileInfo) GetSize() int32 {
 
 // GetSizeOk returns a tuple with the Size field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *FileInfo) GetSizeOk() (*int32, bool) {
+func (o *FileInfo) GetSizeOk() (*int64, bool) {
 	if o == nil || IsNil(o.Size) {
 		return nil, false
 	}
@@ -495,8 +462,8 @@ func (o *FileInfo) HasSize() bool {
 	return false
 }
 
-// SetSize gets a reference to the given int32 and assigns it to the Size field.
-func (o *FileInfo) SetSize(v int32) {
+// SetSize gets a reference to the given int64 and assigns it to the Size field.
+func (o *FileInfo) SetSize(v int64) {
 	o.Size = &v
 }
 
@@ -515,9 +482,6 @@ func (o FileInfo) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.ContentID) {
 		toSerialize["contentID"] = o.ContentID
-	}
-	if !IsNil(o.CurrentID) {
-		toSerialize["currentID"] = o.CurrentID
 	}
 	if !IsNil(o.HasRestoreMedia) {
 		toSerialize["hasRestoreMedia"] = o.HasRestoreMedia

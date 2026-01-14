@@ -81,7 +81,7 @@ func NewTestContext() context_mod.Z {
 	}
 }
 
-// NewTestContextWithCancel creates a cancellable context implementing context_mod.Z for testing.
+// NewTestContextWithCancel creates a cancelable context implementing context_mod.Z for testing.
 func NewTestContextWithCancel() (context_mod.Z, context.CancelFunc) {
 	logger := log.NewZeroLogger()
 	wg := &sync.WaitGroup{}
@@ -96,16 +96,7 @@ func NewTestContextWithCancel() (context_mod.Z, context.CancelFunc) {
 
 // NewTestWorkerPool creates a WorkerPool for testing purposes.
 func NewTestWorkerPool(numWorkers int) *WorkerPool {
-	ctx := NewTestContext()
-
-	return NewWorkerPool(ctx, numWorkers)
-}
-
-// NewTestWorkerPoolWithCancel creates a WorkerPool with a cancellable context for testing.
-func NewTestWorkerPoolWithCancel(numWorkers int) (*WorkerPool, context.CancelFunc) {
-	ctx, cancel := NewTestContextWithCancel()
-
-	return NewWorkerPool(ctx, numWorkers), cancel
+	return NewWorkerPool(numWorkers)
 }
 
 // testMetadata is a simple metadata implementation for testing.

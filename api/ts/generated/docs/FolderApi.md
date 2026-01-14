@@ -136,11 +136,9 @@ const configuration = new Configuration();
 const apiInstance = new FolderApi(configuration);
 
 let fileID: string; //File ID (default to undefined)
-let timestamp: number; //Past timestamp to view the folder at, in ms since epoch (default to undefined)
 
 const { status, data } = await apiInstance.getFolderHistory(
-    fileID,
-    timestamp
+    fileID
 );
 ```
 
@@ -149,7 +147,6 @@ const { status, data } = await apiInstance.getFolderHistory(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **fileID** | [**string**] | File ID | defaults to undefined|
-| **timestamp** | [**number**] | Past timestamp to view the folder at, in ms since epoch | defaults to undefined|
 
 
 ### Return type
