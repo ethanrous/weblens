@@ -11,6 +11,7 @@ WORKDIR /src/weblens-nuxt
 
 RUN npm install -g pnpm;
 RUN pnpm install;
+RUN pnpm link ../../api/ts;
 RUN pnpm generate;
 
 # Build agno static library
