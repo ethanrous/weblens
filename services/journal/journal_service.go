@@ -1,3 +1,4 @@
+// Package journal provides functionalities to manage and retrieve file action histories and lifetimes.
 package journal
 
 import (
@@ -193,7 +194,6 @@ func GetPastFileByPath(ctx context.Context, path fs.Filepath, time time.Time) (*
 
 	return newFile, nil
 }
-
 
 // GetActionsPage retrieves a paginated list of file actions.
 func GetActionsPage(ctx context.Context, pageSize, pageNum int) ([]history.FileAction, error) {

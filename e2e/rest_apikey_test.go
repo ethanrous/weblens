@@ -62,14 +62,17 @@ func TestGetAPIKeys(t *testing.T) {
 	// Verify our keys are in the list
 	foundKeyOne := false
 	foundKeyTwo := false
+
 	for _, k := range keys {
 		if k.GetNickname() == "key-one" {
 			foundKeyOne = true
 		}
+
 		if k.GetNickname() == "key-two" {
 			foundKeyTwo = true
 		}
 	}
+
 	assert.True(t, foundKeyOne, "key-one should be in the list")
 	assert.True(t, foundKeyTwo, "key-two should be in the list")
 }
@@ -94,13 +97,17 @@ func TestDeleteAPIKey(t *testing.T) {
 	// Verify the key exists
 	keys, _, err := client.APIKeysAPI.GetAPIKeys(t.Context()).Execute()
 	require.NoError(t, err)
+
 	found := false
+
 	for _, k := range keys {
 		if k.GetId() == tokenID {
 			found = true
+
 			break
 		}
 	}
+
 	require.True(t, found, "key should exist before deletion")
 
 	// Delete the key
@@ -111,12 +118,16 @@ func TestDeleteAPIKey(t *testing.T) {
 	// Verify the key no longer exists
 	keys, _, err = client.APIKeysAPI.GetAPIKeys(t.Context()).Execute()
 	require.NoError(t, err)
+
 	found = false
+
 	for _, k := range keys {
 		if k.GetId() == tokenID {
 			found = true
+
 			break
 		}
 	}
+
 	assert.False(t, found, "key should not exist after deletion")
 }

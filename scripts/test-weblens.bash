@@ -25,7 +25,7 @@ run_native_tests() {
     # shellcheck disable=SC2086
     go test -v -cover -race -coverprofile=_build/cover/coverage.out -coverpkg ./... -tags=test ${target} 2>&1 | grep -v -e "=== RUN" -e "=== PAUSE" -e "--- PASS" -e "coverage:" -e "=== CONT" -e "ld: warning:"
 
-    sed -i '' '/github\.com\/ethanrous\/weblens\/api/d' ./_build/cover/coverage.out
+    portable_sed '/github\.com\/ethanrous\/weblens\/api/d' ./_build/cover/coverage.out
 }
 
 run_container_tests() {

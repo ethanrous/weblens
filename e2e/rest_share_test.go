@@ -24,6 +24,7 @@ func TestCreateFileShare(t *testing.T) {
 	// Get user's home folder ID
 	userInfo, _, err := client.UsersAPI.GetUser(t.Context()).Execute()
 	require.NoError(t, err)
+
 	homeID := userInfo.GetHomeID()
 
 	// Create a folder to share
@@ -57,6 +58,7 @@ func TestGetFileShare(t *testing.T) {
 	// Get user's home folder ID
 	userInfo, _, err := client.UsersAPI.GetUser(t.Context()).Execute()
 	require.NoError(t, err)
+
 	homeID := userInfo.GetHomeID()
 
 	// Create a folder to share
@@ -99,6 +101,7 @@ func TestSetSharePublic(t *testing.T) {
 	// Get user's home folder ID
 	userInfo, _, err := client.UsersAPI.GetUser(t.Context()).Execute()
 	require.NoError(t, err)
+
 	homeID := userInfo.GetHomeID()
 
 	// Create a folder to share
@@ -159,6 +162,7 @@ func TestAddUserToShare(t *testing.T) {
 	// Get admin's home folder ID
 	userInfo, _, err := client.UsersAPI.GetUser(t.Context()).Execute()
 	require.NoError(t, err)
+
 	homeID := userInfo.GetHomeID()
 
 	// Create a folder to share
@@ -187,12 +191,15 @@ func TestAddUserToShare(t *testing.T) {
 
 	// Verify user was added
 	found := false
+
 	for _, accessor := range shareInfo.GetAccessors() {
 		if accessor.GetUsername() == "shareuser" {
 			found = true
+
 			break
 		}
 	}
+
 	assert.True(t, found, "shareuser should be in accessors list")
 }
 
@@ -218,6 +225,7 @@ func TestRemoveUserFromShare(t *testing.T) {
 	// Get admin's home folder ID
 	userInfo, _, err := client.UsersAPI.GetUser(t.Context()).Execute()
 	require.NoError(t, err)
+
 	homeID := userInfo.GetHomeID()
 
 	// Create a folder to share
@@ -247,12 +255,15 @@ func TestRemoveUserFromShare(t *testing.T) {
 
 	// Verify user was removed
 	found := false
+
 	for _, accessor := range shareInfo.GetAccessors() {
 		if accessor.GetUsername() == "removableuser" {
 			found = true
+
 			break
 		}
 	}
+
 	assert.False(t, found, "removableuser should not be in accessors list")
 }
 
@@ -278,6 +289,7 @@ func TestUpdateSharePermissions(t *testing.T) {
 	// Get admin's home folder ID
 	userInfo, _, err := client.UsersAPI.GetUser(t.Context()).Execute()
 	require.NoError(t, err)
+
 	homeID := userInfo.GetHomeID()
 
 	// Create a folder to share
@@ -337,6 +349,7 @@ func TestDeleteFileShare(t *testing.T) {
 	// Get user's home folder ID
 	userInfo, _, err := client.UsersAPI.GetUser(t.Context()).Execute()
 	require.NoError(t, err)
+
 	homeID := userInfo.GetHomeID()
 
 	// Create a folder to share
