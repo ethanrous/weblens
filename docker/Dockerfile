@@ -6,12 +6,22 @@ ARG GO_VERSION=1.25.0
 # Build UI
 FROM node:${NODE_VERSION}-alpine AS web
 
+# Copy both weblens-vue and api/ts maintaining the relative path structure
+# package.json has: "@ethanrous/weblens-api": "link:../../api/ts"
+# From /src/weblens-nuxt, ../../api/ts resolves to /api/ts
+COPY api/ts /api/ts
 COPY weblens-vue /src
-WORKDIR /src/weblens-nuxt
 
 RUN npm install -g pnpm;
+
+# Build the API client first
+WORKDIR /api/ts
 RUN pnpm install;
-RUN pnpm link ../../api/ts;
+RUN pnpm run build;
+
+# Now build the Nuxt app
+WORKDIR /src/weblens-nuxt
+RUN pnpm install;
 RUN pnpm generate;
 
 # Build agno static library
