@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -14,12 +13,14 @@ const asyncLogger = true
 
 // WLConsoleLogger is a development console logger with colored output.
 type WLConsoleLogger struct {
-	msgs chan []byte
+	msgs    chan []byte
+	writeTo io.Writer
 }
 
-func newDevLogger() io.Writer {
+func newDevLogger(writeTo io.Writer) io.Writer {
 	l := WLConsoleLogger{
-		msgs: make(chan []byte, 1000),
+		msgs:    make(chan []byte, 1000),
+		writeTo: writeTo,
 	}
 
 	go func() {
@@ -144,7 +145,7 @@ func (l WLConsoleLogger) write(p []byte) (n int, err error) {
 	timeStr := time.Now().Format(time.TimeOnly + ".000")
 	msg := fmt.Sprintf("[ %s %s%30.30s %s%5s%s ] %s %s%s%s%s\n", timeStr, BLUE, caller, levelColor, level, RESET, logMsg, RED, msgErr, stackStr, RESET)
 
-	_, err = os.Stdout.Write([]byte(msg))
+	_, err = l.writeTo.Write([]byte(msg))
 	if err != nil {
 		return n, err
 	}

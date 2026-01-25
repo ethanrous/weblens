@@ -1,14 +1,16 @@
 <template>
     <div
         :class="{
-            'bg-card-background-primary/75 inline-flex h-9 shrink-0 cursor-text items-center gap-1 overflow-hidden rounded border transition': true,
+            'bg-card-background-primary/75 inline-flex h-8 shrink-0 cursor-text items-center gap-1 overflow-hidden rounded border transition': true,
             'select-all': canCopy,
             'select-none': !canCopy,
             'border-green-600': copied,
+            'pl-1': !slots.default,
         }"
         @click.stop="copyToClipboard"
     >
         <div
+            v-if="slots.default"
             :class="{
                 'ml-1': true,
                 'flex aspect-square h-12 max-h-full items-center justify-center border-r pr-1': slots.default,

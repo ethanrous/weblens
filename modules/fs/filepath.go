@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/bsontype"
@@ -173,6 +172,27 @@ func (wf Filepath) Child(childName string, childIsDir bool) Filepath {
 	}
 }
 
+// Children returns a new Filepath representing multiple nested children of the current path.
+func (wf Filepath) Children(childName ...string) Filepath {
+	for _, cn := range childName {
+		wf = wf.Child(cn, true)
+	}
+
+	return wf
+}
+
+// AsFile returns a new Filepath representing the file version of the current path.
+func (wf Filepath) AsFile() Filepath {
+	if wf.IsDir() {
+		return Filepath{
+			RootAlias: wf.RootAlias,
+			RelPath:   strings.TrimSuffix(wf.RelPath, "/"),
+		}
+	}
+
+	return wf
+}
+
 // Ext returns the file extension of the Filepath.
 func (wf Filepath) Ext() string {
 	if wf.IsDir() {
@@ -214,8 +234,6 @@ func (wf *Filepath) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &path); err != nil {
 		return err
 	}
-
-	log.GlobalLogger().Debug().Msgf("UnmarshalJSON: %s", path)
 
 	portable, err := ParsePortable(path)
 	if err != nil {

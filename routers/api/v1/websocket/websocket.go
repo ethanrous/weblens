@@ -302,6 +302,21 @@ func wsWebClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte, c
 
 			task.Cancel()
 		}
+	case websocket_mod.RefreshTower:
+		{
+			ctx.Log().Debug().Msgf("Received refresh tower request from web client %+v", msg)
+			towerInfo := reshape.GetTowerInfo(msg)
+
+			remoteTower, err := tower_model.GetTowerByID(ctx, towerInfo.TowerID)
+			if err != nil {
+				return wlerrors.Errorf("could not find tower T[%s] to refresh: %w", towerInfo.TowerID, err)
+			}
+
+			ok := ctx.ClientService.PushTowerUpdate(remoteTower)
+			if !ok {
+				ctx.Log().Warn().Msgf("Connection to tower [%s] was not retried", remoteTower.TowerID)
+			}
+		}
 
 	case "":
 	default:

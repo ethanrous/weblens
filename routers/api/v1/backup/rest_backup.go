@@ -23,14 +23,14 @@ import (
 //	@Security	SessionAuth[admin]
 //	@Security	ApiKeyAuth[admin]
 //
-//	@Param		serverID	path	string	true	"Server ID"
+//	@Param		serverID	path	string	true	"Server ID of the tower to back up"
 //
 //	@Success	200
 //	@Router		/tower/{serverID}/backup [post]
 func LaunchBackup(ctx ctxservice.RequestContext) {
-	serverID := ctx.Path("serverID")
+	remoteTowerID := ctx.Path("serverID")
 
-	if serverID == "" {
+	if remoteTowerID == "" {
 		ctx.Error(http.StatusBadRequest, wlerrors.New("Server ID is required"))
 
 		return
@@ -43,23 +43,39 @@ func LaunchBackup(ctx ctxservice.RequestContext) {
 		return
 	}
 
-	// If the local is core, we send the backup request to the specified backup server
+	if local.TowerID == remoteTowerID {
+		ctx.Error(http.StatusBadRequest, wlerrors.New("Cannot back up to the same tower"))
+
+		return
+	}
+
+	// If the local is core, we essentially forward the backup request to the specified backup server
 	if local.IsCore() {
-		remote, err := tower_model.GetTowerByID(ctx, serverID)
+		remote, err := tower_model.GetTowerByID(ctx, remoteTowerID)
 		if err != nil {
 			ctx.Error(http.StatusNotFound, err)
 
 			return
 		}
 
-		_, err = proxy.NewCoreRequest(&remote, http.MethodPost, "/backup").Call()
+		// Create a proxy API client to communicate with the remote tower
+		remoteClient, err := proxy.APIClientFromTower(remote)
 		if err != nil {
 			ctx.Error(http.StatusInternalServerError, err)
 
 			return
 		}
 
-		client := ctx.ClientService.GetClientByTowerID(serverID)
+		// Launch the backup on the remote tower
+		_, err = remoteClient.TowersAPI.LaunchBackup(ctx, local.TowerID).Execute()
+		if err != nil {
+			ctx.Error(http.StatusInternalServerError, err)
+
+			return
+		}
+
+		// Notify the client via WebSocket that the backup has been initiated
+		client := ctx.ClientService.GetClientByTowerID(remoteTowerID)
 		msg := websocket.WsResponseInfo{
 			EventTag: "do_backup",
 			Content:  websocket.WsData{"coreID": local.TowerID},
@@ -72,13 +88,15 @@ func LaunchBackup(ctx ctxservice.RequestContext) {
 			return
 		}
 	} else {
-		core, err := tower_model.GetTowerByID(ctx, serverID)
+		// If the local is a backup server, we launch the backup task here
+		core, err := tower_model.GetTowerByID(ctx, remoteTowerID)
 		if err != nil {
 			ctx.Error(http.StatusNotFound, err)
 
 			return
 		}
 
+		// Create the backup job
 		t, err := jobs.BackupOne(ctx, core)
 		if err != nil {
 			ctx.Error(http.StatusInternalServerError, err)
@@ -86,14 +104,13 @@ func LaunchBackup(ctx ctxservice.RequestContext) {
 			return
 		}
 
+		// Subscribe the client who made the request to the backup task for real-time updates
 		err = ctx.ClientService.SubscribeToTask(ctx, ctx.Client(), t, time.Now())
 		if err != nil {
-			// TODO: Return situational error here because the task still was created, but the client was not subscribed
-			ctx.Error(http.StatusInternalServerError, err)
-
-			return
+			// Log the error but do not fail the request, as the backup task has been created successfully
+			ctx.Log().Warn().Err(err).Msg("Failed to subscribe client to backup task")
 		}
 	}
 
-	ctx.Status(http.StatusOK)
+	ctx.Status(http.StatusAccepted)
 }

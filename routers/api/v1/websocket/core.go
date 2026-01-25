@@ -108,6 +108,11 @@ func ConnectCore(c context.Context, core *tower_model.Instance) error {
 
 	var client *client_model.WsClient
 
+	appCtx, ok := context_service.FromContext(c)
+	if !ok {
+		return wlerrors.New("not an app context")
+	}
+
 	dialWithRetry := func() {
 		activeRetry := retryInterval
 
@@ -123,6 +128,10 @@ func ConnectCore(c context.Context, core *tower_model.Instance) error {
 				case <-c.Done():
 					return
 				case <-time.After(activeRetry):
+				case <-appCtx.ClientService.ListenForTowerUpdate(*core):
+					ctx.Log().Info().Msgf("Core [%s] updated, attempting to reconnect...", core.Name)
+
+					continue
 				}
 
 				activeRetry *= 2
@@ -132,6 +141,8 @@ func ConnectCore(c context.Context, core *tower_model.Instance) error {
 
 				continue
 			}
+
+			activeRetry = retryInterval
 
 			ctx.Log().Debug().Msgf("Connection to core [%s] at [%s] successfully established", core.Name, coreURL.String())
 

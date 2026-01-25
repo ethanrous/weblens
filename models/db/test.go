@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"testing"
 
@@ -11,35 +12,29 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-var testDB *mongo.Database
+func safeTestName(name string) string {
+	name = strings.ReplaceAll(name, "/", "-")
+	strings.ReplaceAll(name, ".", "-")
+	strings.ReplaceAll(name, "_", "")
 
-func initMongo() {
-	if testing.Testing() {
-		var err error
+	// limit name length to 63 characters
+	name = name[:min(len(name), 63)]
 
-		ctx := context.WithValue(context.Background(), context_mod.WgKey, &sync.WaitGroup{})
-
-		testDB, err = ConnectToMongo(ctx, config.GetMongoDBUri(), "weblensTestDB")
-		if err != nil {
-			panic(err)
-		}
-	} else {
-		panic("MongoDB should not be initialized in non-testing mode")
-	}
+	return name
 }
 
 // SetupTestDB creates a test database context with a clean collection and optional indexes.
 func SetupTestDB(t *testing.T, collectionKey string, indexModels ...mongo.IndexModel) context.Context {
-	// ctx, cancel := context.WithCancel(context.Background())
-	// mongodb, err := ConnectToMongo(ctx, config.GetMongoDBUri(), "weblensTestDB")
-	// require.NoError(t, err)
-	if testDB == nil {
-		initMongo()
+	ctx := context.WithValue(context.Background(), context_mod.WgKey, &sync.WaitGroup{})
+
+	testDB, err := ConnectToMongo(ctx, config.GetMongoDBUri(), safeTestName(t.Name()))
+	if err != nil {
+		panic(err)
 	}
 
 	// Set the MongoDB instance in the context
 	// Connecting to mongo with test context would cancel before the cleanup is run. We must use our own context and cancel.
-	ctx := context.WithValue(context.Background(), DatabaseContextKey, testDB) //nolint:revive
+	ctx = context.WithValue(context.Background(), DatabaseContextKey, testDB) //nolint:revive
 
 	// Clean up test collection before each test
 	col, err := GetCollection[any](ctx, collectionKey)

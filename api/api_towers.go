@@ -1044,7 +1044,7 @@ func (r ApiLaunchBackupRequest) Execute() (*http.Response, error) {
 LaunchBackup Launch backup on a tower
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @param serverID Server ID
+ @param serverID Server ID of the tower to back up
  @return ApiLaunchBackupRequest
 */
 func (a *TowersAPIService) LaunchBackup(ctx context.Context, serverID string) ApiLaunchBackupRequest {

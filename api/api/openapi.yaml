@@ -1500,7 +1500,7 @@ paths:
     post:
       operationId: LaunchBackup
       parameters:
-      - description: Server ID
+      - description: Server ID of the tower to back up
         in: path
         name: serverID
         required: true
@@ -2139,6 +2139,7 @@ components:
           homeID: homeID
           activated: true
           token: token
+          updatedAt: 1
           username: username
         - password: password
           permissionLevel: 6
@@ -2148,6 +2149,7 @@ components:
           homeID: homeID
           activated: true
           token: token
+          updatedAt: 1
           username: username
       properties:
         fileHistory:
@@ -2953,7 +2955,7 @@ components:
     ShareInfo:
       example:
         owner: owner
-        expires: 6
+        expires: 1
         accessors:
         - permissionLevel: 0
           fullName: fullName
@@ -2962,6 +2964,7 @@ components:
           homeID: homeID
           activated: true
           token: token
+          updatedAt: 6
           username: username
         - permissionLevel: 0
           fullName: fullName
@@ -2970,6 +2973,7 @@ components:
           homeID: homeID
           activated: true
           token: token
+          updatedAt: 6
           username: username
         timelineOnly: true
         shareID: shareID
@@ -2984,7 +2988,7 @@ components:
             canDownload: true
             canDelete: true
         shareName: shareName
-        updated: 1
+        updated: 5
         fileID: fileID
       properties:
         accessors:
@@ -3185,6 +3189,7 @@ components:
         homeID: homeID
         activated: true
         token: token
+        updatedAt: 6
         username: username
       properties:
         activated:
@@ -3201,6 +3206,9 @@ components:
           type: string
         trashID:
           type: string
+        updatedAt:
+          format: int64
+          type: integer
         username:
           type: string
       required:
@@ -3209,6 +3217,7 @@ components:
       - homeID
       - permissionLevel
       - trashID
+      - updatedAt
       - username
       type: object
     UserInfoArchive:
@@ -3221,6 +3230,7 @@ components:
         homeID: homeID
         activated: true
         token: token
+        updatedAt: 1
         username: username
       properties:
         activated:
@@ -3239,6 +3249,9 @@ components:
           type: string
         trashID:
           type: string
+        updatedAt:
+          format: int64
+          type: integer
         username:
           type: string
       required:
@@ -3247,6 +3260,7 @@ components:
       - homeID
       - permissionLevel
       - trashID
+      - updatedAt
       - username
       type: object
     WLResponseInfo:
@@ -3344,6 +3358,11 @@ components:
           type: string
         usingKeyInfo:
           type: string
+      required:
+      - name
+      - password
+      - role
+      - username
       type: object
     structs.SetConfigParam:
       properties:

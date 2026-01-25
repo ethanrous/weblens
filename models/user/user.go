@@ -53,6 +53,9 @@ type User struct {
 
 	// Is the user activated
 	Activated bool `bson:"activated"`
+
+	// Timestamp of when the user was updated last
+	UpdatedAt int64 `bson:"updatedAt"`
 }
 
 // GetUsername returns the user's unique username.

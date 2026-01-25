@@ -2,11 +2,11 @@ package structs
 
 // InitServerParams contains parameters for initializing a server.
 type InitServerParams struct {
-	Name string `json:"name"`
-	Role string `json:"role"`
+	Name string `json:"name" validate:"required"`
+	Role string `json:"role" validate:"required"`
 
-	Username    string `json:"username"`
-	Password    string `json:"password"`
+	Username    string `json:"username" validate:"required"`
+	Password    string `json:"password" validate:"required"`
 	FullName    string `json:"fullName"`
 	CoreAddress string `json:"coreAddress"`
 	CoreKey     string `json:"coreKey"`

@@ -4,6 +4,7 @@ package history
 import (
 	"context"
 	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/ethanrous/weblens/models/db"
@@ -418,8 +419,14 @@ func getActionsAtPath(ctx context.Context, path fs.Filepath, timestamp time.Time
 	}
 
 	filter := bson.M{}
+
 	if !path.IsZero() {
-		filter = pathPrefixReFilter(path, includeChildren)
+		depth := 0
+		if includeChildren {
+			depth = 1
+		}
+
+		filter = pathPrefixReFilter(path, depth)
 	}
 
 	if before {
@@ -481,13 +488,11 @@ func GetActionsPage(ctx context.Context, pageSize, pageNum int, _ string) ([]Fil
 	return target, nil
 }
 
-func pathPrefixReFilter(path fs.Filepath, includeChildren bool) bson.M {
+// pathPrefixReFilter creates a MongoDB query filter that matches file actions at the given path
+// and its descendants up to the specified depth using regular expressions.
+func pathPrefixReFilter(path fs.Filepath, depth int) bson.M {
 	pathRe := regexp.QuoteMeta(path.ToPortable())
-	if includeChildren {
-		pathRe = "^" + pathRe + "(?:[^/]+/?)?$"
-	} else {
-		pathRe = "^" + pathRe + "$"
-	}
+	pathRe += `([^/]+/?){0,` + strconv.Itoa(depth) + `}/?$`
 
 	return bson.M{
 		"$or": bson.A{

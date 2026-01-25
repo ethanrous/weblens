@@ -5,8 +5,10 @@ import (
 	"context"
 	"reflect"
 	"runtime"
+	"time"
 
 	"github.com/ethanrous/weblens/modules/config"
+	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 )
 
@@ -25,6 +27,8 @@ var ErrDeferStartup = wlerrors.New("defer startup")
 
 // RunStartups executes all registered startup functions in order, supporting deferral.
 func RunStartups(ctx context.Context, cnf config.Provider) error {
+	start := time.Now()
+
 	toRun := startups
 	for len(toRun) != 0 {
 		var startup HookFunc
@@ -48,6 +52,8 @@ func RunStartups(ctx context.Context, cnf config.Provider) error {
 			return err
 		}
 	}
+
+	log.FromContext(ctx).Info().Msgf("Completed all startup functions in %s", time.Since(start))
 
 	return nil
 }

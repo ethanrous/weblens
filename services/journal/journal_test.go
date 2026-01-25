@@ -8,7 +8,6 @@ import (
 	"github.com/ethanrous/weblens/models/history"
 	"github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/services/journal"
-	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -230,90 +229,5 @@ func TestGetLatestPathByID(t *testing.T) {
 		if err == nil {
 			t.Error("expected error for non-existent file, got nil")
 		}
-	})
-}
-
-func TestGetLifetimesByTowerID(t *testing.T) {
-	ctx := db.SetupTestDB(t, history.FileHistoryCollectionKey)
-
-	now := time.Now()
-	towerID := "test-tower"
-
-	// Create actions representing file lifetimes
-	actions := []history.FileAction{
-		// File 1: created and still active
-		*createTestAction(t, testActionOptions{
-			Timestamp:  now.Add(-2 * time.Hour),
-			ActionType: history.FileCreate,
-			Filepath:   fs.BuildFilePath("USERS", "testuser/active-file.txt"),
-			TowerID:    towerID,
-			FileID:     "active-file",
-			EventID:    "event1",
-		}),
-		// File 2: created and deleted
-		*createTestAction(t, testActionOptions{
-			Timestamp:  now.Add(-2 * time.Hour),
-			ActionType: history.FileCreate,
-			Filepath:   fs.BuildFilePath("USERS", "testuser/deleted-file.txt"),
-			TowerID:    towerID,
-			FileID:     "deleted-file",
-			EventID:    "event2",
-		}),
-		*createTestAction(t, testActionOptions{
-			Timestamp:  now.Add(-1 * time.Hour),
-			ActionType: history.FileDelete,
-			Filepath:   fs.BuildFilePath("USERS", "testuser/deleted-file.txt"),
-			TowerID:    towerID,
-			FileID:     "deleted-file",
-			EventID:    "event3",
-		}),
-	}
-
-	err := history.SaveActions(ctx, actions)
-	if err != nil {
-		t.Fatalf("failed to save actions: %v", err)
-	}
-
-	t.Run("get all lifetimes", func(t *testing.T) {
-		result, err := journal.GetLifetimesByTowerID(ctx, towerID)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		// Should get lifetimes for both files
-		if len(result) != 2 {
-			t.Errorf("expected 2 lifetimes, got %d", len(result))
-		}
-	})
-
-	t.Run("get active only lifetimes", func(t *testing.T) {
-		result, err := journal.GetLifetimesByTowerID(ctx, towerID, journal.GetLifetimesOptions{ActiveOnly: true})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		require.Equal(t, 1, len(result), "expected 1 active lifetime")
-	})
-
-	t.Run("get lifetimes for non-existent tower", func(t *testing.T) {
-		result, err := journal.GetLifetimesByTowerID(ctx, "non-existent-tower")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if len(result) != 0 {
-			t.Errorf("expected 0 lifetimes, got %d", len(result))
-		}
-	})
-
-	t.Run("get lifetimes with path prefix", func(t *testing.T) {
-		result, err := journal.GetLifetimesByTowerID(ctx, towerID, journal.GetLifetimesOptions{
-			PathPrefix: fs.BuildFilePath("USERS", "testuser/"),
-		})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		// Should get lifetimes under testuser path
-		require.GreaterOrEqual(t, len(result), 2, "expected at least 2 lifetimes with path prefix")
 	})
 }

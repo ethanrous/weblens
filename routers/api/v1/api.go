@@ -169,7 +169,7 @@ func Routes(_ context_service.AppContext) *router.Router {
 			r.Post("/trace", tower_api.EnableTraceLogging)
 			r.Delete("/{serverID}", tower_api.DeleteRemote)
 
-			r.Delete("/cache", tower_api.DeleteRemote)
+			r.Delete("/cache", tower_api.FlushCache)
 		}, router.RequireAdmin)
 	})
 

@@ -101,11 +101,11 @@ func Start(opts StartupOpts) error {
 	appCtx, router, err := startServices(appCtx, cnf)
 	if err != nil {
 		// If we fail to start up, kill all the services that may have started, and exit.
-		logger.Error().Stack().Err(err).Msg("Failed to start server")
+		logger.Error().Stack().Err(err).Msg("Failed to start services")
 		cancel()
 		appCtx.WG.Wait()
 
-		return err
+		return wlerrors.Wrap(err, "Failed to start services")
 	}
 
 	logger.Info().Msgf("Starting Weblens router at %s:%s", cnf.Host, cnf.Port)
@@ -149,7 +149,7 @@ func startServices(appCtx context_service.AppContext, cnf config.Provider) (cont
 	// Ensure database exists and connect to it
 	mongo, err := db.ConnectToMongo(appCtx, cnf.MongoDBUri, cnf.MongoDBName)
 	if err != nil {
-		return context_service.AppContext{}, nil, wlerrors.Errorf("Failed to connect to MongoDB: %w", err)
+		return appCtx, nil, wlerrors.Errorf("Failed to connect to MongoDB: %w", err)
 	}
 
 	appCtx.DB = mongo
@@ -157,7 +157,7 @@ func startServices(appCtx context_service.AppContext, cnf config.Provider) (cont
 	// Initialize file service
 	fileService, err := file_service.NewFileService(appCtx)
 	if err != nil {
-		return context_service.AppContext{}, nil, wlerrors.Errorf("Failed to initialize file service: %w", err)
+		return appCtx, nil, wlerrors.Errorf("Failed to initialize file service: %w", err)
 	}
 
 	appCtx.FileService = fileService
@@ -175,11 +175,11 @@ func startServices(appCtx context_service.AppContext, cnf config.Provider) (cont
 	var local tower_model.Instance
 
 	if local, err = loadLocalTower(appCtx); err != nil {
-		return context_service.AppContext{}, nil, wlerrors.Errorf("Failed to load initial state: %w", err)
+		return appCtx, nil, wlerrors.Errorf("Failed to load initial state: %w", err)
 	}
 
 	if local.TowerID == "" {
-		return context_service.AppContext{}, nil, wlerrors.Errorf("Local tower ID is empty after load")
+		return appCtx, nil, wlerrors.Errorf("Local tower ID is empty after load")
 	}
 
 	appCtx.LocalTowerID = local.TowerID
@@ -197,7 +197,7 @@ func startServices(appCtx context_service.AppContext, cnf config.Provider) (cont
 	// Run setup functions for various services
 	err = startup.RunStartups(appCtx, cnf)
 	if err != nil {
-		return context_service.AppContext{}, nil, err
+		return appCtx, nil, err
 	}
 
 	// Install middlewares

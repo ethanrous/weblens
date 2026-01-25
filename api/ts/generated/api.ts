@@ -290,11 +290,11 @@ export interface StructsInitServerParams {
      * For restoring a server, remoind the core of its serverID and api key the remote last used
      */
     'localID'?: string;
-    'name'?: string;
-    'password'?: string;
+    'name': string;
+    'password': string;
     'remoteID'?: string;
-    'role'?: string;
-    'username'?: string;
+    'role': string;
+    'username': string;
     'usingKeyInfo'?: string;
 }
 export interface StructsSetConfigParam {
@@ -361,6 +361,7 @@ export interface UserInfo {
     'permissionLevel': number;
     'token'?: string;
     'trashID': string;
+    'updatedAt': number;
     'username': string;
 }
 export interface UserInfoArchive {
@@ -372,6 +373,7 @@ export interface UserInfoArchive {
     'permissionLevel': number;
     'token'?: string;
     'trashID': string;
+    'updatedAt': number;
     'username': string;
 }
 export interface WLResponseInfo {
@@ -4294,7 +4296,7 @@ export const TowersApiAxiosParamCreator = function (configuration?: Configuratio
         /**
          * 
          * @summary Launch backup on a tower
-         * @param {string} serverID Server ID
+         * @param {string} serverID Server ID of the tower to back up
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -4491,7 +4493,7 @@ export const TowersApiFp = function(configuration?: Configuration) {
         /**
          * 
          * @summary Launch backup on a tower
-         * @param {string} serverID Server ID
+         * @param {string} serverID Server ID of the tower to back up
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -4621,7 +4623,7 @@ export const TowersApiFactory = function (configuration?: Configuration, basePat
         /**
          * 
          * @summary Launch backup on a tower
-         * @param {string} serverID Server ID
+         * @param {string} serverID Server ID of the tower to back up
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -4753,7 +4755,7 @@ export class TowersApi extends BaseAPI {
     /**
      * 
      * @summary Launch backup on a tower
-     * @param {string} serverID Server ID
+     * @param {string} serverID Server ID of the tower to back up
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */

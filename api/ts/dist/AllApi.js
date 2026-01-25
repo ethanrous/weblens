@@ -3502,7 +3502,7 @@ var TowersApiAxiosParamCreator = function(configuration) {
     /**
      * 
      * @summary Launch backup on a tower
-     * @param {string} serverID Server ID
+     * @param {string} serverID Server ID of the tower to back up
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -3693,7 +3693,7 @@ var TowersApiFp = function(configuration) {
     /**
      * 
      * @summary Launch backup on a tower
-     * @param {string} serverID Server ID
+     * @param {string} serverID Server ID of the tower to back up
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -3821,7 +3821,7 @@ var TowersApiFactory = function(configuration, basePath, axios) {
     /**
      * 
      * @summary Launch backup on a tower
-     * @param {string} serverID Server ID
+     * @param {string} serverID Server ID of the tower to back up
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -3939,7 +3939,7 @@ var TowersApi = class extends BaseAPI {
   /**
    * 
    * @summary Launch backup on a tower
-   * @param {string} serverID Server ID
+   * @param {string} serverID Server ID of the tower to back up
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */

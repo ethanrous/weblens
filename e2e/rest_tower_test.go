@@ -77,7 +77,21 @@ func TestGetRunningTasks(t *testing.T) {
 	assert.NotNil(t, tasks)
 }
 
-// Note: TestFlushCache is skipped because /tower/cache route calls wrong handler (DeleteRemote instead of FlushCache)
+func TestFlushCache(t *testing.T) {
+	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
+	if err != nil {
+		log.GlobalLogger().Error().Stack().Err(err).Msg("Failed to start test server")
+		t.FailNow()
+	}
+
+	client := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
+
+	// Flush cache (admin only)
+	respBody, resp, err := client.TowersAPI.FlushCache(t.Context()).Execute()
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, "Cache flushed successfully", respBody.GetMessage())
+}
 
 func TestGetConfig(t *testing.T) {
 	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})

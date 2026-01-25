@@ -18,6 +18,7 @@ import (
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
 	file_system "github.com/ethanrous/weblens/modules/fs"
+	"github.com/ethanrous/weblens/modules/log"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 	"github.com/ethanrous/weblens/modules/wlerrors"
@@ -70,12 +71,7 @@ func (fs *ServiceImpl) Size(_ string) int64 {
 }
 
 // AddFile adds one or more files to the file service and their parent directories.
-func (fs *ServiceImpl) AddFile(c context.Context, files ...*file_model.WeblensFileImpl) (err error) {
-	ctx, ok := context_service.FromContext(c)
-	if !ok {
-		return wlerrors.New("failed to get context from context")
-	}
-
+func (fs *ServiceImpl) AddFile(ctx context.Context, files ...*file_model.WeblensFileImpl) (err error) {
 	for _, f := range files {
 		newID := f.ID()
 		if newID == "" {
@@ -84,11 +80,20 @@ func (fs *ServiceImpl) AddFile(c context.Context, files ...*file_model.WeblensFi
 			return wlerrors.Wrapf(file_model.ErrNoContentID, "failed to add [%s] to file service", f.GetPortablePath())
 		}
 
+		// Ensure the file has a parent directory
 		p := f.GetParent()
 		if p == nil {
 			return wlerrors.Wrapf(file_model.ErrNoParent, "failed to add file [%s] to file service", f.GetPortablePath())
 		}
 
+		// Check for existing file with the same ID
+		if _, exists := fs.getFileInternal(f.ID()); exists {
+			log.FromContext(ctx).Warn().CallerSkipFrame(1).Msgf("File [%s] already exists in file service, skipping", f.GetPortablePath())
+
+			continue
+		}
+
+		// Add the file to its parent directory if not already present
 		if _, err = p.GetChild(f.GetPortablePath().Filename()); err != nil {
 			err = p.AddChild(f)
 			if err != nil {
@@ -96,15 +101,9 @@ func (fs *ServiceImpl) AddFile(c context.Context, files ...*file_model.WeblensFi
 			}
 		}
 
-		if _, exists := fs.getFileInternal(f.ID()); exists {
-			ctx.Log().Warn().CallerSkipFrame(1).Msgf("File [%s] already exists in file service, skipping", f.GetPortablePath())
-
-			continue
-		}
-
 		fs.setFileInternal(f.ID(), f)
 
-		ctx.Log().Trace().Msgf("Added file [%s] to file service with id [%s]", f.GetPortablePath(), f.ID())
+		log.FromContext(ctx).Trace().Msgf("Added file [%s] to file service with id [%s] (%p)", f.GetPortablePath(), f.ID(), f)
 	}
 
 	return nil
@@ -248,6 +247,8 @@ func (fs *ServiceImpl) CreateFile(ctx context.Context, parent *file_model.Weblen
 				return nil, err
 			}
 		}
+
+		log.FromContext(ctx).Trace().Msgf("Generating content ID for new file [%s] (size now %d ## %d)", newF.GetPortablePath(), newF.Size(), len(data))
 
 		_, err = file_model.GenerateContentID(ctx, newF)
 		if err != nil {
@@ -805,6 +806,8 @@ func (fs *ServiceImpl) setFileInternal(id string, f *file_model.WeblensFileImpl)
 // SkipJournalKey can be set in the context to skip journaling for file operations.
 const SkipJournalKey = "skipJournal"
 
+// createCommon contains common logic for creating files and folders.
+// This includes setting the parent, adding to the parent's children, journaling the creation action, and notifying listeners.
 func (fs *ServiceImpl) createCommon(ctx context.Context, newF, parent *file_model.WeblensFileImpl) error {
 	err := newF.SetParent(parent)
 	if err != nil {

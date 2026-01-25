@@ -5,6 +5,7 @@ import (
 	"mime"
 	"strconv"
 
+	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/log"
@@ -93,7 +94,9 @@ func GetConverted(ctx context.Context, m *media_model.Media, format media_model.
 // IsCached checks if the media is fully cached, meaning low-res and all high-res thumbs are available.
 func IsCached(ctx context_service.AppContext, m *media_model.Media) (bool, error) {
 	lowres, err := getCacheFile(ctx, m, media_model.LowRes, 0)
-	if err != nil {
+	if wlerrors.Is(err, file_model.ErrFileNotFound) {
+		return false, nil
+	} else if err != nil {
 		return false, err
 	}
 

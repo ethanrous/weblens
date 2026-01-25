@@ -3,8 +3,6 @@ package journal
 
 import (
 	"context"
-	"regexp"
-	"strconv"
 	"time"
 
 	"github.com/ethanrous/weblens/models/db"
@@ -16,51 +14,6 @@ import (
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"go.mongodb.org/mongo-driver/bson"
 )
-
-// GetLifetimesOptions specifies filtering options for retrieving file lifetimes.
-type GetLifetimesOptions struct {
-	ActiveOnly bool
-	PathPrefix fs.Filepath
-	Depth      int
-}
-
-// compileLifetimeOpts merges multiple GetLifetimesOptions into a single compiled option set.
-// The function applies the last non-zero value for each option field, with a minimum depth of 1.
-func compileLifetimeOpts(opts ...GetLifetimesOptions) GetLifetimesOptions {
-	o := GetLifetimesOptions{}
-	o.Depth = 1 // Minimum depth
-
-	for _, opt := range opts {
-		if !opt.PathPrefix.IsZero() {
-			o.PathPrefix = opt.PathPrefix
-		}
-
-		if opt.ActiveOnly {
-			o.ActiveOnly = opt.ActiveOnly
-		}
-
-		if opt.Depth != 0 && opt.Depth > o.Depth {
-			o.Depth = opt.Depth
-		}
-	}
-
-	return o
-}
-
-// pathPrefixReFilter creates a MongoDB query filter that matches file actions at the given path
-// and its descendants up to the specified depth using regular expressions.
-func pathPrefixReFilter(path fs.Filepath, depth int) bson.M {
-	pathRe := regexp.QuoteMeta(path.ToPortable())
-	pathRe += `([^/]+/?){0,` + strconv.Itoa(depth) + `}/?$`
-
-	return bson.M{
-		"$or": bson.A{
-			bson.M{"filepath": bson.M{"$regex": pathRe}},
-			bson.M{"originPath": bson.M{"$regex": pathRe}},
-			bson.M{"destinationPath": bson.M{"$regex": pathRe}},
-		},
-	}
-}
 
 // getPastFileIDAtPath retrieves the file ID that existed at the given path at a specific point in time.
 // Returns the root alias for root paths, otherwise queries the action history to find the file ID.
@@ -269,109 +222,4 @@ func GetLatestPathByID(ctx context.Context, fileID string) (fs.Filepath, error) 
 	}
 
 	return fs.ParsePortable(result.Filepath)
-}
-
-// GetLifetimesByTowerID retrieves file lifetimes (grouped actions by file ID) for files on a specific tower.
-// The opts parameter allows filtering by path prefix, depth, and whether to include only active (non-deleted) files.
-func GetLifetimesByTowerID(ctx context.Context, towerID string, opts ...GetLifetimesOptions) ([]history.FileLifetime, error) {
-	col, err := db.GetCollection[any](ctx, history.FileHistoryCollectionKey)
-	if err != nil {
-		return nil, err
-	}
-
-	o := compileLifetimeOpts(opts...)
-
-	pipe := bson.A{
-		bson.D{
-			{Key: "$match", Value: bson.D{
-				{Key: "towerID", Value: towerID},
-				{Key: "$or", Value: pathPrefixReFilter(o.PathPrefix, o.Depth)["$or"]},
-			},
-			},
-		},
-	}
-
-	fileIDGroup := bson.D{
-		{Key: "$group", Value: bson.D{
-			{Key: "_id", Value: "$fileID"},
-			{Key: "actions", Value: bson.D{{Key: "$push", Value: "$$ROOT"}}},
-		},
-		},
-	}
-
-	if o.ActiveOnly {
-		pipe = append(pipe,
-			bson.D{{Key: "$sort", Value: bson.D{{Key: "timestamp", Value: 1}}}},
-			fileIDGroup,
-			bson.D{{Key: "$match", Value: bson.D{{Key: "actions", Value: bson.D{{Key: "$not", Value: bson.D{{Key: "$elemMatch", Value: bson.D{{Key: "actionType", Value: "fileDelete"}}}}}}}}}},
-			bson.D{
-				{Key: "$addFields", Value: bson.D{
-					{Key: "fileCreateAction", Value: bson.D{
-						{Key: "$first", Value: bson.D{
-							{Key: "$filter", Value: bson.D{
-								{Key: "input", Value: "$actions"},
-								{Key: "as", Value: "a"},
-								{Key: "cond", Value: bson.D{
-									{Key: "$eq", Value: bson.A{
-										"$$a.actionType",
-										"fileCreate",
-									},
-									},
-								},
-								},
-							},
-							},
-						},
-						},
-					},
-					},
-				},
-				},
-			},
-			bson.D{
-				{Key: "$project", Value: bson.D{
-					{Key: "originalGroupID", Value: "$_id"},
-					{Key: "actions", Value: 1},
-					{Key: "fileCreateAction", Value: 1},
-					{Key: "fileCreateTimestamp", Value: "$fileCreateAction.timestamp"},
-					{Key: "fileCreateFilepath", Value: "$fileCreateAction.filepath"},
-				},
-				},
-			},
-			bson.D{{Key: "$sort", Value: bson.D{{Key: "fileCreateAction.timestamp", Value: -1}}}},
-			bson.D{
-				{Key: "$group", Value: bson.D{
-					{Key: "_id", Value: "$fileCreateAction.filepath"},
-					{Key: "doc", Value: bson.D{{Key: "$first", Value: "$$ROOT"}}},
-				},
-				},
-			},
-			bson.D{{Key: "$replaceRoot", Value: bson.D{{Key: "newRoot", Value: "$doc"}}}},
-			bson.D{
-				{Key: "$project", Value: bson.D{
-					{Key: "originalGroupID", Value: 0},
-					{Key: "fileCreateAction", Value: 0},
-					{Key: "fileCreateTimestamp", Value: 0},
-					{Key: "fileCreateFilepath", Value: 0},
-				},
-				},
-			},
-		)
-	} else {
-		pipe = append(pipe, fileIDGroup)
-	}
-
-	cur, err := col.Aggregate(ctx, pipe)
-	if err != nil {
-		return nil, err
-	}
-
-	var lifetimes []history.FileLifetime
-
-	err = cur.All(ctx, &lifetimes)
-	if err != nil {
-		return nil, db.WrapError(err, "GetLifetimes")
-	}
-
-	return lifetimes, nil
 }

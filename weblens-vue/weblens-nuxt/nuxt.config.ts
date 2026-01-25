@@ -25,7 +25,7 @@ export default defineNuxtConfig({
     compatibilityDate: '2025-05-15',
     ssr: false,
     devtools: {
-        enabled: true,
+        enabled: false,
 
         timeline: {
             enabled: true,
@@ -62,6 +62,14 @@ export default defineNuxtConfig({
     app: {
         head: {
             title: 'Weblens',
+            link: [
+                { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+                { rel: 'preconnect', href: 'https://fonts.gstatic.com' },
+                {
+                    rel: 'stylesheet',
+                    href: 'https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Noto+Sans:ital,wght@0,100..900;1,100..900&family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap',
+                },
+            ],
             meta: [
                 { charset: 'utf-8' },
                 { name: 'viewport', content: 'width=device-width, initial-scale=1' },

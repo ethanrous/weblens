@@ -12,6 +12,8 @@ package openapi
 
 import (
 	"encoding/json"
+	"bytes"
+	"fmt"
 )
 
 // checks if the StructsInitServerParams type satisfies the MappedNullable interface at compile time
@@ -24,20 +26,26 @@ type StructsInitServerParams struct {
 	FullName *string `json:"fullName,omitempty"`
 	// For restoring a server, remoind the core of its serverID and api key the remote last used
 	LocalID *string `json:"localID,omitempty"`
-	Name *string `json:"name,omitempty"`
-	Password *string `json:"password,omitempty"`
+	Name string `json:"name"`
+	Password string `json:"password"`
 	RemoteID *string `json:"remoteID,omitempty"`
-	Role *string `json:"role,omitempty"`
-	Username *string `json:"username,omitempty"`
+	Role string `json:"role"`
+	Username string `json:"username"`
 	UsingKeyInfo *string `json:"usingKeyInfo,omitempty"`
 }
+
+type _StructsInitServerParams StructsInitServerParams
 
 // NewStructsInitServerParams instantiates a new StructsInitServerParams object
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewStructsInitServerParams() *StructsInitServerParams {
+func NewStructsInitServerParams(name string, password string, role string, username string) *StructsInitServerParams {
 	this := StructsInitServerParams{}
+	this.Name = name
+	this.Password = password
+	this.Role = role
+	this.Username = username
 	return &this
 }
 
@@ -177,68 +185,52 @@ func (o *StructsInitServerParams) SetLocalID(v string) {
 	o.LocalID = &v
 }
 
-// GetName returns the Name field value if set, zero value otherwise.
+// GetName returns the Name field value
 func (o *StructsInitServerParams) GetName() string {
-	if o == nil || IsNil(o.Name) {
+	if o == nil {
 		var ret string
 		return ret
 	}
-	return *o.Name
+
+	return o.Name
 }
 
-// GetNameOk returns a tuple with the Name field value if set, nil otherwise
+// GetNameOk returns a tuple with the Name field value
 // and a boolean to check if the value has been set.
 func (o *StructsInitServerParams) GetNameOk() (*string, bool) {
-	if o == nil || IsNil(o.Name) {
+	if o == nil {
 		return nil, false
 	}
-	return o.Name, true
+	return &o.Name, true
 }
 
-// HasName returns a boolean if a field has been set.
-func (o *StructsInitServerParams) HasName() bool {
-	if o != nil && !IsNil(o.Name) {
-		return true
-	}
-
-	return false
-}
-
-// SetName gets a reference to the given string and assigns it to the Name field.
+// SetName sets field value
 func (o *StructsInitServerParams) SetName(v string) {
-	o.Name = &v
+	o.Name = v
 }
 
-// GetPassword returns the Password field value if set, zero value otherwise.
+// GetPassword returns the Password field value
 func (o *StructsInitServerParams) GetPassword() string {
-	if o == nil || IsNil(o.Password) {
+	if o == nil {
 		var ret string
 		return ret
 	}
-	return *o.Password
+
+	return o.Password
 }
 
-// GetPasswordOk returns a tuple with the Password field value if set, nil otherwise
+// GetPasswordOk returns a tuple with the Password field value
 // and a boolean to check if the value has been set.
 func (o *StructsInitServerParams) GetPasswordOk() (*string, bool) {
-	if o == nil || IsNil(o.Password) {
+	if o == nil {
 		return nil, false
 	}
-	return o.Password, true
+	return &o.Password, true
 }
 
-// HasPassword returns a boolean if a field has been set.
-func (o *StructsInitServerParams) HasPassword() bool {
-	if o != nil && !IsNil(o.Password) {
-		return true
-	}
-
-	return false
-}
-
-// SetPassword gets a reference to the given string and assigns it to the Password field.
+// SetPassword sets field value
 func (o *StructsInitServerParams) SetPassword(v string) {
-	o.Password = &v
+	o.Password = v
 }
 
 // GetRemoteID returns the RemoteID field value if set, zero value otherwise.
@@ -273,68 +265,52 @@ func (o *StructsInitServerParams) SetRemoteID(v string) {
 	o.RemoteID = &v
 }
 
-// GetRole returns the Role field value if set, zero value otherwise.
+// GetRole returns the Role field value
 func (o *StructsInitServerParams) GetRole() string {
-	if o == nil || IsNil(o.Role) {
+	if o == nil {
 		var ret string
 		return ret
 	}
-	return *o.Role
+
+	return o.Role
 }
 
-// GetRoleOk returns a tuple with the Role field value if set, nil otherwise
+// GetRoleOk returns a tuple with the Role field value
 // and a boolean to check if the value has been set.
 func (o *StructsInitServerParams) GetRoleOk() (*string, bool) {
-	if o == nil || IsNil(o.Role) {
+	if o == nil {
 		return nil, false
 	}
-	return o.Role, true
+	return &o.Role, true
 }
 
-// HasRole returns a boolean if a field has been set.
-func (o *StructsInitServerParams) HasRole() bool {
-	if o != nil && !IsNil(o.Role) {
-		return true
-	}
-
-	return false
-}
-
-// SetRole gets a reference to the given string and assigns it to the Role field.
+// SetRole sets field value
 func (o *StructsInitServerParams) SetRole(v string) {
-	o.Role = &v
+	o.Role = v
 }
 
-// GetUsername returns the Username field value if set, zero value otherwise.
+// GetUsername returns the Username field value
 func (o *StructsInitServerParams) GetUsername() string {
-	if o == nil || IsNil(o.Username) {
+	if o == nil {
 		var ret string
 		return ret
 	}
-	return *o.Username
+
+	return o.Username
 }
 
-// GetUsernameOk returns a tuple with the Username field value if set, nil otherwise
+// GetUsernameOk returns a tuple with the Username field value
 // and a boolean to check if the value has been set.
 func (o *StructsInitServerParams) GetUsernameOk() (*string, bool) {
-	if o == nil || IsNil(o.Username) {
+	if o == nil {
 		return nil, false
 	}
-	return o.Username, true
+	return &o.Username, true
 }
 
-// HasUsername returns a boolean if a field has been set.
-func (o *StructsInitServerParams) HasUsername() bool {
-	if o != nil && !IsNil(o.Username) {
-		return true
-	}
-
-	return false
-}
-
-// SetUsername gets a reference to the given string and assigns it to the Username field.
+// SetUsername sets field value
 func (o *StructsInitServerParams) SetUsername(v string) {
-	o.Username = &v
+	o.Username = v
 }
 
 // GetUsingKeyInfo returns the UsingKeyInfo field value if set, zero value otherwise.
@@ -391,25 +367,57 @@ func (o StructsInitServerParams) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.LocalID) {
 		toSerialize["localID"] = o.LocalID
 	}
-	if !IsNil(o.Name) {
-		toSerialize["name"] = o.Name
-	}
-	if !IsNil(o.Password) {
-		toSerialize["password"] = o.Password
-	}
+	toSerialize["name"] = o.Name
+	toSerialize["password"] = o.Password
 	if !IsNil(o.RemoteID) {
 		toSerialize["remoteID"] = o.RemoteID
 	}
-	if !IsNil(o.Role) {
-		toSerialize["role"] = o.Role
-	}
-	if !IsNil(o.Username) {
-		toSerialize["username"] = o.Username
-	}
+	toSerialize["role"] = o.Role
+	toSerialize["username"] = o.Username
 	if !IsNil(o.UsingKeyInfo) {
 		toSerialize["usingKeyInfo"] = o.UsingKeyInfo
 	}
 	return toSerialize, nil
+}
+
+func (o *StructsInitServerParams) UnmarshalJSON(data []byte) (err error) {
+	// This validates that all required properties are included in the JSON object
+	// by unmarshalling the object into a generic map with string keys and checking
+	// that every required field exists as a key in the generic map.
+	requiredProperties := []string{
+		"name",
+		"password",
+		"role",
+		"username",
+	}
+
+	allProperties := make(map[string]interface{})
+
+	err = json.Unmarshal(data, &allProperties)
+
+	if err != nil {
+		return err;
+	}
+
+	for _, requiredProperty := range(requiredProperties) {
+		if _, exists := allProperties[requiredProperty]; !exists {
+			return fmt.Errorf("no value given for required property %v", requiredProperty)
+		}
+	}
+
+	varStructsInitServerParams := _StructsInitServerParams{}
+
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	err = decoder.Decode(&varStructsInitServerParams)
+
+	if err != nil {
+		return err
+	}
+
+	*o = StructsInitServerParams(varStructsInitServerParams)
+
+	return err
 }
 
 type NullableStructsInitServerParams struct {

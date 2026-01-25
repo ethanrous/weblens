@@ -4,7 +4,6 @@ package e2e_test
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -16,6 +15,7 @@ import (
 	"github.com/ethanrous/weblens/models/db"
 	"github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/modules/config"
+	"github.com/ethanrous/weblens/modules/cryptography"
 	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/routers"
@@ -112,6 +112,8 @@ func setupTestServer(ctx context.Context, name string, settings ...config.Provid
 	startedChan := make(chan context_service.AppContext)
 	failedChan := make(chan error)
 
+	ctx = context.WithValue(ctx, cryptography.BcryptDifficultyCtxKey, 4)
+
 	context.AfterFunc(ctx, func() {
 		releaseTestPort(cnf.Port)
 	})
@@ -133,6 +135,22 @@ func setupTestServer(ctx context.Context, name string, settings ...config.Provid
 		return setupResult{}, wlerrors.Wrapf(err, "failed to drop mongo test db: [%s]", cnf.MongoDBName)
 	}
 
+	context.AfterFunc(ctx, func() {
+		appCtx := context_service.NewAppContext(context_service.NewBasicContext(context.Background(), logger))
+
+		testDB, err := db.ConnectToMongo(appCtx, cnf.MongoDBUri, cnf.MongoDBName)
+		if err != nil {
+			log.GlobalLogger().Error().Stack().Err(err).Msgf("failed to connect to mongo test db during cleanup: [%s]", cnf.MongoDBName)
+
+			return
+		}
+
+		err = testDB.Drop(appCtx)
+		if err != nil {
+			log.GlobalLogger().Error().Stack().Err(err).Msgf("failed to drop mongo test db during cleanup: [%s]", cnf.MongoDBName)
+		}
+	})
+
 	go func() {
 		err := routers.Start(routers.StartupOpts{
 			Ctx:        ctx,
@@ -146,7 +164,7 @@ func setupTestServer(ctx context.Context, name string, settings ...config.Provid
 
 	select {
 	case err := <-failedChan:
-		return setupResult{}, fmt.Errorf("server failed to start: %w", err)
+		return setupResult{}, wlerrors.Errorf("server failed to start: %w", err)
 	case appCtx = <-startedChan:
 	}
 

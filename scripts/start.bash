@@ -37,7 +37,7 @@ uiPath="/app/web/"
 shouldClean=false
 shouldRebuild=false
 doDevMode=false
-doDynamic=false
+doDynamic=true
 local=true
 
 arch=$(uname -m)
@@ -60,12 +60,8 @@ while [ "${1:-}" != "" ]; do
     "-d" | "--dev")
         doDevMode=true
         ;;
-    "-y" | "--dynamic")
-        doDynamic=true
-        ;;
-    "-s" | "--secure")
-        export VITE_USE_HTTPS=true
-        ./scripts/make-cert.bash
+    "-s" | "--static")
+        doDynamic=false
         ;;
     "-a" | "--arch")
         shift

@@ -2159,7 +2159,7 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Server ID",
+                        "description": "Server ID of the tower to back up",
                         "name": "serverID",
                         "in": "path",
                         "required": true
@@ -3775,6 +3775,7 @@
                 "homeID",
                 "permissionLevel",
                 "trashID",
+                "updatedAt",
                 "username"
             ],
             "properties": {
@@ -3799,6 +3800,10 @@
                 "trashID": {
                     "type": "string"
                 },
+                "updatedAt": {
+                    "type": "integer",
+                    "format": "int64"
+                },
                 "username": {
                     "type": "string"
                 }
@@ -3812,6 +3817,7 @@
                 "homeID",
                 "permissionLevel",
                 "trashID",
+                "updatedAt",
                 "username"
             ],
             "properties": {
@@ -3838,6 +3844,10 @@
                 },
                 "trashID": {
                     "type": "string"
+                },
+                "updatedAt": {
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "username": {
                     "type": "string"
@@ -3915,6 +3925,12 @@
         },
         "structs.InitServerParams": {
             "type": "object",
+            "required": [
+                "name",
+                "password",
+                "role",
+                "username"
+            ],
             "properties": {
                 "coreAddress": {
                     "type": "string"

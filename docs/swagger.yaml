@@ -630,6 +630,9 @@ definitions:
         type: string
       trashID:
         type: string
+      updatedAt:
+        format: int64
+        type: integer
       username:
         type: string
     required:
@@ -638,6 +641,7 @@ definitions:
     - homeID
     - permissionLevel
     - trashID
+    - updatedAt
     - username
     type: object
   UserInfoArchive:
@@ -658,6 +662,9 @@ definitions:
         type: string
       trashID:
         type: string
+      updatedAt:
+        format: int64
+        type: integer
       username:
         type: string
     required:
@@ -666,6 +673,7 @@ definitions:
     - homeID
     - permissionLevel
     - trashID
+    - updatedAt
     - username
     type: object
   WLResponseInfo:
@@ -737,6 +745,11 @@ definitions:
         type: string
       usingKeyInfo:
         type: string
+    required:
+    - name
+    - password
+    - role
+    - username
     type: object
   structs.SetConfigParam:
     properties:
@@ -1898,7 +1911,7 @@ paths:
     post:
       operationId: LaunchBackup
       parameters:
-      - description: Server ID
+      - description: Server ID of the tower to back up
         in: path
         name: serverID
         required: true

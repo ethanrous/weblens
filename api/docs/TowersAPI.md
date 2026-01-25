@@ -591,7 +591,7 @@ import (
 )
 
 func main() {
-	request := *openapiclient.NewStructsInitServerParams() // StructsInitServerParams | Server initialization body
+	request := *openapiclient.NewStructsInitServerParams("Name_example", "Password_example", "Role_example", "Username_example") // StructsInitServerParams | Server initialization body
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
@@ -655,7 +655,7 @@ import (
 )
 
 func main() {
-	serverID := "serverID_example" // string | Server ID
+	serverID := "serverID_example" // string | Server ID of the tower to back up
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
@@ -673,7 +673,7 @@ func main() {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 **ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
-**serverID** | **string** | Server ID | 
+**serverID** | **string** | Server ID of the tower to back up | 
 
 ### Other Parameters
 

@@ -3,6 +3,7 @@ package jobs
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"slices"
 	"time"
@@ -116,9 +117,20 @@ func DoBackup(tsk *task.Task) {
 
 	tsk.Log().Info().Msgf("Starting backup of [%s] with address [%s]", meta.Core.Name, meta.Core.Address)
 
+	notif := notify.NewTaskNotification(tsk, websocket_mod.BackupStartedEvent, task.Result{"coreID": meta.Core.TowerID})
+	ctx.Notify(ctx, notif)
+
+	tsk.SetResult(task.Result{
+		"coreID": meta.Core.TowerID,
+	})
+
 	tsk.OnResult(
 		func(r task.Result) {
-			notif := notify.NewTaskNotification(tsk, websocket_mod.BackupProgressEvent, r)
+			notif := notify.NewTaskNotification(
+				tsk,
+				websocket_mod.BackupProgressEvent,
+				r,
+			)
 			ctx.Notify(ctx, notif)
 		},
 	)
@@ -127,7 +139,7 @@ func DoBackup(tsk *task.Task) {
 		func(errTsk *task.Task) {
 			err := errTsk.ReadError()
 			notif := notify.NewTaskNotification(tsk, websocket_mod.BackupFailedEvent, task.Result{"coreID": meta.Core.TowerID, "error": err.Error()})
-			ctx.Notify(ctx, notif)
+			ctx.Notify(errTsk.Ctx, notif)
 		},
 	)
 
@@ -169,10 +181,13 @@ func DoBackup(tsk *task.Task) {
 		return
 	}
 
-	ctx.Log().Debug().Msgf("Received backup response from core [%s]: %+v",
-		meta.Core.Name,
-		backupResponse,
-	)
+	ctx.Log().Debug().Func(func(e *zerolog.Event) {
+		res, _ := json.Marshal(backupResponse)
+		e.Msgf("Received backup response from core [%s]: %s",
+			meta.Core.Name,
+			res,
+		)
+	})
 
 	err = db.WithTransaction(ctx, func(ctx context.Context) error {
 		appCtx, ok := context_service.FromContext(ctx)
@@ -276,8 +291,6 @@ func DoBackup(tsk *task.Task) {
 			filteredActions = append(filteredActions, a)
 		}
 
-		appCtx.WithValue(file_service.SkipJournalKey, true)
-
 		remoteDataDir, err := appCtx.FileService.InitBackupDirectory(tsk.Ctx, meta.Core)
 		if err != nil {
 			return err
@@ -294,7 +307,7 @@ func DoBackup(tsk *task.Task) {
 
 		for _, a := range filteredActions {
 			// Check if the file already exists on the server and copy/move/delete it if it is in the wrong place
-			err = handleFileAction(appCtx, a, meta.Core, pool)
+			err = handleFileAction(appCtx, a, meta.Core, tsk, pool)
 			if err != nil {
 				return err
 			}
@@ -320,16 +333,17 @@ func DoBackup(tsk *task.Task) {
 			return err
 		}
 
-		// Don't broadcast this last event set
-		tsk.OnResult(nil)
+		r := tsk.GetResult()
+		r["backupSize"] = remoteDataDir.Size()
+		r["totalTime"] = tsk.ExeTime()
+		r["complete"] = true
 
-		tsk.SetResult(task.Result{
-			"backupSize": remoteDataDir.Size(),
-			"totalTime":  tsk.ExeTime(),
-		})
-
-		endNotif := notify.NewTaskNotification(tsk, websocket_mod.BackupCompleteEvent, tsk.GetResults())
-		appCtx.Notify(ctx, endNotif)
+		notif := notify.NewTaskNotification(
+			tsk,
+			websocket_mod.BackupCompleteEvent,
+			r,
+		)
+		appCtx.Notify(ctx, notif)
 
 		return nil
 	})
@@ -368,7 +382,7 @@ func getExistingFile(ctx context_service.AppContext, a history_model.FileAction,
 	return existingFile, nil
 }
 
-func handleFileAction(ctx context_service.AppContext, a history_model.FileAction, core tower_model.Instance, pool *task.Pool) error {
+func handleFileAction(ctx context_service.AppContext, a history_model.FileAction, core tower_model.Instance, callingTask *task.Task, pool *task.Pool) error {
 	existingFile, err := getExistingFile(ctx, a, core)
 	if err != nil {
 		return err
@@ -378,6 +392,8 @@ func handleFileAction(ctx context_service.AppContext, a history_model.FileAction
 	if err != nil {
 		return err
 	}
+
+	ctx.Log().Trace().Msgf("Handling backup action [%s] for file [%s]", a.ActionType, backupFilePath)
 
 	if existingFile != nil {
 		if a.ActionType == history_model.FileDelete {
@@ -403,9 +419,24 @@ func handleFileAction(ctx context_service.AppContext, a history_model.FileAction
 			return fmt.Errorf("failed to get new backup directory parent [%s]: %w", backupFilePath.Dir(), err)
 		}
 
-		// If the file is a directory, create it and return
 		_, err = ctx.FileService.CreateFolder(ctx, parent, backupFilePath.Filename())
-		if err != nil && !wlerrors.Is(err, file_model.ErrDirectoryAlreadyExists) {
+		if wlerrors.Is(err, file_model.ErrDirectoryAlreadyExists) {
+			// Directory already exists, derive the file from the action to ensure correct representation
+			f, err := file_service.DeriveFileFromAction(ctx, a, core)
+			if err != nil {
+				return wlerrors.Errorf("failed to derive existing backup directory [%s]: %w", backupFilePath, err)
+			}
+
+			err = f.SetParent(parent)
+			if err != nil {
+				return wlerrors.Errorf("failed to set parent for existing backup directory [%s]: %w", backupFilePath, err)
+			}
+
+			err = ctx.FileService.AddFile(ctx, f)
+			if err != nil {
+				return wlerrors.Errorf("failed to add existing backup directory [%s]: %w", backupFilePath, err)
+			}
+		} else if err != nil {
 			return err
 		}
 
@@ -448,10 +479,44 @@ func handleFileAction(ctx context_service.AppContext, a history_model.FileAction
 	}
 
 	// Launch the copy file task in the provided pool to copy the file from the core server
-	_, err = ctx.DispatchJob(job.CopyFileFromCoreTask, copyFileMeta, pool)
+	tsk, err := ctx.DispatchJob(job.CopyFileFromCoreTask, copyFileMeta, pool)
 	if err != nil {
 		return err
 	}
+
+	callingTask.AtomicSetResult(func(currentResult task.Result) task.Result {
+		currentBytesToCopyI, ok := currentResult["totalBytesToCopy"]
+
+		var currentBytesToCopy int64
+		if !ok {
+			currentBytesToCopy = 0
+		} else {
+			currentBytesToCopy = currentBytesToCopyI.(int64)
+		}
+
+		currentResult["totalBytesToCopy"] = currentBytesToCopy + a.Size
+
+		return currentResult
+	})
+
+	tsk.SetCleanup(func(tsk *task.Task) {
+		copyTaskResult := tsk.GetResult()
+
+		callingTask.AtomicSetResult(func(currentResult task.Result) task.Result {
+			currentBytesCopiedI, ok := currentResult["totalBytesCopied"]
+
+			var currentBytesCopied int64
+			if !ok {
+				currentBytesCopied = 0
+			} else {
+				currentBytesCopied = currentBytesCopiedI.(int64)
+			}
+
+			currentResult["totalBytesCopied"] = currentBytesCopied + copyTaskResult["bytesCopied"].(int64)
+
+			return currentResult
+		})
+	})
 
 	return nil
 }

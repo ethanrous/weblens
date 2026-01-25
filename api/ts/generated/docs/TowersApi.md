@@ -513,7 +513,7 @@ import {
 const configuration = new Configuration();
 const apiInstance = new TowersApi(configuration);
 
-let serverID: string; //Server ID (default to undefined)
+let serverID: string; //Server ID of the tower to back up (default to undefined)
 
 const { status, data } = await apiInstance.launchBackup(
     serverID
@@ -524,7 +524,7 @@ const { status, data } = await apiInstance.launchBackup(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **serverID** | [**string**] | Server ID | defaults to undefined|
+| **serverID** | [**string**] | Server ID of the tower to back up | defaults to undefined|
 
 
 ### Return type

@@ -12,18 +12,31 @@ run_native_tests() {
     target=$(awk '{$1=$1};1' <<<"$target")
 
     touch /tmp/weblens.env
+
+    TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
+    LOG_FILENAME="weblens-test-$TIMESTAMP.log"
+    export WEBLENS_LOG_PATH="./_build/logs/$LOG_FILENAME"
+    mkdir -p "$(dirname "$WEBLENS_LOG_PATH")"
+    touch "$WEBLENS_LOG_PATH"
+    ln -sf "$LOG_FILENAME" ./_build/logs/test-latest.log
+
     export WEBLENS_ENV_PATH=/tmp/weblens.env
     export WEBLENS_DO_CACHE=false
     export WEBLENS_MONGODB_URI=${WEBLENS_MONGODB_URI:-"mongodb://127.0.0.1:27019/?replicaSet=rs0&directConnection=true"}
     export WEBLENS_LOG_LEVEL="${WEBLENS_LOG_LEVEL:-debug}"
     export WEBLENS_LOG_FORMAT="dev"
+    export CGO_LDFLAGS="-w"
 
     echo "Running tests with mongo [$WEBLENS_MONGODB_URI] and test target: [$target]"
 
     mkdir -p ./_build/cover/
 
     # shellcheck disable=SC2086
-    go test -v -cover -race -coverprofile=_build/cover/coverage.out -coverpkg ./... -tags=test ${target} 2>&1 | grep -v -e "=== RUN" -e "=== PAUSE" -e "--- PASS" -e "coverage:" -e "=== CONT" -e "ld: warning:"
+    if ! go test -cover -race -coverprofile=_build/cover/coverage.out -coverpkg ./... -tags=test ${target}; then
+        printf "\n\nTESTS FAILED. See log via \n\ncat ./_build/logs/test-latest.log\n"
+        exit 1
+    fi
+    # 2>&1 | grep -v -e "=== RUN" -e "=== PAUSE" -e "--- PASS" -e "coverage:" -e "=== CONT" -e "ld: warning:"
 
     portable_sed '/github\.com\/ethanrous\/weblens\/api/d' ./_build/cover/coverage.out
 }

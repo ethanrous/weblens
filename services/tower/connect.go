@@ -79,7 +79,7 @@ func GetBackup(ctx context.Context, tower tower_model.Instance, since time.Time)
 
 	apiBackupInfo, resp, err := client.TowersAPI.GetBackupInfo(ctx).Timestamp(strconv.FormatInt(since.UnixMilli(), 10)).Execute()
 	if err != nil {
-		return nil, netwrk.ReadError(ctx, resp, err)
+		return nil, netwrk.ReadError(ctx, resp, wlerrors.WithStack(err))
 	}
 
 	// Convert API backup info to internal BackupInfo struct

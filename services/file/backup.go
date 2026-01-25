@@ -5,11 +5,11 @@ import (
 
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/history"
+	"github.com/ethanrous/weblens/models/tower"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	file_system "github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
-	"github.com/ethanrous/weblens/services/journal"
 )
 
 // NewBackupRestoreFile creates a new restore file in the backup restore tree for a specific content and tower.
@@ -22,7 +22,12 @@ func (fs *ServiceImpl) NewBackupRestoreFile(ctx context.Context, contentID, remo
 	restorePath := restoreRoot.GetPortablePath().Child(remoteTowerID, true).Child(contentID, false)
 
 	if exists(restorePath) {
-		return nil, wlerrors.Errorf("restore file [%s] already exists", restorePath)
+		f := file_model.NewWeblensFile(file_model.NewFileOptions{
+			ContentID: contentID,
+			Path:      restorePath,
+		})
+
+		return f, wlerrors.Errorf("not creating restore file at [%s]: %w", restorePath, file_model.ErrFileAlreadyExists)
 	}
 
 	f, err := touch(restorePath)
@@ -42,6 +47,11 @@ func IsBackupTowerRoot(path file_system.Filepath) bool {
 
 // TranslateBackupPath translates a user path to its corresponding backup path for a given tower.
 func TranslateBackupPath(ctx context_service.AppContext, path file_system.Filepath, core tower_model.Instance) (file_system.Filepath, error) {
+	if path.RootName() == file_model.BackupTreeKey {
+		// Already a backup path
+		return path, nil
+	}
+
 	if path.RootName() != file_model.UsersTreeKey {
 		return file_system.Filepath{}, wlerrors.Errorf("Path %s is not a user path", path)
 	}
@@ -51,7 +61,7 @@ func TranslateBackupPath(ctx context_service.AppContext, path file_system.Filepa
 		return file_system.Filepath{}, err
 	}
 
-	ctx.Log().Trace().Msgf("Translating path %s to %s", path, newPath)
+	ctx.Log().Trace().Msgf("Translating path %s -> %s", path, newPath)
 
 	return newPath, nil
 }
@@ -80,7 +90,7 @@ func loadFsTransactionBackup(ctx context.Context) error {
 			continue
 		}
 
-		lifetimes, err := journal.GetLifetimesByTowerID(ctx, remote.TowerID, journal.GetLifetimesOptions{ActiveOnly: true})
+		lifetimes, err := history.GetLifetimes(ctx, history.GetLifetimesOptions{ActiveOnly: true, TowerID: remote.TowerID})
 		if err != nil {
 			return err
 		}
@@ -141,4 +151,21 @@ func loadFsTransactionBackup(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// DeriveFileFromAction creates a WeblensFileImpl from a FileAction, translating the path to the backup location.
+// Useful for deriving the correct file object representation when restoring files from backup.
+func DeriveFileFromAction(ctx context_service.AppContext, action history.FileAction, core tower.Instance) (*file_model.WeblensFileImpl, error) {
+	filePath, err := TranslateBackupPath(ctx, action.GetRelevantPath(), core)
+	if err != nil {
+		return nil, err
+	}
+
+	f := file_model.NewWeblensFile(file_model.NewFileOptions{
+		Path:      filePath,
+		FileID:    action.FileID,
+		ContentID: action.ContentID,
+	})
+
+	return f, nil
 }

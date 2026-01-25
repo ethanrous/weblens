@@ -2161,7 +2161,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Server ID",
+                        "description": "Server ID of the tower to back up",
                         "name": "serverID",
                         "in": "path",
                         "required": true
@@ -3777,6 +3777,7 @@ const docTemplate = `{
                 "homeID",
                 "permissionLevel",
                 "trashID",
+                "updatedAt",
                 "username"
             ],
             "properties": {
@@ -3801,6 +3802,10 @@ const docTemplate = `{
                 "trashID": {
                     "type": "string"
                 },
+                "updatedAt": {
+                    "type": "integer",
+                    "format": "int64"
+                },
                 "username": {
                     "type": "string"
                 }
@@ -3814,6 +3819,7 @@ const docTemplate = `{
                 "homeID",
                 "permissionLevel",
                 "trashID",
+                "updatedAt",
                 "username"
             ],
             "properties": {
@@ -3840,6 +3846,10 @@ const docTemplate = `{
                 },
                 "trashID": {
                     "type": "string"
+                },
+                "updatedAt": {
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "username": {
                     "type": "string"
@@ -3917,6 +3927,12 @@ const docTemplate = `{
         },
         "structs.InitServerParams": {
             "type": "object",
+            "required": [
+                "name",
+                "password",
+                "role",
+                "username"
+            ],
             "properties": {
                 "coreAddress": {
                     "type": "string"

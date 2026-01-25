@@ -11,13 +11,10 @@ import (
 	"sync"
 
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/opensearch-project/opensearch-go/v4"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
 )
-
-// OpenSearchClient is the global OpenSearch client for logging.
-var OpenSearchClient *opensearch.Client
 
 var projectPrefix string
 
@@ -28,19 +25,6 @@ func init() {
 	if projectPrefix == filename {
 		// in case the source code file is moved, we can not trim the suffix, the code above should also be updated.
 		panic("weblens logger unable to detect correct package prefix, please update file: " + filename)
-	}
-
-	osURL := os.Getenv("OPENSEARCH_URL")
-	osUser := os.Getenv("OPENSEARCH_USER")
-	osPass := os.Getenv("OPENSEARCH_PASSWORD")
-
-	var err error
-	if osURL != "" && osUser != "" && osPass != "" {
-		OpenSearchClient, err = NewOpenSearchClient(osURL, osUser, osPass)
-	}
-
-	if err != nil {
-		fmt.Println("Error initializing OpenSearch client for logging:", err)
 	}
 
 	zerolog.TimestampFieldName = "@timestamp"
@@ -61,18 +45,13 @@ var loggerMu sync.RWMutex
 
 // CreateOpts configures logging options.
 type CreateOpts struct {
-	NoOpenSearch bool
-	Level        zerolog.Level
+	Level zerolog.Level
 }
 
 func compileCreateLogOpts(o ...CreateOpts) CreateOpts {
 	opts := CreateOpts{}
 
 	for _, opt := range o {
-		if opt.NoOpenSearch {
-			opts.NoOpenSearch = true
-		}
-
 		if opt.Level != 0 {
 			opts.Level = opt.Level
 		}
@@ -106,20 +85,25 @@ func NewZeroLogger(opts ...CreateOpts) *zerolog.Logger {
 
 	config := config.GetConfig()
 
+	outputLocation := os.Stdout
+
+	if config.LogPath != "" {
+		var err error
+
+		outputLocation, err = os.OpenFile(config.LogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			panic(wlerrors.Errorf("failed to open log file %s: %w", config.LogPath, err))
+		}
+	}
+
 	var localLogger io.Writer
 	if config.LogFormat == "dev" {
-		localLogger = newDevLogger()
+		localLogger = newDevLogger(outputLocation)
 	} else {
-		localLogger = os.Stdout
+		localLogger = outputLocation
 	}
 
 	writers := []io.Writer{localLogger}
-
-	if !o.NoOpenSearch && OpenSearchClient != nil {
-		opnsIndex := os.Getenv("OPENSEARCH_INDEX")
-		oLog := NewOpensearchLogger(OpenSearchClient, opnsIndex)
-		writers = append(writers, oLog)
-	}
 
 	wlVersion := os.Getenv("WEBLENS_BUILD_VERSION")
 	if wlVersion == "" {

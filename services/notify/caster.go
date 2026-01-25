@@ -16,6 +16,7 @@ import (
 type Jobber interface {
 	ID() string
 	JobName() string
+	StartedAt() time.Time
 }
 
 // NewTaskNotification creates a websocket notification for a task event with the given result.
@@ -25,8 +26,9 @@ func NewTaskNotification(task Jobber, event websocket_mod.WsEvent, result task.R
 		SubscribeKey:    task.ID(),
 		Content:         result.ToMap(),
 		TaskType:        task.JobName(),
+		TaskStartTime:   task.StartedAt().UnixMilli(),
 		BroadcastType:   websocket_mod.TaskSubscribe,
-		ConstructedTime: time.Now().Unix(),
+		ConstructedTime: time.Now().UnixMilli(),
 
 		Sent: make(chan struct{}),
 	}
@@ -50,7 +52,7 @@ func NewPoolNotification(pool *task.Pool, event websocket_mod.WsEvent, result ta
 		Content:         result.ToMap(),
 		TaskType:        parentTask.JobName(),
 		BroadcastType:   websocket_mod.TaskSubscribe,
-		ConstructedTime: time.Now().Unix(),
+		ConstructedTime: time.Now().UnixMilli(),
 	}
 
 	return msg
@@ -63,7 +65,7 @@ func NewSystemNotification(event websocket_mod.WsEvent, data websocket_mod.WsDat
 		EventTag:        event,
 		Content:         data,
 		BroadcastType:   websocket_mod.SystemSubscribe,
-		ConstructedTime: time.Now().Unix(),
+		ConstructedTime: time.Now().UnixMilli(),
 	}
 
 	return msg
@@ -98,7 +100,7 @@ func NewFileNotification(
 		SubscribeKey:    fileInfo.ID,
 		Content:         content,
 		BroadcastType:   websocket_mod.FolderSubscribe,
-		ConstructedTime: time.Now().Unix(),
+		ConstructedTime: time.Now().UnixMilli(),
 	})
 
 	if fileInfo.ParentID != "" {

@@ -512,8 +512,12 @@ func (f *WeblensFileImpl) GetChild(childName string) (*WeblensFileImpl, error) {
 	f.childLock.RLock()
 	defer f.childLock.RUnlock()
 
-	if len(f.childrenMap) == 0 || childName == "" {
+	if len(f.childrenMap) == 0 {
 		return nil, wlerrors.Errorf("%w: file %s [%p] has no children", ErrFileNotFound, f.portablePath.String(), f)
+	}
+
+	if childName == "" {
+		return nil, wlerrors.Errorf("%w: trying to get empty child name for parent [%s]", ErrFileNotFound, f.portablePath.String())
 	}
 
 	child := f.childrenMap[childName]

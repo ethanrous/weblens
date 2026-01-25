@@ -16,7 +16,6 @@ import (
 	"github.com/ethanrous/weblens/modules/startup"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
-	"github.com/ethanrous/weblens/services/journal"
 )
 
 // ErrChildrenAlreadyLoaded indicates that a directory's children have already been loaded.
@@ -30,7 +29,6 @@ func init() {
 
 // LoadFilesRecursively loads a directory and all its subdirectories into the file service.
 func LoadFilesRecursively(ctx context_service.AppContext, root *file_model.WeblensFileImpl) error {
-	appCtx, _ := context_service.FromContext(ctx)
 	searchFiles := []*file_model.WeblensFileImpl{root}
 
 	start := time.Now()
@@ -52,7 +50,7 @@ func LoadFilesRecursively(ctx context_service.AppContext, root *file_model.Weble
 		searchFiles = append(searchFiles, newChildren...)
 	}
 
-	appCtx.Log().Trace().Msgf("Loaded file %s [%s] in %s", root.GetPortablePath().String(), root.ID(), time.Since(start))
+	ctx.Log().Trace().Msgf("Loaded file %s [%s] in %s", root.GetPortablePath().String(), root.ID(), time.Since(start))
 
 	return nil
 }
@@ -360,7 +358,21 @@ func loadLifetimes(ctx context_service.AppContext) (map[file_system.Filepath]his
 		return fpMap, nil
 	}
 
-	lifetimes, err := journal.GetLifetimesByTowerID(ctx, ctx.LocalTowerID, journal.GetLifetimesOptions{ActiveOnly: true})
+	localTower, err := tower_model.GetLocal(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	isBackup := localTower.Role == tower_model.RoleBackup
+
+	var lifetimes []history.FileLifetime
+	// Load all active lifetimes, for backups we load all, for cores only those relevant to the local tower
+	if isBackup {
+		lifetimes, err = history.GetLifetimes(ctx, history.GetLifetimesOptions{ActiveOnly: true})
+	} else {
+		lifetimes, err = history.GetLifetimes(ctx, history.GetLifetimesOptions{ActiveOnly: true, TowerID: ctx.LocalTowerID})
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -374,7 +386,22 @@ func loadLifetimes(ctx context_service.AppContext) (map[file_system.Filepath]his
 
 		a.ContentID = lt.Actions[0].ContentID
 
-		fpMap[a.GetRelevantPath()] = a
+		path := a.GetRelevantPath()
+
+		// For backups, translate the path to the local tower's structure
+		if isBackup {
+			remoteTower, err := tower_model.GetTowerByID(ctx, a.TowerID)
+			if err != nil {
+				return nil, err
+			}
+
+			path, err = TranslateBackupPath(ctx, path, remoteTower)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		fpMap[path] = a
 	}
 
 	return fpMap, nil

@@ -53,6 +53,7 @@ type Provider struct {
 
 	LogLevel       zerolog.Level
 	LogFormat      string
+	LogPath        string
 	BackupInterval time.Duration
 	WorkerCount    int
 
@@ -230,6 +231,15 @@ func getEnvOverride(config *Provider) {
 
 		log.Trace().Msgf("Overriding LogFormat with WEBLENS_LOG_FORMAT: %s", logFormat)
 		config.LogFormat = logFormat
+	}
+
+	if logPath := os.Getenv("WEBLENS_LOG_PATH"); logPath != "" {
+		if !filepath.IsAbs(logPath) {
+			logPath = filepath.Join(projectPackagePrefix, logPath)
+		}
+
+		log.Trace().Msgf("Overriding LogPath with WEBLENS_LOG_PATH: %s", logPath)
+		config.LogPath = logPath
 	}
 
 	if host := os.Getenv("WEBLENS_HOST"); host != "" {

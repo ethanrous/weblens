@@ -30,6 +30,10 @@ type ClientManager struct {
 	remoteClientMap map[string]*websocket_model.WsClient
 	clientMu        sync.RWMutex
 
+	// Key: remote tower ID, value: channel to skip waiting and attempt immediate update
+	remoteUpdateNotifyMap map[string]chan struct{}
+	remoteUpdateMu        sync.RWMutex
+
 	cores   map[string]*websocket_model.WsClient
 	coresMu sync.RWMutex
 
@@ -57,9 +61,10 @@ type ClientManager struct {
 // NewClientManager creates and initializes a new ClientManager with a background notification worker.
 func NewClientManager(ctx context.Context) *ClientManager {
 	cm := &ClientManager{
-		webClientMap:    map[string]*websocket_model.WsClient{},
-		remoteClientMap: map[string]*websocket_model.WsClient{},
-		cores:           map[string]*websocket_model.WsClient{},
+		webClientMap:          map[string]*websocket_model.WsClient{},
+		remoteClientMap:       map[string]*websocket_model.WsClient{},
+		cores:                 map[string]*websocket_model.WsClient{},
+		remoteUpdateNotifyMap: map[string]chan struct{}{},
 
 		folderSubs:   map[string][]*websocket_model.WsClient{},
 		taskSubs:     map[string][]*websocket_model.WsClient{},
@@ -452,6 +457,44 @@ func (cm *ClientManager) Send(ctx context.Context, msg websocket_mod.WsResponseI
 // Relay forwards a websocket message to connected remote instances.
 func (cm *ClientManager) Relay(_ websocket_mod.WsResponseInfo) {
 	panic("not implemented")
+}
+
+// ListenForTowerUpdate returns a notification channel for the specified tower to signal when an immediate update is needed.
+func (cm *ClientManager) ListenForTowerUpdate(tower tower_model.Instance) (notifyChan chan struct{}) {
+	cm.remoteUpdateMu.Lock()
+	defer cm.remoteUpdateMu.Unlock()
+
+	var ok bool
+	if notifyChan, ok = cm.remoteUpdateNotifyMap[tower.TowerID]; !ok {
+		notifyChan = make(chan struct{})
+		cm.remoteUpdateNotifyMap[tower.TowerID] = notifyChan
+	}
+
+	return
+}
+
+// PushTowerUpdate signals to the specified tower's update listener that an immediate update is needed.
+func (cm *ClientManager) PushTowerUpdate(tower tower_model.Instance) bool {
+	cm.remoteUpdateMu.Lock()
+	defer cm.remoteUpdateMu.Unlock()
+
+	var ok bool
+
+	var notifyChan chan struct{}
+
+	if notifyChan, ok = cm.remoteUpdateNotifyMap[tower.TowerID]; !ok {
+		notifyChan = make(chan struct{})
+		cm.remoteUpdateNotifyMap[tower.TowerID] = notifyChan
+	}
+
+	select {
+	case notifyChan <- struct{}{}:
+		return true
+	default:
+		log.GlobalLogger().Trace().Msgf("Update notify channel for tower [%s] is full, skipping push", tower.TowerID)
+
+		return false
+	}
 }
 
 func (cm *ClientManager) addSubscription(ctx context.Context, subInfo websocket_mod.Subscription, client *websocket_model.WsClient) {

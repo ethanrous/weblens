@@ -19,6 +19,7 @@ export default class User implements UserInfo {
     trashSize: number = 0
     username: string = ''
     activated: boolean = false
+    updatedAt: number = 0
 
     isLoggedIn: Optional<boolean>
 

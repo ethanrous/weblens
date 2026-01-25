@@ -1,5 +1,6 @@
 import useFilesStore from '~/stores/files'
 import useLocationStore from '~/stores/location'
+import { BackupInfo } from '~/types/backupTypes'
 import { TaskType, type TaskParams } from '~/types/task'
 import WeblensFile from '~/types/weblensFile'
 import { WsEvent, type WsMessage } from '~/types/websocket'
@@ -141,6 +142,36 @@ export function handleWebsocketMessage(msg: WsMessage) {
 
         case WsEvent.ZipCompleteEvent: {
             useTasksStore().setTaskComplete(msg.subscribeKey, msg.content)
+
+            break
+        }
+
+        case WsEvent.RemoteConnectionChangedEvent: {
+            useRemotesStore().refreshRemotes()
+
+            break
+        }
+
+        case WsEvent.BackupStartedEvent:
+        case WsEvent.BackupProgressEvent: {
+            if (!msg.content['coreID']) {
+                console.error('Backup event missing towerID in content:', msg)
+                break
+            }
+
+            const backupInfo = BackupInfo.fromWsMsg(msg.content['coreID'], msg)
+            useBackupStore().updateBackup(backupInfo)
+
+            break
+        }
+
+        case WsEvent.BackupCompleteEvent: {
+            if (!msg.content['coreID']) {
+                console.error('Backup complete event missing towerID in content:', msg)
+                break
+            }
+
+            useBackupStore().setBackupComplete(msg.content['coreID'], msg.constructedTime)
 
             break
         }

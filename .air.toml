@@ -4,7 +4,7 @@ tmp_dir = "tmp"
 
 [build]
   args_bin = []
-  cmd = "CGO_ENABLED=1 go build -gcflags=\"all=-N -l\" -race -o ./_build/bin/weblens ./cmd/weblens"
+  cmd = "CGO_LDFLAGS=\"-w\" CGO_ENABLED=1 go build -gcflags=\"all=-N -l\" -race -o ./_build/bin/weblens ./cmd/weblens"
   full_bin = "./_build/bin/weblens"
   # full_bin = "GORACE='halt_on_error=1' CGO_CFLAGS_ALLOW='-Xpreprocessor' ./_build/bin/weblens"
   delay = 1000
