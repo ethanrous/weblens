@@ -1,14 +1,16 @@
 <template>
     <div
         :class="{
-            'bg-card-background-primary/75 inline-flex h-9 shrink-0 cursor-text items-center gap-1 overflow-hidden rounded border transition': true,
+            'bg-card-background-primary/75 inline-flex h-8 shrink-0 cursor-text items-center gap-1 overflow-hidden rounded border transition': true,
             'select-all': canCopy,
             'select-none': !canCopy,
             'border-green-600': copied,
+            'pl-1': !slots.default,
         }"
         @click.stop="copyToClipboard"
     >
         <div
+            v-if="slots.default"
             :class="{
                 'ml-1': true,
                 'flex aspect-square h-12 max-h-full items-center justify-center border-r pr-1': slots.default,
@@ -21,7 +23,7 @@
         </span>
         <IconClipboard
             :class="{
-                'ml-auto shrink-0 rounded p-0.5': true,
+                'mr-1 ml-auto shrink-0 rounded p-0.5': true,
                 'hover:bg-card-background-hover cursor-pointer': canCopy,
                 'text-text-tertiary': !canCopy,
             }"

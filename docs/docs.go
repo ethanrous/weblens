@@ -562,13 +562,6 @@ const docTemplate = `{
                         "name": "fileID",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Past timestamp to view the folder at, in ms since epoch",
-                        "name": "timestamp",
-                        "in": "query",
-                        "required": true
                     }
                 ],
                 "responses": {
@@ -2076,6 +2069,35 @@ const docTemplate = `{
                 }
             }
         },
+        "/tower/trace": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Towers"
+                ],
+                "summary": "Enable trace logging",
+                "operationId": "EnableTraceLogging",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
         "/tower/{serverID}": {
             "delete": {
                 "security": [
@@ -2139,7 +2161,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Server ID",
+                        "description": "Server ID of the tower to back up",
                         "name": "serverID",
                         "in": "path",
                         "required": true
@@ -2772,7 +2794,10 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK"
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/UserInfo"
+                        }
                     },
                     "400": {
                         "description": "Bad Request",
@@ -3011,9 +3036,6 @@ const docTemplate = `{
                 "contentID": {
                     "type": "string"
                 },
-                "currentID": {
-                    "type": "string"
-                },
                 "hasRestoreMedia": {
                     "type": "boolean"
                 },
@@ -3027,7 +3049,8 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "modifyTimestamp": {
-                    "type": "integer"
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "owner": {
                     "type": "string"
@@ -3045,7 +3068,8 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "size": {
-                    "type": "integer"
+                    "type": "integer",
+                    "format": "int64"
                 }
             }
         },
@@ -3547,7 +3571,8 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "expires": {
-                    "type": "integer"
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "fileID": {
                     "type": "string"
@@ -3577,7 +3602,8 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "updated": {
-                    "type": "integer"
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "wormhole": {
                     "type": "boolean"
@@ -3707,6 +3733,9 @@ const docTemplate = `{
                     "type": "integer",
                     "format": "int64"
                 },
+                "logLevel": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -3748,6 +3777,7 @@ const docTemplate = `{
                 "homeID",
                 "permissionLevel",
                 "trashID",
+                "updatedAt",
                 "username"
             ],
             "properties": {
@@ -3772,6 +3802,10 @@ const docTemplate = `{
                 "trashID": {
                     "type": "string"
                 },
+                "updatedAt": {
+                    "type": "integer",
+                    "format": "int64"
+                },
                 "username": {
                     "type": "string"
                 }
@@ -3785,6 +3819,7 @@ const docTemplate = `{
                 "homeID",
                 "permissionLevel",
                 "trashID",
+                "updatedAt",
                 "username"
             ],
             "properties": {
@@ -3811,6 +3846,10 @@ const docTemplate = `{
                 },
                 "trashID": {
                     "type": "string"
+                },
+                "updatedAt": {
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "username": {
                     "type": "string"
@@ -3888,6 +3927,12 @@ const docTemplate = `{
         },
         "structs.InitServerParams": {
             "type": "object",
+            "required": [
+                "name",
+                "password",
+                "role",
+                "username"
+            ],
             "properties": {
                 "coreAddress": {
                     "type": "string"

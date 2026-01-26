@@ -4,7 +4,6 @@ import (
 	"context"
 	"math/rand"
 	"net/http"
-	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -140,7 +139,7 @@ func TestClientSubscribe(t *testing.T) {
 
 		fileID := randomString(8)
 
-		err = m.SubscribeToFile(t.Context(), c, &mockIDer{id: fileID}, nil, time.Now())
+		err = m.SubscribeToFile(t.Context(), c, &mockIDer{id: fileID}, time.Now())
 		if err != nil {
 			t.Fatalf("unexpected error subscribing to file: %v", err)
 		}
@@ -195,7 +194,7 @@ func TestClientSubscribe(t *testing.T) {
 		fileID := randomString(8)
 
 		// Subscribe client1 to the file
-		err = m.SubscribeToFile(t.Context(), client1, &mockIDer{id: fileID}, nil, time.Now())
+		err = m.SubscribeToFile(t.Context(), client1, &mockIDer{id: fileID}, time.Now())
 		if err != nil {
 			t.Fatalf("unexpected error subscribing to file: %v", err)
 		}
@@ -227,19 +226,19 @@ func TestClientUnsubscribe(t *testing.T) {
 
 		fileID1 := randomString(8)
 
-		err = m.SubscribeToFile(t.Context(), c, &mockIDer{id: fileID1}, nil, time.Now())
+		err = m.SubscribeToFile(t.Context(), c, &mockIDer{id: fileID1}, time.Now())
 		if err != nil {
 			t.Fatalf("unexpected error subscribing to file: %v", err)
 		}
 
 		fileID2 := randomString(8)
 
-		err = m.SubscribeToFile(t.Context(), c, &mockIDer{id: fileID2}, nil, time.Now())
+		err = m.SubscribeToFile(t.Context(), c, &mockIDer{id: fileID2}, time.Now())
 		if err != nil {
 			t.Fatalf("unexpected error subscribing to file: %v", err)
 		}
 
-		assert.Equal(t, len(slices.Collect(c.GetSubscriptions())), 2)
+		assert.Equal(t, len(c.GetSubscriptions()), 2)
 
 		err = m.Unsubscribe(appCtx, c, fileID1, time.Now())
 		if err != nil {
@@ -270,12 +269,12 @@ func TestClientUnsubscribe(t *testing.T) {
 		fileID1 := randomString(8)
 		f1 := &mockIDer{id: fileID1}
 
-		err = m.SubscribeToFile(t.Context(), client1, f1, nil, time.Now())
+		err = m.SubscribeToFile(t.Context(), client1, f1, time.Now())
 		if err != nil {
 			t.Fatalf("unexpected error subscribing to file: %v", err)
 		}
 
-		err = m.SubscribeToFile(t.Context(), client2, f1, nil, time.Now())
+		err = m.SubscribeToFile(t.Context(), client2, f1, time.Now())
 		if err != nil {
 			t.Fatalf("unexpected error subscribing to file: %v", err)
 		}
@@ -283,12 +282,12 @@ func TestClientUnsubscribe(t *testing.T) {
 		fileID2 := randomString(8)
 		f2 := &mockIDer{id: fileID2}
 
-		err = m.SubscribeToFile(t.Context(), client1, f2, nil, time.Now())
+		err = m.SubscribeToFile(t.Context(), client1, f2, time.Now())
 		if err != nil {
 			t.Fatalf("unexpected error subscribing to file: %v", err)
 		}
 
-		err = m.SubscribeToFile(t.Context(), client2, f2, nil, time.Now())
+		err = m.SubscribeToFile(t.Context(), client2, f2, time.Now())
 		if err != nil {
 			t.Fatalf("unexpected error subscribing to file: %v", err)
 		}
@@ -352,7 +351,7 @@ func TestClientDisconnect(t *testing.T) {
 
 		fileID := "file-123"
 
-		err = m.SubscribeToFile(t.Context(), c, &mockIDer{id: fileID}, nil, time.Now())
+		err = m.SubscribeToFile(t.Context(), c, &mockIDer{id: fileID}, time.Now())
 		if err != nil {
 			t.Fatalf("unexpected error subscribing to file: %v", err)
 		}

@@ -16,7 +16,6 @@ import (
 	"github.com/ethanrous/weblens/modules/startup"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
-	"github.com/ethanrous/weblens/services/journal"
 )
 
 // ErrChildrenAlreadyLoaded indicates that a directory's children have already been loaded.
@@ -30,7 +29,6 @@ func init() {
 
 // LoadFilesRecursively loads a directory and all its subdirectories into the file service.
 func LoadFilesRecursively(ctx context_service.AppContext, root *file_model.WeblensFileImpl) error {
-	appCtx, _ := context_service.FromContext(ctx)
 	searchFiles := []*file_model.WeblensFileImpl{root}
 
 	start := time.Now()
@@ -46,13 +44,13 @@ func LoadFilesRecursively(ctx context_service.AppContext, root *file_model.Weble
 
 		newChildren, err := loadOneDirectory(ctx, file)
 		if err != nil {
-			return wlerrors.Errorf("Failed to load directory %s: %w", file.GetPortablePath(), err)
+			return wlerrors.Errorf("Failed to load directory [%s]: %w", file.GetPortablePath(), err)
 		}
 
 		searchFiles = append(searchFiles, newChildren...)
 	}
 
-	appCtx.Log().Trace().Msgf("Loaded file %s [%s] in %s", root.GetPortablePath().String(), root.ID(), time.Since(start))
+	ctx.Log().Trace().Msgf("Loaded file %s [%s] in %s", root.GetPortablePath().String(), root.ID(), time.Since(start))
 
 	return nil
 }
@@ -161,6 +159,8 @@ func loadFs(ctx context.Context, cnf config.Provider) error {
 
 func handleFileCreation(ctx context_service.AppContext, filepath file_system.Filepath, pathMap map[file_system.Filepath]history.FileAction, doFileCreation bool) (*file_model.WeblensFileImpl, error) {
 	if f, err := ctx.FileService.GetFileByFilepath(ctx, filepath, true); err == nil {
+		ctx.Log().Trace().Msgf("File [%s] found by filepath in file service", filepath)
+
 		return f, nil
 	} else if !wlerrors.Is(err, file_model.ErrFileNotFound) {
 		return nil, err
@@ -170,9 +170,7 @@ func handleFileCreation(ctx context_service.AppContext, filepath file_system.Fil
 	action, ok := pathMap[filepath]
 
 	if !doFileCreation && !ok {
-		ctx.Log().Warn().Msgf("File [%s] not found in history, and doFileDiscovery is false", filepath)
-
-		return f, nil
+		return nil, wlerrors.ReplaceStack(file_model.ErrFileHistoryMissing)
 	}
 
 	if !ok {
@@ -265,8 +263,12 @@ func loadOneDirectory(ctx context_service.AppContext, dir *file_model.WeblensFil
 
 		for _, childPath := range childPaths {
 			child, err := handleFileCreation(appCtx, childPath, pathMap, doFileCreation)
-			if err != nil {
-				return err
+			if err != nil && wlerrors.Is(err, file_model.ErrFileHistoryMissing) {
+				appCtx.Log().Warn().Msgf("File [%s] missing history entry, skipping", childPath)
+
+				continue
+			} else if err != nil {
+				return wlerrors.Errorf("failed to handle file creation for [%s]: %w", childPath, err)
 			}
 
 			err = child.SetParent(dir)
@@ -356,7 +358,21 @@ func loadLifetimes(ctx context_service.AppContext) (map[file_system.Filepath]his
 		return fpMap, nil
 	}
 
-	lifetimes, err := journal.GetLifetimesByTowerID(ctx, ctx.LocalTowerID, journal.GetLifetimesOptions{ActiveOnly: true})
+	localTower, err := tower_model.GetLocal(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	isBackup := localTower.Role == tower_model.RoleBackup
+
+	var lifetimes []history.FileLifetime
+	// Load all active lifetimes, for backups we load all, for cores only those relevant to the local tower
+	if isBackup {
+		lifetimes, err = history.GetLifetimes(ctx, history.GetLifetimesOptions{ActiveOnly: true})
+	} else {
+		lifetimes, err = history.GetLifetimes(ctx, history.GetLifetimesOptions{ActiveOnly: true, TowerID: ctx.LocalTowerID})
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -370,7 +386,22 @@ func loadLifetimes(ctx context_service.AppContext) (map[file_system.Filepath]his
 
 		a.ContentID = lt.Actions[0].ContentID
 
-		fpMap[a.GetRelevantPath()] = a
+		path := a.GetRelevantPath()
+
+		// For backups, translate the path to the local tower's structure
+		if isBackup {
+			remoteTower, err := tower_model.GetTowerByID(ctx, a.TowerID)
+			if err != nil {
+				return nil, err
+			}
+
+			path, err = TranslateBackupPath(ctx, path, remoteTower)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		fpMap[path] = a
 	}
 
 	return fpMap, nil

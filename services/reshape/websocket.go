@@ -33,6 +33,13 @@ func GetCancelInfo(msg websocket_mod.WsResponseInfo) websocket_mod.CancelInfo {
 	}
 }
 
+// GetTowerInfo extracts tower information from a websocket response message.
+func GetTowerInfo(msg websocket_mod.WsResponseInfo) websocket_mod.TowerInfo {
+	return websocket_mod.TowerInfo{
+		TowerID: msg.Content["towerID"].(string),
+	}
+}
+
 // GetScanInfo extracts scan information from a websocket response message.
 func GetScanInfo(msg websocket_mod.WsResponseInfo) websocket_mod.ScanInfo {
 	id := getSafeString(msg.Content, "folderID")

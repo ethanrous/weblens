@@ -52,7 +52,8 @@ type Task struct {
 	// Function to be run to clean up if the task errors
 	errorCleanups []HandlerFunc
 
-	updateMu sync.RWMutex
+	updateMu  sync.RWMutex
+	resultsMu sync.RWMutex
 
 	timerLock sync.RWMutex
 
@@ -146,6 +147,22 @@ func (t *Task) Status() (bool, ExitStatus) {
 	defer t.updateMu.RUnlock()
 
 	return t.queueState == Exited, t.exitStatus
+}
+
+// GetStartTime returns the time when the task started executing.
+func (t *Task) GetStartTime() time.Time {
+	t.updateMu.RLock()
+	defer t.updateMu.RUnlock()
+
+	return t.StartTime
+}
+
+// GetFinishTime returns the time when the task finished executing.
+func (t *Task) GetFinishTime() time.Time {
+	t.updateMu.RLock()
+	defer t.updateMu.RUnlock()
+
+	return t.FinishTime
 }
 
 // Q queues task on given taskPool tp,
@@ -250,19 +267,19 @@ func (t *Task) GetResult() Result {
 
 // GetResults returns a copy of the task result.
 func (t *Task) GetResults() Result {
-	t.updateMu.RLock()
-	defer t.updateMu.RUnlock()
+	t.resultsMu.RLock()
+	defer t.resultsMu.RUnlock()
 
 	if t.result == nil {
-		t.updateMu.RUnlock()
-		t.updateMu.Lock()
+		t.resultsMu.RUnlock()
+		t.resultsMu.Lock()
 
 		if t.result == nil {
 			t.result = Result{}
 		}
 
-		t.updateMu.Unlock()
-		t.updateMu.RLock()
+		t.resultsMu.Unlock()
+		t.resultsMu.RLock()
 	}
 
 	return maps.Clone(t.result)
@@ -425,7 +442,7 @@ func (t *Task) ClearOnResult() {
 
 // SetResult sets the task result.
 func (t *Task) SetResult(results Result) {
-	t.updateMu.Lock()
+	t.resultsMu.Lock()
 
 	if t.result == nil {
 		t.result = results
@@ -439,13 +456,38 @@ func (t *Task) SetResult(results Result) {
 
 	if t.resultsCallback != nil {
 		resultClone := maps.Clone(t.result)
-		t.updateMu.Unlock()
+		t.resultsMu.Unlock()
 		t.resultsCallback(resultClone)
 
 		return
 	}
 
-	t.updateMu.Unlock()
+	t.resultsMu.Unlock()
+}
+
+// AtomicSetResult atomically updates the task result using the provided function.
+func (t *Task) AtomicSetResult(fn func(Result) Result) {
+	t.resultsMu.Lock()
+
+	if t.result == nil {
+		t.result = Result{}
+	}
+
+	t.result = fn(t.result)
+
+	t.Log().Trace().Func(func(e *zerolog.Event) {
+		e.Interface("result", t.result).Msgf("Task [%s][%s] atomically updated its result", t.taskID, t.jobName)
+	})
+
+	if t.resultsCallback != nil {
+		resultClone := maps.Clone(t.result)
+		t.resultsMu.Unlock()
+		t.resultsCallback(resultClone)
+
+		return
+	}
+
+	t.resultsMu.Unlock()
 }
 
 // ExeTime returns the execution duration of the task.
@@ -458,6 +500,14 @@ func (t *Task) ExeTime() time.Duration {
 	}
 
 	return t.FinishTime.Sub(t.StartTime)
+}
+
+// StartedAt returns the time when the task started executing.
+func (t *Task) StartedAt() time.Time {
+	t.updateMu.RLock()
+	defer t.updateMu.RUnlock()
+
+	return t.StartTime
 }
 
 // QueueTimeDuration returns how long the task waited in the queue.

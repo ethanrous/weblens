@@ -12,7 +12,7 @@
                 SelectedState.InRange,
             ),
             'bg-card-background-hover': fileState.Has(SelectedState.InRange),
-            'bg-card-background-disabled !text-text-tertiary pointer-events-none': fileState.Has(SelectedState.Moved),
+            'bg-card-background-disabled text-text-tertiary! pointer-events-none': fileState.Has(SelectedState.Moved),
             'aspect-square h-max w-full max-w-full': fileShape === 'square',
             'h-20 w-full max-w-full': fileShape === 'row',
         }"

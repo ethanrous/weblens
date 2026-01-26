@@ -8,18 +8,18 @@ Name | Type | Description | Notes
 **CoreKey** | Pointer to **string** |  | [optional] 
 **FullName** | Pointer to **string** |  | [optional] 
 **LocalID** | Pointer to **string** | For restoring a server, remoind the core of its serverID and api key the remote last used | [optional] 
-**Name** | Pointer to **string** |  | [optional] 
-**Password** | Pointer to **string** |  | [optional] 
+**Name** | **string** |  | 
+**Password** | **string** |  | 
 **RemoteID** | Pointer to **string** |  | [optional] 
-**Role** | Pointer to **string** |  | [optional] 
-**Username** | Pointer to **string** |  | [optional] 
+**Role** | **string** |  | 
+**Username** | **string** |  | 
 **UsingKeyInfo** | Pointer to **string** |  | [optional] 
 
 ## Methods
 
 ### NewStructsInitServerParams
 
-`func NewStructsInitServerParams() *StructsInitServerParams`
+`func NewStructsInitServerParams(name string, password string, role string, username string, ) *StructsInitServerParams`
 
 NewStructsInitServerParams instantiates a new StructsInitServerParams object
 This constructor will assign default values to properties that have it defined,
@@ -153,11 +153,6 @@ and a boolean to check if the value has been set.
 
 SetName sets Name field to given value.
 
-### HasName
-
-`func (o *StructsInitServerParams) HasName() bool`
-
-HasName returns a boolean if a field has been set.
 
 ### GetPassword
 
@@ -178,11 +173,6 @@ and a boolean to check if the value has been set.
 
 SetPassword sets Password field to given value.
 
-### HasPassword
-
-`func (o *StructsInitServerParams) HasPassword() bool`
-
-HasPassword returns a boolean if a field has been set.
 
 ### GetRemoteID
 
@@ -228,11 +218,6 @@ and a boolean to check if the value has been set.
 
 SetRole sets Role field to given value.
 
-### HasRole
-
-`func (o *StructsInitServerParams) HasRole() bool`
-
-HasRole returns a boolean if a field has been set.
 
 ### GetUsername
 
@@ -253,11 +238,6 @@ and a boolean to check if the value has been set.
 
 SetUsername sets Username field to given value.
 
-### HasUsername
-
-`func (o *StructsInitServerParams) HasUsername() bool`
-
-HasUsername returns a boolean if a field has been set.
 
 ### GetUsingKeyInfo
 

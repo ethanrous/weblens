@@ -1,4 +1,18 @@
 #!/bin/bash
+set -euo pipefail
+
+publish_api_patch() {
+    pushd ./api/ts/
+    npm version patch
+    npm publish
+
+    new_version=$(package.json | jq -r .version)
+    popd
+
+    pushd ./weblens-vue/weblens-nuxt/
+    pnpm install @ethanrous/weblens-api@"$new_version"
+    popd
+}
 
 if [[ ! -e ./scripts ]]; then
     echo "ERR Could not find ./scripts directory, are you at the root of the repo? i.e. ~/repos/weblens and not ~/repos/weblens/scripts"
@@ -28,12 +42,9 @@ fi
 echo "DONE"
 
 printf "Compiling typescript api..."
-cd ./api/ts || exit 1
+pushd ./api/ts
 npm run build
-# cd ./dist || exit 1
-# npm version patch
-# cd ../../.. || exit 1
-cd ../.. || exit 1
+popd
 echo "DONE"
 
 printf "Generating go api..."
@@ -47,3 +58,24 @@ if ! openapi-generator generate -i docs/swagger.json -g go --git-user-id ethanro
     exit 1
 fi
 echo "DONE"
+
+publish=false
+while [ "${1:-}" != "" ]; do
+    case "$1" in
+    "-p" | "--publish")
+        publish=true
+        ;;
+    *)
+        "Unknown argument: $1"
+        usage
+        exit 1
+        ;;
+    esac
+    shift
+done
+
+if [[ $publish == true ]]; then
+    printf "Publishing typescript api..."
+    publish_api_patch
+    echo "DONE"
+fi

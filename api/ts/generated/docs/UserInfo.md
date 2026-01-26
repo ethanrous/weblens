@@ -12,6 +12,7 @@ Name | Type | Description | Notes
 **permissionLevel** | **number** |  | [default to undefined]
 **token** | **string** |  | [optional] [default to undefined]
 **trashID** | **string** |  | [default to undefined]
+**updatedAt** | **number** |  | [default to undefined]
 **username** | **string** |  | [default to undefined]
 
 ## Example
@@ -27,6 +28,7 @@ const instance: UserInfo = {
     permissionLevel,
     token,
     trashID,
+    updatedAt,
     username,
 };
 ```

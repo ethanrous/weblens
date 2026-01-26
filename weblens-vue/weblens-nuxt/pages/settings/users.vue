@@ -11,7 +11,9 @@
                 #[`online-${index}`]
             >
                 <div :class="{ 'flex w-full justify-center': true }">
-                    <WebsocketStatus :status="(row['online'] as TableTypes[TableType.Slot]).data ? 'OPEN' : 'CLOSED'" />
+                    <WebsocketStatus
+                        :ws-status="(row['online'] as TableTypes[TableType.Slot]).data ? 'OPEN' : 'CLOSED'"
+                    />
                 </div>
             </template>
         </Table>
@@ -46,7 +48,7 @@ import { useWeblensAPI } from '~/api/AllApi'
 import Table from '~/components/atom/Table.vue'
 import WeblensButton from '~/components/atom/WeblensButton.vue'
 import WeblensInput from '~/components/atom/WeblensInput.vue'
-import WebsocketStatus from '~/components/molecule/WebsocketStatus.vue'
+import WebsocketStatus from '~/components/atom/WebsocketStatus.vue'
 import { TableType, type TableColumn, type TableColumns, type TableTypes } from '~/types/table'
 import User, { UserPermissions } from '~/types/user'
 

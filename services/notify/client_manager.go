@@ -9,7 +9,6 @@ import (
 
 	client_model "github.com/ethanrous/weblens/models/client"
 	websocket_model "github.com/ethanrous/weblens/models/client"
-	share_model "github.com/ethanrous/weblens/models/share"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/log"
@@ -30,6 +29,10 @@ type ClientManager struct {
 	webClientMap    map[string]*websocket_model.WsClient
 	remoteClientMap map[string]*websocket_model.WsClient
 	clientMu        sync.RWMutex
+
+	// Key: remote tower ID, value: channel to skip waiting and attempt immediate update
+	remoteUpdateNotifyMap map[string]chan struct{}
+	remoteUpdateMu        sync.RWMutex
 
 	cores   map[string]*websocket_model.WsClient
 	coresMu sync.RWMutex
@@ -58,9 +61,10 @@ type ClientManager struct {
 // NewClientManager creates and initializes a new ClientManager with a background notification worker.
 func NewClientManager(ctx context.Context) *ClientManager {
 	cm := &ClientManager{
-		webClientMap:    map[string]*websocket_model.WsClient{},
-		remoteClientMap: map[string]*websocket_model.WsClient{},
-		cores:           map[string]*websocket_model.WsClient{},
+		webClientMap:          map[string]*websocket_model.WsClient{},
+		remoteClientMap:       map[string]*websocket_model.WsClient{},
+		cores:                 map[string]*websocket_model.WsClient{},
+		remoteUpdateNotifyMap: map[string]chan struct{}{},
 
 		folderSubs:   map[string][]*websocket_model.WsClient{},
 		taskSubs:     map[string][]*websocket_model.WsClient{},
@@ -108,10 +112,12 @@ func (cm *ClientManager) RemoteConnect(ctx context.Context, conn *websocket.Conn
 // ClientDisconnect removes a client from all subscriptions and disconnects them from the manager.
 func (cm *ClientManager) ClientDisconnect(ctx context.Context, c *websocket_model.WsClient) error {
 	if !c.Active.Load() {
-		return wlerrors.New("client is already disconnected")
+		log.FromContext(ctx).Warn().Msgf("Client [%s] is already disconnected", c.GetClientID())
+
+		return nil
 	}
 
-	for s := range c.GetSubscriptions() {
+	for _, s := range c.GetSubscriptions() {
 		err := cm.removeSubscription(ctx, s, c, true)
 
 		// Client is leaving anyway, no point returning an error from here
@@ -283,12 +289,14 @@ func (cm *ClientManager) GetSubscribers(ctx context.Context, st websocket_mod.Su
 }
 
 // SubscribeToFile subscribes a client to receive notifications for changes to a specific file.
-func (cm *ClientManager) SubscribeToFile(ctx context.Context, c *client_model.WsClient, file IDer, _ *share_model.FileShare, subTime time.Time) error {
+func (cm *ClientManager) SubscribeToFile(ctx context.Context, c *client_model.WsClient, file IDer, subTime time.Time) error {
 	if file == nil {
 		return wlerrors.New("file is nil")
 	}
 
-	// TODO: check share
+	if c == nil {
+		return wlerrors.New("client is nil")
+	}
 
 	sub := websocket_mod.Subscription{Type: websocket_mod.FolderSubscribe, SubscriptionID: file.ID(), When: subTime}
 	cm.addSubscription(ctx, sub, c)
@@ -298,11 +306,14 @@ func (cm *ClientManager) SubscribeToFile(ctx context.Context, c *client_model.Ws
 
 // SubscribeToTask subscribes a client to receive notifications for a specific task.
 func (cm *ClientManager) SubscribeToTask(ctx context.Context, c *client_model.WsClient, task IDer, subTime time.Time) error {
-	// if done, _ := task.Status(); done {
-	// 	log.FromContext(ctx).Debug().Msgf("Task [%s] is already done, not subscribing", task.ID())
-	//
-	// 	return task_model.ErrTaskAlreadyComplete
-	// }
+	if task == nil {
+		return wlerrors.New("task is nil")
+	}
+
+	if c == nil {
+		return wlerrors.New("client is nil")
+	}
+
 	sub := websocket_mod.Subscription{Type: websocket_mod.TaskSubscribe, SubscriptionID: task.ID(), When: subTime}
 
 	cm.addSubscription(ctx, sub, c)
@@ -324,7 +335,7 @@ func (cm *ClientManager) Unsubscribe(ctx context.Context, client *websocket_mode
 
 	var targetSub websocket_mod.Subscription
 
-	for sub := range client.GetSubscriptions() {
+	for _, sub := range client.GetSubscriptions() {
 		if sub.SubscriptionID != key {
 			continue
 		}
@@ -409,10 +420,6 @@ func (cm *ClientManager) Send(ctx context.Context, msg websocket_mod.WsResponseI
 		}
 	}
 
-	if msg.EventTag == "taskCanceled" {
-		log.FromContext(ctx).Debug().Msgf("websocket_event: %d clients for task %s - %s", len(clients), msg.SubscribeKey, msg.BroadcastType)
-	}
-
 	// Don't relay messages to the client that sent them
 	if msg.RelaySource != "" {
 		i := slices.IndexFunc(clients, func(c *websocket_model.WsClient) bool {
@@ -450,6 +457,44 @@ func (cm *ClientManager) Send(ctx context.Context, msg websocket_mod.WsResponseI
 // Relay forwards a websocket message to connected remote instances.
 func (cm *ClientManager) Relay(_ websocket_mod.WsResponseInfo) {
 	panic("not implemented")
+}
+
+// ListenForTowerUpdate returns a notification channel for the specified tower to signal when an immediate update is needed.
+func (cm *ClientManager) ListenForTowerUpdate(tower tower_model.Instance) (notifyChan chan struct{}) {
+	cm.remoteUpdateMu.Lock()
+	defer cm.remoteUpdateMu.Unlock()
+
+	var ok bool
+	if notifyChan, ok = cm.remoteUpdateNotifyMap[tower.TowerID]; !ok {
+		notifyChan = make(chan struct{})
+		cm.remoteUpdateNotifyMap[tower.TowerID] = notifyChan
+	}
+
+	return
+}
+
+// PushTowerUpdate signals to the specified tower's update listener that an immediate update is needed.
+func (cm *ClientManager) PushTowerUpdate(tower tower_model.Instance) bool {
+	cm.remoteUpdateMu.Lock()
+	defer cm.remoteUpdateMu.Unlock()
+
+	var ok bool
+
+	var notifyChan chan struct{}
+
+	if notifyChan, ok = cm.remoteUpdateNotifyMap[tower.TowerID]; !ok {
+		notifyChan = make(chan struct{})
+		cm.remoteUpdateNotifyMap[tower.TowerID] = notifyChan
+	}
+
+	select {
+	case notifyChan <- struct{}{}:
+		return true
+	default:
+		log.GlobalLogger().Trace().Msgf("Update notify channel for tower [%s] is full, skipping push", tower.TowerID)
+
+		return false
+	}
 }
 
 func (cm *ClientManager) addSubscription(ctx context.Context, subInfo websocket_mod.Subscription, client *websocket_model.WsClient) {

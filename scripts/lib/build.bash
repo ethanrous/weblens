@@ -5,7 +5,7 @@ build_agno() {
     local agno_lib_path="${WEBLENS_ROOT}/services/media/agno/lib/"
     mkdir -p "$agno_lib_path"
     pushd agno >/dev/null
-    ./build/sh/buildAgno.bash "$agno_lib_path" 2>&1 | show_as_subtask "Building Agno..." "orange"
+    "${WEBLENS_ROOT}/agno/build/sh/build-agno.bash" "$agno_lib_path" 2>&1 | show_as_subtask "Building Agno..." "orange"
     cp ./lib/agno.h "$agno_lib_path"
     popd >/dev/null
 }

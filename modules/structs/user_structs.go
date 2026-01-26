@@ -25,6 +25,7 @@ type UserInfo struct {
 	TrashID         string `json:"trashID" validate:"required"`
 	Username        string `json:"username" validate:"required"`
 	IsOnline        bool   `json:"isOnline"`
+	UpdatedAt       int64  `json:"updatedAt" validate:"required" swaggertype:"integer" format:"int64"`
 } // @name UserInfo
 
 // UserInfoArchive extends UserInfo with password for backup/restore operations.

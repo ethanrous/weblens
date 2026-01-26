@@ -164,7 +164,6 @@ interface FileActionInfo {
 interface FileInfo {
     'childrenIds'?: Array<string>;
     'contentID'?: string;
-    'currentID'?: string;
     'hasRestoreMedia'?: boolean;
     'id'?: string;
     'isDir'?: boolean;
@@ -393,11 +392,11 @@ interface StructsInitServerParams {
      * For restoring a server, remoind the core of its serverID and api key the remote last used
      */
     'localID'?: string;
-    'name'?: string;
-    'password'?: string;
+    'name': string;
+    'password': string;
     'remoteID'?: string;
-    'role'?: string;
-    'username'?: string;
+    'role': string;
+    'username': string;
     'usingKeyInfo'?: string;
 }
 interface StructsSetConfigParam {
@@ -438,6 +437,7 @@ interface TowerInfo {
     'coreAddress': string;
     'id': string;
     'lastBackup': number;
+    'logLevel'?: string;
     'name': string;
     'online': boolean;
     /**
@@ -463,6 +463,7 @@ interface UserInfo {
     'permissionLevel': number;
     'token'?: string;
     'trashID': string;
+    'updatedAt': number;
     'username': string;
 }
 interface UserInfoArchive {
@@ -474,6 +475,7 @@ interface UserInfoArchive {
     'permissionLevel': number;
     'token'?: string;
     'trashID': string;
+    'updatedAt': number;
     'username': string;
 }
 interface WLResponseInfo {
@@ -1333,11 +1335,10 @@ declare const FolderApiAxiosParamCreator: (configuration?: Configuration) => {
      *
      * @summary Get actions of a folder at a given time
      * @param {string} fileID File ID
-     * @param {number} timestamp Past timestamp to view the folder at, in ms since epoch
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFolderHistory: (fileID: string, timestamp: number, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    getFolderHistory: (fileID: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Dispatch a folder scan
@@ -1384,11 +1385,10 @@ declare const FolderApiFp: (configuration?: Configuration) => {
      *
      * @summary Get actions of a folder at a given time
      * @param {string} fileID File ID
-     * @param {number} timestamp Past timestamp to view the folder at, in ms since epoch
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFolderHistory(fileID: string, timestamp: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<FileActionInfo>>>;
+    getFolderHistory(fileID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<FileActionInfo>>>;
     /**
      *
      * @summary Dispatch a folder scan
@@ -1435,11 +1435,10 @@ declare const FolderApiFactory: (configuration?: Configuration, basePath?: strin
      *
      * @summary Get actions of a folder at a given time
      * @param {string} fileID File ID
-     * @param {number} timestamp Past timestamp to view the folder at, in ms since epoch
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFolderHistory(fileID: string, timestamp: number, options?: RawAxiosRequestConfig): AxiosPromise<Array<FileActionInfo>>;
+    getFolderHistory(fileID: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<FileActionInfo>>;
     /**
      *
      * @summary Dispatch a folder scan
@@ -1486,11 +1485,10 @@ declare class FolderApi extends BaseAPI {
      *
      * @summary Get actions of a folder at a given time
      * @param {string} fileID File ID
-     * @param {number} timestamp Past timestamp to view the folder at, in ms since epoch
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFolderHistory(fileID: string, timestamp: number, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FileActionInfo[], any>>;
+    getFolderHistory(fileID: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FileActionInfo[], any>>;
     /**
      *
      * @summary Dispatch a folder scan
@@ -2217,6 +2215,13 @@ declare const TowersApiAxiosParamCreator: (configuration?: Configuration) => {
     deleteRemote: (serverID: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
+     * @summary Enable trace logging
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    enableTraceLogging: (options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    /**
+     *
      * @summary Flush Cache
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
@@ -2271,7 +2276,7 @@ declare const TowersApiAxiosParamCreator: (configuration?: Configuration) => {
     /**
      *
      * @summary Launch backup on a tower
-     * @param {string} serverID Server ID
+     * @param {string} serverID Server ID of the tower to back up
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -2304,6 +2309,13 @@ declare const TowersApiFp: (configuration?: Configuration) => {
      * @throws {RequiredError}
      */
     deleteRemote(serverID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    /**
+     *
+     * @summary Enable trace logging
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    enableTraceLogging(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
     /**
      *
      * @summary Flush Cache
@@ -2360,7 +2372,7 @@ declare const TowersApiFp: (configuration?: Configuration) => {
     /**
      *
      * @summary Launch backup on a tower
-     * @param {string} serverID Server ID
+     * @param {string} serverID Server ID of the tower to back up
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -2393,6 +2405,13 @@ declare const TowersApiFactory: (configuration?: Configuration, basePath?: strin
      * @throws {RequiredError}
      */
     deleteRemote(serverID: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    /**
+     *
+     * @summary Enable trace logging
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    enableTraceLogging(options?: RawAxiosRequestConfig): AxiosPromise<void>;
     /**
      *
      * @summary Flush Cache
@@ -2449,7 +2468,7 @@ declare const TowersApiFactory: (configuration?: Configuration, basePath?: strin
     /**
      *
      * @summary Launch backup on a tower
-     * @param {string} serverID Server ID
+     * @param {string} serverID Server ID of the tower to back up
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -2482,6 +2501,13 @@ declare class TowersApi extends BaseAPI {
      * @throws {RequiredError}
      */
     deleteRemote(serverID: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
+    /**
+     *
+     * @summary Enable trace logging
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    enableTraceLogging(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
      *
      * @summary Flush Cache
@@ -2538,7 +2564,7 @@ declare class TowersApi extends BaseAPI {
     /**
      *
      * @summary Launch backup on a tower
-     * @param {string} serverID Server ID
+     * @param {string} serverID Server ID of the tower to back up
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -2674,7 +2700,7 @@ declare const UsersApiFp: (configuration?: Configuration) => {
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    changeDisplayName(username: string, newFullName: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    changeDisplayName(username: string, newFullName: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<UserInfo>>;
     /**
      *
      * @summary Check if username is already taken
@@ -2776,7 +2802,7 @@ declare const UsersApiFactory: (configuration?: Configuration, basePath?: string
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    changeDisplayName(username: string, newFullName: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    changeDisplayName(username: string, newFullName: string, options?: RawAxiosRequestConfig): AxiosPromise<UserInfo>;
     /**
      *
      * @summary Check if username is already taken
@@ -2878,7 +2904,7 @@ declare class UsersApi extends BaseAPI {
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    changeDisplayName(username: string, newFullName: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
+    changeDisplayName(username: string, newFullName: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<UserInfo, any>>;
     /**
      *
      * @summary Check if username is already taken
@@ -2967,6 +2993,7 @@ type WLAPI = {
     TowersAPI: ReturnType<typeof TowersApiFactory>;
     SharesAPI: ReturnType<typeof ShareApiFactory>;
     UsersAPI: ReturnType<typeof UsersApiFactory>;
+    APIKeysAPI: ReturnType<typeof APIKeysApiFactory>;
 };
 declare function WeblensAPIFactory(apiEndpoint: string): WLAPI;
 

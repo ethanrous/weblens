@@ -1,6 +1,7 @@
 <template>
     <div>
         <NuxtRouteAnnouncer />
+        <ConfirmModal />
     </div>
     <NuxtLayout>
         <div
@@ -26,11 +27,16 @@
 import { useDark, useWindowSize } from '@vueuse/core'
 import Loader from '~/components/atom/Loader.vue'
 import FileSidebar from '~/components/organism/FileSidebar.vue'
+import ConfirmModal from './components/molecule/ConfirmModal.vue'
+import useLocationStore from './stores/location'
+import useWebsocketStore from './stores/websocket'
 
 const userStore = useUserStore()
 const towerStore = useTowerStore()
 const route = useRoute()
 
+// Initialize stores that need to be active globally
+useLocationStore()
 useWebsocketStore()
 
 const dark = useDark()
@@ -41,6 +47,10 @@ watchEffect(() => {
 const windowSize = useWindowSize()
 
 const showSidebar = computed(() => {
+    if (towerStore.towerInfo?.role !== TowerRole.CORE) {
+        return false
+    }
+
     const routeName = route.name as string
     if (!routeName) {
         return false
@@ -67,6 +77,6 @@ const sidebarClosed = computed(() => {
 })
 
 const loaded = computed(() => {
-    return towerStore.towerInfo && userStore.user
+    return towerStore.towerInfo && userStore.user.isLoggedIn.isSet()
 })
 </script>

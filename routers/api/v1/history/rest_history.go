@@ -10,6 +10,7 @@ import (
 	"github.com/ethanrous/weblens/models/history"
 	"github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/models/user"
+	"github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/structs"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/services/ctxservice"
@@ -54,7 +55,9 @@ func DoFullBackup(ctx ctxservice.RequestContext) {
 
 	since := time.UnixMilli(millis)
 
-	fileActions, err := history.GetActionsAfter(ctx, since)
+	ctx.Log().Trace().Msgf("Getting backup info since %s", since.String())
+
+	fileActions, err := history.GetActionsAtPathAfter(ctx, fs.Filepath{}, since, false)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, wlerrors.Wrap(err, "failed to get actions"))
 

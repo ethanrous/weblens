@@ -560,13 +560,6 @@
                         "name": "fileID",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Past timestamp to view the folder at, in ms since epoch",
-                        "name": "timestamp",
-                        "in": "query",
-                        "required": true
                     }
                 ],
                 "responses": {
@@ -2074,6 +2067,35 @@
                 }
             }
         },
+        "/tower/trace": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Towers"
+                ],
+                "summary": "Enable trace logging",
+                "operationId": "EnableTraceLogging",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
         "/tower/{serverID}": {
             "delete": {
                 "security": [
@@ -2137,7 +2159,7 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Server ID",
+                        "description": "Server ID of the tower to back up",
                         "name": "serverID",
                         "in": "path",
                         "required": true
@@ -2770,7 +2792,10 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK"
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/UserInfo"
+                        }
                     },
                     "400": {
                         "description": "Bad Request",
@@ -3009,9 +3034,6 @@
                 "contentID": {
                     "type": "string"
                 },
-                "currentID": {
-                    "type": "string"
-                },
                 "hasRestoreMedia": {
                     "type": "boolean"
                 },
@@ -3025,7 +3047,8 @@
                     "type": "boolean"
                 },
                 "modifyTimestamp": {
-                    "type": "integer"
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "owner": {
                     "type": "string"
@@ -3043,7 +3066,8 @@
                     "type": "string"
                 },
                 "size": {
-                    "type": "integer"
+                    "type": "integer",
+                    "format": "int64"
                 }
             }
         },
@@ -3545,7 +3569,8 @@
                     "type": "boolean"
                 },
                 "expires": {
-                    "type": "integer"
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "fileID": {
                     "type": "string"
@@ -3575,7 +3600,8 @@
                     "type": "boolean"
                 },
                 "updated": {
-                    "type": "integer"
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "wormhole": {
                     "type": "boolean"
@@ -3705,6 +3731,9 @@
                     "type": "integer",
                     "format": "int64"
                 },
+                "logLevel": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -3746,6 +3775,7 @@
                 "homeID",
                 "permissionLevel",
                 "trashID",
+                "updatedAt",
                 "username"
             ],
             "properties": {
@@ -3770,6 +3800,10 @@
                 "trashID": {
                     "type": "string"
                 },
+                "updatedAt": {
+                    "type": "integer",
+                    "format": "int64"
+                },
                 "username": {
                     "type": "string"
                 }
@@ -3783,6 +3817,7 @@
                 "homeID",
                 "permissionLevel",
                 "trashID",
+                "updatedAt",
                 "username"
             ],
             "properties": {
@@ -3809,6 +3844,10 @@
                 },
                 "trashID": {
                     "type": "string"
+                },
+                "updatedAt": {
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "username": {
                     "type": "string"
@@ -3886,6 +3925,12 @@
         },
         "structs.InitServerParams": {
             "type": "object",
+            "required": [
+                "name",
+                "password",
+                "role",
+                "username"
+            ],
             "properties": {
                 "coreAddress": {
                     "type": "string"

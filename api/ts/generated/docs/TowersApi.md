@@ -6,6 +6,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 |------------- | ------------- | -------------|
 |[**createRemote**](#createremote) | **POST** /tower/remote | Create a new remote|
 |[**deleteRemote**](#deleteremote) | **DELETE** /tower/{serverID} | Delete a remote|
+|[**enableTraceLogging**](#enabletracelogging) | **POST** /tower/trace | Enable trace logging|
 |[**flushCache**](#flushcache) | **DELETE** /tower/cache | Flush Cache|
 |[**getBackupInfo**](#getbackupinfo) | **GET** /tower/backup | Get information about a file|
 |[**getPagedHistoryActions**](#getpagedhistoryactions) | **GET** /tower/history | Get a page of file actions|
@@ -117,6 +118,49 @@ No authorization required
 |**200** | OK |  -  |
 |**400** | Bad Request |  -  |
 |**404** | Not Found |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **enableTraceLogging**
+> enableTraceLogging()
+
+
+### Example
+
+```typescript
+import {
+    TowersApi,
+    Configuration
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new TowersApi(configuration);
+
+const { status, data } = await apiInstance.enableTraceLogging();
+```
+
+### Parameters
+This endpoint does not have any parameters.
+
+
+### Return type
+
+void (empty response body)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: Not defined
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | OK |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
@@ -469,7 +513,7 @@ import {
 const configuration = new Configuration();
 const apiInstance = new TowersApi(configuration);
 
-let serverID: string; //Server ID (default to undefined)
+let serverID: string; //Server ID of the tower to back up (default to undefined)
 
 const { status, data } = await apiInstance.launchBackup(
     serverID
@@ -480,7 +524,7 @@ const { status, data } = await apiInstance.launchBackup(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **serverID** | [**string**] | Server ID | defaults to undefined|
+| **serverID** | [**string**] | Server ID of the tower to back up | defaults to undefined|
 
 
 ### Return type

@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"time"
 
 	"github.com/ethanrous/weblens/models/db"
 	"github.com/ethanrous/weblens/modules/cryptography"
@@ -13,25 +14,20 @@ import (
 
 // SaveUser validates and saves a new user to the database, hashing the password before storage.
 func SaveUser(ctx context.Context, u *User) (err error) {
-	if err := validateUsername(ctx, u.Username); err != nil {
+	if err := ValidateUser(ctx, u); err != nil {
 		return err
 	}
 
-	if err := validatePassword(u.Password); err != nil {
-		return err
-	}
-
+	// FIXME: This smells
 	if u.Password, err = cryptography.HashUserPassword(ctx, u.Password); err != nil {
 		return err
 	}
 
-	// if u.HomeID == "" {
-	// 	return errors.New("homeID cannot be empty")
-	// }
-
 	if u.ID.IsZero() {
 		u.ID = primitive.NewObjectID()
 	}
+
+	u.UpdatedAt = time.Now().UnixMilli()
 
 	if col, dberr := db.GetCollection[any](ctx, UserCollectionKey); dberr == nil {
 		_, err = col.InsertOne(ctx, u)
@@ -129,6 +125,8 @@ func (u *User) UpdatePassword(ctx context.Context, newPass string) (err error) {
 		return
 	}
 
+	u.UpdatedAt = time.Now().UnixMilli()
+
 	_, err = col.UpdateOne(ctx, bson.M{"_id": u.ID}, bson.M{"$set": bson.M{"password": u.Password}})
 	if err != nil {
 		return wlerrors.WithStack(err)
@@ -144,6 +142,8 @@ func (u *User) UpdatePermissionLevel(ctx context.Context, newPermissionLevel Per
 		return
 	}
 
+	u.UpdatedAt = time.Now().UnixMilli()
+
 	_, err = col.UpdateOne(ctx, bson.M{"_id": u.ID}, bson.M{"$set": bson.M{"userPerms": newPermissionLevel}})
 	if err != nil {
 		return db.WrapError(err, "failed to update user permission level")
@@ -158,6 +158,8 @@ func (u *User) UpdateHomeID(ctx context.Context, newHomeID string) (err error) {
 	if err != nil {
 		return
 	}
+
+	u.UpdatedAt = time.Now().UnixMilli()
 
 	_, err = col.UpdateOne(ctx, bson.M{"_id": u.ID}, bson.M{"$set": bson.M{"homeID": newHomeID}})
 	if err != nil {
@@ -176,6 +178,8 @@ func (u *User) UpdateTrashID(ctx context.Context, newTrashID string) (err error)
 		return
 	}
 
+	u.UpdatedAt = time.Now().UnixMilli()
+
 	_, err = col.UpdateOne(ctx, bson.M{"_id": u.ID}, bson.M{"$set": bson.M{"trashID": newTrashID}})
 	if err != nil {
 		return wlerrors.WithStack(err)
@@ -193,6 +197,8 @@ func (u *User) UpdateActivationStatus(ctx context.Context, active bool) (err err
 		return
 	}
 
+	u.UpdatedAt = time.Now().UnixMilli()
+
 	_, err = col.UpdateOne(ctx, bson.M{"_id": u.ID}, bson.M{"$set": bson.M{"activated": active}})
 	if err != nil {
 		return wlerrors.WithStack(err)
@@ -207,6 +213,8 @@ func (u *User) UpdateDisplayName(ctx context.Context, newName string) (err error
 	if err != nil {
 		return
 	}
+
+	u.UpdatedAt = time.Now().UnixMilli()
 
 	_, err = col.UpdateOne(ctx, bson.M{"_id": u.ID}, bson.M{"$set": bson.M{"fullName": newName}})
 	if err != nil {

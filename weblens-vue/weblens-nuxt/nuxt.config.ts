@@ -10,6 +10,7 @@ if (!process.env.VITE_PROXY_PORT && process.env.VITE_BUILD !== 'true') {
     process.env.VITE_PROXY_PORT = '8080'
     console.warn(`VITE_PROXY_PORT not set\nDefaulting proxy to ${process.env.VITE_PROXY_PORT}`)
 }
+
 if (!process.env.VITE_PROXY_HOST && process.env.VITE_BUILD !== 'true') {
     process.env.VITE_PROXY_HOST = '127.0.0.1'
     console.warn(`VITE_PROXY_HOST not set\nDefaulting proxy to ${process.env.VITE_PROXY_HOST}`)
@@ -24,7 +25,7 @@ export default defineNuxtConfig({
     compatibilityDate: '2025-05-15',
     ssr: false,
     devtools: {
-        enabled: true,
+        enabled: false,
 
         timeline: {
             enabled: true,
@@ -33,7 +34,7 @@ export default defineNuxtConfig({
     modules: ['@nuxt/eslint', '@nuxt/image', '@pinia/nuxt'],
     css: ['~/assets/css/base.css', '~/assets/css/main.css'],
     devServer: {
-        port: 3000,
+        port: vitePort,
         host: '0.0.0.0',
         cors: {
             origin: '*',
@@ -61,6 +62,14 @@ export default defineNuxtConfig({
     app: {
         head: {
             title: 'Weblens',
+            link: [
+                { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+                { rel: 'preconnect', href: 'https://fonts.gstatic.com' },
+                {
+                    rel: 'stylesheet',
+                    href: 'https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Noto+Sans:ital,wght@0,100..900;1,100..900&family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap',
+                },
+            ],
             meta: [
                 { charset: 'utf-8' },
                 { name: 'viewport', content: 'width=device-width, initial-scale=1' },

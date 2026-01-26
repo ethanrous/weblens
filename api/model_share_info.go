@@ -21,7 +21,7 @@ var _ MappedNullable = &ShareInfo{}
 type ShareInfo struct {
 	Accessors []UserInfo `json:"accessors,omitempty"`
 	Enabled *bool `json:"enabled,omitempty"`
-	Expires *int32 `json:"expires,omitempty"`
+	Expires *int64 `json:"expires,omitempty"`
 	FileID *string `json:"fileID,omitempty"`
 	Owner *string `json:"owner,omitempty"`
 	Permissions *map[string]PermissionsInfo `json:"permissions,omitempty"`
@@ -30,7 +30,7 @@ type ShareInfo struct {
 	ShareName *string `json:"shareName,omitempty"`
 	ShareType *string `json:"shareType,omitempty"`
 	TimelineOnly *bool `json:"timelineOnly,omitempty"`
-	Updated *int32 `json:"updated,omitempty"`
+	Updated *int64 `json:"updated,omitempty"`
 	Wormhole *bool `json:"wormhole,omitempty"`
 }
 
@@ -116,9 +116,9 @@ func (o *ShareInfo) SetEnabled(v bool) {
 }
 
 // GetExpires returns the Expires field value if set, zero value otherwise.
-func (o *ShareInfo) GetExpires() int32 {
+func (o *ShareInfo) GetExpires() int64 {
 	if o == nil || IsNil(o.Expires) {
-		var ret int32
+		var ret int64
 		return ret
 	}
 	return *o.Expires
@@ -126,7 +126,7 @@ func (o *ShareInfo) GetExpires() int32 {
 
 // GetExpiresOk returns a tuple with the Expires field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *ShareInfo) GetExpiresOk() (*int32, bool) {
+func (o *ShareInfo) GetExpiresOk() (*int64, bool) {
 	if o == nil || IsNil(o.Expires) {
 		return nil, false
 	}
@@ -142,8 +142,8 @@ func (o *ShareInfo) HasExpires() bool {
 	return false
 }
 
-// SetExpires gets a reference to the given int32 and assigns it to the Expires field.
-func (o *ShareInfo) SetExpires(v int32) {
+// SetExpires gets a reference to the given int64 and assigns it to the Expires field.
+func (o *ShareInfo) SetExpires(v int64) {
 	o.Expires = &v
 }
 
@@ -404,9 +404,9 @@ func (o *ShareInfo) SetTimelineOnly(v bool) {
 }
 
 // GetUpdated returns the Updated field value if set, zero value otherwise.
-func (o *ShareInfo) GetUpdated() int32 {
+func (o *ShareInfo) GetUpdated() int64 {
 	if o == nil || IsNil(o.Updated) {
-		var ret int32
+		var ret int64
 		return ret
 	}
 	return *o.Updated
@@ -414,7 +414,7 @@ func (o *ShareInfo) GetUpdated() int32 {
 
 // GetUpdatedOk returns a tuple with the Updated field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *ShareInfo) GetUpdatedOk() (*int32, bool) {
+func (o *ShareInfo) GetUpdatedOk() (*int64, bool) {
 	if o == nil || IsNil(o.Updated) {
 		return nil, false
 	}
@@ -430,8 +430,8 @@ func (o *ShareInfo) HasUpdated() bool {
 	return false
 }
 
-// SetUpdated gets a reference to the given int32 and assigns it to the Updated field.
-func (o *ShareInfo) SetUpdated(v int32) {
+// SetUpdated gets a reference to the given int64 and assigns it to the Updated field.
+func (o *ShareInfo) SetUpdated(v int64) {
 	o.Updated = &v
 }
 

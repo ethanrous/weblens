@@ -40,10 +40,58 @@
             <WeblensButton
                 ref="updatePasswordButton"
                 label="Update Password"
-                :disabled="!canChnagePassword"
+                :disabled="!canChangePassword"
                 fill-width
-                :error-text="handleChangePasswordFail"
+                :error-text="(e) => handleChangePasswordFail(e as AxiosError)"
                 @click="updatePassword"
+            />
+        </div>
+
+        <h4 :class="{ 'mt-4 mb-2': true }">API Keys</h4>
+        <div :class="{ 'flex max-w-96 min-w-max flex-col justify-center rounded border': true }">
+            <div
+                v-if="apiKeys && apiKeys.length > 0"
+                :class="{ 'flex flex-col': true }"
+            >
+                <div
+                    v-for="key in apiKeys"
+                    :key="key.id"
+                    :class="{ 'flex w-full items-center p-2 not-last:border-b': true }"
+                >
+                    <div :class="{ 'mr-4 flex flex-col': true }">
+                        <span :class="{ 'mb-1 font-medium': true }">
+                            {{ key.nickname }}
+                        </span>
+                        <CopyBox :text="key.token" />
+                    </div>
+                    <WeblensButton
+                        flavor="danger"
+                        :class="{ 'ml-auto max-h-8': true }"
+                        :square-size="16"
+                        @click="deleteAPIKey(key.id, key.nickname)"
+                    >
+                        <IconTrash :size="16" />
+                    </WeblensButton>
+                </div>
+            </div>
+            <div
+                v-else
+                :class="{ 'text-text-secondary': true }"
+            >
+                No API Keys found.
+            </div>
+        </div>
+
+        <div :class="{ 'flex items-center': true }">
+            <WeblensInput
+                v-model:value="apiKeyName"
+                :class="{ 'mt-2 mr-2': true }"
+                placeholder="API Key Name"
+            />
+            <WeblensButton
+                label="Create New API Key"
+                :class="{ 'mt-2': true }"
+                @click="generateNewAPIKey"
             />
         </div>
     </div>
@@ -51,17 +99,28 @@
 
 <script setup lang="ts">
 import type { UserInfo } from '@ethanrous/weblens-api'
+import { IconTrash } from '@tabler/icons-vue'
 import type { AxiosError } from 'axios'
 import { useWeblensAPI } from '~/api/AllApi'
 import WeblensButton from '~/components/atom/WeblensButton.vue'
 import WeblensInput from '~/components/atom/WeblensInput.vue'
+import CopyBox from '~/components/molecule/CopyBox.vue'
+import useConfirmDialog from '~/stores/confirm'
 
 const userStore = useUserStore()
 
 const fullName = ref<string>()
 const oldPassword = ref<string>()
 const newPassword = ref<string>()
+const apiKeyName = ref<string>()
 const updatePasswordButton = ref<typeof WeblensButton>()
+const { open: openConfirmDialog } = useConfirmDialog()
+
+const { data: apiKeys, refresh } = useAsyncData('apiKeys', async () => {
+    return useWeblensAPI()
+        .APIKeysAPI.getAPIKeys()
+        .then((res) => res.data)
+})
 
 async function updateFullName() {
     if (!fullName.value || fullName.value === userStore.user.fullName) {
@@ -72,12 +131,12 @@ async function updateFullName() {
     userStore.setUser(res.data as UserInfo, true)
 }
 
-const canChnagePassword = computed(() => {
+const canChangePassword = computed(() => {
     return !!oldPassword.value && !!newPassword.value && oldPassword.value !== newPassword.value
 })
 
 async function updatePassword() {
-    if (!canChnagePassword.value) {
+    if (!canChangePassword.value) {
         return
     }
 
@@ -98,6 +157,31 @@ function handleChangePasswordFail(error: AxiosError): string {
     }
 
     return 'Unexpected error'
+}
+
+function generateNewAPIKey() {
+    if (!apiKeyName.value) {
+        return
+    }
+
+    useWeblensAPI()
+        .APIKeysAPI.createAPIKey({ name: apiKeyName.value })
+        .then(() => {
+            refresh()
+        })
+}
+
+function deleteAPIKey(keyId: string, keyNickname: string) {
+    openConfirmDialog({
+        actionVerb: 'delete',
+        actionItemName: `API key "${keyNickname}"`,
+        onAccept: () =>
+            useWeblensAPI()
+                .APIKeysAPI.deleteAPIKey(keyId)
+                .then(() => {
+                    refresh()
+                }),
+    })
 }
 
 watchEffect(() => {

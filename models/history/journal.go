@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/ethanrous/weblens/models/db"
+	"github.com/ethanrous/weblens/modules/fs"
 	file_system "github.com/ethanrous/weblens/modules/fs"
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -139,4 +140,143 @@ func DoesFileExistInHistory(ctx context.Context, filepath file_system.Filepath) 
 	}
 
 	return target[0], nil
+}
+
+// GetLifetimesOptions specifies filtering options for retrieving file lifetimes.
+type GetLifetimesOptions struct {
+	ActiveOnly bool
+	PathPrefix fs.Filepath
+	Depth      int
+	TowerID    string
+}
+
+// compileLifetimeOpts merges multiple GetLifetimesOptions into a single compiled option set.
+// The function applies the last non-zero value for each option field, with a minimum depth of 1.
+func compileLifetimeOpts(opts ...GetLifetimesOptions) GetLifetimesOptions {
+	o := GetLifetimesOptions{}
+	o.Depth = 1 // Minimum depth
+
+	for _, opt := range opts {
+		if !opt.PathPrefix.IsZero() {
+			o.PathPrefix = opt.PathPrefix
+		}
+
+		if opt.ActiveOnly {
+			o.ActiveOnly = opt.ActiveOnly
+		}
+
+		if opt.Depth != 0 && opt.Depth > o.Depth {
+			o.Depth = opt.Depth
+		}
+
+		if opt.TowerID != "" {
+			o.TowerID = opt.TowerID
+		}
+	}
+
+	return o
+}
+
+// GetLifetimes retrieves file lifetimes based on the provided filtering options.
+func GetLifetimes(ctx context.Context, opts ...GetLifetimesOptions) ([]FileLifetime, error) {
+	col, err := db.GetCollection[any](ctx, FileHistoryCollectionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	o := compileLifetimeOpts(opts...)
+
+	pipe := bson.A{bson.D{{Key: "$match", Value: bson.D{{Key: "$or", Value: pathPrefixReFilter(o.PathPrefix, o.Depth)["$or"]}}}}}
+
+	if o.TowerID != "" {
+		pipe = append(pipe, bson.D{
+			{Key: "$match", Value: bson.D{
+				{Key: "towerID", Value: o.TowerID},
+			}},
+		})
+	}
+
+	fileIDGroup := bson.D{
+		{Key: "$group", Value: bson.D{
+			{Key: "_id", Value: "$fileID"},
+			{Key: "actions", Value: bson.D{{Key: "$push", Value: "$$ROOT"}}},
+		},
+		},
+	}
+
+	if o.ActiveOnly {
+		pipe = append(pipe,
+			bson.D{{Key: "$sort", Value: bson.D{{Key: "timestamp", Value: 1}}}},
+			fileIDGroup,
+			bson.D{{Key: "$match", Value: bson.D{{Key: "actions", Value: bson.D{{Key: "$not", Value: bson.D{{Key: "$elemMatch", Value: bson.D{{Key: "actionType", Value: "fileDelete"}}}}}}}}}},
+			bson.D{
+				{Key: "$addFields", Value: bson.D{
+					{Key: "fileCreateAction", Value: bson.D{
+						{Key: "$first", Value: bson.D{
+							{Key: "$filter", Value: bson.D{
+								{Key: "input", Value: "$actions"},
+								{Key: "as", Value: "a"},
+								{Key: "cond", Value: bson.D{
+									{Key: "$eq", Value: bson.A{
+										"$$a.actionType",
+										"fileCreate",
+									},
+									},
+								},
+								},
+							},
+							},
+						},
+						},
+					},
+					},
+				},
+				},
+			},
+			bson.D{
+				{Key: "$project", Value: bson.D{
+					{Key: "originalGroupID", Value: "$_id"},
+					{Key: "actions", Value: 1},
+					{Key: "fileCreateAction", Value: 1},
+					{Key: "fileCreateTimestamp", Value: "$fileCreateAction.timestamp"},
+					{Key: "fileCreateFilepath", Value: "$fileCreateAction.filepath"},
+				},
+				},
+			},
+			bson.D{{Key: "$sort", Value: bson.D{{Key: "fileCreateAction.timestamp", Value: -1}}}},
+			bson.D{
+				{Key: "$group", Value: bson.D{
+					{Key: "_id", Value: "$fileCreateAction.filepath"},
+					{Key: "doc", Value: bson.D{{Key: "$first", Value: "$$ROOT"}}},
+				},
+				},
+			},
+			bson.D{{Key: "$replaceRoot", Value: bson.D{{Key: "newRoot", Value: "$doc"}}}},
+			bson.D{
+				{Key: "$project", Value: bson.D{
+					{Key: "originalGroupID", Value: 0},
+					{Key: "fileCreateAction", Value: 0},
+					{Key: "fileCreateTimestamp", Value: 0},
+					{Key: "fileCreateFilepath", Value: 0},
+				},
+				},
+			},
+		)
+	} else {
+		pipe = append(pipe, fileIDGroup)
+	}
+
+	cur, err := col.Aggregate(ctx, pipe)
+	if err != nil {
+		return nil, err
+	}
+
+	var lifetimes []FileLifetime
+
+	err = cur.All(ctx, &lifetimes)
+	if err != nil {
+		return nil, db.WrapError(err, "GetLifetimes")
+	}
+
+	return lifetimes, nil
 }

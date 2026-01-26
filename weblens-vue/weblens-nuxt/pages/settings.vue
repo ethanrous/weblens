@@ -1,6 +1,17 @@
 <template>
     <div :class="{ 'flex h-screen w-screen justify-center': true }">
         <div :class="{ 'flex h-full w-[20%] flex-col gap-2 border p-4': true }">
+            <WeblensButton
+                v-if="towerStore.towerInfo?.role === TowerRole.BACKUP"
+                label="Back"
+                flavor="secondary"
+                fill-width
+                :square-size="10"
+                :class="{ 'mb-2': true }"
+                @click="navigateTo('/backup')"
+            >
+                <IconArrowLeft />
+            </WeblensButton>
             <div :class="{ 'mb-2 border-b pb-2': true }">
                 <h3 :class="{ 'leading-5': true }">{{ userStore.user.fullName }}</h3>
                 <h5 :class="{ 'text-text-secondary': true }">{{ userStore.user.username }}</h5>
@@ -61,11 +72,12 @@
 </template>
 
 <script setup lang="ts">
-import { IconBrush, IconCode, IconLogout, IconUser, IconUsers } from '@tabler/icons-vue'
+import { IconArrowLeft, IconBrush, IconCode, IconLogout, IconUser, IconUsers } from '@tabler/icons-vue'
 import WeblensButton from '~/components/atom/WeblensButton.vue'
 import Divider from '~/components/atom/Divider.vue'
 
 const userStore = useUserStore()
+const towerStore = useTowerStore()
 const route = useRoute()
 
 function toSettingsPage(pageName: string) {

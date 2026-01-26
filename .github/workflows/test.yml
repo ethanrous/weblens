@@ -38,6 +38,7 @@ jobs:
           # Restart docker to fix networking bug...
           sudo systemctl restart docker
 
+          set -x
           ./scripts/test-weblens.bash
           exit $?
 
@@ -60,9 +61,8 @@ jobs:
 
       - name: setup agno deps
         run: |
-          mkdir -p ./services/media/agno/lib/
-          cp ./agno/lib/agno.h ./services/media/agno/lib/
-          cp ./agno/lib/libagno.a ./services/media/agno/lib/
+          source ./scripts/lib/all.bash
+          build_agno
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9

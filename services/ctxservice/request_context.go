@@ -98,6 +98,13 @@ func (c RequestContext) WithContext(ctx context.Context) context.Context {
 	return c
 }
 
+// WithValue returns a copy of RequestContext with the specified key-value pair added.
+func (c RequestContext) WithValue(key, value any) RequestContext {
+	c.AppContext = c.AppContext.WithValue(key, value)
+
+	return c
+}
+
 // Path returns the value of a URL parameter, or an empty string if the parameter is not found.
 func (c RequestContext) Path(paramName string) string {
 	q, err := url.QueryUnescape(chi.URLParam(c.Req, paramName))
@@ -353,15 +360,21 @@ func ReqFromContext(ctx context.Context) (RequestContext, bool) {
 func AppContexter(ctx AppContext) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Make copy of the global logger and attach to a LOCAL copy of ctx.
+			// Using a local variable avoids racing with other requests that share
+			// the captured ctx parameter.
+			logger := *log.GlobalLogger()
+			localCtx := ctx.ReplaceLogger(&logger)
+
 			reqContext := RequestContext{
-				AppContext: ctx,
+				AppContext: localCtx,
 				Req:        r,
 				ReqCtx:     r.Context(),
 				W:          w,
 			}
 
 			reqContext.SetValue(requestContextKey{}, reqContext)
-			reqContext.SetValue("towerID", ctx.LocalTowerID)
+			reqContext.SetValue("towerID", localCtx.LocalTowerID)
 			reqContext.Req = reqContext.Req.WithContext(reqContext)
 			next.ServeHTTP(reqContext.W, reqContext.Req)
 		})
@@ -396,10 +409,10 @@ func (c RequestContext) WithRequester(u *user_model.User) RequestContext {
 }
 
 // Doer returns the username of the requester, or a default unknown user if not set.
-func (c RequestContext) Doer() string {
+func (c RequestContext) Doer() *user_model.User {
 	if c.Requester != nil {
-		return c.Requester.GetUsername()
+		return c.Requester
 	}
 
-	return user_model.GetUnknownUser().GetUsername()
+	return user_model.GetUnknownUser()
 }

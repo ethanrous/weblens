@@ -27,6 +27,8 @@ const (
 	ActionSubscribe   WsAction = "subscribe"
 	ActionUnsubscribe WsAction = "unsubscribe"
 
+	RefreshTower WsAction = "refreshTower"
+
 	// UserSubscribe does not actually get "subscribed" to, it is automatically tracked for every websocket
 	// connection made, and only sends updates to that specific user when needed
 	UserSubscribe SubscriptionType = "userSubscribe"
@@ -44,6 +46,7 @@ const SystemSubscriberKey = "WEBLENS"
 // All Websocket event tags. These are used to identify the type of content being sent *to* the client.
 const (
 	BackupCompleteEvent          WsEvent = "backupComplete"
+	BackupStartedEvent           WsEvent = "backupStarted"
 	BackupFailedEvent            WsEvent = "backupFailed"
 	BackupProgressEvent          WsEvent = "backupProgress"
 	CopyFileCompleteEvent        WsEvent = "copyFileComplete"

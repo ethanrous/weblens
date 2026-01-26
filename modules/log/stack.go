@@ -52,12 +52,16 @@ func frameField(f wlerrors.Frame, s *state, c rune) string {
 	return string(s.b)
 }
 
+type stackTracer interface {
+	StackTrace() wlerrors.StackTrace
+}
+
+type stopper interface {
+	Stop() bool
+}
+
 // MarshalStack extracts and marshals the stack trace from an error.
 func MarshalStack(err error) any {
-	type stackTracer interface {
-		StackTrace() wlerrors.StackTrace
-	}
-
 	s := &state{}
 
 	var sterr stackTracer
@@ -76,6 +80,10 @@ func MarshalStack(err error) any {
 			}
 
 			sterr = tmpStacker
+
+			if stop, ok := err.(stopper); ok && stop.Stop() {
+				break
+			}
 		}
 
 		u, ok := err.(interface {

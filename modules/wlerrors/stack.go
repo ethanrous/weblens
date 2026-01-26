@@ -171,6 +171,19 @@ func (s *stack) StackTrace() StackTrace {
 	return f
 }
 
+func (s *stack) shift() *stack {
+	if len(*s) == 0 {
+		return nil
+	}
+
+	frame := (*s)[0]
+	*s = (*s)[1:]
+
+	var st stack = []uintptr{frame}
+
+	return &st
+}
+
 func callers() *stack {
 	const depth = 32
 
@@ -201,6 +214,14 @@ func New(message string) error {
 	}
 }
 
+// NewF returns a new error formatted with the supplied format specifier and arguments.
+func NewF(format string, args ...any) error {
+	return &fundamental{
+		msg:   fmt.Sprintf(format, args...),
+		stack: callers(),
+	}
+}
+
 // Errorf formats according to a format specifier and returns the string
 // as a value that satisfies error.
 // Errorf also records the stack trace at the point it was called.
@@ -208,6 +229,7 @@ func Errorf(format string, args ...any) error {
 	return &withStack{
 		error: fmt.Errorf(format, args...),
 		stack: callers(),
+		stop:  false,
 	}
 }
 
@@ -248,18 +270,44 @@ func WithStack(err error) error {
 	return &withStack{
 		err,
 		callers(),
+		false,
+	}
+}
+
+// ReplaceStack stops traversing error causes when looking for an existing
+// stack trace to replace. It annotates err with a stack trace at the point
+// ReplaceStack was called.
+// If err is nil, ReplaceStack returns nil.
+func ReplaceStack(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	return &withStack{
+		err,
+		callers(),
+		true,
 	}
 }
 
 type withStack struct {
 	error
 	*stack
+
+	// stop indicates whether to stop traversing error causes when
+	// looking for an existing stack trace to replace. By default,
+	// the stack trace at the "lowest" level in the error chain is used.
+	// Otherwise, if stop is true, the stack in the withStack containing
+	// the truthy stop point is used.
+	stop bool
 }
 
 func (w *withStack) Cause() error { return w.error }
 
 // Unwrap provides compatibility for Go 1.13 error chains.
 func (w *withStack) Unwrap() error { return w.error }
+
+func (w *withStack) Stop() bool { return w.stop }
 
 func (w *withStack) Format(s fmt.State, verb rune) {
 	switch verb {
@@ -295,13 +343,11 @@ func Wrap(err error, message string) error {
 	return &withStack{
 		err,
 		callers(),
+		false,
 	}
 }
 
-// Wrapf returns an error annotating err with a stack trace
-// at the point Wrapf is called, and the format specifier.
-// If err is nil, Wrapf returns nil.
-func Wrapf(err error, format string, args ...any) error {
+func wrapf(err error, replace bool, format string, args ...any) error {
 	if err == nil {
 		return nil
 	}
@@ -311,10 +357,29 @@ func Wrapf(err error, format string, args ...any) error {
 		msg:   fmt.Sprintf(format, args...),
 	}
 
+	calls := callers()
+	calls.shift() // remove wrapf caller from stack trace
+
 	return &withStack{
 		err,
-		callers(),
+		calls,
+		replace,
 	}
+}
+
+// Wrapf returns an error annotating err with a stack trace
+// at the point Wrapf is called, and the format specifier.
+// If err is nil, Wrapf returns nil.
+func Wrapf(err error, format string, args ...any) error {
+	return wrapf(err, false, format, args...)
+}
+
+// WrapfReplace returns an error annotating err with a stack trace
+// at the point Wrapf is called, and the format specifier. This stack
+// trace will replace any existing stack trace in the error chain.
+// If err is nil, WrapfReplace returns nil.
+func WrapfReplace(err error, format string, args ...any) error {
+	return wrapf(err, true, format, args...)
 }
 
 // WithMessage annotates err with a new message.

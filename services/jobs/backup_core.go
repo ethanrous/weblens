@@ -3,6 +3,7 @@ package jobs
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"slices"
 	"time"
@@ -114,11 +115,22 @@ func DoBackup(tsk *task.Task) {
 		tsk.Fail(wlerrors.Errorf("Remote role is [%s -- %s], expected core", meta.Core.Role, meta.Core.GetReportedRole()))
 	}
 
-	tsk.Log().Debug().Msgf("Starting backup of [%s] with adddress [%s] using key [%s]", meta.Core.Name, meta.Core.Address, meta.Core.OutgoingKey)
+	tsk.Log().Info().Msgf("Starting backup of [%s] with address [%s]", meta.Core.Name, meta.Core.Address)
+
+	notif := notify.NewTaskNotification(tsk, websocket_mod.BackupStartedEvent, task.Result{"coreID": meta.Core.TowerID})
+	ctx.Notify(ctx, notif)
+
+	tsk.SetResult(task.Result{
+		"coreID": meta.Core.TowerID,
+	})
 
 	tsk.OnResult(
 		func(r task.Result) {
-			notif := notify.NewTaskNotification(tsk, websocket_mod.BackupProgressEvent, r)
+			notif := notify.NewTaskNotification(
+				tsk,
+				websocket_mod.BackupProgressEvent,
+				r,
+			)
 			ctx.Notify(ctx, notif)
 		},
 	)
@@ -127,7 +139,7 @@ func DoBackup(tsk *task.Task) {
 		func(errTsk *task.Task) {
 			err := errTsk.ReadError()
 			notif := notify.NewTaskNotification(tsk, websocket_mod.BackupFailedEvent, task.Result{"coreID": meta.Core.TowerID, "error": err.Error()})
-			ctx.Notify(ctx, notif)
+			ctx.Notify(errTsk.Ctx, notif)
 		},
 	)
 
@@ -153,14 +165,14 @@ func DoBackup(tsk *task.Task) {
 	// Find most recent action timestamp
 	latestTime := time.UnixMilli(0)
 
-	latestAction, err := history_model.GetLatestAction(ctx)
+	latestAction, err := history_model.GetLatestActionByTowerID(ctx, meta.Core.TowerID)
 	if err != nil && !db.IsNotFound(err) {
 		tsk.Fail(err)
 	} else if err == nil {
 		latestTime = latestAction.Timestamp
 	}
 
-	tsk.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Backup latest action is %s", latestTime) })
+	tsk.Log().Trace().Msgf("Backup latest action was at [%s]", latestTime)
 
 	backupResponse, err := tower_service.GetBackup(ctx, meta.Core, latestTime)
 	if err != nil {
@@ -168,6 +180,14 @@ func DoBackup(tsk *task.Task) {
 
 		return
 	}
+
+	ctx.Log().Debug().Func(func(e *zerolog.Event) {
+		res, _ := json.Marshal(backupResponse)
+		e.Msgf("Received backup response from core [%s]: %s",
+			meta.Core.Name,
+			res,
+		)
+	})
 
 	err = db.WithTransaction(ctx, func(ctx context.Context) error {
 		appCtx, ok := context_service.FromContext(ctx)
@@ -271,19 +291,23 @@ func DoBackup(tsk *task.Task) {
 			filteredActions = append(filteredActions, a)
 		}
 
-		appCtx.WithValue(file_service.SkipJournalKey, true)
-
 		remoteDataDir, err := appCtx.FileService.InitBackupDirectory(tsk.Ctx, meta.Core)
 		if err != nil {
 			return err
 		}
 
-		pool := appCtx.TaskService.NewTaskPool(true, tsk)
+		// Create a task pool to keep track of copy file tasks,
+		// and set it as a child of the main backup task (this task)
+		pool, err := appCtx.TaskService.NewTaskPool(true, tsk)
+		if err != nil {
+			return err
+		}
+
 		tsk.SetChildTaskPool(pool)
 
 		for _, a := range filteredActions {
 			// Check if the file already exists on the server and copy/move/delete it if it is in the wrong place
-			err = handleFileAction(appCtx, a, meta.Core, pool)
+			err = handleFileAction(appCtx, a, meta.Core, tsk, pool)
 			if err != nil {
 				return err
 			}
@@ -299,26 +323,27 @@ func DoBackup(tsk *task.Task) {
 			return wlerrors.Errorf("%d of %d backup file copies have failed", len(pool.Errors()), pool.Status().Total)
 		}
 
-		err = tower_model.SetLastBackup(tsk.Ctx, meta.Core.TowerID, time.Now())
-		if err != nil {
-			return err
-		}
-
-		// Don't broadcast this last event set
-		tsk.OnResult(nil)
-
 		_, err = remoteDataDir.LoadStat()
 		if err != nil {
 			return err
 		}
 
-		tsk.SetResult(task.Result{
-			"backupSize": remoteDataDir.Size(),
-			"totalTime":  tsk.ExeTime(),
-		})
+		err = tower_model.SetLastBackup(tsk.Ctx, meta.Core.TowerID, time.Now(), remoteDataDir.Size())
+		if err != nil {
+			return err
+		}
 
-		endNotif := notify.NewTaskNotification(tsk, websocket_mod.BackupCompleteEvent, tsk.GetResults())
-		appCtx.Notify(ctx, endNotif)
+		r := tsk.GetResult()
+		r["backupSize"] = remoteDataDir.Size()
+		r["totalTime"] = tsk.ExeTime()
+		r["complete"] = true
+
+		notif := notify.NewTaskNotification(
+			tsk,
+			websocket_mod.BackupCompleteEvent,
+			r,
+		)
+		appCtx.Notify(ctx, notif)
 
 		return nil
 	})
@@ -357,7 +382,7 @@ func getExistingFile(ctx context_service.AppContext, a history_model.FileAction,
 	return existingFile, nil
 }
 
-func handleFileAction(ctx context_service.AppContext, a history_model.FileAction, core tower_model.Instance, pool *task.Pool) error {
+func handleFileAction(ctx context_service.AppContext, a history_model.FileAction, core tower_model.Instance, callingTask *task.Task, pool *task.Pool) error {
 	existingFile, err := getExistingFile(ctx, a, core)
 	if err != nil {
 		return err
@@ -367,6 +392,8 @@ func handleFileAction(ctx context_service.AppContext, a history_model.FileAction
 	if err != nil {
 		return err
 	}
+
+	ctx.Log().Trace().Msgf("Handling backup action [%s] for file [%s]", a.ActionType, backupFilePath)
 
 	if existingFile != nil {
 		if a.ActionType == history_model.FileDelete {
@@ -385,15 +412,31 @@ func handleFileAction(ctx context_service.AppContext, a history_model.FileAction
 		return nil
 	}
 
+	// Handle directory creation, no need to continue afterwards since directories have no content to copy
 	if backupFilePath.IsDir() && a.ActionType == history_model.FileCreate {
 		parent, err := ctx.FileService.GetFileByFilepath(ctx, backupFilePath.Dir())
 		if err != nil {
 			return fmt.Errorf("failed to get new backup directory parent [%s]: %w", backupFilePath.Dir(), err)
 		}
 
-		// If the file is a directory, create it and return
 		_, err = ctx.FileService.CreateFolder(ctx, parent, backupFilePath.Filename())
-		if err != nil && !wlerrors.Is(err, file_model.ErrDirectoryAlreadyExists) {
+		if wlerrors.Is(err, file_model.ErrDirectoryAlreadyExists) {
+			// Directory already exists, derive the file from the action to ensure correct representation
+			f, err := file_service.DeriveFileFromAction(ctx, a, core)
+			if err != nil {
+				return wlerrors.Errorf("failed to derive existing backup directory [%s]: %w", backupFilePath, err)
+			}
+
+			err = f.SetParent(parent)
+			if err != nil {
+				return wlerrors.Errorf("failed to set parent for existing backup directory [%s]: %w", backupFilePath, err)
+			}
+
+			err = ctx.FileService.AddFile(ctx, f)
+			if err != nil {
+				return wlerrors.Errorf("failed to add existing backup directory [%s]: %w", backupFilePath, err)
+			}
+		} else if err != nil {
 			return err
 		}
 
@@ -402,6 +445,7 @@ func handleFileAction(ctx context_service.AppContext, a history_model.FileAction
 		return nil
 	}
 
+	// If the action has no contentID, it means the file was created but has no content
 	if a.ContentID == "" {
 		ctx.Log().Trace().Msgf("File %s has no contentID", a.GetRelevantPath())
 
@@ -414,6 +458,16 @@ func handleFileAction(ctx context_service.AppContext, a history_model.FileAction
 		ContentID: a.ContentID,
 	})
 
+	parentDir, err := ctx.FileService.GetFileByFilepath(ctx, restoreFile.GetPortablePath().Dir())
+	if err != nil {
+		return err
+	}
+
+	err = restoreFile.SetParent(parentDir)
+	if err != nil {
+		return err
+	}
+
 	ctx.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Queuing copy file task for %s", restoreFile.GetPortablePath()) })
 
 	// Spawn subtask to copy the file from the core server
@@ -424,10 +478,45 @@ func handleFileAction(ctx context_service.AppContext, a history_model.FileAction
 		Filename:   backupFilePath.Filename(),
 	}
 
-	_, err = ctx.DispatchJob(job.CopyFileFromCoreTask, copyFileMeta, pool)
+	// Launch the copy file task in the provided pool to copy the file from the core server
+	tsk, err := ctx.DispatchJob(job.CopyFileFromCoreTask, copyFileMeta, pool)
 	if err != nil {
 		return err
 	}
+
+	callingTask.AtomicSetResult(func(currentResult task.Result) task.Result {
+		currentBytesToCopyI, ok := currentResult["totalBytesToCopy"]
+
+		var currentBytesToCopy int64
+		if !ok {
+			currentBytesToCopy = 0
+		} else {
+			currentBytesToCopy = currentBytesToCopyI.(int64)
+		}
+
+		currentResult["totalBytesToCopy"] = currentBytesToCopy + a.Size
+
+		return currentResult
+	})
+
+	tsk.SetCleanup(func(tsk *task.Task) {
+		copyTaskResult := tsk.GetResult()
+
+		callingTask.AtomicSetResult(func(currentResult task.Result) task.Result {
+			currentBytesCopiedI, ok := currentResult["totalBytesCopied"]
+
+			var currentBytesCopied int64
+			if !ok {
+				currentBytesCopied = 0
+			} else {
+				currentBytesCopied = currentBytesCopiedI.(int64)
+			}
+
+			currentResult["totalBytesCopied"] = currentBytesCopied + copyTaskResult["bytesCopied"].(int64)
+
+			return currentResult
+		})
+	})
 
 	return nil
 }

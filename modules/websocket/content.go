@@ -14,6 +14,7 @@ type WsResponseInfo struct {
 	EventTag        WsEvent          `json:"eventTag"`
 	SubscribeKey    string           `json:"subscribeKey"`
 	TaskType        string           `json:"taskType,omitempty"`
+	TaskStartTime   int64            `json:"taskStartTime,omitempty"`
 	Content         WsData           `json:"content"`
 	Error           string           `json:"error,omitempty"`
 	BroadcastType   SubscriptionType `json:"subscriptionType,omitempty"`
@@ -60,4 +61,9 @@ type ScanInfo struct {
 // CancelInfo represents information for canceling a running task.
 type CancelInfo struct {
 	TaskID string
+}
+
+// TowerInfo represents information about a tower in the system.
+type TowerInfo struct {
+	TowerID string
 }

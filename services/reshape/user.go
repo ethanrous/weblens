@@ -21,6 +21,7 @@ func UserToUserInfo(ctx context.Context, u *user_model.User) structs.UserInfo {
 		PermissionLevel: int(u.UserPerms),
 		Activated:       u.Activated,
 		IsOnline:        userIsOnline,
+		UpdatedAt:       u.UpdatedAt,
 	}
 }
 
@@ -41,6 +42,7 @@ func UserToUserInfoArchive(ctx context.Context, u *user.User) structs.UserInfoAr
 			TrashID:         u.TrashID,
 			Activated:       u.IsActive(),
 			IsOnline:        userIsOnline,
+			UpdatedAt:       u.UpdatedAt,
 		},
 		Password: u.Password,
 	}
@@ -57,6 +59,7 @@ func UserInfoArchiveToUser(uInfo structs.UserInfoArchive) *user.User {
 		UserPerms: user_model.Permissions(uInfo.PermissionLevel),
 		HomeID:    uInfo.HomeID,
 		TrashID:   uInfo.TrashID,
+		UpdatedAt: uInfo.UpdatedAt,
 	}
 
 	return u

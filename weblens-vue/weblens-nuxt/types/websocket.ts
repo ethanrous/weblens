@@ -1,17 +1,20 @@
 import type { TaskType } from './task'
 
-export interface WsMessage {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    content: any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export interface WsMessage<T = any> {
+    content: T
     eventTag: WsEvent
     subscribeKey: string
     sentTime: number
+    constructedTime: number
     taskType?: TaskType
+    taskStartTime?: number
     error?: string
 }
 
 export enum WsEvent {
     BackupCompleteEvent = 'backupComplete',
+    BackupStartedEvent = 'backupStarted',
     BackupFailedEvent = 'backupFailed',
     BackupProgressEvent = 'backupProgress',
     CopyFileCompleteEvent = 'copyFileComplete',
@@ -57,6 +60,7 @@ export enum WsAction {
     ScanDirectory = 'scanDirectory',
     Subscribe = 'subscribe',
     Unsubscribe = 'unsubscribe',
+    RefreshTower = 'refreshTower',
 }
 
 export enum WsSubscriptionType {

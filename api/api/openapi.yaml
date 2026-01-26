@@ -397,12 +397,6 @@ paths:
         required: true
         schema:
           type: string
-      - description: "Past timestamp to view the folder at, in ms since epoch"
-        in: query
-        name: timestamp
-        required: true
-        schema:
-          type: integer
       responses:
         "200":
           content:
@@ -1459,6 +1453,21 @@ paths:
       summary: Get Running Tasks
       tags:
       - Towers
+  /tower/trace:
+    post:
+      operationId: EnableTraceLogging
+      responses:
+        "200":
+          content: {}
+          description: OK
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Enable trace logging
+      tags:
+      - Towers
   /tower/{serverID}:
     delete:
       operationId: DeleteRemote
@@ -1491,7 +1500,7 @@ paths:
     post:
       operationId: LaunchBackup
       parameters:
-      - description: Server ID
+      - description: Server ID of the tower to back up
         in: path
         name: serverID
         required: true
@@ -1954,7 +1963,10 @@ paths:
           type: string
       responses:
         "200":
-          content: {}
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfo"
           description: OK
         "400":
           content:
@@ -2082,6 +2094,7 @@ components:
         - backupSize: 0
           lastBackup: 6
           role: role
+          logLevel: logLevel
           userCount: 1
           reportedRole: reportedRole
           name: name
@@ -2092,6 +2105,7 @@ components:
         - backupSize: 0
           lastBackup: 6
           role: role
+          logLevel: logLevel
           userCount: 1
           reportedRole: reportedRole
           name: name
@@ -2125,6 +2139,7 @@ components:
           homeID: homeID
           activated: true
           token: token
+          updatedAt: 1
           username: username
         - password: password
           permissionLevel: 6
@@ -2134,6 +2149,7 @@ components:
           homeID: homeID
           activated: true
           token: token
+          updatedAt: 1
           username: username
       properties:
         fileHistory:
@@ -2235,7 +2251,6 @@ components:
     FileInfo:
       example:
         owner: owner
-        currentID: currentID
         childrenIds:
         - childrenIds
         - childrenIds
@@ -2257,8 +2272,6 @@ components:
           type: array
         contentID:
           type: string
-        currentID:
-          type: string
         hasRestoreMedia:
           type: boolean
         id:
@@ -2268,6 +2281,7 @@ components:
         modifiable:
           type: boolean
         modifyTimestamp:
+          format: int64
           type: integer
         owner:
           type: string
@@ -2280,6 +2294,7 @@ components:
         shareID:
           type: string
         size:
+          format: int64
           type: integer
       type: object
     FileShareParams:
@@ -2367,7 +2382,6 @@ components:
           height: 5
         children:
         - owner: owner
-          currentID: currentID
           childrenIds:
           - childrenIds
           - childrenIds
@@ -2383,7 +2397,6 @@ components:
           modifiable: true
           isDir: true
         - owner: owner
-          currentID: currentID
           childrenIds:
           - childrenIds
           - childrenIds
@@ -2400,7 +2413,6 @@ components:
           isDir: true
         self:
           owner: owner
-          currentID: currentID
           childrenIds:
           - childrenIds
           - childrenIds
@@ -2417,7 +2429,6 @@ components:
           isDir: true
         parents:
         - owner: owner
-          currentID: currentID
           childrenIds:
           - childrenIds
           - childrenIds
@@ -2433,7 +2444,6 @@ components:
           modifiable: true
           isDir: true
         - owner: owner
-          currentID: currentID
           childrenIds:
           - childrenIds
           - childrenIds
@@ -2945,7 +2955,7 @@ components:
     ShareInfo:
       example:
         owner: owner
-        expires: 6
+        expires: 1
         accessors:
         - permissionLevel: 0
           fullName: fullName
@@ -2954,6 +2964,7 @@ components:
           homeID: homeID
           activated: true
           token: token
+          updatedAt: 6
           username: username
         - permissionLevel: 0
           fullName: fullName
@@ -2962,6 +2973,7 @@ components:
           homeID: homeID
           activated: true
           token: token
+          updatedAt: 6
           username: username
         timelineOnly: true
         shareID: shareID
@@ -2976,7 +2988,7 @@ components:
             canDownload: true
             canDelete: true
         shareName: shareName
-        updated: 1
+        updated: 5
         fileID: fileID
       properties:
         accessors:
@@ -2986,6 +2998,7 @@ components:
         enabled:
           type: boolean
         expires:
+          format: int64
           type: integer
         fileID:
           type: string
@@ -3006,6 +3019,7 @@ components:
         timelineOnly:
           type: boolean
         updated:
+          format: int64
           type: integer
         wormhole:
           type: boolean
@@ -3105,6 +3119,7 @@ components:
         backupSize: 0
         lastBackup: 6
         role: role
+        logLevel: logLevel
         userCount: 1
         reportedRole: reportedRole
         name: name
@@ -3126,6 +3141,8 @@ components:
         lastBackup:
           format: int64
           type: integer
+        logLevel:
+          type: string
         name:
           type: string
         online:
@@ -3172,6 +3189,7 @@ components:
         homeID: homeID
         activated: true
         token: token
+        updatedAt: 6
         username: username
       properties:
         activated:
@@ -3188,6 +3206,9 @@ components:
           type: string
         trashID:
           type: string
+        updatedAt:
+          format: int64
+          type: integer
         username:
           type: string
       required:
@@ -3196,6 +3217,7 @@ components:
       - homeID
       - permissionLevel
       - trashID
+      - updatedAt
       - username
       type: object
     UserInfoArchive:
@@ -3208,6 +3230,7 @@ components:
         homeID: homeID
         activated: true
         token: token
+        updatedAt: 1
         username: username
       properties:
         activated:
@@ -3226,6 +3249,9 @@ components:
           type: string
         trashID:
           type: string
+        updatedAt:
+          format: int64
+          type: integer
         username:
           type: string
       required:
@@ -3234,6 +3260,7 @@ components:
       - homeID
       - permissionLevel
       - trashID
+      - updatedAt
       - username
       type: object
     WLResponseInfo:
@@ -3331,6 +3358,11 @@ components:
           type: string
         usingKeyInfo:
           type: string
+      required:
+      - name
+      - password
+      - role
+      - username
       type: object
     structs.SetConfigParam:
       properties:

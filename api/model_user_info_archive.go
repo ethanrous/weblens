@@ -29,6 +29,7 @@ type UserInfoArchive struct {
 	PermissionLevel int32 `json:"permissionLevel"`
 	Token *string `json:"token,omitempty"`
 	TrashID string `json:"trashID"`
+	UpdatedAt int64 `json:"updatedAt"`
 	Username string `json:"username"`
 }
 
@@ -38,13 +39,14 @@ type _UserInfoArchive UserInfoArchive
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewUserInfoArchive(activated bool, fullName string, homeID string, permissionLevel int32, trashID string, username string) *UserInfoArchive {
+func NewUserInfoArchive(activated bool, fullName string, homeID string, permissionLevel int32, trashID string, updatedAt int64, username string) *UserInfoArchive {
 	this := UserInfoArchive{}
 	this.Activated = activated
 	this.FullName = fullName
 	this.HomeID = homeID
 	this.PermissionLevel = permissionLevel
 	this.TrashID = trashID
+	this.UpdatedAt = updatedAt
 	this.Username = username
 	return &this
 }
@@ -273,6 +275,30 @@ func (o *UserInfoArchive) SetTrashID(v string) {
 	o.TrashID = v
 }
 
+// GetUpdatedAt returns the UpdatedAt field value
+func (o *UserInfoArchive) GetUpdatedAt() int64 {
+	if o == nil {
+		var ret int64
+		return ret
+	}
+
+	return o.UpdatedAt
+}
+
+// GetUpdatedAtOk returns a tuple with the UpdatedAt field value
+// and a boolean to check if the value has been set.
+func (o *UserInfoArchive) GetUpdatedAtOk() (*int64, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.UpdatedAt, true
+}
+
+// SetUpdatedAt sets field value
+func (o *UserInfoArchive) SetUpdatedAt(v int64) {
+	o.UpdatedAt = v
+}
+
 // GetUsername returns the Username field value
 func (o *UserInfoArchive) GetUsername() string {
 	if o == nil {
@@ -321,6 +347,7 @@ func (o UserInfoArchive) ToMap() (map[string]interface{}, error) {
 		toSerialize["token"] = o.Token
 	}
 	toSerialize["trashID"] = o.TrashID
+	toSerialize["updatedAt"] = o.UpdatedAt
 	toSerialize["username"] = o.Username
 	return toSerialize, nil
 }
@@ -335,6 +362,7 @@ func (o *UserInfoArchive) UnmarshalJSON(data []byte) (err error) {
 		"homeID",
 		"permissionLevel",
 		"trashID",
+		"updatedAt",
 		"username",
 	}
 

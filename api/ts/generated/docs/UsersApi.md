@@ -74,7 +74,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **changeDisplayName**
-> changeDisplayName()
+> UserInfo changeDisplayName()
 
 
 ### Example
@@ -107,7 +107,7 @@ const { status, data } = await apiInstance.changeDisplayName(
 
 ### Return type
 
-void (empty response body)
+**UserInfo**
 
 ### Authorization
 

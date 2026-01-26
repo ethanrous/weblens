@@ -1,21 +1,20 @@
 <template>
     <div
         :class="{
-            'relative flex shrink-0 overflow-hidden rounded-[2px] transition-[height,width]': true,
+            'relative flex shrink-0 overflow-hidden rounded-xs transition-[height,width]': true,
         }"
     >
         <div
             :class="{
                 'gradient-progress-box': true,
-                '!bg-danger': failed,
+                'bg-danger!': failed,
             }"
-            :data-failed="failed"
             :style="{ width }"
         />
         <div
             :class="{
                 'gradient-outline-box': true,
-                'border-0 !bg-transparent before:opacity-0': showOutline === false,
+                'border-0 bg-transparent! before:opacity-0': showOutline === false,
             }"
         />
     </div>

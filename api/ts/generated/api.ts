@@ -65,7 +65,6 @@ export interface FileActionInfo {
 export interface FileInfo {
     'childrenIds'?: Array<string>;
     'contentID'?: string;
-    'currentID'?: string;
     'hasRestoreMedia'?: boolean;
     'id'?: string;
     'isDir'?: boolean;
@@ -291,11 +290,11 @@ export interface StructsInitServerParams {
      * For restoring a server, remoind the core of its serverID and api key the remote last used
      */
     'localID'?: string;
-    'name'?: string;
-    'password'?: string;
+    'name': string;
+    'password': string;
     'remoteID'?: string;
-    'role'?: string;
-    'username'?: string;
+    'role': string;
+    'username': string;
     'usingKeyInfo'?: string;
 }
 export interface StructsSetConfigParam {
@@ -336,6 +335,7 @@ export interface TowerInfo {
     'coreAddress': string;
     'id': string;
     'lastBackup': number;
+    'logLevel'?: string;
     'name': string;
     'online': boolean;
     /**
@@ -361,6 +361,7 @@ export interface UserInfo {
     'permissionLevel': number;
     'token'?: string;
     'trashID': string;
+    'updatedAt': number;
     'username': string;
 }
 export interface UserInfoArchive {
@@ -372,6 +373,7 @@ export interface UserInfoArchive {
     'permissionLevel': number;
     'token'?: string;
     'trashID': string;
+    'updatedAt': number;
     'username': string;
 }
 export interface WLResponseInfo {
@@ -2201,15 +2203,12 @@ export const FolderApiAxiosParamCreator = function (configuration?: Configuratio
          * 
          * @summary Get actions of a folder at a given time
          * @param {string} fileID File ID
-         * @param {number} timestamp Past timestamp to view the folder at, in ms since epoch
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getFolderHistory: async (fileID: string, timestamp: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        getFolderHistory: async (fileID: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'fileID' is not null or undefined
             assertParamExists('getFolderHistory', 'fileID', fileID)
-            // verify required parameter 'timestamp' is not null or undefined
-            assertParamExists('getFolderHistory', 'timestamp', timestamp)
             const localVarPath = `/files/{fileID}/history`
                 .replace(`{${"fileID"}}`, encodeURIComponent(String(fileID)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -2222,10 +2221,6 @@ export const FolderApiAxiosParamCreator = function (configuration?: Configuratio
             const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
-
-            if (timestamp !== undefined) {
-                localVarQueryParameter['timestamp'] = timestamp;
-            }
 
             localVarHeaderParameter['Accept'] = '*/*';
 
@@ -2359,12 +2354,11 @@ export const FolderApiFp = function(configuration?: Configuration) {
          * 
          * @summary Get actions of a folder at a given time
          * @param {string} fileID File ID
-         * @param {number} timestamp Past timestamp to view the folder at, in ms since epoch
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getFolderHistory(fileID: string, timestamp: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<FileActionInfo>>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getFolderHistory(fileID, timestamp, options);
+        async getFolderHistory(fileID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<FileActionInfo>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getFolderHistory(fileID, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['FolderApi.getFolderHistory']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -2433,12 +2427,11 @@ export const FolderApiFactory = function (configuration?: Configuration, basePat
          * 
          * @summary Get actions of a folder at a given time
          * @param {string} fileID File ID
-         * @param {number} timestamp Past timestamp to view the folder at, in ms since epoch
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getFolderHistory(fileID: string, timestamp: number, options?: RawAxiosRequestConfig): AxiosPromise<Array<FileActionInfo>> {
-            return localVarFp.getFolderHistory(fileID, timestamp, options).then((request) => request(axios, basePath));
+        getFolderHistory(fileID: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<FileActionInfo>> {
+            return localVarFp.getFolderHistory(fileID, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -2498,12 +2491,11 @@ export class FolderApi extends BaseAPI {
      * 
      * @summary Get actions of a folder at a given time
      * @param {string} fileID File ID
-     * @param {number} timestamp Past timestamp to view the folder at, in ms since epoch
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public getFolderHistory(fileID: string, timestamp: number, options?: RawAxiosRequestConfig) {
-        return FolderApiFp(this.configuration).getFolderHistory(fileID, timestamp, options).then((request) => request(this.axios, this.basePath));
+    public getFolderHistory(fileID: string, options?: RawAxiosRequestConfig) {
+        return FolderApiFp(this.configuration).getFolderHistory(fileID, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -4042,6 +4034,35 @@ export const TowersApiAxiosParamCreator = function (configuration?: Configuratio
         },
         /**
          * 
+         * @summary Enable trace logging
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        enableTraceLogging: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/tower/trace`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary Flush Cache
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -4275,7 +4296,7 @@ export const TowersApiAxiosParamCreator = function (configuration?: Configuratio
         /**
          * 
          * @summary Launch backup on a tower
-         * @param {string} serverID Server ID
+         * @param {string} serverID Server ID of the tower to back up
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -4371,6 +4392,18 @@ export const TowersApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary Enable trace logging
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async enableTraceLogging(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.enableTraceLogging(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TowersApi.enableTraceLogging']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Flush Cache
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -4460,7 +4493,7 @@ export const TowersApiFp = function(configuration?: Configuration) {
         /**
          * 
          * @summary Launch backup on a tower
-         * @param {string} serverID Server ID
+         * @param {string} serverID Server ID of the tower to back up
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -4510,6 +4543,15 @@ export const TowersApiFactory = function (configuration?: Configuration, basePat
          */
         deleteRemote(serverID: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
             return localVarFp.deleteRemote(serverID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Enable trace logging
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        enableTraceLogging(options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.enableTraceLogging(options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -4581,7 +4623,7 @@ export const TowersApiFactory = function (configuration?: Configuration, basePat
         /**
          * 
          * @summary Launch backup on a tower
-         * @param {string} serverID Server ID
+         * @param {string} serverID Server ID of the tower to back up
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -4624,6 +4666,16 @@ export class TowersApi extends BaseAPI {
      */
     public deleteRemote(serverID: string, options?: RawAxiosRequestConfig) {
         return TowersApiFp(this.configuration).deleteRemote(serverID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Enable trace logging
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public enableTraceLogging(options?: RawAxiosRequestConfig) {
+        return TowersApiFp(this.configuration).enableTraceLogging(options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -4703,7 +4755,7 @@ export class TowersApi extends BaseAPI {
     /**
      * 
      * @summary Launch backup on a tower
-     * @param {string} serverID Server ID
+     * @param {string} serverID Server ID of the tower to back up
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -5183,7 +5235,7 @@ export const UsersApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async changeDisplayName(username: string, newFullName: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+        async changeDisplayName(username: string, newFullName: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<UserInfo>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.changeDisplayName(username, newFullName, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['UsersApi.changeDisplayName']?.[localVarOperationServerIndex]?.url;
@@ -5346,7 +5398,7 @@ export const UsersApiFactory = function (configuration?: Configuration, basePath
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        changeDisplayName(username: string, newFullName: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+        changeDisplayName(username: string, newFullName: string, options?: RawAxiosRequestConfig): AxiosPromise<UserInfo> {
             return localVarFp.changeDisplayName(username, newFullName, options).then((request) => request(axios, basePath));
         },
         /**

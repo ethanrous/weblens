@@ -9,11 +9,11 @@ Name | Type | Description | Notes
 **coreKey** | **string** |  | [optional] [default to undefined]
 **fullName** | **string** |  | [optional] [default to undefined]
 **localID** | **string** | For restoring a server, remoind the core of its serverID and api key the remote last used | [optional] [default to undefined]
-**name** | **string** |  | [optional] [default to undefined]
-**password** | **string** |  | [optional] [default to undefined]
+**name** | **string** |  | [default to undefined]
+**password** | **string** |  | [default to undefined]
 **remoteID** | **string** |  | [optional] [default to undefined]
-**role** | **string** |  | [optional] [default to undefined]
-**username** | **string** |  | [optional] [default to undefined]
+**role** | **string** |  | [default to undefined]
+**username** | **string** |  | [default to undefined]
 **usingKeyInfo** | **string** |  | [optional] [default to undefined]
 
 ## Example

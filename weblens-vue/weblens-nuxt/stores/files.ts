@@ -388,6 +388,10 @@ const useFilesStore = defineStore('files', () => {
 
     watchEffect(() => {
         const _activeFolderID = locationStore.activeFolderID
+        if (!_activeFolderID) {
+            return
+        }
+
         SubToFolder(_activeFolderID, locationStore.activeShareID)
 
         onWatcherCleanup(() => {

@@ -9,8 +9,8 @@ type FileInfo struct {
 	Owner           string   `json:"owner"`
 	ShareID         string   `json:"shareID,omitempty"`
 	Children        []string `json:"childrenIds"`
-	Size            int64    `json:"size"`
-	ModTime         int64    `json:"modifyTimestamp"`
+	Size            int64    `json:"size" swaggertype:"integer" format:"int64"`
+	ModTime         int64    `json:"modifyTimestamp" swaggertype:"integer" format:"int64"`
 	IsDir           bool     `json:"isDir"`
 	Modifiable      bool     `json:"modifiable"`
 	PastFile        bool     `json:"pastFile"`

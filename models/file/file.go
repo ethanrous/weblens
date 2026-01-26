@@ -16,10 +16,10 @@ import (
 	"time"
 
 	file_system "github.com/ethanrous/weblens/modules/fs"
+	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/option"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
 	"github.com/ethanrous/weblens/modules/wlerrors"
-	"github.com/rs/zerolog/log"
 )
 
 /*
@@ -80,6 +80,10 @@ var ErrDirectoryAlreadyExists = wlerrors.New("directory already exists")
 
 // ErrFileAlreadyExists is returned when attempting to create a file that already exists.
 var ErrFileAlreadyExists = wlerrors.New("file already exists")
+
+// ErrFileHistoryMissing is returned when file history is missing for a requested operation, but the file exists on the filesystem.
+// Notably this should only be used in the case that history will not be created automatically.
+var ErrFileHistoryMissing = wlerrors.New("file exists on filesystem but no history found")
 
 // WeblensFileImpl implements the http.File interface.
 var _ http.File = (*WeblensFileImpl)(nil)
@@ -223,7 +227,11 @@ func (f *WeblensFileImpl) Exists() bool {
 		return false
 	}
 
-	_, err := os.Stat(f.portablePath.ToAbsolute())
+	absPath := f.portablePath.ToAbsolute()
+
+	log.GlobalLogger().Trace().Msgf("Checking existence of file at [%s]", absPath)
+
+	_, err := os.Stat(absPath)
 
 	return err == nil
 }
@@ -233,7 +241,7 @@ func (f *WeblensFileImpl) IsDir() bool {
 	if !f.isDir.Has() {
 		stat, err := os.Stat(f.portablePath.ToAbsolute())
 		if err != nil {
-			log.Error().Stack().Err(err).Msg("")
+			log.GlobalLogger().Error().Stack().Err(err).Msg("")
 
 			return false
 		}
@@ -262,7 +270,7 @@ func (f *WeblensFileImpl) ModTime() (t time.Time) {
 
 		_, err := f.LoadStat()
 		if err != nil {
-			log.Error().Stack().Err(err).Msg("")
+			log.GlobalLogger().Error().Stack().Err(err).Msg("")
 		}
 
 		f.updateLock.RLock()
@@ -287,7 +295,7 @@ func (f *WeblensFileImpl) Size() int64 {
 	if f.size.Load() == -1 {
 		_, err := f.LoadStat()
 		if err != nil {
-			log.Error().Stack().Err(err).Msg("")
+			log.GlobalLogger().Error().Stack().Err(err).Msg("")
 		}
 	}
 
@@ -504,8 +512,12 @@ func (f *WeblensFileImpl) GetChild(childName string) (*WeblensFileImpl, error) {
 	f.childLock.RLock()
 	defer f.childLock.RUnlock()
 
-	if len(f.childrenMap) == 0 || childName == "" {
+	if len(f.childrenMap) == 0 {
 		return nil, wlerrors.Errorf("%w: file %s [%p] has no children", ErrFileNotFound, f.portablePath.String(), f)
+	}
+
+	if childName == "" {
+		return nil, wlerrors.Errorf("%w: trying to get empty child name for parent [%s]", ErrFileNotFound, f.portablePath.String())
 	}
 
 	child := f.childrenMap[childName]
@@ -696,7 +708,7 @@ func (f *WeblensFileImpl) UnmarshalJSON(bs []byte) error {
 	f.contentID = data["contentID"].(string)
 
 	if f.modifyDate.Unix() <= 0 {
-		log.Error().Msg("File has invalid mod time")
+		log.GlobalLogger().Error().Msg("File has invalid mod time")
 	}
 
 	f.childIDs = slices_mod.Map(
@@ -716,7 +728,7 @@ func (f *WeblensFileImpl) MarshalJSON() ([]byte, error) {
 	}
 
 	if !f.IsDir() && f.Size() != 0 && f.GetContentID() == "" {
-		log.Warn().Msgf("File [%s] has no content ID", f.GetPortablePath())
+		log.GlobalLogger().Warn().Msgf("File [%s] has no content ID", f.GetPortablePath())
 	}
 
 	data := map[string]any{
@@ -731,7 +743,7 @@ func (f *WeblensFileImpl) MarshalJSON() ([]byte, error) {
 	}
 
 	if f.ModTime().UnixMilli() < 0 {
-		log.Warn().Msgf("File [%s] has invalid mod time trying to marshal", f.GetPortablePath())
+		log.GlobalLogger().Warn().Msgf("File [%s] has invalid mod time trying to marshal", f.GetPortablePath())
 	}
 
 	return json.Marshal(data)

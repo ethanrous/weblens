@@ -8,15 +8,13 @@ import (
 	"runtime"
 	"runtime/debug"
 	"strings"
+	"sync"
 
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/opensearch-project/opensearch-go/v4"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
 )
-
-// OpenSearchClient is the global OpenSearch client for logging.
-var OpenSearchClient *opensearch.Client
 
 var projectPrefix string
 
@@ -29,24 +27,9 @@ func init() {
 		panic("weblens logger unable to detect correct package prefix, please update file: " + filename)
 	}
 
-	osURL := os.Getenv("OPENSEARCH_URL")
-	osUser := os.Getenv("OPENSEARCH_USER")
-	osPass := os.Getenv("OPENSEARCH_PASSWORD")
-
-	var err error
-	if osURL != "" && osUser != "" && osPass != "" {
-		OpenSearchClient, err = NewOpenSearchClient(osURL, osUser, osPass)
-	}
-
-	if err != nil {
-		fmt.Println("Error initializing OpenSearch client for logging:", err)
-	}
-
 	zerolog.TimestampFieldName = "@timestamp"
 	zerolog.ErrorStackMarshaler = MarshalStack
 	zerolog.ErrorStackFieldName = "traceback"
-
-	NewZeroLogger()
 }
 
 // ErrUnwrapHook is a zerolog hook for unwrapping errors.
@@ -58,18 +41,19 @@ func (h ErrUnwrapHook) Run(e *zerolog.Event, level zerolog.Level, msg string) {
 }
 
 var logger zerolog.Logger = zerolog.Nop()
+var loggerMu sync.RWMutex
 
 // CreateOpts configures logging options.
 type CreateOpts struct {
-	NoOpenSearch bool
+	Level zerolog.Level
 }
 
 func compileCreateLogOpts(o ...CreateOpts) CreateOpts {
 	opts := CreateOpts{}
 
 	for _, opt := range o {
-		if opt.NoOpenSearch {
-			opts.NoOpenSearch = true
+		if opt.Level != 0 {
+			opts.Level = opt.Level
 		}
 	}
 
@@ -87,28 +71,39 @@ func NopLogger() zerolog.Logger {
 func NewZeroLogger(opts ...CreateOpts) *zerolog.Logger {
 	o := compileCreateLogOpts(opts...)
 
+	loggerMu.RLock()
+
 	if logger.GetLevel() != zerolog.Disabled && len(opts) == 0 {
 		l := logger.With().Logger()
+
+		loggerMu.RUnlock()
 
 		return &l
 	}
 
+	loggerMu.RUnlock()
+
 	config := config.GetConfig()
+
+	outputLocation := os.Stdout
+
+	if config.LogPath != "" {
+		var err error
+
+		outputLocation, err = os.OpenFile(config.LogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			panic(wlerrors.Errorf("failed to open log file %s: %w", config.LogPath, err))
+		}
+	}
 
 	var localLogger io.Writer
 	if config.LogFormat == "dev" {
-		localLogger = newDevLogger()
+		localLogger = newDevLogger(outputLocation)
 	} else {
-		localLogger = os.Stdout
+		localLogger = outputLocation
 	}
 
 	writers := []io.Writer{localLogger}
-
-	if !o.NoOpenSearch && OpenSearchClient != nil {
-		opnsIndex := os.Getenv("OPENSEARCH_INDEX")
-		oLog := NewOpensearchLogger(OpenSearchClient, opnsIndex)
-		writers = append(writers, oLog)
-	}
 
 	wlVersion := os.Getenv("WEBLENS_BUILD_VERSION")
 	if wlVersion == "" {
@@ -127,25 +122,62 @@ func NewZeroLogger(opts ...CreateOpts) *zerolog.Logger {
 	}
 
 	multi := zerolog.MultiLevelWriter(writers...)
-	log := zerolog.New(multi).Level(config.LogLevel).With().Timestamp().Caller().Str("weblens_build_version", wlVersion).Logger()
 
+	level := config.LogLevel
+	if o.Level != 0 {
+		level = o.Level
+	}
+
+	log := zerolog.New(multi).Level(level).With().Timestamp().Caller().Str("weblens_build_version", wlVersion).Logger()
+
+	// If no options are provided, set as the global logger
 	if len(opts) == 0 {
 		zerolog.SetGlobalLevel(config.LogLevel)
 
+		loggerMu.Lock()
+
 		logger = log
 		zlog.Logger = log
+
+		loggerMu.Unlock()
+
 		log.Info().Msgf("Weblens logger initialized [%s][%s]", log.GetLevel(), config.LogFormat)
 	}
 
 	return &log
 }
 
-// GlobalLogger returns the global logger instance.
+// SetLogLevel sets the global log level.
+func SetLogLevel(level zerolog.Level) {
+	config.SetLogLevel(level)
+	zerolog.SetGlobalLevel(level)
+
+	loggerMu.Lock()
+
+	logger = logger.Level(level)
+
+	loggerMu.Unlock()
+}
+
+// GlobalLogger returns a copy of the global logger instance.
+// The returned logger is safe to use concurrently and can have
+// UpdateContext called on it without racing with other goroutines.
 func GlobalLogger() *zerolog.Logger {
-	l := logger
+	loggerMu.RLock()
+
 	if logger.GetLevel() == zerolog.Disabled {
-		l = NopLogger()
+		loggerMu.RUnlock()
+
+		NewZeroLogger()
+
+		loggerMu.RLock()
 	}
+
+	defer loggerMu.RUnlock()
+
+	// Use With().Logger() to create a copy
+	// that doesn't share the context buffer
+	l := logger.With().Logger()
 
 	return &l
 }

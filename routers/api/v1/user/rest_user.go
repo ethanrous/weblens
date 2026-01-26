@@ -41,6 +41,12 @@ func Create(ctx ctxservice.RequestContext) {
 		UserPerms:   user_model.UserPermissionBasic,
 	}
 
+	if err := user_model.ValidateUser(ctx, newUser); err != nil {
+		ctx.Error(http.StatusBadRequest, err)
+
+		return
+	}
+
 	err = ctx.GetFileService().CreateUserHome(ctx, newUser)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
@@ -401,7 +407,7 @@ func Activate(ctx ctxservice.RequestContext) {
 //
 //	@Param		username	path	string	true	"Username of user to update"
 //	@Param		newFullName	query	string	true	"New full name of user"
-//	@Success	200
+//	@Success	200 {object}	structs.UserInfo
 //	@Failure	400	{object}	structs.WeblensErrorInfo
 //	@Failure	401	{object}	structs.WeblensErrorInfo
 //	@Failure	404	{object}	structs.WeblensErrorInfo

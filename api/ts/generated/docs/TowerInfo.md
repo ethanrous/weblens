@@ -9,6 +9,7 @@ Name | Type | Description | Notes
 **coreAddress** | **string** | Address of the remote server, only if the instance is a core. Not set for any remotes/backups on core server, as it IS the core | [default to undefined]
 **id** | **string** |  | [default to undefined]
 **lastBackup** | **number** |  | [default to undefined]
+**logLevel** | **string** |  | [optional] [default to undefined]
 **name** | **string** |  | [default to undefined]
 **online** | **boolean** |  | [default to undefined]
 **reportedRole** | **string** | Role the server is currently reporting. This is used to determine if the server is online (and functional) or not | [default to undefined]
@@ -26,6 +27,7 @@ const instance: TowerInfo = {
     coreAddress,
     id,
     lastBackup,
+    logLevel,
     name,
     online,
     reportedRole,

@@ -1,13 +1,12 @@
 {
-  // https://nuxt.com/docs/guide/concepts/typescript
-  "extends": "./.nuxt/tsconfig.json",
-  "compilerOptions": {
-    "typeRoots": ["libs/sdk/types", "node_modules/@types", "node_modules/@types/wicg-file-system-access"],
-    "types": [
-      "node",
-      "typelevel",
-      "browser-compat",
-      "ts5.0" // @types/wicg-file-system-access for 5.x typescript
-    ]
-  }
+    // https://nuxt.com/docs/guide/concepts/typescript
+    "extends": "./.nuxt/tsconfig.json",
+    "compilerOptions": {
+        "typeRoots": [
+            "libs/sdk/types"
+        ]
+    },
+    "vueCompilerOptions": {
+        "strictTemplates": true
+    }
 }

@@ -58,27 +58,39 @@ func CopyFileFromCore(tsk *task.Task) {
 	tsk.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Copying file from core [%s]", meta.File.GetPortablePath().Filename()) })
 
 	restoreFile, err := ctx.FileService.NewBackupRestoreFile(ctx, meta.File.GetContentID(), meta.Core.TowerID)
-	if err != nil {
+	exists := wlerrors.Is(err, file_model.ErrFileAlreadyExists)
+
+	if err != nil && !exists {
 		tsk.Fail(err)
 
 		return
 	}
 
-	writeFile, err := restoreFile.Writer()
-	if err != nil {
-		tsk.Fail(err)
+	var bytesCopied int64
 
-		return
+	if err != nil {
+		ctx.Log().Trace().Msgf("Restore file already exists at [%s], not copying", restoreFile.GetPortablePath().ToAbsolute())
+	} else {
+		writeFile, err := restoreFile.Writer()
+		if err != nil {
+			tsk.Fail(err)
+
+			return
+		}
+
+		defer writeFile.Close() //nolint:errcheck
+
+		bytesCopied, err = tower_service.DownloadFileFromCore(ctx, meta.Core, meta.CoreFileID, writeFile)
+		if err != nil {
+			tsk.Fail(err)
+
+			return
+		}
 	}
 
-	defer writeFile.Close() //nolint:errcheck
-
-	err = tower_service.DownloadFileFromCore(ctx, meta.Core, meta.CoreFileID, writeFile)
-	if err != nil {
-		tsk.Fail(err)
-
-		return
-	}
+	tsk.Log().Trace().Func(func(e *zerolog.Event) {
+		e.Msgf("Copy file is linking %s -> %s", restoreFile.GetPortablePath().ToAbsolute(), meta.File.GetPortablePath().ToAbsolute())
+	})
 
 	err = os.Link(restoreFile.GetPortablePath().ToAbsolute(), meta.File.GetPortablePath().ToAbsolute())
 	if err != nil {
@@ -87,16 +99,17 @@ func CopyFileFromCore(tsk *task.Task) {
 		return
 	}
 
-	poolProgress := getScanResult(tsk)
-	poolProgress["filename"] = filename
-	poolProgress["coreID"] = meta.Core.TowerID
+	if !exists {
+		err = ctx.FileService.AddFile(tsk.Ctx, meta.File)
+		if err != nil {
+			tsk.Fail(err)
 
-	notif := notify.NewPoolNotification(tsk.GetTaskPool(), websocket_mod.CopyFileCompleteEvent, poolProgress)
-	if notif.SubscribeKey == "" {
-		ctx.Log().Error().Msg("Failed to get subscribe key for pool notification")
+			return
+		}
 	}
 
-	ctx.Notify(ctx, notif)
-
+	tsk.SetResult(task.Result{
+		"bytesCopied": bytesCopied,
+	})
 	tsk.Success()
 }

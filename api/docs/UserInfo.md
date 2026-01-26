@@ -11,13 +11,14 @@ Name | Type | Description | Notes
 **PermissionLevel** | **int32** |  | 
 **Token** | Pointer to **string** |  | [optional] 
 **TrashID** | **string** |  | 
+**UpdatedAt** | **int64** |  | 
 **Username** | **string** |  | 
 
 ## Methods
 
 ### NewUserInfo
 
-`func NewUserInfo(activated bool, fullName string, homeID string, permissionLevel int32, trashID string, username string, ) *UserInfo`
+`func NewUserInfo(activated bool, fullName string, homeID string, permissionLevel int32, trashID string, updatedAt int64, username string, ) *UserInfo`
 
 NewUserInfo instantiates a new UserInfo object
 This constructor will assign default values to properties that have it defined,
@@ -180,6 +181,26 @@ and a boolean to check if the value has been set.
 `func (o *UserInfo) SetTrashID(v string)`
 
 SetTrashID sets TrashID field to given value.
+
+
+### GetUpdatedAt
+
+`func (o *UserInfo) GetUpdatedAt() int64`
+
+GetUpdatedAt returns the UpdatedAt field if non-nil, zero value otherwise.
+
+### GetUpdatedAtOk
+
+`func (o *UserInfo) GetUpdatedAtOk() (*int64, bool)`
+
+GetUpdatedAtOk returns a tuple with the UpdatedAt field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetUpdatedAt
+
+`func (o *UserInfo) SetUpdatedAt(v int64)`
+
+SetUpdatedAt sets UpdatedAt field to given value.
 
 
 ### GetUsername
