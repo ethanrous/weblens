@@ -1,5 +1,4 @@
 #!/bin/bash
-set -euo pipefail
 
 ensure_weblens_net() {
     if ! docker network ls | grep weblens-net; then

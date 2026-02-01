@@ -8,9 +8,9 @@ docs/APIKeyParams.md
 docs/APIKeysApi.md
 docs/AddUserParams.md
 docs/BackupInfo.md
-docs/Config.md
-docs/ConfigApi.md
+docs/Bundle.md
 docs/CreateFolderBody.md
+docs/FeatureFlagsApi.md
 docs/FileActionInfo.md
 docs/FileInfo.md
 docs/FileShareParams.md

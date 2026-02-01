@@ -1,0 +1,87 @@
+configs:
+  mongot-config:
+    content: |
+      syncSource:
+        replicaSet:
+          hostAndPort: "mongod.search-community:27017"
+          username: "mongotUser"
+          passwordFile: "/mongot-pwfile"
+          authSource: "admin"
+      storage:
+        dataPath: "data/mongot"
+      server:
+        grpc:
+          address: "mongot.search-community:27028"
+          tls:
+            mode: "disabled"
+      metrics:
+        enabled: true
+        address: "mongot.search-community:9946"
+      healthCheck:
+        address: "mongot.search-community:8080"
+      logging:
+        verbosity: INFO
+  mongot-pwfile:
+    content: "mongotPassword"
+
+services:
+  mongod:
+    image: mongodb/mongodb-community-server:8.2-ubi9
+    container_name: weblens-${TOWER_ROLE}-mongod
+    hostname: mongod.search-community
+    command:
+      - mongod
+      - --replSet=rs0
+      - --bind_ip_all
+      - --setParameter
+      - searchIndexManagementHostAndPort=mongot.search-community:27028
+      - --setParameter
+      - mongotHost=mongot.search-community:27028
+      - --setParameter
+      - skipAuthenticationToSearchIndexManagementServer=true
+      - --setParameter
+      - useGrpcForSearch=true
+    ports:
+      - 27017:27017
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ${MONGO_DATA_ROOT}/mongod:/data/db
+    healthcheck:
+      test: >
+        mongosh --eval "
+          try { rs.status() } catch(e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongod.search-community:27017'}]}) }
+          try { db.getSiblingDB('admin').createUser({user:'mongotUser',pwd:'mongotPassword',roles:[{role:'searchCoordinator',db:'admin'}]}) } catch(e) { if(e.code!=51003) throw e }
+        "
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 10s
+
+  mongot:
+    image: mongodb/mongodb-community-search:0.53.1
+    container_name: weblens-${TOWER_ROLE}-mongot
+    hostname: mongot.search-community
+    depends_on:
+      mongod:
+        condition: service_healthy
+    entrypoint:
+      - /mongot-community/mongot
+      - --config=/mongot-config.yml
+      - --internalListAllIndexesForTesting=true
+    configs:
+      - source: mongot-config
+        target: /mongot-config.yml
+      - source: mongot-pwfile
+        target: /mongot-pwfile
+        mode: 0400
+    volumes:
+      - ${MONGO_DATA_ROOT}/mongot:/data/mongot
+    ports:
+      - 27028:27028
+      - 9946:9946
+
+networks:
+  default:
+    name: weblens-net
+    external: true

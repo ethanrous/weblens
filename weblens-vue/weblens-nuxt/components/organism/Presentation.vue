@@ -127,7 +127,7 @@ const presentingFile = computed(() => {
 
 const media = computed(() => {
     const contentID = presentationStore.presentationMediaID
-        ? presentationStore.presentationMediaId
+        ? presentationStore.presentationMediaID
         : presentingFile.value?.GetContentID()
     if (!contentID) {
         return

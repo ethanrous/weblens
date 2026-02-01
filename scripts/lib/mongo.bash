@@ -1,5 +1,4 @@
 #!/bin/bash
-set -euo pipefail
 
 is_mongo_running() {
     local mongo_name=${1?"[ERROR] is_mongo_running called with no container name. Aborting"}
@@ -47,57 +46,25 @@ ensure_repl_set() {
 }
 
 launch_mongo() {
-    local mongo_name="${1?[ERROR] launch_mongo called with no container name. Aborting}"
+    local mongo_name="${1:-weblens-core-mongo}"
     local mongo_port="${2:-27017}"
 
     ensure_weblens_net
 
-    if ! dockerc image ls | grep ethrous/weblens-mongo &>/dev/null; then
-        ./scripts/build-mongo.bash || exit 1
-    fi
-
     if ! dockerc ps | grep "$mongo_name" &>/dev/null; then
         echo "Starting MongoDB container [$mongo_name] on port [:$mongo_port] ..."
-
-        dockerc run \
-            -d \
-            --rm \
-            --name "$mongo_name" \
-            -v ./_build/log/syslog:/var/log/syslog \
-            --mount type=volume,src="$mongo_name",dst=/data/db \
-            --publish "$mongo_port":27017 \
-            --network weblens-net \
-            -e WEBLENS_MONGO_HOST_NAME="$mongo_name" \
-            ethrous/weblens-mongo || exit 1
+        dockerc compose -f ./docker/mongo.compose.yaml --env-file ./docker/mongo-core.env --project-name "$mongo_name" up -d
     fi
-
-    ensure_repl_set
 }
 
 export -f launch_mongo
 
 # Stop all mongo containers and remove mongo volume, if specified
 cleanup_mongo() {
-    local running_mongos
-    running_mongos=$(docker ps | grep -e "weblens" -e "mongo") || true
-    if [[ ! -z "$running_mongos" ]]; then
-        while IFS= read -r container; do
-            local container_id
-            container_id=$(sed -E 's/^([^ ]+).*/\1/' <<<"$container")
+    local mongo_name="${1:-weblens-core-mongo}"
+    local mongo_port="${2:-27017}"
 
-            echo "Stopping mongo container [$container_id] ..."
-            dockerc stop "$container_id"
-        done <<<"$running_mongos"
-    else
-        echo "No running mongo containers found."
-    fi
-
-    if [[ -z "${1:-}" ]]; then
-        return
-    fi
-
-    local mongo_name=$1
-    dockerc volume rm "$mongo_name" 2>&1 || true
+    dockerc compose --project-name "$mongo_name" down
 }
 
 export -f cleanup_mongo

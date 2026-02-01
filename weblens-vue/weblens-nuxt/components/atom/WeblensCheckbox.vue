@@ -17,7 +17,7 @@
                         width="12px"
                         height="10px"
                     >
-                        <use xlink:href="#check-4"></use>
+                        <use href="#check-4"></use>
                     </svg>
                 </span>
                 <span v-if="label">{{ label }} </span>
@@ -25,7 +25,7 @@
             <svg class="inline-svg">
                 <symbol
                     id="check-4"
-                    viewbox="0 0 12 10"
+                    viewBox="0 0 12 10"
                 >
                     <polyline points="1.5 6 4.5 9 10.5 1"></polyline>
                 </symbol>

@@ -2,19 +2,30 @@ package media
 
 import (
 	"context"
-	"slices"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
+	"github.com/ethanrous/weblens/modules/config"
+	"github.com/ethanrous/weblens/modules/slices"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
+	"github.com/ethanrous/weblens/modules/startup"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+var hdirVectorIndexKey = "hdir_vector_index"
+var contentIDIndexKey = "contentID_unique_index"
+var ownerIndexKey = "owner_index"
+
+func init() {
+	startup.RegisterHook(registerIndexes)
+}
 
 // MediaCollectionKey is the MongoDB collection name for media documents.
 const MediaCollectionKey = "media"
@@ -61,11 +72,9 @@ type Media struct {
 	HDIR []float64 `bson:"hdir"`
 
 	// Slices of files whos content hash to the contentId
-	FileIDs []string `bson:"fileIds"`
+	FileIDs []string `bson:"fileIDs"`
 
-	// Tags from the ML image scan so searching for particular objects in the images can be done
-	RecognitionTags []string `bson:"recognitionTags"`
-
+	// Slice of users who have liked this media
 	LikedBy []string `bson:"likedBy"`
 
 	// Ids for the files that are the cached WEBP of the fullres file. This is a slice
@@ -163,6 +172,28 @@ func GetMediasByContentIDs(ctx context.Context, limit, page, sortDirection int, 
 	return media, nil
 }
 
+// GetMediaByOwner retrieves media items owned by a specific user.
+func GetMediaByOwner(ctx context.Context, owner string) ([]*Media, error) {
+	col, err := db.GetCollection[any](ctx, MediaCollectionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	media := []*Media{}
+
+	cur, err := col.Find(ctx, bson.M{"owner": owner})
+	if err != nil {
+		return nil, err
+	}
+
+	err = cur.All(ctx, &media)
+	if err != nil {
+		return nil, db.WrapError(err, "get media by owner")
+	}
+
+	return media, nil
+}
+
 // GetMediaByPath retrieves media items by file path.
 func GetMediaByPath(_ context.Context, _ string) ([]*Media, error) {
 	// col, err := db.GetCollection[any](ctx, MediaCollectionKey)
@@ -189,7 +220,7 @@ func GetMedia(ctx context.Context, username string, sort string, sortDirection i
 		bson.D{
 			{Key: "$match", Value: bson.D{
 				{Key: "owner", Value: username},
-				{Key: "fileIds", Value: bson.D{
+				{Key: "fileIDs", Value: bson.D{
 					{Key: "$exists", Value: true}, {Key: "$ne", Value: bson.A{}},
 				}}},
 			},
@@ -244,7 +275,7 @@ func GetRandomMedias(ctx context.Context, opts RandomMediaOptions) ([]*Media, er
 
 	match := bson.M{
 		// Media must have a file associated with it
-		"fileIds": bson.M{"$exists": true, "$ne": bson.A{}},
+		"fileIDs": bson.M{"$exists": true, "$ne": bson.A{}},
 		"hidden":  false, // Only return non-hidden media
 	}
 
@@ -277,19 +308,37 @@ func GetRandomMedias(ctx context.Context, opts RandomMediaOptions) ([]*Media, er
 	return target, nil
 }
 
-// DropMediaCollection removes the entire media collection from the database.
-func DropMediaCollection(ctx context.Context) error {
+// DropMediaByOwner removes media items owned by a specific user, or
+// the entire media collection from the database if no user is specified (empty string).
+// Returns the array of content IDs that were removed if a user filter is provided.
+func DropMediaByOwner(ctx context.Context, userFilter string) ([]string, error) {
 	col, err := db.GetCollection[any](ctx, MediaCollectionKey)
 	if err != nil {
-		return err
+		return nil, err
+	}
+
+	if userFilter != "" {
+		medias, err := GetMediaByOwner(ctx, userFilter)
+		if err != nil {
+			return nil, wlerrors.Errorf("failed to get media to drop for user %s: %w", userFilter, err)
+		}
+
+		contentIDs := slices.Map(medias, func(m *Media) ContentID { return m.ContentID })
+
+		_, err = col.DeleteMany(ctx, bson.M{"contentID": bson.M{"$in": contentIDs}})
+		if err != nil {
+			return nil, wlerrors.Errorf("failed to drop media for user %s: %w", userFilter, err)
+		}
+
+		return contentIDs, nil
 	}
 
 	err = col.Drop(ctx)
 	if err != nil {
-		return err
+		return nil, wlerrors.Errorf("failed to drop media collection: %w", err)
 	}
 
-	return nil
+	return nil, nil
 }
 
 // DropHDIRs removes all HDIR (High Dimensional Image Representation) data from media documents.
@@ -426,22 +475,6 @@ func (m *Media) IsEnabled() bool {
 	return m.Enabled
 }
 
-// SetRecognitionTags sets the object recognition tags for the media.
-func (m *Media) SetRecognitionTags(tags []string) {
-	m.updateMu.Lock()
-	defer m.updateMu.Unlock()
-
-	m.RecognitionTags = tags
-}
-
-// GetRecognitionTags returns the object recognition tags for the media.
-func (m *Media) GetRecognitionTags() []string {
-	m.updateMu.RLock()
-	defer m.updateMu.RUnlock()
-
-	return m.RecognitionTags
-}
-
 // SetLowresCacheFile sets the thumbnail/low-resolution cache file.
 func (m *Media) SetLowresCacheFile(thumb *file_model.WeblensFileImpl) {
 	m.updateMu.Lock()
@@ -509,6 +542,7 @@ type Quality string
 
 // Media quality constants.
 const (
+	None    Quality = ""
 	LowRes  Quality = "thumbnail"
 	HighRes Quality = "fullres"
 	Video   Quality = "video"
@@ -533,7 +567,7 @@ func RemoveFileFromMedia(ctx context.Context, media *Media, fileID string) error
 
 	_, err = col.UpdateOne(ctx, bson.D{
 		{Key: "contentID", Value: media.ContentID},
-	}, bson.D{{Key: "$pull", Value: bson.D{{Key: "fileIds", Value: fileID}}}})
+	}, bson.D{{Key: "$pull", Value: bson.D{{Key: "fileIDs", Value: fileID}}}})
 	if err != nil {
 		return wlerrors.WithStack(err)
 	}
@@ -550,9 +584,101 @@ func (m *Media) AddFileToMedia(ctx context.Context, fileID string) error {
 
 	_, err = col.UpdateOne(ctx, bson.D{
 		{Key: "contentID", Value: m.ContentID},
-	}, bson.D{{Key: "$addToSet", Value: bson.D{{Key: "fileIds", Value: fileID}}}})
+	}, bson.D{{Key: "$addToSet", Value: bson.D{{Key: "fileIDs", Value: fileID}}}})
 	if err != nil {
 		return wlerrors.WithStack(err)
+	}
+
+	return nil
+}
+
+// HDIRSearchResult represents a single result from an HDIR similarity search.
+type HDIRSearchResult struct {
+	ContentID ContentID `bson:"contentID"`
+	Score     float64   `bson:"score"`
+}
+
+// HDIRSearch performs a similarity search using the provided high-dimensional image representation (HDIR) vector.
+func HDIRSearch(ctx context.Context, target []float64, filter []*Media) ([]HDIRSearchResult, error) {
+	col, err := db.GetCollection[any](ctx, MediaCollectionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	contentIDFilter := slices.Map(filter, func(m *Media) ContentID { return m.ContentID })
+
+	numCandidates := min(len(contentIDFilter), 9999) / 2
+
+	cursor, err := col.Aggregate(ctx, bson.A{
+		bson.M{
+			"$vectorSearch": bson.M{
+				"index": hdirVectorIndexKey,
+				"path":  "hdir",
+				"filter": bson.M{
+					"contentID": bson.M{"$in": contentIDFilter},
+				},
+				"queryVector": target,
+				// "numCandidates": numCandidates,
+				"limit":        numCandidates - 1,
+				"exact":        true,
+				"scoreDetails": true,
+			},
+		},
+		bson.M{
+			"$project": bson.M{
+				"_id":       0,
+				"contentID": 1,
+				"score":     bson.M{"$meta": "vectorSearchScore"},
+			},
+		},
+	}, options.Aggregate().SetMaxTime(2*time.Minute))
+	if err != nil {
+		return nil, err
+	}
+
+	var results []HDIRSearchResult
+
+	err = cursor.All(ctx, &results)
+	if err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
+func registerIndexes(ctx context.Context, _ config.Provider) error {
+	col, err := db.GetCollection[any](ctx, MediaCollectionKey)
+	if err != nil {
+		return err
+	}
+
+	// Create the unique contentID index
+	err = col.NewIndex(mongo.IndexModel{
+		Keys:    bson.D{{Key: "contentID", Value: 1}},
+		Options: options.Index().SetUnique(true).SetName(contentIDIndexKey),
+	})
+	if err != nil {
+		return err
+	}
+
+	// Create the owner index
+	err = col.NewIndex(mongo.IndexModel{
+		Keys:    bson.D{{Key: "owner", Value: 1}},
+		Options: options.Index().SetName(ownerIndexKey),
+	})
+	if err != nil {
+		return err
+	}
+
+	// Create the index if it does not exist
+	err = col.NewSearchIndex(mongo.SearchIndexModel{
+		Definition: bson.M{
+			"fields": bson.A{bson.M{"type": "vector", "path": "hdir", "numDimensions": 1024, "similarity": "cosine", "quantization": "scalar"}, bson.M{"type": "filter", "path": "contentID"}},
+		},
+		Options: options.SearchIndexes().SetName(hdirVectorIndexKey).SetType("vectorSearch"),
+	})
+	if err != nil {
+		return err
 	}
 
 	return nil

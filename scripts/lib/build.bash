@@ -1,15 +1,4 @@
 #!/bin/bash
-set -euo pipefail
-
-build_agno() {
-    local agno_lib_path="${WEBLENS_ROOT}/services/media/agno/lib/"
-    mkdir -p "$agno_lib_path"
-    pushd agno >/dev/null
-    "${WEBLENS_ROOT}/agno/build/sh/build-agno.bash" "$agno_lib_path" 2>&1 | show_as_subtask "Building Agno..." "orange"
-    cp ./lib/agno.h "$agno_lib_path"
-    popd >/dev/null
-}
-export -f build_agno
 
 build_frontend() {
     local lazy
@@ -24,12 +13,12 @@ build_frontend() {
         return
     fi
 
-    pushd "${WEBLENS_ROOT}/weblens-vue/weblens-nuxt" >/dev/null
+    pushd "${WEBLENS_ROOT}/weblens-vue/weblens-nuxt" >/dev/null || return 1
 
     pnpm install 2>&1 | show_as_subtask "Installing UI Dependencies..."
     pnpm run generate 2>&1 | show_as_subtask "Building UI..."
 
-    popd >/dev/null
+    popd >/dev/null || return 1
 }
 export -f build_frontend
 
@@ -46,3 +35,10 @@ build_weblens_binary() {
     go build -v -gcflags=all="-N -l" -ldflags=-compressdwarf=false -o "$debug_bin" ./cmd/weblens/main.go 2>&1
 }
 export -f build_weblens_binary
+
+build_hdir() {
+    dockerc stop weblens-hdir 2>/dev/null || true
+    dockerc image rm weblens_hdir 2>/dev/null || true
+    dockerc build -f ./docker/hdir.Dockerfile -t ethrous/weblens_hdir .
+}
+export -f build_hdir

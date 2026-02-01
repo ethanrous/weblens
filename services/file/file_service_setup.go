@@ -96,6 +96,10 @@ func loadFs(ctx context.Context, cnf config.Provider) error {
 		return wlerrors.WithStack(context_service.ErrNoContext)
 	}
 
+	if !filepath.IsAbs(cnf.DataPath) {
+		return wlerrors.Errorf("config DataPath must be an absolute path, got: [%s]", cnf.DataPath)
+	}
+
 	err := file_system.RegisterAbsolutePrefix(file_model.RestoreTreeKey, filepath.Join(cnf.DataPath, ".restore"))
 	if err != nil {
 		return err
@@ -258,41 +262,34 @@ func loadOneDirectory(ctx context_service.AppContext, dir *file_model.WeblensFil
 
 	doFileCreation, _ := ctx.Value(doFileCreationContextKey{}).(bool)
 
-	err = db.WithTransaction(ctx, func(ctx context.Context) error {
-		appCtx, _ := context_service.FromContext(ctx)
+	for _, childPath := range childPaths {
+		child, err := handleFileCreation(ctx, childPath, pathMap, doFileCreation)
+		if err != nil && wlerrors.Is(err, file_model.ErrFileHistoryMissing) {
+			ctx.Log().Warn().Msgf("File [%s] missing history entry, skipping", childPath)
 
-		for _, childPath := range childPaths {
-			child, err := handleFileCreation(appCtx, childPath, pathMap, doFileCreation)
-			if err != nil && wlerrors.Is(err, file_model.ErrFileHistoryMissing) {
-				appCtx.Log().Warn().Msgf("File [%s] missing history entry, skipping", childPath)
-
-				continue
-			} else if err != nil {
-				return wlerrors.Errorf("failed to handle file creation for [%s]: %w", childPath, err)
-			}
-
-			err = child.SetParent(dir)
-			if err != nil {
-				return err
-			}
-
-			err = dir.AddChild(child)
-			if err != nil {
-				return err
-			}
-
-			err = appCtx.FileService.AddFile(appCtx, child)
-			if err != nil {
-				return wlerrors.Errorf("failed to add child [%s] to tree: %w", child.GetPortablePath(), err)
-			}
-
-			children = append(children, child)
+			continue
+		} else if err != nil {
+			return nil, wlerrors.Errorf("failed to handle file creation for [%s]: %w", childPath, err)
 		}
 
-		return nil
-	})
-	if err != nil {
-		return nil, err
+		err = child.SetParent(dir)
+		if err != nil {
+			return nil, err
+		}
+
+		err = dir.AddChild(child)
+		if err != nil && wlerrors.Is(err, file_model.ErrFileAlreadyExists) {
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+
+		err = ctx.FileService.AddFile(ctx, child)
+		if err != nil {
+			return nil, wlerrors.Errorf("failed to add child [%s] to tree: %w", child.GetPortablePath(), err)
+		}
+
+		children = append(children, child)
 	}
 
 	return children, nil

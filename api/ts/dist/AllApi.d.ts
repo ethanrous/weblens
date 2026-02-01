@@ -139,9 +139,9 @@ interface BackupInfo {
     'tokens'?: Array<TokenInfo>;
     'users'?: Array<UserInfoArchive>;
 }
-interface Config {
-    'allowRegistrations'?: boolean;
-    'enableHDIR'?: boolean;
+interface Bundle {
+    'auth.allow_registrations'?: boolean;
+    'media.hdir_processing_enabled'?: boolean;
 }
 interface CreateFolderBody {
     'children'?: Array<string>;
@@ -257,7 +257,11 @@ interface MediaInfo {
     /**
      * Slices of files whos content hash to the contentId
      */
-    'fileIds'?: Array<string>;
+    'fileIDs'?: Array<string>;
+    /**
+     * Similarity score from HDIR search
+     */
+    'hdirScore'?: number;
     'height'?: number;
     /**
      * If the media is hidden from the timeline TODO - make this per user
@@ -597,84 +601,84 @@ declare class APIKeysApi extends BaseAPI {
     getAPIKeys(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TokenInfo[], any>>;
 }
 /**
- * ConfigApi - axios parameter creator
+ * FeatureFlagsApi - axios parameter creator
  */
-declare const ConfigApiAxiosParamCreator: (configuration?: Configuration) => {
+declare const FeatureFlagsApiAxiosParamCreator: (configuration?: Configuration) => {
     /**
      *
-     * @summary Get Config
+     * @summary Get Feature Flags
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getConfig: (options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    getFlags: (options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
-     * @summary Set Config
-     * @param {Array<StructsSetConfigParam>} request Set Config Params
+     * @summary Set Feature Flags
+     * @param {Array<StructsSetConfigParam>} request Feature Flag Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setConfig: (request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    setFlags: (request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
 };
 /**
- * ConfigApi - functional programming interface
+ * FeatureFlagsApi - functional programming interface
  */
-declare const ConfigApiFp: (configuration?: Configuration) => {
+declare const FeatureFlagsApiFp: (configuration?: Configuration) => {
     /**
      *
-     * @summary Get Config
+     * @summary Get Feature Flags
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getConfig(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Config>>;
+    getFlags(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Bundle>>;
     /**
      *
-     * @summary Set Config
-     * @param {Array<StructsSetConfigParam>} request Set Config Params
+     * @summary Set Feature Flags
+     * @param {Array<StructsSetConfigParam>} request Feature Flag Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setConfig(request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    setFlags(request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
 };
 /**
- * ConfigApi - factory interface
+ * FeatureFlagsApi - factory interface
  */
-declare const ConfigApiFactory: (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) => {
+declare const FeatureFlagsApiFactory: (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) => {
     /**
      *
-     * @summary Get Config
+     * @summary Get Feature Flags
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getConfig(options?: RawAxiosRequestConfig): AxiosPromise<Config>;
+    getFlags(options?: RawAxiosRequestConfig): AxiosPromise<Bundle>;
     /**
      *
-     * @summary Set Config
-     * @param {Array<StructsSetConfigParam>} request Set Config Params
+     * @summary Set Feature Flags
+     * @param {Array<StructsSetConfigParam>} request Feature Flag Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setConfig(request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    setFlags(request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig): AxiosPromise<void>;
 };
 /**
- * ConfigApi - object-oriented interface
+ * FeatureFlagsApi - object-oriented interface
  */
-declare class ConfigApi extends BaseAPI {
+declare class FeatureFlagsApi extends BaseAPI {
     /**
      *
-     * @summary Get Config
+     * @summary Get Feature Flags
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getConfig(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<Config, any>>;
+    getFlags(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<Bundle, any>>;
     /**
      *
-     * @summary Set Config
-     * @param {Array<StructsSetConfigParam>} request Set Config Params
+     * @summary Set Feature Flags
+     * @param {Array<StructsSetConfigParam>} request Feature Flag Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setConfig(request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
+    setFlags(request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
 }
 /**
  * FilesApi - axios parameter creator
@@ -1529,10 +1533,11 @@ declare const MediaApiAxiosParamCreator: (configuration?: Configuration) => {
     /**
      *
      * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
+     * @param {string} [username] Username of owner whose media to drop. If empty, drops all media.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    dropMedia: (options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    dropMedia: (username?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Get paginated media
@@ -1633,10 +1638,11 @@ declare const MediaApiFp: (configuration?: Configuration) => {
     /**
      *
      * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
+     * @param {string} [username] Username of owner whose media to drop. If empty, drops all media.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    dropMedia(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    dropMedia(username?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
     /**
      *
      * @summary Get paginated media
@@ -1737,10 +1743,11 @@ declare const MediaApiFactory: (configuration?: Configuration, basePath?: string
     /**
      *
      * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
+     * @param {string} [username] Username of owner whose media to drop. If empty, drops all media.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    dropMedia(options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    dropMedia(username?: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
     /**
      *
      * @summary Get paginated media
@@ -1841,10 +1848,11 @@ declare class MediaApi extends BaseAPI {
     /**
      *
      * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
+     * @param {string} [username] Username of owner whose media to drop. If empty, drops all media.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    dropMedia(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
+    dropMedia(username?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any>>;
     /**
      *
      * @summary Get paginated media
@@ -2994,7 +3002,8 @@ type WLAPI = {
     SharesAPI: ReturnType<typeof ShareApiFactory>;
     UsersAPI: ReturnType<typeof UsersApiFactory>;
     APIKeysAPI: ReturnType<typeof APIKeysApiFactory>;
+    FeatureFlagsAPI: ReturnType<typeof FeatureFlagsApiFactory>;
 };
 declare function WeblensAPIFactory(apiEndpoint: string): WLAPI;
 
-export { type APIKeyParams, APIKeysApi, APIKeysApiAxiosParamCreator, APIKeysApiFactory, APIKeysApiFp, type AddUserParams, type BackupInfo, type Config, ConfigApi, ConfigApiAxiosParamCreator, ConfigApiFactory, ConfigApiFp, type CreateFolderBody, type FileActionInfo, type FileInfo, type FileShareParams, FilesApi, FilesApiAxiosParamCreator, FilesApiFactory, FilesApiFp, type FilesListParams, FolderApi, FolderApiAxiosParamCreator, FolderApiFactory, FolderApiFp, type FolderInfo, type FsFilepath, GetMediaImageQualityEnum, type HistoryFileAction, type LoginBody, MediaApi, MediaApiAxiosParamCreator, MediaApiFactory, MediaApiFp, type MediaBatchInfo, type MediaBatchParams, MediaBatchParamsSortEnum, type MediaIDsParams, type MediaInfo, type MediaTypeInfo, type MediaTypesInfo, type MoveFilesParams, type NewFileParams, type NewFilesInfo, type NewFilesParams, type NewServerParams, type NewUploadInfo, type NewUploadParams, type NewUserParams, type PasswordUpdateParams, type PermissionsInfo, type PermissionsParams, type RestoreFilesBody, type RestoreFilesInfo, ShareApi, ShareApiAxiosParamCreator, ShareApiFactory, ShareApiFp, type ShareInfo, type StructsInitServerParams, type StructsSetConfigParam, type TakeoutInfo, type TaskInfo, type TokenInfo, type TowerInfo, TowersApi, TowersApiAxiosParamCreator, TowersApiFactory, TowersApiFp, type UpdateFileParams, type UserInfo, type UserInfoArchive, UsersApi, UsersApiAxiosParamCreator, UsersApiFactory, UsersApiFp, type WLAPI, type WLResponseInfo, WeblensAPIFactory, type WeblensErrorInfo };
+export { type APIKeyParams, APIKeysApi, APIKeysApiAxiosParamCreator, APIKeysApiFactory, APIKeysApiFp, type AddUserParams, type BackupInfo, type Bundle, type CreateFolderBody, FeatureFlagsApi, FeatureFlagsApiAxiosParamCreator, FeatureFlagsApiFactory, FeatureFlagsApiFp, type FileActionInfo, type FileInfo, type FileShareParams, FilesApi, FilesApiAxiosParamCreator, FilesApiFactory, FilesApiFp, type FilesListParams, FolderApi, FolderApiAxiosParamCreator, FolderApiFactory, FolderApiFp, type FolderInfo, type FsFilepath, GetMediaImageQualityEnum, type HistoryFileAction, type LoginBody, MediaApi, MediaApiAxiosParamCreator, MediaApiFactory, MediaApiFp, type MediaBatchInfo, type MediaBatchParams, MediaBatchParamsSortEnum, type MediaIDsParams, type MediaInfo, type MediaTypeInfo, type MediaTypesInfo, type MoveFilesParams, type NewFileParams, type NewFilesInfo, type NewFilesParams, type NewServerParams, type NewUploadInfo, type NewUploadParams, type NewUserParams, type PasswordUpdateParams, type PermissionsInfo, type PermissionsParams, type RestoreFilesBody, type RestoreFilesInfo, ShareApi, ShareApiAxiosParamCreator, ShareApiFactory, ShareApiFp, type ShareInfo, type StructsInitServerParams, type StructsSetConfigParam, type TakeoutInfo, type TaskInfo, type TokenInfo, type TowerInfo, TowersApi, TowersApiAxiosParamCreator, TowersApiFactory, TowersApiFp, type UpdateFileParams, type UserInfo, type UserInfoArchive, UsersApi, UsersApiAxiosParamCreator, UsersApiFactory, UsersApiFp, type WLAPI, type WLResponseInfo, WeblensAPIFactory, type WeblensErrorInfo };

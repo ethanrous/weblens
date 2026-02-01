@@ -93,6 +93,11 @@ func MapI[T, V any](ts []T, fn func(T, int) V) []V {
 	return result
 }
 
+// Sort sorts a slice in place.
+func Sort[S ~[]E, E cmp.Ordered](x S) {
+	slices.Sort(x)
+}
+
 // SortFunc sorts a slice in place using a comparison function and returns it.
 func SortFunc[S ~[]T, T any](ts S, cmp func(a T, b T) int) S {
 	slices.SortFunc(ts, cmp)

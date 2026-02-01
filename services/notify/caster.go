@@ -16,7 +16,7 @@ import (
 type Jobber interface {
 	ID() string
 	JobName() string
-	StartedAt() time.Time
+	GetStartTime() time.Time
 }
 
 // NewTaskNotification creates a websocket notification for a task event with the given result.
@@ -26,7 +26,7 @@ func NewTaskNotification(task Jobber, event websocket_mod.WsEvent, result task.R
 		SubscribeKey:    task.ID(),
 		Content:         result.ToMap(),
 		TaskType:        task.JobName(),
-		TaskStartTime:   task.StartedAt().UnixMilli(),
+		TaskStartTime:   task.GetStartTime().UnixMilli(),
 		BroadcastType:   websocket_mod.TaskSubscribe,
 		ConstructedTime: time.Now().UnixMilli(),
 

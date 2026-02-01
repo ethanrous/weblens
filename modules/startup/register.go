@@ -10,6 +10,7 @@ import (
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/rs/zerolog"
 )
 
 // HookFunc is a function that performs initialization tasks during application startup.
@@ -27,6 +28,8 @@ var ErrDeferStartup = wlerrors.New("defer startup")
 
 // RunStartups executes all registered startup functions in order, supporting deferral.
 func RunStartups(ctx context.Context, cnf config.Provider) error {
+	log.FromContext(ctx).Info().Interface("startup_configuration", cnf).Msg("Running startup functions")
+
 	start := time.Now()
 
 	toRun := startups
@@ -34,6 +37,12 @@ func RunStartups(ctx context.Context, cnf config.Provider) error {
 		var startup HookFunc
 
 		startup, toRun = toRun[0], toRun[1:]
+
+		log.FromContext(ctx).Debug().Func(func(e *zerolog.Event) {
+			funcName := runtime.FuncForPC(reflect.ValueOf(startup).Pointer()).Name()
+			e.Interface("startup_function", funcName).Msg("Running startup function")
+		})
+
 		if err := startup(ctx, cnf); err != nil {
 			if wlerrors.Is(err, ErrDeferStartup) {
 				if len(toRun) == 0 {
@@ -53,7 +62,7 @@ func RunStartups(ctx context.Context, cnf config.Provider) error {
 		}
 	}
 
-	log.FromContext(ctx).Info().Msgf("Completed all startup functions in %s", time.Since(start))
+	log.FromContext(ctx).Info().Dur("startup_hooks_total_duration_ms", time.Since(start)).Msg("Completed startup functions")
 
 	return nil
 }

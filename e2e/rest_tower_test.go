@@ -103,7 +103,7 @@ func TestGetConfig(t *testing.T) {
 	client := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
 
 	// Get config (admin only)
-	cfg, resp, err := client.ConfigAPI.GetConfig(t.Context()).Execute()
+	cfg, resp, err := client.FeatureFlagsAPI.GetFlags(t.Context()).Execute()
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.NotNil(t, cfg)

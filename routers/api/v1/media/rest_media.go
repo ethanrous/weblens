@@ -5,7 +5,6 @@ import (
 	"io"
 	"mime"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
@@ -19,6 +18,7 @@ import (
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	file_api "github.com/ethanrous/weblens/routers/api/v1/file"
 	"github.com/ethanrous/weblens/services/ctxservice"
+	file_service "github.com/ethanrous/weblens/services/file"
 	media_service "github.com/ethanrous/weblens/services/media"
 	"github.com/ethanrous/weblens/services/reshape"
 )
@@ -72,8 +72,10 @@ func GetMediaBatch(ctx ctxservice.RequestContext) {
 			ctx.Error(http.StatusInternalServerError, err)
 		}
 
+		scores := []float64{}
+
 		if reqParams.Search != "" {
-			scoredMedia, err := media_service.SortMediaByTextSimilarity(ctx.AppContext, reqParams.Search, media, reqParams.FolderIDs, 0.22)
+			scoredMedia, err := media_service.SortMediaByTextSimilarity(ctx.AppContext, reqParams.Search, media, 0.60)
 			if err != nil {
 				ctx.Error(http.StatusInternalServerError, err)
 
@@ -82,9 +84,11 @@ func GetMediaBatch(ctx ctxservice.RequestContext) {
 
 			media = slices.Map(scoredMedia, func(m media_service.ScoreWrapper) *media_model.Media { return m.Media })
 			totalMediaCount = len(media)
+
+			scores = slices.Map(scoredMedia, func(m media_service.ScoreWrapper) float64 { return m.Score })
 		}
 
-		batch := reshape.NewMediaBatchInfo(media)
+		batch := reshape.NewMediaBatchInfo(media, reshape.MediaBatchOptions{Scores: scores})
 		batch.TotalMediaCount = totalMediaCount
 		ctx.JSON(http.StatusOK, batch)
 
@@ -199,13 +203,16 @@ func CleanupMedia(ctx ctxservice.RequestContext) {
 //
 //	@Summary	DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
 //	@Tags		Media
+//	@Param		username	query		string	false	"Username of owner whose media to drop. If empty, drops all media."
 //	@Produce	json
 //	@Success	200
 //	@Failure	403
 //	@Failure	500
 //	@Router		/media/drop  [post]
 func DropMedia(ctx ctxservice.RequestContext) {
-	err := media_model.DropMediaCollection(ctx)
+	username := ctx.Query("username")
+
+	removedIDs, err := media_model.DropMediaByOwner(ctx, username)
 	if err != nil {
 		ctx.Log().Error().Stack().Err(err).Msg("Failed to drop media collection")
 		ctx.Error(http.StatusInternalServerError, err)
@@ -213,22 +220,16 @@ func DropMedia(ctx ctxservice.RequestContext) {
 		return
 	}
 
-	for _, p := range ctx.GetCache("photoCache").ScanKeys() {
-		ctx.GetCache("photoCache").Delete(p)
+	mediaCache := ctx.GetCache("photoCache")
+	for _, p := range mediaCache.ScanKeys() {
+		mediaCache.Delete(p)
 	}
 
-	err = os.RemoveAll(file_model.ThumbsDirPath.ToAbsolute())
+	ctx.Log().Debug().Msgf("Removing media cache files: %+v", removedIDs)
+
+	err = file_service.RemoveCacheFilesWithFilter(ctx, removedIDs)
 	if err != nil {
-		ctx.Error(http.StatusInternalServerError, wlerrors.Errorf("Failed to remove thumbnails directory: %w", err))
-
-		return
-	}
-
-	err = os.Mkdir(file_model.ThumbsDirPath.ToAbsolute(), 0755)
-	if err != nil {
-		ctx.Error(http.StatusInternalServerError, wlerrors.Errorf("Failed to re-create thumbnails directory: %w", err))
-
-		return
+		ctx.Error(http.StatusInternalServerError, wlerrors.Errorf("Failed to remove media cache files: %w", err))
 	}
 
 	ctx.Status(http.StatusOK)

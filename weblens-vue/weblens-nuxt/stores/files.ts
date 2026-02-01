@@ -156,6 +156,10 @@ const useFilesStore = defineStore('files', () => {
         { watch: [user, () => locationStore.activeFolderID, () => locationStore.viewTimestamp], lazy: true },
     )
 
+    watch([() => locationStore.isInTimeline], () => {
+        setFileSearch('')
+    })
+
     // Funcs //
     function setSelected(fileID: string, selected: boolean, doShiftSelect = false) {
         if (selected) {
@@ -407,9 +411,13 @@ const useFilesStore = defineStore('files', () => {
         return files.value.findIndex((f) => f.ID() === lastSelected.value)
     })
 
+    const isSearching = computed(() => {
+        return fileSearch.value.trim() !== ''
+    })
+
     const files = computed(() => {
-        if (searchResults.value !== undefined) {
-            return searchResults.value
+        if (isSearching.value) {
+            return searchResults.value ?? []
         }
 
         if (!children.value) {
@@ -477,6 +485,7 @@ const useFilesStore = defineStore('files', () => {
         setDragging,
 
         fileSearch,
+        isSearching,
         setFileSearch,
         searchRecurively,
         setSearchRecurively,

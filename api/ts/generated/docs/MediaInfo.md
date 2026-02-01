@@ -9,7 +9,8 @@ Name | Type | Description | Notes
 **createDate** | **number** |  | [optional] [default to undefined]
 **duration** | **number** | Total time, in milliseconds, of a video | [optional] [default to undefined]
 **enabled** | **boolean** | If the media disabled. This can happen when the backing file(s) are deleted, but the media stays behind because it can be re-used if needed. | [optional] [default to undefined]
-**fileIds** | **Array&lt;string&gt;** | Slices of files whos content hash to the contentId | [optional] [default to undefined]
+**fileIDs** | **Array&lt;string&gt;** | Slices of files whos content hash to the contentId | [optional] [default to undefined]
+**hdirScore** | **number** | Similarity score from HDIR search | [optional] [default to undefined]
 **height** | **number** |  | [optional] [default to undefined]
 **hidden** | **boolean** | If the media is hidden from the timeline TODO - make this per user | [optional] [default to undefined]
 **imported** | **boolean** |  | [optional] [default to undefined]
@@ -31,7 +32,8 @@ const instance: MediaInfo = {
     createDate,
     duration,
     enabled,
-    fileIds,
+    fileIDs,
+    hdirScore,
     height,
     hidden,
     imported,

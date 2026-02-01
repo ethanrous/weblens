@@ -36,6 +36,80 @@ func (c *ContextualizedCollection[T]) GetCollection() *mongo.Collection {
 	return c.collection
 }
 
+// NewIndex creates a new index on the collection if it does not already exist.
+func (c *ContextualizedCollection[T]) NewIndex(model mongo.IndexModel, opts ...*options.CreateIndexesOptions) error {
+	indexName := model.Options.Name
+	log.FromContext(c.ctx).Trace().Msgf("Creating index [%s] on collection [%s]", *indexName, c.collection.Name())
+
+	existingIndexes, err := c.collection.Indexes().List(c.ctx)
+	if err != nil {
+		return nil
+	}
+
+	for existingIndexes.Next(c.ctx) {
+		var index bson.M
+
+		err = existingIndexes.Decode(&index)
+		if err != nil {
+			return nil
+		}
+
+		if index["name"] == *indexName {
+			log.FromContext(c.ctx).Debug().Msgf("Found existing index [%s], will not re-create", *indexName)
+
+			return nil
+		}
+	}
+
+	log.FromContext(c.ctx).Debug().Msgf("Creating new index [%s] on collection [%s]", *indexName, c.collection.Name())
+
+	_, err = c.collection.Indexes().CreateOne(c.ctx, model, opts...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// NewSearchIndex creates a new search index on the collection if it does not already exist.
+func (c *ContextualizedCollection[T]) NewSearchIndex(model mongo.SearchIndexModel, opts ...*options.CreateSearchIndexesOptions) error {
+	indexName := model.Options.Name
+	indexType := model.Options.Type
+
+	log.FromContext(c.ctx).Trace().Msgf("Creating search index [%s] on collection [%s]", *indexName, c.collection.Name())
+
+	existingIndexes, err := c.collection.SearchIndexes().List(c.ctx, &options.SearchIndexesOptions{Name: indexName, Type: indexType})
+	if err != nil {
+		return nil
+	}
+
+	for existingIndexes.Next(c.ctx) {
+		var index bson.M
+
+		err = existingIndexes.Decode(&index)
+		if err != nil {
+			return nil
+		}
+
+		if index["name"] == *indexName {
+			log.FromContext(c.ctx).Debug().Msgf("Found existing search index [%s], will not re-create", *indexName)
+
+			return nil
+		}
+
+		log.FromContext(c.ctx).Warn().Msgf("Index listing returned unexpected search index (%s != %s)", index["name"], *indexName)
+	}
+
+	log.FromContext(c.ctx).Debug().Msgf("Creating new search index [%s] on collection [%s]", *indexName, c.collection.Name())
+
+	_, err = c.collection.SearchIndexes().CreateOne(c.ctx, model, opts...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // InsertOne inserts a single document into the collection and invalidates the cache.
 func (c *ContextualizedCollection[T]) InsertOne(_ context.Context, document any, opts ...*options.InsertOneOptions) (*mongo.InsertOneResult, error) {
 	log.FromContext(c.ctx).Trace().Func(func(e *zerolog.Event) {

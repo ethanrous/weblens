@@ -142,8 +142,29 @@ func (l WLConsoleLogger) write(p []byte) (n int, err error) {
 		levelColor = RED
 	}
 
+	extras := ""
+
+	for key, val := range target {
+		switch key {
+		case "caller", "level", "error", "message", "traceback", "time", "weblens_build_version", "@timestamp", "referer", "ip", "requester", "req_id":
+			continue
+		default:
+			if extras == "" {
+				extras = "["
+			} else {
+				extras += ", "
+			}
+
+			extras += fmt.Sprintf("%s=%v", key, val)
+		}
+	}
+
+	if extras != "" {
+		extras += "]"
+	}
+
 	timeStr := time.Now().Format(time.TimeOnly + ".000")
-	msg := fmt.Sprintf("[ %s %s%30.30s %s%5s%s ] %s %s%s%s%s\n", timeStr, BLUE, caller, levelColor, level, RESET, logMsg, RED, msgErr, stackStr, RESET)
+	msg := fmt.Sprintf("[ %s %s%30.30s %s%5s%s ]%s %s %s%s%s%s\n", timeStr, BLUE, caller, levelColor, level, RESET, extras, logMsg, RED, msgErr, stackStr, RESET)
 
 	_, err = l.writeTo.Write([]byte(msg))
 	if err != nil {

@@ -198,37 +198,6 @@ func (fs *ServiceImpl) GetFileByContentID(ctx context.Context, contentID string)
 	return nil, wlerrors.Errorf("Failed getting file from media: %w", file_model.ErrFileNotFound)
 }
 
-// GetMediaCacheByFilename retrieves a cached media file by its thumbnail filename.
-func (fs *ServiceImpl) GetMediaCacheByFilename(_ context.Context, thumbFileName string) (*file_model.WeblensFileImpl, error) {
-	f := file_model.NewWeblensFile(file_model.NewFileOptions{Path: file_model.ThumbsDirPath.Child(thumbFileName, false)})
-	if !f.Exists() {
-		return nil, wlerrors.WithStack(file_model.ErrFileNotFound)
-	}
-
-	return f, nil
-}
-
-// NewCacheFile creates a new cache file for the specified media with the given quality and page number.
-func (fs *ServiceImpl) NewCacheFile(mediaID string, quality string, pageNum int) (*file_model.WeblensFileImpl, error) {
-	filename, err := media_model.FmtCacheFileName(mediaID, media_model.Quality(quality), pageNum)
-	if err != nil {
-		return nil, err
-	}
-
-	childPath := file_model.ThumbsDirPath.Child(filename, false)
-
-	return touch(childPath)
-}
-
-// DeleteCacheFile removes a cache file from the filesystem.
-func (fs *ServiceImpl) DeleteCacheFile(f *file_model.WeblensFileImpl) error {
-	if !isCacheFile(f.GetPortablePath()) {
-		return wlerrors.New("trying to delete non-cache file")
-	}
-
-	return remove(f.GetPortablePath())
-}
-
 // CreateFile creates a new file in the specified parent directory with optional initial data.
 func (fs *ServiceImpl) CreateFile(ctx context.Context, parent *file_model.WeblensFileImpl, filename string, data ...[]byte) (
 	*file_model.WeblensFileImpl, error,

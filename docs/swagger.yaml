@@ -43,11 +43,11 @@ definitions:
           $ref: '#/definitions/UserInfoArchive'
         type: array
     type: object
-  Config:
+  Bundle:
     properties:
-      allowRegistrations:
+      auth.allow_registrations:
         type: boolean
-      enableHDIR:
+      media.hdir_processing_enabled:
         type: boolean
     type: object
   CreateFolderBody:
@@ -264,11 +264,14 @@ definitions:
           If the media disabled. This can happen when the backing file(s) are deleted,
           but the media stays behind because it can be re-used if needed.
         type: boolean
-      fileIds:
+      fileIDs:
         description: Slices of files whos content hash to the contentId
         items:
           type: string
         type: array
+      hdirScore:
+        description: Similarity score from HDIR search
+        type: number
       height:
         type: integer
       hidden:
@@ -767,48 +770,6 @@ info:
   title: Weblens API
   version: "1.0"
 paths:
-  /config:
-    get:
-      operationId: GetConfig
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Config Info
-          schema:
-            $ref: '#/definitions/Config'
-      security:
-      - SessionAuth:
-        - admin
-      - ApiKeyAuth:
-        - admin
-      summary: Get Config
-      tags:
-      - Config
-    post:
-      operationId: SetConfig
-      parameters:
-      - description: Set Config Params
-        in: body
-        name: request
-        required: true
-        schema:
-          items:
-            $ref: '#/definitions/structs.SetConfigParam'
-          type: array
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-      security:
-      - SessionAuth:
-        - admin
-      - ApiKeyAuth:
-        - admin
-      summary: Set Config
-      tags:
-      - Config
   /files:
     delete:
       operationId: DeleteFiles
@@ -1167,6 +1128,48 @@ paths:
         were before
       tags:
       - Files
+  /flags:
+    get:
+      operationId: GetFlags
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Feature Flags
+          schema:
+            $ref: '#/definitions/Bundle'
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Get Feature Flags
+      tags:
+      - FeatureFlags
+    post:
+      operationId: SetFlags
+      parameters:
+      - description: Feature Flag Params
+        in: body
+        name: request
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/structs.SetConfigParam'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Set Feature Flags
+      tags:
+      - FeatureFlags
   /folder:
     post:
       consumes:
@@ -1556,6 +1559,11 @@ paths:
   /media/drop:
     post:
       operationId: DropMedia
+      parameters:
+      - description: Username of owner whose media to drop. If empty, drops all media.
+        in: query
+        name: username
+        type: string
       produces:
       - application/json
       responses:

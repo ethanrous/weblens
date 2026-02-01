@@ -37,7 +37,7 @@
             @contextmenu.stop.prevent="handleContextMenu"
         >
             <Loader
-                v-if="filesStore.loading"
+                v-if="filesStore.loading || filesStore.status === 'pending'"
                 :class="{ 'm-auto': true }"
             />
 
@@ -52,13 +52,17 @@
                 }"
                 :style="{ maxWidth: maxW }"
             >
-                <FileCard
+                <template
                     v-for="(file, index) of files"
                     :key="file.id"
-                    :file="file"
-                    :file-index="index"
-                    :file-shape="filesStore.fileShape"
-                />
+                >
+                    <FileCard
+                        v-if="noRequireParentMatch || file.parentID === locationStore.activeFolderID"
+                        :file="file"
+                        :file-index="index"
+                        :file-shape="filesStore.fileShape"
+                    />
+                </template>
             </div>
         </div>
     </div>
@@ -85,7 +89,10 @@ const presentationStore = usePresentationStore()
 const scrollerContainer = useTemplateRef('scrollerContainer')
 const hovering = ref(false)
 
-defineProps<{ files: WeblensFile[] }>()
+const { noRequireParentMatch = true } = defineProps<{
+    files: WeblensFile[]
+    noRequireParentMatch?: boolean
+}>()
 
 const activeElement = useActiveElement()
 const notUsingInput = computed(

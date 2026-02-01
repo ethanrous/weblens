@@ -48,7 +48,7 @@
                     :class="{ 'animate-fade-in': true }"
                     :media="media"
                     :quality="PhotoQuality.LowRes"
-                    :should-load="file.displayable"
+                    no-click
                 />
                 <IconFolder
                     v-else-if="file.IsFolder()"

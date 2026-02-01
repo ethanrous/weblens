@@ -24,7 +24,10 @@
             v-else-if="filesStore.files && !locationStore.isInTimeline"
             :class="{ 'flex h-full w-full': true }"
         >
-            <FileScroller :files="filesStore.files" />
+            <FileScroller
+                :files="filesStore.files"
+                :no-require-parent-match="filesStore.isSearching"
+            />
             <FileHistory />
         </div>
 

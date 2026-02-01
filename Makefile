@@ -5,6 +5,9 @@ gen-ui: FORCE
 	pnpm i && \
 	pnpm generate
 
+agno: FORCE
+	bash -c 'source ./scripts/lib/all.bash && build_agno'
+
 ui: FORCE
 	cd ui && pnpm run dev
 
@@ -52,8 +55,8 @@ lint:
 docker\:build: $(GO_SOURCE) $(TS_SOURCE)
 	./scripts/gogogadgetdocker.bash 
 
-docker: FORCE
-	./scripts/gogogadgetdocker.bash -p --skip-tests
+dev-container: FORCE
+	./scripts/gogogadgetdocker.bash -p -s -a amd64
 
 precommit: lint test
 

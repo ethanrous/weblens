@@ -4,7 +4,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/ethanrous/weblens/models/config"
+	"github.com/ethanrous/weblens/models/featureflags"
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/job"
 	media_model "github.com/ethanrous/weblens/models/media"
@@ -72,7 +72,7 @@ func ScanDirectory(t *task.Task) {
 	})
 
 	t.Log().Debug().Func(func(e *zerolog.Event) {
-		e.Msgf("Beginning directory scan for %s (%s)", meta.File.GetPortablePath(), meta.File.ID())
+		e.Msgf("Beginning directory scan for [%s] (%s)", meta.File.GetPortablePath(), meta.File.ID())
 	})
 
 	var alreadyFiles []*file_model.WeblensFileImpl
@@ -81,7 +81,7 @@ func ScanDirectory(t *task.Task) {
 
 	start := time.Now()
 
-	cnf, err := config.GetConfig(ctx)
+	cnf, err := featureflags.GetFlags(ctx)
 	if err != nil {
 		t.Fail(wlerrors.WithStack(err))
 
@@ -94,6 +94,8 @@ func ScanDirectory(t *task.Task) {
 	})
 
 	err = meta.File.LeafMap(
+		ctx,
+		ctx.FileService,
 		func(mf *file_model.WeblensFileImpl) error {
 			return queueScanFileIfNeeded(ctx, t, mf, cnf.EnableHDIR, &alreadyFiles, &alreadyMedia, pool)
 		},
@@ -202,13 +204,15 @@ func ScanFileTsk(ctx context_service.AppContext, meta job.ScanMeta) error {
 		return wlerrors.WithStack(media_model.ErrNotDisplayable)
 	}
 
-	cnf, err := config.GetConfig(ctx)
+	cnf, err := featureflags.GetFlags(ctx)
 	if err != nil {
 		return wlerrors.WithStack(err)
 	}
 
 	existingMedia, err := media_model.GetMediaByContentID(ctx, meta.File.GetContentID())
 	if err == nil && existingMedia.IsSufficentlyProcessed(cnf.EnableHDIR) {
+		ctx.Log().Trace().Msgf("Media [%s] already sufficiently processed, skipping", existingMedia.ID())
+
 		if !slices.Contains(existingMedia.FileIDs, meta.File.ID()) {
 			err = existingMedia.AddFileToMedia(ctx, meta.File.ID())
 			if err != nil {
@@ -251,8 +255,16 @@ func ScanFileTsk(ctx context_service.AppContext, meta job.ScanMeta) error {
 
 	if len(media.HDIR) == 0 && cnf.EnableHDIR {
 		_, err = media_service.GetHighDimensionImageEncoding(ctx, media)
-		ctx.Log().Error().Err(err).Msgf("Failed to get HDIR encoding for %s", media.ID())
+		if err != nil {
+			ctx.Log().Error().Err(err).Msgf("Failed to get HDIR encoding for %s", media.ID())
+		}
 	}
+
+	ctx.Log().Trace().Func(func(e *zerolog.Event) {
+		if !cnf.EnableHDIR {
+			e.Msgf("HDIR generation is disabled, skipping for media %s", media.ID())
+		}
+	})
 
 	err = media_model.SaveMedia(ctx, media)
 	if err != nil {

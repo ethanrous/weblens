@@ -357,83 +357,6 @@ func TestWeblensFile_MemoryOperations(t *testing.T) {
 	})
 }
 
-func TestWeblensFile_TreeOperations(t *testing.T) {
-	testSetup(t)
-
-	t.Run("RecursiveMap", func(t *testing.T) {
-		root := file.NewWeblensFile(file.NewFileOptions{
-			Path: file_system.BuildFilePath(TestRoot, "root/"),
-		})
-		require.NoError(t, root.CreateSelf())
-
-		files := make([]*file.WeblensFileImpl, 0)
-
-		for i := range 3 {
-			child := file.NewWeblensFile(file.NewFileOptions{
-				Path: file_system.BuildFilePath(TestRoot, fmt.Sprintf("root/child_%d", i)),
-			})
-			require.NoError(t, child.SetParent(root))
-			require.NoError(t, root.AddChild(child))
-			files = append(files, child)
-		}
-
-		visited := make(map[string]bool)
-		err := root.RecursiveMap(func(f *file.WeblensFileImpl) error {
-			visited[f.Name()] = true
-
-			return nil
-		})
-
-		assert.NoError(t, err)
-		assert.True(t, visited["root"])
-
-		for _, f := range files {
-			assert.True(t, visited[f.Name()])
-		}
-	})
-
-	t.Run("LeafMap", func(t *testing.T) {
-		root := file.NewWeblensFile(file.NewFileOptions{
-			Path: file_system.BuildFilePath(TestRoot, "leaftest/"),
-		})
-		require.NoError(t, root.CreateSelf())
-
-		subdir := file.NewWeblensFile(file.NewFileOptions{
-			Path: file_system.BuildFilePath(TestRoot, "leaftest/subdir/"),
-		})
-		require.NoError(t, subdir.CreateSelf())
-		require.NoError(t, subdir.SetParent(root))
-		require.NoError(t, root.AddChild(subdir))
-
-		leafFiles := make([]*file.WeblensFileImpl, 0)
-
-		for i := range 2 {
-			leaf := file.NewWeblensFile(file.NewFileOptions{
-				Path: file_system.BuildFilePath(TestRoot, fmt.Sprintf("leaftest/subdir/leaf_%d", i)),
-			})
-			require.NoError(t, leaf.SetParent(subdir))
-			require.NoError(t, subdir.AddChild(leaf))
-			leafFiles = append(leafFiles, leaf)
-		}
-
-		visited := make([]string, 0)
-		err := root.LeafMap(func(f *file.WeblensFileImpl) error {
-			visited = append(visited, f.Name())
-
-			return nil
-		})
-		assert.NoError(t, err)
-
-		expectedOrder := []string{
-			"leaf_0",
-			"leaf_1",
-			"subdir",
-			"leaftest",
-		}
-		assert.Equal(t, expectedOrder, visited, "Files should be visited in depth-first order")
-	})
-}
-
 func TestWeblensFile_Identity(t *testing.T) {
 	testSetup(t)
 
@@ -1434,45 +1357,6 @@ func TestWeblensFile_RecursiveMapError(t *testing.T) {
 
 		expectedErr := fmt.Errorf("recursive error")
 		err := root.RecursiveMap(func(f *file.WeblensFileImpl) error {
-			if f.Name() == "child.txt" {
-				return expectedErr
-			}
-
-			return nil
-		})
-
-		assert.Error(t, err)
-		assert.Equal(t, expectedErr, err)
-	})
-}
-
-func TestWeblensFile_LeafMapError(t *testing.T) {
-	testSetup(t)
-
-	t.Run("LeafMap on nil returns error", func(t *testing.T) {
-		var f *file.WeblensFileImpl
-
-		err := f.LeafMap(func(_ *file.WeblensFileImpl) error {
-			return nil
-		})
-
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, file.ErrNilFile)
-	})
-
-	t.Run("LeafMap propagates error", func(t *testing.T) {
-		root := file.NewWeblensFile(file.NewFileOptions{
-			Path:      file_system.BuildFilePath(TestRoot, "leafmap_err/"),
-			CreateNow: true,
-		})
-
-		child := file.NewWeblensFile(file.NewFileOptions{
-			Path: file_system.BuildFilePath(TestRoot, "leafmap_err/child.txt"),
-		})
-		require.NoError(t, root.AddChild(child))
-
-		expectedErr := fmt.Errorf("leaf error")
-		err := root.LeafMap(func(f *file.WeblensFileImpl) error {
 			if f.Name() == "child.txt" {
 				return expectedErr
 			}

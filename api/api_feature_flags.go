@@ -19,47 +19,47 @@ import (
 )
 
 
-// ConfigAPIService ConfigAPI service
-type ConfigAPIService service
+// FeatureFlagsAPIService FeatureFlagsAPI service
+type FeatureFlagsAPIService service
 
-type ApiGetConfigRequest struct {
+type ApiGetFlagsRequest struct {
 	ctx context.Context
-	ApiService *ConfigAPIService
+	ApiService *FeatureFlagsAPIService
 }
 
-func (r ApiGetConfigRequest) Execute() (*Config, *http.Response, error) {
-	return r.ApiService.GetConfigExecute(r)
+func (r ApiGetFlagsRequest) Execute() (*Bundle, *http.Response, error) {
+	return r.ApiService.GetFlagsExecute(r)
 }
 
 /*
-GetConfig Get Config
+GetFlags Get Feature Flags
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @return ApiGetConfigRequest
+ @return ApiGetFlagsRequest
 */
-func (a *ConfigAPIService) GetConfig(ctx context.Context) ApiGetConfigRequest {
-	return ApiGetConfigRequest{
+func (a *FeatureFlagsAPIService) GetFlags(ctx context.Context) ApiGetFlagsRequest {
+	return ApiGetFlagsRequest{
 		ApiService: a,
 		ctx: ctx,
 	}
 }
 
 // Execute executes the request
-//  @return Config
-func (a *ConfigAPIService) GetConfigExecute(r ApiGetConfigRequest) (*Config, *http.Response, error) {
+//  @return Bundle
+func (a *FeatureFlagsAPIService) GetFlagsExecute(r ApiGetFlagsRequest) (*Bundle, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodGet
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  *Config
+		localVarReturnValue  *Bundle
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ConfigAPIService.GetConfig")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "FeatureFlagsAPIService.GetFlags")
 	if err != nil {
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/config"
+	localVarPath := localBasePath + "/flags"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
@@ -119,49 +119,49 @@ func (a *ConfigAPIService) GetConfigExecute(r ApiGetConfigRequest) (*Config, *ht
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
-type ApiSetConfigRequest struct {
+type ApiSetFlagsRequest struct {
 	ctx context.Context
-	ApiService *ConfigAPIService
+	ApiService *FeatureFlagsAPIService
 	request *[]StructsSetConfigParam
 }
 
-// Set Config Params
-func (r ApiSetConfigRequest) Request(request []StructsSetConfigParam) ApiSetConfigRequest {
+// Feature Flag Params
+func (r ApiSetFlagsRequest) Request(request []StructsSetConfigParam) ApiSetFlagsRequest {
 	r.request = &request
 	return r
 }
 
-func (r ApiSetConfigRequest) Execute() (*http.Response, error) {
-	return r.ApiService.SetConfigExecute(r)
+func (r ApiSetFlagsRequest) Execute() (*http.Response, error) {
+	return r.ApiService.SetFlagsExecute(r)
 }
 
 /*
-SetConfig Set Config
+SetFlags Set Feature Flags
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @return ApiSetConfigRequest
+ @return ApiSetFlagsRequest
 */
-func (a *ConfigAPIService) SetConfig(ctx context.Context) ApiSetConfigRequest {
-	return ApiSetConfigRequest{
+func (a *FeatureFlagsAPIService) SetFlags(ctx context.Context) ApiSetFlagsRequest {
+	return ApiSetFlagsRequest{
 		ApiService: a,
 		ctx: ctx,
 	}
 }
 
 // Execute executes the request
-func (a *ConfigAPIService) SetConfigExecute(r ApiSetConfigRequest) (*http.Response, error) {
+func (a *FeatureFlagsAPIService) SetFlagsExecute(r ApiSetFlagsRequest) (*http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodPost
 		localVarPostBody     interface{}
 		formFiles            []formFile
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ConfigAPIService.SetConfig")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "FeatureFlagsAPIService.SetFlags")
 	if err != nil {
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/config"
+	localVarPath := localBasePath + "/flags"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}

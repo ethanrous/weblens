@@ -19,79 +19,6 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/config": {
-            "get": {
-                "security": [
-                    {
-                        "SessionAuth": [
-                            "admin"
-                        ]
-                    },
-                    {
-                        "ApiKeyAuth": [
-                            "admin"
-                        ]
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Config"
-                ],
-                "summary": "Get Config",
-                "operationId": "GetConfig",
-                "responses": {
-                    "200": {
-                        "description": "Config Info",
-                        "schema": {
-                            "$ref": "#/definitions/Config"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "SessionAuth": [
-                            "admin"
-                        ]
-                    },
-                    {
-                        "ApiKeyAuth": [
-                            "admin"
-                        ]
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Config"
-                ],
-                "summary": "Set Config",
-                "operationId": "SetConfig",
-                "parameters": [
-                    {
-                        "description": "Set Config Params",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/structs.SetConfigParam"
-                            }
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    }
-                }
-            }
-        },
         "/files": {
             "delete": {
                 "security": [
@@ -660,6 +587,79 @@ const docTemplate = `{
                 }
             }
         },
+        "/flags": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "FeatureFlags"
+                ],
+                "summary": "Get Feature Flags",
+                "operationId": "GetFlags",
+                "responses": {
+                    "200": {
+                        "description": "Feature Flags",
+                        "schema": {
+                            "$ref": "#/definitions/Bundle"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "FeatureFlags"
+                ],
+                "summary": "Set Feature Flags",
+                "operationId": "SetFlags",
+                "parameters": [
+                    {
+                        "description": "Feature Flag Params",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/structs.SetConfigParam"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
         "/folder": {
             "post": {
                 "security": [
@@ -1074,6 +1074,14 @@ const docTemplate = `{
                 ],
                 "summary": "DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.",
                 "operationId": "DropMedia",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Username of owner whose media to drop. If empty, drops all media.",
+                        "name": "username",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK"
@@ -2943,13 +2951,13 @@ const docTemplate = `{
                 }
             }
         },
-        "Config": {
+        "Bundle": {
             "type": "object",
             "properties": {
-                "allowRegistrations": {
+                "auth.allow_registrations": {
                     "type": "boolean"
                 },
-                "enableHDIR": {
+                "media.hdir_processing_enabled": {
                     "type": "boolean"
                 }
             }
@@ -3262,12 +3270,16 @@ const docTemplate = `{
                     "description": "If the media disabled. This can happen when the backing file(s) are deleted,\nbut the media stays behind because it can be re-used if needed.",
                     "type": "boolean"
                 },
-                "fileIds": {
+                "fileIDs": {
                     "description": "Slices of files whos content hash to the contentId",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
+                },
+                "hdirScore": {
+                    "description": "Similarity score from HDIR search",
+                    "type": "number"
                 },
                 "height": {
                     "type": "integer"

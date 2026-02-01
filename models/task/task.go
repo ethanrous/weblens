@@ -502,14 +502,6 @@ func (t *Task) ExeTime() time.Duration {
 	return t.FinishTime.Sub(t.StartTime)
 }
 
-// StartedAt returns the time when the task started executing.
-func (t *Task) StartedAt() time.Time {
-	t.updateMu.RLock()
-	defer t.updateMu.RUnlock()
-
-	return t.StartTime
-}
-
 // QueueTimeDuration returns how long the task waited in the queue.
 func (t *Task) QueueTimeDuration() time.Duration {
 	t.updateMu.RLock()

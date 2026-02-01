@@ -231,6 +231,9 @@ func handleScanDirectory(ctx context_service.RequestContext, msg websocket_mod.W
 		return err
 	}
 
+	notif := notify.NewTaskNotification(t, websocket_mod.TaskCreatedEvent, t.GetMeta().FormatToResult())
+	ctx.ClientService.Notify(ctx, notif)
+
 	return nil
 }
 

@@ -1,7 +1,7 @@
 ARG ARCHITECTURE
 
 ARG NODE_VERSION=22.14.0
-ARG GO_VERSION=1.25.0
+ARG GO_VERSION=1.25.6
 
 # Build UI
 FROM node:${NODE_VERSION}-alpine AS web
@@ -25,14 +25,26 @@ RUN pnpm install;
 RUN pnpm generate;
 
 # Build agno static library
-FROM rust:alpine AS agno-builder
-RUN apk add --no-cache bash;
+FROM rust:slim AS agno-builder
+  RUN apt-get update && apt-get install -y --no-install-recommends \
+      g++ \
+      musl-tools \
+      && rm -rf /var/lib/apt/lists/*;
 
 WORKDIR /src
-COPY . .
+COPY ./agno ./agno
+COPY ./scripts ./scripts
 
 RUN chmod +x ./scripts/lib/*.bash;
-RUN bash -c 'export WEBLENS_VERBOSE=true; export WEBLENS_ROOT=/src; source ./scripts/lib/all.bash; build_agno;';
+RUN rustup target add x86_64-unknown-linux-musl;
+
+ENV CC_x86_64_unknown_linux_musl=musl-gcc
+
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=/src/agno/target \
+    ./scripts/build-agno.bash "/build/lib/";
+RUN ls -l /build/lib/libagno.a;
 
 # Build server binary
 FROM --platform=linux/${ARCHITECTURE} golang:${GO_VERSION}-alpine AS backend
@@ -46,7 +58,7 @@ WORKDIR /src
 COPY . .
 
 RUN mkdir -p /src/services/media/agno/lib; cp /src/agno/lib/agno.h /src/services/media/agno/lib/agno.h;
-COPY --from=agno-builder /src/services/media/agno/lib/libagno.a /src/services/media/agno/lib/libagno.a
+COPY --from=agno-builder /build/lib/libagno.a /src/services/media/agno/lib/libagno.a
 
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=1 CGO_CFLAGS_ALLOW='-Xpreprocessor' GOOS=linux GOARCH=${ARCHITECTURE} go build -v -ldflags="-s -w" -o /server/weblens ./cmd/weblens/main.go;
 

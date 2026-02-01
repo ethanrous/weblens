@@ -3,6 +3,7 @@ package agno
 
 /*
 #cgo LDFLAGS: -L${SRCDIR}/lib -lagno -lstdc++ -lm
+#cgo darwin LDFLAGS: -framework Metal -framework QuartzCore -framework CoreGraphics
 #cgo CFLAGS: -I${SRCDIR}/lib
 #include "lib/agno.h"
 */
@@ -165,7 +166,7 @@ func (img *Image) getExifValue(exifTag int) any {
 	case 10: // SRATIONAL
 		log.GlobalLogger().Info().Msgf("EXIF type SRATIONAL")
 	default:
-		log.GlobalLogger().Info().Msgf("EXIF type UNKNOWN %d", v.typ)
+		// log.GlobalLogger().Info().Msgf("EXIF type UNKNOWN %d", v.typ)
 	}
 
 	return -1

@@ -42,8 +42,9 @@
             }"
             @click="
                 (e) => {
-                    if (noClick) {
+                    if (!noClick) {
                         e.stopPropagation()
+                        presentationStore.setPresentationMediaID(media.contentID)
                     }
                 }
             "
@@ -62,6 +63,8 @@ import type WeblensMedia from '~/types/weblensMedia'
 import { PhotoQuality } from '~/types/weblensMedia'
 import Loader from './Loader.vue'
 import { useElementSize, useElementVisibility } from '@vueuse/core'
+
+const presentationStore = usePresentationStore()
 
 const imgError = ref<boolean>(false)
 const imageContainer = ref<HTMLDivElement>()

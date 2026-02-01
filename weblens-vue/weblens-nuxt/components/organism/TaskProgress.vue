@@ -11,14 +11,12 @@
             }"
         >
             <div :class="{ 'mb-1 flex flex-col justify-center': true }">
-                <div :class="{ 'border-text-tertiary mb-1 flex w-full items-center border-b pb-1': true }">
+                <div :class="{ 'border-text-tertiary mb-1 flex w-full items-center pb-1': true }">
                     <FileIcon
                         :class="{ 'mr-auto min-w-0 gap-0.5': true }"
                         :file="task.targetFile"
                         with-name
                     />
-
-                    <span :class="{ 'text-text-secondary mr-auto text-nowrap': true }">Importing Media</span>
 
                     <IconX
                         size="20"
@@ -28,6 +26,8 @@
                         @click="removeTask(task.taskID)"
                     />
                 </div>
+
+                <span :class="{ 'text-text-secondary mr-auto mb-2 text-xs text-nowrap': true }">Indexing Media</span>
 
                 <div v-if="containerSize.width.value > 100">
                     <div

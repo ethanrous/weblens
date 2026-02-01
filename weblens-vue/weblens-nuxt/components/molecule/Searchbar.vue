@@ -16,8 +16,8 @@
                 ref="searchInput"
                 v-model:value="filesStore.fileSearch"
                 :class="{
-                    'bg-background-primary !h-10 w-full shrink-1 rounded-none border-b-0': true,
-                    '!bg-background-primary': filterOpen,
+                    'bg-background-primary h-10! w-full shrink rounded-none border-b-0': true,
+                    'bg-background-primary!': filterOpen,
                 }"
                 :placeholder="searchText"
                 :key-name="keyHintText"
@@ -27,7 +27,7 @@
                 @focused="handleSearchFocused"
                 @submit="handleSubmit"
                 @clear="handleSubmit('')"
-                @update="
+                @update:value="
                     (v) => {
                         if (!locationStore.isInTimeline) {
                             filesStore.setFileSearch(v)
@@ -39,7 +39,17 @@
                     size="20"
                     :class="{ 'text-text-tertiary': true }"
                 />
-                <template #rightIcon>
+                <template #rightIcon="slotProps">
+                    <div
+                        v-if="!slotProps.focused && !filterOpen && filesStore.fileSearch === ''"
+                        :class="{
+                            'text-text-tertiary pointer-events-none text-nowrap transition': true,
+                        }"
+                    >
+                        <span>
+                            {{ keyHintText }}
+                        </span>
+                    </div>
                     <div
                         :class="{ 'relative flex justify-center border-l pl-2': true }"
                         @click.stop="
@@ -51,7 +61,7 @@
                         <IconFilter2
                             size="20"
                             :class="{
-                                'hover:text-text-primary transition': true,
+                                'hover:text-text-primary cursor-pointer transition': true,
                                 'text-text-tertiary': !filterModified,
                                 'text-text-secondary': filterModified,
                             }"
@@ -68,9 +78,18 @@
             <div
                 ref="searchFilter"
                 :class="{
-                    'bg-background-primary relative z-50 h-full w-full overflow-hidden rounded-b border border-t-0 shadow-lg': true,
+                    'bg-background-primary relative z-50 h-full w-full overflow-hidden rounded-b border border-t-0 shadow-lg outline-none': true,
                     'pointer-events-none': !filterOpen,
                 }"
+                tabindex="0"
+                @keydown.esc="
+                    (e) => {
+                        if (filterOpen) {
+                            e.stopPropagation()
+                            filterOpen = false
+                        }
+                    }
+                "
             >
                 <FileSearchFilters
                     v-if="!locationStore.isInTimeline"
@@ -105,6 +124,7 @@ const filterOpen = ref(false)
 const searchInput = ref<typeof WeblensInput>()
 
 const searchFilter = ref<HTMLDivElement>()
+
 const searchElement = computed(() => {
     return searchInput.value?.$el
 })
@@ -146,6 +166,14 @@ const keyHintText = computed(() => {
     }
 
     return 'Ctrl+K'
+})
+
+watchEffect(() => {
+    if (filterOpen.value) {
+        nextTick().then(() => {
+            searchFilter.value?.focus()
+        })
+    }
 })
 
 function closeFilters(doFocus: boolean) {

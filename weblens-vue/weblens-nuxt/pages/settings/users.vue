@@ -21,11 +21,11 @@
             <h4>Add User</h4>
             <div :class="{ 'flex w-72 flex-col gap-2 rounded border p-4': true }">
                 <WeblensInput
-                    v-model="newUsername"
+                    v-model:value="newUsername"
                     placeholder="Username"
                 />
                 <WeblensInput
-                    v-model="newPassword"
+                    v-model:value="newPassword"
                     placeholder="Password"
                     password
                 />

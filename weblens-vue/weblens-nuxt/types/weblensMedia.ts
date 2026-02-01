@@ -26,6 +26,7 @@ class WeblensMedia implements MediaInfo {
     hidden: boolean = false
     imported: boolean = false
     likedBy: string[] = []
+    hdirScore: number = 0
 
     // Non-api props //
 

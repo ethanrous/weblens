@@ -40,9 +40,9 @@ export interface BackupInfo {
     'tokens'?: Array<TokenInfo>;
     'users'?: Array<UserInfoArchive>;
 }
-export interface Config {
-    'allowRegistrations'?: boolean;
-    'enableHDIR'?: boolean;
+export interface Bundle {
+    'auth.allow_registrations'?: boolean;
+    'media.hdir_processing_enabled'?: boolean;
 }
 export interface CreateFolderBody {
     'children'?: Array<string>;
@@ -161,7 +161,11 @@ export interface MediaInfo {
     /**
      * Slices of files whos content hash to the contentId
      */
-    'fileIds'?: Array<string>;
+    'fileIDs'?: Array<string>;
+    /**
+     * Similarity score from HDIR search
+     */
+    'hdirScore'?: number;
     'height'?: number;
     /**
      * If the media is hidden from the timeline TODO - make this per user
@@ -614,18 +618,18 @@ export class APIKeysApi extends BaseAPI {
 
 
 /**
- * ConfigApi - axios parameter creator
+ * FeatureFlagsApi - axios parameter creator
  */
-export const ConfigApiAxiosParamCreator = function (configuration?: Configuration) {
+export const FeatureFlagsApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
         /**
          * 
-         * @summary Get Config
+         * @summary Get Feature Flags
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getConfig: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/config`;
+        getFlags: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/flags`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -650,15 +654,15 @@ export const ConfigApiAxiosParamCreator = function (configuration?: Configuratio
         },
         /**
          * 
-         * @summary Set Config
-         * @param {Array<StructsSetConfigParam>} request Set Config Params
+         * @summary Set Feature Flags
+         * @param {Array<StructsSetConfigParam>} request Feature Flag Params
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        setConfig: async (request: Array<StructsSetConfigParam>, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        setFlags: async (request: Array<StructsSetConfigParam>, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'request' is not null or undefined
-            assertParamExists('setConfig', 'request', request)
-            const localVarPath = `/config`;
+            assertParamExists('setFlags', 'request', request)
+            const localVarPath = `/flags`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -686,90 +690,90 @@ export const ConfigApiAxiosParamCreator = function (configuration?: Configuratio
 };
 
 /**
- * ConfigApi - functional programming interface
+ * FeatureFlagsApi - functional programming interface
  */
-export const ConfigApiFp = function(configuration?: Configuration) {
-    const localVarAxiosParamCreator = ConfigApiAxiosParamCreator(configuration)
+export const FeatureFlagsApiFp = function(configuration?: Configuration) {
+    const localVarAxiosParamCreator = FeatureFlagsApiAxiosParamCreator(configuration)
     return {
         /**
          * 
-         * @summary Get Config
+         * @summary Get Feature Flags
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getConfig(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Config>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getConfig(options);
+        async getFlags(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Bundle>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getFlags(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['ConfigApi.getConfig']?.[localVarOperationServerIndex]?.url;
+            const localVarOperationServerBasePath = operationServerMap['FeatureFlagsApi.getFlags']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
          * 
-         * @summary Set Config
-         * @param {Array<StructsSetConfigParam>} request Set Config Params
+         * @summary Set Feature Flags
+         * @param {Array<StructsSetConfigParam>} request Feature Flag Params
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async setConfig(request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.setConfig(request, options);
+        async setFlags(request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.setFlags(request, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['ConfigApi.setConfig']?.[localVarOperationServerIndex]?.url;
+            const localVarOperationServerBasePath = operationServerMap['FeatureFlagsApi.setFlags']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
     }
 };
 
 /**
- * ConfigApi - factory interface
+ * FeatureFlagsApi - factory interface
  */
-export const ConfigApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
-    const localVarFp = ConfigApiFp(configuration)
+export const FeatureFlagsApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
+    const localVarFp = FeatureFlagsApiFp(configuration)
     return {
         /**
          * 
-         * @summary Get Config
+         * @summary Get Feature Flags
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getConfig(options?: RawAxiosRequestConfig): AxiosPromise<Config> {
-            return localVarFp.getConfig(options).then((request) => request(axios, basePath));
+        getFlags(options?: RawAxiosRequestConfig): AxiosPromise<Bundle> {
+            return localVarFp.getFlags(options).then((request) => request(axios, basePath));
         },
         /**
          * 
-         * @summary Set Config
-         * @param {Array<StructsSetConfigParam>} request Set Config Params
+         * @summary Set Feature Flags
+         * @param {Array<StructsSetConfigParam>} request Feature Flag Params
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        setConfig(request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.setConfig(request, options).then((request) => request(axios, basePath));
+        setFlags(request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.setFlags(request, options).then((request) => request(axios, basePath));
         },
     };
 };
 
 /**
- * ConfigApi - object-oriented interface
+ * FeatureFlagsApi - object-oriented interface
  */
-export class ConfigApi extends BaseAPI {
+export class FeatureFlagsApi extends BaseAPI {
     /**
      * 
-     * @summary Get Config
+     * @summary Get Feature Flags
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public getConfig(options?: RawAxiosRequestConfig) {
-        return ConfigApiFp(this.configuration).getConfig(options).then((request) => request(this.axios, this.basePath));
+    public getFlags(options?: RawAxiosRequestConfig) {
+        return FeatureFlagsApiFp(this.configuration).getFlags(options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
      * 
-     * @summary Set Config
-     * @param {Array<StructsSetConfigParam>} request Set Config Params
+     * @summary Set Feature Flags
+     * @param {Array<StructsSetConfigParam>} request Feature Flag Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public setConfig(request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig) {
-        return ConfigApiFp(this.configuration).setConfig(request, options).then((request) => request(this.axios, this.basePath));
+    public setFlags(request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig) {
+        return FeatureFlagsApiFp(this.configuration).setFlags(request, options).then((request) => request(this.axios, this.basePath));
     }
 }
 
@@ -2591,10 +2595,11 @@ export const MediaApiAxiosParamCreator = function (configuration?: Configuration
         /**
          * 
          * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
+         * @param {string} [username] Username of owner whose media to drop. If empty, drops all media.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        dropMedia: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        dropMedia: async (username?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/media/drop`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2606,6 +2611,10 @@ export const MediaApiAxiosParamCreator = function (configuration?: Configuration
             const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
+
+            if (username !== undefined) {
+                localVarQueryParameter['username'] = username;
+            }
 
 
             setSearchParams(localVarUrlObj, localVarQueryParameter);
@@ -2997,11 +3006,12 @@ export const MediaApiFp = function(configuration?: Configuration) {
         /**
          * 
          * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
+         * @param {string} [username] Username of owner whose media to drop. If empty, drops all media.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async dropMedia(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.dropMedia(options);
+        async dropMedia(username?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.dropMedia(username, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['MediaApi.dropMedia']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -3159,11 +3169,12 @@ export const MediaApiFactory = function (configuration?: Configuration, basePath
         /**
          * 
          * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
+         * @param {string} [username] Username of owner whose media to drop. If empty, drops all media.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        dropMedia(options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.dropMedia(options).then((request) => request(axios, basePath));
+        dropMedia(username?: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.dropMedia(username, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -3291,11 +3302,12 @@ export class MediaApi extends BaseAPI {
     /**
      * 
      * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
+     * @param {string} [username] Username of owner whose media to drop. If empty, drops all media.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public dropMedia(options?: RawAxiosRequestConfig) {
-        return MediaApiFp(this.configuration).dropMedia(options).then((request) => request(this.axios, this.basePath));
+    public dropMedia(username?: string, options?: RawAxiosRequestConfig) {
+        return MediaApiFp(this.configuration).dropMedia(username, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

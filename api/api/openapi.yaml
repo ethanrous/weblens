@@ -11,48 +11,6 @@ servers:
 - url: http://localhost:8080/api/v1/
 - url: https://localhost:8080/api/v1/
 paths:
-  /config:
-    get:
-      operationId: GetConfig
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Config"
-          description: Config Info
-      security:
-      - SessionAuth:
-        - admin
-      - ApiKeyAuth:
-        - admin
-      summary: Get Config
-      tags:
-      - Config
-    post:
-      operationId: SetConfig
-      requestBody:
-        content:
-          '*/*':
-            schema:
-              items:
-                $ref: "#/components/schemas/structs.SetConfigParam"
-              type: array
-        description: Set Config Params
-        required: true
-      responses:
-        "200":
-          content: {}
-          description: OK
-      security:
-      - SessionAuth:
-        - admin
-      - ApiKeyAuth:
-        - admin
-      summary: Set Config
-      tags:
-      - Config
-      x-codegen-request-body-name: request
   /files:
     delete:
       operationId: DeleteFiles
@@ -469,6 +427,48 @@ paths:
       summary: Get the text of a text file
       tags:
       - Files
+  /flags:
+    get:
+      operationId: GetFlags
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bundle"
+          description: Feature Flags
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Get Feature Flags
+      tags:
+      - FeatureFlags
+    post:
+      operationId: SetFlags
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              items:
+                $ref: "#/components/schemas/structs.SetConfigParam"
+              type: array
+        description: Feature Flag Params
+        required: true
+      responses:
+        "200":
+          content: {}
+          description: OK
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Set Feature Flags
+      tags:
+      - FeatureFlags
+      x-codegen-request-body-name: request
   /folder:
     post:
       operationId: CreateFolder
@@ -744,6 +744,12 @@ paths:
   /media/drop:
     post:
       operationId: DropMedia
+      parameters:
+      - description: "Username of owner whose media to drop. If empty, drops all media."
+        in: query
+        name: username
+        schema:
+          type: string
       responses:
         "200":
           content: {}
@@ -2171,14 +2177,14 @@ components:
             $ref: "#/components/schemas/UserInfoArchive"
           type: array
       type: object
-    Config:
+    Bundle:
       example:
-        enableHDIR: true
-        allowRegistrations: true
+        auth.allow_registrations: true
+        media.hdir_processing_enabled: true
       properties:
-        allowRegistrations:
+        auth.allow_registrations:
           type: boolean
-        enableHDIR:
+        media.hdir_processing_enabled:
           type: boolean
       type: object
     CreateFolderBody:
@@ -2335,7 +2341,7 @@ components:
       example:
         medias:
         - owner: owner
-          pageCount: 7
+          pageCount: 9
           hidden: true
           likedBy:
           - likedBy
@@ -2347,18 +2353,19 @@ components:
           recognitionTags:
           - recognitionTags
           - recognitionTags
-          fileIds:
-          - fileIds
-          - fileIds
+          hdirScore: 5.637376656633329
+          fileIDs:
+          - fileIDs
+          - fileIDs
           imported: true
-          width: 9
+          width: 3
           location:
-          - 2.3021358869347655
-          - 2.3021358869347655
+          - 7.061401241503109
+          - 7.061401241503109
           createDate: 1
-          height: 5
+          height: 2
         - owner: owner
-          pageCount: 7
+          pageCount: 9
           hidden: true
           likedBy:
           - likedBy
@@ -2370,16 +2377,17 @@ components:
           recognitionTags:
           - recognitionTags
           - recognitionTags
-          fileIds:
-          - fileIds
-          - fileIds
+          hdirScore: 5.637376656633329
+          fileIDs:
+          - fileIDs
+          - fileIDs
           imported: true
-          width: 9
+          width: 3
           location:
-          - 2.3021358869347655
-          - 2.3021358869347655
+          - 7.061401241503109
+          - 7.061401241503109
           createDate: 1
-          height: 5
+          height: 2
         children:
         - owner: owner
           childrenIds:
@@ -2491,7 +2499,7 @@ components:
       example:
         Media:
         - owner: owner
-          pageCount: 7
+          pageCount: 9
           hidden: true
           likedBy:
           - likedBy
@@ -2503,18 +2511,19 @@ components:
           recognitionTags:
           - recognitionTags
           - recognitionTags
-          fileIds:
-          - fileIds
-          - fileIds
+          hdirScore: 5.637376656633329
+          fileIDs:
+          - fileIDs
+          - fileIDs
           imported: true
-          width: 9
+          width: 3
           location:
-          - 2.3021358869347655
-          - 2.3021358869347655
+          - 7.061401241503109
+          - 7.061401241503109
           createDate: 1
-          height: 5
+          height: 2
         - owner: owner
-          pageCount: 7
+          pageCount: 9
           hidden: true
           likedBy:
           - likedBy
@@ -2526,16 +2535,17 @@ components:
           recognitionTags:
           - recognitionTags
           - recognitionTags
-          fileIds:
-          - fileIds
-          - fileIds
+          hdirScore: 5.637376656633329
+          fileIDs:
+          - fileIDs
+          - fileIDs
           imported: true
-          width: 9
+          width: 3
           location:
-          - 2.3021358869347655
-          - 2.3021358869347655
+          - 7.061401241503109
+          - 7.061401241503109
           createDate: 1
-          height: 5
+          height: 2
         mediaCount: 0
         totalMediaCount: 6
       properties:
@@ -2616,7 +2626,7 @@ components:
     MediaInfo:
       example:
         owner: owner
-        pageCount: 7
+        pageCount: 9
         hidden: true
         likedBy:
         - likedBy
@@ -2628,16 +2638,17 @@ components:
         recognitionTags:
         - recognitionTags
         - recognitionTags
-        fileIds:
-        - fileIds
-        - fileIds
+        hdirScore: 5.637376656633329
+        fileIDs:
+        - fileIDs
+        - fileIDs
         imported: true
-        width: 9
+        width: 3
         location:
-        - 2.3021358869347655
-        - 2.3021358869347655
+        - 7.061401241503109
+        - 7.061401241503109
         createDate: 1
-        height: 5
+        height: 2
       properties:
         contentID:
           description: "Hash of the file content, to ensure that the same files don't\
@@ -2653,11 +2664,14 @@ components:
             If the media disabled. This can happen when the backing file(s) are deleted,
             but the media stays behind because it can be re-used if needed.
           type: boolean
-        fileIds:
+        fileIDs:
           description: Slices of files whos content hash to the contentId
           items:
             type: string
           type: array
+        hdirScore:
+          description: Similarity score from HDIR search
+          type: number
         height:
           type: integer
         hidden:
