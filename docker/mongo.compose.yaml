@@ -42,7 +42,7 @@ services:
       - --setParameter
       - useGrpcForSearch=true
     ports:
-      - 27017:27017
+      - ${MONGO_HOST_PORT:-27017}:27017
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
