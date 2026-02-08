@@ -59,7 +59,7 @@ type AppContext struct {
 	WG *sync.WaitGroup
 }
 
-var capacity = 10000
+var capacity = 1000
 var numShards = 10
 var ttl = time.Hour
 var evictionPercentage = 10

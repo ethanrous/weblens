@@ -65,6 +65,9 @@ importers:
       tailwindcss:
         specifier: ^4.1.18
         version: 4.1.18
+      vite:
+        specifier: npm:rolldown-vite@^7.3.0
+        version: rolldown-vite@7.3.0(@types/node@24.0.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(yaml@2.8.2)
       vue:
         specifier: ^3.5.26
         version: 3.5.26(typescript@5.8.3)
@@ -90,15 +93,15 @@ importers:
       eslint-plugin-vue:
         specifier: ~10.2.0
         version: 10.2.0(eslint@9.39.2(jiti@2.6.1))(vue-eslint-parser@10.2.0(eslint@9.39.2(jiti@2.6.1)))
+      httpxy:
+        specifier: ^0.1.7
+        version: 0.1.7
       jiti:
         specifier: ^2.6.1
         version: 2.6.1
       jsdom:
         specifier: ^26.1.0
         version: 26.1.0
-      less:
-        specifier: ^4.5.1
-        version: 4.5.1
       prettier:
         specifier: 3.7.4
         version: 3.7.4
@@ -108,9 +111,6 @@ importers:
       typescript:
         specifier: ~5.8.3
         version: 5.8.3
-      vite:
-        specifier: npm:rolldown-vite@^7.3.0
-        version: rolldown-vite@7.3.0(@types/node@24.0.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(yaml@2.8.2)
       vite-plugin-vue-devtools:
         specifier: ^8.0.5
         version: 8.0.5(@nuxt/kit@4.2.2(magicast@0.5.1))(rolldown-vite@7.3.0(@types/node@24.0.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(yaml@2.8.2))(vue@3.5.26(typescript@5.8.3))
@@ -8096,6 +8096,7 @@ snapshots:
   copy-anything@2.0.6:
     dependencies:
       is-what: 3.14.1
+    optional: true
 
   copy-anything@4.0.5:
     dependencies:
@@ -9124,7 +9125,8 @@ snapshots:
 
   is-stream@3.0.0: {}
 
-  is-what@3.14.1: {}
+  is-what@3.14.1:
+    optional: true
 
   is-what@5.5.0: {}
 
@@ -9250,6 +9252,7 @@ snapshots:
       mime: 1.6.0
       needle: 3.3.1
       source-map: 0.6.1
+    optional: true
 
   levn@0.4.1:
     dependencies:
@@ -9982,7 +9985,8 @@ snapshots:
     dependencies:
       parse-statements: 1.0.11
 
-  parse-node-version@1.0.1: {}
+  parse-node-version@1.0.1:
+    optional: true
 
   parse-path@7.1.0:
     dependencies:

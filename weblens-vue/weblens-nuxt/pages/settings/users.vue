@@ -91,8 +91,8 @@ const rows = computed<TableColumns>(() => {
                 tableType: TableType.Button,
                 flavor: 'danger',
                 disabled:
-                    (user.permissionLevel >= UserPermissions.Admin &&
-                        userStore.user.GetPermissionLevel() < UserPermissions.Admin) ||
+                    (user.permissionLevel >= UserPermissions.ADMIN &&
+                        userStore.user.GetPermissionLevel() < UserPermissions.ADMIN) ||
                     user.username === userStore.user.username,
                 icon: IconTrash,
                 onclick: async () => {

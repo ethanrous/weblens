@@ -1,29 +1,29 @@
 <template>
     <div
         :class="{
-            'hidden h-10 w-max min-w-0 items-start justify-end gap-[2px] rounded transition-[background-color,width,height] sm:flex lg:w-full': true,
+            'hidden h-10 w-max min-w-0 items-start justify-end gap-0.5 rounded transition-[background-color,width,height] sm:flex lg:w-full': true,
         }"
     >
         <WeblensOptions
             v-if="!locationStore.isInTimeline"
-            v-model:value="fileShape"
+            v-model:value="fileShape as string"
             :options="shapeOptions"
             :class="{ 'mr-1': true }"
         />
 
         <WeblensOptions
-            v-model:value="sortCondition"
+            v-model:value="sortCondition as string"
             :options="sortOptions"
             merge="right"
         />
 
         <WeblensButton
             merge="row"
-            :class="{ 'h-10 !rounded-l-none': true }"
+            :class="{ 'h-10 rounded-l-none!': true }"
             @click="toggleSortDirection"
         >
-            <IconSortAscending v-if="filesStore.sortDirection === 1" />
-            <IconSortDescending v-if="filesStore.sortDirection === -1" />
+            <IconSortAscending v-if="filesStore.sortDirection === 'asc'" />
+            <IconSortDescending v-if="filesStore.sortDirection === 'desc'" />
         </WeblensButton>
     </div>
 </template>
@@ -38,6 +38,7 @@ import {
     IconSortAscending,
     IconSortAZ,
     IconSortDescending,
+    type Icon,
 } from '@tabler/icons-vue'
 import useFilesStore, { type FileShape, type SortCondition } from '~/stores/files'
 import WeblensButton from '../atom/WeblensButton.vue'
@@ -47,9 +48,9 @@ import WeblensOptions from '../atom/WeblensOptions.vue'
 const filesStore = useFilesStore()
 const locationStore = useLocationStore()
 
-const fileShape = ref<FileShape>(filesStore.fileShape)
+const fileShape = ref<FileShape | undefined>(filesStore.fileShape)
 watch(fileShape, (newShape) => {
-    filesStore.setFileShape(newShape)
+    if (newShape) filesStore.setFileShape(newShape)
 })
 
 const sortCondition = ref<SortCondition>(filesStore.sortCondition)
@@ -57,10 +58,10 @@ watch(sortCondition, (newSortCondition) => {
     filesStore.setSortCondition(newSortCondition)
 })
 
-const sortOptions = {
-    filename: { label: 'Filename', icon: IconSortAZ },
+const sortOptions: Record<SortCondition, { label: string; icon: Icon }> = {
+    name: { label: 'Filename', icon: IconSortAZ },
     size: { label: 'Size', icon: IconFileAnalytics },
-    date: { label: 'Date', icon: IconCalendar },
+    updatedAt: { label: 'Date', icon: IconCalendar },
 }
 
 const shapeOptions = {

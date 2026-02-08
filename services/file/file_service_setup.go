@@ -347,13 +347,18 @@ func loadFsCore(ctx context.Context) error {
 	return nil
 }
 
-var fpMap = make(map[file_system.Filepath]history.FileAction)
-
 func loadLifetimes(ctx context_service.AppContext) (map[file_system.Filepath]history.FileAction, error) {
-	if len(fpMap) != 0 {
-		// Already loaded
-		return fpMap, nil
+	fpMapCache := ctx.GetCache("filepath_map")
+	if fpMapI, ok := fpMapCache.Get("filepath_map"); ok {
+		fpMap, ok := fpMapI.(map[file_system.Filepath]history.FileAction)
+		if ok {
+			return fpMap, nil
+		}
+
+		return nil, wlerrors.Errorf("invalid filepath_map in context")
 	}
+
+	fpMap := make(map[file_system.Filepath]history.FileAction)
 
 	localTower, err := tower_model.GetLocal(ctx)
 	if err != nil {
@@ -400,6 +405,8 @@ func loadLifetimes(ctx context_service.AppContext) (map[file_system.Filepath]his
 
 		fpMap[path] = a
 	}
+
+	fpMapCache.Set("filepath_map", fpMap)
 
 	return fpMap, nil
 }

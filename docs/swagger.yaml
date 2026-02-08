@@ -124,6 +124,8 @@ definitions:
         type: string
       pastFile:
         type: boolean
+      permissions:
+        $ref: '#/definitions/PermissionsInfo'
       portablePath:
         type: string
       shareID:
@@ -298,12 +300,6 @@ definitions:
       pageCount:
         description: Number of pages (typically 1, 0 in not a valid page count)
         type: integer
-      recognitionTags:
-        description: Tags from the ML image scan so searching for particular objects
-          in the images can be done
-        items:
-          type: string
-        type: array
       width:
         description: Full-res image dimensions
         type: integer
@@ -1038,6 +1034,39 @@ paths:
         in: query
         name: baseFolderID
         type: string
+      - default: name
+        description: Property to sort by
+        enum:
+        - name
+        - size
+        - updatedAt
+        in: query
+        name: sortProp
+        type: string
+      - default: asc
+        description: Sort order
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sortOrder
+        type: string
+      - default: false
+        description: Search recursively
+        enum:
+        - true
+        - false
+        in: query
+        name: recursive
+        type: boolean
+      - default: false
+        description: Whether to treat the search term as a regex pattern
+        enum:
+        - true
+        - false
+        in: query
+        name: regex
+        type: boolean
       responses:
         "200":
           description: File Info
@@ -1217,6 +1246,23 @@ paths:
         in: query
         name: timestamp
         type: integer
+      - default: name
+        description: Property to sort by
+        enum:
+        - name
+        - size
+        - updatedAt
+        in: query
+        name: sortProp
+        type: string
+      - default: asc
+        description: Sort order
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sortOrder
+        type: string
       produces:
       - application/json
       responses:

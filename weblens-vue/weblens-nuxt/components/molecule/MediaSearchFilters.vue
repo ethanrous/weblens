@@ -3,7 +3,7 @@
         <WeblensCheckbox
             label="Show Raws"
             :checked="mediaStore.showRaw"
-            @changed="mediaStore.setShowRaw"
+            @checked:changed="mediaStore.setShowRaw"
         />
         <WeblensButton
             :class="{ 'mt-auto ml-auto w-1/3': true }"

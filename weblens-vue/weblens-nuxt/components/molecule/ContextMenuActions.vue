@@ -14,7 +14,7 @@
             v-if="!multipleSelected"
             label="Rename"
             fill-width
-            :disabled="!canModifyTarget || protectedFile"
+            :disabled="!targetFile?.CanEdit()"
             @click.stop="emit('renameFile')"
         >
             <IconPencil />
@@ -49,6 +49,7 @@
                 'relative overflow-hidden': true,
                 'rounded-b-xs': downloadTaskPercentComplete !== undefined,
             }"
+            :disabled="!targetFile?.CanDownload()"
             @click.stop="handleDownload"
         >
             <IconDownload />
@@ -77,7 +78,7 @@
             :label="deleteText"
             fill-width
             flavor="danger"
-            :disabled="!canDelete"
+            :disabled="!targetFile?.CanDelete()"
             @click.stop="handleDeleteFile"
         >
             <IconTrash />

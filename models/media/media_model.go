@@ -2,13 +2,13 @@ package media
 
 import (
 	"context"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/modules/config"
+	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/slices"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
 	"github.com/ethanrous/weblens/modules/startup"
@@ -145,8 +145,8 @@ func GetMediaByContentID(ctx context.Context, contentID ContentID) (*Media, erro
 	return &media, nil
 }
 
-// GetMediasByContentIDs retrieves multiple media items by their content IDs with pagination.
-func GetMediasByContentIDs(ctx context.Context, limit, page, sortDirection int, includeRaw bool, contentIDs ...ContentID) ([]*Media, error) {
+// GetPagedMedias retrieves multiple media items by their content IDs with pagination.
+func GetPagedMedias(ctx context.Context, limit, page, sortDirection int, includeRaw bool, contentIDs ...ContentID) ([]*Media, error) {
 	col, err := db.GetCollection[any](ctx, MediaCollectionKey)
 	if err != nil {
 		return nil, err
@@ -160,6 +160,31 @@ func GetMediasByContentIDs(ctx context.Context, limit, page, sortDirection int, 
 	}
 
 	cur, err := col.Find(ctx, filter, options.Find().SetLimit(int64(limit)).SetSkip(int64(page*limit)).SetSort(bson.D{{Key: "createDate", Value: sortDirection}}))
+	if err != nil {
+		return nil, err
+	}
+
+	err = cur.All(ctx, &media)
+	if err != nil {
+		return nil, db.WrapError(err, "get media by contentIds")
+	}
+
+	return media, nil
+}
+
+// GetMediasByContentIDs retrieves multiple media items by their content IDs.
+func GetMediasByContentIDs(ctx context.Context, contentIDs ...ContentID) ([]*Media, error) {
+	col, err := db.GetCollection[*Media](ctx, MediaCollectionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	media := []*Media{}
+
+	filter := bson.M{"contentID": bson.M{"$in": contentIDs}}
+	log.FromContext(ctx).Debug().Msgf("Getting medias by contentIDs with filter: %+v", filter)
+
+	cur, err := col.Find(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +238,7 @@ func GetMediaByPath(_ context.Context, _ string) ([]*Media, error) {
 
 // GetMedia retrieves media items for a user with filtering and sorting options.
 func GetMedia(ctx context.Context, username string, sort string, sortDirection int, excludeIDs []ContentID,
-	_ bool, allowHidden bool, search string) ([]*Media, error) {
+	_ bool, allowHidden bool) ([]*Media, error) {
 	slices.Sort(excludeIDs)
 
 	pipe := bson.A{
@@ -229,11 +254,6 @@ func GetMedia(ctx context.Context, username string, sort string, sortDirection i
 
 	if !allowHidden {
 		pipe = append(pipe, bson.D{{Key: "$match", Value: bson.D{{Key: "hidden", Value: false}}}})
-	}
-
-	if search != "" {
-		search = strings.ToLower(search)
-		pipe = append(pipe, bson.D{{Key: "$match", Value: bson.D{{Key: "recognitionTags", Value: bson.D{{Key: "$regex", Value: search}}}}}})
 	}
 
 	pipe = append(pipe, bson.D{{Key: "$sort", Value: bson.D{{Key: sort, Value: sortDirection}}}})

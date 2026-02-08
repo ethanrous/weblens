@@ -82,11 +82,15 @@ const apiInstance = new FolderApi(configuration);
 let folderID: string; //Folder ID (default to undefined)
 let shareID: string; //Share ID (optional) (default to undefined)
 let timestamp: number; //Past timestamp to view the folder at, in ms since epoch (optional) (default to undefined)
+let sortProp: 'name' | 'size' | 'updatedAt'; //Property to sort by (optional) (default to 'name')
+let sortOrder: 'asc' | 'desc'; //Sort order (optional) (default to 'asc')
 
 const { status, data } = await apiInstance.getFolder(
     folderID,
     shareID,
-    timestamp
+    timestamp,
+    sortProp,
+    sortOrder
 );
 ```
 
@@ -97,6 +101,8 @@ const { status, data } = await apiInstance.getFolder(
 | **folderID** | [**string**] | Folder ID | defaults to undefined|
 | **shareID** | [**string**] | Share ID | (optional) defaults to undefined|
 | **timestamp** | [**number**] | Past timestamp to view the folder at, in ms since epoch | (optional) defaults to undefined|
+| **sortProp** | [**&#39;name&#39; | &#39;size&#39; | &#39;updatedAt&#39;**]**Array<&#39;name&#39; &#124; &#39;size&#39; &#124; &#39;updatedAt&#39;>** | Property to sort by | (optional) defaults to 'name'|
+| **sortOrder** | [**&#39;asc&#39; | &#39;desc&#39;**]**Array<&#39;asc&#39; &#124; &#39;desc&#39;>** | Sort order | (optional) defaults to 'asc'|
 
 
 ### Return type

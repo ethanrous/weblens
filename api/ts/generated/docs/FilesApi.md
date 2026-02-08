@@ -697,10 +697,18 @@ const apiInstance = new FilesApi(configuration);
 
 let search: string; //Filename to search for (default to undefined)
 let baseFolderID: string; //The folder to search in, defaults to the user\'s home folder (optional) (default to undefined)
+let sortProp: 'name' | 'size' | 'updatedAt'; //Property to sort by (optional) (default to 'name')
+let sortOrder: 'asc' | 'desc'; //Sort order (optional) (default to 'asc')
+let recursive: boolean; //Search recursively (optional) (default to false)
+let regex: boolean; //Whether to treat the search term as a regex pattern (optional) (default to false)
 
 const { status, data } = await apiInstance.searchByFilename(
     search,
-    baseFolderID
+    baseFolderID,
+    sortProp,
+    sortOrder,
+    recursive,
+    regex
 );
 ```
 
@@ -710,6 +718,10 @@ const { status, data } = await apiInstance.searchByFilename(
 |------------- | ------------- | ------------- | -------------|
 | **search** | [**string**] | Filename to search for | defaults to undefined|
 | **baseFolderID** | [**string**] | The folder to search in, defaults to the user\&#39;s home folder | (optional) defaults to undefined|
+| **sortProp** | [**&#39;name&#39; | &#39;size&#39; | &#39;updatedAt&#39;**]**Array<&#39;name&#39; &#124; &#39;size&#39; &#124; &#39;updatedAt&#39;>** | Property to sort by | (optional) defaults to 'name'|
+| **sortOrder** | [**&#39;asc&#39; | &#39;desc&#39;**]**Array<&#39;asc&#39; &#124; &#39;desc&#39;>** | Sort order | (optional) defaults to 'asc'|
+| **recursive** | [**boolean**] | Search recursively | (optional) defaults to false|
+| **regex** | [**boolean**] | Whether to treat the search term as a regex pattern | (optional) defaults to false|
 
 
 ### Return type

@@ -21,7 +21,6 @@ class WeblensMedia implements MediaInfo {
     height: number = -1
     duration?: number
     createDate: number = -1
-    recognitionTags?: string[]
     pageCount: number = -1
     hidden: boolean = false
     imported: boolean = false
@@ -191,14 +190,6 @@ class WeblensMedia implements MediaInfo {
 
     Prev(): WeblensMedia | undefined {
         return this.previous
-    }
-
-    MatchRecogTag(searchTag: string): boolean {
-        if (!this.recognitionTags) {
-            return false
-        }
-
-        return this.recognitionTags.includes(searchTag)
     }
 
     GetPageCount(): number {

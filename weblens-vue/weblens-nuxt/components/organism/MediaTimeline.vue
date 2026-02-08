@@ -11,7 +11,7 @@
         />
 
         <div
-            v-else-if="rows.rows.length === 0 && !loading && !canLoadMore"
+            v-else-if="rows.rows.length === 0 && !mediaStore.timelineLoading"
             :class="{ 'm-auto flex flex-col items-center': true }"
         >
             <h3 :class="{ 'border-b': true }">No media found</h3>
@@ -19,7 +19,7 @@
             <span>Or</span>
             <WeblensButton
                 label="Return to Files"
-                @click="useLocationStore().setTimeline(false)"
+                @click="useLocationStore().isInTimeline = false"
             />
         </div>
 
@@ -57,17 +57,16 @@
                 >
                     <MediaImage
                         :media="media.m"
-                        :should-load="isVisible"
                         placeholder
                         :class="{
-                            'hover:border-text-primary/100 border-text-primary/0 h-full max-h-full w-full max-w-full shrink-0 cursor-pointer overflow-hidden rounded-lg border transition-[scale,border,shadow] hover:shadow': true,
+                            'hover:border-text-primary border-text-primary/0 h-full max-h-full w-full max-w-full shrink-0 cursor-pointer overflow-hidden rounded-lg border transition-[scale,border,shadow] hover:shadow': true,
                         }"
                     />
                 </div>
             </UseElementVisibility>
         </div>
         <Loader
-            v-if="canLoadMore"
+            v-if="mediaStore.canLoadMore"
             :class="{ 'mx-auto my-10': true }"
         />
         <div
@@ -82,7 +81,6 @@
 import { onKeyPressed, useDebounce, useElementSize, useElementVisibility } from '@vueuse/core'
 import { UseElementVisibility } from '@vueuse/components'
 
-import type WeblensMedia from '~/types/weblensMedia'
 import type { WLError } from '~/types/wlError'
 import MediaImage from '../atom/MediaImage.vue'
 import { GetMediaRows } from '~/types/weblensMedia'
@@ -101,10 +99,6 @@ const presentationIndex = ref<number>(-1)
 
 const timelineWidthBounced = useDebounce(timelineSize.width, 100)
 
-const medias = shallowRef<WeblensMedia[]>([])
-const page = ref<number>(0)
-const canLoadMore = ref<boolean>(true)
-const totalMediaCount = ref<number>(0)
 const error = ref<WLError>()
 
 const MARGIN_SIZE = 4
@@ -115,37 +109,13 @@ const rows = computed(() => {
     }
 
     return GetMediaRows(
-        medias.value,
+        mediaStore.timelineMedia,
         mediaStore.timelineImageSize,
         timelineWidthBounced.value - 8,
         MARGIN_SIZE,
-        canLoadMore.value ? totalMediaCount.value : medias.value.length,
+        mediaStore.canLoadMore ? mediaStore.totalMedias : mediaStore.timelineMedia.length,
     )
 })
-
-async function fetchMore() {
-    if (!canLoadMore.value || (timelineContainer.value?.scrollHeight ?? 0) <= 0) {
-        return
-    }
-
-    const {
-        medias: newMedias,
-        totalMedias,
-        canLoadMore: _canLoadMore,
-    } = await mediaStore.fetchMoreMedia(page.value).catch((fetchError) => {
-        error.value = { status: fetchError.status } as WLError
-        console.error('Error fetching more media:', fetchError)
-
-        return { medias: [], totalMedias: 0, canLoadMore: false }
-    })
-
-    canLoadMore.value = _canLoadMore
-    totalMediaCount.value = totalMedias
-
-    medias.value = [...medias.value, ...newMedias]
-}
-
-const loading = ref<boolean>(false)
 
 const visible = useElementVisibility(bottomSpacer, {
     scrollTarget: timelineContainer,
@@ -153,63 +123,45 @@ const visible = useElementVisibility(bottomSpacer, {
 })
 
 watchEffect(async () => {
-    if (visible.value && !loading.value && canLoadMore.value) {
-        loading.value = true
-
-        await fetchMore()
-
-        page.value++
-        loading.value = false
-
-        if (mediaStore.imageSearch) {
-            canLoadMore.value = false
-        }
+    if (visible.value) {
+        mediaStore.fetchMoreMedia()
     }
 })
 
 function startPresenting(rowIndex: number, colIndex: number) {
     const absIndex = rows.value.rows.slice(0, rowIndex).reduce((acc, row) => acc + row.items.length, 0) + colIndex
     presentationIndex.value = absIndex
-    presentationStore.setPresentationMediaID(medias.value[absIndex]?.contentID ?? '')
+    presentationStore.setPresentationMediaID(mediaStore.timelineMedia[absIndex]?.contentID ?? '')
 }
 
 onKeyPressed(['=', '-'], (e) => {
     mediaStore.updateImageSize(e.key === '=' ? 'increase' : 'decrease')
 })
 
-watch([() => mediaStore.timelineSortDirection, () => mediaStore.showRaw, () => mediaStore.imageSearch], () => {
-    loading.value = true
-    medias.value = []
-    page.value = 0
-    canLoadMore.value = true
-
-    loading.value = false
-})
-
 onMounted(() => {
     presentationStore.setOnMovePresentation((direction: number) => {
-        if (direction === 1 && presentationIndex.value < medias.value.length - 1) {
+        if (direction === 1 && presentationIndex.value < mediaStore.timelineMedia.length - 1) {
             presentationIndex.value++
         } else if (direction === -1 && presentationIndex.value > 0) {
             presentationIndex.value--
         }
 
-        if (!medias.value[presentationIndex.value]) {
+        if (!mediaStore.timelineMedia[presentationIndex.value]) {
             console.warn('No media found at index', presentationIndex.value)
             return
         }
 
-        const newContentID = medias.value[presentationIndex.value]?.contentID ?? ''
+        const newContentID = mediaStore.timelineMedia[presentationIndex.value]?.contentID ?? ''
         presentationStore.setPresentationMediaID(newContentID)
 
-        if (medias.value.length - presentationIndex.value < 10 && !loading.value) {
-            // If we are near the end, fetch more media
-            loading.value = true
-            fetchMore().finally(() => {
-                page.value++
-                loading.value = false
-            })
-        }
+        // if (medias.value.length - presentationIndex.value < 10 && !loading.value) {
+        //     // If we are near the end, fetch more media
+        //     loading.value = true
+        //     fetchMore().finally(() => {
+        //         page.value++
+        //         loading.value = false
+        //     })
+        // }
     })
 })
 </script>

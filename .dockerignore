@@ -1,4 +1,11 @@
-_build
-weblens-vue/weblens-nuxt/node_modules
-weblens-vue/weblens-nuxt/public
-vips/
+_build/
+
+weblens-vue/weblens-nuxt/node_modules/
+weblens-vue/weblens-nuxt/public/
+
+api/ts/node_modules/
+
+agno/target/
+agno/tests/
+
+images/

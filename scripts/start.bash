@@ -90,17 +90,19 @@ fi
 
 launch_mongo "$stack_name-mongo" "$mongo_port" | show_as_subtask "Launching mongo..." "green"
 
-if [[ "$tower_role" == "core" ]] && ! is_hdir_running; then
-    launch_hdir | show_as_subtask "Launching HDIR..." "green"
-fi
-
+# if [[ "$tower_role" == "core" ]] && ! is_hdir_running; then
+#     launch_hdir | show_as_subtask "Launching HDIR..." "green"
+# fi
+#
 WEBLENS_LOG_LEVEL="${WEBLENS_LOG_LEVEL:-debug}"
 
 export WEBLENS_MONGODB_URI="mongodb://127.0.0.1:$mongo_port/?replicaSet=rs0&directConnection=true"
 export WEBLENS_HDIR_URI="http://127.0.0.1:5001"
 export WEBLENS_DATA_PATH="./_build/fs/$tower_role/data"
+export WEBLENS_CACHE_PATH="./_build/fs/$tower_role/cache"
 export WEBLENS_LOG_FORMAT=dev
-export WEBLENS_DO_CACHE=false
+export WEBLENS_DO_CACHE=true
+export WEBLENS_DO_PROFILING=true
 export WEBLENS_PORT=$weblens_port
 export AGNO_LOG_LEVEL=warn
 export AGNO_LOG_FORMAT=human

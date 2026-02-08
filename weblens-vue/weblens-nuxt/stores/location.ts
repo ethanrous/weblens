@@ -1,3 +1,4 @@
+import { useUrlSearchParams } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { useWeblensAPI } from '~/api/AllApi'
 import WeblensShare from '~/types/weblensShare'
@@ -14,6 +15,12 @@ export enum FbModeT {
 const useLocationStore = defineStore('location', () => {
     const router = useRouter()
     const route = computed(() => router.currentRoute.value)
+
+    const qparams = useUrlSearchParams('history', {
+        removeNullishValues: true,
+        removeFalsyValues: true,
+    })
+
     const userStore = useUserStore()
     const towerStore = useTowerStore()
 
@@ -40,6 +47,10 @@ const useLocationStore = defineStore('location', () => {
 
     const isInShare = computed(() => {
         return (route.value.name as string | undefined)?.startsWith('files-share') ?? false
+    })
+
+    const highlightFileID = computed(() => {
+        return route.value.hash
     })
 
     const { data: activeShare } = useAsyncData('share-' + route.value.params.shareID, async () => {
@@ -93,6 +104,10 @@ const useLocationStore = defineStore('location', () => {
             return
         }
 
+        if (isLoggedIn && route.value.path === '/files') {
+            return navigateTo('/files/home')
+        }
+
         if (route.value.path === '/login' && isLoggedIn) {
             console.warn('User is already logged in, redirecting to /files/home')
 
@@ -116,10 +131,6 @@ const useLocationStore = defineStore('location', () => {
                 query: route.value.query,
             })
         }
-    })
-
-    const isInTimeline = computed(() => {
-        return route.value.query['timeline'] === 'true'
     })
 
     const isInTrash = computed(() => {
@@ -152,15 +163,6 @@ const useLocationStore = defineStore('location', () => {
         return viewTimestamp.value > 0
     })
 
-    async function setTimeline(timeline: boolean) {
-        await navigateTo({
-            query: {
-                ...route.value.query,
-                timeline: String(timeline),
-            },
-        })
-    }
-
     function setHistoryOpen(opened: boolean) {
         isHistoryOpen.value = opened
     }
@@ -184,6 +186,43 @@ const useLocationStore = defineStore('location', () => {
         return navigateTo({ path: '/backup' + (towerID ? '/' + towerID : '') })
     }
 
+    const search = customRef<string>((track, trigger) => {
+        return {
+            get() {
+                track()
+                return (qparams.search as string) || ''
+            },
+            set(newValue) {
+                console.log('Setting search to', newValue)
+                qparams.search = newValue
+                trigger()
+            },
+        }
+    })
+
+    const isInTimeline = customRef<boolean>((track, trigger) => {
+        return {
+            get() {
+                track()
+                if (qparams.timeline === 'true') {
+                    return true
+                }
+
+                return false
+            },
+            set(newValue) {
+                console.log('Setting timeline mode to', newValue)
+                qparams.timeline = String(newValue)
+
+                trigger()
+            },
+        }
+    })
+
+    watch(isInTimeline, () => {
+        search.value = '' // Clear search when changing timeline mode
+    })
+
     return {
         activeShareID,
         isInShare,
@@ -197,9 +236,9 @@ const useLocationStore = defineStore('location', () => {
         isInTimeline,
         isInTrash,
 
-        operatingSystem,
+        highlightFileID,
 
-        setTimeline,
+        operatingSystem,
 
         isHistoryOpen,
         setHistoryOpen,
@@ -207,6 +246,8 @@ const useLocationStore = defineStore('location', () => {
         viewTimestamp,
         isViewingPast,
         setViewTimestamp,
+
+        search,
     }
 })
 

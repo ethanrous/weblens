@@ -81,7 +81,7 @@ if [[ $do_push == true && $skip_tests != true ]]; then
     fi
 fi
 
-full_tag="${docker_tag}-${arch}"
+full_tag="ghcr.io/ethanrous/weblens:${docker_tag}"
 echo "Using tag: $full_tag"
 
 base_version=$(git rev-parse --short HEAD)
@@ -93,14 +93,14 @@ echo "Weblens build version: $WEBLENS_BUILD_VERSION"
 
 printf "Building Weblens container..."
 
-dockerc rmi ethrous/weblens:"$full_tag" &>/dev/null
-if ! dockerc build --platform "linux/$arch" -t ethrous/weblens:"$full_tag" --build-arg WEBLENS_BUILD_VERSION="$WEBLENS_BUILD_VERSION" --build-arg ARCHITECTURE="$arch" -f "./docker/$dockerfile" .; then
+dockerc rmi "$full_tag" &>/dev/null
+if ! dockerc build --platform "linux/$arch" -t "$full_tag" --build-arg WEBLENS_BUILD_VERSION="$WEBLENS_BUILD_VERSION" --build-arg ARCHITECTURE="$arch" -f "./docker/$dockerfile" .; then
     printf "Container build failed\n"
     exit 1
 fi
 
 if [[ $do_push == true ]]; then
-    dockerc push ethrous/weblens:"$full_tag"
+    dockerc push "$full_tag"
 fi
 
-printf "\nBUILD COMPLETE. Container tag: ethrous/weblens:%s\n" "$full_tag"
+printf "\nBUILD COMPLETE. Container tag: %s\n" "$full_tag"

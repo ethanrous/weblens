@@ -33,26 +33,28 @@
                 <IconBrush />
             </WeblensButton>
 
-            <Divider
-                label="Admin"
-                label-justify="left"
-            />
+            <template v-if="userStore.user.permissionLevel >= UserPermissions.ADMIN">
+                <Divider
+                    label="Admin"
+                    label-justify="left"
+                />
 
-            <WeblensButton
-                label="Users"
-                fill-width
-                @click="toSettingsPage('users')"
-            >
-                <IconUsers />
-            </WeblensButton>
+                <WeblensButton
+                    label="Users"
+                    fill-width
+                    @click="toSettingsPage('users')"
+                >
+                    <IconUsers />
+                </WeblensButton>
 
-            <WeblensButton
-                label="Developer"
-                fill-width
-                @click="toSettingsPage('dev')"
-            >
-                <IconCode />
-            </WeblensButton>
+                <WeblensButton
+                    label="Developer"
+                    fill-width
+                    @click="toSettingsPage('dev')"
+                >
+                    <IconCode />
+                </WeblensButton>
+            </template>
 
             <WeblensButton
                 label="Log Out"
@@ -75,6 +77,7 @@
 import { IconArrowLeft, IconBrush, IconCode, IconLogout, IconUser, IconUsers } from '@tabler/icons-vue'
 import WeblensButton from '~/components/atom/WeblensButton.vue'
 import Divider from '~/components/atom/Divider.vue'
+import { UserPermissions } from '~/types/user'
 
 const userStore = useUserStore()
 const towerStore = useTowerStore()

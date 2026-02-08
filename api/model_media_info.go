@@ -42,8 +42,6 @@ type MediaInfo struct {
 	Owner *string `json:"owner,omitempty"`
 	// Number of pages (typically 1, 0 in not a valid page count)
 	PageCount *int32 `json:"pageCount,omitempty"`
-	// Tags from the ML image scan so searching for particular objects in the images can be done
-	RecognitionTags []string `json:"recognitionTags,omitempty"`
 	// Full-res image dimensions
 	Width *int32 `json:"width,omitempty"`
 }
@@ -513,38 +511,6 @@ func (o *MediaInfo) SetPageCount(v int32) {
 	o.PageCount = &v
 }
 
-// GetRecognitionTags returns the RecognitionTags field value if set, zero value otherwise.
-func (o *MediaInfo) GetRecognitionTags() []string {
-	if o == nil || IsNil(o.RecognitionTags) {
-		var ret []string
-		return ret
-	}
-	return o.RecognitionTags
-}
-
-// GetRecognitionTagsOk returns a tuple with the RecognitionTags field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *MediaInfo) GetRecognitionTagsOk() ([]string, bool) {
-	if o == nil || IsNil(o.RecognitionTags) {
-		return nil, false
-	}
-	return o.RecognitionTags, true
-}
-
-// HasRecognitionTags returns a boolean if a field has been set.
-func (o *MediaInfo) HasRecognitionTags() bool {
-	if o != nil && !IsNil(o.RecognitionTags) {
-		return true
-	}
-
-	return false
-}
-
-// SetRecognitionTags gets a reference to the given []string and assigns it to the RecognitionTags field.
-func (o *MediaInfo) SetRecognitionTags(v []string) {
-	o.RecognitionTags = v
-}
-
 // GetWidth returns the Width field value if set, zero value otherwise.
 func (o *MediaInfo) GetWidth() int32 {
 	if o == nil || IsNil(o.Width) {
@@ -628,9 +594,6 @@ func (o MediaInfo) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.PageCount) {
 		toSerialize["pageCount"] = o.PageCount
-	}
-	if !IsNil(o.RecognitionTags) {
-		toSerialize["recognitionTags"] = o.RecognitionTags
 	}
 	if !IsNil(o.Width) {
 		toSerialize["width"] = o.Width

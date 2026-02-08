@@ -18,7 +18,6 @@ Name | Type | Description | Notes
 **MimeType** | Pointer to **string** | Mime-type key of the media | [optional] 
 **Owner** | Pointer to **string** | User who owns the file that resulted in this media being created | [optional] 
 **PageCount** | Pointer to **int32** | Number of pages (typically 1, 0 in not a valid page count) | [optional] 
-**RecognitionTags** | Pointer to **[]string** | Tags from the ML image scan so searching for particular objects in the images can be done | [optional] 
 **Width** | Pointer to **int32** | Full-res image dimensions | [optional] 
 
 ## Methods
@@ -389,31 +388,6 @@ SetPageCount sets PageCount field to given value.
 `func (o *MediaInfo) HasPageCount() bool`
 
 HasPageCount returns a boolean if a field has been set.
-
-### GetRecognitionTags
-
-`func (o *MediaInfo) GetRecognitionTags() []string`
-
-GetRecognitionTags returns the RecognitionTags field if non-nil, zero value otherwise.
-
-### GetRecognitionTagsOk
-
-`func (o *MediaInfo) GetRecognitionTagsOk() (*[]string, bool)`
-
-GetRecognitionTagsOk returns a tuple with the RecognitionTags field if it's non-nil, zero value otherwise
-and a boolean to check if the value has been set.
-
-### SetRecognitionTags
-
-`func (o *MediaInfo) SetRecognitionTags(v []string)`
-
-SetRecognitionTags sets RecognitionTags field to given value.
-
-### HasRecognitionTags
-
-`func (o *MediaInfo) HasRecognitionTags() bool`
-
-HasRecognitionTags returns a boolean if a field has been set.
 
 ### GetWidth
 

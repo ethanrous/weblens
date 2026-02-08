@@ -50,12 +50,16 @@
                         <span v-else-if="row[column]?.tableType === TableType.JSON">
                             {{ row[column].value }}
                         </span>
+                        <span v-else-if="row[column]?.tableType === TableType.Text">
+                            {{ row[column].text }}
+                        </span>
                         <WeblensButton
                             v-else-if="row[column]?.tableType === TableType.Button"
                             :class="{ 'h-8': true }"
                             :label="row[column].label"
                             :flavor="row[column].flavor ?? 'primary'"
                             :disabled="row[column].disabled ?? false"
+                            @click="row[column].onclick"
                         >
                             <component :is="row[column].icon" />
                         </WeblensButton>
@@ -64,7 +68,13 @@
                             :class="{ 'inline-block': true }"
                             :label="row[column].label"
                             :checked="row[column].checked"
-                            @changed="row[column].onchanged"
+                            @checked:changed="
+                                (v) => {
+                                    console.log('Checkbox changed:', v)
+                                    const thing = row[column] as TableColumn<TableType.Checkbox>
+                                    thing.onchanged(v)
+                                }
+                            "
                         />
                     </td>
                 </tr>
@@ -76,7 +86,7 @@
 <script setup lang="ts">
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { TableType } from '~/types/table'
-import type { TableColumns, TableTypes } from '~/types/table'
+import type { TableColumn, TableColumns, TableTypes } from '~/types/table'
 import WeblensButton from './WeblensButton.vue'
 import WeblensCheckbox from './WeblensCheckbox.vue'
 import { camelCaseToWords } from '~/util/string'

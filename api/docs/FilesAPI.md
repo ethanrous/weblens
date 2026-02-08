@@ -829,7 +829,7 @@ No authorization required
 
 ## SearchByFilename
 
-> []FileInfo SearchByFilename(ctx).Search(search).BaseFolderID(baseFolderID).Execute()
+> []FileInfo SearchByFilename(ctx).Search(search).BaseFolderID(baseFolderID).SortProp(sortProp).SortOrder(sortOrder).Recursive(recursive).Regex(regex).Execute()
 
 Search for files by filename
 
@@ -848,10 +848,14 @@ import (
 func main() {
 	search := "search_example" // string | Filename to search for
 	baseFolderID := "baseFolderID_example" // string | The folder to search in, defaults to the user's home folder (optional)
+	sortProp := "sortProp_example" // string | Property to sort by (optional) (default to "name")
+	sortOrder := "sortOrder_example" // string | Sort order (optional) (default to "asc")
+	recursive := true // bool | Search recursively (optional) (default to false)
+	regex := true // bool | Whether to treat the search term as a regex pattern (optional) (default to false)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.FilesAPI.SearchByFilename(context.Background()).Search(search).BaseFolderID(baseFolderID).Execute()
+	resp, r, err := apiClient.FilesAPI.SearchByFilename(context.Background()).Search(search).BaseFolderID(baseFolderID).SortProp(sortProp).SortOrder(sortOrder).Recursive(recursive).Regex(regex).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FilesAPI.SearchByFilename``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -874,6 +878,10 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **search** | **string** | Filename to search for | 
  **baseFolderID** | **string** | The folder to search in, defaults to the user&#39;s home folder | 
+ **sortProp** | **string** | Property to sort by | [default to &quot;name&quot;]
+ **sortOrder** | **string** | Sort order | [default to &quot;asc&quot;]
+ **recursive** | **bool** | Search recursively | [default to false]
+ **regex** | **bool** | Whether to treat the search term as a regex pattern | [default to false]
 
 ### Return type
 

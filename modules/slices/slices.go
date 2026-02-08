@@ -183,6 +183,11 @@ func Index[S ~[]E, E comparable](s S, v E) int {
 	return slices.Index(s, v)
 }
 
+// Delete removes the elements in s from index i to j.
+func Delete[S ~[]E, E any](s S, i, j int) S {
+	return slices.Delete(s, i, j)
+}
+
 // IndexFunc returns the index of the first element satisfying f(e), or -1 if none do.
 func IndexFunc[S ~[]E, E any](s S, f func(E) bool) int {
 	return slices.IndexFunc(s, f)

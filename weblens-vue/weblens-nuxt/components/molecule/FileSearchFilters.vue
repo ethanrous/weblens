@@ -3,9 +3,16 @@
         <WeblensCheckbox
             label="Search Recursively"
             :checked="filesStore.searchRecurively"
-            @changed="filesStore.setSearchRecurively"
+            @checked:changed="filesStore.setSearchRecurively"
         />
         <span :class="{ 'text-text-tertiary': true }">Tip: Use Shift+{{ keyHintText }} enable recursive search</span>
+
+        <WeblensCheckbox
+            label="Search using Regular Expressions"
+            :checked="filesStore.searchWithRegex"
+            @checked:changed="filesStore.setSearchWithRegex"
+        />
+
         <WeblensButton
             :class="{ 'mt-auto ml-auto w-1/3': true }"
             label="Done"

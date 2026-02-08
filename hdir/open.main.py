@@ -1,13 +1,26 @@
 import json
 import sys
 import torch
+import os
 import open_clip
 from PIL import Image
 from flask import Flask, request, jsonify
 
 print("Loading model...", flush=True)
+cache_path = (
+    os.environ["WEBLENS_CACHE_PATH"]
+    if "WEBLENS_CACHE_PATH" in os.environ
+    else "/images/"
+)
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
+device = "cpu"
+if torch.backends.mps.is_available():
+    device = torch.device("mps")
+    print("MPS device found. Using MPS (Apple Silicon).", flush=True)
+elif torch.cuda.is_available():
+    device = "cuda"
+    print("CUDA device found. Using GPU.", flush=True)
+
 model, _, preprocess = open_clip.create_model_and_transforms(
     "hf-hub:laion/CLIP-ViT-H-14-laion2B-s32B-b79K", device=device
 )
@@ -15,7 +28,7 @@ model.eval()
 tokenizer = open_clip.get_tokenizer("ViT-bigG-14")
 print("Model loaded on device:", device)
 
-if len(sys.argv) > 1 and sys.argv[1] == "--preload":
+if len(sys.argv) > 1 and "--preload" in sys.argv:
     print("Preloaded model, exiting...", flush=True)
     exit(0)
 
@@ -28,7 +41,7 @@ def encode():
     if not img_path:
         return "Image path not provided", 400
 
-    img_path = img_path.replace("CACHES:", "/images/")
+    img_path = img_path.replace("CACHES:", cache_path)
 
     try:
         image = preprocess(Image.open(img_path)).unsqueeze(0).to(device)
@@ -64,4 +77,10 @@ def encodeText():
 
 
 if __name__ == "__main__":
-    app.run(debug=False, host="0.0.0.0", port=5000)
+    port = 5000
+    if "--port" in sys.argv:
+        port_index = sys.argv.index("--port") + 1
+        port = int(sys.argv[port_index])
+        print(f"Using custom port: {port}", flush=True)
+
+    app.run(debug=False, host="0.0.0.0", port=port)

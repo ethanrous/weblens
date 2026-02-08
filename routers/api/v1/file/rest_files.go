@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"slices"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -21,6 +21,7 @@ import (
 	"github.com/ethanrous/weblens/models/task"
 	"github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/netwrk"
+	"github.com/ethanrous/weblens/modules/slices"
 	"github.com/ethanrous/weblens/modules/structs"
 	"github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/modules/wlerrors"
@@ -212,6 +213,8 @@ func DownloadFile(ctx context_service.RequestContext) {
 //	@Param		folderID	path		string						true	"Folder ID"
 //	@Param		shareID		query		string						false	"Share ID"
 //	@Param		timestamp	query		int							false	"Past timestamp to view the folder at, in ms since epoch"
+//	@Param		sortProp		query	string				false	"Property to sort by"		Enums(name, size, updatedAt)	default(name)
+//	@Param		sortOrder		query	string				false	"Sort order"				Enums(asc, desc)			default(asc)
 //	@Success	200			{object}	structs.FolderInfoResponse	"Folder Info"
 //	@Router		/folder/{folderID} [get]
 func GetFolder(ctx context_service.RequestContext) {
@@ -294,6 +297,10 @@ func GetFolderHistory(ctx context_service.RequestContext) {
 //
 //	@Param		search			query	string				true	"Filename to search for"
 //	@Param		baseFolderID	query	string				false	"The folder to search in, defaults to the user's home folder"
+//	@Param		sortProp		query	string				false	"Property to sort by"		Enums(name, size, updatedAt)	default(name)
+//	@Param		sortOrder		query	string				false	"Sort order"				Enums(asc, desc)			default(asc)
+//	@Param		recursive		query	boolean				false	"Search recursively"		Enums(true, false)	default(false)
+//	@Param		regex			query	boolean				false	"Whether to treat the search term as a regex pattern"	Enums(true, false)	default(false)
 //	@Success	200				{array}	structs.FileInfo	"File Info"
 //	@Failure	400
 //	@Failure	401
@@ -307,6 +314,8 @@ func SearchByFilename(ctx context_service.RequestContext) {
 		return
 	}
 
+	ctx.Log().Trace().Msgf("Searching for filename: %s", filenameSearch)
+
 	baseFolderID := ctx.Query("baseFolderID")
 	if baseFolderID == "" {
 		baseFolderID = ctx.Requester.HomeID
@@ -318,7 +327,7 @@ func SearchByFilename(ctx context_service.RequestContext) {
 	}
 
 	if !baseFolder.IsDir() {
-		ctx.Error(http.StatusBadRequest, wlerrors.New("the provided base folder ID is not a directory"))
+		ctx.Error(http.StatusBadRequest, wlerrors.New("the baseFolderID must be a directory"))
 
 		return
 	}
@@ -326,45 +335,91 @@ func SearchByFilename(ctx context_service.RequestContext) {
 	fileIDs := []string{}
 	filenames := []string{}
 
-	_ = baseFolder.RecursiveMap(
-		func(f *file_model.WeblensFileImpl) error {
-			fileIDs = append(fileIDs, f.ID())
-			filenames = append(filenames, f.GetPortablePath().Filename())
+	if ctx.QueryBool("recursive") {
+		_ = baseFolder.RecursiveMap(
+			func(f *file_model.WeblensFileImpl) error {
+				fileIDs = append(fileIDs, f.ID())
+				filenames = append(filenames, f.GetPortablePath().Filename())
 
-			return nil
-		},
-	)
+				return nil
+			},
+		)
+	} else {
+		children := baseFolder.GetChildren()
 
-	matches := fuzzy.RankFindFold(filenameSearch, filenames)
-	slices.SortFunc(
-		matches, func(a, b fuzzy.Rank) int {
-			return a.Distance - b.Distance
-		},
-	)
-
-	fileInfos := make([]structs.FileInfo, 0, len(matches))
-
-	for _, match := range matches {
-		f, err := ctx.FileService.GetFileByID(ctx, fileIDs[match.OriginalIndex])
-		if err != nil {
-			ctx.Log().Error().Stack().Err(err).Msgf("Failed to get file by ID: %s", fileIDs[match.OriginalIndex])
-
-			continue
+		for _, child := range children {
+			fileIDs = append(fileIDs, child.ID())
+			filenames = append(filenames, child.GetPortablePath().Filename())
 		}
-
-		if f.ID() == ctx.Requester.HomeID || f.ID() == ctx.Requester.TrashID {
-			continue
-		}
-
-		fileInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, f)
-		if err != nil {
-			ctx.Log().Error().Stack().Err(err).Msgf("Failed to convert file to FileInfo for file ID: %s", f.ID())
-
-			continue
-		}
-
-		fileInfos = append(fileInfos, fileInfo)
 	}
+
+	doRegex := ctx.QueryBool("regex")
+	fileInfos := []structs.FileInfo{}
+
+	if doRegex == true {
+		re, err := regexp.Compile(filenameSearch)
+		if err != nil {
+			ctx.Error(http.StatusBadRequest, wlerrors.New("invalid regex pattern"))
+
+			return
+		}
+
+		for i, filename := range filenames {
+			matched := re.MatchString(filename)
+			if !matched {
+				continue
+			}
+
+			f, err := ctx.FileService.GetFileByID(ctx, fileIDs[i])
+			if err != nil {
+				ctx.Log().Error().Stack().Err(err).Msgf("Failed to get file by ID: %s", fileIDs[i])
+
+				continue
+			}
+
+			fileInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, f)
+			if err != nil {
+				ctx.Log().Error().Stack().Err(err).Msgf("Failed to convert file to FileInfo for file ID: %s", f.ID())
+
+				continue
+			}
+
+			fileInfos = append(fileInfos, fileInfo)
+		}
+	} else {
+		matches := fuzzy.RankFindFold(filenameSearch, filenames)
+		slices.SortFunc(
+			matches, func(a, b fuzzy.Rank) int {
+				return a.Distance - b.Distance
+			},
+		)
+
+		fileInfos = make([]structs.FileInfo, 0, len(matches))
+
+		for _, match := range matches {
+			f, err := ctx.FileService.GetFileByID(ctx, fileIDs[match.OriginalIndex])
+			if err != nil {
+				ctx.Log().Error().Stack().Err(err).Msgf("Failed to get file by ID: %s", fileIDs[match.OriginalIndex])
+
+				continue
+			}
+
+			if f.ID() == ctx.Requester.HomeID || f.ID() == ctx.Requester.TrashID {
+				continue
+			}
+
+			fileInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, f)
+			if err != nil {
+				ctx.Log().Error().Stack().Err(err).Msgf("Failed to convert file to FileInfo for file ID: %s", f.ID())
+
+				continue
+			}
+
+			fileInfos = append(fileInfos, fileInfo)
+		}
+	}
+
+	sortFileInfos(fileInfos, ctx.Query("sortProp"), ctx.Query("sortOrder"))
 
 	ctx.JSON(http.StatusOK, fileInfos)
 }
@@ -1360,7 +1415,7 @@ func getChildMedias(
 	ctx context_service.RequestContext,
 	children []*file_model.WeblensFileImpl,
 ) ([]*media_model.Media, error) {
-	medias := []*media_model.Media{}
+	contentIDs := make([]string, 0, len(children))
 
 	for _, child := range children {
 		if child.IsDir() && child.GetContentID() == "" {
@@ -1382,17 +1437,37 @@ func getChildMedias(
 			continue
 		}
 
-		var m *media_model.Media
+		contentIDs = append(contentIDs, child.GetContentID())
+	}
 
-		m, err := media_model.GetMediaByContentID(ctx, child.GetContentID())
-		if err != nil && !db.IsNotFound(err) {
-			return nil, err
-		} else if err != nil {
-			continue
-		}
-
-		medias = append(medias, m)
+	medias, err := media_model.GetMediasByContentIDs(ctx, contentIDs...)
+	if err != nil {
+		return nil, err
 	}
 
 	return medias, nil
+}
+
+func sortFileInfos(files []structs.FileInfo, sortBy string, sortDir string) {
+	slices.SortFunc(files, func(f1, f2 structs.FileInfo) int {
+		var less int
+
+		switch sortBy {
+		case "modified":
+			// less = files[i].ModTime().Before(files[j].ModTime())
+			less = int(f1.ModTime - f2.ModTime)
+		case "size":
+			less = int(f1.Size - f2.Size)
+		default: // Sort by name
+			path1, _ := fs.ParsePortable(f1.PortablePath)
+			path2, _ := fs.ParsePortable(f2.PortablePath)
+			less = slices.NatSortCompare(path1.Filename(), path2.Filename())
+		}
+
+		if sortDir == "desc" {
+			less = -less
+		}
+
+		return less
+	})
 }

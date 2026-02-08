@@ -19,7 +19,6 @@ Name | Type | Description | Notes
 **mimeType** | **string** | Mime-type key of the media | [optional] [default to undefined]
 **owner** | **string** | User who owns the file that resulted in this media being created | [optional] [default to undefined]
 **pageCount** | **number** | Number of pages (typically 1, 0 in not a valid page count) | [optional] [default to undefined]
-**recognitionTags** | **Array&lt;string&gt;** | Tags from the ML image scan so searching for particular objects in the images can be done | [optional] [default to undefined]
 **width** | **number** | Full-res image dimensions | [optional] [default to undefined]
 
 ## Example
@@ -42,7 +41,6 @@ const instance: MediaInfo = {
     mimeType,
     owner,
     pageCount,
-    recognitionTags,
     width,
 };
 ```

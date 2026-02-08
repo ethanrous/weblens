@@ -68,7 +68,7 @@ func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_mo
 	}
 
 	// If the user is the owner of the file, we can access it regardless of the share
-	// FIXME: Make admin access more granular. The current behavior is only to support backup operations
+	// FIXME: Make admin access more granular. The current behavior is so backup operations can work.
 	if ownerName == user.GetUsername() || user.IsAdmin() {
 		return share_model.NewFullPermissions(), nil
 	}

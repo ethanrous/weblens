@@ -18,9 +18,6 @@ type MediaInfo struct {
 	// Slices of files whos content hash to the contentId
 	FileIDs []string `json:"fileIDs"`
 
-	// Tags from the ML image scan so searching for particular objects in the images can be done
-	RecognitionTags []string `json:"recognitionTags"`
-
 	LikedBy []string `json:"likedBy,omitempty"`
 
 	CreateDate int64 `json:"createDate"`

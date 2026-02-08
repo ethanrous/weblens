@@ -96,53 +96,6 @@ func CreateFileShare(ctx ctxservice.RequestContext) {
 	ctx.JSON(http.StatusCreated, newShareInfo)
 }
 
-// CreateAlbumShare godoc
-//
-//	@ID			CreateAlbumShare
-//
-//	@Summary	Share an album
-//	@Tags		Share
-//	@Produce	json
-//	@Param		request	body		structs.AlbumShareParams	true	"New Album Share Params"
-//	@Success	200		{object}	structs.ShareInfo			"New Album Share"
-//	@Success	409
-//	@Router		/share/album [post]
-// func CreateAlbumShare(ctx context.RequestContext) {
-// 	shareParams, err := net.ReadRequestBody[structs.AlbumShareParams](ctx.Req)
-// 	if err != nil {
-// 		return
-// 	}
-//
-// 	album := pack.AlbumService.Get(shareParams.AlbumID)
-// 	if album == nil {
-// 		SafeErrorAndExit(werror.ErrNoAlbum, w)
-// 		return
-// 	}
-//
-// 	_, err = pack.ShareService.GetAlbumShare(album.ID())
-// 	if !errors.Is(err, werror.ErrNoShare) {
-// 		SafeErrorAndExit(werror.ErrShareAlreadyExists, w)
-// 		return
-// 	} else if SafeErrorAndExit(err, w) {
-// 		return
-// 	}
-//
-// 	accessors := internal.Map(
-// 		shareParams.Users, func(un string) *models.User {
-// 			return pack.UserService.Get(un)
-// 		},
-// 	)
-//
-// 	newShare := models.NewAlbumShare(album, u, accessors, shareParams.Public)
-//
-// 	err = pack.ShareService.Add(newShare)
-// 	if SafeErrorAndExit(err, w) {
-// 		return
-// 	}
-//
-// 	writeJSON(w, http.StatusCreated, newShare)
-// }
-
 // GetFileShare godoc
 //
 //	@ID			GetFileShare

@@ -122,6 +122,37 @@ paths:
         name: baseFolderID
         schema:
           type: string
+      - description: Property to sort by
+        in: query
+        name: sortProp
+        schema:
+          default: name
+          enum:
+          - name
+          - size
+          - updatedAt
+          type: string
+      - description: Sort order
+        in: query
+        name: sortOrder
+        schema:
+          default: asc
+          enum:
+          - asc
+          - desc
+          type: string
+      - description: Search recursively
+        in: query
+        name: recursive
+        schema:
+          default: false
+          type: boolean
+      - description: Whether to treat the search term as a regex pattern
+        in: query
+        name: regex
+        schema:
+          default: false
+          type: boolean
       responses:
         "200":
           content:
@@ -518,6 +549,25 @@ paths:
         name: timestamp
         schema:
           type: integer
+      - description: Property to sort by
+        in: query
+        name: sortProp
+        schema:
+          default: name
+          enum:
+          - name
+          - size
+          - updatedAt
+          type: string
+      - description: Sort order
+        in: query
+        name: sortOrder
+        schema:
+          default: asc
+          enum:
+          - asc
+          - desc
+          type: string
       responses:
         "200":
           content:
@@ -2268,6 +2318,11 @@ components:
         modifyTimestamp: 0
         pastFile: true
         size: 6
+        permissions:
+          canView: true
+          canEdit: true
+          canDownload: true
+          canDelete: true
         id: id
         modifiable: true
         isDir: true
@@ -2295,6 +2350,8 @@ components:
           type: string
         pastFile:
           type: boolean
+        permissions:
+          $ref: "#/components/schemas/PermissionsInfo"
         portablePath:
           type: string
         shareID:
@@ -2350,9 +2407,6 @@ components:
           mimeType: mimeType
           enabled: true
           duration: 5
-          recognitionTags:
-          - recognitionTags
-          - recognitionTags
           hdirScore: 5.637376656633329
           fileIDs:
           - fileIDs
@@ -2374,9 +2428,6 @@ components:
           mimeType: mimeType
           enabled: true
           duration: 5
-          recognitionTags:
-          - recognitionTags
-          - recognitionTags
           hdirScore: 5.637376656633329
           fileIDs:
           - fileIDs
@@ -2401,6 +2452,11 @@ components:
           modifyTimestamp: 0
           pastFile: true
           size: 6
+          permissions:
+            canView: true
+            canEdit: true
+            canDownload: true
+            canDelete: true
           id: id
           modifiable: true
           isDir: true
@@ -2416,6 +2472,11 @@ components:
           modifyTimestamp: 0
           pastFile: true
           size: 6
+          permissions:
+            canView: true
+            canEdit: true
+            canDownload: true
+            canDelete: true
           id: id
           modifiable: true
           isDir: true
@@ -2432,6 +2493,11 @@ components:
           modifyTimestamp: 0
           pastFile: true
           size: 6
+          permissions:
+            canView: true
+            canEdit: true
+            canDownload: true
+            canDelete: true
           id: id
           modifiable: true
           isDir: true
@@ -2448,6 +2514,11 @@ components:
           modifyTimestamp: 0
           pastFile: true
           size: 6
+          permissions:
+            canView: true
+            canEdit: true
+            canDownload: true
+            canDelete: true
           id: id
           modifiable: true
           isDir: true
@@ -2463,6 +2534,11 @@ components:
           modifyTimestamp: 0
           pastFile: true
           size: 6
+          permissions:
+            canView: true
+            canEdit: true
+            canDownload: true
+            canDelete: true
           id: id
           modifiable: true
           isDir: true
@@ -2508,9 +2584,6 @@ components:
           mimeType: mimeType
           enabled: true
           duration: 5
-          recognitionTags:
-          - recognitionTags
-          - recognitionTags
           hdirScore: 5.637376656633329
           fileIDs:
           - fileIDs
@@ -2532,9 +2605,6 @@ components:
           mimeType: mimeType
           enabled: true
           duration: 5
-          recognitionTags:
-          - recognitionTags
-          - recognitionTags
           hdirScore: 5.637376656633329
           fileIDs:
           - fileIDs
@@ -2635,9 +2705,6 @@ components:
         mimeType: mimeType
         enabled: true
         duration: 5
-        recognitionTags:
-        - recognitionTags
-        - recognitionTags
         hdirScore: 5.637376656633329
         fileIDs:
         - fileIDs
@@ -2698,12 +2765,6 @@ components:
         pageCount:
           description: "Number of pages (typically 1, 0 in not a valid page count)"
           type: integer
-        recognitionTags:
-          description: Tags from the ML image scan so searching for particular objects
-            in the images can be done
-          items:
-            type: string
-          type: array
         width:
           description: Full-res image dimensions
           type: integer

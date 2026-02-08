@@ -14,6 +14,7 @@ Name | Type | Description | Notes
 **Owner** | Pointer to **string** |  | [optional] 
 **ParentID** | Pointer to **string** |  | [optional] 
 **PastFile** | Pointer to **bool** |  | [optional] 
+**Permissions** | Pointer to [**PermissionsInfo**](PermissionsInfo.md) |  | [optional] 
 **PortablePath** | Pointer to **string** |  | [optional] 
 **ShareID** | Pointer to **string** |  | [optional] 
 **Size** | Pointer to **int64** |  | [optional] 
@@ -286,6 +287,31 @@ SetPastFile sets PastFile field to given value.
 `func (o *FileInfo) HasPastFile() bool`
 
 HasPastFile returns a boolean if a field has been set.
+
+### GetPermissions
+
+`func (o *FileInfo) GetPermissions() PermissionsInfo`
+
+GetPermissions returns the Permissions field if non-nil, zero value otherwise.
+
+### GetPermissionsOk
+
+`func (o *FileInfo) GetPermissionsOk() (*PermissionsInfo, bool)`
+
+GetPermissionsOk returns a tuple with the Permissions field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetPermissions
+
+`func (o *FileInfo) SetPermissions(v PermissionsInfo)`
+
+SetPermissions sets Permissions field to given value.
+
+### HasPermissions
+
+`func (o *FileInfo) HasPermissions() bool`
+
+HasPermissions returns a boolean if a field has been set.
 
 ### GetPortablePath
 

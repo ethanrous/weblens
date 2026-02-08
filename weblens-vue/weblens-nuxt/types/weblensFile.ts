@@ -4,7 +4,8 @@ import { useUserStore } from '~/stores/user'
 import { humanBytes } from '~/util/humanBytes'
 import WeblensShare from '~/types/weblensShare'
 import { useWeblensAPI } from '~/api/AllApi'
-import type { FileActionInfo, FileInfo } from '@ethanrous/weblens-api'
+import type { FileActionInfo, FileInfo, PermissionsInfo } from '@ethanrous/weblens-api'
+import useLocationStore from '~/stores/location'
 
 export class SelectedState {
     public static NotSelected = new SelectedState(0b0)
@@ -69,18 +70,6 @@ export enum FbMenuModeT {
     SearchForFile,
 }
 
-function getIcon(folderName: string): Icon | null {
-    if (folderName === 'HOME') {
-        return IconHome
-    } else if (folderName === 'TRASH') {
-        return IconTrash
-    } else if (folderName === 'SHARE') {
-        return IconUser
-    } else {
-        return null
-    }
-}
-
 class WeblensFile implements FileInfo {
     id: string
     owner: string = ''
@@ -107,6 +96,8 @@ class WeblensFile implements FileInfo {
     hovering?: boolean
     index: number = -1
     visible?: boolean
+
+    permissions?: PermissionsInfo
 
     private fetching: boolean = false
     public fromAPI: boolean = false
@@ -174,17 +165,6 @@ class WeblensFile implements FileInfo {
         return this.parents.filter((parent) => Boolean(parent))
     }
 
-    GetPathParts(replaceIcons?: boolean): (string | Icon)[] {
-        const parts: (string | Icon)[] = this.portablePath.split('/')
-        if (replaceIcons) {
-            const icon = getIcon(String(parts[0]))
-            if (icon !== null) {
-                parts[0] = icon
-            }
-        }
-        return parts
-    }
-
     IsModifiable(): boolean {
         return this.modifiable
     }
@@ -195,6 +175,7 @@ class WeblensFile implements FileInfo {
                 return ''
             }
 
+            const root = this.portablePath.split(':')[0]
             const filename = this.portablePath.slice(this.portablePath.indexOf(':') + 1)
             const parts = filename.split('/')
             let name = parts.pop()
@@ -204,7 +185,9 @@ class WeblensFile implements FileInfo {
                 name = parts.pop()
             }
 
-            if (this.parentID === 'USERS' || parts.length === 0) {
+            if (root === 'SHARED' && parts.length === 0) {
+                name = 'Shared'
+            } else if (this.parentID === 'USERS' || parts.length === 0) {
                 name = 'Home'
                 if (!this.id) {
                     this.id = useUserStore().user.homeID
@@ -273,11 +256,11 @@ class WeblensFile implements FileInfo {
     }
 
     public IsShareRoot(): boolean {
-        return WeblensFile.IsShareRoot(this.id)
+        return WeblensFile.IsShareRoot(this.portablePath)
     }
 
-    public static IsShareRoot(id: string): boolean {
-        return id === 'SHARE'
+    public static IsShareRoot(portablePath: string): boolean {
+        return portablePath == 'SHARED:'
     }
 
     public IsTrash(): boolean {
@@ -315,6 +298,10 @@ class WeblensFile implements FileInfo {
 
     IsPastFile(): boolean {
         return this.pastFile
+    }
+
+    IsSharedWithMe(): boolean {
+        return this.owner !== useUserStore().user.username
     }
 
     SetFetching(fetching: boolean): void {
@@ -379,6 +366,38 @@ class WeblensFile implements FileInfo {
         }
     }
 
+    public CanDelete(): boolean {
+        if (!this.modifiable) {
+            return false
+        }
+
+        if (this.IsHome() || this.IsTrash() || this.IsShareRoot()) {
+            return false
+        }
+
+        return this.permissions?.canDelete === true
+
+        // if (props.targetFile?.IsTrash()) return true
+        //
+        // if (locationStore.isInTrash) return true
+        //
+        // if (!canModifyTarget.value) return false
+        //
+        // if (targetIsFolder.value) return false
+        //
+        // if (locationStore.activeShare && !locationStore.activeShare.checkPermission('canDelete')) return false
+        //
+        // if (protectedFile.value) return false
+    }
+
+    public CanEdit(): boolean {
+        return this.permissions?.canEdit === true
+    }
+
+    public CanDownload(): boolean {
+        return this.permissions?.canDownload === true
+    }
+
     public SetShare(share: WeblensShare) {
         if (this.shareID && this.shareID !== share.ID()) {
             console.error('Trying to set share with mismatched id, expected', this.shareID, 'but got', share.ID())
@@ -409,7 +428,7 @@ class WeblensFile implements FileInfo {
         return this.share
     }
 
-    public UrlID(): string {
+    public URLID(): string {
         if (this.id === useUserStore().user.homeID) {
             return 'home'
         }
@@ -422,7 +441,19 @@ class WeblensFile implements FileInfo {
             return 'trash'
         }
 
+        if (!this.isDir) {
+            return this.parentID
+        }
+
         return this.id
+    }
+
+    public URLHash(): string | undefined {
+        if (!this.isDir) {
+            return '#file-' + this.id
+        }
+
+        return undefined
     }
 
     public MediaUrl(): string {
@@ -434,9 +465,26 @@ class WeblensFile implements FileInfo {
     }
 
     public async GoTo(replace: boolean = false): Promise<void> {
+        const locationStore = useLocationStore()
+        let path = '/files/' + this.URLID()
+
+        if (!this.IsHome() && locationStore.isInShare) {
+            if (this.IsShareRoot()) {
+                path = `/files/share`
+            } else if ((this.shareID ? this.shareID : locationStore.activeShareID) === undefined) {
+                console.error('No active share ID to navigate to shared file')
+
+                return
+            } else {
+                path = `/files/share/${this.shareID ? this.shareID : locationStore.activeShareID}/${this.URLID()}`
+            }
+        }
+
+        console.debug('Navigating to', path, 'with hash', this.URLHash())
         await navigateTo(
             {
-                path: '/files/' + this.UrlID(),
+                path: path,
+                hash: this.URLHash(),
             },
             { replace: replace },
         )
@@ -457,9 +505,9 @@ class WeblensFile implements FileInfo {
 
     public static ShareRoot(): WeblensFile {
         return new WeblensFile({
-            id: 'SHARE',
+            id: 'share',
             owner: 'WEBLENS',
-            portablePath: `SHARED:Shared/`,
+            portablePath: `SHARED:`,
             isDir: true,
             modifiable: false,
             pastFile: false,

@@ -11,6 +11,7 @@ import "C"
 import (
 	"runtime"
 	"sync"
+	"time"
 	"unsafe"
 
 	"github.com/ethanrous/weblens/modules/log"
@@ -53,7 +54,9 @@ func (img *Image) Resize(scale float64) error {
 	newWidth := int(float64(img.img.width) * scale)
 	newHeight := int(float64(img.img.height) * scale)
 
+	start := time.Now()
 	newImg := C.resize_image(img.img, C.size_t(newWidth), C.size_t(newHeight)) //nolint:nlreturn
+	log.GlobalLogger().Debug().Msgf("Resized image to %dx%d in %s", newWidth, newHeight, time.Since(start))
 	img.img = newImg
 
 	return nil
@@ -83,7 +86,9 @@ func ImageByFilepath(path string) (*Image, error) {
 
 	defer C.free(unsafe.Pointer(cPathStr)) //nolint:nlreturn
 
+	start := time.Now()
 	cAgnoImg := C.load_image_from_path(cPathStr, C.size_t(len(path)))
+	log.GlobalLogger().Debug().Msgf("Loaded image from path [%s] in %s", path, time.Since(start))
 
 	if cAgnoImg == nil || cAgnoImg.len == 0 || cAgnoImg.width == 0 || cAgnoImg.height == 0 {
 		return nil, wlerrors.Errorf("load_image_from_path returned nil loading [%s]", path)

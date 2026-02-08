@@ -10,14 +10,21 @@
             @clear="search = ''"
         />
         <div
-            v-if="users?.length && focused.focused.value"
-            :class="{ 'bg-background-primary border-t-none absolute z-10 w-full rounded-b border pb-1 shadow': true }"
+            v-if="users?.length"
+            :class="{
+                'bg-card-background-primary border-t-none absolute z-10 w-full rounded-b border pb-1 shadow': true,
+            }"
         >
             <div
                 v-for="user in users"
                 :key="user.username"
-                :class="{ 'hover:bg-card-background-hover cursor-pointer p-2': true }"
-                @click="emit('selectUser', user)"
+                :class="{ 'hover:bg-card-background-hover m-1 cursor-pointer rounded p-2': true }"
+                @click.stop.prevent="
+                    () => {
+                        emit('select:user', user)
+                        search = ''
+                    }
+                "
             >
                 <div>
                     <strong>{{ user.fullName }}</strong> ({{ user.username }})
@@ -62,10 +69,10 @@ const { data: users } = useAsyncData(
                 return []
             })
     },
-    { watch: [search] },
+    { watch: [search], getCachedData: () => undefined },
 )
 
 const emit = defineEmits<{
-    (e: 'selectUser', value: UserInfo): void
+    (e: 'select:user', value: UserInfo): void
 }>()
 </script>

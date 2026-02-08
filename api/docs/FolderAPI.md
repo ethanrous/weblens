@@ -80,7 +80,7 @@ No authorization required
 
 ## GetFolder
 
-> FolderInfo GetFolder(ctx, folderID).ShareID(shareID).Timestamp(timestamp).Execute()
+> FolderInfo GetFolder(ctx, folderID).ShareID(shareID).Timestamp(timestamp).SortProp(sortProp).SortOrder(sortOrder).Execute()
 
 Get a folder
 
@@ -100,10 +100,12 @@ func main() {
 	folderID := "folderID_example" // string | Folder ID
 	shareID := "shareID_example" // string | Share ID (optional)
 	timestamp := int32(56) // int32 | Past timestamp to view the folder at, in ms since epoch (optional)
+	sortProp := "sortProp_example" // string | Property to sort by (optional) (default to "name")
+	sortOrder := "sortOrder_example" // string | Sort order (optional) (default to "asc")
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.FolderAPI.GetFolder(context.Background(), folderID).ShareID(shareID).Timestamp(timestamp).Execute()
+	resp, r, err := apiClient.FolderAPI.GetFolder(context.Background(), folderID).ShareID(shareID).Timestamp(timestamp).SortProp(sortProp).SortOrder(sortOrder).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FolderAPI.GetFolder``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -131,6 +133,8 @@ Name | Type | Description  | Notes
 
  **shareID** | **string** | Share ID | 
  **timestamp** | **int32** | Past timestamp to view the folder at, in ms since epoch | 
+ **sortProp** | **string** | Property to sort by | [default to &quot;name&quot;]
+ **sortOrder** | **string** | Sort order | [default to &quot;asc&quot;]
 
 ### Return type
 

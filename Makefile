@@ -55,7 +55,7 @@ lint:
 docker\:build: $(GO_SOURCE) $(TS_SOURCE)
 	./scripts/gogogadgetdocker.bash 
 
-dev-container: FORCE
+container: FORCE
 	./scripts/gogogadgetdocker.bash -p -s -a amd64
 
 precommit: lint test

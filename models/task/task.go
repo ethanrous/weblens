@@ -557,7 +557,7 @@ func (t *Task) error(err error) {
 		return
 	}
 
-	t.Log().Error().CallerSkipFrame(2).Stack().Err(err).Msgf("A [%s] task [%s] encountered an error", t.jobName, t.taskID)
+	t.Log().Error().CallerSkipFrame(2).Stack().Err(err).Msgf("A task encountered an error")
 
 	t.cancelFunc(err)
 

@@ -48,6 +48,6 @@ const filesStore = useFilesStore()
 const locationStore = useLocationStore()
 
 const error = computed(() => {
-    return filesStore.error
+    return filesStore.fileFetchError
 })
 </script>

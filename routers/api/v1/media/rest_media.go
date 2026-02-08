@@ -48,8 +48,6 @@ func GetMediaBatch(ctx ctxservice.RequestContext) {
 		for _, folderID := range reqParams.FolderIDs {
 			_, err := file_api.CheckFileAccessByID(ctx, folderID, share.SharePermissionView)
 			if err != nil {
-				ctx.Error(http.StatusForbidden, err)
-
 				return
 			}
 		}
@@ -123,7 +121,7 @@ func GetMediaBatch(ctx ctxservice.RequestContext) {
 
 	var mediaFilter []media_model.ContentID
 
-	ms, err := media_model.GetMedia(ctx, ctx.Requester.Username, reqParams.Sort, 1, mediaFilter, reqParams.Raw, reqParams.Hidden, reqParams.Search)
+	ms, err := media_model.GetMedia(ctx, ctx.Requester.Username, reqParams.Sort, 1, mediaFilter, reqParams.Raw, reqParams.Hidden)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 
@@ -611,7 +609,7 @@ func getMediaInFolders(ctx ctxservice.RequestContext, folderIDs []string, limit,
 		}
 	}
 
-	medias, err := media_model.GetMediasByContentIDs(ctx, limit, page, sortDirection, includeRaw, allContentIDs...)
+	medias, err := media_model.GetPagedMedias(ctx, limit, page, sortDirection, includeRaw, allContentIDs...)
 	if err != nil {
 		return nil, -1, err
 	}

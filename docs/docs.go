@@ -169,6 +169,51 @@ const docTemplate = `{
                         "description": "The folder to search in, defaults to the user's home folder",
                         "name": "baseFolderID",
                         "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "name",
+                            "size",
+                            "updatedAt"
+                        ],
+                        "type": "string",
+                        "default": "name",
+                        "description": "Property to sort by",
+                        "name": "sortProp",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "default": "asc",
+                        "description": "Sort order",
+                        "name": "sortOrder",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            true,
+                            false
+                        ],
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Search recursively",
+                        "name": "recursive",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            true,
+                            false
+                        ],
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Whether to treat the search term as a regex pattern",
+                        "name": "regex",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -741,6 +786,29 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "Past timestamp to view the folder at, in ms since epoch",
                         "name": "timestamp",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "name",
+                            "size",
+                            "updatedAt"
+                        ],
+                        "type": "string",
+                        "default": "name",
+                        "description": "Property to sort by",
+                        "name": "sortProp",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "default": "asc",
+                        "description": "Sort order",
+                        "name": "sortOrder",
                         "in": "query"
                     }
                 ],
@@ -3069,6 +3137,9 @@ const docTemplate = `{
                 "pastFile": {
                     "type": "boolean"
                 },
+                "permissions": {
+                    "$ref": "#/definitions/PermissionsInfo"
+                },
                 "portablePath": {
                     "type": "string"
                 },
@@ -3314,13 +3385,6 @@ const docTemplate = `{
                 "pageCount": {
                     "description": "Number of pages (typically 1, 0 in not a valid page count)",
                     "type": "integer"
-                },
-                "recognitionTags": {
-                    "description": "Tags from the ML image scan so searching for particular objects in the images can be done",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
                 },
                 "width": {
                     "description": "Full-res image dimensions",

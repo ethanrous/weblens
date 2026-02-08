@@ -14,7 +14,7 @@
         >
             <WeblensInput
                 ref="searchInput"
-                v-model:value="filesStore.fileSearch"
+                v-model:value="locationStore.search"
                 :class="{
                     'bg-background-primary h-10! w-full shrink rounded-none border-b-0': true,
                     'bg-background-primary!': filterOpen,
@@ -27,13 +27,6 @@
                 @focused="handleSearchFocused"
                 @submit="handleSubmit"
                 @clear="handleSubmit('')"
-                @update:value="
-                    (v) => {
-                        if (!locationStore.isInTimeline) {
-                            filesStore.setFileSearch(v)
-                        }
-                    }
-                "
             >
                 <IconSearch
                     size="20"
@@ -41,7 +34,7 @@
                 />
                 <template #rightIcon="slotProps">
                     <div
-                        v-if="!slotProps.focused && !filterOpen && filesStore.fileSearch === ''"
+                        v-if="!slotProps.focused && !filterOpen && locationStore.search === ''"
                         :class="{
                             'text-text-tertiary pointer-events-none text-nowrap transition': true,
                         }"
@@ -193,13 +186,13 @@ function handleSearchFocused() {
 async function handleSubmit(v: string) {
     filterOpen.value = false
 
+    locationStore.search = v
+
     if (locationStore.isInTimeline) {
-        mediaStore.setImageSearch(v)
+        mediaStore.clearData()
     } else {
-        filesStore.setFileSearch(v)
-        filesStore.setLoading(true)
+        await nextTick()
         await filesStore.doSearch()
-        filesStore.setLoading(false)
     }
 }
 

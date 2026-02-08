@@ -8,7 +8,7 @@
         <RewindIndicator />
 
         <span
-            v-if="!filesStore.searchUpToDate && filesStore.searchRecurively && filesStore.fileSearch !== ''"
+            v-if="!filesStore.searchUpToDate && filesStore.searchRecurively && locationStore.search !== ''"
             :class="{ 'text-text-secondary m-auto inline-flex items-center gap-1': true }"
         >
             Press
@@ -41,6 +41,10 @@
                 :class="{ 'm-auto': true }"
             />
 
+            <ErrorCard
+                v-else-if="filesStore.fileFetchError"
+                :error="filesStore.fileFetchError"
+            />
             <NoResults v-else-if="files.length === 0" />
 
             <div
@@ -80,6 +84,7 @@ import Loader from '../atom/Loader.vue'
 import useLocationStore from '~/stores/location'
 import NoResults from '../molecule/NoResults.vue'
 import RewindIndicator from '../molecule/RewindIndicator.vue'
+import ErrorCard from '../molecule/ErrorCard.vue'
 
 const filesStore = useFilesStore()
 const locationStore = useLocationStore()

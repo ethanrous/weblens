@@ -73,6 +73,7 @@ export interface FileInfo {
     'owner'?: string;
     'parentID'?: string;
     'pastFile'?: boolean;
+    'permissions'?: PermissionsInfo;
     'portablePath'?: string;
     'shareID'?: string;
     'size'?: number;
@@ -186,10 +187,6 @@ export interface MediaInfo {
      * Number of pages (typically 1, 0 in not a valid page count)
      */
     'pageCount'?: number;
-    /**
-     * Tags from the ML image scan so searching for particular objects in the images can be done
-     */
-    'recognitionTags'?: Array<string>;
     /**
      * Full-res image dimensions
      */
@@ -1251,10 +1248,14 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
          * @summary Search for files by filename
          * @param {string} search Filename to search for
          * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
+         * @param {SearchByFilenameSortPropEnum} [sortProp] Property to sort by
+         * @param {SearchByFilenameSortOrderEnum} [sortOrder] Sort order
+         * @param {boolean} [recursive] Search recursively
+         * @param {boolean} [regex] Whether to treat the search term as a regex pattern
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        searchByFilename: async (search: string, baseFolderID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        searchByFilename: async (search: string, baseFolderID?: string, sortProp?: SearchByFilenameSortPropEnum, sortOrder?: SearchByFilenameSortOrderEnum, recursive?: boolean, regex?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'search' is not null or undefined
             assertParamExists('searchByFilename', 'search', search)
             const localVarPath = `/files/search`;
@@ -1275,6 +1276,22 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
 
             if (baseFolderID !== undefined) {
                 localVarQueryParameter['baseFolderID'] = baseFolderID;
+            }
+
+            if (sortProp !== undefined) {
+                localVarQueryParameter['sortProp'] = sortProp;
+            }
+
+            if (sortOrder !== undefined) {
+                localVarQueryParameter['sortOrder'] = sortOrder;
+            }
+
+            if (recursive !== undefined) {
+                localVarQueryParameter['recursive'] = recursive;
+            }
+
+            if (regex !== undefined) {
+                localVarQueryParameter['regex'] = regex;
             }
 
             localVarHeaderParameter['Accept'] = '*/*';
@@ -1637,11 +1654,15 @@ export const FilesApiFp = function(configuration?: Configuration) {
          * @summary Search for files by filename
          * @param {string} search Filename to search for
          * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
+         * @param {SearchByFilenameSortPropEnum} [sortProp] Property to sort by
+         * @param {SearchByFilenameSortOrderEnum} [sortOrder] Sort order
+         * @param {boolean} [recursive] Search recursively
+         * @param {boolean} [regex] Whether to treat the search term as a regex pattern
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async searchByFilename(search: string, baseFolderID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<FileInfo>>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.searchByFilename(search, baseFolderID, options);
+        async searchByFilename(search: string, baseFolderID?: string, sortProp?: SearchByFilenameSortPropEnum, sortOrder?: SearchByFilenameSortOrderEnum, recursive?: boolean, regex?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<FileInfo>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.searchByFilename(search, baseFolderID, sortProp, sortOrder, recursive, regex, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['FilesApi.searchByFilename']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -1848,11 +1869,15 @@ export const FilesApiFactory = function (configuration?: Configuration, basePath
          * @summary Search for files by filename
          * @param {string} search Filename to search for
          * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
+         * @param {SearchByFilenameSortPropEnum} [sortProp] Property to sort by
+         * @param {SearchByFilenameSortOrderEnum} [sortOrder] Sort order
+         * @param {boolean} [recursive] Search recursively
+         * @param {boolean} [regex] Whether to treat the search term as a regex pattern
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        searchByFilename(search: string, baseFolderID?: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<FileInfo>> {
-            return localVarFp.searchByFilename(search, baseFolderID, options).then((request) => request(axios, basePath));
+        searchByFilename(search: string, baseFolderID?: string, sortProp?: SearchByFilenameSortPropEnum, sortOrder?: SearchByFilenameSortOrderEnum, recursive?: boolean, regex?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<Array<FileInfo>> {
+            return localVarFp.searchByFilename(search, baseFolderID, sortProp, sortOrder, recursive, regex, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -2054,11 +2079,15 @@ export class FilesApi extends BaseAPI {
      * @summary Search for files by filename
      * @param {string} search Filename to search for
      * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
+     * @param {SearchByFilenameSortPropEnum} [sortProp] Property to sort by
+     * @param {SearchByFilenameSortOrderEnum} [sortOrder] Sort order
+     * @param {boolean} [recursive] Search recursively
+     * @param {boolean} [regex] Whether to treat the search term as a regex pattern
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public searchByFilename(search: string, baseFolderID?: string, options?: RawAxiosRequestConfig) {
-        return FilesApiFp(this.configuration).searchByFilename(search, baseFolderID, options).then((request) => request(this.axios, this.basePath));
+    public searchByFilename(search: string, baseFolderID?: string, sortProp?: SearchByFilenameSortPropEnum, sortOrder?: SearchByFilenameSortOrderEnum, recursive?: boolean, regex?: boolean, options?: RawAxiosRequestConfig) {
+        return FilesApiFp(this.configuration).searchByFilename(search, baseFolderID, sortProp, sortOrder, recursive, regex, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -2112,6 +2141,17 @@ export class FilesApi extends BaseAPI {
     }
 }
 
+export const SearchByFilenameSortPropEnum = {
+    Name: 'name',
+    Size: 'size',
+    UpdatedAt: 'updatedAt'
+} as const;
+export type SearchByFilenameSortPropEnum = typeof SearchByFilenameSortPropEnum[keyof typeof SearchByFilenameSortPropEnum];
+export const SearchByFilenameSortOrderEnum = {
+    Asc: 'asc',
+    Desc: 'desc'
+} as const;
+export type SearchByFilenameSortOrderEnum = typeof SearchByFilenameSortOrderEnum[keyof typeof SearchByFilenameSortOrderEnum];
 
 
 /**
@@ -2165,10 +2205,12 @@ export const FolderApiAxiosParamCreator = function (configuration?: Configuratio
          * @param {string} folderID Folder ID
          * @param {string} [shareID] Share ID
          * @param {number} [timestamp] Past timestamp to view the folder at, in ms since epoch
+         * @param {GetFolderSortPropEnum} [sortProp] Property to sort by
+         * @param {GetFolderSortOrderEnum} [sortOrder] Sort order
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getFolder: async (folderID: string, shareID?: string, timestamp?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        getFolder: async (folderID: string, shareID?: string, timestamp?: number, sortProp?: GetFolderSortPropEnum, sortOrder?: GetFolderSortOrderEnum, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'folderID' is not null or undefined
             assertParamExists('getFolder', 'folderID', folderID)
             const localVarPath = `/folder/{folderID}`
@@ -2190,6 +2232,14 @@ export const FolderApiAxiosParamCreator = function (configuration?: Configuratio
 
             if (timestamp !== undefined) {
                 localVarQueryParameter['timestamp'] = timestamp;
+            }
+
+            if (sortProp !== undefined) {
+                localVarQueryParameter['sortProp'] = sortProp;
+            }
+
+            if (sortOrder !== undefined) {
+                localVarQueryParameter['sortOrder'] = sortOrder;
             }
 
             localVarHeaderParameter['Accept'] = 'application/json';
@@ -2345,11 +2395,13 @@ export const FolderApiFp = function(configuration?: Configuration) {
          * @param {string} folderID Folder ID
          * @param {string} [shareID] Share ID
          * @param {number} [timestamp] Past timestamp to view the folder at, in ms since epoch
+         * @param {GetFolderSortPropEnum} [sortProp] Property to sort by
+         * @param {GetFolderSortOrderEnum} [sortOrder] Sort order
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getFolder(folderID: string, shareID?: string, timestamp?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FolderInfo>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getFolder(folderID, shareID, timestamp, options);
+        async getFolder(folderID: string, shareID?: string, timestamp?: number, sortProp?: GetFolderSortPropEnum, sortOrder?: GetFolderSortOrderEnum, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FolderInfo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getFolder(folderID, shareID, timestamp, sortProp, sortOrder, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['FolderApi.getFolder']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -2421,11 +2473,13 @@ export const FolderApiFactory = function (configuration?: Configuration, basePat
          * @param {string} folderID Folder ID
          * @param {string} [shareID] Share ID
          * @param {number} [timestamp] Past timestamp to view the folder at, in ms since epoch
+         * @param {GetFolderSortPropEnum} [sortProp] Property to sort by
+         * @param {GetFolderSortOrderEnum} [sortOrder] Sort order
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getFolder(folderID: string, shareID?: string, timestamp?: number, options?: RawAxiosRequestConfig): AxiosPromise<FolderInfo> {
-            return localVarFp.getFolder(folderID, shareID, timestamp, options).then((request) => request(axios, basePath));
+        getFolder(folderID: string, shareID?: string, timestamp?: number, sortProp?: GetFolderSortPropEnum, sortOrder?: GetFolderSortOrderEnum, options?: RawAxiosRequestConfig): AxiosPromise<FolderInfo> {
+            return localVarFp.getFolder(folderID, shareID, timestamp, sortProp, sortOrder, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -2484,11 +2538,13 @@ export class FolderApi extends BaseAPI {
      * @param {string} folderID Folder ID
      * @param {string} [shareID] Share ID
      * @param {number} [timestamp] Past timestamp to view the folder at, in ms since epoch
+     * @param {GetFolderSortPropEnum} [sortProp] Property to sort by
+     * @param {GetFolderSortOrderEnum} [sortOrder] Sort order
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public getFolder(folderID: string, shareID?: string, timestamp?: number, options?: RawAxiosRequestConfig) {
-        return FolderApiFp(this.configuration).getFolder(folderID, shareID, timestamp, options).then((request) => request(this.axios, this.basePath));
+    public getFolder(folderID: string, shareID?: string, timestamp?: number, sortProp?: GetFolderSortPropEnum, sortOrder?: GetFolderSortOrderEnum, options?: RawAxiosRequestConfig) {
+        return FolderApiFp(this.configuration).getFolder(folderID, shareID, timestamp, sortProp, sortOrder, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -2527,6 +2583,17 @@ export class FolderApi extends BaseAPI {
     }
 }
 
+export const GetFolderSortPropEnum = {
+    Name: 'name',
+    Size: 'size',
+    UpdatedAt: 'updatedAt'
+} as const;
+export type GetFolderSortPropEnum = typeof GetFolderSortPropEnum[keyof typeof GetFolderSortPropEnum];
+export const GetFolderSortOrderEnum = {
+    Asc: 'asc',
+    Desc: 'desc'
+} as const;
+export type GetFolderSortOrderEnum = typeof GetFolderSortOrderEnum[keyof typeof GetFolderSortOrderEnum];
 
 
 /**

@@ -20,10 +20,10 @@
                 />
             </div>
 
-            <div :class="{ 'flex w-full gap-2': true }">
+            <div :class="{ 'z-99 flex w-full gap-2': true }">
                 <UserSearch
                     :exclude-fn="excludeFn"
-                    @select-user="addAccessor"
+                    @select:user="addAccessor"
                 />
                 <WeblensButton
                     :class="{ 'w-10 sm:w-40': true }"
@@ -102,16 +102,20 @@ const accessors = computed<TableColumns>(() => {
     }
 
     return share.value.accessors.map<Record<string, TableColumn>>((u) => ({
-        username: u.username,
+        username: {
+            tableType: TableType.Text,
+            text: u.username,
+        },
         canDownload: {
             tableType: TableType.Checkbox,
             checked: share.value?.permissions[u.username]?.canDownload ?? false,
             onchanged: async (c: boolean) => {
                 if (!share.value) return
-                share.value.updateAccessorPerms(u.username, {
+                await share.value.updateAccessorPerms(u.username, {
                     ...share.value?.permissions[u.username],
                     canDownload: c,
                 })
+                share.value = share.value.clone()
             },
         },
         canEdit: {
@@ -119,10 +123,11 @@ const accessors = computed<TableColumns>(() => {
             checked: share.value?.permissions[u.username]?.canEdit ?? false,
             onchanged: async (c: boolean) => {
                 if (!share.value) return
-                share.value.updateAccessorPerms(u.username, {
+                await share.value.updateAccessorPerms(u.username, {
                     ...share.value?.permissions[u.username],
                     canEdit: c,
                 })
+                share.value = share.value.clone()
             },
         },
         canDelete: {
@@ -130,35 +135,40 @@ const accessors = computed<TableColumns>(() => {
             checked: share.value?.permissions[u.username]?.canDelete ?? false,
             onchanged: async (c: boolean) => {
                 if (!share.value) return
-                share.value.updateAccessorPerms(u.username, {
+                await share.value.updateAccessorPerms(u.username, {
                     ...share.value?.permissions[u.username],
                     canDelete: c,
                 })
+
+                share.value = share.value.clone()
             },
         },
         unshare: {
             flavor: 'danger',
             tableType: TableType.Button,
             icon: IconTrash,
-            onclick: () => {
+            onclick: async () => {
                 if (!share.value) return
-                share.value.removeAccessor(u.username)
+                await share.value.removeAccessor(u.username)
+                share.value = share.value.clone()
             },
         },
     }))
 })
 
-function addAccessor(user: UserInfo) {
+async function addAccessor(user: UserInfo) {
     if (!share.value) {
         console.error('No share to add accessor')
         return
     }
 
-    share.value.addAccessor(user.username)
+    await share.value.addAccessor(user.username)
+    share.value = share.value.clone()
 }
 
 function excludeFn(u: UserInfo) {
-    if (share.value?.accessors.includes(u)) {
+    console.log('excludeFn called for', u.username, share.value?.accessors)
+    if (share.value?.accessors.map((u) => u.username).includes(u.username)) {
         return false
     }
 
