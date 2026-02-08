@@ -7,7 +7,6 @@ import (
 	openapi "github.com/ethanrous/weblens/api"
 	"github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -15,10 +14,7 @@ import (
 func TestCreateUser(t *testing.T) {
 	// Setup a core server for the test
 	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
-	if err != nil {
-		log.GlobalLogger().Error().Stack().Err(err).Msg("Failed to start test server")
-		t.FailNow()
-	}
+	require.NoError(t, err, "Failed to start test server")
 
 	client := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
 
@@ -38,10 +34,7 @@ func TestCreateUser(t *testing.T) {
 
 func TestLoginUser(t *testing.T) {
 	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
-	if err != nil {
-		log.GlobalLogger().Error().Stack().Err(err).Msg("Failed to start test server")
-		t.FailNow()
-	}
+	require.NoError(t, err, "Failed to start test server")
 
 	client := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
 
@@ -75,10 +68,7 @@ func TestLoginUser(t *testing.T) {
 
 func TestCheckUserExists(t *testing.T) {
 	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
-	if err != nil {
-		log.GlobalLogger().Error().Stack().Err(err).Msg("Failed to start test server")
-		t.FailNow()
-	}
+	require.NoError(t, err, "Failed to start test server")
 
 	client := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
 
@@ -105,10 +95,7 @@ func TestCheckUserExists(t *testing.T) {
 
 func TestGetUser(t *testing.T) {
 	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
-	if err != nil {
-		log.GlobalLogger().Error().Stack().Err(err).Msg("Failed to start test server")
-		t.FailNow()
-	}
+	require.NoError(t, err, "Failed to start test server")
 
 	client := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
 
@@ -121,10 +108,7 @@ func TestGetUser(t *testing.T) {
 
 func TestUpdatePassword(t *testing.T) {
 	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
-	if err != nil {
-		log.GlobalLogger().Error().Stack().Err(err).Msg("Failed to start test server")
-		t.FailNow()
-	}
+	require.NoError(t, err, "Failed to start test server")
 
 	client := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
 
@@ -158,10 +142,7 @@ func TestUpdatePassword(t *testing.T) {
 
 func TestSetUserAdmin(t *testing.T) {
 	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
-	if err != nil {
-		log.GlobalLogger().Error().Stack().Err(err).Msg("Failed to start test server")
-		t.FailNow()
-	}
+	require.NoError(t, err, "Failed to start test server")
 
 	client := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
 
@@ -199,10 +180,7 @@ func TestSetUserAdmin(t *testing.T) {
 
 func TestActivateUser(t *testing.T) {
 	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
-	if err != nil {
-		log.GlobalLogger().Error().Stack().Err(err).Msg("Failed to start test server")
-		t.FailNow()
-	}
+	require.NoError(t, err, "Failed to start test server")
 
 	client := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
 
@@ -245,10 +223,7 @@ func TestActivateUser(t *testing.T) {
 
 func TestChangeDisplayName(t *testing.T) {
 	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
-	if err != nil {
-		log.GlobalLogger().Error().Stack().Err(err).Msg("Failed to start test server")
-		t.FailNow()
-	}
+	require.NoError(t, err, "Failed to start test server")
 
 	client := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
 
@@ -271,10 +246,7 @@ func TestChangeDisplayName(t *testing.T) {
 
 func TestDeleteUser(t *testing.T) {
 	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
-	if err != nil {
-		log.GlobalLogger().Error().Stack().Err(err).Msg("Failed to start test server")
-		t.FailNow()
-	}
+	require.NoError(t, err, "Failed to start test server")
 
 	client := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
 
@@ -306,10 +278,7 @@ func TestDeleteUser(t *testing.T) {
 
 func TestSearchUsers(t *testing.T) {
 	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
-	if err != nil {
-		log.GlobalLogger().Error().Stack().Err(err).Msg("Failed to start test server")
-		t.FailNow()
-	}
+	require.NoError(t, err, "Failed to start test server")
 
 	client := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
 

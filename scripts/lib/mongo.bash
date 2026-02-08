@@ -62,12 +62,12 @@ launch_mongo() {
 
         # Write port override to a temp env file since sudo strips env vars
         local port_env="/tmp/mongo-port.env"
-        echo "MONGO_HOST_PORT=$mongo_port" > "$port_env"
+        echo "MONGO_HOST_PORT=$mongo_port" >"$port_env"
 
         if ! dockerc compose -f ./docker/mongo.compose.yaml --env-file ./docker/mongo-core.env --env-file "$port_env" --project-name "$mongo_name" up -d; then
             echo "!!! docker compose up failed !!!" >&2
             echo "--- mongod container logs ---" >&2
-            dockerc logs "weblens-${TOWER_ROLE:-core}-mongod" >&2 2>&1 || true
+            dockerc logs "weblens-${TOWER_ROLE:-core}-mongod" --tail 150 >&2 2>&1 || true
             echo "--- mongod container inspect ---" >&2
             dockerc inspect "weblens-${TOWER_ROLE:-core}-mongod" --format '{{json .State}}' >&2 2>&1 || true
             echo "--- All containers ---" >&2
