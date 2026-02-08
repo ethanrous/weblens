@@ -14,7 +14,7 @@ const pageNumExtensionFormat = "_%d"
 
 var cacheFileFormatRegex = regexp.MustCompile(`^([a-zA-Z0-9_-]+)-(thumbnail|fullres)(?:_(\d+))?\.webp$`)
 
-var ErrInvalidCacheFilename = wlerrors.Errorf("invalid cache file name")
+var errInvalidCacheFilename = wlerrors.Errorf("invalid cache file name")
 
 // FmtCacheFileName generates the cache file name for the given media, quality, and page number.
 func FmtCacheFileName(mID string, quality Quality, pageNum int) (string, error) {
@@ -43,7 +43,7 @@ func ParseCacheFileName(filename string) (mID string, quality Quality, pageNum i
 
 	matches := cacheFileFormatRegex.FindStringSubmatch(filename)
 	if len(matches) < 3 {
-		return "", "", 0, wlerrors.WithStack(ErrInvalidCacheFilename)
+		return "", "", 0, wlerrors.WithStack(errInvalidCacheFilename)
 	}
 
 	mID = matches[1]

@@ -167,7 +167,6 @@ async function addAccessor(user: UserInfo) {
 }
 
 function excludeFn(u: UserInfo) {
-    console.log('excludeFn called for', u.username, share.value?.accessors)
     if (share.value?.accessors.map((u) => u.username).includes(u.username)) {
         return false
     }

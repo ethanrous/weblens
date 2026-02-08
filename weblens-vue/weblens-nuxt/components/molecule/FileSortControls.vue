@@ -6,13 +6,13 @@
     >
         <WeblensOptions
             v-if="!locationStore.isInTimeline"
-            v-model:value="fileShape as string"
+            v-model:value="fileShape"
             :options="shapeOptions"
             :class="{ 'mr-1': true }"
         />
 
         <WeblensOptions
-            v-model:value="sortCondition as string"
+            v-model:value="sortCondition"
             :options="sortOptions"
             merge="right"
         />
@@ -48,14 +48,18 @@ import WeblensOptions from '../atom/WeblensOptions.vue'
 const filesStore = useFilesStore()
 const locationStore = useLocationStore()
 
-const fileShape = ref<FileShape | undefined>(filesStore.fileShape)
-watch(fileShape, (newShape) => {
-    if (newShape) filesStore.setFileShape(newShape)
+const fileShape = computed<string | undefined>({
+    get: () => String(filesStore.fileShape),
+    set: (newShape) => {
+        filesStore.setFileShape(newShape as FileShape)
+    },
 })
 
-const sortCondition = ref<SortCondition>(filesStore.sortCondition)
-watch(sortCondition, (newSortCondition) => {
-    filesStore.setSortCondition(newSortCondition)
+const sortCondition = computed<string | undefined>({
+    get: () => String(filesStore.sortCondition),
+    set: (newCondition) => {
+        filesStore.setSortCondition(newCondition as SortCondition)
+    },
 })
 
 const sortOptions: Record<SortCondition, { label: string; icon: Icon }> = {

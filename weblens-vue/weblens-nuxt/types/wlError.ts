@@ -9,7 +9,9 @@ export class WLError {
     constructor(error: Partial<WLError> | NuxtError | AxiosError) {
         if ('response' in error && error.response) {
             this.status = error.response.status
-            this.message = error.response.data?.message || error.message
+            this.message = (error.response.data as { message: string }).message
+                ? (error.response.data as { message: string }).message
+                : error.message
         } else if ('statusCode' in error && error.statusCode) {
             this.message = error.message
             this.status = error.statusCode

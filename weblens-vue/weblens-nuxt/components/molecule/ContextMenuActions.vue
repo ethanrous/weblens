@@ -139,22 +139,6 @@ const canModifyParent = computed(() => {
     return filesStore.activeFile?.modifiable && !locationStore.isViewingPast
 })
 
-const canDelete = computed(() => {
-    if (props.targetFile?.IsTrash()) return true
-
-    if (locationStore.isInTrash) return true
-
-    if (!canModifyTarget.value) return false
-
-    if (targetIsFolder.value) return false
-
-    if (locationStore.activeShare && !locationStore.activeShare.checkPermission('canDelete')) return false
-
-    if (protectedFile.value) return false
-
-    return true
-})
-
 const multipleSelected = computed(() => {
     return props.selectedFiles && props.selectedFiles.length > 1
 })

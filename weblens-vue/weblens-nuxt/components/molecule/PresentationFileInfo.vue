@@ -34,7 +34,7 @@ async function goToFileByMediaID() {
         const file = new WeblensFile(fileInfo)
         if (file) {
             presentationStore.clearPresentation()
-            console.log('Going to file', file)
+
             file.GoTo()
         }
     }

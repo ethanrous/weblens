@@ -193,7 +193,6 @@ const useLocationStore = defineStore('location', () => {
                 return (qparams.search as string) || ''
             },
             set(newValue) {
-                console.log('Setting search to', newValue)
                 qparams.search = newValue
                 trigger()
             },
@@ -211,7 +210,6 @@ const useLocationStore = defineStore('location', () => {
                 return false
             },
             set(newValue) {
-                console.log('Setting timeline mode to', newValue)
                 qparams.timeline = String(newValue)
 
                 trigger()
