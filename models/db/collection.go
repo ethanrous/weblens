@@ -43,7 +43,7 @@ func (c *ContextualizedCollection[T]) NewIndex(model mongo.IndexModel, opts ...*
 
 	existingIndexes, err := c.collection.Indexes().List(c.ctx)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	for existingIndexes.Next(c.ctx) {
@@ -51,7 +51,7 @@ func (c *ContextualizedCollection[T]) NewIndex(model mongo.IndexModel, opts ...*
 
 		err = existingIndexes.Decode(&index)
 		if err != nil {
-			return nil
+			return err
 		}
 
 		if index["name"] == *indexName {
@@ -80,7 +80,7 @@ func (c *ContextualizedCollection[T]) NewSearchIndex(model mongo.SearchIndexMode
 
 	existingIndexes, err := c.collection.SearchIndexes().List(c.ctx, &options.SearchIndexesOptions{Name: indexName, Type: indexType})
 	if err != nil {
-		return nil
+		return err
 	}
 
 	for existingIndexes.Next(c.ctx) {
@@ -88,7 +88,7 @@ func (c *ContextualizedCollection[T]) NewSearchIndex(model mongo.SearchIndexMode
 
 		err = existingIndexes.Decode(&index)
 		if err != nil {
-			return nil
+			return err
 		}
 
 		if index["name"] == *indexName {

@@ -1453,11 +1453,20 @@ func sortFileInfos(files []structs.FileInfo, sortBy string, sortDir string) {
 		var less int
 
 		switch sortBy {
-		case "modified":
-			// less = files[i].ModTime().Before(files[j].ModTime())
-			less = int(f1.ModTime - f2.ModTime)
+		case "modified", "updatedAt":
+			switch {
+			case f1.ModTime < f2.ModTime:
+				less = -1
+			case f1.ModTime > f2.ModTime:
+				less = 1
+			}
 		case "size":
-			less = int(f1.Size - f2.Size)
+			switch {
+			case f1.Size < f2.Size:
+				less = -1
+			case f1.Size > f2.Size:
+				less = 1
+			}
 		default: // Sort by name
 			path1, _ := fs.ParsePortable(f1.PortablePath)
 			path2, _ := fs.ParsePortable(f2.PortablePath)

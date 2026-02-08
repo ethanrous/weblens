@@ -124,10 +124,7 @@ const useFilesStore = defineStore('files', () => {
                         (f.contentID !== '' &&
                             res.data.medias?.findIndex((mediaInfo) => mediaInfo.contentID === f.contentID) !== -1) ??
                         false
-                    if (
-                        locationStore.highlightFileID !== '' &&
-                        locationStore.highlightFileID.slice('#file-'.length) === f.ID()
-                    ) {
+                    if (locationStore.highlightFileID !== '' && locationStore.highlightFileID === f.ID()) {
                         setSelected(f.ID(), true)
                     }
                     return f

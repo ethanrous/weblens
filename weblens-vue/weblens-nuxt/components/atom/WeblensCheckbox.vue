@@ -8,7 +8,6 @@
                 :checked="checked"
                 @change="
                     (e) => {
-                        console.log('Checkbox changed:', (e.target as HTMLInputElement).checked)
                         emit('checked:changed', (e.target as HTMLInputElement).checked)
                     }
                 "

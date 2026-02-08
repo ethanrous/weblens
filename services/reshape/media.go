@@ -48,7 +48,7 @@ func NewMediaBatchInfo(m []*media_model.Media, opts ...MediaBatchOptions) struct
 	mediaInfos := make([]structs.MediaInfo, 0, len(m))
 	for i, media := range m {
 		info := MediaToMediaInfo(media)
-		if len(options.Scores) != 0 {
+		if i < len(options.Scores) {
 			info.HDIRScore = options.Scores[i]
 		}
 

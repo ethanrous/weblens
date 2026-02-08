@@ -96,8 +96,8 @@ func Start(opts StartupOpts) error {
 			mux := http.NewServeMux()
 			mux.Handle("/debug/pprof/", http.HandlerFunc(pprof.Index))
 			mux.Handle("/debug/pprof/heap", pprof.Handler("heap"))
-			logger.Debug().Msgf("Starting pprof server at :6060")
-			logger.Debug().Msgf("%v+", http.ListenAndServe("0.0.0.0:6060", mux))
+			logger.Debug().Msgf("Starting pprof server at 127.0.0.1:6060")
+			logger.Debug().Msgf("%v+", http.ListenAndServe("127.0.0.1:6060", mux))
 		}()
 	}
 

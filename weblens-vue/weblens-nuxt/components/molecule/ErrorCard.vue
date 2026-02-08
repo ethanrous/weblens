@@ -29,6 +29,6 @@ const errorText = computed(() => {
                 message: 'The requested resource could not be found.',
             }
     }
-    return { header: 'An unknown error occurred.', message: props.error.toString() }
+    return { header: 'An unknown error occurred.', message: props.error.message ?? 'Unknown error' }
 })
 </script>

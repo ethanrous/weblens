@@ -50,7 +50,11 @@ const useLocationStore = defineStore('location', () => {
     })
 
     const highlightFileID = computed(() => {
-        return route.value.hash
+        const hash = route.value.hash
+        if (hash.startsWith('#file-')) {
+            return hash.slice('#file-'.length)
+        }
+        return hash
     })
 
     const { data: activeShare } = useAsyncData('share-' + route.value.params.shareID, async () => {

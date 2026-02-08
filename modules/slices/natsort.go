@@ -26,8 +26,11 @@ func NatSortCompare(a, b string) int {
 				if aerr == nil && berr == nil {
 					// Fast path: both fit in uint64
 					if an != bn {
-						// #nosec G40
-						return int(an - bn)
+						if an < bn {
+							return -1
+						}
+
+						return 1
 					}
 					// Semantically the same digits, e.g. "00" == "0", "01" == "1". In
 					// this case, only continue processing if there's trailing data on

@@ -70,7 +70,6 @@
                             :checked="row[column].checked"
                             @checked:changed="
                                 (v) => {
-                                    console.log('Checkbox changed:', v)
                                     const thing = row[column] as TableColumn<TableType.Checkbox>
                                     thing.onchanged(v)
                                 }
