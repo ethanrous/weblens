@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"sync"
 	"testing"
 
 	"github.com/ethanrous/weblens/models/db"
@@ -18,7 +17,6 @@ import (
 	"github.com/ethanrous/weblens/services/notify"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/viccon/sturdyc"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -159,13 +157,9 @@ func newIntegrationTestContext(t *testing.T, opts ...testContextOption) (context
 	database, _ := dbAny.(*mongo.Database)
 
 	// 7. Create AppContext with LocalTowerID
-	appCtx := ctxservice.AppContext{
-		BasicContext: basicCtx,
-		DB:           database,
-		Cache:        make(map[string]*sturdyc.Client[any]),
-		WG:           &sync.WaitGroup{},
-		LocalTowerID: towerID,
-	}
+	appCtx := ctxservice.NewAppContext(basicCtx)
+	appCtx.DB = database
+	appCtx.LocalTowerID = towerID
 
 	// 8. Initialize ClientService (notification service)
 	fileServiceCtx := appCtx.WithContext(dbCtx)
