@@ -11,7 +11,7 @@ does_agno_exist() {
 
 build_agno() {
     local agno_lib_path
-    if [[ -n "$1" ]]; then
+    if [[ -n "${1:-}" ]]; then
         agno_lib_path="$1"
     else
         agno_lib_path="${WEBLENS_ROOT}/services/media/agno/lib/"
