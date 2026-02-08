@@ -102,15 +102,6 @@ func TestMediaEnabled(t *testing.T) {
 	})
 }
 
-func TestMediaRecognitionTags(t *testing.T) {
-	t.Run("sets and gets recognition tags", func(t *testing.T) {
-		m := media.NewMedia("test")
-		tags := []string{"person", "outdoor", "nature"}
-		m.SetRecognitionTags(tags)
-		assert.Equal(t, tags, m.GetRecognitionTags())
-	})
-}
-
 func TestMediaIsSufficentlyProcessed(t *testing.T) {
 	t.Run("returns false when no files", func(t *testing.T) {
 		m := media.NewMedia("test")

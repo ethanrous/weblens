@@ -16,10 +16,7 @@ type MediaInfo struct {
 	Location [2]float64 `json:"location"`
 
 	// Slices of files whos content hash to the contentId
-	FileIDs []string `json:"fileIds"`
-
-	// Tags from the ML image scan so searching for particular objects in the images can be done
-	RecognitionTags []string `json:"recognitionTags"`
+	FileIDs []string `json:"fileIDs"`
 
 	LikedBy []string `json:"likedBy,omitempty"`
 
@@ -42,6 +39,9 @@ type MediaInfo struct {
 	// If the media disabled. This can happen when the backing file(s) are deleted,
 	// but the media stays behind because it can be re-used if needed.
 	Enabled bool `json:"enabled"`
+
+	// Similarity score from HDIR search
+	HDIRScore float64 `json:"hdirScore,omitempty"`
 
 	Imported bool `json:"imported"`
 } // @Name MediaInfo

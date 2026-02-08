@@ -21,11 +21,11 @@
             <h4>Add User</h4>
             <div :class="{ 'flex w-72 flex-col gap-2 rounded border p-4': true }">
                 <WeblensInput
-                    v-model="newUsername"
+                    v-model:value="newUsername"
                     placeholder="Username"
                 />
                 <WeblensInput
-                    v-model="newPassword"
+                    v-model:value="newPassword"
                     placeholder="Password"
                     password
                 />
@@ -91,8 +91,8 @@ const rows = computed<TableColumns>(() => {
                 tableType: TableType.Button,
                 flavor: 'danger',
                 disabled:
-                    (user.permissionLevel >= UserPermissions.Admin &&
-                        userStore.user.GetPermissionLevel() < UserPermissions.Admin) ||
+                    (user.permissionLevel >= UserPermissions.ADMIN &&
+                        userStore.user.GetPermissionLevel() < UserPermissions.ADMIN) ||
                     user.username === userStore.user.username,
                 icon: IconTrash,
                 onclick: async () => {

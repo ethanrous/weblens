@@ -1,5 +1,4 @@
 #!/bin/bash
-set -euo pipefail
 
 get_color_code() {
     local color_name="$1"

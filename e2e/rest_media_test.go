@@ -7,17 +7,13 @@ import (
 	openapi "github.com/ethanrous/weblens/api"
 	"github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestGetMediaBatch(t *testing.T) {
 	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
-	if err != nil {
-		log.GlobalLogger().Error().Stack().Err(err).Msg("Failed to start test server")
-		t.FailNow()
-	}
+	require.NoError(t, err, "Failed to start test server")
 
 	client := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
 
@@ -35,10 +31,7 @@ func TestGetMediaBatch(t *testing.T) {
 
 func TestGetMediaTypes(t *testing.T) {
 	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
-	if err != nil {
-		log.GlobalLogger().Error().Stack().Err(err).Msg("Failed to start test server")
-		t.FailNow()
-	}
+	require.NoError(t, err, "Failed to start test server")
 
 	client := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
 
@@ -54,10 +47,7 @@ func TestGetMediaTypes(t *testing.T) {
 
 func TestGetRandomMedia(t *testing.T) {
 	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
-	if err != nil {
-		log.GlobalLogger().Error().Stack().Err(err).Msg("Failed to start test server")
-		t.FailNow()
-	}
+	require.NoError(t, err, "Failed to start test server")
 
 	client := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
 

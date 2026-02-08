@@ -17,17 +17,11 @@ import (
 func newCoreAndBackup(t *testing.T) (setupResult, setupResult) {
 	// Setup a core server for the backup to connect to
 	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
-	if err != nil {
-		log.GlobalLogger().Error().Stack().Err(err).Msg("Failed to start core test server")
-		t.FailNow()
-	}
+	require.NoError(t, err, "Failed to start core test server")
 
 	// Setup a backup server
 	backupSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleBackup), CoreAddress: coreSetup.address, CoreToken: coreSetup.token})
-	if err != nil {
-		log.GlobalLogger().Error().Stack().Err(err).Msg("Failed to start backup test server")
-		t.FailNow()
-	}
+	require.NoError(t, err, "Failed to start backup test server")
 
 	return coreSetup, backupSetup
 }

@@ -14,7 +14,7 @@
             v-if="!multipleSelected"
             label="Rename"
             fill-width
-            :disabled="!canModifyTarget || protectedFile"
+            :disabled="!targetFile?.CanEdit()"
             @click.stop="emit('renameFile')"
         >
             <IconPencil />
@@ -49,6 +49,7 @@
                 'relative overflow-hidden': true,
                 'rounded-b-xs': downloadTaskPercentComplete !== undefined,
             }"
+            :disabled="!targetFile?.CanDownload()"
             @click.stop="handleDownload"
         >
             <IconDownload />
@@ -77,7 +78,7 @@
             :label="deleteText"
             fill-width
             flavor="danger"
-            :disabled="!canDelete"
+            :disabled="!targetFile?.CanDelete()"
             @click.stop="handleDeleteFile"
         >
             <IconTrash />
@@ -136,22 +137,6 @@ const canModifyTarget = computed(() => {
 
 const canModifyParent = computed(() => {
     return filesStore.activeFile?.modifiable && !locationStore.isViewingPast
-})
-
-const canDelete = computed(() => {
-    if (props.targetFile?.IsTrash()) return true
-
-    if (locationStore.isInTrash) return true
-
-    if (!canModifyTarget.value) return false
-
-    if (targetIsFolder.value) return false
-
-    if (locationStore.activeShare && !locationStore.activeShare.checkPermission('canDelete')) return false
-
-    if (protectedFile.value) return false
-
-    return true
 })
 
 const multipleSelected = computed(() => {

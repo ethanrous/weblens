@@ -1,5 +1,6 @@
 <template>
     <div
+        :id="'file-' + file.ID()"
         ref="fileRef"
         :class="{
             'border-card-background-primary flex max-h-full rounded border transition select-none': true,
@@ -48,7 +49,7 @@
                     :class="{ 'animate-fade-in': true }"
                     :media="media"
                     :quality="PhotoQuality.LowRes"
-                    :should-load="file.displayable"
+                    no-click
                 />
                 <IconFolder
                     v-else-if="file.IsFolder()"
@@ -74,11 +75,13 @@ import { useElementVisibility, useMousePressed } from '@vueuse/core'
 import { moveFiles } from '~/api/FileBrowserApi'
 import type { coordinates } from '~/types/style'
 import FileRow from './FileRow.vue'
+import useLocationStore from '~/stores/location'
 
 const filesStore = useFilesStore()
 const presentationStore = usePresentationStore()
 const menuStore = useContextMenuStore()
 const mediaStore = useMediaStore()
+const locationStore = useLocationStore()
 
 const downPos = ref<coordinates>({ x: 0, y: 0 })
 
@@ -135,7 +138,7 @@ watchEffect(() => {
         return
     }
 
-    const m = mediaStore.media.get(file.GetContentID())
+    const m = mediaStore.mediaMap.get(file.GetContentID())
     if (!m && visible.value) {
         mediaStore.fetchSingleMedia(file.GetContentID())
     }
@@ -184,4 +187,10 @@ async function handleDrop(e: MouseEvent) {
     }
     mousePressed.pressed.value = false
 }
+
+onMounted(() => {
+    if (locationStore.highlightFileID === file.id) {
+        fileRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+})
 </script>

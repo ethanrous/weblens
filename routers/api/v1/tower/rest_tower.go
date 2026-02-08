@@ -1,7 +1,6 @@
 package tower
 
 import (
-	"context"
 	"errors"
 	"net/http"
 
@@ -238,29 +237,19 @@ func InitializeTower(ctx context_service.RequestContext) {
 		return
 	}
 
-	err = db.WithTransaction(ctx, func(sessionCtx context.Context) error {
-		// Initialize the server based on the specified role
-		switch tower_model.Role(initBody.Role) {
-		case tower_model.RoleCore:
-			if err := tower_service.InitializeCoreServer(sessionCtx, initBody, config.Provider{}); err != nil {
-				return err
-			}
-		case tower_model.RoleBackup:
-			if err := tower_service.InitializeBackupServer(sessionCtx, initBody, config.Provider{}); err != nil {
-				return err
-			}
-		case tower_model.RoleRestore:
-			{
-				return errors.New("restore server initialization not implemented")
-			}
-		default:
-			err = errors.New("invalid server role")
+	// Initialize the server based on the specified role
+	// Note: No transaction wrapper - initialization is idempotent and can be retried
+	switch tower_model.Role(initBody.Role) {
+	case tower_model.RoleCore:
+		err = tower_service.InitializeCoreServer(ctx, initBody, config.GetConfig())
+	case tower_model.RoleBackup:
+		err = tower_service.InitializeBackupServer(ctx, initBody, config.GetConfig())
+	case tower_model.RoleRestore:
+		err = errors.New("restore server initialization not implemented")
+	default:
+		err = errors.New("invalid server role")
+	}
 
-			return err
-		}
-
-		return nil
-	})
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 

@@ -29,17 +29,6 @@
             "
         />
         <div
-            v-if="keyName"
-            :class="{
-                'text-text-tertiary pointer-events-none absolute right-2 p-1 text-nowrap transition': true,
-                'opacity-0': focused || value,
-            }"
-        >
-            <span>
-                {{ keyName }}
-            </span>
-        </div>
-        <div
             v-if="value && focused && showSubmit"
             :class="{
                 'text-text-tertiary hover:text-text-primary hover:bg-card-background-secondary absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 transition': true,
@@ -54,7 +43,7 @@
             <IconArrowRight />
         </div>
         <div
-            v-if="clearButton && value && focused"
+            v-if="clearButton && value"
             :class="{
                 'text-text-tertiary hover:text-text-primary hover:bg-card-background-secondary z-90 cursor-pointer rounded p-1 transition': true,
             }"
@@ -62,7 +51,10 @@
         >
             <IconX />
         </div>
-        <slot name="rightIcon" />
+        <slot
+            name="rightIcon"
+            :focused="focused"
+        />
     </div>
 </template>
 

@@ -2,22 +2,26 @@
     <div class="flex h-max w-max items-center gap-2">
         <div class="cb-wrap">
             <input
-                id="morning"
+                :id="id"
                 type="checkbox"
                 :class="{ 'inp-cbx': true }"
                 :checked="checked"
-                @change="(e) => $emit('changed', (e.target as HTMLInputElement).checked)"
+                @change="
+                    (e) => {
+                        emit('checked:changed', (e.target as HTMLInputElement).checked)
+                    }
+                "
             />
             <label
                 class="cbx"
-                for="morning"
+                :for="id"
             >
                 <span>
                     <svg
                         width="12px"
                         height="10px"
                     >
-                        <use xlink:href="#check-4"></use>
+                        <use href="#check-4"></use>
                     </svg>
                 </span>
                 <span v-if="label">{{ label }} </span>
@@ -25,7 +29,7 @@
             <svg class="inline-svg">
                 <symbol
                     id="check-4"
-                    viewbox="0 0 12 10"
+                    viewBox="0 0 12 10"
                 >
                     <polyline points="1.5 6 4.5 9 10.5 1"></polyline>
                 </symbol>
@@ -36,9 +40,10 @@
 
 <script setup lang="ts">
 defineProps<{ label?: string; checked: boolean }>()
-defineEmits<{
-    (e: 'changed', checked: boolean): void
+const emit = defineEmits<{
+    (e: 'checked:changed', checked: boolean): void
 }>()
+const id = useId()
 </script>
 
 <style scoped>

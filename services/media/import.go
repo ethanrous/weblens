@@ -17,12 +17,11 @@ func newMedia(ctx context_service.AppContext, f *file_model.WeblensFileImpl) (*m
 	}
 
 	return &media_model.Media{
-		ContentID:       f.GetContentID(),
-		Owner:           ownerName,
-		FileIDs:         []string{f.ID()},
-		RecognitionTags: []string{},
-		LikedBy:         []string{},
-		Enabled:         true,
+		ContentID: f.GetContentID(),
+		Owner:     ownerName,
+		FileIDs:   []string{f.ID()},
+		LikedBy:   []string{},
+		Enabled:   true,
 	}, nil
 }
 

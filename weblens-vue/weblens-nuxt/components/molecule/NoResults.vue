@@ -8,7 +8,7 @@
     </div>
 
     <div
-        v-else-if="filesStore.fileSearch !== ''"
+        v-else-if="locationStore.search !== ''"
         :class="{ 'text-text-tertiary absolute flex h-full w-full items-center justify-center gap-1': true }"
     >
         <IconSearch size="20" />
@@ -18,7 +18,10 @@
                 :file="filesStore.activeFile"
                 with-name
             />
-            matching "{{ filesStore.fileSearch }}"
+            {{ filesStore.searchRecurively ? 'or its subfolders' : '' }}
+            matching
+            {{ filesStore.searchWithRegex ? 'regex' : '' }}
+            "<strong> {{ locationStore.search }} </strong>"
         </span>
     </div>
 

@@ -17,12 +17,13 @@
             :class="{
                 'flex h-[15%] min-h-max justify-end gap-0.5 px-2 pb-1 select-none sm:min-h-12 sm:flex-col sm:pb-2': true,
             }"
+            :title="filename + ' - ' + fileStats"
         >
-            <span :class="{ 'truncate font-semibold text-nowrap': true }">{{ filename }}</span>
+            <span :class="{ 'min-h-5 truncate font-semibold text-nowrap': true }">{{ filename }}</span>
             <span
                 :class="{
                     'hidden text-xs sm:inline-block': true,
-                    'text-text-secondary': !fileState.Has(SelectedState.Moved),
+                    'text-text-secondary truncate': !fileState.Has(SelectedState.Moved),
                 }"
             >
                 {{ fileStats }}

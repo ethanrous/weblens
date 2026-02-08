@@ -121,11 +121,18 @@ import {
 const configuration = new Configuration();
 const apiInstance = new MediaApi(configuration);
 
-const { status, data } = await apiInstance.dropMedia();
+let username: string; //Username of owner whose media to drop. If empty, drops all media. (optional) (default to undefined)
+
+const { status, data } = await apiInstance.dropMedia(
+    username
+);
 ```
 
 ### Parameters
-This endpoint does not have any parameters.
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **username** | [**string**] | Username of owner whose media to drop. If empty, drops all media. | (optional) defaults to undefined|
 
 
 ### Return type

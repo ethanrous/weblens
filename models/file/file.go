@@ -2,6 +2,7 @@ package file
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -776,6 +777,11 @@ func (f *WeblensFileImpl) RecursiveMap(fn func(*WeblensFileImpl) error) error {
 	return nil
 }
 
+// Childrener is an interface for retrieving children of a directory.
+type Childrener interface {
+	GetChildren(ctx context.Context, folder *WeblensFileImpl) ([]*WeblensFileImpl, error)
+}
+
 /*
 LeafMap recursively perform fn on leaves, first, and work back up the tree.
 This takes an inverted "Depth first" approach. Note this
@@ -791,19 +797,23 @@ Files are acted on in the order of their index number here, starting with the le
 	 /  \
 	f1  f2
 */
-func (f *WeblensFileImpl) LeafMap(fn func(*WeblensFileImpl) error) error {
+func (f *WeblensFileImpl) LeafMap(ctx context.Context, fileService Childrener, fn func(*WeblensFileImpl) error) error {
 	if f == nil {
 		return wlerrors.WithStack(ErrNilFile)
 	}
 
 	if f.IsDir() {
-		children := f.GetChildren()
+		children, err := fileService.GetChildren(ctx, f)
+		if err != nil {
+			return err
+		}
+
 		slices.SortFunc(children, func(a, b *WeblensFileImpl) int {
 			return strings.Compare(a.portablePath.Filename(), b.portablePath.Filename())
 		})
 
 		for _, c := range children {
-			err := c.LeafMap(fn)
+			err := c.LeafMap(ctx, fileService, fn)
 			if err != nil {
 				return err
 			}

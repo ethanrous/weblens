@@ -45,8 +45,8 @@ type SetConfigParam struct {
 	ConfigValue any    `json:"configValue"`
 }
 
-// SetConfigParams represents a list of configuration parameters to set.
-type SetConfigParams []SetConfigParam // @name SetConfigParams
+// FeatureFlagParams represents a list of configuration parameters to set.
+type FeatureFlagParams []SetConfigParam // @name FeatureFlagParams
 
 // type SetConfigParams struct {
 // 	AllowRegistrations bool `json:"allowRegistrations"`

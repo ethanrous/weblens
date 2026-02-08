@@ -29,6 +29,16 @@
             @click="enableTraceLogging()"
         />
 
+        <WeblensButton
+            :label="
+                featureFlags?.['media.hdir_processing_enabled']
+                    ? 'Disable HDIR image processing'
+                    : 'Enable HDIR image processing'
+            "
+            center-content
+            @click="enableHDIR(!featureFlags?.['media.hdir_processing_enabled'])"
+        />
+
         <Divider />
 
         <WeblensButton
@@ -63,6 +73,7 @@ import WeblensButton from '~/components/atom/WeblensButton.vue'
 import { TableType, type TableColumn } from '~/types/table'
 
 const towerStore = useTowerStore()
+const userStore = useUserStore()
 
 useIntervalFn(() => {
     refresh()
@@ -77,7 +88,7 @@ async function flushCache() {
 }
 
 async function handleCleanMedia() {
-    await useWeblensAPI().MediaAPI.dropMedia()
+    await useWeblensAPI().MediaAPI.dropMedia(userStore.user.username)
 }
 
 async function handleClearHDIRs() {
@@ -141,4 +152,23 @@ const {
     })
     return tasks
 })
+
+const { data: featureFlags, refresh: refreshFeatureFlags } = useAsyncData('feature-flags', async () => {
+    const res = await useWeblensAPI().FeatureFlagsAPI.getFlags()
+
+    return res.data
+})
+
+async function enableHDIR(enable: boolean) {
+    return useWeblensAPI()
+        .FeatureFlagsAPI.setFlags([
+            {
+                configKey: 'media.hdir_processing_enabled',
+                configValue: enable as unknown as object,
+            },
+        ])
+        .then(() => {
+            return refreshFeatureFlags()
+        })
+}
 </script>

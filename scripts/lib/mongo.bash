@@ -1,5 +1,4 @@
 #!/bin/bash
-set -euo pipefail
 
 is_mongo_running() {
     local mongo_name=${1?"[ERROR] is_mongo_running called with no container name. Aborting"}
@@ -47,57 +46,45 @@ ensure_repl_set() {
 }
 
 launch_mongo() {
-    local mongo_name="${1?[ERROR] launch_mongo called with no container name. Aborting}"
+    local mongo_name="${1:-weblens-core-mongo}"
     local mongo_port="${2:-27017}"
 
     ensure_weblens_net
 
-    if ! dockerc image ls | grep ethrous/weblens-mongo &>/dev/null; then
-        ./scripts/build-mongo.bash || exit 1
-    fi
-
     if ! dockerc ps | grep "$mongo_name" &>/dev/null; then
         echo "Starting MongoDB container [$mongo_name] on port [:$mongo_port] ..."
 
-        dockerc run \
-            -d \
-            --rm \
-            --name "$mongo_name" \
-            -v ./_build/log/syslog:/var/log/syslog \
-            --mount type=volume,src="$mongo_name",dst=/data/db \
-            --publish "$mongo_port":27017 \
-            --network weblens-net \
-            -e WEBLENS_MONGO_HOST_NAME="$mongo_name" \
-            ethrous/weblens-mongo || exit 1
-    fi
+        # Ensure volume directories exist and are writable by the mongod user (uid 999).
+        # The compose file resolves MONGO_DATA_ROOT (../_build/db/core/) relative to
+        # the compose file dir (./docker/), which lands at ./_build/db/core/.
+        mkdir -p "./_build/db/core/mongod" "./_build/db/core/mongot"
+        chmod 777 "./_build/db/core/mongod" "./_build/db/core/mongot"
 
-    ensure_repl_set
+        # Write port override to a temp env file since sudo strips env vars
+        local port_env="/tmp/mongo-port.env"
+        echo "MONGO_HOST_PORT=$mongo_port" >"$port_env"
+
+        if ! dockerc compose -f ./docker/mongo.compose.yaml --env-file ./docker/mongo-core.env --env-file "$port_env" --project-name "$mongo_name" up -d; then
+            echo "!!! docker compose up failed !!!" >&2
+            echo "--- mongod container logs ---" >&2
+            dockerc logs "weblens-${TOWER_ROLE:-core}-mongod" --tail 150 >&2 2>&1 || true
+            echo "--- mongod container inspect ---" >&2
+            dockerc inspect "weblens-${TOWER_ROLE:-core}-mongod" --format '{{json .State}}' >&2 2>&1 || true
+            echo "--- All containers ---" >&2
+            dockerc ps -a >&2 2>&1 || true
+            exit 1
+        fi
+    fi
 }
 
 export -f launch_mongo
 
 # Stop all mongo containers and remove mongo volume, if specified
 cleanup_mongo() {
-    local running_mongos
-    running_mongos=$(docker ps | grep -e "weblens" -e "mongo") || true
-    if [[ ! -z "$running_mongos" ]]; then
-        while IFS= read -r container; do
-            local container_id
-            container_id=$(sed -E 's/^([^ ]+).*/\1/' <<<"$container")
+    local mongo_name="${1:-weblens-core-mongo}"
+    local mongo_port="${2:-27017}"
 
-            echo "Stopping mongo container [$container_id] ..."
-            dockerc stop "$container_id"
-        done <<<"$running_mongos"
-    else
-        echo "No running mongo containers found."
-    fi
-
-    if [[ -z "${1:-}" ]]; then
-        return
-    fi
-
-    local mongo_name=$1
-    dockerc volume rm "$mongo_name" 2>&1 || true
+    dockerc compose --project-name "$mongo_name" down
 }
 
 export -f cleanup_mongo

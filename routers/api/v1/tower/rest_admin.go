@@ -4,7 +4,7 @@ package tower
 import (
 	"net/http"
 
-	"github.com/ethanrous/weblens/models/config"
+	"github.com/ethanrous/weblens/models/featureflags"
 	"github.com/ethanrous/weblens/models/task"
 	"github.com/ethanrous/weblens/modules/netwrk"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
@@ -57,21 +57,21 @@ func FlushCache(ctx ctxservice.RequestContext) {
 	ctx.JSON(http.StatusOK, structs.WLResponseInfo{Message: "Cache flushed successfully"})
 }
 
-// GetConfig godoc
+// GetFlags godoc
 //
-//	@ID			GetConfig
+//	@ID			GetFlags
 //
 //	@Security	SessionAuth[admin]
 //	@Security	ApiKeyAuth[admin]
 //
-//	@Summary	Get Config
-//	@Tags		Config
+//	@Summary	Get Feature Flags
+//	@Tags		FeatureFlags
 //	@Produce	json
 //
-//	@Success	200 {object}	config.Config "Config Info"
-//	@Router		/config [get]
-func GetConfig(ctx ctxservice.RequestContext) {
-	cnf, err := config.GetConfig(ctx)
+//	@Success	200 {object}	featureflags.Bundle "Feature Flags"
+//	@Router		/flags [get]
+func GetFlags(ctx ctxservice.RequestContext) {
+	cnf, err := featureflags.GetFlags(ctx)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, wlerrors.Errorf("Failed to get config: %w", err))
 
@@ -81,48 +81,48 @@ func GetConfig(ctx ctxservice.RequestContext) {
 	ctx.JSON(http.StatusOK, cnf)
 }
 
-// SetConfig godoc
+// SetFlags godoc
 //
-//	@ID			SetConfig
+//	@ID			SetFlags
 //
 //	@Security	SessionAuth[admin]
 //	@Security	ApiKeyAuth[admin]
 //
-//	@Param		request	body	structs.SetConfigParams	true	"Set Config Params"
+//	@Param		request	body	structs.FeatureFlagParams	true	"Feature Flag Params"
 //
-//	@Summary	Set Config
-//	@Tags		Config
+//	@Summary	Set Feature Flags
+//	@Tags		FeatureFlags
 //	@Produce	json
 //
 //	@Success	200
-//	@Router		/config [post]
-func SetConfig(ctx ctxservice.RequestContext) {
-	configParams, err := netwrk.ReadRequestBody[structs.SetConfigParams](ctx.Req)
+//	@Router		/flags [post]
+func SetFlags(ctx ctxservice.RequestContext) {
+	configParams, err := netwrk.ReadRequestBody[structs.FeatureFlagParams](ctx.Req)
 	if err != nil {
 		return
 	}
 
-	cnf, err := config.GetConfig(ctx)
+	cnf, err := featureflags.GetFlags(ctx)
 	if err != nil {
-		ctx.Error(http.StatusInternalServerError, wlerrors.Errorf("Failed to get config: %w", err))
+		ctx.Error(http.StatusInternalServerError, wlerrors.Errorf("Failed to get feature flags: %w", err))
 
 		return
 	}
 
 	for _, param := range configParams {
 		switch param.ConfigKey {
-		case config.AllowRegistrations:
+		case featureflags.AllowRegistrations:
 			cnf.AllowRegistrations = param.ConfigValue.(bool)
-		case config.EnableHDIR:
+		case featureflags.EnableHDIR:
 			cnf.EnableHDIR = param.ConfigValue.(bool)
 		default:
-			ctx.Error(http.StatusBadRequest, wlerrors.Errorf("Unknown config parameter: %s", param.ConfigKey))
+			ctx.Error(http.StatusBadRequest, wlerrors.Errorf("Unknown feature flag: %s", param.ConfigKey))
 		}
 	}
 
-	err = config.SaveConfig(ctx, cnf)
+	err = featureflags.SaveFlags(ctx, cnf)
 	if err != nil {
-		ctx.Error(http.StatusInternalServerError, wlerrors.Errorf("Failed to save config: %w", err))
+		ctx.Error(http.StatusInternalServerError, wlerrors.Errorf("Failed to save feature flags: %w", err))
 
 		return
 	}

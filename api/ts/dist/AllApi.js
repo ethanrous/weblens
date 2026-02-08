@@ -289,16 +289,16 @@ var APIKeysApi = class extends BaseAPI {
     return APIKeysApiFp(this.configuration).getAPIKeys(options).then((request) => request(this.axios, this.basePath));
   }
 };
-var ConfigApiAxiosParamCreator = function(configuration) {
+var FeatureFlagsApiAxiosParamCreator = function(configuration) {
   return {
     /**
      * 
-     * @summary Get Config
+     * @summary Get Feature Flags
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getConfig: async (options = {}) => {
-      const localVarPath = `/config`;
+    getFlags: async (options = {}) => {
+      const localVarPath = `/flags`;
       const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
       let baseOptions;
       if (configuration) {
@@ -318,14 +318,14 @@ var ConfigApiAxiosParamCreator = function(configuration) {
     },
     /**
      * 
-     * @summary Set Config
-     * @param {Array<StructsSetConfigParam>} request Set Config Params
+     * @summary Set Feature Flags
+     * @param {Array<StructsSetConfigParam>} request Feature Flag Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setConfig: async (request, options = {}) => {
-      assertParamExists("setConfig", "request", request);
-      const localVarPath = `/config`;
+    setFlags: async (request, options = {}) => {
+      assertParamExists("setFlags", "request", request);
+      const localVarPath = `/flags`;
       const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
       let baseOptions;
       if (configuration) {
@@ -346,81 +346,81 @@ var ConfigApiAxiosParamCreator = function(configuration) {
     }
   };
 };
-var ConfigApiFp = function(configuration) {
-  const localVarAxiosParamCreator = ConfigApiAxiosParamCreator(configuration);
+var FeatureFlagsApiFp = function(configuration) {
+  const localVarAxiosParamCreator = FeatureFlagsApiAxiosParamCreator(configuration);
   return {
     /**
      * 
-     * @summary Get Config
+     * @summary Get Feature Flags
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    async getConfig(options) {
+    async getFlags(options) {
       var _a, _b, _c;
-      const localVarAxiosArgs = await localVarAxiosParamCreator.getConfig(options);
+      const localVarAxiosArgs = await localVarAxiosParamCreator.getFlags(options);
       const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
-      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["ConfigApi.getConfig"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
+      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["FeatureFlagsApi.getFlags"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
       return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
     },
     /**
      * 
-     * @summary Set Config
-     * @param {Array<StructsSetConfigParam>} request Set Config Params
+     * @summary Set Feature Flags
+     * @param {Array<StructsSetConfigParam>} request Feature Flag Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    async setConfig(request, options) {
+    async setFlags(request, options) {
       var _a, _b, _c;
-      const localVarAxiosArgs = await localVarAxiosParamCreator.setConfig(request, options);
+      const localVarAxiosArgs = await localVarAxiosParamCreator.setFlags(request, options);
       const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
-      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["ConfigApi.setConfig"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
+      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["FeatureFlagsApi.setFlags"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
       return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
     }
   };
 };
-var ConfigApiFactory = function(configuration, basePath, axios) {
-  const localVarFp = ConfigApiFp(configuration);
+var FeatureFlagsApiFactory = function(configuration, basePath, axios) {
+  const localVarFp = FeatureFlagsApiFp(configuration);
   return {
     /**
      * 
-     * @summary Get Config
+     * @summary Get Feature Flags
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getConfig(options) {
-      return localVarFp.getConfig(options).then((request) => request(axios, basePath));
+    getFlags(options) {
+      return localVarFp.getFlags(options).then((request) => request(axios, basePath));
     },
     /**
      * 
-     * @summary Set Config
-     * @param {Array<StructsSetConfigParam>} request Set Config Params
+     * @summary Set Feature Flags
+     * @param {Array<StructsSetConfigParam>} request Feature Flag Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setConfig(request, options) {
-      return localVarFp.setConfig(request, options).then((request2) => request2(axios, basePath));
+    setFlags(request, options) {
+      return localVarFp.setFlags(request, options).then((request2) => request2(axios, basePath));
     }
   };
 };
-var ConfigApi = class extends BaseAPI {
+var FeatureFlagsApi = class extends BaseAPI {
   /**
    * 
-   * @summary Get Config
+   * @summary Get Feature Flags
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */
-  getConfig(options) {
-    return ConfigApiFp(this.configuration).getConfig(options).then((request) => request(this.axios, this.basePath));
+  getFlags(options) {
+    return FeatureFlagsApiFp(this.configuration).getFlags(options).then((request) => request(this.axios, this.basePath));
   }
   /**
    * 
-   * @summary Set Config
-   * @param {Array<StructsSetConfigParam>} request Set Config Params
+   * @summary Set Feature Flags
+   * @param {Array<StructsSetConfigParam>} request Feature Flag Params
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */
-  setConfig(request, options) {
-    return ConfigApiFp(this.configuration).setConfig(request, options).then((request2) => request2(this.axios, this.basePath));
+  setFlags(request, options) {
+    return FeatureFlagsApiFp(this.configuration).setFlags(request, options).then((request2) => request2(this.axios, this.basePath));
   }
 };
 var FilesApiAxiosParamCreator = function(configuration) {
@@ -803,10 +803,14 @@ var FilesApiAxiosParamCreator = function(configuration) {
      * @summary Search for files by filename
      * @param {string} search Filename to search for
      * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
+     * @param {SearchByFilenameSortPropEnum} [sortProp] Property to sort by
+     * @param {SearchByFilenameSortOrderEnum} [sortOrder] Sort order
+     * @param {boolean} [recursive] Search recursively
+     * @param {boolean} [regex] Whether to treat the search term as a regex pattern
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    searchByFilename: async (search, baseFolderID, options = {}) => {
+    searchByFilename: async (search, baseFolderID, sortProp, sortOrder, recursive, regex, options = {}) => {
       assertParamExists("searchByFilename", "search", search);
       const localVarPath = `/files/search`;
       const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -822,6 +826,18 @@ var FilesApiAxiosParamCreator = function(configuration) {
       }
       if (baseFolderID !== void 0) {
         localVarQueryParameter["baseFolderID"] = baseFolderID;
+      }
+      if (sortProp !== void 0) {
+        localVarQueryParameter["sortProp"] = sortProp;
+      }
+      if (sortOrder !== void 0) {
+        localVarQueryParameter["sortOrder"] = sortOrder;
+      }
+      if (recursive !== void 0) {
+        localVarQueryParameter["recursive"] = recursive;
+      }
+      if (regex !== void 0) {
+        localVarQueryParameter["regex"] = regex;
       }
       localVarHeaderParameter["Accept"] = "*/*";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
@@ -1155,12 +1171,16 @@ var FilesApiFp = function(configuration) {
      * @summary Search for files by filename
      * @param {string} search Filename to search for
      * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
+     * @param {SearchByFilenameSortPropEnum} [sortProp] Property to sort by
+     * @param {SearchByFilenameSortOrderEnum} [sortOrder] Sort order
+     * @param {boolean} [recursive] Search recursively
+     * @param {boolean} [regex] Whether to treat the search term as a regex pattern
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    async searchByFilename(search, baseFolderID, options) {
+    async searchByFilename(search, baseFolderID, sortProp, sortOrder, recursive, regex, options) {
       var _a, _b, _c;
-      const localVarAxiosArgs = await localVarAxiosParamCreator.searchByFilename(search, baseFolderID, options);
+      const localVarAxiosArgs = await localVarAxiosParamCreator.searchByFilename(search, baseFolderID, sortProp, sortOrder, recursive, regex, options);
       const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
       const localVarOperationServerBasePath = (_c = (_b = operationServerMap["FilesApi.searchByFilename"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
       return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -1367,11 +1387,15 @@ var FilesApiFactory = function(configuration, basePath, axios) {
      * @summary Search for files by filename
      * @param {string} search Filename to search for
      * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
+     * @param {SearchByFilenameSortPropEnum} [sortProp] Property to sort by
+     * @param {SearchByFilenameSortOrderEnum} [sortOrder] Sort order
+     * @param {boolean} [recursive] Search recursively
+     * @param {boolean} [regex] Whether to treat the search term as a regex pattern
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    searchByFilename(search, baseFolderID, options) {
-      return localVarFp.searchByFilename(search, baseFolderID, options).then((request) => request(axios, basePath));
+    searchByFilename(search, baseFolderID, sortProp, sortOrder, recursive, regex, options) {
+      return localVarFp.searchByFilename(search, baseFolderID, sortProp, sortOrder, recursive, regex, options).then((request) => request(axios, basePath));
     },
     /**
      * 
@@ -1557,11 +1581,15 @@ var FilesApi = class extends BaseAPI {
    * @summary Search for files by filename
    * @param {string} search Filename to search for
    * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
+   * @param {SearchByFilenameSortPropEnum} [sortProp] Property to sort by
+   * @param {SearchByFilenameSortOrderEnum} [sortOrder] Sort order
+   * @param {boolean} [recursive] Search recursively
+   * @param {boolean} [regex] Whether to treat the search term as a regex pattern
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */
-  searchByFilename(search, baseFolderID, options) {
-    return FilesApiFp(this.configuration).searchByFilename(search, baseFolderID, options).then((request) => request(this.axios, this.basePath));
+  searchByFilename(search, baseFolderID, sortProp, sortOrder, recursive, regex, options) {
+    return FilesApiFp(this.configuration).searchByFilename(search, baseFolderID, sortProp, sortOrder, recursive, regex, options).then((request) => request(this.axios, this.basePath));
   }
   /**
    * 
@@ -1610,6 +1638,15 @@ var FilesApi = class extends BaseAPI {
     return FilesApiFp(this.configuration).uploadFileChunk(uploadID, fileID, chunk, shareID, options).then((request) => request(this.axios, this.basePath));
   }
 };
+var SearchByFilenameSortPropEnum = {
+  Name: "name",
+  Size: "size",
+  UpdatedAt: "updatedAt"
+};
+var SearchByFilenameSortOrderEnum = {
+  Asc: "asc",
+  Desc: "desc"
+};
 var FolderApiAxiosParamCreator = function(configuration) {
   return {
     /**
@@ -1651,10 +1688,12 @@ var FolderApiAxiosParamCreator = function(configuration) {
      * @param {string} folderID Folder ID
      * @param {string} [shareID] Share ID
      * @param {number} [timestamp] Past timestamp to view the folder at, in ms since epoch
+     * @param {GetFolderSortPropEnum} [sortProp] Property to sort by
+     * @param {GetFolderSortOrderEnum} [sortOrder] Sort order
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFolder: async (folderID, shareID, timestamp, options = {}) => {
+    getFolder: async (folderID, shareID, timestamp, sortProp, sortOrder, options = {}) => {
       assertParamExists("getFolder", "folderID", folderID);
       const localVarPath = `/folder/{folderID}`.replace(`{${"folderID"}}`, encodeURIComponent(String(folderID)));
       const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1670,6 +1709,12 @@ var FolderApiAxiosParamCreator = function(configuration) {
       }
       if (timestamp !== void 0) {
         localVarQueryParameter["timestamp"] = timestamp;
+      }
+      if (sortProp !== void 0) {
+        localVarQueryParameter["sortProp"] = sortProp;
+      }
+      if (sortOrder !== void 0) {
+        localVarQueryParameter["sortOrder"] = sortOrder;
       }
       localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
@@ -1795,12 +1840,14 @@ var FolderApiFp = function(configuration) {
      * @param {string} folderID Folder ID
      * @param {string} [shareID] Share ID
      * @param {number} [timestamp] Past timestamp to view the folder at, in ms since epoch
+     * @param {GetFolderSortPropEnum} [sortProp] Property to sort by
+     * @param {GetFolderSortOrderEnum} [sortOrder] Sort order
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    async getFolder(folderID, shareID, timestamp, options) {
+    async getFolder(folderID, shareID, timestamp, sortProp, sortOrder, options) {
       var _a, _b, _c;
-      const localVarAxiosArgs = await localVarAxiosParamCreator.getFolder(folderID, shareID, timestamp, options);
+      const localVarAxiosArgs = await localVarAxiosParamCreator.getFolder(folderID, shareID, timestamp, sortProp, sortOrder, options);
       const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
       const localVarOperationServerBasePath = (_c = (_b = operationServerMap["FolderApi.getFolder"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
       return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -1871,11 +1918,13 @@ var FolderApiFactory = function(configuration, basePath, axios) {
      * @param {string} folderID Folder ID
      * @param {string} [shareID] Share ID
      * @param {number} [timestamp] Past timestamp to view the folder at, in ms since epoch
+     * @param {GetFolderSortPropEnum} [sortProp] Property to sort by
+     * @param {GetFolderSortOrderEnum} [sortOrder] Sort order
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFolder(folderID, shareID, timestamp, options) {
-      return localVarFp.getFolder(folderID, shareID, timestamp, options).then((request) => request(axios, basePath));
+    getFolder(folderID, shareID, timestamp, sortProp, sortOrder, options) {
+      return localVarFp.getFolder(folderID, shareID, timestamp, sortProp, sortOrder, options).then((request) => request(axios, basePath));
     },
     /**
      * 
@@ -1929,11 +1978,13 @@ var FolderApi = class extends BaseAPI {
    * @param {string} folderID Folder ID
    * @param {string} [shareID] Share ID
    * @param {number} [timestamp] Past timestamp to view the folder at, in ms since epoch
+   * @param {GetFolderSortPropEnum} [sortProp] Property to sort by
+   * @param {GetFolderSortOrderEnum} [sortOrder] Sort order
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */
-  getFolder(folderID, shareID, timestamp, options) {
-    return FolderApiFp(this.configuration).getFolder(folderID, shareID, timestamp, options).then((request) => request(this.axios, this.basePath));
+  getFolder(folderID, shareID, timestamp, sortProp, sortOrder, options) {
+    return FolderApiFp(this.configuration).getFolder(folderID, shareID, timestamp, sortProp, sortOrder, options).then((request) => request(this.axios, this.basePath));
   }
   /**
    * 
@@ -1967,6 +2018,15 @@ var FolderApi = class extends BaseAPI {
   setFolderCover(folderID, mediaID, options) {
     return FolderApiFp(this.configuration).setFolderCover(folderID, mediaID, options).then((request) => request(this.axios, this.basePath));
   }
+};
+var GetFolderSortPropEnum = {
+  Name: "name",
+  Size: "size",
+  UpdatedAt: "updatedAt"
+};
+var GetFolderSortOrderEnum = {
+  Asc: "asc",
+  Desc: "desc"
 };
 var MediaApiAxiosParamCreator = function(configuration) {
   return {
@@ -2021,10 +2081,11 @@ var MediaApiAxiosParamCreator = function(configuration) {
     /**
      * 
      * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
+     * @param {string} [username] Username of owner whose media to drop. If empty, drops all media.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    dropMedia: async (options = {}) => {
+    dropMedia: async (username, options = {}) => {
       const localVarPath = `/media/drop`;
       const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
       let baseOptions;
@@ -2034,6 +2095,9 @@ var MediaApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "POST" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
+      if (username !== void 0) {
+        localVarQueryParameter["username"] = username;
+      }
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -2350,12 +2414,13 @@ var MediaApiFp = function(configuration) {
     /**
      * 
      * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
+     * @param {string} [username] Username of owner whose media to drop. If empty, drops all media.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    async dropMedia(options) {
+    async dropMedia(username, options) {
       var _a, _b, _c;
-      const localVarAxiosArgs = await localVarAxiosParamCreator.dropMedia(options);
+      const localVarAxiosArgs = await localVarAxiosParamCreator.dropMedia(username, options);
       const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
       const localVarOperationServerBasePath = (_c = (_b = operationServerMap["MediaApi.dropMedia"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
       return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -2518,11 +2583,12 @@ var MediaApiFactory = function(configuration, basePath, axios) {
     /**
      * 
      * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
+     * @param {string} [username] Username of owner whose media to drop. If empty, drops all media.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    dropMedia(options) {
-      return localVarFp.dropMedia(options).then((request) => request(axios, basePath));
+    dropMedia(username, options) {
+      return localVarFp.dropMedia(username, options).then((request) => request(axios, basePath));
     },
     /**
      * 
@@ -2644,11 +2710,12 @@ var MediaApi = class extends BaseAPI {
   /**
    * 
    * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
+   * @param {string} [username] Username of owner whose media to drop. If empty, drops all media.
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */
-  dropMedia(options) {
-    return MediaApiFp(this.configuration).dropMedia(options).then((request) => request(this.axios, this.basePath));
+  dropMedia(username, options) {
+    return MediaApiFp(this.configuration).dropMedia(username, options).then((request) => request(this.axios, this.basePath));
   }
   /**
    * 
@@ -4733,7 +4800,8 @@ function WeblensAPIFactory(apiEndpoint) {
     TowersAPI: TowersApiFactory({}, apiEndpoint),
     SharesAPI: ShareApiFactory({}, apiEndpoint),
     UsersAPI: UsersApiFactory({}, apiEndpoint),
-    APIKeysAPI: APIKeysApiFactory({}, apiEndpoint)
+    APIKeysAPI: APIKeysApiFactory({}, apiEndpoint),
+    FeatureFlagsAPI: FeatureFlagsApiFactory({}, apiEndpoint)
   };
 }
 export {
@@ -4741,10 +4809,10 @@ export {
   APIKeysApiAxiosParamCreator,
   APIKeysApiFactory,
   APIKeysApiFp,
-  ConfigApi,
-  ConfigApiAxiosParamCreator,
-  ConfigApiFactory,
-  ConfigApiFp,
+  FeatureFlagsApi,
+  FeatureFlagsApiAxiosParamCreator,
+  FeatureFlagsApiFactory,
+  FeatureFlagsApiFp,
   FilesApi,
   FilesApiAxiosParamCreator,
   FilesApiFactory,
@@ -4753,12 +4821,16 @@ export {
   FolderApiAxiosParamCreator,
   FolderApiFactory,
   FolderApiFp,
+  GetFolderSortOrderEnum,
+  GetFolderSortPropEnum,
   GetMediaImageQualityEnum,
   MediaApi,
   MediaApiAxiosParamCreator,
   MediaApiFactory,
   MediaApiFp,
   MediaBatchParamsSortEnum,
+  SearchByFilenameSortOrderEnum,
+  SearchByFilenameSortPropEnum,
   ShareApi,
   ShareApiAxiosParamCreator,
   ShareApiFactory,

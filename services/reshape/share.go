@@ -48,15 +48,19 @@ func ShareToShareInfo(ctx context.Context, s *share_model.FileShare) structs.Sha
 func PermissionsToPermissionsInfo(_ context.Context, perms map[string]*share_model.Permissions) map[string]structs.PermissionsInfo {
 	permsInfo := make(map[string]structs.PermissionsInfo, len(perms))
 	for k, v := range perms {
-		permsInfo[k] = structs.PermissionsInfo{
-			CanView:     v.CanView,
-			CanEdit:     v.CanEdit,
-			CanDownload: v.CanDownload,
-			CanDelete:   v.CanDelete,
-		}
+		permsInfo[k] = toPermissionInfo(*v)
 	}
 
 	return permsInfo
+}
+
+func toPermissionInfo(perms share_model.Permissions) structs.PermissionsInfo {
+	return structs.PermissionsInfo{
+		CanView:     perms.CanView,
+		CanEdit:     perms.CanEdit,
+		CanDownload: perms.CanDownload,
+		CanDelete:   perms.CanDelete,
+	}
 }
 
 // PermissionsParamsToPermissions converts PermissionsParams to a Permissions model.
@@ -67,6 +71,10 @@ func PermissionsParamsToPermissions(_ context.Context, perms structs.Permissions
 		CanDownload: perms.CanDownload,
 		CanDelete:   perms.CanDelete,
 	}
+
+	// Ensure that CanView is always true, for now.
+	// This may be revisited in the future for more granular control.
+	newPerms.CanView = true
 
 	return newPerms, nil
 }

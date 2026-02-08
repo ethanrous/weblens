@@ -8,7 +8,8 @@ Name | Type | Description | Notes
 **CreateDate** | Pointer to **int32** |  | [optional] 
 **Duration** | Pointer to **int32** | Total time, in milliseconds, of a video | [optional] 
 **Enabled** | Pointer to **bool** | If the media disabled. This can happen when the backing file(s) are deleted, but the media stays behind because it can be re-used if needed. | [optional] 
-**FileIds** | Pointer to **[]string** | Slices of files whos content hash to the contentId | [optional] 
+**FileIDs** | Pointer to **[]string** | Slices of files whos content hash to the contentId | [optional] 
+**HdirScore** | Pointer to **float32** | Similarity score from HDIR search | [optional] 
 **Height** | Pointer to **int32** |  | [optional] 
 **Hidden** | Pointer to **bool** | If the media is hidden from the timeline TODO - make this per user | [optional] 
 **Imported** | Pointer to **bool** |  | [optional] 
@@ -17,7 +18,6 @@ Name | Type | Description | Notes
 **MimeType** | Pointer to **string** | Mime-type key of the media | [optional] 
 **Owner** | Pointer to **string** | User who owns the file that resulted in this media being created | [optional] 
 **PageCount** | Pointer to **int32** | Number of pages (typically 1, 0 in not a valid page count) | [optional] 
-**RecognitionTags** | Pointer to **[]string** | Tags from the ML image scan so searching for particular objects in the images can be done | [optional] 
 **Width** | Pointer to **int32** | Full-res image dimensions | [optional] 
 
 ## Methods
@@ -139,30 +139,55 @@ SetEnabled sets Enabled field to given value.
 
 HasEnabled returns a boolean if a field has been set.
 
-### GetFileIds
+### GetFileIDs
 
-`func (o *MediaInfo) GetFileIds() []string`
+`func (o *MediaInfo) GetFileIDs() []string`
 
-GetFileIds returns the FileIds field if non-nil, zero value otherwise.
+GetFileIDs returns the FileIDs field if non-nil, zero value otherwise.
 
-### GetFileIdsOk
+### GetFileIDsOk
 
-`func (o *MediaInfo) GetFileIdsOk() (*[]string, bool)`
+`func (o *MediaInfo) GetFileIDsOk() (*[]string, bool)`
 
-GetFileIdsOk returns a tuple with the FileIds field if it's non-nil, zero value otherwise
+GetFileIDsOk returns a tuple with the FileIDs field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetFileIds
+### SetFileIDs
 
-`func (o *MediaInfo) SetFileIds(v []string)`
+`func (o *MediaInfo) SetFileIDs(v []string)`
 
-SetFileIds sets FileIds field to given value.
+SetFileIDs sets FileIDs field to given value.
 
-### HasFileIds
+### HasFileIDs
 
-`func (o *MediaInfo) HasFileIds() bool`
+`func (o *MediaInfo) HasFileIDs() bool`
 
-HasFileIds returns a boolean if a field has been set.
+HasFileIDs returns a boolean if a field has been set.
+
+### GetHdirScore
+
+`func (o *MediaInfo) GetHdirScore() float32`
+
+GetHdirScore returns the HdirScore field if non-nil, zero value otherwise.
+
+### GetHdirScoreOk
+
+`func (o *MediaInfo) GetHdirScoreOk() (*float32, bool)`
+
+GetHdirScoreOk returns a tuple with the HdirScore field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetHdirScore
+
+`func (o *MediaInfo) SetHdirScore(v float32)`
+
+SetHdirScore sets HdirScore field to given value.
+
+### HasHdirScore
+
+`func (o *MediaInfo) HasHdirScore() bool`
+
+HasHdirScore returns a boolean if a field has been set.
 
 ### GetHeight
 
@@ -363,31 +388,6 @@ SetPageCount sets PageCount field to given value.
 `func (o *MediaInfo) HasPageCount() bool`
 
 HasPageCount returns a boolean if a field has been set.
-
-### GetRecognitionTags
-
-`func (o *MediaInfo) GetRecognitionTags() []string`
-
-GetRecognitionTags returns the RecognitionTags field if non-nil, zero value otherwise.
-
-### GetRecognitionTagsOk
-
-`func (o *MediaInfo) GetRecognitionTagsOk() (*[]string, bool)`
-
-GetRecognitionTagsOk returns a tuple with the RecognitionTags field if it's non-nil, zero value otherwise
-and a boolean to check if the value has been set.
-
-### SetRecognitionTags
-
-`func (o *MediaInfo) SetRecognitionTags(v []string)`
-
-SetRecognitionTags sets RecognitionTags field to given value.
-
-### HasRecognitionTags
-
-`func (o *MediaInfo) HasRecognitionTags() bool`
-
-HasRecognitionTags returns a boolean if a field has been set.
 
 ### GetWidth
 

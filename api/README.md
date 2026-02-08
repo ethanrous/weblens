@@ -81,8 +81,8 @@ Class | Method | HTTP request | Description
 *APIKeysAPI* | [**CreateAPIKey**](docs/APIKeysAPI.md#createapikey) | **Post** /keys | Create a new api key
 *APIKeysAPI* | [**DeleteAPIKey**](docs/APIKeysAPI.md#deleteapikey) | **Delete** /keys/{tokenID} | Delete an api key
 *APIKeysAPI* | [**GetAPIKeys**](docs/APIKeysAPI.md#getapikeys) | **Get** /keys | Get all api keys
-*ConfigAPI* | [**GetConfig**](docs/ConfigAPI.md#getconfig) | **Get** /config | Get Config
-*ConfigAPI* | [**SetConfig**](docs/ConfigAPI.md#setconfig) | **Post** /config | Set Config
+*FeatureFlagsAPI* | [**GetFlags**](docs/FeatureFlagsAPI.md#getflags) | **Get** /flags | Get Feature Flags
+*FeatureFlagsAPI* | [**SetFlags**](docs/FeatureFlagsAPI.md#setflags) | **Post** /flags | Set Feature Flags
 *FilesAPI* | [**AddFilesToUpload**](docs/FilesAPI.md#addfilestoupload) | **Post** /upload/{uploadID} | Add a file to an upload task
 *FilesAPI* | [**AutocompletePath**](docs/FilesAPI.md#autocompletepath) | **Get** /files/autocomplete | Get path completion suggestions
 *FilesAPI* | [**CreateTakeout**](docs/FilesAPI.md#createtakeout) | **Post** /takeout | Create a zip file
@@ -155,7 +155,7 @@ Class | Method | HTTP request | Description
  - [APIKeyParams](docs/APIKeyParams.md)
  - [AddUserParams](docs/AddUserParams.md)
  - [BackupInfo](docs/BackupInfo.md)
- - [Config](docs/Config.md)
+ - [Bundle](docs/Bundle.md)
  - [CreateFolderBody](docs/CreateFolderBody.md)
  - [FileActionInfo](docs/FileActionInfo.md)
  - [FileInfo](docs/FileInfo.md)

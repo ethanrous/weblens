@@ -1,24 +1,34 @@
 <template>
     <div
         v-if="error"
-        :class="{ 'p-4': true }"
+        :class="{ 'absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-4 text-center': true }"
     >
-        <div v-if="error.status === 403">
-            <h1 class="text-2xl font-bold">Access Forbidden</h1>
-            <p class="text-gray-600">You do not have permission to access this resource.</p>
-        </div>
-        <div v-else>
-            <h1 class="text-2xl font-bold">An Unknown Error Occurred</h1>
-            <p class="text-gray-600">{{ error }}</p>
-            <p class="text-gray-600">Please try again later or file a report</p>
-        </div>
+        <h2 class="text-2xl font-bold">{{ errorText.header }}</h2>
+        <p class="text-gray-600">{{ errorText.message }}</p>
     </div>
 </template>
 
 <script setup lang="ts">
 import type { WLError } from '~/types/wlError'
 
-defineProps<{
+const props = defineProps<{
     error?: WLError
 }>()
+
+const errorText = computed(() => {
+    if (!props.error) return { header: '', message: '' }
+    switch (props.error.status) {
+        case 403:
+            return {
+                header: 'Access Forbidden',
+                message: 'You do not have permission to access this resource.',
+            }
+        case 404:
+            return {
+                header: 'Not Found',
+                message: 'The requested resource could not be found.',
+            }
+    }
+    return { header: 'An unknown error occurred.', message: props.error.message ?? 'Unknown error' }
+})
 </script>

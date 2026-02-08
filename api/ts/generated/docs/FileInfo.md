@@ -15,6 +15,7 @@ Name | Type | Description | Notes
 **owner** | **string** |  | [optional] [default to undefined]
 **parentID** | **string** |  | [optional] [default to undefined]
 **pastFile** | **boolean** |  | [optional] [default to undefined]
+**permissions** | [**PermissionsInfo**](PermissionsInfo.md) |  | [optional] [default to undefined]
 **portablePath** | **string** |  | [optional] [default to undefined]
 **shareID** | **string** |  | [optional] [default to undefined]
 **size** | **number** |  | [optional] [default to undefined]
@@ -35,6 +36,7 @@ const instance: FileInfo = {
     owner,
     parentID,
     pastFile,
+    permissions,
     portablePath,
     shareID,
     size,

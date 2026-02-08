@@ -148,6 +148,8 @@ type ApiGetFolderRequest struct {
 	folderID string
 	shareID *string
 	timestamp *int32
+	sortProp *string
+	sortOrder *string
 }
 
 // Share ID
@@ -159,6 +161,18 @@ func (r ApiGetFolderRequest) ShareID(shareID string) ApiGetFolderRequest {
 // Past timestamp to view the folder at, in ms since epoch
 func (r ApiGetFolderRequest) Timestamp(timestamp int32) ApiGetFolderRequest {
 	r.timestamp = &timestamp
+	return r
+}
+
+// Property to sort by
+func (r ApiGetFolderRequest) SortProp(sortProp string) ApiGetFolderRequest {
+	r.sortProp = &sortProp
+	return r
+}
+
+// Sort order
+func (r ApiGetFolderRequest) SortOrder(sortOrder string) ApiGetFolderRequest {
+	r.sortOrder = &sortOrder
 	return r
 }
 
@@ -208,6 +222,20 @@ func (a *FolderAPIService) GetFolderExecute(r ApiGetFolderRequest) (*FolderInfo,
 	}
 	if r.timestamp != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "timestamp", r.timestamp, "", "")
+	}
+	if r.sortProp != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "sortProp", r.sortProp, "", "")
+	} else {
+        var defaultValue string = "name"
+        parameterAddToHeaderOrQuery(localVarQueryParams, "sortProp", defaultValue, "", "")
+        r.sortProp = &defaultValue
+	}
+	if r.sortOrder != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "sortOrder", r.sortOrder, "", "")
+	} else {
+        var defaultValue string = "asc"
+        parameterAddToHeaderOrQuery(localVarQueryParams, "sortOrder", defaultValue, "", "")
+        r.sortOrder = &defaultValue
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}

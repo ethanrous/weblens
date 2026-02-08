@@ -17,6 +17,20 @@ export default class WeblensShare implements ShareInfo {
         this.assign(init)
     }
 
+    clone(): WeblensShare {
+        return new WeblensShare({
+            shareID: this.shareID,
+            accessors: [...this.accessors],
+            permissions: { ...this._permissions },
+            expires: this.expires,
+            public: this._public,
+            fileID: this.fileID,
+            shareName: this.shareName,
+            wormhole: this.wormhole,
+            owner: this.owner,
+        })
+    }
+
     private assign(init: ShareInfo) {
         if (!init) {
             return

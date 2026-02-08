@@ -14,7 +14,7 @@
                 'border-theme-primary absolute flex min-h-full w-full flex-col justify-start overflow-hidden rounded border transition-[height,width,scale]': true,
                 'before:bg-background-primary/80 backdrop-blur-sm before:absolute before:z-[-1] before:h-full before:w-full': true,
                 'rounded-r-none border-r-transparent': merge === 'right' && !isOpen,
-                'z-90 h-max !w-32 shadow-lg': isOpen,
+                'z-90 h-max w-32! shadow-lg': isOpen,
             }"
             :style="{
                 height: isOpen ? (opts.length + 1) * (selectSize.height.value + 2) - 2 + 'px' : 'calc(100% - 2px)',
@@ -33,7 +33,7 @@
             <div
                 :class="{
                     'absolute flex h-max w-full flex-col gap-1 px-2': true,
-                    '!p-0': iconOnly && !isOpen,
+                    'p-0!': iconOnly && !isOpen,
                 }"
             >
                 <div
@@ -91,15 +91,6 @@
                 </div>
             </div>
 
-            <IconChevronDown
-                v-if="!iconOnly"
-                :class="{ 'text-text-secondary mr-1 ml-auto': true }"
-                :style="{
-                    height: selectSize.height.value - 2 + 'px',
-                }"
-                size="1em"
-            />
-
             <span
                 ref="textSizeRef"
                 :class="{ 'pointer-events-none absolute opacity-0': true }"
@@ -111,7 +102,7 @@
 </template>
 
 <script setup lang="ts">
-import { IconChevronDown, type Icon } from '@tabler/icons-vue'
+import type { Icon } from '@tabler/icons-vue'
 import { onClickOutside, useElementSize } from '@vueuse/core'
 
 const value = defineModel<keyof typeof props.options>('value')

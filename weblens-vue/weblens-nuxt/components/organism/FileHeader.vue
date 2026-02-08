@@ -5,7 +5,7 @@
                 <IconChevronLeft
                     :class="{
                         'mx-1 inline-flex items-center justify-center rounded pr-0.5 leading-none transition md:mx-2': true,
-                        'text-text-secondary': !canNavigate,
+                        'text-text-tertiary': !canNavigate,
                         'hover:bg-card-background-hover cursor-pointer': canNavigate,
                     }"
                     @click="navigateBack"
@@ -35,7 +35,7 @@
             <FileSortControls v-if="!locationStore.isInTimeline" />
             <TimelineControls v-if="locationStore.isInTimeline" />
 
-            <WeblensButton @click="locationStore.setTimeline(!locationStore.isInTimeline)">
+            <WeblensButton @click="locationStore.isInTimeline = !locationStore.isInTimeline">
                 <IconFolder v-if="locationStore.isInTimeline" />
                 <IconPhoto v-if="!locationStore.isInTimeline" />
             </WeblensButton>
@@ -87,6 +87,19 @@ const fileName = computed(() => {
 })
 
 const canNavigate = computed(() => {
+    if (activeFile.value?.IsShareRoot()) {
+        return false
+    }
+
+    if (activeFile.value?.IsSharedWithMe()) {
+        return true
+    }
+
+    if (!activeFile.value || !activeFile.value.parentID) {
+        console.warn('Active file has no parentID, cannot navigate up', activeFile.value)
+        return false
+    }
+
     if (userStore.user.homeID === activeFile.value?.id || activeFile.value?.parentID === 'USERS') {
         return false
     }
@@ -99,7 +112,12 @@ function navigateBack() {
         return
     }
 
-    return new WeblensFile({ id: activeFile.value?.parentID }).GoTo()
+    // If in a share, and the file has no parents, go to share root (/files/share)
+    if (activeFile.value?.IsSharedWithMe() && activeFile.value?.parents.length === 0) {
+        return WeblensFile.ShareRoot().GoTo()
+    }
+
+    return new WeblensFile({ id: activeFile.value?.parentID, isDir: true }).GoTo()
 }
 
 function openContextMenu(e: MouseEvent) {

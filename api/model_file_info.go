@@ -29,6 +29,7 @@ type FileInfo struct {
 	Owner *string `json:"owner,omitempty"`
 	ParentID *string `json:"parentID,omitempty"`
 	PastFile *bool `json:"pastFile,omitempty"`
+	Permissions *PermissionsInfo `json:"permissions,omitempty"`
 	PortablePath *string `json:"portablePath,omitempty"`
 	ShareID *string `json:"shareID,omitempty"`
 	Size *int64 `json:"size,omitempty"`
@@ -371,6 +372,38 @@ func (o *FileInfo) SetPastFile(v bool) {
 	o.PastFile = &v
 }
 
+// GetPermissions returns the Permissions field value if set, zero value otherwise.
+func (o *FileInfo) GetPermissions() PermissionsInfo {
+	if o == nil || IsNil(o.Permissions) {
+		var ret PermissionsInfo
+		return ret
+	}
+	return *o.Permissions
+}
+
+// GetPermissionsOk returns a tuple with the Permissions field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *FileInfo) GetPermissionsOk() (*PermissionsInfo, bool) {
+	if o == nil || IsNil(o.Permissions) {
+		return nil, false
+	}
+	return o.Permissions, true
+}
+
+// HasPermissions returns a boolean if a field has been set.
+func (o *FileInfo) HasPermissions() bool {
+	if o != nil && !IsNil(o.Permissions) {
+		return true
+	}
+
+	return false
+}
+
+// SetPermissions gets a reference to the given PermissionsInfo and assigns it to the Permissions field.
+func (o *FileInfo) SetPermissions(v PermissionsInfo) {
+	o.Permissions = &v
+}
+
 // GetPortablePath returns the PortablePath field value if set, zero value otherwise.
 func (o *FileInfo) GetPortablePath() string {
 	if o == nil || IsNil(o.PortablePath) {
@@ -506,6 +539,9 @@ func (o FileInfo) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.PastFile) {
 		toSerialize["pastFile"] = o.PastFile
+	}
+	if !IsNil(o.Permissions) {
+		toSerialize["permissions"] = o.Permissions
 	}
 	if !IsNil(o.PortablePath) {
 		toSerialize["portablePath"] = o.PortablePath

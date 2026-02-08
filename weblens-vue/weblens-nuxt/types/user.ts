@@ -2,11 +2,11 @@ import type { UserInfo } from '@ethanrous/weblens-api'
 import { Optional } from '~/util/option'
 
 export enum UserPermissions {
-    Public = 0,
-    Basic = 1,
-    Admin = 2,
-    Owner = 3,
-    System = 4,
+    PUBLIC = 0,
+    BASIC = 1,
+    ADMIN = 2,
+    OWNER = 3,
+    SYSTEM = 4,
 }
 
 export default class User implements UserInfo {
@@ -37,15 +37,15 @@ export default class User implements UserInfo {
 
     public static GetPermissionLevelName(level: UserPermissions): string {
         switch (level) {
-            case UserPermissions.Public:
+            case UserPermissions.PUBLIC:
                 return 'Public'
-            case UserPermissions.Basic:
+            case UserPermissions.BASIC:
                 return 'Basic'
-            case UserPermissions.Admin:
+            case UserPermissions.ADMIN:
                 return 'Admin'
-            case UserPermissions.Owner:
+            case UserPermissions.OWNER:
                 return 'Owner'
-            case UserPermissions.System:
+            case UserPermissions.SYSTEM:
                 return 'System'
             default:
                 return 'Unknown'

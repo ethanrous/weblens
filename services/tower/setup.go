@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/ethanrous/weblens/models/auth"
-	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
@@ -61,30 +60,29 @@ func initTower(ctx context.Context, cnf config.Provider) error {
 	}
 
 	// Perform initialization based on the configured role.
+	// No transaction wrapper - initialization calls RunStartups which includes
+	// operations like listIndexes that cannot run inside a MongoDB transaction.
+	// Initialization is idempotent and can be retried on failure.
 	switch initRole {
 	case tower_model.RoleCore:
-		err = db.WithTransaction(ctx, func(sessionCtx context.Context) error {
-			return InitializeCoreServer(sessionCtx, structs.InitServerParams{
-				Name:     "Weblens Core",
-				Username: "admin",
-				Password: "adminadmin1",
-				FullName: "Weblens Admin",
-				Role:     string(tower_model.RoleCore),
-			}, cnf)
-		})
+		err = InitializeCoreServer(ctx, structs.InitServerParams{
+			Name:     "Weblens Core",
+			Username: "admin",
+			Password: "adminadmin1",
+			FullName: "Weblens Admin",
+			Role:     string(tower_model.RoleCore),
+		}, cnf)
 		if err != nil {
 			return err
 		}
 	case tower_model.RoleBackup:
-		err = db.WithTransaction(ctx, func(sessionCtx context.Context) error {
-			return InitializeBackupServer(sessionCtx, structs.InitServerParams{
-				Name:     "Weblens Backup",
-				Username: "admin",
-				Password: "adminadmin1",
-				FullName: "Weblens Backup Admin",
-				Role:     string(tower_model.RoleBackup),
-			}, cnf)
-		})
+		err = InitializeBackupServer(ctx, structs.InitServerParams{
+			Name:     "Weblens Backup",
+			Username: "admin",
+			Password: "adminadmin1",
+			FullName: "Weblens Backup Admin",
+			Role:     string(tower_model.RoleBackup),
+		}, cnf)
 		if err != nil {
 			return err
 		}

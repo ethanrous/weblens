@@ -2,6 +2,7 @@ import type { Configuration } from "./generated/configuration";
 
 import {
   APIKeysApiFactory,
+  FeatureFlagsApiFactory,
   FilesApiFactory,
   FolderApiFactory,
   MediaApiFactory,
@@ -20,6 +21,7 @@ export type WLAPI = {
   SharesAPI: ReturnType<typeof ShareApiFactory>;
   UsersAPI: ReturnType<typeof UsersApiFactory>;
   APIKeysAPI: ReturnType<typeof APIKeysApiFactory>;
+  FeatureFlagsAPI: ReturnType<typeof FeatureFlagsApiFactory>;
 };
 
 export function WeblensAPIFactory(apiEndpoint: string): WLAPI {
@@ -31,5 +33,6 @@ export function WeblensAPIFactory(apiEndpoint: string): WLAPI {
     SharesAPI: ShareApiFactory({} as Configuration, apiEndpoint),
     UsersAPI: UsersApiFactory({} as Configuration, apiEndpoint),
     APIKeysAPI: APIKeysApiFactory({} as Configuration, apiEndpoint),
+    FeatureFlagsAPI: FeatureFlagsApiFactory({} as Configuration, apiEndpoint),
   };
 }

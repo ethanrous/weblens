@@ -1,10 +1,10 @@
 import type WeblensFile from '~/types/weblensFile'
 import { useUserStore } from '~/stores/user.js'
-import useLocationStore, { FbModeT } from '~/stores/location.js'
+import useLocationStore from '~/stores/location.js'
 import { WsAction, WsSubscriptionType } from '~/types/websocket.js'
 import { API_ENDPOINT, useWeblensAPI } from './AllApi.js'
 import useFilesStore from '~/stores/files.js'
-import { FilesApiAxiosParamCreator, type FolderInfo, type TakeoutInfo } from '@ethanrous/weblens-api'
+import { FilesApiAxiosParamCreator, type TakeoutInfo } from '@ethanrous/weblens-api'
 import useWebsocketStore from '~/stores/websocket.js'
 
 export function SubToFolder(subID: string, shareID: string) {
@@ -72,36 +72,6 @@ export async function GetTrashChildIds(): Promise<string[]> {
     const childIds = folder.children.map((file) => file.id).filter((id) => id !== undefined)
 
     return childIds
-}
-
-export async function GetFolderData(
-    folderID: string,
-    fbMode: FbModeT,
-    shareID?: string,
-    viewingTime?: Date,
-): Promise<FolderInfo> {
-    if (fbMode === FbModeT.share && !shareID) {
-        const res = await useWeblensAPI().FilesAPI.getSharedFiles()
-        return res.data
-    }
-
-    if (fbMode === FbModeT.external) {
-        console.error('External files not implemented')
-    }
-
-    if (folderID === '') {
-        throw new Error('Folder ID cannot be empty')
-    }
-
-    const res = await useWeblensAPI().FoldersAPI.getFolder(
-        folderID,
-        shareID ? shareID : undefined,
-        viewingTime?.getTime(),
-        {
-            withCredentials: true,
-        },
-    )
-    return res.data
 }
 
 export type AllowedDownloadFormats = 'webp' | 'jpeg' | 'zip'

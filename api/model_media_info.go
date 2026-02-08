@@ -27,7 +27,9 @@ type MediaInfo struct {
 	// If the media disabled. This can happen when the backing file(s) are deleted, but the media stays behind because it can be re-used if needed.
 	Enabled *bool `json:"enabled,omitempty"`
 	// Slices of files whos content hash to the contentId
-	FileIds []string `json:"fileIds,omitempty"`
+	FileIDs []string `json:"fileIDs,omitempty"`
+	// Similarity score from HDIR search
+	HdirScore *float32 `json:"hdirScore,omitempty"`
 	Height *int32 `json:"height,omitempty"`
 	// If the media is hidden from the timeline TODO - make this per user
 	Hidden *bool `json:"hidden,omitempty"`
@@ -40,8 +42,6 @@ type MediaInfo struct {
 	Owner *string `json:"owner,omitempty"`
 	// Number of pages (typically 1, 0 in not a valid page count)
 	PageCount *int32 `json:"pageCount,omitempty"`
-	// Tags from the ML image scan so searching for particular objects in the images can be done
-	RecognitionTags []string `json:"recognitionTags,omitempty"`
 	// Full-res image dimensions
 	Width *int32 `json:"width,omitempty"`
 }
@@ -191,36 +191,68 @@ func (o *MediaInfo) SetEnabled(v bool) {
 	o.Enabled = &v
 }
 
-// GetFileIds returns the FileIds field value if set, zero value otherwise.
-func (o *MediaInfo) GetFileIds() []string {
-	if o == nil || IsNil(o.FileIds) {
+// GetFileIDs returns the FileIDs field value if set, zero value otherwise.
+func (o *MediaInfo) GetFileIDs() []string {
+	if o == nil || IsNil(o.FileIDs) {
 		var ret []string
 		return ret
 	}
-	return o.FileIds
+	return o.FileIDs
 }
 
-// GetFileIdsOk returns a tuple with the FileIds field value if set, nil otherwise
+// GetFileIDsOk returns a tuple with the FileIDs field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *MediaInfo) GetFileIdsOk() ([]string, bool) {
-	if o == nil || IsNil(o.FileIds) {
+func (o *MediaInfo) GetFileIDsOk() ([]string, bool) {
+	if o == nil || IsNil(o.FileIDs) {
 		return nil, false
 	}
-	return o.FileIds, true
+	return o.FileIDs, true
 }
 
-// HasFileIds returns a boolean if a field has been set.
-func (o *MediaInfo) HasFileIds() bool {
-	if o != nil && !IsNil(o.FileIds) {
+// HasFileIDs returns a boolean if a field has been set.
+func (o *MediaInfo) HasFileIDs() bool {
+	if o != nil && !IsNil(o.FileIDs) {
 		return true
 	}
 
 	return false
 }
 
-// SetFileIds gets a reference to the given []string and assigns it to the FileIds field.
-func (o *MediaInfo) SetFileIds(v []string) {
-	o.FileIds = v
+// SetFileIDs gets a reference to the given []string and assigns it to the FileIDs field.
+func (o *MediaInfo) SetFileIDs(v []string) {
+	o.FileIDs = v
+}
+
+// GetHdirScore returns the HdirScore field value if set, zero value otherwise.
+func (o *MediaInfo) GetHdirScore() float32 {
+	if o == nil || IsNil(o.HdirScore) {
+		var ret float32
+		return ret
+	}
+	return *o.HdirScore
+}
+
+// GetHdirScoreOk returns a tuple with the HdirScore field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *MediaInfo) GetHdirScoreOk() (*float32, bool) {
+	if o == nil || IsNil(o.HdirScore) {
+		return nil, false
+	}
+	return o.HdirScore, true
+}
+
+// HasHdirScore returns a boolean if a field has been set.
+func (o *MediaInfo) HasHdirScore() bool {
+	if o != nil && !IsNil(o.HdirScore) {
+		return true
+	}
+
+	return false
+}
+
+// SetHdirScore gets a reference to the given float32 and assigns it to the HdirScore field.
+func (o *MediaInfo) SetHdirScore(v float32) {
+	o.HdirScore = &v
 }
 
 // GetHeight returns the Height field value if set, zero value otherwise.
@@ -479,38 +511,6 @@ func (o *MediaInfo) SetPageCount(v int32) {
 	o.PageCount = &v
 }
 
-// GetRecognitionTags returns the RecognitionTags field value if set, zero value otherwise.
-func (o *MediaInfo) GetRecognitionTags() []string {
-	if o == nil || IsNil(o.RecognitionTags) {
-		var ret []string
-		return ret
-	}
-	return o.RecognitionTags
-}
-
-// GetRecognitionTagsOk returns a tuple with the RecognitionTags field value if set, nil otherwise
-// and a boolean to check if the value has been set.
-func (o *MediaInfo) GetRecognitionTagsOk() ([]string, bool) {
-	if o == nil || IsNil(o.RecognitionTags) {
-		return nil, false
-	}
-	return o.RecognitionTags, true
-}
-
-// HasRecognitionTags returns a boolean if a field has been set.
-func (o *MediaInfo) HasRecognitionTags() bool {
-	if o != nil && !IsNil(o.RecognitionTags) {
-		return true
-	}
-
-	return false
-}
-
-// SetRecognitionTags gets a reference to the given []string and assigns it to the RecognitionTags field.
-func (o *MediaInfo) SetRecognitionTags(v []string) {
-	o.RecognitionTags = v
-}
-
 // GetWidth returns the Width field value if set, zero value otherwise.
 func (o *MediaInfo) GetWidth() int32 {
 	if o == nil || IsNil(o.Width) {
@@ -565,8 +565,11 @@ func (o MediaInfo) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Enabled) {
 		toSerialize["enabled"] = o.Enabled
 	}
-	if !IsNil(o.FileIds) {
-		toSerialize["fileIds"] = o.FileIds
+	if !IsNil(o.FileIDs) {
+		toSerialize["fileIDs"] = o.FileIDs
+	}
+	if !IsNil(o.HdirScore) {
+		toSerialize["hdirScore"] = o.HdirScore
 	}
 	if !IsNil(o.Height) {
 		toSerialize["height"] = o.Height
@@ -591,9 +594,6 @@ func (o MediaInfo) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.PageCount) {
 		toSerialize["pageCount"] = o.PageCount
-	}
-	if !IsNil(o.RecognitionTags) {
-		toSerialize["recognitionTags"] = o.RecognitionTags
 	}
 	if !IsNil(o.Width) {
 		toSerialize["width"] = o.Width

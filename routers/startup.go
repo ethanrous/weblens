@@ -4,6 +4,7 @@ package routers
 import (
 	"context"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
@@ -92,7 +93,11 @@ func Start(opts StartupOpts) error {
 	if cnf.DoProfile {
 		// Start pprof server for profiling and debugging.
 		go func() {
-			logger.Debug().Msgf("%v+", http.ListenAndServe("0.0.0.0:6060", nil))
+			mux := http.NewServeMux()
+			mux.Handle("/debug/pprof/", http.HandlerFunc(pprof.Index))
+			mux.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+			logger.Debug().Msgf("Starting pprof server at 127.0.0.1:6060")
+			logger.Debug().Msgf("%v+", http.ListenAndServe("127.0.0.1:6060", mux))
 		}()
 	}
 

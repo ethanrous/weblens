@@ -3,7 +3,7 @@
 README.md
 api/openapi.yaml
 api_api_keys.go
-api_config.go
+api_feature_flags.go
 api_files.go
 api_folder.go
 api_media.go
@@ -16,9 +16,9 @@ docs/APIKeyParams.md
 docs/APIKeysAPI.md
 docs/AddUserParams.md
 docs/BackupInfo.md
-docs/Config.md
-docs/ConfigAPI.md
+docs/Bundle.md
 docs/CreateFolderBody.md
+docs/FeatureFlagsAPI.md
 docs/FileActionInfo.md
 docs/FileInfo.md
 docs/FileShareParams.md
@@ -70,7 +70,7 @@ go.sum
 model_add_user_params.go
 model_api_key_params.go
 model_backup_info.go
-model_config.go
+model_bundle.go
 model_create_folder_body.go
 model_file_action_info.go
 model_file_info.go

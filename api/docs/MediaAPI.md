@@ -135,7 +135,7 @@ No authorization required
 
 ## DropMedia
 
-> DropMedia(ctx).Execute()
+> DropMedia(ctx).Username(username).Execute()
 
 DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
 
@@ -152,10 +152,11 @@ import (
 )
 
 func main() {
+	username := "username_example" // string | Username of owner whose media to drop. If empty, drops all media. (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	r, err := apiClient.MediaAPI.DropMedia(context.Background()).Execute()
+	r, err := apiClient.MediaAPI.DropMedia(context.Background()).Username(username).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `MediaAPI.DropMedia``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -165,12 +166,16 @@ func main() {
 
 ### Path Parameters
 
-This endpoint does not need any parameter.
+
 
 ### Other Parameters
 
 Other parameters are passed through a pointer to a apiDropMediaRequest struct via the builder pattern
 
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **username** | **string** | Username of owner whose media to drop. If empty, drops all media. | 
 
 ### Return type
 

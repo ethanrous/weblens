@@ -8,17 +8,13 @@ import (
 	"github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/fs"
-	"github.com/ethanrous/weblens/modules/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestGetFolder(t *testing.T) {
 	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
-	if err != nil {
-		log.GlobalLogger().Error().Stack().Err(err).Msg("Failed to start test server")
-		t.FailNow()
-	}
+	require.NoError(t, err, "Failed to start test server")
 
 	client := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
 
@@ -41,10 +37,7 @@ func TestGetFolder(t *testing.T) {
 
 func TestCreateFolder(t *testing.T) {
 	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
-	if err != nil {
-		log.GlobalLogger().Error().Stack().Err(err).Msg("Failed to start test server")
-		t.FailNow()
-	}
+	require.NoError(t, err, "Failed to start test server")
 
 	client := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
 
@@ -78,10 +71,7 @@ func TestCreateFolder(t *testing.T) {
 
 func TestGetFile(t *testing.T) {
 	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
-	if err != nil {
-		log.GlobalLogger().Error().Stack().Err(err).Msg("Failed to start test server")
-		t.FailNow()
-	}
+	require.NoError(t, err, "Failed to start test server")
 
 	client := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
 
@@ -117,10 +107,7 @@ func TestGetFile(t *testing.T) {
 
 func TestSearchByFilename(t *testing.T) {
 	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
-	if err != nil {
-		log.GlobalLogger().Error().Stack().Err(err).Msg("Failed to start test server")
-		t.FailNow()
-	}
+	require.NoError(t, err, "Failed to start test server")
 
 	client := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
 
@@ -163,10 +150,7 @@ func TestSearchByFilename(t *testing.T) {
 
 func TestUpdateFile(t *testing.T) {
 	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
-	if err != nil {
-		log.GlobalLogger().Error().Stack().Err(err).Msg("Failed to start test server")
-		t.FailNow()
-	}
+	require.NoError(t, err, "Failed to start test server")
 
 	client := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
 
@@ -203,10 +187,7 @@ func TestUpdateFile(t *testing.T) {
 
 func TestMoveFiles(t *testing.T) {
 	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
-	if err != nil {
-		log.GlobalLogger().Error().Stack().Err(err).Msg("Failed to start test server")
-		t.FailNow()
-	}
+	require.NoError(t, err, "Failed to start test server")
 
 	client := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
 
@@ -251,10 +232,7 @@ func TestMoveFiles(t *testing.T) {
 
 func TestDeleteFiles(t *testing.T) {
 	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
-	if err != nil {
-		log.GlobalLogger().Error().Stack().Err(err).Msg("Failed to start test server")
-		t.FailNow()
-	}
+	require.NoError(t, err, "Failed to start test server")
 
 	client := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
 

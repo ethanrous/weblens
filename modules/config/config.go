@@ -169,7 +169,7 @@ func getDefaultConfig() Provider {
 		Host:              "0.0.0.0",
 		Port:              "8080",
 		MongoDBUri:        "mongodb://127.0.0.1:27017/?replicaSet=rs0&directConnection=true",
-		MongoDBName:       "weblensDB",
+		MongoDBName:       "weblens",
 		HdirURI:           "http://weblens-hdir:5000",
 		UIPath:            "/app/web",
 		StaticContentPath: "/app/static",
@@ -295,11 +295,19 @@ func getEnvOverride(config *Provider) {
 	if dataPath := os.Getenv("WEBLENS_DATA_PATH"); dataPath != "" {
 		log.Trace().Msgf("Overriding DataPath with WEBLENS_DATA_PATH: %s", dataPath)
 		config.DataPath = handlePath(dataPath)
+
+		if !filepath.IsAbs(config.DataPath) {
+			panic(wlerrors.Errorf("WEBLENS_DATA_PATH must be an absolute path, got: %s", config.DataPath))
+		}
 	}
 
 	if cachePath := os.Getenv("WEBLENS_CACHE_PATH"); cachePath != "" {
 		log.Trace().Msgf("Overriding CachePath with WEBLENS_CACHE_PATH: %s", cachePath)
 		config.CachePath = handlePath(cachePath)
+
+		if !filepath.IsAbs(config.CachePath) {
+			panic(wlerrors.Errorf("WEBLENS_CACHE_PATH must be an absolute path, got: %s", config.CachePath))
+		}
 	}
 
 	if doCache, ok := envBool("WEBLENS_DO_CACHE"); ok {
@@ -310,6 +318,11 @@ func getEnvOverride(config *Provider) {
 	if doProfile, ok := envBool("WEBLENS_DO_PROFILING"); ok {
 		log.Trace().Msgf("Overriding DoProfile with WEBLENS_DO_PROFILING: %v", doProfile)
 		config.DoProfile = doProfile
+	}
+
+	if hdirURI := os.Getenv("WEBLENS_HDIR_URI"); hdirURI != "" {
+		log.Trace().Msgf("Overriding HdirURI with WEBLENS_HDIR_URI: %v", hdirURI)
+		config.HdirURI = hdirURI
 	}
 }
 

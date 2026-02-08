@@ -1,11 +1,12 @@
 import { defineNuxtModule } from '@nuxt/kit'
-import { createProxyServer } from 'httpxy'
 
 // Custom nuxt module for adding websocket proxy support locally. The official support does not work yet,
 // see https://github.com/nuxt/cli/issues/107 and https://github.com/nuxt/cli/issues/108.
 export default defineNuxtModule({
-    setup(_, nuxt) {
+    async setup(_, nuxt) {
         if (!nuxt.options.dev) return
+
+        const { createProxyServer } = await import('httpxy')
 
         // Take rules from the nitro devProxy configuration that have the ws flag set.
         const wsProxyRules = Object.entries(nuxt.options.nitro?.devProxy ?? {}).filter(

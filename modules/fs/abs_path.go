@@ -18,7 +18,7 @@ func RegisterAbsolutePrefix(alias, path string) error {
 	log.Trace().Msgf("Registering absolute path alias: %s -> %s", alias, path)
 
 	if !strings.HasPrefix(path, "/") {
-		return wlerrors.New("absolute path must start with /")
+		return wlerrors.Errorf("absolute path must start with /, but got: [%s]", path)
 	}
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {

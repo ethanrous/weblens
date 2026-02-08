@@ -8,6 +8,7 @@ export enum TableType {
     Checkbox,
     JSON,
     Slot,
+    Text,
 }
 
 export type TableTypes = {
@@ -32,6 +33,10 @@ export type TableTypes = {
         key: string
         data?: string | number | boolean | Record<string, string | number | boolean | null>
     }
+    [TableType.Text]: {
+        tableType: TableType.Text
+        text?: string
+    }
 }
 
-export type TableColumn<T extends TableType = TableType> = string | number | undefined | TableTypes[T]
+export type TableColumn<T extends TableType = TableType> = TableTypes[T]

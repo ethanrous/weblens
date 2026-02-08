@@ -502,14 +502,6 @@ func (t *Task) ExeTime() time.Duration {
 	return t.FinishTime.Sub(t.StartTime)
 }
 
-// StartedAt returns the time when the task started executing.
-func (t *Task) StartedAt() time.Time {
-	t.updateMu.RLock()
-	defer t.updateMu.RUnlock()
-
-	return t.StartTime
-}
-
 // QueueTimeDuration returns how long the task waited in the queue.
 func (t *Task) QueueTimeDuration() time.Duration {
 	t.updateMu.RLock()
@@ -565,7 +557,7 @@ func (t *Task) error(err error) {
 		return
 	}
 
-	t.Log().Error().CallerSkipFrame(2).Stack().Err(err).Msgf("A [%s] task [%s] encountered an error", t.jobName, t.taskID)
+	t.Log().Error().CallerSkipFrame(2).Stack().Err(err).Msgf("A task encountered an error")
 
 	t.cancelFunc(err)
 

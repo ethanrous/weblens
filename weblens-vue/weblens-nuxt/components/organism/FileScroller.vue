@@ -8,7 +8,7 @@
         <RewindIndicator />
 
         <span
-            v-if="!filesStore.searchUpToDate && filesStore.searchRecurively && filesStore.fileSearch !== ''"
+            v-if="!filesStore.searchUpToDate && filesStore.searchRecurively && locationStore.search !== ''"
             :class="{ 'text-text-secondary m-auto inline-flex items-center gap-1': true }"
         >
             Press
@@ -37,10 +37,14 @@
             @contextmenu.stop.prevent="handleContextMenu"
         >
             <Loader
-                v-if="filesStore.loading"
+                v-if="filesStore.loading || filesStore.status === 'pending'"
                 :class="{ 'm-auto': true }"
             />
 
+            <ErrorCard
+                v-else-if="filesStore.fileFetchError"
+                :error="filesStore.fileFetchError"
+            />
             <NoResults v-else-if="files.length === 0" />
 
             <div
@@ -52,13 +56,17 @@
                 }"
                 :style="{ maxWidth: maxW }"
             >
-                <FileCard
+                <template
                     v-for="(file, index) of files"
                     :key="file.id"
-                    :file="file"
-                    :file-index="index"
-                    :file-shape="filesStore.fileShape"
-                />
+                >
+                    <FileCard
+                        v-if="noRequireParentMatch || file.parentID === locationStore.activeFolderID"
+                        :file="file"
+                        :file-index="index"
+                        :file-shape="filesStore.fileShape"
+                    />
+                </template>
             </div>
         </div>
     </div>
@@ -76,6 +84,7 @@ import Loader from '../atom/Loader.vue'
 import useLocationStore from '~/stores/location'
 import NoResults from '../molecule/NoResults.vue'
 import RewindIndicator from '../molecule/RewindIndicator.vue'
+import ErrorCard from '../molecule/ErrorCard.vue'
 
 const filesStore = useFilesStore()
 const locationStore = useLocationStore()
@@ -85,7 +94,10 @@ const presentationStore = usePresentationStore()
 const scrollerContainer = useTemplateRef('scrollerContainer')
 const hovering = ref(false)
 
-defineProps<{ files: WeblensFile[] }>()
+const { noRequireParentMatch = true } = defineProps<{
+    files: WeblensFile[]
+    noRequireParentMatch?: boolean
+}>()
 
 const activeElement = useActiveElement()
 const notUsingInput = computed(

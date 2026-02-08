@@ -33,7 +33,8 @@ run_native_tests() {
 
     # shellcheck disable=SC2086
     if ! go test -cover -race -coverprofile=_build/cover/coverage.out -coverpkg ./... -tags=test ${target}; then
-        printf "\n\nTESTS FAILED. See log via \n\ncat ./_build/logs/test-latest.log\n"
+        printf "\n\nTESTS FAILED. Last 200 lines of log:\n\n"
+        tail -200 "$WEBLENS_LOG_PATH" || true
         exit 1
     fi
     # 2>&1 | grep -v -e "=== RUN" -e "=== PAUSE" -e "--- PASS" -e "coverage:" -e "=== CONT" -e "ld: warning:"

@@ -408,11 +408,17 @@ func (wp *WorkerPool) removeTask(taskID string) {
 // `isReplacement` specifies if the worker is a temporary replacement for another
 // task that is parking for a long time. Replacement workers behave slightly
 // differently in attempt to minimize parked time of the other task.
-func (wp *WorkerPool) execWorker(ctx context.Context, isReplacement bool) {
+func (wp *WorkerPool) execWorker(workerCtx context.Context, isReplacement bool) {
 	go func(workerID int64) {
-		log.FromContext(wp.ctx).Debug().Msgf("Spinning up worker with id [%d] o7", workerID)
+		newl := log.FromContext(workerCtx).With().
+			Int("worker_id", int(workerID)).
+			Logger()
 
-		err := context_mod.AddToWg(ctx)
+		workerCtx = log.WithContext(workerCtx, &newl)
+
+		log.FromContext(wp.ctx).Debug().Msgf("Launching worker")
+
+		err := context_mod.AddToWg(workerCtx)
 		if err != nil {
 			log.FromContext(wp.ctx).Error().Stack().Err(err).Msg("Failed to add worker to wait group")
 
@@ -420,28 +426,39 @@ func (wp *WorkerPool) execWorker(ctx context.Context, isReplacement bool) {
 		}
 
 		defer func() {
-			err = context_mod.WgDone(ctx)
+			err = context_mod.WgDone(workerCtx)
 			if err != nil {
 				log.FromContext(wp.ctx).Error().Stack().Err(err).Msg("Failed to remove worker from wait group")
 
 				return
 			}
 
-			log.FromContext(wp.ctx).Debug().Msgf("worker %d exiting, %d workers remain", workerID, wp.currentWorkers.Add(-1))
+			remainingWorkers := wp.currentWorkers.Add(-1)
+			log.FromContext(workerCtx).Debug().Int64("remaining_workers_count", remainingWorkers).Msgf("worker exiting")
 		}()
 
 		// WorkLoop:
 		for {
 			select {
-			case _, ok := <-ctx.Done():
+			case _, ok := <-workerCtx.Done():
 				if !ok {
 					return
 				}
 			case t := <-wp.taskStream:
 				{
+					// Check if the task was canceled while in the queue
+					select {
+					case <-t.Ctx.Done():
+						// Task was canceled, do not run it
+						log.FromContext(t.Ctx).Trace().Msgf("Task was canceled while in queue, not running")
+
+						continue
+					default:
+					}
+
 					if t.exitStatus != TaskNoStatus {
 						// If the task has already been completed, we don't want to run it again
-						log.FromContext(t.Ctx).Trace().Msgf("Task [%s] already has exit status [%s], not running", t.taskID, t.exitStatus)
+						log.FromContext(t.Ctx).Trace().Str("exit_status", string(t.exitStatus)).Msgf("Task already has exit status, not running")
 
 						continue
 					}
@@ -480,28 +497,27 @@ func (wp *WorkerPool) execWorker(ctx context.Context, isReplacement bool) {
 
 					// Update the task's logger to include the worker ID
 					t.Ctx = log.WithContext(t.Ctx, &newl)
-					l := log.FromContext(t.Ctx)
 
 					t.ctxMu.Unlock()
 
 					// Inc tasks being processed
 					wp.busyCount.Add(1)
-					l.Debug().Func(func(e *zerolog.Event) {
+					log.FromContext(t.Ctx).Debug().Func(func(e *zerolog.Event) {
 						t.updateMu.RLock()
 						defer t.updateMu.RUnlock()
 
-						e.Msgf("Starting [%s] task [%s] after queued for %s", t.jobName, t.taskID, t.QueueTimeDuration())
+						e.Dur("queue_time_ms", t.QueueTimeDuration()).Msgf("Starting task")
 					})
 
 					// Perform the task. This method includes a recover to catch panics in tasks and handle them gracefully.
 					// All the real work happens inside safetyWork here, everything before is setup, everything after is teardown.
 					wp.safetyWork(t, workerID)
 
-					l.Debug().Func(func(e *zerolog.Event) {
+					log.FromContext(t.Ctx).Debug().Func(func(e *zerolog.Event) {
 						t.updateMu.RLock()
 						defer t.updateMu.RUnlock()
 
-						e.Dur("task_duration_ms", t.ExeTime()).Str("exit_status", string(t.exitStatus)).Msgf("[%s] Task [%s] finished in %s (%s since queued)", t.jobName, t.taskID, t.ExeTime(), t.QueueTimeDuration())
+						e.Dur("task_duration_ms", t.ExeTime()).Dur("queue_time_ms", t.QueueTimeDuration()).Str("exit_status", string(t.exitStatus)).Msgf("Task finished")
 					})
 
 					// Dec tasks being processed

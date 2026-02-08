@@ -34,7 +34,9 @@ while [ "${1:-}" != "" ]; do
 done
 
 apk upgrade --no-cache
-apk add --no-cache ffmpeg
+# vulkan-loader: Required for GPU acceleration (wgpu/Vulkan backend)
+# mesa-vulkan-ati/intel: Only needed for AMD/Intel GPUs; Nvidia uses injected drivers
+apk add --no-cache ffmpeg vulkan-loader mesa-vulkan-ati mesa-vulkan-intel
 
 if [[ $buildDeps == true ]]; then
     apk add --no-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community

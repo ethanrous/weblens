@@ -198,6 +198,13 @@ func (a *MediaAPIService) DropHDIRsExecute(r ApiDropHDIRsRequest) (*http.Respons
 type ApiDropMediaRequest struct {
 	ctx context.Context
 	ApiService *MediaAPIService
+	username *string
+}
+
+// Username of owner whose media to drop. If empty, drops all media.
+func (r ApiDropMediaRequest) Username(username string) ApiDropMediaRequest {
+	r.username = &username
+	return r
 }
 
 func (r ApiDropMediaRequest) Execute() (*http.Response, error) {
@@ -236,6 +243,9 @@ func (a *MediaAPIService) DropMediaExecute(r ApiDropMediaRequest) (*http.Respons
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
+	if r.username != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "username", r.username, "", "")
+	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 

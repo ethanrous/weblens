@@ -1360,6 +1360,10 @@ type ApiSearchByFilenameRequest struct {
 	ApiService *FilesAPIService
 	search *string
 	baseFolderID *string
+	sortProp *string
+	sortOrder *string
+	recursive *bool
+	regex *bool
 }
 
 // Filename to search for
@@ -1371,6 +1375,30 @@ func (r ApiSearchByFilenameRequest) Search(search string) ApiSearchByFilenameReq
 // The folder to search in, defaults to the user&#39;s home folder
 func (r ApiSearchByFilenameRequest) BaseFolderID(baseFolderID string) ApiSearchByFilenameRequest {
 	r.baseFolderID = &baseFolderID
+	return r
+}
+
+// Property to sort by
+func (r ApiSearchByFilenameRequest) SortProp(sortProp string) ApiSearchByFilenameRequest {
+	r.sortProp = &sortProp
+	return r
+}
+
+// Sort order
+func (r ApiSearchByFilenameRequest) SortOrder(sortOrder string) ApiSearchByFilenameRequest {
+	r.sortOrder = &sortOrder
+	return r
+}
+
+// Search recursively
+func (r ApiSearchByFilenameRequest) Recursive(recursive bool) ApiSearchByFilenameRequest {
+	r.recursive = &recursive
+	return r
+}
+
+// Whether to treat the search term as a regex pattern
+func (r ApiSearchByFilenameRequest) Regex(regex bool) ApiSearchByFilenameRequest {
+	r.regex = &regex
 	return r
 }
 
@@ -1418,6 +1446,34 @@ func (a *FilesAPIService) SearchByFilenameExecute(r ApiSearchByFilenameRequest) 
 	parameterAddToHeaderOrQuery(localVarQueryParams, "search", r.search, "", "")
 	if r.baseFolderID != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "baseFolderID", r.baseFolderID, "", "")
+	}
+	if r.sortProp != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "sortProp", r.sortProp, "", "")
+	} else {
+        var defaultValue string = "name"
+        parameterAddToHeaderOrQuery(localVarQueryParams, "sortProp", defaultValue, "", "")
+        r.sortProp = &defaultValue
+	}
+	if r.sortOrder != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "sortOrder", r.sortOrder, "", "")
+	} else {
+        var defaultValue string = "asc"
+        parameterAddToHeaderOrQuery(localVarQueryParams, "sortOrder", defaultValue, "", "")
+        r.sortOrder = &defaultValue
+	}
+	if r.recursive != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "recursive", r.recursive, "", "")
+	} else {
+        var defaultValue bool = false
+        parameterAddToHeaderOrQuery(localVarQueryParams, "recursive", defaultValue, "", "")
+        r.recursive = &defaultValue
+	}
+	if r.regex != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "regex", r.regex, "", "")
+	} else {
+        var defaultValue bool = false
+        parameterAddToHeaderOrQuery(localVarQueryParams, "regex", defaultValue, "", "")
+        r.regex = &defaultValue
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}

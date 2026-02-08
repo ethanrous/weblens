@@ -43,11 +43,11 @@ definitions:
           $ref: '#/definitions/UserInfoArchive'
         type: array
     type: object
-  Config:
+  Bundle:
     properties:
-      allowRegistrations:
+      auth.allow_registrations:
         type: boolean
-      enableHDIR:
+      media.hdir_processing_enabled:
         type: boolean
     type: object
   CreateFolderBody:
@@ -124,6 +124,8 @@ definitions:
         type: string
       pastFile:
         type: boolean
+      permissions:
+        $ref: '#/definitions/PermissionsInfo'
       portablePath:
         type: string
       shareID:
@@ -264,11 +266,14 @@ definitions:
           If the media disabled. This can happen when the backing file(s) are deleted,
           but the media stays behind because it can be re-used if needed.
         type: boolean
-      fileIds:
+      fileIDs:
         description: Slices of files whos content hash to the contentId
         items:
           type: string
         type: array
+      hdirScore:
+        description: Similarity score from HDIR search
+        type: number
       height:
         type: integer
       hidden:
@@ -295,12 +300,6 @@ definitions:
       pageCount:
         description: Number of pages (typically 1, 0 in not a valid page count)
         type: integer
-      recognitionTags:
-        description: Tags from the ML image scan so searching for particular objects
-          in the images can be done
-        items:
-          type: string
-        type: array
       width:
         description: Full-res image dimensions
         type: integer
@@ -767,48 +766,6 @@ info:
   title: Weblens API
   version: "1.0"
 paths:
-  /config:
-    get:
-      operationId: GetConfig
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Config Info
-          schema:
-            $ref: '#/definitions/Config'
-      security:
-      - SessionAuth:
-        - admin
-      - ApiKeyAuth:
-        - admin
-      summary: Get Config
-      tags:
-      - Config
-    post:
-      operationId: SetConfig
-      parameters:
-      - description: Set Config Params
-        in: body
-        name: request
-        required: true
-        schema:
-          items:
-            $ref: '#/definitions/structs.SetConfigParam'
-          type: array
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-      security:
-      - SessionAuth:
-        - admin
-      - ApiKeyAuth:
-        - admin
-      summary: Set Config
-      tags:
-      - Config
   /files:
     delete:
       operationId: DeleteFiles
@@ -1077,6 +1034,39 @@ paths:
         in: query
         name: baseFolderID
         type: string
+      - default: name
+        description: Property to sort by
+        enum:
+        - name
+        - size
+        - updatedAt
+        in: query
+        name: sortProp
+        type: string
+      - default: asc
+        description: Sort order
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sortOrder
+        type: string
+      - default: false
+        description: Search recursively
+        enum:
+        - true
+        - false
+        in: query
+        name: recursive
+        type: boolean
+      - default: false
+        description: Whether to treat the search term as a regex pattern
+        enum:
+        - true
+        - false
+        in: query
+        name: regex
+        type: boolean
       responses:
         "200":
           description: File Info
@@ -1167,6 +1157,48 @@ paths:
         were before
       tags:
       - Files
+  /flags:
+    get:
+      operationId: GetFlags
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Feature Flags
+          schema:
+            $ref: '#/definitions/Bundle'
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Get Feature Flags
+      tags:
+      - FeatureFlags
+    post:
+      operationId: SetFlags
+      parameters:
+      - description: Feature Flag Params
+        in: body
+        name: request
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/structs.SetConfigParam'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Set Feature Flags
+      tags:
+      - FeatureFlags
   /folder:
     post:
       consumes:
@@ -1214,6 +1246,23 @@ paths:
         in: query
         name: timestamp
         type: integer
+      - default: name
+        description: Property to sort by
+        enum:
+        - name
+        - size
+        - updatedAt
+        in: query
+        name: sortProp
+        type: string
+      - default: asc
+        description: Sort order
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sortOrder
+        type: string
       produces:
       - application/json
       responses:
@@ -1556,6 +1605,11 @@ paths:
   /media/drop:
     post:
       operationId: DropMedia
+      parameters:
+      - description: Username of owner whose media to drop. If empty, drops all media.
+        in: query
+        name: username
+        type: string
       produces:
       - application/json
       responses:

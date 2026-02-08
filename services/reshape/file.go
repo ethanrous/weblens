@@ -129,6 +129,8 @@ func WeblensFileToFileInfo(ctx context.Context, f *file_model.WeblensFileImpl, o
 		parentID = f.GetParent().ID()
 	}
 
+	perms := toPermissionInfo(o.Perms.GetOr(share_model.Permissions{}))
+
 	return structs.FileInfo{
 		Children:        childrenIDs,
 		ContentID:       contentID,
@@ -143,5 +145,6 @@ func WeblensFileToFileInfo(ctx context.Context, f *file_model.WeblensFileImpl, o
 		PortablePath:    portablePath.String(),
 		ShareID:         shareID,
 		Size:            size,
+		Permissions:     perms,
 	}, nil
 }
