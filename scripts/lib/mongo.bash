@@ -54,38 +54,39 @@ launch_mongo() {
     if ! dockerc ps | grep "$mongo_name" &>/dev/null; then
         echo "Starting MongoDB container [$mongo_name] on port [:$mongo_port] ..."
 
-        echo "--- Docker debug info ---"
-        echo "Docker context: $(docker context show 2>&1 || echo 'N/A')"
-        echo "Docker info (brief):"
-        dockerc info --format '{{.ServerVersion}} | {{.OSType}}/{{.Architecture}} | containers={{.Containers}}' 2>&1 || true
-        echo "Docker networks:"
-        dockerc network ls 2>&1 || true
-        echo "--- End Docker debug info ---"
+        # All debug output goes to stderr to avoid being swallowed by show_as_subtask pipe
+        echo "--- Docker debug info ---" >&2
+        echo "Docker context: $(docker context show 2>&1 || echo 'N/A')" >&2
+        echo "Docker info (brief):" >&2
+        dockerc info --format '{{.ServerVersion}} | {{.OSType}}/{{.Architecture}} | containers={{.Containers}}' >&2 2>&1 || true
+        echo "Docker networks:" >&2
+        dockerc network ls >&2 2>&1 || true
+        echo "--- End Docker debug info ---" >&2
 
         if ! dockerc compose -f ./docker/mongo.compose.yaml --env-file ./docker/mongo-core.env --project-name "$mongo_name" up -d; then
-            echo "!!! docker compose up failed !!!"
-            echo "--- Container status ---"
-            dockerc ps -a --filter "label=com.docker.compose.project=$mongo_name" 2>&1 || true
-            echo "--- mongod container logs ---"
-            dockerc logs weblens-core-mongod 2>&1 || true
-            echo "--- mongod container inspect ---"
-            dockerc inspect weblens-core-mongod --format '{{json .State}}' 2>&1 || true
-            echo "--- All containers ---"
-            dockerc ps -a 2>&1 || true
+            echo "!!! docker compose up failed !!!" >&2
+            echo "--- Container status ---" >&2
+            dockerc ps -a --filter "label=com.docker.compose.project=$mongo_name" >&2 2>&1 || true
+            echo "--- mongod container logs ---" >&2
+            dockerc logs weblens-core-mongod >&2 2>&1 || true
+            echo "--- mongod container inspect ---" >&2
+            dockerc inspect weblens-core-mongod --format '{{json .State}}' >&2 2>&1 || true
+            echo "--- All containers ---" >&2
+            dockerc ps -a >&2 2>&1 || true
             exit 1
         fi
 
         # Verify containers are actually running after compose returns
         sleep 2
-        echo "--- Post-launch container status ---"
-        dockerc ps -a --filter "label=com.docker.compose.project=$mongo_name" 2>&1 || true
+        echo "--- Post-launch container status ---" >&2
+        dockerc ps -a --filter "label=com.docker.compose.project=$mongo_name" >&2 2>&1 || true
 
         if ! dockerc ps | grep "weblens-core-mongod" &>/dev/null; then
-            echo "!!! mongod container is not running after compose up !!!"
-            echo "--- mongod container logs ---"
-            dockerc logs weblens-core-mongod 2>&1 || true
-            echo "--- mongod container inspect ---"
-            dockerc inspect weblens-core-mongod --format '{{json .State}}' 2>&1 || true
+            echo "!!! mongod container is not running after compose up !!!" >&2
+            echo "--- mongod container logs ---" >&2
+            dockerc logs weblens-core-mongod >&2 2>&1 || true
+            echo "--- mongod container inspect ---" >&2
+            dockerc inspect weblens-core-mongod --format '{{json .State}}' >&2 2>&1 || true
             exit 1
         fi
     fi
