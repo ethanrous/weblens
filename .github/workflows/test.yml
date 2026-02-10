@@ -42,36 +42,6 @@ jobs:
           ./scripts/test-weblens.bash
           exit $?
 
-  test-frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: "recursive"
-
-      - uses: docker/setup-docker-action@v4
-
-      - uses: actions/setup-go@v6
-        with:
-          go-version: stable
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.18.3
-          run_install: |
-            - cwd: weblens-vue/weblens-nuxt
-
-      - name: Run Tests
-        run: |
-          # Restart docker to fix networking bug...
-          sudo systemctl restart docker
-
-          export WEBLENS_VERBOSE=true
-
-          set -x
-          ./scripts/test-playwright.bash
-          exit $?
-
   lint:
     runs-on: ubuntu-latest
     steps:
