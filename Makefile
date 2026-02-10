@@ -14,6 +14,12 @@ ui: FORCE
 test: FORCE
 	./scripts/test-weblens.bash
 
+test-ui: FORCE
+	./scripts/test-playwright.bash
+
+cover-ui: FORCE
+	cd weblens-vue/weblens-nuxt && pnpm run test:e2e:coverage
+
 cover:
 	go tool cover -func ./_build/cover/coverage.out
 cover-view:
@@ -40,7 +46,7 @@ roux: FORCE
 
 clean:
 	rm -rf ./_build/bin/*
-	rm -rf ./ui/dist
+	cd weblens-vue/weblens-nuxt && pnpm run clean
 
 really-clean:
 	rm -rf ./_build

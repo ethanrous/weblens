@@ -56,6 +56,9 @@ export default defineNuxtConfig({
             },
         },
     },
+    sourcemap: {
+        client: true,
+    },
     vite: {
         plugins: [tailwindcss()],
     },

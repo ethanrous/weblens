@@ -13,12 +13,7 @@ run_native_tests() {
 
     touch /tmp/weblens.env
 
-    TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
-    LOG_FILENAME="weblens-test-$TIMESTAMP.log"
-    export WEBLENS_LOG_PATH="./_build/logs/$LOG_FILENAME"
-    mkdir -p "$(dirname "$WEBLENS_LOG_PATH")"
-    touch "$WEBLENS_LOG_PATH"
-    ln -sf "$LOG_FILENAME" ./_build/logs/test-latest.log
+    WEBLENS_LOG_PATH=$(get_log_file "weblens-test")
 
     export WEBLENS_ENV_PATH=/tmp/weblens.env
     export WEBLENS_DO_CACHE=false

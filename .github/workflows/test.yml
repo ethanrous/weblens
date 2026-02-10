@@ -42,6 +42,36 @@ jobs:
           ./scripts/test-weblens.bash
           exit $?
 
+  test-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: "recursive"
+
+      - uses: docker/setup-docker-action@v4
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+          run_install: |
+            - cwd: weblens-vue/weblens-nuxt
+
+      - name: Run Tests
+        run: |
+          # Restart docker to fix networking bug...
+          sudo systemctl restart docker
+
+          export WEBLENS_VERBOSE=true
+
+          set -x
+          ./scripts/test-playwright.bash
+          exit $?
+
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -74,6 +104,44 @@ jobs:
         run: |
           pnpm lint
           exit $?
+
+  test-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: "recursive"
+
+      - uses: docker/setup-docker-action@v4
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+          run_install: |
+            - cwd: weblens-vue/weblens-nuxt
+
+      - name: Install Playwright browsers
+        working-directory: weblens-vue/weblens-nuxt
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        run: |
+          sudo systemctl restart docker
+
+          ./scripts/test-playwright.bash
+          exit $?
+
+      - name: Upload E2E report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: _build/playwright/report/
+          retention-days: 14
 
   test-build-container:
     runs-on: ubuntu-latest
