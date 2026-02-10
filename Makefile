@@ -45,7 +45,11 @@ roux: FORCE
 	docker push ethrous/weblens-roux:v0
 
 clean:
+	# Go stuff
 	rm -rf ./_build/bin/*
+	go clean -cache
+
+	# UI stuff
 	cd weblens-vue/weblens-nuxt && pnpm run clean
 
 really-clean:

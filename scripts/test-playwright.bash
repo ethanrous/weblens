@@ -3,7 +3,7 @@ set -euo pipefail
 
 source ./scripts/lib/all.bash
 
-MONGO_PORT=27019
+MONGO_PORT=27020
 MONGO_STACK_NAME="playwright-test"
 
 lazy=true

@@ -1,9 +1,22 @@
 #!/bin/bash
 
 is_mongo_running() {
-    local mongo_name=${1?"[ERROR] is_mongo_running called with no container name. Aborting"}
+    local stack_name=""
+    while [ "${1:-}" != "" ]; do
+        case "$1" in
+        "--stack-name")
+            shift
+            stack_name="$1"
+            ;;
+        *)
+            echo "Unknown argument: $1"
+            return 1
+            ;;
+        esac
+        shift
+    done
 
-    if dockerc ps | grep "$mongo_name" &>/dev/null; then
+    if dockerc ps | grep "$stack_name" &>/dev/null; then
         return 0
     fi
 
