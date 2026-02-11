@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
-set -x
+
+if [[ "${WEBLENS_DEBUG_SHELL:-0}" == "1" ]]; then
+    set -x
+fi
 
 source ./scripts/lib/all.bash
 

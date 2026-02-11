@@ -16,6 +16,11 @@ is_mongo_running() {
         shift
     done
 
+    if [[ -z "$stack_name" ]]; then
+        echo "is_mongo_running requires a stack_name argument. Aborting."
+        return 1
+    fi
+
     if dockerc ps | grep "$stack_name" &>/dev/null; then
         return 0
     fi
@@ -79,7 +84,7 @@ export -f launch_mongo
 
 # Stop all mongo containers and remove mongo volume, if specified
 cleanup_mongo() {
-    stack_name=""
+    local stack_name=""
 
     while [ "${1:-}" != "" ]; do
         case "$1" in

@@ -15,6 +15,6 @@ dockerc() {
         return
     fi
 
-    sudo docker "${@}"
+    sudo -E docker "${@}"
 }
 export -f dockerc

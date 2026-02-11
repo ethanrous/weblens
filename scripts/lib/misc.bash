@@ -7,16 +7,17 @@ portable_sed() {
 }
 
 get_log_file() {
-    log_prefix="$1"
+    local log_prefix="$1"
 
+    local timestamp
     timestamp=$(date +"%Y-%m-%d_%H-%M-%S")
-    log_filename="${log_prefix}-${timestamp}.log"
+    local log_filename="${log_prefix}-${timestamp}.log"
 
-    log_path="$WEBLENS_ROOT/_build/logs/$log_filename"
+    local log_path="$WEBLENS_ROOT/_build/logs/$log_filename"
 
     mkdir -p "$(dirname "$log_path")"
     touch "$log_path"
-    ln -sf "$log_filename" $WEBLENS_ROOT/_build/logs/"${log_prefix}"-latest.log
+    ln -sf "$log_filename" "$WEBLENS_ROOT/_build/logs/${log_prefix}-latest.log"
 
     echo "$log_path"
 }

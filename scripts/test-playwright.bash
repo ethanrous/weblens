@@ -43,7 +43,7 @@ else
     printf "Skipping Agno build (lazy mode)...\n"
 fi
 
-build_frontend "$lazy"
+ENABLE_SOURCEMAPS=true build_frontend "$lazy"
 
 # Build Go binary
 if [[ "$lazy" = false ]] || [[ ! -e "$WEBLENS_ROOT/_build/bin/weblens_debug" ]]; then
