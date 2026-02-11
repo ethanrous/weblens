@@ -62,7 +62,8 @@ launch_mongo() {
     mkdir -p "${MONGO_DATA_ROOT}/mongod" "${MONGO_DATA_ROOT}/mongot"
     chmod 777 "${MONGO_DATA_ROOT}/mongod" "${MONGO_DATA_ROOT}/mongot"
 
-    if ! dockerc compose -f ./docker/mongo.compose.yaml --project-name "$stack_name" up -e MONGO_PROJECT_NAME="$stack_name" -d; then
+    export MONGO_PROJECT_NAME="$stack_name"
+    if ! dockerc compose -f ./docker/mongo.compose.yaml --project-name "$stack_name" up -d; then
         echo "!!! docker compose up failed !!!" >&2
         echo "--- mongod container logs ---" >&2
         dockerc logs "weblens-$stack_name-mongod" --tail 150 >&2 2>&1 || true
