@@ -66,7 +66,7 @@ importers:
         specifier: ^4.1.18
         version: 4.1.18
       vite:
-        specifier: npm:rolldown-vite@latest
+        specifier: npm:rolldown-vite@^7.3.0
         version: rolldown-vite@7.3.1(@types/node@24.0.4)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.44.1)(yaml@2.8.2)
       vue:
         specifier: ^3.5.26
@@ -7625,7 +7625,7 @@ snapshots:
 
   '@rolldown/binding-wasm32-wasi@1.0.0-beta.53':
     dependencies:
-      '@napi-rs/wasm-runtime': 1.1.0
+      '@napi-rs/wasm-runtime': 1.1.1
     optional: true
 
   '@rolldown/binding-win32-arm64-msvc@1.0.0-beta.53':
