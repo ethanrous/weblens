@@ -56,6 +56,9 @@ export default defineNuxtConfig({
             },
         },
     },
+    sourcemap: {
+        client: process.env.ENABLE_SOURCEMAPS === 'true',
+    },
     vite: {
         plugins: [tailwindcss()],
     },

@@ -118,8 +118,8 @@ func setupTestServer(ctx context.Context, name string, settings ...config.Provid
 		releaseTestPort(cnf.Port)
 	})
 
-	logger := log.NewZeroLogger(log.CreateOpts{Level: logLevel})
-	appCtx := context_service.NewAppContext(context_service.NewBasicContext(ctx, logger))
+	logger := log.NewZeroLogger(log.CreateOpts{Level: logLevel}).With().Str("test", name).Logger()
+	appCtx := context_service.NewAppContext(context_service.NewBasicContext(ctx, &logger))
 
 	testDB, err := db.ConnectToMongo(appCtx, cnf.MongoDBUri, cnf.MongoDBName)
 	if err != nil {
@@ -136,7 +136,7 @@ func setupTestServer(ctx context.Context, name string, settings ...config.Provid
 	}
 
 	context.AfterFunc(ctx, func() {
-		appCtx := context_service.NewAppContext(context_service.NewBasicContext(context.Background(), logger))
+		appCtx := context_service.NewAppContext(context_service.NewBasicContext(context.Background(), &logger))
 
 		testDB, err := db.ConnectToMongo(appCtx, cnf.MongoDBUri, cnf.MongoDBName)
 		if err != nil {
@@ -155,7 +155,7 @@ func setupTestServer(ctx context.Context, name string, settings ...config.Provid
 		err := routers.Start(routers.StartupOpts{
 			Ctx:        ctx,
 			Cnf:        cnf,
-			Logger:     logger,
+			Logger:     &logger,
 			CancelFunc: cancel,
 			Started:    startedChan,
 		})

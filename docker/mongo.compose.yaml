@@ -27,7 +27,7 @@ configs:
 services:
   mongod:
     image: mongodb/mongodb-community-server:8.2-ubi9
-    container_name: weblens-${TOWER_ROLE}-mongod
+    container_name: weblens-${MONGO_PROJECT_NAME}-mongod
     hostname: mongod.search-community
     command:
       - mongod
@@ -60,7 +60,7 @@ services:
 
   mongot:
     image: mongodb/mongodb-community-search:0.53.1
-    container_name: weblens-${TOWER_ROLE}-mongot
+    container_name: weblens-${MONGO_PROJECT_NAME}-mongot
     hostname: mongot.search-community
     depends_on:
       mongod:
@@ -78,8 +78,8 @@ services:
     volumes:
       - ${MONGO_DATA_ROOT}/mongot:/data/mongot
     ports:
-      - 27028:27028
-      - 9946:9946
+      - ${MONGOT_HOST_PORT_GRPC:-27028}:27028
+      - ${MONGOT_HOST_PORT_METRICS:-9946}:9946
 
 networks:
   default:

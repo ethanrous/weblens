@@ -1,9 +1,27 @@
 #!/bin/bash
 
 is_mongo_running() {
-    local mongo_name=${1?"[ERROR] is_mongo_running called with no container name. Aborting"}
+    local stack_name=""
+    while [ "${1:-}" != "" ]; do
+        case "$1" in
+        "--stack-name")
+            shift
+            stack_name="$1"
+            ;;
+        *)
+            echo "Unknown argument: $1"
+            return 1
+            ;;
+        esac
+        shift
+    done
 
-    if dockerc ps | grep "$mongo_name" &>/dev/null; then
+    if [[ -z "$stack_name" ]]; then
+        echo "is_mongo_running requires a stack_name argument. Aborting."
+        return 1
+    fi
+
+    if dockerc ps | grep "$stack_name" &>/dev/null; then
         return 0
     fi
 
@@ -12,68 +30,53 @@ is_mongo_running() {
 
 export -f is_mongo_running
 
-ensure_repl_set() {
-    mongoWaitCount=0
-    while [[ $mongoWaitCount -lt 10 ]]; do
-        status="$(dockerc inspect "$mongo_name" --format '{{.State.Health.Status}}')"
-        if [[ $status == "starting" ]]; then
-            mongoWaitCount=$((mongoWaitCount + 1))
-            echo "MongoDB is starting, waiting ${mongoWaitCount}s..."
-            sleep $mongoWaitCount
-            continue
-        fi
+launch_mongo() {
+    local stack_name=""
+    local mongo_port=27017
 
-        if [[ $status == "healthy" ]]; then
-            return 0
-        fi
-
-        if [[ $status == "unhealthy" ]]; then
-            echo "MongoDB container is unhealthy, exiting..."
-            exit 1
-        fi
-
-        echo "Waiting for MongoDB to be ready... $status"
-        mongoWaitCount=$((mongoWaitCount + 1))
-        sleep 1
+    while [ "${1:-}" != "" ]; do
+        case "$1" in
+        "--stack-name")
+            shift
+            stack_name="$1"
+            ;;
+        "-p" | "--mongo-port")
+            shift
+            mongo_port="$1"
+            ;;
+        *)
+            echo "Unknown argument: $1"
+            return 1
+            ;;
+        esac
+        shift
     done
 
-    if [[ $mongoWaitCount -ge 10 ]]; then
-        echo "MongoDB did not start in time, exiting..."
-        exit 1
+    if [[ -z "$stack_name" ]]; then
+        echo "launch_mongo requires a stack_name argument. Aborting."
+        return 1
     fi
-
-    return 0
-}
-
-launch_mongo() {
-    local mongo_name="${1:-weblens-core-mongo}"
-    local mongo_port="${2:-27017}"
 
     ensure_weblens_net
 
-    if ! dockerc ps | grep "$mongo_name" &>/dev/null; then
-        echo "Starting MongoDB container [$mongo_name] on port [:$mongo_port] ..."
+    export MONGO_DATA_ROOT="${WEBLENS_ROOT}/_build/db/$stack_name/"
+    export MONGO_HOST_PORT=$mongo_port
 
-        # Ensure volume directories exist and are writable by the mongod user (uid 999).
-        # The compose file resolves MONGO_DATA_ROOT (../_build/db/core/) relative to
-        # the compose file dir (./docker/), which lands at ./_build/db/core/.
-        mkdir -p "./_build/db/core/mongod" "./_build/db/core/mongot"
-        chmod 777 "./_build/db/core/mongod" "./_build/db/core/mongot"
+    echo "Starting MongoDB container [$stack_name] on port [:$mongo_port] ..."
 
-        # Write port override to a temp env file since sudo strips env vars
-        local port_env="/tmp/mongo-port.env"
-        echo "MONGO_HOST_PORT=$mongo_port" >"$port_env"
+    mkdir -p "${MONGO_DATA_ROOT}/mongod" "${MONGO_DATA_ROOT}/mongot"
+    chmod 777 "${MONGO_DATA_ROOT}/mongod" "${MONGO_DATA_ROOT}/mongot"
 
-        if ! dockerc compose -f ./docker/mongo.compose.yaml --env-file ./docker/mongo-core.env --env-file "$port_env" --project-name "$mongo_name" up -d; then
-            echo "!!! docker compose up failed !!!" >&2
-            echo "--- mongod container logs ---" >&2
-            dockerc logs "weblens-${TOWER_ROLE:-core}-mongod" --tail 150 >&2 2>&1 || true
-            echo "--- mongod container inspect ---" >&2
-            dockerc inspect "weblens-${TOWER_ROLE:-core}-mongod" --format '{{json .State}}' >&2 2>&1 || true
-            echo "--- All containers ---" >&2
-            dockerc ps -a >&2 2>&1 || true
-            exit 1
-        fi
+    export MONGO_PROJECT_NAME="$stack_name"
+    if ! dockerc compose -f ./docker/mongo.compose.yaml --project-name "$stack_name" up -d; then
+        echo "!!! docker compose up failed !!!" >&2
+        echo "--- mongod container logs ---" >&2
+        dockerc logs "weblens-$stack_name-mongod" --tail 150 >&2 2>&1 || true
+        echo "--- mongod container inspect ---" >&2
+        dockerc inspect "weblens-$stack_name-mongod" --format '{{json .State}}' >&2 2>&1 || true
+        echo "--- All containers ---" >&2
+        dockerc ps -a >&2 2>&1 || true
+        exit 1
     fi
 }
 
@@ -81,10 +84,28 @@ export -f launch_mongo
 
 # Stop all mongo containers and remove mongo volume, if specified
 cleanup_mongo() {
-    local mongo_name="${1:-weblens-core-mongo}"
-    local mongo_port="${2:-27017}"
+    local stack_name=""
 
-    dockerc compose --project-name "$mongo_name" down
+    while [ "${1:-}" != "" ]; do
+        case "$1" in
+        "--stack-name")
+            shift
+            stack_name="$1"
+            ;;
+        *)
+            echo "Unknown argument: $1"
+            return 1
+            ;;
+        esac
+        shift
+    done
+
+    if [[ -z "$stack_name" ]]; then
+        echo "cleanup_mongo requires a stack_name argument. Aborting."
+        return 1
+    fi
+
+    dockerc compose --project-name "$stack_name" down
 }
 
 export -f cleanup_mongo

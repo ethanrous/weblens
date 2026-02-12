@@ -54,46 +54,8 @@ class WeblensMedia implements MediaInfo {
         this.fullres = new Array(Math.max(0, this.pageCount)).fill(0).map(() => '')
     }
 
-    public get id(): string {
+    public ID(): string {
         return this.contentID
-    }
-
-    ID(): string {
-        return this.contentID
-    }
-
-    GetOwner(): string {
-        return this.owner
-    }
-
-    IsImported(): boolean {
-        return this.imported
-    }
-
-    IsHidden(): boolean {
-        return this.hidden
-    }
-
-    SetHidden(hidden: boolean) {
-        this.hidden = hidden
-    }
-
-    HighestQualityLoaded(): PhotoQuality.HighRes | PhotoQuality.LowRes | '' {
-        if (this.fullres[this.fullres.length - 1] !== null) {
-            return PhotoQuality.HighRes
-        } else if (this.thumbnail) {
-            return PhotoQuality.LowRes
-        } else {
-            return ''
-        }
-    }
-
-    HasQualityLoaded(q: PhotoQuality.HighRes | PhotoQuality.LowRes): boolean {
-        if (q === PhotoQuality.HighRes) {
-            return this.fullres[this.fullres.length - 1] !== ''
-        } else {
-            return Boolean(this.thumbnail)
-        }
     }
 
     GetMediaType(): MediaTypeInfo | undefined {
@@ -117,22 +79,6 @@ class WeblensMedia implements MediaInfo {
         return this.mediaType
     }
 
-    GetFileIds(): string[] {
-        if (!this.fileIDs) {
-            return []
-        }
-
-        return this.fileIDs
-    }
-
-    SetSelected(s: boolean) {
-        this.selected = s
-    }
-
-    IsSelected(): boolean {
-        return this.selected
-    }
-
     IsDisplayable(): boolean {
         const mt = this.GetMediaType()
         if (!mt) {
@@ -142,7 +88,7 @@ class WeblensMedia implements MediaInfo {
         return mt.IsDisplayable ?? false
     }
 
-    IsPdf(): boolean {
+    IsPDF(): boolean {
         return this.mimeType === 'application/pdf'
     }
 
@@ -153,66 +99,6 @@ class WeblensMedia implements MediaInfo {
         }
 
         return mt.IsVideo ?? false
-    }
-
-    GetVideoLength(): number {
-        if (!this.duration) {
-            console.error('No video length for', this.contentID)
-            return 0
-        }
-
-        return this.duration
-    }
-
-    HasLoadError(): PhotoQuality | undefined {
-        return this.loadError
-    }
-
-    GetHeight(): number {
-        return this.height
-    }
-
-    GetWidth(): number {
-        return this.width
-    }
-
-    SetNextLink(next?: WeblensMedia) {
-        this.next = next
-    }
-
-    Next(): WeblensMedia | undefined {
-        return this.next
-    }
-
-    SetPrevLink(prev?: WeblensMedia) {
-        this.previous = prev
-    }
-
-    Prev(): WeblensMedia | undefined {
-        return this.previous
-    }
-
-    GetPageCount(): number {
-        return this.pageCount
-    }
-
-    GetCreateDate(): Date {
-        if (!this.createDate) {
-            return new Date()
-        }
-        return new Date(this.createDate)
-    }
-
-    GetCreateTimestampUnix(): number {
-        return this.createDate
-    }
-
-    GetAbsIndex(): number {
-        return this.index
-    }
-
-    SetAbsIndex(index: number) {
-        this.index = index
     }
 
     GetObjectUrl(quality: PhotoQuality.LowRes | PhotoQuality.HighRes, pageNumber?: number): string {
@@ -239,26 +125,6 @@ class WeblensMedia implements MediaInfo {
         } else {
             this.likedBy.push(username)
         }
-    }
-
-    async LoadBytes(maxQuality: PhotoQuality, pageNumber?: number, controller?: AbortController): Promise<string> {
-        if (!controller && (!this.abort || this.abort.signal.aborted)) {
-            this.abort = new AbortController()
-        }
-
-        if (maxQuality === PhotoQuality.LowRes && this.thumbnail) {
-            return this.thumbnail
-        } else if (maxQuality === PhotoQuality.HighRes && this.fullres[pageNumber ?? 0]) {
-            return this.fullres[pageNumber ?? 0] ?? ''
-        }
-
-        const data = await this.getImageData(maxQuality, controller?.signal ?? this.abort!.signal, pageNumber)
-
-        return data
-    }
-
-    SetThumbnailBytes(bytes: ArrayBuffer) {
-        this.thumbnail = URL.createObjectURL(new Blob([bytes]))
     }
 
     // This allows us to load the media info from the server with just the contentID.
@@ -380,7 +246,7 @@ export function GetMediaRows(
             break
         }
 
-        if (m.GetHeight() === 0) {
+        if (m.height === 0) {
             console.error('Attempt to display media with 0 height:', m.ID())
             continue
         }
@@ -389,7 +255,7 @@ export function GetMediaRows(
         // absIndex++
 
         // Calculate width given height "imageBaseScale", keeping aspect ratio
-        const newWidth = Math.round((baseRowHeight / m.GetHeight()) * m.GetWidth()) + marginSize
+        const newWidth = Math.round((baseRowHeight / m.height) * m.width) + marginSize
 
         // If we are out of media, and the image does not overflow this row, add it and break
         if (mediasCpy.length === 0 && !(currentRowWidth + newWidth > MAX_ROW_WIDTH)) {

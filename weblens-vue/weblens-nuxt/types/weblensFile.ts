@@ -1,5 +1,3 @@
-import { IconFile, IconFolder, IconHome, IconTrash, IconUser, type Icon } from '@tabler/icons-vue'
-
 import { useUserStore } from '~/stores/user'
 import { humanBytes } from '~/util/humanBytes'
 import WeblensShare from '~/types/weblensShare'
@@ -99,7 +97,6 @@ class WeblensFile implements FileInfo {
 
     permissions?: PermissionsInfo
 
-    private fetching: boolean = false
     public fromAPI: boolean = false
 
     private selected: SelectedState
@@ -304,14 +301,6 @@ class WeblensFile implements FileInfo {
         return this.owner !== useUserStore().user.username
     }
 
-    SetFetching(fetching: boolean): void {
-        this.fetching = fetching
-    }
-
-    GetFetching(): boolean {
-        return this.fetching
-    }
-
     GetChildren(): string[] {
         if (!this.childrenIds) {
             return []
@@ -321,49 +310,6 @@ class WeblensFile implements FileInfo {
         return this.childrenIds.filter((child) => {
             return child !== trashID
         })
-    }
-
-    IsHovering(): boolean {
-        return this.selected.Has(SelectedState.Hovering)
-    }
-
-    GetBaseIcon(mustBeRoot?: boolean): Icon | undefined {
-        if (!this.portablePath) {
-            return
-        }
-        const parts = this.portablePath.split('/')
-        if (mustBeRoot && parts.length > 1) {
-            return
-        }
-
-        if (parts[0] === 'HOME') {
-            return IconHome
-        } else if (parts[0] === 'TRASH') {
-            return IconTrash
-        } else if (parts[0] === 'SHARE') {
-            return IconUser
-        } else {
-            console.error('Unknown filepath base type')
-            return
-        }
-    }
-
-    GetFileIcon(): Icon | undefined {
-        if (!this.portablePath) {
-            return
-        }
-
-        if (this.portablePath === 'HOME') {
-            return IconHome
-        } else if (this.portablePath === 'TRASH') {
-            return IconTrash
-        } else if (this.portablePath === 'SHARE') {
-            return IconUser
-        } else if (this.isDir) {
-            return IconFolder
-        } else {
-            return IconFile
-        }
     }
 
     public CanDelete(): boolean {

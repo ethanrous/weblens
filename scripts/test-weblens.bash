@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+if [[ "${WEBLENS_DEBUG_SHELL:-0}" == "1" ]]; then
+    set -x
+fi
+
 source ./scripts/lib/all.bash
 
 run_native_tests() {
@@ -13,12 +17,7 @@ run_native_tests() {
 
     touch /tmp/weblens.env
 
-    TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
-    LOG_FILENAME="weblens-test-$TIMESTAMP.log"
-    export WEBLENS_LOG_PATH="./_build/logs/$LOG_FILENAME"
-    mkdir -p "$(dirname "$WEBLENS_LOG_PATH")"
-    touch "$WEBLENS_LOG_PATH"
-    ln -sf "$LOG_FILENAME" ./_build/logs/test-latest.log
+    WEBLENS_LOG_PATH=$(get_log_file "weblens-test")
 
     export WEBLENS_ENV_PATH=/tmp/weblens.env
     export WEBLENS_DO_CACHE=false
@@ -91,11 +90,11 @@ while [ "${1:-}" != "" ]; do
     shift
 done
 
-if [[ "$lazy" = true ]] && is_mongo_running "weblens-test-mongo"; then
+if [[ "$lazy" = true ]] && is_mongo_running --stack-name "test"; then
     printf "Skipping mongo container re-deploy (lazy mode)...\n"
 else
-    cleanup_mongo "weblens-test-mongo" | show_as_subtask "Resetting mongo testing volumes..." "green"
-    launch_mongo "weblens-test-mongo" 27019 | show_as_subtask "Launching mongo..." "green"
+    cleanup_mongo --stack-name "test" | show_as_subtask "Resetting mongo testing volumes..." "green"
+    launch_mongo --stack-name "test" --mongo-port 27019 | show_as_subtask "Launching mongo..." "green"
 fi
 
 if [[ "$containerize" = false ]]; then

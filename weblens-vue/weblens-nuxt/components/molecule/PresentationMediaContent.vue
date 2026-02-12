@@ -6,7 +6,7 @@
     />
 
     <PDF
-        v-else-if="media.IsPdf()"
+        v-else-if="media.IsPDF()"
         :media="media"
     />
 
