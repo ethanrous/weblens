@@ -48,6 +48,7 @@ clean:
 	# Go stuff
 	rm -rf ./_build/bin/*
 	go clean -cache
+	go clean -testcache
 
 	# UI stuff
 	cd weblens-vue/weblens-nuxt && pnpm run clean
