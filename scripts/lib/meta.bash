@@ -43,10 +43,11 @@ show_as_subtask() {
     fi
 
     printf "\e[%s|-- %s\e[0m\n" "$color_code" "$task_name"
-    local prefix="${esc}[${color_code}| ${esc}[0m"
 
     "$@" 2>&1 | sed "s/^/${esc}[${color_code}| ${esc}[0m/"
+    local cmd_status=${PIPESTATUS[0]}
 
     printf "\e[%s|--------------------------\e[0m\n\n" "$color_code"
+    return "$cmd_status"
 }
 export -f show_as_subtask

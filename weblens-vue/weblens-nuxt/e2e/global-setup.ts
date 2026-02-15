@@ -12,7 +12,7 @@ const PID_FILE = path.join(PW_DIR, '.backend-pid')
 const FS_DIR = path.join(PW_DIR, 'fs')
 const PORT = process.env.WEBLENS_TEST_PORT ?? '14100'
 const MONGO_URI = process.env.WEBLENS_MONGODB_URI ?? 'mongodb://127.0.0.1:27019/?replicaSet=rs0&directConnection=true'
-const MONGO_CONTAINER = 'weblens-test-mongod'
+const MONGO_CONTAINER = 'weblens-playwright-test-mongod'
 const DB_NAME = 'playwright-test'
 
 function pollHealth(url: string, timeoutMs: number): Promise<void> {

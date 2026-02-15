@@ -67,7 +67,8 @@ if [[ $headed ]]; then
     echo "Running in headed mode (browser UI will be visible)..."
 fi
 
-if ! show_as_subtask "Running Playwright tests..." "green" -- bash -c "pnpm exec playwright test \"${filter}\" \"${headed:-}\" | tee \"$PLAYWRIGHT_LOG_PATH\""; then
+export WEBLENS_VERBOSE=true
+if ! show_as_subtask "Running Playwright tests..." "green" -- bash -c "set -o pipefail; pnpm exec playwright test \"${filter}\" \"${headed:-}\" | tee \"$PLAYWRIGHT_LOG_PATH\""; then
     echo "Playwright tests failed. Check logs for details."
     popd >/dev/null
 
