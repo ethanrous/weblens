@@ -25,7 +25,7 @@
         <div
             :class="{
                 'bg-text-primary absolute z-20 h-2 w-1 rounded-none opacity-100 transition-[opacity,height,border-radius] duration-300 group-hover/seeker:h-4 group-hover/seeker:rounded-sm group-hover/seeker:opacity-100': true,
-                'rounded-sm h-3': alwaysShowHandle,
+                'h-3 rounded-sm': alwaysShowHandle,
             }"
             :style="{
                 left: internalPercent + '%',
