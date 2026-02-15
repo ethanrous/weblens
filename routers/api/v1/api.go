@@ -107,6 +107,7 @@ func Routes(_ context_service.AppContext) *router.Router {
 
 	// Takeout
 	r.Post("/takeout", file_api.CreateTakeout)
+	r.Delete("/takeout", router.RequireAdmin, file_api.ClearZipCache)
 
 	// Users
 	r.Group("/users", func() {

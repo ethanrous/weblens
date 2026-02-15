@@ -514,6 +514,33 @@ func (fs *ServiceImpl) GetZip(ctx context.Context, id string) (*file_model.Weble
 	return f, err
 }
 
+// DeleteZips permanently deletes zip files from the takeout cache
+func (fs *ServiceImpl) DeleteZips(ctx context.Context) error {
+	appCtx, ok := context_service.FromContext(ctx)
+	if !ok {
+		return wlerrors.WithStack(context_service.ErrNoContext)
+	}
+
+	zipFolder, err := appCtx.FileService.GetFileByFilepath(ctx, file_model.ZipsDirPath)
+	if err != nil {
+		return err
+	}
+
+	children, err := appCtx.FileService.GetChildren(ctx, zipFolder)
+	if err != nil {
+		return err
+	}
+
+	appCtx.Log().Debug().Msgf("Deleting [%d] zip files from takeout cache", len(children))
+
+	err = appCtx.FileService.DeleteFiles(ctx, children...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // RenameFile changes the name of a file and updates its path in the file service.
 func (fs *ServiceImpl) RenameFile(ctx context.Context, file *file_model.WeblensFileImpl, newName string) error {
 	parent := file.GetParent()

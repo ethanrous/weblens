@@ -9,6 +9,9 @@
             'rounded-none first:rounded-t last:rounded-b': merge === 'column',
             'p-0!': !textContent,
         }"
+        :style="{
+            height: squareSize ? squareSize + 'px' : undefined,
+        }"
         :data-flavor="buttonError ? 'danger' : flavor"
         :data-type="type"
         :data-selected="selected ?? false"

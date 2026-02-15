@@ -903,6 +903,11 @@ paths:
         in: query
         name: format
         type: string
+      - default: 85
+        description: JPEG quality (1-100)
+        in: query
+        name: quality
+        type: integer
       - default: false
         description: Is this a takeout file
         enum:
@@ -1884,6 +1889,21 @@ paths:
       tags:
       - Share
   /takeout:
+    delete:
+      operationId: ClearZipCache
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Clear all cached zip files
+      tags:
+      - Files
     post:
       description: Dispatch a task to create a zip file of the given files, or get
         the id of a previously created zip file if it already exists

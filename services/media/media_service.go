@@ -54,7 +54,8 @@ func mediaServiceStartup(_ context.Context, _ config.Provider) error {
 }
 
 // GetConverted returns the media in the specified format, currently only supports JPEG.
-func GetConverted(ctx context.Context, m *media_model.Media, format media_model.MType) ([]byte, error) {
+// The quality parameter controls JPEG encoding quality (1-100).
+func GetConverted(ctx context.Context, m *media_model.Media, format media_model.MType, quality int) ([]byte, error) {
 	if !format.IsMime("image/jpeg") {
 		return nil, wlerrors.New("unsupported format")
 	}
@@ -73,20 +74,14 @@ func GetConverted(ctx context.Context, m *media_model.Media, format media_model.
 	if err != nil {
 		return nil, err
 	}
+	defer img.Free()
 
-	// TODO: support agno
-	err = agno.WriteWebp("", img)
+	bs, err := agno.WriteJpeg(img, quality)
 	if err != nil {
 		return nil, err
 	}
 
-	bs := []byte{}
-	// bs, err := img.JpegsaveBuffer(nil)
-	// if err != nil {
-	// 	return nil, errors.WithStack(err)
-	// }
-
-	log.FromContext(ctx).Debug().Msgf("Exported %s to jpeg", m.ID())
+	log.FromContext(ctx).Debug().Msgf("Exported %s to jpeg (quality=%d)", m.ID(), quality)
 
 	return bs, nil
 }

@@ -488,6 +488,13 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "integer",
+                        "default": 85,
+                        "description": "JPEG quality (1-100)",
+                        "name": "quality",
+                        "in": "query"
+                    },
+                    {
                         "enum": [
                             true,
                             false
@@ -1825,6 +1832,33 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error"
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Files"
+                ],
+                "summary": "Clear all cached zip files",
+                "operationId": "ClearZipCache",
+                "responses": {
+                    "200": {
+                        "description": "OK"
                     }
                 }
             }

@@ -3,36 +3,41 @@
         <div
             ref="presentation"
             :class="{
-                'presentation fullscreen-modal flex-col justify-end sm:flex-row sm:justify-around': true,
+                'presentation fullscreen-modal flex-col justify-end p-0 sm:flex-row sm:justify-around': true,
             }"
             @click.stop="presentationStore.clearPresentation"
         >
             <div :class="{ 'relative flex h-full w-full': true }">
-                <slot
-                    name="media"
-                    :presentation-size="presentationSize"
-                />
+                <div :class="{ 'mr-auto flex w-full': true }">
+                    <slot
+                        name="media"
+                        :presentation-size="presentationSize"
+                    />
+                </div>
 
                 <div
                     :class="{
-                        'absolute flex h-full max-w-full shrink-0 flex-col items-center justify-center gap-12 overflow-hidden transition-[width,height,margin] duration-300 lg:relative lg:mb-0 lg:ml-4': true,
-                        'w-full p-4 backdrop-blur-xs lg:w-1/3 lg:p-0 lg:backdrop-blur-none': infoOpen,
-                        'pointer-events-none opacity-0 lg:w-0 lg:opacity-100': !infoOpen,
+                        'items-left bg-background-primary/75 absolute flex h-full max-w-full shrink-0 flex-col gap-6 overflow-x-hidden overflow-y-auto p-4 backdrop-blur-xs transition-[width,height,margin,border,padding] duration-300 lg:relative lg:mb-0 lg:ml-3 lg:max-w-125': true,
+                        'w-full border lg:w-5/12': presentationStore.infoOpen,
+                        'pointer-events-none px-0 opacity-0 lg:w-0 lg:opacity-100': !presentationStore.infoOpen,
                     }"
+                    @click.stop.prevent
                 >
-                    <slot name="fileInfo" />
+                    <div :class="{ 'flex w-max min-w-max flex-col gap-6 px-8 lg:px-0': true }">
+                        <slot name="fileInfo" />
 
-                    <slot name="mediaInfo" />
+                        <slot name="mediaInfo" />
+                    </div>
                 </div>
 
                 <IconInfoCircle
                     :class="{
                         'absolute top-4 right-4 shrink-0 cursor-pointer rounded p-0.5 transition': true,
-                        'bg-card-background-primary/50 text-text-primary': infoOpen,
-                        'text-text-secondary': !infoOpen,
+                        'bg-card-background-primary/50 text-text-primary': presentationStore.infoOpen,
+                        'text-text-secondary': !presentationStore.infoOpen,
                     }"
                     size="20"
-                    @click.stop="infoOpen = !infoOpen"
+                    @click.stop="presentationStore.infoOpen = !presentationStore.infoOpen"
                 />
                 <IconArrowLeft
                     :class="{
@@ -58,7 +63,6 @@ import { onKeyStroke, onKeyUp, useElementSize } from '@vueuse/core'
 import { IconArrowLeft, IconArrowRight, IconInfoCircle } from '@tabler/icons-vue'
 
 const presentationStore = usePresentationStore()
-const infoOpen = ref<boolean>(false)
 
 const presentation = ref<HTMLDivElement>()
 const presentationSize = useElementSize(presentation)
@@ -75,7 +79,7 @@ onKeyUp(['Escape'], (e) => {
 
 onKeyUp(['i'], (e) => {
     e.stopPropagation()
-    infoOpen.value = !infoOpen.value
+    presentationStore.infoOpen = !presentationStore.infoOpen
 })
 
 onKeyStroke(['ArrowRight'], (e) => {

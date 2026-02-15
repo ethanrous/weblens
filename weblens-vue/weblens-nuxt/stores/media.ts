@@ -4,7 +4,7 @@ import type { ShallowRef } from 'vue'
 import { useWeblensAPI } from '~/api/AllApi'
 import type { MediaInfo, MediaTypeInfo } from '@ethanrous/weblens-api'
 import useLocationStore from './location'
-import { useStorage, useUrlSearchParams } from '@vueuse/core'
+import { useStorage } from '@vueuse/core'
 import type { WLError } from '~/types/wlError'
 
 export const TIMELINE_PAGE_SIZE = 200
@@ -22,10 +22,7 @@ const mediaSettingsDefaults: MediaSettings = {
 }
 
 export const useMediaStore = defineStore('media', () => {
-    const qparams = useUrlSearchParams('history', {
-        removeNullishValues: true,
-        removeFalsyValues: true,
-    })
+    const locationStore = useLocationStore()
 
     const mediaMap: ShallowRef<Map<string, WeblensMedia>> = shallowRef(new Map())
     const timelineMedia = shallowRef<WeblensMedia[]>([])
@@ -44,21 +41,18 @@ export const useMediaStore = defineStore('media', () => {
     const timelineSortDirection = ref<1 | -1>(-1) // 1 for ascending, -1 for descending
     const timelineImageSize = ref<number>(200)
 
-    const locationStore = useLocationStore()
-
     const searchFilters = useStorage('wl-media-settings', {} as Record<string, MediaSettings>)
 
-    const showRaw = customRef<boolean>((track, trigger) => {
-        return {
-            get() {
-                track()
-                return qparams.raw !== 'false'
-            },
-            set(newValue) {
-                qparams.raw = String(newValue)
-                trigger()
-            },
-        }
+    const showRaw = ref(true)
+    watch(
+        () => locationStore.getQueryParam('raw'),
+        (newVal) => {
+            showRaw.value = newVal !== 'false'
+        },
+        { immediate: true },
+    )
+    watch(showRaw, () => {
+        locationStore.setQueryParam('raw', showRaw.value ? null : 'false')
     })
 
     function initSearchFilters() {
@@ -216,7 +210,7 @@ export const useMediaStore = defineStore('media', () => {
             }
         }
 
-        mediaMap.value = new Map(mediaMap.value) // Trigger reactivity
+        triggerRef(mediaMap)
     }
 
     function toggleSortDirection() {
@@ -254,7 +248,7 @@ export const useMediaStore = defineStore('media', () => {
 
             showRaw.value = searchFilters.value[locationStore.activeFolderID]?.showRaw ?? mediaSettingsDefaults.showRaw
         } else {
-            qparams.raw = ''
+            locationStore.setQueryParam('raw', null)
         }
     })
 

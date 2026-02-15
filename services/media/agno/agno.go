@@ -65,10 +65,11 @@ func (img *Image) Resize(scale float64) error {
 // GetExifValue retrieves an EXIF value of type T from the image.
 func GetExifValue[T any](img *Image, exifTag int) (T, error) {
 	v := img.getExifValue(exifTag)
-	if v == -1 {
+
+	if v == nil {
 		var zero T
 
-		return zero, wlerrors.Errorf("failed to get exif value, unknown type")
+		return zero, wlerrors.Errorf("exif tag 0x%04x not found", exifTag)
 	}
 
 	if val, ok := v.(T); ok {
@@ -77,7 +78,7 @@ func GetExifValue[T any](img *Image, exifTag int) (T, error) {
 
 	var zero T
 
-	return zero, wlerrors.Errorf("failed to convert exif value to T (%T): value is %T with value %s", zero, v, v)
+	return zero, wlerrors.Errorf("failed to convert exif value to %T: value is %T with value %v", zero, v, v)
 }
 
 // ImageByFilepath loads an image from the given file path.
@@ -116,6 +117,22 @@ func WriteWebp(path string, img *Image) error {
 	return nil
 }
 
+// WriteJpeg encodes the image as JPEG with the given quality (1-100) and returns the bytes.
+func WriteJpeg(img *Image, quality int) ([]byte, error) {
+	img.mu.Lock()
+	defer img.mu.Unlock()
+
+	buf := C.write_agno_image_to_jpeg_buffer(img.img, C.uint8_t(quality)) //nolint:nlreturn
+	if buf.data == nil {
+		return nil, wlerrors.Errorf("failed to encode JPEG")
+	}
+
+	bs := C.GoBytes(unsafe.Pointer(buf.data), C.int(buf.len)) //nolint:nlreturn
+	C.free_agno_buffer(buf)
+
+	return bs, nil
+}
+
 // GetImageSize returns the width and height of the image.
 func GetImageSize(img *Image) (int, int) {
 	img.mu.Lock()
@@ -143,14 +160,32 @@ func (img *Image) Free() {
 	img.freed = true
 }
 
+// GetGPSCoordinates extracts GPS coordinates from the image's EXIF data.
+// Returns [lat, lon] as decimal degrees, or an error if GPS data is not available.
+func GetGPSCoordinates(img *Image) ([2]float64, error) {
+	img.mu.Lock()
+	defer img.mu.Unlock()
+
+	gps := C.get_gps_coordinates(img.img) //nolint:nlreturn
+	if gps.valid == 0 {
+		return [2]float64{}, wlerrors.Errorf("no GPS coordinates in EXIF data")
+	}
+
+	return [2]float64{float64(gps.lat), float64(gps.lon)}, nil
+}
+
 func (img *Image) getExifValue(exifTag int) any {
 	img.mu.Lock()
 	defer img.mu.Unlock()
 	v := C.get_exif_value(img.img, C.int16_t(exifTag)) //nolint:nlreturn
 
+	if v.len == 0 && v.data == nil {
+		return nil
+	}
+
 	switch v.typ {
 	case 1: // BYTE
-		log.GlobalLogger().Info().Msgf("EXIF type BYTE")
+		return int(*(*byte)(unsafe.Pointer(v.data)))
 	case 2: // ASCII
 		s := make([]byte, v.len)
 		for i := 0; i < int(v.len); i++ {
@@ -159,20 +194,37 @@ func (img *Image) getExifValue(exifTag int) any {
 
 		return string(s)
 	case 3: // SHORT
-		return *(*uint32)(unsafe.Pointer(v.data))
+		return int(*(*uint32)(unsafe.Pointer(v.data)))
 	case 4: // LONG
-		log.GlobalLogger().Info().Msgf("EXIF type LONG")
+		return int(*(*uint32)(unsafe.Pointer(v.data)))
 	case 5: // RATIONAL
-		log.GlobalLogger().Info().Msgf("EXIF type RATIONAL")
-	case 7: // UNDEFINED
-		log.GlobalLogger().Info().Msgf("EXIF type UNDEFINED")
-	case 9: // SLONG
-		log.GlobalLogger().Info().Msgf("EXIF type SLONG")
-	case 10: // SRATIONAL
-		log.GlobalLogger().Info().Msgf("EXIF type SRATIONAL")
-	default:
-		// log.GlobalLogger().Info().Msgf("EXIF type UNKNOWN %d", v.typ)
-	}
+		num := *(*uint32)(unsafe.Pointer(v.data))
+		den := *(*uint32)(unsafe.Add(unsafe.Pointer(v.data), 4))
+		if den == 0 {
+			return float64(0)
+		}
 
-	return -1
+		return float64(num) / float64(den)
+	case 7: // UNDEFINED
+		s := make([]byte, v.len)
+		for i := 0; i < int(v.len); i++ {
+			s[i] = *(*byte)(unsafe.Add(unsafe.Pointer(v.data), i))
+		}
+
+		return string(s)
+	case 9: // SLONG
+		return int(*(*int32)(unsafe.Pointer(v.data)))
+	case 10: // SRATIONAL
+		num := *(*int32)(unsafe.Pointer(v.data))
+		den := *(*int32)(unsafe.Add(unsafe.Pointer(v.data), 4))
+		if den == 0 {
+			return float64(0)
+		}
+
+		return float64(num) / float64(den)
+	default:
+		log.GlobalLogger().Warn().Msgf("Unknown EXIF type %d for tag 0x%04x", v.typ, exifTag)
+
+		return nil
+	}
 }

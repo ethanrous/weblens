@@ -2,7 +2,7 @@
     <div
         ref="seeker"
         :class="{
-            'group/seeker relative flex h-3 w-full cursor-pointer items-center rounded-[2px] py-1': true,
+            'group/seeker relative flex h-3 w-full cursor-pointer items-center rounded-xs py-1': true,
         }"
         @mousedown.stop="dragging = true"
         @dragover="handleClick"
@@ -10,12 +10,12 @@
     >
         <div
             :class="{
-                'bg-card-background-primary absolute h-2 w-full rounded-[1px] rounded-l-[2px] transition-[height] duration-300 group-hover/seeker:h-3': true,
+                'bg-card-background-primary absolute h-2 w-full rounded-[1px] rounded-l-xs transition-[height] duration-300 group-hover/seeker:h-3': true,
             }"
         />
         <div
             :class="{
-                'bg-text-primary absolute h-2 rounded-[1px] rounded-l-[2px] transition-[height] duration-300 group-hover/seeker:h-3': true,
+                'bg-text-primary absolute h-2 rounded-[1px] rounded-l-xs transition-[height] duration-300 group-hover/seeker:h-3': true,
             }"
             :style="{
                 width: internalPercent + '%',
@@ -25,6 +25,7 @@
         <div
             :class="{
                 'bg-text-primary absolute z-20 h-2 w-1 rounded-none opacity-100 transition-[opacity,height,border-radius] duration-300 group-hover/seeker:h-4 group-hover/seeker:rounded-sm group-hover/seeker:opacity-100': true,
+                'rounded-sm h-3': alwaysShowHandle,
             }"
             :style="{
                 left: internalPercent + '%',
@@ -42,10 +43,12 @@ const seeker = ref<HTMLDivElement | null>(null)
 
 const props = defineProps<{
     percent: number
+    doDebounce?: boolean
+    alwaysShowHandle?: boolean
 }>()
 
 const emit = defineEmits<{
-    (e: 'seek', percent: number): void
+    (e: 'update:percent', percent: number): void
 }>()
 
 const internalPercent = ref<number>(0)
@@ -66,9 +69,9 @@ watchEffect(() => {
 
 const doEmit = useThrottleFn(
     (percent) => {
-        emit('seek', percent)
+        emit('update:percent', percent)
     },
-    500,
+    props.doDebounce ? 500 : 0,
     true,
 )
 

@@ -93,8 +93,8 @@ done
 if [[ "$lazy" = true ]] && is_mongo_running --stack-name "test"; then
     printf "Skipping mongo container re-deploy (lazy mode)...\n"
 else
-    cleanup_mongo --stack-name "test" | show_as_subtask "Resetting mongo testing volumes..." "green"
-    launch_mongo --stack-name "test" --mongo-port 27019 | show_as_subtask "Launching mongo..." "green"
+    show_as_subtask "Resetting mongo testing volumes..." "green" -- cleanup_mongo --stack-name "test"
+    show_as_subtask "Launching mongo..." "green" -- launch_mongo --stack-name "test" --mongo-port 27019
 fi
 
 if [[ "$containerize" = false ]]; then

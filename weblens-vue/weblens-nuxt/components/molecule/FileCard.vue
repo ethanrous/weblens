@@ -4,7 +4,7 @@
         ref="fileRef"
         :class="{
             'border-card-background-primary flex max-h-full rounded border transition select-none': true,
-            'border-card-background-selected bg-card-background-selected': fileState.Has(SelectedState.Selected),
+            'hover:bg-theme-primary/90 bg-theme-primary/70 border-theme-primary': fileState.Has(SelectedState.Selected),
             'hover:bg-card-background-selected/50 hover:border-theme-primary hover:border': fileState.Has(
                 SelectedState.Hovering,
             ),

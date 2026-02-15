@@ -6,6 +6,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 |------------- | ------------- | -------------|
 |[**addFilesToUpload**](#addfilestoupload) | **POST** /upload/{uploadID} | Add a file to an upload task|
 |[**autocompletePath**](#autocompletepath) | **GET** /files/autocomplete | Get path completion suggestions|
+|[**clearZipCache**](#clearzipcache) | **DELETE** /takeout | Clear all cached zip files|
 |[**createTakeout**](#createtakeout) | **POST** /takeout | Create a zip file|
 |[**deleteFiles**](#deletefiles) | **DELETE** /files | Delete Files \&quot;permanently\&quot;|
 |[**downloadFile**](#downloadfile) | **GET** /files/{fileID}/download | Download a file|
@@ -130,6 +131,49 @@ No authorization required
 |-------------|-------------|------------------|
 |**200** | Path info |  -  |
 |**500** | Internal Server Error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **clearZipCache**
+> clearZipCache()
+
+
+### Example
+
+```typescript
+import {
+    FilesApi,
+    Configuration
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new FilesApi(configuration);
+
+const { status, data } = await apiInstance.clearZipCache();
+```
+
+### Parameters
+This endpoint does not have any parameters.
+
+
+### Return type
+
+void (empty response body)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: Not defined
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | OK |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
@@ -270,12 +314,14 @@ const apiInstance = new FilesApi(configuration);
 let fileID: string; //File ID (default to undefined)
 let shareID: string; //Share ID (optional) (default to undefined)
 let format: string; //File format conversion (optional) (default to undefined)
+let quality: number; //JPEG quality (1-100) (optional) (default to 85)
 let isTakeout: boolean; //Is this a takeout file (optional) (default to false)
 
 const { status, data } = await apiInstance.downloadFile(
     fileID,
     shareID,
     format,
+    quality,
     isTakeout
 );
 ```
@@ -287,6 +333,7 @@ const { status, data } = await apiInstance.downloadFile(
 | **fileID** | [**string**] | File ID | defaults to undefined|
 | **shareID** | [**string**] | Share ID | (optional) defaults to undefined|
 | **format** | [**string**] | File format conversion | (optional) defaults to undefined|
+| **quality** | [**number**] | JPEG quality (1-100) | (optional) defaults to 85|
 | **isTakeout** | [**boolean**] | Is this a takeout file | (optional) defaults to false|
 
 

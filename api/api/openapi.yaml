@@ -352,6 +352,12 @@ paths:
         name: format
         schema:
           type: string
+      - description: JPEG quality (1-100)
+        in: query
+        name: quality
+        schema:
+          default: 85
+          type: integer
       - description: Is this a takeout file
         in: query
         name: isTakeout
@@ -1256,6 +1262,20 @@ paths:
       tags:
       - Share
   /takeout:
+    delete:
+      operationId: ClearZipCache
+      responses:
+        "200":
+          content: {}
+          description: OK
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Clear all cached zip files
+      tags:
+      - Files
     post:
       description: "Dispatch a task to create a zip file of the given files, or get\
         \ the id of a previously created zip file if it already exists"

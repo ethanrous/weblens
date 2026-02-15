@@ -1,3 +1,4 @@
+import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 
 export const usePresentationStore = defineStore('presentation', () => {
@@ -5,6 +6,8 @@ export const usePresentationStore = defineStore('presentation', () => {
     const presentationMediaID = ref('')
 
     const onMovePresentation = ref<((direction: number) => void) | null>(null)
+
+    const infoOpen = useLocalStorage('presentationInfoOpen', true)
 
     function setPresentationFileID(newID: string) {
         presentationFileID.value = newID
@@ -27,6 +30,7 @@ export const usePresentationStore = defineStore('presentation', () => {
         presentationFileID,
         presentationMediaID,
         onMovePresentation,
+        infoOpen,
         setPresentationFileID,
         setPresentationMediaID,
         setOnMovePresentation,

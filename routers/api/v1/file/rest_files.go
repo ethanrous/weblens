@@ -135,6 +135,7 @@ func GetFileStats(ctx context_service.RequestContext) {
 //	@Param		fileID		path		string						true	"File ID"
 //	@Param		shareID		query		string						false	"Share ID"
 //	@Param		format		query		string						false	"File format conversion"
+//	@Param		quality		query		int							false	"JPEG quality (1-100)"	default(85)
 //	@Param		isTakeout	query		bool						false	"Is this a takeout file"	Enums(true, false)	default(false)
 //	@Success	200			{string}	binary						"File content"
 //	@Success	404			{object}	structs.WeblensErrorInfo	"Error Info"
@@ -168,6 +169,26 @@ func DownloadFile(ctx context_service.RequestContext) {
 			return
 		}
 
+		quality := 85
+
+		qualityStr := ctx.Query("quality")
+		if qualityStr != "" {
+			q, err := strconv.Atoi(qualityStr)
+			if err != nil {
+				ctx.Error(http.StatusBadRequest, wlerrors.New("invalid quality value"))
+
+				return
+			}
+
+			if q < 1 {
+				q = 1
+			} else if q > 100 {
+				q = 100
+			}
+
+			quality = q
+		}
+
 		m, err := media_model.GetMediaByContentID(ctx, file.GetContentID())
 		if err != nil {
 			if wlerrors.Is(err, media_model.ErrMediaNotFound) {
@@ -181,13 +202,14 @@ func DownloadFile(ctx context_service.RequestContext) {
 			return
 		}
 
-		convertedImg, err := media_service.GetConverted(ctx, m, mt)
+		convertedImg, err := media_service.GetConverted(ctx, m, mt, quality)
 		if err != nil {
 			ctx.Error(http.StatusInternalServerError, err)
 
 			return
 		}
 
+		ctx.SetHeader("Content-Type", acceptType)
 		ctx.Bytes(http.StatusOK, convertedImg)
 
 		return
@@ -723,6 +745,30 @@ func CreateTakeout(ctx context_service.RequestContext) {
 	} else {
 		ctx.JSON(http.StatusAccepted, structs.TakeoutInfo{TaskID: t.ID()})
 	}
+}
+
+// ClearZipCache godoc
+//
+//	@ID			ClearZipCache
+//
+//	@Security	SessionAuth[admin]
+//	@Security	ApiKeyAuth[admin]
+//
+//	@Summary	Clear all cached zip files
+//	@Tags		Files
+//	@Produce	json
+//
+//	@Success	200
+//	@Router		/takeout [delete]
+func ClearZipCache(ctx context_service.RequestContext) {
+	err := ctx.FileService.DeleteZips(ctx)
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, wlerrors.Wrap(err, "Failed to clear zip cache"))
+
+		return
+	}
+
+	ctx.Status(http.StatusOK)
 }
 
 // AutocompletePath godoc

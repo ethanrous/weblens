@@ -15,8 +15,8 @@ build_frontend() {
 
     pushd "${WEBLENS_ROOT}/weblens-vue/weblens-nuxt" >/dev/null || return 1
 
-    pnpm install 2>&1 | show_as_subtask "Installing UI Dependencies..."
-    pnpm run generate 2>&1 | show_as_subtask "Building UI..."
+    show_as_subtask "Installing UI Dependencies..." -- pnpm install
+    show_as_subtask "Building UI..." -- pnpm run generate
 
     popd >/dev/null || return 1
 }

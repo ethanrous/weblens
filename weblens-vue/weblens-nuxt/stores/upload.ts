@@ -23,7 +23,7 @@ export const useUploadStore = defineStore('upload', () => {
 
         uploads.value.set(upload.localUploadID!, upload as UploadInfo)
 
-        uploads.value = new Map(uploads.value) // Trigger reactivity
+        triggerRef(uploads) // Trigger reactivity
 
         return upload as UploadInfo
     }
@@ -36,7 +36,8 @@ export const useUploadStore = defineStore('upload', () => {
 
         upload.serverUploadID = serverUploadID
 
-        uploads.value = new Map(uploads.value) // Trigger reactivity
+        uploads.value.set(localUploadID, upload)
+        triggerRef(uploads) // Trigger reactivity
     }
 
     function addFilesToUpload(uploadID: string, ...files: FileUploadMetadata[]) {
@@ -61,7 +62,7 @@ export const useUploadStore = defineStore('upload', () => {
         })
 
         uploads.value.set(uploadID, upload)
-        uploads.value = new Map(uploads.value) // Trigger reactivity
+        triggerRef(uploads) // Trigger reactivity
     }
 
     function setUploadProgress(
@@ -93,7 +94,7 @@ export const useUploadStore = defineStore('upload', () => {
             }
 
             uploads.value.set(uploadID, upload)
-            uploads.value = new Map(uploads.value) // Trigger reactivity
+            triggerRef(uploads) // Trigger reactivity
         } else {
             console.warn(`Upload with ID ${uploadID} not found for progress update`)
         }
@@ -122,7 +123,7 @@ export const useUploadStore = defineStore('upload', () => {
             }
 
             uploads.value.set(uploadID, upload)
-            uploads.value = new Map(uploads.value) // Trigger reactivity
+            triggerRef(uploads) // Trigger reactivity
         } else {
             console.warn(`Upload with ID ${uploadID} not found for progress update`)
         }
@@ -142,7 +143,7 @@ export const useUploadStore = defineStore('upload', () => {
             delete file.chunks[chunkKey]
             upload.files[fileID] = file
             uploads.value.set(uploadID, upload)
-            uploads.value = new Map(uploads.value) // Trigger reactivity
+            triggerRef(uploads) // Trigger reactivity
         } else {
             console.warn(
                 `Chunk or file not found for chunk starting at ${chunkKey} in file ${fileID} for upload ${uploadID}`,
@@ -157,7 +158,7 @@ export const useUploadStore = defineStore('upload', () => {
             }
         }
 
-        uploads.value = new Map(uploads.value) // Trigger reactivity
+        triggerRef(uploads) // Trigger reactivity
     }
 
     function failUpload(uploadID: string, error: Error) {
