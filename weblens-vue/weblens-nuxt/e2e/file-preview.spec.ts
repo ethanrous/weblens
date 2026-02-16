@@ -57,7 +57,7 @@ test.describe('File Preview and Presentation', () => {
     })
 
     test('should open presentation by double-clicking a text file', async ({ page }) => {
-        const fileCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'preview-test.txt' })
+        const fileCard = page.locator('[id^="file-card-"]').filter({ hasText: 'preview-test.txt' })
         await expect(fileCard.first()).toBeVisible({ timeout: 15000 })
 
         // Double-click opens presentation for non-folder files
@@ -75,7 +75,7 @@ test.describe('File Preview and Presentation', () => {
     })
 
     test('should open presentation with Space and show file info via i key', async ({ page }) => {
-        const fileCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'preview-test.txt' })
+        const fileCard = page.locator('[id^="file-card-"]').filter({ hasText: 'preview-test.txt' })
         await expect(fileCard.first()).toBeVisible({ timeout: 15000 })
 
         // Select the file
@@ -89,14 +89,12 @@ test.describe('File Preview and Presentation', () => {
 
         // Press 'i' to toggle the info panel
         await page.keyboard.press('i')
-        await page.waitForTimeout(500)
 
         // The file name should be visible in the presentation info
         await expect(presentation.getByText('preview-test')).toBeVisible({ timeout: 5000 })
 
         // Press 'i' again to close info panel
         await page.keyboard.press('i')
-        await page.waitForTimeout(300)
 
         // Close presentation
         await page.keyboard.press('Escape')
@@ -105,7 +103,7 @@ test.describe('File Preview and Presentation', () => {
 
     test('should navigate between files in presentation with arrow keys', async ({ page }) => {
         // Select the first text file
-        const fileCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'preview-test.txt' })
+        const fileCard = page.locator('[id^="file-card-"]').filter({ hasText: 'preview-test.txt' })
         await expect(fileCard.first()).toBeVisible({ timeout: 15000 })
         await fileCard.first().click()
 
@@ -116,11 +114,9 @@ test.describe('File Preview and Presentation', () => {
 
         // Navigate to the next file
         await page.keyboard.press('ArrowRight')
-        await page.waitForTimeout(500)
 
         // Navigate back
         await page.keyboard.press('ArrowLeft')
-        await page.waitForTimeout(500)
 
         // Close with Escape
         await page.keyboard.press('Escape')
@@ -129,7 +125,7 @@ test.describe('File Preview and Presentation', () => {
 
     test('should show file size in file card', async ({ page }) => {
         // The file card should display the file size (exercises humanBytes)
-        const fileCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'preview-test.txt' })
+        const fileCard = page.locator('[id^="file-card-"]').filter({ hasText: 'preview-test.txt' })
         await expect(fileCard.first()).toBeVisible({ timeout: 15000 })
 
         // The file size should be visible (formatted by humanBytes, e.g. "2.4kB")
@@ -138,7 +134,7 @@ test.describe('File Preview and Presentation', () => {
 
     test('should clean up preview test files', async ({ page }) => {
         for (const fileName of ['preview-test.txt', 'preview-test-2.txt']) {
-            const fileCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: fileName })
+            const fileCard = page.locator('[id^="file-card-"]').filter({ hasText: fileName })
 
             if (await fileCard.isVisible({ timeout: 3000 }).catch(() => false)) {
                 await fileCard.click({ button: 'right' })

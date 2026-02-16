@@ -15,7 +15,8 @@ export default defineConfig({
 
     fullyParallel: false,
     workers: 1,
-    retries: 3,
+    retries: process.env.CI ? 3 : 0,
+    maxFailures: process.env.CI ? undefined : 1,
 
     reporter: [
         ['list'],
@@ -91,6 +92,7 @@ export default defineConfig({
                 'download.spec.ts',
                 'keyboard-shortcuts.spec.ts',
                 'file-preview.spec.ts',
+                'presentation-info.spec.ts',
                 'upload-flow.spec.ts',
             ],
             dependencies: ['setup-flow'],

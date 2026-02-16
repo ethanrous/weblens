@@ -17,6 +17,7 @@
         :data-selected="selected ?? false"
         :data-fill-width="fillWidth"
         :disabled="disabled || doingClick || disabled"
+        :name="textContent"
         @click="handleClick"
     >
         <slot />

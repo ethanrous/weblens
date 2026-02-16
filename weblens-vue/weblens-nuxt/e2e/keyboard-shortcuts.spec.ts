@@ -34,7 +34,7 @@ test.describe('Keyboard Shortcuts', () => {
         await nameInput.fill('KeyboardTestContainer')
         await nameInput.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
         const containerCard = page
-            .locator('[id^="file-"]:not(#file-scroller)')
+            .locator('[id^="file-card-"]')
             .filter({ hasText: 'KeyboardTestContainer' })
         await expect(containerCard).toBeVisible({ timeout: 15000 })
         await expect(nameInput).not.toBeVisible({ timeout: 3000 })
@@ -52,7 +52,7 @@ test.describe('Keyboard Shortcuts', () => {
         await input1.fill('KB Test Item A')
         await input1.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
         await expect(
-            page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'KB Test Item A' }),
+            page.locator('[id^="file-card-"]').filter({ hasText: 'KB Test Item A' }),
         ).toBeVisible({ timeout: 15000 })
         await expect(input1).not.toBeVisible({ timeout: 3000 })
 
@@ -62,12 +62,12 @@ test.describe('Keyboard Shortcuts', () => {
         await input2.fill('KB Test Item B')
         await input2.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
         await expect(
-            page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'KB Test Item B' }),
+            page.locator('[id^="file-card-"]').filter({ hasText: 'KB Test Item B' }),
         ).toBeVisible({ timeout: 15000 })
     })
 
     test('should focus search input with Ctrl+K keyboard shortcut', async ({ page }) => {
-        await expect(page.locator('[id^="file-"]:not(#file-scroller)').first()).toBeVisible({
+        await expect(page.locator('[id^="file-card-"]').first()).toBeVisible({
             timeout: 15000,
         })
 
@@ -89,7 +89,7 @@ test.describe('Keyboard Shortcuts', () => {
     })
 
     test('should enable recursive search with Shift+Ctrl+K', async ({ page }) => {
-        await expect(page.locator('[id^="file-"]:not(#file-scroller)').first()).toBeVisible({
+        await expect(page.locator('[id^="file-card-"]').first()).toBeVisible({
             timeout: 15000,
         })
 
@@ -113,7 +113,7 @@ test.describe('Keyboard Shortcuts', () => {
 
     test('should navigate to URL with file hash to trigger highlight scroll', async ({ page }) => {
         // Wait for file cards to load
-        const fileCards = page.locator('[id^="file-"]:not(#file-scroller)')
+        const fileCards = page.locator('[id^="file-card-"]')
         await expect(fileCards.first()).toBeVisible({ timeout: 15000 })
 
         // Get the ID of the first file card
@@ -133,7 +133,7 @@ test.describe('Keyboard Shortcuts', () => {
     test('should use Escape to clear file selection', async ({ page }) => {
         // Navigate into the container folder
         const containerCard = page
-            .locator('[id^="file-"]:not(#file-scroller)')
+            .locator('[id^="file-card-"]')
             .filter({ hasText: 'KeyboardTestContainer' })
         await expect(containerCard).toBeVisible({ timeout: 15000 })
         await containerCard.dblclick()
@@ -145,7 +145,7 @@ test.describe('Keyboard Shortcuts', () => {
         await page.keyboard.press('Escape')
 
         // Select a file by clicking on it
-        const fileCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'KB Test Item A' })
+        const fileCard = page.locator('[id^="file-card-"]').filter({ hasText: 'KB Test Item A' })
         await fileCard.click()
 
         // Verify it's selected
@@ -161,7 +161,7 @@ test.describe('Keyboard Shortcuts', () => {
     test('should use Ctrl+A to select all files', async ({ page }) => {
         // Navigate into the container folder
         const containerCard = page
-            .locator('[id^="file-"]:not(#file-scroller)')
+            .locator('[id^="file-card-"]')
             .filter({ hasText: 'KeyboardTestContainer' })
         await expect(containerCard).toBeVisible({ timeout: 15000 })
         await containerCard.dblclick()
@@ -176,18 +176,18 @@ test.describe('Keyboard Shortcuts', () => {
         await page.keyboard.press('ControlOrMeta+a')
 
         // Both files should be selected
-        const cardA = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'KB Test Item A' })
-        const cardB = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'KB Test Item B' })
+        const cardA = page.locator('[id^="file-card-"]').filter({ hasText: 'KB Test Item A' })
+        const cardB = page.locator('[id^="file-card-"]').filter({ hasText: 'KB Test Item B' })
         await expect(cardA).toHaveClass(/bg-card-background-selected/, { timeout: 3000 })
         await expect(cardB).toHaveClass(/bg-card-background-selected/, { timeout: 3000 })
     })
 
     test('should double-click a non-folder file to open presentation', async ({ page }) => {
-        const fileCards = page.locator('[id^="file-"]:not(#file-scroller)')
+        const fileCards = page.locator('[id^="file-card-"]')
         await expect(fileCards.first()).toBeVisible({ timeout: 15000 })
 
         // Find a .txt file to double-click (might not exist in this test)
-        const txtFile = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: '.txt' })
+        const txtFile = page.locator('[id^="file-card-"]').filter({ hasText: '.txt' })
         if ((await txtFile.count()) > 0) {
             await txtFile.first().dblclick()
             await page.waitForTimeout(1000)
@@ -208,7 +208,7 @@ test.describe('Keyboard Shortcuts', () => {
         await page.waitForURL('**/files/home')
 
         const containerCard = page
-            .locator('[id^="file-"]:not(#file-scroller)')
+            .locator('[id^="file-card-"]')
             .filter({ hasText: 'KeyboardTestContainer' })
         if (await containerCard.isVisible({ timeout: 3000 }).catch(() => false)) {
             await containerCard.click({ button: 'right' })

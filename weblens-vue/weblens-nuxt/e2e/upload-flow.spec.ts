@@ -66,7 +66,7 @@ test.describe('Upload Flow', () => {
         await expect(page.getByText('upload-medium.txt')).toBeVisible({ timeout: 15000 })
 
         // Verify the file size is displayed (exercises humanBytes formatting)
-        const fileCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'upload-medium.txt' })
+        const fileCard = page.locator('[id^="file-card-"]').filter({ hasText: 'upload-medium.txt' })
         await expect(fileCard.getByText(/\d+(\.\d+)?\s*kB/)).toBeVisible()
     })
 
@@ -100,7 +100,7 @@ test.describe('Upload Flow', () => {
 
     test('should show uploaded file sizes correctly formatted', async ({ page }) => {
         // Check that all uploaded files have properly formatted sizes
-        const smallFile = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'upload-small.txt' })
+        const smallFile = page.locator('[id^="file-card-"]').filter({ hasText: 'upload-small.txt' })
 
         if (await smallFile.isVisible({ timeout: 3000 }).catch(() => false)) {
             // Small file should show bytes (e.g., "37B" or "38B")
@@ -123,8 +123,8 @@ test.describe('Upload Flow', () => {
 
         // Wait for both files to appear as file cards (not just in upload indicator).
         // Scope to file cards to avoid matching the upload progress indicator text.
-        const dscCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'DSC08113.jpg' })
-        const imgCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'IMG_3973.JPG' })
+        const dscCard = page.locator('[id^="file-card-"]').filter({ hasText: 'DSC08113.jpg' })
+        const imgCard = page.locator('[id^="file-card-"]').filter({ hasText: 'IMG_3973.JPG' })
 
         await expect(dscCard).toBeVisible({ timeout: 30000 })
         await expect(imgCard).toBeVisible({ timeout: 30000 })
@@ -183,7 +183,7 @@ test.describe('Upload Flow', () => {
         ]
 
         for (const fileName of uploadedFiles) {
-            const fileCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: fileName })
+            const fileCard = page.locator('[id^="file-card-"]').filter({ hasText: fileName })
 
             if (await fileCard.isVisible({ timeout: 3000 }).catch(() => false)) {
                 await fileCard.click({ button: 'right' })

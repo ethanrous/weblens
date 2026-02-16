@@ -37,7 +37,7 @@ test.describe('Folder-Level Context Menu', () => {
         await page.locator('h3').filter({ hasText: 'Home' }).click()
 
         const fileBrowser = page.locator('#filebrowser-container')
-        const contextMenu = fileBrowser.locator('.file-context-menu')
+        const contextMenu = fileBrowser.locator('#file-context-menu')
         await expect(contextMenu).toBeVisible({ timeout: 15000 })
 
         // Verify folder-level actions are present
@@ -55,13 +55,13 @@ test.describe('Folder-Level Context Menu', () => {
         await page.locator('h3').filter({ hasText: 'Home' }).click()
 
         const fileBrowser = page.locator('#filebrowser-container')
-        const contextMenu = fileBrowser.locator('.file-context-menu')
+        const contextMenu = fileBrowser.locator('#file-context-menu')
         await expect(contextMenu).toBeVisible({ timeout: 15000 })
 
         await fileBrowser.getByRole('button', { name: 'New Folder' }).first().click()
 
         // The context menu should switch to name input mode
-        const nameInput = fileBrowser.locator('.file-context-menu input')
+        const nameInput = fileBrowser.locator('#file-context-menu input')
         await expect(nameInput).toBeVisible({ timeout: 3000 })
         await nameInput.fill('ContextMenuTestFolder')
         await nameInput.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
@@ -77,7 +77,7 @@ test.describe('Folder-Level Context Menu', () => {
         await page.locator('h3').filter({ hasText: 'Home' }).click()
 
         const fileBrowser = page.locator('#filebrowser-container')
-        const contextMenu = fileBrowser.locator('.file-context-menu')
+        const contextMenu = fileBrowser.locator('#file-context-menu')
         await expect(contextMenu).toBeVisible({ timeout: 15000 })
 
         const historyBtn = fileBrowser.getByRole('button', { name: 'Folder History' }).first()
@@ -103,7 +103,7 @@ test.describe('Folder-Level Context Menu', () => {
         await page.locator('h3').filter({ hasText: 'Home' }).click()
 
         const fileBrowser = page.locator('#filebrowser-container')
-        const contextMenu = fileBrowser.locator('.file-context-menu')
+        const contextMenu = fileBrowser.locator('#file-context-menu')
         await expect(contextMenu).toBeVisible({ timeout: 15000 })
 
         const scanBtn = fileBrowser.getByRole('button', { name: 'Scan Folder' }).first()
@@ -118,13 +118,11 @@ test.describe('Folder-Level Context Menu', () => {
     })
 
     test('should clean up test folder', async ({ page }) => {
-        const folderCard = page
-            .locator('[id^="file-"]:not(#file-scroller)')
-            .filter({ hasText: 'ContextMenuTestFolder' })
+        const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'ContextMenuTestFolder' })
 
         if (await folderCard.isVisible({ timeout: 15000 }).catch(() => false)) {
             await folderCard.click({ button: 'right' })
-            const trashBtn = page.locator('#filebrowser-container').getByRole('button', { name: 'Trash' }).first()
+            const trashBtn = page.locator('#file-context-menu').getByRole('button', { name: 'Trash' })
             if (await trashBtn.isEnabled({ timeout: 2000 }).catch(() => false)) {
                 await trashBtn.click()
                 await expect(folderCard).not.toBeVisible({ timeout: 15000 })
@@ -149,30 +147,30 @@ test.describe('File-Level Context Menu', () => {
     test('should create test folders for file context menu tests', async ({ page }) => {
         // Create two folders so we can test single-file and multi-select context menus
         await page.getByRole('button', { name: 'New Folder' }).click()
-        const nameInput = page.locator('.file-context-menu input')
+        const nameInput = page.locator('#file-context-menu input')
         await expect(nameInput).toBeVisible()
         await nameInput.fill('CtxFileTestA')
         await nameInput.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
         // Wait for the file card (not the input text) and for the context menu to close
-        await expect(page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'CtxFileTestA' })).toBeVisible(
-            { timeout: 15000 },
-        )
+        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'CtxFileTestA' })).toBeVisible({
+            timeout: 15000,
+        })
         await expect(nameInput).not.toBeVisible({ timeout: 3000 })
 
         await page.getByRole('button', { name: 'New Folder' }).click()
-        const nameInput2 = page.locator('.file-context-menu input')
+        const nameInput2 = page.locator('#file-context-menu input')
         await expect(nameInput2).toBeVisible()
         await nameInput2.fill('CtxFileTestB')
         await nameInput2.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
-        await expect(page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'CtxFileTestB' })).toBeVisible(
-            { timeout: 15000 },
-        )
+        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'CtxFileTestB' })).toBeVisible({
+            timeout: 15000,
+        })
     })
 
     test('should show Rename and Share buttons for a single file', async ({ page }) => {
         await expect(page.getByText('CtxFileTestA')).toBeVisible({ timeout: 15000 })
 
-        const fileCards = page.locator('[id^="file-"]:not(#file-scroller)')
+        const fileCards = page.locator('[id^="file-card-"]')
         await fileCards.first().click({ button: 'right' })
 
         const fileBrowser = page.locator('#filebrowser-container')
@@ -187,7 +185,7 @@ test.describe('File-Level Context Menu', () => {
     test('should hide Rename and Share when multiple files are selected', async ({ page }) => {
         await expect(page.getByText('CtxFileTestA')).toBeVisible({ timeout: 15000 })
 
-        const fileCards = page.locator('[id^="file-"]:not(#file-scroller)')
+        const fileCards = page.locator('[id^="file-card-"]')
         const count = await fileCards.count()
 
         if (count < 2) {
@@ -218,7 +216,7 @@ test.describe('File-Level Context Menu', () => {
 
     test('should clean up file context menu test folders', async ({ page }) => {
         for (const folderName of ['CtxFileTestA', 'CtxFileTestB']) {
-            const card = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: folderName })
+            const card = page.locator('[id^="file-card-"]').filter({ hasText: folderName })
 
             if (await card.isVisible({ timeout: 3000 }).catch(() => false)) {
                 await card.click({ button: 'right' })
@@ -248,7 +246,7 @@ test.describe('Trash Context Menu', () => {
         await page.getByRole('button', { name: 'Trash' }).click()
         await expect(page.locator('h3').filter({ hasText: 'Trash' })).toBeVisible({ timeout: 15000 })
 
-        const fileCards = page.locator('[id^="file-"]:not(#file-scroller)')
+        const fileCards = page.locator('[id^="file-card-"]')
         const hasFiles = await fileCards
             .first()
             .isVisible({ timeout: 15000 })

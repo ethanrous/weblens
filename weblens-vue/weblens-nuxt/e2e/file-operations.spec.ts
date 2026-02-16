@@ -52,9 +52,9 @@ test.describe('File Operations', () => {
         await nameInput.fill('Operations Folder A')
         await nameInput.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
         // Wait for the file card (not the input text) and context menu to close
-        await expect(
-            page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'Operations Folder A' }),
-        ).toBeVisible({ timeout: 15000 })
+        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'Operations Folder A' })).toBeVisible({
+            timeout: 15000,
+        })
         await expect(nameInput).not.toBeVisible({ timeout: 3000 })
 
         // Create second folder
@@ -63,14 +63,14 @@ test.describe('File Operations', () => {
         await expect(nameInput2).toBeVisible()
         await nameInput2.fill('Operations Folder B')
         await nameInput2.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
-        await expect(
-            page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'Operations Folder B' }),
-        ).toBeVisible({ timeout: 15000 })
+        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'Operations Folder B' })).toBeVisible({
+            timeout: 15000,
+        })
     })
 
     test('should select a file by clicking and deselect by clicking elsewhere', async ({ page }) => {
         // Click on a file card to select it
-        const fileCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'Operations Folder A' })
+        const fileCard = page.locator('[id^="file-card-"]').filter({ hasText: 'Operations Folder A' })
         await fileCard.click()
 
         // The card should have a selected state (border changes)
@@ -85,7 +85,7 @@ test.describe('File Operations', () => {
 
     test('should open context menu on right-click and see all action buttons', async ({ page }) => {
         // Right-click on a folder
-        const folderCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'Operations Folder A' })
+        const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'Operations Folder A' })
         await folderCard.click({ button: 'right' })
 
         // Context menu should show standard actions
@@ -119,7 +119,7 @@ test.describe('File Operations', () => {
 
     test('should open share modal from context menu', async ({ page }) => {
         // Right-click on a folder
-        const folderCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'Operations Folder A' })
+        const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'Operations Folder A' })
         await folderCard.click({ button: 'right' })
 
         // Click Share (scoped to filebrowser to avoid matching sidebar "Shared" button)
@@ -143,7 +143,7 @@ test.describe('File Operations', () => {
 
     test('should toggle public/private in share modal', async ({ page }) => {
         // Right-click on a folder
-        const folderCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'Operations Folder A' })
+        const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'Operations Folder A' })
         await folderCard.click({ button: 'right' })
 
         // Open share (scoped to filebrowser to avoid matching sidebar "Shared" button)
@@ -227,7 +227,7 @@ test.describe('File Operations', () => {
 
     test('should download a folder via context menu', async ({ page }) => {
         // Right-click on a folder
-        const folderCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'Operations Folder B' })
+        const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'Operations Folder B' })
         await folderCard.click({ button: 'right' })
 
         // Click Download
@@ -254,11 +254,12 @@ test.describe('File Operations', () => {
 
     test('should move folder to trash and restore from trash', async ({ page }) => {
         // Right-click on Operations Folder B
-        const folderCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'Operations Folder B' })
+        const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'Operations Folder B' })
         await folderCard.click({ button: 'right' })
 
         // Click Trash
-        await page.locator('#filebrowser-container').getByRole('button', { name: 'Trash' }).click()
+        await page.locator('#file-context-menu').waitFor({ state: 'visible', timeout: 15000 })
+        await page.locator('#file-context-menu').getByRole('button', { name: 'Trash' }).click()
 
         // Folder should disappear
         await expect(folderCard).not.toBeVisible({ timeout: 15000 })
@@ -269,7 +270,7 @@ test.describe('File Operations', () => {
 
         // The trash page should show "Delete" and "Empty Trash" options
         // Right-click on the trashed folder
-        const trashedCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'Operations Folder B' })
+        const trashedCard = page.locator('[id^="file-card-"]').filter({ hasText: 'Operations Folder B' })
         await trashedCard.click({ button: 'right' })
 
         // In trash, the button should say "Delete" (permanently delete)
@@ -338,7 +339,7 @@ test.describe('File Operations', () => {
 
     test('should clean up test files', async ({ page }) => {
         // Delete Operations Folder A
-        const folderA = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'Operations Folder A' })
+        const folderA = page.locator('[id^="file-card-"]').filter({ hasText: 'Operations Folder A' })
 
         if (await folderA.isVisible()) {
             await folderA.click({ button: 'right' })
@@ -347,7 +348,7 @@ test.describe('File Operations', () => {
         }
 
         // Delete uploaded file
-        const uploadedFile = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'test-upload.txt' })
+        const uploadedFile = page.locator('[id^="file-card-"]').filter({ hasText: 'test-upload.txt' })
 
         if (await uploadedFile.isVisible()) {
             await uploadedFile.click({ button: 'right' })

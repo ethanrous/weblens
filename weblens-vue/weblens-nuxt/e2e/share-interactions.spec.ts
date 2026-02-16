@@ -38,12 +38,12 @@ test.describe('Share Modal Interactions', () => {
         await expect(nameInput).not.toBeVisible({ timeout: 15000 })
 
         await expect(
-            page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'ShareInteractionTest' }),
+            page.locator('[id^="file-card-"]').filter({ hasText: 'ShareInteractionTest' }),
         ).toBeVisible({ timeout: 15000 })
     })
 
     test('should open share modal and toggle public/private', async ({ page }) => {
-        const folderCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'ShareInteractionTest' })
+        const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'ShareInteractionTest' })
         await expect(folderCard).toBeVisible({ timeout: 15000 })
         await folderCard.click({ button: 'right' })
 
@@ -75,7 +75,7 @@ test.describe('Share Modal Interactions', () => {
     })
 
     test('should toggle Timeline Only in share modal', async ({ page }) => {
-        const folderCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'ShareInteractionTest' })
+        const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'ShareInteractionTest' })
         await expect(folderCard).toBeVisible({ timeout: 15000 })
         await folderCard.click({ button: 'right' })
 
@@ -98,7 +98,7 @@ test.describe('Share Modal Interactions', () => {
     })
 
     test('should search for users in share modal', async ({ page }) => {
-        const folderCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'ShareInteractionTest' })
+        const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'ShareInteractionTest' })
         await expect(folderCard).toBeVisible({ timeout: 15000 })
         await folderCard.click({ button: 'right' })
 
@@ -148,7 +148,7 @@ test.describe('Share Modal Interactions', () => {
     })
 
     test('should clean up share interaction test folder', async ({ page }) => {
-        const folderCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'ShareInteractionTest' })
+        const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'ShareInteractionTest' })
 
         if (await folderCard.isVisible({ timeout: 15000 }).catch(() => false)) {
             await folderCard.click({ button: 'right' })

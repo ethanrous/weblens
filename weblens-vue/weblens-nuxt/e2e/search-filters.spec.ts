@@ -39,7 +39,7 @@ test.describe('File Search', () => {
         await nameInput.fill('SearchTestFolder')
         await nameInput.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
         await expect(
-            page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'SearchTestFolder' }),
+            page.locator('[id^="file-card-"]').filter({ hasText: 'SearchTestFolder' }),
         ).toBeVisible({ timeout: 15000 })
     })
 
@@ -56,7 +56,7 @@ test.describe('File Search', () => {
         await page.waitForTimeout(500)
 
         // With no matching files, file cards should disappear
-        const fileCards = page.locator('[id^="file-"]:not(#file-scroller)')
+        const fileCards = page.locator('[id^="file-card-"]')
         const noResults = page.getByText('No files found')
         const emptyFolder = page.getByText('This folder is empty')
 
@@ -97,7 +97,7 @@ test.describe('File Search', () => {
         await page.waitForTimeout(2000)
 
         // Results should appear (the folder we created should match)
-        const fileCards = page.locator('[id^="file-"]:not(#file-scroller)')
+        const fileCards = page.locator('[id^="file-card-"]')
         const noResults = page.getByText('No files found')
         const hasResults = (await fileCards.count()) > 0
         const hasNoResults = await noResults.isVisible({ timeout: 2000 }).catch(() => false)
@@ -150,11 +150,11 @@ test.describe('File Search', () => {
         await page.waitForTimeout(500)
 
         // Files should be back to normal listing
-        await expect(page.locator('[id^="file-"]:not(#file-scroller)').first()).toBeVisible({ timeout: 15000 })
+        await expect(page.locator('[id^="file-card-"]').first()).toBeVisible({ timeout: 15000 })
     })
 
     test('should clean up search test folder', async ({ page }) => {
-        const card = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'SearchTestFolder' })
+        const card = page.locator('[id^="file-card-"]').filter({ hasText: 'SearchTestFolder' })
 
         if (await card.isVisible({ timeout: 3000 }).catch(() => false)) {
             await card.click({ button: 'right' })

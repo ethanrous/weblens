@@ -1,5 +1,6 @@
 <template>
     <div
+        id="file-context-menu"
         ref="contextMenu"
         :class="{
             'file-context-menu animate-fade-in shadow-lg': true,

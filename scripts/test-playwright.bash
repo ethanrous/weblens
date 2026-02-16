@@ -8,6 +8,7 @@ MONGO_STACK_NAME="playwright-test"
 
 lazy=true
 filter=""
+grep=""
 headed=
 
 while [ "${1:-}" != "" ]; do
@@ -18,6 +19,10 @@ while [ "${1:-}" != "" ]; do
     "--filter")
         shift
         filter="$1"
+        ;;
+    "--grep")
+        shift
+        grep="--grep '$1'"
         ;;
     "--headed")
         headed="--headed"
@@ -43,7 +48,8 @@ else
     printf "Skipping Agno build (lazy mode)...\n"
 fi
 
-ENABLE_SOURCEMAPS=true build_frontend "$lazy"
+# ENABLE_SOURCEMAPS=true
+build_frontend false
 
 # Build Go binary
 if [[ "$lazy" = false ]] || [[ ! -e "$WEBLENS_ROOT/_build/bin/weblens_debug" ]]; then
@@ -68,7 +74,7 @@ if [[ $headed ]]; then
 fi
 
 export WEBLENS_VERBOSE=true
-if ! show_as_subtask "Running Playwright tests..." "green" -- bash -c "set -o pipefail; pnpm exec playwright test \"${filter}\" \"${headed:-}\" | tee \"$PLAYWRIGHT_LOG_PATH\""; then
+if ! show_as_subtask "Running Playwright tests..." "green" -- bash -c "set -o pipefail; pnpm exec playwright test \"${filter}\" ${grep} \"${headed:-}\" | tee \"$PLAYWRIGHT_LOG_PATH\""; then
     echo "Playwright tests failed. Check logs for details."
     popd >/dev/null
 

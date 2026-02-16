@@ -16,6 +16,7 @@
                 </div>
 
                 <div
+                    id="presentation-info-sidecar"
                     :class="{
                         'items-left bg-background-primary/75 absolute flex h-full max-w-full shrink-0 flex-col gap-6 overflow-x-hidden overflow-y-auto p-4 backdrop-blur-xs transition-[width,height,margin,border,padding] duration-300 lg:relative lg:mb-0 lg:ml-3 lg:max-w-125': true,
                         'w-full border lg:w-5/12': presentationStore.infoOpen,
@@ -23,7 +24,10 @@
                     }"
                     @click.stop.prevent
                 >
-                    <div :class="{ 'flex w-max min-w-max flex-col gap-6 px-8 lg:px-0': true }">
+                    <div
+                        v-if="renderInfo"
+                        :class="{ 'flex w-max min-w-max flex-col gap-6 px-8 lg:px-0': true }"
+                    >
                         <slot name="fileInfo" />
 
                         <slot name="mediaInfo" />
@@ -71,6 +75,17 @@ const props = defineProps<{
     next: () => void
     previous: () => void
 }>()
+
+const renderInfo = ref<boolean>(presentationStore.infoOpen)
+watchEffect(() => {
+    if (presentationStore.infoOpen) {
+        renderInfo.value = true
+    } else {
+        setTimeout(() => {
+            if (!presentationStore.infoOpen) renderInfo.value = false
+        }, 300)
+    }
+})
 
 onKeyUp(['Escape'], (e) => {
     e.stopPropagation()

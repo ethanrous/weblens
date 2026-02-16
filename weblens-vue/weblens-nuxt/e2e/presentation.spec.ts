@@ -36,9 +36,9 @@ test.describe('Presentation Mode', () => {
         await expect(nameInput).toBeVisible()
         await nameInput.fill('PresentationTestA')
         await nameInput.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
-        await expect(
-            page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'PresentationTestA' }),
-        ).toBeVisible({ timeout: 15000 })
+        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'PresentationTestA' })).toBeVisible({
+            timeout: 15000,
+        })
         await expect(nameInput).not.toBeVisible({ timeout: 3000 })
 
         await page.getByRole('button', { name: 'New Folder' }).click()
@@ -46,9 +46,9 @@ test.describe('Presentation Mode', () => {
         await expect(nameInput2).toBeVisible()
         await nameInput2.fill('PresentationTestB')
         await nameInput2.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
-        await expect(
-            page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'PresentationTestB' }),
-        ).toBeVisible({ timeout: 15000 })
+        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'PresentationTestB' })).toBeVisible({
+            timeout: 15000,
+        })
     })
 
     test('should enter presentation mode by pressing Space after selecting a folder', async ({ page }) => {
@@ -56,7 +56,7 @@ test.describe('Presentation Mode', () => {
         await expect(page.getByText('PresentationTestA')).toBeVisible({ timeout: 15000 })
 
         // Click on a folder to select it (sets filesStore.lastSelected)
-        const folderCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'PresentationTestA' })
+        const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'PresentationTestA' })
         await folderCard.click()
 
         // Verify the card is selected
@@ -78,7 +78,7 @@ test.describe('Presentation Mode', () => {
     test('should navigate between files in presentation with arrow keys', async ({ page }) => {
         // Wait for files and select a folder
         await expect(page.getByText('PresentationTestA')).toBeVisible({ timeout: 15000 })
-        const folderCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'PresentationTestA' })
+        const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'PresentationTestA' })
         await folderCard.click()
 
         // Enter presentation
@@ -104,7 +104,7 @@ test.describe('Presentation Mode', () => {
 
     test('should toggle presentation with Space key (open then close)', async ({ page }) => {
         await expect(page.getByText('PresentationTestA')).toBeVisible({ timeout: 15000 })
-        const folderCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'PresentationTestA' })
+        const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'PresentationTestA' })
         await folderCard.click()
 
         // Open presentation with Space
@@ -145,7 +145,7 @@ test.describe('Presentation Mode', () => {
 
     test('should show folder icon in presentation for folder items', async ({ page }) => {
         await expect(page.getByText('PresentationTestA')).toBeVisible({ timeout: 15000 })
-        const fileCards = page.locator('[id^="file-"]:not(#file-scroller)')
+        const fileCards = page.locator('[id^="file-card-"]')
 
         // Find a folder card (has folder icon)
         const folders = fileCards.filter({ has: page.locator('.tabler-icon-folder') })
@@ -159,22 +159,22 @@ test.describe('Presentation Mode', () => {
         await folders.first().click()
         await page.keyboard.press('Space')
 
-        const presentationModal = page.locator('.presentation')
-        await expect(presentationModal).toBeVisible({ timeout: 15000 })
+        const presentationSidecar = page.locator('#presentation-info-sidecar')
+        await expect(presentationSidecar).toBeVisible({ timeout: 15000 })
 
         // Folder presentation shows the folder icon
-        const folderIcon = presentationModal.locator('.tabler-icon-folder')
+        const folderIcon = presentationSidecar.locator('.tabler-icon-folder')
         await expect(folderIcon).toBeVisible({ timeout: 3000 })
 
         // Close
         await page.keyboard.press('Escape')
-        await expect(presentationModal).not.toBeVisible({ timeout: 15000 })
+        await expect(presentationSidecar).not.toBeVisible({ timeout: 15000 })
     })
 
     test('should clean up presentation test folders', async ({ page }) => {
         const folders = ['PresentationTestA', 'PresentationTestB']
         for (const folderName of folders) {
-            const card = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: folderName })
+            const card = page.locator('[id^="file-card-"]').filter({ hasText: folderName })
 
             if (await card.isVisible()) {
                 await card.click({ button: 'right' })
@@ -248,7 +248,7 @@ test.describe('Upload Progress and File Size Formatting', () => {
 
         // Verify the file size is displayed in the file card (e.g., "102.4kB - Sun Feb 08 2026")
         // humanBytes formats sizes with lowercase k: "102.4kB"
-        const fileCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'large-test-file.txt' })
+        const fileCard = page.locator('[id^="file-card-"]').filter({ hasText: 'large-test-file.txt' })
         await expect(fileCard.getByText(/\d+(\.\d+)?kB/)).toBeVisible()
 
         // Clean up: trash the uploaded file (guard against disabled Trash button)

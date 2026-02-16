@@ -1,17 +1,15 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 
 import tailwindcss from '@tailwindcss/vite'
-import { loadEnv } from 'vite'
 
-const mode = process.env.VITE_BUILD === 'true' ? 'production' : 'development'
-process.env = { ...process.env, ...loadEnv(mode, process.cwd()) }
+const isBuild = process.env.VITE_BUILD === 'true'
 
-if (!process.env.VITE_PROXY_PORT && process.env.VITE_BUILD !== 'true') {
+if (!process.env.VITE_PROXY_PORT && !isBuild) {
     process.env.VITE_PROXY_PORT = '8080'
     console.warn(`VITE_PROXY_PORT not set\nDefaulting proxy to ${process.env.VITE_PROXY_PORT}`)
 }
 
-if (!process.env.VITE_PROXY_HOST && process.env.VITE_BUILD !== 'true') {
+if (!process.env.VITE_PROXY_HOST && !isBuild) {
     process.env.VITE_PROXY_HOST = '127.0.0.1'
     console.warn(`VITE_PROXY_HOST not set\nDefaulting proxy to ${process.env.VITE_PROXY_HOST}`)
 }
@@ -19,7 +17,7 @@ if (!process.env.VITE_PROXY_HOST && process.env.VITE_BUILD !== 'true') {
 // this sets a default port to 3000
 const vitePort = Number(process.env.VITE_PORT) ? Number(process.env.VITE_PORT) : 3000
 
-console.debug(`Vite is running in ${mode} mode on port ${vitePort}`)
+console.debug(`Nuxt is running in ${isBuild ? 'build' : 'dev'} mode on port ${vitePort}`)
 
 export default defineNuxtConfig({
     compatibilityDate: '2025-05-15',
@@ -76,7 +74,6 @@ export default defineNuxtConfig({
             meta: [
                 { charset: 'utf-8' },
                 { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-
                 { property: 'og:site_name', content: 'Weblens' },
                 { property: 'al:ios:app_name', content: 'Weblens' },
                 { property: 'og:title', content: '{{.Title}}' },
