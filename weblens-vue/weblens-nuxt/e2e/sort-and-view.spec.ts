@@ -40,9 +40,9 @@ test.describe('Sort and View Controls', () => {
         await nameInput.fill('SortTestAlpha')
         await nameInput.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
         // Wait for the file card to appear (not the input text which also matches)
-        await expect(
-            page.locator('[id^="file-card-"]').filter({ hasText: 'SortTestAlpha' }),
-        ).toBeVisible({ timeout: 15000 })
+        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'SortTestAlpha' })).toBeVisible({
+            timeout: 15000,
+        })
         // Wait for the context menu to fully close before creating the next folder
         await expect(nameInput).not.toBeVisible({ timeout: 3000 })
 
@@ -51,9 +51,9 @@ test.describe('Sort and View Controls', () => {
         await expect(nameInput2).toBeVisible()
         await nameInput2.fill('SortTestBeta')
         await nameInput2.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
-        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'SortTestBeta' })).toBeVisible(
-            { timeout: 15000 },
-        )
+        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'SortTestBeta' })).toBeVisible({
+            timeout: 15000,
+        })
     })
 
     test('should change sort condition to Filename', async ({ page }) => {

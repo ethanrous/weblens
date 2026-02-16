@@ -34,9 +34,9 @@ test.describe('Empty States', () => {
             await nameInput.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
         }
 
-        await expect(
-            page.locator('[id^="file-card-"]').filter({ hasText: 'EmptyStateTest' }),
-        ).toBeVisible({ timeout: 15000 })
+        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'EmptyStateTest' })).toBeVisible({
+            timeout: 15000,
+        })
 
         // Double-click to navigate into the empty folder
         const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'EmptyStateTest' })

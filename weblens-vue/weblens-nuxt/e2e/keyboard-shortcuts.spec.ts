@@ -33,9 +33,7 @@ test.describe('Keyboard Shortcuts', () => {
         await expect(nameInput).toBeVisible()
         await nameInput.fill('KeyboardTestContainer')
         await nameInput.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
-        const containerCard = page
-            .locator('[id^="file-card-"]')
-            .filter({ hasText: 'KeyboardTestContainer' })
+        const containerCard = page.locator('[id^="file-card-"]').filter({ hasText: 'KeyboardTestContainer' })
         await expect(containerCard).toBeVisible({ timeout: 15000 })
         await expect(nameInput).not.toBeVisible({ timeout: 3000 })
 
@@ -51,9 +49,9 @@ test.describe('Keyboard Shortcuts', () => {
         await expect(input1).toBeVisible()
         await input1.fill('KB Test Item A')
         await input1.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
-        await expect(
-            page.locator('[id^="file-card-"]').filter({ hasText: 'KB Test Item A' }),
-        ).toBeVisible({ timeout: 15000 })
+        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'KB Test Item A' })).toBeVisible({
+            timeout: 15000,
+        })
         await expect(input1).not.toBeVisible({ timeout: 3000 })
 
         await page.getByRole('button', { name: 'New Folder' }).click()
@@ -61,9 +59,9 @@ test.describe('Keyboard Shortcuts', () => {
         await expect(input2).toBeVisible()
         await input2.fill('KB Test Item B')
         await input2.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
-        await expect(
-            page.locator('[id^="file-card-"]').filter({ hasText: 'KB Test Item B' }),
-        ).toBeVisible({ timeout: 15000 })
+        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'KB Test Item B' })).toBeVisible({
+            timeout: 15000,
+        })
     })
 
     test('should focus search input with Ctrl+K keyboard shortcut', async ({ page }) => {
@@ -132,9 +130,7 @@ test.describe('Keyboard Shortcuts', () => {
 
     test('should use Escape to clear file selection', async ({ page }) => {
         // Navigate into the container folder
-        const containerCard = page
-            .locator('[id^="file-card-"]')
-            .filter({ hasText: 'KeyboardTestContainer' })
+        const containerCard = page.locator('[id^="file-card-"]').filter({ hasText: 'KeyboardTestContainer' })
         await expect(containerCard).toBeVisible({ timeout: 15000 })
         await containerCard.dblclick()
         await expect(page.locator('h3').filter({ hasText: 'KeyboardTestContainer' })).toBeVisible({
@@ -160,9 +156,7 @@ test.describe('Keyboard Shortcuts', () => {
 
     test('should use Ctrl+A to select all files', async ({ page }) => {
         // Navigate into the container folder
-        const containerCard = page
-            .locator('[id^="file-card-"]')
-            .filter({ hasText: 'KeyboardTestContainer' })
+        const containerCard = page.locator('[id^="file-card-"]').filter({ hasText: 'KeyboardTestContainer' })
         await expect(containerCard).toBeVisible({ timeout: 15000 })
         await containerCard.dblclick()
         await expect(page.locator('h3').filter({ hasText: 'KeyboardTestContainer' })).toBeVisible({
@@ -207,9 +201,7 @@ test.describe('Keyboard Shortcuts', () => {
         await page.goto('/files/home')
         await page.waitForURL('**/files/home')
 
-        const containerCard = page
-            .locator('[id^="file-card-"]')
-            .filter({ hasText: 'KeyboardTestContainer' })
+        const containerCard = page.locator('[id^="file-card-"]').filter({ hasText: 'KeyboardTestContainer' })
         if (await containerCard.isVisible({ timeout: 3000 }).catch(() => false)) {
             await containerCard.click({ button: 'right' })
             const trashBtn = page.locator('#filebrowser-container').getByRole('button', { name: 'Trash' })

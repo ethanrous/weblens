@@ -37,9 +37,9 @@ test.describe('Share Modal Interactions', () => {
         // Wait for the context menu input to close (confirms folder creation succeeded)
         await expect(nameInput).not.toBeVisible({ timeout: 15000 })
 
-        await expect(
-            page.locator('[id^="file-card-"]').filter({ hasText: 'ShareInteractionTest' }),
-        ).toBeVisible({ timeout: 15000 })
+        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'ShareInteractionTest' })).toBeVisible({
+            timeout: 15000,
+        })
     })
 
     test('should open share modal and toggle public/private', async ({ page }) => {

@@ -88,9 +88,7 @@ test.describe('Multi-User Scenarios', () => {
         await expect(nameInput).toBeVisible()
         await nameInput.fill('Regular User Folder')
         await nameInput.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
-        const regularFolderCard = page
-            .locator('[id^="file-card-"]')
-            .filter({ hasText: 'Regular User Folder' })
+        const regularFolderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'Regular User Folder' })
         await expect(regularFolderCard).toBeVisible({ timeout: 15000 })
         await expect(nameInput).not.toBeVisible({ timeout: 3000 })
 

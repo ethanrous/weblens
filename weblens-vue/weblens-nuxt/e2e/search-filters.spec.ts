@@ -38,9 +38,9 @@ test.describe('File Search', () => {
         await expect(nameInput).toBeVisible()
         await nameInput.fill('SearchTestFolder')
         await nameInput.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
-        await expect(
-            page.locator('[id^="file-card-"]').filter({ hasText: 'SearchTestFolder' }),
-        ).toBeVisible({ timeout: 15000 })
+        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'SearchTestFolder' })).toBeVisible({
+            timeout: 15000,
+        })
     })
 
     test('should filter files locally as user types without pressing Enter', async ({ page }) => {

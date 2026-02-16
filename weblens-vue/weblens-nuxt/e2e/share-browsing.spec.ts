@@ -34,9 +34,9 @@ test.describe('Share Browsing', () => {
         await expect(nameInput).toBeVisible()
         await nameInput.fill('ShareBrowseFolder')
         await nameInput.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
-        await expect(
-            page.locator('[id^="file-card-"]').filter({ hasText: 'ShareBrowseFolder' }),
-        ).toBeVisible({ timeout: 15000 })
+        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'ShareBrowseFolder' })).toBeVisible({
+            timeout: 15000,
+        })
         await expect(nameInput).not.toBeVisible({ timeout: 3000 })
 
         // Navigate into the folder and upload a file
