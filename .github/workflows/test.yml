@@ -21,20 +21,39 @@ jobs:
         with:
           submodules: "recursive"
 
-      - uses: actions/setup-go@v6
-        with:
-          go-version: stable
+      - name: Cache Rust dependencies and build artifacts
+        uses: Swatinem/rust-cache@v2
 
-      - name: setup agno deps
+      - name: Build Agno
         run: |
+          export WEBLENS_VERBOSE=true
           source ./scripts/lib/all.bash
           build_agno
 
-      - name: Upload agno binary
+      - name: Upload Agno binary
         uses: actions/upload-artifact@v4
         with:
           name: agno
-          path: ./services/media/agno/lib/libagno.a
+          path: ./services/media/agno/lib/
+
+  # build-frontend:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         submodules: "recursive"
+  #
+  #     - name: Build frontend
+  #       run: |
+  #         export WEBLENS_VERBOSE=true
+  #         source ./scripts/lib/all.bash
+  #         build_frontend
+  #
+  #     - name: Upload frontend artifacts
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: frontend
+  #         path: ./weblens-vue/weblens-nuxt/.output/
 
   test-server:
     runs-on: ubuntu-latest
@@ -44,11 +63,11 @@ jobs:
         with:
           submodules: "recursive"
 
-      - name: Download agno binary
+      - name: Download agno artifact
         uses: actions/download-artifact@v4
         with:
           name: agno
-          path: ./services/media/agno/lib/libagno.a
+          path: ./services/media/agno/lib/
 
       - uses: docker/setup-docker-action@v4
 
@@ -79,11 +98,11 @@ jobs:
         with:
           submodules: "recursive"
 
-      - name: Download agno binary
+      - name: Download agno artifact
         uses: actions/download-artifact@v4
         with:
           name: agno
-          path: ./services/media/agno/lib/libagno.a
+          path: ./services/media/agno/lib/
 
       - uses: actions/setup-go@v6
         with:
@@ -94,11 +113,6 @@ jobs:
           version: 10.18.3
           run_install: |
             - cwd: weblens-vue/weblens-nuxt
-
-      - name: setup agno deps
-        run: |
-          source ./scripts/lib/all.bash
-          build_agno
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
@@ -119,11 +133,11 @@ jobs:
         with:
           submodules: "recursive"
 
-      - name: Download agno binary
+      - name: Download agno artifact
         uses: actions/download-artifact@v4
         with:
           name: agno
-          path: ./services/media/agno/lib/libagno.a
+          path: ./services/media/agno/lib/
 
       - uses: docker/setup-docker-action@v4
 
