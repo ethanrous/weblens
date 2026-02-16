@@ -14,12 +14,41 @@ on:
     branches: ["main"]
 
 jobs:
-  test-server:
+  build-agno:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: "recursive"
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+
+      - name: setup agno deps
+        run: |
+          source ./scripts/lib/all.bash
+          build_agno
+
+      - name: Upload agno binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: agno
+          path: ./services/media/agno/lib/libagno.a
+
+  test-server:
+    runs-on: ubuntu-latest
+    needs: build-agno
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: "recursive"
+
+      - name: Download agno binary
+        uses: actions/download-artifact@v4
+        with:
+          name: agno
+          path: ./services/media/agno/lib/libagno.a
 
       - uses: docker/setup-docker-action@v4
 
@@ -44,10 +73,17 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
+    needs: build-agno
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: "recursive"
+
+      - name: Download agno binary
+        uses: actions/download-artifact@v4
+        with:
+          name: agno
+          path: ./services/media/agno/lib/libagno.a
 
       - uses: actions/setup-go@v6
         with:
@@ -77,10 +113,17 @@ jobs:
 
   test-frontend:
     runs-on: ubuntu-latest
+    needs: build-agno
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: "recursive"
+
+      - name: Download agno binary
+        uses: actions/download-artifact@v4
+        with:
+          name: agno
+          path: ./services/media/agno/lib/libagno.a
 
       - uses: docker/setup-docker-action@v4
 
