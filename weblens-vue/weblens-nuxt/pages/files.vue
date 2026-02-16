@@ -15,13 +15,22 @@
                 <div
                     v-else-if="presentingFile?.IsFolder()"
                     :class="{
-                        'flex h-full w-max min-w-max items-center justify-center gap-4': true,
+                        'flex h-full w-full min-w-max flex-col items-center justify-center': true,
                     }"
                 >
                     <IconFolder
-                        size="10%"
+                        size="18rem"
                         stroke="1"
                     />
+
+                    <div :class="{ 'mb-6 flex w-[20rem] items-center': true }">
+                        <IconDatabase />
+                        <h4 :class="{ 'mr-auto ml-2': true }">{{ presentingFile.FormatSize() }}</h4>
+
+                        <IconCalendar />
+                        <h4 :class="{ 'ml-2': true }">{{ presentingFile.FormatModified() }}</h4>
+                    </div>
+
                     <h1>{{ presentingFile.GetFilename() }}</h1>
                 </div>
             </template>
@@ -66,7 +75,7 @@ import WebsocketStatus from '~/components/atom/WebsocketStatus.vue'
 import useFilesStore from '~/stores/files'
 import useLocationStore from '~/stores/location'
 import useWebsocketStore from '~/stores/websocket'
-import { IconFolder } from '@tabler/icons-vue'
+import { IconCalendar, IconDatabase, IconFolder } from '@tabler/icons-vue'
 import PresentationMediaInfo from '~/components/molecule/PresentationMediaInfo.vue'
 
 const wsStore = useWebsocketStore()

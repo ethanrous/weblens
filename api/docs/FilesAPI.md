@@ -6,6 +6,7 @@ Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**AddFilesToUpload**](FilesAPI.md#AddFilesToUpload) | **Post** /upload/{uploadID} | Add a file to an upload task
 [**AutocompletePath**](FilesAPI.md#AutocompletePath) | **Get** /files/autocomplete | Get path completion suggestions
+[**ClearZipCache**](FilesAPI.md#ClearZipCache) | **Delete** /takeout | Clear all cached zip files
 [**CreateTakeout**](FilesAPI.md#CreateTakeout) | **Post** /takeout | Create a zip file
 [**DeleteFiles**](FilesAPI.md#DeleteFiles) | **Delete** /files | Delete Files \&quot;permanently\&quot;
 [**DownloadFile**](FilesAPI.md#DownloadFile) | **Get** /files/{fileID}/download | Download a file
@@ -160,6 +161,63 @@ No authorization required
 [[Back to README]](../README.md)
 
 
+## ClearZipCache
+
+> ClearZipCache(ctx).Execute()
+
+Clear all cached zip files
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/ethanrous/weblens/api"
+)
+
+func main() {
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	r, err := apiClient.FilesAPI.ClearZipCache(context.Background()).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `FilesAPI.ClearZipCache``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+}
+```
+
+### Path Parameters
+
+This endpoint does not need any parameter.
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiClearZipCacheRequest struct via the builder pattern
+
+
+### Return type
+
+ (empty response body)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: Not defined
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
+
+
 ## CreateTakeout
 
 > TakeoutInfo CreateTakeout(ctx).Request(request).ShareID(shareID).Execute()
@@ -296,7 +354,7 @@ No authorization required
 
 ## DownloadFile
 
-> string DownloadFile(ctx, fileID).ShareID(shareID).Format(format).IsTakeout(isTakeout).Execute()
+> string DownloadFile(ctx, fileID).ShareID(shareID).Format(format).Quality(quality).IsTakeout(isTakeout).Execute()
 
 Download a file
 
@@ -316,11 +374,12 @@ func main() {
 	fileID := "fileID_example" // string | File ID
 	shareID := "shareID_example" // string | Share ID (optional)
 	format := "format_example" // string | File format conversion (optional)
+	quality := int32(56) // int32 | JPEG quality (1-100) (optional) (default to 85)
 	isTakeout := true // bool | Is this a takeout file (optional) (default to false)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.FilesAPI.DownloadFile(context.Background(), fileID).ShareID(shareID).Format(format).IsTakeout(isTakeout).Execute()
+	resp, r, err := apiClient.FilesAPI.DownloadFile(context.Background(), fileID).ShareID(shareID).Format(format).Quality(quality).IsTakeout(isTakeout).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FilesAPI.DownloadFile``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -348,6 +407,7 @@ Name | Type | Description  | Notes
 
  **shareID** | **string** | Share ID | 
  **format** | **string** | File format conversion | 
+ **quality** | **int32** | JPEG quality (1-100) | [default to 85]
  **isTakeout** | **bool** | Is this a takeout file | [default to false]
 
 ### Return type

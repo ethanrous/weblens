@@ -1,5 +1,5 @@
 <template>
-    <div v-if="!media"></div>
+    <div v-if="!media || presentationSize.height.value == 0 || presentationSize.height.value == 0"></div>
     <VideoPlayer
         v-else-if="media.IsVideo()"
         :media="media"
@@ -30,14 +30,15 @@ import { PhotoQuality } from '~/types/weblensMedia'
 import MediaImage from '../atom/MediaImage.vue'
 import PDF from '../atom/PDF.vue'
 import VideoPlayer from './VideoPlayer.vue'
+import type { ShallowRef } from 'vue'
 
 const mediaStore = useMediaStore()
 
 const props = defineProps<{
     mediaId: string
     presentationSize: {
-        width: { value: number }
-        height: { value: number }
+        width: ShallowRef<number>
+        height: ShallowRef<number>
     }
 }>()
 

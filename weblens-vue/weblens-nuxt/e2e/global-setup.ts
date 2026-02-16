@@ -12,7 +12,7 @@ const PID_FILE = path.join(PW_DIR, '.backend-pid')
 const FS_DIR = path.join(PW_DIR, 'fs')
 const PORT = process.env.WEBLENS_TEST_PORT ?? '14100'
 const MONGO_URI = process.env.WEBLENS_MONGODB_URI ?? 'mongodb://127.0.0.1:27019/?replicaSet=rs0&directConnection=true'
-const MONGO_CONTAINER = 'weblens-test-mongod'
+const MONGO_CONTAINER = 'weblens-playwright-test-mongod'
 const DB_NAME = 'playwright-test'
 
 function pollHealth(url: string, timeoutMs: number): Promise<void> {
@@ -78,6 +78,20 @@ export default async function globalSetup() {
         throw new Error(`Frontend build not found at ${uiPath}. Run ./scripts/test-playwright.bash to build it.`)
     }
 
+    console.debug(
+        `Spawning backend with the following configuration: ${JSON.stringify(
+            {
+                PORT,
+                MONGO_URI,
+                DB_NAME,
+                FS_DIR,
+                uiPath,
+            },
+            null,
+            2,
+        )}`,
+    )
+
     // Spawn the backend
     const child = spawn(binaryPath, [], {
         env: {
@@ -88,7 +102,7 @@ export default async function globalSetup() {
             WEBLENS_DATA_PATH: path.join(FS_DIR, 'data'),
             WEBLENS_CACHE_PATH: path.join(FS_DIR, 'cache'),
             WEBLENS_UI_PATH: uiPath,
-            WEBLENS_LOG_LEVEL: 'debug',
+            WEBLENS_LOG_LEVEL: 'trace',
             WEBLENS_DO_CACHE: 'false',
         },
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -112,6 +126,6 @@ export default async function globalSetup() {
 
     // Poll until healthy
     console.debug(`Waiting for backend at http://localhost:${PORT}/api/v1/info ...`)
-    await pollHealth(`http://localhost:${PORT}/api/v1/info`, 30000)
+    await pollHealth(`http://localhost:${PORT}/api/v1/info`, 10_000)
     console.debug('Backend is healthy')
 }

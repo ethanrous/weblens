@@ -39,7 +39,8 @@ export const useTasksStore = defineStore('tasks', () => {
             task.updateProgress(params)
         }
 
-        tasks.value = new Map(tasks.value) // Trigger reactivity
+        // Trigger reactivity
+        triggerRef(tasks)
     }
 
     function setTaskComplete<T>(taskID: string, content: T) {
@@ -57,7 +58,7 @@ export const useTasksStore = defineStore('tasks', () => {
         }
 
         // Trigger reactivity
-        tasks.value = new Map(tasks.value)
+        triggerRef(tasks)
     }
 
     function cancelTask(taskID: string) {
@@ -67,7 +68,7 @@ export const useTasksStore = defineStore('tasks', () => {
         task.setCanceled()
 
         // Trigger reactivity
-        tasks.value = new Map(tasks.value)
+        triggerRef(tasks)
     }
 
     function failTask(taskID: string, opts?: { tasksFailed?: number }) {
@@ -80,7 +81,7 @@ export const useTasksStore = defineStore('tasks', () => {
         task.setFailed(opts)
 
         // Trigger reactivity
-        tasks.value = new Map(tasks.value)
+        triggerRef(tasks)
     }
 
     function removeTask(taskID: string) {
@@ -89,7 +90,7 @@ export const useTasksStore = defineStore('tasks', () => {
         tasks.value.delete(taskID)
 
         // Trigger reactivity
-        tasks.value = new Map(tasks.value)
+        triggerRef(tasks)
     }
 
     return {

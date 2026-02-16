@@ -186,7 +186,7 @@ func (c RequestContext) Error(code int, err error) {
 		}
 	}
 
-	e.CallerSkipFrame(1).Caller().Err(err).Msgf("API Error %d %s", code, http.StatusText(code))
+	e.Caller(1).Err(err).Msgf("API Error %d %s", code, http.StatusText(code))
 
 	c.JSON(code, netwrk.Error{Error: errMsg})
 }

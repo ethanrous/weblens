@@ -34,7 +34,7 @@
             v-if="targetIsFolder"
             label="Scan Folder"
             fill-width
-            :disabled="!canModifyTarget"
+            :disabled="!canModifyTarget || websocketStore.status !== 'OPEN'"
             @click.stop="handleScan"
         >
             <IconPhotoScan />
@@ -103,12 +103,14 @@ import { downloadManyFiles, downloadSingleFile, ScanDirectory } from '~/api/File
 import { useWeblensAPI } from '~/api/AllApi'
 import useLocationStore from '~/stores/location'
 import ProgressSquare from '../atom/ProgressSquare.vue'
+import useWebsocketStore from '~/stores/websocket'
 
 const filesStore = useFilesStore()
 const locationStore = useLocationStore()
 const menuStore = useContextMenuStore()
 const tasksStore = useTasksStore()
 const userStore = useUserStore()
+const websocketStore = useWebsocketStore()
 
 const downloadTaskID = ref<string>()
 

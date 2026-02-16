@@ -256,6 +256,13 @@ func (c *ContextualizedCollection[T]) DeleteOne(_ context.Context, filter any, o
 
 // DeleteMany deletes all documents matching the filter.
 func (c *ContextualizedCollection[T]) DeleteMany(_ context.Context, filter any, opts ...*options.DeleteOptions) (*mongo.DeleteResult, error) {
+	if config.GetConfig().DoCache {
+		cache := context_mod.ToZ(c.ctx).GetCache(c.collection.Name())
+		for _, key := range cache.ScanKeys() {
+			cache.Delete(key)
+		}
+	}
+
 	return c.collection.DeleteMany(c.ctx, filter, opts...)
 }
 

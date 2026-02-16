@@ -108,4 +108,7 @@ type Service interface {
 
 	// GetZip retrieves a zip file by ID
 	GetZip(ctx context.Context, id string) (*WeblensFileImpl, error)
+
+	// DeleteZips deletes zip files by ID
+	DeleteZips(ctx context.Context) error
 }

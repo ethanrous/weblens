@@ -74,9 +74,58 @@ export async function GetTrashChildIds(): Promise<string[]> {
     return childIds
 }
 
+export async function handleDownload(
+    targetFiles: WeblensFile[],
+): Promise<undefined | { zipTaskID?: string; downloadPromise: Promise<void> }> {
+    if (targetFiles.length == 1 && !targetFiles[0].IsFolder()) {
+        await downloadSingleFile(targetFiles[0].ID(), targetFiles[0].GetFilename())
+            // .then(() => {
+            //     menuStore.setMenuOpen(false)
+            // })
+            .catch((error) => {
+                console.error('Error downloading file:', error)
+            })
+        return
+    } else {
+        const { taskID, takeoutInfo: takeoutInfoPromise } = await downloadManyFiles(
+            targetFiles.map((file) => file.ID()),
+        )
+        return {
+            zipTaskID: taskID,
+            downloadPromise: (async () => {
+                const takeoutInfo = await takeoutInfoPromise
+
+                if (!takeoutInfo.takeoutID || !takeoutInfo.filename) {
+                    console.warn('Missing takeoutID or filename returned from downloadManyFiles', takeoutInfo)
+                    return
+                }
+
+                await downloadSingleFile(takeoutInfo.takeoutID, takeoutInfo.filename, 'zip')
+                    // .then(() => {
+                    //     menuStore.setMenuOpen(false)
+                    // })
+                    .catch((error) => {
+                        console.error('Error downloading file:', error)
+                    })
+                // .finally(() => {
+                //     downloadTaskID.value = undefined
+                // })
+            })(),
+        }
+
+        // if (takeoutRes.taskID) {
+        //     downloadTaskID.value = takeoutRes.taskID
+        // }
+    }
+}
 export type AllowedDownloadFormats = 'webp' | 'jpeg' | 'zip'
 
-export async function downloadSingleFile(fileID: string, filename: string, format?: AllowedDownloadFormats) {
+export async function downloadSingleFile(
+    fileID: string,
+    filename: string,
+    format?: AllowedDownloadFormats,
+    quality: number = 100,
+) {
     let formatStr: `image/${Exclude<AllowedDownloadFormats, 'zip'>}` | undefined
     if (format && format !== 'zip') {
         formatStr = `image/${format}`
@@ -86,6 +135,7 @@ export async function downloadSingleFile(fileID: string, filename: string, forma
         fileID,
         useLocationStore().activeShareID,
         formatStr,
+        quality,
         format === 'zip',
     )
 

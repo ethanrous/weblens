@@ -700,6 +700,13 @@ declare const FilesApiAxiosParamCreator: (configuration?: Configuration) => {
      */
     autocompletePath: (searchPath: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
+     *
+     * @summary Clear all cached zip files
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    clearZipCache: (options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    /**
      * Dispatch a task to create a zip file of the given files, or get the id of a previously created zip file if it already exists
      * @summary Create a zip file
      * @param {FilesListParams} request File Ids
@@ -724,11 +731,12 @@ declare const FilesApiAxiosParamCreator: (configuration?: Configuration) => {
      * @param {string} fileID File ID
      * @param {string} [shareID] Share ID
      * @param {string} [format] File format conversion
+     * @param {number} [quality] JPEG quality (1-100)
      * @param {boolean} [isTakeout] Is this a takeout file
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    downloadFile: (fileID: string, shareID?: string, format?: string, isTakeout?: boolean, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    downloadFile: (fileID: string, shareID?: string, format?: string, quality?: number, isTakeout?: boolean, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Get information about a file
@@ -862,6 +870,13 @@ declare const FilesApiFp: (configuration?: Configuration) => {
      */
     autocompletePath(searchPath: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FolderInfo>>;
     /**
+     *
+     * @summary Clear all cached zip files
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    clearZipCache(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    /**
      * Dispatch a task to create a zip file of the given files, or get the id of a previously created zip file if it already exists
      * @summary Create a zip file
      * @param {FilesListParams} request File Ids
@@ -886,11 +901,12 @@ declare const FilesApiFp: (configuration?: Configuration) => {
      * @param {string} fileID File ID
      * @param {string} [shareID] Share ID
      * @param {string} [format] File format conversion
+     * @param {number} [quality] JPEG quality (1-100)
      * @param {boolean} [isTakeout] Is this a takeout file
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    downloadFile(fileID: string, shareID?: string, format?: string, isTakeout?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>>;
+    downloadFile(fileID: string, shareID?: string, format?: string, quality?: number, isTakeout?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>>;
     /**
      *
      * @summary Get information about a file
@@ -1024,6 +1040,13 @@ declare const FilesApiFactory: (configuration?: Configuration, basePath?: string
      */
     autocompletePath(searchPath: string, options?: RawAxiosRequestConfig): AxiosPromise<FolderInfo>;
     /**
+     *
+     * @summary Clear all cached zip files
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    clearZipCache(options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    /**
      * Dispatch a task to create a zip file of the given files, or get the id of a previously created zip file if it already exists
      * @summary Create a zip file
      * @param {FilesListParams} request File Ids
@@ -1048,11 +1071,12 @@ declare const FilesApiFactory: (configuration?: Configuration, basePath?: string
      * @param {string} fileID File ID
      * @param {string} [shareID] Share ID
      * @param {string} [format] File format conversion
+     * @param {number} [quality] JPEG quality (1-100)
      * @param {boolean} [isTakeout] Is this a takeout file
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    downloadFile(fileID: string, shareID?: string, format?: string, isTakeout?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<string>;
+    downloadFile(fileID: string, shareID?: string, format?: string, quality?: number, isTakeout?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<string>;
     /**
      *
      * @summary Get information about a file
@@ -1186,6 +1210,13 @@ declare class FilesApi extends BaseAPI {
      */
     autocompletePath(searchPath: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FolderInfo, any, {}>>;
     /**
+     *
+     * @summary Clear all cached zip files
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    clearZipCache(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any, {}>>;
+    /**
      * Dispatch a task to create a zip file of the given files, or get the id of a previously created zip file if it already exists
      * @summary Create a zip file
      * @param {FilesListParams} request File Ids
@@ -1210,11 +1241,12 @@ declare class FilesApi extends BaseAPI {
      * @param {string} fileID File ID
      * @param {string} [shareID] Share ID
      * @param {string} [format] File format conversion
+     * @param {number} [quality] JPEG quality (1-100)
      * @param {boolean} [isTakeout] Is this a takeout file
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    downloadFile(fileID: string, shareID?: string, format?: string, isTakeout?: boolean, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<string, any, {}>>;
+    downloadFile(fileID: string, shareID?: string, format?: string, quality?: number, isTakeout?: boolean, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<string, any, {}>>;
     /**
      *
      * @summary Get information about a file

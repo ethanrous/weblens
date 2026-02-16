@@ -5,6 +5,7 @@ import (
 
 	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
+	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/media/agno"
@@ -79,19 +80,14 @@ func NewMediaFromFile(ctx context_service.AppContext, f *file_model.WeblensFileI
 		}
 	}
 
-	// TODO: get GPS location from EXIF
-	// if m.Location[0] == 0 || m.Location[1] == 0 {
-	// 	pos, ok := fileMetas[0].Fields["GPSPosition"].(string)
-	// 	if ok {
-	// 		lat, long, err := getDecimalCoords(pos)
-	// 		if err != nil {
-	// 			return nil, err
-	// 		}
-	//
-	// 		m.Location[0] = lat
-	// 		m.Location[1] = long
-	// 	}
-	// }
+	if m.Location[0] == 0 && m.Location[1] == 0 {
+		loc, err := agno.GetGPSCoordinates(img)
+		if err != nil {
+			ctx.Log().Warn().Msgf("failed to get GPS coordinates from EXIF for file %s: %v", f.ID(), err)
+		} else {
+			m.Location = loc
+		}
+	}
 
 	mType := GetMediaType(m)
 	if !mType.IsSupported() {
@@ -130,6 +126,16 @@ func loadImageFromFile(f *file_model.WeblensFileImpl, _ media_model.MType) (*agn
 func getCreateDateFromExif(img *agno.Image, file *file_model.WeblensFileImpl) (createDate time.Time, err error) {
 	r, err := agno.GetExifValue[string](img, agno.CreateDate)
 	if err != nil {
+		r, err = agno.GetExifValue[string](img, agno.DateTimeOriginal)
+	}
+
+	if err != nil {
+		r, err = agno.GetExifValue[string](img, agno.ModifyDate)
+	}
+
+	if err != nil {
+		log.GlobalLogger().Warn().Msgf("failed to get date from EXIF for file %s: %v", file.ID(), err)
+
 		return file.ModTime(), nil
 	}
 

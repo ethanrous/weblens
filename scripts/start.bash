@@ -88,7 +88,7 @@ if ! does_agno_exist; then
     build_agno
 fi
 
-launch_mongo "$stack_name-mongo" "$mongo_port" | show_as_subtask "Launching mongo..." "green"
+show_as_subtask "Launching mongo..." "green" -- launch_mongo --stack-name "$stack_name" --mongo-port "$mongo_port"
 
 # if [[ "$tower_role" == "core" ]] && ! is_hdir_running; then
 #     launch_hdir | show_as_subtask "Launching HDIR..." "green"

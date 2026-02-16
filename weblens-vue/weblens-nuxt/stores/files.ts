@@ -282,7 +282,9 @@ const useFilesStore = defineStore('files', () => {
         }
 
         setMovedFile(fileIDs, false)
-        children.value = [...newChildren] // Trigger reactivity
+
+        // Trigger reactivity
+        triggerRef(children)
     }
 
     function setMovedFile(fileIDs: string[], moved: boolean) {
@@ -294,7 +296,8 @@ const useFilesStore = defineStore('files', () => {
             }
         }
 
-        movedFiles.value = new Set(movedFiles.value)
+        // Trigger reactivity
+        triggerRef(movedFiles)
     }
 
     function initFolderSettings() {

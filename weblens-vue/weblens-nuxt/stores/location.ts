@@ -1,4 +1,3 @@
-import { useUrlSearchParams } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { useWeblensAPI } from '~/api/AllApi'
 import WeblensShare from '~/types/weblensShare'
@@ -16,10 +15,43 @@ const useLocationStore = defineStore('location', () => {
     const router = useRouter()
     const route = computed(() => router.currentRoute.value)
 
-    const qparams = useUrlSearchParams('history', {
-        removeNullishValues: true,
-        removeFalsyValues: true,
-    })
+    // Batched query param updates — merges all setQueryParam calls within the
+    // same tick into a single navigateTo so rapid changes don't clobber each other.
+    let pendingQueryUpdates: Record<string, string | null> = {}
+    let isQueryUpdatePending = false
+
+    function setQueryParam(key: string, value: string | null | undefined) {
+        pendingQueryUpdates[key] = value ?? null
+        if (!isQueryUpdatePending) {
+            isQueryUpdatePending = true
+            nextTick(() => {
+                const newQuery: Record<string, string | undefined> = {}
+                for (const [k, v] of Object.entries(route.value.query)) {
+                    if (typeof v === 'string') {
+                        newQuery[k] = v
+                    }
+                }
+                let hasChanges = false
+                for (const [k, v] of Object.entries(pendingQueryUpdates)) {
+                    const newVal = v === null || v === '' ? undefined : v
+                    if (newQuery[k] !== newVal) {
+                        hasChanges = true
+                        newQuery[k] = newVal
+                    }
+                }
+                if (hasChanges) {
+                    navigateTo({ query: newQuery })
+                }
+                pendingQueryUpdates = {}
+                isQueryUpdatePending = false
+            })
+        }
+    }
+
+    function getQueryParam(key: string): string | undefined {
+        const val = route.value.query[key]
+        return typeof val === 'string' ? val : undefined
+    }
 
     const userStore = useUserStore()
     const towerStore = useTowerStore()
@@ -190,38 +222,28 @@ const useLocationStore = defineStore('location', () => {
         return navigateTo({ path: '/backup' + (towerID ? '/' + towerID : '') })
     }
 
-    const search = customRef<string>((track, trigger) => {
-        return {
-            get() {
-                track()
-                return (qparams.search as string) || ''
-            },
-            set(newValue) {
-                qparams.search = newValue
-                trigger()
-            },
-        }
+    const search = ref('')
+    watch(
+        () => route.value.query.search,
+        (newVal) => {
+            search.value = (typeof newVal === 'string' ? newVal : '') || ''
+        },
+        { immediate: true },
+    )
+    watch(search, () => {
+        setQueryParam('search', search.value || null)
     })
 
-    const isInTimeline = customRef<boolean>((track, trigger) => {
-        return {
-            get() {
-                track()
-                if (qparams.timeline === 'true') {
-                    return true
-                }
-
-                return false
-            },
-            set(newValue) {
-                qparams.timeline = String(newValue)
-
-                trigger()
-            },
-        }
-    })
-
+    const isInTimeline = ref(false)
+    watch(
+        () => route.value.query.timeline,
+        (newVal) => {
+            isInTimeline.value = newVal === 'true'
+        },
+        { immediate: true },
+    )
     watch(isInTimeline, () => {
+        setQueryParam('timeline', isInTimeline.value ? 'true' : null)
         search.value = '' // Clear search when changing timeline mode
     })
 
@@ -250,6 +272,9 @@ const useLocationStore = defineStore('location', () => {
         setViewTimestamp,
 
         search,
+
+        setQueryParam,
+        getQueryParam,
     }
 })
 

@@ -22,7 +22,7 @@ build_agno() {
     rm -f "${agno_lib_path}/libagno.a"
 
     pushd agno >/dev/null || return 1
-    "${WEBLENS_ROOT}/agno/build/sh/build-agno.bash" "$agno_lib_path" 2>&1 | show_as_subtask "Building Agno to $agno_lib_path..." "orange"
+    show_as_subtask "Building Agno to $agno_lib_path..." "orange" -- "${WEBLENS_ROOT}/agno/build/sh/build-agno.bash" "$agno_lib_path"
     cp ./lib/agno.h "$agno_lib_path" || return 1
     popd >/dev/null || return 1
 }

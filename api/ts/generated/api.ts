@@ -863,6 +863,35 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
             };
         },
         /**
+         * 
+         * @summary Clear all cached zip files
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        clearZipCache: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/takeout`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
          * Dispatch a task to create a zip file of the given files, or get the id of a previously created zip file if it already exists
          * @summary Create a zip file
          * @param {FilesListParams} request File Ids
@@ -952,11 +981,12 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
          * @param {string} fileID File ID
          * @param {string} [shareID] Share ID
          * @param {string} [format] File format conversion
+         * @param {number} [quality] JPEG quality (1-100)
          * @param {boolean} [isTakeout] Is this a takeout file
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        downloadFile: async (fileID: string, shareID?: string, format?: string, isTakeout?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        downloadFile: async (fileID: string, shareID?: string, format?: string, quality?: number, isTakeout?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'fileID' is not null or undefined
             assertParamExists('downloadFile', 'fileID', fileID)
             const localVarPath = `/files/{fileID}/download`
@@ -978,6 +1008,10 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
 
             if (format !== undefined) {
                 localVarQueryParameter['format'] = format;
+            }
+
+            if (quality !== undefined) {
+                localVarQueryParameter['quality'] = quality;
             }
 
             if (isTakeout !== undefined) {
@@ -1512,6 +1546,18 @@ export const FilesApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
+         * 
+         * @summary Clear all cached zip files
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async clearZipCache(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.clearZipCache(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['FilesApi.clearZipCache']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
          * Dispatch a task to create a zip file of the given files, or get the id of a previously created zip file if it already exists
          * @summary Create a zip file
          * @param {FilesListParams} request File Ids
@@ -1546,12 +1592,13 @@ export const FilesApiFp = function(configuration?: Configuration) {
          * @param {string} fileID File ID
          * @param {string} [shareID] Share ID
          * @param {string} [format] File format conversion
+         * @param {number} [quality] JPEG quality (1-100)
          * @param {boolean} [isTakeout] Is this a takeout file
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async downloadFile(fileID: string, shareID?: string, format?: string, isTakeout?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.downloadFile(fileID, shareID, format, isTakeout, options);
+        async downloadFile(fileID: string, shareID?: string, format?: string, quality?: number, isTakeout?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.downloadFile(fileID, shareID, format, quality, isTakeout, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['FilesApi.downloadFile']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -1757,6 +1804,15 @@ export const FilesApiFactory = function (configuration?: Configuration, basePath
             return localVarFp.autocompletePath(searchPath, options).then((request) => request(axios, basePath));
         },
         /**
+         * 
+         * @summary Clear all cached zip files
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        clearZipCache(options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.clearZipCache(options).then((request) => request(axios, basePath));
+        },
+        /**
          * Dispatch a task to create a zip file of the given files, or get the id of a previously created zip file if it already exists
          * @summary Create a zip file
          * @param {FilesListParams} request File Ids
@@ -1785,12 +1841,13 @@ export const FilesApiFactory = function (configuration?: Configuration, basePath
          * @param {string} fileID File ID
          * @param {string} [shareID] Share ID
          * @param {string} [format] File format conversion
+         * @param {number} [quality] JPEG quality (1-100)
          * @param {boolean} [isTakeout] Is this a takeout file
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        downloadFile(fileID: string, shareID?: string, format?: string, isTakeout?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<string> {
-            return localVarFp.downloadFile(fileID, shareID, format, isTakeout, options).then((request) => request(axios, basePath));
+        downloadFile(fileID: string, shareID?: string, format?: string, quality?: number, isTakeout?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<string> {
+            return localVarFp.downloadFile(fileID, shareID, format, quality, isTakeout, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -1957,6 +2014,16 @@ export class FilesApi extends BaseAPI {
     }
 
     /**
+     * 
+     * @summary Clear all cached zip files
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public clearZipCache(options?: RawAxiosRequestConfig) {
+        return FilesApiFp(this.configuration).clearZipCache(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
      * Dispatch a task to create a zip file of the given files, or get the id of a previously created zip file if it already exists
      * @summary Create a zip file
      * @param {FilesListParams} request File Ids
@@ -1987,12 +2054,13 @@ export class FilesApi extends BaseAPI {
      * @param {string} fileID File ID
      * @param {string} [shareID] Share ID
      * @param {string} [format] File format conversion
+     * @param {number} [quality] JPEG quality (1-100)
      * @param {boolean} [isTakeout] Is this a takeout file
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public downloadFile(fileID: string, shareID?: string, format?: string, isTakeout?: boolean, options?: RawAxiosRequestConfig) {
-        return FilesApiFp(this.configuration).downloadFile(fileID, shareID, format, isTakeout, options).then((request) => request(this.axios, this.basePath));
+    public downloadFile(fileID: string, shareID?: string, format?: string, quality?: number, isTakeout?: boolean, options?: RawAxiosRequestConfig) {
+        return FilesApiFp(this.configuration).downloadFile(fileID, shareID, format, quality, isTakeout, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

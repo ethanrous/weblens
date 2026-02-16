@@ -33,7 +33,7 @@ test.describe('File Browser', () => {
         await nameInput.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
 
         // Wait for the folder to appear in the file browser (use file card locator to avoid matching input text)
-        await expect(page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'Test Folder' })).toBeVisible({
+        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'Test Folder' })).toBeVisible({
             timeout: 15000,
         })
     })
@@ -154,7 +154,7 @@ test.describe('File Browser', () => {
     test('should move folder to trash', async ({ page }) => {
         // Right-click the folder card to open context menu
         // Use :not(#file-scroller) to avoid matching the scroller container
-        const folderCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'Renamed Folder' })
+        const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'Renamed Folder' })
         await folderCard.click({ button: 'right' })
 
         // Click Trash in context menu (scoped to filebrowser to avoid sidebar Trash button)

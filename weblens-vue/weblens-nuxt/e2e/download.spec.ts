@@ -38,7 +38,7 @@ test.describe('File Downloads', () => {
     })
 
     test('should download a single text file via context menu', async ({ page }) => {
-        const fileCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'download-test.txt' })
+        const fileCard = page.locator('[id^="file-card-"]').filter({ hasText: 'download-test.txt' })
         await expect(fileCard).toBeVisible({ timeout: 15000 })
 
         await fileCard.click({ button: 'right' })
@@ -57,7 +57,7 @@ test.describe('File Downloads', () => {
     })
 
     test('should select multiple files and download as zip', async ({ page }) => {
-        const fileCards = page.locator('[id^="file-"]:not(#file-scroller)')
+        const fileCards = page.locator('[id^="file-card-"]')
         await expect(fileCards.first()).toBeVisible({ timeout: 15000 })
 
         if ((await fileCards.count()) >= 2) {
@@ -94,7 +94,7 @@ test.describe('File Downloads', () => {
     })
 
     test('should clean up download test file', async ({ page }) => {
-        const fileCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'download-test.txt' })
+        const fileCard = page.locator('[id^="file-card-"]').filter({ hasText: 'download-test.txt' })
 
         if (await fileCard.isVisible({ timeout: 15000 }).catch(() => false)) {
             await fileCard.click({ button: 'right' })

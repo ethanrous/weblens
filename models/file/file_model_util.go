@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 )
@@ -62,6 +63,10 @@ func GetFileOwnerNameFromPath(_ context.Context, portable fs.Filepath) (string, 
 	// if slashIndex == -1 {
 	// 	portable = fs.BuildFilePath(UsersTreeKey, portable.RelativePath()[slashIndex:])
 	// }
+
+	if portable.RootName() == CachesTreeKey {
+		return user.PublicUserName, nil
+	}
 
 	if portable.RootName() != UsersTreeKey {
 		return "", wlerrors.Errorf("trying to get owner of file not in USERS tree: [%s]", portable)

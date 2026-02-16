@@ -34,13 +34,13 @@ test.describe('Share Browsing', () => {
         await expect(nameInput).toBeVisible()
         await nameInput.fill('ShareBrowseFolder')
         await nameInput.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
-        await expect(
-            page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'ShareBrowseFolder' }),
-        ).toBeVisible({ timeout: 15000 })
+        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'ShareBrowseFolder' })).toBeVisible({
+            timeout: 15000,
+        })
         await expect(nameInput).not.toBeVisible({ timeout: 3000 })
 
         // Navigate into the folder and upload a file
-        const folderCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'ShareBrowseFolder' })
+        const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'ShareBrowseFolder' })
         await folderCard.dblclick()
         await expect(page.locator('h3').filter({ hasText: 'ShareBrowseFolder' })).toBeVisible({
             timeout: 15000,
@@ -63,7 +63,7 @@ test.describe('Share Browsing', () => {
     })
 
     test('should create a public share and capture the share link', async ({ page }) => {
-        const folderCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'ShareBrowseFolder' })
+        const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'ShareBrowseFolder' })
         await expect(folderCard).toBeVisible({ timeout: 15000 })
 
         // Right-click to open context menu and click Share
@@ -154,7 +154,7 @@ test.describe('Share Browsing', () => {
 
         // Should show either shared files or the "No files shared with you" message
         const noShared = page.getByText('No files shared with you')
-        const sharedFiles = page.locator('[id^="file-"]:not(#file-scroller)')
+        const sharedFiles = page.locator('[id^="file-card-"]')
         await expect(noShared.or(sharedFiles.first())).toBeVisible({ timeout: 15000 })
     })
 
@@ -163,7 +163,7 @@ test.describe('Share Browsing', () => {
         await page.getByRole('button', { name: 'Home' }).click()
         await page.waitForURL('**/files/home', { timeout: 15000 })
 
-        const folderCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'ShareBrowseFolder' })
+        const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'ShareBrowseFolder' })
 
         if (await folderCard.isVisible({ timeout: 15000 }).catch(() => false)) {
             await folderCard.click({ button: 'right' })

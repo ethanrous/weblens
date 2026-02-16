@@ -18,6 +18,7 @@ run_native_tests() {
     touch /tmp/weblens.env
 
     WEBLENS_LOG_PATH=$(get_log_file "weblens-test")
+    export WEBLENS_LOG_PATH
 
     export WEBLENS_ENV_PATH=/tmp/weblens.env
     export WEBLENS_DO_CACHE=false
@@ -32,8 +33,7 @@ run_native_tests() {
 
     # shellcheck disable=SC2086
     if ! go test -cover -race -coverprofile=_build/cover/coverage.out -coverpkg ./... -tags=test ${target}; then
-        printf "\n\nTESTS FAILED. Last 200 lines of log:\n\n"
-        tail -200 "$WEBLENS_LOG_PATH" || true
+        printf "\n\nTESTS FAILED\n\n"
         exit 1
     fi
     # 2>&1 | grep -v -e "=== RUN" -e "=== PAUSE" -e "--- PASS" -e "coverage:" -e "=== CONT" -e "ld: warning:"
@@ -93,8 +93,8 @@ done
 if [[ "$lazy" = true ]] && is_mongo_running --stack-name "test"; then
     printf "Skipping mongo container re-deploy (lazy mode)...\n"
 else
-    cleanup_mongo --stack-name "test" | show_as_subtask "Resetting mongo testing volumes..." "green"
-    launch_mongo --stack-name "test" --mongo-port 27019 | show_as_subtask "Launching mongo..." "green"
+    show_as_subtask "Resetting mongo testing volumes..." "green" -- cleanup_mongo --stack-name "test"
+    show_as_subtask "Launching mongo..." "green" -- launch_mongo --stack-name "test" --mongo-port 27019
 fi
 
 if [[ "$containerize" = false ]]; then

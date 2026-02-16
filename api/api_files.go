@@ -255,6 +255,92 @@ func (a *FilesAPIService) AutocompletePathExecute(r ApiAutocompletePathRequest) 
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
+type ApiClearZipCacheRequest struct {
+	ctx context.Context
+	ApiService *FilesAPIService
+}
+
+func (r ApiClearZipCacheRequest) Execute() (*http.Response, error) {
+	return r.ApiService.ClearZipCacheExecute(r)
+}
+
+/*
+ClearZipCache Clear all cached zip files
+
+ @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return ApiClearZipCacheRequest
+*/
+func (a *FilesAPIService) ClearZipCache(ctx context.Context) ApiClearZipCacheRequest {
+	return ApiClearZipCacheRequest{
+		ApiService: a,
+		ctx: ctx,
+	}
+}
+
+// Execute executes the request
+func (a *FilesAPIService) ClearZipCacheExecute(r ApiClearZipCacheRequest) (*http.Response, error) {
+	var (
+		localVarHTTPMethod   = http.MethodDelete
+		localVarPostBody     interface{}
+		formFiles            []formFile
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "FilesAPIService.ClearZipCache")
+	if err != nil {
+		return nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/takeout"
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarHTTPResponse, newErr
+	}
+
+	return localVarHTTPResponse, nil
+}
+
 type ApiCreateTakeoutRequest struct {
 	ctx context.Context
 	ApiService *FilesAPIService
@@ -500,6 +586,7 @@ type ApiDownloadFileRequest struct {
 	fileID string
 	shareID *string
 	format *string
+	quality *int32
 	isTakeout *bool
 }
 
@@ -512,6 +599,12 @@ func (r ApiDownloadFileRequest) ShareID(shareID string) ApiDownloadFileRequest {
 // File format conversion
 func (r ApiDownloadFileRequest) Format(format string) ApiDownloadFileRequest {
 	r.format = &format
+	return r
+}
+
+// JPEG quality (1-100)
+func (r ApiDownloadFileRequest) Quality(quality int32) ApiDownloadFileRequest {
+	r.quality = &quality
 	return r
 }
 
@@ -567,6 +660,13 @@ func (a *FilesAPIService) DownloadFileExecute(r ApiDownloadFileRequest) (string,
 	}
 	if r.format != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "format", r.format, "", "")
+	}
+	if r.quality != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "quality", r.quality, "", "")
+	} else {
+        var defaultValue int32 = 85
+        parameterAddToHeaderOrQuery(localVarQueryParams, "quality", defaultValue, "", "")
+        r.quality = &defaultValue
 	}
 	if r.isTakeout != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "isTakeout", r.isTakeout, "", "")

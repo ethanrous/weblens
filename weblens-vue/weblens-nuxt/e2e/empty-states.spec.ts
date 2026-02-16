@@ -34,12 +34,12 @@ test.describe('Empty States', () => {
             await nameInput.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
         }
 
-        await expect(
-            page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'EmptyStateTest' }),
-        ).toBeVisible({ timeout: 15000 })
+        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'EmptyStateTest' })).toBeVisible({
+            timeout: 15000,
+        })
 
         // Double-click to navigate into the empty folder
-        const folderCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'EmptyStateTest' })
+        const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'EmptyStateTest' })
         await folderCard.dblclick()
         await page.waitForTimeout(2000)
 
@@ -52,7 +52,7 @@ test.describe('Empty States', () => {
     })
 
     test('should show no search results message for nonexistent files', async ({ page }) => {
-        await expect(page.locator('[id^="file-"]:not(#file-scroller)').first()).toBeVisible({
+        await expect(page.locator('[id^="file-card-"]').first()).toBeVisible({
             timeout: 15000,
         })
 
@@ -78,7 +78,7 @@ test.describe('Empty States', () => {
 
         // Should show empty state or shared files
         const noShared = page.getByText('No files shared with you')
-        const sharedFiles = page.locator('[id^="file-"]:not(#file-scroller)')
+        const sharedFiles = page.locator('[id^="file-card-"]')
 
         await expect(noShared.or(sharedFiles.first())).toBeVisible({ timeout: 15000 })
 
@@ -92,7 +92,7 @@ test.describe('Empty States', () => {
 
         // Should show either the empty trash message or file cards (auto-wait for either)
         const emptyMsg = page.getByText('Someone already took the trash out')
-        const fileCards = page.locator('[id^="file-"]:not(#file-scroller)')
+        const fileCards = page.locator('[id^="file-card-"]')
         await expect(emptyMsg.or(fileCards.first())).toBeVisible({ timeout: 15000 })
 
         await page.getByRole('button', { name: 'Home' }).click()
@@ -121,7 +121,7 @@ test.describe('Empty States', () => {
             await page.waitForURL('**/files/home')
         }
 
-        const folderCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'EmptyStateTest' })
+        const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'EmptyStateTest' })
 
         if (await folderCard.isVisible({ timeout: 15000 }).catch(() => false)) {
             await folderCard.click({ button: 'right' })

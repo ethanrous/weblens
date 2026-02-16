@@ -548,6 +548,10 @@ func (m *Media) IsSufficentlyProcessed(requireHDIR bool) bool {
 		return false
 	}
 
+	if m.Location[0] == 0 && m.Location[1] == 0 {
+		return false
+	}
+
 	return true
 }
 

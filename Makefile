@@ -26,7 +26,7 @@ cover-view:
 	go tool cover -html ./_build/cover/coverage.out
 
 dev: FORCE
-	./scripts/start.bash --dynamic "${@:1}"
+	./scripts/start.bash "${@:1}"
 
 dev-s: FORCE
 	./scripts/start.bash --dev --secure $(ARGS)

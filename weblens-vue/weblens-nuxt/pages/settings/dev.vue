@@ -47,17 +47,26 @@
             center-content
             @click="handleClearHDIRs"
         />
+
         <WeblensButton
             label="Clean Media"
             flavor="danger"
             center-content
             @click="handleCleanMedia"
         />
+
         <WeblensButton
             label="Flush Cache"
             flavor="danger"
             center-content
             @click="flushCache"
+        />
+
+        <WeblensButton
+            label="Clear Zip Cache"
+            flavor="danger"
+            center-content
+            @click="clearZips()"
         />
     </div>
 </template>
@@ -93,6 +102,10 @@ async function handleCleanMedia() {
 
 async function handleClearHDIRs() {
     await useWeblensAPI().MediaAPI.dropHDIRs()
+}
+
+async function clearZips() {
+    await useWeblensAPI().FilesAPI.clearZipCache()
 }
 
 async function enableTraceLogging() {

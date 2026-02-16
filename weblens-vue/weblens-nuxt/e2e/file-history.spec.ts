@@ -117,7 +117,7 @@ test.describe('File History and Rewind', () => {
         })
 
         // Trash the file to create a move action
-        const fileCard = page.locator('[id^="file-"]:not(#file-scroller)').filter({ hasText: 'history-test-file.txt' })
+        const fileCard = page.locator('[id^="file-card-"]').filter({ hasText: 'history-test-file.txt' })
         await fileCard.click({ button: 'right' })
         const trashBtn = fileBrowser.getByRole('button', { name: 'Trash' })
         if (await trashBtn.isEnabled({ timeout: 2000 }).catch(() => false)) {

@@ -85,6 +85,7 @@ Class | Method | HTTP request | Description
 *FeatureFlagsAPI* | [**SetFlags**](docs/FeatureFlagsAPI.md#setflags) | **Post** /flags | Set Feature Flags
 *FilesAPI* | [**AddFilesToUpload**](docs/FilesAPI.md#addfilestoupload) | **Post** /upload/{uploadID} | Add a file to an upload task
 *FilesAPI* | [**AutocompletePath**](docs/FilesAPI.md#autocompletepath) | **Get** /files/autocomplete | Get path completion suggestions
+*FilesAPI* | [**ClearZipCache**](docs/FilesAPI.md#clearzipcache) | **Delete** /takeout | Clear all cached zip files
 *FilesAPI* | [**CreateTakeout**](docs/FilesAPI.md#createtakeout) | **Post** /takeout | Create a zip file
 *FilesAPI* | [**DeleteFiles**](docs/FilesAPI.md#deletefiles) | **Delete** /files | Delete Files \&quot;permanently\&quot;
 *FilesAPI* | [**DownloadFile**](docs/FilesAPI.md#downloadfile) | **Get** /files/{fileID}/download | Download a file
