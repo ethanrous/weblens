@@ -23,6 +23,9 @@ jobs:
 
       - name: Cache Rust dependencies and build artifacts
         uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            ./agno -> ./agno/target
 
       - name: Build Agno
         run: |
