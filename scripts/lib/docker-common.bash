@@ -16,7 +16,7 @@ dockerc() {
     fi
 
     # FIXME: Temp for testing
-    docker "${@}"
+    UID=$(id -u) GID=$(id -g) docker "${@}"
     # sudo -E docker "${@}"
 }
 export -f dockerc

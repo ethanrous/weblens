@@ -22,12 +22,13 @@ function makeLogFile(workerIndex: number, type: string, extraIdentifier?: string
         ? `worker-${workerIndex}-${type}-${extraIdentifier}.log`
         : `worker-${workerIndex}-${type}.log`
     const logPath = path.join(LOG_DIR, type, filename)
-    fs.mkdir(path.dirname(logPath), { recursive: true }, (err) => {
+    fs.mkdir(path.dirname(logPath), { recursive: true, mode: 0o777 }, (err) => {
         if (err) {
             console.error(`[worker-${workerIndex}] Failed to create log directory: ${err}`)
         }
     })
-    fs.writeFileSync(logPath, '') // Clear existing log
+    // Clear existing log
+    fs.writeFileSync(logPath, '', { mode: 0o777 })
     return logPath
 }
 
