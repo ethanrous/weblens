@@ -15,6 +15,8 @@ dockerc() {
         return
     fi
 
-    sudo -E docker "${@}"
+    # FIXME: Temp for testing
+    docker "${@}"
+    # sudo -E docker "${@}"
 }
 export -f dockerc
