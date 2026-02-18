@@ -314,26 +314,19 @@ class WeblensFile implements FileInfo {
 
     public CanDelete(): boolean {
         if (!this.modifiable) {
+            console.debug('File is not modifiable, cannot delete', this)
+
             return false
         }
 
         if (this.IsHome() || this.IsTrash() || this.IsShareRoot()) {
+            console.debug('File is a special folder, cannot delete', this)
+
             return false
         }
 
+        console.debug('Checking delete permission for file', this, 'with permissions', this.permissions)
         return this.permissions?.canDelete === true
-
-        // if (props.targetFile?.IsTrash()) return true
-        //
-        // if (locationStore.isInTrash) return true
-        //
-        // if (!canModifyTarget.value) return false
-        //
-        // if (targetIsFolder.value) return false
-        //
-        // if (locationStore.activeShare && !locationStore.activeShare.checkPermission('canDelete')) return false
-        //
-        // if (protectedFile.value) return false
     }
 
     public CanEdit(): boolean {

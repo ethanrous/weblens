@@ -13,15 +13,7 @@ import { test, expect } from './fixtures'
  * - components/atom/SizeStepper.vue
  */
 test.describe('Media Timeline', () => {
-    test.describe.configure({ mode: 'serial' })
-
-    test.beforeEach(async ({ page }) => {
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('test_admin')
-        await page.getByPlaceholder('Password').fill('password123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
-    })
+    test.beforeEach(async ({ login: _login }) => {})
 
     test('should switch to media timeline and see empty state or media', async ({ page }) => {
         // Switch to timeline mode
@@ -88,7 +80,6 @@ test.describe('Media Timeline', () => {
         await searchInput.press('Enter')
 
         // Should trigger media search (might show results or empty state)
-        await page.waitForTimeout(1000)
 
         // Clear search
         await searchInput.clear()

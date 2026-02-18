@@ -36,7 +36,6 @@ run_native_tests() {
         printf "\n\nTESTS FAILED\n\n"
         exit 1
     fi
-    # 2>&1 | grep -v -e "=== RUN" -e "=== PAUSE" -e "--- PASS" -e "coverage:" -e "=== CONT" -e "ld: warning:"
 
     portable_sed '/github\.com\/ethanrous\/weblens\/api/d' ./_build/cover/coverage.out
 }

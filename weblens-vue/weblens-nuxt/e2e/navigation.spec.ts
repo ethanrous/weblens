@@ -32,56 +32,28 @@ test.describe('Navigation and Redirects', () => {
         await expect(page.getByRole('button', { name: 'Log In' })).toBeVisible({ timeout: 15000 })
     })
 
-    test('should redirect root to files/home when authenticated', async ({ page }) => {
-        // Log in first
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('test_admin')
-        await page.getByPlaceholder('Password').fill('password123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
-
+    test('should redirect root to files/home when authenticated', async ({ page, login: _login }) => {
         // Navigate to root — should redirect to files/home
         await page.goto('/')
         await page.waitForURL('**/files/home')
         await expect(page).toHaveURL(/\/files\/home$/)
     })
 
-    test('should redirect /files to /files/home when logged in', async ({ page }) => {
-        // Login first
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('test_admin')
-        await page.getByPlaceholder('Password').fill('password123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
-
+    test('should redirect /files to /files/home when logged in', async ({ page, login: _login }) => {
         // Navigate directly to /files
         await page.goto('/files')
         await page.waitForURL('**/files/home')
         await expect(page).toHaveURL(/\/files\/home/)
     })
 
-    test('should redirect /settings to /settings/account', async ({ page }) => {
-        // Log in first
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('test_admin')
-        await page.getByPlaceholder('Password').fill('password123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
-
+    test('should redirect /settings to /settings/account', async ({ page, login: _login }) => {
         // Navigate to /settings — should redirect to /settings/account
         await page.goto('/settings')
         await page.waitForURL('**/settings/account')
         await expect(page).toHaveURL(/\/settings\/account$/)
     })
 
-    test('should handle direct navigation to /files/trash', async ({ page }) => {
-        // Login
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('test_admin')
-        await page.getByPlaceholder('Password').fill('password123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
-
+    test('should handle direct navigation to /files/trash', async ({ page, login: _login }) => {
         // Navigate to trash directly
         await page.goto('/files/trash')
 
@@ -91,14 +63,7 @@ test.describe('Navigation and Redirects', () => {
         })
     })
 
-    test('should show sidebar on files pages but collapsed on settings', async ({ page }) => {
-        // Log in
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('test_admin')
-        await page.getByPlaceholder('Password').fill('password123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
-
+    test('should show sidebar on files pages but collapsed on settings', async ({ page, login: _login }) => {
         // On files page, sidebar should be visible
         await expect(page.getByRole('button', { name: 'Home' })).toBeVisible()
 

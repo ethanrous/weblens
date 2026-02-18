@@ -28,37 +28,47 @@ devel_weblens_locally() {
     air
 }
 
-tower_role="core"
-uiPath="/app/web/"
-shouldClean=false
-shouldRebuild=false
-doDevMode=false
-doDynamic=true
-local=true
+start_static_weblens() {
+    if [[ "$skip_build" != true ]]; then
+        build_frontend false
+        build_weblens_binary
+    fi
 
-arch=$(uname -m)
+    exec "$WEBLENS_ROOT"/_build/bin/weblens_debug
+}
+
+tower_role="core"
+sub_stack_group=""
+
+static=false
+skip_build=false
+
+mongo_port=27017
+weblens_port=8080
 
 while [ "${1:-}" != "" ]; do
     case "$1" in
-    "-r" | "--rebuild")
-        shouldRebuild=true
-        ;;
     "-t" | "--role")
         shift
         tower_role="$1"
         ;;
-    "-c" | "--clean")
-        shouldClean=true
-        ;;
-    "-d" | "--dev")
-        doDevMode=true
-        ;;
-    "-s" | "--static")
-        doDynamic=false
-        ;;
-    "-a" | "--arch")
+    "--sub-stack-group")
         shift
-        arch="$1"
+        sub_stack_group="$1"
+        ;;
+    "--weblens-port")
+        shift
+        weblens_port="$1"
+        ;;
+    "--mongo-port")
+        shift
+        mongo_port="$1"
+        ;;
+    "--static")
+        static=true
+        ;;
+    "--skip-build")
+        skip_build=true
         ;;
     *)
         "Unknown argument: $1"
@@ -68,9 +78,6 @@ while [ "${1:-}" != "" ]; do
     esac
     shift
 done
-
-mongo_port=27017
-weblens_port=8080
 
 if [[ "$tower_role" == "" ]]; then
     echo "No tower role specified, defaulting to 'core'"
@@ -82,9 +89,13 @@ fi
 
 stack_name="weblens-$tower_role"
 
+if [[ "$sub_stack_group" != "" ]]; then
+    stack_name="$stack_name-$sub_stack_group"
+fi
+
 echo "Using stack name: $stack_name"
 
-if ! does_agno_exist; then
+if [[ "$skip_build" != true ]] && ! does_agno_exist; then
     build_agno
 fi
 
@@ -96,17 +107,26 @@ show_as_subtask "Launching mongo..." "green" -- launch_mongo --stack-name "$stac
 #
 WEBLENS_LOG_LEVEL="${WEBLENS_LOG_LEVEL:-debug}"
 
+file_path="$WEBLENS_ROOT/_build/fs/$tower_role"
+if [[ "$sub_stack_group" != "" ]]; then
+    file_path="$file_path-$sub_stack_group"
+fi
+
 export WEBLENS_MONGODB_URI="mongodb://127.0.0.1:$mongo_port/?replicaSet=rs0&directConnection=true"
 export WEBLENS_HDIR_URI="http://127.0.0.1:5001"
-export WEBLENS_DATA_PATH="./_build/fs/$tower_role/data"
-export WEBLENS_CACHE_PATH="./_build/fs/$tower_role/cache"
-export WEBLENS_LOG_FORMAT=dev
-export WEBLENS_DO_CACHE=true
-export WEBLENS_DO_PROFILING=true
+export WEBLENS_DATA_PATH="$file_path/data"
+export WEBLENS_CACHE_PATH="$file_path/cache"
+export WEBLENS_LOG_FORMAT="${WEBLENS_LOG_FORMAT:-dev}"
+export WEBLENS_DO_CACHE="${WEBLENS_DO_CACHE:-true}"
+export WEBLENS_DO_PROFILING="${WEBLENS_DO_PROFILING:-true}"
 export WEBLENS_PORT=$weblens_port
 export AGNO_LOG_LEVEL=warn
 export AGNO_LOG_FORMAT=human
 
 printf "Running \e[34mWeblens\e[0m locally for development...\n"
 
-devel_weblens_locally
+if [[ "$static" == true ]]; then
+    start_static_weblens
+else
+    devel_weblens_locally
+fi

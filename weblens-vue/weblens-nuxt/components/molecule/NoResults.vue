@@ -39,11 +39,18 @@
     >
         <IconFileSad />
         <span
-            v-if="locationStore.isViewingPast"
+            v-if="locationStore.isViewingPast && filesStore.fileFetchError?.status === 404"
+            :class="{ 'select-none': true }"
+        >
+            This folder didn't exist at the viewed time
+        </span>
+        <span
+            v-else-if="locationStore.isViewingPast"
             :class="{ 'select-none': true }"
         >
             This folder was empty
         </span>
+
         <span
             v-else
             :class="{ 'select-none': true }"

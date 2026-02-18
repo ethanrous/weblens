@@ -79,8 +79,39 @@ launch_mongo() {
         exit 1
     fi
 }
-
 export -f launch_mongo
+
+dump_mongo_logs() {
+    local stack_name=""
+    local logfile=""
+    while [ "${1:-}" != "" ]; do
+        case "$1" in
+        "--stack-name")
+            shift
+            stack_name="$1"
+            ;;
+        "--logfile")
+            shift
+            logfile="$1"
+            ;;
+        *)
+            echo "Unknown argument: $1"
+            return 1
+            ;;
+        esac
+        shift
+    done
+
+    if [[ -z "$stack_name" ]]; then
+        echo "dump_mongo_logs requires a stack_name argument. Aborting."
+        return 1
+    fi
+
+    echo "Dumping MongoDB logs for stack [$stack_name] to [$logfile] ..."
+
+    dockerc logs "weblens-$stack_name-mongod" || true >"$logfile"
+}
+export -f dump_mongo_logs
 
 # Stop all mongo containers and remove mongo volume, if specified
 cleanup_mongo() {

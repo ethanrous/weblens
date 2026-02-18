@@ -37,25 +37,27 @@ func init() {
 // prior to initial startup using environment variables, etc. For management of runtime/mutable server settings, those will be stored in the
 // database at /models/settings/...
 type Provider struct {
+	// Router settings //
 	Host         string
 	Port         string
 	ProxyAddress string
 
+	// Database settings //
 	MongoDBUri  string
 	MongoDBName string
 
-	HdirURI string
-
+	// External resource identifiers //
 	UIPath            string
 	DataPath          string
 	CachePath         string
 	StaticContentPath string
+	// HdirURI is the URI for the HDIR (high dimension image recognition) service, used for machine learning on images to allow semantic search and other features. This is expected to be a separate service, and the endpoint for that service should be provided here.
+	HdirURI string
 
-	LogLevel       zerolog.Level
-	LogFormat      string
-	LogPath        string
-	BackupInterval time.Duration
-	WorkerCount    int
+	// Logging settings
+	LogLevel  zerolog.Level
+	LogFormat string
+	LogPath   string
 
 	// Tower auto-initialization config options //
 	// If set, the server will attempt to initialize itself with the specified role on first startup.
@@ -64,16 +66,21 @@ type Provider struct {
 	CoreAddress string
 	// The API token to use when connecting to the Core tower during initialization as a Backup tower.
 	CoreToken string
-	// Whether to generate an initial admin API token on first startup. (Core server only)
+	// Whether to generate an initial admin API token on first startup (Core server only). Useful for automated testing that uses the API, but should be used with extreme caution (see: never) in production environments.
 	GenerateAdminAPIToken bool
+	// DangerouslyInsecurePasswordHashing is a flag that, when set to true, will use a much faster bcrypt hashing cost for password hashing. This is intended for testing purposes only, as it significantly reduces the security of stored passwords. It should never be enabled in production environments.
+	DangerouslyInsecurePasswordHashing bool
 
-	// Indicates whether to use caching for database operations.
+	// Misc config options //
+	// BackupInterval specifies how often the server should perform backups of its data. This is only relevant for Backup towers
+	BackupInterval time.Duration
+	// WorkerCount specifies the number of worker goroutines to use for processing tasks. If set to 0, it will default to the number of CPU cores.
+	WorkerCount int
+	// DoCache indicates whether to use caching for database operations.
 	DoCache bool
-
-	// Indicates whether to enable profiling endpoints.
+	// DoProfile Indicates whether to enable profiling endpoints.
 	DoProfile bool
-
-	// Indicates whether to perform file discovery on startup. This is only set to true when running the main Weblens server,
+	// DoFileDiscovery Indicates whether to perform file discovery on startup. This is only set to true when running the main Weblens server,
 	// and not during tests or other auxiliary binaries.
 	DoFileDiscovery bool
 }
@@ -323,6 +330,11 @@ func getEnvOverride(config *Provider) {
 	if hdirURI := os.Getenv("WEBLENS_HDIR_URI"); hdirURI != "" {
 		log.Trace().Msgf("Overriding HdirURI with WEBLENS_HDIR_URI: %v", hdirURI)
 		config.HdirURI = hdirURI
+	}
+
+	if doQuickPassHashing, ok := envBool("WEBLENS_USE_DANGEROUSLY_INSECURE_PASSWORD_HASHING"); ok && doQuickPassHashing {
+		log.Trace().Msgf("Overriding DangerouslyInsecurePasswordHashing with WEBLENS_USE_DANGEROUSLY_INSECURE_PASSWORD_HASHING: %v", doQuickPassHashing)
+		config.DangerouslyInsecurePasswordHashing = doQuickPassHashing
 	}
 }
 

@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures'
+import { test, expect, uploadTestFile } from './fixtures'
 
 /**
  * Tests for file preview/presentation with real uploaded files.
@@ -14,46 +14,9 @@ import { test, expect } from './fixtures'
  */
 
 test.describe('File Preview and Presentation', () => {
-    test.describe.configure({ mode: 'serial' })
-
-    test.beforeEach(async ({ page }) => {
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('test_admin')
-        await page.getByPlaceholder('Password').fill('password123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
-    })
-
-    test('should upload test files for preview', async ({ page }) => {
-        await expect(page.locator('h3').filter({ hasText: 'Home' })).toBeVisible({ timeout: 15000 })
-
-        // Upload a text file
-        const fileChooserPromise = page.waitForEvent('filechooser')
-        await page.getByRole('button', { name: 'Upload' }).click()
-        const fileChooser = await fileChooserPromise
-
-        // Create a file with known content to test size display
-        const content = 'Hello from preview test! '.repeat(100)
-        await fileChooser.setFiles({
-            name: 'preview-test.txt',
-            mimeType: 'text/plain',
-            buffer: Buffer.from(content),
-        })
-
-        await expect(page.getByText('preview-test.txt')).toBeVisible({ timeout: 15000 })
-
-        // Upload a second file for navigation testing
-        const fileChooserPromise2 = page.waitForEvent('filechooser')
-        await page.getByRole('button', { name: 'Upload' }).click()
-        const fileChooser2 = await fileChooserPromise2
-
-        await fileChooser2.setFiles({
-            name: 'preview-test-2.txt',
-            mimeType: 'text/plain',
-            buffer: Buffer.from('Second preview file content.'),
-        })
-
-        await expect(page.getByText('preview-test-2.txt')).toBeVisible({ timeout: 15000 })
+    test.beforeEach(async ({ page, login: _login }) => {
+        await uploadTestFile(page, 'preview-test.txt', 'Hello from preview test! '.repeat(100))
+        await uploadTestFile(page, 'preview-test-2.txt', 'Second preview file content.')
     })
 
     test('should open presentation by double-clicking a text file', async ({ page }) => {
@@ -130,22 +93,5 @@ test.describe('File Preview and Presentation', () => {
 
         // The file size should be visible (formatted by humanBytes, e.g. "2.4kB")
         await expect(fileCard.first().getByText(/\d+(\.\d+)?\s*(B|kB|MB)/)).toBeVisible()
-    })
-
-    test('should clean up preview test files', async ({ page }) => {
-        for (const fileName of ['preview-test.txt', 'preview-test-2.txt']) {
-            const fileCard = page.locator('[id^="file-card-"]').filter({ hasText: fileName })
-
-            if (await fileCard.isVisible({ timeout: 3000 }).catch(() => false)) {
-                await fileCard.click({ button: 'right' })
-                const trashBtn = page.locator('#filebrowser-container').getByRole('button', { name: 'Trash' })
-                if (await trashBtn.isEnabled({ timeout: 2000 }).catch(() => false)) {
-                    await trashBtn.click()
-                    await expect(fileCard).not.toBeVisible({ timeout: 15000 })
-                } else {
-                    await page.keyboard.press('Escape')
-                }
-            }
-        }
     })
 })

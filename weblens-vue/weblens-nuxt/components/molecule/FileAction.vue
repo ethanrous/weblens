@@ -1,7 +1,7 @@
 <template>
     <div
         :class="{
-            'hover:bg-background-secondary group flex h-20 w-full cursor-pointer flex-col rounded border p-1.5': true,
+            'file-action-card hover:bg-background-secondary group flex h-20 w-full cursor-pointer flex-col rounded border p-1.5': true,
             'border-theme-primary': locationStore.viewTimestamp === action.timestamp,
         }"
         @click="locationStore.setViewTimestamp(action.timestamp)"

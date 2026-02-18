@@ -16,14 +16,33 @@ build_frontend() {
     pushd "${WEBLENS_ROOT}/weblens-vue/weblens-nuxt" >/dev/null || return 1
 
     show_as_subtask "Installing UI Dependencies..." -- pnpm install
-    show_as_subtask "Building UI..." -- pnpm run generate
+    VITE_BUILD=true show_as_subtask "Building UI..." -- pnpm run generate
 
     popd >/dev/null || return 1
 }
 export -f build_frontend
 
 build_weblens_binary() {
+    lazy=false
+    while [ "${1:-}" != "" ]; do
+        case "$1" in
+        "--lazy")
+            lazy=true
+            ;;
+        *)
+            "build_weblens_binary unknown argument: $1"
+            exit 1
+            ;;
+        esac
+        shift
+    done
+
     debug_bin="$WEBLENS_ROOT/_build/bin/weblens_debug"
+
+    if [[ "$lazy" = true ]] && [[ -f "$debug_bin" ]]; then
+        printf "Skipping Weblens binary build (lazy mode)...\n"
+        return
+    fi
 
     export CGO_CFLAGS='-g -O0'
     export CGO_CXXFLAGS='-g -O0'

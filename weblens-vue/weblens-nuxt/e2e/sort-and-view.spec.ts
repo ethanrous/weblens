@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures'
+import { test, expect, createFolder } from './fixtures'
 
 /**
  * Tests for file sorting controls and view mode switching.
@@ -22,38 +22,9 @@ import { test, expect } from './fixtures'
  */
 
 test.describe('Sort and View Controls', () => {
-    test.describe.configure({ mode: 'serial' })
-
-    test.beforeEach(async ({ page }) => {
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('test_admin')
-        await page.getByPlaceholder('Password').fill('password123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
-    })
-
-    test('should create test folders for sort and view tests', async ({ page }) => {
-        // Create folders so we have content to sort and view
-        await page.getByRole('button', { name: 'New Folder' }).click()
-        const nameInput = page.locator('.file-context-menu input')
-        await expect(nameInput).toBeVisible()
-        await nameInput.fill('SortTestAlpha')
-        await nameInput.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
-        // Wait for the file card to appear (not the input text which also matches)
-        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'SortTestAlpha' })).toBeVisible({
-            timeout: 15000,
-        })
-        // Wait for the context menu to fully close before creating the next folder
-        await expect(nameInput).not.toBeVisible({ timeout: 3000 })
-
-        await page.getByRole('button', { name: 'New Folder' }).click()
-        const nameInput2 = page.locator('.file-context-menu input')
-        await expect(nameInput2).toBeVisible()
-        await nameInput2.fill('SortTestBeta')
-        await nameInput2.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
-        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'SortTestBeta' })).toBeVisible({
-            timeout: 15000,
-        })
+    test.beforeEach(async ({ page, login: _login }) => {
+        await createFolder(page, 'SortTestAlpha')
+        await createFolder(page, 'SortTestBeta')
     })
 
     test('should change sort condition to Filename', async ({ page }) => {
@@ -187,22 +158,5 @@ test.describe('Sort and View Controls', () => {
 
         // Close the dropdown by clicking the shape icon again
         await shapeIcon.first().click()
-    })
-
-    test('should clean up sort and view test folders', async ({ page }) => {
-        for (const folderName of ['SortTestAlpha', 'SortTestBeta']) {
-            const card = page.locator('[id^="file-card-"]').filter({ hasText: folderName })
-
-            if (await card.isVisible({ timeout: 3000 }).catch(() => false)) {
-                await card.click({ button: 'right' })
-                const trashBtn = page.locator('#filebrowser-container').getByRole('button', { name: 'Trash' })
-                if (await trashBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-                    await trashBtn.click()
-                    await expect(card).not.toBeVisible({ timeout: 15000 })
-                } else {
-                    await page.keyboard.press('Escape')
-                }
-            }
-        }
     })
 })

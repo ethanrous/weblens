@@ -45,7 +45,9 @@ import ContextNameFile from '../molecule/ContextNameFile.vue'
 import useLocationStore from '~/stores/location'
 import ShareModal from './ShareModal.vue'
 import { useWeblensAPI } from '~/api/AllApi'
+import type WeblensFile from '~/types/weblensFile'
 
+const filesStore = useFilesStore()
 const menuStore = useContextMenuStore()
 const locationStore = useLocationStore()
 
@@ -82,12 +84,14 @@ const menuPosition = computed(() => {
     return menuPos
 })
 
-const targetFile = computed(() => {
-    return useFilesStore().getFileByID(menuStore.directTargetID)
+const targetFile = ref<WeblensFile>()
+
+watch([() => menuStore.directTargetID, () => filesStore.children], () => {
+    targetFile.value = filesStore.getFileByID(menuStore.directTargetID)
 })
 
 const selectedFiles = computed(() => {
-    const selectedFiles = useFilesStore().selectedFiles
+    const selectedFiles = filesStore.selectedFiles
     if (!selectedFiles.size) {
         return [menuStore.directTargetID]
     }

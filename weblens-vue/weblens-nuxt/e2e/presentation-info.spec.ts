@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures'
+import { test, expect, createFolder, uploadTestFile } from './fixtures'
 
 /**
  * Tests for the presentation info sidecar panel.
@@ -10,47 +10,9 @@ import { test, expect } from './fixtures'
  * - stores/presentation.ts (infoOpen state)
  */
 test.describe('Presentation Info Panel', () => {
-    test.describe.configure({ mode: 'serial' })
-
-    test.beforeEach(async ({ page }) => {
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('test_admin')
-        await page.getByPlaceholder('Password').fill('password123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
-    })
-
-    test('should create test folder and upload text file', async ({ page }) => {
-        await expect(page.locator('h3').filter({ hasText: 'Home' })).toBeVisible({ timeout: 15000 })
-        const newFolderBtn = page.getByRole('button', { name: 'New Folder' })
-        await expect(newFolderBtn).toBeEnabled({ timeout: 15000 })
-
-        // Create folder
-        await newFolderBtn.click()
-        const nameInput = page.locator('.file-context-menu input')
-        await expect(nameInput).toBeVisible()
-        await nameInput.fill('InfoPanelFolder')
-        await nameInput.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
-        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'InfoPanelFolder' })).toBeVisible({
-            timeout: 15000,
-        })
-        await expect(nameInput).not.toBeVisible({ timeout: 3000 })
-
-        // Upload text file (~2.5kB)
-        const fileChooserPromise = page.waitForEvent('filechooser')
-        await page.getByRole('button', { name: 'Upload' }).click()
-        const fileChooser = await fileChooserPromise
-
-        const content = 'Info panel test content. '.repeat(100)
-        await fileChooser.setFiles({
-            name: 'info-panel-test.txt',
-            mimeType: 'text/plain',
-            buffer: Buffer.from(content),
-        })
-
-        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'info-panel-test.txt' })).toBeVisible({
-            timeout: 15000,
-        })
+    test.beforeEach(async ({ page, login: _login }) => {
+        await createFolder(page, 'InfoPanelFolder')
+        await uploadTestFile(page, 'info-panel-test.txt', 'Info panel test content. '.repeat(100))
     })
 
     test('should show complete file details in info panel for text file', async ({ page }) => {
@@ -231,22 +193,5 @@ test.describe('Presentation Info Panel', () => {
         expect(download.suggestedFilename()).toContain('info-panel-test')
 
         await page.keyboard.press('Escape')
-    })
-
-    test('should clean up test data', async ({ page }) => {
-        for (const name of ['info-panel-test.txt', 'InfoPanelFolder']) {
-            const card = page.locator('[id^="file-card-"]').filter({ hasText: name })
-
-            if (await card.isVisible({ timeout: 3000 }).catch(() => false)) {
-                await card.click({ button: 'right' })
-                const trashBtn = page.locator('#filebrowser-container').getByRole('button', { name: 'Trash' })
-                if (await trashBtn.isEnabled({ timeout: 2000 }).catch(() => false)) {
-                    await trashBtn.click()
-                    await expect(card).not.toBeVisible({ timeout: 15000 })
-                } else {
-                    await page.keyboard.press('Escape')
-                }
-            }
-        }
     })
 })

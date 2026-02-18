@@ -3,18 +3,31 @@ set -euo pipefail
 
 source ./scripts/lib/all.bash
 
-MONGO_PORT=27020
-MONGO_STACK_NAME="playwright-test"
+# Clean up any orphaned pw-worker docker stacks on exit
+cleanup_pw_stacks() {
+    echo "Cleaning up playwright worker stacks..."
+    for stack in $(dockerc compose ls --format json 2>/dev/null | grep -o '"weblens-core-pw-worker-[0-9]*"' | tr -d '"' || true); do
+        echo "Stopping orphaned stack: $stack"
+        dockerc compose --project-name "$stack" down 2>/dev/null || true
+    done
+}
+trap cleanup_pw_stacks EXIT
 
-lazy=true
+# Remove legacy shared playwright-test mongo stack if it exists (old test infra)
+if dockerc ps -a --format '{{.Names}}' 2>/dev/null | grep -q 'weblens-playwright-test'; then
+    echo "Removing legacy playwright-test mongo stack..."
+    dockerc compose --project-name playwright-test down 2>/dev/null || true
+fi
+
+lazy=false
 filter=""
 grep=""
 headed=
 
 while [ "${1:-}" != "" ]; do
     case "$1" in
-    "--no-lazy")
-        lazy=false
+    "--lazy")
+        lazy=true
         ;;
     "--filter")
         shift
@@ -26,6 +39,7 @@ while [ "${1:-}" != "" ]; do
         ;;
     "--headed")
         headed="--headed"
+        export PW_WORKERS=1
         ;;
     "-h" | "--help")
         echo "Usage: $0 [--no-lazy]"
@@ -36,20 +50,15 @@ while [ "${1:-}" != "" ]; do
     shift
 done
 
-show_as_subtask "Launching MongoDB for Playwright tests..." "green" -- launch_mongo --stack-name "${MONGO_STACK_NAME}" --mongo-port "${MONGO_PORT}"
-
-export WEBLENS_MONGODB_URI="mongodb://127.0.0.1:${MONGO_PORT}/?replicaSet=rs0&directConnection=true"
-printf "Using MongoDB URI: %s\n" "$WEBLENS_MONGODB_URI"
-
 # Build Agno if needed
-if [[ "$lazy" = false ]] || ! does_agno_exist; then
+if ! does_agno_exist; then
     build_agno
 else
     printf "Skipping Agno build (lazy mode)...\n"
 fi
 
 # ENABLE_SOURCEMAPS=true
-build_frontend false
+build_frontend "$lazy"
 
 # Build Go binary
 if [[ "$lazy" = false ]] || [[ ! -e "$WEBLENS_ROOT/_build/bin/weblens_debug" ]]; then
@@ -74,7 +83,7 @@ if [[ $headed ]]; then
 fi
 
 export WEBLENS_VERBOSE=true
-if ! show_as_subtask "Running Playwright tests..." "green" -- bash -c "set -o pipefail; pnpm exec playwright test \"${filter}\" ${grep} \"${headed:-}\" | tee \"$PLAYWRIGHT_LOG_PATH\""; then
+if ! show_as_subtask "Running Playwright tests..." "green" -- bash -c "set -o pipefail; PW_WORKERS=${PW_WORKERS:-} pnpm exec playwright test \"${filter}\" ${grep} \"${headed:-}\" | tee \"$PLAYWRIGHT_LOG_PATH\""; then
     echo "Playwright tests failed. Check logs for details."
     popd >/dev/null
 

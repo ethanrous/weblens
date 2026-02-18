@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures'
+import { test, expect, uploadTestFile } from './fixtures'
 
 /**
  * Tests for file download operations.
@@ -10,31 +10,13 @@ import { test, expect } from './fixtures'
  */
 
 test.describe('File Downloads', () => {
-    test.describe.configure({ mode: 'serial' })
-
-    test.beforeEach(async ({ page }) => {
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('test_admin')
-        await page.getByPlaceholder('Password').fill('password123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
-    })
-
-    test('should upload a text file for download testing', async ({ page }) => {
-        const fileChooserPromise = page.waitForEvent('filechooser')
-        await page.getByRole('button', { name: 'Upload' }).click()
-        const fileChooser = await fileChooserPromise
-
-        await fileChooser.setFiles({
-            name: 'download-test.txt',
-            mimeType: 'text/plain',
-            buffer: Buffer.from('This file is for download testing purposes.'),
-        })
-
-        const fileBrowser = page.locator('#filebrowser-container')
-        await expect(fileBrowser.getByText('download-test.txt').first()).toBeVisible({
-            timeout: 15000,
-        })
+    test.beforeEach(async ({ page, login: _login }) => {
+        await uploadTestFile(page, 'download-test.txt', 'This file is for download testing purposes.')
+        await uploadTestFile(page, 'download-test-2.txt', 'Second file for multi-download testing.')
+        // Reload so the folder fetch includes full permissions (the WebSocket
+        // FileCreatedEvent from upload doesn't carry permissions).
+        await page.reload()
+        await expect(page.locator('[id^="file-card-"]').first()).toBeVisible({ timeout: 15000 })
     })
 
     test('should download a single text file via context menu', async ({ page }) => {
@@ -46,6 +28,7 @@ test.describe('File Downloads', () => {
         const fileBrowser = page.locator('#filebrowser-container')
         const downloadBtn = fileBrowser.getByRole('button', { name: 'Download' })
         await expect(downloadBtn.first()).toBeVisible()
+        await expect(downloadBtn.first()).toBeEnabled({ timeout: 15000 })
 
         // Set up download handler
         const downloadPromise = page.waitForEvent('download', { timeout: 15000 }).catch(() => null)
@@ -63,15 +46,12 @@ test.describe('File Downloads', () => {
         if ((await fileCards.count()) >= 2) {
             // Select first file
             await fileCards.first().click()
-            await page.waitForTimeout(200)
 
             // Ctrl+click second file
             await fileCards.nth(1).click({ modifiers: ['ControlOrMeta'] })
-            await page.waitForTimeout(200)
 
             // Right-click to open context menu with multi-select
             await fileCards.nth(1).click({ button: 'right' })
-            await page.waitForTimeout(500)
 
             // In multi-select, context menu should show Download button
             const fileBrowser = page.locator('#filebrowser-container')
@@ -86,26 +66,9 @@ test.describe('File Downloads', () => {
                 const downloadPromise = page.waitForEvent('download', { timeout: 15000 }).catch(() => null)
                 await downloadBtn.first().click()
                 await downloadPromise
-                await page.waitForTimeout(2000)
             }
 
             await page.keyboard.press('Escape')
-        }
-    })
-
-    test('should clean up download test file', async ({ page }) => {
-        const fileCard = page.locator('[id^="file-card-"]').filter({ hasText: 'download-test.txt' })
-
-        if (await fileCard.isVisible({ timeout: 15000 }).catch(() => false)) {
-            await fileCard.click({ button: 'right' })
-            const fileBrowser = page.locator('#filebrowser-container')
-            const trashBtn = fileBrowser.getByRole('button', { name: 'Trash' })
-            if (await trashBtn.isEnabled({ timeout: 2000 }).catch(() => false)) {
-                await trashBtn.click()
-                await expect(fileCard).not.toBeVisible({ timeout: 15000 })
-            } else {
-                await page.keyboard.press('Escape')
-            }
         }
     })
 })

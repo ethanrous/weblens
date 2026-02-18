@@ -4,13 +4,17 @@
         :class="{ 'filebrowser-container relative flex h-full min-h-0 w-full min-w-60 items-center': true }"
     >
         <FileDragCounter />
+        <RewindIndicator />
+        <NoResults
+            v-if="filesStore.fileFetchError && filesStore.fileFetchError.status === 404 && locationStore.isViewingPast"
+        />
         <span
-            v-if="error"
-            :class="{ 'mx-auto rounded-sm border border-amber-700 bg-amber-800/25 p-2 text-center text-xl': true }"
+            v-else-if="filesStore.fileFetchError"
+            :class="{ 'border-warn bg-warn/50 mx-auto max-w-1/2 rounded-sm border p-2 text-center text-xl': true }"
         >
             Fetching files failed
             <span :class="{ 'text-text-secondary mt-1 text-xs': true }">
-                {{ error }}
+                {{ filesStore.fileFetchError }}
             </span>
         </span>
         <div
@@ -37,6 +41,8 @@
 
 <script setup lang="ts">
 import Loader from '~/components/atom/Loader.vue'
+import NoResults from '~/components/molecule/NoResults.vue'
+import RewindIndicator from '~/components/molecule/RewindIndicator.vue'
 import FileDragCounter from '~/components/organism/FileDragCounter.vue'
 import FileHistory from '~/components/organism/FileHistory.vue'
 import FileScroller from '~/components/organism/FileScroller.vue'
@@ -46,8 +52,4 @@ import useLocationStore from '~/stores/location'
 
 const filesStore = useFilesStore()
 const locationStore = useLocationStore()
-
-const error = computed(() => {
-    return filesStore.fileFetchError
-})
 </script>

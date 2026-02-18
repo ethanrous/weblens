@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures'
+import { test, expect, createFolder, uploadTestFile } from './fixtures'
 
 /**
  * Tests for file operations: upload, download, context menu actions,
@@ -13,59 +13,14 @@ import { test, expect } from './fixtures'
  * - util/humanBytes.ts, util/domHelpers.ts
  */
 test.describe('File Operations', () => {
-    test.describe.configure({ mode: 'serial' })
-
-    test.beforeEach(async ({ page }) => {
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('test_admin')
-        await page.getByPlaceholder('Password').fill('password123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
-    })
-
-    test('should upload a file via drag-and-drop simulation and see it appear', async ({ page }) => {
-        // Create a file to upload via the file chooser triggered by the Upload button
-        const fileChooserPromise = page.waitForEvent('filechooser')
-
-        // Click the Upload button in the sidebar
-        const uploadButton = page.getByRole('button', { name: 'Upload' })
-        await expect(uploadButton).toBeVisible()
-        await uploadButton.click()
-
-        const fileChooser = await fileChooserPromise
-        // Create a small text file for upload
-        await fileChooser.setFiles({
-            name: 'test-upload.txt',
-            mimeType: 'text/plain',
-            buffer: Buffer.from('Hello, Weblens! This is a test file for e2e testing.'),
-        })
-
-        // Wait for the uploaded file to appear in the file list
-        await expect(page.getByText('test-upload.txt')).toBeVisible({ timeout: 15000 })
-    })
-
-    test('should create multiple folders for testing operations', async ({ page }) => {
-        // Create first folder
-        await page.getByRole('button', { name: 'New Folder' }).click()
-        const nameInput = page.locator('.file-context-menu input')
-        await expect(nameInput).toBeVisible()
-        await nameInput.fill('Operations Folder A')
-        await nameInput.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
-        // Wait for the file card (not the input text) and context menu to close
-        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'Operations Folder A' })).toBeVisible({
-            timeout: 15000,
-        })
-        await expect(nameInput).not.toBeVisible({ timeout: 3000 })
-
-        // Create second folder
-        await page.getByRole('button', { name: 'New Folder' }).click()
-        const nameInput2 = page.locator('.file-context-menu input')
-        await expect(nameInput2).toBeVisible()
-        await nameInput2.fill('Operations Folder B')
-        await nameInput2.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
-        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'Operations Folder B' })).toBeVisible({
-            timeout: 15000,
-        })
+    test.beforeEach(async ({ page, login: _login }) => {
+        await uploadTestFile(page, 'test-upload.txt', 'Hello, Weblens! This is a test file for e2e testing.')
+        await createFolder(page, 'Operations Folder A')
+        await createFolder(page, 'Operations Folder B')
+        // Reload so the folder fetch includes full permissions (WebSocket
+        // FileCreatedEvent from upload/folder-create doesn't carry permissions).
+        await page.reload()
+        await expect(page.locator('[id^="file-card-"]').first()).toBeVisible({ timeout: 15000 })
     })
 
     test('should select a file by clicking and deselect by clicking elsewhere', async ({ page }) => {
@@ -176,7 +131,14 @@ test.describe('File Operations', () => {
         // are conditionally rendered via v-for, so they only appear when the panel is truly open.
         // Note: the "History of" heading is always in the DOM (parent uses w-0 without
         // overflow:hidden when closed), so we check for actual history data instead.
-        await expect(page.getByText('File Created')).toBeVisible({ timeout: 15000 })
+        await expect(
+            page
+                .locator('.file-action-card')
+                .filter({ hasText: 'File Created' })
+                .filter({ hasText: 'Operations Folder A' }),
+        ).toBeVisible({
+            timeout: 15000,
+        })
 
         // Close the history panel by clicking the X icon next to the "History of" heading
         await page.getByRole('heading', { name: 'History of' }).locator('..').locator('.tabler-icon-x').click()
@@ -238,7 +200,6 @@ test.describe('File Operations', () => {
         // Download might take a moment - just verify the context menu closes
         // The download triggers a takeout API call. We just need to not error.
         // Wait briefly then move on
-        await page.waitForTimeout(1000)
     })
 
     test('should scan folder via context menu', async ({ page }) => {
@@ -249,7 +210,6 @@ test.describe('File Operations', () => {
         await page.getByRole('button', { name: 'Scan Folder' }).click()
 
         // Scanning triggers a websocket task. Just verify it doesn't error.
-        await page.waitForTimeout(500)
     })
 
     test('should move folder to trash and restore from trash', async ({ page }) => {
@@ -265,7 +225,7 @@ test.describe('File Operations', () => {
         await expect(folderCard).not.toBeVisible({ timeout: 15000 })
 
         // Navigate to Trash
-        await page.getByRole('button', { name: 'Trash' }).click()
+        await page.locator('#global-left-sidebar').getByRole('button', { name: 'Trash' }).click()
         await expect(page.getByText('Operations Folder B')).toBeVisible({ timeout: 15000 })
 
         // The trash page should show "Delete" and "Empty Trash" options
@@ -313,7 +273,6 @@ test.describe('File Operations', () => {
         await page.waitForURL('**/files/share')
 
         // The page should load (even if empty)
-        await page.waitForTimeout(500)
 
         // Navigate back
         await page.getByRole('button', { name: 'Home' }).click()
@@ -335,25 +294,5 @@ test.describe('File Operations', () => {
         const rowsLabel = page.getByText('Rows').first()
         await rowsLabel.click()
         await page.getByText('Grid').first().click()
-    })
-
-    test('should clean up test files', async ({ page }) => {
-        // Delete Operations Folder A
-        const folderA = page.locator('[id^="file-card-"]').filter({ hasText: 'Operations Folder A' })
-
-        if (await folderA.isVisible()) {
-            await folderA.click({ button: 'right' })
-            await page.locator('#filebrowser-container').getByRole('button', { name: 'Trash' }).click()
-            await expect(folderA).not.toBeVisible({ timeout: 15000 })
-        }
-
-        // Delete uploaded file
-        const uploadedFile = page.locator('[id^="file-card-"]').filter({ hasText: 'test-upload.txt' })
-
-        if (await uploadedFile.isVisible()) {
-            await uploadedFile.click({ button: 'right' })
-            await page.locator('#filebrowser-container').getByRole('button', { name: 'Trash' }).click()
-            await expect(uploadedFile).not.toBeVisible({ timeout: 15000 })
-        }
     })
 })

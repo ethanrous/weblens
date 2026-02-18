@@ -21,7 +21,7 @@ const (
 
 func getTestCtx(t *testing.T) context.Context {
 	ctx := db.SetupTestDB(t, user.UserCollectionKey)
-	ctx = context.WithValue(ctx, cryptography.BcryptDifficultyCtxKey, 4) // Set bcrypt difficulty for testing
+	ctx = context.WithValue(ctx, cryptography.BcryptDifficultyCtxKey, 1) // Set bcrypt difficulty for testing
 
 	return ctx
 }

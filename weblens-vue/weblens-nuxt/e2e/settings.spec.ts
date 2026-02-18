@@ -1,13 +1,7 @@
-import { test, expect } from './fixtures'
+import { test, expect, DEFAULT_ADMIN_USERNAME } from './fixtures'
 
 test.describe('Settings Page', () => {
-    test.describe.configure({ mode: 'serial' })
-
-    test.beforeEach(async ({ page }) => {
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('test_admin')
-        await page.getByPlaceholder('Password').fill('password123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
+    test.beforeEach(async ({ page, login: _login }) => {
         await page.waitForURL('**/files/home')
         await page.goto('/settings')
         await page.waitForURL('**/settings/account')
@@ -15,8 +9,8 @@ test.describe('Settings Page', () => {
 
     test('should display settings nav with all tabs', async ({ page }) => {
         // User info header
-        await expect(page.locator('h3').filter({ hasText: 'Test Admin' })).toBeVisible()
-        await expect(page.locator('h5').filter({ hasText: 'test_admin' })).toBeVisible()
+        await expect(page.locator('h3').filter({ hasText: 'Weblens Admin' })).toBeVisible()
+        await expect(page.locator('h5').filter({ hasText: DEFAULT_ADMIN_USERNAME })).toBeVisible()
 
         // Navigation buttons
         await expect(page.getByRole('button', { name: 'Account' })).toBeVisible()
@@ -25,7 +19,7 @@ test.describe('Settings Page', () => {
         await expect(page.getByRole('button', { name: 'Developer' })).toBeVisible()
         await expect(page.getByRole('button', { name: 'Log Out' })).toBeVisible()
 
-        // Admin divider (exact match to avoid matching "Test Admin" heading)
+        // Admin divider (exact match to avoid matching "Weblens Admin" heading)
         await expect(page.getByText('Admin', { exact: true })).toBeVisible()
     })
 
@@ -52,7 +46,7 @@ test.describe('Settings Page', () => {
 
         // Restore original name
         await nameInput.clear()
-        await nameInput.fill('Test Admin')
+        await nameInput.fill('Weblens Admin')
         await page.getByRole('button', { name: 'Update Name' }).click()
     })
 
@@ -63,11 +57,11 @@ test.describe('Settings Page', () => {
         await expect(updatePasswordBtn).toBeDisabled()
 
         // Fill old password only — button should still be disabled
-        await page.getByPlaceholder('Old Password').fill('password123')
+        await page.getByPlaceholder('Old Password').fill('adminadmin1')
         await expect(updatePasswordBtn).toBeDisabled()
 
         // Fill new password same as old — button should still be disabled
-        await page.getByPlaceholder('New Password').fill('password123')
+        await page.getByPlaceholder('New Password').fill('adminadmin1')
         await expect(updatePasswordBtn).toBeDisabled()
 
         // Fill different new password — button should now be enabled
