@@ -77,6 +77,31 @@ launch_mongo() {
         echo "--- All containers ---" >&2
         dockerc ps -a >&2 2>&1 || true
         exit 1
+    else
+        # Wait for mongod to be healthy before returning
+        local retries=30
+        local wait_time=1
+        local count=0
+        until docker inspect --format='{{json .State.Health}}' weblens-"$stack_name"-mongod; do
+            if [[ $count -ge $retries ]]; then
+                echo "MongoDB container failed to become healthy after $((retries * wait_time)) seconds. Check container logs for details." >&2
+                exit 1
+            fi
+            sleep $wait_time
+            ((count++))
+        done
+
+        # Wait for mongot to be healthy before returning
+        count=0
+        MONGOT_HEALTHCHECK_PORT=${MONGOT_HEALTHCHECK_PORT:-38081}
+        until curl --fail http://localhost:"${MONGOT_HEALTHCHECK_PORT}"/health; do
+            if [[ $count -ge $retries ]]; then
+                echo "Mongot container failed to become healthy after $((retries * wait_time)) seconds. Check container logs for details." >&2
+                exit 1
+            fi
+            sleep $wait_time
+            ((count++))
+        done
     fi
 }
 export -f launch_mongo
