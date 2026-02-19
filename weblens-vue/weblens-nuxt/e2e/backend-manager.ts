@@ -10,6 +10,8 @@ const BUILD_DIR = path.join(REPO_ROOT, '_build')
 const PW_DIR = path.join(BUILD_DIR, 'playwright')
 const LOG_DIR = path.join(BUILD_DIR, 'logs', 'playwright')
 
+const VERBOSE = Boolean(process.env.WEBLENS_VERBOSE)
+
 const WEBLENS_PORT_BASE = 14100
 const MONGO_PORT_BASE = 27020
 const MONGOT_GRPC_PORT_BASE = 27128
@@ -17,10 +19,19 @@ const MONGOT_METRICS_PORT_BASE = 10046
 
 // ── Worker-scoped: MongoDB lifecycle ──
 
-function makeLogFile(workerIndex: number, type: string, extraIdentifier?: string): string {
-    const filename = extraIdentifier
-        ? `worker-${workerIndex}-${type}-${extraIdentifier}.log`
-        : `worker-${workerIndex}-${type}.log`
+function makeLogFile(
+    workerIndex: number,
+    type: string,
+    opts?: { extraIdentifier?: string; noExt?: boolean; noCreate?: boolean },
+): string {
+    let filename = opts?.extraIdentifier
+        ? `worker-${workerIndex}-${type}-${opts.extraIdentifier}`
+        : `worker-${workerIndex}-${type}`
+
+    if (!opts?.noExt) {
+        filename += '.log'
+    }
+
     const logPath = path.join(LOG_DIR, type, filename)
     fs.mkdir(path.dirname(logPath), { recursive: true, mode: 0o777 }, (err) => {
         if (err) {
@@ -28,7 +39,11 @@ function makeLogFile(workerIndex: number, type: string, extraIdentifier?: string
         }
     })
     // Clear existing log
-    fs.writeFileSync(logPath, '', { mode: 0o777 })
+    if (!opts?.noCreate) {
+        console.debug(`[worker-${workerIndex}] Creating log file at ${logPath}...`)
+        fs.closeSync(fs.openSync(logPath, 'w', 0o777))
+    }
+
     return logPath
 }
 
@@ -46,13 +61,23 @@ export async function startWorkerMongo(workerIndex: number): Promise<WorkerMongo
     const stackName = `weblens-core-pw-worker-${workerIndex}`
     const containerName = `weblens-${stackName}-mongod`
 
-    // Clean mongo data directory so MongoDB starts fresh
+    // Clean mongo data directory so MongoDB starts fresh.
+    // Data dir may contain root-owned files from the container, so use
+    // Docker to remove subdirs before cleaning up the parent with Node.
     const mongoDataDir = path.join(BUILD_DIR, 'db', stackName)
     if (fs.existsSync(mongoDataDir)) {
-        fs.rmSync(mongoDataDir, { recursive: true })
+        try {
+            fs.rmSync(mongoDataDir, { recursive: true })
+        } catch {
+            execSync(`docker run --rm -v "${mongoDataDir}:/cleanup" alpine rm -rf /cleanup/mongod /cleanup/mongot`, {
+                cwd: REPO_ROOT,
+                stdio: 'pipe',
+            })
+            fs.rmSync(mongoDataDir, { recursive: true })
+        }
     }
 
-    console.debug(`[worker-${workerIndex}] Starting MongoDB on port ${mongoPort}...`)
+    if (VERBOSE) console.debug(`[worker-${workerIndex}] Starting MongoDB on port ${mongoPort}...`)
 
     // Launch mongo via the bash helper (handles docker compose, replica set, etc.)
     execSync(
@@ -64,7 +89,7 @@ export async function startWorkerMongo(workerIndex: number): Promise<WorkerMongo
     )
 
     // Wait for mongo to be healthy (replica set init can take a while)
-    console.debug(`[worker-${workerIndex}] Waiting for MongoDB to become healthy...`)
+    if (VERBOSE) console.debug(`[worker-${workerIndex}] Waiting for MongoDB to become healthy...`)
     const healthStart = Date.now()
     const healthTimeout = 60_000
     while (Date.now() - healthStart < healthTimeout) {
@@ -81,25 +106,18 @@ export async function startWorkerMongo(workerIndex: number): Promise<WorkerMongo
         await new Promise((r) => setTimeout(r, 1000))
     }
 
-    execSync(
-        `docker exec ${containerName} mongosh --quiet --eval "db.adminCommand( { setParameter: 1, maxTransactionLockRequestTimeoutMillis: 60000 })"`,
-        {
-            stdio: 'pipe',
-        },
-    )
-
-    console.debug(`[worker-${workerIndex}] MongoDB is healthy`)
+    if (VERBOSE) console.debug(`[worker-${workerIndex}] MongoDB is healthy`)
 
     return { port: mongoPort, stackName, containerName, workerIndex }
 }
 
 export async function stopWorkerMongo(mongo: WorkerMongo): Promise<void> {
     const { workerIndex, stackName } = mongo
-    console.debug(`[worker-${workerIndex}] Cleaning up mongo stack ${stackName}...`)
+    if (VERBOSE) console.debug(`[worker-${workerIndex}] Cleaning up mongo stack ${stackName}...`)
 
-    const logPath = makeLogFile(workerIndex, 'mongo')
+    const logPath = makeLogFile(workerIndex, 'db', { noExt: true, noCreate: true })
 
-    console.debug(`[worker-${workerIndex}] Dumping MongoDB logs to ${logPath}...`)
+    if (VERBOSE) console.debug(`[worker-${workerIndex}] Dumping MongoDB logs to ${logPath}-*.log...`)
 
     try {
         const out = execSync(
@@ -110,11 +128,16 @@ export async function stopWorkerMongo(mongo: WorkerMongo): Promise<void> {
                 shell: '/bin/bash',
             },
         )
-        console.debug(`[worker-${workerIndex}] Mongo cleanup output:\n${out.toString()}`)
-    } catch (e) {
-        console.debug(`[worker-${workerIndex}] Mongo cleanup warning: ${e}`)
+
+        if (VERBOSE) console.debug(`[worker-${workerIndex}] Mongo cleanup log: ${out.toString()}`)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (e: any) {
+        if (VERBOSE)
+            console.debug(
+                `[worker-${workerIndex}] Mongo cleanup failed: ${e.stderr.toString()} \n------------\n ${e.stdout.toString()}`,
+            )
     }
-    console.debug(`[worker-${workerIndex}] Mongo teardown complete`)
+    if (VERBOSE) console.debug(`[worker-${workerIndex}] Mongo teardown complete`)
 }
 
 // ── Test-scoped: Backend binary lifecycle ──
@@ -196,9 +219,9 @@ export async function startTestBackend(workerIndex: number, mongo: WorkerMongo):
         throw new Error(`Frontend build not found at ${uiPath}. Run ./scripts/test-playwright.bash to build it.`)
     }
 
-    const logPath = makeLogFile(workerIndex, 'backend', dbName)
+    const logPath = makeLogFile(workerIndex, 'backend', { extraIdentifier: dbName })
 
-    console.debug(`[worker-${workerIndex}] Starting backend (db: ${dbName}) on port ${port}...`)
+    if (VERBOSE) console.debug(`[worker-${workerIndex}] Starting backend (db: ${dbName}) on port ${port}...`)
 
     const logStream = fs.createWriteStream(logPath)
 
@@ -235,11 +258,11 @@ export async function startTestBackend(workerIndex: number, mongo: WorkerMongo):
         throw new Error(`[worker-${workerIndex}] Failed to spawn backend process`)
     }
 
-    console.debug(`[worker-${workerIndex}] Backend PID ${child.pid}, logs at ${logPath}`)
+    if (VERBOSE) console.debug(`[worker-${workerIndex}] Backend PID ${child.pid}, logs at ${logPath}`)
 
     const baseURL = `http://localhost:${port}`
-    await pollHealth(`${baseURL}/api/v1/info`, 20_000, logPath)
-    console.debug(`[worker-${workerIndex}] Backend is healthy`)
+    await pollHealth(`${baseURL}/api/v1/info`, 25_000, logPath)
+    if (VERBOSE) console.debug(`[worker-${workerIndex}] Backend is healthy`)
 
     return { baseURL, port, dbName, workerIndex, process: child, logPath }
 }
@@ -249,11 +272,11 @@ export async function stopTestBackend(backend: TestBackend): Promise<void> {
     const pid = backend.process.pid
 
     if (pid) {
-        console.debug(`[worker-${workerIndex}] Stopping backend PID ${pid}...`)
+        if (VERBOSE) console.debug(`[worker-${workerIndex}] Stopping backend PID ${pid}...`)
         try {
             process.kill(pid, 'SIGTERM')
         } catch {
-            console.debug(`[worker-${workerIndex}] Process already exited`)
+            if (VERBOSE) console.debug(`[worker-${workerIndex}] Process already exited`)
             return
         }
 
@@ -261,13 +284,13 @@ export async function stopTestBackend(backend: TestBackend): Promise<void> {
         for (let i = 0; i < 50; i++) {
             await sleep(100)
             if (!isProcessRunning(pid)) {
-                console.debug(`[worker-${workerIndex}] Backend exited gracefully`)
+                if (VERBOSE) console.debug(`[worker-${workerIndex}] Backend exited gracefully`)
                 return
             }
         }
 
         // Force kill if still running
-        console.debug(`[worker-${workerIndex}] Backend did not exit in time, sending SIGKILL...`)
+        if (VERBOSE) console.debug(`[worker-${workerIndex}] Backend did not exit in time, sending SIGKILL...`)
         try {
             process.kill(pid, 'SIGKILL')
         } catch {

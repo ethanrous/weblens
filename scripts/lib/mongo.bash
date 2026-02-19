@@ -109,7 +109,8 @@ dump_mongo_logs() {
 
     echo "Dumping MongoDB logs for stack [$stack_name] to [$logfile] ..."
 
-    dockerc logs "weblens-$stack_name-mongod" || true >"$logfile"
+    dockerc logs "weblens-$stack_name-mongod" >"$logfile-mongod.log" || true
+    dockerc logs "weblens-$stack_name-mongot" >"$logfile-mongot.log" || true
 }
 export -f dump_mongo_logs
 

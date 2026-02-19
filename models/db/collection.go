@@ -4,6 +4,7 @@ package db
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/log"
@@ -76,11 +77,13 @@ func (c *ContextualizedCollection[T]) NewSearchIndex(model mongo.SearchIndexMode
 	indexName := model.Options.Name
 	indexType := model.Options.Type
 
-	log.FromContext(c.ctx).Trace().Msgf("Creating search index [%s] on collection [%s]", *indexName, c.collection.Name())
+	start := time.Now()
 
 	existingIndexes, err := c.collection.SearchIndexes().List(c.ctx, &options.SearchIndexesOptions{Name: indexName, Type: indexType})
 	if err != nil {
-		return err
+		elapsed := time.Since(start)
+
+		return wlerrors.Errorf("Failed to list search indexes for collection [%s] in %s: %w", c.collection.Name(), elapsed, err)
 	}
 
 	for existingIndexes.Next(c.ctx) {
@@ -88,7 +91,7 @@ func (c *ContextualizedCollection[T]) NewSearchIndex(model mongo.SearchIndexMode
 
 		err = existingIndexes.Decode(&index)
 		if err != nil {
-			return err
+			return wlerrors.Errorf("Failed to decode search index for collection [%s]: %w", c.collection.Name(), err)
 		}
 
 		if index["name"] == *indexName {
@@ -102,9 +105,13 @@ func (c *ContextualizedCollection[T]) NewSearchIndex(model mongo.SearchIndexMode
 
 	log.FromContext(c.ctx).Debug().Msgf("Creating new search index [%s] on collection [%s]", *indexName, c.collection.Name())
 
+	start = time.Now()
+
 	_, err = c.collection.SearchIndexes().CreateOne(c.ctx, model, opts...)
 	if err != nil {
-		return err
+		elapsed := time.Since(start)
+
+		return wlerrors.Errorf("Failed to create search index %s after %s: %w", *indexName, elapsed, err)
 	}
 
 	return nil

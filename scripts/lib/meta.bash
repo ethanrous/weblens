@@ -14,11 +14,24 @@ show_as_subtask() {
     local task_name="$1"
     shift
 
-    local task_color="blue"
-    if [[ "${1:-}" != "--" ]]; then
-        task_color="${1:-blue}"
+    task_color="blue"
+    verbose=false
+
+    while [ "${1:-}" != "" ]; do
+        case "$1" in
+        "--color")
+            shift
+            task_color="$1"
+            ;;
+        "-v" | "--verbose")
+            verbose=true
+            ;;
+        "--")
+            break
+            ;;
+        esac
         shift
-    fi
+    done
 
     # Skip the -- separator
     if [[ "${1:-}" == "--" ]]; then
@@ -29,7 +42,7 @@ show_as_subtask() {
     color_code="$(get_color_code "$task_color")"
     local esc=$'\e'
 
-    if [[ "$WEBLENS_VERBOSE" = "false" ]]; then
+    if [[ "$WEBLENS_VERBOSE" = "false" ]] && [[ "$verbose" = false ]]; then
         printf "\e[%s|-- %s\e[0m\n" "$color_code" "$task_name"
         local buf cmd_status
         buf=$("$@" 2>&1) && cmd_status=0 || cmd_status=$?

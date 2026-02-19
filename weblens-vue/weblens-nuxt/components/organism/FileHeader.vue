@@ -96,7 +96,6 @@ const canNavigate = computed(() => {
     }
 
     if (!activeFile.value || !activeFile.value.parentID) {
-        console.warn('Active file has no parentID, cannot navigate up', activeFile.value)
         return false
     }
 
