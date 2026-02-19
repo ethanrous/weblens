@@ -139,6 +139,9 @@ jobs:
         working-directory: weblens-vue/weblens-nuxt
         run: pnpm exec playwright install --with-deps chromium
 
+      - name: Preload mongo images
+        run: docker pull mongodb/mongodb-community-server:8.2-ubi9 && docker pull mongodb/mongodb-community-search:0.53.1
+
       - name: Run E2E tests
         run: |
           sudo systemctl restart docker

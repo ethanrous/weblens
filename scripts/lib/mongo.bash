@@ -94,7 +94,7 @@ launch_mongo() {
         # Wait for mongot to be healthy before returning
         count=0
         MONGOT_HEALTHCHECK_PORT=${MONGOT_HEALTHCHECK_PORT:-38081}
-        until curl --fail http://localhost:"${MONGOT_HEALTHCHECK_PORT}"/health; do
+        until curl --fail http://127.0.0.1:"${MONGOT_HEALTHCHECK_PORT}"/health; do
             if [[ $count -ge $retries ]]; then
                 echo "Mongot container failed to become healthy after $((retries * wait_time)) seconds. Check container logs for details." >&2
                 exit 1
