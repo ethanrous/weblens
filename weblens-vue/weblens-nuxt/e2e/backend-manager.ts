@@ -16,6 +16,7 @@ const WEBLENS_PORT_BASE = 14100
 const MONGO_PORT_BASE = 27020
 const MONGOT_GRPC_PORT_BASE = 27128
 const MONGOT_METRICS_PORT_BASE = 10046
+const MONGOT_HEALTHCHECK_PORT_BASE = 38081
 
 // ── Worker-scoped: MongoDB lifecycle ──
 
@@ -58,6 +59,7 @@ export async function startWorkerMongo(workerIndex: number): Promise<WorkerMongo
     const mongoPort = MONGO_PORT_BASE + workerIndex
     const mongotGrpcPort = MONGOT_GRPC_PORT_BASE + workerIndex
     const mongotMetricsPort = MONGOT_METRICS_PORT_BASE + workerIndex
+    const mongotHealthcheckPort = MONGOT_HEALTHCHECK_PORT_BASE + workerIndex
     const stackName = `weblens-core-pw-worker-${workerIndex}`
     const containerName = `weblens-${stackName}-mongod`
 
@@ -84,6 +86,7 @@ export async function startWorkerMongo(workerIndex: number): Promise<WorkerMongo
         `source scripts/lib/all.bash && ` +
             `MONGOT_HOST_PORT_GRPC=${mongotGrpcPort} ` +
             `MONGOT_HOST_PORT_METRICS=${mongotMetricsPort} ` +
+            `MONGOT_HEALTHCHECK_PORT=${mongotHealthcheckPort} ` +
             `launch_mongo --stack-name "${stackName}" --mongo-port ${mongoPort}`,
         { cwd: REPO_ROOT, stdio: 'pipe', shell: '/bin/bash' },
     )
@@ -106,7 +109,41 @@ export async function startWorkerMongo(workerIndex: number): Promise<WorkerMongo
         await new Promise((r) => setTimeout(r, 1000))
     }
 
-    if (VERBOSE) console.debug(`[worker-${workerIndex}] MongoDB is healthy`)
+    if (Date.now() - healthStart >= healthTimeout) {
+        throw new Error(`[worker-${workerIndex}] mongod did not become healthy within ${healthTimeout}ms`)
+    }
+
+    if (VERBOSE)
+        console.debug(
+            `[worker-${workerIndex}] MongoDB is healthy after ${Math.round((Date.now() - healthStart) / 1000)}s`,
+        )
+
+    // Wait for mongot (search sidecar) to be healthy so SearchIndexes().List()
+    // doesn't block for 10+ seconds at startup.
+    if (VERBOSE) console.debug(`[worker-${workerIndex}] Waiting for mongot to become healthy...`)
+    const mongotHealthStart = Date.now()
+    while (Date.now() - mongotHealthStart < healthTimeout) {
+        try {
+            const result = execSync(`curl --fail http://localhost:${mongotHealthcheckPort}/health`, {
+                stdio: 'pipe',
+            })
+            console.debug(`[worker-${workerIndex}] mongot health check response: ${result.toString().trim()}`)
+            if (result.toString().trim() === '{"status":"SERVING"}') {
+                break
+            }
+        } catch {
+            // Container not ready or health check not yet populated
+        }
+        await new Promise((r) => setTimeout(r, 500))
+    }
+    if (Date.now() - mongotHealthStart >= healthTimeout) {
+        throw new Error(`[worker-${workerIndex}] mongot did not become healthy within ${healthTimeout}ms`)
+    }
+
+    if (VERBOSE)
+        console.debug(
+            `[worker-${workerIndex}] mongot is healthy after ${Math.round((Date.now() - mongotHealthStart) / 1000)}s`,
+        )
 
     return { port: mongoPort, stackName, containerName, workerIndex }
 }

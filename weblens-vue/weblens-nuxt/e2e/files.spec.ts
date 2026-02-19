@@ -151,7 +151,7 @@ test.describe('File Browser', () => {
         await expect(folderCard).not.toBeVisible({ timeout: 15000 })
 
         // Click Trash button in sidebar
-        await page.getByRole('button', { name: 'Trash' }).click()
+        await page.locator('#global-left-sidebar').getByRole('button', { name: 'Trash' }).click()
 
         // Should see trashed items (the folder we just trashed)
         await expect(page.getByText('Test Folder')).toBeVisible({ timeout: 15000 })

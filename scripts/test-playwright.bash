@@ -41,6 +41,9 @@ while [ "${1:-}" != "" ]; do
         headed="--headed"
         export PW_WORKERS=1
         ;;
+    "-v")
+        export WEBLENS_VERBOSE=true
+        ;;
     "-h" | "--help")
         echo "Usage: $0 [--no-lazy]"
         echo "  --no-lazy    Force rebuild everything"

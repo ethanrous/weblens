@@ -77,11 +77,22 @@ services:
       - source: mongot-pwfile
         target: /mongot-pwfile
         mode: 0400
+    healthcheck:
+      test: >
+        mongosh --eval "
+          try { db.adminCommand({ ping: 1 }) } catch(e) { quit(1) }
+        "
+
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
     volumes:
       - ${MONGO_DATA_ROOT}/mongot:/data/mongot
     ports:
       - ${MONGOT_HOST_PORT_GRPC:-27028}:27028
       - ${MONGOT_HOST_PORT_METRICS:-9946}:9946
+      - ${MONGOT_HEALTHCHECK_PORT:-27180}:8080
 
 networks:
   default:
