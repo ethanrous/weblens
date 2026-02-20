@@ -65,6 +65,15 @@ jobs:
           run_install: |
             - cwd: weblens-vue/weblens-nuxt
 
+      - name: Ensure swaggo up to date
+        run: |
+          make swag
+          # This is not meant to be ./api/docs, it is ./api and ./docs. 2 Different directories
+          if ! git diff --quiet -- api/ docs/; then
+            echo "API docs are out of date. Please run 'make swag' and commit the changes."
+            exit 1
+          fi
+
       - name: Run Tests
         run: |
           # Restart docker to fix networking bug...

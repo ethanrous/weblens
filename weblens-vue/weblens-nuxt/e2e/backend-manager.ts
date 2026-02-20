@@ -185,7 +185,7 @@ export async function startTestBackend(
     testName: string,
 ): Promise<TestBackend> {
     const port = WEBLENS_PORT_BASE + workerIndex
-    const dbName = `pw-test-${workerIndex}-${testName}`
+    const dbName = `pw-${testName.slice(0, 60)}` // MongoDB database names have a max length of 64
 
     // Fresh filesystem per test
     const fsDir = path.join(PW_DIR, 'fs', `worker-${workerIndex}`)

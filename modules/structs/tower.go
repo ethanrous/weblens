@@ -34,3 +34,8 @@ type TowerInfo struct {
 
 	LogLevel string `json:"logLevel,omitempty"`
 } // @name TowerInfo
+
+// TowerHealth represents the health status of the server instance.
+type TowerHealth struct {
+	Status string `json:"status" validate:"required" enums:"healthy,unhealthy"`
+} // @name TowerHealth
