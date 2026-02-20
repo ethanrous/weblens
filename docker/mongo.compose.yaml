@@ -63,7 +63,6 @@ services:
     image: mongodb/mongodb-community-search:0.53.1
     container_name: weblens-${MONGO_PROJECT_NAME}-mongot
     hostname: mongot.search-community
-    user: "${UID}:${GID}"
     depends_on:
       mongod:
         condition: service_healthy

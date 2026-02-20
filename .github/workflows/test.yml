@@ -91,6 +91,10 @@ jobs:
           run_install: |
             - cwd: weblens-vue/weblens-nuxt
 
+      - name: Copy agno header
+        run: |
+          cp ./agno/lib/agno.h ./services/media/agno/lib/
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
@@ -134,10 +138,6 @@ jobs:
 
       - name: Preload mongo images
         run: docker pull mongodb/mongodb-community-server:8.2-ubi9 && docker pull mongodb/mongodb-community-search:0.53.1
-
-      - name: Copy agno header
-        run: |
-          cp ./agno/lib/agno.h ./services/media/agno/lib/
 
       - name: Run E2E tests
         run: |
