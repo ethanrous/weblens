@@ -10,6 +10,7 @@ import (
 	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/modules/fs"
+	"github.com/ethanrous/weblens/modules/log"
 	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"go.mongodb.org/mongo-driver/bson"
@@ -75,6 +76,11 @@ func NewCreateAction(ctx context.Context, file *file_model.WeblensFileImpl) File
 	fileID := file.ID()
 	if fileID == "" {
 		fileID = primitive.NewObjectID().Hex()
+	}
+
+	if !file.IsDir() && file.GetContentID() == "" {
+		err := wlerrors.Errorf("creating FileAction for file with empty content ID")
+		log.FromContext(ctx).Warn().Stack().Err(err).Str("fileID", fileID).Str("filename", file.GetPortablePath().Filename()).Msg("Creating FileAction for file with empty content ID")
 	}
 
 	return FileAction{

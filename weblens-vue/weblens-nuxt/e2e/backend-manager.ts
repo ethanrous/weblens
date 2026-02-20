@@ -179,11 +179,13 @@ function isProcessRunning(pid: number): boolean {
     }
 }
 
-let testCounter = 0
-
-export async function startTestBackend(workerIndex: number, mongo: WorkerMongo): Promise<TestBackend> {
+export async function startTestBackend(
+    workerIndex: number,
+    mongo: WorkerMongo,
+    testName: string,
+): Promise<TestBackend> {
     const port = WEBLENS_PORT_BASE + workerIndex
-    const dbName = `pw-test-${workerIndex}-${testCounter++}`
+    const dbName = `pw-test-${workerIndex}-${testName}`
 
     // Fresh filesystem per test
     const fsDir = path.join(PW_DIR, 'fs', `worker-${workerIndex}`)

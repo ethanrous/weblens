@@ -27,7 +27,7 @@ const test = base.extend<
     ],
 
     testBackend: async ({ workerMongo }, use, testInfo) => {
-        const backend = await startTestBackend(testInfo.parallelIndex, workerMongo)
+        const backend = await startTestBackend(testInfo.parallelIndex, workerMongo, testInfo.title.replace(/\s+/g, '_'))
         // await initializeServer(backend.baseURL)
         await use(backend)
         await stopTestBackend(backend)
