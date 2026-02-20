@@ -89,6 +89,7 @@ jobs:
         with:
           version: 10.18.3
           run_install: |
+            - cwd: api/ts
             - cwd: weblens-vue/weblens-nuxt
 
       - name: Copy agno header
