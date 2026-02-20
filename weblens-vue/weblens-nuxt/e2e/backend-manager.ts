@@ -65,8 +65,6 @@ export async function startWorkerMongo(workerIndex: number): Promise<WorkerMongo
     const stackName = `weblens-core-pw-worker-${workerIndex}`
     const containerName = `weblens-${stackName}-mongod`
 
-    console.log(`START TIME: ${process.env.WEBLENS_PLAYWRIGHT_TEST_START_TIME}`)
-
     // Clean mongo data directory so MongoDB starts fresh.
     // Data dir may contain root-owned files from the container, so use
     // Docker to remove subdirs before cleaning up the parent with Node.
