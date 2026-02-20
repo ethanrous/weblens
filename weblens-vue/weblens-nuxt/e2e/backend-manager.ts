@@ -40,11 +40,7 @@ function makeLogFile(
         .split('.')[0]
 
     const logPath = path.join(LOG_DIR, type + '-' + dateString, filename)
-    fs.mkdir(path.dirname(logPath), { recursive: true, mode: 0o777 }, (err) => {
-        if (err) {
-            console.error(`[worker-${workerIndex}] Failed to create log directory: ${err}`)
-        }
-    })
+    fs.mkdirSync(path.dirname(logPath), { recursive: true, mode: 0o777 })
     // Clear existing log
     if (!opts?.noCreate) {
         console.debug(`[worker-${workerIndex}] Creating log file at ${logPath}...`)

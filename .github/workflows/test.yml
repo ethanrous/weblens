@@ -93,6 +93,7 @@ jobs:
 
       - name: Copy agno header
         run: |
+          mkdir -p ./services/media/agno/lib/
           cp ./agno/lib/agno.h ./services/media/agno/lib/
 
       - name: golangci-lint
