@@ -16,7 +16,7 @@ test.describe('Empty States', () => {
     test('should show empty folder message when navigating into empty folder', async ({ page }) => {
         // Create an empty folder — dispatchEvent may need a retry in serial runs
         await page.getByRole('button', { name: 'New Folder' }).click()
-        const nameInput = page.locator('.file-context-menu input')
+        const nameInput = page.locator('#file-context-menu').getByRole("textbox")
         await expect(nameInput).toBeVisible()
         await nameInput.fill('EmptyStateTest')
         await nameInput.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
