@@ -14,17 +14,8 @@ test.describe('Empty States', () => {
     test.beforeEach(async ({ login: _login }) => {})
 
     test('should show empty folder message when navigating into empty folder', async ({ page }) => {
-        // Create an empty folder — dispatchEvent may need a retry in serial runs
-        await page.getByRole('button', { name: 'New Folder' }).click()
-        const nameInput = page.locator('#file-context-menu').getByRole('searchbox')
-        await expect(nameInput).toBeVisible()
-        await nameInput.fill('EmptyStateTest')
-        await nameInput.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
-
-        // Retry dispatchEvent if the input is still visible after a short wait
-        if (await nameInput.isVisible({ timeout: 1000 }).catch(() => false)) {
-            await nameInput.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
-        }
+        // Create an empty folder
+        await createFolder(page, 'EmptyStateTest')
 
         await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'EmptyStateTest' })).toBeVisible({
             timeout: 15000,
