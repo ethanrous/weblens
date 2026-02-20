@@ -33,7 +33,13 @@ function makeLogFile(
         filename += '.log'
     }
 
-    const logPath = path.join(LOG_DIR, type, filename)
+    const dateString = new Date(Number(process.env.WEBLENS_PLAYWRIGHT_TEST_START_TIME))
+        .toISOString()
+        .replace('T', '_')
+        .replace(/:/g, '-')
+        .split('.')[0]
+
+    const logPath = path.join(LOG_DIR, type + '-' + dateString, filename)
     fs.mkdir(path.dirname(logPath), { recursive: true, mode: 0o777 }, (err) => {
         if (err) {
             console.error(`[worker-${workerIndex}] Failed to create log directory: ${err}`)
@@ -63,6 +69,8 @@ export async function startWorkerMongo(workerIndex: number): Promise<WorkerMongo
     const stackName = `weblens-core-pw-worker-${workerIndex}`
     const containerName = `weblens-${stackName}-mongod`
 
+    console.log(`START TIME: ${process.env.WEBLENS_PLAYWRIGHT_TEST_START_TIME}`)
+
     // Clean mongo data directory so MongoDB starts fresh.
     // Data dir may contain root-owned files from the container, so use
     // Docker to remove subdirs before cleaning up the parent with Node.
@@ -90,60 +98,6 @@ export async function startWorkerMongo(workerIndex: number): Promise<WorkerMongo
             `launch_mongo --stack-name "${stackName}" --mongo-port ${mongoPort}`,
         { cwd: REPO_ROOT, stdio: 'pipe', shell: '/bin/bash' },
     )
-
-    // // Wait for mongo to be healthy (replica set init can take a while)
-    // if (VERBOSE) console.debug(`[worker-${workerIndex}] Waiting for MongoDB to become healthy...`)
-    // const healthStart = Date.now()
-    // const healthTimeout = 10_000
-    // while (Date.now() - healthStart < healthTimeout) {
-    //     try {
-    //         const result = execSync(`docker exec ${containerName} mongosh --quiet --eval "rs.status().ok"`, {
-    //             stdio: 'pipe',
-    //         })
-    //         if (result.toString().trim() === '1') {
-    //             break
-    //         }
-    //     } catch {
-    //         // Not ready yet
-    //     }
-    //     await new Promise((r) => setTimeout(r, 1000))
-    // }
-    //
-    // if (Date.now() - healthStart >= healthTimeout) {
-    //     throw new Error(`[worker-${workerIndex}] mongod did not become healthy within ${healthTimeout}ms`)
-    // }
-    //
-    // if (VERBOSE)
-    //     console.debug(
-    //         `[worker-${workerIndex}] MongoDB is healthy after ${Math.round((Date.now() - healthStart) / 1000)}s`,
-    //     )
-    //
-    // // Wait for mongot (search sidecar) to be healthy so SearchIndexes().List()
-    // // doesn't block for 10+ seconds at startup.
-    // if (VERBOSE) console.debug(`[worker-${workerIndex}] Waiting for mongot to become healthy...`)
-    // const mongotHealthStart = Date.now()
-    // while (Date.now() - mongotHealthStart < healthTimeout) {
-    //     try {
-    //         const result = execSync(`curl --fail http://localhost:${mongotHealthcheckPort}/health`, {
-    //             stdio: 'pipe',
-    //         })
-    //         console.debug(`[worker-${workerIndex}] mongot health check response: ${result.toString().trim()}`)
-    //         if (result.toString().trim() === '{"status":"SERVING"}') {
-    //             break
-    //         }
-    //     } catch {
-    //         // Container not ready or health check not yet populated
-    //     }
-    //     await new Promise((r) => setTimeout(r, 500))
-    // }
-    // if (Date.now() - mongotHealthStart >= healthTimeout) {
-    //     throw new Error(`[worker-${workerIndex}] mongot did not become healthy within ${healthTimeout}ms`)
-    // }
-    //
-    // if (VERBOSE)
-    //     console.debug(
-    //         `[worker-${workerIndex}] mongot is healthy after ${Math.round((Date.now() - mongotHealthStart) / 1000)}s`,
-    //     )
 
     return { port: mongoPort, stackName, containerName, workerIndex }
 }

@@ -76,17 +76,10 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
-    needs: build-agno
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: "recursive"
-
-      - name: Download agno artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: agno
-          path: ./services/media/agno/lib/
 
       - uses: actions/setup-go@v6
         with:
@@ -151,12 +144,14 @@ jobs:
           ./scripts/test-playwright.bash
           exit $?
 
-      - name: Upload E2E report
+      - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          path: _build/playwright/report/
+          path: |
+            _build/playwright/
+            _build/logs/playwright/
           retention-days: 14
 
   test-build-container:

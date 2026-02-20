@@ -97,6 +97,8 @@ launch_mongo() {
         until curl --fail http://127.0.0.1:"${MONGOT_HEALTHCHECK_PORT}"/health; do
             if [[ $count -ge $retries ]]; then
                 echo "Mongot container failed to become healthy after $((retries * wait_time)) seconds. Check container logs for details." >&2
+                docker ps -a
+                docker logs "weblens-$stack_name-mongot" --tail 200
                 exit 1
             fi
             sleep $wait_time

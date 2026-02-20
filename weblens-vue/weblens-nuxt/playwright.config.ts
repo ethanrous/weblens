@@ -17,8 +17,12 @@ export default defineConfig({
 
     fullyParallel: true,
     workers: process.env.PW_WORKERS ? parseInt(process.env.PW_WORKERS) : defaultWorkers,
-    retries: process.env.CI ? 3 : 0,
-    maxFailures: process.env.CI ? undefined : 1,
+    // retries: process.env.CI ? 2 : 0,
+    retries: 0,
+    // maxFailures: process.env.CI ? undefined : 1,
+    maxFailures: 1,
+
+    globalSetup: './e2e/global-setup',
 
     reporter: [
         ['line'],
