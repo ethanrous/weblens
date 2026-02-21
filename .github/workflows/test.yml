@@ -27,7 +27,7 @@ jobs:
         uses: actions/cache@v5
         with:
           key: agno-binary-${{ hashFiles('agno/**') }}
-          path: ./services/media/agno/lib/libagno.a
+          path: ./services/media/agno/lib/
 
       - name: Cache Rust dependencies and build artifacts
         if: steps.cache-agno-binary.outputs.cache-hit != 'true'
