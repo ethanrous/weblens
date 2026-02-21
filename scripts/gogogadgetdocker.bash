@@ -100,7 +100,10 @@ if ! dockerc build --platform "linux/$arch" -t "$full_tag" --build-arg WEBLENS_B
 fi
 
 if [[ $do_push == true ]]; then
-    dockerc push "$full_tag"
+    if ! dockerc push "$full_tag"; then
+        printf "Container push failed\n"
+        exit 1
+    fi
 fi
 
 printf "\nBUILD COMPLETE. Container tag: %s\n" "$full_tag"
