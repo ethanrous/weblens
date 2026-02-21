@@ -664,16 +664,16 @@ func (a *FilesAPIService) DownloadFileExecute(r ApiDownloadFileRequest) (string,
 	if r.quality != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "quality", r.quality, "", "")
 	} else {
-        var defaultValue int32 = 85
-        parameterAddToHeaderOrQuery(localVarQueryParams, "quality", defaultValue, "", "")
-        r.quality = &defaultValue
+		var defaultValue int32 = 85
+		parameterAddToHeaderOrQuery(localVarQueryParams, "quality", defaultValue, "", "")
+		r.quality = &defaultValue
 	}
 	if r.isTakeout != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "isTakeout", r.isTakeout, "", "")
 	} else {
-        var defaultValue bool = false
-        parameterAddToHeaderOrQuery(localVarQueryParams, "isTakeout", defaultValue, "", "")
-        r.isTakeout = &defaultValue
+		var defaultValue bool = false
+		parameterAddToHeaderOrQuery(localVarQueryParams, "isTakeout", defaultValue, "", "")
+		r.isTakeout = &defaultValue
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -1550,30 +1550,30 @@ func (a *FilesAPIService) SearchByFilenameExecute(r ApiSearchByFilenameRequest) 
 	if r.sortProp != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "sortProp", r.sortProp, "", "")
 	} else {
-        var defaultValue string = "name"
-        parameterAddToHeaderOrQuery(localVarQueryParams, "sortProp", defaultValue, "", "")
-        r.sortProp = &defaultValue
+		var defaultValue string = "name"
+		parameterAddToHeaderOrQuery(localVarQueryParams, "sortProp", defaultValue, "", "")
+		r.sortProp = &defaultValue
 	}
 	if r.sortOrder != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "sortOrder", r.sortOrder, "", "")
 	} else {
-        var defaultValue string = "asc"
-        parameterAddToHeaderOrQuery(localVarQueryParams, "sortOrder", defaultValue, "", "")
-        r.sortOrder = &defaultValue
+		var defaultValue string = "asc"
+		parameterAddToHeaderOrQuery(localVarQueryParams, "sortOrder", defaultValue, "", "")
+		r.sortOrder = &defaultValue
 	}
 	if r.recursive != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "recursive", r.recursive, "", "")
 	} else {
-        var defaultValue bool = false
-        parameterAddToHeaderOrQuery(localVarQueryParams, "recursive", defaultValue, "", "")
-        r.recursive = &defaultValue
+		var defaultValue bool = false
+		parameterAddToHeaderOrQuery(localVarQueryParams, "recursive", defaultValue, "", "")
+		r.recursive = &defaultValue
 	}
 	if r.regex != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "regex", r.regex, "", "")
 	} else {
-        var defaultValue bool = false
-        parameterAddToHeaderOrQuery(localVarQueryParams, "regex", defaultValue, "", "")
-        r.regex = &defaultValue
+		var defaultValue bool = false
+		parameterAddToHeaderOrQuery(localVarQueryParams, "regex", defaultValue, "", "")
+		r.regex = &defaultValue
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}

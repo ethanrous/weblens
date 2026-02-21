@@ -54,7 +54,7 @@ var assertParamExists = function(functionName, paramName, paramValue) {
 function setFlattenedQueryParams(urlSearchParams, parameter, key = "") {
   if (parameter == null) return;
   if (typeof parameter === "object") {
-    if (Array.isArray(parameter)) {
+    if (Array.isArray(parameter) || parameter instanceof Set) {
       parameter.forEach((item) => setFlattenedQueryParams(urlSearchParams, item, key));
     } else {
       Object.keys(parameter).forEach(
@@ -74,10 +74,17 @@ var setSearchParams = function(url, ...objects) {
   setFlattenedQueryParams(searchParams, objects);
   url.search = searchParams.toString();
 };
+var replaceWithSerializableTypeIfNeeded = function(key, value) {
+  if (value instanceof Set) {
+    return Array.from(value);
+  } else {
+    return value;
+  }
+};
 var serializeDataIfNeeded = function(value, requestOptions, configuration) {
   const nonString = typeof value !== "string";
   const needsSerialization = nonString && configuration && configuration.isJsonMime ? configuration.isJsonMime(requestOptions.headers["Content-Type"]) : nonString;
-  return needsSerialization ? JSON.stringify(value !== void 0 ? value : {}) : value || "";
+  return needsSerialization ? JSON.stringify(value !== void 0 ? value : {}, replaceWithSerializableTypeIfNeeded) : value || "";
 };
 var toPathString = function(url) {
   return url.pathname + url.search + url.hash;

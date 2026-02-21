@@ -226,16 +226,16 @@ func (a *FolderAPIService) GetFolderExecute(r ApiGetFolderRequest) (*FolderInfo,
 	if r.sortProp != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "sortProp", r.sortProp, "", "")
 	} else {
-        var defaultValue string = "name"
-        parameterAddToHeaderOrQuery(localVarQueryParams, "sortProp", defaultValue, "", "")
-        r.sortProp = &defaultValue
+		var defaultValue string = "name"
+		parameterAddToHeaderOrQuery(localVarQueryParams, "sortProp", defaultValue, "", "")
+		r.sortProp = &defaultValue
 	}
 	if r.sortOrder != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "sortOrder", r.sortOrder, "", "")
 	} else {
-        var defaultValue string = "asc"
-        parameterAddToHeaderOrQuery(localVarQueryParams, "sortOrder", defaultValue, "", "")
-        r.sortOrder = &defaultValue
+		var defaultValue string = "asc"
+		parameterAddToHeaderOrQuery(localVarQueryParams, "sortOrder", defaultValue, "", "")
+		r.sortOrder = &defaultValue
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
