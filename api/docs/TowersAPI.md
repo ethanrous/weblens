@@ -12,6 +12,7 @@ Method | HTTP request | Description
 [**GetPagedHistoryActions**](TowersAPI.md#GetPagedHistoryActions) | **Get** /tower/history | Get a page of file actions
 [**GetRemotes**](TowersAPI.md#GetRemotes) | **Get** /tower | Get all remotes
 [**GetRunningTasks**](TowersAPI.md#GetRunningTasks) | **Get** /tower/tasks | Get Running Tasks
+[**GetServerHealthStatus**](TowersAPI.md#GetServerHealthStatus) | **Get** /health | Get server health status
 [**GetServerInfo**](TowersAPI.md#GetServerInfo) | **Get** /info | Get server info
 [**InitializeTower**](TowersAPI.md#InitializeTower) | **Post** /tower/init | Initialize the target server
 [**LaunchBackup**](TowersAPI.md#LaunchBackup) | **Post** /tower/{serverID}/backup | Launch backup on a tower
@@ -498,6 +499,65 @@ Other parameters are passed through a pointer to a apiGetRunningTasksRequest str
 ### Return type
 
 [**[]TaskInfo**](TaskInfo.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
+
+
+## GetServerHealthStatus
+
+> TowerHealth GetServerHealthStatus(ctx).Execute()
+
+Get server health status
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/ethanrous/weblens/api"
+)
+
+func main() {
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	resp, r, err := apiClient.TowersAPI.GetServerHealthStatus(context.Background()).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `TowersAPI.GetServerHealthStatus``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	// response from `GetServerHealthStatus`: TowerHealth
+	fmt.Fprintf(os.Stdout, "Response from `TowersAPI.GetServerHealthStatus`: %v\n", resp)
+}
+```
+
+### Path Parameters
+
+This endpoint does not need any parameter.
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiGetServerHealthStatusRequest struct via the builder pattern
+
+
+### Return type
+
+[**TowerHealth**](TowerHealth.md)
 
 ### Authorization
 

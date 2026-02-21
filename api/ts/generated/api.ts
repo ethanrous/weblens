@@ -328,6 +328,17 @@ export interface TokenInfo {
     'remoteUsing': string;
     'token': string;
 }
+export interface TowerHealth {
+    'status': TowerHealthStatusEnum;
+}
+
+export const TowerHealthStatusEnum = {
+    Healthy: 'healthy',
+    Unhealthy: 'unhealthy'
+} as const;
+
+export type TowerHealthStatusEnum = typeof TowerHealthStatusEnum[keyof typeof TowerHealthStatusEnum];
+
 export interface TowerInfo {
     'backupSize': number;
     /**
@@ -4377,6 +4388,36 @@ export const TowersApiAxiosParamCreator = function (configuration?: Configuratio
         },
         /**
          * 
+         * @summary Get server health status
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getServerHealthStatus: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/health`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary Get server info
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -4614,6 +4655,18 @@ export const TowersApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary Get server health status
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getServerHealthStatus(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TowerHealth>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getServerHealthStatus(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TowersApi.getServerHealthStatus']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Get server info
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -4750,6 +4803,15 @@ export const TowersApiFactory = function (configuration?: Configuration, basePat
         },
         /**
          * 
+         * @summary Get server health status
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getServerHealthStatus(options?: RawAxiosRequestConfig): AxiosPromise<TowerHealth> {
+            return localVarFp.getServerHealthStatus(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary Get server info
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -4876,6 +4938,16 @@ export class TowersApi extends BaseAPI {
      */
     public getRunningTasks(options?: RawAxiosRequestConfig) {
         return TowersApiFp(this.configuration).getRunningTasks(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Get server health status
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getServerHealthStatus(options?: RawAxiosRequestConfig) {
+        return TowersApiFp(this.configuration).getServerHealthStatus(options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

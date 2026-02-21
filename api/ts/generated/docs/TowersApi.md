@@ -12,6 +12,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 |[**getPagedHistoryActions**](#getpagedhistoryactions) | **GET** /tower/history | Get a page of file actions|
 |[**getRemotes**](#getremotes) | **GET** /tower | Get all remotes|
 |[**getRunningTasks**](#getrunningtasks) | **GET** /tower/tasks | Get Running Tasks|
+|[**getServerHealthStatus**](#getserverhealthstatus) | **GET** /health | Get server health status|
 |[**getServerInfo**](#getserverinfo) | **GET** /info | Get server info|
 |[**initializeTower**](#initializetower) | **POST** /tower/init | Initialize the target server|
 |[**launchBackup**](#launchbackup) | **POST** /tower/{serverID}/backup | Launch backup on a tower|
@@ -399,6 +400,49 @@ No authorization required
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 |**200** | Task Infos |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getServerHealthStatus**
+> TowerHealth getServerHealthStatus()
+
+
+### Example
+
+```typescript
+import {
+    TowersApi,
+    Configuration
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new TowersApi(configuration);
+
+const { status, data } = await apiInstance.getServerHealthStatus();
+```
+
+### Parameters
+This endpoint does not have any parameters.
+
+
+### Return type
+
+**TowerHealth**
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | Health status |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

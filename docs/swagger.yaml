@@ -562,6 +562,16 @@ definitions:
     - remoteUsing
     - token
     type: object
+  TowerHealth:
+    properties:
+      status:
+        enum:
+        - healthy
+        - unhealthy
+        type: string
+    required:
+    - status
+    type: object
   TowerInfo:
     properties:
       backupSize:
@@ -1335,6 +1345,19 @@ paths:
       summary: Dispatch a folder scan
       tags:
       - Folder
+  /health:
+    get:
+      operationId: GetServerHealthStatus
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Health status
+          schema:
+            $ref: '#/definitions/TowerHealth'
+      summary: Get server health status
+      tags:
+      - Towers
   /info:
     get:
       operationId: GetServerInfo

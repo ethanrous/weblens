@@ -133,6 +133,7 @@ Class | Method | HTTP request | Description
 *TowersAPI* | [**GetPagedHistoryActions**](docs/TowersAPI.md#getpagedhistoryactions) | **Get** /tower/history | Get a page of file actions
 *TowersAPI* | [**GetRemotes**](docs/TowersAPI.md#getremotes) | **Get** /tower | Get all remotes
 *TowersAPI* | [**GetRunningTasks**](docs/TowersAPI.md#getrunningtasks) | **Get** /tower/tasks | Get Running Tasks
+*TowersAPI* | [**GetServerHealthStatus**](docs/TowersAPI.md#getserverhealthstatus) | **Get** /health | Get server health status
 *TowersAPI* | [**GetServerInfo**](docs/TowersAPI.md#getserverinfo) | **Get** /info | Get server info
 *TowersAPI* | [**InitializeTower**](docs/TowersAPI.md#initializetower) | **Post** /tower/init | Initialize the target server
 *TowersAPI* | [**LaunchBackup**](docs/TowersAPI.md#launchbackup) | **Post** /tower/{serverID}/backup | Launch backup on a tower
@@ -191,6 +192,7 @@ Class | Method | HTTP request | Description
  - [TakeoutInfo](docs/TakeoutInfo.md)
  - [TaskInfo](docs/TaskInfo.md)
  - [TokenInfo](docs/TokenInfo.md)
+ - [TowerHealth](docs/TowerHealth.md)
  - [TowerInfo](docs/TowerInfo.md)
  - [UpdateFileParams](docs/UpdateFileParams.md)
  - [UserInfo](docs/UserInfo.md)
