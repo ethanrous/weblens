@@ -81,6 +81,7 @@ jobs:
         run: |
           go install github.com/swaggo/swag/cmd/swag@latest
           brew install openapi-generator
+          pnpm install -g tsup
 
           make swag
           # This is not meant to be ./api/docs, it is ./api and ./docs. 2 Different directories
