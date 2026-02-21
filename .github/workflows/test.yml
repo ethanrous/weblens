@@ -74,6 +74,9 @@ jobs:
           run_install: |
             - cwd: weblens-vue/weblens-nuxt
 
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@main
+
       - name: Ensure swaggo up to date
         run: |
           go install github.com/swaggo/swag/cmd/swag@latest
