@@ -21,13 +21,22 @@ jobs:
         with:
           submodules: "recursive"
 
+      - name: Cache built Agno binary
+        id: cache-agno-binary
+        uses: actions/cache@v5
+        with:
+          key: agno-binary-${{ hashFiles('agno/**') }}
+          path: ./services/media/agno/lib/libagno.a
+
       - name: Cache Rust dependencies and build artifacts
+        if: steps.cache-agno-binary.outputs.cache-hit != 'true'
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
             ./agno -> ./agno/target
 
       - name: Build Agno
+        if: steps.cache-agno-binary.outputs.cache-hit != 'true'
         run: |
           export WEBLENS_VERBOSE=true
           source ./scripts/lib/all.bash
