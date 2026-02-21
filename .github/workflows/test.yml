@@ -17,17 +17,17 @@ jobs:
   build-agno:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        if: steps.cache-agno-binary.outputs.cache-hit != 'true'
+        with:
+          submodules: "recursive"
+
       - name: Cache built Agno binary
         id: cache-agno-binary
         uses: actions/cache@v5
         with:
           key: agno-binary-${{ hashFiles('agno/**') }}
           path: ./services/media/agno/lib/libagno.a
-
-      - uses: actions/checkout@v4
-        if: steps.cache-agno-binary.outputs.cache-hit != 'true'
-        with:
-          submodules: "recursive"
 
       - name: Cache Rust dependencies and build artifacts
         if: steps.cache-agno-binary.outputs.cache-hit != 'true'
@@ -54,8 +54,6 @@ jobs:
     needs: build-agno
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: "recursive"
 
       - name: Download agno artifact
         uses: actions/download-artifact@v4
@@ -140,8 +138,6 @@ jobs:
     needs: build-agno
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: "recursive"
 
       - name: Download agno artifact
         uses: actions/download-artifact@v4
