@@ -653,6 +653,19 @@ paths:
       summary: Dispatch a folder scan
       tags:
       - Folder
+  /health:
+    get:
+      operationId: GetServerHealthStatus
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TowerHealth"
+          description: Health status
+      summary: Get server health status
+      tags:
+      - Towers
   /info:
     get:
       operationId: GetServerInfo
@@ -3208,6 +3221,18 @@ components:
       - owner
       - remoteUsing
       - token
+      type: object
+    TowerHealth:
+      example:
+        status: healthy
+      properties:
+        status:
+          enum:
+          - healthy
+          - unhealthy
+          type: string
+      required:
+      - status
       type: object
     TowerInfo:
       example:

@@ -17,6 +17,21 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// GetServerHealthStatus godoc
+//
+//	@ID			GetServerHealthStatus
+//
+//	@Summary	Get server health status
+//	@Tags		Towers
+//	@Produce	json
+//	@Success	200 {object}	structs.TowerHealth 	"Health status"
+//	@Router		/health [get]
+func GetServerHealthStatus(ctx context_service.RequestContext) {
+	ctx.JSON(http.StatusOK, structs.TowerHealth{
+		Status: "Healthy",
+	})
+}
+
 // GetServerInfo godoc
 //
 //	@ID			GetServerInfo

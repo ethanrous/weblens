@@ -29,6 +29,7 @@ services:
     image: mongodb/mongodb-community-server:8.2-ubi9
     container_name: weblens-${MONGO_PROJECT_NAME}-mongod
     hostname: mongod.search-community
+    user: "${UID}:${GID}"
     command:
       - mongod
       - --replSet=rs0
@@ -80,6 +81,7 @@ services:
     ports:
       - ${MONGOT_HOST_PORT_GRPC:-27028}:27028
       - ${MONGOT_HOST_PORT_METRICS:-9946}:9946
+      - ${MONGOT_HEALTHCHECK_PORT:-38081}:8080
 
 networks:
   default:

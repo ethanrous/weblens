@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures'
+import { test, expect, DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_PASSWORD } from './fixtures'
 
 /**
  * Tests for the login page and authentication flow.
@@ -14,8 +14,8 @@ test.describe('Login Page', () => {
     test('should login with valid credentials', async ({ page }) => {
         await page.goto('/login')
 
-        await page.getByPlaceholder('Username').fill('test_admin')
-        await page.getByPlaceholder('Password').fill('password123')
+        await page.getByPlaceholder('Username').fill(DEFAULT_ADMIN_USERNAME)
+        await page.getByPlaceholder('Password').fill(DEFAULT_ADMIN_PASSWORD)
         await page.getByRole('button', { name: 'Sign in' }).click()
 
         await page.waitForURL('**/files/home')
@@ -24,7 +24,7 @@ test.describe('Login Page', () => {
     test('should show error for invalid credentials', async ({ page }) => {
         await page.goto('/login')
 
-        await page.getByPlaceholder('Username').fill('test_admin')
+        await page.getByPlaceholder('Username').fill(DEFAULT_ADMIN_USERNAME)
         await page.getByPlaceholder('Password').fill('wrongpassword')
         await page.getByRole('button', { name: 'Sign in' }).click()
 
@@ -41,7 +41,7 @@ test.describe('Login Page', () => {
         await page.goto('/login')
 
         // Fill only username with a short password (< 6 chars)
-        await page.getByPlaceholder('Username').fill('test_admin')
+        await page.getByPlaceholder('Username').fill(DEFAULT_ADMIN_USERNAME)
         await page.getByPlaceholder('Password').fill('short')
 
         // Button should still be disabled
@@ -84,14 +84,10 @@ test.describe('Login Page', () => {
         await expect(page.getByRole('heading', { name: 'EBLENS' })).toHaveCount(1)
     })
 
-    test('should redirect to files/home when visiting login page while already authenticated', async ({ page }) => {
-        // Login first
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('test_admin')
-        await page.getByPlaceholder('Password').fill('password123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
-
+    test('should redirect to files/home when visiting login page while already authenticated', async ({
+        page,
+        login: _login,
+    }) => {
         // Try to go back to login page — should redirect to /files/home
         await page.goto('/login')
         await page.waitForURL('**/files/home')

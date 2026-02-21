@@ -69,9 +69,7 @@ export async function GetTrashChildIds(): Promise<string[]> {
         return []
     }
 
-    const childIds = folder.children.map((file) => file.id).filter((id) => id !== undefined)
-
-    return childIds
+    return folder.children.map((file) => file.id).filter((id) => id !== undefined)
 }
 
 export async function handleDownload(

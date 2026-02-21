@@ -1,8 +1,10 @@
 #!/bin/bash
 
 does_agno_exist() {
-    local agno_lib_path="${WEBLENS_ROOT}/services/media/agno/lib/agno.h"
-    if [[ -f "$agno_lib_path" ]]; then
+    local agno_lib_dir="${WEBLENS_ROOT}/services/media/agno/lib"
+    local agno_header_path="$agno_lib_dir/agno.h"
+    local agno_lib_path="$agno_lib_dir/libagno.a"
+    if [[ -f "$agno_header_path" ]] && [[ -f "$agno_lib_path" ]]; then
         return 0
     fi
 

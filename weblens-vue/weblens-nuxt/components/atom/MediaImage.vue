@@ -1,7 +1,7 @@
 <template>
     <div
         ref="imageContainer"
-        :class="{ 'media-image relative flex h-full w-full items-center justify-center': true }"
+        :class="{ 'relative flex h-full w-full items-center justify-center': true }"
     >
         <IconExclamationCircle
             v-if="imgError"
@@ -10,7 +10,7 @@
         <img
             v-if="media && quality === PhotoQuality.HighRes"
             :class="{
-                'absolute bg-center bg-no-repeat': true,
+                'media-image-highres absolute bg-center bg-no-repeat': true,
                 'object-contain': contain,
                 'object-cover': !contain,
                 hidden: !highResLoaded,
@@ -31,7 +31,7 @@
         />
         <div
             v-if="media && !highResLoaded && shouldLoad"
-            :class="{ 'animate-fade-in': true }"
+            :class="{ 'media-image-lowres animate-fade-in': true }"
             :style="{
                 width: imageSize.width,
                 height: imageSize.height,

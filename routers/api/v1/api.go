@@ -29,6 +29,7 @@ func Routes(_ context_service.AppContext) *router.Router {
 		router.ShareInjector,
 	)
 
+	r.Get("/health", tower_api.GetServerHealthStatus)
 	r.Get("/info", tower_api.GetServerInfo)
 	r.Get("/ws", websocket.Connect)
 

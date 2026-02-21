@@ -1,7 +1,7 @@
 <template>
     <div
         :class="{
-            'xs:hidden hover:text-text-primary text-text-tertiary absolute top-1/2 left-0 z-[70] flex max-w-4 cursor-pointer justify-center transition-[left] duration-300': true,
+            'xs:hidden hover:text-text-primary text-text-tertiary absolute top-1/2 left-0 z-70 flex max-w-4 cursor-pointer justify-center transition-[left] duration-300': true,
             'bg-card-background-primary hover:bg-card-background-hover border-card-background-hover left-60 max-w-8 rounded border shadow-sm':
                 forceOpen,
         }"
@@ -12,8 +12,9 @@
     </div>
 
     <div
+        id="global-left-sidebar"
         :class="{
-            'bg-background-primary xs:static absolute z-[60] flex h-full w-0 shrink-0 flex-col gap-1 overflow-hidden border py-4 transition-[width,padding] duration-300': true,
+            'bg-background-primary xs:static absolute z-60 flex h-full w-0 shrink-0 flex-col gap-1 overflow-hidden border py-4 transition-[width,padding] duration-300': true,
             'xs:w-64': !collapsed,
             'xs:w-16': collapsed,
             'xs:py-2 w-64': forceOpen,
@@ -24,7 +25,7 @@
                 'xs:static absolute flex h-full w-0 flex-col gap-2 px-4 transition-[width] duration-300': true,
                 'xs:w-64 xs:px-4': !collapsed,
                 'xs:w-16 xs:px-2': collapsed,
-                '!w-64 px-4 !duration-100': forceOpen,
+                'w-64! px-4 duration-100!': forceOpen,
             }"
         >
             <WeblensButton

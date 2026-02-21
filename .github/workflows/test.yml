@@ -14,12 +14,52 @@ on:
     branches: ["main"]
 
 jobs:
-  test-server:
+  build-agno:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        if: steps.cache-agno-binary.outputs.cache-hit != 'true'
         with:
           submodules: "recursive"
+
+      - name: Cache built Agno binary
+        id: cache-agno-binary
+        uses: actions/cache@v5
+        with:
+          key: agno-binary-${{ hashFiles('agno/**') }}
+          path: ./services/media/agno/lib/
+
+      - name: Cache Rust dependencies and build artifacts
+        if: steps.cache-agno-binary.outputs.cache-hit != 'true'
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            ./agno -> ./agno/target
+
+      - name: Build Agno
+        if: steps.cache-agno-binary.outputs.cache-hit != 'true'
+        run: |
+          export WEBLENS_VERBOSE=true
+          source ./scripts/lib/all.bash
+          build_agno
+
+      - name: Upload Agno binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: agno
+          path: ./services/media/agno/lib/
+
+  test-server:
+    runs-on: ubuntu-latest
+    needs: build-agno
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download agno artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: agno
+          path: ./services/media/agno/lib/
 
       - uses: docker/setup-docker-action@v4
 
@@ -32,6 +72,23 @@ jobs:
           version: 10.18.3
           run_install: |
             - cwd: weblens-vue/weblens-nuxt
+            - cwd: api/ts
+
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@main
+
+      - name: Ensure swaggo up to date
+        run: |
+          go install github.com/swaggo/swag/cmd/swag@latest
+          brew install openapi-generator
+          pnpm install -g tsup
+
+          make swag
+          # This is not meant to be ./api/docs, it is ./api and ./docs. 2 Different directories
+          if ! git diff --exit-code -- api/ docs/; then
+            echo "API docs are out of date. Please run 'make swag' and commit the changes."
+            exit 1
+          fi
 
       - name: Run Tests
         run: |
@@ -57,12 +114,13 @@ jobs:
         with:
           version: 10.18.3
           run_install: |
+            - cwd: api/ts
             - cwd: weblens-vue/weblens-nuxt
 
-      - name: setup agno deps
+      - name: Copy agno header
         run: |
-          source ./scripts/lib/all.bash
-          build_agno
+          mkdir -p ./services/media/agno/lib/
+          cp ./agno/lib/agno.h ./services/media/agno/lib/
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
@@ -77,10 +135,15 @@ jobs:
 
   test-frontend:
     runs-on: ubuntu-latest
+    needs: build-agno
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download agno artifact
+        uses: actions/download-artifact@v4
         with:
-          submodules: "recursive"
+          name: agno
+          path: ./services/media/agno/lib/
 
       - uses: docker/setup-docker-action@v4
 
@@ -98,21 +161,30 @@ jobs:
         working-directory: weblens-vue/weblens-nuxt
         run: pnpm exec playwright install --with-deps chromium
 
+      - name: Preload mongo images
+        run: docker pull mongodb/mongodb-community-server:8.2-ubi9 && docker pull mongodb/mongodb-community-search:0.53.1
+
       - name: Run E2E tests
         run: |
           sudo systemctl restart docker
+          if [[ ! -f ./services/media/agno/lib/libagno.a ]]; then
+            echo "Agno binary not found. Please ensure the build-agno job completed successfully."
+            exit 1
+          fi
 
           export WEBLENS_VERBOSE=true
 
           ./scripts/test-playwright.bash
           exit $?
 
-      - name: Upload E2E report
+      - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          path: _build/playwright/report/
+          path: |
+            _build/playwright/
+            _build/logs/playwright/
           retention-days: 14
 
   test-build-container:

@@ -77,10 +77,69 @@ launch_mongo() {
         echo "--- All containers ---" >&2
         dockerc ps -a >&2 2>&1 || true
         exit 1
+    else
+        # Wait for mongod to be healthy before returning
+        local retries=30
+        local wait_time=1
+        local count=0
+        until docker inspect --format='{{json .State.Health}}' weblens-"$stack_name"-mongod; do
+            if [[ $count -ge $retries ]]; then
+                echo "MongoDB container failed to become healthy after $((retries * wait_time)) seconds. Check container logs for details." >&2
+                exit 1
+            fi
+            sleep $wait_time
+            ((count++))
+        done
+
+        # Wait for mongot to be healthy before returning
+        count=0
+        MONGOT_HEALTHCHECK_PORT=${MONGOT_HEALTHCHECK_PORT:-38081}
+        until curl --fail http://127.0.0.1:"${MONGOT_HEALTHCHECK_PORT}"/health; do
+            if [[ $count -ge $retries ]]; then
+                echo "Mongot container failed to become healthy after $((retries * wait_time)) seconds. Check container logs for details." >&2
+                docker ps -a >&2
+                docker logs "weblens-$stack_name-mongot" --tail 200 >&2
+                exit 1
+            fi
+            sleep $wait_time
+            ((count++))
+        done
     fi
 }
-
 export -f launch_mongo
+
+dump_mongo_logs() {
+    local stack_name=""
+    local logfile=""
+    while [ "${1:-}" != "" ]; do
+        case "$1" in
+        "--stack-name")
+            shift
+            stack_name="$1"
+            ;;
+        "--logfile")
+            shift
+            logfile="$1"
+            ;;
+        *)
+            echo "Unknown argument: $1"
+            return 1
+            ;;
+        esac
+        shift
+    done
+
+    if [[ -z "$stack_name" ]]; then
+        echo "dump_mongo_logs requires a stack_name argument. Aborting."
+        return 1
+    fi
+
+    echo "Dumping MongoDB logs for stack [$stack_name] to [$logfile] ..."
+
+    dockerc logs "weblens-$stack_name-mongod" >"$logfile-mongod.log" || true
+    dockerc logs "weblens-$stack_name-mongot" >"$logfile-mongot.log" || true
+}
+export -f dump_mongo_logs
 
 # Stop all mongo containers and remove mongo volume, if specified
 cleanup_mongo() {

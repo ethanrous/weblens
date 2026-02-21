@@ -430,6 +430,14 @@ interface TokenInfo {
     'remoteUsing': string;
     'token': string;
 }
+interface TowerHealth {
+    'status': TowerHealthStatusEnum;
+}
+declare const TowerHealthStatusEnum: {
+    readonly Healthy: "healthy";
+    readonly Unhealthy: "unhealthy";
+};
+type TowerHealthStatusEnum = typeof TowerHealthStatusEnum[keyof typeof TowerHealthStatusEnum];
 interface TowerInfo {
     'backupSize': number;
     /**
@@ -2343,6 +2351,13 @@ declare const TowersApiAxiosParamCreator: (configuration?: Configuration) => {
     getRunningTasks: (options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
+     * @summary Get server health status
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getServerHealthStatus: (options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    /**
+     *
      * @summary Get server info
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
@@ -2437,6 +2452,13 @@ declare const TowersApiFp: (configuration?: Configuration) => {
      * @throws {RequiredError}
      */
     getRunningTasks(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<TaskInfo>>>;
+    /**
+     *
+     * @summary Get server health status
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getServerHealthStatus(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TowerHealth>>;
     /**
      *
      * @summary Get server info
@@ -2535,6 +2557,13 @@ declare const TowersApiFactory: (configuration?: Configuration, basePath?: strin
     getRunningTasks(options?: RawAxiosRequestConfig): AxiosPromise<Array<TaskInfo>>;
     /**
      *
+     * @summary Get server health status
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getServerHealthStatus(options?: RawAxiosRequestConfig): AxiosPromise<TowerHealth>;
+    /**
+     *
      * @summary Get server info
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
@@ -2629,6 +2658,13 @@ declare class TowersApi extends BaseAPI {
      * @throws {RequiredError}
      */
     getRunningTasks(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TaskInfo[], any, {}>>;
+    /**
+     *
+     * @summary Get server health status
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getServerHealthStatus(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TowerHealth, any, {}>>;
     /**
      *
      * @summary Get server info
@@ -3081,4 +3117,4 @@ type WLAPI = {
 };
 declare function WeblensAPIFactory(apiEndpoint: string): WLAPI;
 
-export { type APIKeyParams, APIKeysApi, APIKeysApiAxiosParamCreator, APIKeysApiFactory, APIKeysApiFp, type AddUserParams, type BackupInfo, type Bundle, type CreateFolderBody, FeatureFlagsApi, FeatureFlagsApiAxiosParamCreator, FeatureFlagsApiFactory, FeatureFlagsApiFp, type FileActionInfo, type FileInfo, type FileShareParams, FilesApi, FilesApiAxiosParamCreator, FilesApiFactory, FilesApiFp, type FilesListParams, FolderApi, FolderApiAxiosParamCreator, FolderApiFactory, FolderApiFp, type FolderInfo, type FsFilepath, GetFolderSortOrderEnum, GetFolderSortPropEnum, GetMediaImageQualityEnum, type HistoryFileAction, type LoginBody, MediaApi, MediaApiAxiosParamCreator, MediaApiFactory, MediaApiFp, type MediaBatchInfo, type MediaBatchParams, MediaBatchParamsSortEnum, type MediaIDsParams, type MediaInfo, type MediaTypeInfo, type MediaTypesInfo, type MoveFilesParams, type NewFileParams, type NewFilesInfo, type NewFilesParams, type NewServerParams, type NewUploadInfo, type NewUploadParams, type NewUserParams, type PasswordUpdateParams, type PermissionsInfo, type PermissionsParams, type RestoreFilesBody, type RestoreFilesInfo, SearchByFilenameSortOrderEnum, SearchByFilenameSortPropEnum, ShareApi, ShareApiAxiosParamCreator, ShareApiFactory, ShareApiFp, type ShareInfo, type StructsInitServerParams, type StructsSetConfigParam, type TakeoutInfo, type TaskInfo, type TokenInfo, type TowerInfo, TowersApi, TowersApiAxiosParamCreator, TowersApiFactory, TowersApiFp, type UpdateFileParams, type UserInfo, type UserInfoArchive, UsersApi, UsersApiAxiosParamCreator, UsersApiFactory, UsersApiFp, type WLAPI, type WLResponseInfo, WeblensAPIFactory, type WeblensErrorInfo };
+export { type APIKeyParams, APIKeysApi, APIKeysApiAxiosParamCreator, APIKeysApiFactory, APIKeysApiFp, type AddUserParams, type BackupInfo, type Bundle, type CreateFolderBody, FeatureFlagsApi, FeatureFlagsApiAxiosParamCreator, FeatureFlagsApiFactory, FeatureFlagsApiFp, type FileActionInfo, type FileInfo, type FileShareParams, FilesApi, FilesApiAxiosParamCreator, FilesApiFactory, FilesApiFp, type FilesListParams, FolderApi, FolderApiAxiosParamCreator, FolderApiFactory, FolderApiFp, type FolderInfo, type FsFilepath, GetFolderSortOrderEnum, GetFolderSortPropEnum, GetMediaImageQualityEnum, type HistoryFileAction, type LoginBody, MediaApi, MediaApiAxiosParamCreator, MediaApiFactory, MediaApiFp, type MediaBatchInfo, type MediaBatchParams, MediaBatchParamsSortEnum, type MediaIDsParams, type MediaInfo, type MediaTypeInfo, type MediaTypesInfo, type MoveFilesParams, type NewFileParams, type NewFilesInfo, type NewFilesParams, type NewServerParams, type NewUploadInfo, type NewUploadParams, type NewUserParams, type PasswordUpdateParams, type PermissionsInfo, type PermissionsParams, type RestoreFilesBody, type RestoreFilesInfo, SearchByFilenameSortOrderEnum, SearchByFilenameSortPropEnum, ShareApi, ShareApiAxiosParamCreator, ShareApiFactory, ShareApiFp, type ShareInfo, type StructsInitServerParams, type StructsSetConfigParam, type TakeoutInfo, type TaskInfo, type TokenInfo, type TowerHealth, TowerHealthStatusEnum, type TowerInfo, TowersApi, TowersApiAxiosParamCreator, TowersApiFactory, TowersApiFp, type UpdateFileParams, type UserInfo, type UserInfoArchive, UsersApi, UsersApiAxiosParamCreator, UsersApiFactory, UsersApiFp, type WLAPI, type WLResponseInfo, WeblensAPIFactory, type WeblensErrorInfo };

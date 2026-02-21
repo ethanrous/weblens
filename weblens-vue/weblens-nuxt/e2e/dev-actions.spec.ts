@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures'
+import { test, expect, DEFAULT_ADMIN_USERNAME } from './fixtures'
 
 /**
  * Tests for developer page actions and admin functionality.
@@ -12,14 +12,7 @@ import { test, expect } from './fixtures'
  * - pages/settings/users.vue (user activation, deletion)
  */
 test.describe('Developer Page Actions', () => {
-    test.describe.configure({ mode: 'serial' })
-
-    test.beforeEach(async ({ page }) => {
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('test_admin')
-        await page.getByPlaceholder('Password').fill('password123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
+    test.beforeEach(async ({ page, login: _login }) => {
         await page.goto('/settings/dev')
         await page.waitForURL('**/settings/dev')
     })
@@ -29,13 +22,9 @@ test.describe('Developer Page Actions', () => {
         await page.getByRole('button', { name: 'Scan All Media' }).click()
 
         // Wait a moment for the scan to start
-        await page.waitForTimeout(1000)
 
         // Click Refresh to update task list
         await page.getByRole('button', { name: 'Refresh' }).click()
-
-        // Either tasks appear or "No running tasks" remains
-        await page.waitForTimeout(500)
     })
 
     test('should toggle HDIR image processing', async ({ page }) => {
@@ -45,14 +34,12 @@ test.describe('Developer Page Actions', () => {
 
         // Click to toggle — verify the click doesn't error
         await hdirButton.click()
-        await page.waitForTimeout(1000)
 
         // The button should still be visible after the toggle attempt
         await expect(hdirButton).toBeVisible()
 
         // Click again to restore state
         await hdirButton.click()
-        await page.waitForTimeout(500)
     })
 
     test('should enable trace logging', async ({ page }) => {
@@ -62,7 +49,6 @@ test.describe('Developer Page Actions', () => {
         const isDisabled = await traceButton.isDisabled()
         if (!isDisabled) {
             await traceButton.click()
-            await page.waitForTimeout(500)
 
             // After enabling, the button should be disabled (already at trace level)
             await expect(traceButton).toBeDisabled()
@@ -71,35 +57,19 @@ test.describe('Developer Page Actions', () => {
 
     test('should flush cache', async ({ page }) => {
         await page.getByRole('button', { name: 'Flush Cache' }).click()
-
-        // Just verify it doesn't error
-        await page.waitForTimeout(500)
     })
 
     test('should click clean media', async ({ page }) => {
         await page.getByRole('button', { name: 'Clean Media' }).click()
-
-        // Wait for it to complete
-        await page.waitForTimeout(500)
     })
 
     test('should click clear HDIR data', async ({ page }) => {
         await page.getByRole('button', { name: 'Clear Media HDIR Data' }).click()
-
-        // Wait for it to complete
-        await page.waitForTimeout(500)
     })
 })
 
 test.describe('User Management Actions', () => {
-    test.describe.configure({ mode: 'serial' })
-
-    test.beforeEach(async ({ page }) => {
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('test_admin')
-        await page.getByPlaceholder('Password').fill('password123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
+    test.beforeEach(async ({ page, login: _login }) => {
         await page.goto('/settings/users')
         await page.waitForURL('**/settings/users')
     })
@@ -113,7 +83,7 @@ test.describe('User Management Actions', () => {
         await expect(page.getByRole('columnheader', { name: 'Online' })).toBeVisible()
 
         // The admin user should be listed
-        await expect(page.getByRole('cell', { name: 'test_admin' })).toBeVisible()
+        await expect(page.getByRole('cell', { name: DEFAULT_ADMIN_USERNAME })).toBeVisible()
     })
 
     test('should delete non-admin user if one exists', async ({ page }) => {
@@ -129,9 +99,6 @@ test.describe('User Management Actions', () => {
 
             // Click the last trash button (should be the one for test_user_e2e)
             await trashButtons.last().click()
-
-            // Should see the user disappear
-            await page.waitForTimeout(1000)
         }
     })
 })

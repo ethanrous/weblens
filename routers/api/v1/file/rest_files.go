@@ -293,7 +293,7 @@ func GetFolderHistory(ctx context_service.RequestContext) {
 		return
 	}
 
-	actions, err := history.GetActionsAtPathAfter(ctx, file.GetPortablePath(), time.Time{}, false)
+	actions, err := history.GetActionsAtPathAfter(ctx, file.GetPortablePath(), time.Time{}, true)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 

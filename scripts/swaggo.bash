@@ -19,6 +19,8 @@ if [[ ! -e ./scripts ]]; then
     exit 1
 fi
 
+mkdir -p ./_build/logs
+
 printf "Generating swagger docs..."
 if ! swag init --pd -g router.go -d './routers/router,./routers/api/v1' -q &>./_build/logs/swag.log; then
     echo "FAILED"

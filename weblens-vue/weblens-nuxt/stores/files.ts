@@ -255,9 +255,13 @@ const useFilesStore = defineStore('files', () => {
             children.value.splice(index, 1)
         }
 
+        if (!newFile.permissions && newFile.ParentID() === locationStore.activeFolderID) {
+            newFile.permissions = activeFile.value?.permissions
+        }
+
         children.value.push(newFile)
 
-        children.value = [...children.value]
+        triggerRef(children)
     }
 
     function removeFiles(...fileIDs: string[]) {

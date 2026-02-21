@@ -1,8 +1,9 @@
 <template>
     <div
+        id="file-history-sidebar"
         :class="{
             'min-w-0 border-l transition-[width]': true,
-            'h-full w-[40rem]': locationStore.isHistoryOpen,
+            'h-full w-160 min-w-160': locationStore.isHistoryOpen,
             'w-0': !locationStore.isHistoryOpen,
         }"
     >
@@ -56,7 +57,7 @@ const { data: historyData } = useAsyncData(
         }
 
         let history = await useWeblensAPI()
-            .FoldersAPI.getFolderHistory(locationStore.activeFolderID, 0)
+            .FoldersAPI.getFolderHistory(locationStore.activeFolderID)
             .then((res) => {
                 return res.data
             })

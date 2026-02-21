@@ -56,6 +56,7 @@ docs/StructsSetConfigParam.md
 docs/TakeoutInfo.md
 docs/TaskInfo.md
 docs/TokenInfo.md
+docs/TowerHealth.md
 docs/TowerInfo.md
 docs/TowersAPI.md
 docs/UpdateFileParams.md
@@ -105,6 +106,7 @@ model_structs_set_config_param.go
 model_takeout_info.go
 model_task_info.go
 model_token_info.go
+model_tower_health.go
 model_tower_info.go
 model_update_file_params.go
 model_user_info.go

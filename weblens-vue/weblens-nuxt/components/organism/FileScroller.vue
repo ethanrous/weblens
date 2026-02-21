@@ -5,8 +5,6 @@
     >
         <FileContextMenu />
 
-        <RewindIndicator />
-
         <span
             v-if="!filesStore.searchUpToDate && filesStore.searchRecurively && locationStore.search !== ''"
             :class="{ 'text-text-secondary m-auto inline-flex items-center gap-1': true }"
@@ -83,7 +81,6 @@ import FileContextMenu from './FileContextMenu.vue'
 import Loader from '../atom/Loader.vue'
 import useLocationStore from '~/stores/location'
 import NoResults from '../molecule/NoResults.vue'
-import RewindIndicator from '../molecule/RewindIndicator.vue'
 import ErrorCard from '../molecule/ErrorCard.vue'
 
 const filesStore = useFilesStore()

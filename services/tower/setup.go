@@ -27,10 +27,6 @@ func initTower(ctx context.Context, cnf config.Provider) error {
 		return context_service.ErrNoContext
 	}
 
-	// Check if initialization is needed based on the configured role. If the
-	// config has an init role, and the tower is uninitialized, we set up the server automatically.
-	initRole := tower_model.Role(cnf.InitRole)
-
 	localTower, err := tower_model.GetLocal(ctx)
 	if err != nil {
 		return err
@@ -40,6 +36,10 @@ func initTower(ctx context.Context, cnf config.Provider) error {
 	if localTower.Role != tower_model.RoleUninitialized {
 		return nil
 	}
+
+	// Check if initialization is needed based on the configured role. If the
+	// config has an init role, and the tower is uninitialized, we set up the server automatically.
+	initRole := tower_model.Role(cnf.InitRole)
 
 	// Check for required files based on the init role. If they are not present, defer initialization.
 	switch initRole {

@@ -916,6 +916,26 @@ const docTemplate = `{
                 }
             }
         },
+        "/health": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Towers"
+                ],
+                "summary": "Get server health status",
+                "operationId": "GetServerHealthStatus",
+                "responses": {
+                    "200": {
+                        "description": "Health status",
+                        "schema": {
+                            "$ref": "#/definitions/TowerHealth"
+                        }
+                    }
+                }
+            }
+        },
         "/info": {
             "get": {
                 "produces": [
@@ -3810,6 +3830,21 @@ const docTemplate = `{
                 },
                 "token": {
                     "type": "string"
+                }
+            }
+        },
+        "TowerHealth": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "healthy",
+                        "unhealthy"
+                    ]
                 }
             }
         },

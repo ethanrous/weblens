@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures'
+import { test, expect, login, createUser } from './fixtures'
 
 /**
  * Tests for multi-user scenarios and non-admin user functionality.
@@ -11,39 +11,16 @@ import { test, expect } from './fixtures'
  * - Login error edge cases
  */
 test.describe('Multi-User Scenarios', () => {
-    test.describe.configure({ mode: 'serial' })
-
-    test('should create a test user for multi-user tests', async ({ page }) => {
-        // Login as admin
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('test_admin')
-        await page.getByPlaceholder('Password').fill('password123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
-
-        // Go to user settings
-        await page.goto('/settings/users')
-        await page.waitForURL('**/settings/users')
-
-        // Create a new user
-        await page.getByPlaceholder('Username').fill('regular_user')
-        await page.getByPlaceholder('Password').fill('regularpass123')
-        await page.getByRole('button', { name: 'Create User' }).click()
-
-        // Verify the user was created
-        await expect(page.getByText('regular_user')).toBeVisible({ timeout: 15000 })
-
-        // Log out
-        await page.getByRole('button', { name: 'Log Out' }).click()
-        await page.waitForURL('**/login')
+    test.beforeEach(async ({ page, login: _login }) => {
+        await createUser(page, 'regular_user', 'regularpass123')
     })
 
     test('should login as regular user and see limited settings', async ({ page }) => {
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('regular_user')
-        await page.getByPlaceholder('Password').fill('regularpass123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
+        // Log out of admin session and log in as regular_user
+        await page.goto('/settings')
+        await page.getByRole('button', { name: 'Log Out' }).click()
+        await page.waitForURL('**/login')
+        await login(page, 'regular_user', 'regularpass123')
 
         // Navigate to settings
         await page.getByRole('button', { name: 'Settings' }).click()
@@ -59,17 +36,14 @@ test.describe('Multi-User Scenarios', () => {
 
         // The "Admin" divider should also not be visible
         await expect(page.getByText('Admin', { exact: true })).not.toBeVisible()
-
-        // Log out should still work
-        await expect(page.getByRole('button', { name: 'Log Out' })).toBeVisible()
     })
 
     test('should navigate regular user file browser and create folder', async ({ page }) => {
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('regular_user')
-        await page.getByPlaceholder('Password').fill('regularpass123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
+        // Log out of admin session and log in as regular_user
+        await page.goto('/settings')
+        await page.getByRole('button', { name: 'Log Out' }).click()
+        await page.waitForURL('**/login')
+        await login(page, 'regular_user', 'regularpass123')
 
         // Should see the sidebar and file browser
         await expect(page.getByRole('button', { name: 'Home' })).toBeVisible()
@@ -102,11 +76,11 @@ test.describe('Multi-User Scenarios', () => {
     })
 
     test('should validate password change form as regular user', async ({ page }) => {
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('regular_user')
-        await page.getByPlaceholder('Password').fill('regularpass123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
+        // Log out of admin session and log in as regular_user
+        await page.goto('/settings')
+        await page.getByRole('button', { name: 'Log Out' }).click()
+        await page.waitForURL('**/login')
+        await login(page, 'regular_user', 'regularpass123')
 
         // Go to account settings
         await page.goto('/settings/account')
@@ -131,31 +105,5 @@ test.describe('Multi-User Scenarios', () => {
 
         // Also verify the display name input is visible
         await expect(page.getByPlaceholder('Jonh Smith')).toBeVisible()
-
-        // Log out
-        await page.getByRole('button', { name: 'Log Out' }).click()
-        await page.waitForURL('**/login')
-    })
-
-    test('should clean up test user', async ({ page }) => {
-        // Login as admin to delete the user
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('test_admin')
-        await page.getByPlaceholder('Password').fill('password123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
-
-        await page.goto('/settings/users')
-        await page.waitForURL('**/settings/users')
-
-        // Find and delete regular_user
-        const userRow = page.getByText('regular_user')
-        if (await userRow.isVisible()) {
-            const trashButtons = page.locator('[data-flavor="danger"]').filter({
-                has: page.locator('.tabler-icon-trash'),
-            })
-            await trashButtons.last().click()
-            await page.waitForTimeout(1000)
-        }
     })
 })

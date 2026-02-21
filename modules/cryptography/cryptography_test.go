@@ -125,7 +125,7 @@ func TestHashString(t *testing.T) {
 
 func TestHashUserPassword(t *testing.T) {
 	// Use minimal bcrypt cost for faster tests
-	ctx := context.WithValue(context.Background(), cryptography.BcryptDifficultyCtxKey, 4)
+	ctx := context.WithValue(context.Background(), cryptography.BcryptDifficultyCtxKey, 1)
 
 	t.Run("hashes password", func(t *testing.T) {
 		hash, err := cryptography.HashUserPassword(ctx, "password123")
@@ -146,7 +146,7 @@ func TestHashUserPassword(t *testing.T) {
 
 func TestVerifyUserPassword(t *testing.T) {
 	// Use minimal bcrypt cost for faster tests
-	ctx := context.WithValue(context.Background(), cryptography.BcryptDifficultyCtxKey, 4)
+	ctx := context.WithValue(context.Background(), cryptography.BcryptDifficultyCtxKey, 1)
 
 	t.Run("verifies correct password", func(t *testing.T) {
 		password := "correctPassword123"

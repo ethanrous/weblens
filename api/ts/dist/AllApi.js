@@ -54,7 +54,7 @@ var assertParamExists = function(functionName, paramName, paramValue) {
 function setFlattenedQueryParams(urlSearchParams, parameter, key = "") {
   if (parameter == null) return;
   if (typeof parameter === "object") {
-    if (Array.isArray(parameter)) {
+    if (Array.isArray(parameter) || parameter instanceof Set) {
       parameter.forEach((item) => setFlattenedQueryParams(urlSearchParams, item, key));
     } else {
       Object.keys(parameter).forEach(
@@ -74,10 +74,17 @@ var setSearchParams = function(url, ...objects) {
   setFlattenedQueryParams(searchParams, objects);
   url.search = searchParams.toString();
 };
+var replaceWithSerializableTypeIfNeeded = function(key, value) {
+  if (value instanceof Set) {
+    return Array.from(value);
+  } else {
+    return value;
+  }
+};
 var serializeDataIfNeeded = function(value, requestOptions, configuration) {
   const nonString = typeof value !== "string";
   const needsSerialization = nonString && configuration && configuration.isJsonMime ? configuration.isJsonMime(requestOptions.headers["Content-Type"]) : nonString;
-  return needsSerialization ? JSON.stringify(value !== void 0 ? value : {}) : value || "";
+  return needsSerialization ? JSON.stringify(value !== void 0 ? value : {}, replaceWithSerializableTypeIfNeeded) : value || "";
 };
 var toPathString = function(url) {
   return url.pathname + url.search + url.hash;
@@ -93,6 +100,10 @@ var createRequestFunction = function(axiosArgs, globalAxios3, BASE_PATH2, config
 // generated/api.ts
 var MediaBatchParamsSortEnum = {
   CreateDate: "createDate"
+};
+var TowerHealthStatusEnum = {
+  Healthy: "healthy",
+  Unhealthy: "unhealthy"
 };
 var APIKeysApiAxiosParamCreator = function(configuration) {
   return {
@@ -3576,6 +3587,31 @@ var TowersApiAxiosParamCreator = function(configuration) {
     },
     /**
      * 
+     * @summary Get server health status
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getServerHealthStatus: async (options = {}) => {
+      const localVarPath = `/health`;
+      const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+      let baseOptions;
+      if (configuration) {
+        baseOptions = configuration.baseOptions;
+      }
+      const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
+      const localVarHeaderParameter = {};
+      const localVarQueryParameter = {};
+      localVarHeaderParameter["Accept"] = "application/json";
+      setSearchParams(localVarUrlObj, localVarQueryParameter);
+      let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+      localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
+      return {
+        url: toPathString(localVarUrlObj),
+        options: localVarRequestOptions
+      };
+    },
+    /**
+     * 
      * @summary Get server info
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
@@ -3794,6 +3830,19 @@ var TowersApiFp = function(configuration) {
     },
     /**
      * 
+     * @summary Get server health status
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    async getServerHealthStatus(options) {
+      var _a, _b, _c;
+      const localVarAxiosArgs = await localVarAxiosParamCreator.getServerHealthStatus(options);
+      const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
+      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["TowersApi.getServerHealthStatus"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
+      return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+    },
+    /**
+     * 
      * @summary Get server info
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
@@ -3930,6 +3979,15 @@ var TowersApiFactory = function(configuration, basePath, axios) {
     },
     /**
      * 
+     * @summary Get server health status
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getServerHealthStatus(options) {
+      return localVarFp.getServerHealthStatus(options).then((request) => request(axios, basePath));
+    },
+    /**
+     * 
      * @summary Get server info
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
@@ -4045,6 +4103,15 @@ var TowersApi = class extends BaseAPI {
    */
   getRunningTasks(options) {
     return TowersApiFp(this.configuration).getRunningTasks(options).then((request) => request(this.axios, this.basePath));
+  }
+  /**
+   * 
+   * @summary Get server health status
+   * @param {*} [options] Override http request option.
+   * @throws {RequiredError}
+   */
+  getServerHealthStatus(options) {
+    return TowersApiFp(this.configuration).getServerHealthStatus(options).then((request) => request(this.axios, this.basePath));
   }
   /**
    * 
@@ -4897,6 +4964,7 @@ export {
   ShareApiAxiosParamCreator,
   ShareApiFactory,
   ShareApiFp,
+  TowerHealthStatusEnum,
   TowersApi,
   TowersApiAxiosParamCreator,
   TowersApiFactory,

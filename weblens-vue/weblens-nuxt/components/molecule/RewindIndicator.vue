@@ -1,5 +1,8 @@
 <template>
-    <div :class="{ 'absolute bottom-4 z-[99] flex w-full justify-center': true }">
+    <div
+        id="rewind-indicator"
+        :class="{ 'absolute bottom-4 z-99 flex w-full justify-center': true }"
+    >
         <h4
             v-if="locationStore.isViewingPast"
             :class="{

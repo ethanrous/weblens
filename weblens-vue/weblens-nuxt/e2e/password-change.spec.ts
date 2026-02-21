@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures'
+import { test, expect, DEFAULT_ADMIN_PASSWORD } from './fixtures'
 
 /**
  * Tests for password change functionality on the account settings page.
@@ -11,14 +11,7 @@ import { test, expect } from './fixtures'
  */
 
 test.describe('Password Change', () => {
-    test.describe.configure({ mode: 'serial' })
-
-    test.beforeEach(async ({ page }) => {
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('test_admin')
-        await page.getByPlaceholder('Password').fill('password123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
+    test.beforeEach(async ({ page, login: _login }) => {
         await page.goto('/settings/account')
         await page.waitForURL('**/settings/account')
     })
@@ -38,23 +31,19 @@ test.describe('Password Change', () => {
 
     test('should change password successfully and change back', async ({ page }) => {
         // Fill correct old password and new password
-        await page.getByPlaceholder('Old Password').fill('password123')
+        await page.getByPlaceholder('Old Password').fill(DEFAULT_ADMIN_PASSWORD)
         await page.getByPlaceholder('New Password').fill('newpass456')
 
         const updateBtn = page.getByRole('button', { name: 'Update Password' })
         await expect(updateBtn).toBeEnabled()
         await updateBtn.click()
 
-        // Wait for the password change to complete
-        await page.waitForTimeout(1000)
-
         // Inputs should be cleared after successful change
         await expect(page.getByPlaceholder('Old Password')).toHaveValue('')
 
         // Change back to original password
         await page.getByPlaceholder('Old Password').fill('newpass456')
-        await page.getByPlaceholder('New Password').fill('password123')
+        await page.getByPlaceholder('New Password').fill(DEFAULT_ADMIN_PASSWORD)
         await page.getByRole('button', { name: 'Update Password' }).click()
-        await page.waitForTimeout(1000)
     })
 })

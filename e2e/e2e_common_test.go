@@ -112,7 +112,7 @@ func setupTestServer(ctx context.Context, name string, settings ...config.Provid
 	startedChan := make(chan context_service.AppContext)
 	failedChan := make(chan error)
 
-	ctx = context.WithValue(ctx, cryptography.BcryptDifficultyCtxKey, 4)
+	ctx = context.WithValue(ctx, cryptography.BcryptDifficultyCtxKey, 1)
 
 	context.AfterFunc(ctx, func() {
 		releaseTestPort(cnf.Port)

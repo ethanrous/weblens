@@ -4,29 +4,33 @@ import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-const port = process.env.WEBLENS_TEST_PORT ?? '14100'
-const baseURL = `http://localhost:${port}`
+const baseURL = 'http://localhost:14100'
 
 const buildDir = path.resolve(__dirname, '../../_build/playwright')
 
+const defaultWorkers = 4
+
 export default defineConfig({
     testDir: './e2e/',
+    testIgnore: ['setup.spec.ts'],
     outputDir: path.join(buildDir, 'test-results'),
 
-    fullyParallel: false,
-    workers: 1,
-    retries: process.env.CI ? 3 : 0,
+    fullyParallel: true,
+    workers: process.env.PW_WORKERS ? parseInt(process.env.PW_WORKERS) : defaultWorkers,
+    retries: process.env.CI ? 2 : 0,
     maxFailures: process.env.CI ? undefined : 1,
 
+    globalSetup: './e2e/global-setup',
+
     reporter: [
-        ['list'],
+        ['line'],
         [
             'monocart-reporter',
             {
                 name: 'Weblens E2E Report',
                 outputFile: path.join(buildDir, 'report/index.html'),
                 coverage: {
-                    reports: ['v8', 'console-details'],
+                    reports: ['v8'],
                     entryFilter: (entry: { url: string }) => {
                         return entry.url.includes('/_nuxt/')
                     },
@@ -51,6 +55,7 @@ export default defineConfig({
             },
         ],
     ],
+    timeout: 30_000,
 
     // Folder creation relies on WebSocket updates which can take variable time.
     // Set a generous default assertion timeout to handle this.
@@ -63,42 +68,4 @@ export default defineConfig({
         trace: 'on-first-retry',
         screenshot: 'only-on-failure',
     },
-
-    projects: [
-        {
-            name: 'setup-flow',
-            testMatch: 'setup.spec.ts',
-        },
-        {
-            name: 'authenticated',
-            testMatch: [
-                'login.spec.ts',
-                'files.spec.ts',
-                'settings.spec.ts',
-                'navigation.spec.ts',
-                'file-operations.spec.ts',
-                'media-timeline.spec.ts',
-                'dev-actions.spec.ts',
-                'multi-user.spec.ts',
-                'presentation.spec.ts',
-                'context-menu.spec.ts',
-                'sort-and-view.spec.ts',
-                'share-browsing.spec.ts',
-                'search-filters.spec.ts',
-                'share-interactions.spec.ts',
-                'password-change.spec.ts',
-                'file-history.spec.ts',
-                'empty-states.spec.ts',
-                'download.spec.ts',
-                'keyboard-shortcuts.spec.ts',
-                'file-preview.spec.ts',
-                'presentation-info.spec.ts',
-                'upload-flow.spec.ts',
-            ],
-            dependencies: ['setup-flow'],
-        },
-    ],
-
-    globalSetup: './e2e/global-setup.ts',
-    globalTeardown: './e2e/global-teardown.ts',
 })

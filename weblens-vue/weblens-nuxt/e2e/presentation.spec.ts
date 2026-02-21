@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures'
+import { test, expect, createFolder } from './fixtures'
 
 /**
  * Tests for presentation/slideshow mode, error page, and additional
@@ -15,40 +15,9 @@ import { test, expect } from './fixtures'
  * - util/humanBytes.ts (via FormatSize)
  */
 test.describe('Presentation Mode', () => {
-    test.describe.configure({ mode: 'serial' })
-
-    test.beforeEach(async ({ page }) => {
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('test_admin')
-        await page.getByPlaceholder('Password').fill('password123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
-    })
-
-    test('should create test folders for presentation tests', async ({ page }) => {
-        await expect(page.locator('h3').filter({ hasText: 'Home' })).toBeVisible({ timeout: 15000 })
-        const newFolderBtn = page.getByRole('button', { name: 'New Folder' })
-        await expect(newFolderBtn).toBeEnabled({ timeout: 15000 })
-
-        // Create folders that we can use for presentation testing
-        await newFolderBtn.click()
-        const nameInput = page.locator('.file-context-menu input')
-        await expect(nameInput).toBeVisible()
-        await nameInput.fill('PresentationTestA')
-        await nameInput.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
-        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'PresentationTestA' })).toBeVisible({
-            timeout: 15000,
-        })
-        await expect(nameInput).not.toBeVisible({ timeout: 3000 })
-
-        await page.getByRole('button', { name: 'New Folder' }).click()
-        const nameInput2 = page.locator('.file-context-menu input')
-        await expect(nameInput2).toBeVisible()
-        await nameInput2.fill('PresentationTestB')
-        await nameInput2.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
-        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'PresentationTestB' })).toBeVisible({
-            timeout: 15000,
-        })
+    test.beforeEach(async ({ page, login: _login }) => {
+        await createFolder(page, 'PresentationTestA')
+        await createFolder(page, 'PresentationTestB')
     })
 
     test('should enter presentation mode by pressing Space after selecting a folder', async ({ page }) => {
@@ -170,19 +139,6 @@ test.describe('Presentation Mode', () => {
         await page.keyboard.press('Escape')
         await expect(presentationSidecar).not.toBeVisible({ timeout: 15000 })
     })
-
-    test('should clean up presentation test folders', async ({ page }) => {
-        const folders = ['PresentationTestA', 'PresentationTestB']
-        for (const folderName of folders) {
-            const card = page.locator('[id^="file-card-"]').filter({ hasText: folderName })
-
-            if (await card.isVisible()) {
-                await card.click({ button: 'right' })
-                await page.locator('#filebrowser-container').getByRole('button', { name: 'Trash' }).click()
-                await expect(card).not.toBeVisible({ timeout: 15000 })
-            }
-        }
-    })
 })
 
 test.describe('Error Page', () => {
@@ -199,14 +155,7 @@ test.describe('Error Page', () => {
         await expect(page.getByRole('button', { name: 'Go Home' })).toBeVisible()
     })
 
-    test('should navigate back to home from error page', async ({ page }) => {
-        // First login
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('test_admin')
-        await page.getByPlaceholder('Password').fill('password123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
-
+    test('should navigate back to home from error page', async ({ page, login: _login }) => {
         // Navigate to non-existent page
         await page.goto('/this-page-does-not-exist')
 
@@ -221,13 +170,7 @@ test.describe('Error Page', () => {
 })
 
 test.describe('Upload Progress and File Size Formatting', () => {
-    test.beforeEach(async ({ page }) => {
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('test_admin')
-        await page.getByPlaceholder('Password').fill('password123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
-    })
+    test.beforeEach(async ({ login: _login }) => {})
 
     test('should upload a larger file and see upload progress indicators', async ({ page }) => {
         // Create a moderately sized file (100KB) to exercise upload chunking

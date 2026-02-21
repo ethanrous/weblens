@@ -15,6 +15,6 @@ dockerc() {
         return
     fi
 
-    sudo -E docker "${@}"
+    env "UID=$(id -u)" "GID=$(id -g)" docker "${@}"
 }
 export -f dockerc

@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures'
+import { test, expect, createFolder } from './fixtures'
 
 /**
  * Tests for the file search and filtering system.
@@ -19,28 +19,8 @@ import { test, expect } from './fixtures'
  */
 
 test.describe('File Search', () => {
-    test.describe.configure({ mode: 'serial' })
-
-    test.beforeEach(async ({ page }) => {
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('test_admin')
-        await page.getByPlaceholder('Password').fill('password123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
-    })
-
-    test('should create a test folder for search tests', async ({ page }) => {
-        await expect(page.locator('h3').filter({ hasText: 'Home' })).toBeVisible({ timeout: 15000 })
-        const newFolderBtn = page.getByRole('button', { name: 'New Folder' })
-        await expect(newFolderBtn).toBeEnabled({ timeout: 15000 })
-        await newFolderBtn.click()
-        const nameInput = page.locator('.file-context-menu input')
-        await expect(nameInput).toBeVisible()
-        await nameInput.fill('SearchTestFolder')
-        await nameInput.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
-        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'SearchTestFolder' })).toBeVisible({
-            timeout: 15000,
-        })
+    test.beforeEach(async ({ page, login: _login }) => {
+        await createFolder(page, 'SearchTestFolder')
     })
 
     test('should filter files locally as user types without pressing Enter', async ({ page }) => {
@@ -53,7 +33,6 @@ test.describe('File Search', () => {
         await searchInput.fill('zzz_no_match_file_xyz')
 
         // Give Vue time to recompute the filtered list
-        await page.waitForTimeout(500)
 
         // With no matching files, file cards should disappear
         const fileCards = page.locator('[id^="file-card-"]')
@@ -68,7 +47,6 @@ test.describe('File Search', () => {
 
         // Clear search to restore file list
         await searchInput.clear()
-        await page.waitForTimeout(300)
         await expect(fileCards.first()).toBeVisible({ timeout: 15000 })
     })
 
@@ -78,7 +56,6 @@ test.describe('File Search', () => {
 
         // Open search filter panel via the filter icon
         await page.locator('.tabler-icon-filter-2').click()
-        await page.waitForTimeout(300)
 
         // Enable recursive search
         await expect(page.getByText('Search Recursively')).toBeVisible({ timeout: 3000 })
@@ -86,31 +63,31 @@ test.describe('File Search', () => {
 
         // Close filter panel
         await page.getByRole('button', { name: 'Done' }).first().click()
-        await page.waitForTimeout(300)
 
-        // Type search and press Enter to trigger the API-based recursive search
+        // Type search
         await searchInput.click()
         await searchInput.fill('SearchTest')
-        await searchInput.press('Enter')
 
         // Wait for API response
-        await page.waitForTimeout(2000)
+        const searchRequest = page.waitForResponse((res) => res.url().includes('/search') && res.status() === 200, {
+            timeout: 10000,
+        })
+
+        // Press Enter to trigger recursive search
+        await searchInput.press('Enter')
+
+        await searchRequest
 
         // Results should appear (the folder we created should match)
         const fileCards = page.locator('[id^="file-card-"]')
-        const noResults = page.getByText('No files found')
-        const hasResults = (await fileCards.count()) > 0
-        const hasNoResults = await noResults.isVisible({ timeout: 2000 }).catch(() => false)
-        expect(hasResults || hasNoResults).toBeTruthy()
+        expect(await fileCards.count()).toBe(1)
 
         // Clear search
         await searchInput.clear()
         await searchInput.press('Enter')
-        await page.waitForTimeout(500)
 
         // Disable recursive search to clean up
         await page.locator('.tabler-icon-filter-2').click()
-        await page.waitForTimeout(300)
         await page.getByText('Search Recursively').click()
         await page.getByRole('button', { name: 'Done' }).first().click()
     })
@@ -118,17 +95,14 @@ test.describe('File Search', () => {
     test('should toggle regex mode in search filters', async ({ page }) => {
         // Open filter panel
         await page.locator('.tabler-icon-filter-2').click()
-        await page.waitForTimeout(300)
 
         // Toggle regex ON
         const regexToggle = page.getByText('Search using Regular Expressions')
         await expect(regexToggle).toBeVisible({ timeout: 3000 })
         await regexToggle.click()
-        await page.waitForTimeout(200)
 
         // Toggle regex OFF
         await regexToggle.click()
-        await page.waitForTimeout(200)
 
         // Close filter panel
         await page.getByRole('button', { name: 'Done' }).first().click()
@@ -142,29 +116,12 @@ test.describe('File Search', () => {
         await searchInput.click()
         await searchInput.fill('SomeQuery')
         await searchInput.press('Enter')
-        await page.waitForTimeout(500)
 
         // Clear the input and submit empty search
         await searchInput.clear()
         await searchInput.press('Enter')
-        await page.waitForTimeout(500)
 
         // Files should be back to normal listing
         await expect(page.locator('[id^="file-card-"]').first()).toBeVisible({ timeout: 15000 })
-    })
-
-    test('should clean up search test folder', async ({ page }) => {
-        const card = page.locator('[id^="file-card-"]').filter({ hasText: 'SearchTestFolder' })
-
-        if (await card.isVisible({ timeout: 3000 }).catch(() => false)) {
-            await card.click({ button: 'right' })
-            const trashBtn = page.locator('#filebrowser-container').getByRole('button', { name: 'Trash' })
-            if (await trashBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-                await trashBtn.click()
-                await expect(card).not.toBeVisible({ timeout: 15000 })
-            } else {
-                await page.keyboard.press('Escape')
-            }
-        }
     })
 })

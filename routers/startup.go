@@ -15,6 +15,7 @@ import (
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/user"
 	"github.com/ethanrous/weblens/modules/config"
+	"github.com/ethanrous/weblens/modules/cryptography"
 	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/startup"
 	"github.com/ethanrous/weblens/modules/wlerrors"
@@ -89,6 +90,12 @@ func Start(opts StartupOpts) error {
 	// Create application context. This will be passed to all services and handlers,
 	// and acts as the main dependency injection mechanism.
 	appCtx := context_service.NewAppContext(context_service.NewBasicContext(ctx, logger))
+
+	if cnf.DangerouslyInsecurePasswordHashing {
+		appCtx.Log().Warn().Msg("Running with DANGEROUSLY_INSECURE_PASSWORD_HASHING=true, using minimal bcrypt difficulty for password hashing. DO NOT USE THIS IN PRODUCTION.")
+
+		appCtx = appCtx.WithValue(cryptography.BcryptDifficultyCtxKey, 1)
+	}
 
 	if cnf.DoProfile {
 		// Start pprof server for profiling and debugging.

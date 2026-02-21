@@ -22,15 +22,7 @@ const testMediaDir = path.resolve(__dirname, '../../../images/testMedia')
  */
 
 test.describe('Upload Flow', () => {
-    test.describe.configure({ mode: 'serial' })
-
-    test.beforeEach(async ({ page }) => {
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('test_admin')
-        await page.getByPlaceholder('Password').fill('password123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
-    })
+    test.beforeEach(async ({ login: _login }) => {})
 
     test('should upload a small text file and verify it appears', async ({ page }) => {
         await expect(page.locator('h3').filter({ hasText: 'Home' })).toBeVisible({ timeout: 15000 })
@@ -99,13 +91,22 @@ test.describe('Upload Flow', () => {
     })
 
     test('should show uploaded file sizes correctly formatted', async ({ page }) => {
-        // Check that all uploaded files have properly formatted sizes
-        const smallFile = page.locator('[id^="file-card-"]').filter({ hasText: 'upload-small.txt' })
+        // Upload a small file inline so this test is self-contained
+        const fileChooserPromise = page.waitForEvent('filechooser')
+        await page.getByRole('button', { name: 'Upload' }).click()
+        const fileChooser = await fileChooserPromise
 
-        if (await smallFile.isVisible({ timeout: 3000 }).catch(() => false)) {
-            // Small file should show bytes (e.g., "37B" or "38B")
-            await expect(smallFile.getByText(/\d+\s*B/)).toBeVisible()
-        }
+        await fileChooser.setFiles({
+            name: 'upload-size-check.txt',
+            mimeType: 'text/plain',
+            buffer: Buffer.from('Small file content for size check.'),
+        })
+
+        const smallFile = page.locator('[id^="file-card-"]').filter({ hasText: 'upload-size-check.txt' })
+        await expect(smallFile).toBeVisible({ timeout: 15000 })
+
+        // Small file should show bytes (e.g., "34B")
+        await expect(smallFile.getByText(/\d+\s*B/)).toBeVisible()
     })
 
     test('should upload media images and display visible thumbnails', async ({ page }) => {
@@ -126,14 +127,14 @@ test.describe('Upload Flow', () => {
         const dscCard = page.locator('[id^="file-card-"]').filter({ hasText: 'DSC08113.jpg' })
         const imgCard = page.locator('[id^="file-card-"]').filter({ hasText: 'IMG_3973.JPG' })
 
-        await expect(dscCard).toBeVisible({ timeout: 30000 })
-        await expect(imgCard).toBeVisible({ timeout: 30000 })
+        await expect(dscCard).toBeVisible({ timeout: 10_000 })
+        await expect(imgCard).toBeVisible({ timeout: 10_000 })
 
         // Wait for the backend to process the images and generate thumbnails.
         // FileCard renders MediaImage (div.media-image) when file.contentID is set
         // by the backend after scanning via a WebSocket FileUpdatedEvent.
-        await expect(dscCard.locator('.media-image')).toBeVisible({ timeout: 60000 })
-        await expect(imgCard.locator('.media-image')).toBeVisible({ timeout: 60000 })
+        await expect(dscCard.locator('.media-image-lowres')).toBeVisible({ timeout: 10_000 })
+        await expect(imgCard.locator('.media-image-lowres')).toBeVisible({ timeout: 10_000 })
 
         // Switch to timeline mode to verify the processed media appears there too.
         // The timeline fetches media from the API on mount. If the backend hasn't
@@ -142,11 +143,11 @@ test.describe('Upload Flow', () => {
         // to files and re-enter timeline to trigger a fresh fetch.
         const timelineToggle = page.locator('.tabler-icon-photo')
         const folderToggle = page.locator('.tabler-icon-folder')
-        const mediaImages = page.locator('.timelineContainer .media-image')
+        const mediaImages = page.locator('.timelineContainer .media-image-lowres')
         const noMedia = page.getByRole('heading', { name: 'No media found' })
 
         await timelineToggle.last().click()
-        await expect(page.getByPlaceholder('Search Media...')).toBeVisible({ timeout: 15000 })
+        await expect(page.getByPlaceholder('Search Media...')).toBeVisible({ timeout: 10_000 })
 
         // Wait for either media or the empty state
         await expect(mediaImages.first().or(noMedia)).toBeVisible({ timeout: 30000 })
@@ -158,7 +159,6 @@ test.describe('Upload Flow', () => {
             await expect(page.getByPlaceholder('Search Files...')).toBeVisible({ timeout: 15000 })
 
             // Give the backend time to finish indexing the uploaded media
-            await page.waitForTimeout(5000)
 
             await timelineToggle.last().click()
             await expect(page.getByPlaceholder('Search Media...')).toBeVisible({ timeout: 15000 })

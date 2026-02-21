@@ -145,8 +145,6 @@ const useLocationStore = defineStore('location', () => {
         }
 
         if (route.value.path === '/login' && isLoggedIn) {
-            console.warn('User is already logged in, redirecting to /files/home')
-
             return navigateTo('/files/home')
         }
 

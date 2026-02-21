@@ -1,14 +1,12 @@
-import { test, expect } from './fixtures'
+import { test, expect, createFolder } from './fixtures'
 
 test.describe('File Browser', () => {
-    test.describe.configure({ mode: 'serial' })
-
-    test.beforeEach(async ({ page }) => {
-        await page.goto('/login')
-        await page.getByPlaceholder('Username').fill('test_admin')
-        await page.getByPlaceholder('Password').fill('password123')
-        await page.getByRole('button', { name: 'Sign in' }).click()
-        await page.waitForURL('**/files/home')
+    test.beforeEach(async ({ page, login: _login }) => {
+        await createFolder(page, 'Test Folder')
+        // Reload so the folder fetch includes full permissions (WebSocket
+        // FileCreatedEvent from folder-create doesn't carry permissions).
+        await page.reload()
+        await expect(page.locator('[id^="file-card-"]').first()).toBeVisible({ timeout: 15000 })
     })
 
     test('should display sidebar with navigation buttons', async ({ page }) => {
@@ -17,25 +15,6 @@ test.describe('File Browser', () => {
         await expect(page.getByRole('button', { name: 'Trash' })).toBeVisible()
         await expect(page.getByRole('button', { name: 'New Folder' })).toBeVisible()
         await expect(page.getByRole('button', { name: 'Settings' })).toBeVisible()
-    })
-
-    test('should create a new folder via sidebar', async ({ page }) => {
-        await expect(page.getByRole('button', { name: 'New Folder' })).toBeEnabled({ timeout: 15000 })
-        await page.getByRole('button', { name: 'New Folder' }).click()
-
-        // The context menu opens with ContextNameFile input (auto-focused)
-        const nameInput = page.locator('.file-context-menu input')
-        await expect(nameInput).toBeVisible()
-        await nameInput.fill('Test Folder')
-        // Re-focus after fill to ensure Vue's useFocusWithin has settled —
-        // fill() on search-type inputs triggers select() which can briefly
-        // disrupt focus tracking in the full suite with a complex DOM.
-        await nameInput.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })
-
-        // Wait for the folder to appear in the file browser (use file card locator to avoid matching input text)
-        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'Test Folder' })).toBeVisible({
-            timeout: 15000,
-        })
     })
 
     test('should navigate into folder and see breadcrumbs', async ({ page }) => {
@@ -139,11 +118,11 @@ test.describe('File Browser', () => {
         // Click the searchbar to focus it
         const searchInput = page.getByPlaceholder('Search Files...')
         await searchInput.click()
-        await searchInput.fill('Renamed Folder')
+        await searchInput.fill('Test Folder')
         await searchInput.press('Enter')
 
-        // Should show search results (the renamed folder should appear)
-        await expect(page.getByText('Renamed Folder')).toBeVisible({ timeout: 15000 })
+        // Should show search results (the folder should appear)
+        await expect(page.getByText('Test Folder')).toBeVisible({ timeout: 15000 })
 
         // Clear the search
         await searchInput.click()
@@ -154,7 +133,7 @@ test.describe('File Browser', () => {
     test('should move folder to trash', async ({ page }) => {
         // Right-click the folder card to open context menu
         // Use :not(#file-scroller) to avoid matching the scroller container
-        const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'Renamed Folder' })
+        const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'Test Folder' })
         await folderCard.click({ button: 'right' })
 
         // Click Trash in context menu (scoped to filebrowser to avoid sidebar Trash button)
@@ -165,11 +144,17 @@ test.describe('File Browser', () => {
     })
 
     test('should navigate to trash via sidebar', async ({ page }) => {
+        // Trash the test folder first
+        const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'Test Folder' })
+        await folderCard.click({ button: 'right' })
+        await page.locator('#filebrowser-container').getByRole('button', { name: 'Trash' }).click()
+        await expect(folderCard).not.toBeVisible({ timeout: 15000 })
+
         // Click Trash button in sidebar
-        await page.getByRole('button', { name: 'Trash' }).click()
+        await page.locator('#global-left-sidebar').getByRole('button', { name: 'Trash' }).click()
 
         // Should see trashed items (the folder we just trashed)
-        await expect(page.getByText('Renamed Folder')).toBeVisible({ timeout: 15000 })
+        await expect(page.getByText('Test Folder')).toBeVisible({ timeout: 15000 })
 
         // Navigate back to Home
         await page.getByRole('button', { name: 'Home' }).click()
@@ -177,17 +162,20 @@ test.describe('File Browser', () => {
     })
 
     test('should toggle between files and media timeline', async ({ page }) => {
-        // The toggle button in FileHeader has IconPhoto (when in file mode)
-        // or IconFolder (when in timeline mode). Click it to switch.
-        const timelineToggle = page.locator('.tabler-icon-photo, .tabler-icon-folder')
-        await timelineToggle.last().click()
+        // The toggle button in FileHeader contains IconPhoto (file mode) or
+        // IconFolder (timeline mode). Target the button that wraps the icon to
+        // avoid matching folder icons in file cards or the sidebar.
+        const photoToggle = page.locator('button:has(.tabler-icon-photo)')
+        await photoToggle.click()
 
         // In timeline mode, the search placeholder changes to "Search Media..."
         await expect(page.getByPlaceholder('Search Media...')).toBeVisible({ timeout: 15000 })
 
-        // Toggle back to file mode
-        const folderIcon = page.locator('.tabler-icon-folder')
-        await folderIcon.last().click()
+        // Toggle back to file mode — the button now shows a folder icon.
+        // Use last() because the sidebar UploadButton also wraps an IconFolder
+        // in a button, but the header toggle appears later in the DOM.
+        const folderToggle = page.locator('button:has(.tabler-icon-folder)')
+        await folderToggle.last().click()
 
         await expect(page.getByPlaceholder('Search Files...')).toBeVisible({ timeout: 15000 })
     })
