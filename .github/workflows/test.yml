@@ -171,6 +171,10 @@ jobs:
       - name: Run E2E tests
         run: |
           sudo systemctl restart docker
+          if [[ ! -f ./services/media/agno/lib/libagno.a ]]; then
+            echo "Agno binary not found. Please ensure the build-agno job completed successfully."
+            exit 1
+          fi
 
           export WEBLENS_VERBOSE=true
 
