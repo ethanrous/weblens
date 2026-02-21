@@ -26,7 +26,7 @@ function makeLogFile(
     opts?: { extraIdentifier?: string; noExt?: boolean; noCreate?: boolean },
 ): string {
     let filename = opts?.extraIdentifier
-        ? `worker-${workerIndex}-${type}-${opts.extraIdentifier}`
+        ? `worker-${workerIndex}-${type}-${opts.extraIdentifier.replace('/', '_')}`
         : `worker-${workerIndex}-${type}`
 
     if (!opts?.noExt) {
@@ -185,7 +185,7 @@ export async function startTestBackend(
     testName: string,
 ): Promise<TestBackend> {
     const port = WEBLENS_PORT_BASE + workerIndex
-    const dbName = `pw-${testName.slice(0, 60)}` // MongoDB database names have a max length of 64
+    const dbName = `pw-${testName.replaceAll('/', '_')}`.slice(0, 63) // MongoDB database names have a max length of 64
 
     // Fresh filesystem per test
     const fsDir = path.join(PW_DIR, 'fs', `worker-${workerIndex}`)
@@ -248,7 +248,7 @@ export async function startTestBackend(
     if (VERBOSE) console.debug(`[worker-${workerIndex}] Backend PID ${child.pid}, logs at ${logPath}`)
 
     const baseURL = `http://localhost:${port}`
-    await pollHealth(`${baseURL}/api/v1/info`, 25_000, logPath)
+    await pollHealth(`${baseURL}/health`, 25_000, logPath)
     if (VERBOSE) console.debug(`[worker-${workerIndex}] Backend is healthy`)
 
     return { baseURL, port, dbName, workerIndex, process: child, logPath }
