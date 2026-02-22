@@ -324,7 +324,7 @@ func (tp *Pool) QueueTask(tsk *Task) (err error) {
 		// Tasks that have failed will not be re-tried. If the errored task is removed from the
 		// task map, then it will be re-tried because the previous error was lost. This can be
 		// sometimes be useful, some tasks auto-remove themselves after they finish.
-		tp.log.Warn().Msg("Not re-queueing task that has error set, please restart weblens to try again")
+		tp.log.Warn().Msg("Not re-queuing task that has error set, please restart weblens to try again")
 
 		return err
 	}

@@ -237,7 +237,7 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta Meta
 	t := wp.GetTask(taskID)
 
 	if t != nil {
-		t.Log().Warn().Msgf("Task [%s] already exists, not re-queueing again", taskID)
+		t.Log().Warn().Msgf("Task [%s] already exists, not re-queuing", taskID)
 
 		return t, nil
 	}
@@ -282,7 +282,7 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta Meta
 		// Tasks that have failed will not be re-tried. If the errored task is removed from the
 		// task map, then it will be re-tried because the previous error was lost. This can be
 		// sometimes be useful, some tasks auto-remove themselves after they finish.
-		return nil, wlerrors.New("Not re-queueing task that has error set")
+		return nil, wlerrors.New("Not re-queuing task that has error set")
 	}
 
 	if t.taskPool != nil && (t.taskPool != pool || t.queueState != Created) {

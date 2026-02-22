@@ -60,7 +60,7 @@ services:
       start_period: 10s
 
   mongot:
-    image: mongodb/mongodb-community-search:0.53.1
+    image: mongodb/mongodb-community-search:0.60.1
     container_name: weblens-${MONGO_PROJECT_NAME}-mongot
     hostname: mongot.search-community
     depends_on:

@@ -98,6 +98,16 @@ jobs:
           set -x
           ./scripts/test-weblens.bash
           exit $?
+          cat _build/logs/e2e-test-backends/
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-test-logs
+          path: |
+            _build/logs/e2e-test-backends/
+          retention-days: 7
 
   lint:
     runs-on: ubuntu-latest
@@ -185,7 +195,7 @@ jobs:
           path: |
             _build/playwright/
             _build/logs/playwright/
-          retention-days: 14
+          retention-days: 7
 
   test-build-container:
     runs-on: ubuntu-latest

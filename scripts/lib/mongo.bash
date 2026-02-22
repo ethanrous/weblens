@@ -21,7 +21,7 @@ is_mongo_running() {
         return 1
     fi
 
-    if dockerc ps | grep "$stack_name" &>/dev/null; then
+    if docker compose ls --filter "name=weblens-$stack_name" --format json 2>/dev/null | grep '"running"' &>/dev/null; then
         return 0
     fi
 
@@ -68,7 +68,7 @@ launch_mongo() {
     chmod 777 "${MONGO_DATA_ROOT}/mongod" "${MONGO_DATA_ROOT}/mongot"
 
     export MONGO_PROJECT_NAME="$stack_name"
-    if ! dockerc compose -f ./docker/mongo.compose.yaml --project-name "$stack_name" up -d; then
+    if ! dockerc compose -f ./docker/mongo.compose.yaml --project-name "weblens-$stack_name" up -d; then
         echo "!!! docker compose up failed !!!" >&2
         echo "--- mongod container logs ---" >&2
         dockerc logs "weblens-$stack_name-mongod" --tail 150 >&2 2>&1 || true

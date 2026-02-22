@@ -48,7 +48,7 @@ func connectToCores(c context.Context, _ config.Provider) error {
 
 	local, err := tower_model.GetLocal(ctx)
 	if err != nil {
-		return err
+		return wlerrors.Errorf("Failed to get local tower instance while connecting to core: %w", err)
 	}
 
 	if local.Role != tower_model.RoleBackup {
