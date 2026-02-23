@@ -1,4 +1,4 @@
-import { spawn, execSync, type ChildProcess } from 'child_process'
+import { spawn, type ChildProcess } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 import http from 'http'
@@ -13,10 +13,7 @@ const LOG_DIR = path.join(BUILD_DIR, 'logs', 'playwright')
 const VERBOSE = Boolean(process.env.WEBLENS_VERBOSE)
 
 const WEBLENS_PORT_BASE = 14100
-const MONGO_PORT_BASE = 27020
-const MONGOT_GRPC_PORT_BASE = 27128
-const MONGOT_METRICS_PORT_BASE = 10046
-const MONGOT_HEALTHCHECK_PORT_BASE = 38081
+const MONGO_PORT = 27020
 
 // ── Worker-scoped: MongoDB lifecycle ──
 
@@ -50,80 +47,82 @@ function makeLogFile(
     return logPath
 }
 
-export interface WorkerMongo {
-    port: number
-    stackName: string
-    containerName: string
-    workerIndex: number
-}
+// export interface WorkerMongo {
+//     port: number
+//     stackName: string
+//     workerIndex: number
+// }
 
-export async function startWorkerMongo(workerIndex: number): Promise<WorkerMongo> {
-    const mongoPort = MONGO_PORT_BASE + workerIndex
-    const mongotGrpcPort = MONGOT_GRPC_PORT_BASE + workerIndex
-    const mongotMetricsPort = MONGOT_METRICS_PORT_BASE + workerIndex
-    const mongotHealthcheckPort = MONGOT_HEALTHCHECK_PORT_BASE + workerIndex
-    const stackName = `weblens-core-pw-worker-${workerIndex}`
-    const containerName = `weblens-${stackName}-mongod`
+// export async function startWorkerMongo(workerIndex: number): Promise<WorkerMongo> {
+//     const mongoPort = MONGO_PORT_BASE + workerIndex
+//     const mongotGrpcPort = MONGOT_GRPC_PORT_BASE + workerIndex
+//     const mongotMetricsPort = MONGOT_METRICS_PORT_BASE + workerIndex
+//     const mongotHealthcheckPort = MONGOT_HEALTHCHECK_PORT_BASE + workerIndex
+//     const stackName = `pw-worker-${workerIndex}`
+//
+//     return { port: MONGO_PORT_BASE, stackName: 'pw-worker-0', workerIndex: 0 }
+//     if (workerIndex !== 0) {
+//     }
+//
+//     // Clean mongo data directory so MongoDB starts fresh.
+//     // Data dir may contain root-owned files from the container, so use
+//     // Docker to remove subdirs before cleaning up the parent with Node.
+//     const mongoDataDir = path.join(BUILD_DIR, 'db', stackName)
+//     if (fs.existsSync(mongoDataDir)) {
+//         try {
+//             fs.rmSync(mongoDataDir, { recursive: true })
+//         } catch {
+//             execSync(`docker run --rm -v "${mongoDataDir}:/cleanup" alpine rm -rf /cleanup/mongod /cleanup/mongot`, {
+//                 cwd: REPO_ROOT,
+//                 stdio: 'pipe',
+//             })
+//             fs.rmSync(mongoDataDir, { recursive: true })
+//         }
+//     }
+//
+//     if (VERBOSE) console.debug(`[worker-${workerIndex}] Starting MongoDB on port ${mongoPort}...`)
+//
+//     // Launch mongo via the bash helper (handles docker compose, replica set, etc.)
+//     execSync(
+//         `source scripts/lib/all.bash && ` +
+//             `MONGOT_HOST_PORT_GRPC=${mongotGrpcPort} ` +
+//             `MONGOT_HOST_PORT_METRICS=${mongotMetricsPort} ` +
+//             `MONGOT_HEALTHCHECK_PORT=${mongotHealthcheckPort} ` +
+//             `launch_mongo --stack-name "${stackName}" --mongo-port ${mongoPort}`,
+//         { cwd: REPO_ROOT, stdio: 'pipe', shell: '/bin/bash' },
+//     )
+//
+//     return { port: mongoPort, stackName, workerIndex }
+// }
 
-    // Clean mongo data directory so MongoDB starts fresh.
-    // Data dir may contain root-owned files from the container, so use
-    // Docker to remove subdirs before cleaning up the parent with Node.
-    const mongoDataDir = path.join(BUILD_DIR, 'db', stackName)
-    if (fs.existsSync(mongoDataDir)) {
-        try {
-            fs.rmSync(mongoDataDir, { recursive: true })
-        } catch {
-            execSync(`docker run --rm -v "${mongoDataDir}:/cleanup" alpine rm -rf /cleanup/mongod /cleanup/mongot`, {
-                cwd: REPO_ROOT,
-                stdio: 'pipe',
-            })
-            fs.rmSync(mongoDataDir, { recursive: true })
-        }
-    }
-
-    if (VERBOSE) console.debug(`[worker-${workerIndex}] Starting MongoDB on port ${mongoPort}...`)
-
-    // Launch mongo via the bash helper (handles docker compose, replica set, etc.)
-    execSync(
-        `source scripts/lib/all.bash && ` +
-            `MONGOT_HOST_PORT_GRPC=${mongotGrpcPort} ` +
-            `MONGOT_HOST_PORT_METRICS=${mongotMetricsPort} ` +
-            `MONGOT_HEALTHCHECK_PORT=${mongotHealthcheckPort} ` +
-            `launch_mongo --stack-name "${stackName}" --mongo-port ${mongoPort}`,
-        { cwd: REPO_ROOT, stdio: 'pipe', shell: '/bin/bash' },
-    )
-
-    return { port: mongoPort, stackName, containerName, workerIndex }
-}
-
-export async function stopWorkerMongo(mongo: WorkerMongo): Promise<void> {
-    const { workerIndex, stackName } = mongo
-    if (VERBOSE) console.debug(`[worker-${workerIndex}] Cleaning up mongo stack ${stackName}...`)
-
-    const logPath = makeLogFile(workerIndex, 'db', { noExt: true, noCreate: true })
-
-    if (VERBOSE) console.debug(`[worker-${workerIndex}] Dumping MongoDB logs to ${logPath}-*.log...`)
-
-    try {
-        const out = execSync(
-            `source scripts/lib/all.bash && dump_mongo_logs --stack-name "${stackName}" --logfile "${logPath}" && cleanup_mongo --stack-name "${stackName}"`,
-            {
-                cwd: REPO_ROOT,
-                stdio: 'pipe',
-                shell: '/bin/bash',
-            },
-        )
-
-        if (VERBOSE) console.debug(`[worker-${workerIndex}] Mongo cleanup log: ${out.toString()}`)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (e: any) {
-        if (VERBOSE)
-            console.debug(
-                `[worker-${workerIndex}] Mongo cleanup failed: ${e.stderr.toString()} \n------------\n ${e.stdout.toString()}`,
-            )
-    }
-    if (VERBOSE) console.debug(`[worker-${workerIndex}] Mongo teardown complete`)
-}
+// export async function stopWorkerMongo(mongo: WorkerMongo): Promise<void> {
+//     const { workerIndex, stackName } = mongo
+//     if (VERBOSE) console.debug(`[worker-${workerIndex}] Cleaning up mongo stack ${stackName}...`)
+//
+//     const logPath = makeLogFile(workerIndex, 'db', { noExt: true, noCreate: true })
+//
+//     if (VERBOSE) console.debug(`[worker-${workerIndex}] Dumping MongoDB logs to ${logPath}-*.log...`)
+//
+//     try {
+//         const out = execSync(
+//             `source scripts/lib/all.bash && dump_mongo_logs --stack-name "${stackName}" --logfile "${logPath}" && cleanup_mongo --stack-name "${stackName}"`,
+//             {
+//                 cwd: REPO_ROOT,
+//                 stdio: 'pipe',
+//                 shell: '/bin/bash',
+//             },
+//         )
+//
+//         if (VERBOSE) console.debug(`[worker-${workerIndex}] Mongo cleanup log: ${out.toString()}`)
+//         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+//     } catch (e: any) {
+//         if (VERBOSE)
+//             console.debug(
+//                 `[worker-${workerIndex}] Mongo cleanup failed: ${e.stderr.toString()} \n------------\n ${e.stdout.toString()}`,
+//             )
+//     }
+//     if (VERBOSE) console.debug(`[worker-${workerIndex}] Mongo teardown complete`)
+// }
 
 // ── Test-scoped: Backend binary lifecycle ──
 
@@ -179,11 +178,7 @@ function isProcessRunning(pid: number): boolean {
     }
 }
 
-export async function startTestBackend(
-    workerIndex: number,
-    mongo: WorkerMongo,
-    testName: string,
-): Promise<TestBackend> {
+export async function startTestBackend(workerIndex: number, testName: string): Promise<TestBackend> {
     const port = WEBLENS_PORT_BASE + workerIndex
     const dbName = `pw-${testName.replaceAll('/', '_')}`.slice(0, 63) // MongoDB database names have a max length of 64
 
@@ -208,12 +203,10 @@ export async function startTestBackend(
 
     const logPath = makeLogFile(workerIndex, 'backend', { extraIdentifier: dbName })
 
-    if (VERBOSE) console.debug(`[worker-${workerIndex}] Starting backend (db: ${dbName}) on port ${port}...`)
-
     const logStream = fs.createWriteStream(logPath)
 
     // Spawn the binary directly (mongo is already running from worker fixture)
-    const mongoUri = `mongodb://127.0.0.1:${mongo.port}/?replicaSet=rs0&directConnection=true`
+    const mongoUri = `mongodb://127.0.0.1:${MONGO_PORT}/?replicaSet=rs0&directConnection=true`
     const child = spawn(binaryPath, [], {
         cwd: REPO_ROOT,
         env: {
@@ -259,7 +252,6 @@ export async function stopTestBackend(backend: TestBackend): Promise<void> {
     const pid = backend.process.pid
 
     if (pid) {
-        if (VERBOSE) console.debug(`[worker-${workerIndex}] Stopping backend PID ${pid}...`)
         try {
             process.kill(pid, 'SIGTERM')
         } catch {
@@ -271,7 +263,6 @@ export async function stopTestBackend(backend: TestBackend): Promise<void> {
         for (let i = 0; i < 50; i++) {
             await sleep(100)
             if (!isProcessRunning(pid)) {
-                if (VERBOSE) console.debug(`[worker-${workerIndex}] Backend exited gracefully`)
                 return
             }
         }

@@ -6,7 +6,7 @@ is_mongo_running() {
         case "$1" in
         "--stack-name")
             shift
-            stack_name="$1"
+            stack_name="$1-mongo"
             ;;
         *)
             echo "Unknown argument: $1"
@@ -38,7 +38,7 @@ launch_mongo() {
         case "$1" in
         "--stack-name")
             shift
-            stack_name="$1"
+            stack_name="$1-mongo"
             ;;
         "-p" | "--mongo-port")
             shift
@@ -69,13 +69,9 @@ launch_mongo() {
 
     export MONGO_PROJECT_NAME="$stack_name"
     if ! dockerc compose -f ./docker/mongo.compose.yaml --project-name "weblens-$stack_name" up -d; then
-        echo "!!! docker compose up failed !!!" >&2
-        echo "--- mongod container logs ---" >&2
-        dockerc logs "weblens-$stack_name-mongod" --tail 150 >&2 2>&1 || true
-        echo "--- mongod container inspect ---" >&2
-        dockerc inspect "weblens-$stack_name-mongod" --format '{{json .State}}' >&2 2>&1 || true
-        echo "--- All containers ---" >&2
-        dockerc ps -a >&2 2>&1 || true
+        log_dump_file="./_build/logs/failed-mongo-$stack_name.log"
+        echo "dumping mongod container logs to [$log_dump_file]..."
+        dockerc logs "weblens-$stack_name-mongod" >./_build/logs/failed-mongo-"$stack_name".log || true
         exit 1
     else
         # Wait for mongod to be healthy before returning
@@ -115,7 +111,7 @@ dump_mongo_logs() {
         case "$1" in
         "--stack-name")
             shift
-            stack_name="$1"
+            stack_name="$1-mongo"
             ;;
         "--logfile")
             shift
@@ -149,7 +145,7 @@ cleanup_mongo() {
         case "$1" in
         "--stack-name")
             shift
-            stack_name="$1"
+            stack_name="$1-mongo"
             ;;
         *)
             echo "Unknown argument: $1"

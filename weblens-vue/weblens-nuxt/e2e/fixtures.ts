@@ -1,33 +1,23 @@
 import { test as base, expect, type Page } from '@playwright/test'
 import { addCoverageReport } from 'monocart-reporter'
-import {
-    startWorkerMongo,
-    stopWorkerMongo,
-    startTestBackend,
-    stopTestBackend,
-    type WorkerMongo,
-    type TestBackend,
-} from './backend-manager'
+import { startTestBackend, stopTestBackend, type TestBackend } from './backend-manager'
 
 const DEFAULT_ADMIN_USERNAME = 'admin'
 const DEFAULT_ADMIN_PASSWORD = 'adminadmin1'
 
-const test = base.extend<
-    { autoTestFixture: unknown; testBackend: TestBackend; login: unknown },
-    { workerMongo: WorkerMongo }
->({
-    workerMongo: [
-        // eslint-disable-next-line no-empty-pattern
-        async ({}, use, workerInfo) => {
-            const mongo = await startWorkerMongo(workerInfo.parallelIndex)
-            await use(mongo)
-            await stopWorkerMongo(mongo)
-        },
-        { scope: 'worker' },
-    ],
+const test = base.extend<{ autoTestFixture: unknown; testBackend: TestBackend; login: unknown }>({
+    // workerMongo: [
+    //     async (_, use, workerInfo) => {
+    //         const mongo = await startWorkerMongo(workerInfo.parallelIndex)
+    //         await use(mongo)
+    //         await stopWorkerMongo(mongo)
+    //     },
+    //     { scope: 'worker' },
+    // ],
 
-    testBackend: async ({ workerMongo }, use, testInfo) => {
-        const backend = await startTestBackend(testInfo.parallelIndex, workerMongo, testInfo.title.replace(/\s+/g, '_'))
+    // eslint-disable-next-line no-empty-pattern
+    testBackend: async ({}, use, testInfo) => {
+        const backend = await startTestBackend(testInfo.parallelIndex, testInfo.title.replace(/\s+/g, '_'))
         // await initializeServer(backend.baseURL)
         await use(backend)
         await stopTestBackend(backend)

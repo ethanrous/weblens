@@ -60,6 +60,13 @@ else
     printf "Skipping Agno build (lazy mode)...\n"
 fi
 
+if ! is_mongo_running --stack-name "test"; then
+    show_as_subtask "Resetting mongo testing volumes..." "green" -- cleanup_mongo --stack-name "test-pw"
+    show_as_subtask "Launching mongo..." "green" -- launch_mongo --stack-name "test-pw" --mongo-port 27020
+else
+    printf "MongoDB container is already running (lazy mode)...\n"
+fi
+
 # ENABLE_SOURCEMAPS=true
 build_frontend "$lazy"
 
