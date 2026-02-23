@@ -51,6 +51,8 @@ else
     printf "MongoDB container is already running (lazy mode)...\n"
 fi
 
+docker exec weblens-test-pw-mongo-mongod mongosh --eval 'db.adminCommand({"listDatabases": 1, filter: { "name": /^pw-/ }}).databases.forEach(d => db.getSiblingDB(d.name).dropDatabase())'
+
 # ENABLE_SOURCEMAPS=true
 build_frontend "$lazy"
 

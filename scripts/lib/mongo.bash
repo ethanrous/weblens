@@ -87,7 +87,7 @@ launch_mongo() {
             ((count++))
         done
 
-        Wait for mongot to be healthy before returning
+        # Wait for mongot to be healthy before returning
 
         count=0
         MONGOT_HEALTHCHECK_PORT=${MONGOT_HEALTHCHECK_PORT:-38081}
