@@ -6,15 +6,6 @@ const DEFAULT_ADMIN_USERNAME = 'admin'
 const DEFAULT_ADMIN_PASSWORD = 'adminadmin1'
 
 const test = base.extend<{ autoTestFixture: unknown; testBackend: TestBackend; login: unknown }>({
-    // workerMongo: [
-    //     async (_, use, workerInfo) => {
-    //         const mongo = await startWorkerMongo(workerInfo.parallelIndex)
-    //         await use(mongo)
-    //         await stopWorkerMongo(mongo)
-    //     },
-    //     { scope: 'worker' },
-    // ],
-
     // eslint-disable-next-line no-empty-pattern
     testBackend: async ({}, use, testInfo) => {
         const backend = await startTestBackend(testInfo.parallelIndex, testInfo.title.replace(/\s+/g, '_'))

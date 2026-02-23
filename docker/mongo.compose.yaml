@@ -44,8 +44,6 @@ services:
       - useGrpcForSearch=true
     ports:
       - ${MONGO_HOST_PORT:-27017}:27017
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     volumes:
       - ${MONGO_DATA_ROOT}/mongod:/data/db
     healthcheck:
@@ -66,6 +64,12 @@ services:
     depends_on:
       mongod:
         condition: service_healthy
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+    #   interval: 5s
+    #   timeout: 10s
+    #   retries: 20
+    #   start_period: 10s
     entrypoint:
       - /mongot-community/mongot
       - --config=/mongot-config.yml

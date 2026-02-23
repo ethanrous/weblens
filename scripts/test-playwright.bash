@@ -3,22 +3,6 @@ set -euo pipefail
 
 source ./scripts/lib/all.bash
 
-# Clean up any orphaned pw-worker docker stacks on exit
-cleanup_pw_stacks() {
-    echo "Cleaning up playwright worker stacks..."
-    for stack in $(dockerc compose ls --format json 2>/dev/null | grep -o '"weblens-core-pw-worker-[0-9]*"' | tr -d '"' || true); do
-        echo "Stopping orphaned stack: $stack"
-        dockerc compose --project-name "$stack" down 2>/dev/null || true
-    done
-}
-trap cleanup_pw_stacks EXIT
-
-# Remove legacy shared playwright-test mongo stack if it exists (old test infra)
-if dockerc ps -a --format '{{.Names}}' 2>/dev/null | grep -q 'weblens-playwright-test'; then
-    echo "Removing legacy playwright-test mongo stack..."
-    dockerc compose --project-name playwright-test down 2>/dev/null || true
-fi
-
 lazy=false
 filter=""
 grep=""
