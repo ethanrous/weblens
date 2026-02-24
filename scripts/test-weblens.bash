@@ -15,12 +15,7 @@ run_native_tests() {
     # Go is very picky about whitespace, so we need to strip it out
     target=$(awk '{$1=$1};1' <<<"$target")
 
-    touch /tmp/weblens.env
-
-    WEBLENS_LOG_PATH=$(get_log_file "weblens-test")
-    export WEBLENS_LOG_PATH
-
-    export WEBLENS_ENV_PATH=/tmp/weblens.env
+    # Set up environment variables for testing
     export WEBLENS_DO_CACHE=false
     export WEBLENS_MONGODB_URI=${WEBLENS_MONGODB_URI:-"mongodb://127.0.0.1:27019/?replicaSet=rs0&directConnection=true"}
     export WEBLENS_LOG_LEVEL="${WEBLENS_LOG_LEVEL:-debug}"
@@ -29,13 +24,14 @@ run_native_tests() {
 
     echo "Running tests with mongo [$WEBLENS_MONGODB_URI] and test target: [$target]"
 
+    # Ensure coverage directory exists
     mkdir -p ./_build/cover/
 
+    # Install gotestsum for better test output formatting
+    go install gotest.tools/gotestsum@latest
+
     # shellcheck disable=SC2086
-    if ! go test -cover -race -coverprofile=_build/cover/coverage.out -coverpkg ./... -tags=test ${target}; then
-        printf "\n\nTESTS FAILED\n\n"
-        exit 1
-    fi
+    gotestsum -- -cover -race -coverprofile=_build/cover/coverage.out -json -coverpkg ./... -tags=test ${target}
 
     portable_sed '/github\.com\/ethanrous\/weblens\/api/d' ./_build/cover/coverage.out
 }

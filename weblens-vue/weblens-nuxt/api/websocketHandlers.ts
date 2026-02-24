@@ -24,9 +24,9 @@ export function handleWebsocketMessage(msg: WsMessage) {
     }
 
     if (msg.eventTag.toLowerCase().includes('fail')) {
-        console.error('WebSocket message received at', new Date(msg.sentTime).toISOString(), ':', msg, 'at')
+        console.error('WebSocket message received at', new Date(msg.sentTime).toISOString(), ':', JSON.stringify(msg))
     } else {
-        console.debug('WebSocket message received at', new Date(msg.sentTime).toISOString(), ':', msg, 'at')
+        console.debug('WebSocket message received at', new Date(msg.sentTime).toISOString(), ':', JSON.stringify(msg))
     }
 
     switch (msg.eventTag) {

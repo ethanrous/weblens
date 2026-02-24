@@ -1,33 +1,22 @@
-import { test as base, expect, type Page } from '@playwright/test'
+import { test as base, expect, type Page, type TestInfo } from '@playwright/test'
 import { addCoverageReport } from 'monocart-reporter'
-import {
-    startWorkerMongo,
-    stopWorkerMongo,
-    startTestBackend,
-    stopTestBackend,
-    type WorkerMongo,
-    type TestBackend,
-} from './backend-manager'
+import { makeLogFile, startTestBackend, stopTestBackend, type TestBackend } from './backend-manager'
+import fs from 'fs'
 
 const DEFAULT_ADMIN_USERNAME = 'admin'
 const DEFAULT_ADMIN_PASSWORD = 'adminadmin1'
 
-const test = base.extend<
-    { autoTestFixture: unknown; testBackend: TestBackend; login: unknown },
-    { workerMongo: WorkerMongo }
->({
-    workerMongo: [
-        // eslint-disable-next-line no-empty-pattern
-        async ({}, use, workerInfo) => {
-            const mongo = await startWorkerMongo(workerInfo.parallelIndex)
-            await use(mongo)
-            await stopWorkerMongo(mongo)
-        },
-        { scope: 'worker' },
-    ],
+type Fixtures = {
+    autoTestFixture: unknown
+    testBackend: TestBackend
+    login: unknown
+    logPath: string
+}
 
-    testBackend: async ({ workerMongo }, use, testInfo) => {
-        const backend = await startTestBackend(testInfo.parallelIndex, workerMongo, testInfo.title.replace(/\s+/g, '_'))
+const test = base.extend<Fixtures>({
+    // eslint-disable-next-line no-empty-pattern
+    testBackend: async ({}, use, testInfo) => {
+        const backend = await startTestBackend(testInfo.parallelIndex, testInfo.title.replace(/\s+/g, '_'))
         // await initializeServer(backend.baseURL)
         await use(backend)
         await stopTestBackend(backend)
@@ -47,32 +36,34 @@ const test = base.extend<
     ],
 
     autoTestFixture: [
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        async ({ page }: { page: any }, use: () => unknown) => {
+        async ({ page }: { page: Page }, use: () => unknown, testInfo: TestInfo) => {
+            // Set up console log stream
+            const logFilePath = makeLogFile(testInfo.parallelIndex, 'browser-console', testInfo.title)
+            const logStream = fs.createWriteStream(logFilePath, { flags: 'a' })
+
+            page.on('console', (msg) => {
+                logStream.write(`[${new Date().toISOString()}] [Browser ${msg.type().toUpperCase()}] ${msg.text()}\n`)
+            })
+
             await page.coverage.startJSCoverage({
-                resetOnNavigation: false,
+                resetOnNavigation: true,
             })
 
             await use()
 
+            logStream.end()
+
             const coverage = await page.coverage.stopJSCoverage()
-            const testInfo = test.info()
             if (coverage.length > 0) {
                 await addCoverageReport(coverage, testInfo)
+            }
+
+            if (testInfo.status !== testInfo.expectedStatus) {
+                console.warn(`Test "${testInfo.title}" failed - see browser console logs in ${logFilePath}`)
             }
         },
         { auto: true },
     ],
-})
-
-test.beforeEach(async ({ page }) => {
-    page.on('console', (msg) => {
-        if (msg.type() === 'error') {
-            console.error('[Browser ERROR]', msg.text())
-        } else if (msg.type() === 'warning') {
-            console.warn('[Browser WARNING]', msg.text())
-        }
-    })
 })
 
 async function login(
@@ -88,7 +79,7 @@ async function login(
 }
 
 async function createFolder(page: import('@playwright/test').Page, name: string) {
-    await page.waitForTimeout(500) // Wait briefly for UI to stabilize (e.g. after login or navigation)
+    // await page.waitForTimeout(500) // Wait briefly for UI to stabilize (e.g. after login or navigation)
 
     await page.getByRole('button', { name: 'New Folder' }).click()
     const nameInput = page.locator('.file-context-menu input')

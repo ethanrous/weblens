@@ -79,8 +79,7 @@ test.describe('File Search', () => {
         await searchRequest
 
         // Results should appear (the folder we created should match)
-        const fileCards = page.locator('[id^="file-card-"]')
-        expect(await fileCards.count()).toBe(1)
+        await page.locator('[id^="file-card-"]').waitFor({ state: 'visible' })
 
         // Clear search
         await searchInput.clear()
@@ -109,7 +108,7 @@ test.describe('File Search', () => {
     })
 
     test('should clear search results when input is emptied', async ({ page }) => {
-        await expect(page.getByText('SearchTestFolder')).toBeVisible({ timeout: 15000 })
+        await expect(page.getByText('SearchTestFolder')).toBeVisible()
         const searchInput = page.getByPlaceholder('Search Files...')
 
         // Type a search term
@@ -117,11 +116,13 @@ test.describe('File Search', () => {
         await searchInput.fill('SomeQuery')
         await searchInput.press('Enter')
 
+        await expect(page.locator('[id^="file-card-"]')).not.toBeVisible()
+
         // Clear the input and submit empty search
         await searchInput.clear()
         await searchInput.press('Enter')
 
         // Files should be back to normal listing
-        await expect(page.locator('[id^="file-card-"]').first()).toBeVisible({ timeout: 15000 })
+        await expect(page.locator('[id^="file-card-"]').first()).toBeVisible()
     })
 })

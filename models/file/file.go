@@ -230,8 +230,6 @@ func (f *WeblensFileImpl) Exists() bool {
 
 	absPath := f.portablePath.ToAbsolute()
 
-	log.GlobalLogger().Trace().Msgf("Checking existence of file at [%s]", absPath)
-
 	_, err := os.Stat(absPath)
 
 	return err == nil

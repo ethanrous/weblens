@@ -30,16 +30,22 @@ export default defineConfig({
                 name: 'Weblens E2E Report',
                 outputFile: path.join(buildDir, 'report/index.html'),
                 coverage: {
+                    cleanCache: true,
                     reports: ['v8'],
                     entryFilter: (entry: { url: string }) => {
                         return entry.url.includes('/_nuxt/')
                     },
                     sourceFilter: (sourcePath: string) => {
                         return (
-                            !sourcePath.includes('node_modules') &&
-                            !sourcePath.includes('\x00') &&
-                            !sourcePath.includes('virtual:') &&
-                            !sourcePath.match('^api/')
+                            sourcePath.includes('/pages/') ||
+                            sourcePath.includes('/components/') ||
+                            sourcePath.includes('/composables/') ||
+                            sourcePath.includes('/stores/') ||
+                            sourcePath.includes('/util/') ||
+                            sourcePath.includes('/router/') ||
+                            sourcePath.includes('/modules/') ||
+                            sourcePath.includes('/server/') ||
+                            sourcePath.includes('/types/')
                         )
                     },
                     sourcePath: (filePath: string) => {

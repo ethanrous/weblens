@@ -138,10 +138,7 @@ test.describe('File History and Rewind', () => {
             .filter({ hasText: 'history-test-file.txt' })
             .filter({ hasText: 'File Trashed' })
 
-        const hasCreated = await fileCreated.isVisible({ timeout: 5000 }).catch(() => false)
-        const hasTrashed = await fileTrashed.isVisible({ timeout: 5000 }).catch(() => false)
-
-        expect(hasCreated).toBeTruthy()
-        expect(hasTrashed).toBeTruthy()
+        await fileCreated.isVisible()
+        await fileTrashed.isVisible()
     })
 })

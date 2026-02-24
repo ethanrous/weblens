@@ -189,6 +189,8 @@ func DoBackup(tsk *task.Task) {
 		)
 	})
 
+	tsk.SetTimeout(time.Now().Add(5 * time.Minute))
+
 	err = db.WithTransaction(ctx, func(ctx context.Context) error {
 		appCtx, ok := context_service.FromContext(ctx)
 		if !ok {
@@ -317,7 +319,7 @@ func DoBackup(tsk *task.Task) {
 
 		// Wait for all copy file tasks to finish
 		pool.SignalAllQueued()
-		pool.Wait(true)
+		pool.Wait(true, tsk)
 
 		if len(pool.Errors()) != 0 {
 			return wlerrors.Errorf("%d of %d backup file copies have failed", len(pool.Errors()), pool.Status().Total)
@@ -501,6 +503,9 @@ func handleFileAction(ctx context_service.AppContext, a history_model.FileAction
 
 	tsk.SetCleanup(func(tsk *task.Task) {
 		copyTaskResult := tsk.GetResult()
+
+		// Extend the timeout of the main backup task every time a file copy finishes to make sure it doesn't timeout while waiting for large files to copy
+		callingTask.SetTimeout(time.Now().Add(time.Minute))
 
 		callingTask.AtomicSetResult(func(currentResult task.Result) task.Result {
 			currentBytesCopiedI, ok := currentResult["totalBytesCopied"]

@@ -6,7 +6,7 @@ is_mongo_running() {
         case "$1" in
         "--stack-name")
             shift
-            stack_name="$1"
+            stack_name="$1-mongo"
             ;;
         *)
             echo "Unknown argument: $1"
@@ -21,7 +21,7 @@ is_mongo_running() {
         return 1
     fi
 
-    if dockerc ps | grep "$stack_name" &>/dev/null; then
+    if docker compose ls --filter "name=weblens-$stack_name" --format json 2>/dev/null | grep '"running(2)"' &>/dev/null; then
         return 0
     fi
 
@@ -38,7 +38,7 @@ launch_mongo() {
         case "$1" in
         "--stack-name")
             shift
-            stack_name="$1"
+            stack_name="$1-mongo"
             ;;
         "-p" | "--mongo-port")
             shift
@@ -68,15 +68,11 @@ launch_mongo() {
     chmod 777 "${MONGO_DATA_ROOT}/mongod" "${MONGO_DATA_ROOT}/mongot"
 
     export MONGO_PROJECT_NAME="$stack_name"
-    if ! dockerc compose -f ./docker/mongo.compose.yaml --project-name "$stack_name" up -d; then
-        echo "!!! docker compose up failed !!!" >&2
-        echo "--- mongod container logs ---" >&2
-        dockerc logs "weblens-$stack_name-mongod" --tail 150 >&2 2>&1 || true
-        echo "--- mongod container inspect ---" >&2
-        dockerc inspect "weblens-$stack_name-mongod" --format '{{json .State}}' >&2 2>&1 || true
-        echo "--- All containers ---" >&2
-        dockerc ps -a >&2 2>&1 || true
-        exit 1
+    if ! dockerc compose -f ./docker/mongo.compose.yaml --project-name "weblens-$stack_name" up -d; then
+        log_dump_file="./_build/logs/failed-mongo-$stack_name.log"
+        echo "dumping mongod container logs to [$log_dump_file]..."
+        dockerc logs "weblens-$stack_name-mongod" >./_build/logs/failed-mongo-"$stack_name".log || true
+        return 1
     else
         # Wait for mongod to be healthy before returning
         local retries=30
@@ -85,25 +81,28 @@ launch_mongo() {
         until docker inspect --format='{{json .State.Health}}' weblens-"$stack_name"-mongod; do
             if [[ $count -ge $retries ]]; then
                 echo "MongoDB container failed to become healthy after $((retries * wait_time)) seconds. Check container logs for details." >&2
-                exit 1
+                return 1
             fi
             sleep $wait_time
             ((count++))
         done
 
         # Wait for mongot to be healthy before returning
+
         count=0
         MONGOT_HEALTHCHECK_PORT=${MONGOT_HEALTHCHECK_PORT:-38081}
+        set +e
         until curl --fail http://127.0.0.1:"${MONGOT_HEALTHCHECK_PORT}"/health; do
             if [[ $count -ge $retries ]]; then
                 echo "Mongot container failed to become healthy after $((retries * wait_time)) seconds. Check container logs for details." >&2
                 docker ps -a >&2
                 docker logs "weblens-$stack_name-mongot" --tail 200 >&2
-                exit 1
+                return 1
             fi
             sleep $wait_time
             ((count++))
         done
+
     fi
 }
 export -f launch_mongo
@@ -115,7 +114,7 @@ dump_mongo_logs() {
         case "$1" in
         "--stack-name")
             shift
-            stack_name="$1"
+            stack_name="$1-mongo"
             ;;
         "--logfile")
             shift
@@ -149,7 +148,7 @@ cleanup_mongo() {
         case "$1" in
         "--stack-name")
             shift
-            stack_name="$1"
+            stack_name="$1-mongo"
             ;;
         *)
             echo "Unknown argument: $1"

@@ -4,6 +4,7 @@ package e2e_test
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -23,7 +24,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-var logLevel = zerolog.Disabled
+var logLevel = zerolog.DebugLevel
 
 var portsInUse = make(map[int]struct{})
 var portsMu = sync.Mutex{}
@@ -68,6 +69,13 @@ func buildTestConfig(testName string, override ...config.Provider) config.Provid
 	cnf.CachePath = testRoot + "/cache"
 	cnf.UIPath = repoRoot + "/weblens-vue/weblens-nuxt/.output/public/"
 
+	logPath := "../_build/logs/e2e-test-backends/" + safeTestName(testName) + ".log"
+	if err := os.MkdirAll(filepath.Dir(logPath), 0755); err != nil {
+		panic(err)
+	}
+
+	cnf.LogPath = logPath
+
 	err = os.RemoveAll(testRoot)
 	if err != nil {
 		panic(err)
@@ -88,6 +96,8 @@ func buildTestConfig(testName string, override ...config.Provider) config.Provid
 		port++
 	}
 
+	fmt.Printf("Assigned port [%d] for test [%s]\n", port, testName)
+
 	cnf.Port = strconv.Itoa(port)
 
 	return cnf
@@ -102,7 +112,8 @@ func releaseTestPort(port string) {
 	portsMu.Lock()
 	defer portsMu.Unlock()
 
-	delete(portsInUse, portInt)
+	fmt.Printf("Releasing port [%d]\n", portInt)
+	// delete(portsInUse, portInt)
 }
 
 func setupTestServer(ctx context.Context, name string, settings ...config.Provider) (setupResult, error) {
@@ -118,7 +129,7 @@ func setupTestServer(ctx context.Context, name string, settings ...config.Provid
 		releaseTestPort(cnf.Port)
 	})
 
-	logger := log.NewZeroLogger(log.CreateOpts{Level: logLevel}).With().Str("test", name).Logger()
+	logger := log.NewZeroLogger(log.CreateOpts{Level: logLevel, LogFile: cnf.LogPath}).With().Str("test", name).Logger()
 	appCtx := context_service.NewAppContext(context_service.NewBasicContext(ctx, &logger))
 
 	testDB, err := db.ConnectToMongo(appCtx, cnf.MongoDBUri, cnf.MongoDBName)
@@ -136,18 +147,20 @@ func setupTestServer(ctx context.Context, name string, settings ...config.Provid
 	}
 
 	context.AfterFunc(ctx, func() {
+		logger.Info().Msgf("Cleaning up test database [%s]", cnf.MongoDBName)
+
 		appCtx := context_service.NewAppContext(context_service.NewBasicContext(context.Background(), &logger))
 
 		testDB, err := db.ConnectToMongo(appCtx, cnf.MongoDBUri, cnf.MongoDBName)
 		if err != nil {
-			log.GlobalLogger().Error().Stack().Err(err).Msgf("failed to connect to mongo test db during cleanup: [%s]", cnf.MongoDBName)
+			logger.Error().Stack().Err(err).Msgf("failed to connect to mongo test db during cleanup: [%s]", cnf.MongoDBName)
 
 			return
 		}
 
 		err = testDB.Drop(appCtx)
 		if err != nil {
-			log.GlobalLogger().Error().Stack().Err(err).Msgf("failed to drop mongo test db during cleanup: [%s]", cnf.MongoDBName)
+			logger.Error().Stack().Err(err).Msgf("failed to drop mongo test db during cleanup: [%s]", cnf.MongoDBName)
 		}
 	})
 
@@ -164,7 +177,7 @@ func setupTestServer(ctx context.Context, name string, settings ...config.Provid
 
 	select {
 	case err := <-failedChan:
-		return setupResult{}, wlerrors.Errorf("server failed to start: %w", err)
+		return setupResult{}, wlerrors.Errorf("%s test server failed to start (logs: %s): %w", cnf.InitRole, cnf.LogPath, err)
 	case appCtx = <-startedChan:
 	}
 
@@ -187,7 +200,7 @@ func setupTestServer(ctx context.Context, name string, settings ...config.Provid
 		ret.token = base64.StdEncoding.EncodeToString(tokens[0].Token[:])
 	}
 
-	log.GlobalLogger().Info().Msgf("Test server for test [%s] started on port %s", name, cnf.Port)
+	logger.Info().Msgf("Test server for test [%s] started on port %s", name, cnf.Port)
 
 	return ret, nil
 }

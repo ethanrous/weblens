@@ -45,15 +45,21 @@ var loggerMu sync.RWMutex
 
 // CreateOpts configures logging options.
 type CreateOpts struct {
-	Level zerolog.Level
+	Level   zerolog.Level
+	LogFile string
 }
 
 func compileCreateLogOpts(o ...CreateOpts) CreateOpts {
 	opts := CreateOpts{}
+	opts.Level = zerolog.Disabled
 
 	for _, opt := range o {
-		if opt.Level != 0 {
+		if opt.Level != zerolog.Disabled {
 			opts.Level = opt.Level
+		}
+
+		if opt.LogFile != "" {
+			opts.LogFile = opt.LogFile
 		}
 	}
 
@@ -83,27 +89,25 @@ func NewZeroLogger(opts ...CreateOpts) *zerolog.Logger {
 
 	loggerMu.RUnlock()
 
-	config := config.GetConfig()
-
 	outputLocation := os.Stdout
 
-	if config.LogPath != "" {
+	if o.LogFile != "" {
 		var err error
 
-		outputLocation, err = os.OpenFile(config.LogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		outputLocation, err = os.OpenFile(o.LogFile, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
-			panic(wlerrors.Errorf("failed to open log file %s: %w", config.LogPath, err))
+			panic(wlerrors.Errorf("failed to open log file %s: %w", o.LogFile, err))
 		}
 	}
 
-	var localLogger io.Writer
-	if config.LogFormat == "dev" {
-		localLogger = newDevLogger(outputLocation)
-	} else {
-		localLogger = outputLocation
-	}
+	config := config.GetConfig()
 
-	writers := []io.Writer{localLogger}
+	var logWriter io.Writer
+	if config.LogFormat == "dev" {
+		logWriter = newDevLogger(outputLocation)
+	} else {
+		logWriter = outputLocation
+	}
 
 	wlVersion := os.Getenv("WEBLENS_BUILD_VERSION")
 	if wlVersion == "" {
@@ -121,27 +125,31 @@ func NewZeroLogger(opts ...CreateOpts) *zerolog.Logger {
 		}
 	}
 
-	multi := zerolog.MultiLevelWriter(writers...)
-
-	level := config.LogLevel
-	if o.Level != 0 {
+	level := zerolog.InfoLevel
+	if o.Level != zerolog.Disabled {
 		level = o.Level
 	}
 
-	log := zerolog.New(multi).Level(level).With().Timestamp().Caller().Str("weblens_build_version", wlVersion).Logger()
+	// Create a new logger instance with the specified output, log level, and build version context
+	log := zerolog.New(logWriter).Level(level).With().Timestamp().Caller().Str("weblens_build_version", wlVersion).Logger()
 
-	// If no options are provided, set as the global logger
+	// If no options are provided, set the global loggers
 	if len(opts) == 0 {
 		zerolog.SetGlobalLevel(config.LogLevel)
 
 		loggerMu.Lock()
 
+		// Set as our "global" logger
 		logger = log
+
+		// Set as the zerolog global logger
 		zlog.Logger = log
 
 		loggerMu.Unlock()
 
 		log.Info().Msgf("Weblens logger initialized [%s][%s]", log.GetLevel(), config.LogFormat)
+	} else {
+		log.Debug().Msgf("Created new Weblens logger [%s][%s]", log.GetLevel(), config.LogFormat)
 	}
 
 	return &log

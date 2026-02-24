@@ -401,6 +401,10 @@ func (t *Task) SetTimeout(timeout time.Time) {
 	t.timerLock.Lock()
 	defer t.timerLock.Unlock()
 
+	if timeout.Before(time.Now()) || timeout.Before(t.timeout) {
+		return
+	}
+
 	t.timeout = timeout
 	wp := t.GetTaskPool().GetWorkerPool()
 	wp.AddHit(timeout, t)

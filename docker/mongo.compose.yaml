@@ -20,7 +20,7 @@ configs:
       healthCheck:
         address: "mongot.search-community:8080"
       logging:
-        verbosity: INFO
+        verbosity: WARN
   mongot-pwfile:
     content: "mongotPassword"
 
@@ -44,8 +44,6 @@ services:
       - useGrpcForSearch=true
     ports:
       - ${MONGO_HOST_PORT:-27017}:27017
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     volumes:
       - ${MONGO_DATA_ROOT}/mongod:/data/db
     healthcheck:
@@ -60,7 +58,7 @@ services:
       start_period: 10s
 
   mongot:
-    image: mongodb/mongodb-community-search:0.53.1
+    image: mongodb/mongodb-community-search:0.60.1
     container_name: weblens-${MONGO_PROJECT_NAME}-mongot
     hostname: mongot.search-community
     depends_on:
@@ -69,7 +67,8 @@ services:
     entrypoint:
       - /mongot-community/mongot
       - --config=/mongot-config.yml
-      - --internalListAllIndexesForTesting=true
+      - --jvm-flags
+      - "-Xms8g -Xmx8g"
     configs:
       - source: mongot-config
         target: /mongot-config.yml
@@ -82,6 +81,7 @@ services:
       - ${MONGOT_HOST_PORT_GRPC:-27028}:27028
       - ${MONGOT_HOST_PORT_METRICS:-9946}:9946
       - ${MONGOT_HEALTHCHECK_PORT:-38081}:8080
+    restart: unless-stopped
 
 networks:
   default:
