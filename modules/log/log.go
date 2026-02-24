@@ -130,8 +130,6 @@ func NewZeroLogger(opts ...CreateOpts) *zerolog.Logger {
 		level = o.Level
 	}
 
-	fmt.Printf("Initializing Weblens logger with level [%s] and format [%s]. Writing to [%s]\n", level, config.LogFormat, o.LogFile)
-
 	// Create a new logger instance with the specified output, log level, and build version context
 	log := zerolog.New(logWriter).Level(level).With().Timestamp().Caller().Str("weblens_build_version", wlVersion).Logger()
 
@@ -150,6 +148,8 @@ func NewZeroLogger(opts ...CreateOpts) *zerolog.Logger {
 		loggerMu.Unlock()
 
 		log.Info().Msgf("Weblens logger initialized [%s][%s]", log.GetLevel(), config.LogFormat)
+	} else {
+		log.Debug().Msgf("Created new Weblens logger [%s][%s]", log.GetLevel(), config.LogFormat)
 	}
 
 	return &log

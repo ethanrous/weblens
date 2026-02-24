@@ -26,6 +26,7 @@
         <ContextNameFile
             v-else
             :value="menuStore.menuMode === 'rename' ? targetFile?.GetFilename() : ''"
+            :disabled="!targetFile"
             @submit="handleNameFile"
         />
     </div>
@@ -86,8 +87,15 @@ const menuPosition = computed(() => {
 
 const targetFile = ref<WeblensFile>()
 
-watch([() => menuStore.directTargetID, () => filesStore.children], () => {
+watch([() => menuStore.directTargetID, () => filesStore.children, () => filesStore.activeFile], () => {
+    console.log(
+        'Updating target file for context menu. Direct Target ID:',
+        menuStore.directTargetID,
+        filesStore.children,
+        filesStore.activeFile,
+    )
     targetFile.value = filesStore.getFileByID(menuStore.directTargetID)
+    console.log('GOT FILE', targetFile.value)
 })
 
 const selectedFiles = computed(() => {

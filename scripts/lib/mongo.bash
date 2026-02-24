@@ -21,7 +21,7 @@ is_mongo_running() {
         return 1
     fi
 
-    if docker compose ls --filter "name=weblens-$stack_name" --format json 2>/dev/null | grep '"running"' &>/dev/null; then
+    if docker compose ls --filter "name=weblens-$stack_name" --format json 2>/dev/null | grep '"running(2)"' &>/dev/null; then
         return 0
     fi
 

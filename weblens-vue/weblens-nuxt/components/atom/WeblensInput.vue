@@ -15,6 +15,7 @@
             :placeholder="placeholder"
             :type="type"
             :value="value"
+            :disabled="disabled"
             @input="
                 (e) => {
                     emit('update:value', (e.target as HTMLInputElement).value)
@@ -76,6 +77,7 @@ const props = defineProps<{
     search?: boolean
     merge?: 'row' | 'column'
     clearButton?: boolean
+    disabled?: boolean
 }>()
 
 const value = defineModel<string>('value')

@@ -3,6 +3,7 @@
         :value="value"
         search
         auto-focus
+        :disabled="disabled"
         @submit="handleSubmit"
     />
 </template>
@@ -20,5 +21,6 @@ function handleSubmit(value: string) {
 
 defineProps<{
     value?: string
+    disabled?: boolean
 }>()
 </script>

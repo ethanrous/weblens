@@ -3,6 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import http from 'http'
 import { fileURLToPath } from 'url'
+import { randomInt } from 'crypto'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = path.resolve(__dirname, '../../..')
@@ -12,23 +13,16 @@ const LOG_DIR = path.join(BUILD_DIR, 'logs', 'playwright')
 
 const VERBOSE = Boolean(process.env.WEBLENS_VERBOSE)
 
-const WEBLENS_PORT_BASE = 14100
+const WEBLENS_PORT_BASE = 10100
 const MONGO_PORT = 27020
 
-// ── Worker-scoped: MongoDB lifecycle ──
-
-function makeLogFile(
+export function makeLogFile(
     workerIndex: number,
-    type: string,
-    opts?: { extraIdentifier?: string; noExt?: boolean; noCreate?: boolean },
+    logClass: string,
+    name: string,
+    opts?: { noCreate?: boolean },
 ): string {
-    let filename = opts?.extraIdentifier
-        ? `worker-${workerIndex}-${type}-${opts.extraIdentifier.replace('/', '_')}`
-        : `worker-${workerIndex}-${type}`
-
-    if (!opts?.noExt) {
-        filename += '.log'
-    }
+    const filename = `${logClass}-${name.replaceAll('/', '_').replaceAll(' ', '_')}.log`
 
     const dateString = new Date(Number(process.env.WEBLENS_PLAYWRIGHT_TEST_START_TIME))
         .toISOString()
@@ -36,95 +30,16 @@ function makeLogFile(
         .replace(/:/g, '-')
         .split('.')[0]
 
-    const logPath = path.join(LOG_DIR, type + '-' + dateString, filename)
+    const logPath = path.join(LOG_DIR, `pw-test-${dateString}`, filename)
     fs.mkdirSync(path.dirname(logPath), { recursive: true, mode: 0o777 })
     // Clear existing log
     if (!opts?.noCreate) {
-        console.debug(`[worker-${workerIndex}] Creating log file at ${logPath}...`)
+        if (VERBOSE) console.debug(`[worker-${workerIndex}] Creating log file at ${logPath}...`)
         fs.closeSync(fs.openSync(logPath, 'w', 0o777))
     }
 
     return logPath
 }
-
-// export interface WorkerMongo {
-//     port: number
-//     stackName: string
-//     workerIndex: number
-// }
-
-// export async function startWorkerMongo(workerIndex: number): Promise<WorkerMongo> {
-//     const mongoPort = MONGO_PORT_BASE + workerIndex
-//     const mongotGrpcPort = MONGOT_GRPC_PORT_BASE + workerIndex
-//     const mongotMetricsPort = MONGOT_METRICS_PORT_BASE + workerIndex
-//     const mongotHealthcheckPort = MONGOT_HEALTHCHECK_PORT_BASE + workerIndex
-//     const stackName = `pw-worker-${workerIndex}`
-//
-//     return { port: MONGO_PORT_BASE, stackName: 'pw-worker-0', workerIndex: 0 }
-//     if (workerIndex !== 0) {
-//     }
-//
-//     // Clean mongo data directory so MongoDB starts fresh.
-//     // Data dir may contain root-owned files from the container, so use
-//     // Docker to remove subdirs before cleaning up the parent with Node.
-//     const mongoDataDir = path.join(BUILD_DIR, 'db', stackName)
-//     if (fs.existsSync(mongoDataDir)) {
-//         try {
-//             fs.rmSync(mongoDataDir, { recursive: true })
-//         } catch {
-//             execSync(`docker run --rm -v "${mongoDataDir}:/cleanup" alpine rm -rf /cleanup/mongod /cleanup/mongot`, {
-//                 cwd: REPO_ROOT,
-//                 stdio: 'pipe',
-//             })
-//             fs.rmSync(mongoDataDir, { recursive: true })
-//         }
-//     }
-//
-//     if (VERBOSE) console.debug(`[worker-${workerIndex}] Starting MongoDB on port ${mongoPort}...`)
-//
-//     // Launch mongo via the bash helper (handles docker compose, replica set, etc.)
-//     execSync(
-//         `source scripts/lib/all.bash && ` +
-//             `MONGOT_HOST_PORT_GRPC=${mongotGrpcPort} ` +
-//             `MONGOT_HOST_PORT_METRICS=${mongotMetricsPort} ` +
-//             `MONGOT_HEALTHCHECK_PORT=${mongotHealthcheckPort} ` +
-//             `launch_mongo --stack-name "${stackName}" --mongo-port ${mongoPort}`,
-//         { cwd: REPO_ROOT, stdio: 'pipe', shell: '/bin/bash' },
-//     )
-//
-//     return { port: mongoPort, stackName, workerIndex }
-// }
-
-// export async function stopWorkerMongo(mongo: WorkerMongo): Promise<void> {
-//     const { workerIndex, stackName } = mongo
-//     if (VERBOSE) console.debug(`[worker-${workerIndex}] Cleaning up mongo stack ${stackName}...`)
-//
-//     const logPath = makeLogFile(workerIndex, 'db', { noExt: true, noCreate: true })
-//
-//     if (VERBOSE) console.debug(`[worker-${workerIndex}] Dumping MongoDB logs to ${logPath}-*.log...`)
-//
-//     try {
-//         const out = execSync(
-//             `source scripts/lib/all.bash && dump_mongo_logs --stack-name "${stackName}" --logfile "${logPath}" && cleanup_mongo --stack-name "${stackName}"`,
-//             {
-//                 cwd: REPO_ROOT,
-//                 stdio: 'pipe',
-//                 shell: '/bin/bash',
-//             },
-//         )
-//
-//         if (VERBOSE) console.debug(`[worker-${workerIndex}] Mongo cleanup log: ${out.toString()}`)
-//         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-//     } catch (e: any) {
-//         if (VERBOSE)
-//             console.debug(
-//                 `[worker-${workerIndex}] Mongo cleanup failed: ${e.stderr.toString()} \n------------\n ${e.stdout.toString()}`,
-//             )
-//     }
-//     if (VERBOSE) console.debug(`[worker-${workerIndex}] Mongo teardown complete`)
-// }
-
-// ── Test-scoped: Backend binary lifecycle ──
 
 export interface TestBackend {
     baseURL: string
@@ -179,7 +94,7 @@ function isProcessRunning(pid: number): boolean {
 }
 
 export async function startTestBackend(workerIndex: number, testName: string): Promise<TestBackend> {
-    const port = WEBLENS_PORT_BASE + workerIndex
+    const port = WEBLENS_PORT_BASE + workerIndex * 1000 + randomInt(999)
     const dbName = `pw-${testName.replaceAll('/', '_')}`.slice(0, 63) // MongoDB database names have a max length of 64
 
     // Fresh filesystem per test
@@ -201,7 +116,7 @@ export async function startTestBackend(workerIndex: number, testName: string): P
         throw new Error(`Frontend build not found at ${uiPath}. Run ./scripts/test-playwright.bash to build it.`)
     }
 
-    const logPath = makeLogFile(workerIndex, 'backend', { extraIdentifier: dbName })
+    const logPath = makeLogFile(workerIndex, 'backend', dbName)
 
     const logStream = fs.createWriteStream(logPath)
 
@@ -238,11 +153,12 @@ export async function startTestBackend(workerIndex: number, testName: string): P
         throw new Error(`[worker-${workerIndex}] Failed to spawn backend process`)
     }
 
-    if (VERBOSE) console.debug(`[worker-${workerIndex}] Backend PID ${child.pid}, logs at ${logPath}`)
-
+    const start = Date.now()
     const baseURL = `http://localhost:${port}`
     await pollHealth(`${baseURL}/health`, 25_000, logPath)
-    if (VERBOSE) console.debug(`[worker-${workerIndex}] Backend is healthy`)
+    console.debug(
+        `Backend for test ${testName} with PID ${child.pid} on port :${port} is healthy after ${Date.now() - start}ms - logs at ${logPath}`,
+    )
 
     return { baseURL, port, dbName, workerIndex, process: child, logPath }
 }

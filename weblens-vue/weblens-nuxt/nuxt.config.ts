@@ -3,6 +3,7 @@
 import tailwindcss from '@tailwindcss/vite'
 
 const isBuild = process.env.VITE_BUILD === 'true'
+const isDebugBuild = process.env.VITE_DEBUG_BUILD === 'true'
 
 if (!process.env.VITE_PROXY_PORT && !isBuild) {
     process.env.VITE_PROXY_PORT = '8080'
@@ -55,7 +56,7 @@ export default defineNuxtConfig({
         },
     },
     sourcemap: {
-        client: process.env.ENABLE_SOURCEMAPS === 'true',
+        client: isDebugBuild,
     },
     vite: {
         plugins: [tailwindcss()],

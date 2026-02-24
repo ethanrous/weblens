@@ -20,7 +20,7 @@ configs:
       healthCheck:
         address: "mongot.search-community:8080"
       logging:
-        verbosity: INFO
+        verbosity: WARN
   mongot-pwfile:
     content: "mongotPassword"
 
@@ -73,7 +73,9 @@ services:
     entrypoint:
       - /mongot-community/mongot
       - --config=/mongot-config.yml
-      - --internalListAllIndexesForTesting=true
+      - --jvm-flags
+      - "-Xms8g -Xmx8g"
+      # - --internalListAllIndexesForTesting=true
     configs:
       - source: mongot-config
         target: /mongot-config.yml
@@ -86,6 +88,7 @@ services:
       - ${MONGOT_HOST_PORT_GRPC:-27028}:27028
       - ${MONGOT_HOST_PORT_METRICS:-9946}:9946
       - ${MONGOT_HEALTHCHECK_PORT:-38081}:8080
+    restart: unless-stopped
 
 networks:
   default:

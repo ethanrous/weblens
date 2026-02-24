@@ -36,10 +36,15 @@ export default defineConfig({
                     },
                     sourceFilter: (sourcePath: string) => {
                         return (
-                            !sourcePath.includes('node_modules') &&
-                            !sourcePath.includes('\x00') &&
-                            !sourcePath.includes('virtual:') &&
-                            !sourcePath.match('^api/')
+                            sourcePath.includes('/pages/') ||
+                            sourcePath.includes('/components/') ||
+                            sourcePath.includes('/composables/') ||
+                            sourcePath.includes('/stores/') ||
+                            sourcePath.includes('/util/') ||
+                            sourcePath.includes('/router/') ||
+                            sourcePath.includes('/modules/') ||
+                            sourcePath.includes('/server/') ||
+                            sourcePath.includes('/types/')
                         )
                     },
                     sourcePath: (filePath: string) => {
