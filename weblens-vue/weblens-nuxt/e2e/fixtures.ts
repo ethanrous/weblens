@@ -36,7 +36,6 @@ const test = base.extend<Fixtures>({
     ],
 
     autoTestFixture: [
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         async ({ page }: { page: Page }, use: () => unknown, testInfo: TestInfo) => {
             // Set up console log stream
             const logFilePath = makeLogFile(testInfo.parallelIndex, 'browser-console', testInfo.title)
