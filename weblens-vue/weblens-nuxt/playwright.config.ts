@@ -30,6 +30,7 @@ export default defineConfig({
                 name: 'Weblens E2E Report',
                 outputFile: path.join(buildDir, 'report/index.html'),
                 coverage: {
+                    cleanCache: true,
                     reports: ['v8'],
                     entryFilter: (entry: { url: string }) => {
                         return entry.url.includes('/_nuxt/')

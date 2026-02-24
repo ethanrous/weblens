@@ -63,7 +63,7 @@ else
     printf "Skipping Go binary build (lazy mode)...\n"
 fi
 
-rm -f ./_build/playwright/report/coverage/index.html >/dev/null || true
+rm -rf ./_build/playwright/report/coverage/ >/dev/null || true
 
 # Install Playwright browsers if needed
 pushd "${WEBLENS_ROOT}/weblens-vue/weblens-nuxt" >/dev/null
