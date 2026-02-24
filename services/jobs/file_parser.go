@@ -358,7 +358,7 @@ func reportSubscanStatus(tsk *task.Task) {
 	}
 
 	var notif websocket.WsResponseInfo
-	if tsk.GetTaskPool().IsGlobal() {
+	if tsk.GetTaskPool().IsGlobal() || tsk.GetTaskPool().CreatedInTask() == nil {
 		notif = notify.NewTaskNotification(tsk, event, getScanResult(tsk))
 	} else {
 		notif = notify.NewPoolNotification(tsk.GetTaskPool(), event, getScanResult(tsk))

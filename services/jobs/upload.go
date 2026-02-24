@@ -12,6 +12,7 @@ import (
 	"github.com/ethanrous/weblens/models/history"
 	"github.com/ethanrous/weblens/models/job"
 	job_model "github.com/ethanrous/weblens/models/job"
+	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/models/task"
 	slices_mod "github.com/ethanrous/weblens/modules/slices"
 	"github.com/ethanrous/weblens/modules/websocket"
@@ -101,7 +102,6 @@ func HandleFileUploads(tsk *task.Task) {
 
 		notifs := notify.NewFileNotification(appCtx, fInfo, websocket.FileUpdatedEvent)
 
-		doingRootScan := false
 		// Do not report that this task pool was created by this task, we want to detach
 		// and allow these scans to take place independently
 		newTp, err := tsk.GetTaskPool().GetWorkerPool().NewTaskPool(false, nil)
@@ -133,19 +133,20 @@ func HandleFileUploads(tsk *task.Task) {
 						continue
 					}
 				}
-			} else if !doingRootScan && !timeout {
-				scanMeta := job_model.ScanMeta{
-					File: rootFile,
+			} else if !timeout {
+				mt := media_model.ParseExtension(tl.GetPortablePath().Ext())
+				if mt.Displayable {
+					scanMeta := job_model.ScanMeta{
+						File: tl,
+					}
+
+					_, err = appCtx.DispatchJob(job_model.ScanFileTask, scanMeta, newTp)
+					if err != nil {
+						tsk.Log().Error().Stack().Err(err).Msg("")
+
+						continue
+					}
 				}
-
-				_, err = appCtx.DispatchJob(job_model.ScanDirectoryTask, scanMeta, newTp)
-				if err != nil {
-					tsk.Log().Error().Stack().Err(err).Msg("")
-
-					continue
-				}
-
-				doingRootScan = true
 			}
 		}
 
