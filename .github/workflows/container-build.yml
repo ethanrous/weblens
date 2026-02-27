@@ -4,18 +4,22 @@ on:
   workflow_dispatch:
     inputs:
       build_tag:
-        description: 'Build Tag'
+        description: "Build Tag"
         required: false
         default: ""
         type: string
       do_release_build:
-        description: 'Release'
+        description: "Release"
         required: false
         default: false
         type: boolean
 
   push:
-    branches: [ "main" ]
+    branches: ["main"]
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   build-container:
@@ -30,6 +34,14 @@ jobs:
         with:
           submodules: "recursive"
 
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          # Use the GITHUB_TOKEN secret provided by GitHub Actions
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: GoGoGadgetDocker
         run: |
           sudo docker login -u ${{ vars.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
@@ -42,12 +54,12 @@ jobs:
           elif [ -z "$BUILD_TAG" ]; then
             BUILD_TAG="dev-$(git rev-parse --short HEAD)"
           fi
-          
+
           echo "Grab the new container at" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "docker.io/ethrous/weblens:$BUILD_TAG-amd64" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          
+
           ./scripts/gogogadgetdocker.bash -p -s -t $BUILD_TAG
           exit $?
         env:
