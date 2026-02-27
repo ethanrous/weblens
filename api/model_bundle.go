@@ -21,6 +21,7 @@ var _ MappedNullable = &Bundle{}
 type Bundle struct {
 	AuthAllowRegistrations *bool `json:"auth.allow_registrations,omitempty"`
 	MediaHdirProcessingEnabled *bool `json:"media.hdir_processing_enabled,omitempty"`
+	WebdavEnabled *bool `json:"webdav.enabled,omitempty"`
 }
 
 // NewBundle instantiates a new Bundle object
@@ -104,6 +105,38 @@ func (o *Bundle) SetMediaHdirProcessingEnabled(v bool) {
 	o.MediaHdirProcessingEnabled = &v
 }
 
+// GetWebdavEnabled returns the WebdavEnabled field value if set, zero value otherwise.
+func (o *Bundle) GetWebdavEnabled() bool {
+	if o == nil || IsNil(o.WebdavEnabled) {
+		var ret bool
+		return ret
+	}
+	return *o.WebdavEnabled
+}
+
+// GetWebdavEnabledOk returns a tuple with the WebdavEnabled field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *Bundle) GetWebdavEnabledOk() (*bool, bool) {
+	if o == nil || IsNil(o.WebdavEnabled) {
+		return nil, false
+	}
+	return o.WebdavEnabled, true
+}
+
+// HasWebdavEnabled returns a boolean if a field has been set.
+func (o *Bundle) HasWebdavEnabled() bool {
+	if o != nil && !IsNil(o.WebdavEnabled) {
+		return true
+	}
+
+	return false
+}
+
+// SetWebdavEnabled gets a reference to the given bool and assigns it to the WebdavEnabled field.
+func (o *Bundle) SetWebdavEnabled(v bool) {
+	o.WebdavEnabled = &v
+}
+
 func (o Bundle) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -119,6 +152,9 @@ func (o Bundle) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.MediaHdirProcessingEnabled) {
 		toSerialize["media.hdir_processing_enabled"] = o.MediaHdirProcessingEnabled
+	}
+	if !IsNil(o.WebdavEnabled) {
+		toSerialize["webdav.enabled"] = o.WebdavEnabled
 	}
 	return toSerialize, nil
 }

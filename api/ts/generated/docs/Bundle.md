@@ -7,6 +7,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **auth_allow_registrations** | **boolean** |  | [optional] [default to undefined]
 **media_hdir_processing_enabled** | **boolean** |  | [optional] [default to undefined]
+**webdav_enabled** | **boolean** |  | [optional] [default to undefined]
 
 ## Example
 
@@ -16,6 +17,7 @@ import { Bundle } from './api';
 const instance: Bundle = {
     auth_allow_registrations,
     media_hdir_processing_enabled,
+    webdav_enabled,
 };
 ```
 

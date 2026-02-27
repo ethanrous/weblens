@@ -117,7 +117,11 @@ type WeblensFileImpl struct {
 	// size in bytes of the file on the disk
 	size atomic.Int64
 
+	// writeHead is the current offset for read/write operations on the file. This is used to keep track of where the next read/write should occur.
 	writeHead int64
+
+	// writeHeadLock is a RWMutex to protect concurrent access to the writeHead field.
+	writeHeadLock sync.RWMutex
 
 	// If this file is a directory, these are the files that are housed by this directory.
 	childLock sync.RWMutex
@@ -333,7 +337,17 @@ func (f *WeblensFileImpl) Read(p []byte) (n int, err error) {
 
 	fp, err := os.Open(f.portablePath.ToAbsolute())
 	if err != nil {
-		return 0, err
+		return -1, err
+	}
+
+	defer fp.Close() //nolint:errcheck
+
+	f.writeHeadLock.RLock()
+	defer f.writeHeadLock.RUnlock()
+
+	_, err = fp.Seek(f.writeHead, io.SeekStart)
+	if err != nil {
+		return -1, err
 	}
 
 	return fp.Read(p)
@@ -363,6 +377,9 @@ func (f *WeblensFileImpl) Readdir(count int) ([]fs.FileInfo, error) {
 
 // Seek sets the offset for the next read or write operation.
 func (f *WeblensFileImpl) Seek(offset int64, whence int) (int64, error) {
+	f.writeHeadLock.Lock()
+	defer f.writeHeadLock.Unlock()
+
 	switch whence {
 	case io.SeekStart:
 		f.writeHead = offset

@@ -6,6 +6,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **AuthAllowRegistrations** | Pointer to **bool** |  | [optional] 
 **MediaHdirProcessingEnabled** | Pointer to **bool** |  | [optional] 
+**WebdavEnabled** | Pointer to **bool** |  | [optional] 
 
 ## Methods
 
@@ -75,6 +76,31 @@ SetMediaHdirProcessingEnabled sets MediaHdirProcessingEnabled field to given val
 `func (o *Bundle) HasMediaHdirProcessingEnabled() bool`
 
 HasMediaHdirProcessingEnabled returns a boolean if a field has been set.
+
+### GetWebdavEnabled
+
+`func (o *Bundle) GetWebdavEnabled() bool`
+
+GetWebdavEnabled returns the WebdavEnabled field if non-nil, zero value otherwise.
+
+### GetWebdavEnabledOk
+
+`func (o *Bundle) GetWebdavEnabledOk() (*bool, bool)`
+
+GetWebdavEnabledOk returns a tuple with the WebdavEnabled field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetWebdavEnabled
+
+`func (o *Bundle) SetWebdavEnabled(v bool)`
+
+SetWebdavEnabled sets WebdavEnabled field to given value.
+
+### HasWebdavEnabled
+
+`func (o *Bundle) HasWebdavEnabled() bool`
+
+HasWebdavEnabled returns a boolean if a field has been set.
 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

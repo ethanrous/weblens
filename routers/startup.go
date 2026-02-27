@@ -27,6 +27,7 @@ import (
 	"github.com/ethanrous/weblens/services/jobs"
 	"github.com/ethanrous/weblens/services/notify"
 	_ "github.com/ethanrous/weblens/services/user" // Required to register user service routes
+	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog"
 )
 
@@ -41,11 +42,11 @@ type StartupOpts struct {
 	Started chan context_service.AppContext
 }
 
-func startupRecover() {
+func startupRecover(appCtx context_service.AppContext) {
 	if r := recover(); r != nil {
 		err := wlerrors.Errorf("%v", r)
 
-		log.GlobalLogger().Fatal().Stack().Err(err).Msgf("Startup panicked")
+		appCtx.Log().Error().Stack().Err(err).Msgf("Startup panicked")
 	}
 }
 
@@ -110,7 +111,14 @@ func Start(opts StartupOpts) error {
 
 	// Run startup hooks to initialize services and perform setup tasks.
 	// This essentially boots up the entire app.
+	prevAppCtx := appCtx
+
 	appCtx, router, err := startServices(appCtx, cnf)
+	if err == nil && router == nil {
+		appCtx = prevAppCtx
+		err = wlerrors.New("startServices returned nil router")
+	}
+
 	if err != nil {
 		// If we fail to start up, kill all the services that may have started, and exit.
 		logger.Error().Stack().Err(err).Msg("Failed to start services")
@@ -154,7 +162,7 @@ func Start(opts StartupOpts) error {
 
 // startServices initializes all application services and configures the HTTP router.
 func startServices(appCtx context_service.AppContext, cnf config.Provider) (context_service.AppContext, *router.Router, error) {
-	defer startupRecover()
+	defer startupRecover(appCtx)
 
 	r := router.NewRouter()
 
@@ -212,17 +220,26 @@ func startServices(appCtx context_service.AppContext, cnf config.Provider) (cont
 		return appCtx, nil, err
 	}
 
+	chi.RegisterMethod("PROPFIND")
+	chi.RegisterMethod("MKCOL")
+	chi.RegisterMethod("COPY")
+	chi.RegisterMethod("MOVE")
+	chi.RegisterMethod("LOCK")
+	chi.RegisterMethod("UNLOCK")
+
 	// Install middlewares
 	r.Use(
 		context_service.AppContexter(appCtx),
 		router.CORSMiddleware,
+		router.LoggerMiddlewares(),
+		router.Recoverer,
 	)
 
 	// Install routes
-	r.Mount("/api/v1/", router.LoggerMiddlewares(), router.Recoverer, v1.Routes(appCtx))
+	r.Mount("/api/v1/", v1.Routes(appCtx))
 
-	r.Use(router.Recoverer)
 	r.Mount("/docs", v1.Docs())
+	r.Mount("/webdav/", v1.WebDAVRouter(appCtx))
 	r.Mount("/", web.UIRoutes(web.NewMemFs(appCtx, cnf)))
 
 	return appCtx, r, nil

@@ -41,6 +41,13 @@ The test script will always output coverage information when run. To check code 
 make cover
 ```
 
+# Generated code
+
+**NEVER edit generated files directly.** The TypeScript API SDK in `api/ts/generated/` and `api/ts/dist/` is auto-generated from Go swagger annotations. To update it:
+
+1. Make changes to the Go source code (structs, swagger annotations, etc.)
+2. Run `make swag` to regenerate the TypeScript API SDK
+
 # Code style and linting
 
 Weblens follows standard Go code style conventions. To ensure your code adheres to these conventions, please run the following commands after making changes to go code:
