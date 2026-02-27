@@ -13,6 +13,10 @@ type Fixtures = {
     logPath: string
 }
 
+function showLogFile(logFile: string): string {
+    return '_build' + logFile.split('_build')[1]
+}
+
 const test = base.extend<Fixtures>({
     // eslint-disable-next-line no-empty-pattern
     testBackend: async ({}, use, testInfo) => {
@@ -36,7 +40,11 @@ const test = base.extend<Fixtures>({
     ],
 
     autoTestFixture: [
-        async ({ page }: { page: Page }, use: () => unknown, testInfo: TestInfo) => {
+        async (
+            { page, testBackend }: { page: Page; testBackend: TestBackend },
+            use: () => unknown,
+            testInfo: TestInfo,
+        ) => {
             // Set up console log stream
             const logFilePath = makeLogFile(testInfo.parallelIndex, 'browser-console', testInfo.title)
             const logStream = fs.createWriteStream(logFilePath, { flags: 'a' })
@@ -59,7 +67,9 @@ const test = base.extend<Fixtures>({
             }
 
             if (testInfo.status !== testInfo.expectedStatus) {
-                console.warn(`Test "${testInfo.title}" failed - see browser console logs in ${logFilePath}`)
+                console.warn(
+                    `Test "${testInfo.title}" failed - see browser console logs in ${showLogFile(logFilePath)} and backend logs at ${showLogFile(testBackend.logPath)}`,
+                )
             }
         },
         { auto: true },

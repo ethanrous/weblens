@@ -22,6 +22,20 @@
 
         <WeblensButton
             v-if="!multipleSelected"
+            label="Info"
+            fill-width
+            :disabled="!targetFile"
+            @click.stop="
+                targetFile &&
+                usePresentationStore().setPresentationFileID(targetFile?.ID()) &&
+                menuStore.setMenuOpen(false)
+            "
+        >
+            <IconInfoCircle />
+        </WeblensButton>
+
+        <WeblensButton
+            v-if="!multipleSelected"
             label="Share"
             fill-width
             :disabled="!canModifyTarget || protectedFile"
@@ -91,6 +105,7 @@ import {
     IconDownload,
     IconFolderPlus,
     IconHistoryToggle,
+    IconInfoCircle,
     IconPencil,
     IconPhotoScan,
     IconTrash,

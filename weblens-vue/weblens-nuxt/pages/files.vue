@@ -23,15 +23,24 @@
                         stroke="1"
                     />
 
-                    <div :class="{ 'mb-6 flex w-[20rem] items-center': true }">
-                        <IconDatabase />
-                        <h4 :class="{ 'mr-auto ml-2': true }">{{ presentingFile.FormatSize() }}</h4>
-
-                        <IconCalendar />
-                        <h4 :class="{ 'ml-2': true }">{{ presentingFile.FormatModified() }}</h4>
-                    </div>
-
                     <h1>{{ presentingFile.GetFilename() }}</h1>
+
+                    <div :class="{ 'mt-8 flex w-max flex-col items-center justify-center gap-2': true }">
+                        <span :class="{ 'inline-flex items-center': true }">
+                            <IconDatabase />
+                            <h4 :class="{ 'ml-1': true }">{{ presentingFile.FormatSize() }}</h4></span
+                        >
+
+                        <span :class="{ 'inline-flex items-center': true }">
+                            <IconCalendar />
+                            <h4 :class="{ 'ml-1': true }">{{ presentingFile.FormatModified() }}</h4></span
+                        >
+
+                        <span :class="{ 'inline-flex items-center': true }">
+                            <IconHash />
+                            <h4>{{ presentingFile.GetChildren().length }} items</h4></span
+                        >
+                    </div>
                 </div>
             </template>
 
@@ -75,7 +84,7 @@ import WebsocketStatus from '~/components/atom/WebsocketStatus.vue'
 import useFilesStore from '~/stores/files'
 import useLocationStore from '~/stores/location'
 import useWebsocketStore from '~/stores/websocket'
-import { IconCalendar, IconDatabase, IconFolder } from '@tabler/icons-vue'
+import { IconCalendar, IconDatabase, IconFolder, IconHash } from '@tabler/icons-vue'
 import PresentationMediaInfo from '~/components/molecule/PresentationMediaInfo.vue'
 
 const wsStore = useWebsocketStore()
@@ -85,7 +94,7 @@ const filesStore = useFilesStore()
 const mediaStore = useMediaStore()
 
 const presentingFile = computed(() => {
-    return filesStore.children?.find((f) => f.id === presentationStore.presentationFileID)
+    return filesStore.getFileByID(presentationStore.presentationFileID)
 })
 
 const mediaID = computed(() => {
@@ -93,6 +102,8 @@ const mediaID = computed(() => {
 })
 
 const presentationNextFn = computed(() => {
+    if (presentingFile.value?.ID() === filesStore.activeFile?.ID()) return
+
     return () => {
         if (locationStore.isInTimeline) {
             const nextID = mediaStore.getNextMediaID(presentationStore.presentationMediaID)
@@ -109,6 +120,8 @@ const presentationNextFn = computed(() => {
 })
 
 const presentationPrevFn = computed(() => {
+    if (presentingFile.value?.ID() === filesStore.activeFile?.ID()) return
+
     return () => {
         if (locationStore.isInTimeline) {
             const prevID = mediaStore.getPreviousMediaID(presentationStore.presentationMediaID)

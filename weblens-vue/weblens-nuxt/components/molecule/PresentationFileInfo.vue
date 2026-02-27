@@ -55,6 +55,7 @@
             <WeblensButton
                 label="Show in Files"
                 type="outline"
+                :disabled="file.ID() === fileStore.activeFile?.ID()"
                 @click.stop="goToFile"
             >
                 <IconSearch size="16" />
