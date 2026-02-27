@@ -43,6 +43,7 @@ export interface BackupInfo {
 export interface Bundle {
     'auth.allow_registrations'?: boolean;
     'media.hdir_processing_enabled'?: boolean;
+    'webdav.enabled'?: boolean;
 }
 export interface CreateFolderBody {
     'children'?: Array<string>;

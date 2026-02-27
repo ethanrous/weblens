@@ -2264,10 +2264,13 @@ components:
       example:
         auth.allow_registrations: true
         media.hdir_processing_enabled: true
+        webdav.enabled: true
       properties:
         auth.allow_registrations:
           type: boolean
         media.hdir_processing_enabled:
+          type: boolean
+        webdav.enabled:
           type: boolean
       type: object
     CreateFolderBody:

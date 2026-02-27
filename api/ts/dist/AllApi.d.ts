@@ -142,6 +142,7 @@ interface BackupInfo {
 interface Bundle {
     'auth.allow_registrations'?: boolean;
     'media.hdir_processing_enabled'?: boolean;
+    'webdav.enabled'?: boolean;
 }
 interface CreateFolderBody {
     'children'?: Array<string>;

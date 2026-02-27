@@ -77,17 +77,17 @@ func NopLogger() zerolog.Logger {
 func NewZeroLogger(opts ...CreateOpts) *zerolog.Logger {
 	o := compileCreateLogOpts(opts...)
 
-	loggerMu.RLock()
-
-	if logger.GetLevel() != zerolog.Disabled && len(opts) == 0 {
-		l := logger.With().Logger()
-
-		loggerMu.RUnlock()
-
-		return &l
-	}
-
-	loggerMu.RUnlock()
+	// loggerMu.RLock()
+	//
+	// if logger.GetLevel() != zerolog.Disabled && len(opts) == 0 {
+	// 	l := logger.With().Logger()
+	//
+	// 	loggerMu.RUnlock()
+	//
+	// 	return &l
+	// }
+	//
+	// loggerMu.RUnlock()
 
 	outputLocation := os.Stdout
 
@@ -133,24 +133,7 @@ func NewZeroLogger(opts ...CreateOpts) *zerolog.Logger {
 	// Create a new logger instance with the specified output, log level, and build version context
 	log := zerolog.New(logWriter).Level(level).With().Timestamp().Caller().Str("weblens_build_version", wlVersion).Logger()
 
-	// If no options are provided, set the global loggers
-	if len(opts) == 0 {
-		zerolog.SetGlobalLevel(config.LogLevel)
-
-		loggerMu.Lock()
-
-		// Set as our "global" logger
-		logger = log
-
-		// Set as the zerolog global logger
-		zlog.Logger = log
-
-		loggerMu.Unlock()
-
-		log.Info().Msgf("Weblens logger initialized [%s][%s]", log.GetLevel(), config.LogFormat)
-	} else {
-		log.Debug().Msgf("Created new Weblens logger [%s][%s]", log.GetLevel(), config.LogFormat)
-	}
+	log.Trace().CallerSkipFrame(1).Msgf("Created new Weblens logger [%s][%s]", log.GetLevel(), config.LogFormat)
 
 	return &log
 }
@@ -171,17 +154,19 @@ func SetLogLevel(level zerolog.Level) {
 // The returned logger is safe to use concurrently and can have
 // UpdateContext called on it without racing with other goroutines.
 func GlobalLogger() *zerolog.Logger {
-	loggerMu.RLock()
+	loggerMu.Lock()
+	defer loggerMu.Unlock()
 
 	if logger.GetLevel() == zerolog.Disabled {
-		loggerMu.RUnlock()
+		cnf := config.GetConfig()
+		logger = *NewZeroLogger(CreateOpts{Level: cnf.LogLevel})
 
-		NewZeroLogger()
+		zerolog.SetGlobalLevel(cnf.LogLevel)
 
-		loggerMu.RLock()
+		zlog.Logger = logger
+
+		logger.Debug().Msgf("Initialized global logger at level [%s]", logger.GetLevel())
 	}
-
-	defer loggerMu.RUnlock()
 
 	// Use With().Logger() to create a copy
 	// that doesn't share the context buffer

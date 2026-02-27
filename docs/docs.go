@@ -3081,6 +3081,9 @@ const docTemplate = `{
                 },
                 "media.hdir_processing_enabled": {
                     "type": "boolean"
+                },
+                "webdav.enabled": {
+                    "type": "boolean"
                 }
             }
         },

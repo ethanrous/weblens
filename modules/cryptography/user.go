@@ -13,6 +13,13 @@ import (
 const BcryptDifficultyCtxKey = "bcryptDifficulty"
 const bcryptDefaultDifficulty = 11
 
+// HashUserPasswordDifficulty hashes a user password using bcrypt with the specified difficulty level.
+func HashUserPasswordDifficulty(password string, difficulty int) ([]byte, error) {
+	difficulty = max(difficulty, bcrypt.MinCost)
+
+	return bcrypt.GenerateFromPassword([]byte(password), difficulty)
+}
+
 // HashUserPassword hashes a user password using bcrypt.
 func HashUserPassword(ctx context.Context, password string) (string, error) {
 	// For testing, we can set the bcrypt difficulty in the context
@@ -23,7 +30,10 @@ func HashUserPassword(ctx context.Context, password string) (string, error) {
 		bcryptDifficulty = bcryptDefaultDifficulty
 	}
 
-	passHashBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcryptDifficulty)
+	passHashBytes, err := HashUserPasswordDifficulty(password, bcryptDifficulty)
+	if err != nil {
+		return "", err
+	}
 
 	return string(passHashBytes), err
 }

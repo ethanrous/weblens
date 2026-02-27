@@ -49,6 +49,8 @@ definitions:
         type: boolean
       media.hdir_processing_enabled:
         type: boolean
+      webdav.enabled:
+        type: boolean
     type: object
   CreateFolderBody:
     properties:

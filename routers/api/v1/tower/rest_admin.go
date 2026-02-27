@@ -115,6 +115,8 @@ func SetFlags(ctx ctxservice.RequestContext) {
 			cnf.AllowRegistrations = param.ConfigValue.(bool)
 		case featureflags.EnableHDIR:
 			cnf.EnableHDIR = param.ConfigValue.(bool)
+		case featureflags.EnableWebDAV:
+			cnf.EnableWebDAV = param.ConfigValue.(bool)
 		default:
 			ctx.Error(http.StatusBadRequest, wlerrors.Errorf("Unknown feature flag: %s", param.ConfigKey))
 		}

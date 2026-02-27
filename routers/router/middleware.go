@@ -217,13 +217,13 @@ func CORSMiddleware(next Handler) Handler {
 			"Access-Control-Allow-Headers",
 			"Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, Content-Range, Cookie",
 		)
-		ctx.SetHeader("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, PATCH, DELETE")
+		ctx.SetHeader("Access-Control-Allow-Methods", "POST, HEAD, OPTIONS, GET, PUT, PATCH, DELETE")
 
-		if ctx.Req.Method == http.MethodOptions {
-			ctx.Status(http.StatusNoContent)
-
-			return
-		}
+		// if ctx.Req.Method == http.MethodOptions {
+		// 	ctx.Status(http.StatusNoContent)
+		//
+		// 	return
+		// }
 
 		next.ServeHTTP(ctx)
 	})

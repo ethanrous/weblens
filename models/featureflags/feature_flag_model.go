@@ -25,12 +25,15 @@ const (
 	AllowRegistrations FlagKey = "auth.allow_registrations"
 	// EnableHDIR controls whether HDIR (high-dynamic-range image rendering) is enabled.
 	EnableHDIR FlagKey = "media.hdir_processing_enabled"
+	// EnableWebDAV controls whether WebDAV file access is enabled.
+	EnableWebDAV FlagKey = "webdav.enabled"
 )
 
 // Bundle represents the application feature flag document.
 type Bundle struct {
 	AllowRegistrations bool `bson:"auth.allow_registrations" json:"auth.allow_registrations"`
 	EnableHDIR         bool `bson:"media.hdir_processing_enabled" json:"media.hdir_processing_enabled"`
+	EnableWebDAV       bool `bson:"webdav.enabled" json:"webdav.enabled"`
 } // @name Bundle
 
 // Default returns the default flags

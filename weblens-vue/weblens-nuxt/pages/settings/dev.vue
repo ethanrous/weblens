@@ -22,22 +22,28 @@
             @click="scanAllMedia"
         />
 
-        <WeblensButton
-            label="Enable trace logging"
-            center-content
-            :disabled="towerStore.towerInfo?.logLevel === 'trace'"
-            @click="enableTraceLogging()"
-        />
-
-        <WeblensButton
-            :label="
-                featureFlags?.['media.hdir_processing_enabled']
-                    ? 'Disable HDIR image processing'
-                    : 'Enable HDIR image processing'
-            "
-            center-content
-            @click="enableHDIR(!featureFlags?.['media.hdir_processing_enabled'])"
-        />
+        <div class="flex flex-col gap-2 py-2">
+            <WeblensCheckbox
+                label="Trace logging"
+                :checked="towerStore.towerInfo?.logLevel === 'trace'"
+                @checked:changed="(v) => v && enableTraceLogging()"
+            />
+            <WeblensCheckbox
+                label="Allow registrations"
+                :checked="featureFlags?.['auth.allow_registrations'] ?? false"
+                @checked:changed="(v) => setFlag('auth.allow_registrations', v)"
+            />
+            <WeblensCheckbox
+                label="HDIR image processing"
+                :checked="featureFlags?.['media.hdir_processing_enabled'] ?? false"
+                @checked:changed="(v) => setFlag('media.hdir_processing_enabled', v)"
+            />
+            <WeblensCheckbox
+                label="WebDAV file access"
+                :checked="featureFlags?.['webdav.enabled'] ?? false"
+                @checked:changed="(v) => setFlag('webdav.enabled', v)"
+            />
+        </div>
 
         <Divider />
 
@@ -79,6 +85,7 @@ import { CancelTask } from '~/api/FileBrowserApi'
 import Divider from '~/components/atom/Divider.vue'
 import Table from '~/components/atom/Table.vue'
 import WeblensButton from '~/components/atom/WeblensButton.vue'
+import WeblensCheckbox from '~/components/atom/WeblensCheckbox.vue'
 import { TableType, type TableColumn } from '~/types/table'
 
 const towerStore = useTowerStore()
@@ -172,12 +179,12 @@ const { data: featureFlags, refresh: refreshFeatureFlags } = useAsyncData('featu
     return res.data
 })
 
-async function enableHDIR(enable: boolean) {
+async function setFlag(key: string, value: boolean) {
     return useWeblensAPI()
         .FeatureFlagsAPI.setFlags([
             {
-                configKey: 'media.hdir_processing_enabled',
-                configValue: enable as unknown as object,
+                configKey: key,
+                configValue: value as unknown as object,
             },
         ])
         .then(() => {

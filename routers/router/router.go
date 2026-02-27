@@ -48,7 +48,14 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 // Mount attaches a sub-router at the specified prefix with optional middleware.
 func (r *Router) Mount(prefix string, h ...any) {
-	subRouter := h[len(h)-1].(http.Handler)
+	subRouter, ok := h[len(h)-1].(http.Handler)
+	if !ok {
+		if handlr, ok := h[len(h)-1].(HandlerFunc); ok {
+			subRouter = toStdHandlerFunc(handlr)
+		} else {
+			panic(wlerrors.Errorf("last argument to Mount must be an http.Handler but got %T", h[len(h)-1]))
+		}
+	}
 
 	r.chi.With(r.middlewares...).With(parseMiddlewares(h[:len(h)-1]...)...).Mount(r.prefix+prefix, subRouter)
 }
