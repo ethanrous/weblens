@@ -84,6 +84,8 @@ func buildTestConfig(testName string, override ...config.Provider) config.Provid
 	port := atomicPort.Add(1) + 14000
 	cnf.Port = strconv.Itoa(int(port))
 
+	cnf.WorkerCount = 2
+
 	return cnf
 }
 

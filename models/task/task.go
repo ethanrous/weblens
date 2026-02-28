@@ -228,7 +228,6 @@ func (t *Task) Cancel() {
 	// Do not exit task here, so that .Wait() -ing on a task will wait until the task actually exits,
 	// before starting again
 	// t.queueState = Exited
-	_ = ""
 }
 
 // ClearAndRecompute cancels the task, clears its state, and re-queues it.

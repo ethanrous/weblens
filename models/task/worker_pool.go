@@ -352,7 +352,7 @@ func (wp *WorkerPool) Run(ctx context.Context) {
 	go wp.bufferDrainer(ctx)
 
 	// Spawn the status printer
-	go wp.statusReporter(ctx)
+	// go wp.statusReporter(ctx)
 
 	for range wp.maxWorkers.Load() {
 		// These are the base, 'omnipresent' threads for this pool,
@@ -703,32 +703,32 @@ func (wp *WorkerPool) reaper(ctx context.Context) {
 	}
 }
 
-func (wp *WorkerPool) statusReporter(ctx context.Context) {
-	var lastCount int
-
-	ticker := time.NewTicker(time.Second * 10)
-
-	defer func() {
-		log.FromContext(ctx).Debug().Msg("status reporter exiting")
-	}()
-
-	for {
-		select {
-		case _, ok := <-ctx.Done():
-			if !ok {
-				return
-			}
-		case <-ticker.C:
-			remaining, total, busy, alive, retrySize := wp.Status()
-			if lastCount != remaining || busy != 0 {
-				lastCount = remaining
-				log.FromContext(ctx).Debug().Int("queue_remaining", remaining).Int("queue_total", total).Int("queue_buffered", retrySize).Int("busy_workers", busy).Int("alive_workers", alive).Msgf(
-					"Worker pool status - %d tasks in queue, %d total tasks queued, %d busy workers, %d alive workers", remaining, total, busy, alive,
-				)
-			}
-		}
-	}
-}
+// func (wp *WorkerPool) statusReporter(ctx context.Context) {
+// 	var lastCount int
+//
+// 	ticker := time.NewTicker(time.Second * 10)
+//
+// 	defer func() {
+// 		log.FromContext(ctx).Debug().Msg("status reporter exiting")
+// 	}()
+//
+// 	for {
+// 		select {
+// 		case _, ok := <-ctx.Done():
+// 			if !ok {
+// 				return
+// 			}
+// 		case <-ticker.C:
+// 			remaining, total, busy, alive, retrySize := wp.Status()
+// 			if lastCount != remaining || busy != 0 {
+// 				lastCount = remaining
+// 				log.FromContext(ctx).Debug().Int("queue_remaining", remaining).Int("queue_total", total).Int("queue_buffered", retrySize).Int("busy_workers", busy).Int("alive_workers", alive).Msgf(
+// 					"Worker pool status - %d tasks in queue, %d total tasks queued, %d busy workers, %d alive workers", remaining, total, busy, alive,
+// 				)
+// 			}
+// 		}
+// 	}
+// }
 
 func (wp *WorkerPool) bufferDrainer(ctx context.Context) {
 	ticker := time.NewTicker(time.Second * 10)
