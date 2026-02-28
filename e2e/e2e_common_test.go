@@ -177,7 +177,7 @@ func setupTestServer(ctx context.Context, name string, settings ...config.Provid
 
 			// Server is started, but gave an error response. This means the server is ready,
 			// but something is wrong with the request (likely missing auth token). Don't keep retrying in this case.
-			if resp.StatusCode < 500 && resp.StatusCode >= 400 {
+			if resp != nil && resp.StatusCode < 500 && resp.StatusCode >= 400 {
 				return setupResult{}, wlerrors.Errorf("API returned error response (logs: %s): %w", cnf.LogPath, err)
 			}
 
