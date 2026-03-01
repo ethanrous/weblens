@@ -403,6 +403,8 @@ func (c RequestContext) WithRequester(u *user_model.User) RequestContext {
 
 	if u != nil && u.Username != "" && u.Username != user_model.PublicUserName {
 		c.IsLoggedIn = true
+
+		c.Log().Trace().Msgf("Set requester in context: %s", u.Username)
 	}
 
 	return c

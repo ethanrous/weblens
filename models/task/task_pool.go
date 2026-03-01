@@ -299,15 +299,14 @@ func (tp *Pool) Errors() []*Task {
 // Cancel cancels all tasks in this pool.
 func (tp *Pool) Cancel() {
 	// Dont allow more tasks to join the queue while we are canceling them
-	tp.taskLock.Lock()
-
+	// tp.taskLock.Lock()
 	tp.allQueuedFlag.Store(true)
 
 	for _, t := range tp.tasks {
 		t.Cancel()
 	}
 
-	tp.taskLock.Unlock()
+	// tp.taskLock.Unlock()
 }
 
 // QueueTask adds a task to this pool for execution.

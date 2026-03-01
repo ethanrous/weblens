@@ -4,12 +4,14 @@ package e2e_test
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
+
+	"golang.org/x/crypto/bcrypt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
+	"sync/atomic"
+	"time"
 
 	openapi "github.com/ethanrous/weblens/api"
 	"github.com/ethanrous/weblens/models/auth"
@@ -27,7 +29,7 @@ import (
 var logLevel = zerolog.DebugLevel
 
 var portsInUse = make(map[int]struct{})
-var portsMu = sync.Mutex{}
+var atomicPort = atomic.Int32{}
 
 type setupResult struct {
 	cnf     config.Provider
@@ -81,39 +83,12 @@ func buildTestConfig(testName string, override ...config.Provider) config.Provid
 		panic(err)
 	}
 
-	// Find an available port for the test
-	portsMu.Lock()
-	defer portsMu.Unlock()
+	port := atomicPort.Add(1) + 14000
+	cnf.Port = strconv.Itoa(int(port))
 
-	port := 14000
-	for {
-		if _, inUse := portsInUse[port]; !inUse {
-			portsInUse[port] = struct{}{}
-
-			break
-		}
-
-		port++
-	}
-
-	fmt.Printf("Assigned port [%d] for test [%s]\n", port, testName)
-
-	cnf.Port = strconv.Itoa(port)
+	cnf.WorkerCount = 2
 
 	return cnf
-}
-
-func releaseTestPort(port string) {
-	portInt, err := strconv.Atoi(port)
-	if err != nil {
-		panic(err)
-	}
-
-	portsMu.Lock()
-	defer portsMu.Unlock()
-
-	fmt.Printf("Releasing port [%d]\n", portInt)
-	// delete(portsInUse, portInt)
 }
 
 func setupTestServer(ctx context.Context, name string, settings ...config.Provider) (setupResult, error) {
@@ -121,13 +96,9 @@ func setupTestServer(ctx context.Context, name string, settings ...config.Provid
 
 	ctx, cancel := context.WithCancel(ctx)
 	startedChan := make(chan context_service.AppContext)
-	failedChan := make(chan error)
+	failedChan := make(chan error, 1)
 
-	ctx = context.WithValue(ctx, cryptography.BcryptDifficultyCtxKey, 1)
-
-	context.AfterFunc(ctx, func() {
-		releaseTestPort(cnf.Port)
-	})
+	ctx = context.WithValue(ctx, cryptography.BcryptDifficultyCtxKey, bcrypt.MinCost)
 
 	logger := log.NewZeroLogger(log.CreateOpts{Level: logLevel, LogFile: cnf.LogPath}).With().Str("test", name).Logger()
 	appCtx := context_service.NewAppContext(context_service.NewBasicContext(ctx, &logger))
@@ -198,6 +169,31 @@ func setupTestServer(ctx context.Context, name string, settings ...config.Provid
 		}
 
 		ret.token = base64.StdEncoding.EncodeToString(tokens[0].Token[:])
+
+		client := getAPIClientFromConfig(cnf, ret.token)
+
+		retries := 0
+		for retries < 10 {
+			_, resp, err := client.UsersAPI.GetUser(appCtx).Execute()
+			if err == nil {
+				break
+			}
+
+			// Server is started, but gave an error response. This means the server is ready,
+			// but something is wrong with the request (likely missing auth token). Don't keep retrying in this case.
+			if resp != nil && resp.StatusCode < 500 && resp.StatusCode >= 400 {
+				return setupResult{}, wlerrors.Errorf("API returned error response (logs: %s): %w", cnf.LogPath, err)
+			}
+
+			logger.Warn().Err(err).Msgf("API not ready yet, retrying... (%d/10)", retries+1)
+			retries++
+
+			time.Sleep(1 * time.Second)
+		}
+
+		if retries == 10 {
+			return setupResult{}, wlerrors.Errorf("API did not become ready in time (logs: %s)", cnf.LogPath)
+		}
 	}
 
 	logger.Info().Msgf("Test server for test [%s] started on port %s", name, cnf.Port)

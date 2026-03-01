@@ -31,7 +31,7 @@ run_native_tests() {
     go install gotest.tools/gotestsum@latest
 
     # shellcheck disable=SC2086
-    gotestsum -- -cover -race -coverprofile=_build/cover/coverage.out -json -coverpkg ./... -tags=test ${target}
+    gotestsum -- -cover -race -coverprofile=_build/cover/coverage.out -json -timeout=1m -coverpkg ./... -tags=test ${target}
 
     portable_sed '/github\.com\/ethanrous\/weblens\/api/d' ./_build/cover/coverage.out
 }

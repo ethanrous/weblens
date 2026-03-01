@@ -43,18 +43,21 @@
                     size="20"
                     @click.stop="presentationStore.infoOpen = !presentationStore.infoOpen"
                 />
+
                 <IconArrowLeft
+                    v-if="previous"
                     :class="{
-                        'bg-card-background-primary/50 absolute bottom-10 left-10 m-2 rounded p-1 md:hidden': true,
+                        'bg-card-background-primary/50 absolute bottom-10 left-10 m-2 cursor-pointer rounded p-1': true,
                     }"
-                    size="32"
+                    size="40"
                     @click.stop="previous()"
                 />
                 <IconArrowRight
+                    v-if="next"
                     :class="{
-                        'bg-card-background-primary/50 absolute right-10 bottom-10 m-2 rounded p-1 md:hidden': true,
+                        'bg-card-background-primary/50 absolute right-10 bottom-10 m-2 cursor-pointer rounded p-1': true,
                     }"
-                    size="32"
+                    size="40"
                     @click.stop="next()"
                 />
             </div>
@@ -72,8 +75,8 @@ const presentation = ref<HTMLDivElement>()
 const presentationSize = useElementSize(presentation)
 
 const props = defineProps<{
-    next: () => void
-    previous: () => void
+    next: (() => void) | undefined
+    previous: (() => void) | undefined
 }>()
 
 const renderInfo = ref<boolean>(presentationStore.infoOpen)
@@ -98,12 +101,14 @@ onKeyUp(['i'], (e) => {
 })
 
 onKeyStroke(['ArrowRight'], (e) => {
+    if (!props.next) return
     e.preventDefault()
     e.stopPropagation()
     props.next()
 })
 
 onKeyStroke(['ArrowLeft'], (e) => {
+    if (!props.previous) return
     e.preventDefault()
     e.stopPropagation()
     props.previous()
