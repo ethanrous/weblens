@@ -211,8 +211,6 @@ func (t *Task) Wait() {
 func (t *Task) Cancel() {
 	t.Log().Trace().Msgf("Cancelling task T[%s]", t.taskID)
 
-	t.cancelFunc(nil)
-
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
 
@@ -220,6 +218,8 @@ func (t *Task) Cancel() {
 		t.queueState = Exited
 		t.exitStatus = TaskCanceled
 	}
+
+	t.cancelFunc(nil)
 
 	if t.childTaskPool != nil {
 		t.childTaskPool.Cancel()
