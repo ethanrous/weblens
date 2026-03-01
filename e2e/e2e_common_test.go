@@ -4,6 +4,8 @@ package e2e_test
 import (
 	"context"
 	"encoding/base64"
+
+	"golang.org/x/crypto/bcrypt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -96,7 +98,7 @@ func setupTestServer(ctx context.Context, name string, settings ...config.Provid
 	startedChan := make(chan context_service.AppContext)
 	failedChan := make(chan error, 1)
 
-	ctx = context.WithValue(ctx, cryptography.BcryptDifficultyCtxKey, 1)
+	ctx = context.WithValue(ctx, cryptography.BcryptDifficultyCtxKey, bcrypt.MinCost)
 
 	logger := log.NewZeroLogger(log.CreateOpts{Level: logLevel, LogFile: cnf.LogPath}).With().Str("test", name).Logger()
 	appCtx := context_service.NewAppContext(context_service.NewBasicContext(ctx, &logger))

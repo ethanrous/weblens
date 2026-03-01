@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/ethanrous/weblens/models/db"
 	"github.com/ethanrous/weblens/models/task"
 	tower_model "github.com/ethanrous/weblens/models/tower"
@@ -94,7 +96,7 @@ func Start(opts StartupOpts) error {
 	if cnf.DangerouslyInsecurePasswordHashing {
 		appCtx.Log().Warn().Msg("Running with DANGEROUSLY_INSECURE_PASSWORD_HASHING=true, using minimal bcrypt difficulty for password hashing. DO NOT USE THIS IN PRODUCTION.")
 
-		appCtx = appCtx.WithValue(cryptography.BcryptDifficultyCtxKey, 1)
+		appCtx = appCtx.WithValue(cryptography.BcryptDifficultyCtxKey, bcrypt.MinCost)
 	}
 
 	if cnf.DoProfile {
