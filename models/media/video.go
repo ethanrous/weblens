@@ -12,9 +12,9 @@ import (
 	"time"
 
 	file_model "github.com/ethanrous/weblens/models/file"
-	"github.com/ethanrous/weblens/modules/fs"
-	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlfs"
+	"github.com/ethanrous/weblens/modules/wlog"
 	"github.com/rs/zerolog"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
@@ -26,7 +26,7 @@ var ErrChunkNotFound = wlerrors.New("chunk not found")
 type VideoStreamer struct {
 	err           error
 	file          *file_model.WeblensFileImpl
-	streamDirPath fs.Filepath
+	streamDirPath wlfs.Filepath
 	listFileCache []byte
 	modifiedCache time.Time
 	updateMu      sync.RWMutex
@@ -36,7 +36,7 @@ type VideoStreamer struct {
 }
 
 // NewVideoStreamer creates a new VideoStreamer for the specified file.
-func NewVideoStreamer(file *file_model.WeblensFileImpl, thumbsPath fs.Filepath) *VideoStreamer {
+func NewVideoStreamer(file *file_model.WeblensFileImpl, thumbsPath wlfs.Filepath) *VideoStreamer {
 	streamDir := thumbsPath.Child(file.GetContentID()+"-stream", true)
 
 	return &VideoStreamer{
@@ -57,7 +57,7 @@ func (vs *VideoStreamer) Encode(f *file_model.WeblensFileImpl) *VideoStreamer {
 }
 
 // GetEncodeDir returns the directory path where encoded video chunks are stored.
-func (vs *VideoStreamer) GetEncodeDir() fs.Filepath {
+func (vs *VideoStreamer) GetEncodeDir() wlfs.Filepath {
 	return vs.streamDirPath
 }
 
@@ -254,7 +254,7 @@ func (vs *VideoStreamer) transcodeChunks(f *file_model.WeblensFileImpl, speed st
 		return
 	}
 
-	log.GlobalLogger().Debug().Msgf("Bitrate: %d", videoBitrate)
+	wlog.GlobalLogger().Debug().Msgf("Bitrate: %d", videoBitrate)
 
 	outputArgs := ffmpeg.KwArgs{
 		"c:v":                "libx264",

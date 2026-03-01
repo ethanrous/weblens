@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/ethanrous/weblens/modules/log"
 	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
+	"github.com/ethanrous/weblens/modules/wlog"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -19,7 +19,7 @@ const maxRetries = 5
 
 // ConnectToMongo establishes a connection to MongoDB with automatic retries and context-aware cleanup.
 func ConnectToMongo(ctx context.Context, mongoURI, mongoDbName string) (*mongo.Database, error) {
-	l := log.FromContext(ctx)
+	l := wlog.FromContext(ctx)
 	l.Debug().CallerSkipFrame(1).Msgf("Connecting to Mongo at %s with name %s ...", mongoURI, mongoDbName)
 
 	clientOptions := options.Client().ApplyURI(mongoURI)

@@ -6,8 +6,8 @@ import (
 
 	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
-	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlog"
 )
 
 // GetMediaCacheByFilename retrieves a cached media file by its thumbnail filename.
@@ -45,11 +45,11 @@ func (fs *ServiceImpl) DeleteCacheFile(f *file_model.WeblensFileImpl) error {
 // If the filter is empty, no files will be removed. However, if you want to remove all cache files, pass nil as the filter.
 func RemoveCacheFilesWithFilter(ctx context.Context, contentIDFilter []string) error {
 	if contentIDFilter != nil && len(contentIDFilter) == 0 {
-		log.FromContext(ctx).Trace().Msg("no content IDs provided, skipping cache file removal")
+		wlog.FromContext(ctx).Trace().Msg("no content IDs provided, skipping cache file removal")
 
 		return nil
 	} else if contentIDFilter == nil {
-		log.FromContext(ctx).Warn().Msg("no content ID filter provided, removing all cache files")
+		wlog.FromContext(ctx).Warn().Msg("no content ID filter provided, removing all cache files")
 	}
 
 	cachePaths, err := getChildFilepaths(file_model.ThumbsDirPath)
@@ -64,20 +64,20 @@ func RemoveCacheFilesWithFilter(ctx context.Context, contentIDFilter []string) e
 
 		contentID, _, _, err := media_model.ParseCacheFileName(cacheFilePath.Filename())
 		if err != nil {
-			log.FromContext(ctx).Error().Stack().Err(err).Str("file", cacheFilePath.Filename()).Msg("failed to parse cache file name, skipping")
+			wlog.FromContext(ctx).Error().Stack().Err(err).Str("file", cacheFilePath.Filename()).Msg("failed to parse cache file name, skipping")
 
 			continue
 		}
 
 		if contentIDFilter == nil || slices.Contains(contentIDFilter, contentID) {
-			log.FromContext(ctx).Trace().Str("file", cacheFilePath.String()).Msg("removing cache file")
+			wlog.FromContext(ctx).Trace().Str("file", cacheFilePath.String()).Msg("removing cache file")
 
 			err := remove(cacheFilePath)
 			if err != nil {
 				return err
 			}
 		} else {
-			log.FromContext(ctx).Trace().Str("file", cacheFilePath.String()).Msg("keeping cache file")
+			wlog.FromContext(ctx).Trace().Str("file", cacheFilePath.String()).Msg("keeping cache file")
 		}
 	}
 

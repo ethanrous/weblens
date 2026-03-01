@@ -4,15 +4,15 @@ import (
 	"os"
 
 	file_model "github.com/ethanrous/weblens/models/file"
-	"github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlfs"
 )
 
-func isCacheFile(filepath fs.Filepath) bool {
+func isCacheFile(filepath wlfs.Filepath) bool {
 	return filepath.RootAlias == file_model.CachesTreeKey
 }
 
-func touch(filepath fs.Filepath) (f *file_model.WeblensFileImpl, err error) {
+func touch(filepath wlfs.Filepath) (f *file_model.WeblensFileImpl, err error) {
 	osf, err := os.Create(filepath.ToAbsolute())
 	if err != nil {
 		return nil, wlerrors.WithStack(err)
@@ -28,7 +28,7 @@ func touch(filepath fs.Filepath) (f *file_model.WeblensFileImpl, err error) {
 	return
 }
 
-func mkdir(filepath fs.Filepath) (f *file_model.WeblensFileImpl, err error) {
+func mkdir(filepath wlfs.Filepath) (f *file_model.WeblensFileImpl, err error) {
 	err = os.Mkdir(filepath.ToAbsolute(), os.ModePerm)
 	if err != nil {
 		if os.IsExist(err) {
@@ -43,7 +43,7 @@ func mkdir(filepath fs.Filepath) (f *file_model.WeblensFileImpl, err error) {
 	return
 }
 
-func exists(filepath fs.Filepath) bool {
+func exists(filepath wlfs.Filepath) bool {
 	_, err := os.Stat(filepath.ToAbsolute())
 	if os.IsNotExist(err) {
 		return false
@@ -56,21 +56,21 @@ func exists(filepath fs.Filepath) bool {
 	return true
 }
 
-func rename(oldPath, newPath fs.Filepath) error {
+func rename(oldPath, newPath wlfs.Filepath) error {
 	return wlerrors.WithStack(os.Rename(oldPath.ToAbsolute(), newPath.ToAbsolute()))
 }
 
-func remove(filepath fs.Filepath) error {
+func remove(filepath wlfs.Filepath) error {
 	return wlerrors.WithStack(os.RemoveAll(filepath.ToAbsolute()))
 }
 
-func getChildFilepaths(filepath fs.Filepath) ([]fs.Filepath, error) {
+func getChildFilepaths(filepath wlfs.Filepath) ([]wlfs.Filepath, error) {
 	childs, err := os.ReadDir(filepath.ToAbsolute())
 	if err != nil {
 		return nil, err
 	}
 
-	childPaths := make([]fs.Filepath, 0, len(childs))
+	childPaths := make([]wlfs.Filepath, 0, len(childs))
 
 	for _, child := range childs {
 		childPath := filepath.Child(child.Name(), child.IsDir())

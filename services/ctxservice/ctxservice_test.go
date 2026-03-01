@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ethanrous/weblens/modules/log"
+	"github.com/ethanrous/weblens/modules/wlog"
 	"github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
@@ -13,7 +13,7 @@ import (
 
 func TestNewBasicContext(t *testing.T) {
 	t.Run("creates basic context with logger", func(t *testing.T) {
-		logger := log.NewZeroLogger()
+		logger := wlog.NewZeroLogger()
 		ctx := ctxservice.NewBasicContext(context.Background(), logger)
 
 		assert.NotNil(t, ctx)
@@ -23,7 +23,7 @@ func TestNewBasicContext(t *testing.T) {
 
 func TestBasicContext_Log(t *testing.T) {
 	t.Run("returns logger from context", func(t *testing.T) {
-		logger := log.NewZeroLogger()
+		logger := wlog.NewZeroLogger()
 		ctx := ctxservice.NewBasicContext(context.Background(), logger)
 
 		retrieved := ctx.Log()
@@ -33,7 +33,7 @@ func TestBasicContext_Log(t *testing.T) {
 
 func TestBasicContext_WithValue(t *testing.T) {
 	t.Run("adds value to context", func(t *testing.T) {
-		logger := log.NewZeroLogger()
+		logger := wlog.NewZeroLogger()
 		ctx := ctxservice.NewBasicContext(context.Background(), logger)
 
 		key := "testKey"
@@ -44,7 +44,7 @@ func TestBasicContext_WithValue(t *testing.T) {
 	})
 
 	t.Run("preserves original context", func(t *testing.T) {
-		logger := log.NewZeroLogger()
+		logger := wlog.NewZeroLogger()
 		ctx := ctxservice.NewBasicContext(context.Background(), logger)
 
 		key := "testKey"
@@ -58,7 +58,7 @@ func TestBasicContext_WithValue(t *testing.T) {
 
 func TestNewAppContext(t *testing.T) {
 	t.Run("creates app context from basic context", func(t *testing.T) {
-		logger := log.NewZeroLogger()
+		logger := wlog.NewZeroLogger()
 		basicCtx := ctxservice.NewBasicContext(context.Background(), logger)
 
 		appCtx := ctxservice.NewAppContext(basicCtx)
@@ -70,7 +70,7 @@ func TestNewAppContext(t *testing.T) {
 
 func TestFromContext(t *testing.T) {
 	t.Run("extracts app context", func(t *testing.T) {
-		logger := log.NewZeroLogger()
+		logger := wlog.NewZeroLogger()
 		basicCtx := ctxservice.NewBasicContext(context.Background(), logger)
 		appCtx := ctxservice.NewAppContext(basicCtx)
 
@@ -98,7 +98,7 @@ func TestFromContext(t *testing.T) {
 
 func TestAppContext_WithValue(t *testing.T) {
 	t.Run("adds value to app context", func(t *testing.T) {
-		logger := log.NewZeroLogger()
+		logger := wlog.NewZeroLogger()
 		basicCtx := ctxservice.NewBasicContext(context.Background(), logger)
 		appCtx := ctxservice.NewAppContext(basicCtx)
 
@@ -112,7 +112,7 @@ func TestAppContext_WithValue(t *testing.T) {
 
 func TestAppContext_Database(t *testing.T) {
 	t.Run("returns nil database when not set", func(t *testing.T) {
-		logger := log.NewZeroLogger()
+		logger := wlog.NewZeroLogger()
 		basicCtx := ctxservice.NewBasicContext(context.Background(), logger)
 		appCtx := ctxservice.NewAppContext(basicCtx)
 
@@ -123,7 +123,7 @@ func TestAppContext_Database(t *testing.T) {
 
 func TestAppContext_GetCache(t *testing.T) {
 	t.Run("creates cache for collection", func(t *testing.T) {
-		logger := log.NewZeroLogger()
+		logger := wlog.NewZeroLogger()
 		basicCtx := ctxservice.NewBasicContext(context.Background(), logger)
 		appCtx := ctxservice.NewAppContext(basicCtx)
 
@@ -132,7 +132,7 @@ func TestAppContext_GetCache(t *testing.T) {
 	})
 
 	t.Run("returns same cache for same collection", func(t *testing.T) {
-		logger := log.NewZeroLogger()
+		logger := wlog.NewZeroLogger()
 		basicCtx := ctxservice.NewBasicContext(context.Background(), logger)
 		appCtx := ctxservice.NewAppContext(basicCtx)
 
@@ -143,7 +143,7 @@ func TestAppContext_GetCache(t *testing.T) {
 	})
 
 	t.Run("returns different caches for different collections", func(t *testing.T) {
-		logger := log.NewZeroLogger()
+		logger := wlog.NewZeroLogger()
 		basicCtx := ctxservice.NewBasicContext(context.Background(), logger)
 		appCtx := ctxservice.NewAppContext(basicCtx)
 
@@ -156,7 +156,7 @@ func TestAppContext_GetCache(t *testing.T) {
 
 func TestAppContext_ClearCache(t *testing.T) {
 	t.Run("clears all caches", func(t *testing.T) {
-		logger := log.NewZeroLogger()
+		logger := wlog.NewZeroLogger()
 		basicCtx := ctxservice.NewBasicContext(context.Background(), logger)
 		appCtx := ctxservice.NewAppContext(basicCtx)
 
@@ -175,7 +175,7 @@ func TestAppContext_ClearCache(t *testing.T) {
 
 func TestAppContext_GetTowerID(t *testing.T) {
 	t.Run("returns empty tower ID when not set", func(t *testing.T) {
-		logger := log.NewZeroLogger()
+		logger := wlog.NewZeroLogger()
 		basicCtx := ctxservice.NewBasicContext(context.Background(), logger)
 		appCtx := ctxservice.NewAppContext(basicCtx)
 
@@ -186,7 +186,7 @@ func TestAppContext_GetTowerID(t *testing.T) {
 
 func TestAppContext_GetFileService(t *testing.T) {
 	t.Run("returns nil file service when not set", func(t *testing.T) {
-		logger := log.NewZeroLogger()
+		logger := wlog.NewZeroLogger()
 		basicCtx := ctxservice.NewBasicContext(context.Background(), logger)
 		appCtx := ctxservice.NewAppContext(basicCtx)
 
@@ -197,7 +197,7 @@ func TestAppContext_GetFileService(t *testing.T) {
 
 func TestAppContext_WithContext(t *testing.T) {
 	t.Run("combines app context with new context", func(t *testing.T) {
-		logger := log.NewZeroLogger()
+		logger := wlog.NewZeroLogger()
 		basicCtx := ctxservice.NewBasicContext(context.Background(), logger)
 		appCtx := ctxservice.NewAppContext(basicCtx)
 
@@ -211,7 +211,7 @@ func TestAppContext_WithContext(t *testing.T) {
 
 func TestAppContext_GetMongoSession(t *testing.T) {
 	t.Run("returns nil session when not set", func(t *testing.T) {
-		logger := log.NewZeroLogger()
+		logger := wlog.NewZeroLogger()
 		basicCtx := ctxservice.NewBasicContext(context.Background(), logger)
 		appCtx := ctxservice.NewAppContext(basicCtx)
 
@@ -222,7 +222,7 @@ func TestAppContext_GetMongoSession(t *testing.T) {
 
 func TestAppContext_LoggerIntegration(t *testing.T) {
 	t.Run("logger can be used for logging", func(t *testing.T) {
-		logger := log.NewZeroLogger()
+		logger := wlog.NewZeroLogger()
 		basicCtx := ctxservice.NewBasicContext(context.Background(), logger)
 		appCtx := ctxservice.NewAppContext(basicCtx)
 
@@ -235,7 +235,7 @@ func TestAppContext_LoggerIntegration(t *testing.T) {
 
 func TestAppContext_Value(t *testing.T) {
 	t.Run("returns app context for appContextKey", func(t *testing.T) {
-		logger := log.NewZeroLogger()
+		logger := wlog.NewZeroLogger()
 		basicCtx := ctxservice.NewBasicContext(context.Background(), logger)
 		appCtx := ctxservice.NewAppContext(basicCtx)
 
@@ -248,7 +248,7 @@ func TestAppContext_Value(t *testing.T) {
 
 func TestNewZeroLogger(t *testing.T) {
 	t.Run("creates valid zerolog logger", func(t *testing.T) {
-		logger := log.NewZeroLogger()
+		logger := wlog.NewZeroLogger()
 		assert.IsType(t, &zerolog.Logger{}, logger)
 	})
 }

@@ -5,13 +5,13 @@ import (
 	"io"
 	"os"
 
-	"github.com/ethanrous/weblens/modules/fs"
+	"github.com/ethanrous/weblens/modules/wlfs"
 )
 
 // WeblensFile defines the interface for file operations in the Weblens system.
 type WeblensFile interface {
 	ID() string
-	GetPortablePath() fs.Filepath
+	GetPortablePath() wlfs.Filepath
 	GetContentID() string
 	SetContentID(contentID string)
 	Size() int64

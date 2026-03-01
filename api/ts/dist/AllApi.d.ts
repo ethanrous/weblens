@@ -193,23 +193,19 @@ interface FolderInfo {
     'parents'?: Array<FileInfo>;
     'self'?: FileInfo;
 }
-interface FsFilepath {
-    'relPath'?: string;
-    'rootAlias'?: string;
-}
 interface HistoryFileAction {
     'actionType'?: string;
     'contentID'?: string;
-    'destinationPath'?: FsFilepath;
+    'destinationPath'?: WlfsFilepath;
     /**
      * The user or system that performed the action
      */
     'doer'?: string;
     'eventID'?: string;
     'fileID'?: string;
-    'filepath'?: FsFilepath;
+    'filepath'?: WlfsFilepath;
     'id'?: string;
-    'originPath'?: FsFilepath;
+    'originPath'?: WlfsFilepath;
     'size'?: number;
     'timestamp'?: string;
     'towerID'?: string;
@@ -385,25 +381,6 @@ interface ShareInfo {
     'updated'?: number;
     'wormhole'?: boolean;
 }
-interface StructsInitServerParams {
-    'coreAddress'?: string;
-    'coreKey'?: string;
-    'fullName'?: string;
-    /**
-     * For restoring a server, remoind the core of its serverID and api key the remote last used
-     */
-    'localID'?: string;
-    'name': string;
-    'password': string;
-    'remoteID'?: string;
-    'role': string;
-    'username': string;
-    'usingKeyInfo'?: string;
-}
-interface StructsSetConfigParam {
-    'configKey'?: string;
-    'configValue'?: object;
-}
 interface TakeoutInfo {
     'filename'?: string;
     'single'?: boolean;
@@ -492,6 +469,29 @@ interface WLResponseInfo {
 }
 interface WeblensErrorInfo {
     'error'?: string;
+}
+interface WlfsFilepath {
+    'relPath'?: string;
+    'rootAlias'?: string;
+}
+interface WlstructsInitServerParams {
+    'coreAddress'?: string;
+    'coreKey'?: string;
+    'fullName'?: string;
+    /**
+     * For restoring a server, remoind the core of its serverID and api key the remote last used
+     */
+    'localID'?: string;
+    'name': string;
+    'password': string;
+    'remoteID'?: string;
+    'role': string;
+    'username': string;
+    'usingKeyInfo'?: string;
+}
+interface WlstructsSetConfigParam {
+    'configKey'?: string;
+    'configValue'?: object;
 }
 /**
  * APIKeysApi - axios parameter creator
@@ -619,11 +619,11 @@ declare const FeatureFlagsApiAxiosParamCreator: (configuration?: Configuration) 
     /**
      *
      * @summary Set Feature Flags
-     * @param {Array<StructsSetConfigParam>} request Feature Flag Params
+     * @param {Array<WlstructsSetConfigParam>} request Feature Flag Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setFlags: (request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    setFlags: (request: Array<WlstructsSetConfigParam>, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
 };
 /**
  * FeatureFlagsApi - functional programming interface
@@ -639,11 +639,11 @@ declare const FeatureFlagsApiFp: (configuration?: Configuration) => {
     /**
      *
      * @summary Set Feature Flags
-     * @param {Array<StructsSetConfigParam>} request Feature Flag Params
+     * @param {Array<WlstructsSetConfigParam>} request Feature Flag Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setFlags(request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    setFlags(request: Array<WlstructsSetConfigParam>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
 };
 /**
  * FeatureFlagsApi - factory interface
@@ -659,11 +659,11 @@ declare const FeatureFlagsApiFactory: (configuration?: Configuration, basePath?:
     /**
      *
      * @summary Set Feature Flags
-     * @param {Array<StructsSetConfigParam>} request Feature Flag Params
+     * @param {Array<WlstructsSetConfigParam>} request Feature Flag Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setFlags(request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    setFlags(request: Array<WlstructsSetConfigParam>, options?: RawAxiosRequestConfig): AxiosPromise<void>;
 };
 /**
  * FeatureFlagsApi - object-oriented interface
@@ -679,11 +679,11 @@ declare class FeatureFlagsApi extends BaseAPI {
     /**
      *
      * @summary Set Feature Flags
-     * @param {Array<StructsSetConfigParam>} request Feature Flag Params
+     * @param {Array<WlstructsSetConfigParam>} request Feature Flag Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setFlags(request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any, {}>>;
+    setFlags(request: Array<WlstructsSetConfigParam>, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any, {}>>;
 }
 /**
  * FilesApi - axios parameter creator
@@ -2366,11 +2366,11 @@ declare const TowersApiAxiosParamCreator: (configuration?: Configuration) => {
     /**
      *
      * @summary Initialize the target server
-     * @param {StructsInitServerParams} request Server initialization body
+     * @param {WlstructsInitServerParams} request Server initialization body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    initializeTower: (request: StructsInitServerParams, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    initializeTower: (request: WlstructsInitServerParams, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Launch backup on a tower
@@ -2469,11 +2469,11 @@ declare const TowersApiFp: (configuration?: Configuration) => {
     /**
      *
      * @summary Initialize the target server
-     * @param {StructsInitServerParams} request Server initialization body
+     * @param {WlstructsInitServerParams} request Server initialization body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    initializeTower(request: StructsInitServerParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<TowerInfo>>>;
+    initializeTower(request: WlstructsInitServerParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<TowerInfo>>>;
     /**
      *
      * @summary Launch backup on a tower
@@ -2572,11 +2572,11 @@ declare const TowersApiFactory: (configuration?: Configuration, basePath?: strin
     /**
      *
      * @summary Initialize the target server
-     * @param {StructsInitServerParams} request Server initialization body
+     * @param {WlstructsInitServerParams} request Server initialization body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    initializeTower(request: StructsInitServerParams, options?: RawAxiosRequestConfig): AxiosPromise<Array<TowerInfo>>;
+    initializeTower(request: WlstructsInitServerParams, options?: RawAxiosRequestConfig): AxiosPromise<Array<TowerInfo>>;
     /**
      *
      * @summary Launch backup on a tower
@@ -2675,11 +2675,11 @@ declare class TowersApi extends BaseAPI {
     /**
      *
      * @summary Initialize the target server
-     * @param {StructsInitServerParams} request Server initialization body
+     * @param {WlstructsInitServerParams} request Server initialization body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    initializeTower(request: StructsInitServerParams, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TowerInfo[], any, {}>>;
+    initializeTower(request: WlstructsInitServerParams, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TowerInfo[], any, {}>>;
     /**
      *
      * @summary Launch backup on a tower
@@ -3117,4 +3117,4 @@ type WLAPI = {
 };
 declare function WeblensAPIFactory(apiEndpoint: string): WLAPI;
 
-export { type APIKeyParams, APIKeysApi, APIKeysApiAxiosParamCreator, APIKeysApiFactory, APIKeysApiFp, type AddUserParams, type BackupInfo, type Bundle, type CreateFolderBody, FeatureFlagsApi, FeatureFlagsApiAxiosParamCreator, FeatureFlagsApiFactory, FeatureFlagsApiFp, type FileActionInfo, type FileInfo, type FileShareParams, FilesApi, FilesApiAxiosParamCreator, FilesApiFactory, FilesApiFp, type FilesListParams, FolderApi, FolderApiAxiosParamCreator, FolderApiFactory, FolderApiFp, type FolderInfo, type FsFilepath, GetFolderSortOrderEnum, GetFolderSortPropEnum, GetMediaImageQualityEnum, type HistoryFileAction, type LoginBody, MediaApi, MediaApiAxiosParamCreator, MediaApiFactory, MediaApiFp, type MediaBatchInfo, type MediaBatchParams, MediaBatchParamsSortEnum, type MediaIDsParams, type MediaInfo, type MediaTypeInfo, type MediaTypesInfo, type MoveFilesParams, type NewFileParams, type NewFilesInfo, type NewFilesParams, type NewServerParams, type NewUploadInfo, type NewUploadParams, type NewUserParams, type PasswordUpdateParams, type PermissionsInfo, type PermissionsParams, type RestoreFilesBody, type RestoreFilesInfo, SearchByFilenameSortOrderEnum, SearchByFilenameSortPropEnum, ShareApi, ShareApiAxiosParamCreator, ShareApiFactory, ShareApiFp, type ShareInfo, type StructsInitServerParams, type StructsSetConfigParam, type TakeoutInfo, type TaskInfo, type TokenInfo, type TowerHealth, TowerHealthStatusEnum, type TowerInfo, TowersApi, TowersApiAxiosParamCreator, TowersApiFactory, TowersApiFp, type UpdateFileParams, type UserInfo, type UserInfoArchive, UsersApi, UsersApiAxiosParamCreator, UsersApiFactory, UsersApiFp, type WLAPI, type WLResponseInfo, WeblensAPIFactory, type WeblensErrorInfo };
+export { type APIKeyParams, APIKeysApi, APIKeysApiAxiosParamCreator, APIKeysApiFactory, APIKeysApiFp, type AddUserParams, type BackupInfo, type Bundle, type CreateFolderBody, FeatureFlagsApi, FeatureFlagsApiAxiosParamCreator, FeatureFlagsApiFactory, FeatureFlagsApiFp, type FileActionInfo, type FileInfo, type FileShareParams, FilesApi, FilesApiAxiosParamCreator, FilesApiFactory, FilesApiFp, type FilesListParams, FolderApi, FolderApiAxiosParamCreator, FolderApiFactory, FolderApiFp, type FolderInfo, GetFolderSortOrderEnum, GetFolderSortPropEnum, GetMediaImageQualityEnum, type HistoryFileAction, type LoginBody, MediaApi, MediaApiAxiosParamCreator, MediaApiFactory, MediaApiFp, type MediaBatchInfo, type MediaBatchParams, MediaBatchParamsSortEnum, type MediaIDsParams, type MediaInfo, type MediaTypeInfo, type MediaTypesInfo, type MoveFilesParams, type NewFileParams, type NewFilesInfo, type NewFilesParams, type NewServerParams, type NewUploadInfo, type NewUploadParams, type NewUserParams, type PasswordUpdateParams, type PermissionsInfo, type PermissionsParams, type RestoreFilesBody, type RestoreFilesInfo, SearchByFilenameSortOrderEnum, SearchByFilenameSortPropEnum, ShareApi, ShareApiAxiosParamCreator, ShareApiFactory, ShareApiFp, type ShareInfo, type TakeoutInfo, type TaskInfo, type TokenInfo, type TowerHealth, TowerHealthStatusEnum, type TowerInfo, TowersApi, TowersApiAxiosParamCreator, TowersApiFactory, TowersApiFp, type UpdateFileParams, type UserInfo, type UserInfoArchive, UsersApi, UsersApiAxiosParamCreator, UsersApiFactory, UsersApiFp, type WLAPI, type WLResponseInfo, WeblensAPIFactory, type WeblensErrorInfo, type WlfsFilepath, type WlstructsInitServerParams, type WlstructsSetConfigParam };

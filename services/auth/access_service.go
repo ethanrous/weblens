@@ -11,10 +11,10 @@ import (
 	auth_model "github.com/ethanrous/weblens/models/auth"
 	file_model "github.com/ethanrous/weblens/models/file"
 	share_model "github.com/ethanrous/weblens/models/share"
-	user_model "github.com/ethanrous/weblens/models/user"
+	user_model "github.com/ethanrous/weblens/models/usermodel"
 	"github.com/ethanrous/weblens/modules/cryptography"
-	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlog"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 )
 
@@ -62,7 +62,7 @@ func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_mo
 
 	ownerName, err := file_model.GetFileOwnerName(ctx, file)
 	if err != nil {
-		log.FromContext(ctx).Error().Stack().Err(err).Msg("Failed to get file owner name")
+		wlog.FromContext(ctx).Error().Stack().Err(err).Msg("Failed to get file owner name")
 
 		return &share_model.Permissions{}, err
 	}
@@ -103,7 +103,7 @@ func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_mo
 	} else if allowedPerms != nil {
 		for _, requiredPerm := range requiredPerms {
 			if !allowedPerms.HasPermission(requiredPerm) {
-				log.FromContext(ctx).Debug().Msgf("User [%s] does not have permission: %s", user.GetUsername(), requiredPerm)
+				wlog.FromContext(ctx).Debug().Msgf("User [%s] does not have permission: %s", user.GetUsername(), requiredPerm)
 				// If the user does not have the required permissions, we say cannot access it at all
 				return &share_model.Permissions{}, ErrFileAccessNotPermitted
 			}

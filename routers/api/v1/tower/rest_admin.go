@@ -7,9 +7,9 @@ import (
 	"github.com/ethanrous/weblens/models/featureflags"
 	"github.com/ethanrous/weblens/models/task"
 	"github.com/ethanrous/weblens/modules/netwrk"
-	slices_mod "github.com/ethanrous/weblens/modules/slices"
-	"github.com/ethanrous/weblens/modules/structs"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	slices_mod "github.com/ethanrous/weblens/modules/wlslices"
+	"github.com/ethanrous/weblens/modules/wlstructs"
 
 	"github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/reshape"
@@ -26,7 +26,7 @@ import (
 //	@Tags		Towers
 //	@Produce	json
 //
-//	@Success	200		{array}	structs.TaskInfo	"Task Infos"
+//	@Success	200		{array}	wlstructs.TaskInfo	"Task Infos"
 //	@Router		/tower/tasks [get]
 func GetRunningTasks(ctx ctxservice.RequestContext) {
 	tasksIter := ctx.TaskService.GetTasks()
@@ -50,11 +50,11 @@ func GetRunningTasks(ctx ctxservice.RequestContext) {
 //	@Tags		Towers
 //	@Produce	json
 //
-//	@Success	200		{object}	structs.WLResponseInfo	"Cache flushed successfully"
+//	@Success	200		{object}	wlstructs.WLResponseInfo	"Cache flushed successfully"
 //	@Router		/tower/cache [delete]
 func FlushCache(ctx ctxservice.RequestContext) {
 	ctx.ClearCache()
-	ctx.JSON(http.StatusOK, structs.WLResponseInfo{Message: "Cache flushed successfully"})
+	ctx.JSON(http.StatusOK, wlstructs.WLResponseInfo{Message: "Cache flushed successfully"})
 }
 
 // GetFlags godoc
@@ -88,7 +88,7 @@ func GetFlags(ctx ctxservice.RequestContext) {
 //	@Security	SessionAuth[admin]
 //	@Security	ApiKeyAuth[admin]
 //
-//	@Param		request	body	structs.FeatureFlagParams	true	"Feature Flag Params"
+//	@Param		request	body	wlstructs.FeatureFlagParams	true	"Feature Flag Params"
 //
 //	@Summary	Set Feature Flags
 //	@Tags		FeatureFlags
@@ -97,7 +97,7 @@ func GetFlags(ctx ctxservice.RequestContext) {
 //	@Success	200
 //	@Router		/flags [post]
 func SetFlags(ctx ctxservice.RequestContext) {
-	configParams, err := netwrk.ReadRequestBody[structs.FeatureFlagParams](ctx.Req)
+	configParams, err := netwrk.ReadRequestBody[wlstructs.FeatureFlagParams](ctx.Req)
 	if err != nil {
 		return
 	}

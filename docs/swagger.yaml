@@ -695,13 +695,6 @@ definitions:
       error:
         type: string
     type: object
-  fs.Filepath:
-    properties:
-      relPath:
-        type: string
-      rootAlias:
-        type: string
-    type: object
   history.FileAction:
     properties:
       actionType:
@@ -709,7 +702,7 @@ definitions:
       contentID:
         type: string
       destinationPath:
-        $ref: '#/definitions/fs.Filepath'
+        $ref: '#/definitions/wlfs.Filepath'
       doer:
         description: The user or system that performed the action
         type: string
@@ -718,11 +711,11 @@ definitions:
       fileID:
         type: string
       filepath:
-        $ref: '#/definitions/fs.Filepath'
+        $ref: '#/definitions/wlfs.Filepath'
       id:
         type: string
       originPath:
-        $ref: '#/definitions/fs.Filepath'
+        $ref: '#/definitions/wlfs.Filepath'
       size:
         type: integer
       timestamp:
@@ -730,7 +723,14 @@ definitions:
       towerID:
         type: string
     type: object
-  structs.InitServerParams:
+  wlfs.Filepath:
+    properties:
+      relPath:
+        type: string
+      rootAlias:
+        type: string
+    type: object
+  wlstructs.InitServerParams:
     properties:
       coreAddress:
         type: string
@@ -760,7 +760,7 @@ definitions:
     - role
     - username
     type: object
-  structs.SetConfigParam:
+  wlstructs.SetConfigParam:
     properties:
       configKey:
         type: string
@@ -1199,7 +1199,7 @@ paths:
         required: true
         schema:
           items:
-            $ref: '#/definitions/structs.SetConfigParam'
+            $ref: '#/definitions/wlstructs.SetConfigParam'
           type: array
       produces:
       - application/json
@@ -2112,7 +2112,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/structs.InitServerParams'
+          $ref: '#/definitions/wlstructs.InitServerParams'
       produces:
       - application/json
       responses:

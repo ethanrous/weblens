@@ -9,8 +9,8 @@ import (
 	media_model "github.com/ethanrous/weblens/models/media"
 	share_model "github.com/ethanrous/weblens/models/share"
 	"github.com/ethanrous/weblens/modules/option"
-	"github.com/ethanrous/weblens/modules/structs"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlstructs"
 	"github.com/ethanrous/weblens/services/auth"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	file_service "github.com/ethanrous/weblens/services/file"
@@ -29,7 +29,7 @@ import (
 //	@Tags		Folder
 //	@Param		folderID	path		string				true	"Folder ID"
 //	@Param		shareID	query	string				false	"Share ID"
-//	@Success	200 {object} structs.TaskInfo "Task Info"
+//	@Success	200 {object} wlstructs.TaskInfo "Task Info"
 //	@Failure	404
 //	@Failure	500
 //	@Router		/folder/{folderID}/scan [post]
@@ -70,7 +70,7 @@ func formatRespondFolderInfo(ctx context_service.RequestContext, dir *file_model
 		return nil
 	}
 
-	parentsInfo := []structs.FileInfo{}
+	parentsInfo := []wlstructs.FileInfo{}
 	parent := dir.GetParent()
 
 	owner, err := file_service.GetFileOwner(ctx, dir)
@@ -117,7 +117,7 @@ func formatRespondFolderInfo(ctx context_service.RequestContext, dir *file_model
 	// 	return err
 	// }
 
-	childInfos := make([]structs.FileInfo, 0, len(children))
+	childInfos := make([]wlstructs.FileInfo, 0, len(children))
 	infoOpts := reshape.FileInfoOptions{Perms: option.Of(*perms)}
 
 	for _, child := range children {
@@ -140,12 +140,12 @@ func formatRespondFolderInfo(ctx context_service.RequestContext, dir *file_model
 		return err
 	}
 
-	mediaInfos := make([]structs.MediaInfo, 0, len(medias))
+	mediaInfos := make([]wlstructs.MediaInfo, 0, len(medias))
 	for _, m := range medias {
 		mediaInfos = append(mediaInfos, reshape.MediaToMediaInfo(m))
 	}
 
-	packagedInfo := structs.FolderInfoResponse{Self: selfInfo, Children: childInfos, Parents: parentsInfo, Medias: mediaInfos}
+	packagedInfo := wlstructs.FolderInfoResponse{Self: selfInfo, Children: childInfos, Parents: parentsInfo, Medias: mediaInfos}
 	ctx.JSON(http.StatusOK, packagedInfo)
 
 	return nil
@@ -161,7 +161,7 @@ func formatRespondPastFolderInfo(ctx context_service.RequestContext, folder *fil
 		return err
 	}
 
-	parentsInfo := []structs.FileInfo{}
+	parentsInfo := []wlstructs.FileInfo{}
 
 	pastParent := folder.GetParent()
 	for pastParent != nil && !pastParent.GetPortablePath().IsRoot() {
@@ -175,7 +175,7 @@ func formatRespondPastFolderInfo(ctx context_service.RequestContext, folder *fil
 	}
 
 	children := folder.GetChildren()
-	childrenInfos := make([]structs.FileInfo, 0, len(children))
+	childrenInfos := make([]wlstructs.FileInfo, 0, len(children))
 
 	for _, child := range children {
 		if child.GetPortablePath().Filename() == file_model.UserTrashDirName {
@@ -199,12 +199,12 @@ func formatRespondPastFolderInfo(ctx context_service.RequestContext, folder *fil
 		}
 	}
 
-	mediaInfos := make([]structs.MediaInfo, 0, len(medias))
+	mediaInfos := make([]wlstructs.MediaInfo, 0, len(medias))
 	for _, m := range medias {
 		mediaInfos = append(mediaInfos, reshape.MediaToMediaInfo(m))
 	}
 
-	packagedInfo := structs.FolderInfoResponse{
+	packagedInfo := wlstructs.FolderInfoResponse{
 		Self:     pastFileInfo,
 		Children: childrenInfos,
 		Parents:  parentsInfo,

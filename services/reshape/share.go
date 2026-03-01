@@ -4,19 +4,19 @@ import (
 	"context"
 
 	share_model "github.com/ethanrous/weblens/models/share"
-	user_model "github.com/ethanrous/weblens/models/user"
-	"github.com/ethanrous/weblens/modules/log"
-	"github.com/ethanrous/weblens/modules/structs"
+	user_model "github.com/ethanrous/weblens/models/usermodel"
+	"github.com/ethanrous/weblens/modules/wlog"
+	"github.com/ethanrous/weblens/modules/wlstructs"
 )
 
 // ShareToShareInfo converts a FileShare model to a ShareInfo transfer object.
-func ShareToShareInfo(ctx context.Context, s *share_model.FileShare) structs.ShareInfo {
-	accessors := make([]structs.UserInfo, 0, len(s.Accessors))
+func ShareToShareInfo(ctx context.Context, s *share_model.FileShare) wlstructs.ShareInfo {
+	accessors := make([]wlstructs.UserInfo, 0, len(s.Accessors))
 
 	for _, a := range s.Accessors {
 		u, err := user_model.GetUserByUsername(ctx, a)
 		if err != nil {
-			log.FromContext(ctx).Error().Stack().Err(err).Str("username", a).Msg("failed to get user by username")
+			wlog.FromContext(ctx).Error().Stack().Err(err).Str("username", a).Msg("failed to get user by username")
 
 			continue
 		}
@@ -29,7 +29,7 @@ func ShareToShareInfo(ctx context.Context, s *share_model.FileShare) structs.Sha
 		id = ""
 	}
 
-	return structs.ShareInfo{
+	return wlstructs.ShareInfo{
 		ShareID:     id,
 		FileID:      s.FileID,
 		ShareName:   s.ShareName,
@@ -45,8 +45,8 @@ func ShareToShareInfo(ctx context.Context, s *share_model.FileShare) structs.Sha
 }
 
 // PermissionsToPermissionsInfo converts a map of Permissions models to PermissionsInfo transfer objects.
-func PermissionsToPermissionsInfo(_ context.Context, perms map[string]*share_model.Permissions) map[string]structs.PermissionsInfo {
-	permsInfo := make(map[string]structs.PermissionsInfo, len(perms))
+func PermissionsToPermissionsInfo(_ context.Context, perms map[string]*share_model.Permissions) map[string]wlstructs.PermissionsInfo {
+	permsInfo := make(map[string]wlstructs.PermissionsInfo, len(perms))
 	for k, v := range perms {
 		permsInfo[k] = toPermissionInfo(*v)
 	}
@@ -54,8 +54,8 @@ func PermissionsToPermissionsInfo(_ context.Context, perms map[string]*share_mod
 	return permsInfo
 }
 
-func toPermissionInfo(perms share_model.Permissions) structs.PermissionsInfo {
-	return structs.PermissionsInfo{
+func toPermissionInfo(perms share_model.Permissions) wlstructs.PermissionsInfo {
+	return wlstructs.PermissionsInfo{
 		CanView:     perms.CanView,
 		CanEdit:     perms.CanEdit,
 		CanDownload: perms.CanDownload,
@@ -64,7 +64,7 @@ func toPermissionInfo(perms share_model.Permissions) structs.PermissionsInfo {
 }
 
 // PermissionsParamsToPermissions converts PermissionsParams to a Permissions model.
-func PermissionsParamsToPermissions(_ context.Context, perms structs.PermissionsParams) (share_model.Permissions, error) {
+func PermissionsParamsToPermissions(_ context.Context, perms wlstructs.PermissionsParams) (share_model.Permissions, error) {
 	newPerms := share_model.Permissions{
 		CanView:     perms.CanView,
 		CanEdit:     perms.CanEdit,
@@ -80,7 +80,7 @@ func PermissionsParamsToPermissions(_ context.Context, perms structs.Permissions
 }
 
 // UnpackNewUserParams extracts the username and permissions from AddUserParams.
-func UnpackNewUserParams(ctx context.Context, params structs.AddUserParams) (string, share_model.Permissions, error) {
+func UnpackNewUserParams(ctx context.Context, params wlstructs.AddUserParams) (string, share_model.Permissions, error) {
 	perms, err := PermissionsParamsToPermissions(ctx, params.PermissionsParams)
 	if err != nil {
 		return "", share_model.Permissions{}, err

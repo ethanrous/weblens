@@ -21,14 +21,14 @@ var _ MappedNullable = &HistoryFileAction{}
 type HistoryFileAction struct {
 	ActionType *string `json:"actionType,omitempty"`
 	ContentID *string `json:"contentID,omitempty"`
-	DestinationPath *FsFilepath `json:"destinationPath,omitempty"`
+	DestinationPath *WlfsFilepath `json:"destinationPath,omitempty"`
 	// The user or system that performed the action
 	Doer *string `json:"doer,omitempty"`
 	EventID *string `json:"eventID,omitempty"`
 	FileID *string `json:"fileID,omitempty"`
-	Filepath *FsFilepath `json:"filepath,omitempty"`
+	Filepath *WlfsFilepath `json:"filepath,omitempty"`
 	Id *string `json:"id,omitempty"`
-	OriginPath *FsFilepath `json:"originPath,omitempty"`
+	OriginPath *WlfsFilepath `json:"originPath,omitempty"`
 	Size *int32 `json:"size,omitempty"`
 	Timestamp *string `json:"timestamp,omitempty"`
 	TowerID *string `json:"towerID,omitempty"`
@@ -116,9 +116,9 @@ func (o *HistoryFileAction) SetContentID(v string) {
 }
 
 // GetDestinationPath returns the DestinationPath field value if set, zero value otherwise.
-func (o *HistoryFileAction) GetDestinationPath() FsFilepath {
+func (o *HistoryFileAction) GetDestinationPath() WlfsFilepath {
 	if o == nil || IsNil(o.DestinationPath) {
-		var ret FsFilepath
+		var ret WlfsFilepath
 		return ret
 	}
 	return *o.DestinationPath
@@ -126,7 +126,7 @@ func (o *HistoryFileAction) GetDestinationPath() FsFilepath {
 
 // GetDestinationPathOk returns a tuple with the DestinationPath field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *HistoryFileAction) GetDestinationPathOk() (*FsFilepath, bool) {
+func (o *HistoryFileAction) GetDestinationPathOk() (*WlfsFilepath, bool) {
 	if o == nil || IsNil(o.DestinationPath) {
 		return nil, false
 	}
@@ -142,8 +142,8 @@ func (o *HistoryFileAction) HasDestinationPath() bool {
 	return false
 }
 
-// SetDestinationPath gets a reference to the given FsFilepath and assigns it to the DestinationPath field.
-func (o *HistoryFileAction) SetDestinationPath(v FsFilepath) {
+// SetDestinationPath gets a reference to the given WlfsFilepath and assigns it to the DestinationPath field.
+func (o *HistoryFileAction) SetDestinationPath(v WlfsFilepath) {
 	o.DestinationPath = &v
 }
 
@@ -244,9 +244,9 @@ func (o *HistoryFileAction) SetFileID(v string) {
 }
 
 // GetFilepath returns the Filepath field value if set, zero value otherwise.
-func (o *HistoryFileAction) GetFilepath() FsFilepath {
+func (o *HistoryFileAction) GetFilepath() WlfsFilepath {
 	if o == nil || IsNil(o.Filepath) {
-		var ret FsFilepath
+		var ret WlfsFilepath
 		return ret
 	}
 	return *o.Filepath
@@ -254,7 +254,7 @@ func (o *HistoryFileAction) GetFilepath() FsFilepath {
 
 // GetFilepathOk returns a tuple with the Filepath field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *HistoryFileAction) GetFilepathOk() (*FsFilepath, bool) {
+func (o *HistoryFileAction) GetFilepathOk() (*WlfsFilepath, bool) {
 	if o == nil || IsNil(o.Filepath) {
 		return nil, false
 	}
@@ -270,8 +270,8 @@ func (o *HistoryFileAction) HasFilepath() bool {
 	return false
 }
 
-// SetFilepath gets a reference to the given FsFilepath and assigns it to the Filepath field.
-func (o *HistoryFileAction) SetFilepath(v FsFilepath) {
+// SetFilepath gets a reference to the given WlfsFilepath and assigns it to the Filepath field.
+func (o *HistoryFileAction) SetFilepath(v WlfsFilepath) {
 	o.Filepath = &v
 }
 
@@ -308,9 +308,9 @@ func (o *HistoryFileAction) SetId(v string) {
 }
 
 // GetOriginPath returns the OriginPath field value if set, zero value otherwise.
-func (o *HistoryFileAction) GetOriginPath() FsFilepath {
+func (o *HistoryFileAction) GetOriginPath() WlfsFilepath {
 	if o == nil || IsNil(o.OriginPath) {
-		var ret FsFilepath
+		var ret WlfsFilepath
 		return ret
 	}
 	return *o.OriginPath
@@ -318,7 +318,7 @@ func (o *HistoryFileAction) GetOriginPath() FsFilepath {
 
 // GetOriginPathOk returns a tuple with the OriginPath field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *HistoryFileAction) GetOriginPathOk() (*FsFilepath, bool) {
+func (o *HistoryFileAction) GetOriginPathOk() (*WlfsFilepath, bool) {
 	if o == nil || IsNil(o.OriginPath) {
 		return nil, false
 	}
@@ -334,8 +334,8 @@ func (o *HistoryFileAction) HasOriginPath() bool {
 	return false
 }
 
-// SetOriginPath gets a reference to the given FsFilepath and assigns it to the OriginPath field.
-func (o *HistoryFileAction) SetOriginPath(v FsFilepath) {
+// SetOriginPath gets a reference to the given WlfsFilepath and assigns it to the OriginPath field.
+func (o *HistoryFileAction) SetOriginPath(v WlfsFilepath) {
 	o.OriginPath = &v
 }
 

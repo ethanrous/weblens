@@ -7,8 +7,8 @@ import (
 	"github.com/ethanrous/weblens/models/history"
 	"github.com/ethanrous/weblens/models/tower"
 	tower_model "github.com/ethanrous/weblens/models/tower"
-	file_system "github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	file_system "github.com/ethanrous/weblens/modules/wlfs"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 )
 

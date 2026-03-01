@@ -9,10 +9,10 @@ import (
 	"github.com/ethanrous/weblens/models/auth"
 	"github.com/ethanrous/weblens/models/history"
 	"github.com/ethanrous/weblens/models/tower"
-	"github.com/ethanrous/weblens/models/user"
-	"github.com/ethanrous/weblens/modules/fs"
-	"github.com/ethanrous/weblens/modules/structs"
+	"github.com/ethanrous/weblens/models/usermodel"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlfs"
+	"github.com/ethanrous/weblens/modules/wlstructs"
 	"github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/journal"
 	"github.com/ethanrous/weblens/services/reshape"
@@ -27,7 +27,7 @@ import (
 //	@Tags		Towers
 //	@Produce	json
 //	@Param		timestamp	query		string				true	"Timestamp in milliseconds since epoch"
-//	@Success	200			{object}	structs.BackupInfo	"Backup Info"
+//	@Success	200			{object}	wlstructs.BackupInfo	"Backup Info"
 //	@Failure	400
 //	@Failure	404
 //	@Failure	500
@@ -57,14 +57,14 @@ func DoFullBackup(ctx ctxservice.RequestContext) {
 
 	ctx.Log().Trace().Msgf("Getting backup info since %s", since.String())
 
-	fileActions, err := history.GetActionsAtPathAfter(ctx, fs.Filepath{}, since, false)
+	fileActions, err := history.GetActionsAtPathAfter(ctx, wlfs.Filepath{}, since, false)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, wlerrors.Wrap(err, "failed to get actions"))
 
 		return
 	}
 
-	users, err := user.GetAllUsers(ctx)
+	users, err := usermodel.GetAllUsers(ctx)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, wlerrors.Wrap(err, "failed to get users"))
 
@@ -135,7 +135,7 @@ func GetPagedHistoryActions(ctx ctxservice.RequestContext) {
 		return
 	}
 
-	actionInfos := make([]structs.FileActionInfo, 0, len(actions))
+	actionInfos := make([]wlstructs.FileActionInfo, 0, len(actions))
 	for _, action := range actions {
 		actionInfos = append(actionInfos, reshape.FileActionToFileActionInfo(action))
 	}

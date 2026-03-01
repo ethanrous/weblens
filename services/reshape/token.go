@@ -6,15 +6,15 @@ import (
 	"time"
 
 	auth_model "github.com/ethanrous/weblens/models/auth"
-	"github.com/ethanrous/weblens/modules/structs"
+	"github.com/ethanrous/weblens/modules/wlstructs"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // TokenToTokenInfo converts an auth Token to a TokenInfo structure suitable for API responses.
-func TokenToTokenInfo(_ context.Context, t *auth_model.Token) structs.TokenInfo {
+func TokenToTokenInfo(_ context.Context, t *auth_model.Token) wlstructs.TokenInfo {
 	tokenStr := base64.StdEncoding.EncodeToString(t.Token[:])
 
-	return structs.TokenInfo{
+	return wlstructs.TokenInfo{
 		ID:          t.ID.Hex(),
 		CreatedTime: t.CreatedTime.UnixMilli(),
 		LastUsed:    t.LastUsed.UnixMilli(),
@@ -27,7 +27,7 @@ func TokenToTokenInfo(_ context.Context, t *auth_model.Token) structs.TokenInfo 
 }
 
 // TokenInfoToToken converts a TokenInfo from the API to an auth Token.
-func TokenInfoToToken(_ context.Context, t structs.TokenInfo) (*auth_model.Token, error) {
+func TokenInfoToToken(_ context.Context, t wlstructs.TokenInfo) (*auth_model.Token, error) {
 	id, _ := primitive.ObjectIDFromHex(t.ID)
 
 	tokenSlice, err := base64.StdEncoding.DecodeString(t.Token)
@@ -52,8 +52,8 @@ func TokenInfoToToken(_ context.Context, t structs.TokenInfo) (*auth_model.Token
 }
 
 // TokensToTokenInfos converts a slice of auth Tokens to a slice of TokenInfo structures suitable for API responses.
-func TokensToTokenInfos(ctx context.Context, tokens []*auth_model.Token) []structs.TokenInfo {
-	tokenInfos := make([]structs.TokenInfo, len(tokens))
+func TokensToTokenInfos(ctx context.Context, tokens []*auth_model.Token) []wlstructs.TokenInfo {
+	tokenInfos := make([]wlstructs.TokenInfo, len(tokens))
 	for i, t := range tokens {
 		tokenInfos[i] = TokenToTokenInfo(ctx, t)
 	}

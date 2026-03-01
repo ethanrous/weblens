@@ -7,9 +7,9 @@ import (
 	"github.com/ethanrous/weblens/models/db"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/netwrk"
-	"github.com/ethanrous/weblens/modules/structs"
+	"github.com/ethanrous/weblens/modules/wlog"
+	"github.com/ethanrous/weblens/modules/wlstructs"
 	"github.com/ethanrous/weblens/routers/api/v1/websocket"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/reshape"
@@ -24,10 +24,10 @@ import (
 //	@Summary	Get server health status
 //	@Tags		Towers
 //	@Produce	json
-//	@Success	200 {object}	structs.TowerHealth 	"Health status"
+//	@Success	200 {object}	wlstructs.TowerHealth 	"Health status"
 //	@Router		/health [get]
 func GetServerHealthStatus(ctx context_service.RequestContext) {
-	ctx.JSON(http.StatusOK, structs.TowerHealth{
+	ctx.JSON(http.StatusOK, wlstructs.TowerHealth{
 		Status: "Healthy",
 	})
 }
@@ -39,7 +39,7 @@ func GetServerHealthStatus(ctx context_service.RequestContext) {
 //	@Summary	Get server info
 //	@Tags		Towers
 //	@Produce	json
-//	@Success	200	{object}	structs.TowerInfo	"Server info"
+//	@Success	200	{object}	wlstructs.TowerInfo	"Server info"
 //	@Router		/info [get]
 func GetServerInfo(ctx context_service.RequestContext) {
 	tower, err := tower_model.GetLocal(ctx)
@@ -68,7 +68,7 @@ func GetServerInfo(ctx context_service.RequestContext) {
 //	@Security	SessionAuth[admin]
 //	@Security	ApiKeyAuth[admin]
 //
-//	@Success	200	{array}	structs.TowerInfo	"Tower Info"
+//	@Success	200	{array}	wlstructs.TowerInfo	"Tower Info"
 //	@Router		/tower [get]
 func GetRemotes(ctx context_service.RequestContext) {
 	remotes, err := tower_model.GetRemotes(ctx)
@@ -78,7 +78,7 @@ func GetRemotes(ctx context_service.RequestContext) {
 		return
 	}
 
-	serverInfos := make([]structs.TowerInfo, 0, len(remotes))
+	serverInfos := make([]wlstructs.TowerInfo, 0, len(remotes))
 	for _, r := range remotes {
 		serverInfos = append(serverInfos, reshape.TowerToTowerInfo(ctx, r))
 	}
@@ -96,12 +96,12 @@ func GetRemotes(ctx context_service.RequestContext) {
 //	@Security	SessionAuth[admin]
 //	@Security	ApiKeyAuth[admin]
 //
-//	@Param		request	body		structs.NewServerParams	true	"New Server Params"
-//	@Success	201		{object}	structs.TowerInfo		"New Server Info"
+//	@Param		request	body		wlstructs.NewServerParams	true	"New Server Params"
+//	@Success	201		{object}	wlstructs.TowerInfo		"New Server Info"
 //	@Success	400
 //	@Router		/tower/remote [post]
 func AttachRemote(ctx context_service.RequestContext) {
-	params, err := netwrk.ReadRequestBody[structs.NewServerParams](ctx.Req)
+	params, err := netwrk.ReadRequestBody[wlstructs.NewServerParams](ctx.Req)
 	if err != nil {
 		return
 	}
@@ -222,9 +222,9 @@ func DeleteRemote(ctx context_service.RequestContext) {
 //	@Tags		Towers
 //	@Produce	json
 //
-//	@Param		request	body	structs.InitServerParams	true	"Server initialization body"
+//	@Param		request	body	wlstructs.InitServerParams	true	"Server initialization body"
 //
-//	@Success	200		{array}	structs.TowerInfo			"New server info"
+//	@Success	200		{array}	wlstructs.TowerInfo			"New server info"
 //	@Failure	404
 //	@Failure	500
 //	@Router		/tower/init [post]
@@ -245,7 +245,7 @@ func InitializeTower(ctx context_service.RequestContext) {
 	}
 
 	// Read the initialization parameters from the request body
-	initBody, err := netwrk.ReadRequestBody[structs.InitServerParams](ctx.Req)
+	initBody, err := netwrk.ReadRequestBody[wlstructs.InitServerParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusBadRequest, err)
 
@@ -330,6 +330,6 @@ func ResetServer(ctx context_service.RequestContext) {
 //	@Success	200
 //	@Router		/tower/trace [post]
 func EnableTraceLogging(ctx context_service.RequestContext) {
-	log.SetLogLevel(zerolog.TraceLevel)
+	wlog.SetLogLevel(zerolog.TraceLevel)
 	ctx.Status(http.StatusOK)
 }

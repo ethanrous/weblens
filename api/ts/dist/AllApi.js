@@ -330,7 +330,7 @@ var FeatureFlagsApiAxiosParamCreator = function(configuration) {
     /**
      * 
      * @summary Set Feature Flags
-     * @param {Array<StructsSetConfigParam>} request Feature Flag Params
+     * @param {Array<WlstructsSetConfigParam>} request Feature Flag Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -376,7 +376,7 @@ var FeatureFlagsApiFp = function(configuration) {
     /**
      * 
      * @summary Set Feature Flags
-     * @param {Array<StructsSetConfigParam>} request Feature Flag Params
+     * @param {Array<WlstructsSetConfigParam>} request Feature Flag Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -404,7 +404,7 @@ var FeatureFlagsApiFactory = function(configuration, basePath, axios) {
     /**
      * 
      * @summary Set Feature Flags
-     * @param {Array<StructsSetConfigParam>} request Feature Flag Params
+     * @param {Array<WlstructsSetConfigParam>} request Feature Flag Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -426,7 +426,7 @@ var FeatureFlagsApi = class extends BaseAPI {
   /**
    * 
    * @summary Set Feature Flags
-   * @param {Array<StructsSetConfigParam>} request Feature Flag Params
+   * @param {Array<WlstructsSetConfigParam>} request Feature Flag Params
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */
@@ -3638,7 +3638,7 @@ var TowersApiAxiosParamCreator = function(configuration) {
     /**
      * 
      * @summary Initialize the target server
-     * @param {StructsInitServerParams} request Server initialization body
+     * @param {WlstructsInitServerParams} request Server initialization body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -3857,7 +3857,7 @@ var TowersApiFp = function(configuration) {
     /**
      * 
      * @summary Initialize the target server
-     * @param {StructsInitServerParams} request Server initialization body
+     * @param {WlstructsInitServerParams} request Server initialization body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -3998,7 +3998,7 @@ var TowersApiFactory = function(configuration, basePath, axios) {
     /**
      * 
      * @summary Initialize the target server
-     * @param {StructsInitServerParams} request Server initialization body
+     * @param {WlstructsInitServerParams} request Server initialization body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -4125,7 +4125,7 @@ var TowersApi = class extends BaseAPI {
   /**
    * 
    * @summary Initialize the target server
-   * @param {StructsInitServerParams} request Server initialization body
+   * @param {WlstructsInitServerParams} request Server initialization body
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */

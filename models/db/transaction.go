@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlog"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -30,7 +30,7 @@ func WithTransaction(ctx context.Context, fn func(ctx context.Context) error) er
 		return err
 	}
 
-	l := log.FromContext(ctx)
+	l := wlog.FromContext(ctx)
 
 	if hasTransaction(ctx) {
 		// return errors.Errorf("Already in a transaction")

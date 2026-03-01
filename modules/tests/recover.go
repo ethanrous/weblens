@@ -5,16 +5,16 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlog"
 )
 
 // Setup initializes a test context with logging configured for the test.
 func Setup(t *testing.T) context.Context {
 	t.Helper()
 
-	l := log.NewZeroLogger().With().Str("test_name", t.Name()).Logger()
-	ctx := log.WithContext(t.Context(), &l)
+	l := wlog.NewZeroLogger().With().Str("test_name", t.Name()).Logger()
+	ctx := wlog.WithContext(t.Context(), &l)
 
 	return ctx
 }
@@ -28,7 +28,7 @@ func Recover(t *testing.T) {
 		}
 
 		err = wlerrors.WithStack(err)
-		log.FromContext(t.Context()).Error().Stack().Err(err).Msg("Test failed:")
+		wlog.FromContext(t.Context()).Error().Stack().Err(err).Msg("Test failed:")
 
 		t.Errorf("Test failed: %v", err)
 	}

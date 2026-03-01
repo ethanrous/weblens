@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/models/client"
-	"github.com/ethanrous/weblens/models/user"
-	"github.com/ethanrous/weblens/modules/log"
-	"github.com/ethanrous/weblens/modules/structs"
+	"github.com/ethanrous/weblens/models/usermodel"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
+	"github.com/ethanrous/weblens/modules/wlog"
+	"github.com/ethanrous/weblens/modules/wlstructs"
 	"github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/notify"
 	"github.com/gorilla/websocket"
@@ -63,7 +63,7 @@ func (s *mockWsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.m.Unlock()
 	}
 
-	log.GlobalLogger().Info().Msg("Mock WS handler connection closed")
+	wlog.GlobalLogger().Info().Msg("Mock WS handler connection closed")
 }
 
 func mockClientConnect(ctx context.Context, manager *notify.ClientManager) (*client.WsClient, *mockWsHandler, error) {
@@ -75,7 +75,7 @@ func mockClientConnect(ctx context.Context, manager *notify.ClientManager) (*cli
 		return nil, nil, err
 	}
 
-	usr := &user.User{Username: "testuser"}
+	usr := &usermodel.User{Username: "testuser"}
 
 	client, err := manager.ClientConnect(ctx, conn, usr)
 	if err != nil {
@@ -152,7 +152,7 @@ func TestClientSubscribe(t *testing.T) {
 		noClients := m.GetSubscribers(appCtx, websocket_mod.TaskSubscribe, fileID)
 		assert.Len(t, noClients, 0)
 
-		notif := notify.NewFileNotification(appCtx, structs.FileInfo{ID: fileID}, websocket_mod.FileUpdatedEvent)
+		notif := notify.NewFileNotification(appCtx, wlstructs.FileInfo{ID: fileID}, websocket_mod.FileUpdatedEvent)
 		m.Notify(appCtx, notif...)
 		m.Flush(appCtx)
 
@@ -171,7 +171,7 @@ func TestClientSubscribe(t *testing.T) {
 
 		fileID := randomString(8)
 
-		notif := notify.NewFileNotification(appCtx, structs.FileInfo{ID: fileID}, websocket_mod.FileUpdatedEvent)
+		notif := notify.NewFileNotification(appCtx, wlstructs.FileInfo{ID: fileID}, websocket_mod.FileUpdatedEvent)
 		m.Notify(appCtx, notif...)
 		m.Flush(appCtx)
 

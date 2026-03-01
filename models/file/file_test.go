@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/models/file"
-	file_system "github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/tests"
+	file_system "github.com/ethanrous/weblens/modules/wlfs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

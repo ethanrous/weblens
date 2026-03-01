@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlog"
 	"github.com/rs/zerolog"
 )
 
@@ -98,7 +98,7 @@ func (t *Task) Log() *zerolog.Logger {
 	t.ctxMu.RLock()
 	defer t.ctxMu.RUnlock()
 
-	return log.FromContext(t.Ctx)
+	return wlog.FromContext(t.Ctx)
 }
 
 // JobName returns the name of the job this task is executing.
@@ -211,8 +211,6 @@ func (t *Task) Wait() {
 func (t *Task) Cancel() {
 	t.Log().Trace().Msgf("Cancelling task T[%s]", t.taskID)
 
-	t.cancelFunc(nil)
-
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
 
@@ -220,6 +218,8 @@ func (t *Task) Cancel() {
 		t.queueState = Exited
 		t.exitStatus = TaskCanceled
 	}
+
+	t.cancelFunc(nil)
 
 	if t.childTaskPool != nil {
 		t.childTaskPool.Cancel()

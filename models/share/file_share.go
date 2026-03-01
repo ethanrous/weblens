@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/models/db"
-	user_model "github.com/ethanrous/weblens/models/user"
-	"github.com/ethanrous/weblens/modules/log"
-	"github.com/ethanrous/weblens/modules/slices"
+	user_model "github.com/ethanrous/weblens/models/usermodel"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlog"
+	"github.com/ethanrous/weblens/modules/wlslices"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -61,7 +61,7 @@ func IDFromString(shareID string) primitive.ObjectID {
 
 	id, err := primitive.ObjectIDFromHex(shareID)
 	if err != nil {
-		log.FromContext(context.TODO()).Error().Err(err).Msgf("failed to parse share ID [%s]", shareID)
+		wlog.FromContext(context.TODO()).Error().Err(err).Msgf("failed to parse share ID [%s]", shareID)
 
 		return primitive.NilObjectID
 	}
@@ -79,7 +79,7 @@ func NewFileShare(_ context.Context, fileID string, owner *user_model.User, acce
 	return &FileShare{
 		FileID: fileID,
 		Owner:  owner.GetUsername(),
-		Accessors: slices.Map(
+		Accessors: wlslices.Map(
 			accessors, func(u *user_model.User) string {
 				return u.GetUsername()
 			},
@@ -220,7 +220,7 @@ func (s *FileShare) AddUser(ctx context.Context, username string, perms *Permiss
 	}
 
 	// Add new users to the Accessors list and set default permissions
-	if !slices.Contains(s.Accessors, username) {
+	if !wlslices.Contains(s.Accessors, username) {
 		s.Accessors = append(s.Accessors, username)
 	}
 
@@ -254,7 +254,7 @@ func (s *FileShare) SetUserPerms(ctx context.Context, perms map[string]*Permissi
 
 	// Add new users to the Accessors list and set default permissions
 	for username, perm := range perms {
-		if !slices.Contains(s.Accessors, username) {
+		if !wlslices.Contains(s.Accessors, username) {
 			s.Accessors = append(s.Accessors, username)
 		}
 
@@ -285,7 +285,7 @@ func (s *FileShare) RemoveUsers(ctx context.Context, usernames []string) error {
 		toRemove[u] = struct{}{}
 	}
 
-	s.Accessors = slices.Filter(s.Accessors, func(accessor string) bool {
+	s.Accessors = wlslices.Filter(s.Accessors, func(accessor string) bool {
 		_, found := toRemove[accessor]
 
 		return !found

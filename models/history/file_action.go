@@ -9,10 +9,10 @@ import (
 
 	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
-	"github.com/ethanrous/weblens/modules/fs"
-	"github.com/ethanrous/weblens/modules/log"
 	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlfs"
+	"github.com/ethanrous/weblens/modules/wlog"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -38,9 +38,9 @@ type FileAction struct {
 	Timestamp time.Time `bson:"timestamp" json:"timestamp"`
 
 	ActionType      FileActionType `bson:"actionType" json:"actionType"`
-	Filepath        fs.Filepath    `bson:"filepath,omitempty" json:"filepath"`
-	OriginPath      fs.Filepath    `bson:"originPath,omitempty" json:"originPath"`
-	DestinationPath fs.Filepath    `bson:"destinationPath,omitempty" json:"destinationPath"`
+	Filepath        wlfs.Filepath  `bson:"filepath,omitempty" json:"filepath"`
+	OriginPath      wlfs.Filepath  `bson:"originPath,omitempty" json:"originPath"`
+	DestinationPath wlfs.Filepath  `bson:"destinationPath,omitempty" json:"destinationPath"`
 	EventID         string         `bson:"eventID" json:"eventID"`
 	TowerID         string         `bson:"towerID" json:"towerID"`
 	ContentID       string         `bson:"contentID,omitempty" json:"contentID"`
@@ -80,7 +80,7 @@ func NewCreateAction(ctx context.Context, file *file_model.WeblensFileImpl) File
 
 	if !file.IsDir() && file.GetContentID() == "" {
 		err := wlerrors.Errorf("creating FileAction for file with empty content ID")
-		log.FromContext(ctx).Warn().Stack().Err(err).Str("fileID", fileID).Str("filename", file.GetPortablePath().Filename()).Msg("Creating FileAction for file with empty content ID")
+		wlog.FromContext(ctx).Warn().Stack().Err(err).Str("fileID", fileID).Str("filename", file.GetPortablePath().Filename()).Msg("Creating FileAction for file with empty content ID")
 	}
 
 	return FileAction{
@@ -99,7 +99,7 @@ func NewCreateAction(ctx context.Context, file *file_model.WeblensFileImpl) File
 }
 
 // NewMoveAction creates a new FileAction representing a file move event.
-func NewMoveAction(ctx context.Context, originPath, destinationPath fs.Filepath, file *file_model.WeblensFileImpl) FileAction {
+func NewMoveAction(ctx context.Context, originPath, destinationPath wlfs.Filepath, file *file_model.WeblensFileImpl) FileAction {
 	towerID := ctx.Value("towerID").(string)
 
 	eventID := ""
@@ -183,7 +183,7 @@ func (fa *FileAction) GetSize() int64 {
 }
 
 // GetOriginPath returns the origin path of the file action, or the Filepath if no OriginPath is present.
-func (fa *FileAction) GetOriginPath() fs.Filepath {
+func (fa *FileAction) GetOriginPath() wlfs.Filepath {
 	if fa.OriginPath.IsZero() {
 		return fa.Filepath
 	}
@@ -192,7 +192,7 @@ func (fa *FileAction) GetOriginPath() fs.Filepath {
 }
 
 // GetDestinationPath returns the destination path of the file action, or the Filepath if no DestinationPath is present.
-func (fa *FileAction) GetDestinationPath() fs.Filepath {
+func (fa *FileAction) GetDestinationPath() wlfs.Filepath {
 	if fa.DestinationPath.IsZero() {
 		return fa.Filepath
 	}
@@ -203,7 +203,7 @@ func (fa *FileAction) GetDestinationPath() fs.Filepath {
 // GetRelevantPath returns the relevant path of the file action.
 // If the action type is FileDelete, it returns the origin path;
 // otherwise, it returns the destination path.
-func (fa *FileAction) GetRelevantPath() fs.Filepath {
+func (fa *FileAction) GetRelevantPath() wlfs.Filepath {
 	switch fa.ActionType {
 	case FileCreate:
 		return fa.Filepath
@@ -212,7 +212,7 @@ func (fa *FileAction) GetRelevantPath() fs.Filepath {
 	case FileDelete:
 		return fa.OriginPath
 	default:
-		return fs.Filepath{}
+		return wlfs.Filepath{}
 	}
 }
 
@@ -353,7 +353,7 @@ func GetActionsByTowerID(ctx context_mod.DatabaseContext, towerID string) ([]*Fi
 }
 
 // GetActionAtFilepath retrieves the most recent FileAction for a given filepath.
-func GetActionAtFilepath(ctx context.Context, filepath fs.Filepath) (*FileAction, error) {
+func GetActionAtFilepath(ctx context.Context, filepath wlfs.Filepath) (*FileAction, error) {
 	col, err := db.GetCollection[any](ctx, FileHistoryCollectionKey)
 	if err != nil {
 		return nil, err
@@ -409,16 +409,16 @@ func UpdateAction(ctx context.Context, action *FileAction) error {
 }
 
 // GetActionsAtPathBefore retrieves FileActions at a path before a given timestamp, optionally including child paths.
-func GetActionsAtPathBefore(ctx context.Context, path fs.Filepath, timestamp time.Time, includeChildren bool) ([]FileAction, error) {
+func GetActionsAtPathBefore(ctx context.Context, path wlfs.Filepath, timestamp time.Time, includeChildren bool) ([]FileAction, error) {
 	return getActionsAtPath(ctx, path, timestamp, true, includeChildren)
 }
 
 // GetActionsAtPathAfter retrieves FileActions at a path after a given timestamp, optionally including child paths.
-func GetActionsAtPathAfter(ctx context.Context, path fs.Filepath, timestamp time.Time, includeChildren bool) ([]FileAction, error) {
+func GetActionsAtPathAfter(ctx context.Context, path wlfs.Filepath, timestamp time.Time, includeChildren bool) ([]FileAction, error) {
 	return getActionsAtPath(ctx, path, timestamp, false, includeChildren)
 }
 
-func getActionsAtPath(ctx context.Context, path fs.Filepath, timestamp time.Time, before, includeChildren bool) ([]FileAction, error) {
+func getActionsAtPath(ctx context.Context, path wlfs.Filepath, timestamp time.Time, before, includeChildren bool) ([]FileAction, error) {
 	col, err := db.GetCollection[any](ctx, FileHistoryCollectionKey)
 	if err != nil {
 		return nil, err
@@ -496,7 +496,7 @@ func GetActionsPage(ctx context.Context, pageSize, pageNum int, _ string) ([]Fil
 
 // pathPrefixReFilter creates a MongoDB query filter that matches file actions at the given path
 // and its descendants up to the specified depth using regular expressions.
-func pathPrefixReFilter(path fs.Filepath, depth int) bson.M {
+func pathPrefixReFilter(path wlfs.Filepath, depth int) bson.M {
 	pathRe := regexp.QuoteMeta(path.ToPortable())
 	pathRe += `([^/]+/?){0,` + strconv.Itoa(depth) + `}/?$`
 

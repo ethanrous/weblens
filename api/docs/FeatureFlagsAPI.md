@@ -87,7 +87,7 @@ import (
 )
 
 func main() {
-	request := []openapiclient.StructsSetConfigParam{*openapiclient.NewStructsSetConfigParam()} // []StructsSetConfigParam | Feature Flag Params
+	request := []openapiclient.WlstructsSetConfigParam{*openapiclient.NewWlstructsSetConfigParam()} // []WlstructsSetConfigParam | Feature Flag Params
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
@@ -110,7 +110,7 @@ Other parameters are passed through a pointer to a apiSetFlagsRequest struct via
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **request** | [**[]StructsSetConfigParam**](StructsSetConfigParam.md) | Feature Flag Params | 
+ **request** | [**[]WlstructsSetConfigParam**](WlstructsSetConfigParam.md) | Feature Flag Params | 
 
 ### Return type
 

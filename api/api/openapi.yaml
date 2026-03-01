@@ -489,7 +489,7 @@ paths:
           '*/*':
             schema:
               items:
-                $ref: "#/components/schemas/structs.SetConfigParam"
+                $ref: "#/components/schemas/wlstructs.SetConfigParam"
               type: array
         description: Feature Flag Params
         required: true
@@ -1449,7 +1449,7 @@ paths:
         content:
           '*/*':
             schema:
-              $ref: "#/components/schemas/structs.InitServerParams"
+              $ref: "#/components/schemas/wlstructs.InitServerParams"
         description: Server initialization body
         required: true
       responses:
@@ -3397,16 +3397,6 @@ components:
         error:
           type: string
       type: object
-    fs.Filepath:
-      example:
-        rootAlias: rootAlias
-        relPath: relPath
-      properties:
-        relPath:
-          type: string
-        rootAlias:
-          type: string
-      type: object
     history.FileAction:
       example:
         actionType: actionType
@@ -3433,7 +3423,7 @@ components:
         contentID:
           type: string
         destinationPath:
-          $ref: "#/components/schemas/fs.Filepath"
+          $ref: "#/components/schemas/wlfs.Filepath"
         doer:
           description: The user or system that performed the action
           type: string
@@ -3442,11 +3432,11 @@ components:
         fileID:
           type: string
         filepath:
-          $ref: "#/components/schemas/fs.Filepath"
+          $ref: "#/components/schemas/wlfs.Filepath"
         id:
           type: string
         originPath:
-          $ref: "#/components/schemas/fs.Filepath"
+          $ref: "#/components/schemas/wlfs.Filepath"
         size:
           type: integer
         timestamp:
@@ -3454,7 +3444,17 @@ components:
         towerID:
           type: string
       type: object
-    structs.InitServerParams:
+    wlfs.Filepath:
+      example:
+        rootAlias: rootAlias
+        relPath: relPath
+      properties:
+        relPath:
+          type: string
+        rootAlias:
+          type: string
+      type: object
+    wlstructs.InitServerParams:
       properties:
         coreAddress:
           type: string
@@ -3484,7 +3484,7 @@ components:
       - role
       - username
       type: object
-    structs.SetConfigParam:
+    wlstructs.SetConfigParam:
       properties:
         configKey:
           type: string

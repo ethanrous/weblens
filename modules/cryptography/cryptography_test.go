@@ -8,6 +8,7 @@ import (
 	"github.com/ethanrous/weblens/modules/cryptography"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestRandomInt(t *testing.T) {
@@ -125,7 +126,7 @@ func TestHashString(t *testing.T) {
 
 func TestHashUserPassword(t *testing.T) {
 	// Use minimal bcrypt cost for faster tests
-	ctx := context.WithValue(context.Background(), cryptography.BcryptDifficultyCtxKey, 1)
+	ctx := context.WithValue(context.Background(), cryptography.BcryptDifficultyCtxKey, bcrypt.MinCost)
 
 	t.Run("hashes password", func(t *testing.T) {
 		hash, err := cryptography.HashUserPassword(ctx, "password123")
@@ -146,7 +147,7 @@ func TestHashUserPassword(t *testing.T) {
 
 func TestVerifyUserPassword(t *testing.T) {
 	// Use minimal bcrypt cost for faster tests
-	ctx := context.WithValue(context.Background(), cryptography.BcryptDifficultyCtxKey, 1)
+	ctx := context.WithValue(context.Background(), cryptography.BcryptDifficultyCtxKey, bcrypt.MinCost)
 
 	t.Run("verifies correct password", func(t *testing.T) {
 		password := "correctPassword123"

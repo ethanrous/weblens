@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/models/db"
-	user_model "github.com/ethanrous/weblens/models/user"
+	user_model "github.com/ethanrous/weblens/models/usermodel"
 	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )

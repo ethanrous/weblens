@@ -3,7 +3,7 @@ package ctxservice
 import (
 	"context"
 
-	"github.com/ethanrous/weblens/modules/log"
+	"github.com/ethanrous/weblens/modules/wlog"
 	"github.com/rs/zerolog"
 )
 
@@ -14,7 +14,7 @@ type BasicContext struct {
 
 // NewBasicContext creates a new BasicContext with the provided logger attached.
 func NewBasicContext(ctx context.Context, logger *zerolog.Logger) BasicContext {
-	ctx = log.WithContext(ctx, logger)
+	ctx = wlog.WithContext(ctx, logger)
 
 	return BasicContext{
 		Context: ctx,
@@ -23,7 +23,7 @@ func NewBasicContext(ctx context.Context, logger *zerolog.Logger) BasicContext {
 
 // Log retrieves the logger instance from the BasicContext.
 func (b BasicContext) Log() *zerolog.Logger {
-	return log.FromContext(b.Context)
+	return wlog.FromContext(b.Context)
 }
 
 // ReplaceLogger returns a copy of BasicContext with the specified logger.

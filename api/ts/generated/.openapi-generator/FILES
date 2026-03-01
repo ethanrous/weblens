@@ -18,7 +18,6 @@ docs/FilesApi.md
 docs/FilesListParams.md
 docs/FolderApi.md
 docs/FolderInfo.md
-docs/FsFilepath.md
 docs/HistoryFileAction.md
 docs/LoginBody.md
 docs/MediaApi.md
@@ -43,8 +42,6 @@ docs/RestoreFilesBody.md
 docs/RestoreFilesInfo.md
 docs/ShareApi.md
 docs/ShareInfo.md
-docs/StructsInitServerParams.md
-docs/StructsSetConfigParam.md
 docs/TakeoutInfo.md
 docs/TaskInfo.md
 docs/TokenInfo.md
@@ -57,5 +54,8 @@ docs/UserInfoArchive.md
 docs/UsersApi.md
 docs/WLResponseInfo.md
 docs/WeblensErrorInfo.md
+docs/WlfsFilepath.md
+docs/WlstructsInitServerParams.md
+docs/WlstructsSetConfigParam.md
 git_push.sh
 index.ts

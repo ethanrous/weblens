@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/models/task"
-	"github.com/ethanrous/weblens/modules/log"
-	"github.com/ethanrous/weblens/modules/structs"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlog"
+	"github.com/ethanrous/weblens/modules/wlstructs"
 )
 
 // Jobber is an interface representing a job or task with an ID and job name.
@@ -39,7 +39,7 @@ func NewTaskNotification(task Jobber, event websocket_mod.WsEvent, result task.R
 // NewPoolNotification creates a websocket notification for a task pool event with the given result.
 func NewPoolNotification(pool *task.Pool, event websocket_mod.WsEvent, result task.Result) websocket_mod.WsResponseInfo {
 	if pool.IsGlobal() {
-		log.GlobalLogger().Warn().Msg("Not pushing update on global pool")
+		wlog.GlobalLogger().Warn().Msg("Not pushing update on global pool")
 
 		return websocket_mod.WsResponseInfo{}
 	}
@@ -75,13 +75,13 @@ func NewSystemNotification(event websocket_mod.WsEvent, data websocket_mod.WsDat
 // its parent folder, and optionally a pre-move parent if the file was moved.
 func NewFileNotification(
 	ctx context.Context,
-	fileInfo structs.FileInfo,
+	fileInfo wlstructs.FileInfo,
 	event websocket_mod.WsEvent,
 	options ...FileNotificationOptions,
 ) []websocket_mod.WsResponseInfo {
 	if fileInfo.ID == "" {
 		err := wlerrors.Errorf("File ID is empty")
-		log.FromContext(ctx).Error().Stack().Err(err).Msg("Failed to create new file notification")
+		wlog.FromContext(ctx).Error().Stack().Err(err).Msg("Failed to create new file notification")
 
 		return []websocket_mod.WsResponseInfo{}
 	}

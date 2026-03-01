@@ -5,12 +5,12 @@ import (
 
 	openapi "github.com/ethanrous/weblens/api"
 	tower_model "github.com/ethanrous/weblens/models/tower"
-	"github.com/ethanrous/weblens/modules/structs"
+	"github.com/ethanrous/weblens/modules/wlstructs"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 )
 
 // TowerToTowerInfo converts a tower Instance to a TowerInfo structure suitable for API responses.
-func TowerToTowerInfo(ctx context.Context, tower tower_model.Instance) structs.TowerInfo {
+func TowerToTowerInfo(ctx context.Context, tower tower_model.Instance) wlstructs.TowerInfo {
 	appCtx, ok := context_service.FromContext(ctx)
 	if !ok {
 		panic("not an app context")
@@ -31,7 +31,7 @@ func TowerToTowerInfo(ctx context.Context, tower tower_model.Instance) structs.T
 		}
 	}
 
-	return structs.TowerInfo{
+	return wlstructs.TowerInfo{
 		ID:           tower.TowerID,
 		Name:         tower.Name,
 		Role:         string(tower.Role),
@@ -48,7 +48,7 @@ func TowerToTowerInfo(ctx context.Context, tower tower_model.Instance) structs.T
 }
 
 // TowerInfoToTower converts a TowerInfo from the API to a tower Instance.
-func TowerInfoToTower(t structs.TowerInfo) *tower_model.Instance {
+func TowerInfoToTower(t wlstructs.TowerInfo) *tower_model.Instance {
 	return &tower_model.Instance{
 		TowerID:     t.ID,
 		Name:        t.Name,
