@@ -27,7 +27,7 @@ import (
 //	@Tags		Towers
 //	@Produce	json
 //	@Param		timestamp	query		string				true	"Timestamp in milliseconds since epoch"
-//	@Success	200			{object}	structs.BackupInfo	"Backup Info"
+//	@Success	200			{object}	wlstructs.BackupInfo	"Backup Info"
 //	@Failure	400
 //	@Failure	404
 //	@Failure	500

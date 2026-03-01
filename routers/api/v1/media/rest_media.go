@@ -30,9 +30,9 @@ import (
 //	@Summary	Get paginated media
 //	@Tags		Media
 //	@Produce	json
-//	@Param		request	body		structs.MediaBatchParams	true	"Media Batch Params"
+//	@Param		request	body		wlstructs.MediaBatchParams	true	"Media Batch Params"
 //	@Param		shareID		query		string					false	"File ShareID"
-//	@Success	200			{object}	structs.MediaBatchInfo	"Media Batch"
+//	@Success	200			{object}	wlstructs.MediaBatchInfo	"Media Batch"
 //	@Success	400
 //	@Success	500
 //	@Router		/media [post]
@@ -147,7 +147,7 @@ func GetMediaBatch(ctx ctxservice.RequestContext) {
 //	@Summary	Get media type dictionary
 //	@Tags		Media
 //	@Produce	json
-//	@Success	200	{object}	structs.MediaTypesInfo	"Media types"
+//	@Success	200	{object}	wlstructs.MediaTypesInfo	"Media types"
 //	@Router		/media/types  [get]
 func GetMediaTypes(ctx ctxservice.RequestContext) {
 	mime, ext := media_model.GetMaps()
@@ -267,7 +267,7 @@ func DropHDIRs(ctx ctxservice.RequestContext) {
 //	@Tags		Media
 //	@Produce	json
 //	@Param		mediaID	path		string				true	"Media ID"
-//	@Success	200		{object}	structs.MediaInfo	"Media Info"
+//	@Success	200		{object}	wlstructs.MediaInfo	"Media Info"
 //	@Router		/media/{mediaID}/info [get]
 func GetMediaInfo(ctx ctxservice.RequestContext) {
 	mediaID := ctx.Path("mediaID")
@@ -412,7 +412,7 @@ func streamVideo(ctx ctxservice.RequestContext) {
 //	@Tags		Media
 //	@Produce	json
 //	@Param		hidden		query	bool					true	"Set the media visibility"	Enums(true, false)
-//	@Param		mediaIDs	body	structs.MediaIDsParams	true	"MediaIDs to change visibility of"
+//	@Param		mediaIDs	body	wlstructs.MediaIDsParams	true	"MediaIDs to change visibility of"
 //	@Success	200
 //	@Success	404
 //	@Success	500
@@ -512,7 +512,7 @@ func SetMediaLiked(ctx ctxservice.RequestContext) {
 //	@Tags		Media
 //	@Produce	json
 //	@Param		mediaID	path		string				true	"ID of media"
-//	@Success	200		{object}	structs.FileInfo	"File info of file media was created from"
+//	@Success	200		{object}	wlstructs.FileInfo	"File info of file media was created from"
 //	@Success	404
 //	@Success	500
 //	@Router		/media/{mediaID}/file [get]
@@ -547,7 +547,7 @@ func StreamVideo(ctx ctxservice.RequestContext) {
 //	@Tags		Media
 //	@Produce	json
 //	@Param		count	query		number					true	"Number of random medias to get"
-//	@Success	200		{object}	structs.MediaBatchInfo	"Media Batch"
+//	@Success	200		{object}	wlstructs.MediaBatchInfo	"Media Batch"
 //	@Success	404
 //	@Success	500
 //	@Router		/media/random [get]

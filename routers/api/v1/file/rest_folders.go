@@ -29,7 +29,7 @@ import (
 //	@Tags		Folder
 //	@Param		folderID	path		string				true	"Folder ID"
 //	@Param		shareID	query	string				false	"Share ID"
-//	@Success	200 {object} structs.TaskInfo "Task Info"
+//	@Success	200 {object} wlstructs.TaskInfo "Task Info"
 //	@Failure	404
 //	@Failure	500
 //	@Router		/folder/{folderID}/scan [post]

@@ -24,7 +24,7 @@ import (
 //	@Summary	Get server health status
 //	@Tags		Towers
 //	@Produce	json
-//	@Success	200 {object}	structs.TowerHealth 	"Health status"
+//	@Success	200 {object}	wlstructs.TowerHealth 	"Health status"
 //	@Router		/health [get]
 func GetServerHealthStatus(ctx context_service.RequestContext) {
 	ctx.JSON(http.StatusOK, wlstructs.TowerHealth{
@@ -39,7 +39,7 @@ func GetServerHealthStatus(ctx context_service.RequestContext) {
 //	@Summary	Get server info
 //	@Tags		Towers
 //	@Produce	json
-//	@Success	200	{object}	structs.TowerInfo	"Server info"
+//	@Success	200	{object}	wlstructs.TowerInfo	"Server info"
 //	@Router		/info [get]
 func GetServerInfo(ctx context_service.RequestContext) {
 	tower, err := tower_model.GetLocal(ctx)
@@ -68,7 +68,7 @@ func GetServerInfo(ctx context_service.RequestContext) {
 //	@Security	SessionAuth[admin]
 //	@Security	ApiKeyAuth[admin]
 //
-//	@Success	200	{array}	structs.TowerInfo	"Tower Info"
+//	@Success	200	{array}	wlstructs.TowerInfo	"Tower Info"
 //	@Router		/tower [get]
 func GetRemotes(ctx context_service.RequestContext) {
 	remotes, err := tower_model.GetRemotes(ctx)
@@ -96,8 +96,8 @@ func GetRemotes(ctx context_service.RequestContext) {
 //	@Security	SessionAuth[admin]
 //	@Security	ApiKeyAuth[admin]
 //
-//	@Param		request	body		structs.NewServerParams	true	"New Server Params"
-//	@Success	201		{object}	structs.TowerInfo		"New Server Info"
+//	@Param		request	body		wlstructs.NewServerParams	true	"New Server Params"
+//	@Success	201		{object}	wlstructs.TowerInfo		"New Server Info"
 //	@Success	400
 //	@Router		/tower/remote [post]
 func AttachRemote(ctx context_service.RequestContext) {
@@ -222,9 +222,9 @@ func DeleteRemote(ctx context_service.RequestContext) {
 //	@Tags		Towers
 //	@Produce	json
 //
-//	@Param		request	body	structs.InitServerParams	true	"Server initialization body"
+//	@Param		request	body	wlstructs.InitServerParams	true	"Server initialization body"
 //
-//	@Success	200		{array}	structs.TowerInfo			"New server info"
+//	@Success	200		{array}	wlstructs.TowerInfo			"New server info"
 //	@Failure	404
 //	@Failure	500
 //	@Router		/tower/init [post]

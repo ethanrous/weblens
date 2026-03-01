@@ -164,7 +164,6 @@ Class | Method | HTTP request | Description
  - [FileShareParams](docs/FileShareParams.md)
  - [FilesListParams](docs/FilesListParams.md)
  - [FolderInfo](docs/FolderInfo.md)
- - [FsFilepath](docs/FsFilepath.md)
  - [HistoryFileAction](docs/HistoryFileAction.md)
  - [LoginBody](docs/LoginBody.md)
  - [MediaBatchInfo](docs/MediaBatchInfo.md)
@@ -187,8 +186,6 @@ Class | Method | HTTP request | Description
  - [RestoreFilesBody](docs/RestoreFilesBody.md)
  - [RestoreFilesInfo](docs/RestoreFilesInfo.md)
  - [ShareInfo](docs/ShareInfo.md)
- - [StructsInitServerParams](docs/StructsInitServerParams.md)
- - [StructsSetConfigParam](docs/StructsSetConfigParam.md)
  - [TakeoutInfo](docs/TakeoutInfo.md)
  - [TaskInfo](docs/TaskInfo.md)
  - [TokenInfo](docs/TokenInfo.md)
@@ -199,6 +196,9 @@ Class | Method | HTTP request | Description
  - [UserInfoArchive](docs/UserInfoArchive.md)
  - [WLResponseInfo](docs/WLResponseInfo.md)
  - [WeblensErrorInfo](docs/WeblensErrorInfo.md)
+ - [WlfsFilepath](docs/WlfsFilepath.md)
+ - [WlstructsInitServerParams](docs/WlstructsInitServerParams.md)
+ - [WlstructsSetConfigParam](docs/WlstructsSetConfigParam.md)
 
 
 ## Documentation For Authorization

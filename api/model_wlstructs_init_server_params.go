@@ -16,11 +16,11 @@ import (
 	"fmt"
 )
 
-// checks if the StructsInitServerParams type satisfies the MappedNullable interface at compile time
-var _ MappedNullable = &StructsInitServerParams{}
+// checks if the WlstructsInitServerParams type satisfies the MappedNullable interface at compile time
+var _ MappedNullable = &WlstructsInitServerParams{}
 
-// StructsInitServerParams struct for StructsInitServerParams
-type StructsInitServerParams struct {
+// WlstructsInitServerParams struct for WlstructsInitServerParams
+type WlstructsInitServerParams struct {
 	CoreAddress *string `json:"coreAddress,omitempty"`
 	CoreKey *string `json:"coreKey,omitempty"`
 	FullName *string `json:"fullName,omitempty"`
@@ -34,14 +34,14 @@ type StructsInitServerParams struct {
 	UsingKeyInfo *string `json:"usingKeyInfo,omitempty"`
 }
 
-type _StructsInitServerParams StructsInitServerParams
+type _WlstructsInitServerParams WlstructsInitServerParams
 
-// NewStructsInitServerParams instantiates a new StructsInitServerParams object
+// NewWlstructsInitServerParams instantiates a new WlstructsInitServerParams object
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewStructsInitServerParams(name string, password string, role string, username string) *StructsInitServerParams {
-	this := StructsInitServerParams{}
+func NewWlstructsInitServerParams(name string, password string, role string, username string) *WlstructsInitServerParams {
+	this := WlstructsInitServerParams{}
 	this.Name = name
 	this.Password = password
 	this.Role = role
@@ -49,16 +49,16 @@ func NewStructsInitServerParams(name string, password string, role string, usern
 	return &this
 }
 
-// NewStructsInitServerParamsWithDefaults instantiates a new StructsInitServerParams object
+// NewWlstructsInitServerParamsWithDefaults instantiates a new WlstructsInitServerParams object
 // This constructor will only assign default values to properties that have it defined,
 // but it doesn't guarantee that properties required by API are set
-func NewStructsInitServerParamsWithDefaults() *StructsInitServerParams {
-	this := StructsInitServerParams{}
+func NewWlstructsInitServerParamsWithDefaults() *WlstructsInitServerParams {
+	this := WlstructsInitServerParams{}
 	return &this
 }
 
 // GetCoreAddress returns the CoreAddress field value if set, zero value otherwise.
-func (o *StructsInitServerParams) GetCoreAddress() string {
+func (o *WlstructsInitServerParams) GetCoreAddress() string {
 	if o == nil || IsNil(o.CoreAddress) {
 		var ret string
 		return ret
@@ -68,7 +68,7 @@ func (o *StructsInitServerParams) GetCoreAddress() string {
 
 // GetCoreAddressOk returns a tuple with the CoreAddress field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *StructsInitServerParams) GetCoreAddressOk() (*string, bool) {
+func (o *WlstructsInitServerParams) GetCoreAddressOk() (*string, bool) {
 	if o == nil || IsNil(o.CoreAddress) {
 		return nil, false
 	}
@@ -76,7 +76,7 @@ func (o *StructsInitServerParams) GetCoreAddressOk() (*string, bool) {
 }
 
 // HasCoreAddress returns a boolean if a field has been set.
-func (o *StructsInitServerParams) HasCoreAddress() bool {
+func (o *WlstructsInitServerParams) HasCoreAddress() bool {
 	if o != nil && !IsNil(o.CoreAddress) {
 		return true
 	}
@@ -85,12 +85,12 @@ func (o *StructsInitServerParams) HasCoreAddress() bool {
 }
 
 // SetCoreAddress gets a reference to the given string and assigns it to the CoreAddress field.
-func (o *StructsInitServerParams) SetCoreAddress(v string) {
+func (o *WlstructsInitServerParams) SetCoreAddress(v string) {
 	o.CoreAddress = &v
 }
 
 // GetCoreKey returns the CoreKey field value if set, zero value otherwise.
-func (o *StructsInitServerParams) GetCoreKey() string {
+func (o *WlstructsInitServerParams) GetCoreKey() string {
 	if o == nil || IsNil(o.CoreKey) {
 		var ret string
 		return ret
@@ -100,7 +100,7 @@ func (o *StructsInitServerParams) GetCoreKey() string {
 
 // GetCoreKeyOk returns a tuple with the CoreKey field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *StructsInitServerParams) GetCoreKeyOk() (*string, bool) {
+func (o *WlstructsInitServerParams) GetCoreKeyOk() (*string, bool) {
 	if o == nil || IsNil(o.CoreKey) {
 		return nil, false
 	}
@@ -108,7 +108,7 @@ func (o *StructsInitServerParams) GetCoreKeyOk() (*string, bool) {
 }
 
 // HasCoreKey returns a boolean if a field has been set.
-func (o *StructsInitServerParams) HasCoreKey() bool {
+func (o *WlstructsInitServerParams) HasCoreKey() bool {
 	if o != nil && !IsNil(o.CoreKey) {
 		return true
 	}
@@ -117,12 +117,12 @@ func (o *StructsInitServerParams) HasCoreKey() bool {
 }
 
 // SetCoreKey gets a reference to the given string and assigns it to the CoreKey field.
-func (o *StructsInitServerParams) SetCoreKey(v string) {
+func (o *WlstructsInitServerParams) SetCoreKey(v string) {
 	o.CoreKey = &v
 }
 
 // GetFullName returns the FullName field value if set, zero value otherwise.
-func (o *StructsInitServerParams) GetFullName() string {
+func (o *WlstructsInitServerParams) GetFullName() string {
 	if o == nil || IsNil(o.FullName) {
 		var ret string
 		return ret
@@ -132,7 +132,7 @@ func (o *StructsInitServerParams) GetFullName() string {
 
 // GetFullNameOk returns a tuple with the FullName field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *StructsInitServerParams) GetFullNameOk() (*string, bool) {
+func (o *WlstructsInitServerParams) GetFullNameOk() (*string, bool) {
 	if o == nil || IsNil(o.FullName) {
 		return nil, false
 	}
@@ -140,7 +140,7 @@ func (o *StructsInitServerParams) GetFullNameOk() (*string, bool) {
 }
 
 // HasFullName returns a boolean if a field has been set.
-func (o *StructsInitServerParams) HasFullName() bool {
+func (o *WlstructsInitServerParams) HasFullName() bool {
 	if o != nil && !IsNil(o.FullName) {
 		return true
 	}
@@ -149,12 +149,12 @@ func (o *StructsInitServerParams) HasFullName() bool {
 }
 
 // SetFullName gets a reference to the given string and assigns it to the FullName field.
-func (o *StructsInitServerParams) SetFullName(v string) {
+func (o *WlstructsInitServerParams) SetFullName(v string) {
 	o.FullName = &v
 }
 
 // GetLocalID returns the LocalID field value if set, zero value otherwise.
-func (o *StructsInitServerParams) GetLocalID() string {
+func (o *WlstructsInitServerParams) GetLocalID() string {
 	if o == nil || IsNil(o.LocalID) {
 		var ret string
 		return ret
@@ -164,7 +164,7 @@ func (o *StructsInitServerParams) GetLocalID() string {
 
 // GetLocalIDOk returns a tuple with the LocalID field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *StructsInitServerParams) GetLocalIDOk() (*string, bool) {
+func (o *WlstructsInitServerParams) GetLocalIDOk() (*string, bool) {
 	if o == nil || IsNil(o.LocalID) {
 		return nil, false
 	}
@@ -172,7 +172,7 @@ func (o *StructsInitServerParams) GetLocalIDOk() (*string, bool) {
 }
 
 // HasLocalID returns a boolean if a field has been set.
-func (o *StructsInitServerParams) HasLocalID() bool {
+func (o *WlstructsInitServerParams) HasLocalID() bool {
 	if o != nil && !IsNil(o.LocalID) {
 		return true
 	}
@@ -181,12 +181,12 @@ func (o *StructsInitServerParams) HasLocalID() bool {
 }
 
 // SetLocalID gets a reference to the given string and assigns it to the LocalID field.
-func (o *StructsInitServerParams) SetLocalID(v string) {
+func (o *WlstructsInitServerParams) SetLocalID(v string) {
 	o.LocalID = &v
 }
 
 // GetName returns the Name field value
-func (o *StructsInitServerParams) GetName() string {
+func (o *WlstructsInitServerParams) GetName() string {
 	if o == nil {
 		var ret string
 		return ret
@@ -197,7 +197,7 @@ func (o *StructsInitServerParams) GetName() string {
 
 // GetNameOk returns a tuple with the Name field value
 // and a boolean to check if the value has been set.
-func (o *StructsInitServerParams) GetNameOk() (*string, bool) {
+func (o *WlstructsInitServerParams) GetNameOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -205,12 +205,12 @@ func (o *StructsInitServerParams) GetNameOk() (*string, bool) {
 }
 
 // SetName sets field value
-func (o *StructsInitServerParams) SetName(v string) {
+func (o *WlstructsInitServerParams) SetName(v string) {
 	o.Name = v
 }
 
 // GetPassword returns the Password field value
-func (o *StructsInitServerParams) GetPassword() string {
+func (o *WlstructsInitServerParams) GetPassword() string {
 	if o == nil {
 		var ret string
 		return ret
@@ -221,7 +221,7 @@ func (o *StructsInitServerParams) GetPassword() string {
 
 // GetPasswordOk returns a tuple with the Password field value
 // and a boolean to check if the value has been set.
-func (o *StructsInitServerParams) GetPasswordOk() (*string, bool) {
+func (o *WlstructsInitServerParams) GetPasswordOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -229,12 +229,12 @@ func (o *StructsInitServerParams) GetPasswordOk() (*string, bool) {
 }
 
 // SetPassword sets field value
-func (o *StructsInitServerParams) SetPassword(v string) {
+func (o *WlstructsInitServerParams) SetPassword(v string) {
 	o.Password = v
 }
 
 // GetRemoteID returns the RemoteID field value if set, zero value otherwise.
-func (o *StructsInitServerParams) GetRemoteID() string {
+func (o *WlstructsInitServerParams) GetRemoteID() string {
 	if o == nil || IsNil(o.RemoteID) {
 		var ret string
 		return ret
@@ -244,7 +244,7 @@ func (o *StructsInitServerParams) GetRemoteID() string {
 
 // GetRemoteIDOk returns a tuple with the RemoteID field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *StructsInitServerParams) GetRemoteIDOk() (*string, bool) {
+func (o *WlstructsInitServerParams) GetRemoteIDOk() (*string, bool) {
 	if o == nil || IsNil(o.RemoteID) {
 		return nil, false
 	}
@@ -252,7 +252,7 @@ func (o *StructsInitServerParams) GetRemoteIDOk() (*string, bool) {
 }
 
 // HasRemoteID returns a boolean if a field has been set.
-func (o *StructsInitServerParams) HasRemoteID() bool {
+func (o *WlstructsInitServerParams) HasRemoteID() bool {
 	if o != nil && !IsNil(o.RemoteID) {
 		return true
 	}
@@ -261,12 +261,12 @@ func (o *StructsInitServerParams) HasRemoteID() bool {
 }
 
 // SetRemoteID gets a reference to the given string and assigns it to the RemoteID field.
-func (o *StructsInitServerParams) SetRemoteID(v string) {
+func (o *WlstructsInitServerParams) SetRemoteID(v string) {
 	o.RemoteID = &v
 }
 
 // GetRole returns the Role field value
-func (o *StructsInitServerParams) GetRole() string {
+func (o *WlstructsInitServerParams) GetRole() string {
 	if o == nil {
 		var ret string
 		return ret
@@ -277,7 +277,7 @@ func (o *StructsInitServerParams) GetRole() string {
 
 // GetRoleOk returns a tuple with the Role field value
 // and a boolean to check if the value has been set.
-func (o *StructsInitServerParams) GetRoleOk() (*string, bool) {
+func (o *WlstructsInitServerParams) GetRoleOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -285,12 +285,12 @@ func (o *StructsInitServerParams) GetRoleOk() (*string, bool) {
 }
 
 // SetRole sets field value
-func (o *StructsInitServerParams) SetRole(v string) {
+func (o *WlstructsInitServerParams) SetRole(v string) {
 	o.Role = v
 }
 
 // GetUsername returns the Username field value
-func (o *StructsInitServerParams) GetUsername() string {
+func (o *WlstructsInitServerParams) GetUsername() string {
 	if o == nil {
 		var ret string
 		return ret
@@ -301,7 +301,7 @@ func (o *StructsInitServerParams) GetUsername() string {
 
 // GetUsernameOk returns a tuple with the Username field value
 // and a boolean to check if the value has been set.
-func (o *StructsInitServerParams) GetUsernameOk() (*string, bool) {
+func (o *WlstructsInitServerParams) GetUsernameOk() (*string, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -309,12 +309,12 @@ func (o *StructsInitServerParams) GetUsernameOk() (*string, bool) {
 }
 
 // SetUsername sets field value
-func (o *StructsInitServerParams) SetUsername(v string) {
+func (o *WlstructsInitServerParams) SetUsername(v string) {
 	o.Username = v
 }
 
 // GetUsingKeyInfo returns the UsingKeyInfo field value if set, zero value otherwise.
-func (o *StructsInitServerParams) GetUsingKeyInfo() string {
+func (o *WlstructsInitServerParams) GetUsingKeyInfo() string {
 	if o == nil || IsNil(o.UsingKeyInfo) {
 		var ret string
 		return ret
@@ -324,7 +324,7 @@ func (o *StructsInitServerParams) GetUsingKeyInfo() string {
 
 // GetUsingKeyInfoOk returns a tuple with the UsingKeyInfo field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *StructsInitServerParams) GetUsingKeyInfoOk() (*string, bool) {
+func (o *WlstructsInitServerParams) GetUsingKeyInfoOk() (*string, bool) {
 	if o == nil || IsNil(o.UsingKeyInfo) {
 		return nil, false
 	}
@@ -332,7 +332,7 @@ func (o *StructsInitServerParams) GetUsingKeyInfoOk() (*string, bool) {
 }
 
 // HasUsingKeyInfo returns a boolean if a field has been set.
-func (o *StructsInitServerParams) HasUsingKeyInfo() bool {
+func (o *WlstructsInitServerParams) HasUsingKeyInfo() bool {
 	if o != nil && !IsNil(o.UsingKeyInfo) {
 		return true
 	}
@@ -341,11 +341,11 @@ func (o *StructsInitServerParams) HasUsingKeyInfo() bool {
 }
 
 // SetUsingKeyInfo gets a reference to the given string and assigns it to the UsingKeyInfo field.
-func (o *StructsInitServerParams) SetUsingKeyInfo(v string) {
+func (o *WlstructsInitServerParams) SetUsingKeyInfo(v string) {
 	o.UsingKeyInfo = &v
 }
 
-func (o StructsInitServerParams) MarshalJSON() ([]byte, error) {
+func (o WlstructsInitServerParams) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
@@ -353,7 +353,7 @@ func (o StructsInitServerParams) MarshalJSON() ([]byte, error) {
 	return json.Marshal(toSerialize)
 }
 
-func (o StructsInitServerParams) ToMap() (map[string]interface{}, error) {
+func (o WlstructsInitServerParams) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	if !IsNil(o.CoreAddress) {
 		toSerialize["coreAddress"] = o.CoreAddress
@@ -380,7 +380,7 @@ func (o StructsInitServerParams) ToMap() (map[string]interface{}, error) {
 	return toSerialize, nil
 }
 
-func (o *StructsInitServerParams) UnmarshalJSON(data []byte) (err error) {
+func (o *WlstructsInitServerParams) UnmarshalJSON(data []byte) (err error) {
 	// This validates that all required properties are included in the JSON object
 	// by unmarshalling the object into a generic map with string keys and checking
 	// that every required field exists as a key in the generic map.
@@ -405,53 +405,53 @@ func (o *StructsInitServerParams) UnmarshalJSON(data []byte) (err error) {
 		}
 	}
 
-	varStructsInitServerParams := _StructsInitServerParams{}
+	varWlstructsInitServerParams := _WlstructsInitServerParams{}
 
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
-	err = decoder.Decode(&varStructsInitServerParams)
+	err = decoder.Decode(&varWlstructsInitServerParams)
 
 	if err != nil {
 		return err
 	}
 
-	*o = StructsInitServerParams(varStructsInitServerParams)
+	*o = WlstructsInitServerParams(varWlstructsInitServerParams)
 
 	return err
 }
 
-type NullableStructsInitServerParams struct {
-	value *StructsInitServerParams
+type NullableWlstructsInitServerParams struct {
+	value *WlstructsInitServerParams
 	isSet bool
 }
 
-func (v NullableStructsInitServerParams) Get() *StructsInitServerParams {
+func (v NullableWlstructsInitServerParams) Get() *WlstructsInitServerParams {
 	return v.value
 }
 
-func (v *NullableStructsInitServerParams) Set(val *StructsInitServerParams) {
+func (v *NullableWlstructsInitServerParams) Set(val *WlstructsInitServerParams) {
 	v.value = val
 	v.isSet = true
 }
 
-func (v NullableStructsInitServerParams) IsSet() bool {
+func (v NullableWlstructsInitServerParams) IsSet() bool {
 	return v.isSet
 }
 
-func (v *NullableStructsInitServerParams) Unset() {
+func (v *NullableWlstructsInitServerParams) Unset() {
 	v.value = nil
 	v.isSet = false
 }
 
-func NewNullableStructsInitServerParams(val *StructsInitServerParams) *NullableStructsInitServerParams {
-	return &NullableStructsInitServerParams{value: val, isSet: true}
+func NewNullableWlstructsInitServerParams(val *WlstructsInitServerParams) *NullableWlstructsInitServerParams {
+	return &NullableWlstructsInitServerParams{value: val, isSet: true}
 }
 
-func (v NullableStructsInitServerParams) MarshalJSON() ([]byte, error) {
+func (v NullableWlstructsInitServerParams) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v.value)
 }
 
-func (v *NullableStructsInitServerParams) UnmarshalJSON(src []byte) error {
+func (v *NullableWlstructsInitServerParams) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }

@@ -23,9 +23,9 @@ import (
 //	@Tags		APIKeys
 //	@Produce	json
 //
-//	@Param		params	body		structs.APIKeyParams	true	"The new token params"
+//	@Param		params	body		wlstructs.APIKeyParams	true	"The new token params"
 //
-//	@Success	200		{object}	structs.TokenInfo		"The new token"
+//	@Success	200		{object}	wlstructs.TokenInfo		"The new token"
 //	@Failure	403
 //	@Failure	500
 //	@Router		/keys [post]
@@ -56,7 +56,7 @@ func CreateAPIKey(ctx ctxservice.RequestContext) {
 //	@Tags		APIKeys
 //	@Produce	json
 //
-//	@Success	200	{array}	structs.TokenInfo	"Tokens"
+//	@Success	200	{array}	wlstructs.TokenInfo	"Tokens"
 //	@Failure	403
 //	@Failure	500
 //	@Router		/keys [get]

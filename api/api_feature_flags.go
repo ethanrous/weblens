@@ -122,11 +122,11 @@ func (a *FeatureFlagsAPIService) GetFlagsExecute(r ApiGetFlagsRequest) (*Bundle,
 type ApiSetFlagsRequest struct {
 	ctx context.Context
 	ApiService *FeatureFlagsAPIService
-	request *[]StructsSetConfigParam
+	request *[]WlstructsSetConfigParam
 }
 
 // Feature Flag Params
-func (r ApiSetFlagsRequest) Request(request []StructsSetConfigParam) ApiSetFlagsRequest {
+func (r ApiSetFlagsRequest) Request(request []WlstructsSetConfigParam) ApiSetFlagsRequest {
 	r.request = &request
 	return r
 }

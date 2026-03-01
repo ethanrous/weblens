@@ -23,7 +23,7 @@ import (
 //	@Summary	Create a new user
 //	@Tags		Users
 //	@Produce	json
-//	@Param		newUserParams	body	structs.NewUserParams	true	"New user params"
+//	@Param		newUserParams	body	wlstructs.NewUserParams	true	"New user params"
 //	@Success	201
 //	@Failure	401
 //	@Router		/users [post]
@@ -71,8 +71,8 @@ func Create(ctx ctxservice.RequestContext) {
 //	@Summary	Login User
 //	@Tags		Users
 //	@Produce	json
-//	@Param		loginParams	body		structs.LoginParams	true	"Login params"
-//	@Success	200			{object}	structs.UserInfo	"Logged-in users info"
+//	@Param		loginParams	body		wlstructs.LoginParams	true	"Login params"
+//	@Success	200			{object}	wlstructs.UserInfo	"Logged-in users info"
 //	@Failure	401
 //	@Router		/users/auth [post]
 func Login(ctx ctxservice.RequestContext) {
@@ -170,7 +170,7 @@ func Logout(ctx ctxservice.RequestContext) {
 //	@Summary	Get all users, including (possibly) sensitive information like password hashes
 //	@Tags		Users
 //	@Produce	json
-//	@Success	200	{array}	structs.UserInfoArchive	"List of users"
+//	@Success	200	{array}	wlstructs.UserInfoArchive	"List of users"
 //	@Failure	401
 //	@Router		/users [get]
 func GetAll(ctx ctxservice.RequestContext) {
@@ -201,7 +201,7 @@ func GetAll(ctx ctxservice.RequestContext) {
 //	@Summary	Gets the user based on the auth token
 //	@Tags		Users
 //	@Produce	json
-//	@Success	200	{object}	structs.UserInfo	"Logged-in users info"
+//	@Success	200	{object}	wlstructs.UserInfo	"Logged-in users info"
 //	@Failure	401
 //	@Failure	404
 //	@Failure	500
@@ -229,9 +229,9 @@ func GetMe(ctx ctxservice.RequestContext) {
 //	@Produce	json
 //
 //	@Param		username				path	string							true	"Username of user to update"
-//	@Param		passwordUpdateParams	body	structs.PasswordUpdateParams	true	"Password update params"
+//	@Param		passwordUpdateParams	body	wlstructs.PasswordUpdateParams	true	"Password update params"
 //	@Success	200
-//	@Failure	400	{object}	structs.WeblensErrorInfo	"Both oldPassword and newPassword fields are required"
+//	@Failure	400	{object}	wlstructs.WeblensErrorInfo	"Both oldPassword and newPassword fields are required"
 //	@Failure	403
 //	@Failure	404
 //	@Router		/users/{username}/password [patch]
@@ -294,7 +294,7 @@ func UpdatePassword(ctx ctxservice.RequestContext) {
 //	@Param		username	path	string	true	"Username of user to update"
 //	@Param		setAdmin	query	bool	true	"Target admin status"
 //	@Success	200
-//	@Failure	400	{object}	structs.WeblensErrorInfo
+//	@Failure	400	{object}	wlstructs.WeblensErrorInfo
 //	@Failure	403
 //	@Failure	404
 //	@Router		/users/{username}/admin [patch]
@@ -351,7 +351,7 @@ func SetAdmin(ctx ctxservice.RequestContext) {
 //	@Param		username	path	string	true	"Username of user to update"
 //	@Param		setActive	query	boolean	true	"Target activation status"
 //	@Success	200
-//	@Failure	400	{object}	structs.WeblensErrorInfo
+//	@Failure	400	{object}	wlstructs.WeblensErrorInfo
 //	@Failure	401
 //	@Failure	404
 //	@Router		/users/{username}/active [patch]
@@ -407,10 +407,10 @@ func Activate(ctx ctxservice.RequestContext) {
 //
 //	@Param		username	path	string	true	"Username of user to update"
 //	@Param		newFullName	query	string	true	"New full name of user"
-//	@Success	200 {object}	structs.UserInfo
-//	@Failure	400	{object}	structs.WeblensErrorInfo
-//	@Failure	401	{object}	structs.WeblensErrorInfo
-//	@Failure	404	{object}	structs.WeblensErrorInfo
+//	@Success	200 {object}	wlstructs.UserInfo
+//	@Failure	400	{object}	wlstructs.WeblensErrorInfo
+//	@Failure	401	{object}	wlstructs.WeblensErrorInfo
+//	@Failure	404	{object}	wlstructs.WeblensErrorInfo
 //	@Router		/users/{username}/fullName [patch]
 func ChangeDisplayName(ctx ctxservice.RequestContext) {
 	username := ctx.Path("username")
@@ -508,8 +508,8 @@ var minSearchLength = 2
 //	@Produce	json
 //
 //	@Param		search	query		string						true	"Partial username to search for"
-//	@Success	200		{array}		structs.UserInfo			"List of users"
-//	@Failure	400		{object}	structs.WeblensErrorInfo	"Username autocomplete must contain at least 2 characters"
+//	@Success	200		{array}		wlstructs.UserInfo			"List of users"
+//	@Failure	400		{object}	wlstructs.WeblensErrorInfo	"Username autocomplete must contain at least 2 characters"
 //	@Failure	401
 //	@Failure	404
 //	@Failure	500

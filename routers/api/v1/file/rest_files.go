@@ -46,7 +46,7 @@ import (
 //	@Produce	json
 //	@Param		fileID	path		string				true	"File ID"
 //	@Param		shareID	query		string				false	"Share ID"
-//	@Success	200		{object}	structs.FileInfo	"File Info"
+//	@Success	200		{object}	wlstructs.FileInfo	"File Info"
 //	@Failure	401
 //	@Failure	404
 //	@Router		/files/{fileID} [get]
@@ -138,7 +138,7 @@ func GetFileStats(ctx context_service.RequestContext) {
 //	@Param		quality		query		int							false	"JPEG quality (1-100)"	default(85)
 //	@Param		isTakeout	query		bool						false	"Is this a takeout file"	Enums(true, false)	default(false)
 //	@Success	200			{string}	binary						"File content"
-//	@Success	404			{object}	structs.WeblensErrorInfo	"Error Info"
+//	@Success	404			{object}	wlstructs.WeblensErrorInfo	"Error Info"
 //	@Router		/files/{fileID}/download [get]
 func DownloadFile(ctx context_service.RequestContext) {
 	file, err := checkFileAccess(ctx)
@@ -237,7 +237,7 @@ func DownloadFile(ctx context_service.RequestContext) {
 //	@Param		timestamp	query		int							false	"Past timestamp to view the folder at, in ms since epoch"
 //	@Param		sortProp		query	string				false	"Property to sort by"		Enums(name, size, updatedAt)	default(name)
 //	@Param		sortOrder		query	string				false	"Sort order"				Enums(asc, desc)			default(asc)
-//	@Success	200			{object}	structs.FolderInfoResponse	"Folder Info"
+//	@Success	200			{object}	wlstructs.FolderInfoResponse	"Folder Info"
 //	@Router		/folder/{folderID} [get]
 func GetFolder(ctx context_service.RequestContext) {
 	folder, err := checkFileAccess(ctx)
@@ -283,7 +283,7 @@ func GetFolder(ctx context_service.RequestContext) {
 //	@Summary	Get actions of a folder at a given time
 //	@Tags		Folder
 //	@Param		fileID		path	string					true	"File ID"
-//	@Success	200			{array}	structs.FileActionInfo	"File actions"
+//	@Success	200			{array}	wlstructs.FileActionInfo	"File actions"
 //	@Failure	400
 //	@Failure	500
 //	@Router		/files/{fileID}/history [get]
@@ -323,7 +323,7 @@ func GetFolderHistory(ctx context_service.RequestContext) {
 //	@Param		sortOrder		query	string				false	"Sort order"				Enums(asc, desc)			default(asc)
 //	@Param		recursive		query	boolean				false	"Search recursively"		Enums(true, false)	default(false)
 //	@Param		regex			query	boolean				false	"Whether to treat the search term as a regex pattern"	Enums(true, false)	default(false)
-//	@Success	200				{array}	structs.FileInfo	"File Info"
+//	@Success	200				{array}	wlstructs.FileInfo	"File Info"
 //	@Failure	400
 //	@Failure	401
 //	@Failure	500
@@ -457,9 +457,9 @@ func SearchByFilename(ctx context_service.RequestContext) {
 //	@Tags		Folder
 //	@Accept		json
 //	@Produce	json
-//	@Param		request	body		structs.CreateFolderBody	true	"New folder body"
+//	@Param		request	body		wlstructs.CreateFolderBody	true	"New folder body"
 //	@Param		shareID	query		string						false	"Share ID"
-//	@Success	200		{object}	structs.FileInfo			"File Info"
+//	@Success	200		{object}	wlstructs.FileInfo			"File Info"
 //	@Router		/folder [post]
 func CreateFolder(ctx context_service.RequestContext) {
 	body, err := netwrk.ReadRequestBody[wlstructs.CreateFolderBody](ctx.Req)
@@ -583,7 +583,7 @@ func SetFolderCover(ctx context_service.RequestContext) {
 //
 //	@Summary	Get files shared with the logged in user
 //	@Tags		Files
-//	@Success	200	{object}	structs.FolderInfoResponse	"All the top-level files shared with the user"
+//	@Success	200	{object}	wlstructs.FolderInfoResponse	"All the top-level files shared with the user"
 //	@Failure	404
 //	@Failure	500
 //	@Router		/files/shared [get]
@@ -683,9 +683,9 @@ func GetSharedFiles(ctx context_service.RequestContext) {
 //	@Description	Dispatch a task to create a zip file of the given files, or get the id of a previously created zip file if it already exists
 //	@Tags			Files
 //	@Param			shareID	query		string					false	"Share ID"
-//	@Param			request	body		structs.FilesListParams	true	"File Ids"
-//	@Success		200		{object}	structs.TakeoutInfo		"Zip Takeout Info"
-//	@Success		202		{object}	structs.TakeoutInfo		"Task Dispatch Info"
+//	@Param			request	body		wlstructs.FilesListParams	true	"File Ids"
+//	@Success		200		{object}	wlstructs.TakeoutInfo		"Zip Takeout Info"
+//	@Success		202		{object}	wlstructs.TakeoutInfo		"Task Dispatch Info"
 //	@Failure		400
 //	@Failure		404
 //	@Failure		500
@@ -780,7 +780,7 @@ func ClearZipCache(ctx context_service.RequestContext) {
 //	@Summary	Get path completion suggestions
 //	@Tags		Files
 //	@Param		searchPath	query		string						true	"Search path"
-//	@Success	200			{object}	structs.FolderInfoResponse	"Path info"
+//	@Success	200			{object}	wlstructs.FolderInfoResponse	"Path info"
 //	@Failure	500
 //	@Router		/files/autocomplete [get]
 func AutocompletePath(ctx context_service.RequestContext) {
@@ -870,8 +870,8 @@ func AutocompletePath(ctx context_service.RequestContext) {
 //	@Tags		Files
 //	@Accept		json
 //	@Produce	json
-//	@Param		request	body		structs.RestoreFilesParams	true	"RestoreFiles files request body"
-//	@Success	200		{object}	structs.RestoreFilesInfo	"structsore files info"
+//	@Param		request	body		wlstructs.RestoreFilesParams	true	"RestoreFiles files request body"
+//	@Success	200		{object}	wlstructs.RestoreFilesInfo	"structsore files info"
 //	@Failure	400
 //	@Failure	404
 //	@Failure	500
@@ -928,7 +928,7 @@ func RestoreFiles(ctx context_service.RequestContext) {
 	// if SafeErrorAndExit(err, w, log) {
 	// 	return
 	// }
-	// res := structs.structsoreFilesInfo{NewParentID: newParent.ID()}
+	// res := wlstructs.structsoreFilesInfo{NewParentID: newParent.ID()}
 	// writeJSON(w, http.StatusOK, res)
 	_ = ""
 }
@@ -945,7 +945,7 @@ func RestoreFiles(ctx context_service.RequestContext) {
 //	@Accept		json
 //	@Param		fileID	path	string						true	"File ID"
 //	@Param		shareID	query	string						false	"Share ID"
-//	@Param		request	body	structs.UpdateFileParams	true	"Update file request body"
+//	@Param		request	body	wlstructs.UpdateFileParams	true	"Update file request body"
 //	@Success	200
 //	@Failure	403
 //	@Failure	404
@@ -989,7 +989,7 @@ func UpdateFile(ctx context_service.RequestContext) {
 //
 //	@Summary	Move a list of files to a new parent folder
 //	@Tags		Files
-//	@Param		request	body	structs.MoveFilesParams	true	"Move files request body"
+//	@Param		request	body	wlstructs.MoveFilesParams	true	"Move files request body"
 //	@Param		shareID	query	string					false	"Share ID"
 //	@Success	200
 //	@Failure	404
@@ -1073,7 +1073,7 @@ func MoveFiles(ctx context_service.RequestContext) {
 //
 //	@Summary	Move a list of files out of the trash, structsoring them to where they were before
 //	@Tags		Files
-//	@Param		request	body	structs.FilesListParams	true	"Un-trash files request body"
+//	@Param		request	body	wlstructs.FilesListParams	true	"Un-trash files request body"
 //	@Success	200
 //	@Failure	401
 //	@Failure	404
@@ -1115,7 +1115,7 @@ func UnTrashFiles(ctx context_service.RequestContext) {
 //
 //	@Summary	Delete Files "permanently"
 //	@Tags		Files
-//	@Param		request			body	structs.FilesListParams	true	"Delete files request body"
+//	@Param		request			body	wlstructs.FilesListParams	true	"Delete files request body"
 //	@Param		ignoreTrash		query	boolean					false	"Delete files even if they are not in the trash"
 //	@Param		preserveFolder	query	boolean					false	"Preserve parent folder if it is empty after deletion"
 //	@Success	200
@@ -1197,9 +1197,9 @@ const chunkChanSize = 10
 //
 //	@Summary	Begin a new upload task
 //	@Tags		Files
-//	@Param		request	body		structs.NewUploadParams	true	"New upload request body"
+//	@Param		request	body		wlstructs.NewUploadParams	true	"New upload request body"
 //	@Param		shareID	query		string					false	"Share ID"
-//	@Success	201		{object}	structs.NewUploadInfo	"Upload Info"
+//	@Success	201		{object}	wlstructs.NewUploadInfo	"Upload Info"
 //	@Failure	401
 //	@Failure	404
 //	@Failure	500
@@ -1247,8 +1247,8 @@ func NewUploadTask(ctx context_service.RequestContext) {
 //	@Tags		Files
 //	@Param		uploadID	path		string					true	"Upload ID"
 //	@Param		shareID		query		string					false	"Share ID"
-//	@Param		request		body		structs.NewFilesParams	true	"New file params"
-//	@Success	201			{object}	structs.NewFilesInfo	"FileIds"
+//	@Param		request		body		wlstructs.NewFilesParams	true	"New file params"
+//	@Success	201			{object}	wlstructs.NewFilesInfo	"FileIds"
 //	@Failure	401
 //	@Failure	404
 //	@Failure	500

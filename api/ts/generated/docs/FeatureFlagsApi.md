@@ -65,7 +65,7 @@ import {
 const configuration = new Configuration();
 const apiInstance = new FeatureFlagsApi(configuration);
 
-let request: Array<StructsSetConfigParam>; //Feature Flag Params
+let request: Array<WlstructsSetConfigParam>; //Feature Flag Params
 
 const { status, data } = await apiInstance.setFlags(
     request
@@ -76,7 +76,7 @@ const { status, data } = await apiInstance.setFlags(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **request** | **Array<StructsSetConfigParam>**| Feature Flag Params | |
+| **request** | **Array<WlstructsSetConfigParam>**| Feature Flag Params | |
 
 
 ### Return type

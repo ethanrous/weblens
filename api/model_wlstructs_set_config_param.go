@@ -14,34 +14,34 @@ import (
 	"encoding/json"
 )
 
-// checks if the StructsSetConfigParam type satisfies the MappedNullable interface at compile time
-var _ MappedNullable = &StructsSetConfigParam{}
+// checks if the WlstructsSetConfigParam type satisfies the MappedNullable interface at compile time
+var _ MappedNullable = &WlstructsSetConfigParam{}
 
-// StructsSetConfigParam struct for StructsSetConfigParam
-type StructsSetConfigParam struct {
+// WlstructsSetConfigParam struct for WlstructsSetConfigParam
+type WlstructsSetConfigParam struct {
 	ConfigKey *string `json:"configKey,omitempty"`
 	ConfigValue map[string]interface{} `json:"configValue,omitempty"`
 }
 
-// NewStructsSetConfigParam instantiates a new StructsSetConfigParam object
+// NewWlstructsSetConfigParam instantiates a new WlstructsSetConfigParam object
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewStructsSetConfigParam() *StructsSetConfigParam {
-	this := StructsSetConfigParam{}
+func NewWlstructsSetConfigParam() *WlstructsSetConfigParam {
+	this := WlstructsSetConfigParam{}
 	return &this
 }
 
-// NewStructsSetConfigParamWithDefaults instantiates a new StructsSetConfigParam object
+// NewWlstructsSetConfigParamWithDefaults instantiates a new WlstructsSetConfigParam object
 // This constructor will only assign default values to properties that have it defined,
 // but it doesn't guarantee that properties required by API are set
-func NewStructsSetConfigParamWithDefaults() *StructsSetConfigParam {
-	this := StructsSetConfigParam{}
+func NewWlstructsSetConfigParamWithDefaults() *WlstructsSetConfigParam {
+	this := WlstructsSetConfigParam{}
 	return &this
 }
 
 // GetConfigKey returns the ConfigKey field value if set, zero value otherwise.
-func (o *StructsSetConfigParam) GetConfigKey() string {
+func (o *WlstructsSetConfigParam) GetConfigKey() string {
 	if o == nil || IsNil(o.ConfigKey) {
 		var ret string
 		return ret
@@ -51,7 +51,7 @@ func (o *StructsSetConfigParam) GetConfigKey() string {
 
 // GetConfigKeyOk returns a tuple with the ConfigKey field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *StructsSetConfigParam) GetConfigKeyOk() (*string, bool) {
+func (o *WlstructsSetConfigParam) GetConfigKeyOk() (*string, bool) {
 	if o == nil || IsNil(o.ConfigKey) {
 		return nil, false
 	}
@@ -59,7 +59,7 @@ func (o *StructsSetConfigParam) GetConfigKeyOk() (*string, bool) {
 }
 
 // HasConfigKey returns a boolean if a field has been set.
-func (o *StructsSetConfigParam) HasConfigKey() bool {
+func (o *WlstructsSetConfigParam) HasConfigKey() bool {
 	if o != nil && !IsNil(o.ConfigKey) {
 		return true
 	}
@@ -68,12 +68,12 @@ func (o *StructsSetConfigParam) HasConfigKey() bool {
 }
 
 // SetConfigKey gets a reference to the given string and assigns it to the ConfigKey field.
-func (o *StructsSetConfigParam) SetConfigKey(v string) {
+func (o *WlstructsSetConfigParam) SetConfigKey(v string) {
 	o.ConfigKey = &v
 }
 
 // GetConfigValue returns the ConfigValue field value if set, zero value otherwise.
-func (o *StructsSetConfigParam) GetConfigValue() map[string]interface{} {
+func (o *WlstructsSetConfigParam) GetConfigValue() map[string]interface{} {
 	if o == nil || IsNil(o.ConfigValue) {
 		var ret map[string]interface{}
 		return ret
@@ -83,7 +83,7 @@ func (o *StructsSetConfigParam) GetConfigValue() map[string]interface{} {
 
 // GetConfigValueOk returns a tuple with the ConfigValue field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *StructsSetConfigParam) GetConfigValueOk() (map[string]interface{}, bool) {
+func (o *WlstructsSetConfigParam) GetConfigValueOk() (map[string]interface{}, bool) {
 	if o == nil || IsNil(o.ConfigValue) {
 		return map[string]interface{}{}, false
 	}
@@ -91,7 +91,7 @@ func (o *StructsSetConfigParam) GetConfigValueOk() (map[string]interface{}, bool
 }
 
 // HasConfigValue returns a boolean if a field has been set.
-func (o *StructsSetConfigParam) HasConfigValue() bool {
+func (o *WlstructsSetConfigParam) HasConfigValue() bool {
 	if o != nil && !IsNil(o.ConfigValue) {
 		return true
 	}
@@ -100,11 +100,11 @@ func (o *StructsSetConfigParam) HasConfigValue() bool {
 }
 
 // SetConfigValue gets a reference to the given map[string]interface{} and assigns it to the ConfigValue field.
-func (o *StructsSetConfigParam) SetConfigValue(v map[string]interface{}) {
+func (o *WlstructsSetConfigParam) SetConfigValue(v map[string]interface{}) {
 	o.ConfigValue = v
 }
 
-func (o StructsSetConfigParam) MarshalJSON() ([]byte, error) {
+func (o WlstructsSetConfigParam) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
@@ -112,7 +112,7 @@ func (o StructsSetConfigParam) MarshalJSON() ([]byte, error) {
 	return json.Marshal(toSerialize)
 }
 
-func (o StructsSetConfigParam) ToMap() (map[string]interface{}, error) {
+func (o WlstructsSetConfigParam) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	if !IsNil(o.ConfigKey) {
 		toSerialize["configKey"] = o.ConfigKey
@@ -123,38 +123,38 @@ func (o StructsSetConfigParam) ToMap() (map[string]interface{}, error) {
 	return toSerialize, nil
 }
 
-type NullableStructsSetConfigParam struct {
-	value *StructsSetConfigParam
+type NullableWlstructsSetConfigParam struct {
+	value *WlstructsSetConfigParam
 	isSet bool
 }
 
-func (v NullableStructsSetConfigParam) Get() *StructsSetConfigParam {
+func (v NullableWlstructsSetConfigParam) Get() *WlstructsSetConfigParam {
 	return v.value
 }
 
-func (v *NullableStructsSetConfigParam) Set(val *StructsSetConfigParam) {
+func (v *NullableWlstructsSetConfigParam) Set(val *WlstructsSetConfigParam) {
 	v.value = val
 	v.isSet = true
 }
 
-func (v NullableStructsSetConfigParam) IsSet() bool {
+func (v NullableWlstructsSetConfigParam) IsSet() bool {
 	return v.isSet
 }
 
-func (v *NullableStructsSetConfigParam) Unset() {
+func (v *NullableWlstructsSetConfigParam) Unset() {
 	v.value = nil
 	v.isSet = false
 }
 
-func NewNullableStructsSetConfigParam(val *StructsSetConfigParam) *NullableStructsSetConfigParam {
-	return &NullableStructsSetConfigParam{value: val, isSet: true}
+func NewNullableWlstructsSetConfigParam(val *WlstructsSetConfigParam) *NullableWlstructsSetConfigParam {
+	return &NullableWlstructsSetConfigParam{value: val, isSet: true}
 }
 
-func (v NullableStructsSetConfigParam) MarshalJSON() ([]byte, error) {
+func (v NullableWlstructsSetConfigParam) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v.value)
 }
 
-func (v *NullableStructsSetConfigParam) UnmarshalJSON(src []byte) error {
+func (v *NullableWlstructsSetConfigParam) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }

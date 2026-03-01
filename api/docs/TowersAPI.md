@@ -651,7 +651,7 @@ import (
 )
 
 func main() {
-	request := *openapiclient.NewStructsInitServerParams("Name_example", "Password_example", "Role_example", "Username_example") // StructsInitServerParams | Server initialization body
+	request := *openapiclient.NewWlstructsInitServerParams("Name_example", "Password_example", "Role_example", "Username_example") // WlstructsInitServerParams | Server initialization body
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
@@ -676,7 +676,7 @@ Other parameters are passed through a pointer to a apiInitializeTowerRequest str
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **request** | [**StructsInitServerParams**](StructsInitServerParams.md) | Server initialization body | 
+ **request** | [**WlstructsInitServerParams**](WlstructsInitServerParams.md) | Server initialization body | 
 
 ### Return type
 

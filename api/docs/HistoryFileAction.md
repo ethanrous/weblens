@@ -6,13 +6,13 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **ActionType** | Pointer to **string** |  | [optional] 
 **ContentID** | Pointer to **string** |  | [optional] 
-**DestinationPath** | Pointer to [**FsFilepath**](FsFilepath.md) |  | [optional] 
+**DestinationPath** | Pointer to [**WlfsFilepath**](WlfsFilepath.md) |  | [optional] 
 **Doer** | Pointer to **string** | The user or system that performed the action | [optional] 
 **EventID** | Pointer to **string** |  | [optional] 
 **FileID** | Pointer to **string** |  | [optional] 
-**Filepath** | Pointer to [**FsFilepath**](FsFilepath.md) |  | [optional] 
+**Filepath** | Pointer to [**WlfsFilepath**](WlfsFilepath.md) |  | [optional] 
 **Id** | Pointer to **string** |  | [optional] 
-**OriginPath** | Pointer to [**FsFilepath**](FsFilepath.md) |  | [optional] 
+**OriginPath** | Pointer to [**WlfsFilepath**](WlfsFilepath.md) |  | [optional] 
 **Size** | Pointer to **int32** |  | [optional] 
 **Timestamp** | Pointer to **string** |  | [optional] 
 **TowerID** | Pointer to **string** |  | [optional] 
@@ -88,20 +88,20 @@ HasContentID returns a boolean if a field has been set.
 
 ### GetDestinationPath
 
-`func (o *HistoryFileAction) GetDestinationPath() FsFilepath`
+`func (o *HistoryFileAction) GetDestinationPath() WlfsFilepath`
 
 GetDestinationPath returns the DestinationPath field if non-nil, zero value otherwise.
 
 ### GetDestinationPathOk
 
-`func (o *HistoryFileAction) GetDestinationPathOk() (*FsFilepath, bool)`
+`func (o *HistoryFileAction) GetDestinationPathOk() (*WlfsFilepath, bool)`
 
 GetDestinationPathOk returns a tuple with the DestinationPath field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
 ### SetDestinationPath
 
-`func (o *HistoryFileAction) SetDestinationPath(v FsFilepath)`
+`func (o *HistoryFileAction) SetDestinationPath(v WlfsFilepath)`
 
 SetDestinationPath sets DestinationPath field to given value.
 
@@ -188,20 +188,20 @@ HasFileID returns a boolean if a field has been set.
 
 ### GetFilepath
 
-`func (o *HistoryFileAction) GetFilepath() FsFilepath`
+`func (o *HistoryFileAction) GetFilepath() WlfsFilepath`
 
 GetFilepath returns the Filepath field if non-nil, zero value otherwise.
 
 ### GetFilepathOk
 
-`func (o *HistoryFileAction) GetFilepathOk() (*FsFilepath, bool)`
+`func (o *HistoryFileAction) GetFilepathOk() (*WlfsFilepath, bool)`
 
 GetFilepathOk returns a tuple with the Filepath field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
 ### SetFilepath
 
-`func (o *HistoryFileAction) SetFilepath(v FsFilepath)`
+`func (o *HistoryFileAction) SetFilepath(v WlfsFilepath)`
 
 SetFilepath sets Filepath field to given value.
 
@@ -238,20 +238,20 @@ HasId returns a boolean if a field has been set.
 
 ### GetOriginPath
 
-`func (o *HistoryFileAction) GetOriginPath() FsFilepath`
+`func (o *HistoryFileAction) GetOriginPath() WlfsFilepath`
 
 GetOriginPath returns the OriginPath field if non-nil, zero value otherwise.
 
 ### GetOriginPathOk
 
-`func (o *HistoryFileAction) GetOriginPathOk() (*FsFilepath, bool)`
+`func (o *HistoryFileAction) GetOriginPathOk() (*WlfsFilepath, bool)`
 
 GetOriginPathOk returns a tuple with the OriginPath field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
 ### SetOriginPath
 
-`func (o *HistoryFileAction) SetOriginPath(v FsFilepath)`
+`func (o *HistoryFileAction) SetOriginPath(v WlfsFilepath)`
 
 SetOriginPath sets OriginPath field to given value.
 

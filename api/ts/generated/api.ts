@@ -94,23 +94,19 @@ export interface FolderInfo {
     'parents'?: Array<FileInfo>;
     'self'?: FileInfo;
 }
-export interface FsFilepath {
-    'relPath'?: string;
-    'rootAlias'?: string;
-}
 export interface HistoryFileAction {
     'actionType'?: string;
     'contentID'?: string;
-    'destinationPath'?: FsFilepath;
+    'destinationPath'?: WlfsFilepath;
     /**
      * The user or system that performed the action
      */
     'doer'?: string;
     'eventID'?: string;
     'fileID'?: string;
-    'filepath'?: FsFilepath;
+    'filepath'?: WlfsFilepath;
     'id'?: string;
-    'originPath'?: FsFilepath;
+    'originPath'?: WlfsFilepath;
     'size'?: number;
     'timestamp'?: string;
     'towerID'?: string;
@@ -283,25 +279,6 @@ export interface ShareInfo {
     'updated'?: number;
     'wormhole'?: boolean;
 }
-export interface StructsInitServerParams {
-    'coreAddress'?: string;
-    'coreKey'?: string;
-    'fullName'?: string;
-    /**
-     * For restoring a server, remoind the core of its serverID and api key the remote last used
-     */
-    'localID'?: string;
-    'name': string;
-    'password': string;
-    'remoteID'?: string;
-    'role': string;
-    'username': string;
-    'usingKeyInfo'?: string;
-}
-export interface StructsSetConfigParam {
-    'configKey'?: string;
-    'configValue'?: object;
-}
 export interface TakeoutInfo {
     'filename'?: string;
     'single'?: boolean;
@@ -393,6 +370,29 @@ export interface WLResponseInfo {
 }
 export interface WeblensErrorInfo {
     'error'?: string;
+}
+export interface WlfsFilepath {
+    'relPath'?: string;
+    'rootAlias'?: string;
+}
+export interface WlstructsInitServerParams {
+    'coreAddress'?: string;
+    'coreKey'?: string;
+    'fullName'?: string;
+    /**
+     * For restoring a server, remoind the core of its serverID and api key the remote last used
+     */
+    'localID'?: string;
+    'name': string;
+    'password': string;
+    'remoteID'?: string;
+    'role': string;
+    'username': string;
+    'usingKeyInfo'?: string;
+}
+export interface WlstructsSetConfigParam {
+    'configKey'?: string;
+    'configValue'?: object;
 }
 
 /**
@@ -663,11 +663,11 @@ export const FeatureFlagsApiAxiosParamCreator = function (configuration?: Config
         /**
          * 
          * @summary Set Feature Flags
-         * @param {Array<StructsSetConfigParam>} request Feature Flag Params
+         * @param {Array<WlstructsSetConfigParam>} request Feature Flag Params
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        setFlags: async (request: Array<StructsSetConfigParam>, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        setFlags: async (request: Array<WlstructsSetConfigParam>, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'request' is not null or undefined
             assertParamExists('setFlags', 'request', request)
             const localVarPath = `/flags`;
@@ -718,11 +718,11 @@ export const FeatureFlagsApiFp = function(configuration?: Configuration) {
         /**
          * 
          * @summary Set Feature Flags
-         * @param {Array<StructsSetConfigParam>} request Feature Flag Params
+         * @param {Array<WlstructsSetConfigParam>} request Feature Flag Params
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async setFlags(request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+        async setFlags(request: Array<WlstructsSetConfigParam>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.setFlags(request, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['FeatureFlagsApi.setFlags']?.[localVarOperationServerIndex]?.url;
@@ -749,11 +749,11 @@ export const FeatureFlagsApiFactory = function (configuration?: Configuration, b
         /**
          * 
          * @summary Set Feature Flags
-         * @param {Array<StructsSetConfigParam>} request Feature Flag Params
+         * @param {Array<WlstructsSetConfigParam>} request Feature Flag Params
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        setFlags(request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+        setFlags(request: Array<WlstructsSetConfigParam>, options?: RawAxiosRequestConfig): AxiosPromise<void> {
             return localVarFp.setFlags(request, options).then((request) => request(axios, basePath));
         },
     };
@@ -776,11 +776,11 @@ export class FeatureFlagsApi extends BaseAPI {
     /**
      * 
      * @summary Set Feature Flags
-     * @param {Array<StructsSetConfigParam>} request Feature Flag Params
+     * @param {Array<WlstructsSetConfigParam>} request Feature Flag Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public setFlags(request: Array<StructsSetConfigParam>, options?: RawAxiosRequestConfig) {
+    public setFlags(request: Array<WlstructsSetConfigParam>, options?: RawAxiosRequestConfig) {
         return FeatureFlagsApiFp(this.configuration).setFlags(request, options).then((request) => request(this.axios, this.basePath));
     }
 }
@@ -4449,11 +4449,11 @@ export const TowersApiAxiosParamCreator = function (configuration?: Configuratio
         /**
          * 
          * @summary Initialize the target server
-         * @param {StructsInitServerParams} request Server initialization body
+         * @param {WlstructsInitServerParams} request Server initialization body
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        initializeTower: async (request: StructsInitServerParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        initializeTower: async (request: WlstructsInitServerParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'request' is not null or undefined
             assertParamExists('initializeTower', 'request', request)
             const localVarPath = `/tower/init`;
@@ -4680,11 +4680,11 @@ export const TowersApiFp = function(configuration?: Configuration) {
         /**
          * 
          * @summary Initialize the target server
-         * @param {StructsInitServerParams} request Server initialization body
+         * @param {WlstructsInitServerParams} request Server initialization body
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async initializeTower(request: StructsInitServerParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<TowerInfo>>> {
+        async initializeTower(request: WlstructsInitServerParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<TowerInfo>>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.initializeTower(request, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['TowersApi.initializeTower']?.[localVarOperationServerIndex]?.url;
@@ -4822,11 +4822,11 @@ export const TowersApiFactory = function (configuration?: Configuration, basePat
         /**
          * 
          * @summary Initialize the target server
-         * @param {StructsInitServerParams} request Server initialization body
+         * @param {WlstructsInitServerParams} request Server initialization body
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        initializeTower(request: StructsInitServerParams, options?: RawAxiosRequestConfig): AxiosPromise<Array<TowerInfo>> {
+        initializeTower(request: WlstructsInitServerParams, options?: RawAxiosRequestConfig): AxiosPromise<Array<TowerInfo>> {
             return localVarFp.initializeTower(request, options).then((request) => request(axios, basePath));
         },
         /**
@@ -4963,11 +4963,11 @@ export class TowersApi extends BaseAPI {
     /**
      * 
      * @summary Initialize the target server
-     * @param {StructsInitServerParams} request Server initialization body
+     * @param {WlstructsInitServerParams} request Server initialization body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public initializeTower(request: StructsInitServerParams, options?: RawAxiosRequestConfig) {
+    public initializeTower(request: WlstructsInitServerParams, options?: RawAxiosRequestConfig) {
         return TowersApiFp(this.configuration).initializeTower(request, options).then((request) => request(this.axios, this.basePath));
     }
 

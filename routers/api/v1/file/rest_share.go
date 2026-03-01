@@ -21,8 +21,8 @@ import (
 //	@Summary	Share a file
 //	@Tags		Share
 //	@Produce	json
-//	@Param		request	body		structs.FileShareParams	true	"New File Share Params"
-//	@Success	200		{object}	structs.ShareInfo		"New File Share"
+//	@Param		request	body		wlstructs.FileShareParams	true	"New File Share Params"
+//	@Success	200		{object}	wlstructs.ShareInfo		"New File Share"
 //	@Success	409
 //	@Router		/share/file [post]
 func CreateFileShare(ctx ctxservice.RequestContext) {
@@ -104,7 +104,7 @@ func CreateFileShare(ctx ctxservice.RequestContext) {
 //	@Tags		Share
 //	@Produce	json
 //	@Param		shareID	path		string				true	"Share ID"
-//	@Success	200		{object}	structs.ShareInfo	"File Share"
+//	@Success	200		{object}	wlstructs.ShareInfo	"File Share"
 //	@Failure	404
 //	@Router		/share/{shareID} [get]
 func GetFileShare(ctx ctxservice.RequestContext) {
@@ -170,8 +170,8 @@ func SetSharePublic(ctx ctxservice.RequestContext) {
 //	@Tags		Share
 //	@Produce	json
 //	@Param		shareID	path		string					true	"Share ID"
-//	@Param		request	body		structs.AddUserParams	true	"Share Accessors"
-//	@Success	200		{object}	structs.ShareInfo
+//	@Param		request	body		wlstructs.AddUserParams	true	"Share Accessors"
+//	@Success	200		{object}	wlstructs.ShareInfo
 //	@Failure	404
 //	@Router		/share/{shareID}/accessors [post]
 func AddUserToShare(ctx ctxservice.RequestContext) {
@@ -229,7 +229,7 @@ func AddUserToShare(ctx ctxservice.RequestContext) {
 //	@Produce	json
 //	@Param		shareID		path		string	true	"Share ID"
 //	@Param		username	path		string	true	"Username"
-//	@Success	200			{object}	structs.ShareInfo
+//	@Success	200			{object}	wlstructs.ShareInfo
 //	@Failure	404
 //	@Router		/share/{shareID}/accessors/{username} [delete]
 func RemoveUserFromShare(ctx ctxservice.RequestContext) {
@@ -271,8 +271,8 @@ func RemoveUserFromShare(ctx ctxservice.RequestContext) {
 //	@Produce	json
 //	@Param		shareID		path		string						true	"Share ID"
 //	@Param		username	path		string						true	"Username"
-//	@Param		request		body		structs.PermissionsParams	true	"Share Permissions Params"
-//	@Success	200			{object}	structs.ShareInfo
+//	@Param		request		body		wlstructs.PermissionsParams	true	"Share Permissions Params"
+//	@Success	200			{object}	wlstructs.ShareInfo
 //	@Failure	404
 //	@Router		/share/{shareID}/accessors/{username} [patch]
 func SetShareAccessors(ctx ctxservice.RequestContext) {

@@ -26,7 +26,7 @@ import (
 //	@Tags		Towers
 //	@Produce	json
 //
-//	@Success	200		{array}	structs.TaskInfo	"Task Infos"
+//	@Success	200		{array}	wlstructs.TaskInfo	"Task Infos"
 //	@Router		/tower/tasks [get]
 func GetRunningTasks(ctx ctxservice.RequestContext) {
 	tasksIter := ctx.TaskService.GetTasks()
@@ -50,7 +50,7 @@ func GetRunningTasks(ctx ctxservice.RequestContext) {
 //	@Tags		Towers
 //	@Produce	json
 //
-//	@Success	200		{object}	structs.WLResponseInfo	"Cache flushed successfully"
+//	@Success	200		{object}	wlstructs.WLResponseInfo	"Cache flushed successfully"
 //	@Router		/tower/cache [delete]
 func FlushCache(ctx ctxservice.RequestContext) {
 	ctx.ClearCache()
@@ -88,7 +88,7 @@ func GetFlags(ctx ctxservice.RequestContext) {
 //	@Security	SessionAuth[admin]
 //	@Security	ApiKeyAuth[admin]
 //
-//	@Param		request	body	structs.FeatureFlagParams	true	"Feature Flag Params"
+//	@Param		request	body	wlstructs.FeatureFlagParams	true	"Feature Flag Params"
 //
 //	@Summary	Set Feature Flags
 //	@Tags		FeatureFlags

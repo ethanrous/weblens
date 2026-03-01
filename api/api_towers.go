@@ -1021,11 +1021,11 @@ func (a *TowersAPIService) GetServerInfoExecute(r ApiGetServerInfoRequest) (*Tow
 type ApiInitializeTowerRequest struct {
 	ctx context.Context
 	ApiService *TowersAPIService
-	request *StructsInitServerParams
+	request *WlstructsInitServerParams
 }
 
 // Server initialization body
-func (r ApiInitializeTowerRequest) Request(request StructsInitServerParams) ApiInitializeTowerRequest {
+func (r ApiInitializeTowerRequest) Request(request WlstructsInitServerParams) ApiInitializeTowerRequest {
 	r.request = &request
 	return r
 }

@@ -499,13 +499,13 @@ No authorization required
 import {
     TowersApi,
     Configuration,
-    StructsInitServerParams
+    WlstructsInitServerParams
 } from './api';
 
 const configuration = new Configuration();
 const apiInstance = new TowersApi(configuration);
 
-let request: StructsInitServerParams; //Server initialization body
+let request: WlstructsInitServerParams; //Server initialization body
 
 const { status, data } = await apiInstance.initializeTower(
     request
@@ -516,7 +516,7 @@ const { status, data } = await apiInstance.initializeTower(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **request** | **StructsInitServerParams**| Server initialization body | |
+| **request** | **WlstructsInitServerParams**| Server initialization body | |
 
 
 ### Return type

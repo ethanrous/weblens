@@ -700,7 +700,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/structs.SetConfigParam"
+                                "$ref": "#/definitions/wlstructs.SetConfigParam"
                             }
                         }
                     }
@@ -2063,7 +2063,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/structs.InitServerParams"
+                            "$ref": "#/definitions/wlstructs.InitServerParams"
                         }
                     }
                 ],
@@ -4017,17 +4017,6 @@ const docTemplate = `{
                 }
             }
         },
-        "fs.Filepath": {
-            "type": "object",
-            "properties": {
-                "relPath": {
-                    "type": "string"
-                },
-                "rootAlias": {
-                    "type": "string"
-                }
-            }
-        },
         "history.FileAction": {
             "type": "object",
             "properties": {
@@ -4038,7 +4027,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "destinationPath": {
-                    "$ref": "#/definitions/fs.Filepath"
+                    "$ref": "#/definitions/wlfs.Filepath"
                 },
                 "doer": {
                     "description": "The user or system that performed the action",
@@ -4051,13 +4040,13 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "filepath": {
-                    "$ref": "#/definitions/fs.Filepath"
+                    "$ref": "#/definitions/wlfs.Filepath"
                 },
                 "id": {
                     "type": "string"
                 },
                 "originPath": {
-                    "$ref": "#/definitions/fs.Filepath"
+                    "$ref": "#/definitions/wlfs.Filepath"
                 },
                 "size": {
                     "type": "integer"
@@ -4070,7 +4059,18 @@ const docTemplate = `{
                 }
             }
         },
-        "structs.InitServerParams": {
+        "wlfs.Filepath": {
+            "type": "object",
+            "properties": {
+                "relPath": {
+                    "type": "string"
+                },
+                "rootAlias": {
+                    "type": "string"
+                }
+            }
+        },
+        "wlstructs.InitServerParams": {
             "type": "object",
             "required": [
                 "name",
@@ -4112,7 +4112,7 @@ const docTemplate = `{
                 }
             }
         },
-        "structs.SetConfigParam": {
+        "wlstructs.SetConfigParam": {
             "type": "object",
             "properties": {
                 "configKey": {

@@ -14,34 +14,34 @@ import (
 	"encoding/json"
 )
 
-// checks if the FsFilepath type satisfies the MappedNullable interface at compile time
-var _ MappedNullable = &FsFilepath{}
+// checks if the WlfsFilepath type satisfies the MappedNullable interface at compile time
+var _ MappedNullable = &WlfsFilepath{}
 
-// FsFilepath struct for FsFilepath
-type FsFilepath struct {
+// WlfsFilepath struct for WlfsFilepath
+type WlfsFilepath struct {
 	RelPath *string `json:"relPath,omitempty"`
 	RootAlias *string `json:"rootAlias,omitempty"`
 }
 
-// NewFsFilepath instantiates a new FsFilepath object
+// NewWlfsFilepath instantiates a new WlfsFilepath object
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewFsFilepath() *FsFilepath {
-	this := FsFilepath{}
+func NewWlfsFilepath() *WlfsFilepath {
+	this := WlfsFilepath{}
 	return &this
 }
 
-// NewFsFilepathWithDefaults instantiates a new FsFilepath object
+// NewWlfsFilepathWithDefaults instantiates a new WlfsFilepath object
 // This constructor will only assign default values to properties that have it defined,
 // but it doesn't guarantee that properties required by API are set
-func NewFsFilepathWithDefaults() *FsFilepath {
-	this := FsFilepath{}
+func NewWlfsFilepathWithDefaults() *WlfsFilepath {
+	this := WlfsFilepath{}
 	return &this
 }
 
 // GetRelPath returns the RelPath field value if set, zero value otherwise.
-func (o *FsFilepath) GetRelPath() string {
+func (o *WlfsFilepath) GetRelPath() string {
 	if o == nil || IsNil(o.RelPath) {
 		var ret string
 		return ret
@@ -51,7 +51,7 @@ func (o *FsFilepath) GetRelPath() string {
 
 // GetRelPathOk returns a tuple with the RelPath field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *FsFilepath) GetRelPathOk() (*string, bool) {
+func (o *WlfsFilepath) GetRelPathOk() (*string, bool) {
 	if o == nil || IsNil(o.RelPath) {
 		return nil, false
 	}
@@ -59,7 +59,7 @@ func (o *FsFilepath) GetRelPathOk() (*string, bool) {
 }
 
 // HasRelPath returns a boolean if a field has been set.
-func (o *FsFilepath) HasRelPath() bool {
+func (o *WlfsFilepath) HasRelPath() bool {
 	if o != nil && !IsNil(o.RelPath) {
 		return true
 	}
@@ -68,12 +68,12 @@ func (o *FsFilepath) HasRelPath() bool {
 }
 
 // SetRelPath gets a reference to the given string and assigns it to the RelPath field.
-func (o *FsFilepath) SetRelPath(v string) {
+func (o *WlfsFilepath) SetRelPath(v string) {
 	o.RelPath = &v
 }
 
 // GetRootAlias returns the RootAlias field value if set, zero value otherwise.
-func (o *FsFilepath) GetRootAlias() string {
+func (o *WlfsFilepath) GetRootAlias() string {
 	if o == nil || IsNil(o.RootAlias) {
 		var ret string
 		return ret
@@ -83,7 +83,7 @@ func (o *FsFilepath) GetRootAlias() string {
 
 // GetRootAliasOk returns a tuple with the RootAlias field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *FsFilepath) GetRootAliasOk() (*string, bool) {
+func (o *WlfsFilepath) GetRootAliasOk() (*string, bool) {
 	if o == nil || IsNil(o.RootAlias) {
 		return nil, false
 	}
@@ -91,7 +91,7 @@ func (o *FsFilepath) GetRootAliasOk() (*string, bool) {
 }
 
 // HasRootAlias returns a boolean if a field has been set.
-func (o *FsFilepath) HasRootAlias() bool {
+func (o *WlfsFilepath) HasRootAlias() bool {
 	if o != nil && !IsNil(o.RootAlias) {
 		return true
 	}
@@ -100,11 +100,11 @@ func (o *FsFilepath) HasRootAlias() bool {
 }
 
 // SetRootAlias gets a reference to the given string and assigns it to the RootAlias field.
-func (o *FsFilepath) SetRootAlias(v string) {
+func (o *WlfsFilepath) SetRootAlias(v string) {
 	o.RootAlias = &v
 }
 
-func (o FsFilepath) MarshalJSON() ([]byte, error) {
+func (o WlfsFilepath) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
@@ -112,7 +112,7 @@ func (o FsFilepath) MarshalJSON() ([]byte, error) {
 	return json.Marshal(toSerialize)
 }
 
-func (o FsFilepath) ToMap() (map[string]interface{}, error) {
+func (o WlfsFilepath) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	if !IsNil(o.RelPath) {
 		toSerialize["relPath"] = o.RelPath
@@ -123,38 +123,38 @@ func (o FsFilepath) ToMap() (map[string]interface{}, error) {
 	return toSerialize, nil
 }
 
-type NullableFsFilepath struct {
-	value *FsFilepath
+type NullableWlfsFilepath struct {
+	value *WlfsFilepath
 	isSet bool
 }
 
-func (v NullableFsFilepath) Get() *FsFilepath {
+func (v NullableWlfsFilepath) Get() *WlfsFilepath {
 	return v.value
 }
 
-func (v *NullableFsFilepath) Set(val *FsFilepath) {
+func (v *NullableWlfsFilepath) Set(val *WlfsFilepath) {
 	v.value = val
 	v.isSet = true
 }
 
-func (v NullableFsFilepath) IsSet() bool {
+func (v NullableWlfsFilepath) IsSet() bool {
 	return v.isSet
 }
 
-func (v *NullableFsFilepath) Unset() {
+func (v *NullableWlfsFilepath) Unset() {
 	v.value = nil
 	v.isSet = false
 }
 
-func NewNullableFsFilepath(val *FsFilepath) *NullableFsFilepath {
-	return &NullableFsFilepath{value: val, isSet: true}
+func NewNullableWlfsFilepath(val *WlfsFilepath) *NullableWlfsFilepath {
+	return &NullableWlfsFilepath{value: val, isSet: true}
 }
 
-func (v NullableFsFilepath) MarshalJSON() ([]byte, error) {
+func (v NullableWlfsFilepath) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v.value)
 }
 
-func (v *NullableFsFilepath) UnmarshalJSON(src []byte) error {
+func (v *NullableWlfsFilepath) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
