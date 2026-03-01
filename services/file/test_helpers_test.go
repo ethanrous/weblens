@@ -11,8 +11,8 @@ import (
 	"github.com/ethanrous/weblens/models/history"
 	media_model "github.com/ethanrous/weblens/models/media"
 	tower_model "github.com/ethanrous/weblens/models/tower"
-	"github.com/ethanrous/weblens/modules/fs"
-	"github.com/ethanrous/weblens/modules/log"
+	"github.com/ethanrous/weblens/modules/wlfs"
+	"github.com/ethanrous/weblens/modules/wlog"
 	"github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/notify"
 	"github.com/stretchr/testify/assert"
@@ -22,7 +22,7 @@ import (
 )
 
 // initializeTestRoots initializes the file service with root files for testing.
-func (fsSvc *ServiceImpl) initializeTestRoots(_ context.Context, roots ...fs.Filepath) error {
+func (fsSvc *ServiceImpl) initializeTestRoots(_ context.Context, roots ...wlfs.Filepath) error {
 	for _, rootPath := range roots {
 		rootFile := file_model.NewWeblensFile(file_model.NewFileOptions{
 			Path:       rootPath,
@@ -129,10 +129,10 @@ func newIntegrationTestContext(t *testing.T, opts ...testContextOption) (context
 	require.NoError(t, os.MkdirAll(cachesDir, 0755))
 
 	// Register the filesystem root paths for testing
-	require.NoError(t, fs.RegisterAbsolutePrefix(file_model.UsersTreeKey, usersDir))
-	require.NoError(t, fs.RegisterAbsolutePrefix(file_model.RestoreTreeKey, restoreDir))
-	require.NoError(t, fs.RegisterAbsolutePrefix(file_model.BackupTreeKey, backupDir))
-	require.NoError(t, fs.RegisterAbsolutePrefix(file_model.CachesTreeKey, cachesDir))
+	require.NoError(t, wlfs.RegisterAbsolutePrefix(file_model.UsersTreeKey, usersDir))
+	require.NoError(t, wlfs.RegisterAbsolutePrefix(file_model.RestoreTreeKey, restoreDir))
+	require.NoError(t, wlfs.RegisterAbsolutePrefix(file_model.BackupTreeKey, backupDir))
+	require.NoError(t, wlfs.RegisterAbsolutePrefix(file_model.CachesTreeKey, cachesDir))
 
 	// 3. Create tower document in database
 	towerID := primitive.NewObjectID().Hex()
@@ -149,7 +149,7 @@ func newIntegrationTestContext(t *testing.T, opts ...testContextOption) (context
 	// 4. Note: User directories will be created via file service after it's initialized
 
 	// 5. Create logger and basic context
-	logger := log.NewZeroLogger()
+	logger := wlog.NewZeroLogger()
 	basicCtx := ctxservice.NewBasicContext(dbCtx, logger)
 
 	// 6. Get database from context for AppContext
@@ -232,7 +232,7 @@ func createTestFolder(t *testing.T, ctx context.Context, fs file_model.Service, 
 }
 
 // assertFileExistsOnDisk verifies that a file exists on the filesystem.
-func assertFileExistsOnDisk(t *testing.T, path fs.Filepath) {
+func assertFileExistsOnDisk(t *testing.T, path wlfs.Filepath) {
 	t.Helper()
 
 	absPath := path.ToAbsolute()
@@ -241,7 +241,7 @@ func assertFileExistsOnDisk(t *testing.T, path fs.Filepath) {
 }
 
 // assertFileNotExistsOnDisk verifies that a file does not exist on the filesystem.
-func assertFileNotExistsOnDisk(t *testing.T, path fs.Filepath) {
+func assertFileNotExistsOnDisk(t *testing.T, path wlfs.Filepath) {
 	t.Helper()
 
 	absPath := path.ToAbsolute()

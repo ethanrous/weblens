@@ -9,7 +9,7 @@ import (
 
 	"github.com/ethanrous/weblens/models/client"
 	tower_model "github.com/ethanrous/weblens/models/tower"
-	user_model "github.com/ethanrous/weblens/models/user"
+	user_model "github.com/ethanrous/weblens/models/usermodel"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	"github.com/gorilla/websocket"
 	"github.com/posener/wstest"

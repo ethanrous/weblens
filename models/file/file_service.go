@@ -5,8 +5,8 @@ import (
 	"time"
 
 	tower_model "github.com/ethanrous/weblens/models/tower"
-	user_model "github.com/ethanrous/weblens/models/user"
-	"github.com/ethanrous/weblens/modules/fs"
+	user_model "github.com/ethanrous/weblens/models/usermodel"
+	"github.com/ethanrous/weblens/modules/wlfs"
 )
 
 // Service provides operations for managing files and folders in the Weblens system.
@@ -21,7 +21,7 @@ type Service interface {
 	GetFileByID(ctx context.Context, fileID string) (*WeblensFileImpl, error)
 
 	// GetFileByFilepath retrieves a file by its filepath
-	GetFileByFilepath(ctx context.Context, path fs.Filepath, dontLoadNew ...bool) (*WeblensFileImpl, error)
+	GetFileByFilepath(ctx context.Context, path wlfs.Filepath, dontLoadNew ...bool) (*WeblensFileImpl, error)
 
 	// CreateFile creates a new file
 	CreateFile(ctx context.Context, parent *WeblensFileImpl, filename string, data ...[]byte) (*WeblensFileImpl, error)

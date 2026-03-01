@@ -11,10 +11,10 @@ import (
 	"time"
 
 	tower_model "github.com/ethanrous/weblens/models/tower"
-	user_model "github.com/ethanrous/weblens/models/user"
-	"github.com/ethanrous/weblens/modules/log"
+	user_model "github.com/ethanrous/weblens/models/usermodel"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlog"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog"
@@ -62,7 +62,7 @@ func NewClient(ctx context.Context, conn *websocket.Conn, socketUser SocketUser)
 		newClient.tower = socketUser.(*tower_model.Instance)
 	}
 
-	newLogger := log.FromContext(ctx).With().Str(clientIDLogKey, newClient.getClientName()).Str(websocketIDLogKey, newClient.GetClientID()).Logger()
+	newLogger := wlog.FromContext(ctx).With().Str(clientIDLogKey, newClient.getClientName()).Str(websocketIDLogKey, newClient.GetClientID()).Logger()
 	newClient.log = newLogger
 
 	newClient.log.Trace().Func(func(e *zerolog.Event) { e.Msgf("New client connected") })

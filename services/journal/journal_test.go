@@ -6,7 +6,7 @@ import (
 
 	"github.com/ethanrous/weblens/models/db"
 	"github.com/ethanrous/weblens/models/history"
-	"github.com/ethanrous/weblens/modules/fs"
+	"github.com/ethanrous/weblens/modules/wlfs"
 	"github.com/ethanrous/weblens/services/journal"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -49,9 +49,9 @@ type testActionOptions struct {
 	ID              primitive.ObjectID
 	Timestamp       time.Time
 	ActionType      history.FileActionType
-	Filepath        fs.Filepath
-	OriginPath      fs.Filepath
-	DestinationPath fs.Filepath
+	Filepath        wlfs.Filepath
+	OriginPath      wlfs.Filepath
+	DestinationPath wlfs.Filepath
 	EventID         string
 	TowerID         string
 	ContentID       string
@@ -70,7 +70,7 @@ func TestGetActionsPage(t *testing.T) {
 		actions[i] = *createTestAction(t, testActionOptions{
 			Timestamp:  baseTime.Add(time.Duration(i) * time.Minute),
 			ActionType: history.FileCreate,
-			Filepath:   fs.BuildFilePath("USERS", "testuser/file"+string(rune('0'+i))+".txt"),
+			Filepath:   wlfs.BuildFilePath("USERS", "testuser/file"+string(rune('0'+i))+".txt"),
 			TowerID:    "tower1",
 			FileID:     "file" + string(rune('0'+i)),
 			EventID:    "event" + string(rune('0'+i)),
@@ -126,7 +126,7 @@ func TestGetAllActionsByTowerID(t *testing.T) {
 		*createTestAction(t, testActionOptions{
 			Timestamp:  now,
 			ActionType: history.FileCreate,
-			Filepath:   fs.BuildFilePath("USERS", "user1/file1.txt"),
+			Filepath:   wlfs.BuildFilePath("USERS", "user1/file1.txt"),
 			TowerID:    "tower-alpha",
 			FileID:     "file1",
 			EventID:    "event1",
@@ -134,7 +134,7 @@ func TestGetAllActionsByTowerID(t *testing.T) {
 		*createTestAction(t, testActionOptions{
 			Timestamp:  now.Add(time.Minute),
 			ActionType: history.FileCreate,
-			Filepath:   fs.BuildFilePath("USERS", "user1/file2.txt"),
+			Filepath:   wlfs.BuildFilePath("USERS", "user1/file2.txt"),
 			TowerID:    "tower-alpha",
 			FileID:     "file2",
 			EventID:    "event2",
@@ -142,7 +142,7 @@ func TestGetAllActionsByTowerID(t *testing.T) {
 		*createTestAction(t, testActionOptions{
 			Timestamp:  now,
 			ActionType: history.FileCreate,
-			Filepath:   fs.BuildFilePath("USERS", "user2/file3.txt"),
+			Filepath:   wlfs.BuildFilePath("USERS", "user2/file3.txt"),
 			TowerID:    "tower-beta",
 			FileID:     "file3",
 			EventID:    "event3",
@@ -185,8 +185,8 @@ func TestGetLatestPathByID(t *testing.T) {
 	now := time.Now()
 
 	// Create actions: file created, then moved
-	createPath := fs.BuildFilePath("USERS", "testuser/original.txt")
-	movePath := fs.BuildFilePath("USERS", "testuser/moved.txt")
+	createPath := wlfs.BuildFilePath("USERS", "testuser/original.txt")
+	movePath := wlfs.BuildFilePath("USERS", "testuser/moved.txt")
 
 	actions := []history.FileAction{
 		*createTestAction(t, testActionOptions{

@@ -16,12 +16,12 @@ import (
 	media_model "github.com/ethanrous/weblens/models/media"
 	task_model "github.com/ethanrous/weblens/models/task"
 	tower_model "github.com/ethanrous/weblens/models/tower"
-	user_model "github.com/ethanrous/weblens/models/user"
-	file_system "github.com/ethanrous/weblens/modules/fs"
-	"github.com/ethanrous/weblens/modules/log"
+	user_model "github.com/ethanrous/weblens/models/usermodel"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	file_system "github.com/ethanrous/weblens/modules/wlfs"
+	"github.com/ethanrous/weblens/modules/wlog"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/journal"
 	"github.com/ethanrous/weblens/services/notify"
@@ -88,7 +88,7 @@ func (fs *ServiceImpl) AddFile(ctx context.Context, files ...*file_model.Weblens
 
 		// Check for existing file with the same ID
 		if _, exists := fs.getFileInternal(f.ID()); exists {
-			log.FromContext(ctx).Warn().CallerSkipFrame(1).Msgf("File [%s] already exists in file service, skipping", f.GetPortablePath())
+			wlog.FromContext(ctx).Warn().CallerSkipFrame(1).Msgf("File [%s] already exists in file service, skipping", f.GetPortablePath())
 
 			continue
 		}
@@ -103,7 +103,7 @@ func (fs *ServiceImpl) AddFile(ctx context.Context, files ...*file_model.Weblens
 
 		fs.setFileInternal(f.ID(), f)
 
-		log.FromContext(ctx).Trace().Msgf("Added file [%s] to file service with id [%s] (%p)", f.GetPortablePath(), f.ID(), f)
+		wlog.FromContext(ctx).Trace().Msgf("Added file [%s] to file service with id [%s] (%p)", f.GetPortablePath(), f.ID(), f)
 	}
 
 	return nil
@@ -217,7 +217,7 @@ func (fs *ServiceImpl) CreateFile(ctx context.Context, parent *file_model.Weblen
 			}
 		}
 
-		log.FromContext(ctx).Trace().Msgf("Generating content ID for new file [%s] (size now %d ## %d)", newF.GetPortablePath(), newF.Size(), len(data))
+		wlog.FromContext(ctx).Trace().Msgf("Generating content ID for new file [%s] (size now %d ## %d)", newF.GetPortablePath(), newF.Size(), len(data))
 
 		_, err = file_model.GenerateContentID(ctx, newF)
 		if err != nil {

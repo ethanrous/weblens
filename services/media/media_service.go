@@ -8,9 +8,9 @@ import (
 	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/startup"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlog"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/media/agno"
 )
@@ -81,7 +81,7 @@ func GetConverted(ctx context.Context, m *media_model.Media, format media_model.
 		return nil, err
 	}
 
-	log.FromContext(ctx).Debug().Msgf("Exported %s to jpeg (quality=%d)", m.ID(), quality)
+	wlog.FromContext(ctx).Debug().Msgf("Exported %s to jpeg (quality=%d)", m.ID(), quality)
 
 	return bs, nil
 }

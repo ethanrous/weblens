@@ -3,7 +3,7 @@ package main
 
 import (
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/log"
+	"github.com/ethanrous/weblens/modules/wlog"
 	"github.com/ethanrous/weblens/routers"
 
 	_ "net/http/pprof"
@@ -19,7 +19,7 @@ func main() {
 	cnf.DoFileDiscovery = true
 
 	// Initialize logger
-	logger := log.NewZeroLogger()
+	logger := wlog.NewZeroLogger()
 
 	// Capture interrupt signals to allow for graceful shutdown.
 	// The returned context will be canceled on interrupt.

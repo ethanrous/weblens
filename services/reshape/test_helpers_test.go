@@ -7,8 +7,8 @@ import (
 
 	"github.com/ethanrous/weblens/models/db"
 	"github.com/ethanrous/weblens/models/file"
-	user_model "github.com/ethanrous/weblens/models/user"
-	"github.com/ethanrous/weblens/modules/log"
+	user_model "github.com/ethanrous/weblens/models/usermodel"
+	"github.com/ethanrous/weblens/modules/wlog"
 	"github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/viccon/sturdyc"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -60,7 +60,7 @@ func newTestAppContext(t *testing.T, opts ...testAppContextOption) context.Conte
 	}
 
 	// Create a logger for the test
-	logger := log.NewZeroLogger()
+	logger := wlog.NewZeroLogger()
 
 	// Create basic context with logger
 	basicCtx := ctxservice.NewBasicContext(context.Background(), logger)
@@ -100,7 +100,7 @@ func newTestAppContextWithDB(t *testing.T, opts ...testAppContextOption) context
 	database, _ := dbAny.(*mongo.Database)
 
 	// Create a logger for the test
-	logger := log.NewZeroLogger()
+	logger := wlog.NewZeroLogger()
 
 	// Create basic context with logger
 	basicCtx := ctxservice.NewBasicContext(dbCtx, logger)
@@ -160,7 +160,7 @@ func newTestRequestContextWithDB(t *testing.T, opts ...testAppContextOption) ctx
 	database, _ := dbAny.(*mongo.Database)
 
 	// Create a logger for the test
-	logger := log.NewZeroLogger()
+	logger := wlog.NewZeroLogger()
 
 	// Create basic context with logger
 	basicCtx := ctxservice.NewBasicContext(dbCtx, logger)

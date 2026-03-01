@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlog"
 	"github.com/rs/zerolog"
 )
 
@@ -98,7 +98,7 @@ func (t *Task) Log() *zerolog.Logger {
 	t.ctxMu.RLock()
 	defer t.ctxMu.RUnlock()
 
-	return log.FromContext(t.Ctx)
+	return wlog.FromContext(t.Ctx)
 }
 
 // JobName returns the name of the job this task is executing.

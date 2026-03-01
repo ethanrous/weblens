@@ -14,8 +14,8 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlog"
 )
 
 // Image represents an image loaded via the agno library.
@@ -56,7 +56,7 @@ func (img *Image) Resize(scale float64) error {
 
 	start := time.Now()
 	newImg := C.resize_image(img.img, C.size_t(newWidth), C.size_t(newHeight)) //nolint:nlreturn
-	log.GlobalLogger().Debug().Msgf("Resized image to %dx%d in %s", newWidth, newHeight, time.Since(start))
+	wlog.GlobalLogger().Debug().Msgf("Resized image to %dx%d in %s", newWidth, newHeight, time.Since(start))
 	img.img = newImg
 
 	return nil
@@ -89,7 +89,7 @@ func ImageByFilepath(path string) (*Image, error) {
 
 	start := time.Now()
 	cAgnoImg := C.load_image_from_path(cPathStr, C.size_t(len(path)))
-	log.GlobalLogger().Debug().Msgf("Loaded image from path [%s] in %s", path, time.Since(start))
+	wlog.GlobalLogger().Debug().Msgf("Loaded image from path [%s] in %s", path, time.Since(start))
 
 	if cAgnoImg == nil || cAgnoImg.len == 0 || cAgnoImg.width == 0 || cAgnoImg.height == 0 {
 		return nil, wlerrors.Errorf("load_image_from_path returned nil loading [%s]", path)
@@ -223,7 +223,7 @@ func (img *Image) getExifValue(exifTag int) any {
 
 		return float64(num) / float64(den)
 	default:
-		log.GlobalLogger().Warn().Msgf("Unknown EXIF type %d for tag 0x%04x", v.typ, exifTag)
+		wlog.GlobalLogger().Warn().Msgf("Unknown EXIF type %d for tag 0x%04x", v.typ, exifTag)
 
 		return nil
 	}

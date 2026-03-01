@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/base64"
 
-	"golang.org/x/crypto/bcrypt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -13,14 +12,16 @@ import (
 	"sync/atomic"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
+
 	openapi "github.com/ethanrous/weblens/api"
 	"github.com/ethanrous/weblens/models/auth"
 	"github.com/ethanrous/weblens/models/db"
 	"github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/cryptography"
-	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlog"
 	"github.com/ethanrous/weblens/routers"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/rs/zerolog"
@@ -100,7 +101,7 @@ func setupTestServer(ctx context.Context, name string, settings ...config.Provid
 
 	ctx = context.WithValue(ctx, cryptography.BcryptDifficultyCtxKey, bcrypt.MinCost)
 
-	logger := log.NewZeroLogger(log.CreateOpts{Level: logLevel, LogFile: cnf.LogPath}).With().Str("test", name).Logger()
+	logger := wlog.NewZeroLogger(wlog.CreateOpts{Level: logLevel, LogFile: cnf.LogPath}).With().Str("test", name).Logger()
 	appCtx := context_service.NewAppContext(context_service.NewBasicContext(ctx, &logger))
 
 	testDB, err := db.ConnectToMongo(appCtx, cnf.MongoDBUri, cnf.MongoDBName)

@@ -19,12 +19,12 @@ import (
 	media_model "github.com/ethanrous/weblens/models/media"
 	share_model "github.com/ethanrous/weblens/models/share"
 	"github.com/ethanrous/weblens/models/task"
-	"github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/netwrk"
-	"github.com/ethanrous/weblens/modules/slices"
-	"github.com/ethanrous/weblens/modules/structs"
 	"github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlfs"
+	"github.com/ethanrous/weblens/modules/wlslices"
+	"github.com/ethanrous/weblens/modules/wlstructs"
 	"github.com/ethanrous/weblens/services/auth"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	file_service "github.com/ethanrous/weblens/services/file"
@@ -300,7 +300,7 @@ func GetFolderHistory(ctx context_service.RequestContext) {
 		return
 	}
 
-	actionInfos := make([]structs.FileActionInfo, 0, len(actions))
+	actionInfos := make([]wlstructs.FileActionInfo, 0, len(actions))
 	for _, a := range actions {
 		actionInfos = append(actionInfos, reshape.FileActionToFileActionInfo(a))
 	}
@@ -376,7 +376,7 @@ func SearchByFilename(ctx context_service.RequestContext) {
 	}
 
 	doRegex := ctx.QueryBool("regex")
-	fileInfos := []structs.FileInfo{}
+	fileInfos := []wlstructs.FileInfo{}
 
 	if doRegex == true {
 		re, err := regexp.Compile(filenameSearch)
@@ -410,13 +410,13 @@ func SearchByFilename(ctx context_service.RequestContext) {
 		}
 	} else {
 		matches := fuzzy.RankFindFold(filenameSearch, filenames)
-		slices.SortFunc(
+		wlslices.SortFunc(
 			matches, func(a, b fuzzy.Rank) int {
 				return a.Distance - b.Distance
 			},
 		)
 
-		fileInfos = make([]structs.FileInfo, 0, len(matches))
+		fileInfos = make([]wlstructs.FileInfo, 0, len(matches))
 
 		for _, match := range matches {
 			f, err := ctx.FileService.GetFileByID(ctx, fileIDs[match.OriginalIndex])
@@ -462,7 +462,7 @@ func SearchByFilename(ctx context_service.RequestContext) {
 //	@Success	200		{object}	structs.FileInfo			"File Info"
 //	@Router		/folder [post]
 func CreateFolder(ctx context_service.RequestContext) {
-	body, err := netwrk.ReadRequestBody[structs.CreateFolderBody](ctx.Req)
+	body, err := netwrk.ReadRequestBody[wlstructs.CreateFolderBody](ctx.Req)
 	if err != nil {
 		return
 	}
@@ -614,7 +614,7 @@ func GetSharedFiles(ctx context_service.RequestContext) {
 		children = append(children, f)
 	}
 
-	childInfos := make([]structs.FileInfo, 0, len(children))
+	childInfos := make([]wlstructs.FileInfo, 0, len(children))
 
 	for _, child := range children {
 		fInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, child)
@@ -628,7 +628,7 @@ func GetSharedFiles(ctx context_service.RequestContext) {
 		childInfos = append(childInfos, fInfo)
 	}
 
-	mediaInfos := make([]structs.MediaInfo, 0)
+	mediaInfos := make([]wlstructs.MediaInfo, 0)
 
 	for _, child := range children {
 		var media *media_model.Media
@@ -661,13 +661,13 @@ func GetSharedFiles(ctx context_service.RequestContext) {
 		mediaInfos = append(mediaInfos, mediaInfo)
 	}
 
-	fakeSelfFile := structs.FileInfo{
+	fakeSelfFile := wlstructs.FileInfo{
 		ID:           "shared",
 		IsDir:        true,
 		PortablePath: "SHARED:",
 	}
 
-	res := structs.FolderInfoResponse{Children: childInfos, Medias: mediaInfos, Self: fakeSelfFile}
+	res := wlstructs.FolderInfoResponse{Children: childInfos, Medias: mediaInfos, Self: fakeSelfFile}
 
 	ctx.JSON(http.StatusOK, res)
 }
@@ -691,7 +691,7 @@ func GetSharedFiles(ctx context_service.RequestContext) {
 //	@Failure		500
 //	@Router			/takeout [post]
 func CreateTakeout(ctx context_service.RequestContext) {
-	takeoutRequest, err := netwrk.ReadRequestBody[structs.FilesListParams](ctx.Req)
+	takeoutRequest, err := netwrk.ReadRequestBody[wlstructs.FilesListParams](ctx.Req)
 	if err != nil {
 		return
 	}
@@ -740,10 +740,10 @@ func CreateTakeout(ctx context_service.RequestContext) {
 	completed, status := t.Status()
 	if completed && status == task.TaskSuccess {
 		result := t.GetResult()
-		res := structs.TakeoutInfo{TakeoutID: result["takeoutID"].(string), Single: false, Filename: result["filename"].(string)}
+		res := wlstructs.TakeoutInfo{TakeoutID: result["takeoutID"].(string), Single: false, Filename: result["filename"].(string)}
 		ctx.JSON(http.StatusOK, res)
 	} else {
-		ctx.JSON(http.StatusAccepted, structs.TakeoutInfo{TaskID: t.ID()})
+		ctx.JSON(http.StatusAccepted, wlstructs.TakeoutInfo{TaskID: t.ID()})
 	}
 }
 
@@ -791,7 +791,7 @@ func AutocompletePath(ctx context_service.RequestContext) {
 		return
 	}
 
-	filepath, err := fs.ParsePortable(searchPath)
+	filepath, err := wlfs.ParsePortable(searchPath)
 	if err != nil {
 		ctx.Error(http.StatusBadRequest, err)
 
@@ -811,10 +811,10 @@ func AutocompletePath(ctx context_service.RequestContext) {
 
 	children := folder.GetChildren()
 	if folder.GetParent().ID() == "ROOT" {
-		trashIndex := slices.IndexFunc(children, func(f *file_model.WeblensFileImpl) bool {
+		trashIndex := wlslices.IndexFunc(children, func(f *file_model.WeblensFileImpl) bool {
 			return f.ID() == ctx.Requester.TrashID
 		})
-		children = slices.Delete(children, trashIndex, trashIndex+1)
+		children = wlslices.Delete(children, trashIndex, trashIndex+1)
 	}
 
 	filenames := make([]string, 0, len(children))
@@ -823,7 +823,7 @@ func AutocompletePath(ctx context_service.RequestContext) {
 	}
 
 	matches := fuzzy.RankFindFold(childName, filenames)
-	slices.SortFunc(
+	wlslices.SortFunc(
 		matches, func(a, b fuzzy.Rank) int {
 			diff := a.Distance - b.Distance
 			if diff == 0 {
@@ -834,7 +834,7 @@ func AutocompletePath(ctx context_service.RequestContext) {
 		},
 	)
 
-	childInfos := make([]structs.FileInfo, 0, len(matches))
+	childInfos := make([]wlstructs.FileInfo, 0, len(matches))
 
 	for _, match := range matches {
 		f := children[match.OriginalIndex]
@@ -856,7 +856,7 @@ func AutocompletePath(ctx context_service.RequestContext) {
 		return
 	}
 
-	ret := structs.FolderInfoResponse{Children: childInfos, Self: selfInfo}
+	ret := wlstructs.FolderInfoResponse{Children: childInfos, Self: selfInfo}
 	ctx.JSON(http.StatusOK, ret)
 }
 
@@ -877,7 +877,7 @@ func AutocompletePath(ctx context_service.RequestContext) {
 //	@Failure	500
 //	@Router		/files/structsore [post]
 func RestoreFiles(ctx context_service.RequestContext) {
-	body, err := netwrk.ReadRequestBody[structs.RestoreFilesParams](ctx.Req)
+	body, err := netwrk.ReadRequestBody[wlstructs.RestoreFilesParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, wlerrors.New("Failed to read request body"))
 	}
@@ -963,7 +963,7 @@ func UpdateFile(ctx context_service.RequestContext) {
 		return
 	}
 
-	updateInfo, err := netwrk.ReadRequestBody[structs.UpdateFileParams](ctx.Req)
+	updateInfo, err := netwrk.ReadRequestBody[wlstructs.UpdateFileParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, wlerrors.New("Failed to read request body"))
 
@@ -996,7 +996,7 @@ func UpdateFile(ctx context_service.RequestContext) {
 //	@Failure	500
 //	@Router		/files [patch]
 func MoveFiles(ctx context_service.RequestContext) {
-	filesData, err := netwrk.ReadRequestBody[structs.MoveFilesParams](ctx.Req)
+	filesData, err := netwrk.ReadRequestBody[wlstructs.MoveFilesParams](ctx.Req)
 	if err != nil {
 		return
 	}
@@ -1080,7 +1080,7 @@ func MoveFiles(ctx context_service.RequestContext) {
 //	@Failure	500
 //	@Router		/files/untrash [patch]
 func UnTrashFiles(ctx context_service.RequestContext) {
-	params, err := netwrk.ReadRequestBody[structs.FilesListParams](ctx.Req)
+	params, err := netwrk.ReadRequestBody[wlstructs.FilesListParams](ctx.Req)
 	if err != nil {
 		return
 	}
@@ -1124,7 +1124,7 @@ func UnTrashFiles(ctx context_service.RequestContext) {
 //	@Failure	500
 //	@Router		/files [delete]
 func DeleteFiles(ctx context_service.RequestContext) {
-	params, err := netwrk.ReadRequestBody[structs.FilesListParams](ctx.Req)
+	params, err := netwrk.ReadRequestBody[wlstructs.FilesListParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 
@@ -1205,7 +1205,7 @@ const chunkChanSize = 10
 //	@Failure	500
 //	@Router		/upload [post]
 func NewUploadTask(ctx context_service.RequestContext) {
-	upInfo, err := netwrk.ReadRequestBody[structs.NewUploadParams](ctx.Req)
+	upInfo, err := netwrk.ReadRequestBody[wlstructs.NewUploadParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 
@@ -1232,7 +1232,7 @@ func NewUploadTask(ctx context_service.RequestContext) {
 		return
 	}
 
-	uploadInfo := structs.NewUploadInfo{UploadID: t.ID()}
+	uploadInfo := wlstructs.NewUploadInfo{UploadID: t.ID()}
 	ctx.JSON(http.StatusCreated, uploadInfo)
 }
 
@@ -1256,7 +1256,7 @@ func NewUploadTask(ctx context_service.RequestContext) {
 func NewFileUpload(ctx context_service.RequestContext) {
 	uploadTaskID := ctx.Path("uploadID")
 
-	params, err := netwrk.ReadRequestBody[structs.NewFilesParams](ctx.Req)
+	params, err := netwrk.ReadRequestBody[wlstructs.NewFilesParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 
@@ -1332,7 +1332,7 @@ func NewFileUpload(ctx context_service.RequestContext) {
 		}
 	}
 
-	newInfo := structs.NewFilesInfo{FileIDs: ids}
+	newInfo := wlstructs.NewFilesInfo{FileIDs: ids}
 	ctx.JSON(http.StatusCreated, newInfo)
 }
 
@@ -1494,8 +1494,8 @@ func getChildMedias(
 	return medias, nil
 }
 
-func sortFileInfos(files []structs.FileInfo, sortBy string, sortDir string) {
-	slices.SortFunc(files, func(f1, f2 structs.FileInfo) int {
+func sortFileInfos(files []wlstructs.FileInfo, sortBy string, sortDir string) {
+	wlslices.SortFunc(files, func(f1, f2 wlstructs.FileInfo) int {
 		var less int
 
 		switch sortBy {
@@ -1514,9 +1514,9 @@ func sortFileInfos(files []structs.FileInfo, sortBy string, sortDir string) {
 				less = 1
 			}
 		default: // Sort by name
-			path1, _ := fs.ParsePortable(f1.PortablePath)
-			path2, _ := fs.ParsePortable(f2.PortablePath)
-			less = slices.NatSortCompare(path1.Filename(), path2.Filename())
+			path1, _ := wlfs.ParsePortable(f1.PortablePath)
+			path2, _ := wlfs.ParsePortable(f2.PortablePath)
+			less = wlslices.NatSortCompare(path1.Filename(), path2.Filename())
 		}
 
 		if sortDir == "desc" {

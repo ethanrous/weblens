@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethanrous/weblens/modules/log"
 	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
+	"github.com/ethanrous/weblens/modules/wlog"
 	"github.com/rs/zerolog"
 	"github.com/viccon/sturdyc"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -16,8 +16,8 @@ import (
 // This allows external packages to create Task instances with specific state.
 // Only available when building with -tags=test.
 func NewTestTask(id, jobName string, workerID int64, exitStatus ExitStatus, result Result, startTime time.Time) *Task {
-	logger := log.NewZeroLogger()
-	ctx := log.WithContext(context.Background(), logger)
+	logger := wlog.NewZeroLogger()
+	ctx := wlog.WithContext(context.Background(), logger)
 
 	return &Task{
 		taskID:     id,
@@ -71,7 +71,7 @@ func (tc testContext) Value(key any) any {
 
 // NewTestContext creates a context implementing context_mod.Z for testing.
 func NewTestContext() context_mod.Z {
-	logger := log.NewZeroLogger()
+	logger := wlog.NewZeroLogger()
 	wg := &sync.WaitGroup{}
 
 	return testContext{
@@ -83,7 +83,7 @@ func NewTestContext() context_mod.Z {
 
 // NewTestContextWithCancel creates a cancelable context implementing context_mod.Z for testing.
 func NewTestContextWithCancel() (context_mod.Z, context.CancelFunc) {
-	logger := log.NewZeroLogger()
+	logger := wlog.NewZeroLogger()
 	wg := &sync.WaitGroup{}
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -137,8 +137,8 @@ func NewTestMetadata(jobName string) Metadata {
 // NewTestQueueableTask creates a Task that can be queued for testing.
 // Unlike NewTestTask, this creates a task in the Created state that can be queued.
 func NewTestQueueableTask(id, jobName string) *Task {
-	logger := log.NewZeroLogger()
-	ctx := log.WithContext(context.Background(), logger)
+	logger := wlog.NewZeroLogger()
+	ctx := wlog.WithContext(context.Background(), logger)
 	ctx, cancel := context.WithCancelCause(ctx)
 
 	return &Task{

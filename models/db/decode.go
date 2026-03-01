@@ -5,9 +5,9 @@ import (
 	"reflect"
 
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/log"
 	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlog"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -67,7 +67,7 @@ func (d *mongoDecoder[T]) Decode(v T) error {
 
 	err := d.res.Decode(v)
 	if err != nil {
-		log.GlobalLogger().Debug().Msgf("decode error %v", err)
+		wlog.GlobalLogger().Debug().Msgf("decode error %v", err)
 
 		return err
 	}

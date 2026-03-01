@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	file_model "github.com/ethanrous/weblens/models/file"
-	user_model "github.com/ethanrous/weblens/models/user"
-	file_system "github.com/ethanrous/weblens/modules/fs"
+	user_model "github.com/ethanrous/weblens/models/usermodel"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	file_system "github.com/ethanrous/weblens/modules/wlfs"
 )
 
 // GetFileOwner retrieves the user who owns the specified file.

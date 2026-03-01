@@ -9,14 +9,14 @@ import (
 	"github.com/ethanrous/weblens/models/task"
 	task_model "github.com/ethanrous/weblens/models/task"
 	tower_model "github.com/ethanrous/weblens/models/tower"
-	"github.com/ethanrous/weblens/modules/log"
+	"github.com/ethanrous/weblens/modules/wlog"
 	ctxservice "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func newTestContext() context.Context {
-	logger := log.NewZeroLogger()
+	logger := wlog.NewZeroLogger()
 	basicCtx := ctxservice.NewBasicContext(context.Background(), logger)
 
 	return ctxservice.NewAppContext(basicCtx)
@@ -1498,4 +1498,3 @@ func TestFileService_DeleteFiles_Recursive(t *testing.T) {
 		assert.ErrorIs(t, err, file_model.ErrFileNotFound)
 	})
 }
-

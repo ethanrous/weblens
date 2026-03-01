@@ -4,13 +4,13 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/models/history"
-	"github.com/ethanrous/weblens/modules/fs"
-	"github.com/ethanrous/weblens/modules/structs"
+	"github.com/ethanrous/weblens/modules/wlfs"
+	"github.com/ethanrous/weblens/modules/wlstructs"
 )
 
 // FileActionToFileActionInfo converts a FileAction to a FileActionInfo structure suitable for API responses.
-func FileActionToFileActionInfo(fa history.FileAction) structs.FileActionInfo {
-	return structs.FileActionInfo{
+func FileActionToFileActionInfo(fa history.FileAction) wlstructs.FileActionInfo {
+	return wlstructs.FileActionInfo{
 		ActionType:      fa.ActionType,
 		DestinationPath: fa.DestinationPath.ToPortable(),
 		EventID:         fa.EventID,
@@ -25,10 +25,10 @@ func FileActionToFileActionInfo(fa history.FileAction) structs.FileActionInfo {
 }
 
 // FileActionInfoToFileAction converts a FileActionInfo from the API to a FileAction.
-func FileActionInfoToFileAction(info structs.FileActionInfo) history.FileAction {
-	filepath, _ := fs.ParsePortable(info.Filepath)
-	originPath, _ := fs.ParsePortable(info.OriginPath)
-	destinationPath, _ := fs.ParsePortable(info.DestinationPath)
+func FileActionInfoToFileAction(info wlstructs.FileActionInfo) history.FileAction {
+	filepath, _ := wlfs.ParsePortable(info.Filepath)
+	originPath, _ := wlfs.ParsePortable(info.OriginPath)
+	destinationPath, _ := wlfs.ParsePortable(info.DestinationPath)
 
 	return history.FileAction{
 		ActionType:      info.ActionType,

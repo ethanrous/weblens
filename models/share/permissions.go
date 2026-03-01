@@ -1,6 +1,6 @@
 package share
 
-import "github.com/ethanrous/weblens/modules/log"
+import "github.com/ethanrous/weblens/modules/wlog"
 
 // Permission represents a specific type of access permission for file shares.
 type Permission string
@@ -90,7 +90,7 @@ func (p *Permissions) HasPermission(permission Permission) bool {
 	case SharePermissionDelete:
 		return p.CanDelete
 	default:
-		log.GlobalLogger().Warn().Msgf("Unknown permission: %s", permission)
+		wlog.GlobalLogger().Warn().Msgf("Unknown permission: %s", permission)
 
 		return false
 	}

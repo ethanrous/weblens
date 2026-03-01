@@ -11,9 +11,9 @@ import (
 	api "github.com/ethanrous/weblens/api"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/modules/netwrk"
-	"github.com/ethanrous/weblens/modules/structs"
 	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlstructs"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 )
 
@@ -71,7 +71,7 @@ func Ping(ctx context.Context, tower tower_model.Instance) (*api.TowerInfo, erro
 }
 
 // GetBackup retrieves backup information from a tower for all changes since the specified time.
-func GetBackup(ctx context.Context, tower tower_model.Instance, since time.Time) (*structs.BackupInfo, error) {
+func GetBackup(ctx context.Context, tower tower_model.Instance, since time.Time) (*wlstructs.BackupInfo, error) {
 	client, err := getAPIClient(ctx, tower, clientOpts{})
 	if err != nil {
 		return nil, err
@@ -83,12 +83,12 @@ func GetBackup(ctx context.Context, tower tower_model.Instance, since time.Time)
 	}
 
 	// Convert API backup info to internal BackupInfo struct
-	backupInfo := &structs.BackupInfo{}
+	backupInfo := &wlstructs.BackupInfo{}
 
 	// Convert FileHistory
-	backupInfo.FileHistory = make([]structs.FileActionInfo, len(apiBackupInfo.FileHistory))
+	backupInfo.FileHistory = make([]wlstructs.FileActionInfo, len(apiBackupInfo.FileHistory))
 	for i, apiAction := range apiBackupInfo.FileHistory {
-		backupInfo.FileHistory[i] = structs.FileActionInfo{
+		backupInfo.FileHistory[i] = wlstructs.FileActionInfo{
 			FileID:     apiAction.FileID,
 			ActionType: apiAction.ActionType,
 			EventID:    apiAction.EventID,
@@ -116,7 +116,7 @@ func GetBackup(ctx context.Context, tower tower_model.Instance, since time.Time)
 	}
 
 	// Convert Users
-	backupInfo.Users = make([]structs.UserInfoArchive, len(apiBackupInfo.Users))
+	backupInfo.Users = make([]wlstructs.UserInfoArchive, len(apiBackupInfo.Users))
 
 	for i, apiUser := range apiBackupInfo.Users {
 		isOnline := false
@@ -134,8 +134,8 @@ func GetBackup(ctx context.Context, tower tower_model.Instance, since time.Time)
 			password = *apiUser.Password
 		}
 
-		backupInfo.Users[i] = structs.UserInfoArchive{
-			UserInfo: structs.UserInfo{
+		backupInfo.Users[i] = wlstructs.UserInfoArchive{
+			UserInfo: wlstructs.UserInfo{
 				Activated:       apiUser.Activated,
 				FullName:        apiUser.FullName,
 				HomeID:          apiUser.HomeID,
@@ -150,9 +150,9 @@ func GetBackup(ctx context.Context, tower tower_model.Instance, since time.Time)
 	}
 
 	// Convert Instances (towers)
-	backupInfo.Instances = make([]structs.TowerInfo, len(apiBackupInfo.Instances))
+	backupInfo.Instances = make([]wlstructs.TowerInfo, len(apiBackupInfo.Instances))
 	for i, apiTower := range apiBackupInfo.Instances {
-		backupInfo.Instances[i] = structs.TowerInfo{
+		backupInfo.Instances[i] = wlstructs.TowerInfo{
 			ID:      apiTower.Id,
 			Name:    apiTower.Name,
 			Role:    apiTower.Role,
@@ -162,9 +162,9 @@ func GetBackup(ctx context.Context, tower tower_model.Instance, since time.Time)
 	}
 
 	// Convert Tokens
-	backupInfo.Tokens = make([]structs.TokenInfo, len(apiBackupInfo.Tokens))
+	backupInfo.Tokens = make([]wlstructs.TokenInfo, len(apiBackupInfo.Tokens))
 	for i, apiToken := range apiBackupInfo.Tokens {
-		backupInfo.Tokens[i] = structs.TokenInfo{
+		backupInfo.Tokens[i] = wlstructs.TokenInfo{
 			ID:          apiToken.Id,
 			CreatedTime: apiToken.CreatedTime,
 			LastUsed:    apiToken.LastUsed,

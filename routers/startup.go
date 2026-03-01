@@ -15,12 +15,12 @@ import (
 	"github.com/ethanrous/weblens/models/db"
 	"github.com/ethanrous/weblens/models/task"
 	tower_model "github.com/ethanrous/weblens/models/tower"
-	user_model "github.com/ethanrous/weblens/models/user"
+	user_model "github.com/ethanrous/weblens/models/usermodel"
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/cryptography"
-	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/startup"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlog"
 	v1 "github.com/ethanrous/weblens/routers/api/v1"
 	"github.com/ethanrous/weblens/routers/router"
 	"github.com/ethanrous/weblens/routers/web"
@@ -28,7 +28,7 @@ import (
 	file_service "github.com/ethanrous/weblens/services/file"
 	"github.com/ethanrous/weblens/services/jobs"
 	"github.com/ethanrous/weblens/services/notify"
-	_ "github.com/ethanrous/weblens/services/user" // Required to register user service routes
+	_ "github.com/ethanrous/weblens/services/userservice" // Required to register user service routes
 	"github.com/rs/zerolog"
 )
 
@@ -47,7 +47,7 @@ func startupRecover() {
 	if r := recover(); r != nil {
 		err := wlerrors.Errorf("%v", r)
 
-		log.GlobalLogger().Fatal().Stack().Err(err).Msgf("Startup panicked")
+		wlog.GlobalLogger().Fatal().Stack().Err(err).Msgf("Startup panicked")
 	}
 }
 
@@ -70,7 +70,7 @@ func CaptureInterrupt() (context.Context, context.CancelFunc) {
 
 		select {
 		case <-signalChannel:
-			log.GlobalLogger().Info().Msg("Received interrupt signal, shutting down...")
+			wlog.GlobalLogger().Info().Msg("Received interrupt signal, shutting down...")
 			cancel()
 		case <-ctx.Done():
 		}

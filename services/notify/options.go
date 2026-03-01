@@ -1,13 +1,13 @@
 package notify
 
 import (
-	"github.com/ethanrous/weblens/modules/structs"
+	"github.com/ethanrous/weblens/modules/wlstructs"
 )
 
 // FileNotificationOptions contains optional parameters for file notifications.
 type FileNotificationOptions struct {
 	PreMoveParentID string
-	MediaInfo       structs.MediaInfo
+	MediaInfo       wlstructs.MediaInfo
 }
 
 func consolidateFileOptions(options ...FileNotificationOptions) FileNotificationOptions {

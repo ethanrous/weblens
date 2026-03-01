@@ -8,16 +8,16 @@ import (
 	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/history"
-	"github.com/ethanrous/weblens/modules/fs"
-	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/option"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlfs"
+	"github.com/ethanrous/weblens/modules/wlog"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
 // getPastFileIDAtPath retrieves the file ID that existed at the given path at a specific point in time.
 // Returns the root alias for root paths, otherwise queries the action history to find the file ID.
-func getPastFileIDAtPath(ctx context.Context, path fs.Filepath, time time.Time) (string, error) {
+func getPastFileIDAtPath(ctx context.Context, path wlfs.Filepath, time time.Time) (string, error) {
 	if path.IsRoot() {
 		// The root path's file ID is always the root alias
 		return path.RootAlias, nil
@@ -38,7 +38,7 @@ func getPastFileIDAtPath(ctx context.Context, path fs.Filepath, time time.Time) 
 }
 
 // getPastFileChildren retrieves the children of a past file at a specific point in time.
-func getPastFileChildren(ctx context.Context, pastFile *file_model.WeblensFileImpl, time time.Time) (map[fs.Filepath]*file_model.WeblensFileImpl, error) {
+func getPastFileChildren(ctx context.Context, pastFile *file_model.WeblensFileImpl, time time.Time) (map[wlfs.Filepath]*file_model.WeblensFileImpl, error) {
 	path := pastFile.GetPortablePath()
 
 	actions, err := history.GetActionsAtPathBefore(ctx, path, time, true)
@@ -46,14 +46,14 @@ func getPastFileChildren(ctx context.Context, pastFile *file_model.WeblensFileIm
 		return nil, err
 	}
 
-	childActions := make(map[fs.Filepath]history.FileAction)
+	childActions := make(map[wlfs.Filepath]history.FileAction)
 
 	for _, action := range actions {
 		if action.GetRelevantPath() == path {
 			continue
 		}
 
-		log.FromContext(ctx).Debug().Msgf("Considering action for child: %s, parent path: %s", action.GetRelevantPath(), path)
+		wlog.FromContext(ctx).Debug().Msgf("Considering action for child: %s, parent path: %s", action.GetRelevantPath(), path)
 
 		pathKey := action.GetRelevantPath()
 		if action.ActionType == history.FileMove && action.OriginPath.Dir() == path {
@@ -65,7 +65,7 @@ func getPastFileChildren(ctx context.Context, pastFile *file_model.WeblensFileIm
 		}
 	}
 
-	children := make(map[fs.Filepath]*file_model.WeblensFileImpl)
+	children := make(map[wlfs.Filepath]*file_model.WeblensFileImpl)
 
 	for pathKey, action := range childActions {
 		destPath := action.GetRelevantPath()
@@ -113,7 +113,7 @@ func GetPastFileByID(ctx context.Context, fileID string, time time.Time) (*file_
 
 // GetPastFileByPath retrieves the historical state of a file at a given path and point in time.
 // It reconstructs the file's state including its children and parent relationships as they existed at that time.
-func GetPastFileByPath(ctx context.Context, path fs.Filepath, time time.Time) (*file_model.WeblensFileImpl, error) {
+func GetPastFileByPath(ctx context.Context, path wlfs.Filepath, time time.Time) (*file_model.WeblensFileImpl, error) {
 	pastFileID, err := getPastFileIDAtPath(ctx, path, time)
 	if err != nil {
 		return nil, err
@@ -185,10 +185,10 @@ func GetAllActionsByTowerID(ctx context.Context, towerID string) ([]*history.Fil
 
 // GetLatestPathByID retrieves the most recent path where a file with the given ID was located.
 // Returns the destination path if available, otherwise falls back to the filepath field.
-func GetLatestPathByID(ctx context.Context, fileID string) (fs.Filepath, error) {
+func GetLatestPathByID(ctx context.Context, fileID string) (wlfs.Filepath, error) {
 	col, err := db.GetCollection[any](ctx, history.FileHistoryCollectionKey)
 	if err != nil {
-		return fs.Filepath{}, err
+		return wlfs.Filepath{}, err
 	}
 
 	pipe := bson.A{
@@ -200,7 +200,7 @@ func GetLatestPathByID(ctx context.Context, fileID string) (fs.Filepath, error) 
 
 	ret, err := col.Aggregate(ctx, pipe)
 	if err != nil {
-		return fs.Filepath{}, wlerrors.WithStack(err)
+		return wlfs.Filepath{}, wlerrors.WithStack(err)
 	}
 
 	var result struct {
@@ -209,17 +209,17 @@ func GetLatestPathByID(ctx context.Context, fileID string) (fs.Filepath, error) 
 	}
 
 	if !ret.Next(ctx) {
-		return fs.Filepath{}, wlerrors.New("no results found")
+		return wlfs.Filepath{}, wlerrors.New("no results found")
 	}
 
 	err = ret.Decode(&result)
 	if err != nil {
-		return fs.Filepath{}, wlerrors.WithStack(err)
+		return wlfs.Filepath{}, wlerrors.WithStack(err)
 	}
 
 	if result.DestinationPath != "" {
-		return fs.ParsePortable(result.DestinationPath)
+		return wlfs.ParsePortable(result.DestinationPath)
 	}
 
-	return fs.ParsePortable(result.Filepath)
+	return wlfs.ParsePortable(result.Filepath)
 }

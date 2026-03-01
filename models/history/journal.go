@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/ethanrous/weblens/models/db"
-	"github.com/ethanrous/weblens/modules/fs"
-	file_system "github.com/ethanrous/weblens/modules/fs"
+	"github.com/ethanrous/weblens/modules/wlfs"
+	file_system "github.com/ethanrous/weblens/modules/wlfs"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -145,7 +145,7 @@ func DoesFileExistInHistory(ctx context.Context, filepath file_system.Filepath) 
 // GetLifetimesOptions specifies filtering options for retrieving file lifetimes.
 type GetLifetimesOptions struct {
 	ActiveOnly bool
-	PathPrefix fs.Filepath
+	PathPrefix wlfs.Filepath
 	Depth      int
 	TowerID    string
 }

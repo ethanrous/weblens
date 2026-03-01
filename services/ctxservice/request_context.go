@@ -13,12 +13,12 @@ import (
 	"github.com/ethanrous/weblens/models/client"
 	share_model "github.com/ethanrous/weblens/models/share"
 	tower_model "github.com/ethanrous/weblens/models/tower"
-	user_model "github.com/ethanrous/weblens/models/user"
+	user_model "github.com/ethanrous/weblens/models/usermodel"
 	"github.com/ethanrous/weblens/modules/cryptography"
-	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/netwrk"
 	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlog"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -88,9 +88,9 @@ func (c RequestContext) Value(key any) any {
 
 // WithContext creates a new context by combining the RequestContext with the provided context.
 func (c RequestContext) WithContext(ctx context.Context) context.Context {
-	l, ok := log.FromContextOk(ctx)
+	l, ok := wlog.FromContextOk(ctx)
 	if !ok {
-		l = log.FromContext(c)
+		l = wlog.FromContext(c)
 	}
 
 	c.BasicContext = NewBasicContext(ctx, l)
@@ -363,7 +363,7 @@ func AppContexter(ctx AppContext) func(next http.Handler) http.Handler {
 			// Make copy of the global logger and attach to a LOCAL copy of ctx.
 			// Using a local variable avoids racing with other requests that share
 			// the captured ctx parameter.
-			logger := *log.GlobalLogger()
+			logger := *wlog.GlobalLogger()
 			localCtx := ctx.ReplaceLogger(&logger)
 
 			reqContext := RequestContext{

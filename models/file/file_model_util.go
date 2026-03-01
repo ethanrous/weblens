@@ -4,9 +4,9 @@ import (
 	"context"
 	"strings"
 
-	"github.com/ethanrous/weblens/models/user"
-	"github.com/ethanrous/weblens/modules/fs"
+	"github.com/ethanrous/weblens/models/usermodel"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlfs"
 )
 
 const (
@@ -28,22 +28,22 @@ const (
 )
 
 // UsersRootPath is the filepath to the users file tree root.
-var UsersRootPath = fs.Filepath{RootAlias: UsersTreeKey}
+var UsersRootPath = wlfs.Filepath{RootAlias: UsersTreeKey}
 
 // BackupRootPath is the filepath to the backup file tree root.
-var BackupRootPath = fs.Filepath{RootAlias: BackupTreeKey}
+var BackupRootPath = wlfs.Filepath{RootAlias: BackupTreeKey}
 
 // CacheRootPath is the filepath to the cache file tree root.
-var CacheRootPath = fs.Filepath{RootAlias: CachesTreeKey}
+var CacheRootPath = wlfs.Filepath{RootAlias: CachesTreeKey}
 
 // ZipsDirPath is the filepath to the zips storage directory.
-var ZipsDirPath = fs.Filepath{RootAlias: CachesTreeKey, RelPath: ZipsDirName}
+var ZipsDirPath = wlfs.Filepath{RootAlias: CachesTreeKey, RelPath: ZipsDirName}
 
 // ThumbsDirPath is the filepath to the thumbnails storage directory.
-var ThumbsDirPath = fs.Filepath{RootAlias: CachesTreeKey, RelPath: ThumbsDirName}
+var ThumbsDirPath = wlfs.Filepath{RootAlias: CachesTreeKey, RelPath: ThumbsDirName}
 
 // RestoreDirPath is the filepath to the restore directory.
-var RestoreDirPath = fs.Filepath{RootAlias: RestoreTreeKey}
+var RestoreDirPath = wlfs.Filepath{RootAlias: RestoreTreeKey}
 
 // GetFileOwnerName retrieves the username of the file owner from a file instance.
 func GetFileOwnerName(ctx context.Context, file *WeblensFileImpl) (string, error) {
@@ -55,7 +55,7 @@ func GetFileOwnerName(ctx context.Context, file *WeblensFileImpl) (string, error
 }
 
 // GetFileOwnerNameFromPath extracts the username of the file owner from a portable filepath.
-func GetFileOwnerNameFromPath(_ context.Context, portable fs.Filepath) (string, error) {
+func GetFileOwnerNameFromPath(_ context.Context, portable wlfs.Filepath) (string, error) {
 	if portable.RootName() == BackupTreeKey {
 		return "", nil
 	}
@@ -65,7 +65,7 @@ func GetFileOwnerNameFromPath(_ context.Context, portable fs.Filepath) (string, 
 	// }
 
 	if portable.RootName() == CachesTreeKey {
-		return user.PublicUserName, nil
+		return usermodel.PublicUserName, nil
 	}
 
 	if portable.RootName() != UsersTreeKey {

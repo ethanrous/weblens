@@ -7,10 +7,10 @@ import (
 
 	share_model "github.com/ethanrous/weblens/models/share"
 	tower_model "github.com/ethanrous/weblens/models/tower"
-	user_model "github.com/ethanrous/weblens/models/user"
+	user_model "github.com/ethanrous/weblens/models/usermodel"
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlog"
 	auth_service "github.com/ethanrous/weblens/services/auth"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	tower_service "github.com/ethanrous/weblens/services/tower"
@@ -198,7 +198,7 @@ func WeblensAuth(next Handler) Handler {
 			}
 		}
 
-		log.FromContext(ctx).UpdateContext(func(c zerolog.Context) zerolog.Context {
+		wlog.FromContext(ctx).UpdateContext(func(c zerolog.Context) zerolog.Context {
 			return c.Str("requester", ctx.Requester.Username)
 		})
 
@@ -359,7 +359,7 @@ func LoggerMiddlewares() []func(http.Handler) http.Handler {
 
 				ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 				l := zerolog.Ctx(r.Context()).With().Logger()
-				r = r.WithContext(log.WithContext(r.Context(), &l))
+				r = r.WithContext(wlog.WithContext(r.Context(), &l))
 
 				next.ServeHTTP(ww, r)
 
@@ -373,9 +373,9 @@ func LoggerMiddlewares() []func(http.Handler) http.Handler {
 				timeTotal := time.Since(start)
 
 				if doDevLog {
-					route := log.RouteColor(r)
+					route := wlog.RouteColor(r)
 
-					l.Info().Msgf("\u001B[0m[%s][%7s][%s %s][%s]", remote, log.ColorTime(timeTotal), method, route, log.ColorStatus(status))
+					l.Info().Msgf("\u001B[0m[%s][%7s][%s %s][%s]", remote, wlog.ColorTime(timeTotal), method, route, wlog.ColorStatus(status))
 
 					return
 				}

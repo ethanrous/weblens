@@ -8,7 +8,7 @@ import (
 	"github.com/ethanrous/weblens/models/task"
 	"github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/log"
+	"github.com/ethanrous/weblens/modules/wlog"
 	"github.com/ethanrous/weblens/services/jobs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,7 +28,7 @@ func newCoreAndBackup(t *testing.T) (setupResult, setupResult) {
 
 func launchBackupAndWait(t *testing.T, backupSetup setupResult) *task.Task {
 	for len(backupSetup.ctx.ClientService.GetAllClients()) == 0 {
-		log.GlobalLogger().Debug().Msg("Test is waiting for backup to connect to core...")
+		wlog.GlobalLogger().Debug().Msg("Test is waiting for backup to connect to core...")
 		time.Sleep(10 * time.Millisecond)
 	}
 

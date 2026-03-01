@@ -9,10 +9,10 @@ import (
 	"math"
 	"time"
 
-	file_system "github.com/ethanrous/weblens/modules/fs"
-	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/option"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	file_system "github.com/ethanrous/weblens/modules/wlfs"
+	"github.com/ethanrous/weblens/modules/wlog"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -67,7 +67,7 @@ func NewWeblensFile(params NewFileOptions) *WeblensFileImpl {
 	if params.CreateNow {
 		err := f.CreateSelf()
 		if wlerrors.Ignore(err, ErrFileAlreadyExists) != nil {
-			log.GlobalLogger().Error().Err(err).Msgf("Failed to create file %s", params.Path.ToAbsolute())
+			wlog.GlobalLogger().Error().Err(err).Msgf("Failed to create file %s", params.Path.ToAbsolute())
 
 			return nil
 		}
@@ -88,7 +88,7 @@ const oneMB = 1024 * 1024
 
 // GenerateContentID computes and returns a content hash for the file.
 func GenerateContentID(ctx context.Context, f *WeblensFileImpl) (string, error) {
-	l := log.FromContext(ctx)
+	l := wlog.FromContext(ctx)
 
 	if f.IsDir() {
 		return "", wlerrors.Errorf("cannot hash directory")

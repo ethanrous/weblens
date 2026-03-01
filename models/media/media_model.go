@@ -8,11 +8,11 @@ import (
 	"github.com/ethanrous/weblens/models/db"
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/log"
-	"github.com/ethanrous/weblens/modules/slices"
-	slices_mod "github.com/ethanrous/weblens/modules/slices"
 	"github.com/ethanrous/weblens/modules/startup"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlog"
+	"github.com/ethanrous/weblens/modules/wlslices"
+	slices_mod "github.com/ethanrous/weblens/modules/wlslices"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -182,7 +182,7 @@ func GetMediasByContentIDs(ctx context.Context, contentIDs ...ContentID) ([]*Med
 	media := []*Media{}
 
 	filter := bson.M{"contentID": bson.M{"$in": contentIDs}}
-	log.FromContext(ctx).Debug().Msgf("Getting medias by contentIDs with filter: %+v", filter)
+	wlog.FromContext(ctx).Debug().Msgf("Getting medias by contentIDs with filter: %+v", filter)
 
 	cur, err := col.Find(ctx, filter)
 	if err != nil {
@@ -239,7 +239,7 @@ func GetMediaByPath(_ context.Context, _ string) ([]*Media, error) {
 // GetMedia retrieves media items for a user with filtering and sorting options.
 func GetMedia(ctx context.Context, username string, sort string, sortDirection int, excludeIDs []ContentID,
 	_ bool, allowHidden bool) ([]*Media, error) {
-	slices.Sort(excludeIDs)
+	wlslices.Sort(excludeIDs)
 
 	pipe := bson.A{
 		bson.D{
@@ -343,7 +343,7 @@ func DropMediaByOwner(ctx context.Context, userFilter string) ([]string, error) 
 			return nil, wlerrors.Errorf("failed to get media to drop for user %s: %w", userFilter, err)
 		}
 
-		contentIDs := slices.Map(medias, func(m *Media) ContentID { return m.ContentID })
+		contentIDs := wlslices.Map(medias, func(m *Media) ContentID { return m.ContentID })
 
 		_, err = col.DeleteMany(ctx, bson.M{"contentID": bson.M{"$in": contentIDs}})
 		if err != nil {
@@ -629,7 +629,7 @@ func HDIRSearch(ctx context.Context, target []float64, filter []*Media) ([]HDIRS
 		return nil, err
 	}
 
-	contentIDFilter := slices.Map(filter, func(m *Media) ContentID { return m.ContentID })
+	contentIDFilter := wlslices.Map(filter, func(m *Media) ContentID { return m.ContentID })
 
 	numCandidates := min(len(contentIDFilter), 9999) / 2
 

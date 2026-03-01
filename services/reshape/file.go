@@ -8,7 +8,7 @@ import (
 	file_model "github.com/ethanrous/weblens/models/file"
 	share_model "github.com/ethanrous/weblens/models/share"
 	"github.com/ethanrous/weblens/modules/option"
-	"github.com/ethanrous/weblens/modules/structs"
+	"github.com/ethanrous/weblens/modules/wlstructs"
 )
 
 // FileInfoOptions configures how file information is computed and formatted.
@@ -63,10 +63,10 @@ func checkModifiable(_ context.Context, f *file_model.WeblensFileImpl, o FileInf
 }
 
 // WeblensFileToFileInfo converts a WeblensFileImpl to a FileInfo structure suitable for API responses.
-func WeblensFileToFileInfo(ctx context.Context, f *file_model.WeblensFileImpl, opts ...FileInfoOptions) (structs.FileInfo, error) {
+func WeblensFileToFileInfo(ctx context.Context, f *file_model.WeblensFileImpl, opts ...FileInfoOptions) (wlstructs.FileInfo, error) {
 	ownerName, err := file_model.GetFileOwnerName(ctx, f)
 	if err != nil {
-		return structs.FileInfo{}, err
+		return wlstructs.FileInfo{}, err
 	}
 
 	o := compileOptions(opts...)
@@ -82,7 +82,7 @@ func WeblensFileToFileInfo(ctx context.Context, f *file_model.WeblensFileImpl, o
 	if !o.DontCheckShare {
 		share, err = share_model.GetShareByFileID(ctx, f.ID())
 		if err != nil && !db.IsNotFound(err) {
-			return structs.FileInfo{}, err
+			return wlstructs.FileInfo{}, err
 		}
 	}
 
@@ -97,7 +97,7 @@ func WeblensFileToFileInfo(ctx context.Context, f *file_model.WeblensFileImpl, o
 		// Check if the folder has a cover photo, and use that as the content id if it does
 		cover, err := cover_model.GetCoverByFolderID(ctx, f.ID())
 		if err != nil && !db.IsNotFound(err) {
-			return structs.FileInfo{}, err
+			return wlstructs.FileInfo{}, err
 		} else if err == nil {
 			contentID = cover.CoverPhotoID
 		}
@@ -131,7 +131,7 @@ func WeblensFileToFileInfo(ctx context.Context, f *file_model.WeblensFileImpl, o
 
 	perms := toPermissionInfo(o.Perms.GetOr(share_model.Permissions{}))
 
-	return structs.FileInfo{
+	return wlstructs.FileInfo{
 		Children:        childrenIDs,
 		ContentID:       contentID,
 		HasRestoreMedia: hasRestoreMedia,

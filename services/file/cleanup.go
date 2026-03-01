@@ -6,8 +6,8 @@ import (
 
 	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
-	file_system "github.com/ethanrous/weblens/modules/fs"
 	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
+	file_system "github.com/ethanrous/weblens/modules/wlfs"
 	"github.com/rs/zerolog"
 )
 

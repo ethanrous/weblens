@@ -5,10 +5,10 @@ import (
 
 	"github.com/ethanrous/weblens/models/db"
 	share_model "github.com/ethanrous/weblens/models/share"
-	user_model "github.com/ethanrous/weblens/models/user"
+	user_model "github.com/ethanrous/weblens/models/usermodel"
 	"github.com/ethanrous/weblens/modules/netwrk"
-	"github.com/ethanrous/weblens/modules/structs"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlstructs"
 	"github.com/ethanrous/weblens/services/ctxservice"
 	file_service "github.com/ethanrous/weblens/services/file"
 	"github.com/ethanrous/weblens/services/reshape"
@@ -26,7 +26,7 @@ import (
 //	@Success	409
 //	@Router		/share/file [post]
 func CreateFileShare(ctx ctxservice.RequestContext) {
-	shareParams, err := netwrk.ReadRequestBody[structs.FileShareParams](ctx.Req)
+	shareParams, err := netwrk.ReadRequestBody[wlstructs.FileShareParams](ctx.Req)
 	if err != nil {
 		return
 	}
@@ -184,7 +184,7 @@ func AddUserToShare(ctx ctxservice.RequestContext) {
 		return
 	}
 
-	addUserBody, err := netwrk.ReadRequestBody[structs.AddUserParams](ctx.Req)
+	addUserBody, err := netwrk.ReadRequestBody[wlstructs.AddUserParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 
@@ -285,7 +285,7 @@ func SetShareAccessors(ctx ctxservice.RequestContext) {
 		return
 	}
 
-	permissionsBody, err := netwrk.ReadRequestBody[structs.PermissionsParams](ctx.Req)
+	permissionsBody, err := netwrk.ReadRequestBody[wlstructs.PermissionsParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 

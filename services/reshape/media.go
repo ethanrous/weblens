@@ -2,7 +2,7 @@ package reshape
 
 import (
 	media_model "github.com/ethanrous/weblens/models/media"
-	"github.com/ethanrous/weblens/modules/structs"
+	"github.com/ethanrous/weblens/modules/wlstructs"
 )
 
 // MediaBatchOptions defines options for creating a batch of media information.
@@ -11,8 +11,8 @@ type MediaBatchOptions struct {
 }
 
 // MediaToMediaInfo converts a Media model to a MediaInfo transfer object.
-func MediaToMediaInfo(m *media_model.Media) structs.MediaInfo {
-	return structs.MediaInfo{
+func MediaToMediaInfo(m *media_model.Media) wlstructs.MediaInfo {
+	return wlstructs.MediaInfo{
 		MediaID:    m.MediaID.Hex(),
 		ContentID:  m.ContentID,
 		FileIDs:    m.FileIDs,
@@ -32,20 +32,20 @@ func MediaToMediaInfo(m *media_model.Media) structs.MediaInfo {
 }
 
 // NewMediaBatchInfo creates a batch media information object from a slice of Media models.
-func NewMediaBatchInfo(m []*media_model.Media, opts ...MediaBatchOptions) structs.MediaBatchInfo {
+func NewMediaBatchInfo(m []*media_model.Media, opts ...MediaBatchOptions) wlstructs.MediaBatchInfo {
 	options := MediaBatchOptions{}
 	if len(opts) > 0 {
 		options = opts[0]
 	}
 
 	if len(m) == 0 {
-		return structs.MediaBatchInfo{
-			Media:      []structs.MediaInfo{},
+		return wlstructs.MediaBatchInfo{
+			Media:      []wlstructs.MediaInfo{},
 			MediaCount: 0,
 		}
 	}
 
-	mediaInfos := make([]structs.MediaInfo, 0, len(m))
+	mediaInfos := make([]wlstructs.MediaInfo, 0, len(m))
 	for i, media := range m {
 		info := MediaToMediaInfo(media)
 		if i < len(options.Scores) {
@@ -55,15 +55,15 @@ func NewMediaBatchInfo(m []*media_model.Media, opts ...MediaBatchOptions) struct
 		mediaInfos = append(mediaInfos, info)
 	}
 
-	return structs.MediaBatchInfo{
+	return wlstructs.MediaBatchInfo{
 		Media:      mediaInfos,
 		MediaCount: len(m),
 	}
 }
 
 // MediaTypeToMediaTypeInfo converts a MediaType model to a MediaTypeInfo transfer object.
-func MediaTypeToMediaTypeInfo(mt media_model.MType) structs.MediaTypeInfo {
-	return structs.MediaTypeInfo{
+func MediaTypeToMediaTypeInfo(mt media_model.MType) wlstructs.MediaTypeInfo {
+	return wlstructs.MediaTypeInfo{
 		Mime:            mt.Mime,
 		Name:            mt.Name,
 		RawThumbExifKey: mt.RawThumbExifKey,

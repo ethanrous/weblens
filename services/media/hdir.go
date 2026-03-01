@@ -12,8 +12,8 @@ import (
 
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/slices"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlslices"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 )
 
@@ -76,7 +76,7 @@ func SortMediaByTextSimilarity(ctx context_service.AppContext, search string, ms
 		mediasMap[m.ContentID] = m
 	}
 
-	msScores := slices.MapI(scores, func(score media_model.HDIRSearchResult, _ int) ScoreWrapper {
+	msScores := wlslices.MapI(scores, func(score media_model.HDIRSearchResult, _ int) ScoreWrapper {
 		return ScoreWrapper{
 			Media: mediasMap[score.ContentID],
 			Score: score.Score,
@@ -85,11 +85,11 @@ func SortMediaByTextSimilarity(ctx context_service.AppContext, search string, ms
 
 	ctx.Log().Debug().Msgf("Similarity scores: Top: %.6f Bottom: %.6f", msScores[0].Score, msScores[len(msScores)-1].Score)
 
-	msScores = slices.Filter(msScores, func(ms ScoreWrapper) bool {
+	msScores = wlslices.Filter(msScores, func(ms ScoreWrapper) bool {
 		return ms.Score >= minScore
 	})
 
-	slices.SortFunc(msScores, func(a, b ScoreWrapper) int {
+	wlslices.SortFunc(msScores, func(a, b ScoreWrapper) int {
 		if a.Score < b.Score {
 			return 1
 		} else if a.Score > b.Score {

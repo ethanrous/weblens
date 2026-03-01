@@ -13,10 +13,10 @@ import (
 	share_model "github.com/ethanrous/weblens/models/share"
 	"github.com/ethanrous/weblens/models/task"
 	"github.com/ethanrous/weblens/models/tower"
-	user_model "github.com/ethanrous/weblens/models/user"
+	user_model "github.com/ethanrous/weblens/models/usermodel"
 
-	slices_mod "github.com/ethanrous/weblens/modules/slices"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	slices_mod "github.com/ethanrous/weblens/modules/wlslices"
 	"github.com/rs/zerolog/log"
 )
 

@@ -8,9 +8,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethanrous/weblens/modules/log"
 	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlog"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 )
@@ -242,12 +242,12 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta Meta
 		return t, nil
 	}
 
-	newl := log.FromContext(ctx).With().
+	newl := wlog.FromContext(ctx).With().
 		Str("task_id", taskID).
 		Str("job_name", jobName).
 		Logger()
 
-	ctx = log.WithContext(ctx, &newl)
+	ctx = wlog.WithContext(ctx, &newl)
 
 	ctx, cancel := context.WithCancelCause(ctx)
 
@@ -410,17 +410,17 @@ func (wp *WorkerPool) removeTask(taskID string) {
 // differently in attempt to minimize parked time of the other task.
 func (wp *WorkerPool) execWorker(workerCtx context.Context, isReplacement bool) {
 	go func(workerID int64) {
-		newl := log.FromContext(workerCtx).With().
+		newl := wlog.FromContext(workerCtx).With().
 			Int("worker_id", int(workerID)).
 			Logger()
 
-		workerCtx = log.WithContext(workerCtx, &newl)
+		workerCtx = wlog.WithContext(workerCtx, &newl)
 
-		log.FromContext(wp.ctx).Debug().Msgf("Launching worker")
+		wlog.FromContext(wp.ctx).Debug().Msgf("Launching worker")
 
 		err := context_mod.AddToWg(workerCtx)
 		if err != nil {
-			log.FromContext(wp.ctx).Error().Stack().Err(err).Msg("Failed to add worker to wait group")
+			wlog.FromContext(wp.ctx).Error().Stack().Err(err).Msg("Failed to add worker to wait group")
 
 			return
 		}
@@ -428,13 +428,13 @@ func (wp *WorkerPool) execWorker(workerCtx context.Context, isReplacement bool) 
 		defer func() {
 			err = context_mod.WgDone(workerCtx)
 			if err != nil {
-				log.FromContext(wp.ctx).Error().Stack().Err(err).Msg("Failed to remove worker from wait group")
+				wlog.FromContext(wp.ctx).Error().Stack().Err(err).Msg("Failed to remove worker from wait group")
 
 				return
 			}
 
 			remainingWorkers := wp.currentWorkers.Add(-1)
-			log.FromContext(workerCtx).Debug().Int64("remaining_workers_count", remainingWorkers).Msgf("worker exiting")
+			wlog.FromContext(workerCtx).Debug().Int64("remaining_workers_count", remainingWorkers).Msgf("worker exiting")
 		}()
 
 		// WorkLoop:
@@ -450,7 +450,7 @@ func (wp *WorkerPool) execWorker(workerCtx context.Context, isReplacement bool) 
 					select {
 					case <-t.Ctx.Done():
 						// Task was canceled, do not run it
-						log.FromContext(t.Ctx).Trace().Msgf("Task was canceled while in queue, not running")
+						wlog.FromContext(t.Ctx).Trace().Msgf("Task was canceled while in queue, not running")
 
 						continue
 					default:
@@ -458,7 +458,7 @@ func (wp *WorkerPool) execWorker(workerCtx context.Context, isReplacement bool) 
 
 					if t.exitStatus != TaskNoStatus {
 						// If the task has already been completed, we don't want to run it again
-						log.FromContext(t.Ctx).Trace().Str("exit_status", string(t.exitStatus)).Msgf("Task already has exit status, not running")
+						wlog.FromContext(t.Ctx).Trace().Str("exit_status", string(t.exitStatus)).Msgf("Task already has exit status, not running")
 
 						continue
 					}
@@ -487,7 +487,7 @@ func (wp *WorkerPool) execWorker(workerCtx context.Context, isReplacement bool) 
 						wp.addToRetryBuffer(tBuf...)
 					}
 
-					newl := log.FromContext(t.Ctx).With().
+					newl := wlog.FromContext(t.Ctx).With().
 						Int("worker_id", int(workerID)).
 						Logger()
 
@@ -496,13 +496,13 @@ func (wp *WorkerPool) execWorker(workerCtx context.Context, isReplacement bool) 
 					t.ctxMu.Lock()
 
 					// Update the task's logger to include the worker ID
-					t.Ctx = log.WithContext(t.Ctx, &newl)
+					t.Ctx = wlog.WithContext(t.Ctx, &newl)
 
 					t.ctxMu.Unlock()
 
 					// Inc tasks being processed
 					wp.busyCount.Add(1)
-					log.FromContext(t.Ctx).Debug().Func(func(e *zerolog.Event) {
+					wlog.FromContext(t.Ctx).Debug().Func(func(e *zerolog.Event) {
 						t.updateMu.RLock()
 						defer t.updateMu.RUnlock()
 
@@ -513,7 +513,7 @@ func (wp *WorkerPool) execWorker(workerCtx context.Context, isReplacement bool) 
 					// All the real work happens inside safetyWork here, everything before is setup, everything after is teardown.
 					wp.safetyWork(t, workerID)
 
-					log.FromContext(t.Ctx).Debug().Func(func(e *zerolog.Event) {
+					wlog.FromContext(t.Ctx).Debug().Func(func(e *zerolog.Event) {
 						t.updateMu.RLock()
 						defer t.updateMu.RUnlock()
 
@@ -598,7 +598,7 @@ func (wp *WorkerPool) execWorker(workerCtx context.Context, isReplacement bool) 
 
 						directParent.LockExit()
 						uncompletedTasks := directParent.GetTotalTaskCount() - directParent.GetCompletedTaskCount()
-						log.FromContext(wp.ctx).Debug().Msgf(
+						wlog.FromContext(wp.ctx).Debug().Msgf(
 							"Uncompleted tasks on tp created by %s: %d",
 							directParent.CreatedInTask().ID(), uncompletedTasks-1,
 						)
@@ -645,7 +645,7 @@ func (wp *WorkerPool) removeWorker() {
 func (wp *WorkerPool) newTaskPoolInternal() *Pool {
 	tpID, err := uuid.NewUUID()
 	if err != nil {
-		log.FromContext(wp.ctx).Error().Err(err).Msg("Failed to generate UUID for new task pool")
+		wlog.FromContext(wp.ctx).Error().Err(err).Msg("Failed to generate UUID for new task pool")
 
 		return nil
 	}
@@ -657,7 +657,7 @@ func (wp *WorkerPool) newTaskPoolInternal() *Pool {
 		createdAt:    time.Now(),
 		erroredTasks: make([]*Task, 0),
 		waiterGate:   make(chan struct{}),
-		log:          log.FromContext(wp.ctx).With().Str("task_pool", tpID.String()).Logger(),
+		log:          wlog.FromContext(wp.ctx).With().Str("task_pool", tpID.String()).Logger(),
 	}
 
 	return newQueue
@@ -680,12 +680,12 @@ func (wp *WorkerPool) reaper(ctx context.Context) {
 		select {
 		case _, ok := <-ctx.Done():
 			if !ok {
-				log.FromContext(ctx).Debug().Msg("Task reaper exiting")
+				wlog.FromContext(ctx).Debug().Msg("Task reaper exiting")
 
 				return
 			}
 
-			log.GlobalLogger().Warn().Msg("Reaper not exiting?")
+			wlog.GlobalLogger().Warn().Msg("Reaper not exiting?")
 		case newHit := <-wp.hitStream:
 			go func(h hit) { time.Sleep(time.Until(h.time)); timerStream <- h.target }(newHit)
 		case task := <-timerStream:
@@ -695,7 +695,7 @@ func (wp *WorkerPool) reaper(ctx context.Context) {
 			// has not already finished
 			timeout := task.GetTimeout()
 			if task.QueueState() != Exited && time.Until(timeout) <= 0 && timeout.Unix() != 0 {
-				log.GlobalLogger().Warn().Msgf("Sending timeout signal to T[%s]\n", task.taskID)
+				wlog.GlobalLogger().Warn().Msgf("Sending timeout signal to T[%s]\n", task.taskID)
 				task.Cancel()
 				task.error(ErrTaskTimeout)
 			}
@@ -734,7 +734,7 @@ func (wp *WorkerPool) bufferDrainer(ctx context.Context) {
 	ticker := time.NewTicker(time.Second * 10)
 
 	defer func() {
-		log.FromContext(ctx).Debug().Msg("buffer drainer exiting")
+		wlog.FromContext(ctx).Debug().Msg("buffer drainer exiting")
 	}()
 
 	for {
@@ -744,7 +744,7 @@ func (wp *WorkerPool) bufferDrainer(ctx context.Context) {
 				return
 			}
 
-			log.FromContext(ctx).Warn().Msg("buffer drainer not exiting?")
+			wlog.FromContext(ctx).Warn().Msg("buffer drainer not exiting?")
 		case <-ticker.C:
 			wp.taskBufferMu.Lock()
 

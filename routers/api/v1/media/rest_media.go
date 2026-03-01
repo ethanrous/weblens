@@ -13,9 +13,9 @@ import (
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/models/share"
 	"github.com/ethanrous/weblens/modules/netwrk"
-	"github.com/ethanrous/weblens/modules/slices"
-	"github.com/ethanrous/weblens/modules/structs"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlslices"
+	"github.com/ethanrous/weblens/modules/wlstructs"
 	file_api "github.com/ethanrous/weblens/routers/api/v1/file"
 	"github.com/ethanrous/weblens/services/ctxservice"
 	file_service "github.com/ethanrous/weblens/services/file"
@@ -37,7 +37,7 @@ import (
 //	@Success	500
 //	@Router		/media [post]
 func GetMediaBatch(ctx ctxservice.RequestContext) {
-	reqParams, err := netwrk.ReadRequestBody[structs.MediaBatchParams](ctx.Req)
+	reqParams, err := netwrk.ReadRequestBody[wlstructs.MediaBatchParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusBadRequest, err)
 
@@ -80,10 +80,10 @@ func GetMediaBatch(ctx ctxservice.RequestContext) {
 				return
 			}
 
-			media = slices.Map(scoredMedia, func(m media_service.ScoreWrapper) *media_model.Media { return m.Media })
+			media = wlslices.Map(scoredMedia, func(m media_service.ScoreWrapper) *media_model.Media { return m.Media })
 			totalMediaCount = len(media)
 
-			scores = slices.Map(scoredMedia, func(m media_service.ScoreWrapper) float64 { return m.Score })
+			scores = wlslices.Map(scoredMedia, func(m media_service.ScoreWrapper) float64 { return m.Score })
 		}
 
 		batch := reshape.NewMediaBatchInfo(media, reshape.MediaBatchOptions{Scores: scores})
@@ -152,17 +152,17 @@ func GetMediaBatch(ctx ctxservice.RequestContext) {
 func GetMediaTypes(ctx ctxservice.RequestContext) {
 	mime, ext := media_model.GetMaps()
 
-	mimeInfo := make(map[string]structs.MediaTypeInfo)
+	mimeInfo := make(map[string]wlstructs.MediaTypeInfo)
 	for k, v := range mime {
 		mimeInfo[k] = reshape.MediaTypeToMediaTypeInfo(v)
 	}
 
-	extInfo := make(map[string]structs.MediaTypeInfo)
+	extInfo := make(map[string]wlstructs.MediaTypeInfo)
 	for k, v := range ext {
 		extInfo[k] = reshape.MediaTypeToMediaTypeInfo(v)
 	}
 
-	typesInfo := structs.MediaTypesInfo{
+	typesInfo := wlstructs.MediaTypesInfo{
 		MimeMap: mimeInfo,
 		ExtMap:  extInfo,
 	}

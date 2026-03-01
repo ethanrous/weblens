@@ -3,17 +3,17 @@ package reshape
 import (
 	"context"
 
-	"github.com/ethanrous/weblens/models/user"
-	user_model "github.com/ethanrous/weblens/models/user"
-	"github.com/ethanrous/weblens/modules/structs"
+	"github.com/ethanrous/weblens/models/usermodel"
+	user_model "github.com/ethanrous/weblens/models/usermodel"
+	"github.com/ethanrous/weblens/modules/wlstructs"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 )
 
 // UserToUserInfo converts a User model to a UserInfo transfer object.
-func UserToUserInfo(ctx context.Context, u *user_model.User) structs.UserInfo {
+func UserToUserInfo(ctx context.Context, u *user_model.User) wlstructs.UserInfo {
 	userIsOnline := getUserIsOnline(ctx, u.Username)
 
-	return structs.UserInfo{
+	return wlstructs.UserInfo{
 		Username:        u.Username,
 		FullName:        u.DisplayName,
 		HomeID:          u.HomeID,
@@ -26,15 +26,15 @@ func UserToUserInfo(ctx context.Context, u *user_model.User) structs.UserInfo {
 }
 
 // UserToUserInfoArchive converts a User model to a UserInfoArchive transfer object for backup purposes.
-func UserToUserInfoArchive(ctx context.Context, u *user.User) structs.UserInfoArchive {
+func UserToUserInfoArchive(ctx context.Context, u *usermodel.User) wlstructs.UserInfoArchive {
 	if u == nil || u.IsSystemUser() {
-		return structs.UserInfoArchive{}
+		return wlstructs.UserInfoArchive{}
 	}
 
 	userIsOnline := getUserIsOnline(ctx, u.Username)
 
-	info := structs.UserInfoArchive{
-		UserInfo: structs.UserInfo{
+	info := wlstructs.UserInfoArchive{
+		UserInfo: wlstructs.UserInfo{
 			Username:        u.GetUsername(),
 			FullName:        u.DisplayName,
 			PermissionLevel: int(u.UserPerms),
@@ -51,8 +51,8 @@ func UserToUserInfoArchive(ctx context.Context, u *user.User) structs.UserInfoAr
 }
 
 // UserInfoArchiveToUser converts a UserInfoArchive transfer object to a User model for restoration.
-func UserInfoArchiveToUser(uInfo structs.UserInfoArchive) *user.User {
-	u := &user.User{
+func UserInfoArchiveToUser(uInfo wlstructs.UserInfoArchive) *usermodel.User {
+	u := &usermodel.User{
 		Username:  uInfo.Username,
 		Password:  uInfo.Password,
 		Activated: uInfo.Activated,

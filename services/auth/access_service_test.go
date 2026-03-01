@@ -1,4 +1,3 @@
-
 package auth_test
 
 import (
@@ -8,8 +7,8 @@ import (
 
 	file_model "github.com/ethanrous/weblens/models/file"
 	share_model "github.com/ethanrous/weblens/models/share"
-	user_model "github.com/ethanrous/weblens/models/user"
-	file_system "github.com/ethanrous/weblens/modules/fs"
+	user_model "github.com/ethanrous/weblens/models/usermodel"
+	file_system "github.com/ethanrous/weblens/modules/wlfs"
 	"github.com/ethanrous/weblens/services/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

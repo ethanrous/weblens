@@ -5,8 +5,8 @@ import (
 
 	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
-	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlog"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/media/agno"
 )
@@ -134,7 +134,7 @@ func getCreateDateFromExif(img *agno.Image, file *file_model.WeblensFileImpl) (c
 	}
 
 	if err != nil {
-		log.GlobalLogger().Warn().Msgf("failed to get date from EXIF for file %s: %v", file.ID(), err)
+		wlog.GlobalLogger().Warn().Msgf("failed to get date from EXIF for file %s: %v", file.ID(), err)
 
 		return file.ModTime(), nil
 	}

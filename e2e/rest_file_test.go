@@ -13,7 +13,7 @@ import (
 	openapi "github.com/ethanrous/weblens/api"
 	"github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/fs"
+	"github.com/ethanrous/weblens/modules/wlfs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -61,7 +61,7 @@ func TestCreateFolder(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	path, err := fs.ParsePortable(fileInfo.GetPortablePath())
+	path, err := wlfs.ParsePortable(fileInfo.GetPortablePath())
 	require.NoError(t, err)
 
 	assert.Equal(t, "test-folder", path.Filename())
@@ -100,7 +100,7 @@ func TestGetFile(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, createdFolder.GetId(), fileInfo.GetId())
 
-	path, err := fs.ParsePortable(fileInfo.GetPortablePath())
+	path, err := wlfs.ParsePortable(fileInfo.GetPortablePath())
 	require.NoError(t, err)
 
 	assert.Equal(t, "getfile-test", path.Filename())
@@ -185,7 +185,7 @@ func TestUpdateFile(t *testing.T) {
 	fileInfo, _, err := client.FilesAPI.GetFile(t.Context(), createdFolder.GetId()).Execute()
 	require.NoError(t, err)
 
-	path, err := fs.ParsePortable(fileInfo.GetPortablePath())
+	path, err := wlfs.ParsePortable(fileInfo.GetPortablePath())
 	require.NoError(t, err)
 
 	assert.Equal(t, "renamed-folder", path.Filename())
@@ -230,7 +230,7 @@ func TestMoveFiles(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(targetFolderInfo.GetChildren()))
 
-	path, err := fs.ParsePortable(targetFolderInfo.GetChildren()[0].GetPortablePath())
+	path, err := wlfs.ParsePortable(targetFolderInfo.GetChildren()[0].GetPortablePath())
 	require.NoError(t, err)
 
 	assert.Equal(t, "folder-to-move", path.Filename())

@@ -10,11 +10,11 @@ import (
 	"github.com/ethanrous/weblens/models/history"
 	job_model "github.com/ethanrous/weblens/models/job"
 	tower_model "github.com/ethanrous/weblens/models/tower"
-	user_model "github.com/ethanrous/weblens/models/user"
+	user_model "github.com/ethanrous/weblens/models/usermodel"
 	"github.com/ethanrous/weblens/modules/config"
-	file_system "github.com/ethanrous/weblens/modules/fs"
 	"github.com/ethanrous/weblens/modules/startup"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	file_system "github.com/ethanrous/weblens/modules/wlfs"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 )
 

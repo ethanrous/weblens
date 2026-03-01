@@ -7,9 +7,9 @@ import (
 	"github.com/ethanrous/weblens/models/db"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/modules/config"
-	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/netwrk"
-	"github.com/ethanrous/weblens/modules/structs"
+	"github.com/ethanrous/weblens/modules/wlog"
+	"github.com/ethanrous/weblens/modules/wlstructs"
 	"github.com/ethanrous/weblens/routers/api/v1/websocket"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/reshape"
@@ -27,7 +27,7 @@ import (
 //	@Success	200 {object}	structs.TowerHealth 	"Health status"
 //	@Router		/health [get]
 func GetServerHealthStatus(ctx context_service.RequestContext) {
-	ctx.JSON(http.StatusOK, structs.TowerHealth{
+	ctx.JSON(http.StatusOK, wlstructs.TowerHealth{
 		Status: "Healthy",
 	})
 }
@@ -78,7 +78,7 @@ func GetRemotes(ctx context_service.RequestContext) {
 		return
 	}
 
-	serverInfos := make([]structs.TowerInfo, 0, len(remotes))
+	serverInfos := make([]wlstructs.TowerInfo, 0, len(remotes))
 	for _, r := range remotes {
 		serverInfos = append(serverInfos, reshape.TowerToTowerInfo(ctx, r))
 	}
@@ -101,7 +101,7 @@ func GetRemotes(ctx context_service.RequestContext) {
 //	@Success	400
 //	@Router		/tower/remote [post]
 func AttachRemote(ctx context_service.RequestContext) {
-	params, err := netwrk.ReadRequestBody[structs.NewServerParams](ctx.Req)
+	params, err := netwrk.ReadRequestBody[wlstructs.NewServerParams](ctx.Req)
 	if err != nil {
 		return
 	}
@@ -245,7 +245,7 @@ func InitializeTower(ctx context_service.RequestContext) {
 	}
 
 	// Read the initialization parameters from the request body
-	initBody, err := netwrk.ReadRequestBody[structs.InitServerParams](ctx.Req)
+	initBody, err := netwrk.ReadRequestBody[wlstructs.InitServerParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusBadRequest, err)
 
@@ -330,6 +330,6 @@ func ResetServer(ctx context_service.RequestContext) {
 //	@Success	200
 //	@Router		/tower/trace [post]
 func EnableTraceLogging(ctx context_service.RequestContext) {
-	log.SetLogLevel(zerolog.TraceLevel)
+	wlog.SetLogLevel(zerolog.TraceLevel)
 	ctx.Status(http.StatusOK)
 }

@@ -9,10 +9,10 @@ import (
 	"github.com/ethanrous/weblens/models/db"
 	"github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/task"
-	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/websocket"
 	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlog"
 	"github.com/ethanrous/weblens/services/notify"
 	"github.com/rs/zerolog"
 	"github.com/viccon/sturdyc"
@@ -95,7 +95,7 @@ func FromContext(ctx context.Context) (AppContext, bool) {
 
 // NewTestContext creates a new AppContext for testing purposes with a zero logger.
 func NewTestContext(ctx context.Context) AppContext {
-	logger := log.NewZeroLogger()
+	logger := wlog.NewZeroLogger()
 	basicCtx := NewBasicContext(ctx, logger)
 	appCtx := NewAppContext(basicCtx)
 
@@ -111,9 +111,9 @@ func (c AppContext) WithValue(key, value any) AppContext {
 
 // WithContext creates a new context by combining the AppContext with the provided context.
 func (c AppContext) WithContext(ctx context.Context) context.Context {
-	l, ok := log.FromContextOk(ctx)
+	l, ok := wlog.FromContextOk(ctx)
 	if !ok {
-		l = log.FromContext(c)
+		l = wlog.FromContext(c)
 	}
 
 	c.BasicContext = NewBasicContext(ctx, l)

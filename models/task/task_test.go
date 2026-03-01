@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/models/task"
-	"github.com/ethanrous/weblens/modules/log"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlog"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -1550,7 +1550,7 @@ func TestPool_Wait(t *testing.T) {
 			mu.Lock()
 
 			completedCount++
-			log.GlobalLogger().Info().Msgf("Completed tasks: %d", completedCount)
+			wlog.GlobalLogger().Info().Msgf("Completed tasks: %d", completedCount)
 
 			mu.Unlock()
 			tsk.Success()
