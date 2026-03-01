@@ -44,10 +44,13 @@ export const useTasksStore = defineStore('tasks', () => {
     }
 
     function setTaskComplete<T>(taskID: string, content: T) {
-        if (!tasks.value || !tasks.value.has(taskID)) return
+        if (tasks.value && tasks.value.has(taskID)) {
+            const task = tasks.value.get(taskID)!
+            task.setComplete()
 
-        const task = tasks.value.get(taskID)!
-        task.setComplete()
+            // Trigger reactivity
+            triggerRef(tasks)
+        }
 
         const taskProm = taskPromises.value.get(taskID)
         if (taskProm) {
@@ -56,9 +59,6 @@ export const useTasksStore = defineStore('tasks', () => {
             // Remove the promise from the map
             taskPromises.value.delete(taskID)
         }
-
-        // Trigger reactivity
-        triggerRef(tasks)
     }
 
     function cancelTask(taskID: string) {
