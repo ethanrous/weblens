@@ -4,6 +4,7 @@ package e2e_test
 import (
 	"context"
 	"encoding/base64"
+	"net/http"
 
 	"os"
 	"path/filepath"
@@ -29,7 +30,6 @@ import (
 
 var logLevel = zerolog.DebugLevel
 
-var portsInUse = make(map[int]struct{})
 var atomicPort = atomic.Int32{}
 
 type setupResult struct {
@@ -37,10 +37,12 @@ type setupResult struct {
 	address string
 	ctx     context_service.AppContext
 
+	// token is the base64 encoded token string that can be used for API authentication in tests.
 	// Only set if the server was initialized as a core tower, with an admin token.
 	token string
 }
 
+// safeTestName replaces characters that are not safe for filesystem paths or mongo database names
 func safeTestName(name string) string {
 	name = strings.ReplaceAll(name, "/", "-")
 	strings.ReplaceAll(name, ".", "-")
@@ -48,6 +50,7 @@ func safeTestName(name string) string {
 	return name
 }
 
+// buildTestConfig creates a test configuration based on the provided test name and any optional overrides. It sets up unique data paths, log paths, and ports for each test to ensure isolation.
 func buildTestConfig(testName string, override ...config.Provider) config.Provider {
 	cnf := config.GetConfig()
 	for _, o := range override {
@@ -87,11 +90,49 @@ func buildTestConfig(testName string, override ...config.Provider) config.Provid
 	port := atomicPort.Add(1) + 14000
 	cnf.Port = strconv.Itoa(int(port))
 
+	// Only use 2 workers for the worker pool in tests to lessen goroutine stack traces adding noise to the logs if tests fail.
 	cnf.WorkerCount = 2
 
 	return cnf
 }
 
+// waitForHealthy polls the server's health endpoint until it returns a healthy status or times out after 10 attempts.
+func waitForHealthy(appCtx context_service.AppContext, cnf config.Provider, token string) error {
+	client := getAPIClientFromConfig(cnf, token)
+
+	retries := 0
+	for retries < 10 {
+		_, resp, err := client.TowersAPI.GetServerHealthStatus(appCtx).Execute()
+		if err == nil && resp.StatusCode == http.StatusOK {
+			break
+		}
+
+		appCtx.Log().Warn().Err(err).Msgf("API not ready yet, retrying... (%d/10)", retries+1)
+
+		retries++
+		if retries == 10 {
+			break
+		}
+
+		time.Sleep(1 * time.Second)
+	}
+
+	if retries == 10 {
+		return wlerrors.Errorf("API did not become healthy in time (logs: %s)", cnf.LogPath)
+	} else if token != "" {
+		appCtx.Log().Debug().Msg("API is healthy, got token, checking if admin user exists...")
+
+		// Now that the server is healthy, this should work fine. If it doesn't, there's an issue
+		_, _, err := client.UsersAPI.GetUser(appCtx).Execute()
+		if err != nil {
+			return wlerrors.Errorf("Failed to get server health status (logs: %s): %w", cnf.LogPath, err)
+		}
+	}
+
+	return nil
+}
+
+// setupTestServer starts a test server with the given configuration and waits for it to become healthy before returning.
 func setupTestServer(ctx context.Context, name string, settings ...config.Provider) (setupResult, error) {
 	cnf := buildTestConfig(name, settings...)
 
@@ -170,31 +211,11 @@ func setupTestServer(ctx context.Context, name string, settings ...config.Provid
 		}
 
 		ret.token = base64.StdEncoding.EncodeToString(tokens[0].Token[:])
+	}
 
-		client := getAPIClientFromConfig(cnf, ret.token)
-
-		retries := 0
-		for retries < 10 {
-			_, resp, err := client.UsersAPI.GetUser(appCtx).Execute()
-			if err == nil {
-				break
-			}
-
-			// Server is started, but gave an error response. This means the server is ready,
-			// but something is wrong with the request (likely missing auth token). Don't keep retrying in this case.
-			if resp != nil && resp.StatusCode < 500 && resp.StatusCode >= 400 {
-				return setupResult{}, wlerrors.Errorf("API returned error response (logs: %s): %w", cnf.LogPath, err)
-			}
-
-			logger.Warn().Err(err).Msgf("API not ready yet, retrying... (%d/10)", retries+1)
-			retries++
-
-			time.Sleep(1 * time.Second)
-		}
-
-		if retries == 10 {
-			return setupResult{}, wlerrors.Errorf("API did not become ready in time (logs: %s)", cnf.LogPath)
-		}
+	err = waitForHealthy(appCtx, cnf, ret.token)
+	if err != nil {
+		return setupResult{}, err
 	}
 
 	logger.Info().Msgf("Test server for test [%s] started on port %s", name, cnf.Port)
@@ -202,6 +223,7 @@ func setupTestServer(ctx context.Context, name string, settings ...config.Provid
 	return ret, nil
 }
 
+// getAPIClientFromConfig creates a new API client configured to connect to the test server with the given configuration and token.
 func getAPIClientFromConfig(cnf config.Provider, token string) *openapi.APIClient {
 	apiConfig := openapi.NewConfiguration()
 	apiConfig.Host = "localhost:" + cnf.Port
