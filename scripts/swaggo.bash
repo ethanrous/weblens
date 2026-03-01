@@ -33,7 +33,7 @@ printf "########## END OF SWAG INIT ##########\n\n" >>./_build/logs/swag.log
 
 printf "Generating typescript api..."
 # export TS_POST_PROCESS_FILE="prettier --write"
-if ! openapi-generator generate -i docs/swagger.json -g typescript-axios -o ./api/ts/generated --additional-properties=useESModules=true &>./_build/logs/swag-typescript.log; then
+if ! "$(pnpm bin -g)"/openapi-generator-cli generate -i docs/swagger.json -g typescript-axios -o ./api/ts/generated --additional-properties=useESModules=true &>./_build/logs/swag-typescript.log; then
     echo "FAILED"
     cat ./_build/logs/swag-typescript.log
     echo "########## ^ Openapi Generator Logs ^ ##########"
@@ -51,7 +51,7 @@ echo "DONE"
 
 printf "Generating go api..."
 rm ./api/*.go
-if ! openapi-generator generate -i docs/swagger.json -g go --git-user-id ethanrous --git-repo-id weblens/api -o ./api/ &>./_build/logs/swag-go.log; then
+if ! "$(pnpm bin -g)"/openapi-generator-cli generate -i docs/swagger.json -g go --git-user-id ethanrous --git-repo-id weblens/api -o ./api/ &>./_build/logs/swag-go.log; then
     echo "FAILED"
     cat ./_build/logs/swag-go.log
     echo "########## ^ Openapi Generator Logs ^ ##########"
