@@ -33,6 +33,10 @@ import (
 
 func init() {
 	startup.RegisterHook(func(ctx context.Context, cp config.Provider) error {
+		if !cp.DoAutomaticBackup {
+			return nil
+		}
+
 		go BackupD(context_mod.ToZ(ctx), cp.BackupInterval)
 
 		return nil
@@ -397,6 +401,7 @@ func handleFileAction(ctx context_service.AppContext, a history_model.FileAction
 
 	ctx.Log().Trace().Msgf("Handling backup action [%s] for file [%s]", a.ActionType, backupFilePath)
 
+	// If the file already exists, we may need to move or delete it depending on the action type
 	if existingFile != nil {
 		if a.ActionType == history_model.FileDelete {
 			return ctx.FileService.DeleteFiles(ctx, existingFile)
@@ -411,6 +416,11 @@ func handleFileAction(ctx context_service.AppContext, a history_model.FileAction
 			return ctx.FileService.MoveFiles(ctx, []*file_model.WeblensFileImpl{existingFile}, newParent)
 		}
 
+		return nil
+	}
+
+	// If the file doesn't exist and the action is a delete, we can just ignore it since we already don't have the file.
+	if a.ActionType == history_model.FileDelete {
 		return nil
 	}
 
@@ -446,6 +456,8 @@ func handleFileAction(ctx context_service.AppContext, a history_model.FileAction
 
 		return nil
 	}
+
+	// If all else fails, copy the file.
 
 	// If the action has no contentID, it means the file was created but has no content
 	if a.ContentID == "" {

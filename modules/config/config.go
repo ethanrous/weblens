@@ -83,6 +83,9 @@ type Provider struct {
 	// DoFileDiscovery Indicates whether to perform file discovery on startup. This is only set to true when running the main Weblens server,
 	// and not during tests or other auxiliary binaries.
 	DoFileDiscovery bool
+	// DoAutomaticBackup indicates whether to start the automatic backup daemon on startup.
+	// When false, manual backups via BackupOne still work. Defaults to true in production.
+	DoAutomaticBackup bool
 }
 
 // Merge merges another Provider into the current one, overriding any non-zero values.
@@ -155,6 +158,7 @@ func (c Provider) Merge(o Provider) Provider {
 	c.DoProfile = o.DoProfile
 	c.GenerateAdminAPIToken = o.GenerateAdminAPIToken
 	c.DoFileDiscovery = o.DoFileDiscovery
+	c.DoAutomaticBackup = o.DoAutomaticBackup
 
 	return c
 }
@@ -190,8 +194,9 @@ func getDefaultConfig() Provider {
 		WorkerCount:    runtime.NumCPU(),
 		BackupInterval: time.Hour,
 
-		DoCache:   true,
-		DoProfile: false,
+		DoCache:           true,
+		DoProfile:         false,
+		DoAutomaticBackup: true,
 	}
 }
 
