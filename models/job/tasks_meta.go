@@ -299,7 +299,7 @@ type BackupMeta struct {
 func (m BackupMeta) MetaString() string {
 	data := map[string]any{
 		"JobName":  BackupTask,
-		"remoteID": m.Core,
+		"remoteID": m.Core.TowerID,
 	}
 
 	bs, err := json.Marshal(data)

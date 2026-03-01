@@ -33,6 +33,10 @@ import (
 
 func init() {
 	startup.RegisterHook(func(ctx context.Context, cp config.Provider) error {
+		if !cp.DoAutomaticBackup {
+			return nil
+		}
+
 		go BackupD(context_mod.ToZ(ctx), cp.BackupInterval)
 
 		return nil
