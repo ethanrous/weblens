@@ -94,7 +94,7 @@ func setupTestServer(ctx context.Context, name string, settings ...config.Provid
 
 	ctx, cancel := context.WithCancel(ctx)
 	startedChan := make(chan context_service.AppContext)
-	failedChan := make(chan error)
+	failedChan := make(chan error, 1)
 
 	ctx = context.WithValue(ctx, cryptography.BcryptDifficultyCtxKey, 1)
 
