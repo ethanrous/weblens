@@ -95,7 +95,7 @@ function isProcessRunning(pid: number): boolean {
 
 export async function startTestBackend(workerIndex: number, testName: string): Promise<TestBackend> {
     const port = WEBLENS_PORT_BASE + workerIndex * 1000 + randomInt(999)
-    const dbName = `pw-${testName.replaceAll('/', '_')}`.slice(0, 63) // MongoDB database names have a max length of 64
+    const dbName = `pw-${testName.replaceAll('/', '_').replaceAll('.', '_')}`.slice(0, 63) // MongoDB database names have a max length of 64
 
     // Fresh filesystem per test
     const fsDir = path.join(PW_DIR, 'fs', `worker-${workerIndex}`)
@@ -156,9 +156,10 @@ export async function startTestBackend(workerIndex: number, testName: string): P
     const start = Date.now()
     const baseURL = `http://localhost:${port}`
     await pollHealth(`${baseURL}/health`, 25_000, logPath)
-    console.debug(
-        `Backend for test ${testName} with PID ${child.pid} on port :${port} is healthy after ${Date.now() - start}ms - logs at ${logPath}`,
-    )
+    if (VERBOSE)
+        console.debug(
+            `Backend for test ${testName} with PID ${child.pid} on port :${port} is healthy after ${Date.now() - start}ms - logs at ${logPath}`,
+        )
 
     return { baseURL, port, dbName, workerIndex, process: child, logPath }
 }

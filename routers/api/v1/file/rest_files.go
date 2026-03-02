@@ -740,7 +740,7 @@ func CreateTakeout(ctx context_service.RequestContext) {
 	completed, status := t.Status()
 	if completed && status == task.TaskSuccess {
 		result := t.GetResult()
-		res := wlstructs.TakeoutInfo{TakeoutID: result["takeoutID"].(string), Single: false, Filename: result["filename"].(string)}
+		res := wlstructs.TakeoutInfo{TakeoutID: result["takeoutID"].(string), TaskID: t.ID(), Single: false, Filename: result["filename"].(string)}
 		ctx.JSON(http.StatusOK, res)
 	} else {
 		ctx.JSON(http.StatusAccepted, wlstructs.TakeoutInfo{TaskID: t.ID()})

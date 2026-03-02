@@ -73,7 +73,11 @@ func CreateZip(tsk *task.Task) {
 	zipName := takeoutKey
 
 	if !strings.HasSuffix(zipName, ".zip") {
-		zipName = zipName + ".zip"
+		if len(zipMeta.Files) > 1 {
+			zipName = zipName + ".weblens.zip"
+		} else {
+			zipName = zipName + ".zip"
+		}
 	}
 
 	ctx = ctx.WithValue(file_service.SkipJournalKey, true)

@@ -98,7 +98,19 @@ export async function handleDownload(
                     return
                 }
 
-                await downloadSingleFile(takeoutInfo.takeoutID, takeoutInfo.filename, 'zip')
+                let filename: string
+                if (targetFiles.length === 1) {
+                    // Single directory: use the directory name (backend returns dirname.zip)
+                    filename = takeoutInfo.filename
+                } else {
+                    // Multiple files: use taskID.weblens.zip
+                    if (!taskID) {
+                        console.warn('Missing taskID for multi-file download, using takeoutID as fallback')
+                    }
+                    filename = (taskID ?? takeoutInfo.takeoutID) + '.weblens.zip'
+                }
+
+                await downloadSingleFile(takeoutInfo.takeoutID, filename, 'zip')
                     // .then(() => {
                     //     menuStore.setMenuOpen(false)
                     // })
@@ -139,9 +151,7 @@ export async function downloadSingleFile(
 
     const url = API_ENDPOINT.value + args.url
 
-    if (format === 'zip') {
-        filename = 'weblens_download_' + filename
-    } else if (format) {
+    if (format && format !== 'zip') {
         filename = filename.split('.').slice(0, -1).join('.') + '.' + format
     }
 
@@ -179,6 +189,7 @@ export async function downloadManyFiles(
         }
     } else if (res.status === 200) {
         return {
+            taskID: res.data.taskID,
             takeoutInfo: Promise.resolve(res.data),
         }
     } else {
