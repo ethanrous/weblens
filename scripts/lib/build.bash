@@ -23,7 +23,7 @@ build_frontend() {
 export -f build_frontend
 
 build_weblens_binary() {
-    lazy=false
+    local lazy=false
     while [ "${1:-}" != "" ]; do
         case "$1" in
         "--lazy")
@@ -37,7 +37,7 @@ build_weblens_binary() {
         shift
     done
 
-    debug_bin="$WEBLENS_ROOT/_build/bin/weblens_debug"
+    local debug_bin="$WEBLENS_ROOT/_build/bin/weblens_debug"
 
     if [[ "$lazy" = true ]] && [[ -f "$debug_bin" ]]; then
         printf "Skipping Weblens binary build (lazy mode)...\n"
