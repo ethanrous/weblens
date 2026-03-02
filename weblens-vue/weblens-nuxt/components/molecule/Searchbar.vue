@@ -26,7 +26,6 @@
                 clear-button
                 @focused="handleSearchFocused"
                 @submit="handleSubmit"
-                @clear="handleSubmit('')"
             >
                 <IconSearch
                     size="20"
@@ -183,16 +182,12 @@ function handleSearchFocused() {
     }
 }
 
-async function handleSubmit(v: string) {
+async function handleSubmit() {
     filterOpen.value = false
-
-    locationStore.search = v
+    filesStore.searchUpToDate = true
 
     if (locationStore.isInTimeline) {
         mediaStore.clearData()
-    } else {
-        await nextTick()
-        await filesStore.doSearch()
     }
 }
 

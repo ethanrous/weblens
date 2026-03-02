@@ -64,10 +64,6 @@ const useFilesStore = defineStore('files', () => {
 
     const searchUpToDate = ref<boolean>(true)
 
-    const loading = ref<boolean>(false)
-
-    const searchResults = shallowRef<WeblensFile[] | undefined>()
-
     const isSearching = computed(() => {
         return locationStore.search !== ''
     })
@@ -81,9 +77,6 @@ const useFilesStore = defineStore('files', () => {
                 locationStore.search = ''
             }
 
-            searchResults.value = undefined
-            searchUpToDate.value = false
-
             initFolderSettings()
 
             sortCondition.value = foldersSettings.value[locationStore.activeFolderID]?.sortCondition ?? 'updatedAt'
@@ -93,7 +86,11 @@ const useFilesStore = defineStore('files', () => {
         { immediate: true },
     )
 
-    const { data, error, status } = useAsyncData(
+    const {
+        data,
+        error,
+        status: folderStatus,
+    } = useAsyncData(
         'files-' + locationStore.activeFolderID,
         async () => {
             if (!user.value.isLoggedIn.isSet() || (!locationStore.activeFolderID && !locationStore.isInShare)) {
@@ -326,16 +323,12 @@ const useFilesStore = defineStore('files', () => {
         sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
 
         saveFoldersSettings()
-
-        if (isSearching.value) doSearch()
     }
 
     function setSortCondition(newSortCondition: SortCondition) {
         sortCondition.value = newSortCondition
 
         saveFoldersSettings()
-
-        if (isSearching.value) doSearch()
     }
 
     function setFileShape(newFileShape: FileShape) {
@@ -350,19 +343,15 @@ const useFilesStore = defineStore('files', () => {
 
     function setSearchRecurively(recursive: boolean) {
         searchRecurively.value = recursive
-
-        if (isSearching.value) doSearch()
     }
 
     function setSearchWithRegex(useRegex: boolean) {
         searchWithRegex.value = useRegex
-
-        if (isSearching.value) doSearch()
     }
 
-    function setLoading(load: boolean) {
-        loading.value = load
-    }
+    // function setLoading(load: boolean) {
+    //     loading.value = load
+    // }
 
     function getNextFileID(currentFileID: string): string | null {
         const index = files.value.findIndex((f) => f.ID() === currentFileID)
@@ -382,15 +371,13 @@ const useFilesStore = defineStore('files', () => {
         return files.value[index - 1].ID()
     }
 
-    async function doSearch() {
-        if (!locationStore.search || (locationStore.search as string).trim() === '') {
-            searchResults.value = undefined
-            return
-        }
+    const { data: searchResults, status: searchStatus } = useAsyncData(
+        'file-search',
+        async () => {
+            if (!locationStore.search || !searchUpToDate.value || (locationStore.search as string).trim() === '') {
+                return
+            }
 
-        loading.value = true
-
-        return (async () => {
             const res = await useWeblensAPI().FilesAPI.searchByFilename(
                 locationStore.search as string,
                 locationStore.activeFolderID,
@@ -399,17 +386,25 @@ const useFilesStore = defineStore('files', () => {
                 searchRecurively.value,
                 searchWithRegex.value,
             )
+
             const results = res.data.map((f) => {
                 return new WeblensFile(f)
             })
 
-            searchResults.value = results
-
-            searchUpToDate.value = true
-        })().finally(() => {
-            loading.value = false
-        })
-    }
+            return results
+        },
+        {
+            watch: [
+                () => locationStore.search,
+                searchRecurively,
+                searchWithRegex,
+                sortCondition,
+                sortDirection,
+                searchUpToDate,
+            ],
+            lazy: true,
+        },
+    )
 
     // Computed Properties //
     const activeFile = computed(() => {
@@ -453,26 +448,19 @@ const useFilesStore = defineStore('files', () => {
             return []
         }
 
-        let files = children.value
-        if (locationStore.search !== '' && !searchRecurively.value) {
-            const search = (locationStore.search as string).toLowerCase()
-
-            files = files.filter((f) => {
-                return f.GetFilename().toLowerCase().includes(search)
-            })
-        }
-
-        files = files.filter((f) => !f.IsTrash())
-
-        return files
+        return children.value.filter((f) => !f.IsTrash())
     })
 
     watch(
         () => locationStore.search,
         () => {
-            searchUpToDate.value = false
+            searchUpToDate.value = !searchRecurively.value
         },
     )
+
+    const loading = computed(() => {
+        return searchStatus.value === 'pending' || folderStatus.value === 'pending'
+    })
 
     return {
         files,
@@ -483,11 +471,9 @@ const useFilesStore = defineStore('files', () => {
 
         children,
         parents,
-        status,
         fileFetchError,
 
         loading,
-        setLoading,
 
         movedFiles,
         selectedFiles,
@@ -530,7 +516,6 @@ const useFilesStore = defineStore('files', () => {
         setSearchWithRegex,
         searchResults,
         searchUpToDate,
-        doSearch,
     }
 })
 
