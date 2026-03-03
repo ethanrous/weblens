@@ -12,11 +12,10 @@
 
         <div
             v-else-if="rows.rows.length === 0 && !mediaStore.timelineLoading"
-            :class="{ 'm-auto flex flex-col items-center': true }"
+            :class="{ 'm-auto flex flex-col items-center gap-3': true }"
         >
-            <h3 :class="{ 'border-b': true }">No media found</h3>
-            <h4>Adjust filters</h4>
-            <span>Or</span>
+            <h3 :class="{ 'text-text-secondary text-lg': true }">No media found</h3>
+            <p :class="{ 'text-text-tertiary text-sm': true }">Try adjusting your filters</p>
             <WeblensButton
                 label="Return to Files"
                 @click="useLocationStore().isInTimeline = false"

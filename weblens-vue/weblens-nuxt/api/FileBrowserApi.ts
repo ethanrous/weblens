@@ -202,7 +202,7 @@ export async function moveFiles(target: WeblensFile) {
 
     const selectedIds = [...filesStore.selectedFiles]
 
-    filesStore.setMovedFile(selectedIds, true)
+    filesStore.removeFiles(...selectedIds)
 
     filesStore.setDragging(false)
 

@@ -16,6 +16,10 @@ const VERBOSE = Boolean(process.env.WEBLENS_VERBOSE)
 const WEBLENS_PORT_BASE = 10100
 const MONGO_PORT = 27020
 
+export function showLogFile(logFile: string): string {
+    return '_build' + logFile.split('_build')[1]
+}
+
 export function makeLogFile(
     workerIndex: number,
     logClass: string,
@@ -34,7 +38,7 @@ export function makeLogFile(
     fs.mkdirSync(path.dirname(logPath), { recursive: true, mode: 0o777 })
     // Clear existing log
     if (!opts?.noCreate) {
-        if (VERBOSE) console.debug(`[worker-${workerIndex}] Creating log file at ${logPath}...`)
+        if (VERBOSE) console.debug(`[worker-${workerIndex}] Creating log file at ${showLogFile(logPath)}...`)
         fs.closeSync(fs.openSync(logPath, 'w', 0o777))
     }
 
@@ -50,7 +54,7 @@ export interface TestBackend {
     logPath: string
 }
 
-function pollHealth(url: string, timeoutMs: number, logPath?: string): Promise<void> {
+function pollHealth(url: string, timeoutMs: number, logPath: string): Promise<void> {
     const start = Date.now()
     return new Promise((resolve, reject) => {
         const check = () => {
@@ -70,7 +74,11 @@ function pollHealth(url: string, timeoutMs: number, logPath?: string): Promise<v
 
         const retry = () => {
             if (Date.now() - start > timeoutMs) {
-                reject(new Error(`Backend did not become healthy within ${timeoutMs}ms. Check logs at ${logPath}`))
+                reject(
+                    new Error(
+                        `Backend did not become healthy within ${timeoutMs}ms. Check logs at ${showLogFile(logPath)}`,
+                    ),
+                )
                 return
             }
             setTimeout(check, 500)

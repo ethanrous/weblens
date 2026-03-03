@@ -29,8 +29,6 @@ test.describe('Media Timeline', () => {
             timeout: 15000,
         })
 
-        // Verify the "Adjust filters" text and "Return to Files" button
-        await expect(page.getByText('Adjust filters')).toBeVisible()
         await expect(page.getByRole('button', { name: 'Return to Files' })).toBeVisible()
     })
 

@@ -294,19 +294,75 @@ func (a *MediaAPIService) DropMediaExecute(r ApiDropMediaRequest) (*http.Respons
 type ApiGetMediaRequest struct {
 	ctx context.Context
 	ApiService *MediaAPIService
-	request *MediaBatchParams
 	shareID *string
-}
-
-// Media Batch Params
-func (r ApiGetMediaRequest) Request(request MediaBatchParams) ApiGetMediaRequest {
-	r.request = &request
-	return r
+	raw *bool
+	hidden *bool
+	sort *string
+	sortDirection *int32
+	search *string
+	page *int32
+	limit *int32
+	folderIDs *[]string
+	mediaIDs *[]string
 }
 
 // File ShareID
 func (r ApiGetMediaRequest) ShareID(shareID string) ApiGetMediaRequest {
 	r.shareID = &shareID
+	return r
+}
+
+// Include raw media
+func (r ApiGetMediaRequest) Raw(raw bool) ApiGetMediaRequest {
+	r.raw = &raw
+	return r
+}
+
+// Include hidden media
+func (r ApiGetMediaRequest) Hidden(hidden bool) ApiGetMediaRequest {
+	r.hidden = &hidden
+	return r
+}
+
+// Sort field
+func (r ApiGetMediaRequest) Sort(sort string) ApiGetMediaRequest {
+	r.sort = &sort
+	return r
+}
+
+// Sort direction
+func (r ApiGetMediaRequest) SortDirection(sortDirection int32) ApiGetMediaRequest {
+	r.sortDirection = &sortDirection
+	return r
+}
+
+// Search query
+func (r ApiGetMediaRequest) Search(search string) ApiGetMediaRequest {
+	r.search = &search
+	return r
+}
+
+// Page number
+func (r ApiGetMediaRequest) Page(page int32) ApiGetMediaRequest {
+	r.page = &page
+	return r
+}
+
+// Page size
+func (r ApiGetMediaRequest) Limit(limit int32) ApiGetMediaRequest {
+	r.limit = &limit
+	return r
+}
+
+// Folder IDs to filter by
+func (r ApiGetMediaRequest) FolderIDs(folderIDs []string) ApiGetMediaRequest {
+	r.folderIDs = &folderIDs
+	return r
+}
+
+// Media IDs to fetch
+func (r ApiGetMediaRequest) MediaIDs(mediaIDs []string) ApiGetMediaRequest {
+	r.mediaIDs = &mediaIDs
 	return r
 }
 
@@ -331,7 +387,7 @@ func (a *MediaAPIService) GetMedia(ctx context.Context) ApiGetMediaRequest {
 //  @return MediaBatchInfo
 func (a *MediaAPIService) GetMediaExecute(r ApiGetMediaRequest) (*MediaBatchInfo, *http.Response, error) {
 	var (
-		localVarHTTPMethod   = http.MethodPost
+		localVarHTTPMethod   = http.MethodGet
 		localVarPostBody     interface{}
 		formFiles            []formFile
 		localVarReturnValue  *MediaBatchInfo
@@ -347,12 +403,36 @@ func (a *MediaAPIService) GetMediaExecute(r ApiGetMediaRequest) (*MediaBatchInfo
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
-	if r.request == nil {
-		return localVarReturnValue, nil, reportError("request is required and must be specified")
-	}
 
 	if r.shareID != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "shareID", r.shareID, "", "")
+	}
+	if r.raw != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "raw", r.raw, "", "")
+	}
+	if r.hidden != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "hidden", r.hidden, "", "")
+	}
+	if r.sort != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "sort", r.sort, "", "")
+	}
+	if r.sortDirection != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "sortDirection", r.sortDirection, "", "")
+	}
+	if r.search != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "search", r.search, "", "")
+	}
+	if r.page != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "page", r.page, "", "")
+	}
+	if r.limit != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "limit", r.limit, "", "")
+	}
+	if r.folderIDs != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "folderIDs", r.folderIDs, "form", "csv")
+	}
+	if r.mediaIDs != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "mediaIDs", r.mediaIDs, "form", "csv")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -371,8 +451,6 @@ func (a *MediaAPIService) GetMediaExecute(r ApiGetMediaRequest) (*MediaBatchInfo
 	if localVarHTTPHeaderAccept != "" {
 		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
 	}
-	// body params
-	localVarPostBody = r.request
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err

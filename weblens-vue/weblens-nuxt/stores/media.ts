@@ -136,17 +136,15 @@ export const useMediaStore = defineStore('media', () => {
 
         const timelinePromise = useWeblensAPI()
             .MediaAPI.getMedia(
-                {
-                    raw: showRaw.value,
-                    hidden: false,
-                    sort: timelineSort.value,
-                    sortDirection: timelineSortDirection.value,
-                    page: mediaPageNum.value++,
-                    limit: TIMELINE_PAGE_SIZE,
-                    folderIDs: [locationStore.activeFolderID],
-                    search: locationStore.search,
-                },
                 locationStore.activeShareID,
+                showRaw.value,
+                false,
+                timelineSort.value,
+                timelineSortDirection.value,
+                locationStore.search,
+                mediaPageNum.value++,
+                TIMELINE_PAGE_SIZE,
+                [locationStore.activeFolderID],
             )
             .then((res) => {
                 const medias =

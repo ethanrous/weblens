@@ -1,6 +1,6 @@
 import { test as base, expect, type Page, type TestInfo } from '@playwright/test'
 import { addCoverageReport } from 'monocart-reporter'
-import { makeLogFile, startTestBackend, stopTestBackend, type TestBackend } from './backend-manager'
+import { makeLogFile, showLogFile, startTestBackend, stopTestBackend, type TestBackend } from './backend-manager'
 import fs from 'fs'
 
 const DEFAULT_ADMIN_USERNAME = 'admin'
@@ -11,10 +11,6 @@ type Fixtures = {
     testBackend: TestBackend
     login: unknown
     logPath: string
-}
-
-function showLogFile(logFile: string): string {
-    return '_build' + logFile.split('_build')[1]
 }
 
 const test = base.extend<Fixtures>({

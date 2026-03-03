@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ethanrous/weblens/models/client"
@@ -162,6 +163,21 @@ func (c RequestContext) QueryIntDefault(paramName string, defaultValue int64) (i
 	}
 
 	return c.QueryInt(paramName)
+}
+
+// QueryArray retrieves a query parameter and splits it into an array using commas as separators.
+func (c RequestContext) QueryArray(paramName string) []string {
+	queryStr := c.Query(paramName)
+	if queryStr == "" {
+		return []string{}
+	}
+
+	parts := strings.Split(queryStr, ",")
+	for i, part := range parts {
+		parts[i] = strings.TrimSpace(part)
+	}
+
+	return parts
 }
 
 func (c RequestContext) Error(code int, err error) {

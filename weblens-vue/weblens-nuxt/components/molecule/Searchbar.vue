@@ -16,8 +16,13 @@
                 ref="searchInput"
                 v-model:value="locationStore.search"
                 :class="{
-                    'bg-background-primary h-10! w-full shrink rounded-none border-b-0': true,
+                    'bg-background-primary min-h-10! w-full shrink gap-0! rounded-none border-b-0': true,
                     'bg-background-primary!': filterOpen,
+                }"
+                :input-class="{
+                    'lg:ml-2': true,
+                    'ml-2': filterOpen,
+                    'max-w-0 lg:max-w-full': !filterOpen,
                 }"
                 :placeholder="searchText"
                 :key-name="keyHintText"
@@ -36,6 +41,7 @@
                         v-if="!slotProps.focused && !filterOpen && locationStore.search === ''"
                         :class="{
                             'text-text-tertiary pointer-events-none text-nowrap transition': true,
+                            'hidden lg:inline-flex': true,
                         }"
                     >
                         <span>
@@ -43,7 +49,7 @@
                         </span>
                     </div>
                     <div
-                        :class="{ 'relative flex justify-center border-l pl-2': true }"
+                        :class="{ 'relative ml-3 flex justify-center border-l pl-2': true }"
                         @click.stop="
                             () => {
                                 filterOpen = !filterOpen

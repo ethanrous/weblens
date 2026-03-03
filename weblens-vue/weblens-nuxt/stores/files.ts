@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { SubToFolder, UnsubFromFolder } from '~/api/FileBrowserApi'
-import WeblensFile from '~/types/weblensFile'
+import WeblensFile, { SelectedState } from '~/types/weblensFile'
 import useLocationStore from './location'
 import { onWatcherCleanup } from 'vue'
 import type { AxiosResponse } from 'axios'
@@ -41,12 +41,11 @@ const useFilesStore = defineStore('files', () => {
     const user = computed(() => userStore.user)
 
     // Local State //
-    const children = shallowRef<WeblensFile[]>()
+    const files = shallowRef<WeblensFile[]>([])
 
     const selectedFiles = ref<Set<string>>(new Set())
-    const movedFiles = ref<Set<string>>(new Set())
 
-    const lastSelected = ref<string | null>(null)
+    const lastSelectedID = ref<string | null>(null)
     const nextSelectedIndex = ref<number | null>(null) // This is used to track the next file to be selected when using shift-click
     const shiftPressed = ref<boolean>(false) // This is used to track the next file to be selected when using shift-click
 
@@ -87,7 +86,7 @@ const useFilesStore = defineStore('files', () => {
     )
 
     const {
-        data,
+        data: filesResponse,
         error,
         status: folderStatus,
     } = useAsyncData(
@@ -145,7 +144,7 @@ const useFilesStore = defineStore('files', () => {
                 f.contentCreationDate = new Date(m.createDate)
             })
 
-            children.value = newChildren
+            // children.value = newChildren
 
             const parents = res.data.parents?.map((fInfo) => new WeblensFile(fInfo))
             const activeFile = new WeblensFile(res.data.self)
@@ -172,6 +171,104 @@ const useFilesStore = defineStore('files', () => {
         return new WLError(error.value)
     })
 
+    const { data: searchResults, status: searchStatus } = useAsyncData(
+        'file-search',
+        async () => {
+            if (
+                !locationStore.search ||
+                !searchUpToDate.value ||
+                locationStore.isInTimeline ||
+                (locationStore.search as string).trim() === ''
+            ) {
+                return
+            }
+
+            const res = await useWeblensAPI().FilesAPI.searchByFilename(
+                locationStore.search as string,
+                locationStore.activeFolderID,
+                sortCondition.value,
+                sortDirection.value,
+                searchRecurively.value,
+                searchWithRegex.value,
+            )
+
+            const results = res.data.map((f) => {
+                return new WeblensFile(f)
+            })
+
+            return results
+        },
+        {
+            watch: [
+                () => locationStore.search,
+                searchRecurively,
+                searchWithRegex,
+                sortCondition,
+                sortDirection,
+                searchUpToDate,
+            ],
+            lazy: true,
+        },
+    )
+
+    // Computed Properties //
+    const activeFile = computed(() => {
+        return filesResponse.value?.activeFile
+    })
+
+    const parents = computed(() => {
+        return filesResponse.value?.parents
+    })
+
+    // Watchers //
+
+    // When the active folder changes, clear selected files and reinitialize folder settings
+    watchEffect(() => {
+        const _activeFolderID = locationStore.activeFolderID
+        if (!_activeFolderID) {
+            return
+        }
+
+        SubToFolder(_activeFolderID, locationStore.activeShareID)
+
+        onWatcherCleanup(() => {
+            UnsubFromFolder(_activeFolderID)
+        })
+    })
+
+    watchEffect(() => {
+        if (isSearching.value) {
+            files.value = searchResults.value ?? []
+        }
+
+        if (!filesResponse.value?.children) {
+            files.value = []
+
+            return
+        }
+
+        files.value = filesResponse.value?.children.filter((f) => !f.IsTrash())
+    })
+
+    const lastSelectedIndex = computed(() => {
+        if (!lastSelectedID.value) {
+            return -1
+        }
+
+        return files.value.findIndex((f) => f.ID() === lastSelectedID.value)
+    })
+
+    watch(
+        () => locationStore.search,
+        () => {
+            searchUpToDate.value = !searchRecurively.value
+        },
+    )
+
+    const loading = computed(() => {
+        return searchStatus.value === 'pending' || folderStatus.value === 'pending'
+    })
+
     // Funcs //
     function setSelected(fileID: string, selected: boolean, doShiftSelect = false) {
         if (selected) {
@@ -188,7 +285,7 @@ const useFilesStore = defineStore('files', () => {
             }
 
             selectedFiles.value.add(fileID)
-            lastSelected.value = fileID
+            lastSelectedID.value = fileID
         } else {
             selectedFiles.value.delete(fileID)
         }
@@ -213,11 +310,11 @@ const useFilesStore = defineStore('files', () => {
     }
 
     function selectAll() {
-        if (!children.value) {
+        if (!files.value) {
             return
         }
 
-        selectedFiles.value = new Set(children.value.map((file) => file.ID()))
+        selectedFiles.value = new Set(files.value.map((file) => file.ID()))
     }
 
     function clearSelected() {
@@ -225,7 +322,7 @@ const useFilesStore = defineStore('files', () => {
     }
 
     function getFileByID(id: string): WeblensFile | undefined {
-        if (!children.value) {
+        if (!files.value) {
             return undefined
         }
 
@@ -233,11 +330,11 @@ const useFilesStore = defineStore('files', () => {
             return activeFile.value
         }
 
-        return children.value.find((file) => file.ID() === id)
+        return files.value.find((file) => file.ID() === id)
     }
 
     function addFile(file: FileInfo) {
-        if (!children.value) {
+        if (!files.value) {
             return
         }
 
@@ -247,26 +344,25 @@ const useFilesStore = defineStore('files', () => {
 
         const newFile = new WeblensFile(file)
 
-        const index = children.value.findIndex((file) => file.ID() === newFile.ID())
+        const index = files.value.findIndex((file) => file.ID() === newFile.ID())
         if (index !== -1) {
-            children.value.splice(index, 1)
+            files.value.splice(index, 1)
         }
 
         if (!newFile.permissions && newFile.ParentID() === locationStore.activeFolderID) {
             newFile.permissions = activeFile.value?.permissions
         }
 
-        children.value.push(newFile)
+        files.value.push(newFile)
 
-        triggerRef(children)
+        triggerRef(files)
     }
 
     function removeFiles(...fileIDs: string[]) {
-        if (!children.value) {
-            return
-        }
-
-        const newChildren = children.value
+        const filesMap = files.value.reduce<Record<string, WeblensFile | undefined>>((acc, f) => {
+            acc[f.ID()] = f
+            return acc
+        }, {})
 
         for (const fileID of fileIDs) {
             if (fileID === locationStore.activeFolderID) {
@@ -274,31 +370,14 @@ const useFilesStore = defineStore('files', () => {
                 continue
             }
 
-            const index = newChildren.findIndex((file) => file.ID() === fileID)
-            if (index !== -1) {
-                newChildren.splice(index, 1)
-            } else {
-                console.warn(`File with ID ${fileID} not found in children`)
-            }
+            filesMap[fileID]?.SetSelected(SelectedState.Moved)
+            filesMap[fileID] = undefined
         }
 
-        setMovedFile(fileIDs, false)
+        files.value = Object.values(filesMap).filter((f): f is WeblensFile => f !== undefined)
 
         // Trigger reactivity
-        triggerRef(children)
-    }
-
-    function setMovedFile(fileIDs: string[], moved: boolean) {
-        for (const fileID of fileIDs) {
-            if (moved) {
-                movedFiles.value.add(fileID)
-            } else {
-                movedFiles.value.delete(fileID)
-            }
-        }
-
-        // Trigger reactivity
-        triggerRef(movedFiles)
+        triggerRef(files)
     }
 
     function initFolderSettings() {
@@ -349,10 +428,6 @@ const useFilesStore = defineStore('files', () => {
         searchWithRegex.value = useRegex
     }
 
-    // function setLoading(load: boolean) {
-    //     loading.value = load
-    // }
-
     function getNextFileID(currentFileID: string): string | null {
         const index = files.value.findIndex((f) => f.ID() === currentFileID)
         if (index === -1 || index + 1 >= files.value.length) {
@@ -371,97 +446,6 @@ const useFilesStore = defineStore('files', () => {
         return files.value[index - 1].ID()
     }
 
-    const { data: searchResults, status: searchStatus } = useAsyncData(
-        'file-search',
-        async () => {
-            if (!locationStore.search || !searchUpToDate.value || (locationStore.search as string).trim() === '') {
-                return
-            }
-
-            const res = await useWeblensAPI().FilesAPI.searchByFilename(
-                locationStore.search as string,
-                locationStore.activeFolderID,
-                sortCondition.value,
-                sortDirection.value,
-                searchRecurively.value,
-                searchWithRegex.value,
-            )
-
-            const results = res.data.map((f) => {
-                return new WeblensFile(f)
-            })
-
-            return results
-        },
-        {
-            watch: [
-                () => locationStore.search,
-                searchRecurively,
-                searchWithRegex,
-                sortCondition,
-                sortDirection,
-                searchUpToDate,
-            ],
-            lazy: true,
-        },
-    )
-
-    // Computed Properties //
-    const activeFile = computed(() => {
-        return data.value?.activeFile
-    })
-
-    const parents = computed(() => {
-        return data.value?.parents
-    })
-
-    // Watchers //
-    // When the active folder changes, clear selected files and reinitialize folder settings
-
-    watchEffect(() => {
-        const _activeFolderID = locationStore.activeFolderID
-        if (!_activeFolderID) {
-            return
-        }
-
-        SubToFolder(_activeFolderID, locationStore.activeShareID)
-
-        onWatcherCleanup(() => {
-            UnsubFromFolder(_activeFolderID)
-        })
-    })
-
-    const lastSelectedIndex = computed(() => {
-        if (!lastSelected.value || !children.value) {
-            return -1
-        }
-
-        return files.value.findIndex((f) => f.ID() === lastSelected.value)
-    })
-
-    const files = computed(() => {
-        if (isSearching.value) {
-            return searchResults.value ?? []
-        }
-
-        if (!children.value) {
-            return []
-        }
-
-        return children.value.filter((f) => !f.IsTrash())
-    })
-
-    watch(
-        () => locationStore.search,
-        () => {
-            searchUpToDate.value = !searchRecurively.value
-        },
-    )
-
-    const loading = computed(() => {
-        return searchStatus.value === 'pending' || folderStatus.value === 'pending'
-    })
-
     return {
         files,
 
@@ -469,16 +453,14 @@ const useFilesStore = defineStore('files', () => {
 
         dragging,
 
-        children,
         parents,
         fileFetchError,
 
         loading,
 
-        movedFiles,
         selectedFiles,
 
-        lastSelected,
+        lastSelected: lastSelectedID,
         lastSelectedIndex,
         nextSelectedIndex,
         setNextSelectedIndex,
@@ -493,7 +475,6 @@ const useFilesStore = defineStore('files', () => {
         addFile,
         removeFiles,
         getFileByID,
-        setMovedFile,
 
         setSelected,
         selectAll,

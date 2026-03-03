@@ -54,3 +54,5 @@ And run this commend for changes made to vue or typescript code:
 ```bash
 pnpm run lint
 ```
+
+Assuming its running, you can access the frontend server at http://localhost:3000/ (be sure to use the playwright MCP server to debug) and the API server at http://localhost:8080/. Both servers will automatically reload when you make changes to the code, allowing for a smooth development experience. If you encounter any issues or have questions about the development setup, ask the user who provided you with this information for further assistance.

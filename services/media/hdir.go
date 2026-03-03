@@ -68,6 +68,8 @@ func SortMediaByTextSimilarity(ctx context_service.AppContext, search string, ms
 	}
 
 	if len(scores) == 0 {
+		ctx.Log().Debug().Msgf("No similarity scores returned from HDIR search for query '%s'", search)
+
 		return []ScoreWrapper{}, nil
 	}
 

@@ -109,7 +109,7 @@ Class | Method | HTTP request | Description
 *MediaAPI* | [**CleanupMedia**](docs/MediaAPI.md#cleanupmedia) | **Post** /media/cleanup | Make sure all media is correctly synced with the file system
 *MediaAPI* | [**DropHDIRs**](docs/MediaAPI.md#drophdirs) | **Post** /media/drop/hdirs | Drop all computed media HDIR data. Must be server owner.
 *MediaAPI* | [**DropMedia**](docs/MediaAPI.md#dropmedia) | **Post** /media/drop | DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
-*MediaAPI* | [**GetMedia**](docs/MediaAPI.md#getmedia) | **Post** /media | Get paginated media
+*MediaAPI* | [**GetMedia**](docs/MediaAPI.md#getmedia) | **Get** /media | Get paginated media
 *MediaAPI* | [**GetMediaFile**](docs/MediaAPI.md#getmediafile) | **Get** /media/{mediaID}/file | Get file of media by id
 *MediaAPI* | [**GetMediaImage**](docs/MediaAPI.md#getmediaimage) | **Get** /media/{mediaID}.{extension} | Get a media image bytes
 *MediaAPI* | [**GetMediaInfo**](docs/MediaAPI.md#getmediainfo) | **Get** /media/{mediaID}/info | Get media info
@@ -167,7 +167,6 @@ Class | Method | HTTP request | Description
  - [HistoryFileAction](docs/HistoryFileAction.md)
  - [LoginBody](docs/LoginBody.md)
  - [MediaBatchInfo](docs/MediaBatchInfo.md)
- - [MediaBatchParams](docs/MediaBatchParams.md)
  - [MediaIDsParams](docs/MediaIDsParams.md)
  - [MediaInfo](docs/MediaInfo.md)
  - [MediaTypeInfo](docs/MediaTypeInfo.md)

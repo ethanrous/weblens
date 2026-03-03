@@ -219,21 +219,6 @@ interface MediaBatchInfo {
     'mediaCount'?: number;
     'totalMediaCount'?: number;
 }
-interface MediaBatchParams {
-    'folderIDs'?: Array<string>;
-    'hidden'?: boolean;
-    'limit'?: number;
-    'mediaIDs'?: Array<string>;
-    'page'?: number;
-    'raw'?: boolean;
-    'search'?: string;
-    'sort'?: MediaBatchParamsSortEnum;
-    'sortDirection'?: number;
-}
-declare const MediaBatchParamsSortEnum: {
-    readonly CreateDate: "createDate";
-};
-type MediaBatchParamsSortEnum = typeof MediaBatchParamsSortEnum[keyof typeof MediaBatchParamsSortEnum];
 interface MediaIDsParams {
     'mediaIDs'?: Array<string>;
 }
@@ -1624,12 +1609,20 @@ declare const MediaApiAxiosParamCreator: (configuration?: Configuration) => {
     /**
      *
      * @summary Get paginated media
-     * @param {MediaBatchParams} request Media Batch Params
      * @param {string} [shareID] File ShareID
+     * @param {boolean} [raw] Include raw media
+     * @param {boolean} [hidden] Include hidden media
+     * @param {GetMediaSortEnum} [sort] Sort field
+     * @param {GetMediaSortDirectionEnum} [sortDirection] Sort direction
+     * @param {string} [search] Search query
+     * @param {number} [page] Page number
+     * @param {number} [limit] Page size
+     * @param {Array<string>} [folderIDs] Folder IDs to filter by
+     * @param {Array<string>} [mediaIDs] Media IDs to fetch
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMedia: (request: MediaBatchParams, shareID?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    getMedia: (shareID?: string, raw?: boolean, hidden?: boolean, sort?: GetMediaSortEnum, sortDirection?: GetMediaSortDirectionEnum, search?: string, page?: number, limit?: number, folderIDs?: Array<string>, mediaIDs?: Array<string>, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Get file of media by id
@@ -1729,12 +1722,20 @@ declare const MediaApiFp: (configuration?: Configuration) => {
     /**
      *
      * @summary Get paginated media
-     * @param {MediaBatchParams} request Media Batch Params
      * @param {string} [shareID] File ShareID
+     * @param {boolean} [raw] Include raw media
+     * @param {boolean} [hidden] Include hidden media
+     * @param {GetMediaSortEnum} [sort] Sort field
+     * @param {GetMediaSortDirectionEnum} [sortDirection] Sort direction
+     * @param {string} [search] Search query
+     * @param {number} [page] Page number
+     * @param {number} [limit] Page size
+     * @param {Array<string>} [folderIDs] Folder IDs to filter by
+     * @param {Array<string>} [mediaIDs] Media IDs to fetch
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMedia(request: MediaBatchParams, shareID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MediaBatchInfo>>;
+    getMedia(shareID?: string, raw?: boolean, hidden?: boolean, sort?: GetMediaSortEnum, sortDirection?: GetMediaSortDirectionEnum, search?: string, page?: number, limit?: number, folderIDs?: Array<string>, mediaIDs?: Array<string>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MediaBatchInfo>>;
     /**
      *
      * @summary Get file of media by id
@@ -1834,12 +1835,20 @@ declare const MediaApiFactory: (configuration?: Configuration, basePath?: string
     /**
      *
      * @summary Get paginated media
-     * @param {MediaBatchParams} request Media Batch Params
      * @param {string} [shareID] File ShareID
+     * @param {boolean} [raw] Include raw media
+     * @param {boolean} [hidden] Include hidden media
+     * @param {GetMediaSortEnum} [sort] Sort field
+     * @param {GetMediaSortDirectionEnum} [sortDirection] Sort direction
+     * @param {string} [search] Search query
+     * @param {number} [page] Page number
+     * @param {number} [limit] Page size
+     * @param {Array<string>} [folderIDs] Folder IDs to filter by
+     * @param {Array<string>} [mediaIDs] Media IDs to fetch
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMedia(request: MediaBatchParams, shareID?: string, options?: RawAxiosRequestConfig): AxiosPromise<MediaBatchInfo>;
+    getMedia(shareID?: string, raw?: boolean, hidden?: boolean, sort?: GetMediaSortEnum, sortDirection?: GetMediaSortDirectionEnum, search?: string, page?: number, limit?: number, folderIDs?: Array<string>, mediaIDs?: Array<string>, options?: RawAxiosRequestConfig): AxiosPromise<MediaBatchInfo>;
     /**
      *
      * @summary Get file of media by id
@@ -1939,12 +1948,20 @@ declare class MediaApi extends BaseAPI {
     /**
      *
      * @summary Get paginated media
-     * @param {MediaBatchParams} request Media Batch Params
      * @param {string} [shareID] File ShareID
+     * @param {boolean} [raw] Include raw media
+     * @param {boolean} [hidden] Include hidden media
+     * @param {GetMediaSortEnum} [sort] Sort field
+     * @param {GetMediaSortDirectionEnum} [sortDirection] Sort direction
+     * @param {string} [search] Search query
+     * @param {number} [page] Page number
+     * @param {number} [limit] Page size
+     * @param {Array<string>} [folderIDs] Folder IDs to filter by
+     * @param {Array<string>} [mediaIDs] Media IDs to fetch
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMedia(request: MediaBatchParams, shareID?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<MediaBatchInfo, any, {}>>;
+    getMedia(shareID?: string, raw?: boolean, hidden?: boolean, sort?: GetMediaSortEnum, sortDirection?: GetMediaSortDirectionEnum, search?: string, page?: number, limit?: number, folderIDs?: Array<string>, mediaIDs?: Array<string>, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<MediaBatchInfo, any, {}>>;
     /**
      *
      * @summary Get file of media by id
@@ -2015,6 +2032,15 @@ declare class MediaApi extends BaseAPI {
      */
     streamVideo(mediaID: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any, {}>>;
 }
+declare const GetMediaSortEnum: {
+    readonly CreateDate: "createDate";
+};
+type GetMediaSortEnum = typeof GetMediaSortEnum[keyof typeof GetMediaSortEnum];
+declare const GetMediaSortDirectionEnum: {
+    readonly NUMBER_1: 1;
+    readonly NUMBER_MINUS_1: -1;
+};
+type GetMediaSortDirectionEnum = typeof GetMediaSortDirectionEnum[keyof typeof GetMediaSortDirectionEnum];
 declare const GetMediaImageQualityEnum: {
     readonly Thumbnail: "thumbnail";
     readonly Fullres: "fullres";
@@ -3117,4 +3143,4 @@ type WLAPI = {
 };
 declare function WeblensAPIFactory(apiEndpoint: string): WLAPI;
 
-export { type APIKeyParams, APIKeysApi, APIKeysApiAxiosParamCreator, APIKeysApiFactory, APIKeysApiFp, type AddUserParams, type BackupInfo, type Bundle, type CreateFolderBody, FeatureFlagsApi, FeatureFlagsApiAxiosParamCreator, FeatureFlagsApiFactory, FeatureFlagsApiFp, type FileActionInfo, type FileInfo, type FileShareParams, FilesApi, FilesApiAxiosParamCreator, FilesApiFactory, FilesApiFp, type FilesListParams, FolderApi, FolderApiAxiosParamCreator, FolderApiFactory, FolderApiFp, type FolderInfo, GetFolderSortOrderEnum, GetFolderSortPropEnum, GetMediaImageQualityEnum, type HistoryFileAction, type LoginBody, MediaApi, MediaApiAxiosParamCreator, MediaApiFactory, MediaApiFp, type MediaBatchInfo, type MediaBatchParams, MediaBatchParamsSortEnum, type MediaIDsParams, type MediaInfo, type MediaTypeInfo, type MediaTypesInfo, type MoveFilesParams, type NewFileParams, type NewFilesInfo, type NewFilesParams, type NewServerParams, type NewUploadInfo, type NewUploadParams, type NewUserParams, type PasswordUpdateParams, type PermissionsInfo, type PermissionsParams, type RestoreFilesBody, type RestoreFilesInfo, SearchByFilenameSortOrderEnum, SearchByFilenameSortPropEnum, ShareApi, ShareApiAxiosParamCreator, ShareApiFactory, ShareApiFp, type ShareInfo, type TakeoutInfo, type TaskInfo, type TokenInfo, type TowerHealth, TowerHealthStatusEnum, type TowerInfo, TowersApi, TowersApiAxiosParamCreator, TowersApiFactory, TowersApiFp, type UpdateFileParams, type UserInfo, type UserInfoArchive, UsersApi, UsersApiAxiosParamCreator, UsersApiFactory, UsersApiFp, type WLAPI, type WLResponseInfo, WeblensAPIFactory, type WeblensErrorInfo, type WlfsFilepath, type WlstructsInitServerParams, type WlstructsSetConfigParam };
+export { type APIKeyParams, APIKeysApi, APIKeysApiAxiosParamCreator, APIKeysApiFactory, APIKeysApiFp, type AddUserParams, type BackupInfo, type Bundle, type CreateFolderBody, FeatureFlagsApi, FeatureFlagsApiAxiosParamCreator, FeatureFlagsApiFactory, FeatureFlagsApiFp, type FileActionInfo, type FileInfo, type FileShareParams, FilesApi, FilesApiAxiosParamCreator, FilesApiFactory, FilesApiFp, type FilesListParams, FolderApi, FolderApiAxiosParamCreator, FolderApiFactory, FolderApiFp, type FolderInfo, GetFolderSortOrderEnum, GetFolderSortPropEnum, GetMediaImageQualityEnum, GetMediaSortDirectionEnum, GetMediaSortEnum, type HistoryFileAction, type LoginBody, MediaApi, MediaApiAxiosParamCreator, MediaApiFactory, MediaApiFp, type MediaBatchInfo, type MediaIDsParams, type MediaInfo, type MediaTypeInfo, type MediaTypesInfo, type MoveFilesParams, type NewFileParams, type NewFilesInfo, type NewFilesParams, type NewServerParams, type NewUploadInfo, type NewUploadParams, type NewUserParams, type PasswordUpdateParams, type PermissionsInfo, type PermissionsParams, type RestoreFilesBody, type RestoreFilesInfo, SearchByFilenameSortOrderEnum, SearchByFilenameSortPropEnum, ShareApi, ShareApiAxiosParamCreator, ShareApiFactory, ShareApiFp, type ShareInfo, type TakeoutInfo, type TaskInfo, type TokenInfo, type TowerHealth, TowerHealthStatusEnum, type TowerInfo, TowersApi, TowersApiAxiosParamCreator, TowersApiFactory, TowersApiFp, type UpdateFileParams, type UserInfo, type UserInfoArchive, UsersApi, UsersApiAxiosParamCreator, UsersApiFactory, UsersApiFp, type WLAPI, type WLResponseInfo, WeblensAPIFactory, type WeblensErrorInfo, type WlfsFilepath, type WlstructsInitServerParams, type WlstructsSetConfigParam };

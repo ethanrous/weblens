@@ -12,7 +12,6 @@ import (
 	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/models/share"
-	"github.com/ethanrous/weblens/modules/netwrk"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/modules/wlslices"
 	"github.com/ethanrous/weblens/modules/wlstructs"
@@ -30,41 +29,67 @@ import (
 //	@Summary	Get paginated media
 //	@Tags		Media
 //	@Produce	json
-//	@Param		request	body		wlstructs.MediaBatchParams	true	"Media Batch Params"
-//	@Param		shareID		query		string					false	"File ShareID"
+//	@Param		shareID			query	string						false	"File ShareID"
+//	@Param		raw				query	bool						false	"Include raw media"				Enums(true, false)
+//	@Param		hidden			query	bool						false	"Include hidden media"			Enums(true, false)
+//	@Param		sort			query	string						false	"Sort field"					Enums(createDate)
+//	@Param		sortDirection	query	int							false	"Sort direction"				Enums(1, -1)
+//	@Param		search			query	string						false	"Search query"
+//	@Param		page			query	int							false	"Page number"
+//	@Param		limit			query	int							false	"Page size"
+//	@Param		folderIDs		query	[]string					false	"Folder IDs to filter by"
+//	@Param		mediaIDs		query	[]string					false	"Media IDs to fetch"
 //	@Success	200			{object}	wlstructs.MediaBatchInfo	"Media Batch"
 //	@Success	400
 //	@Success	500
-//	@Router		/media [post]
+//	@Router		/media [get]
 func GetMediaBatch(ctx ctxservice.RequestContext) {
-	reqParams, err := netwrk.ReadRequestBody[wlstructs.MediaBatchParams](ctx.Req)
+	raw := ctx.QueryBool("raw")
+	hidden := ctx.QueryBool("hidden")
+	sort := ctx.Query("sort")
+	search := ctx.Query("search")
+	folderIDs := ctx.QueryArray("folderIDs")
+	mediaIDs := ctx.QueryArray("mediaIDs")
+
+	sortDirection, err := ctx.QueryInt("sortDirection")
 	if err != nil {
 		ctx.Error(http.StatusBadRequest, err)
 
 		return
 	}
 
-	if len(reqParams.FolderIDs) != 0 {
-		for _, folderID := range reqParams.FolderIDs {
+	page, err := ctx.QueryInt("page")
+	if err != nil {
+		ctx.Error(http.StatusBadRequest, err)
+
+		return
+	}
+
+	limit, err := ctx.QueryInt("limit")
+	if err != nil {
+		ctx.Error(http.StatusBadRequest, err)
+
+		return
+	}
+
+	if len(folderIDs) != 0 {
+		for _, folderID := range folderIDs {
 			_, err := file_api.CheckFileAccessByID(ctx, folderID, share.SharePermissionView)
 			if err != nil {
 				return
 			}
 		}
 
-		if reqParams.SortDirection == 0 {
-			reqParams.SortDirection = -1
+		if sortDirection == 0 {
+			sortDirection = -1
 		}
 
-		page := reqParams.Page
-		limit := reqParams.Limit
-
-		if reqParams.Search != "" {
+		if search != "" {
 			page = 0
 			limit = 9999999
 		}
 
-		media, totalMediaCount, err := getMediaInFolders(ctx, reqParams.FolderIDs, limit, page, reqParams.SortDirection, reqParams.Raw)
+		media, totalMediaCount, err := getMediaInFolders(ctx, folderIDs, int(limit), int(page), int(sortDirection), raw)
 		if err != nil {
 			ctx.Log().Error().Stack().Err(err).Msg("Failed to get media in folders")
 			ctx.Error(http.StatusInternalServerError, err)
@@ -72,8 +97,8 @@ func GetMediaBatch(ctx ctxservice.RequestContext) {
 
 		scores := []float64{}
 
-		if reqParams.Search != "" {
-			scoredMedia, err := media_service.SortMediaByTextSimilarity(ctx.AppContext, reqParams.Search, media, 0.60)
+		if search != "" {
+			scoredMedia, err := media_service.SortMediaByTextSimilarity(ctx.AppContext, search, media, 0.60)
 			if err != nil {
 				ctx.Error(http.StatusInternalServerError, err)
 
@@ -84,6 +109,8 @@ func GetMediaBatch(ctx ctxservice.RequestContext) {
 			totalMediaCount = len(media)
 
 			scores = wlslices.Map(scoredMedia, func(m media_service.ScoreWrapper) float64 { return m.Score })
+
+			ctx.Log().Trace().Msgf("Search query '%s' got %d matching scored media", search, len(scores))
 		}
 
 		batch := reshape.NewMediaBatchInfo(media, reshape.MediaBatchOptions{Scores: scores})
@@ -93,10 +120,10 @@ func GetMediaBatch(ctx ctxservice.RequestContext) {
 		return
 	}
 
-	if len(reqParams.MediaIDs) != 0 {
+	if len(mediaIDs) != 0 {
 		var medias []*media_model.Media
 
-		for _, mID := range reqParams.MediaIDs {
+		for _, mID := range mediaIDs {
 			m, err := media_model.GetMediaByContentID(ctx, mID)
 			if err != nil {
 				ctx.Log().Error().Stack().Err(err).Msg("Failed to get media by id")
@@ -115,13 +142,13 @@ func GetMediaBatch(ctx ctxservice.RequestContext) {
 		return
 	}
 
-	if reqParams.Sort == "" {
-		reqParams.Sort = "createDate"
+	if sort == "" {
+		sort = "createDate"
 	}
 
 	var mediaFilter []media_model.ContentID
 
-	ms, err := media_model.GetMedia(ctx, ctx.Requester.Username, reqParams.Sort, 1, mediaFilter, reqParams.Raw, reqParams.Hidden)
+	ms, err := media_model.GetMedia(ctx, ctx.Requester.Username, sort, 1, mediaFilter, raw, hidden)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 
@@ -129,10 +156,10 @@ func GetMediaBatch(ctx ctxservice.RequestContext) {
 	}
 
 	var slicedMs []*media_model.Media
-	if (reqParams.Page+1)*reqParams.Limit > len(ms) {
-		slicedMs = ms[(reqParams.Page)*reqParams.Limit:]
+	if (int(page)+1)*int(limit) > len(ms) {
+		slicedMs = ms[int(page)*int(limit):]
 	} else {
-		slicedMs = ms[(reqParams.Page)*reqParams.Limit : (reqParams.Page+1)*reqParams.Limit]
+		slicedMs = ms[int(page)*int(limit) : (int(page)+1)*int(limit)]
 	}
 
 	batch := reshape.NewMediaBatchInfo(slicedMs)
