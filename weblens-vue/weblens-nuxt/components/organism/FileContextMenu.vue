@@ -87,14 +87,8 @@ const menuPosition = computed(() => {
 
 const targetFile = ref<WeblensFile>()
 
-watch([() => menuStore.directTargetID, () => filesStore.children, () => filesStore.activeFile], () => {
+watch([() => menuStore.directTargetID, () => filesStore.files, () => filesStore.activeFile], () => {
     targetFile.value = filesStore.getFileByID(menuStore.directTargetID)
-
-    // TODO: Remove this debug log after testing. Leaving in for now since the failing test
-    // is very irregular and hard to reproduce.
-    console.debug(
-        `Context menu target file updated: ${targetFile.value?.GetFilename() || 'None'} -- ID: ${menuStore.directTargetID}`,
-    )
 })
 
 const selectedFiles = computed(() => {

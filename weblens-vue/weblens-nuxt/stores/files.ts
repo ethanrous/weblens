@@ -58,7 +58,7 @@ const useFilesStore = defineStore('files', () => {
 
     const foldersSettings = useStorage('wl-folders-settings', {} as Record<string, FolderSettings>)
 
-    const searchRecurively = ref<boolean>(false)
+    const searchRecursively = ref<boolean>(false)
     const searchWithRegex = ref<boolean>(false)
 
     const searchUpToDate = ref<boolean>(true)
@@ -193,7 +193,7 @@ const useFilesStore = defineStore('files', () => {
                 locationStore.activeFolderID,
                 sortCondition.value,
                 sortDirection.value,
-                searchRecurively.value,
+                searchRecursively.value,
                 searchWithRegex.value,
             )
 
@@ -206,7 +206,7 @@ const useFilesStore = defineStore('files', () => {
         {
             watch: [
                 () => locationStore.search,
-                searchRecurively,
+                searchRecursively,
                 searchWithRegex,
                 sortCondition,
                 sortDirection,
@@ -267,7 +267,7 @@ const useFilesStore = defineStore('files', () => {
     watch(
         () => locationStore.search,
         () => {
-            searchUpToDate.value = !searchRecurively.value || locationStore.search.trim() === ''
+            searchUpToDate.value = !searchRecursively.value || locationStore.search.trim() === ''
         },
     )
 
@@ -350,16 +350,19 @@ const useFilesStore = defineStore('files', () => {
 
         const newFile = new WeblensFile(file)
 
-        const index = files.value.findIndex((file) => file.ID() === newFile.ID())
+        const newFiles = files.value
+        const index = newFiles.findIndex((file) => file.ID() === newFile.ID())
         if (index !== -1) {
-            files.value.splice(index, 1)
+            newFiles.splice(index, 1)
         }
 
         if (!newFile.permissions && newFile.ParentID() === locationStore.activeFolderID) {
             newFile.permissions = activeFile.value?.permissions
         }
 
-        files.value.push(newFile)
+        newFiles.push(newFile)
+
+        files.value = newFiles
 
         triggerRef(files)
     }
@@ -445,7 +448,7 @@ const useFilesStore = defineStore('files', () => {
     }
 
     function setSearchRecurively(recursive: boolean) {
-        searchRecurively.value = recursive
+        searchRecursively.value = recursive
     }
 
     function setSearchWithRegex(useRegex: boolean) {
@@ -516,7 +519,7 @@ const useFilesStore = defineStore('files', () => {
         setDragging,
 
         isSearching,
-        searchRecurively,
+        searchRecursively,
         setSearchRecurively,
         searchWithRegex,
         setSearchWithRegex,

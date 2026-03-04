@@ -5,7 +5,7 @@
     >
         <FileScroller
             v-if="locationStore.inShareRoot"
-            :files="filesStore.children ?? []"
+            :files="filesStore.files ?? []"
         />
         <NuxtPage v-if="!locationStore.inShareRoot" />
     </div>

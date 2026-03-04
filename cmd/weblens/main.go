@@ -20,7 +20,8 @@ func main() {
 
 	// Initialize logger
 	logger := wlog.NewZeroLogger(wlog.CreateOpts{
-		Level: cnf.LogLevel,
+		Level:  cnf.LogLevel,
+		Global: true,
 	})
 
 	// Capture interrupt signals to allow for graceful shutdown.

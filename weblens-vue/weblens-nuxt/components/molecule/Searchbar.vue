@@ -169,7 +169,7 @@ const filterModified = computed(() => {
     if (locationStore.isInTimeline) {
         return mediaStore.showRaw === false
     } else {
-        return filesStore.searchRecurively
+        return filesStore.searchRecursively
     }
 })
 

@@ -5,6 +5,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"slices"
 	"strconv"
 	"time"
 
@@ -20,6 +21,11 @@ import (
 	file_service "github.com/ethanrous/weblens/services/file"
 	media_service "github.com/ethanrous/weblens/services/media"
 	"github.com/ethanrous/weblens/services/reshape"
+)
+
+const (
+	maxSearchResults   = 9999999
+	maxRecursionDepth  = 100
 )
 
 // GetMediaBatch godoc
@@ -46,7 +52,16 @@ import (
 func GetMediaBatch(ctx ctxservice.RequestContext) {
 	raw := ctx.QueryBool("raw")
 	hidden := ctx.QueryBool("hidden")
+
 	sort := ctx.Query("sort")
+	if sort == "" {
+		sort = "createDate"
+	} else if slices.Index([]string{"createDate"}, sort) == -1 {
+		ctx.Error(http.StatusBadRequest, wlerrors.Errorf("Invalid sort field '%s'", sort))
+
+		return
+	}
+
 	search := ctx.Query("search")
 	folderIDs := ctx.QueryArray("folderIDs")
 	mediaIDs := ctx.QueryArray("mediaIDs")
@@ -63,6 +78,10 @@ func GetMediaBatch(ctx ctxservice.RequestContext) {
 		ctx.Error(http.StatusBadRequest, err)
 
 		return
+	} else if page < 0 {
+		ctx.Error(http.StatusBadRequest, wlerrors.New("Page number cannot be negative"))
+
+		return
 	}
 
 	limit, err := ctx.QueryInt("limit")
@@ -70,97 +89,113 @@ func GetMediaBatch(ctx ctxservice.RequestContext) {
 		ctx.Error(http.StatusBadRequest, err)
 
 		return
+	} else if limit <= 0 {
+		ctx.Error(http.StatusBadRequest, wlerrors.New("Limit must be greater than 0"))
+
+		return
 	}
 
 	if len(folderIDs) != 0 {
-		for _, folderID := range folderIDs {
-			_, err := file_api.CheckFileAccessByID(ctx, folderID, share.SharePermissionView)
-			if err != nil {
-				return
-			}
-		}
+		getMediaByFolders(ctx, folderIDs, search, int(sortDirection), int(page), int(limit), raw)
 
-		if sortDirection == 0 {
-			sortDirection = -1
-		}
+		return
+	}
 
-		if search != "" {
-			page = 0
-			limit = 9999999
-		}
+	if len(mediaIDs) != 0 {
+		getMediaByIDs(ctx, mediaIDs)
 
-		media, totalMediaCount, err := getMediaInFolders(ctx, folderIDs, int(limit), int(page), int(sortDirection), raw)
+		return
+	}
+
+	getMediaPaginated(ctx, sort, raw, hidden, int(page), int(limit))
+}
+
+func getMediaByFolders(ctx ctxservice.RequestContext, folderIDs []string, search string, sortDirection, page, limit int, raw bool) {
+	for _, folderID := range folderIDs {
+		_, err := file_api.CheckFileAccessByID(ctx, folderID, share.SharePermissionView)
+		if err != nil {
+			return
+		}
+	}
+
+	if sortDirection == 0 {
+		sortDirection = -1
+	}
+
+	if search != "" {
+		page = 0
+		limit = maxSearchResults
+	}
+
+	media, totalMediaCount, err := getMediaInFolders(ctx, folderIDs, limit, page, sortDirection, raw)
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, err)
+
+		return
+	}
+
+	if totalMediaCount == 0 {
+		batch := reshape.NewMediaBatchInfo(nil)
+		batch.TotalMediaCount = 0
+		ctx.JSON(http.StatusOK, batch)
+
+		return
+	}
+
+	ctx.Log().Trace().Msgf("Got %d media in folder(s) %+v", len(media), folderIDs)
+
+	scores := []float64{}
+
+	if search != "" {
+		scoredMedia, err := media_service.SortMediaByTextSimilarity(ctx.AppContext, search, media, 0.60)
 		if err != nil {
 			ctx.Error(http.StatusInternalServerError, err)
 
 			return
 		}
 
+		media = wlslices.Map(scoredMedia, func(m media_service.ScoreWrapper) *media_model.Media { return m.Media })
+		totalMediaCount = len(media)
+
 		if totalMediaCount == 0 {
-			ctx.Error(http.StatusNotFound, wlerrors.Errorf("No media found in folder(s)"))
+			batch := reshape.NewMediaBatchInfo(nil)
+			batch.TotalMediaCount = 0
+			ctx.JSON(http.StatusOK, batch)
 
 			return
 		}
 
-		ctx.Log().Trace().Msgf("Got %d media in folder(s) %+v", len(media), folderIDs)
+		scores = wlslices.Map(scoredMedia, func(m media_service.ScoreWrapper) float64 { return m.Score })
 
-		scores := []float64{}
+		ctx.Log().Trace().Msgf("Search query '%s' got %d matching scored media", search, len(scores))
+	}
 
-		if search != "" {
-			scoredMedia, err := media_service.SortMediaByTextSimilarity(ctx.AppContext, search, media, 0.60)
-			if err != nil {
-				ctx.Error(http.StatusInternalServerError, err)
+	batch := reshape.NewMediaBatchInfo(media, reshape.MediaBatchOptions{Scores: scores})
+	batch.TotalMediaCount = totalMediaCount
+	ctx.JSON(http.StatusOK, batch)
+}
 
-				return
-			}
+func getMediaByIDs(ctx ctxservice.RequestContext, mediaIDs []string) {
+	var medias []*media_model.Media
 
-			media = wlslices.Map(scoredMedia, func(m media_service.ScoreWrapper) *media_model.Media { return m.Media })
-			totalMediaCount = len(media)
+	for _, mID := range mediaIDs {
+		m, err := media_model.GetMediaByContentID(ctx, mID)
+		if err != nil {
+			ctx.Log().Error().Stack().Err(err).Msg("Failed to get media by id")
+			ctx.Error(http.StatusInternalServerError, err)
 
-			if totalMediaCount == 0 {
-				ctx.Error(http.StatusNotFound, wlerrors.Errorf("No media matched the search query '%s'", search))
-
-				return
-			}
-
-			scores = wlslices.Map(scoredMedia, func(m media_service.ScoreWrapper) float64 { return m.Score })
-
-			ctx.Log().Trace().Msgf("Search query '%s' got %d matching scored media", search, len(scores))
+			return
 		}
 
-		batch := reshape.NewMediaBatchInfo(media, reshape.MediaBatchOptions{Scores: scores})
-		batch.TotalMediaCount = totalMediaCount
-		ctx.JSON(http.StatusOK, batch)
-
-		return
+		medias = append(medias, m)
 	}
 
-	if len(mediaIDs) != 0 {
-		var medias []*media_model.Media
+	batch := reshape.NewMediaBatchInfo(medias)
+	batch.TotalMediaCount = len(medias)
+	ctx.JSON(http.StatusOK, batch)
+}
 
-		for _, mID := range mediaIDs {
-			m, err := media_model.GetMediaByContentID(ctx, mID)
-			if err != nil {
-				ctx.Log().Error().Stack().Err(err).Msg("Failed to get media by id")
-				ctx.Error(http.StatusInternalServerError, err)
-
-				return
-			}
-
-			medias = append(medias, m)
-		}
-
-		batch := reshape.NewMediaBatchInfo(medias)
-		batch.TotalMediaCount = len(medias)
-		ctx.JSON(http.StatusOK, batch)
-
-		return
-	}
-
-	if sort == "" {
-		sort = "createDate"
-	}
-
+func getMediaPaginated(ctx ctxservice.RequestContext, sort string, raw, hidden bool, page, limit int) {
 	var mediaFilter []media_model.ContentID
 
 	ms, err := media_model.GetMedia(ctx, ctx.Requester.Username, sort, 1, mediaFilter, raw, hidden)
@@ -170,14 +205,17 @@ func GetMediaBatch(ctx ctxservice.RequestContext) {
 		return
 	}
 
-	var slicedMs []*media_model.Media
-	if (int(page)+1)*int(limit) > len(ms) {
-		slicedMs = ms[int(page)*int(limit):]
-	} else {
-		slicedMs = ms[int(page)*int(limit) : (int(page)+1)*int(limit)]
+	start := page * limit
+	if start > len(ms) {
+		start = len(ms)
 	}
 
-	batch := reshape.NewMediaBatchInfo(slicedMs)
+	end := start + limit
+	if end > len(ms) {
+		end = len(ms)
+	}
+
+	batch := reshape.NewMediaBatchInfo(ms[start:end])
 
 	ctx.JSON(http.StatusOK, batch)
 }
@@ -651,12 +689,24 @@ func getMediaInFolders(ctx ctxservice.RequestContext, folderIDs []string, limit,
 // collectContentIDs recursively walks a folder tree, loading children and
 // collecting content IDs from non-directory files. Directories named
 // ".user_trash" are skipped so that trashed files do not appear in the timeline.
+// Recursion is bounded by maxRecursionDepth to prevent stack overflow on
+// deeply nested or cyclic directory structures.
 func collectContentIDs(ctx ctxservice.RequestContext, folder *file_model.WeblensFileImpl) ([]string, error) {
+	return collectContentIDsWithDepth(ctx, folder, 0)
+}
+
+func collectContentIDsWithDepth(ctx ctxservice.RequestContext, folder *file_model.WeblensFileImpl, depth int) ([]string, error) {
 	if !folder.IsDir() {
 		return []string{folder.GetContentID()}, nil
 	}
 
 	if folder.Name() == file_model.UserTrashDirName {
+		return nil, nil
+	}
+
+	if depth >= maxRecursionDepth {
+		ctx.Log().Warn().Msgf("Max recursion depth reached at folder %s", folder.Name())
+
 		return nil, nil
 	}
 
@@ -668,7 +718,7 @@ func collectContentIDs(ctx ctxservice.RequestContext, folder *file_model.Weblens
 	var contentIDs []string
 
 	for _, child := range children {
-		childIDs, err := collectContentIDs(ctx, child)
+		childIDs, err := collectContentIDsWithDepth(ctx, child, depth+1)
 		if err != nil {
 			return nil, err
 		}

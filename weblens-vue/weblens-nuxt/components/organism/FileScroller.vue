@@ -6,7 +6,7 @@
         <FileContextMenu />
 
         <span
-            v-if="!filesStore.searchUpToDate && filesStore.searchRecurively && locationStore.search !== ''"
+            v-if="!filesStore.searchUpToDate && filesStore.searchRecursively && locationStore.search !== ''"
             :class="{ 'text-text-secondary m-auto inline-flex items-center gap-1': true }"
         >
             Press

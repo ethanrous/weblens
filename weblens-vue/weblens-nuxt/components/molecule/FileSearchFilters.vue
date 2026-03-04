@@ -2,7 +2,7 @@
     <div :class="{ 'flex h-full w-full flex-col p-4': true }">
         <WeblensCheckbox
             label="Search Recursively"
-            :checked="filesStore.searchRecurively"
+            :checked="filesStore.searchRecursively"
             @checked:changed="filesStore.setSearchRecurively"
         />
         <span :class="{ 'text-text-tertiary': true }">Tip: Use Shift+{{ keyHintText }} enable recursive search</span>

@@ -137,6 +137,8 @@ export const useMediaStore = defineStore('media', () => {
             return Promise.resolve()
         }
 
+        const currentPage = mediaPageNum.value
+
         const timelinePromise = useWeblensAPI()
             .MediaAPI.getMedia(
                 locationStore.activeShareID,
@@ -145,17 +147,19 @@ export const useMediaStore = defineStore('media', () => {
                 timelineSort.value,
                 timelineSortDirection.value,
                 locationStore.search,
-                mediaPageNum.value++,
+                currentPage,
                 TIMELINE_PAGE_SIZE,
                 [locationStore.activeFolderID],
             )
             .then((res) => {
                 if (timelineLoading.value !== timelinePromise) return
 
+                mediaPageNum.value = currentPage + 1
+
                 const medias =
                     res.data.Media?.map((mInfo, i) => {
                         const m = new WeblensMedia(mInfo)
-                        m.index = (mediaPageNum.value - 1) * TIMELINE_PAGE_SIZE + i
+                        m.index = currentPage * TIMELINE_PAGE_SIZE + i
                         return m
                     }) ?? []
 
@@ -164,7 +168,7 @@ export const useMediaStore = defineStore('media', () => {
 
                 if (
                     timelineMedia.value.length > 0 &&
-                    timelineMedia.value[timelineMedia.value.length - 1]?.index + 1 != medias[0]?.index
+                    timelineMedia.value[timelineMedia.value.length - 1]?.index + 1 !== medias[0]?.index
                 ) {
                     console.warn('Media fetch returned overlapping media, skipping addition')
                     return
@@ -289,7 +293,7 @@ export const useMediaStore = defineStore('media', () => {
             if (locationStore.search === '') {
                 // If search was cleared, reset timeline to show all media
                 clearData()
-            } else if (locationStore.search !== '') {
+            } else {
                 // If search query changed, but is not cleared, mark timeline media as outdated until next fetch
                 searchUpToDate.value = false
             }
