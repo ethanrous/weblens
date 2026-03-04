@@ -7,7 +7,7 @@ Method | HTTP request | Description
 [**CleanupMedia**](MediaAPI.md#CleanupMedia) | **Post** /media/cleanup | Make sure all media is correctly synced with the file system
 [**DropHDIRs**](MediaAPI.md#DropHDIRs) | **Post** /media/drop/hdirs | Drop all computed media HDIR data. Must be server owner.
 [**DropMedia**](MediaAPI.md#DropMedia) | **Post** /media/drop | DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
-[**GetMedia**](MediaAPI.md#GetMedia) | **Post** /media | Get paginated media
+[**GetMedia**](MediaAPI.md#GetMedia) | **Get** /media | Get paginated media
 [**GetMediaFile**](MediaAPI.md#GetMediaFile) | **Get** /media/{mediaID}/file | Get file of media by id
 [**GetMediaImage**](MediaAPI.md#GetMediaImage) | **Get** /media/{mediaID}.{extension} | Get a media image bytes
 [**GetMediaInfo**](MediaAPI.md#GetMediaInfo) | **Get** /media/{mediaID}/info | Get media info
@@ -197,7 +197,7 @@ No authorization required
 
 ## GetMedia
 
-> MediaBatchInfo GetMedia(ctx).Request(request).ShareID(shareID).Execute()
+> MediaBatchInfo GetMedia(ctx).ShareID(shareID).Raw(raw).Hidden(hidden).Sort(sort).SortDirection(sortDirection).Search(search).Page(page).Limit(limit).FolderIDs(folderIDs).MediaIDs(mediaIDs).Execute()
 
 Get paginated media
 
@@ -214,12 +214,20 @@ import (
 )
 
 func main() {
-	request := *openapiclient.NewMediaBatchParams() // MediaBatchParams | Media Batch Params
 	shareID := "shareID_example" // string | File ShareID (optional)
+	raw := true // bool | Include raw media (optional)
+	hidden := true // bool | Include hidden media (optional)
+	sort := "sort_example" // string | Sort field (optional)
+	sortDirection := int32(56) // int32 | Sort direction (optional)
+	search := "search_example" // string | Search query (optional)
+	page := int32(56) // int32 | Page number (optional)
+	limit := int32(56) // int32 | Page size (optional)
+	folderIDs := []string{"Inner_example"} // []string | Folder IDs to filter by (optional)
+	mediaIDs := []string{"Inner_example"} // []string | Media IDs to fetch (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.MediaAPI.GetMedia(context.Background()).Request(request).ShareID(shareID).Execute()
+	resp, r, err := apiClient.MediaAPI.GetMedia(context.Background()).ShareID(shareID).Raw(raw).Hidden(hidden).Sort(sort).SortDirection(sortDirection).Search(search).Page(page).Limit(limit).FolderIDs(folderIDs).MediaIDs(mediaIDs).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `MediaAPI.GetMedia``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -240,8 +248,16 @@ Other parameters are passed through a pointer to a apiGetMediaRequest struct via
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **request** | [**MediaBatchParams**](MediaBatchParams.md) | Media Batch Params | 
  **shareID** | **string** | File ShareID | 
+ **raw** | **bool** | Include raw media | 
+ **hidden** | **bool** | Include hidden media | 
+ **sort** | **string** | Sort field | 
+ **sortDirection** | **int32** | Sort direction | 
+ **search** | **string** | Search query | 
+ **page** | **int32** | Page number | 
+ **limit** | **int32** | Page size | 
+ **folderIDs** | **[]string** | Folder IDs to filter by | 
+ **mediaIDs** | **[]string** | Media IDs to fetch | 
 
 ### Return type
 

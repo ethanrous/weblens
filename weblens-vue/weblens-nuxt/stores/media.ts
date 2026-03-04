@@ -43,6 +43,8 @@ export const useMediaStore = defineStore('media', () => {
 
     const searchFilters = useStorage('wl-media-settings', {} as Record<string, MediaSettings>)
 
+    const searchUpToDate = ref<boolean>(true)
+
     const showRaw = ref(true)
     watch(
         () => locationStore.getQueryParam('raw'),
@@ -64,12 +66,13 @@ export const useMediaStore = defineStore('media', () => {
     }
 
     function clearData() {
-        // Reset media list
         mediaPageNum.value = 0
         timelineMedia.value = []
         canLoadMore.value = true
         mediaMap.value = new Map()
         timelineFetchError.value = null
+        timelineLoading.value = null
+        searchUpToDate.value = true
     }
 
     function saveSearchFilters() {
@@ -134,57 +137,63 @@ export const useMediaStore = defineStore('media', () => {
             return Promise.resolve()
         }
 
+        const currentPage = mediaPageNum.value
+
         const timelinePromise = useWeblensAPI()
             .MediaAPI.getMedia(
-                {
-                    raw: showRaw.value,
-                    hidden: false,
-                    sort: timelineSort.value,
-                    sortDirection: timelineSortDirection.value,
-                    page: mediaPageNum.value++,
-                    limit: TIMELINE_PAGE_SIZE,
-                    folderIDs: [locationStore.activeFolderID],
-                    search: locationStore.search,
-                },
                 locationStore.activeShareID,
+                showRaw.value,
+                false,
+                timelineSort.value,
+                timelineSortDirection.value,
+                locationStore.search,
+                currentPage,
+                TIMELINE_PAGE_SIZE,
+                [locationStore.activeFolderID],
             )
             .then((res) => {
+                if (timelineLoading.value !== timelinePromise) return
+
+                mediaPageNum.value = currentPage + 1
+
                 const medias =
                     res.data.Media?.map((mInfo, i) => {
                         const m = new WeblensMedia(mInfo)
-                        m.index = (mediaPageNum.value - 1) * TIMELINE_PAGE_SIZE + i
+                        m.index = currentPage * TIMELINE_PAGE_SIZE + i
                         return m
                     }) ?? []
-                return {
-                    medias,
-                    totalMedias: res.data.mediaCount ?? 0,
-                    canLoadMore: medias.length === TIMELINE_PAGE_SIZE,
-                }
-            })
-            .then(({ medias: newMedias, totalMedias: totalMediasResponse, canLoadMore: canLoadMoreResponse }) => {
-                totalMedias.value = totalMediasResponse
-                canLoadMore.value = canLoadMoreResponse
+
+                totalMedias.value = res.data.mediaCount ?? 0
+                canLoadMore.value = medias.length === TIMELINE_PAGE_SIZE
 
                 if (
                     timelineMedia.value.length > 0 &&
-                    timelineMedia.value[timelineMedia.value.length - 1]?.index + 1 != newMedias[0]?.index
+                    timelineMedia.value[timelineMedia.value.length - 1]?.index + 1 !== medias[0]?.index
                 ) {
                     console.warn('Media fetch returned overlapping media, skipping addition')
                     return
-                } else if (timelineMedia.value.length === 0 && newMedias[0]?.index != 0) {
-                    console.warn('Media fetch did not start at index 0, skipping addition')
+                } else if (timelineMedia.value.length === 0 && medias[0]?.index !== 0) {
+                    console.warn('Media fetch did not start at index 0, skipping addition', {
+                        firstIndex: medias[0]?.index,
+                        mediaPageNum: mediaPageNum.value,
+                        mediasLength: medias.length,
+                    })
                     return
                 }
 
-                timelineMedia.value = [...timelineMedia.value, ...newMedias]
-                addMedia(...newMedias)
+                timelineMedia.value = [...timelineMedia.value, ...medias]
+                addMedia(...medias)
             })
             .catch((err) => {
+                if (timelineLoading.value !== timelinePromise) return
                 console.error('Error fetching more media:', err)
-                timelineFetchError.value = err as WLError
+                timelineFetchError.value = { status: err.status, message: err.response?.data?.error } as WLError
+                canLoadMore.value = false
             })
             .finally(() => {
-                timelineLoading.value = null
+                if (timelineLoading.value === timelinePromise) {
+                    timelineLoading.value = null
+                }
             })
 
         timelineLoading.value = timelinePromise
@@ -237,21 +246,6 @@ export const useMediaStore = defineStore('media', () => {
         saveSearchFilters()
     }
 
-    watch([() => locationStore.isInTimeline, () => locationStore.activeFolderID], () => {
-        clearData()
-
-        if (locationStore.isInTimeline) {
-            initSearchFilters()
-
-            timelineSortDirection.value =
-                searchFilters.value[locationStore.activeFolderID]?.sortDirection ?? mediaSettingsDefaults.sortDirection
-
-            showRaw.value = searchFilters.value[locationStore.activeFolderID]?.showRaw ?? mediaSettingsDefaults.showRaw
-        } else {
-            locationStore.setQueryParam('raw', null)
-        }
-    })
-
     function getNextMediaID(currentMediaID: string): string | null {
         const currentMedia = mediaMap.value.get(currentMediaID)
         if (!currentMedia) {
@@ -278,6 +272,34 @@ export const useMediaStore = defineStore('media', () => {
         return timelineMedia.value[currentMedia.index - 1]?.contentID ?? null
     }
 
+    watch([() => locationStore.isInTimeline, () => locationStore.activeFolderID], () => {
+        clearData()
+
+        if (locationStore.isInTimeline) {
+            initSearchFilters()
+
+            timelineSortDirection.value =
+                searchFilters.value[locationStore.activeFolderID]?.sortDirection ?? mediaSettingsDefaults.sortDirection
+
+            showRaw.value = searchFilters.value[locationStore.activeFolderID]?.showRaw ?? mediaSettingsDefaults.showRaw
+        } else {
+            locationStore.setQueryParam('raw', null)
+        }
+    })
+
+    watch(
+        () => locationStore.search,
+        () => {
+            if (locationStore.search === '') {
+                // If search was cleared, reset timeline to show all media
+                clearData()
+            } else {
+                // If search query changed, but is not cleared, mark timeline media as outdated until next fetch
+                searchUpToDate.value = false
+            }
+        },
+    )
+
     return {
         mediaMap,
         mediaTypeMap,
@@ -287,8 +309,10 @@ export const useMediaStore = defineStore('media', () => {
 
         timelineMedia,
         timelineLoading,
+        timelineFetchError,
         canLoadMore,
         totalMedias,
+        searchUpToDate,
 
         addMedia,
         clearData,

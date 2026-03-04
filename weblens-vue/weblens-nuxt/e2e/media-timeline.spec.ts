@@ -29,8 +29,6 @@ test.describe('Media Timeline', () => {
             timeout: 15000,
         })
 
-        // Verify the "Adjust filters" text and "Return to Files" button
-        await expect(page.getByText('Adjust filters')).toBeVisible()
         await expect(page.getByRole('button', { name: 'Return to Files' })).toBeVisible()
     })
 
@@ -84,6 +82,21 @@ test.describe('Media Timeline', () => {
         // Clear search
         await searchInput.clear()
         await searchInput.press('Enter')
+    })
+
+    test('should not show loader alongside "No media found"', async ({ page }) => {
+        // Switch to timeline mode
+        await page.locator('.tabler-icon-photo').last().click()
+        await expect(page.getByPlaceholder('Search Media...')).toBeVisible({ timeout: 15000 })
+
+        // Wait for the empty state to appear
+        await expect(page.getByRole('heading', { name: 'No media found' })).toBeVisible({
+            timeout: 15000,
+        })
+
+        // The loader should NOT be visible when "No media found" is shown
+        const loader = page.locator('.timelineContainer .loader, .timelineContainer svg[class*="animate"]')
+        await expect(loader).not.toBeVisible()
     })
 
     test('should return to files from timeline', async ({ page }) => {

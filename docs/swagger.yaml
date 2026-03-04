@@ -194,55 +194,6 @@ definitions:
       totalMediaCount:
         type: integer
     type: object
-  MediaBatchParams:
-    properties:
-      folderIDs:
-        example:
-        - '[fID1'
-        - fID2]
-        items:
-          type: string
-        type: array
-      hidden:
-        enum:
-        - true
-        - false
-        example: false
-        type: boolean
-      limit:
-        example: 20
-        type: integer
-      mediaIDs:
-        example:
-        - '[mID1'
-        - mID2]
-        items:
-          type: string
-        type: array
-      page:
-        example: 1
-        type: integer
-      raw:
-        enum:
-        - true
-        - false
-        example: false
-        type: boolean
-      search:
-        example: ""
-        type: string
-      sort:
-        enum:
-        - createDate
-        example: createDate
-        type: string
-      sortDirection:
-        enum:
-        - 1
-        - -1
-        example: 1
-        type: integer
-    type: object
   MediaIDsParams:
     properties:
       mediaIDs:
@@ -1444,19 +1395,66 @@ paths:
       tags:
       - APIKeys
   /media:
-    post:
+    get:
       operationId: GetMedia
       parameters:
-      - description: Media Batch Params
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/MediaBatchParams'
       - description: File ShareID
         in: query
         name: shareID
         type: string
+      - description: Include raw media
+        enum:
+        - true
+        - false
+        in: query
+        name: raw
+        type: boolean
+      - description: Include hidden media
+        enum:
+        - true
+        - false
+        in: query
+        name: hidden
+        type: boolean
+      - description: Sort field
+        enum:
+        - createDate
+        in: query
+        name: sort
+        type: string
+      - description: Sort direction
+        enum:
+        - 1
+        - -1
+        in: query
+        name: sortDirection
+        type: integer
+      - description: Search query
+        in: query
+        name: search
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - collectionFormat: csv
+        description: Folder IDs to filter by
+        in: query
+        items:
+          type: string
+        name: folderIDs
+        type: array
+      - collectionFormat: csv
+        description: Media IDs to fetch
+        in: query
+        items:
+          type: string
+        name: mediaIDs
+        type: array
       produces:
       - application/json
       responses:

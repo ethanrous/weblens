@@ -87,7 +87,7 @@ const menuPosition = computed(() => {
 
 const targetFile = ref<WeblensFile>()
 
-watch([() => menuStore.directTargetID, () => filesStore.children, () => filesStore.activeFile], () => {
+watch([() => menuStore.directTargetID, () => filesStore.files, () => filesStore.activeFile], () => {
     targetFile.value = filesStore.getFileByID(menuStore.directTargetID)
 })
 

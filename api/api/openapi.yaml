@@ -760,7 +760,7 @@ paths:
       tags:
       - APIKeys
   /media:
-    post:
+    get:
       operationId: GetMedia
       parameters:
       - description: File ShareID
@@ -768,13 +768,64 @@ paths:
         name: shareID
         schema:
           type: string
-      requestBody:
-        content:
-          '*/*':
-            schema:
-              $ref: "#/components/schemas/MediaBatchParams"
-        description: Media Batch Params
-        required: true
+      - description: Include raw media
+        in: query
+        name: raw
+        schema:
+          type: boolean
+      - description: Include hidden media
+        in: query
+        name: hidden
+        schema:
+          type: boolean
+      - description: Sort field
+        in: query
+        name: sort
+        schema:
+          enum:
+          - createDate
+          type: string
+      - description: Sort direction
+        in: query
+        name: sortDirection
+        schema:
+          enum:
+          - 1
+          - -1
+          type: integer
+      - description: Search query
+        in: query
+        name: search
+        schema:
+          type: string
+      - description: Page number
+        in: query
+        name: page
+        schema:
+          type: integer
+      - description: Page size
+        in: query
+        name: limit
+        schema:
+          type: integer
+      - description: Folder IDs to filter by
+        explode: false
+        in: query
+        name: folderIDs
+        schema:
+          items:
+            type: string
+          type: array
+        style: form
+      - description: Media IDs to fetch
+        explode: false
+        in: query
+        name: mediaIDs
+        schema:
+          items:
+            type: string
+          type: array
+        style: form
       responses:
         "200":
           content:
@@ -791,7 +842,6 @@ paths:
       summary: Get paginated media
       tags:
       - Media
-      x-codegen-request-body-name: request
   /media/cleanup:
     post:
       operationId: CleanupMedia
@@ -2659,60 +2709,6 @@ components:
         mediaCount:
           type: integer
         totalMediaCount:
-          type: integer
-      type: object
-    MediaBatchParams:
-      example:
-        search: ""
-        sortDirection: 1
-        hidden: false
-        limit: 20
-        raw: false
-        folderIDs:
-        - "[fID1"
-        - "fID2]"
-        mediaIDs:
-        - "[mID1"
-        - "mID2]"
-        page: 1
-        sort: createDate
-      properties:
-        folderIDs:
-          example:
-          - "[fID1"
-          - "fID2]"
-          items:
-            type: string
-          type: array
-        hidden:
-          example: false
-          type: boolean
-        limit:
-          example: 20
-          type: integer
-        mediaIDs:
-          example:
-          - "[mID1"
-          - "mID2]"
-          items:
-            type: string
-          type: array
-        page:
-          example: 1
-          type: integer
-        raw:
-          example: false
-          type: boolean
-        search:
-          example: ""
-          type: string
-        sort:
-          enum:
-          - createDate
-          example: createDate
-          type: string
-        sortDirection:
-          example: 1
           type: integer
       type: object
     MediaIDsParams:

@@ -256,6 +256,8 @@ const useLocationStore = defineStore('location', () => {
 
         activeFolderID,
         isInTimeline,
+
+        // isInTrash is true when the active file is or is in the users trash.
         isInTrash,
 
         highlightFileID,

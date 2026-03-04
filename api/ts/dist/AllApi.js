@@ -24,6 +24,12 @@ import globalAxios2 from "axios";
 // generated/base.ts
 import globalAxios from "axios";
 var BASE_PATH = "http://localhost:8080/api/v1".replace(/\/+$/, "");
+var COLLECTION_FORMATS = {
+  csv: ",",
+  ssv: " ",
+  tsv: "	",
+  pipes: "|"
+};
 var BaseAPI = class {
   constructor(configuration, basePath = BASE_PATH, axios = globalAxios) {
     this.basePath = basePath;
@@ -98,9 +104,6 @@ var createRequestFunction = function(axiosArgs, globalAxios3, BASE_PATH2, config
 };
 
 // generated/api.ts
-var MediaBatchParamsSortEnum = {
-  CreateDate: "createDate"
-};
 var TowerHealthStatusEnum = {
   Healthy: "healthy",
   Unhealthy: "unhealthy"
@@ -2182,31 +2185,63 @@ var MediaApiAxiosParamCreator = function(configuration) {
     /**
      * 
      * @summary Get paginated media
-     * @param {MediaBatchParams} request Media Batch Params
      * @param {string} [shareID] File ShareID
+     * @param {boolean} [raw] Include raw media
+     * @param {boolean} [hidden] Include hidden media
+     * @param {GetMediaSortEnum} [sort] Sort field
+     * @param {GetMediaSortDirectionEnum} [sortDirection] Sort direction
+     * @param {string} [search] Search query
+     * @param {number} [page] Page number
+     * @param {number} [limit] Page size
+     * @param {Array<string>} [folderIDs] Folder IDs to filter by
+     * @param {Array<string>} [mediaIDs] Media IDs to fetch
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMedia: async (request, shareID, options = {}) => {
-      assertParamExists("getMedia", "request", request);
+    getMedia: async (shareID, raw, hidden, sort, sortDirection, search, page, limit, folderIDs, mediaIDs, options = {}) => {
       const localVarPath = `/media`;
       const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
       let baseOptions;
       if (configuration) {
         baseOptions = configuration.baseOptions;
       }
-      const localVarRequestOptions = __spreadValues(__spreadValues({ method: "POST" }, baseOptions), options);
+      const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
       if (shareID !== void 0) {
         localVarQueryParameter["shareID"] = shareID;
       }
-      localVarHeaderParameter["Content-Type"] = "application/json";
+      if (raw !== void 0) {
+        localVarQueryParameter["raw"] = raw;
+      }
+      if (hidden !== void 0) {
+        localVarQueryParameter["hidden"] = hidden;
+      }
+      if (sort !== void 0) {
+        localVarQueryParameter["sort"] = sort;
+      }
+      if (sortDirection !== void 0) {
+        localVarQueryParameter["sortDirection"] = sortDirection;
+      }
+      if (search !== void 0) {
+        localVarQueryParameter["search"] = search;
+      }
+      if (page !== void 0) {
+        localVarQueryParameter["page"] = page;
+      }
+      if (limit !== void 0) {
+        localVarQueryParameter["limit"] = limit;
+      }
+      if (folderIDs) {
+        localVarQueryParameter["folderIDs"] = folderIDs.join(COLLECTION_FORMATS.csv);
+      }
+      if (mediaIDs) {
+        localVarQueryParameter["mediaIDs"] = mediaIDs.join(COLLECTION_FORMATS.csv);
+      }
       localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
-      localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration);
       return {
         url: toPathString(localVarUrlObj),
         options: localVarRequestOptions
@@ -2501,14 +2536,22 @@ var MediaApiFp = function(configuration) {
     /**
      * 
      * @summary Get paginated media
-     * @param {MediaBatchParams} request Media Batch Params
      * @param {string} [shareID] File ShareID
+     * @param {boolean} [raw] Include raw media
+     * @param {boolean} [hidden] Include hidden media
+     * @param {GetMediaSortEnum} [sort] Sort field
+     * @param {GetMediaSortDirectionEnum} [sortDirection] Sort direction
+     * @param {string} [search] Search query
+     * @param {number} [page] Page number
+     * @param {number} [limit] Page size
+     * @param {Array<string>} [folderIDs] Folder IDs to filter by
+     * @param {Array<string>} [mediaIDs] Media IDs to fetch
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    async getMedia(request, shareID, options) {
+    async getMedia(shareID, raw, hidden, sort, sortDirection, search, page, limit, folderIDs, mediaIDs, options) {
       var _a, _b, _c;
-      const localVarAxiosArgs = await localVarAxiosParamCreator.getMedia(request, shareID, options);
+      const localVarAxiosArgs = await localVarAxiosParamCreator.getMedia(shareID, raw, hidden, sort, sortDirection, search, page, limit, folderIDs, mediaIDs, options);
       const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
       const localVarOperationServerBasePath = (_c = (_b = operationServerMap["MediaApi.getMedia"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
       return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -2666,13 +2709,21 @@ var MediaApiFactory = function(configuration, basePath, axios) {
     /**
      * 
      * @summary Get paginated media
-     * @param {MediaBatchParams} request Media Batch Params
      * @param {string} [shareID] File ShareID
+     * @param {boolean} [raw] Include raw media
+     * @param {boolean} [hidden] Include hidden media
+     * @param {GetMediaSortEnum} [sort] Sort field
+     * @param {GetMediaSortDirectionEnum} [sortDirection] Sort direction
+     * @param {string} [search] Search query
+     * @param {number} [page] Page number
+     * @param {number} [limit] Page size
+     * @param {Array<string>} [folderIDs] Folder IDs to filter by
+     * @param {Array<string>} [mediaIDs] Media IDs to fetch
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMedia(request, shareID, options) {
-      return localVarFp.getMedia(request, shareID, options).then((request2) => request2(axios, basePath));
+    getMedia(shareID, raw, hidden, sort, sortDirection, search, page, limit, folderIDs, mediaIDs, options) {
+      return localVarFp.getMedia(shareID, raw, hidden, sort, sortDirection, search, page, limit, folderIDs, mediaIDs, options).then((request) => request(axios, basePath));
     },
     /**
      * 
@@ -2793,13 +2844,21 @@ var MediaApi = class extends BaseAPI {
   /**
    * 
    * @summary Get paginated media
-   * @param {MediaBatchParams} request Media Batch Params
    * @param {string} [shareID] File ShareID
+   * @param {boolean} [raw] Include raw media
+   * @param {boolean} [hidden] Include hidden media
+   * @param {GetMediaSortEnum} [sort] Sort field
+   * @param {GetMediaSortDirectionEnum} [sortDirection] Sort direction
+   * @param {string} [search] Search query
+   * @param {number} [page] Page number
+   * @param {number} [limit] Page size
+   * @param {Array<string>} [folderIDs] Folder IDs to filter by
+   * @param {Array<string>} [mediaIDs] Media IDs to fetch
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */
-  getMedia(request, shareID, options) {
-    return MediaApiFp(this.configuration).getMedia(request, shareID, options).then((request2) => request2(this.axios, this.basePath));
+  getMedia(shareID, raw, hidden, sort, sortDirection, search, page, limit, folderIDs, mediaIDs, options) {
+    return MediaApiFp(this.configuration).getMedia(shareID, raw, hidden, sort, sortDirection, search, page, limit, folderIDs, mediaIDs, options).then((request) => request(this.axios, this.basePath));
   }
   /**
    * 
@@ -2886,6 +2945,13 @@ var MediaApi = class extends BaseAPI {
   streamVideo(mediaID, options) {
     return MediaApiFp(this.configuration).streamVideo(mediaID, options).then((request) => request(this.axios, this.basePath));
   }
+};
+var GetMediaSortEnum = {
+  CreateDate: "createDate"
+};
+var GetMediaSortDirectionEnum = {
+  NUMBER_1: 1,
+  NUMBER_MINUS_1: -1
 };
 var GetMediaImageQualityEnum = {
   Thumbnail: "thumbnail",
@@ -4953,11 +5019,12 @@ export {
   GetFolderSortOrderEnum,
   GetFolderSortPropEnum,
   GetMediaImageQualityEnum,
+  GetMediaSortDirectionEnum,
+  GetMediaSortEnum,
   MediaApi,
   MediaApiAxiosParamCreator,
   MediaApiFactory,
   MediaApiFp,
-  MediaBatchParamsSortEnum,
   SearchByFilenameSortOrderEnum,
   SearchByFilenameSortPropEnum,
   ShareApi,

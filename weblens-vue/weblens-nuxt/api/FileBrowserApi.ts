@@ -76,13 +76,9 @@ export async function handleDownload(
     targetFiles: WeblensFile[],
 ): Promise<undefined | { zipTaskID?: string; downloadPromise: Promise<void> }> {
     if (targetFiles.length == 1 && !targetFiles[0].IsFolder()) {
-        await downloadSingleFile(targetFiles[0].ID(), targetFiles[0].GetFilename())
-            // .then(() => {
-            //     menuStore.setMenuOpen(false)
-            // })
-            .catch((error) => {
-                console.error('Error downloading file:', error)
-            })
+        await downloadSingleFile(targetFiles[0].ID(), targetFiles[0].GetFilename()).catch((error) => {
+            console.error('Error downloading file:', error)
+        })
         return
     } else {
         const { taskID, takeoutInfo: takeoutInfoPromise } = await downloadManyFiles(
@@ -110,22 +106,11 @@ export async function handleDownload(
                     filename = (taskID ?? takeoutInfo.takeoutID) + '.weblens.zip'
                 }
 
-                await downloadSingleFile(takeoutInfo.takeoutID, filename, 'zip')
-                    // .then(() => {
-                    //     menuStore.setMenuOpen(false)
-                    // })
-                    .catch((error) => {
-                        console.error('Error downloading file:', error)
-                    })
-                // .finally(() => {
-                //     downloadTaskID.value = undefined
-                // })
+                await downloadSingleFile(takeoutInfo.takeoutID, filename, 'zip').catch((error) => {
+                    console.error('Error downloading file:', error)
+                })
             })(),
         }
-
-        // if (takeoutRes.taskID) {
-        //     downloadTaskID.value = takeoutRes.taskID
-        // }
     }
 }
 export type AllowedDownloadFormats = 'webp' | 'jpeg' | 'zip'
@@ -202,7 +187,7 @@ export async function moveFiles(target: WeblensFile) {
 
     const selectedIds = [...filesStore.selectedFiles]
 
-    filesStore.setMovedFile(selectedIds, true)
+    filesStore.removeFiles(...selectedIds)
 
     filesStore.setDragging(false)
 

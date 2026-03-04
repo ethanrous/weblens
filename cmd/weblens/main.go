@@ -19,7 +19,10 @@ func main() {
 	cnf.DoFileDiscovery = true
 
 	// Initialize logger
-	logger := wlog.NewZeroLogger()
+	logger := wlog.NewZeroLogger(wlog.CreateOpts{
+		Level:  cnf.LogLevel,
+		Global: true,
+	})
 
 	// Capture interrupt signals to allow for graceful shutdown.
 	// The returned context will be canceled on interrupt.

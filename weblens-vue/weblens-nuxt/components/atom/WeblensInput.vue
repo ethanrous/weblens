@@ -6,7 +6,7 @@
             'rounded-none first:rounded-l last:rounded-r': merge === 'row',
             'rounded-none first:rounded-t last:rounded-b': merge === 'column',
         }"
-        @click="() => input?.focus()"
+        @click="() => focus()"
     >
         <slot />
         <input
@@ -16,6 +16,7 @@
             :type="type"
             :value="value"
             :disabled="disabled"
+            :class="inputClass"
             @input="
                 (e) => {
                     emit('update:value', (e.target as HTMLInputElement).value)
@@ -29,6 +30,7 @@
                 }
             "
         />
+
         <div
             v-if="value && focused && showSubmit"
             :class="{
@@ -43,6 +45,7 @@
         >
             <IconArrowRight />
         </div>
+
         <div
             v-if="clearButton && value"
             :class="{
@@ -50,8 +53,9 @@
             }"
             @click.stop="handleClear"
         >
-            <IconX />
+            <IconX size="20" />
         </div>
+
         <slot
             name="rightIcon"
             :focused="focused"
@@ -78,6 +82,7 @@ const props = defineProps<{
     merge?: 'row' | 'column'
     clearButton?: boolean
     disabled?: boolean
+    inputClass?: Record<string, boolean>
 }>()
 
 const value = defineModel<string>('value')

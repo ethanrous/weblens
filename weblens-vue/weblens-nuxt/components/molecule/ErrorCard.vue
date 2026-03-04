@@ -21,12 +21,12 @@ const errorText = computed(() => {
         case 403:
             return {
                 header: 'Access Forbidden',
-                message: 'You do not have permission to access this resource.',
+                message: props.error.message ?? 'You do not have permission to access this resource.',
             }
         case 404:
             return {
                 header: 'Not Found',
-                message: 'The requested resource could not be found.',
+                message: props.error.message ?? 'The requested resource could not be found.',
             }
     }
     return { header: 'An unknown error occurred.', message: props.error.message ?? 'Unknown error' }

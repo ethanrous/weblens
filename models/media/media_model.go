@@ -631,8 +631,6 @@ func HDIRSearch(ctx context.Context, target []float64, filter []*Media) ([]HDIRS
 
 	contentIDFilter := wlslices.Map(filter, func(m *Media) ContentID { return m.ContentID })
 
-	numCandidates := min(len(contentIDFilter), 9999) / 2
-
 	cursor, err := col.Aggregate(ctx, bson.A{
 		bson.M{
 			"$vectorSearch": bson.M{
@@ -641,9 +639,8 @@ func HDIRSearch(ctx context.Context, target []float64, filter []*Media) ([]HDIRS
 				"filter": bson.M{
 					"contentID": bson.M{"$in": contentIDFilter},
 				},
-				"queryVector": target,
-				// "numCandidates": numCandidates,
-				"limit":        numCandidates - 1,
+				"queryVector":  target,
+				"limit":        len(contentIDFilter),
 				"exact":        true,
 				"scoreDetails": true,
 			},

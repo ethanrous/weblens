@@ -149,7 +149,7 @@ watchEffect(() => {
 })
 
 const fileState = computed(() => {
-    if (filesStore.movedFiles.has(file.id)) {
+    if (file.GetSelectedState().Has(SelectedState.Moved)) {
         return SelectedState.Moved
     } else if (isSelected.value) {
         return SelectedState.Selected

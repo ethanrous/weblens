@@ -7,7 +7,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 |[**cleanupMedia**](#cleanupmedia) | **POST** /media/cleanup | Make sure all media is correctly synced with the file system|
 |[**dropHDIRs**](#drophdirs) | **POST** /media/drop/hdirs | Drop all computed media HDIR data. Must be server owner.|
 |[**dropMedia**](#dropmedia) | **POST** /media/drop | DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.|
-|[**getMedia**](#getmedia) | **POST** /media | Get paginated media|
+|[**getMedia**](#getmedia) | **GET** /media | Get paginated media|
 |[**getMediaFile**](#getmediafile) | **GET** /media/{mediaID}/file | Get file of media by id|
 |[**getMediaImage**](#getmediaimage) | **GET** /media/{mediaID}.{extension} | Get a media image bytes|
 |[**getMediaInfo**](#getmediainfo) | **GET** /media/{mediaID}/info | Get media info|
@@ -159,7 +159,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **getMedia**
-> MediaBatchInfo getMedia(request)
+> MediaBatchInfo getMedia()
 
 
 ### Example
@@ -167,19 +167,34 @@ No authorization required
 ```typescript
 import {
     MediaApi,
-    Configuration,
-    MediaBatchParams
+    Configuration
 } from './api';
 
 const configuration = new Configuration();
 const apiInstance = new MediaApi(configuration);
 
-let request: MediaBatchParams; //Media Batch Params
 let shareID: string; //File ShareID (optional) (default to undefined)
+let raw: boolean; //Include raw media (optional) (default to undefined)
+let hidden: boolean; //Include hidden media (optional) (default to undefined)
+let sort: 'createDate'; //Sort field (optional) (default to undefined)
+let sortDirection: 1 | -1; //Sort direction (optional) (default to undefined)
+let search: string; //Search query (optional) (default to undefined)
+let page: number; //Page number (optional) (default to undefined)
+let limit: number; //Page size (optional) (default to undefined)
+let folderIDs: Array<string>; //Folder IDs to filter by (optional) (default to undefined)
+let mediaIDs: Array<string>; //Media IDs to fetch (optional) (default to undefined)
 
 const { status, data } = await apiInstance.getMedia(
-    request,
-    shareID
+    shareID,
+    raw,
+    hidden,
+    sort,
+    sortDirection,
+    search,
+    page,
+    limit,
+    folderIDs,
+    mediaIDs
 );
 ```
 
@@ -187,8 +202,16 @@ const { status, data } = await apiInstance.getMedia(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **request** | **MediaBatchParams**| Media Batch Params | |
 | **shareID** | [**string**] | File ShareID | (optional) defaults to undefined|
+| **raw** | [**boolean**] | Include raw media | (optional) defaults to undefined|
+| **hidden** | [**boolean**] | Include hidden media | (optional) defaults to undefined|
+| **sort** | [**&#39;createDate&#39;**]**Array<&#39;createDate&#39;>** | Sort field | (optional) defaults to undefined|
+| **sortDirection** | [**1 | -1**]**Array<1 &#124; -1>** | Sort direction | (optional) defaults to undefined|
+| **search** | [**string**] | Search query | (optional) defaults to undefined|
+| **page** | [**number**] | Page number | (optional) defaults to undefined|
+| **limit** | [**number**] | Page size | (optional) defaults to undefined|
+| **folderIDs** | **Array&lt;string&gt;** | Folder IDs to filter by | (optional) defaults to undefined|
+| **mediaIDs** | **Array&lt;string&gt;** | Media IDs to fetch | (optional) defaults to undefined|
 
 
 ### Return type

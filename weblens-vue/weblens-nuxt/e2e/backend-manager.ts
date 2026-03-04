@@ -16,13 +16,17 @@ const VERBOSE = Boolean(process.env.WEBLENS_VERBOSE)
 const WEBLENS_PORT_BASE = 10100
 const MONGO_PORT = 27020
 
+export function showLogFile(logFile: string): string {
+    return '_build' + logFile.split('_build')[1]
+}
+
 export function makeLogFile(
     workerIndex: number,
     logClass: string,
     name: string,
     opts?: { noCreate?: boolean },
 ): string {
-    const filename = `${logClass}-${name.replaceAll('/', '_').replaceAll(' ', '_')}.log`
+    const filename = `${logClass}-${name.replaceAll(/[^a-zA-Z0-9_-]/g, '_')}.log`
 
     const dateString = new Date(Number(process.env.WEBLENS_PLAYWRIGHT_TEST_START_TIME))
         .toISOString()
@@ -34,7 +38,7 @@ export function makeLogFile(
     fs.mkdirSync(path.dirname(logPath), { recursive: true, mode: 0o777 })
     // Clear existing log
     if (!opts?.noCreate) {
-        if (VERBOSE) console.debug(`[worker-${workerIndex}] Creating log file at ${logPath}...`)
+        if (VERBOSE) console.debug(`[worker-${workerIndex}] Creating log file at ${showLogFile(logPath)}...`)
         fs.closeSync(fs.openSync(logPath, 'w', 0o777))
     }
 
@@ -50,7 +54,7 @@ export interface TestBackend {
     logPath: string
 }
 
-function pollHealth(url: string, timeoutMs: number, logPath?: string): Promise<void> {
+function pollHealth(url: string, timeoutMs: number, logPath: string): Promise<void> {
     const start = Date.now()
     return new Promise((resolve, reject) => {
         const check = () => {
@@ -70,7 +74,11 @@ function pollHealth(url: string, timeoutMs: number, logPath?: string): Promise<v
 
         const retry = () => {
             if (Date.now() - start > timeoutMs) {
-                reject(new Error(`Backend did not become healthy within ${timeoutMs}ms. Check logs at ${logPath}`))
+                reject(
+                    new Error(
+                        `Backend did not become healthy within ${timeoutMs}ms. Check logs at ${showLogFile(logPath)}`,
+                    ),
+                )
                 return
             }
             setTimeout(check, 500)
@@ -95,7 +103,7 @@ function isProcessRunning(pid: number): boolean {
 
 export async function startTestBackend(workerIndex: number, testName: string): Promise<TestBackend> {
     const port = WEBLENS_PORT_BASE + workerIndex * 1000 + randomInt(999)
-    const dbName = `pw-${testName.replaceAll('/', '_').replaceAll('.', '_')}`.slice(0, 63) // MongoDB database names have a max length of 64
+    const dbName = `pw-${testName.replaceAll(/[^a-zA-Z0-9_-]/g, '_')}`.slice(0, 63) // MongoDB database names have a max length of 64
 
     // Fresh filesystem per test
     const fsDir = path.join(PW_DIR, 'fs', `worker-${workerIndex}`)

@@ -1071,7 +1071,7 @@
             }
         },
         "/media": {
-            "post": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -1082,18 +1082,86 @@
                 "operationId": "GetMedia",
                 "parameters": [
                     {
-                        "description": "Media Batch Params",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/MediaBatchParams"
-                        }
-                    },
-                    {
                         "type": "string",
                         "description": "File ShareID",
                         "name": "shareID",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            true,
+                            false
+                        ],
+                        "type": "boolean",
+                        "description": "Include raw media",
+                        "name": "raw",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            true,
+                            false
+                        ],
+                        "type": "boolean",
+                        "description": "Include hidden media",
+                        "name": "hidden",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "createDate"
+                        ],
+                        "type": "string",
+                        "description": "Sort field",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            1,
+                            -1
+                        ],
+                        "type": "integer",
+                        "description": "Sort direction",
+                        "name": "sortDirection",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search query",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Folder IDs to filter by",
+                        "name": "folderIDs",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Media IDs to fetch",
+                        "name": "mediaIDs",
                         "in": "query"
                     }
                 ],
@@ -3293,74 +3361,6 @@
                 },
                 "totalMediaCount": {
                     "type": "integer"
-                }
-            }
-        },
-        "MediaBatchParams": {
-            "type": "object",
-            "properties": {
-                "folderIDs": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    },
-                    "example": [
-                        "[fID1",
-                        "fID2]"
-                    ]
-                },
-                "hidden": {
-                    "type": "boolean",
-                    "enum": [
-                        true,
-                        false
-                    ],
-                    "example": false
-                },
-                "limit": {
-                    "type": "integer",
-                    "example": 20
-                },
-                "mediaIDs": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    },
-                    "example": [
-                        "[mID1",
-                        "mID2]"
-                    ]
-                },
-                "page": {
-                    "type": "integer",
-                    "example": 1
-                },
-                "raw": {
-                    "type": "boolean",
-                    "enum": [
-                        true,
-                        false
-                    ],
-                    "example": false
-                },
-                "search": {
-                    "type": "string",
-                    "example": ""
-                },
-                "sort": {
-                    "type": "string",
-                    "enum": [
-                        "createDate"
-                    ],
-                    "example": "createDate"
-                },
-                "sortDirection": {
-                    "type": "integer",
-                    "enum": [
-                        1,
-                        -1
-                    ],
-                    "example": 1
                 }
             }
         },

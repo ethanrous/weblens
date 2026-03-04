@@ -1,6 +1,6 @@
 import { test as base, expect, type Page, type TestInfo } from '@playwright/test'
 import { addCoverageReport } from 'monocart-reporter'
-import { makeLogFile, startTestBackend, stopTestBackend, type TestBackend } from './backend-manager'
+import { makeLogFile, showLogFile, startTestBackend, stopTestBackend, type TestBackend } from './backend-manager'
 import fs from 'fs'
 
 const DEFAULT_ADMIN_USERNAME = 'admin'
@@ -11,10 +11,6 @@ type Fixtures = {
     testBackend: TestBackend
     login: unknown
     logPath: string
-}
-
-function showLogFile(logFile: string): string {
-    return '_build' + logFile.split('_build')[1]
 }
 
 const test = base.extend<Fixtures>({
@@ -86,20 +82,19 @@ async function login(
     await page.getByPlaceholder('Password').fill(password)
     await page.getByRole('button', { name: 'Sign in' }).click()
     await page.waitForURL('**/files/home')
+    // Wait for the folder data to finish loading so activeFile is available
+    await page.locator('h3').filter({ hasText: 'Home' }).waitFor({ state: 'visible', timeout: 15000 })
 }
 
 async function createFolder(page: import('@playwright/test').Page, name: string) {
-    // await page.waitForTimeout(500) // Wait briefly for UI to stabilize (e.g. after login or navigation)
+    // Wait for the file browser to finish loading folder data before interacting
+    await page.locator('#file-scroller').first().waitFor({ state: 'attached', timeout: 15000 })
 
     await page.getByRole('button', { name: 'New Folder' }).click()
     const nameInput = page.locator('.file-context-menu input')
-    await expect(nameInput).toBeVisible()
+    await expect(nameInput).toBeEnabled({ timeout: 10000 })
     await nameInput.fill(name)
-    await nameInput.dispatchEvent('keydown', {
-        key: 'Enter',
-        code: 'Enter',
-        bubbles: true,
-    })
+    await nameInput.press('Enter')
     await expect(page.locator('[id^="file-card-"]').filter({ hasText: name })).toBeVisible({ timeout: 15000 })
     await expect(nameInput).not.toBeVisible({ timeout: 3000 })
 }

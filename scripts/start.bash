@@ -67,6 +67,9 @@ while [ "${1:-}" != "" ]; do
     "--static")
         static=true
         ;;
+    "--trace")
+        export WEBLENS_LOG_LEVEL=trace
+        ;;
     "--skip-build")
         skip_build=true
         ;;
@@ -99,12 +102,8 @@ if [[ "$skip_build" != true ]] && ! does_agno_exist; then
     build_agno
 fi
 
-show_as_subtask "Launching mongo..." "green" -- launch_mongo --stack-name "$stack_name" --mongo-port "$mongo_port"
+show_as_subtask "Starting services..." "blue" -- ./scripts/envup.bash
 
-# if [[ "$tower_role" == "core" ]] && ! is_hdir_running; then
-#     launch_hdir | show_as_subtask "Launching HDIR..." "green"
-# fi
-#
 WEBLENS_LOG_LEVEL="${WEBLENS_LOG_LEVEL:-debug}"
 
 file_path="$WEBLENS_ROOT/_build/fs/$tower_role"

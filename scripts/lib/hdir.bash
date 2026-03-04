@@ -17,3 +17,8 @@ launch_hdir() {
     dockerc run --rm -d --name weblens-hdir --publish 5001:5000 -v "${WEBLENS_ROOT}/_build/fs/core/cache/:/images" -v "${WEBLENS_ROOT}/_build/hdir/model-cache/:/root/.cache/huggingface" --network weblens-net ethrous/weblens_hdir
 }
 export -f launch_hdir
+
+stop_hdir() {
+    dockerc stop weblens-hdir 2>/dev/null || true
+}
+export -f stop_hdir

@@ -217,11 +217,12 @@ func startServices(appCtx context_service.AppContext, cnf config.Provider) (cont
 	// Install middlewares
 	r.Use(
 		context_service.AppContexter(appCtx),
+		router.LoggerMiddlewares(),
 		router.CORSMiddleware,
 	)
 
 	// Install routes
-	r.Mount("/api/v1/", router.LoggerMiddlewares(), router.Recoverer, v1.Routes(appCtx))
+	r.Mount("/api/v1/", router.Recoverer, v1.Routes(appCtx))
 
 	r.Use(router.Recoverer)
 	r.Mount("/docs", v1.Docs())

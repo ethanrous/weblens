@@ -18,7 +18,7 @@
                 :file="filesStore.activeFile"
                 with-name
             />
-            {{ filesStore.searchRecurively ? 'or its subfolders' : '' }}
+            {{ filesStore.searchRecursively ? 'or its subfolders' : '' }}
             matching
             {{ filesStore.searchWithRegex ? 'regex' : '' }}
             "<strong> {{ locationStore.search }} </strong>"

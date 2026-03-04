@@ -383,6 +383,8 @@ func loadLifetimes(ctx context_service.AppContext) (map[file_system.Filepath]his
 		a := lt.Actions[len(lt.Actions)-1]
 
 		if a.ActionType == history.FileDelete {
+			ctx.Log().Trace().Msgf("Skipping deleted file [%s] in lifetime [%s]", a.GetRelevantPath(), lt.ID)
+
 			continue
 		}
 

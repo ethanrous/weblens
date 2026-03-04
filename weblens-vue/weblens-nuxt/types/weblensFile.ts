@@ -93,7 +93,7 @@ class WeblensFile implements FileInfo {
     parents: WeblensFile[] = []
     hovering?: boolean
     index: number = -1
-    visible?: boolean
+    visible: boolean = true
 
     permissions?: PermissionsInfo
 

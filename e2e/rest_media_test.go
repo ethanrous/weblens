@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"testing"
 
-	openapi "github.com/ethanrous/weblens/api"
 	"github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/stretchr/testify/assert"
@@ -18,10 +17,7 @@ func TestGetMediaBatch(t *testing.T) {
 	client := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
 
 	// Get media batch with empty request - should return empty result
-	mediaBatch, resp, err := client.MediaAPI.GetMedia(t.Context()).Request(openapi.MediaBatchParams{
-		Page:  openapi.PtrInt32(0),
-		Limit: openapi.PtrInt32(10),
-	}).Execute()
+	mediaBatch, resp, err := client.MediaAPI.GetMedia(t.Context()).Page(0).Limit(10).Execute()
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.NotNil(t, mediaBatch)

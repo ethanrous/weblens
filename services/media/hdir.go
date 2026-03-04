@@ -18,7 +18,7 @@ import (
 )
 
 // ErrNoSimilarity indicates that no images matched the search text.
-var ErrNoSimilarity = wlerrors.Statusf(http.StatusNotFound, "no images matched the search text")
+var ErrNoSimilarity = wlerrors.Statusf(http.StatusNotFound, "No images matched the search text")
 
 // ScoreWrapper represents a media item along with its similarity score.
 type ScoreWrapper struct {
@@ -68,6 +68,8 @@ func SortMediaByTextSimilarity(ctx context_service.AppContext, search string, ms
 	}
 
 	if len(scores) == 0 {
+		ctx.Log().Debug().Msgf("No similarity scores returned from HDIR search for query '%s'", search)
+
 		return []ScoreWrapper{}, nil
 	}
 
