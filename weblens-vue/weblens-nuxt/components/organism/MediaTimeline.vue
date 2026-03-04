@@ -6,12 +6,12 @@
         }"
     >
         <ErrorCard
-            v-if="error"
-            :error="error"
+            v-if="mediaStore.timelineFetchError"
+            :error="mediaStore.timelineFetchError"
         />
 
         <div
-            v-else-if="rows.rows.length === 0 && !mediaStore.timelineLoading"
+            v-else-if="rows.rows.length === 0 && !mediaStore.timelineLoading && mediaStore.searchUpToDate"
             :class="{ 'm-auto flex flex-col items-center gap-3': true }"
         >
             <h3 :class="{ 'text-text-secondary text-lg': true }">No media found</h3>
@@ -22,48 +22,59 @@
             />
         </div>
 
-        <div
-            v-for="(row, rowIndex) of rows.rows"
-            :key="String(rowIndex) + row.items.length"
-            :class="{
-                'mx-2 flex flex-row': true,
-            }"
-            :style="{
-                marginTop: MARGIN_SIZE / 2 + 'px',
-                marginBottom: MARGIN_SIZE / 2 + 'px',
-                height: row.rowHeight + 'px',
-                maxHeight: row.rowHeight + 'px',
-                width: row.rowWidth + 'px',
-                flexShrink: 0,
-            }"
+        <span
+            v-else-if="!mediaStore.searchUpToDate"
+            :class="{ 'text-text-secondary m-auto inline-flex items-center gap-1': true }"
         >
-            <UseElementVisibility
-                v-slot="{ isVisible }"
-                :class="{ 'flex h-full w-full': true }"
+            Press
+            <span :class="{ 'rounded border p-0.5': true }"> ENTER </span>
+            to search
+        </span>
+
+        <template v-else>
+            <div
+                v-for="(row, rowIndex) of rows.rows"
+                :key="String(rowIndex) + row.items.length"
+                :class="{
+                    'mx-2 flex flex-row': true,
+                }"
+                :style="{
+                    marginTop: MARGIN_SIZE / 2 + 'px',
+                    marginBottom: MARGIN_SIZE / 2 + 'px',
+                    height: row.rowHeight + 'px',
+                    maxHeight: row.rowHeight + 'px',
+                    width: row.rowWidth + 'px',
+                    flexShrink: 0,
+                }"
             >
-                <div
-                    v-for="(media, colIndex) of row.items"
-                    :id="media.m.contentID"
-                    :key="media.m.contentID + rowIndex + isVisible"
-                    :class="{ 'flex items-center justify-center': true }"
-                    :style="{
-                        marginLeft: MARGIN_SIZE / 2 + 'px',
-                        marginRight: MARGIN_SIZE / 2 + 'px',
-                        width: media.w + 'px',
-                        height: row.rowHeight + 'px',
-                    }"
-                    @click.stop="startPresenting(rowIndex, colIndex)"
+                <UseElementVisibility
+                    v-slot="{ isVisible }"
+                    :class="{ 'flex h-full w-full': true }"
                 >
-                    <MediaImage
-                        :media="media.m"
-                        placeholder
-                        :class="{
-                            'hover:border-text-primary border-text-primary/0 h-full max-h-full w-full max-w-full shrink-0 cursor-pointer overflow-hidden rounded-lg border transition-[scale,border,shadow] hover:shadow': true,
+                    <div
+                        v-for="(media, colIndex) of row.items"
+                        :id="media.m.contentID"
+                        :key="media.m.contentID + rowIndex + isVisible"
+                        :class="{ 'flex items-center justify-center': true }"
+                        :style="{
+                            marginLeft: MARGIN_SIZE / 2 + 'px',
+                            marginRight: MARGIN_SIZE / 2 + 'px',
+                            width: media.w + 'px',
+                            height: row.rowHeight + 'px',
                         }"
-                    />
-                </div>
-            </UseElementVisibility>
-        </div>
+                        @click.stop="startPresenting(rowIndex, colIndex)"
+                    >
+                        <MediaImage
+                            :media="media.m"
+                            placeholder
+                            :class="{
+                                'hover:border-text-primary border-text-primary/0 h-full max-h-full w-full max-w-full shrink-0 cursor-pointer overflow-hidden rounded-lg border transition-[scale,border,shadow] hover:shadow': true,
+                            }"
+                        />
+                    </div>
+                </UseElementVisibility>
+            </div>
+        </template>
         <Loader
             v-if="mediaStore.canLoadMore"
             :class="{ 'mx-auto my-10': true }"
@@ -80,7 +91,6 @@
 import { onKeyPressed, useDebounce, useElementSize, useElementVisibility } from '@vueuse/core'
 import { UseElementVisibility } from '@vueuse/components'
 
-import type { WLError } from '~/types/wlError'
 import MediaImage from '../atom/MediaImage.vue'
 import { GetMediaRows } from '~/types/weblensMedia'
 import ErrorCard from '../molecule/ErrorCard.vue'
@@ -97,8 +107,6 @@ const presentationStore = usePresentationStore()
 const presentationIndex = ref<number>(-1)
 
 const timelineWidthBounced = useDebounce(timelineSize.width, 100)
-
-const error = ref<WLError>()
 
 const MARGIN_SIZE = 4
 

@@ -14,7 +14,7 @@
             v-if="!multipleSelected"
             label="Rename"
             fill-width
-            :disabled="!targetFile?.CanEdit()"
+            :disabled="!targetFile?.CanEdit() || protectedFile"
             @click.stop="emit('renameFile')"
         >
             <IconPencil />
@@ -92,7 +92,7 @@
             :label="deleteText"
             fill-width
             flavor="danger"
-            :disabled="!targetFile?.CanDelete()"
+            :disabled="!targetFile?.CanDelete() && !locationStore.isInTrash"
             @click.stop="handleDeleteFile"
         >
             <IconTrash />
@@ -244,12 +244,14 @@ async function handleDeleteFile(): Promise<void> {
         return
     }
 
-    filesStore.setMovedFile(props.selectedFiles, true)
+    filesStore.setMovedFile(...props.selectedFiles)
     if (props.targetFile?.IsTrash()) {
+        // As a special case, "deleting" the trash will delete all files in the trash, not the trash folder itself
         await useWeblensAPI().FilesAPI.deleteFiles({ fileIDs: [userStore.user.trashID] }, false, true)
-    } else if (locationStore.activeFolderID === userStore.user.trashID) {
+    } else if (locationStore.isInTrash) {
         await useWeblensAPI().FilesAPI.deleteFiles({ fileIDs: props.selectedFiles })
     } else {
+        // If the files are not in the trash, move them to the trash instead of deleting them outright
         await useWeblensAPI().FilesAPI.moveFiles({ fileIDs: props.selectedFiles, newParentID: userStore.user.trashID })
     }
 

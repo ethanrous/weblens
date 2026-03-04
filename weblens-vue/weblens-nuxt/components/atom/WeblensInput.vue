@@ -30,6 +30,7 @@
                 }
             "
         />
+
         <div
             v-if="value && focused && showSubmit"
             :class="{
@@ -44,6 +45,7 @@
         >
             <IconArrowRight />
         </div>
+
         <div
             v-if="clearButton && value"
             :class="{
@@ -51,7 +53,7 @@
             }"
             @click.stop="handleClear"
         >
-            <IconX />
+            <IconX size="20" />
         </div>
 
         <slot

@@ -10,6 +10,11 @@ function handleModified(msg: WsMessage) {
         return
     }
 
+    // Don't update the trash file unless we're currently in the trash.
+    if (!useLocationStore().isInTrash && msg.content.fileInfo.id === useUserStore().user.trashID) {
+        return
+    }
+
     if (msg.content.fileInfo.parentID !== useLocationStore().activeFolderID) {
         useFilesStore().removeFiles(msg.content.fileInfo.id)
     } else {

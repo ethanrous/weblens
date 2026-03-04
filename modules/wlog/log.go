@@ -47,6 +47,7 @@ var loggerMu sync.RWMutex
 type CreateOpts struct {
 	Level   zerolog.Level
 	LogFile string
+	Global  bool
 }
 
 func compileCreateLogOpts(o ...CreateOpts) CreateOpts {
@@ -60,6 +61,10 @@ func compileCreateLogOpts(o ...CreateOpts) CreateOpts {
 
 		if opt.LogFile != "" {
 			opts.LogFile = opt.LogFile
+		}
+
+		if opt.Global {
+			opts.Global = true
 		}
 	}
 
@@ -134,7 +139,7 @@ func NewZeroLogger(opts ...CreateOpts) *zerolog.Logger {
 	log := zerolog.New(logWriter).Level(level).With().Timestamp().Caller().Str("weblens_build_version", wlVersion).Logger()
 
 	// If no options are provided, set the global loggers
-	if len(opts) == 0 {
+	if o.Global {
 		zerolog.SetGlobalLevel(config.LogLevel)
 
 		loggerMu.Lock()
@@ -147,9 +152,9 @@ func NewZeroLogger(opts ...CreateOpts) *zerolog.Logger {
 
 		loggerMu.Unlock()
 
-		log.Info().Msgf("Weblens logger initialized [%s][%s]", log.GetLevel(), config.LogFormat)
+		log.Info().CallerSkipFrame(2).Msgf("Weblens logger initialized [%s][%s]", log.GetLevel(), config.LogFormat)
 	} else {
-		log.Debug().Msgf("Created new Weblens logger [%s][%s]", log.GetLevel(), config.LogFormat)
+		log.Debug().CallerSkipFrame(1).Msgf("Created new Weblens logger [%s][%s]", log.GetLevel(), config.LogFormat)
 	}
 
 	return &log
@@ -176,7 +181,7 @@ func GlobalLogger() *zerolog.Logger {
 	if logger.GetLevel() == zerolog.Disabled {
 		loggerMu.RUnlock()
 
-		NewZeroLogger()
+		NewZeroLogger(CreateOpts{Global: true})
 
 		loggerMu.RLock()
 	}

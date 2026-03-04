@@ -92,7 +92,11 @@ const useFilesStore = defineStore('files', () => {
     } = useAsyncData(
         'files-' + locationStore.activeFolderID,
         async () => {
-            if (!user.value.isLoggedIn.isSet() || (!locationStore.activeFolderID && !locationStore.isInShare)) {
+            if (
+                !user.value.isLoggedIn.isSet() ||
+                locationStore.isInTimeline ||
+                (!locationStore.activeFolderID && !locationStore.isInShare)
+            ) {
                 return {}
             }
 
@@ -155,6 +159,7 @@ const useFilesStore = defineStore('files', () => {
                 user,
                 () => locationStore.activeFolderID,
                 () => locationStore.viewTimestamp,
+                () => locationStore.isInTimeline,
                 isSearching,
                 sortCondition,
                 sortDirection,
@@ -239,6 +244,7 @@ const useFilesStore = defineStore('files', () => {
     watchEffect(() => {
         if (isSearching.value) {
             files.value = searchResults.value ?? []
+            return
         }
 
         if (!filesResponse.value?.children) {
@@ -261,7 +267,7 @@ const useFilesStore = defineStore('files', () => {
     watch(
         () => locationStore.search,
         () => {
-            searchUpToDate.value = !searchRecurively.value
+            searchUpToDate.value = !searchRecurively.value || locationStore.search.trim() === ''
         },
     )
 
@@ -355,6 +361,24 @@ const useFilesStore = defineStore('files', () => {
 
         files.value.push(newFile)
 
+        triggerRef(files)
+    }
+
+    function setMovedFile(...fileIDs: string[]) {
+        const filesMap = files.value.reduce<Record<string, WeblensFile | undefined>>((acc, f) => {
+            acc[f.ID()] = f
+            return acc
+        }, {})
+
+        for (const fileID of fileIDs) {
+            if (fileID === locationStore.activeFolderID) {
+                continue
+            }
+
+            filesMap[fileID]?.SetSelected(SelectedState.Moved)
+        }
+
+        // Trigger reactivity
         triggerRef(files)
     }
 
@@ -473,6 +497,7 @@ const useFilesStore = defineStore('files', () => {
         setShiftPressed,
 
         addFile,
+        setMovedFile,
         removeFiles,
         getFileByID,
 

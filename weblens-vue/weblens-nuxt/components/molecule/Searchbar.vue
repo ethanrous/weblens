@@ -1,13 +1,14 @@
 <template>
     <div
         :class="{
-            'ease-wl-default absolute top-0 z-50 flex h-10 w-full justify-center transition-[height,top,width] duration-300': true,
+            'ease-wl-default absolute top-0 z-50 flex h-10.5 w-full justify-center transition-[height,top,width] duration-300': true,
             'h-[min(80vh,424px)] max-lg:top-[calc((100vh-424px)/2)] max-lg:w-[80vw]': filterOpen,
         }"
     >
         <div
+            ref="searchbar"
             :class="{
-                'bg-background-primary relative mx-4 flex flex-col overflow-hidden rounded-lg transition-[width,height] duration-300 lg:w-full': true,
+                'bg-background-primary relative mx-4 flex flex-col justify-center overflow-hidden rounded-lg border transition-[width,height] duration-300 lg:w-full': true,
                 'w-20 shadow-sm': !filterOpen,
                 'w-[80vw] md:w-[50vw]': filterOpen,
             }"
@@ -16,11 +17,11 @@
                 ref="searchInput"
                 v-model:value="locationStore.search"
                 :class="{
-                    'bg-background-primary min-h-10! w-full shrink gap-0! rounded-none border-b-0': true,
+                    'bg-background-primary h-10! min-h-10! w-full shrink gap-0! border-none': true,
                     'bg-background-primary!': filterOpen,
                 }"
                 :input-class="{
-                    'lg:ml-2': true,
+                    'lg:ml-2 h-5': true,
                     'ml-2': filterOpen,
                     'max-w-0 lg:max-w-full': !filterOpen,
                 }"
@@ -28,19 +29,27 @@
                 :key-name="keyHintText"
                 :buttonish="!filterOpen"
                 search
-                clear-button
+                :clear-button="filterOpen || windowSize.width.value >= 1024"
                 @focused="handleSearchFocused"
                 @submit="handleSubmit"
             >
-                <IconSearch
-                    size="20"
-                    :class="{ 'text-text-tertiary': true }"
-                />
+                <div class="relative">
+                    <IconSearch
+                        size="20"
+                        :class="{ 'text-text-tertiary': true }"
+                    />
+                    <div
+                        :class="{
+                            'bg-theme-primary absolute top-0 right-0 h-1.5 w-1.5 rounded-[1px] transition': true,
+                            'opacity-0': !hasCollapsedSearch,
+                        }"
+                    />
+                </div>
                 <template #rightIcon="slotProps">
                     <div
                         v-if="!slotProps.focused && !filterOpen && locationStore.search === ''"
                         :class="{
-                            'text-text-tertiary pointer-events-none text-nowrap transition': true,
+                            'text-text-tertiary pointer-events-none max-h-5 text-nowrap transition': true,
                             'hidden lg:inline-flex': true,
                         }"
                     >
@@ -49,7 +58,7 @@
                         </span>
                     </div>
                     <div
-                        :class="{ 'relative ml-3 flex justify-center border-l pl-2': true }"
+                        :class="{ 'relative ml-1 flex justify-center border-l pl-2': true }"
                         @click.stop="
                             () => {
                                 filterOpen = !filterOpen
@@ -71,12 +80,26 @@
                             }"
                         />
                     </div>
+
+                    <WeblensButton
+                        v-if="
+                            (locationStore.isInTimeline && !mediaStore.searchUpToDate) ||
+                            (!locationStore.isInTimeline && !filesStore.searchUpToDate)
+                        "
+                        type="light"
+                        :square-size="30"
+                        :class="{ 'ml-2': true }"
+                        @click.stop="handleSubmit"
+                    >
+                        <IconArrowRight />
+                    </WeblensButton>
                 </template>
             </WeblensInput>
+
             <div
                 ref="searchFilter"
                 :class="{
-                    'bg-background-primary relative z-50 h-full w-full overflow-hidden rounded-b border border-t-0 shadow-lg outline-none': true,
+                    'bg-background-primary relative z-50 h-full w-full overflow-hidden rounded-b shadow-lg outline-none': true,
                     'pointer-events-none': !filterOpen,
                 }"
                 tabindex="0"
@@ -103,13 +126,14 @@
 </template>
 
 <script setup lang="ts">
-import { IconFilter2, IconSearch } from '@tabler/icons-vue'
+import { IconArrowRight, IconFilter2, IconSearch } from '@tabler/icons-vue'
 import WeblensInput from '../atom/WeblensInput.vue'
 import { onClickOutside, useElementSize, useWindowSize } from '@vueuse/core'
 import useFilesStore from '~/stores/files'
 import FileSearchFilters from './FileSearchFilters.vue'
 import MediaSearchFilters from './MediaSearchFilters.vue'
 import useLocationStore from '~/stores/location'
+import WeblensButton from '../atom/WeblensButton.vue'
 
 const windowSize = useWindowSize()
 
@@ -122,19 +146,24 @@ const filterOpen = ref(false)
 const searchInput = ref<typeof WeblensInput>()
 
 const searchFilter = ref<HTMLDivElement>()
+const searchbar = ref<HTMLDivElement>()
 
 const searchElement = computed(() => {
     return searchInput.value?.$el
 })
 
 onClickOutside(
-    searchFilter,
+    searchbar,
     () => {
         if (!filterOpen.value) return
         filterOpen.value = false
     },
     { ignore: [searchElement] },
 )
+
+const hasCollapsedSearch = computed(() => {
+    return !filterOpen.value && windowSize.width.value < 1024 && locationStore.search !== ''
+})
 
 const filterModified = computed(() => {
     if (locationStore.isInTimeline) {
@@ -190,10 +219,12 @@ function handleSearchFocused() {
 
 async function handleSubmit() {
     filterOpen.value = false
-    filesStore.searchUpToDate = true
 
     if (locationStore.isInTimeline) {
         mediaStore.clearData()
+        mediaStore.fetchMoreMedia()
+    } else {
+        filesStore.searchUpToDate = true
     }
 }
 

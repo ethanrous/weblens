@@ -18,7 +18,7 @@ import (
 )
 
 // ErrNoSimilarity indicates that no images matched the search text.
-var ErrNoSimilarity = wlerrors.Statusf(http.StatusNotFound, "no images matched the search text")
+var ErrNoSimilarity = wlerrors.Statusf(http.StatusNotFound, "No images matched the search text")
 
 // ScoreWrapper represents a media item along with its similarity score.
 type ScoreWrapper struct {

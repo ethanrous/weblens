@@ -39,6 +39,11 @@ launch_mongo() {
         "--stack-name")
             shift
             stack_name="$1-mongo"
+
+            # Check if stack_name starts with "weblens-" and if it does, strip it
+            if [[ "$stack_name" == weblens-* ]]; then
+                stack_name="${stack_name#weblens-}"
+            fi
             ;;
         "-p" | "--mongo-port")
             shift
@@ -164,7 +169,7 @@ cleanup_mongo() {
         return 1
     fi
 
-    dockerc compose --project-name "$stack_name" down
+    dockerc compose --project-name "weblens-$stack_name" down
 }
 
 export -f cleanup_mongo

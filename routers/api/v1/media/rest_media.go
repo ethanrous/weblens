@@ -91,9 +91,18 @@ func GetMediaBatch(ctx ctxservice.RequestContext) {
 
 		media, totalMediaCount, err := getMediaInFolders(ctx, folderIDs, int(limit), int(page), int(sortDirection), raw)
 		if err != nil {
-			ctx.Log().Error().Stack().Err(err).Msg("Failed to get media in folders")
 			ctx.Error(http.StatusInternalServerError, err)
+
+			return
 		}
+
+		if totalMediaCount == 0 {
+			ctx.Error(http.StatusNotFound, wlerrors.Errorf("No media found in folder(s)"))
+
+			return
+		}
+
+		ctx.Log().Trace().Msgf("Got %d media in folder(s) %+v", len(media), folderIDs)
 
 		scores := []float64{}
 
@@ -107,6 +116,12 @@ func GetMediaBatch(ctx ctxservice.RequestContext) {
 
 			media = wlslices.Map(scoredMedia, func(m media_service.ScoreWrapper) *media_model.Media { return m.Media })
 			totalMediaCount = len(media)
+
+			if totalMediaCount == 0 {
+				ctx.Error(http.StatusNotFound, wlerrors.Errorf("No media matched the search query '%s'", search))
+
+				return
+			}
 
 			scores = wlslices.Map(scoredMedia, func(m media_service.ScoreWrapper) float64 { return m.Score })
 
@@ -617,23 +632,12 @@ func getMediaInFolders(ctx ctxservice.RequestContext, folderIDs []string, limit,
 			return nil, -1, err
 		}
 
-		err = ctx.FileService.RecursiveEnsureChildrenLoaded(ctx, folder)
+		contentIDs, err := collectContentIDs(ctx, folder)
 		if err != nil {
 			return nil, -1, err
 		}
 
-		err = folder.RecursiveMap(func(wfi *file_model.WeblensFileImpl) error {
-			if wfi.IsDir() {
-				return nil
-			}
-
-			allContentIDs = append(allContentIDs, wfi.GetContentID())
-
-			return nil
-		})
-		if err != nil {
-			return nil, -1, err
-		}
+		allContentIDs = append(allContentIDs, contentIDs...)
 	}
 
 	medias, err := media_model.GetPagedMedias(ctx, limit, page, sortDirection, includeRaw, allContentIDs...)
@@ -644,7 +648,39 @@ func getMediaInFolders(ctx ctxservice.RequestContext, folderIDs []string, limit,
 	return medias, len(allContentIDs), nil
 }
 
-// Helper function
+// collectContentIDs recursively walks a folder tree, loading children and
+// collecting content IDs from non-directory files. Directories named
+// ".user_trash" are skipped so that trashed files do not appear in the timeline.
+func collectContentIDs(ctx ctxservice.RequestContext, folder *file_model.WeblensFileImpl) ([]string, error) {
+	if !folder.IsDir() {
+		return []string{folder.GetContentID()}, nil
+	}
+
+	if folder.Name() == file_model.UserTrashDirName {
+		return nil, nil
+	}
+
+	children, err := ctx.FileService.GetChildren(ctx, folder)
+	if err != nil {
+		return nil, err
+	}
+
+	var contentIDs []string
+
+	for _, child := range children {
+		childIDs, err := collectContentIDs(ctx, child)
+		if err != nil {
+			return nil, err
+		}
+
+		contentIDs = append(contentIDs, childIDs...)
+	}
+
+	return contentIDs, nil
+}
+
+// getProcessedMedia retrieves and writes the processed media bytes for a given media ID, quality, and format.
+// It handles both image and video media types, as well as multi-page documents like PDFs.
 func getProcessedMedia(ctx ctxservice.RequestContext, q media_model.Quality, format string) {
 	mediaID := ctx.Path("mediaID")
 
