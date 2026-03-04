@@ -5,15 +5,11 @@ set -euo pipefail
 
 source ./scripts/lib/all.bash
 
-role="core"
+mongo_stacks=$(docker compose ls | grep mongo | grep weblens | sed -E 's/weblens-([a-z\-]+)-mongo.*/\1/')
 
-stack_name="$role"
-
-if is_mongo_running --stack-name "$stack_name"; then
-    cleanup_mongo --stack-name "$stack_name"
-else
-    echo "MongoDB is not running."
-fi
+for mongo_stack in $mongo_stacks; do
+    cleanup_mongo --stack-name "$mongo_stack"
+done
 
 if is_hdir_running; then
     stop_hdir

@@ -67,6 +67,12 @@ launch_mongo() {
     export MONGO_DATA_ROOT="${WEBLENS_ROOT}/_build/db/$stack_name/"
     export MONGO_HOST_PORT=$mongo_port
 
+    # Calculate dynamic port offsets so multiple mongo stacks can run simultaneously
+    local port_offset=$((mongo_port - 27017))
+    export MONGOT_HEALTHCHECK_PORT=${MONGOT_HEALTHCHECK_PORT:-$((38081 + port_offset))}
+    export MONGOT_HOST_PORT_GRPC=${MONGOT_HOST_PORT_GRPC:-$((27028 + port_offset))}
+    export MONGOT_HOST_PORT_METRICS=${MONGOT_HOST_PORT_METRICS:-$((9946 + port_offset))}
+
     echo "Starting MongoDB container [$stack_name] on port [:$mongo_port] ..."
 
     mkdir -p "${MONGO_DATA_ROOT}/mongod" "${MONGO_DATA_ROOT}/mongot"
@@ -95,7 +101,6 @@ launch_mongo() {
         # Wait for mongot to be healthy before returning
 
         count=0
-        MONGOT_HEALTHCHECK_PORT=${MONGOT_HEALTHCHECK_PORT:-$((38081 + mongo_port - 27017))}
         echo "Waiting for Mongot to be healthy on port [:$MONGOT_HEALTHCHECK_PORT] ..."
         set +e
         until curl --fail http://127.0.0.1:"${MONGOT_HEALTHCHECK_PORT}"/health; do

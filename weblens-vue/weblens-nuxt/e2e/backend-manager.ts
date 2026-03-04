@@ -103,7 +103,7 @@ function isProcessRunning(pid: number): boolean {
 
 export async function startTestBackend(workerIndex: number, testName: string): Promise<TestBackend> {
     const port = WEBLENS_PORT_BASE + workerIndex * 1000 + randomInt(999)
-    const dbName = `pw-${testName.replaceAll('/', '_').replaceAll('.', '_')}`.slice(0, 63) // MongoDB database names have a max length of 64
+    const dbName = `pw-${testName.replaceAll(/[^a-zA-Z0-9_-]/g, '_')}`.slice(0, 63) // MongoDB database names have a max length of 64
 
     // Fresh filesystem per test
     const fsDir = path.join(PW_DIR, 'fs', `worker-${workerIndex}`)

@@ -350,20 +350,12 @@ const useFilesStore = defineStore('files', () => {
 
         const newFile = new WeblensFile(file)
 
-        const newFiles = files.value
-        const index = newFiles.findIndex((file) => file.ID() === newFile.ID())
-        if (index !== -1) {
-            newFiles.splice(index, 1)
-        }
-
         if (!newFile.permissions && newFile.ParentID() === locationStore.activeFolderID) {
             newFile.permissions = activeFile.value?.permissions
         }
 
-        newFiles.push(newFile)
-
-        files.value = newFiles
-
+        const filtered = files.value.filter((f) => f.ID() !== newFile.ID())
+        files.value = [...filtered, newFile]
         triggerRef(files)
     }
 
