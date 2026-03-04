@@ -26,7 +26,7 @@ export function makeLogFile(
     name: string,
     opts?: { noCreate?: boolean },
 ): string {
-    const filename = `${logClass}-${name.replaceAll('/', '_').replaceAll(' ', '_')}.log`
+    const filename = `${logClass}-${name.replaceAll(/[^a-zA-Z0-9_-]/g, '_')}.log`
 
     const dateString = new Date(Number(process.env.WEBLENS_PLAYWRIGHT_TEST_START_TIME))
         .toISOString()
