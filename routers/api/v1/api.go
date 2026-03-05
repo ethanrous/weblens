@@ -135,19 +135,24 @@ func Routes(_ context_service.AppContext) *router.Router {
 
 	// Share
 	r.Group("/share", func() {
-		r.Post("/file", file_api.CreateFileShare)
-		r.Group("/{shareID}", func() {
-			r.Get("", file_api.GetFileShare)
-			r.Patch("/public", file_api.SetSharePublic)
-			r.Delete("", file_api.DeleteShare)
+		// Reading a share must work without auth for public share browsing
+		r.Get("/{shareID}", file_api.GetFileShare)
 
-			r.Group("/accessors", func() {
-				r.Post("", file_api.AddUserToShare)
-				r.Patch("/{username}", file_api.SetShareAccessors)
-				r.Delete("/{username}", file_api.RemoveUserFromShare)
+		// All mutation endpoints require authentication
+		r.Group("", func() {
+			r.Post("/file", file_api.CreateFileShare)
+			r.Group("/{shareID}", func() {
+				r.Patch("/public", file_api.SetSharePublic)
+				r.Delete("", file_api.DeleteShare)
+
+				r.Group("/accessors", func() {
+					r.Post("", file_api.AddUserToShare)
+					r.Patch("/{username}", file_api.SetShareAccessors)
+					r.Delete("/{username}", file_api.RemoveUserFromShare)
+				})
 			})
-		})
-	}, router.RequireSignIn)
+		}, router.RequireSignIn)
+	})
 
 	// ApiKeys
 	r.Group("/keys", func() {
