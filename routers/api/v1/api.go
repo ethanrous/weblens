@@ -62,7 +62,18 @@ func Routes(_ context_service.AppContext) *router.Router {
 		r.Get("/random", router.RequireSignIn, media_api.GetRandomMedia)
 	})
 
-	// Files
+	// Files — read endpoints support share-based access (handler checks auth via CanUserAccessFile)
+	r.Group("/files", func() {
+		r.Group("/{fileID}", func() {
+			r.Get("", file_api.GetFile)
+			r.Get("/text", file_api.GetFileText)
+			r.Get("/stats", file_api.GetFileStats)
+			r.Get("/download", file_api.DownloadFile)
+			r.Get("/history", file_api.GetFolderHistory)
+		})
+	})
+
+	// Files — mutation endpoints require authentication
 	r.Group("/files", func() {
 		r.Patch("", file_api.MoveFiles)
 		r.Delete("", file_api.DeleteFiles)
@@ -73,19 +84,18 @@ func Routes(_ context_service.AppContext) *router.Router {
 		r.Get("/shared", file_api.GetSharedFiles)
 
 		r.Group("/{fileID}", func() {
-			r.Get("", file_api.GetFile)
 			r.Patch("", file_api.UpdateFile)
-			r.Get("/text", file_api.GetFileText)
-			r.Get("/stats", file_api.GetFileStats)
-			r.Get("/download", file_api.DownloadFile)
-			r.Get("/history", file_api.GetFolderHistory)
 		})
 	}, router.RequireSignIn)
 
-	// Folder
+	// Folder — read endpoints support share-based access
+	r.Group("/folder/{folderID}", func() {
+		r.Get("", file_api.GetFolder)
+	})
+
+	// Folder — mutation endpoints require authentication
 	r.Group("/folder", func() {
 		r.Group("/{folderID}", func() {
-			r.Get("", file_api.GetFolder)
 			r.Post("/scan", file_api.ScanDir)
 			r.Patch("/cover", file_api.SetFolderCover)
 		})
