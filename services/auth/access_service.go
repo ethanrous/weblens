@@ -52,6 +52,10 @@ func doesSharePermitFile(_ context.Context, file *file_model.WeblensFileImpl, sh
 
 // CanUserAccessFile checks if a user has permission to access a file through a share.
 func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_model.WeblensFileImpl, share *share_model.FileShare, requiredPerms ...share_model.Permission) (*share_model.Permissions, error) {
+	if user == nil {
+		return &share_model.Permissions{}, ErrMustAuthenticate
+	}
+
 	if file.GetPortablePath() == file_model.UsersRootPath {
 		if user.IsOwner() {
 			return share_model.NewPermissions(), nil
@@ -84,7 +88,7 @@ func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_mo
 		return &share_model.Permissions{}, wlerrors.ReplaceStack(wlerrors.Errorf("denying user [%s] access to file [%s]: %w", user.Username, file.ID(), ErrFileAccessNotPermitted))
 	}
 
-	if user == nil || user.IsPublic() {
+	if user.IsPublic() {
 		if share != nil && share.IsPublic() {
 			return share_model.NewPermissions(), nil
 		}
@@ -147,7 +151,7 @@ func GenerateJWTCookie(user *user_model.User) (string, error) {
 		return "", err
 	}
 
-	cookie := fmt.Sprintf("%s=%s;Path=/;Expires=%s;HttpOnly", cryptography.SessionTokenCookie, token, expires.Format(time.RFC1123))
+	cookie := fmt.Sprintf("%s=%s;Path=/;Expires=%s;HttpOnly;Secure;SameSite=Lax", cryptography.SessionTokenCookie, token, expires.Format(time.RFC1123))
 
 	return cookie, nil
 }
@@ -155,7 +159,7 @@ func GenerateJWTCookie(user *user_model.User) (string, error) {
 // GenerateUserCookie creates a cookie containing the username.
 func GenerateUserCookie(user *user_model.User) string {
 	expires := time.Now().Add(time.Hour * 24 * 7).In(time.UTC)
-	cookie := fmt.Sprintf("%s=%s;Path=/;Expires=%s;HttpOnly", cryptography.UserCrumbCookie, user.Username, expires.Format(time.RFC1123))
+	cookie := fmt.Sprintf("%s=%s;Path=/;Expires=%s;HttpOnly;Secure;SameSite=Lax", cryptography.UserCrumbCookie, user.Username, expires.Format(time.RFC1123))
 
 	return cookie
 }
@@ -209,36 +213,3 @@ func GetUserFromAuthHeader(ctx context.Context, authHeader string) (*user_model.
 
 	return u, nil
 }
-
-// func (accSrv *AccessServiceImpl) SetKeyUsedBy(key models.WeblensAPIKey, remote *models.Instance) error {
-// 	accSrv.keyMapMu.RLock()
-// 	keyInfo, ok := accSrv.apiKeyMap[key]
-// 	accSrv.keyMapMu.RUnlock()
-//
-// 	if !ok {
-// 		return werror.WithStack(werror.ErrKeyNotFound)
-// 	}
-//
-// 	if keyInfo.RemoteUsing != "" && remote != nil {
-// 		return werror.WithStack(werror.ErrKeyInUse)
-// 	}
-//
-// 	newUsingID := ""
-// 	if remote != nil {
-// 		newUsingID = remote.ServerID()
-// 	}
-//
-// 	filter := bson.M{"key": key}
-// 	update := bson.M{"$set": bson.M{"remoteUsing": newUsingID}}
-// 	_, err := accSrv.collection.UpdateOne(context.Background(), filter, update)
-// 	if err != nil {
-// 		return werror.WithStack(err)
-// 	}
-//
-// 	keyInfo.RemoteUsing = newUsingId
-// 	accSrv.keyMapMu.Lock()
-// 	accSrv.apiKeyMap[key] = keyInfo
-// 	accSrv.keyMapMu.Unlock()
-//
-// 	return nil
-// }

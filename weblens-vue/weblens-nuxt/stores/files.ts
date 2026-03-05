@@ -197,7 +197,7 @@ const useFilesStore = defineStore('files', () => {
                 searchWithRegex.value,
             )
 
-            const results = res.data.map((f) => {
+            const results = res.data.map((f: FileInfo) => {
                 return new WeblensFile(f)
             })
 

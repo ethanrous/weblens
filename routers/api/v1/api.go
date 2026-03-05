@@ -38,10 +38,10 @@ func Routes(_ context_service.AppContext) *router.Router {
 		r.Get("/types", media_api.GetMediaTypes)
 
 		r.Group("/{mediaID}", func() {
-			r.Get("/info", media_api.GetMediaInfo)
-			r.Get(".{extension}", media_api.GetMediaImage)
-			r.Get("/stream", media_api.StreamVideo)
-			r.Get("/{chunkName}", media_api.StreamVideo)
+			r.Get("/info", router.RequireSignIn, media_api.GetMediaInfo)
+			r.Get(".{extension}", router.RequireSignIn, media_api.GetMediaImage)
+			r.Get("/stream", router.RequireSignIn, media_api.StreamVideo)
+			r.Get("/{chunkName}", router.RequireSignIn, media_api.StreamVideo)
 			r.Patch("/liked", router.RequireSignIn, media_api.SetMediaLiked)
 		})
 
@@ -57,12 +57,23 @@ func Routes(_ context_service.AppContext) *router.Router {
 		// POST because it needs body for all the params.
 		// Kinda hacky, but its better than GET with a body or with 100 query params.
 		// Also, this can take a while, so we set a long timeout.
-		r.Get("", middleware.Timeout(time.Minute*10), media_api.GetMediaBatch)
+		r.Get("", router.RequireSignIn, middleware.Timeout(time.Minute*10), media_api.GetMediaBatch)
 
-		r.Get("/random", media_api.GetRandomMedia)
+		r.Get("/random", router.RequireSignIn, media_api.GetRandomMedia)
 	})
 
-	// Files
+	// Files — read endpoints support share-based access (handler checks auth via CanUserAccessFile)
+	r.Group("/files", func() {
+		r.Group("/{fileID}", func() {
+			r.Get("", file_api.GetFile)
+			r.Get("/text", file_api.GetFileText)
+			r.Get("/stats", file_api.GetFileStats)
+			r.Get("/download", file_api.DownloadFile)
+			r.Get("/history", file_api.GetFolderHistory)
+		})
+	})
+
+	// Files — mutation endpoints require authentication
 	r.Group("/files", func() {
 		r.Patch("", file_api.MoveFiles)
 		r.Delete("", file_api.DeleteFiles)
@@ -73,25 +84,24 @@ func Routes(_ context_service.AppContext) *router.Router {
 		r.Get("/shared", file_api.GetSharedFiles)
 
 		r.Group("/{fileID}", func() {
-			r.Get("", file_api.GetFile)
 			r.Patch("", file_api.UpdateFile)
-			r.Get("/text", file_api.GetFileText)
-			r.Get("/stats", file_api.GetFileStats)
-			r.Get("/download", file_api.DownloadFile)
-			r.Get("/history", file_api.GetFolderHistory)
 		})
+	}, router.RequireSignIn)
+
+	// Folder — read endpoints support share-based access
+	r.Group("/folder/{folderID}", func() {
+		r.Get("", file_api.GetFolder)
 	})
 
-	// Folder
+	// Folder — mutation endpoints require authentication
 	r.Group("/folder", func() {
 		r.Group("/{folderID}", func() {
-			r.Get("", file_api.GetFolder)
 			r.Post("/scan", file_api.ScanDir)
-			r.Patch("/cover", router.RequireSignIn, file_api.SetFolderCover)
+			r.Patch("/cover", file_api.SetFolderCover)
 		})
 
-		r.Post("", router.RequireSignIn, file_api.CreateFolder)
-	})
+		r.Post("", file_api.CreateFolder)
+	}, router.RequireSignIn)
 
 	// Journal
 	// r.Get("/journal", getLifetimesSince)
@@ -107,7 +117,7 @@ func Routes(_ context_service.AppContext) *router.Router {
 	}, router.RequireSignIn, router.RequireCoreTower)
 
 	// Takeout
-	r.Post("/takeout", file_api.CreateTakeout)
+	r.Post("/takeout", router.RequireSignIn, file_api.CreateTakeout)
 	r.Delete("/takeout", router.RequireAdmin, file_api.ClearZipCache)
 
 	// Users
@@ -117,7 +127,7 @@ func Routes(_ context_service.AppContext) *router.Router {
 		r.Head("/{username}", user_api.CheckExists)
 
 		r.Group("", func() {
-			r.Get("", user_api.GetAll)
+			r.Get("", router.RequireAdmin, user_api.GetAll)
 			r.Post("", user_api.Create)
 			r.Get("/me", user_api.GetMe)
 			r.Get("/search", user_api.Search)
@@ -135,18 +145,23 @@ func Routes(_ context_service.AppContext) *router.Router {
 
 	// Share
 	r.Group("/share", func() {
-		r.Post("/file", file_api.CreateFileShare)
-		r.Group("/{shareID}", func() {
-			r.Get("", file_api.GetFileShare)
-			r.Patch("/public", router.RequireSignIn, file_api.SetSharePublic)
-			r.Delete("", router.RequireSignIn, file_api.DeleteShare)
+		// Reading a share must work without auth for public share browsing
+		r.Get("/{shareID}", file_api.GetFileShare)
 
-			r.Group("/accessors", func() {
-				r.Post("", file_api.AddUserToShare)
-				r.Patch("/{username}", file_api.SetShareAccessors)
-				r.Delete("/{username}", file_api.RemoveUserFromShare)
+		// All mutation endpoints require authentication
+		r.Group("", func() {
+			r.Post("/file", file_api.CreateFileShare)
+			r.Group("/{shareID}", func() {
+				r.Patch("/public", file_api.SetSharePublic)
+				r.Delete("", file_api.DeleteShare)
+
+				r.Group("/accessors", func() {
+					r.Post("", file_api.AddUserToShare)
+					r.Patch("/{username}", file_api.SetShareAccessors)
+					r.Delete("/{username}", file_api.RemoveUserFromShare)
+				})
 			})
-		})
+		}, router.RequireSignIn)
 	})
 
 	// ApiKeys
@@ -159,8 +174,8 @@ func Routes(_ context_service.AppContext) *router.Router {
 	// Servers
 	r.Group("/tower", func() {
 		r.Post("/init", tower_api.InitializeTower)
-		r.Get("/history", history_api.GetPagedHistoryActions)
 		r.Group("", func() {
+			r.Get("/history", history_api.GetPagedHistoryActions)
 			r.Get("/tasks", tower_api.GetRunningTasks)
 
 			r.Post("/reset", router.RequireOwner, tower_api.ResetServer)

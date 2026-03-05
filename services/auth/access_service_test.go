@@ -2,6 +2,7 @@ package auth_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -37,6 +38,22 @@ func TestCanUserAccessFile_OwnerAccess(t *testing.T) {
 	assert.True(t, perms.CanDownload)
 	assert.True(t, perms.CanEdit)
 	assert.True(t, perms.CanDelete)
+}
+
+func TestCanUserAccessFile_NilUser(t *testing.T) {
+	ctx := context.Background()
+
+	filepath := file_system.BuildFilePath(file_model.UsersTreeKey, "testuser/photos/image.jpg")
+	file := file_model.NewWeblensFile(file_model.NewFileOptions{
+		Path:       filepath,
+		MemOnly:    true,
+		GenerateID: true,
+	})
+
+	// Nil user should return ErrMustAuthenticate, not panic
+	_, err := auth.CanUserAccessFile(ctx, nil, file, nil)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, auth.ErrMustAuthenticate)
 }
 
 func TestCanUserAccessFile_NonOwnerNoShare(t *testing.T) {
@@ -167,10 +184,19 @@ func TestCanUserModifyShare(t *testing.T) {
 
 		assert.False(t, auth.CanUserModifyShare(user, share))
 	})
+
+	t.Run("admin cannot modify share they do not own", func(t *testing.T) {
+		admin := &user_model.User{Username: "admin", UserPerms: user_model.UserPermissionAdmin}
+		share := share_model.FileShare{
+			Owner: "shareowner",
+		}
+
+		assert.False(t, auth.CanUserModifyShare(admin, share))
+	})
 }
 
 func TestGenerateJWTCookie(t *testing.T) {
-	t.Run("generates valid cookie string", func(t *testing.T) {
+	t.Run("generates valid cookie string with security flags", func(t *testing.T) {
 		user := &user_model.User{Username: "testuser"}
 
 		cookie, err := auth.GenerateJWTCookie(user)
@@ -179,11 +205,13 @@ func TestGenerateJWTCookie(t *testing.T) {
 		assert.Contains(t, cookie, "Path=/")
 		assert.Contains(t, cookie, "Expires=")
 		assert.Contains(t, cookie, "HttpOnly")
+		assert.Contains(t, cookie, "Secure")
+		assert.Contains(t, cookie, "SameSite=Lax")
 	})
 }
 
 func TestGenerateUserCookie(t *testing.T) {
-	t.Run("generates user cookie with correct format", func(t *testing.T) {
+	t.Run("generates user cookie with security flags", func(t *testing.T) {
 		user := &user_model.User{Username: "testuser"}
 
 		cookie := auth.GenerateUserCookie(user)
@@ -191,24 +219,8 @@ func TestGenerateUserCookie(t *testing.T) {
 		assert.Contains(t, cookie, "Path=/")
 		assert.Contains(t, cookie, "Expires=")
 		assert.Contains(t, cookie, "HttpOnly")
-	})
-}
-
-func TestErrorConstants(t *testing.T) {
-	t.Run("ErrBadAuthHeader", func(t *testing.T) {
-		assert.NotNil(t, auth.ErrBadAuthHeader)
-	})
-
-	t.Run("ErrMustAuthenticate", func(t *testing.T) {
-		assert.NotNil(t, auth.ErrMustAuthenticate)
-	})
-
-	t.Run("ErrFileAccessNotPermitted", func(t *testing.T) {
-		assert.NotNil(t, auth.ErrFileAccessNotPermitted)
-	})
-
-	t.Run("ErrShareDoesNotPermitFile", func(t *testing.T) {
-		assert.NotNil(t, auth.ErrShareDoesNotPermitFile)
+		assert.Contains(t, cookie, "Secure")
+		assert.Contains(t, cookie, "SameSite=Lax")
 	})
 }
 
@@ -291,11 +303,15 @@ func TestCookieExpiration(t *testing.T) {
 		user := &user_model.User{Username: "testuser"}
 		cookie := auth.GenerateUserCookie(user)
 
-		// Cookie should be set to expire in ~7 days
+		// Parse the Expires value from the cookie
 		assert.Contains(t, cookie, "Expires=")
-		// Just verify it contains a date that's in the future
-		now := time.Now()
-		future := now.Add(time.Hour * 24 * 6) // At least 6 days from now
-		assert.True(t, future.Before(now.Add(time.Hour*24*8)))
+
+		parts := strings.Split(cookie, "Expires=")
+		require.Len(t, parts, 2, "cookie should contain Expires=")
+
+		expStr := strings.Split(parts[1], ";")[0]
+		expTime, err := time.Parse(time.RFC1123, expStr)
+		require.NoError(t, err, "cookie Expires value should parse as RFC1123")
+		assert.True(t, expTime.After(time.Now().Add(time.Hour*24*6)), "cookie should expire at least 6 days from now")
 	})
 }

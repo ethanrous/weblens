@@ -19,7 +19,7 @@ export const useUserStore = defineStore('user', () => {
 
         await useWeblensAPI()
             .UsersAPI.getUser()
-            .then((res) => setUser(res.data, true))
+            .then((res: { data: UserInfo }) => setUser(res.data, true))
             .catch(() => setUser({} as UserInfo, false))
 
         console.debug('Loading user info...', user.value)

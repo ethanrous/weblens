@@ -279,7 +279,7 @@ async function addDir(
                 },
                 shareID,
             )
-            .catch((err) => {
+            .catch((err: unknown) => {
                 console.error('Failed to add files to upload', err)
             })
 
@@ -356,7 +356,7 @@ export async function HandleDrop(
                 },
                 shareID,
             )
-            .catch((err) => {
+            .catch((err: unknown) => {
                 console.error('Failed to start upload:', err)
             })
 
@@ -475,7 +475,7 @@ export async function HandleFileSelect(files: FileList, rootFolderID: string, is
                     },
                     shareID,
                 )
-                .catch((err) => {
+                .catch((err: unknown) => {
                     console.error('Failed to start upload:', err)
                 })
 
@@ -514,7 +514,7 @@ export async function HandleFileSelect(files: FileList, rootFolderID: string, is
                         },
                         shareID,
                     )
-                    .catch((err) => {
+                    .catch((err: unknown) => {
                         console.error('Failed to start upload:', err)
                     })
 

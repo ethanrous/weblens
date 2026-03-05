@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import WeblensMedia from '~/types/weblensMedia'
 import type { ShallowRef } from 'vue'
 import { useWeblensAPI } from '~/api/AllApi'
-import type { MediaInfo, MediaTypeInfo } from '@ethanrous/weblens-api'
+import type { MediaBatchInfo, MediaInfo, MediaTypeInfo } from '@ethanrous/weblens-api'
 import useLocationStore from './location'
 import { useStorage } from '@vueuse/core'
 import type { WLError } from '~/types/wlError'
@@ -102,12 +102,13 @@ export const useMediaStore = defineStore('media', () => {
             hasPromise = false
             mp = useWeblensAPI()
                 .MediaAPI.getMediaInfo(contentID)
-                .then((res) => new WeblensMedia(res.data))
-                .catch((err) => {
+                .then((res: { data: MediaInfo }) => new WeblensMedia(res.data))
+                .catch((err: unknown) => {
                     console.error('Error fetching single media:', err)
+
                     return undefined
                 })
-            fetching.value.set(contentID, mp)
+            fetching.value.set(contentID, mp as Promise<WeblensMedia | undefined>)
         }
 
         const m = await mp
@@ -151,13 +152,13 @@ export const useMediaStore = defineStore('media', () => {
                 TIMELINE_PAGE_SIZE,
                 [locationStore.activeFolderID],
             )
-            .then((res) => {
+            .then((res: { data: MediaBatchInfo }) => {
                 if (timelineLoading.value !== timelinePromise) return
 
                 mediaPageNum.value = currentPage + 1
 
                 const medias =
-                    res.data.Media?.map((mInfo, i) => {
+                    res.data.Media?.map((mInfo: MediaInfo, i: number) => {
                         const m = new WeblensMedia(mInfo)
                         m.index = currentPage * TIMELINE_PAGE_SIZE + i
                         return m
@@ -184,10 +185,15 @@ export const useMediaStore = defineStore('media', () => {
                 timelineMedia.value = [...timelineMedia.value, ...medias]
                 addMedia(...medias)
             })
-            .catch((err) => {
+            .catch((err: unknown) => {
                 if (timelineLoading.value !== timelinePromise) return
                 console.error('Error fetching more media:', err)
-                timelineFetchError.value = { status: err.status, message: err.response?.data?.error } as WLError
+
+                const apiErr = err as { status?: number; response?: { data?: { error?: string } } }
+                timelineFetchError.value = {
+                    status: apiErr.status ?? 0,
+                    message: apiErr.response?.data?.error,
+                } as WLError
                 canLoadMore.value = false
             })
             .finally(() => {

@@ -32,7 +32,9 @@ export const useRemotesStore = defineStore('remotes', () => {
     async function refreshRemotes() {
         const remotes_response = await useWeblensAPI()
             .TowersAPI.getRemotes()
-            .then((res) => res.data.filter((tower) => tower.role !== TowerRole.BACKUP))
+            .then((res: { data: TowerInfo[] }) =>
+                res.data.filter((tower: TowerInfo) => tower.role !== TowerRole.BACKUP),
+            )
 
         const remotes_map: Map<string, TowerInfo> = new Map()
         for (const tower of remotes_response) {

@@ -702,14 +702,11 @@ func CreateTakeout(ctx context_service.RequestContext) {
 		return
 	}
 
-	// TODO: Make sure user has access to all requested files
 	files := make([]*file_model.WeblensFileImpl, 0, len(takeoutRequest.FileIDs))
 
 	for _, fileID := range takeoutRequest.FileIDs {
-		file, err := ctx.FileService.GetFileByID(ctx, fileID)
+		file, err := CheckFileAccessByID(ctx, fileID, share_model.SharePermissionView)
 		if err != nil {
-			ctx.Error(http.StatusNotFound, err)
-
 			return
 		}
 
@@ -805,6 +802,12 @@ func AutocompletePath(ctx context_service.RequestContext) {
 	folder, err := ctx.FileService.GetFileByFilepath(ctx, filepath)
 	if err != nil {
 		ctx.Error(http.StatusNotFound, err)
+
+		return
+	}
+
+	if _, err = auth.CanUserAccessFile(ctx, ctx.Requester, folder, ctx.Share); err != nil {
+		ctx.Error(http.StatusForbidden, err)
 
 		return
 	}
@@ -1089,10 +1092,8 @@ func UnTrashFiles(ctx context_service.RequestContext) {
 	files := make([]*file_model.WeblensFileImpl, 0, len(fileIDs))
 
 	for _, fileID := range fileIDs {
-		file, err := ctx.FileService.GetFileByID(ctx, fileID)
+		file, err := CheckFileAccessByID(ctx, fileID, share_model.SharePermissionEdit)
 		if err != nil {
-			ctx.Error(http.StatusNotFound, wlerrors.New("Could not find file with id "+fileID))
-
 			return
 		}
 

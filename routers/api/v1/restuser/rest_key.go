@@ -99,8 +99,8 @@ func DeleteToken(ctx ctxservice.RequestContext) {
 		return
 	}
 
-	// Check if the token exists
-	_, err = auth_model.GetTokenByID(ctx, objToken)
+	// Check if the token exists and that the requester owns it
+	token, err := auth_model.GetTokenByID(ctx, objToken)
 	if err != nil {
 		if wlerrors.Is(err, auth_model.ErrTokenNotFound) {
 			ctx.Status(http.StatusNotFound)
@@ -109,6 +109,12 @@ func DeleteToken(ctx ctxservice.RequestContext) {
 		}
 
 		ctx.Error(http.StatusInternalServerError, err)
+
+		return
+	}
+
+	if token.Owner != ctx.Requester.GetUsername() && !ctx.Requester.IsAdmin() {
+		ctx.Status(http.StatusNotFound)
 
 		return
 	}

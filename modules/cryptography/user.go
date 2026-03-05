@@ -2,6 +2,8 @@ package cryptography
 
 import (
 	"context"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/ethanrous/weblens/modules/wlerrors"
@@ -46,7 +48,49 @@ const SessionTokenCookie = "weblens-session-token"
 // UserCrumbCookie is the name of the HTTP cookie that stores the username.
 const UserCrumbCookie = "weblens-user-name"
 
-var superSecretKey = []byte("weblens_super_secret_key")
+var jwtSigningKey []byte
+
+func init() {
+	ReloadJWTKey()
+}
+
+// ReloadJWTKey loads the JWT signing key from the WEBLENS_JWT_SECRET environment
+// variable. If the variable is not set, a random 32-byte key is generated. This
+// means sessions will not survive server restarts unless the env var is configured.
+func ReloadJWTKey() {
+	if secret := os.Getenv("WEBLENS_JWT_SECRET"); secret != "" {
+		jwtSigningKey = []byte(secret)
+	} else {
+		key, err := RandomBytes(32)
+		if err != nil {
+			panic("failed to generate random JWT key: " + err.Error())
+		}
+
+		jwtSigningKey = key
+	}
+}
+
+// ValidateFilename checks that a filename does not contain path traversal
+// characters or other invalid sequences that could escape the intended directory.
+func ValidateFilename(name string) error {
+	if name == "" {
+		return wlerrors.New("filename must not be empty")
+	}
+
+	if name == "." || name == ".." {
+		return wlerrors.New("filename must not be '.' or '..'")
+	}
+
+	if strings.ContainsAny(name, "/\\") {
+		return wlerrors.New("filename must not contain path separators")
+	}
+
+	if len(name) > 255 {
+		return wlerrors.New("filename must not exceed 255 characters")
+	}
+
+	return nil
+}
 
 // GenerateJWT generates a JWT token for the specified username.
 func GenerateJWT(username string) (string, time.Time, error) {
@@ -61,7 +105,7 @@ func GenerateJWT(username string) (string, time.Time, error) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	signedToken, err := token.SignedString(superSecretKey)
+	signedToken, err := token.SignedString(jwtSigningKey)
 	if err != nil {
 		return "", time.Time{}, err
 	}
@@ -79,7 +123,7 @@ func GetUsernameFromToken(tokenStr string) (string, error) {
 		tokenStr,
 		&WlClaims{},
 		func(_ *jwt.Token) (any, error) {
-			return superSecretKey, nil
+			return jwtSigningKey, nil
 		},
 	)
 	if err != nil {

@@ -9,6 +9,7 @@ import (
 	"github.com/ethanrous/weblens/modules/netwrk"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/modules/wlstructs"
+	"github.com/ethanrous/weblens/services/auth"
 	"github.com/ethanrous/weblens/services/ctxservice"
 	file_service "github.com/ethanrous/weblens/services/file"
 	"github.com/ethanrous/weblens/services/reshape"
@@ -117,7 +118,12 @@ func GetFileShare(ctx ctxservice.RequestContext) {
 		return
 	}
 
-	// TODO: check permissions
+	// Public shares can be viewed by anyone; private shares require ownership
+	if !share.IsPublic() && (ctx.Requester == nil || !auth.CanUserModifyShare(ctx.Requester, *share)) {
+		ctx.Error(http.StatusNotFound, wlerrors.New("share not found"))
+
+		return
+	}
 
 	shareInfo := reshape.ShareToShareInfo(ctx, share)
 	ctx.JSON(http.StatusOK, shareInfo)
@@ -141,6 +147,12 @@ func SetSharePublic(ctx ctxservice.RequestContext) {
 	share, err := share_model.GetShareByID(ctx, shareID)
 	if err != nil {
 		ctx.Error(http.StatusNotFound, err)
+
+		return
+	}
+
+	if !auth.CanUserModifyShare(ctx.Requester, *share) {
+		ctx.Error(http.StatusForbidden, wlerrors.New("not authorized to modify this share"))
 
 		return
 	}
@@ -180,6 +192,12 @@ func AddUserToShare(ctx ctxservice.RequestContext) {
 	share, err := share_model.GetShareByID(ctx, shareID)
 	if err != nil {
 		ctx.Error(http.StatusNotFound, err)
+
+		return
+	}
+
+	if !auth.CanUserModifyShare(ctx.Requester, *share) {
+		ctx.Error(http.StatusForbidden, wlerrors.New("not authorized to modify this share"))
 
 		return
 	}
@@ -242,6 +260,12 @@ func RemoveUserFromShare(ctx ctxservice.RequestContext) {
 		return
 	}
 
+	if !auth.CanUserModifyShare(ctx.Requester, *share) {
+		ctx.Error(http.StatusForbidden, wlerrors.New("not authorized to modify this share"))
+
+		return
+	}
+
 	username := ctx.Path("username")
 
 	perms := share.GetUserPermissions(username)
@@ -281,6 +305,12 @@ func SetShareAccessors(ctx ctxservice.RequestContext) {
 	share, err := share_model.GetShareByID(ctx, shareID)
 	if err != nil {
 		ctx.Error(http.StatusNotFound, err)
+
+		return
+	}
+
+	if !auth.CanUserModifyShare(ctx.Requester, *share) {
+		ctx.Error(http.StatusForbidden, wlerrors.New("not authorized to modify this share"))
 
 		return
 	}
@@ -339,7 +369,20 @@ func SetShareAccessors(ctx ctxservice.RequestContext) {
 func DeleteShare(ctx ctxservice.RequestContext) {
 	shareID := share_model.IDFromString(ctx.Path("shareID"))
 
-	err := share_model.DeleteShare(ctx, shareID)
+	share, err := share_model.GetShareByID(ctx, shareID)
+	if err != nil {
+		ctx.Error(http.StatusNotFound, err)
+
+		return
+	}
+
+	if !auth.CanUserModifyShare(ctx.Requester, *share) {
+		ctx.Error(http.StatusForbidden, wlerrors.New("not authorized to delete this share"))
+
+		return
+	}
+
+	err = share_model.DeleteShare(ctx, shareID)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 
