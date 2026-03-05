@@ -11,6 +11,7 @@ import (
 	history_api "github.com/ethanrous/weblens/routers/api/v1/history"
 	media_api "github.com/ethanrous/weblens/routers/api/v1/media"
 	user_api "github.com/ethanrous/weblens/routers/api/v1/restuser"
+	tag_api "github.com/ethanrous/weblens/routers/api/v1/tag"
 	tower_api "github.com/ethanrous/weblens/routers/api/v1/tower"
 	"github.com/ethanrous/weblens/routers/api/v1/websocket"
 	"github.com/ethanrous/weblens/routers/router"
@@ -105,6 +106,22 @@ func Routes(_ context_service.AppContext) *router.Router {
 
 	// Journal
 	// r.Get("/journal", getLifetimesSince)
+
+	// Tags
+	r.Group("/tags", func() {
+		r.Get("", tag_api.GetUserTags)
+		r.Post("", tag_api.CreateTag)
+
+		r.Group("/{tagID}", func() {
+			r.Get("", tag_api.GetTag)
+			r.Patch("", tag_api.UpdateTag)
+			r.Delete("", tag_api.DeleteTag)
+			r.Post("/files", tag_api.AddFilesToTag)
+			r.Delete("/files", tag_api.RemoveFilesFromTag)
+		})
+
+		r.Get("/file/{fileID}", tag_api.GetTagsForFile)
+	}, router.RequireSignIn)
 
 	// Upload
 	r.Group("/upload", func() {

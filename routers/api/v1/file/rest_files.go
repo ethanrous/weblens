@@ -18,6 +18,7 @@ import (
 	"github.com/ethanrous/weblens/models/job"
 	media_model "github.com/ethanrous/weblens/models/media"
 	share_model "github.com/ethanrous/weblens/models/share"
+	tag_model "github.com/ethanrous/weblens/models/tag"
 	"github.com/ethanrous/weblens/models/task"
 	"github.com/ethanrous/weblens/modules/netwrk"
 	"github.com/ethanrous/weblens/modules/websocket"
@@ -1182,6 +1183,13 @@ func DeleteFiles(ctx context_service.RequestContext) {
 		ctx.Error(http.StatusInternalServerError, fmt.Errorf("Failed to delete files: %w", err))
 
 		return
+	}
+
+	// Clean up tag references for deleted files
+	for _, file := range files {
+		if tagErr := tag_model.RemoveFileFromAllTags(ctx, file.ID()); tagErr != nil {
+			ctx.Log().Error().Err(tagErr).Msgf("Failed to remove file %s from tags", file.ID())
+		}
 	}
 
 	ctx.Status(http.StatusOK)

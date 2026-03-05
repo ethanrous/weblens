@@ -35,6 +35,15 @@
         </WeblensButton>
 
         <WeblensButton
+            label="Tags"
+            fill-width
+            :disabled="!targetFile"
+            @click.stop="emit('tagFiles')"
+        >
+            <IconTag />
+        </WeblensButton>
+
+        <WeblensButton
             v-if="!multipleSelected"
             label="Share"
             fill-width
@@ -108,6 +117,7 @@ import {
     IconInfoCircle,
     IconPencil,
     IconPhotoScan,
+    IconTag,
     IconTrash,
     IconUsersPlus,
 } from '@tabler/icons-vue'
@@ -130,7 +140,7 @@ const websocketStore = useWebsocketStore()
 const downloadTaskID = ref<string>()
 
 const emit = defineEmits<{
-    (e: 'createFolder' | 'renameFile' | 'shareFile'): void
+    (e: 'createFolder' | 'renameFile' | 'shareFile' | 'tagFiles'): void
 }>()
 
 const props = defineProps<{
@@ -246,12 +256,10 @@ async function handleDeleteFile(): Promise<void> {
 
     filesStore.setMovedFile(...props.selectedFiles)
     if (props.targetFile?.IsTrash()) {
-        // As a special case, "deleting" the trash will delete all files in the trash, not the trash folder itself
         await useWeblensAPI().FilesAPI.deleteFiles({ fileIDs: [userStore.user.trashID] }, false, true)
     } else if (locationStore.isInTrash) {
         await useWeblensAPI().FilesAPI.deleteFiles({ fileIDs: props.selectedFiles })
     } else {
-        // If the files are not in the trash, move them to the trash instead of deleting them outright
         await useWeblensAPI().FilesAPI.moveFiles({ fileIDs: props.selectedFiles, newParentID: userStore.user.trashID })
     }
 
