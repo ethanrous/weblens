@@ -1,6 +1,7 @@
 package cryptography_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/ethanrous/weblens/modules/cryptography"
@@ -56,12 +57,12 @@ func TestValidateFilename(t *testing.T) {
 			input string
 		}{
 			{"path traversal parent", ".."},
-			{"path traversal with prefix", "../etc/passwd"},
-			{"path traversal embedded", "foo/../bar"},
+			{"path traversal with slash", "../etc/passwd"},
 			{"forward slash", "foo/bar"},
 			{"backslash", "foo\\bar"},
 			{"dot current dir", "."},
 			{"empty string", ""},
+			{"exceeds max length", strings.Repeat("a", 256)},
 		}
 
 		for _, tt := range invalidNames {
@@ -77,6 +78,8 @@ func TestValidateFilename(t *testing.T) {
 			"my document.pdf",
 			".hidden",
 			"file-name_v2.tar.gz",
+			"resume..v2.pdf",
+			strings.Repeat("a", 255),
 		}
 
 		for _, name := range validNames {

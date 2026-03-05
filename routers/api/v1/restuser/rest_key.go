@@ -114,7 +114,7 @@ func DeleteToken(ctx ctxservice.RequestContext) {
 	}
 
 	if token.Owner != ctx.Requester.GetUsername() && !ctx.Requester.IsAdmin() {
-		ctx.Error(http.StatusForbidden, wlerrors.New("not authorized to delete this token"))
+		ctx.Status(http.StatusNotFound)
 
 		return
 	}

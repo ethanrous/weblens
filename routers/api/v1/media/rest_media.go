@@ -187,6 +187,23 @@ func getMediaByIDs(ctx ctxservice.RequestContext, mediaIDs []string) {
 			return
 		}
 
+		// Verify the requester has access to at least one backing file
+		hasAccess := false
+
+		for _, fileID := range m.GetFiles() {
+			if _, err := file_api.CheckFileAccessByID(ctx, fileID, share.SharePermissionView); err == nil {
+				hasAccess = true
+
+				break
+			}
+		}
+
+		if !hasAccess {
+			ctx.Error(http.StatusForbidden, wlerrors.New("not authorized to access this media"))
+
+			return
+		}
+
 		medias = append(medias, m)
 	}
 
@@ -637,12 +654,6 @@ func GetRandomMedia(ctx ctxservice.RequestContext) {
 	count, err := strconv.Atoi(countStr)
 	if err != nil {
 		ctx.Error(http.StatusBadRequest, err)
-
-		return
-	}
-
-	if !ctx.IsLoggedIn {
-		ctx.Error(http.StatusUnauthorized, wlerrors.New("sign in required"))
 
 		return
 	}

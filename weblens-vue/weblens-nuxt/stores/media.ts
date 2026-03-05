@@ -185,10 +185,15 @@ export const useMediaStore = defineStore('media', () => {
                 timelineMedia.value = [...timelineMedia.value, ...medias]
                 addMedia(...medias)
             })
-            .catch((err: { status: number; response?: { data?: { error?: string } } }) => {
+            .catch((err: unknown) => {
                 if (timelineLoading.value !== timelinePromise) return
                 console.error('Error fetching more media:', err)
-                timelineFetchError.value = { status: err.status, message: err.response?.data?.error } as WLError
+
+                const apiErr = err as { status?: number; response?: { data?: { error?: string } } }
+                timelineFetchError.value = {
+                    status: apiErr.status ?? 0,
+                    message: apiErr.response?.data?.error,
+                } as WLError
                 canLoadMore.value = false
             })
             .finally(() => {

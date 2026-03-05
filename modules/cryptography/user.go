@@ -85,8 +85,8 @@ func ValidateFilename(name string) error {
 		return wlerrors.New("filename must not contain path separators")
 	}
 
-	if strings.Contains(name, "..") {
-		return wlerrors.New("filename must not contain '..'")
+	if len(name) > 255 {
+		return wlerrors.New("filename must not exceed 255 characters")
 	}
 
 	return nil

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -45,10 +46,21 @@ var upgrader = gorilla.Upgrader{
 
 		proxyAddr := config.GetConfig().ProxyAddress
 		if proxyAddr == "" {
-			return true // No proxy configured, allow all
+			// No proxy configured — only allow same-host origins
+			return origin == "http://"+r.Host || origin == "https://"+r.Host
 		}
 
-		return strings.HasPrefix(origin, proxyAddr)
+		originURL, err := url.Parse(origin)
+		if err != nil {
+			return false
+		}
+
+		proxyURL, err := url.Parse(proxyAddr)
+		if err != nil {
+			return false
+		}
+
+		return originURL.Scheme == proxyURL.Scheme && originURL.Host == proxyURL.Host
 	},
 }
 

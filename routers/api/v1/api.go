@@ -87,11 +87,11 @@ func Routes(_ context_service.AppContext) *router.Router {
 		r.Group("/{folderID}", func() {
 			r.Get("", file_api.GetFolder)
 			r.Post("/scan", file_api.ScanDir)
-			r.Patch("/cover", router.RequireSignIn, file_api.SetFolderCover)
+			r.Patch("/cover", file_api.SetFolderCover)
 		})
 
-		r.Post("", router.RequireSignIn, file_api.CreateFolder)
-	})
+		r.Post("", file_api.CreateFolder)
+	}, router.RequireSignIn)
 
 	// Journal
 	// r.Get("/journal", getLifetimesSince)
