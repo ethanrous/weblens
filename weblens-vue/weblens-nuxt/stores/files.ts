@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { SubToFolder, UnsubFromFolder } from '~/api/FileBrowserApi'
 import WeblensFile, { SelectedState } from '~/types/weblensFile'
 import useLocationStore from './location'
+import useTagsStore from './tags'
 import { onWatcherCleanup } from 'vue'
 import type { AxiosResponse } from 'axios'
 import WeblensMedia from '~/types/weblensMedia'
@@ -60,6 +61,7 @@ const useFilesStore = defineStore('files', () => {
 
     const searchRecursively = ref<boolean>(false)
     const searchWithRegex = ref<boolean>(false)
+    const filterTagIDs = ref<Set<string>>(new Set())
 
     const searchUpToDate = ref<boolean>(true)
 
@@ -242,18 +244,26 @@ const useFilesStore = defineStore('files', () => {
     })
 
     watchEffect(() => {
+        let result: WeblensFile[]
+
         if (isSearching.value) {
-            files.value = searchResults.value ?? []
-            return
+            result = searchResults.value ?? []
+        } else if (!filesResponse.value?.children) {
+            result = []
+        } else {
+            result = filesResponse.value?.children.filter((f) => !f.IsTrash())
         }
 
-        if (!filesResponse.value?.children) {
-            files.value = []
-
-            return
+        // Apply tag filter if any tags are selected
+        if (filterTagIDs.value.size > 0) {
+            const tagsStore = useTagsStore()
+            result = result.filter((f) => {
+                const fileTags = tagsStore.getTagsByFileID(f.ID())
+                return [...filterTagIDs.value].every((tagID) => fileTags.some((t) => t.id === tagID))
+            })
         }
 
-        files.value = filesResponse.value?.children.filter((f) => !f.IsTrash())
+        files.value = result
     })
 
     const lastSelectedIndex = computed(() => {
@@ -447,6 +457,10 @@ const useFilesStore = defineStore('files', () => {
         searchWithRegex.value = useRegex
     }
 
+    function setFilterTagIDs(tagIDs: Set<string>) {
+        filterTagIDs.value = tagIDs
+    }
+
     function getNextFileID(currentFileID: string): string | null {
         const index = files.value.findIndex((f) => f.ID() === currentFileID)
         if (index === -1 || index + 1 >= files.value.length) {
@@ -517,6 +531,9 @@ const useFilesStore = defineStore('files', () => {
         setSearchWithRegex,
         searchResults,
         searchUpToDate,
+
+        filterTagIDs,
+        setFilterTagIDs,
     }
 })
 

@@ -21,6 +21,12 @@
             @create-folder="menuStore.setMenuMode('newName')"
             @rename-file="menuStore.setMenuMode('rename')"
             @share-file="menuStore.setSharing(true)"
+            @tag-files="menuStore.setMenuMode('tags')"
+        />
+
+        <TagSelector
+            v-else-if="menuStore.menuMode === 'tags'"
+            :file-i-ds="selectedFiles"
         />
 
         <ContextNameFile
@@ -43,6 +49,7 @@ import ContextMenuHeader from '../molecule/ContextMenuHeader.vue'
 import { onClickOutside, onKeyDown, useElementBounding, useElementSize } from '@vueuse/core'
 import ContextMenuActions from '../molecule/ContextMenuActions.vue'
 import ContextNameFile from '../molecule/ContextNameFile.vue'
+import TagSelector from '../molecule/TagSelector.vue'
 import useLocationStore from '~/stores/location'
 import ShareModal from './ShareModal.vue'
 import { useWeblensAPI } from '~/api/AllApi'

@@ -15,6 +15,25 @@
             }"
         >
             <span :class="{ 'h-max truncate text-lg font-semibold text-nowrap': true }">{{ file.GetFilename() }}</span>
+            <div
+                v-if="fileTags.length > 0"
+                class="flex items-center gap-1"
+            >
+                <span
+                    v-for="tag in fileTags.slice(0, 3)"
+                    :key="tag.id"
+                    class="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs"
+                    :style="{ backgroundColor: tag.color + '30', color: tag.color }"
+                >
+                    {{ tag.name }}
+                </span>
+                <span
+                    v-if="fileTags.length > 3"
+                    class="text-text-tertiary text-xs"
+                >
+                    +{{ fileTags.length - 3 }}
+                </span>
+            </div>
             <span
                 :class="{
                     'mt-auto ml-auto text-xs': true,
@@ -36,11 +55,18 @@
 <script setup lang="ts">
 import { SelectedState } from '@/types/weblensFile'
 import type WeblensFile from '@/types/weblensFile'
+import useTagsStore from '~/stores/tags'
 
-defineProps<{
+const tagsStore = useTagsStore()
+
+const props = defineProps<{
     file: WeblensFile
     fileState: SelectedState
 }>()
+
+const fileTags = computed(() => {
+    return tagsStore.getTagsByFileID(props.file.ID())
+})
 
 defineEmits<{
     (e: 'contextMenu', event: MouseEvent): void

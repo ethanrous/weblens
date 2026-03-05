@@ -1,12 +1,12 @@
 import { defineStore } from 'pinia'
 import type { coordinates } from '~/types/style'
 
-export type MenuMode = 'rename' | 'newName'
+export type MenuMode = 'rename' | 'newName' | 'tags'
 
 export const useContextMenuStore = defineStore('contextMenu', () => {
     const isOpen = ref<boolean>(false)
     const isSharing = ref<boolean>(false)
-    const menuMode = ref<'rename' | 'newName' | undefined>()
+    const menuMode = ref<MenuMode | undefined>()
 
     const menuPosition = ref<coordinates>({ x: -1, y: -1 })
 

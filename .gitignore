@@ -53,3 +53,7 @@ scripts/docker-compose.yml
 
 cert/
 node_modules/
+
+# LLM stuff
+.claude/plan/
+.claude/worktrees/

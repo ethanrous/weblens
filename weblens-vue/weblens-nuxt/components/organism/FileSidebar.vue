@@ -91,6 +91,16 @@
                 <IconUpload size="18" />
             </UploadButton>
 
+            <WeblensButton
+                label="Tags"
+                allow-collapse
+                fill-width
+                :disabled="!userStore.loggedIn"
+                @click.stop="showTagManager = true"
+            >
+                <IconTags size="18" />
+            </WeblensButton>
+
             <Divider />
 
             <div :class="{ 'mt-auto w-full': true }">
@@ -119,6 +129,11 @@
             </WeblensButton>
         </div>
     </div>
+
+    <TagManager
+        :visible="showTagManager"
+        @close="showTagManager = false"
+    />
 </template>
 
 <script setup lang="ts">
@@ -128,6 +143,7 @@ import {
     IconFolderPlus,
     IconHome,
     IconSettings,
+    IconTags,
     IconTrash,
     IconUpload,
     IconUser,
@@ -135,6 +151,7 @@ import {
 } from '@tabler/icons-vue'
 import WeblensButton from '../atom/WeblensButton.vue'
 import Divider from '../atom/Divider.vue'
+import TagManager from './TagManager.vue'
 import useFilesStore from '~/stores/files'
 import WeblensFile from '~/types/weblensFile'
 import TaskProgress from './TaskProgress.vue'
@@ -157,6 +174,7 @@ const userStore = useUserStore()
 const route = useRoute()
 
 const forceOpen = ref<boolean>(false)
+const showTagManager = ref(false)
 
 defineProps<{
     collapsed?: boolean

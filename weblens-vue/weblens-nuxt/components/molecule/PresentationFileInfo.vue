@@ -51,6 +51,38 @@
             </InfoRow>
         </div>
 
+        <div class="flex flex-col">
+            <span class="text-text-secondary mb-1 text-xs font-semibold uppercase">Tags</span>
+            <div class="flex flex-wrap gap-1">
+                <span
+                    v-for="tag in fileTags"
+                    :key="tag.id"
+                    class="group inline-flex cursor-pointer items-center gap-1 rounded-full px-2 py-0.5 text-xs transition hover:opacity-75"
+                    :style="{ backgroundColor: tag.color + '30', color: tag.color }"
+                    :title="'Click to remove ' + tag.name"
+                    @click="removeTag(tag.id)"
+                >
+                    {{ tag.name }}
+                    <IconX
+                        size="12"
+                        class="opacity-0 group-hover:opacity-100"
+                    />
+                </span>
+                <span
+                    class="clickable text-text-tertiary inline-flex items-center gap-0.5 rounded-full text-xs"
+                    @click="showTagSelector = !showTagSelector"
+                >
+                    <IconPlus size="12" />
+                    Add
+                </span>
+            </div>
+            <TagSelector
+                v-if="showTagSelector && file"
+                :file-i-ds="[file.ID()]"
+                class="mt-1"
+            />
+        </div>
+
         <div :class="{ 'flex gap-4': true }">
             <WeblensButton
                 label="Show in Files"
@@ -91,10 +123,22 @@
 </template>
 
 <script setup lang="ts">
-import { IconCalendar, IconDatabase, IconDownload, IconFile, IconFolder, IconSearch, IconUser } from '@tabler/icons-vue'
+import {
+    IconCalendar,
+    IconDatabase,
+    IconDownload,
+    IconFile,
+    IconFolder,
+    IconPlus,
+    IconSearch,
+    IconUser,
+    IconX,
+} from '@tabler/icons-vue'
 import useFilesStore from '~/stores/files'
+import useTagsStore from '~/stores/tags'
 import WeblensButton from '../atom/WeblensButton.vue'
 import InfoRow from '../atom/InfoRow.vue'
+import TagSelector from './TagSelector.vue'
 import { useWeblensAPI } from '~/api/AllApi'
 import WeblensFile from '~/types/weblensFile'
 import { handleDownload } from '~/api/FileBrowserApi'
@@ -104,6 +148,19 @@ const fileStore = useFilesStore()
 const presentationStore = usePresentationStore()
 const mediaStore = useMediaStore()
 const tasksStore = useTasksStore()
+const tagsStore = useTagsStore()
+
+const showTagSelector = ref(false)
+
+const fileTags = computed(() => {
+    if (!file.value) return []
+    return tagsStore.getTagsByFileID(file.value.ID())
+})
+
+async function removeTag(tagID: string) {
+    if (!file.value) return
+    await tagsStore.removeFilesFromTag(tagID, [file.value.ID()])
+}
 
 const props = defineProps<{
     fileId: string
@@ -140,18 +197,16 @@ function goToFile() {
 
 async function goToFileByMediaID() {
     const fileIDs = mediaStore.mediaMap.get(props.mediaId)?.fileIDs
-    if (fileIDs?.length) {
-        const fileID = fileIDs[0]
-        const fileInfo = (await useWeblensAPI().FilesAPI.getFile(fileID)).data
-        const file = new WeblensFile(fileInfo)
-        if (file) {
-            presentationStore.clearPresentation()
-
-            file.GoTo()
-        }
+    if (!fileIDs?.length) {
+        console.error('No file found for media ID:', props.mediaId)
+        return
     }
 
-    console.error('No file found for media ID:', props.mediaId)
+    const fileID = fileIDs[0]
+    const fileInfo = (await useWeblensAPI().FilesAPI.getFile(fileID)).data
+    const f = new WeblensFile(fileInfo)
+    presentationStore.clearPresentation()
+    f.GoTo()
 }
 
 const downloadTaskID = ref<string | null>(null)
