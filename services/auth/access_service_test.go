@@ -167,10 +167,19 @@ func TestCanUserModifyShare(t *testing.T) {
 
 		assert.False(t, auth.CanUserModifyShare(user, share))
 	})
+
+	t.Run("admin cannot modify share they do not own", func(t *testing.T) {
+		admin := &user_model.User{Username: "admin", UserPerms: user_model.UserPermissionAdmin}
+		share := share_model.FileShare{
+			Owner: "shareowner",
+		}
+
+		assert.False(t, auth.CanUserModifyShare(admin, share))
+	})
 }
 
 func TestGenerateJWTCookie(t *testing.T) {
-	t.Run("generates valid cookie string", func(t *testing.T) {
+	t.Run("generates valid cookie string with security flags", func(t *testing.T) {
 		user := &user_model.User{Username: "testuser"}
 
 		cookie, err := auth.GenerateJWTCookie(user)
@@ -179,11 +188,13 @@ func TestGenerateJWTCookie(t *testing.T) {
 		assert.Contains(t, cookie, "Path=/")
 		assert.Contains(t, cookie, "Expires=")
 		assert.Contains(t, cookie, "HttpOnly")
+		assert.Contains(t, cookie, "Secure")
+		assert.Contains(t, cookie, "SameSite=Lax")
 	})
 }
 
 func TestGenerateUserCookie(t *testing.T) {
-	t.Run("generates user cookie with correct format", func(t *testing.T) {
+	t.Run("generates user cookie with security flags", func(t *testing.T) {
 		user := &user_model.User{Username: "testuser"}
 
 		cookie := auth.GenerateUserCookie(user)
@@ -191,6 +202,8 @@ func TestGenerateUserCookie(t *testing.T) {
 		assert.Contains(t, cookie, "Path=/")
 		assert.Contains(t, cookie, "Expires=")
 		assert.Contains(t, cookie, "HttpOnly")
+		assert.Contains(t, cookie, "Secure")
+		assert.Contains(t, cookie, "SameSite=Lax")
 	})
 }
 

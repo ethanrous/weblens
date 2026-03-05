@@ -641,13 +641,13 @@ func GetRandomMedia(ctx ctxservice.RequestContext) {
 		return
 	}
 
-	username := ctx.AttemptGetUsername()
-
-	if username == "" {
-		ctx.Error(http.StatusUnauthorized, wlerrors.New("unauthorized: no username provided"))
+	if !ctx.IsLoggedIn {
+		ctx.Error(http.StatusUnauthorized, wlerrors.New("sign in required"))
 
 		return
 	}
+
+	username := ctx.Requester.GetUsername()
 
 	medias, err := media_model.GetRandomMedias(ctx, media_model.RandomMediaOptions{Owner: username, Count: count, NoRaws: true})
 	if err != nil {

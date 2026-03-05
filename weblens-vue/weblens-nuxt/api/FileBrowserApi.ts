@@ -4,7 +4,7 @@ import useLocationStore from '~/stores/location.js'
 import { WsAction, WsSubscriptionType } from '~/types/websocket.js'
 import { API_ENDPOINT, useWeblensAPI } from './AllApi.js'
 import useFilesStore from '~/stores/files.js'
-import { FilesApiAxiosParamCreator, type TakeoutInfo } from '@ethanrous/weblens-api'
+import { FilesApiAxiosParamCreator, type FileInfo, type TakeoutInfo } from '@ethanrous/weblens-api'
 import useWebsocketStore from '~/stores/websocket.js'
 
 export function SubToFolder(subID: string, shareID: string) {
@@ -69,7 +69,7 @@ export async function GetTrashChildIds(): Promise<string[]> {
         return []
     }
 
-    return folder.children.map((file) => file.id).filter((id) => id !== undefined)
+    return folder.children.map((file: FileInfo) => file.id).filter((id: string | undefined) => id !== undefined)
 }
 
 export async function handleDownload(

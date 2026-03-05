@@ -19,19 +19,6 @@ func checkFileAccess(ctx context_service.RequestContext, perms ...share.Permissi
 		fileID = ctx.Path("folderID")
 	}
 
-	// Check if the request is a takeout request (zip file)
-	isTakeout := ctx.Query("isTakeout")
-	if isTakeout == "true" {
-		file, err := ctx.FileService.GetFileByID(ctx, fileID)
-		if err != nil {
-			ctx.Error(http.StatusNotFound, err)
-
-			return nil, err
-		}
-
-		return file, nil
-	}
-
 	ts, ok, err := context_service.TimestampFromCtx(ctx)
 	if err != nil {
 		ctx.Error(http.StatusBadRequest, err)

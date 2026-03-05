@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethanrous/weblens/modules/config"
 	client_model "github.com/ethanrous/weblens/models/client"
 	"github.com/ethanrous/weblens/models/job"
 	share_model "github.com/ethanrous/weblens/models/share"
@@ -36,8 +37,18 @@ type WsAuthorize struct {
 var upgrader = gorilla.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	CheckOrigin: func(_ *http.Request) bool {
-		return true
+	CheckOrigin: func(r *http.Request) bool {
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			return true // Non-browser clients don't send Origin
+		}
+
+		proxyAddr := config.GetConfig().ProxyAddress
+		if proxyAddr == "" {
+			return true // No proxy configured, allow all
+		}
+
+		return strings.HasPrefix(origin, proxyAddr)
 	},
 }
 

@@ -17,6 +17,7 @@ import (
 	task_model "github.com/ethanrous/weblens/models/task"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/usermodel"
+	"github.com/ethanrous/weblens/modules/cryptography"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 	"github.com/ethanrous/weblens/modules/wlerrors"
@@ -202,6 +203,10 @@ func (fs *ServiceImpl) GetFileByContentID(ctx context.Context, contentID string)
 func (fs *ServiceImpl) CreateFile(ctx context.Context, parent *file_model.WeblensFileImpl, filename string, data ...[]byte) (
 	*file_model.WeblensFileImpl, error,
 ) {
+	if err := cryptography.ValidateFilename(filename); err != nil {
+		return nil, wlerrors.Errorf("invalid filename: %w", err)
+	}
+
 	childPath := parent.GetPortablePath().Child(filename, false)
 
 	newF, err := touch(childPath)
@@ -235,6 +240,10 @@ func (fs *ServiceImpl) CreateFile(ctx context.Context, parent *file_model.Weblen
 
 // CreateFolder creates a new folder in the specified parent directory.
 func (fs *ServiceImpl) CreateFolder(ctx context.Context, parent *file_model.WeblensFileImpl, folderName string) (*file_model.WeblensFileImpl, error) {
+	if err := cryptography.ValidateFilename(folderName); err != nil {
+		return nil, wlerrors.Errorf("invalid folder name: %w", err)
+	}
+
 	childPath := parent.GetPortablePath().Child(folderName, true)
 
 	dir, err := mkdir(childPath)
@@ -543,6 +552,10 @@ func (fs *ServiceImpl) DeleteZips(ctx context.Context) error {
 
 // RenameFile changes the name of a file and updates its path in the file service.
 func (fs *ServiceImpl) RenameFile(ctx context.Context, file *file_model.WeblensFileImpl, newName string) error {
+	if err := cryptography.ValidateFilename(newName); err != nil {
+		return wlerrors.Errorf("invalid filename: %w", err)
+	}
+
 	parent := file.GetParent()
 	if _, err := parent.GetChild(newName); err == nil {
 		return wlerrors.WithStack(file_model.ErrFileAlreadyExists)
