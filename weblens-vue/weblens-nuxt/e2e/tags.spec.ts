@@ -21,67 +21,70 @@ test.describe('Tag Manager', () => {
     test.beforeEach(async ({ login: _login }) => {})
 
     test('should open tag manager from sidebar', async ({ page }) => {
-        // Click the Tags button in the left sidebar
         const sidebar = page.locator('#global-left-sidebar')
         await sidebar.getByRole('button', { name: 'Tags' }).click()
 
-        // Tag Manager modal should appear
-        await expect(page.getByRole('heading', { name: 'Tags' })).toBeVisible({ timeout: 5000 })
+        // Tag Manager modal should appear — scope to the fullscreen-modal overlay
+        const modal = page.locator('.fullscreen-modal')
+        await expect(modal.getByRole('heading', { name: 'Tags' })).toBeVisible({ timeout: 5000 })
     })
 
     test('should create a new tag', async ({ page }) => {
         const sidebar = page.locator('#global-left-sidebar')
         await sidebar.getByRole('button', { name: 'Tags' }).click()
 
-        await expect(page.getByRole('heading', { name: 'Tags' })).toBeVisible({ timeout: 5000 })
+        const modal = page.locator('.fullscreen-modal')
+        await expect(modal.getByRole('heading', { name: 'Tags' })).toBeVisible({ timeout: 5000 })
 
-        // Click "New Tag" button
-        await page.getByRole('button', { name: 'New Tag' }).click()
+        // Click "New Tag" button within the modal
+        await modal.getByRole('button', { name: 'New Tag' }).click()
 
         // Fill in the tag name
-        await page.getByPlaceholder('Tag name').fill('Favorites')
+        await modal.getByPlaceholder('Tag name').fill('Favorites')
 
         // Click Create
-        await page.getByRole('button', { name: 'Create' }).click()
+        await modal.getByRole('button', { name: 'Create' }).click()
 
-        // The tag should appear in the list
-        await expect(page.getByText('Favorites')).toBeVisible({ timeout: 5000 })
-        await expect(page.getByText('0 files')).toBeVisible()
+        // The tag should appear in the modal list
+        await expect(modal.getByText('Favorites')).toBeVisible({ timeout: 5000 })
+        await expect(modal.getByText('0 files')).toBeVisible()
     })
 
     test('should close tag manager with Escape', async ({ page }) => {
         const sidebar = page.locator('#global-left-sidebar')
         await sidebar.getByRole('button', { name: 'Tags' }).click()
 
-        await expect(page.getByRole('heading', { name: 'Tags' })).toBeVisible({ timeout: 5000 })
+        const modal = page.locator('.fullscreen-modal')
+        await expect(modal.getByRole('heading', { name: 'Tags' })).toBeVisible({ timeout: 5000 })
 
         await page.keyboard.press('Escape')
 
-        // Modal should be hidden (opacity-0)
-        // The heading may still be in DOM but invisible
-        await expect(page.getByRole('heading', { name: 'Tags' })).not.toBeVisible({ timeout: 3000 })
+        // Modal should become hidden
+        await expect(modal.getByRole('heading', { name: 'Tags' })).not.toBeVisible({ timeout: 3000 })
     })
 
     test('should delete a tag', async ({ page }) => {
         const sidebar = page.locator('#global-left-sidebar')
         await sidebar.getByRole('button', { name: 'Tags' }).click()
-        await expect(page.getByRole('heading', { name: 'Tags' })).toBeVisible({ timeout: 5000 })
+
+        const modal = page.locator('.fullscreen-modal')
+        await expect(modal.getByRole('heading', { name: 'Tags' })).toBeVisible({ timeout: 5000 })
 
         // Create a tag first
-        await page.getByRole('button', { name: 'New Tag' }).click()
-        await page.getByPlaceholder('Tag name').fill('ToDelete')
-        await page.getByRole('button', { name: 'Create' }).click()
-        await expect(page.getByText('ToDelete')).toBeVisible({ timeout: 5000 })
+        await modal.getByRole('button', { name: 'New Tag' }).click()
+        await modal.getByPlaceholder('Tag name').fill('ToDelete')
+        await modal.getByRole('button', { name: 'Create' }).click()
+        await expect(modal.getByText('ToDelete')).toBeVisible({ timeout: 5000 })
 
         // Hover over the tag row to reveal delete icon
-        await page.getByText('ToDelete').hover()
+        await modal.getByText('ToDelete').hover()
 
-        // Click the trash icon (delete button)
-        const trashIcon = page.locator('.tabler-icon-trash').first()
+        // Click the trash icon (delete button) within the modal
+        const trashIcon = modal.locator('.tabler-icon-trash').first()
         await trashIcon.click()
 
-        // Tag should be removed
-        await expect(page.getByText('ToDelete')).not.toBeVisible({ timeout: 5000 })
+        // Tag should be removed from the modal
+        await expect(modal.getByText('ToDelete')).not.toBeVisible({ timeout: 5000 })
     })
 })
 
@@ -94,9 +97,8 @@ test.describe('Tag Assignment via Context Menu', () => {
         const fileCards = page.locator('[id^="file-card-"]')
         await fileCards.first().click({ button: 'right' })
 
-        const fileBrowser = page.locator('#filebrowser-container')
-        const tagsBtn = fileBrowser.getByRole('button', { name: 'Tags' }).first()
-        await expect(tagsBtn).toBeVisible({ timeout: 3000 })
+        const contextMenu = page.locator('#file-context-menu')
+        await expect(contextMenu.getByRole('button', { name: 'Tags' })).toBeVisible({ timeout: 3000 })
 
         await page.keyboard.press('Escape')
     })
@@ -105,13 +107,12 @@ test.describe('Tag Assignment via Context Menu', () => {
         const fileCards = page.locator('[id^="file-card-"]')
         await fileCards.first().click({ button: 'right' })
 
-        const fileBrowser = page.locator('#filebrowser-container')
-        await fileBrowser.getByRole('button', { name: 'Tags' }).first().click()
+        const contextMenu = page.locator('#file-context-menu')
+        await contextMenu.getByRole('button', { name: 'Tags' }).click()
 
         // Tag selector should replace the actions in the context menu
-        // It should show the "TAGS" header and "New Tag" button
-        await expect(page.getByText('TAGS')).toBeVisible({ timeout: 5000 })
-        await expect(page.getByRole('button', { name: 'New Tag' })).toBeVisible()
+        await expect(contextMenu.getByText('TAGS')).toBeVisible({ timeout: 5000 })
+        await expect(contextMenu.getByRole('button', { name: 'New Tag' })).toBeVisible()
 
         await page.keyboard.press('Escape')
     })
@@ -120,16 +121,16 @@ test.describe('Tag Assignment via Context Menu', () => {
         const fileCards = page.locator('[id^="file-card-"]')
         await fileCards.first().click({ button: 'right' })
 
-        const fileBrowser = page.locator('#filebrowser-container')
-        await fileBrowser.getByRole('button', { name: 'Tags' }).first().click()
+        const contextMenu = page.locator('#file-context-menu')
+        await contextMenu.getByRole('button', { name: 'Tags' }).click()
 
         // Create a new tag from inside the selector
-        await page.getByRole('button', { name: 'New Tag' }).click()
-        await page.getByPlaceholder('Tag name').fill('Important')
-        await page.getByRole('button', { name: 'Create' }).click()
+        await contextMenu.getByRole('button', { name: 'New Tag' }).click()
+        await contextMenu.getByPlaceholder('Tag name').fill('Important')
+        await contextMenu.getByRole('button', { name: 'Create' }).click()
 
-        // The tag should now appear in the selector with a check mark (auto-applied)
-        await expect(page.getByText('Important')).toBeVisible({ timeout: 5000 })
+        // The tag should now appear in the selector
+        await expect(contextMenu.getByText('Important')).toBeVisible({ timeout: 5000 })
 
         // Close context menu
         await page.keyboard.press('Escape')
@@ -146,21 +147,20 @@ test.describe('Tag Display on File Cards', () => {
         const fileCards = page.locator('[id^="file-card-"]')
         await fileCards.first().click({ button: 'right' })
 
-        const fileBrowser = page.locator('#filebrowser-container')
-        await fileBrowser.getByRole('button', { name: 'Tags' }).first().click()
+        const contextMenu = page.locator('#file-context-menu')
+        await contextMenu.getByRole('button', { name: 'Tags' }).click()
 
-        await page.getByRole('button', { name: 'New Tag' }).click()
-        await page.getByPlaceholder('Tag name').fill('Starred')
-        await page.getByRole('button', { name: 'Create' }).click()
-        await expect(page.getByText('Starred')).toBeVisible({ timeout: 5000 })
+        await contextMenu.getByRole('button', { name: 'New Tag' }).click()
+        await contextMenu.getByPlaceholder('Tag name').fill('Starred')
+        await contextMenu.getByRole('button', { name: 'Create' }).click()
+        await expect(contextMenu.getByText('Starred')).toBeVisible({ timeout: 5000 })
 
         // Close context menu
         await page.keyboard.press('Escape')
 
-        // The file card should now show a colored tag dot
-        // Tag dots are small spans with rounded-full class inside the file card
+        // The file card should now show a colored tag dot (via the title attribute on the dot container)
         const taggedCard = fileCards.first()
-        const tagDot = taggedCard.locator('.rounded-full')
-        await expect(tagDot.first()).toBeVisible({ timeout: 5000 })
+        const tagDot = taggedCard.locator('[title="Starred"]')
+        await expect(tagDot).toBeVisible({ timeout: 5000 })
     })
 })
