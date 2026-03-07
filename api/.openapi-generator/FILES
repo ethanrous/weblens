@@ -122,5 +122,4 @@ model_wlfs_filepath.go
 model_wlstructs_init_server_params.go
 model_wlstructs_set_config_param.go
 response.go
-test/api_tags_test.go
 utils.go
