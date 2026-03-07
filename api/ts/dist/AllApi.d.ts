@@ -193,6 +193,15 @@ interface FolderInfo {
     'parents'?: Array<FileInfo>;
     'self'?: FileInfo;
 }
+interface GithubComEthanrousWeblensModelsTagTag {
+    'color'?: string;
+    'created'?: string;
+    'fileIDs'?: Array<string>;
+    'id'?: string;
+    'name'?: string;
+    'owner'?: string;
+    'updated'?: string;
+}
 interface HistoryFileAction {
     'actionType'?: string;
     'contentID'?: string;
@@ -365,6 +374,17 @@ interface ShareInfo {
     'timelineOnly'?: boolean;
     'updated'?: number;
     'wormhole'?: boolean;
+}
+interface TagCreateTagParams {
+    'color'?: string;
+    'name'?: string;
+}
+interface TagFileIDsParams {
+    'fileIDs'?: Array<string>;
+}
+interface TagUpdateTagParams {
+    'color'?: string;
+    'name'?: string;
 }
 interface TakeoutInfo {
     'filename'?: string;
@@ -793,14 +813,16 @@ declare const FilesApiAxiosParamCreator: (configuration?: Configuration) => {
      * @summary Search for files by filename
      * @param {string} search Filename to search for
      * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
-     * @param {SearchByFilenameSortPropEnum} [sortProp] Property to sort by
-     * @param {SearchByFilenameSortOrderEnum} [sortOrder] Sort order
+     * @param {SearchFilesSortPropEnum} [sortProp] Property to sort by
+     * @param {SearchFilesSortOrderEnum} [sortOrder] Sort order
      * @param {boolean} [recursive] Search recursively
      * @param {boolean} [regex] Whether to treat the search term as a regex pattern
+     * @param {string} [tags] Comma-separated list of tags to filter by
+     * @param {SearchFilesTagJoinLogicEnum} [tagJoinLogic] Logic to combine multiple tags with, either \&#39;and\&#39; or \&#39;or\&#39;
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    searchByFilename: (search: string, baseFolderID?: string, sortProp?: SearchByFilenameSortPropEnum, sortOrder?: SearchByFilenameSortOrderEnum, recursive?: boolean, regex?: boolean, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    searchFiles: (search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Begin a new upload task
@@ -963,14 +985,16 @@ declare const FilesApiFp: (configuration?: Configuration) => {
      * @summary Search for files by filename
      * @param {string} search Filename to search for
      * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
-     * @param {SearchByFilenameSortPropEnum} [sortProp] Property to sort by
-     * @param {SearchByFilenameSortOrderEnum} [sortOrder] Sort order
+     * @param {SearchFilesSortPropEnum} [sortProp] Property to sort by
+     * @param {SearchFilesSortOrderEnum} [sortOrder] Sort order
      * @param {boolean} [recursive] Search recursively
      * @param {boolean} [regex] Whether to treat the search term as a regex pattern
+     * @param {string} [tags] Comma-separated list of tags to filter by
+     * @param {SearchFilesTagJoinLogicEnum} [tagJoinLogic] Logic to combine multiple tags with, either \&#39;and\&#39; or \&#39;or\&#39;
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    searchByFilename(search: string, baseFolderID?: string, sortProp?: SearchByFilenameSortPropEnum, sortOrder?: SearchByFilenameSortOrderEnum, recursive?: boolean, regex?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<FileInfo>>>;
+    searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<FileInfo>>>;
     /**
      *
      * @summary Begin a new upload task
@@ -1133,14 +1157,16 @@ declare const FilesApiFactory: (configuration?: Configuration, basePath?: string
      * @summary Search for files by filename
      * @param {string} search Filename to search for
      * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
-     * @param {SearchByFilenameSortPropEnum} [sortProp] Property to sort by
-     * @param {SearchByFilenameSortOrderEnum} [sortOrder] Sort order
+     * @param {SearchFilesSortPropEnum} [sortProp] Property to sort by
+     * @param {SearchFilesSortOrderEnum} [sortOrder] Sort order
      * @param {boolean} [recursive] Search recursively
      * @param {boolean} [regex] Whether to treat the search term as a regex pattern
+     * @param {string} [tags] Comma-separated list of tags to filter by
+     * @param {SearchFilesTagJoinLogicEnum} [tagJoinLogic] Logic to combine multiple tags with, either \&#39;and\&#39; or \&#39;or\&#39;
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    searchByFilename(search: string, baseFolderID?: string, sortProp?: SearchByFilenameSortPropEnum, sortOrder?: SearchByFilenameSortOrderEnum, recursive?: boolean, regex?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<Array<FileInfo>>;
+    searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options?: RawAxiosRequestConfig): AxiosPromise<Array<FileInfo>>;
     /**
      *
      * @summary Begin a new upload task
@@ -1303,14 +1329,16 @@ declare class FilesApi extends BaseAPI {
      * @summary Search for files by filename
      * @param {string} search Filename to search for
      * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
-     * @param {SearchByFilenameSortPropEnum} [sortProp] Property to sort by
-     * @param {SearchByFilenameSortOrderEnum} [sortOrder] Sort order
+     * @param {SearchFilesSortPropEnum} [sortProp] Property to sort by
+     * @param {SearchFilesSortOrderEnum} [sortOrder] Sort order
      * @param {boolean} [recursive] Search recursively
      * @param {boolean} [regex] Whether to treat the search term as a regex pattern
+     * @param {string} [tags] Comma-separated list of tags to filter by
+     * @param {SearchFilesTagJoinLogicEnum} [tagJoinLogic] Logic to combine multiple tags with, either \&#39;and\&#39; or \&#39;or\&#39;
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    searchByFilename(search: string, baseFolderID?: string, sortProp?: SearchByFilenameSortPropEnum, sortOrder?: SearchByFilenameSortOrderEnum, recursive?: boolean, regex?: boolean, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FileInfo[], any, {}>>;
+    searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FileInfo[], any, {}>>;
     /**
      *
      * @summary Begin a new upload task
@@ -1350,17 +1378,22 @@ declare class FilesApi extends BaseAPI {
      */
     uploadFileChunk(uploadID: string, fileID: string, chunk: File, shareID?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any, {}>>;
 }
-declare const SearchByFilenameSortPropEnum: {
+declare const SearchFilesSortPropEnum: {
     readonly Name: "name";
     readonly Size: "size";
     readonly UpdatedAt: "updatedAt";
 };
-type SearchByFilenameSortPropEnum = typeof SearchByFilenameSortPropEnum[keyof typeof SearchByFilenameSortPropEnum];
-declare const SearchByFilenameSortOrderEnum: {
+type SearchFilesSortPropEnum = typeof SearchFilesSortPropEnum[keyof typeof SearchFilesSortPropEnum];
+declare const SearchFilesSortOrderEnum: {
     readonly Asc: "asc";
     readonly Desc: "desc";
 };
-type SearchByFilenameSortOrderEnum = typeof SearchByFilenameSortOrderEnum[keyof typeof SearchByFilenameSortOrderEnum];
+type SearchFilesSortOrderEnum = typeof SearchFilesSortOrderEnum[keyof typeof SearchFilesSortOrderEnum];
+declare const SearchFilesTagJoinLogicEnum: {
+    readonly And: "and";
+    readonly Or: "or";
+};
+type SearchFilesTagJoinLogicEnum = typeof SearchFilesTagJoinLogicEnum[keyof typeof SearchFilesTagJoinLogicEnum];
 /**
  * FolderApi - axios parameter creator
  */
@@ -2311,6 +2344,322 @@ declare class ShareApi extends BaseAPI {
     updateShareAccessorPermissions(shareID: string, username: string, request: PermissionsParams, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<ShareInfo, any, {}>>;
 }
 /**
+ * TagsApi - axios parameter creator
+ */
+declare const TagsApiAxiosParamCreator: (configuration?: Configuration) => {
+    /**
+     *
+     * @summary Add files to a tag
+     * @param {string} tagID Tag ID
+     * @param {TagFileIDsParams} request File IDs to add
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    addFilesToTag: (tagID: string, request: TagFileIDsParams, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    /**
+     *
+     * @summary Create a new tag
+     * @param {TagCreateTagParams} request Create tag request body
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    createTag: (request: TagCreateTagParams, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    /**
+     *
+     * @summary Delete a tag
+     * @param {string} tagID Tag ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    deleteTag: (tagID: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    /**
+     *
+     * @summary Get all files in a tag
+     * @param {string} tagID Tag ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getFilesByTag: (tagID: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    /**
+     *
+     * @summary Get a tag by ID
+     * @param {string} tagID Tag ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getTag: (tagID: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    /**
+     *
+     * @summary Get tags for a file
+     * @param {string} fileID File ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getTagsForFile: (fileID: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    /**
+     *
+     * @summary Get all tags for the authenticated user
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getUserTags: (options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    /**
+     *
+     * @summary Remove files from a tag
+     * @param {string} tagID Tag ID
+     * @param {TagFileIDsParams} request File IDs to remove
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    removeFilesFromTag: (tagID: string, request: TagFileIDsParams, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    /**
+     *
+     * @summary Update a tag\'s name and/or color
+     * @param {string} tagID Tag ID
+     * @param {TagUpdateTagParams} request Update tag request body
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    updateTag: (tagID: string, request: TagUpdateTagParams, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+};
+/**
+ * TagsApi - functional programming interface
+ */
+declare const TagsApiFp: (configuration?: Configuration) => {
+    /**
+     *
+     * @summary Add files to a tag
+     * @param {string} tagID Tag ID
+     * @param {TagFileIDsParams} request File IDs to add
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    addFilesToTag(tagID: string, request: TagFileIDsParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    /**
+     *
+     * @summary Create a new tag
+     * @param {TagCreateTagParams} request Create tag request body
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    createTag(request: TagCreateTagParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GithubComEthanrousWeblensModelsTagTag>>;
+    /**
+     *
+     * @summary Delete a tag
+     * @param {string} tagID Tag ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    deleteTag(tagID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    /**
+     *
+     * @summary Get all files in a tag
+     * @param {string} tagID Tag ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getFilesByTag(tagID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<FileInfo>>>;
+    /**
+     *
+     * @summary Get a tag by ID
+     * @param {string} tagID Tag ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getTag(tagID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GithubComEthanrousWeblensModelsTagTag>>;
+    /**
+     *
+     * @summary Get tags for a file
+     * @param {string} fileID File ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getTagsForFile(fileID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<GithubComEthanrousWeblensModelsTagTag>>>;
+    /**
+     *
+     * @summary Get all tags for the authenticated user
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getUserTags(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<GithubComEthanrousWeblensModelsTagTag>>>;
+    /**
+     *
+     * @summary Remove files from a tag
+     * @param {string} tagID Tag ID
+     * @param {TagFileIDsParams} request File IDs to remove
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    removeFilesFromTag(tagID: string, request: TagFileIDsParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    /**
+     *
+     * @summary Update a tag\'s name and/or color
+     * @param {string} tagID Tag ID
+     * @param {TagUpdateTagParams} request Update tag request body
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    updateTag(tagID: string, request: TagUpdateTagParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+};
+/**
+ * TagsApi - factory interface
+ */
+declare const TagsApiFactory: (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) => {
+    /**
+     *
+     * @summary Add files to a tag
+     * @param {string} tagID Tag ID
+     * @param {TagFileIDsParams} request File IDs to add
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    addFilesToTag(tagID: string, request: TagFileIDsParams, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    /**
+     *
+     * @summary Create a new tag
+     * @param {TagCreateTagParams} request Create tag request body
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    createTag(request: TagCreateTagParams, options?: RawAxiosRequestConfig): AxiosPromise<GithubComEthanrousWeblensModelsTagTag>;
+    /**
+     *
+     * @summary Delete a tag
+     * @param {string} tagID Tag ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    deleteTag(tagID: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    /**
+     *
+     * @summary Get all files in a tag
+     * @param {string} tagID Tag ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getFilesByTag(tagID: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<FileInfo>>;
+    /**
+     *
+     * @summary Get a tag by ID
+     * @param {string} tagID Tag ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getTag(tagID: string, options?: RawAxiosRequestConfig): AxiosPromise<GithubComEthanrousWeblensModelsTagTag>;
+    /**
+     *
+     * @summary Get tags for a file
+     * @param {string} fileID File ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getTagsForFile(fileID: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<GithubComEthanrousWeblensModelsTagTag>>;
+    /**
+     *
+     * @summary Get all tags for the authenticated user
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getUserTags(options?: RawAxiosRequestConfig): AxiosPromise<Array<GithubComEthanrousWeblensModelsTagTag>>;
+    /**
+     *
+     * @summary Remove files from a tag
+     * @param {string} tagID Tag ID
+     * @param {TagFileIDsParams} request File IDs to remove
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    removeFilesFromTag(tagID: string, request: TagFileIDsParams, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    /**
+     *
+     * @summary Update a tag\'s name and/or color
+     * @param {string} tagID Tag ID
+     * @param {TagUpdateTagParams} request Update tag request body
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    updateTag(tagID: string, request: TagUpdateTagParams, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+};
+/**
+ * TagsApi - object-oriented interface
+ */
+declare class TagsApi extends BaseAPI {
+    /**
+     *
+     * @summary Add files to a tag
+     * @param {string} tagID Tag ID
+     * @param {TagFileIDsParams} request File IDs to add
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    addFilesToTag(tagID: string, request: TagFileIDsParams, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any, {}>>;
+    /**
+     *
+     * @summary Create a new tag
+     * @param {TagCreateTagParams} request Create tag request body
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    createTag(request: TagCreateTagParams, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<GithubComEthanrousWeblensModelsTagTag, any, {}>>;
+    /**
+     *
+     * @summary Delete a tag
+     * @param {string} tagID Tag ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    deleteTag(tagID: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any, {}>>;
+    /**
+     *
+     * @summary Get all files in a tag
+     * @param {string} tagID Tag ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getFilesByTag(tagID: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FileInfo[], any, {}>>;
+    /**
+     *
+     * @summary Get a tag by ID
+     * @param {string} tagID Tag ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getTag(tagID: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<GithubComEthanrousWeblensModelsTagTag, any, {}>>;
+    /**
+     *
+     * @summary Get tags for a file
+     * @param {string} fileID File ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getTagsForFile(fileID: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<GithubComEthanrousWeblensModelsTagTag[], any, {}>>;
+    /**
+     *
+     * @summary Get all tags for the authenticated user
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getUserTags(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<GithubComEthanrousWeblensModelsTagTag[], any, {}>>;
+    /**
+     *
+     * @summary Remove files from a tag
+     * @param {string} tagID Tag ID
+     * @param {TagFileIDsParams} request File IDs to remove
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    removeFilesFromTag(tagID: string, request: TagFileIDsParams, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any, {}>>;
+    /**
+     *
+     * @summary Update a tag\'s name and/or color
+     * @param {string} tagID Tag ID
+     * @param {TagUpdateTagParams} request Update tag request body
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    updateTag(tagID: string, request: TagUpdateTagParams, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any, {}>>;
+}
+/**
  * TowersApi - axios parameter creator
  */
 declare const TowersApiAxiosParamCreator: (configuration?: Configuration) => {
@@ -3140,7 +3489,8 @@ type WLAPI = {
     UsersAPI: ReturnType<typeof UsersApiFactory>;
     APIKeysAPI: ReturnType<typeof APIKeysApiFactory>;
     FeatureFlagsAPI: ReturnType<typeof FeatureFlagsApiFactory>;
+    TagsAPI: ReturnType<typeof TagsApiFactory>;
 };
 declare function WeblensAPIFactory(apiEndpoint: string): WLAPI;
 
-export { type APIKeyParams, APIKeysApi, APIKeysApiAxiosParamCreator, APIKeysApiFactory, APIKeysApiFp, type AddUserParams, type BackupInfo, type Bundle, type CreateFolderBody, FeatureFlagsApi, FeatureFlagsApiAxiosParamCreator, FeatureFlagsApiFactory, FeatureFlagsApiFp, type FileActionInfo, type FileInfo, type FileShareParams, FilesApi, FilesApiAxiosParamCreator, FilesApiFactory, FilesApiFp, type FilesListParams, FolderApi, FolderApiAxiosParamCreator, FolderApiFactory, FolderApiFp, type FolderInfo, GetFolderSortOrderEnum, GetFolderSortPropEnum, GetMediaImageQualityEnum, GetMediaSortDirectionEnum, GetMediaSortEnum, type HistoryFileAction, type LoginBody, MediaApi, MediaApiAxiosParamCreator, MediaApiFactory, MediaApiFp, type MediaBatchInfo, type MediaIDsParams, type MediaInfo, type MediaTypeInfo, type MediaTypesInfo, type MoveFilesParams, type NewFileParams, type NewFilesInfo, type NewFilesParams, type NewServerParams, type NewUploadInfo, type NewUploadParams, type NewUserParams, type PasswordUpdateParams, type PermissionsInfo, type PermissionsParams, type RestoreFilesBody, type RestoreFilesInfo, SearchByFilenameSortOrderEnum, SearchByFilenameSortPropEnum, ShareApi, ShareApiAxiosParamCreator, ShareApiFactory, ShareApiFp, type ShareInfo, type TakeoutInfo, type TaskInfo, type TokenInfo, type TowerHealth, TowerHealthStatusEnum, type TowerInfo, TowersApi, TowersApiAxiosParamCreator, TowersApiFactory, TowersApiFp, type UpdateFileParams, type UserInfo, type UserInfoArchive, UsersApi, UsersApiAxiosParamCreator, UsersApiFactory, UsersApiFp, type WLAPI, type WLResponseInfo, WeblensAPIFactory, type WeblensErrorInfo, type WlfsFilepath, type WlstructsInitServerParams, type WlstructsSetConfigParam };
+export { type APIKeyParams, APIKeysApi, APIKeysApiAxiosParamCreator, APIKeysApiFactory, APIKeysApiFp, type AddUserParams, type BackupInfo, type Bundle, type CreateFolderBody, FeatureFlagsApi, FeatureFlagsApiAxiosParamCreator, FeatureFlagsApiFactory, FeatureFlagsApiFp, type FileActionInfo, type FileInfo, type FileShareParams, FilesApi, FilesApiAxiosParamCreator, FilesApiFactory, FilesApiFp, type FilesListParams, FolderApi, FolderApiAxiosParamCreator, FolderApiFactory, FolderApiFp, type FolderInfo, GetFolderSortOrderEnum, GetFolderSortPropEnum, GetMediaImageQualityEnum, GetMediaSortDirectionEnum, GetMediaSortEnum, type GithubComEthanrousWeblensModelsTagTag, type HistoryFileAction, type LoginBody, MediaApi, MediaApiAxiosParamCreator, MediaApiFactory, MediaApiFp, type MediaBatchInfo, type MediaIDsParams, type MediaInfo, type MediaTypeInfo, type MediaTypesInfo, type MoveFilesParams, type NewFileParams, type NewFilesInfo, type NewFilesParams, type NewServerParams, type NewUploadInfo, type NewUploadParams, type NewUserParams, type PasswordUpdateParams, type PermissionsInfo, type PermissionsParams, type RestoreFilesBody, type RestoreFilesInfo, SearchFilesSortOrderEnum, SearchFilesSortPropEnum, SearchFilesTagJoinLogicEnum, ShareApi, ShareApiAxiosParamCreator, ShareApiFactory, ShareApiFp, type ShareInfo, type TagCreateTagParams, type TagFileIDsParams, type TagUpdateTagParams, TagsApi, TagsApiAxiosParamCreator, TagsApiFactory, TagsApiFp, type TakeoutInfo, type TaskInfo, type TokenInfo, type TowerHealth, TowerHealthStatusEnum, type TowerInfo, TowersApi, TowersApiAxiosParamCreator, TowersApiFactory, TowersApiFp, type UpdateFileParams, type UserInfo, type UserInfoArchive, UsersApi, UsersApiAxiosParamCreator, UsersApiFactory, UsersApiFp, type WLAPI, type WLResponseInfo, WeblensAPIFactory, type WeblensErrorInfo, type WlfsFilepath, type WlstructsInitServerParams, type WlstructsSetConfigParam };

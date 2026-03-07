@@ -46,6 +46,7 @@
 <script setup lang="ts">
 import { IconChevronLeft, IconFolder, IconPhoto } from '@tabler/icons-vue'
 import useFilesStore from '~/stores/files'
+import useTagsStore from '~/stores/tags'
 import WeblensFile from '~/types/weblensFile'
 import WeblensButton from '../atom/WeblensButton.vue'
 import TimelineControls from '../molecule/TimelineControls.vue'
@@ -57,9 +58,19 @@ import Loader from '../atom/Loader.vue'
 
 const filesStore = useFilesStore()
 const locationStore = useLocationStore()
+const tagsStore = useTagsStore()
 const menuStore = useContextMenuStore()
 const userStore = useUserStore()
 const tasksStore = useTasksStore()
+const route = useRoute()
+
+const isTagView = computed(() => {
+    return (route.name as string)?.startsWith('files-tag') ?? false
+})
+
+const activeTagID = computed(() => {
+    return isTagView.value ? (route.params.tagID as string) : ''
+})
 
 const searchbar = ref<typeof Searchbar>()
 
@@ -83,10 +94,18 @@ const activeFile = computed(() => {
 })
 
 const fileName = computed(() => {
+    if (isTagView.value) {
+        const tag = tagsStore.tags.get(activeTagID.value)
+        return tag ? tag.name : 'Tag'
+    }
     return activeFile.value ? activeFile.value.GetFilename() : ''
 })
 
 const canNavigate = computed(() => {
+    if (isTagView.value) {
+        return true
+    }
+
     if (activeFile.value?.IsShareRoot()) {
         return false
     }
@@ -109,6 +128,10 @@ const canNavigate = computed(() => {
 function navigateBack() {
     if (!canNavigate.value) {
         return
+    }
+
+    if (isTagView.value) {
+        return navigateTo('/files/home')
     }
 
     // If in a share, and the file has no parents, go to share root (/files/share)

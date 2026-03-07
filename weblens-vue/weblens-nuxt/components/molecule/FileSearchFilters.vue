@@ -17,14 +17,38 @@
             v-if="tagsStore.tagsList.length > 0"
             class="flex flex-col gap-1.5"
         >
-            <span class="text-text-secondary text-xs font-semibold uppercase">Filter by Tags</span>
-            <WeblensCheckbox
-                v-for="tag in tagsStore.tagsList"
-                :key="tag.id"
-                :label="tag.name"
-                :checked="filesStore.filterTagIDs.has(tag.id)"
-                @checked:changed="(checked: boolean) => toggleTagFilter(tag.id, checked)"
-            />
+            <div class="flex items-center justify-between">
+                <span class="text-text-secondary text-xs font-semibold uppercase">Filter by Tags</span>
+                <div class="flex">
+                    <WeblensButton
+                        label="All"
+                        :square-size="24"
+                        type="light"
+                        :selected="filesStore.filterTagMode === 'and'"
+                        merge="row"
+                        @click="filesStore.setFilterTagMode('and')"
+                    />
+                    <WeblensButton
+                        label="Any"
+                        :square-size="24"
+                        type="light"
+                        :selected="filesStore.filterTagMode === 'or'"
+                        merge="row"
+                        @click="filesStore.setFilterTagMode('or')"
+                    />
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-1.5">
+                <TagPill
+                    v-for="tag in tagsStore.tagsList"
+                    :key="tag.id"
+                    :tag="tag"
+                    :active="filesStore.filterTagIDs.has(tag.id!)"
+                    :dimmed="!filesStore.filterTagIDs.has(tag.id!) && filesStore.filterTagIDs.size > 0"
+                    clickable
+                    @click="toggleTagFilter(tag.id!)"
+                />
+            </div>
         </div>
 
         <WeblensButton
@@ -39,9 +63,10 @@
 <script setup lang="ts">
 import useFilesStore from '~/stores/files'
 import useTagsStore from '~/stores/tags'
-import WeblensCheckbox from '../atom/WeblensCheckbox.vue'
 import WeblensButton from '../atom/WeblensButton.vue'
 import useLocationStore from '~/stores/location'
+import WeblensCheckbox from '../atom/WeblensCheckbox.vue'
+import TagPill from '../atom/TagPill.vue'
 
 const locationStore = useLocationStore()
 const filesStore = useFilesStore()
@@ -59,12 +84,12 @@ const keyHintText = computed(() => {
     return 'Ctrl+K'
 })
 
-function toggleTagFilter(tagID: string, checked: boolean) {
+function toggleTagFilter(tagID: string) {
     const newSet = new Set(filesStore.filterTagIDs)
-    if (checked) {
-        newSet.add(tagID)
-    } else {
+    if (newSet.has(tagID)) {
         newSet.delete(tagID)
+    } else {
+        newSet.add(tagID)
     }
     filesStore.setFilterTagIDs(newSet)
 }

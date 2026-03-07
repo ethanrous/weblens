@@ -1,8 +1,5 @@
 <template>
-    <div
-        id="file-scroller"
-        :class="{ 'page-root relative': true }"
-    >
+    <div :class="{ 'page-root relative': true }">
         <FileContextMenu />
 
         <span
@@ -35,7 +32,7 @@
             @contextmenu.stop.prevent="handleContextMenu"
         >
             <Loader
-                v-if="filesStore.loading || filesStore.status === 'pending'"
+                v-if="filesStore.loading"
                 :class="{ 'm-auto': true }"
             />
 
@@ -91,7 +88,7 @@ const presentationStore = usePresentationStore()
 const scrollerContainer = useTemplateRef('scrollerContainer')
 const hovering = ref(false)
 
-const { noRequireParentMatch = true } = defineProps<{
+const { files, noRequireParentMatch = true } = defineProps<{
     files: WeblensFile[]
     noRequireParentMatch?: boolean
 }>()
@@ -103,7 +100,7 @@ const notUsingInput = computed(
 
 const maxW = computed(() => {
     if (filesStore.fileShape === 'square') {
-        return `min(100%, calc(var(--spacing) * 80 * ${filesStore.files.length > 0 ? filesStore.files.length : 1} - var(--spacing) * 2))`
+        return `min(100%, calc(var(--spacing) * 80 * ${files.length > 0 ? files.length : 1} - var(--spacing) * 2))`
     }
 
     return ''

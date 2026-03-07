@@ -143,13 +143,13 @@ func TestSearchByFilename(t *testing.T) {
 	require.NoError(t, err)
 
 	// Search for "searchable" - should find both searchable folders
-	results, resp, err := client.FilesAPI.SearchByFilename(t.Context()).Search("searchable").Execute()
+	results, resp, err := client.FilesAPI.SearchFiles(t.Context()).Search("searchable").Execute()
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, 2, len(results))
 
 	// Search with empty query - should fail
-	_, resp, err = client.FilesAPI.SearchByFilename(t.Context()).Search("").Execute()
+	_, resp, err = client.FilesAPI.SearchFiles(t.Context()).Search("").Execute()
 	assert.Error(t, err)
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }

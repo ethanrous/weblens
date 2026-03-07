@@ -6,7 +6,7 @@ import { test, expect, createFolder } from './fixtures'
  * Components under test:
  * - TagManager.vue, TagSelector.vue, FileSearchFilters.vue
  * - FileSidebar.vue, ContextMenuActions.vue, FileSquare.vue
- * - stores/tags.ts, api/TagApi.ts
+ * - stores/tags.ts (uses generated @ethanrous/weblens-api)
  */
 
 test.describe('Tag Manager', () => {

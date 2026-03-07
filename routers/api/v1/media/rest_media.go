@@ -24,8 +24,8 @@ import (
 )
 
 const (
-	maxSearchResults   = 9999999
-	maxRecursionDepth  = 100
+	maxSearchResults  = 9999999
+	maxRecursionDepth = 100
 )
 
 // GetMediaBatch godoc
@@ -377,6 +377,8 @@ func GetMediaInfo(ctx ctxservice.RequestContext) {
 		return
 	}
 
+	// Cache for 1 hour
+	ctx.SetHeader("Cache-Control", "max-age=3600")
 	ctx.JSON(http.StatusOK, reshape.MediaToMediaInfo(m))
 }
 

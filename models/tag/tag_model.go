@@ -71,7 +71,7 @@ func GetTagByID(ctx context.Context, tagID primitive.ObjectID) (*Tag, error) {
 }
 
 // GetTagsByOwner retrieves all tags belonging to the given owner.
-func GetTagsByOwner(ctx context.Context, owner string) ([]*Tag, error) {
+func GetTagsByOwner(ctx context.Context, owner string, tagIDsFilter ...string) ([]*Tag, error) {
 	col, err := db.GetCollection[any](ctx, TagCollectionKey)
 	if err != nil {
 		return nil, err
@@ -79,7 +79,23 @@ func GetTagsByOwner(ctx context.Context, owner string) ([]*Tag, error) {
 
 	var tags []*Tag
 
-	cursor, err := col.Find(ctx, bson.M{"owner": owner})
+	filter := bson.M{"owner": owner}
+
+	if len(tagIDsFilter) > 0 {
+		filterObjectIDs := make([]primitive.ObjectID, 0, len(tagIDsFilter))
+		for _, idStr := range tagIDsFilter {
+			tagID, err := primitive.ObjectIDFromHex(idStr)
+			if err != nil {
+				return nil, wlerrors.Errorf("invalid tag ID: %s", idStr)
+			}
+
+			filterObjectIDs = append(filterObjectIDs, tagID)
+		}
+
+		filter["_id"] = bson.M{"$in": filterObjectIDs}
+	}
+
+	cursor, err := col.Find(ctx, filter)
 	if err != nil {
 		return nil, db.WrapError(err, "failed to get tags for owner %s", owner)
 	}

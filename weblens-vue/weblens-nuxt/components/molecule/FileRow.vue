@@ -19,14 +19,12 @@
                 v-if="fileTags.length > 0"
                 class="flex items-center gap-1"
             >
-                <span
+                <TagPill
                     v-for="tag in fileTags.slice(0, 3)"
                     :key="tag.id"
-                    class="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs"
-                    :style="{ backgroundColor: tag.color + '30', color: tag.color }"
-                >
-                    {{ tag.name }}
-                </span>
+                    :tag="tag"
+                    compact
+                />
                 <span
                     v-if="fileTags.length > 3"
                     class="text-text-tertiary text-xs"

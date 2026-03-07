@@ -109,7 +109,7 @@ paths:
       - Files
   /files/search:
     get:
-      operationId: SearchByFilename
+      operationId: SearchFiles
       parameters:
       - description: Filename to search for
         in: query
@@ -153,6 +153,20 @@ paths:
         schema:
           default: false
           type: boolean
+      - description: Comma-separated list of tags to filter by
+        in: query
+        name: tags
+        schema:
+          type: string
+      - description: "Logic to combine multiple tags with, either 'and' or 'or'"
+        in: query
+        name: tagJoinLogic
+        schema:
+          default: or
+          enum:
+          - and
+          - or
+          type: string
       responses:
         "200":
           content:
@@ -1324,6 +1338,325 @@ paths:
       summary: Update a share's "public" status
       tags:
       - Share
+  /tags:
+    get:
+      operationId: GetUserTags
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/github_com_ethanrous_weblens_models_tag.Tag"
+                type: array
+          description: User's tags
+        "401":
+          content: {}
+          description: Unauthorized
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Get all tags for the authenticated user
+      tags:
+      - Tags
+    post:
+      operationId: CreateTag
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/tag.createTagParams"
+        description: Create tag request body
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/github_com_ethanrous_weblens_models_tag.Tag"
+          description: Created tag
+        "400":
+          content: {}
+          description: Bad Request
+        "401":
+          content: {}
+          description: Unauthorized
+        "409":
+          content: {}
+          description: Conflict
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Create a new tag
+      tags:
+      - Tags
+      x-codegen-request-body-name: request
+  /tags/file/{fileID}:
+    get:
+      operationId: GetTagsForFile
+      parameters:
+      - description: File ID
+        in: path
+        name: fileID
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/github_com_ethanrous_weblens_models_tag.Tag"
+                type: array
+          description: Tags containing the file
+        "400":
+          content: {}
+          description: Bad Request
+        "401":
+          content: {}
+          description: Unauthorized
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Get tags for a file
+      tags:
+      - Tags
+  /tags/{tagID}:
+    delete:
+      operationId: DeleteTag
+      parameters:
+      - description: Tag ID
+        in: path
+        name: tagID
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "400":
+          content: {}
+          description: Bad Request
+        "401":
+          content: {}
+          description: Unauthorized
+        "403":
+          content: {}
+          description: Forbidden
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Delete a tag
+      tags:
+      - Tags
+    get:
+      operationId: GetTag
+      parameters:
+      - description: Tag ID
+        in: path
+        name: tagID
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/github_com_ethanrous_weblens_models_tag.Tag"
+          description: Tag
+        "400":
+          content: {}
+          description: Bad Request
+        "401":
+          content: {}
+          description: Unauthorized
+        "403":
+          content: {}
+          description: Forbidden
+        "404":
+          content: {}
+          description: Not Found
+      security:
+      - SessionAuth: []
+      summary: Get a tag by ID
+      tags:
+      - Tags
+    patch:
+      operationId: UpdateTag
+      parameters:
+      - description: Tag ID
+        in: path
+        name: tagID
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/tag.updateTagParams"
+        description: Update tag request body
+        required: true
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "400":
+          content: {}
+          description: Bad Request
+        "401":
+          content: {}
+          description: Unauthorized
+        "403":
+          content: {}
+          description: Forbidden
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Update a tag's name and/or color
+      tags:
+      - Tags
+      x-codegen-request-body-name: request
+  /tags/{tagID}/files:
+    delete:
+      operationId: RemoveFilesFromTag
+      parameters:
+      - description: Tag ID
+        in: path
+        name: tagID
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/tag.fileIDsParams"
+        description: File IDs to remove
+        required: true
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "400":
+          content: {}
+          description: Bad Request
+        "401":
+          content: {}
+          description: Unauthorized
+        "403":
+          content: {}
+          description: Forbidden
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Remove files from a tag
+      tags:
+      - Tags
+      x-codegen-request-body-name: request
+    get:
+      operationId: GetFilesByTag
+      parameters:
+      - description: Tag ID
+        in: path
+        name: tagID
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/FileInfo"
+                type: array
+          description: Files in the tag
+        "400":
+          content: {}
+          description: Bad Request
+        "401":
+          content: {}
+          description: Unauthorized
+        "403":
+          content: {}
+          description: Forbidden
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Get all files in a tag
+      tags:
+      - Tags
+    post:
+      operationId: AddFilesToTag
+      parameters:
+      - description: Tag ID
+        in: path
+        name: tagID
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/tag.fileIDsParams"
+        description: File IDs to add
+        required: true
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "400":
+          content: {}
+          description: Bad Request
+        "401":
+          content: {}
+          description: Unauthorized
+        "403":
+          content: {}
+          description: Forbidden
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Add files to a tag
+      tags:
+      - Tags
+      x-codegen-request-body-name: request
   /takeout:
     delete:
       operationId: ClearZipCache
@@ -3393,6 +3726,35 @@ components:
         error:
           type: string
       type: object
+    github_com_ethanrous_weblens_models_tag.Tag:
+      example:
+        owner: owner
+        color: color
+        fileIDs:
+        - fileIDs
+        - fileIDs
+        created: created
+        name: name
+        id: id
+        updated: updated
+      properties:
+        color:
+          type: string
+        created:
+          type: string
+        fileIDs:
+          items:
+            type: string
+          type: array
+        id:
+          type: string
+        name:
+          type: string
+        owner:
+          type: string
+        updated:
+          type: string
+      type: object
     history.FileAction:
       example:
         actionType: actionType
@@ -3438,6 +3800,27 @@ components:
         timestamp:
           type: string
         towerID:
+          type: string
+      type: object
+    tag.createTagParams:
+      properties:
+        color:
+          type: string
+        name:
+          type: string
+      type: object
+    tag.fileIDsParams:
+      properties:
+        fileIDs:
+          items:
+            type: string
+          type: array
+      type: object
+    tag.updateTagParams:
+      properties:
+        color:
+          type: string
+        name:
           type: string
       type: object
     wlfs.Filepath:

@@ -35,6 +35,16 @@
         </WeblensButton>
 
         <WeblensButton
+            v-if="filesStore.isSearching && targetFile && !multipleSelected"
+            label="Jump to File"
+            fill-width
+            :disabled="!targetFile"
+            @click.stop="goToFile"
+        >
+            <IconSearch />
+        </WeblensButton>
+
+        <WeblensButton
             label="Tags"
             fill-width
             :disabled="!targetFile"
@@ -117,6 +127,7 @@ import {
     IconInfoCircle,
     IconPencil,
     IconPhotoScan,
+    IconSearch,
     IconTag,
     IconTrash,
     IconUsersPlus,
@@ -195,6 +206,17 @@ function handleScan() {
     }
 
     ScanDirectory(props.targetFile)
+}
+
+async function goToFile() {
+    if (!props.targetFile) {
+        console.warn('No target file to jump to')
+        return
+    }
+
+    await props.targetFile.GoTo()
+    filesStore.clearSearch()
+    menuStore.setMenuOpen(false)
 }
 
 async function handleDownload() {

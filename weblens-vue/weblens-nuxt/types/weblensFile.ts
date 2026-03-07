@@ -257,7 +257,7 @@ class WeblensFile implements FileInfo {
     }
 
     public static IsShareRoot(portablePath: string): boolean {
-        return portablePath == 'SHARED:'
+        return portablePath === 'SHARED:'
     }
 
     public IsTrash(): boolean {
