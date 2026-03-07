@@ -96,7 +96,7 @@ Class | Method | HTTP request | Description
 *FilesAPI* | [**GetUploadResult**](docs/FilesAPI.md#getuploadresult) | **Get** /upload/{uploadID} | Get the result of an upload task. This will block until the upload is complete
 *FilesAPI* | [**MoveFiles**](docs/FilesAPI.md#movefiles) | **Patch** /files | Move a list of files to a new parent folder
 *FilesAPI* | [**RestoreFiles**](docs/FilesAPI.md#restorefiles) | **Post** /files/structsore | structsore files from some time in the past
-*FilesAPI* | [**SearchByFilename**](docs/FilesAPI.md#searchbyfilename) | **Get** /files/search | Search for files by filename
+*FilesAPI* | [**SearchFiles**](docs/FilesAPI.md#searchfiles) | **Get** /files/search | Search for files by filename
 *FilesAPI* | [**StartUpload**](docs/FilesAPI.md#startupload) | **Post** /upload | Begin a new upload task
 *FilesAPI* | [**UnTrashFiles**](docs/FilesAPI.md#untrashfiles) | **Patch** /files/untrash | Move a list of files out of the trash, structsoring them to where they were before
 *FilesAPI* | [**UpdateFile**](docs/FilesAPI.md#updatefile) | **Patch** /files/{fileID} | Update a File
@@ -125,6 +125,15 @@ Class | Method | HTTP request | Description
 *ShareAPI* | [**RemoveUserFromShare**](docs/ShareAPI.md#removeuserfromshare) | **Delete** /share/{shareID}/accessors/{username} | Remove a user from a file share
 *ShareAPI* | [**SetSharePublic**](docs/ShareAPI.md#setsharepublic) | **Patch** /share/{shareID}/public | Update a share&#39;s \&quot;public\&quot; status
 *ShareAPI* | [**UpdateShareAccessorPermissions**](docs/ShareAPI.md#updateshareaccessorpermissions) | **Patch** /share/{shareID}/accessors/{username} | Update a share&#39;s user permissions
+*TagsAPI* | [**AddFilesToTag**](docs/TagsAPI.md#addfilestotag) | **Post** /tags/{tagID}/files | Add files to a tag
+*TagsAPI* | [**CreateTag**](docs/TagsAPI.md#createtag) | **Post** /tags | Create a new tag
+*TagsAPI* | [**DeleteTag**](docs/TagsAPI.md#deletetag) | **Delete** /tags/{tagID} | Delete a tag
+*TagsAPI* | [**GetFilesByTag**](docs/TagsAPI.md#getfilesbytag) | **Get** /tags/{tagID}/files | Get all files in a tag
+*TagsAPI* | [**GetTag**](docs/TagsAPI.md#gettag) | **Get** /tags/{tagID} | Get a tag by ID
+*TagsAPI* | [**GetTagsForFile**](docs/TagsAPI.md#gettagsforfile) | **Get** /tags/file/{fileID} | Get tags for a file
+*TagsAPI* | [**GetUserTags**](docs/TagsAPI.md#getusertags) | **Get** /tags | Get all tags for the authenticated user
+*TagsAPI* | [**RemoveFilesFromTag**](docs/TagsAPI.md#removefilesfromtag) | **Delete** /tags/{tagID}/files | Remove files from a tag
+*TagsAPI* | [**UpdateTag**](docs/TagsAPI.md#updatetag) | **Patch** /tags/{tagID} | Update a tag&#39;s name and/or color
 *TowersAPI* | [**CreateRemote**](docs/TowersAPI.md#createremote) | **Post** /tower/remote | Create a new remote
 *TowersAPI* | [**DeleteRemote**](docs/TowersAPI.md#deleteremote) | **Delete** /tower/{serverID} | Delete a remote
 *TowersAPI* | [**EnableTraceLogging**](docs/TowersAPI.md#enabletracelogging) | **Post** /tower/trace | Enable trace logging
@@ -164,6 +173,7 @@ Class | Method | HTTP request | Description
  - [FileShareParams](docs/FileShareParams.md)
  - [FilesListParams](docs/FilesListParams.md)
  - [FolderInfo](docs/FolderInfo.md)
+ - [GithubComEthanrousWeblensModelsTagTag](docs/GithubComEthanrousWeblensModelsTagTag.md)
  - [HistoryFileAction](docs/HistoryFileAction.md)
  - [LoginBody](docs/LoginBody.md)
  - [MediaBatchInfo](docs/MediaBatchInfo.md)
@@ -185,6 +195,9 @@ Class | Method | HTTP request | Description
  - [RestoreFilesBody](docs/RestoreFilesBody.md)
  - [RestoreFilesInfo](docs/RestoreFilesInfo.md)
  - [ShareInfo](docs/ShareInfo.md)
+ - [TagCreateTagParams](docs/TagCreateTagParams.md)
+ - [TagFileIDsParams](docs/TagFileIDsParams.md)
+ - [TagUpdateTagParams](docs/TagUpdateTagParams.md)
  - [TakeoutInfo](docs/TakeoutInfo.md)
  - [TaskInfo](docs/TaskInfo.md)
  - [TokenInfo](docs/TokenInfo.md)

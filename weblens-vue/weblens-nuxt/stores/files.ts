@@ -13,14 +13,14 @@ import type {
     FolderInfo,
     GetFolderSortOrderEnum,
     GetFolderSortPropEnum,
-    SearchByFilenameSortOrderEnum,
-    SearchByFilenameSortPropEnum,
+    SearchFilesSortOrderEnum,
+    SearchFilesSortPropEnum,
 } from '@ethanrous/weblens-api'
 import { WLError } from '~/types/wlError'
 
 export type FileShape = 'square' | 'row' | 'column'
-export type SortCondition = SearchByFilenameSortPropEnum & GetFolderSortPropEnum
-type SortDirection = SearchByFilenameSortOrderEnum & GetFolderSortOrderEnum
+export type SortCondition = SearchFilesSortPropEnum & GetFolderSortPropEnum
+type SortDirection = SearchFilesSortOrderEnum & GetFolderSortOrderEnum
 
 type FolderSettings = {
     sortCondition: SortCondition
@@ -62,11 +62,12 @@ const useFilesStore = defineStore('files', () => {
     const searchRecursively = ref<boolean>(false)
     const searchWithRegex = ref<boolean>(false)
     const filterTagIDs = ref<Set<string>>(new Set())
+    const filterTagMode = ref<'and' | 'or'>('and')
 
     const searchUpToDate = ref<boolean>(true)
 
     const isSearching = computed(() => {
-        return locationStore.search !== ''
+        return locationStore.search !== '' || (searchRecursively.value && filterTagIDs.value.size > 0)
     })
 
     watch(
@@ -182,21 +183,22 @@ const useFilesStore = defineStore('files', () => {
         'file-search',
         async () => {
             if (
-                !locationStore.search ||
+                (!locationStore.search && filterTagIDs.value.size === 0) ||
                 !searchUpToDate.value ||
-                locationStore.isInTimeline ||
-                (locationStore.search as string).trim() === ''
+                locationStore.isInTimeline
             ) {
                 return
             }
 
-            const res = await useWeblensAPI().FilesAPI.searchByFilename(
+            const res = await useWeblensAPI().FilesAPI.searchFiles(
                 locationStore.search as string,
                 locationStore.activeFolderID,
                 sortCondition.value,
                 sortDirection.value,
                 searchRecursively.value,
                 searchWithRegex.value,
+                Array.from(filterTagIDs.value).join(','),
+                filterTagMode.value,
             )
 
             const results = res.data.map((f: FileInfo) => {
@@ -213,6 +215,8 @@ const useFilesStore = defineStore('files', () => {
                 sortCondition,
                 sortDirection,
                 searchUpToDate,
+                filterTagIDs,
+                filterTagMode,
             ],
             lazy: true,
         },
@@ -246,7 +250,7 @@ const useFilesStore = defineStore('files', () => {
     watchEffect(() => {
         let result: WeblensFile[]
 
-        if (isSearching.value) {
+        if (searchResults.value !== undefined) {
             result = searchResults.value ?? []
         } else if (!filesResponse.value?.children) {
             result = []
@@ -257,9 +261,10 @@ const useFilesStore = defineStore('files', () => {
         // Apply tag filter if any tags are selected
         if (filterTagIDs.value.size > 0) {
             const tagsStore = useTagsStore()
+            const match = filterTagMode.value === 'and' ? 'every' : 'some'
             result = result.filter((f) => {
                 const fileTags = tagsStore.getTagsByFileID(f.ID())
-                return [...filterTagIDs.value].every((tagID) => fileTags.some((t) => t.id === tagID))
+                return [...filterTagIDs.value][match]((tagID) => fileTags.some((t) => t.id === tagID))
             })
         }
 
@@ -461,6 +466,10 @@ const useFilesStore = defineStore('files', () => {
         filterTagIDs.value = tagIDs
     }
 
+    function setFilterTagMode(mode: 'and' | 'or') {
+        filterTagMode.value = mode
+    }
+
     function getNextFileID(currentFileID: string): string | null {
         const index = files.value.findIndex((f) => f.ID() === currentFileID)
         if (index === -1 || index + 1 >= files.value.length) {
@@ -477,6 +486,13 @@ const useFilesStore = defineStore('files', () => {
         }
 
         return files.value[index - 1].ID()
+    }
+
+    function clearSearch() {
+        locationStore.search = ''
+        searchRecursively.value = false
+        searchWithRegex.value = false
+        filterTagIDs.value = new Set()
     }
 
     return {
@@ -534,6 +550,10 @@ const useFilesStore = defineStore('files', () => {
 
         filterTagIDs,
         setFilterTagIDs,
+        filterTagMode,
+        setFilterTagMode,
+
+        clearSearch,
     }
 })
 

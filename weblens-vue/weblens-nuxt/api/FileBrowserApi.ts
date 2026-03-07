@@ -75,7 +75,7 @@ export async function GetTrashChildIds(): Promise<string[]> {
 export async function handleDownload(
     targetFiles: WeblensFile[],
 ): Promise<undefined | { zipTaskID?: string; downloadPromise: Promise<void> }> {
-    if (targetFiles.length == 1 && !targetFiles[0].IsFolder()) {
+    if (targetFiles.length === 1 && !targetFiles[0].IsFolder()) {
         await downloadSingleFile(targetFiles[0].ID(), targetFiles[0].GetFilename()).catch((error) => {
             console.error('Error downloading file:', error)
         })

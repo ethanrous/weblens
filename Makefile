@@ -62,6 +62,10 @@ lint:
 	golangci-lint run ./...
 	cd weblens-vue/weblens-nuxt && pnpm run lint
 
+lint\:fix:
+	golangci-lint run --fix ./...
+	cd weblens-vue/weblens-nuxt && pnpm run lint:fix
+
 # Publish the full docker image
 docker\:build: $(GO_SOURCE) $(TS_SOURCE)
 	./scripts/gogogadgetdocker.bash 

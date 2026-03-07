@@ -19,6 +19,7 @@
                 :class="{
                     'bg-background-primary h-10! min-h-10! w-full shrink gap-0! border-none': true,
                     'bg-background-primary!': filterOpen,
+                    'justify-between lg:justify-center': !filterOpen,
                 }"
                 :input-class="{
                     'lg:ml-2 h-5': true,
@@ -49,7 +50,7 @@
                     <div
                         v-if="!slotProps.focused && !filterOpen && locationStore.search === ''"
                         :class="{
-                            'text-text-tertiary pointer-events-none max-h-5 text-nowrap transition': true,
+                            'text-text-tertiary pointer-events-none mr-1 max-h-5 leading-none text-nowrap transition': true,
                             'hidden lg:inline-flex': true,
                         }"
                     >
@@ -58,12 +59,13 @@
                         </span>
                     </div>
                     <div
-                        :class="{ 'relative ml-1 flex justify-center border-l pl-2': true }"
-                        @click.stop="
+                        :class="{ 'relative ml-1 flex justify-center border-l pl-2.5': true }"
+                        @click.stop.exact="
                             () => {
                                 filterOpen = !filterOpen
                             }
                         "
+                        @click.shift="() => filesStore.clearSearch()"
                     >
                         <IconFilter2
                             size="20"
@@ -169,7 +171,7 @@ const filterModified = computed(() => {
     if (locationStore.isInTimeline) {
         return mediaStore.showRaw === false
     } else {
-        return filesStore.searchRecursively
+        return filesStore.searchRecursively || filesStore.filterTagIDs.size > 0
     }
 })
 

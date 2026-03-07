@@ -17,7 +17,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 |[**getUploadResult**](#getuploadresult) | **GET** /upload/{uploadID} | Get the result of an upload task. This will block until the upload is complete|
 |[**moveFiles**](#movefiles) | **PATCH** /files | Move a list of files to a new parent folder|
 |[**restoreFiles**](#restorefiles) | **POST** /files/structsore | structsore files from some time in the past|
-|[**searchByFilename**](#searchbyfilename) | **GET** /files/search | Search for files by filename|
+|[**searchFiles**](#searchfiles) | **GET** /files/search | Search for files by filename|
 |[**startUpload**](#startupload) | **POST** /upload | Begin a new upload task|
 |[**unTrashFiles**](#untrashfiles) | **PATCH** /files/untrash | Move a list of files out of the trash, structsoring them to where they were before|
 |[**updateFile**](#updatefile) | **PATCH** /files/{fileID} | Update a File|
@@ -727,8 +727,8 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **searchByFilename**
-> Array<FileInfo> searchByFilename()
+# **searchFiles**
+> Array<FileInfo> searchFiles()
 
 
 ### Example
@@ -748,14 +748,18 @@ let sortProp: 'name' | 'size' | 'updatedAt'; //Property to sort by (optional) (d
 let sortOrder: 'asc' | 'desc'; //Sort order (optional) (default to 'asc')
 let recursive: boolean; //Search recursively (optional) (default to false)
 let regex: boolean; //Whether to treat the search term as a regex pattern (optional) (default to false)
+let tags: string; //Comma-separated list of tags to filter by (optional) (default to undefined)
+let tagJoinLogic: 'and' | 'or'; //Logic to combine multiple tags with, either \'and\' or \'or\' (optional) (default to 'or')
 
-const { status, data } = await apiInstance.searchByFilename(
+const { status, data } = await apiInstance.searchFiles(
     search,
     baseFolderID,
     sortProp,
     sortOrder,
     recursive,
-    regex
+    regex,
+    tags,
+    tagJoinLogic
 );
 ```
 
@@ -769,6 +773,8 @@ const { status, data } = await apiInstance.searchByFilename(
 | **sortOrder** | [**&#39;asc&#39; | &#39;desc&#39;**]**Array<&#39;asc&#39; &#124; &#39;desc&#39;>** | Sort order | (optional) defaults to 'asc'|
 | **recursive** | [**boolean**] | Search recursively | (optional) defaults to false|
 | **regex** | [**boolean**] | Whether to treat the search term as a regex pattern | (optional) defaults to false|
+| **tags** | [**string**] | Comma-separated list of tags to filter by | (optional) defaults to undefined|
+| **tagJoinLogic** | [**&#39;and&#39; | &#39;or&#39;**]**Array<&#39;and&#39; &#124; &#39;or&#39;>** | Logic to combine multiple tags with, either \&#39;and\&#39; or \&#39;or\&#39; | (optional) defaults to 'or'|
 
 
 ### Return type

@@ -646,6 +646,25 @@ definitions:
       error:
         type: string
     type: object
+  github_com_ethanrous_weblens_models_tag.Tag:
+    properties:
+      color:
+        type: string
+      created:
+        type: string
+      fileIDs:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      name:
+        type: string
+      owner:
+        type: string
+      updated:
+        type: string
+    type: object
   history.FileAction:
     properties:
       actionType:
@@ -672,6 +691,27 @@ definitions:
       timestamp:
         type: string
       towerID:
+        type: string
+    type: object
+  tag.createTagParams:
+    properties:
+      color:
+        type: string
+      name:
+        type: string
+    type: object
+  tag.fileIDsParams:
+    properties:
+      fileIDs:
+        items:
+          type: string
+        type: array
+    type: object
+  tag.updateTagParams:
+    properties:
+      color:
+        type: string
+      name:
         type: string
     type: object
   wlfs.Filepath:
@@ -989,7 +1029,7 @@ paths:
       - Files
   /files/search:
     get:
-      operationId: SearchByFilename
+      operationId: SearchFiles
       parameters:
       - description: Filename to search for
         in: query
@@ -1033,6 +1073,18 @@ paths:
         in: query
         name: regex
         type: boolean
+      - description: Comma-separated list of tags to filter by
+        in: query
+        name: tags
+        type: string
+      - default: or
+        description: Logic to combine multiple tags with, either 'and' or 'or'
+        enum:
+        - and
+        - or
+        in: query
+        name: tagJoinLogic
+        type: string
       responses:
         "200":
           description: File Info
@@ -1909,6 +1961,277 @@ paths:
       summary: Share a file
       tags:
       - Share
+  /tags:
+    get:
+      operationId: GetUserTags
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User's tags
+          schema:
+            items:
+              $ref: '#/definitions/github_com_ethanrous_weblens_models_tag.Tag'
+            type: array
+        "401":
+          description: Unauthorized
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Get all tags for the authenticated user
+      tags:
+      - Tags
+    post:
+      consumes:
+      - application/json
+      operationId: CreateTag
+      parameters:
+      - description: Create tag request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/tag.createTagParams'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created tag
+          schema:
+            $ref: '#/definitions/github_com_ethanrous_weblens_models_tag.Tag'
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "409":
+          description: Conflict
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Create a new tag
+      tags:
+      - Tags
+  /tags/{tagID}:
+    delete:
+      operationId: DeleteTag
+      parameters:
+      - description: Tag ID
+        in: path
+        name: tagID
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Delete a tag
+      tags:
+      - Tags
+    get:
+      operationId: GetTag
+      parameters:
+      - description: Tag ID
+        in: path
+        name: tagID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tag
+          schema:
+            $ref: '#/definitions/github_com_ethanrous_weblens_models_tag.Tag'
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      security:
+      - SessionAuth: []
+      summary: Get a tag by ID
+      tags:
+      - Tags
+    patch:
+      consumes:
+      - application/json
+      operationId: UpdateTag
+      parameters:
+      - description: Tag ID
+        in: path
+        name: tagID
+        required: true
+        type: string
+      - description: Update tag request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/tag.updateTagParams'
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Update a tag's name and/or color
+      tags:
+      - Tags
+  /tags/{tagID}/files:
+    delete:
+      consumes:
+      - application/json
+      operationId: RemoveFilesFromTag
+      parameters:
+      - description: Tag ID
+        in: path
+        name: tagID
+        required: true
+        type: string
+      - description: File IDs to remove
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/tag.fileIDsParams'
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Remove files from a tag
+      tags:
+      - Tags
+    get:
+      operationId: GetFilesByTag
+      parameters:
+      - description: Tag ID
+        in: path
+        name: tagID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Files in the tag
+          schema:
+            items:
+              $ref: '#/definitions/FileInfo'
+            type: array
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Get all files in a tag
+      tags:
+      - Tags
+    post:
+      consumes:
+      - application/json
+      operationId: AddFilesToTag
+      parameters:
+      - description: Tag ID
+        in: path
+        name: tagID
+        required: true
+        type: string
+      - description: File IDs to add
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/tag.fileIDsParams'
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Add files to a tag
+      tags:
+      - Tags
+  /tags/file/{fileID}:
+    get:
+      operationId: GetTagsForFile
+      parameters:
+      - description: File ID
+        in: path
+        name: fileID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tags containing the file
+          schema:
+            items:
+              $ref: '#/definitions/github_com_ethanrous_weblens_models_tag.Tag'
+            type: array
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Get tags for a file
+      tags:
+      - Tags
   /takeout:
     delete:
       operationId: ClearZipCache

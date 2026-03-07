@@ -13,7 +13,7 @@
                 v-for="tag in tagsStore.tagsList"
                 :key="tag.id"
                 class="clickable flex items-center gap-2 px-1"
-                @click="toggleTag(tag.id)"
+                @click="toggleTag(tag.id!)"
             >
                 <span
                     class="h-2.5 w-2.5 shrink-0 rounded-full"
@@ -21,12 +21,12 @@
                 />
                 <span class="truncate text-sm">{{ tag.name }}</span>
                 <IconCheck
-                    v-if="isTagApplied(tag.id)"
+                    v-if="isTagApplied(tag.id!)"
                     size="14"
                     class="text-text-secondary ml-auto shrink-0"
                 />
                 <IconMinus
-                    v-else-if="isTagMixed(tag.id)"
+                    v-else-if="isTagMixed(tag.id!)"
                     size="14"
                     class="text-text-tertiary ml-auto shrink-0"
                 />
@@ -129,13 +129,13 @@ const selectedColor = ref(presetColors[0])
 function isTagApplied(tagID: string): boolean {
     const tag = tagsStore.tags.get(tagID)
     if (!tag) return false
-    return props.fileIDs.every((fID) => tag.fileIDs.includes(fID))
+    return props.fileIDs.every((fID) => (tag.fileIDs ?? []).includes(fID))
 }
 
 function isTagMixed(tagID: string): boolean {
     const tag = tagsStore.tags.get(tagID)
     if (!tag) return false
-    const count = props.fileIDs.filter((fID) => tag.fileIDs.includes(fID)).length
+    const count = props.fileIDs.filter((fID) => (tag.fileIDs ?? []).includes(fID)).length
     return count > 0 && count < props.fileIDs.length
 }
 
@@ -161,7 +161,7 @@ async function handleCreate() {
     creating.value = false
 
     if (props.fileIDs.length > 0) {
-        await tagsStore.addFilesToTag(tag.id, props.fileIDs)
+        await tagsStore.addFilesToTag(tag.id!, props.fileIDs)
     }
 }
 

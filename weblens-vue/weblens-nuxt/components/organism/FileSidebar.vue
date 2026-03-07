@@ -91,8 +91,13 @@
                 <IconUpload size="18" />
             </UploadButton>
 
-            <WeblensButton
+            <Divider
                 label="Tags"
+                label-justify="left"
+            />
+
+            <WeblensButton
+                label="Manage Tags"
                 allow-collapse
                 fill-width
                 :disabled="!userStore.loggedIn"
@@ -100,6 +105,28 @@
             >
                 <IconTags size="18" />
             </WeblensButton>
+
+            <div
+                v-if="tagsStore.tagsList.length > 0 && !collapsed"
+                :class="{ 'flex flex-col gap-0.5': true }"
+            >
+                <WeblensButton
+                    v-for="tag in tagsStore.tagsList"
+                    :key="tag.id"
+                    :label="tag.name"
+                    type="light"
+                    :selected="activeTagID === tag.id"
+                    allow-collapse
+                    fill-width
+                    :disabled="!userStore.loggedIn"
+                    @click.stop="navigateTo(`/files/tag/${tag.id}`)"
+                >
+                    <span
+                        :class="{ 'h-3 w-3 shrink-0 rounded-full': true }"
+                        :style="{ backgroundColor: tag.color }"
+                    />
+                </WeblensButton>
+            </div>
 
             <Divider />
 
@@ -153,6 +180,7 @@ import WeblensButton from '../atom/WeblensButton.vue'
 import Divider from '../atom/Divider.vue'
 import TagManager from './TagManager.vue'
 import useFilesStore from '~/stores/files'
+import useTagsStore from '~/stores/tags'
 import WeblensFile from '~/types/weblensFile'
 import TaskProgress from './TaskProgress.vue'
 import UploadButton from '../molecule/UploadButton.vue'
@@ -171,7 +199,15 @@ const filesStore = useFilesStore()
 const contextMenuStore = useContextMenuStore()
 const locationStore = useLocationStore()
 const userStore = useUserStore()
+const tagsStore = useTagsStore()
 const route = useRoute()
+
+const activeTagID = computed(() => {
+    if ((route.name as string)?.startsWith('files-tag')) {
+        return route.params.tagID as string
+    }
+    return ''
+})
 
 const forceOpen = ref<boolean>(false)
 const showTagManager = ref(false)
@@ -194,4 +230,10 @@ function handleNewFolder() {
 function goToSettings() {
     navigateTo('/settings')
 }
+
+onMounted(() => {
+    if (userStore.loggedIn && tagsStore.tagsList.length === 0) {
+        tagsStore.fetchTags()
+    }
+})
 </script>

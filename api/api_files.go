@@ -1455,7 +1455,7 @@ func (a *FilesAPIService) RestoreFilesExecute(r ApiRestoreFilesRequest) (*Restor
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
-type ApiSearchByFilenameRequest struct {
+type ApiSearchFilesRequest struct {
 	ctx context.Context
 	ApiService *FilesAPIService
 	search *string
@@ -1464,56 +1464,70 @@ type ApiSearchByFilenameRequest struct {
 	sortOrder *string
 	recursive *bool
 	regex *bool
+	tags *string
+	tagJoinLogic *string
 }
 
 // Filename to search for
-func (r ApiSearchByFilenameRequest) Search(search string) ApiSearchByFilenameRequest {
+func (r ApiSearchFilesRequest) Search(search string) ApiSearchFilesRequest {
 	r.search = &search
 	return r
 }
 
 // The folder to search in, defaults to the user&#39;s home folder
-func (r ApiSearchByFilenameRequest) BaseFolderID(baseFolderID string) ApiSearchByFilenameRequest {
+func (r ApiSearchFilesRequest) BaseFolderID(baseFolderID string) ApiSearchFilesRequest {
 	r.baseFolderID = &baseFolderID
 	return r
 }
 
 // Property to sort by
-func (r ApiSearchByFilenameRequest) SortProp(sortProp string) ApiSearchByFilenameRequest {
+func (r ApiSearchFilesRequest) SortProp(sortProp string) ApiSearchFilesRequest {
 	r.sortProp = &sortProp
 	return r
 }
 
 // Sort order
-func (r ApiSearchByFilenameRequest) SortOrder(sortOrder string) ApiSearchByFilenameRequest {
+func (r ApiSearchFilesRequest) SortOrder(sortOrder string) ApiSearchFilesRequest {
 	r.sortOrder = &sortOrder
 	return r
 }
 
 // Search recursively
-func (r ApiSearchByFilenameRequest) Recursive(recursive bool) ApiSearchByFilenameRequest {
+func (r ApiSearchFilesRequest) Recursive(recursive bool) ApiSearchFilesRequest {
 	r.recursive = &recursive
 	return r
 }
 
 // Whether to treat the search term as a regex pattern
-func (r ApiSearchByFilenameRequest) Regex(regex bool) ApiSearchByFilenameRequest {
+func (r ApiSearchFilesRequest) Regex(regex bool) ApiSearchFilesRequest {
 	r.regex = &regex
 	return r
 }
 
-func (r ApiSearchByFilenameRequest) Execute() ([]FileInfo, *http.Response, error) {
-	return r.ApiService.SearchByFilenameExecute(r)
+// Comma-separated list of tags to filter by
+func (r ApiSearchFilesRequest) Tags(tags string) ApiSearchFilesRequest {
+	r.tags = &tags
+	return r
+}
+
+// Logic to combine multiple tags with, either &#39;and&#39; or &#39;or&#39;
+func (r ApiSearchFilesRequest) TagJoinLogic(tagJoinLogic string) ApiSearchFilesRequest {
+	r.tagJoinLogic = &tagJoinLogic
+	return r
+}
+
+func (r ApiSearchFilesRequest) Execute() ([]FileInfo, *http.Response, error) {
+	return r.ApiService.SearchFilesExecute(r)
 }
 
 /*
-SearchByFilename Search for files by filename
+SearchFiles Search for files by filename
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @return ApiSearchByFilenameRequest
+ @return ApiSearchFilesRequest
 */
-func (a *FilesAPIService) SearchByFilename(ctx context.Context) ApiSearchByFilenameRequest {
-	return ApiSearchByFilenameRequest{
+func (a *FilesAPIService) SearchFiles(ctx context.Context) ApiSearchFilesRequest {
+	return ApiSearchFilesRequest{
 		ApiService: a,
 		ctx: ctx,
 	}
@@ -1521,7 +1535,7 @@ func (a *FilesAPIService) SearchByFilename(ctx context.Context) ApiSearchByFilen
 
 // Execute executes the request
 //  @return []FileInfo
-func (a *FilesAPIService) SearchByFilenameExecute(r ApiSearchByFilenameRequest) ([]FileInfo, *http.Response, error) {
+func (a *FilesAPIService) SearchFilesExecute(r ApiSearchFilesRequest) ([]FileInfo, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodGet
 		localVarPostBody     interface{}
@@ -1529,7 +1543,7 @@ func (a *FilesAPIService) SearchByFilenameExecute(r ApiSearchByFilenameRequest) 
 		localVarReturnValue  []FileInfo
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "FilesAPIService.SearchByFilename")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "FilesAPIService.SearchFiles")
 	if err != nil {
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
@@ -1574,6 +1588,16 @@ func (a *FilesAPIService) SearchByFilenameExecute(r ApiSearchByFilenameRequest) 
 		var defaultValue bool = false
 		parameterAddToHeaderOrQuery(localVarQueryParams, "regex", defaultValue, "", "")
 		r.regex = &defaultValue
+	}
+	if r.tags != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "tags", r.tags, "", "")
+	}
+	if r.tagJoinLogic != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "tagJoinLogic", r.tagJoinLogic, "", "")
+	} else {
+		var defaultValue string = "or"
+		parameterAddToHeaderOrQuery(localVarQueryParams, "tagJoinLogic", defaultValue, "", "")
+		r.tagJoinLogic = &defaultValue
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}

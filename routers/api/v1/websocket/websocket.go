@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -35,6 +36,17 @@ type WsAuthorize struct {
 	Auth string `json:"auth"`
 }
 
+// isLoopback returns true if the host is a loopback address (localhost, 127.0.0.1, ::1).
+func isLoopback(host string) bool {
+	if host == "localhost" {
+		return true
+	}
+
+	ip := net.ParseIP(host)
+
+	return ip != nil && ip.IsLoopback()
+}
+
 var upgrader = gorilla.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -46,8 +58,22 @@ var upgrader = gorilla.Upgrader{
 
 		proxyAddr := config.GetConfig().ProxyAddress
 		if proxyAddr == "" {
-			// No proxy configured — only allow same-host origins
-			return origin == "http://"+r.Host || origin == "https://"+r.Host
+			// No proxy configured — allow same-host origins.
+			// Also allow localhost origins on any port for dev mode
+			// where the frontend proxy runs on a different port.
+			originURL, err := url.Parse(origin)
+			if err != nil {
+				return false
+			}
+
+			hostOnly := r.Host
+			if h, _, err := net.SplitHostPort(r.Host); err == nil {
+				hostOnly = h
+			}
+
+			originHost := originURL.Hostname()
+
+			return originHost == hostOnly || isLoopback(originHost) && isLoopback(hostOnly)
 		}
 
 		originURL, err := url.Parse(origin)

@@ -119,6 +119,8 @@ export WEBLENS_LOG_FORMAT="${WEBLENS_LOG_FORMAT:-dev}"
 export WEBLENS_DO_CACHE="${WEBLENS_DO_CACHE:-true}"
 export WEBLENS_DO_PROFILING="${WEBLENS_DO_PROFILING:-true}"
 export WEBLENS_PORT=$weblens_port
+export WEBLENS_JWT_SECRET="DEV"
+
 export AGNO_LOG_LEVEL=warn
 export AGNO_LOG_FORMAT=human
 

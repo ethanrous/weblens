@@ -2,6 +2,17 @@
 
 Rolling summary of recent work. Keep last ~5 sessions, remove older ones.
 
+## 2026-03-07
+
+- Migrated tag API from hand-written `TagApi.ts` to generated `@ethanrous/weblens-api` client
+  - Added swagger annotations to all 9 tag handlers in `rest_tags.go`
+  - Ran `make swag` to regenerate swagger.json, TypeScript client, Go client
+  - Added `TagsAPI` to `api/ts/AllApi.ts` WLAPI type
+  - Deleted `api/TagApi.ts`, rewrote `stores/tags.ts` to use `useWeblensAPI().TagsAPI.*`
+  - Updated all consumers (`TagPill.vue`, `TagManager.vue`, `TagSelector.vue`, `FileSearchFilters.vue`, `PresentationFileInfo.vue`, `[tagID].vue`)
+  - Fixed `stores/files.ts` renamed types from swag regeneration (`SearchByFilename*` → `SearchFiles*`)
+  - Re-exported generated type as `TagInfo` from `stores/tags.ts` for convenience
+
 ## 2026-03-04 (Security Audit)
 
 - Comprehensive security audit of access control across the application
