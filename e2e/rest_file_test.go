@@ -2,6 +2,7 @@ package e2e_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -111,7 +112,7 @@ func TestGetFile(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 }
 
-func TestSearchByFilename(t *testing.T) {
+func TestSearchFiles(t *testing.T) {
 	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
 	require.NoError(t, err, "Failed to start test server")
 
@@ -124,13 +125,13 @@ func TestSearchByFilename(t *testing.T) {
 	homeID := userInfo.GetHomeID()
 
 	// Create folders with different names
-	_, _, err = client.FolderAPI.CreateFolder(t.Context()).Request(openapi.CreateFolderBody{
+	folder1, _, err := client.FolderAPI.CreateFolder(t.Context()).Request(openapi.CreateFolderBody{
 		ParentFolderID: homeID,
 		NewFolderName:  "searchable-folder1",
 	}).Execute()
 	require.NoError(t, err)
 
-	_, _, err = client.FolderAPI.CreateFolder(t.Context()).Request(openapi.CreateFolderBody{
+	folder2, _, err := client.FolderAPI.CreateFolder(t.Context()).Request(openapi.CreateFolderBody{
 		ParentFolderID: homeID,
 		NewFolderName:  "searchable-folder2",
 	}).Execute()
@@ -142,16 +143,192 @@ func TestSearchByFilename(t *testing.T) {
 	}).Execute()
 	require.NoError(t, err)
 
-	// Search for "searchable" - should find both searchable folders
-	results, resp, err := client.FilesAPI.SearchFiles(t.Context()).Search("searchable").Execute()
+	// Create subfolder for recursive search testing
+	_, _, err = client.FolderAPI.CreateFolder(t.Context()).Request(openapi.CreateFolderBody{
+		ParentFolderID: folder1.GetId(),
+		NewFolderName:  "searchable-nested",
+	}).Execute()
 	require.NoError(t, err)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, 2, len(results))
 
-	// Search with empty query - should fail
-	_, resp, err = client.FilesAPI.SearchFiles(t.Context()).Search("").Execute()
-	assert.Error(t, err)
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	// --- Basic search tests (before tags exist) ---
+
+	t.Run("search by name finds matching files", func(t *testing.T) {
+		results, resp, err := client.FilesAPI.SearchFiles(t.Context()).Search("searchable").Execute()
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, 2, len(results))
+	})
+
+	t.Run("empty search returns 400", func(t *testing.T) {
+		_, resp, err := client.FilesAPI.SearchFiles(t.Context()).Search("").Execute()
+		assert.Error(t, err)
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	})
+
+	t.Run("search with no results", func(t *testing.T) {
+		results, resp, err := client.FilesAPI.SearchFiles(t.Context()).Search("nonexistent-xyz-999").Execute()
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, 0, len(results))
+	})
+
+	t.Run("search with regex", func(t *testing.T) {
+		results, resp, err := client.FilesAPI.SearchFiles(t.Context()).Search("searchable-folder[12]").Regex(true).Execute()
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, 2, len(results))
+	})
+
+	t.Run("search with invalid regex returns 400", func(t *testing.T) {
+		_, resp, err := client.FilesAPI.SearchFiles(t.Context()).Search("[invalid").Regex(true).Execute()
+		assert.Error(t, err)
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	})
+
+	t.Run("search with recursive", func(t *testing.T) {
+		results, resp, err := client.FilesAPI.SearchFiles(t.Context()).Search("searchable").Recursive(true).Execute()
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		// Should find searchable-folder1, searchable-folder2, and searchable-nested
+		assert.GreaterOrEqual(t, len(results), 3)
+	})
+
+	t.Run("search with baseFolderID", func(t *testing.T) {
+		results, resp, err := client.FilesAPI.SearchFiles(t.Context()).Search("searchable").BaseFolderID(folder1.GetId()).Execute()
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		// Only searchable-nested is a direct child of folder1
+		assert.Equal(t, 1, len(results))
+	})
+
+	t.Run("search with sort desc", func(t *testing.T) {
+		results, resp, err := client.FilesAPI.SearchFiles(t.Context()).Search("searchable").SortProp("name").SortOrder("desc").Execute()
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, 2, len(results))
+	})
+
+	// --- Create tags and assign files ---
+
+	tag1, _, err := client.TagsAPI.CreateTag(t.Context()).Request(openapi.TagCreateTagParams{
+		Name:  openapi.PtrString("tag-alpha"),
+		Color: openapi.PtrString("#ff0000"),
+	}).Execute()
+	require.NoError(t, err)
+
+	tag2, _, err := client.TagsAPI.CreateTag(t.Context()).Request(openapi.TagCreateTagParams{
+		Name:  openapi.PtrString("tag-beta"),
+		Color: openapi.PtrString("#00ff00"),
+	}).Execute()
+	require.NoError(t, err)
+
+	// Tag folder1 with tag1 only
+	_, err = client.TagsAPI.AddFilesToTag(t.Context(), tag1.GetId()).Request(openapi.TagFileIDsParams{
+		FileIDs: []string{folder1.GetId()},
+	}).Execute()
+	require.NoError(t, err)
+
+	// Tag folder2 with both tag1 and tag2
+	_, err = client.TagsAPI.AddFilesToTag(t.Context(), tag1.GetId()).Request(openapi.TagFileIDsParams{
+		FileIDs: []string{folder2.GetId()},
+	}).Execute()
+	require.NoError(t, err)
+
+	_, err = client.TagsAPI.AddFilesToTag(t.Context(), tag2.GetId()).Request(openapi.TagFileIDsParams{
+		FileIDs: []string{folder2.GetId()},
+	}).Execute()
+	require.NoError(t, err)
+
+	// --- BUG: search without tag filter when user has tags should still work ---
+
+	t.Run("search without tags when user has tags", func(t *testing.T) {
+		results, resp, err := client.FilesAPI.SearchFiles(t.Context()).Search("searchable").Execute()
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, 2, len(results))
+	})
+
+	// --- Tag filtering tests ---
+
+	t.Run("search with single tag filter", func(t *testing.T) {
+		results, resp, err := client.FilesAPI.SearchFiles(t.Context()).Search("searchable").Tags(tag2.GetId()).Execute()
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		// Only folder2 has tag2 and matches "searchable"
+		assert.Equal(t, 1, len(results))
+	})
+
+	t.Run("search with tag matching all tagged files", func(t *testing.T) {
+		results, resp, err := client.FilesAPI.SearchFiles(t.Context()).Search("searchable").Tags(tag1.GetId()).Execute()
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		// Both folder1 and folder2 have tag1
+		assert.Equal(t, 2, len(results))
+	})
+
+	t.Run("search with tag no name match", func(t *testing.T) {
+		results, resp, err := client.FilesAPI.SearchFiles(t.Context()).Search("nonexistent-xyz-999").Tags(tag1.GetId()).Execute()
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, 0, len(results))
+	})
+
+	// --- Raw HTTP tests for multi-tag and edge cases ---
+
+	rawSearchTests := []struct {
+		name           string
+		query          string
+		expectedStatus int
+		expectedCount  int
+	}{
+		{
+			name:           "multiple tags OR logic",
+			query:          fmt.Sprintf("search=searchable&tags=%s,%s&tagJoinLogic=or", tag1.GetId(), tag2.GetId()),
+			expectedStatus: http.StatusOK,
+			expectedCount:  2, // tag1 has folder1+folder2, tag2 has folder2 → union = both
+		},
+		{
+			name:           "multiple tags AND logic",
+			query:          fmt.Sprintf("search=searchable&tags=%s,%s&tagJoinLogic=and", tag1.GetId(), tag2.GetId()),
+			expectedStatus: http.StatusOK,
+			expectedCount:  1, // only folder2 has both tags
+		},
+		{
+			name:           "invalid tagJoinLogic returns 400",
+			query:          fmt.Sprintf("search=test&tags=%s&tagJoinLogic=xor", tag1.GetId()),
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "non-existent tag returns 400",
+			query:          "search=test&tags=000000000000000000000000",
+			expectedStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range rawSearchTests {
+		t.Run(tt.name, func(t *testing.T) {
+			reqURL := fmt.Sprintf("%s/api/v1/files/search?%s", coreSetup.address, tt.query)
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, reqURL, nil)
+			require.NoError(t, err)
+
+			req.Header.Set("Authorization", "Bearer "+coreSetup.token)
+
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+
+			defer func() { _ = resp.Body.Close() }()
+
+			assert.Equal(t, tt.expectedStatus, resp.StatusCode)
+
+			if tt.expectedCount > 0 {
+				var results []map[string]interface{}
+
+				err = json.NewDecoder(resp.Body).Decode(&results)
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedCount, len(results))
+			}
+		})
+	}
 }
 
 func TestUpdateFile(t *testing.T) {

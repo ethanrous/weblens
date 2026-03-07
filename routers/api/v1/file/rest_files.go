@@ -361,38 +361,39 @@ func SearchFiles(ctx context_service.RequestContext) {
 	}
 
 	// Compute tags filter
-	tagJoinLogic := ctx.Query("tagJoinLogic")
-	if tagJoinLogic == "" {
-		tagJoinLogic = "or"
-	} else if tagJoinLogic != "or" && tagJoinLogic != "and" {
-		ctx.Error(http.StatusBadRequest, wlerrors.New("invalid tagJoinLogic, must be 'and' or 'or'"))
-
-		return
-	}
-
-	ctx.Log().Debug().Msgf("Filtering by tags: %v with join logic: %s", tagIDsFilter, tagJoinLogic)
-
-	tags, err := tag_model.GetTagsByOwner(ctx, ctx.Requester.GetUsername(), tagIDsFilter...)
-	if err != nil {
-		ctx.Error(http.StatusInternalServerError, err)
-
-		return
-	} else if len(tags) != len(tagIDsFilter) {
-		ctx.Error(http.StatusBadRequest, wlerrors.Errorf("one or more tags not found of the provided tags: %v", tagIDsFilter))
-
-		return
-	}
-
 	tagFilterFileIDs := set.New[string]()
-	for _, t := range tags {
-		currentTagSet := set.New[string](t.FileIDs...)
-		if tagJoinLogic == "or" {
-			tagFilterFileIDs.Union(currentTagSet)
-		} else if tagJoinLogic == "and" && tagFilterFileIDs.Len() == 0 {
-			// We have to initialize the set with the first tag's file IDs for the "and" logic, then we can do intersect afterwards
-			tagFilterFileIDs = currentTagSet
-		} else {
-			tagFilterFileIDs = tagFilterFileIDs.Intersection(currentTagSet)
+
+	if len(tagIDsFilter) > 0 {
+		tagJoinLogic := ctx.Query("tagJoinLogic")
+		if tagJoinLogic == "" {
+			tagJoinLogic = "or"
+		} else if tagJoinLogic != "or" && tagJoinLogic != "and" {
+			ctx.Error(http.StatusBadRequest, wlerrors.New("invalid tagJoinLogic, must be 'and' or 'or'"))
+
+			return
+		}
+
+		tags, err := tag_model.GetTagsByOwner(ctx, ctx.Requester.GetUsername(), tagIDsFilter...)
+		if err != nil {
+			ctx.Error(http.StatusInternalServerError, err)
+
+			return
+		} else if len(tags) != len(tagIDsFilter) {
+			ctx.Error(http.StatusBadRequest, wlerrors.Errorf("one or more tags not found of the provided tags: %v", tagIDsFilter))
+
+			return
+		}
+
+		for _, t := range tags {
+			currentTagSet := set.New[string](t.FileIDs...)
+			if tagJoinLogic == "or" {
+				tagFilterFileIDs = tagFilterFileIDs.Union(currentTagSet)
+			} else if tagJoinLogic == "and" && tagFilterFileIDs.Len() == 0 {
+				// We have to initialize the set with the first tag's file IDs for the "and" logic, then we can do intersect afterwards
+				tagFilterFileIDs = currentTagSet
+			} else {
+				tagFilterFileIDs = tagFilterFileIDs.Intersection(currentTagSet)
+			}
 		}
 	}
 

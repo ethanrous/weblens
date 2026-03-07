@@ -60,11 +60,12 @@
                     </div>
                     <div
                         :class="{ 'relative ml-1 flex justify-center border-l pl-2.5': true }"
-                        @click.stop="
+                        @click.stop.exact="
                             () => {
                                 filterOpen = !filterOpen
                             }
                         "
+                        @click.shift="() => filesStore.clearSearch()"
                     >
                         <IconFilter2
                             size="20"
@@ -170,7 +171,7 @@ const filterModified = computed(() => {
     if (locationStore.isInTimeline) {
         return mediaStore.showRaw === false
     } else {
-        return filesStore.searchRecursively
+        return filesStore.searchRecursively || filesStore.filterTagIDs.size > 0
     }
 })
 
