@@ -17,7 +17,7 @@
             :value="value"
             :disabled="disabled"
             :class="inputClass"
-            @input="
+            @input.stop.prevent="
                 (e) => {
                     emit('update:value', (e.target as HTMLInputElement).value)
                 }
