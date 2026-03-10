@@ -38,7 +38,7 @@
                                 v-model:value="editName"
                                 auto-focus
                                 :class="{ 'h-8! flex-1': true }"
-                                @submit="saveEdit(tag.id)"
+                                @submit="saveEdit(tag.id!)"
                             />
                             <div class="flex gap-0.5">
                                 <div
@@ -55,7 +55,7 @@
                             </div>
                             <WeblensButton
                                 :square-size="28"
-                                @click="saveEdit(tag.id)"
+                                @click="saveEdit(tag.id!)"
                             >
                                 <IconCheck size="14" />
                             </WeblensButton>
@@ -75,7 +75,15 @@
                             />
                             <span class="flex-1 truncate">{{ tag.name }}</span>
                             <span class="text-text-tertiary text-xs">
-                                {{ tag.fileIDs.length }} {{ tag.fileIDs.length === 1 ? 'file' : 'files' }}
+                                {{ (tag.fileIDs ?? []).length }}
+                                {{ (tag.fileIDs ?? []).length === 1 ? 'file' : 'files' }}
+                            </span>
+                            <span
+                                class="clickable text-text-tertiary opacity-0 group-hover:opacity-100"
+                                title="View files"
+                                @click="viewTagFiles(tag.id!)"
+                            >
+                                <IconEye size="14" />
                             </span>
                             <span
                                 class="clickable text-text-tertiary opacity-0 group-hover:opacity-100"
@@ -85,7 +93,7 @@
                             </span>
                             <span
                                 class="clickable text-text-tertiary opacity-0 group-hover:opacity-100"
-                                @click="handleDelete(tag.id)"
+                                @click="handleDelete(tag.id!)"
                             >
                                 <IconTrash size="14" />
                             </span>
@@ -157,11 +165,11 @@
 </template>
 
 <script setup lang="ts">
-import { IconCheck, IconPencil, IconPlus, IconTags, IconTrash, IconX } from '@tabler/icons-vue'
+import { IconCheck, IconEye, IconPencil, IconPlus, IconTags, IconTrash, IconX } from '@tabler/icons-vue'
 import WeblensButton from '../atom/WeblensButton.vue'
 import WeblensInput from '../atom/WeblensInput.vue'
 import useTagsStore from '~/stores/tags'
-import type { TagInfo } from '~/api/TagApi'
+import type { TagInfo } from '~/stores/tags'
 import { onClickOutside, onKeyDown } from '@vueuse/core'
 
 const tagsStore = useTagsStore()
@@ -225,9 +233,9 @@ async function handleCreate() {
 }
 
 function startEdit(tag: TagInfo) {
-    editingTagID.value = tag.id
-    editName.value = tag.name
-    editColor.value = tag.color
+    editingTagID.value = tag.id ?? ''
+    editName.value = tag.name ?? ''
+    editColor.value = tag.color ?? ''
 }
 
 async function saveEdit(tagID: string) {
@@ -235,6 +243,11 @@ async function saveEdit(tagID: string) {
     if (!name) return
     await tagsStore.updateTag(tagID, name, editColor.value)
     editingTagID.value = ''
+}
+
+function viewTagFiles(tagID: string) {
+    emit('close')
+    navigateTo(`/files/tag/${tagID}`)
 }
 
 async function handleDelete(tagID: string) {

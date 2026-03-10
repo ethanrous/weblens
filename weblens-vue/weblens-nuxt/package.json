@@ -8,7 +8,7 @@
     "generate": "nuxt generate && find ./.output/public -type f \\( -name \\*.js -o -name \\*.css \\) -exec gzip {} \\; -exec mv {}.gz {} \\;",
     "preview": "nuxt preview",
     "lint": "prettier --config ./.prettierrc.json --check '**/**.vue' '**/**.ts' || exit 1; tsc --noEmit || exit 1; eslint --ext .ts,.vue . || exit 1",
-    "lint:fix": "prettier --config ./.prettierrc.json --write '**/**.vue' '**/**.ts'",
+    "lint:fix": "prettier --config ./.prettierrc.json --write '**/**.vue' '**/**.ts'; eslint --fix --ext .ts,.vue .",
     "postinstall": "nuxt prepare",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",

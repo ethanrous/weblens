@@ -78,7 +78,7 @@ func Routes(_ context_service.AppContext) *router.Router {
 	r.Group("/files", func() {
 		r.Patch("", file_api.MoveFiles)
 		r.Delete("", file_api.DeleteFiles)
-		r.Get("/search", file_api.SearchByFilename)
+		r.Get("/search", file_api.SearchFiles)
 		r.Get("/autocomplete", file_api.AutocompletePath)
 		r.Patch("/untrash", file_api.UnTrashFiles)
 		r.Post("/restore", file_api.RestoreFiles)
@@ -116,6 +116,7 @@ func Routes(_ context_service.AppContext) *router.Router {
 			r.Get("", tag_api.GetTag)
 			r.Patch("", tag_api.UpdateTag)
 			r.Delete("", tag_api.DeleteTag)
+			r.Get("/files", tag_api.GetFilesByTag)
 			r.Post("/files", tag_api.AddFilesToTag)
 			r.Delete("/files", tag_api.RemoveFilesFromTag)
 		})

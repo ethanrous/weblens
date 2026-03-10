@@ -845,15 +845,17 @@ var FilesApiAxiosParamCreator = function(configuration) {
      * @summary Search for files by filename
      * @param {string} search Filename to search for
      * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
-     * @param {SearchByFilenameSortPropEnum} [sortProp] Property to sort by
-     * @param {SearchByFilenameSortOrderEnum} [sortOrder] Sort order
+     * @param {SearchFilesSortPropEnum} [sortProp] Property to sort by
+     * @param {SearchFilesSortOrderEnum} [sortOrder] Sort order
      * @param {boolean} [recursive] Search recursively
      * @param {boolean} [regex] Whether to treat the search term as a regex pattern
+     * @param {string} [tags] Comma-separated list of tags to filter by
+     * @param {SearchFilesTagJoinLogicEnum} [tagJoinLogic] Logic to combine multiple tags with, either \&#39;and\&#39; or \&#39;or\&#39;
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    searchByFilename: async (search, baseFolderID, sortProp, sortOrder, recursive, regex, options = {}) => {
-      assertParamExists("searchByFilename", "search", search);
+    searchFiles: async (search, baseFolderID, sortProp, sortOrder, recursive, regex, tags, tagJoinLogic, options = {}) => {
+      assertParamExists("searchFiles", "search", search);
       const localVarPath = `/files/search`;
       const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
       let baseOptions;
@@ -880,6 +882,12 @@ var FilesApiAxiosParamCreator = function(configuration) {
       }
       if (regex !== void 0) {
         localVarQueryParameter["regex"] = regex;
+      }
+      if (tags !== void 0) {
+        localVarQueryParameter["tags"] = tags;
+      }
+      if (tagJoinLogic !== void 0) {
+        localVarQueryParameter["tagJoinLogic"] = tagJoinLogic;
       }
       localVarHeaderParameter["Accept"] = "*/*";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
@@ -1227,18 +1235,20 @@ var FilesApiFp = function(configuration) {
      * @summary Search for files by filename
      * @param {string} search Filename to search for
      * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
-     * @param {SearchByFilenameSortPropEnum} [sortProp] Property to sort by
-     * @param {SearchByFilenameSortOrderEnum} [sortOrder] Sort order
+     * @param {SearchFilesSortPropEnum} [sortProp] Property to sort by
+     * @param {SearchFilesSortOrderEnum} [sortOrder] Sort order
      * @param {boolean} [recursive] Search recursively
      * @param {boolean} [regex] Whether to treat the search term as a regex pattern
+     * @param {string} [tags] Comma-separated list of tags to filter by
+     * @param {SearchFilesTagJoinLogicEnum} [tagJoinLogic] Logic to combine multiple tags with, either \&#39;and\&#39; or \&#39;or\&#39;
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    async searchByFilename(search, baseFolderID, sortProp, sortOrder, recursive, regex, options) {
+    async searchFiles(search, baseFolderID, sortProp, sortOrder, recursive, regex, tags, tagJoinLogic, options) {
       var _a, _b, _c;
-      const localVarAxiosArgs = await localVarAxiosParamCreator.searchByFilename(search, baseFolderID, sortProp, sortOrder, recursive, regex, options);
+      const localVarAxiosArgs = await localVarAxiosParamCreator.searchFiles(search, baseFolderID, sortProp, sortOrder, recursive, regex, tags, tagJoinLogic, options);
       const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
-      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["FilesApi.searchByFilename"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
+      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["FilesApi.searchFiles"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
       return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
     },
     /**
@@ -1453,15 +1463,17 @@ var FilesApiFactory = function(configuration, basePath, axios) {
      * @summary Search for files by filename
      * @param {string} search Filename to search for
      * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
-     * @param {SearchByFilenameSortPropEnum} [sortProp] Property to sort by
-     * @param {SearchByFilenameSortOrderEnum} [sortOrder] Sort order
+     * @param {SearchFilesSortPropEnum} [sortProp] Property to sort by
+     * @param {SearchFilesSortOrderEnum} [sortOrder] Sort order
      * @param {boolean} [recursive] Search recursively
      * @param {boolean} [regex] Whether to treat the search term as a regex pattern
+     * @param {string} [tags] Comma-separated list of tags to filter by
+     * @param {SearchFilesTagJoinLogicEnum} [tagJoinLogic] Logic to combine multiple tags with, either \&#39;and\&#39; or \&#39;or\&#39;
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    searchByFilename(search, baseFolderID, sortProp, sortOrder, recursive, regex, options) {
-      return localVarFp.searchByFilename(search, baseFolderID, sortProp, sortOrder, recursive, regex, options).then((request) => request(axios, basePath));
+    searchFiles(search, baseFolderID, sortProp, sortOrder, recursive, regex, tags, tagJoinLogic, options) {
+      return localVarFp.searchFiles(search, baseFolderID, sortProp, sortOrder, recursive, regex, tags, tagJoinLogic, options).then((request) => request(axios, basePath));
     },
     /**
      * 
@@ -1657,15 +1669,17 @@ var FilesApi = class extends BaseAPI {
    * @summary Search for files by filename
    * @param {string} search Filename to search for
    * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
-   * @param {SearchByFilenameSortPropEnum} [sortProp] Property to sort by
-   * @param {SearchByFilenameSortOrderEnum} [sortOrder] Sort order
+   * @param {SearchFilesSortPropEnum} [sortProp] Property to sort by
+   * @param {SearchFilesSortOrderEnum} [sortOrder] Sort order
    * @param {boolean} [recursive] Search recursively
    * @param {boolean} [regex] Whether to treat the search term as a regex pattern
+   * @param {string} [tags] Comma-separated list of tags to filter by
+   * @param {SearchFilesTagJoinLogicEnum} [tagJoinLogic] Logic to combine multiple tags with, either \&#39;and\&#39; or \&#39;or\&#39;
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */
-  searchByFilename(search, baseFolderID, sortProp, sortOrder, recursive, regex, options) {
-    return FilesApiFp(this.configuration).searchByFilename(search, baseFolderID, sortProp, sortOrder, recursive, regex, options).then((request) => request(this.axios, this.basePath));
+  searchFiles(search, baseFolderID, sortProp, sortOrder, recursive, regex, tags, tagJoinLogic, options) {
+    return FilesApiFp(this.configuration).searchFiles(search, baseFolderID, sortProp, sortOrder, recursive, regex, tags, tagJoinLogic, options).then((request) => request(this.axios, this.basePath));
   }
   /**
    * 
@@ -1714,14 +1728,18 @@ var FilesApi = class extends BaseAPI {
     return FilesApiFp(this.configuration).uploadFileChunk(uploadID, fileID, chunk, shareID, options).then((request) => request(this.axios, this.basePath));
   }
 };
-var SearchByFilenameSortPropEnum = {
+var SearchFilesSortPropEnum = {
   Name: "name",
   Size: "size",
   UpdatedAt: "updatedAt"
 };
-var SearchByFilenameSortOrderEnum = {
+var SearchFilesSortOrderEnum = {
   Asc: "asc",
   Desc: "desc"
+};
+var SearchFilesTagJoinLogicEnum = {
+  And: "and",
+  Or: "or"
 };
 var FolderApiAxiosParamCreator = function(configuration) {
   return {
@@ -3432,6 +3450,585 @@ var ShareApi = class extends BaseAPI {
     return ShareApiFp(this.configuration).updateShareAccessorPermissions(shareID, username, request, options).then((request2) => request2(this.axios, this.basePath));
   }
 };
+var TagsApiAxiosParamCreator = function(configuration) {
+  return {
+    /**
+     * 
+     * @summary Add files to a tag
+     * @param {string} tagID Tag ID
+     * @param {TagFileIDsParams} request File IDs to add
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    addFilesToTag: async (tagID, request, options = {}) => {
+      assertParamExists("addFilesToTag", "tagID", tagID);
+      assertParamExists("addFilesToTag", "request", request);
+      const localVarPath = `/tags/{tagID}/files`.replace(`{${"tagID"}}`, encodeURIComponent(String(tagID)));
+      const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+      let baseOptions;
+      if (configuration) {
+        baseOptions = configuration.baseOptions;
+      }
+      const localVarRequestOptions = __spreadValues(__spreadValues({ method: "POST" }, baseOptions), options);
+      const localVarHeaderParameter = {};
+      const localVarQueryParameter = {};
+      localVarHeaderParameter["Content-Type"] = "application/json";
+      setSearchParams(localVarUrlObj, localVarQueryParameter);
+      let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+      localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
+      localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration);
+      return {
+        url: toPathString(localVarUrlObj),
+        options: localVarRequestOptions
+      };
+    },
+    /**
+     * 
+     * @summary Create a new tag
+     * @param {TagCreateTagParams} request Create tag request body
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    createTag: async (request, options = {}) => {
+      assertParamExists("createTag", "request", request);
+      const localVarPath = `/tags`;
+      const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+      let baseOptions;
+      if (configuration) {
+        baseOptions = configuration.baseOptions;
+      }
+      const localVarRequestOptions = __spreadValues(__spreadValues({ method: "POST" }, baseOptions), options);
+      const localVarHeaderParameter = {};
+      const localVarQueryParameter = {};
+      localVarHeaderParameter["Content-Type"] = "application/json";
+      localVarHeaderParameter["Accept"] = "application/json";
+      setSearchParams(localVarUrlObj, localVarQueryParameter);
+      let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+      localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
+      localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration);
+      return {
+        url: toPathString(localVarUrlObj),
+        options: localVarRequestOptions
+      };
+    },
+    /**
+     * 
+     * @summary Delete a tag
+     * @param {string} tagID Tag ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    deleteTag: async (tagID, options = {}) => {
+      assertParamExists("deleteTag", "tagID", tagID);
+      const localVarPath = `/tags/{tagID}`.replace(`{${"tagID"}}`, encodeURIComponent(String(tagID)));
+      const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+      let baseOptions;
+      if (configuration) {
+        baseOptions = configuration.baseOptions;
+      }
+      const localVarRequestOptions = __spreadValues(__spreadValues({ method: "DELETE" }, baseOptions), options);
+      const localVarHeaderParameter = {};
+      const localVarQueryParameter = {};
+      setSearchParams(localVarUrlObj, localVarQueryParameter);
+      let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+      localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
+      return {
+        url: toPathString(localVarUrlObj),
+        options: localVarRequestOptions
+      };
+    },
+    /**
+     * 
+     * @summary Get all files in a tag
+     * @param {string} tagID Tag ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getFilesByTag: async (tagID, options = {}) => {
+      assertParamExists("getFilesByTag", "tagID", tagID);
+      const localVarPath = `/tags/{tagID}/files`.replace(`{${"tagID"}}`, encodeURIComponent(String(tagID)));
+      const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+      let baseOptions;
+      if (configuration) {
+        baseOptions = configuration.baseOptions;
+      }
+      const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
+      const localVarHeaderParameter = {};
+      const localVarQueryParameter = {};
+      localVarHeaderParameter["Accept"] = "application/json";
+      setSearchParams(localVarUrlObj, localVarQueryParameter);
+      let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+      localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
+      return {
+        url: toPathString(localVarUrlObj),
+        options: localVarRequestOptions
+      };
+    },
+    /**
+     * 
+     * @summary Get a tag by ID
+     * @param {string} tagID Tag ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getTag: async (tagID, options = {}) => {
+      assertParamExists("getTag", "tagID", tagID);
+      const localVarPath = `/tags/{tagID}`.replace(`{${"tagID"}}`, encodeURIComponent(String(tagID)));
+      const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+      let baseOptions;
+      if (configuration) {
+        baseOptions = configuration.baseOptions;
+      }
+      const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
+      const localVarHeaderParameter = {};
+      const localVarQueryParameter = {};
+      localVarHeaderParameter["Accept"] = "application/json";
+      setSearchParams(localVarUrlObj, localVarQueryParameter);
+      let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+      localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
+      return {
+        url: toPathString(localVarUrlObj),
+        options: localVarRequestOptions
+      };
+    },
+    /**
+     * 
+     * @summary Get tags for a file
+     * @param {string} fileID File ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getTagsForFile: async (fileID, options = {}) => {
+      assertParamExists("getTagsForFile", "fileID", fileID);
+      const localVarPath = `/tags/file/{fileID}`.replace(`{${"fileID"}}`, encodeURIComponent(String(fileID)));
+      const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+      let baseOptions;
+      if (configuration) {
+        baseOptions = configuration.baseOptions;
+      }
+      const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
+      const localVarHeaderParameter = {};
+      const localVarQueryParameter = {};
+      localVarHeaderParameter["Accept"] = "application/json";
+      setSearchParams(localVarUrlObj, localVarQueryParameter);
+      let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+      localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
+      return {
+        url: toPathString(localVarUrlObj),
+        options: localVarRequestOptions
+      };
+    },
+    /**
+     * 
+     * @summary Get all tags for the authenticated user
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getUserTags: async (options = {}) => {
+      const localVarPath = `/tags`;
+      const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+      let baseOptions;
+      if (configuration) {
+        baseOptions = configuration.baseOptions;
+      }
+      const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
+      const localVarHeaderParameter = {};
+      const localVarQueryParameter = {};
+      localVarHeaderParameter["Accept"] = "application/json";
+      setSearchParams(localVarUrlObj, localVarQueryParameter);
+      let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+      localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
+      return {
+        url: toPathString(localVarUrlObj),
+        options: localVarRequestOptions
+      };
+    },
+    /**
+     * 
+     * @summary Remove files from a tag
+     * @param {string} tagID Tag ID
+     * @param {TagFileIDsParams} request File IDs to remove
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    removeFilesFromTag: async (tagID, request, options = {}) => {
+      assertParamExists("removeFilesFromTag", "tagID", tagID);
+      assertParamExists("removeFilesFromTag", "request", request);
+      const localVarPath = `/tags/{tagID}/files`.replace(`{${"tagID"}}`, encodeURIComponent(String(tagID)));
+      const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+      let baseOptions;
+      if (configuration) {
+        baseOptions = configuration.baseOptions;
+      }
+      const localVarRequestOptions = __spreadValues(__spreadValues({ method: "DELETE" }, baseOptions), options);
+      const localVarHeaderParameter = {};
+      const localVarQueryParameter = {};
+      localVarHeaderParameter["Content-Type"] = "application/json";
+      setSearchParams(localVarUrlObj, localVarQueryParameter);
+      let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+      localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
+      localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration);
+      return {
+        url: toPathString(localVarUrlObj),
+        options: localVarRequestOptions
+      };
+    },
+    /**
+     * 
+     * @summary Update a tag\'s name and/or color
+     * @param {string} tagID Tag ID
+     * @param {TagUpdateTagParams} request Update tag request body
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    updateTag: async (tagID, request, options = {}) => {
+      assertParamExists("updateTag", "tagID", tagID);
+      assertParamExists("updateTag", "request", request);
+      const localVarPath = `/tags/{tagID}`.replace(`{${"tagID"}}`, encodeURIComponent(String(tagID)));
+      const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+      let baseOptions;
+      if (configuration) {
+        baseOptions = configuration.baseOptions;
+      }
+      const localVarRequestOptions = __spreadValues(__spreadValues({ method: "PATCH" }, baseOptions), options);
+      const localVarHeaderParameter = {};
+      const localVarQueryParameter = {};
+      localVarHeaderParameter["Content-Type"] = "application/json";
+      setSearchParams(localVarUrlObj, localVarQueryParameter);
+      let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+      localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
+      localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration);
+      return {
+        url: toPathString(localVarUrlObj),
+        options: localVarRequestOptions
+      };
+    }
+  };
+};
+var TagsApiFp = function(configuration) {
+  const localVarAxiosParamCreator = TagsApiAxiosParamCreator(configuration);
+  return {
+    /**
+     * 
+     * @summary Add files to a tag
+     * @param {string} tagID Tag ID
+     * @param {TagFileIDsParams} request File IDs to add
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    async addFilesToTag(tagID, request, options) {
+      var _a, _b, _c;
+      const localVarAxiosArgs = await localVarAxiosParamCreator.addFilesToTag(tagID, request, options);
+      const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
+      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["TagsApi.addFilesToTag"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
+      return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+    },
+    /**
+     * 
+     * @summary Create a new tag
+     * @param {TagCreateTagParams} request Create tag request body
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    async createTag(request, options) {
+      var _a, _b, _c;
+      const localVarAxiosArgs = await localVarAxiosParamCreator.createTag(request, options);
+      const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
+      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["TagsApi.createTag"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
+      return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+    },
+    /**
+     * 
+     * @summary Delete a tag
+     * @param {string} tagID Tag ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    async deleteTag(tagID, options) {
+      var _a, _b, _c;
+      const localVarAxiosArgs = await localVarAxiosParamCreator.deleteTag(tagID, options);
+      const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
+      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["TagsApi.deleteTag"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
+      return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+    },
+    /**
+     * 
+     * @summary Get all files in a tag
+     * @param {string} tagID Tag ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    async getFilesByTag(tagID, options) {
+      var _a, _b, _c;
+      const localVarAxiosArgs = await localVarAxiosParamCreator.getFilesByTag(tagID, options);
+      const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
+      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["TagsApi.getFilesByTag"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
+      return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+    },
+    /**
+     * 
+     * @summary Get a tag by ID
+     * @param {string} tagID Tag ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    async getTag(tagID, options) {
+      var _a, _b, _c;
+      const localVarAxiosArgs = await localVarAxiosParamCreator.getTag(tagID, options);
+      const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
+      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["TagsApi.getTag"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
+      return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+    },
+    /**
+     * 
+     * @summary Get tags for a file
+     * @param {string} fileID File ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    async getTagsForFile(fileID, options) {
+      var _a, _b, _c;
+      const localVarAxiosArgs = await localVarAxiosParamCreator.getTagsForFile(fileID, options);
+      const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
+      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["TagsApi.getTagsForFile"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
+      return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+    },
+    /**
+     * 
+     * @summary Get all tags for the authenticated user
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    async getUserTags(options) {
+      var _a, _b, _c;
+      const localVarAxiosArgs = await localVarAxiosParamCreator.getUserTags(options);
+      const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
+      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["TagsApi.getUserTags"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
+      return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+    },
+    /**
+     * 
+     * @summary Remove files from a tag
+     * @param {string} tagID Tag ID
+     * @param {TagFileIDsParams} request File IDs to remove
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    async removeFilesFromTag(tagID, request, options) {
+      var _a, _b, _c;
+      const localVarAxiosArgs = await localVarAxiosParamCreator.removeFilesFromTag(tagID, request, options);
+      const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
+      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["TagsApi.removeFilesFromTag"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
+      return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+    },
+    /**
+     * 
+     * @summary Update a tag\'s name and/or color
+     * @param {string} tagID Tag ID
+     * @param {TagUpdateTagParams} request Update tag request body
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    async updateTag(tagID, request, options) {
+      var _a, _b, _c;
+      const localVarAxiosArgs = await localVarAxiosParamCreator.updateTag(tagID, request, options);
+      const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
+      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["TagsApi.updateTag"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
+      return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+    }
+  };
+};
+var TagsApiFactory = function(configuration, basePath, axios) {
+  const localVarFp = TagsApiFp(configuration);
+  return {
+    /**
+     * 
+     * @summary Add files to a tag
+     * @param {string} tagID Tag ID
+     * @param {TagFileIDsParams} request File IDs to add
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    addFilesToTag(tagID, request, options) {
+      return localVarFp.addFilesToTag(tagID, request, options).then((request2) => request2(axios, basePath));
+    },
+    /**
+     * 
+     * @summary Create a new tag
+     * @param {TagCreateTagParams} request Create tag request body
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    createTag(request, options) {
+      return localVarFp.createTag(request, options).then((request2) => request2(axios, basePath));
+    },
+    /**
+     * 
+     * @summary Delete a tag
+     * @param {string} tagID Tag ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    deleteTag(tagID, options) {
+      return localVarFp.deleteTag(tagID, options).then((request) => request(axios, basePath));
+    },
+    /**
+     * 
+     * @summary Get all files in a tag
+     * @param {string} tagID Tag ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getFilesByTag(tagID, options) {
+      return localVarFp.getFilesByTag(tagID, options).then((request) => request(axios, basePath));
+    },
+    /**
+     * 
+     * @summary Get a tag by ID
+     * @param {string} tagID Tag ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getTag(tagID, options) {
+      return localVarFp.getTag(tagID, options).then((request) => request(axios, basePath));
+    },
+    /**
+     * 
+     * @summary Get tags for a file
+     * @param {string} fileID File ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getTagsForFile(fileID, options) {
+      return localVarFp.getTagsForFile(fileID, options).then((request) => request(axios, basePath));
+    },
+    /**
+     * 
+     * @summary Get all tags for the authenticated user
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getUserTags(options) {
+      return localVarFp.getUserTags(options).then((request) => request(axios, basePath));
+    },
+    /**
+     * 
+     * @summary Remove files from a tag
+     * @param {string} tagID Tag ID
+     * @param {TagFileIDsParams} request File IDs to remove
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    removeFilesFromTag(tagID, request, options) {
+      return localVarFp.removeFilesFromTag(tagID, request, options).then((request2) => request2(axios, basePath));
+    },
+    /**
+     * 
+     * @summary Update a tag\'s name and/or color
+     * @param {string} tagID Tag ID
+     * @param {TagUpdateTagParams} request Update tag request body
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    updateTag(tagID, request, options) {
+      return localVarFp.updateTag(tagID, request, options).then((request2) => request2(axios, basePath));
+    }
+  };
+};
+var TagsApi = class extends BaseAPI {
+  /**
+   * 
+   * @summary Add files to a tag
+   * @param {string} tagID Tag ID
+   * @param {TagFileIDsParams} request File IDs to add
+   * @param {*} [options] Override http request option.
+   * @throws {RequiredError}
+   */
+  addFilesToTag(tagID, request, options) {
+    return TagsApiFp(this.configuration).addFilesToTag(tagID, request, options).then((request2) => request2(this.axios, this.basePath));
+  }
+  /**
+   * 
+   * @summary Create a new tag
+   * @param {TagCreateTagParams} request Create tag request body
+   * @param {*} [options] Override http request option.
+   * @throws {RequiredError}
+   */
+  createTag(request, options) {
+    return TagsApiFp(this.configuration).createTag(request, options).then((request2) => request2(this.axios, this.basePath));
+  }
+  /**
+   * 
+   * @summary Delete a tag
+   * @param {string} tagID Tag ID
+   * @param {*} [options] Override http request option.
+   * @throws {RequiredError}
+   */
+  deleteTag(tagID, options) {
+    return TagsApiFp(this.configuration).deleteTag(tagID, options).then((request) => request(this.axios, this.basePath));
+  }
+  /**
+   * 
+   * @summary Get all files in a tag
+   * @param {string} tagID Tag ID
+   * @param {*} [options] Override http request option.
+   * @throws {RequiredError}
+   */
+  getFilesByTag(tagID, options) {
+    return TagsApiFp(this.configuration).getFilesByTag(tagID, options).then((request) => request(this.axios, this.basePath));
+  }
+  /**
+   * 
+   * @summary Get a tag by ID
+   * @param {string} tagID Tag ID
+   * @param {*} [options] Override http request option.
+   * @throws {RequiredError}
+   */
+  getTag(tagID, options) {
+    return TagsApiFp(this.configuration).getTag(tagID, options).then((request) => request(this.axios, this.basePath));
+  }
+  /**
+   * 
+   * @summary Get tags for a file
+   * @param {string} fileID File ID
+   * @param {*} [options] Override http request option.
+   * @throws {RequiredError}
+   */
+  getTagsForFile(fileID, options) {
+    return TagsApiFp(this.configuration).getTagsForFile(fileID, options).then((request) => request(this.axios, this.basePath));
+  }
+  /**
+   * 
+   * @summary Get all tags for the authenticated user
+   * @param {*} [options] Override http request option.
+   * @throws {RequiredError}
+   */
+  getUserTags(options) {
+    return TagsApiFp(this.configuration).getUserTags(options).then((request) => request(this.axios, this.basePath));
+  }
+  /**
+   * 
+   * @summary Remove files from a tag
+   * @param {string} tagID Tag ID
+   * @param {TagFileIDsParams} request File IDs to remove
+   * @param {*} [options] Override http request option.
+   * @throws {RequiredError}
+   */
+  removeFilesFromTag(tagID, request, options) {
+    return TagsApiFp(this.configuration).removeFilesFromTag(tagID, request, options).then((request2) => request2(this.axios, this.basePath));
+  }
+  /**
+   * 
+   * @summary Update a tag\'s name and/or color
+   * @param {string} tagID Tag ID
+   * @param {TagUpdateTagParams} request Update tag request body
+   * @param {*} [options] Override http request option.
+   * @throws {RequiredError}
+   */
+  updateTag(tagID, request, options) {
+    return TagsApiFp(this.configuration).updateTag(tagID, request, options).then((request2) => request2(this.axios, this.basePath));
+  }
+};
 var TowersApiAxiosParamCreator = function(configuration) {
   return {
     /**
@@ -4996,7 +5593,8 @@ function WeblensAPIFactory(apiEndpoint) {
     SharesAPI: ShareApiFactory({}, apiEndpoint),
     UsersAPI: UsersApiFactory({}, apiEndpoint),
     APIKeysAPI: APIKeysApiFactory({}, apiEndpoint),
-    FeatureFlagsAPI: FeatureFlagsApiFactory({}, apiEndpoint)
+    FeatureFlagsAPI: FeatureFlagsApiFactory({}, apiEndpoint),
+    TagsAPI: TagsApiFactory({}, apiEndpoint)
   };
 }
 export {
@@ -5025,12 +5623,17 @@ export {
   MediaApiAxiosParamCreator,
   MediaApiFactory,
   MediaApiFp,
-  SearchByFilenameSortOrderEnum,
-  SearchByFilenameSortPropEnum,
+  SearchFilesSortOrderEnum,
+  SearchFilesSortPropEnum,
+  SearchFilesTagJoinLogicEnum,
   ShareApi,
   ShareApiAxiosParamCreator,
   ShareApiFactory,
   ShareApiFp,
+  TagsApi,
+  TagsApiAxiosParamCreator,
+  TagsApiFactory,
+  TagsApiFp,
   TowerHealthStatusEnum,
   TowersApi,
   TowersApiAxiosParamCreator,

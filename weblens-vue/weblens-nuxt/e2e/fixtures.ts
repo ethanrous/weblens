@@ -87,8 +87,11 @@ async function login(
 }
 
 async function createFolder(page: import('@playwright/test').Page, name: string) {
-    // Wait for the file browser to finish loading folder data before interacting
-    await page.locator('#file-scroller').first().waitFor({ state: 'attached', timeout: 15000 })
+    // Wait for the file browser to finish loading — either files are shown or the empty state
+    await Promise.race([
+        page.locator('#file-scroller').first().waitFor({ state: 'attached', timeout: 15000 }),
+        page.getByText('This folder is empty').waitFor({ state: 'visible', timeout: 15000 }),
+    ])
 
     await page.getByRole('button', { name: 'New Folder' }).click()
     const nameInput = page.locator('.file-context-menu input')

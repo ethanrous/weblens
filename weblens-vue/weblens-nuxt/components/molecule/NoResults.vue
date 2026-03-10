@@ -35,34 +35,45 @@
 
     <div
         v-else
-        :class="{ 'text-text-tertiary absolute flex h-full w-full items-center justify-center gap-1': true }"
+        :class="{ 'text-text-tertiary absolute flex h-full w-full flex-col items-center justify-center gap-2': true }"
     >
-        <IconFileSad />
-        <span
-            v-if="locationStore.isViewingPast && filesStore.fileFetchError?.status === 404"
-            :class="{ 'select-none': true }"
-        >
-            This folder didn't exist at the viewed time
-        </span>
-        <span
-            v-else-if="locationStore.isViewingPast"
-            :class="{ 'select-none': true }"
-        >
-            This folder was empty
-        </span>
+        <div class="flex items-center gap-1">
+            <IconFileSad />
+            <span
+                v-if="locationStore.isViewingPast && filesStore.fileFetchError?.status === 404"
+                :class="{ 'select-none': true }"
+            >
+                This folder didn't exist at the viewed time
+            </span>
+            <span
+                v-else-if="locationStore.isViewingPast"
+                :class="{ 'select-none': true }"
+            >
+                This folder was empty
+            </span>
 
-        <span
-            v-else
-            :class="{ 'select-none': true }"
+            <span
+                v-else
+                :class="{ 'select-none': true }"
+            >
+                This folder is empty
+            </span>
+        </div>
+        <WeblensButton
+            v-if="filesStore.filterTagIDs.size > 0"
+            label="Clear Filters"
+            type="outline"
+            @click="filesStore.setFilterTagIDs(new Set())"
         >
-            This folder is empty
-        </span>
+            <IconFilterOff size="16" />
+        </WeblensButton>
     </div>
 </template>
 
 <script setup lang="ts">
-import { IconFileSad, IconSearch, IconTrashX } from '@tabler/icons-vue'
+import { IconFileSad, IconFilterOff, IconSearch, IconTrashX } from '@tabler/icons-vue'
 import useFilesStore from '~/stores/files'
+import WeblensButton from '../atom/WeblensButton.vue'
 import FileIcon from '../atom/FileIcon.vue'
 import useLocationStore from '~/stores/location'
 

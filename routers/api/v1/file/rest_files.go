@@ -21,6 +21,7 @@ import (
 	tag_model "github.com/ethanrous/weblens/models/tag"
 	"github.com/ethanrous/weblens/models/task"
 	"github.com/ethanrous/weblens/modules/netwrk"
+	"github.com/ethanrous/weblens/modules/set"
 	"github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/modules/wlfs"
@@ -309,9 +310,9 @@ func GetFolderHistory(ctx context_service.RequestContext) {
 	ctx.JSON(http.StatusOK, actionInfos)
 }
 
-// SearchByFilename godoc
+// SearchFiles godoc
 //
-//	@ID			SearchByFilename
+//	@ID			SearchFiles
 //
 //	@Security	SessionAuth
 //
@@ -324,14 +325,18 @@ func GetFolderHistory(ctx context_service.RequestContext) {
 //	@Param		sortOrder		query	string				false	"Sort order"				Enums(asc, desc)			default(asc)
 //	@Param		recursive		query	boolean				false	"Search recursively"		Enums(true, false)	default(false)
 //	@Param		regex			query	boolean				false	"Whether to treat the search term as a regex pattern"	Enums(true, false)	default(false)
+//	@Param		tags			query	string				false	"Comma-separated list of tags to filter by"
+//	@Param		tagJoinLogic	query	string				false	"Logic to combine multiple tags with, either 'and' or 'or'"	Enums(and, or)	default(or)
 //	@Success	200				{array}	wlstructs.FileInfo	"File Info"
 //	@Failure	400
 //	@Failure	401
 //	@Failure	500
 //	@Router		/files/search [get]
-func SearchByFilename(ctx context_service.RequestContext) {
+func SearchFiles(ctx context_service.RequestContext) {
 	filenameSearch := ctx.Query("search")
-	if filenameSearch == "" {
+	tagIDsFilter := ctx.QueryArray("tags")
+
+	if filenameSearch == "" && len(tagIDsFilter) == 0 {
 		ctx.Error(http.StatusBadRequest, wlerrors.New("missing 'search' query parameter"))
 
 		return
@@ -355,12 +360,53 @@ func SearchByFilename(ctx context_service.RequestContext) {
 		return
 	}
 
+	// Compute tags filter
+	tagFilterFileIDs := set.New[string]()
+
+	if len(tagIDsFilter) > 0 {
+		tagJoinLogic := ctx.Query("tagJoinLogic")
+		if tagJoinLogic == "" {
+			tagJoinLogic = "or"
+		} else if tagJoinLogic != "or" && tagJoinLogic != "and" {
+			ctx.Error(http.StatusBadRequest, wlerrors.New("invalid tagJoinLogic, must be 'and' or 'or'"))
+
+			return
+		}
+
+		tags, err := tag_model.GetTagsByOwner(ctx, ctx.Requester.GetUsername(), tagIDsFilter...)
+		if err != nil {
+			ctx.Error(http.StatusInternalServerError, err)
+
+			return
+		} else if len(tags) != len(tagIDsFilter) {
+			ctx.Error(http.StatusBadRequest, wlerrors.Errorf("one or more tags not found of the provided tags: %v", tagIDsFilter))
+
+			return
+		}
+
+		for _, t := range tags {
+			currentTagSet := set.New[string](t.FileIDs...)
+			if tagJoinLogic == "or" {
+				tagFilterFileIDs = tagFilterFileIDs.Union(currentTagSet)
+			} else if tagJoinLogic == "and" && tagFilterFileIDs.Len() == 0 {
+				// We have to initialize the set with the first tag's file IDs for the "and" logic, then we can do intersect afterwards
+				tagFilterFileIDs = currentTagSet
+			} else {
+				tagFilterFileIDs = tagFilterFileIDs.Intersection(currentTagSet)
+			}
+		}
+	}
+
 	fileIDs := []string{}
 	filenames := []string{}
 
 	if ctx.QueryBool("recursive") {
 		_ = baseFolder.RecursiveMap(
 			func(f *file_model.WeblensFileImpl) error {
+				if tagFilterFileIDs.Len() != 0 && !tagFilterFileIDs.Has(f.ID()) {
+					return nil
+				}
+
 				fileIDs = append(fileIDs, f.ID())
 				filenames = append(filenames, f.GetPortablePath().Filename())
 
@@ -371,6 +417,10 @@ func SearchByFilename(ctx context_service.RequestContext) {
 		children := baseFolder.GetChildren()
 
 		for _, child := range children {
+			if tagFilterFileIDs.Len() != 0 && !tagFilterFileIDs.Has(child.ID()) {
+				continue
+			}
+
 			fileIDs = append(fileIDs, child.ID())
 			filenames = append(filenames, child.GetPortablePath().Filename())
 		}

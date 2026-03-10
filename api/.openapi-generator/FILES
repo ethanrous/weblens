@@ -8,6 +8,7 @@ api_files.go
 api_folder.go
 api_media.go
 api_share.go
+api_tags.go
 api_towers.go
 api_users.go
 client.go
@@ -26,6 +27,7 @@ docs/FilesAPI.md
 docs/FilesListParams.md
 docs/FolderAPI.md
 docs/FolderInfo.md
+docs/GithubComEthanrousWeblensModelsTagTag.md
 docs/HistoryFileAction.md
 docs/LoginBody.md
 docs/MediaAPI.md
@@ -49,6 +51,10 @@ docs/RestoreFilesBody.md
 docs/RestoreFilesInfo.md
 docs/ShareAPI.md
 docs/ShareInfo.md
+docs/TagCreateTagParams.md
+docs/TagFileIDsParams.md
+docs/TagUpdateTagParams.md
+docs/TagsAPI.md
 docs/TakeoutInfo.md
 docs/TaskInfo.md
 docs/TokenInfo.md
@@ -77,6 +83,7 @@ model_file_info.go
 model_file_share_params.go
 model_files_list_params.go
 model_folder_info.go
+model_github_com_ethanrous_weblens_models_tag_tag.go
 model_history_file_action.go
 model_login_body.go
 model_media_batch_info.go
@@ -98,6 +105,9 @@ model_permissions_params.go
 model_restore_files_body.go
 model_restore_files_info.go
 model_share_info.go
+model_tag_create_tag_params.go
+model_tag_file_ids_params.go
+model_tag_update_tag_params.go
 model_takeout_info.go
 model_task_info.go
 model_token_info.go

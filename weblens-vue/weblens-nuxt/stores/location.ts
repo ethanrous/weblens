@@ -172,9 +172,9 @@ const useLocationStore = defineStore('location', () => {
     })
 
     const operatingSystem = computed(() => {
-        if (navigator.userAgent.indexOf('Win') != -1) {
+        if (navigator.userAgent.indexOf('Win') !== -1) {
             return 'windows'
-        } else if (navigator.userAgent.indexOf('Mac') != -1) {
+        } else if (navigator.userAgent.indexOf('Mac') !== -1) {
             return 'macos'
         }
 

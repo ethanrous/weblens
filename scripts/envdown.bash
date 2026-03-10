@@ -5,7 +5,7 @@ set -euo pipefail
 
 source ./scripts/lib/all.bash
 
-mongo_stacks=$(docker compose ls | grep mongo | grep weblens | sed -E 's/weblens-([a-z\-]+)-mongo.*/\1/')
+mongo_stacks=$(docker compose ls | grep mongo | grep weblens | sed -E 's/weblens-([a-z\-]+)-mongo.*/\1/') || true
 
 for mongo_stack in $mongo_stacks; do
     cleanup_mongo --stack-name "$mongo_stack"

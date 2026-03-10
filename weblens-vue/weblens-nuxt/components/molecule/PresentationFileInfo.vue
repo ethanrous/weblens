@@ -54,20 +54,15 @@
         <div class="flex flex-col">
             <span class="text-text-secondary mb-1 text-xs font-semibold uppercase">Tags</span>
             <div class="flex flex-wrap gap-1">
-                <span
+                <TagPill
                     v-for="tag in fileTags"
                     :key="tag.id"
-                    class="group inline-flex cursor-pointer items-center gap-1 rounded-full px-2 py-0.5 text-xs transition hover:opacity-75"
-                    :style="{ backgroundColor: tag.color + '30', color: tag.color }"
-                    :title="'Click to remove ' + tag.name"
-                    @click="removeTag(tag.id)"
-                >
-                    {{ tag.name }}
-                    <IconX
-                        size="12"
-                        class="opacity-0 group-hover:opacity-100"
-                    />
-                </span>
+                    :tag="tag"
+                    removable
+                    clickable
+                    class="group"
+                    @click="removeTag(tag.id!)"
+                />
                 <span
                     class="clickable text-text-tertiary inline-flex items-center gap-0.5 rounded-full text-xs"
                     @click="showTagSelector = !showTagSelector"
@@ -132,7 +127,6 @@ import {
     IconPlus,
     IconSearch,
     IconUser,
-    IconX,
 } from '@tabler/icons-vue'
 import useFilesStore from '~/stores/files'
 import useTagsStore from '~/stores/tags'
@@ -143,6 +137,7 @@ import { useWeblensAPI } from '~/api/AllApi'
 import WeblensFile from '~/types/weblensFile'
 import { handleDownload } from '~/api/FileBrowserApi'
 import ProgressSquare from '../atom/ProgressSquare.vue'
+import TagPill from '../atom/TagPill.vue'
 
 const fileStore = useFilesStore()
 const presentationStore = usePresentationStore()

@@ -17,7 +17,7 @@ Method | HTTP request | Description
 [**GetUploadResult**](FilesAPI.md#GetUploadResult) | **Get** /upload/{uploadID} | Get the result of an upload task. This will block until the upload is complete
 [**MoveFiles**](FilesAPI.md#MoveFiles) | **Patch** /files | Move a list of files to a new parent folder
 [**RestoreFiles**](FilesAPI.md#RestoreFiles) | **Post** /files/structsore | structsore files from some time in the past
-[**SearchByFilename**](FilesAPI.md#SearchByFilename) | **Get** /files/search | Search for files by filename
+[**SearchFiles**](FilesAPI.md#SearchFiles) | **Get** /files/search | Search for files by filename
 [**StartUpload**](FilesAPI.md#StartUpload) | **Post** /upload | Begin a new upload task
 [**UnTrashFiles**](FilesAPI.md#UnTrashFiles) | **Patch** /files/untrash | Move a list of files out of the trash, structsoring them to where they were before
 [**UpdateFile**](FilesAPI.md#UpdateFile) | **Patch** /files/{fileID} | Update a File
@@ -887,9 +887,9 @@ No authorization required
 [[Back to README]](../README.md)
 
 
-## SearchByFilename
+## SearchFiles
 
-> []FileInfo SearchByFilename(ctx).Search(search).BaseFolderID(baseFolderID).SortProp(sortProp).SortOrder(sortOrder).Recursive(recursive).Regex(regex).Execute()
+> []FileInfo SearchFiles(ctx).Search(search).BaseFolderID(baseFolderID).SortProp(sortProp).SortOrder(sortOrder).Recursive(recursive).Regex(regex).Tags(tags).TagJoinLogic(tagJoinLogic).Execute()
 
 Search for files by filename
 
@@ -912,16 +912,18 @@ func main() {
 	sortOrder := "sortOrder_example" // string | Sort order (optional) (default to "asc")
 	recursive := true // bool | Search recursively (optional) (default to false)
 	regex := true // bool | Whether to treat the search term as a regex pattern (optional) (default to false)
+	tags := "tags_example" // string | Comma-separated list of tags to filter by (optional)
+	tagJoinLogic := "tagJoinLogic_example" // string | Logic to combine multiple tags with, either 'and' or 'or' (optional) (default to "or")
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.FilesAPI.SearchByFilename(context.Background()).Search(search).BaseFolderID(baseFolderID).SortProp(sortProp).SortOrder(sortOrder).Recursive(recursive).Regex(regex).Execute()
+	resp, r, err := apiClient.FilesAPI.SearchFiles(context.Background()).Search(search).BaseFolderID(baseFolderID).SortProp(sortProp).SortOrder(sortOrder).Recursive(recursive).Regex(regex).Tags(tags).TagJoinLogic(tagJoinLogic).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `FilesAPI.SearchByFilename``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error when calling `FilesAPI.SearchFiles``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
-	// response from `SearchByFilename`: []FileInfo
-	fmt.Fprintf(os.Stdout, "Response from `FilesAPI.SearchByFilename`: %v\n", resp)
+	// response from `SearchFiles`: []FileInfo
+	fmt.Fprintf(os.Stdout, "Response from `FilesAPI.SearchFiles`: %v\n", resp)
 }
 ```
 
@@ -931,7 +933,7 @@ func main() {
 
 ### Other Parameters
 
-Other parameters are passed through a pointer to a apiSearchByFilenameRequest struct via the builder pattern
+Other parameters are passed through a pointer to a apiSearchFilesRequest struct via the builder pattern
 
 
 Name | Type | Description  | Notes
@@ -942,6 +944,8 @@ Name | Type | Description  | Notes
  **sortOrder** | **string** | Sort order | [default to &quot;asc&quot;]
  **recursive** | **bool** | Search recursively | [default to false]
  **regex** | **bool** | Whether to treat the search term as a regex pattern | [default to false]
+ **tags** | **string** | Comma-separated list of tags to filter by | 
+ **tagJoinLogic** | **string** | Logic to combine multiple tags with, either &#39;and&#39; or &#39;or&#39; | [default to &quot;or&quot;]
 
 ### Return type
 
