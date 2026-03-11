@@ -101,14 +101,50 @@ func getPastFileChildren(ctx context.Context, pastFile *file_model.WeblensFileIm
 }
 
 // GetPastFileByID retrieves the historical state of a file by its ID at a specific point in time.
-// It finds the file's path at the given time and delegates to GetPastFileByPath.
+// Unlike GetPastFileByPath, this uses the known file ID directly instead of looking it up by path,
+// which avoids ambiguity when multiple files have existed at the same path over time.
 func GetPastFileByID(ctx context.Context, fileID string, time time.Time) (*file_model.WeblensFileImpl, error) {
 	lastAction, err := history.GetLastActionByFileIDBefore(ctx, fileID, time)
 	if err != nil {
 		return nil, err
 	}
 
-	return GetPastFileByPath(ctx, lastAction.GetRelevantPath(), time)
+	path := lastAction.GetRelevantPath()
+
+	newFile := file_model.NewWeblensFile(file_model.NewFileOptions{
+		Path:       path,
+		FileID:     fileID,
+		IsPastFile: true,
+		ContentID:  lastAction.ContentID,
+		Size:       lastAction.Size,
+		ModifiedDate: option.Of(lastAction.Timestamp),
+	})
+
+	_, err = getPastFileChildren(ctx, newFile, time)
+	if err != nil {
+		return nil, err
+	}
+
+	parentPath := path.Dir()
+
+	parentFileID, err := getPastFileIDAtPath(ctx, parentPath, time)
+	if err != nil {
+		return nil, err
+	}
+
+	parent := file_model.NewWeblensFile(file_model.NewFileOptions{Path: parentPath, FileID: parentFileID, IsPastFile: true})
+
+	err = newFile.SetParent(parent)
+	if err != nil {
+		return nil, err
+	}
+
+	err = parent.AddChild(newFile)
+	if err != nil {
+		return nil, err
+	}
+
+	return newFile, nil
 }
 
 // GetPastFileByPath retrieves the historical state of a file at a given path and point in time.

@@ -6,6 +6,8 @@ export function friendlyActionName(action: string) {
             return 'Moved'
         case 'fileDelete':
             return 'Deleted'
+        case 'fileRestore':
+            return 'Restored'
         default:
             return action
     }

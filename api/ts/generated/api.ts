@@ -1257,15 +1257,15 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
         },
         /**
          * 
-         * @summary structsore files from some time in the past
-         * @param {RestoreFilesBody} request RestoreFiles files request body
+         * @summary Restore files from some time in the past
+         * @param {RestoreFilesBody} request Restore files request body
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
         restoreFiles: async (request: RestoreFilesBody, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'request' is not null or undefined
             assertParamExists('restoreFiles', 'request', request)
-            const localVarPath = `/files/structsore`;
+            const localVarPath = `/files/restore`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -1708,8 +1708,8 @@ export const FilesApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
-         * @summary structsore files from some time in the past
-         * @param {RestoreFilesBody} request RestoreFiles files request body
+         * @summary Restore files from some time in the past
+         * @param {RestoreFilesBody} request Restore files request body
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -1938,8 +1938,8 @@ export const FilesApiFactory = function (configuration?: Configuration, basePath
         },
         /**
          * 
-         * @summary structsore files from some time in the past
-         * @param {RestoreFilesBody} request RestoreFiles files request body
+         * @summary Restore files from some time in the past
+         * @param {RestoreFilesBody} request Restore files request body
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -2160,8 +2160,8 @@ export class FilesApi extends BaseAPI {
 
     /**
      * 
-     * @summary structsore files from some time in the past
-     * @param {RestoreFilesBody} request RestoreFiles files request body
+     * @summary Restore files from some time in the past
+     * @param {RestoreFilesBody} request Restore files request body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */

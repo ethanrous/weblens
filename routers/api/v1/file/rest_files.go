@@ -922,20 +922,22 @@ func AutocompletePath(ctx context_service.RequestContext) {
 //
 //	@Security	SessionAuth
 //
-//	@Summary	structsore files from some time in the past
+//	@Summary	Restore files from some time in the past
 //	@Tags		Files
 //	@Accept		json
 //	@Produce	json
-//	@Param		request	body		wlstructs.RestoreFilesParams	true	"RestoreFiles files request body"
-//	@Success	200		{object}	wlstructs.RestoreFilesInfo	"structsore files info"
+//	@Param		request	body		wlstructs.RestoreFilesParams	true	"Restore files request body"
+//	@Success	200		{object}	wlstructs.RestoreFilesInfo		"Restore files info"
 //	@Failure	400
 //	@Failure	404
 //	@Failure	500
-//	@Router		/files/structsore [post]
+//	@Router		/files/restore [post]
 func RestoreFiles(ctx context_service.RequestContext) {
 	body, err := netwrk.ReadRequestBody[wlstructs.RestoreFilesParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, wlerrors.New("Failed to read request body"))
+
+		return
 	}
 
 	if body.Timestamp == 0 {
@@ -944,49 +946,45 @@ func RestoreFiles(ctx context_service.RequestContext) {
 		return
 	}
 
-	ctx.Status(http.StatusNotImplemented)
-	// structsoreTime := time.UnixMilli(body.Timestamp)
+	if len(body.FileIDs) == 0 {
+		ctx.Error(http.StatusBadRequest, wlerrors.New("Missing body parameter 'fileIDs'"))
 
-	// parentLt := ctx.FileService.GetJournalByTree("USERS").Get(body.NewParentID)
-	// if parentLt == nil {
-	// 	ctx.Error(http.StatusNotFound, errors.New("Could not find new parent"))
-	// 	return
-	// }
-	//
-	// // New parent folder is the folder it was in at the time we are structsoring from, if
-	// // it still exists, otherwise it is the users home folder
-	// var newParent *file_model.WeblensFileImpl
-	// if parentLt.GetLatestAction().GetActionType() == fileTree.FileDelete {
-	// 	newParent, err = ctx.FileService.GetFileSafe(u.HomeID, u, nil)
-	//
-	// 	// this should never error, but you never know
-	// 	if SafeErrorAndExit(err, w, log) {
-	// 		return
-	// 	}
-	// } else {
-	// 	newParent, err = ctx.FileService.GetFileSafe(body.NewParentID, u, nil)
-	// 	if SafeErrorAndExit(err, w, log) {
-	// 		return
-	// 	}
-	// }
-	//
-	// // actions := parentLt.GetActions()
-	// // for i, action := range actions {
-	// // 	if action.Timestamp.After(structsoreTime) && (action.ActionType != fileTree.FileSizeChange || i == len(actions)-1) {
-	// // 		if i != 0 {
-	// // 			structsoreTime = actions[i-1].Timestamp
-	// // 		}
-	// // 		break
-	// // 	}
-	// // }
-	//
-	// err = ctx.FileService.structsoreFiles(body.FileIds, newParent, structsoreTime, pack.Caster)
-	// if SafeErrorAndExit(err, w, log) {
-	// 	return
-	// }
-	// res := wlstructs.structsoreFilesInfo{NewParentID: newParent.ID()}
-	// writeJSON(w, http.StatusOK, res)
-	_ = ""
+		return
+	}
+
+	restoreTime := time.UnixMilli(body.Timestamp)
+
+	// Resolve destination parent folder. If newParentID is provided and the folder
+	// still exists, use it; otherwise fall back to the user's home directory.
+	var newParent *file_model.WeblensFileImpl
+	if body.NewParentID != "" {
+		newParent, err = CheckFileAccessByID(ctx, body.NewParentID)
+		if err != nil {
+			return
+		}
+	} else {
+		newParent, err = ctx.FileService.GetFileByID(ctx, ctx.Requester.HomeID)
+		if err != nil {
+			ctx.Error(http.StatusInternalServerError, wlerrors.Wrap(err, "failed to get user home"))
+
+			return
+		}
+	}
+
+	if !newParent.IsDir() {
+		ctx.Error(http.StatusBadRequest, wlerrors.New("New parent must be a directory"))
+
+		return
+	}
+
+	err = ctx.FileService.RestoreFiles(ctx, body.FileIDs, newParent, restoreTime)
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, wlerrors.Wrap(err, "failed to restore files"))
+
+		return
+	}
+
+	ctx.JSON(http.StatusOK, wlstructs.RestoreFilesInfo{NewParentID: newParent.ID()})
 }
 
 // UpdateFile godoc

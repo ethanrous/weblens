@@ -1352,7 +1352,7 @@ type ApiRestoreFilesRequest struct {
 	request *RestoreFilesBody
 }
 
-// RestoreFiles files request body
+// Restore files request body
 func (r ApiRestoreFilesRequest) Request(request RestoreFilesBody) ApiRestoreFilesRequest {
 	r.request = &request
 	return r
@@ -1363,7 +1363,7 @@ func (r ApiRestoreFilesRequest) Execute() (*RestoreFilesInfo, *http.Response, er
 }
 
 /*
-RestoreFiles structsore files from some time in the past
+RestoreFiles Restore files from some time in the past
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @return ApiRestoreFilesRequest
@@ -1390,7 +1390,7 @@ func (a *FilesAPIService) RestoreFilesExecute(r ApiRestoreFilesRequest) (*Restor
 		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/files/structsore"
+	localVarPath := localBasePath + "/files/restore"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}

@@ -36,6 +36,18 @@
             {{ originPath?.filename }}
         </span>
 
+        <span
+            v-else-if="action.actionType === FileAction.FileRestore"
+            :class="{
+                'inline-flex items-center gap-0.5': true,
+                'text-text-tertiary group-hover:text-text-primary': afterRewindTimestamp,
+            }"
+        >
+            <IconRestore :size="14" />
+            <FileIcon :file="WeblensFile.FromAction(action)" />
+            {{ originPath?.filename }}
+        </span>
+
         <span v-else>
             {{ action.actionType }}
         </span>
@@ -59,7 +71,7 @@
 
 <script setup lang="ts">
 import type { FileActionInfo } from '@ethanrous/weblens-api'
-import { IconArrowRight, IconFolder, IconPlus, IconTrash } from '@tabler/icons-vue'
+import { IconArrowRight, IconFolder, IconPlus, IconRestore, IconTrash } from '@tabler/icons-vue'
 import { FileAction } from '~/types/fileHistory'
 import { PortablePath } from '~/types/portablePath'
 import { friendlyActionName } from '~/util/history'

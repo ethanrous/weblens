@@ -107,6 +107,38 @@ paths:
       summary: Get path completion suggestions
       tags:
       - Files
+  /files/restore:
+    post:
+      operationId: RestoreFiles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RestoreFilesBody"
+        description: Restore files request body
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestoreFilesInfo"
+          description: Restore files info
+        "400":
+          content: {}
+          description: Bad Request
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Restore files from some time in the past
+      tags:
+      - Files
+      x-codegen-request-body-name: request
   /files/search:
     get:
       operationId: SearchFiles
@@ -211,38 +243,6 @@ paths:
       summary: Get files shared with the logged in user
       tags:
       - Files
-  /files/structsore:
-    post:
-      operationId: RestoreFiles
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/RestoreFilesBody"
-        description: RestoreFiles files request body
-        required: true
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RestoreFilesInfo"
-          description: structsore files info
-        "400":
-          content: {}
-          description: Bad Request
-        "404":
-          content: {}
-          description: Not Found
-        "500":
-          content: {}
-          description: Internal Server Error
-      security:
-      - SessionAuth: []
-      summary: structsore files from some time in the past
-      tags:
-      - Files
-      x-codegen-request-body-name: request
   /files/untrash:
     patch:
       operationId: UnTrashFiles

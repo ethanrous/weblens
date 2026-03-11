@@ -155,6 +155,34 @@ func NewDeleteAction(ctx context.Context, file *file_model.WeblensFileImpl) File
 	}
 }
 
+// NewRestoreAction creates a new FileAction representing a file restoration event.
+func NewRestoreAction(ctx context.Context, file *file_model.WeblensFileImpl) FileAction {
+	towerID := ctx.Value("towerID").(string)
+
+	eventID := ""
+	eventTime := time.Now()
+
+	event, ok := FileEventFromContext(ctx)
+	if ok {
+		eventID = event.EventID
+		eventTime = event.StartTime
+	} else {
+		eventID = primitive.NewObjectID().Hex()
+	}
+
+	return FileAction{
+		ActionType: FileRestore,
+		ContentID:  file.GetContentID(),
+		EventID:    eventID,
+		FileID:     file.ID(),
+		Filepath:   file.GetPortablePath(),
+		Size:       file.Size(),
+		Timestamp:  eventTime,
+		TowerID:    towerID,
+		Doer:       event.Doer,
+	}
+}
+
 // MarshalBSON marshals the FileAction to BSON format for database storage.
 func (fa *FileAction) MarshalBSON() ([]byte, error) {
 	if fa.Size < 1 && fa.file != nil {

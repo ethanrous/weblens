@@ -1498,3 +1498,120 @@ func TestFileService_DeleteFiles_Recursive(t *testing.T) {
 		assert.ErrorIs(t, err, file_model.ErrFileNotFound)
 	})
 }
+
+func TestFileService_RestoreFiles_Integration(t *testing.T) {
+	t.Run("restores a single deleted file", func(t *testing.T) {
+		ctx, _ := newIntegrationTestContext(t)
+		appCtx, ok := ctxservice.FromContext(ctx)
+		require.True(t, ok)
+
+		fs := appCtx.GetFileService()
+
+		userHome, err := fs.GetFileByFilepath(ctx, file_model.UsersRootPath.Child("testuser", true))
+		require.NoError(t, err)
+
+		// Create a file, record the time it existed, then delete it
+		content := []byte("restore me please")
+		file := createTestFile(t, ctx, fs, userHome, "restore-target.txt", content)
+		fileID := file.ID()
+
+		// Record time while file exists — this is the "past" moment the user sees
+		restoreTime := time.Now()
+
+		// Small delay so delete timestamp is strictly after restoreTime
+		time.Sleep(10 * time.Millisecond)
+
+		err = fs.DeleteFiles(ctx, file)
+		require.NoError(t, err)
+
+		// Verify file is deleted
+		assertFileNotInService(t, ctx, fs, fileID)
+
+		// Restore the file
+		err = fs.RestoreFiles(ctx, []string{fileID}, userHome, restoreTime)
+		require.NoError(t, err)
+
+		// Verify the restored file exists in the service and on disk
+		restoredFile, err := fs.GetFileByID(ctx, fileID)
+		require.NoError(t, err)
+		assert.Equal(t, "restore-target.txt", restoredFile.GetPortablePath().Filename())
+		assertFileExistsOnDisk(t, restoredFile.GetPortablePath())
+	})
+
+	t.Run("restores a directory with children", func(t *testing.T) {
+		ctx, _ := newIntegrationTestContext(t)
+		appCtx, ok := ctxservice.FromContext(ctx)
+		require.True(t, ok)
+
+		fs := appCtx.GetFileService()
+
+		userHome, err := fs.GetFileByFilepath(ctx, file_model.UsersRootPath.Child("testuser", true))
+		require.NoError(t, err)
+
+		// Create a folder with a child file
+		folder := createTestFolder(t, ctx, fs, userHome, "restore-dir")
+		childFile := createTestFile(t, ctx, fs, folder, "child.txt", []byte("child content"))
+		folderID := folder.ID()
+		childID := childFile.ID()
+
+		restoreTime := time.Now()
+
+		time.Sleep(10 * time.Millisecond)
+
+		err = fs.DeleteFiles(ctx, folder)
+		require.NoError(t, err)
+
+		assertFileNotInService(t, ctx, fs, folderID)
+		assertFileNotInService(t, ctx, fs, childID)
+
+		// Restore the directory
+		err = fs.RestoreFiles(ctx, []string{folderID}, userHome, restoreTime)
+		require.NoError(t, err)
+
+		restoredFolder, err := fs.GetFileByID(ctx, folderID)
+		require.NoError(t, err)
+		assert.True(t, restoredFolder.IsDir())
+
+		restoredChild, err := fs.GetFileByID(ctx, childID)
+		require.NoError(t, err)
+		assert.Equal(t, "child.txt", restoredChild.GetPortablePath().Filename())
+		assertFileExistsOnDisk(t, restoredChild.GetPortablePath())
+	})
+
+	t.Run("restores with name conflict generates unique name", func(t *testing.T) {
+		ctx, _ := newIntegrationTestContext(t)
+		appCtx, ok := ctxservice.FromContext(ctx)
+		require.True(t, ok)
+
+		fs := appCtx.GetFileService()
+
+		userHome, err := fs.GetFileByFilepath(ctx, file_model.UsersRootPath.Child("testuser", true))
+		require.NoError(t, err)
+
+		// Create, delete, then create again with same name
+		file := createTestFile(t, ctx, fs, userHome, "conflict.txt", []byte("original"))
+		fileID := file.ID()
+
+		restoreTime := time.Now()
+
+		time.Sleep(10 * time.Millisecond)
+
+		err = fs.DeleteFiles(ctx, file)
+		require.NoError(t, err)
+
+		// Create a new file with the same name
+		_ = createTestFile(t, ctx, fs, userHome, "conflict.txt", []byte("new content"))
+
+		// Restore the original — should get a unique name
+		err = fs.RestoreFiles(ctx, []string{fileID}, userHome, restoreTime)
+		require.NoError(t, err)
+
+		restoredFile, err := fs.GetFileByID(ctx, fileID)
+		require.NoError(t, err)
+
+		// The restored file should have a different name due to conflict
+		assert.NotEqual(t, "conflict.txt", restoredFile.GetPortablePath().Filename())
+		assert.Contains(t, restoredFile.GetPortablePath().Filename(), "conflict.txt")
+		assertFileExistsOnDisk(t, restoredFile.GetPortablePath())
+	})
+}

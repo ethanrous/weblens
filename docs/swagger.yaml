@@ -1027,6 +1027,36 @@ paths:
       summary: Get path completion suggestions
       tags:
       - Files
+  /files/restore:
+    post:
+      consumes:
+      - application/json
+      operationId: RestoreFiles
+      parameters:
+      - description: Restore files request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/RestoreFilesBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Restore files info
+          schema:
+            $ref: '#/definitions/RestoreFilesInfo'
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Restore files from some time in the past
+      tags:
+      - Files
   /files/search:
     get:
       operationId: SearchFiles
@@ -1118,36 +1148,6 @@ paths:
       security:
       - SessionAuth: []
       summary: Get files shared with the logged in user
-      tags:
-      - Files
-  /files/structsore:
-    post:
-      consumes:
-      - application/json
-      operationId: RestoreFiles
-      parameters:
-      - description: RestoreFiles files request body
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/RestoreFilesBody'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: structsore files info
-          schema:
-            $ref: '#/definitions/RestoreFilesInfo'
-        "400":
-          description: Bad Request
-        "404":
-          description: Not Found
-        "500":
-          description: Internal Server Error
-      security:
-      - SessionAuth: []
-      summary: structsore files from some time in the past
       tags:
       - Files
   /files/untrash:

@@ -813,14 +813,14 @@ var FilesApiAxiosParamCreator = function(configuration) {
     },
     /**
      * 
-     * @summary structsore files from some time in the past
-     * @param {RestoreFilesBody} request RestoreFiles files request body
+     * @summary Restore files from some time in the past
+     * @param {RestoreFilesBody} request Restore files request body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
     restoreFiles: async (request, options = {}) => {
       assertParamExists("restoreFiles", "request", request);
-      const localVarPath = `/files/structsore`;
+      const localVarPath = `/files/restore`;
       const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
       let baseOptions;
       if (configuration) {
@@ -1218,8 +1218,8 @@ var FilesApiFp = function(configuration) {
     },
     /**
      * 
-     * @summary structsore files from some time in the past
-     * @param {RestoreFilesBody} request RestoreFiles files request body
+     * @summary Restore files from some time in the past
+     * @param {RestoreFilesBody} request Restore files request body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -1450,8 +1450,8 @@ var FilesApiFactory = function(configuration, basePath, axios) {
     },
     /**
      * 
-     * @summary structsore files from some time in the past
-     * @param {RestoreFilesBody} request RestoreFiles files request body
+     * @summary Restore files from some time in the past
+     * @param {RestoreFilesBody} request Restore files request body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -1656,8 +1656,8 @@ var FilesApi = class extends BaseAPI {
   }
   /**
    * 
-   * @summary structsore files from some time in the past
-   * @param {RestoreFilesBody} request RestoreFiles files request body
+   * @summary Restore files from some time in the past
+   * @param {RestoreFilesBody} request Restore files request body
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */

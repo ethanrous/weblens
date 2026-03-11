@@ -95,7 +95,7 @@ Class | Method | HTTP request | Description
 *FilesAPI* | [**GetSharedFiles**](docs/FilesAPI.md#getsharedfiles) | **Get** /files/shared | Get files shared with the logged in user
 *FilesAPI* | [**GetUploadResult**](docs/FilesAPI.md#getuploadresult) | **Get** /upload/{uploadID} | Get the result of an upload task. This will block until the upload is complete
 *FilesAPI* | [**MoveFiles**](docs/FilesAPI.md#movefiles) | **Patch** /files | Move a list of files to a new parent folder
-*FilesAPI* | [**RestoreFiles**](docs/FilesAPI.md#restorefiles) | **Post** /files/structsore | structsore files from some time in the past
+*FilesAPI* | [**RestoreFiles**](docs/FilesAPI.md#restorefiles) | **Post** /files/restore | Restore files from some time in the past
 *FilesAPI* | [**SearchFiles**](docs/FilesAPI.md#searchfiles) | **Get** /files/search | Search for files by filename
 *FilesAPI* | [**StartUpload**](docs/FilesAPI.md#startupload) | **Post** /upload | Begin a new upload task
 *FilesAPI* | [**UnTrashFiles**](docs/FilesAPI.md#untrashfiles) | **Patch** /files/untrash | Move a list of files out of the trash, structsoring them to where they were before
