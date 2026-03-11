@@ -33,60 +33,85 @@ const useTagsStore = defineStore('tags', () => {
     }
 
     async function createTag(name: string, color: string) {
-        const { data: tag } = await useWeblensAPI().TagsAPI.createTag({ name, color })
-        const newTags = new Map(tags.value)
-        newTags.set(tag.id!, tag)
-        tags.value = newTags
-        return tag
+        try {
+            const { data: tag } = await useWeblensAPI().TagsAPI.createTag({ name, color })
+            const newTags = new Map(tags.value)
+            newTags.set(tag.id!, tag)
+            tags.value = newTags
+            return tag
+        } catch (err) {
+            console.error('Failed to create tag:', err)
+            throw err
+        }
     }
 
     async function updateTag(tagID: string, name?: string, color?: string) {
-        await useWeblensAPI().TagsAPI.updateTag(tagID, { name, color })
-        const existing = tags.value.get(tagID)
-        if (existing) {
-            const newTags = new Map(tags.value)
-            newTags.set(tagID, {
-                ...existing,
-                name: name ?? existing.name,
-                color: color ?? existing.color,
-                updated: new Date().toISOString(),
-            })
-            tags.value = newTags
+        try {
+            await useWeblensAPI().TagsAPI.updateTag(tagID, { name, color })
+            const existing = tags.value.get(tagID)
+            if (existing) {
+                const newTags = new Map(tags.value)
+                newTags.set(tagID, {
+                    ...existing,
+                    name: name ?? existing.name,
+                    color: color ?? existing.color,
+                    updated: new Date().toISOString(),
+                })
+                tags.value = newTags
+            }
+        } catch (err) {
+            console.error('Failed to update tag:', err)
+            throw err
         }
     }
 
     async function deleteTag(tagID: string) {
-        await useWeblensAPI().TagsAPI.deleteTag(tagID)
-        const newTags = new Map(tags.value)
-        newTags.delete(tagID)
-        tags.value = newTags
+        try {
+            await useWeblensAPI().TagsAPI.deleteTag(tagID)
+            const newTags = new Map(tags.value)
+            newTags.delete(tagID)
+            tags.value = newTags
+        } catch (err) {
+            console.error('Failed to delete tag:', err)
+            throw err
+        }
     }
 
     async function addFilesToTag(tagID: string, fileIDs: string[]) {
-        await useWeblensAPI().TagsAPI.addFilesToTag(tagID, { fileIDs })
-        const existing = tags.value.get(tagID)
-        if (existing) {
-            const newFileIDs = new Set(existing.fileIDs ?? [])
-            for (const fID of fileIDs) {
-                newFileIDs.add(fID)
+        try {
+            await useWeblensAPI().TagsAPI.addFilesToTag(tagID, { fileIDs })
+            const existing = tags.value.get(tagID)
+            if (existing) {
+                const newFileIDs = new Set(existing.fileIDs ?? [])
+                for (const fID of fileIDs) {
+                    newFileIDs.add(fID)
+                }
+                const newTags = new Map(tags.value)
+                newTags.set(tagID, { ...existing, fileIDs: [...newFileIDs] })
+                tags.value = newTags
             }
-            const newTags = new Map(tags.value)
-            newTags.set(tagID, { ...existing, fileIDs: [...newFileIDs] })
-            tags.value = newTags
+        } catch (err) {
+            console.error('Failed to add files to tag:', err)
+            throw err
         }
     }
 
     async function removeFilesFromTag(tagID: string, fileIDs: string[]) {
-        await useWeblensAPI().TagsAPI.removeFilesFromTag(tagID, { fileIDs })
-        const existing = tags.value.get(tagID)
-        if (existing) {
-            const removeSet = new Set(fileIDs)
-            const newTags = new Map(tags.value)
-            newTags.set(tagID, {
-                ...existing,
-                fileIDs: (existing.fileIDs ?? []).filter((fID) => !removeSet.has(fID)),
-            })
-            tags.value = newTags
+        try {
+            await useWeblensAPI().TagsAPI.removeFilesFromTag(tagID, { fileIDs })
+            const existing = tags.value.get(tagID)
+            if (existing) {
+                const removeSet = new Set(fileIDs)
+                const newTags = new Map(tags.value)
+                newTags.set(tagID, {
+                    ...existing,
+                    fileIDs: (existing.fileIDs ?? []).filter((fID) => !removeSet.has(fID)),
+                })
+                tags.value = newTags
+            }
+        } catch (err) {
+            console.error('Failed to remove files from tag:', err)
+            throw err
         }
     }
 

@@ -65,22 +65,3 @@ func (s Set[T]) Intersection(other Set[T]) Set[T] {
 
 	return result
 }
-
-// SymmetricDifference returns a new Set containing items that are present in either set but not in both.
-func SymmetricDifference[T comparable](s1, s2 Set[T]) Set[T] {
-	result := New[T]()
-
-	for item := range s1 {
-		if !s2.Has(item) {
-			result.Add(item)
-		}
-	}
-
-	for item := range s2 {
-		if !s1.Has(item) {
-			result.Add(item)
-		}
-	}
-
-	return result
-}

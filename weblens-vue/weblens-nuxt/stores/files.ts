@@ -67,7 +67,7 @@ const useFilesStore = defineStore('files', () => {
     const searchUpToDate = ref<boolean>(true)
 
     const isSearching = computed(() => {
-        return locationStore.search !== '' || (searchRecursively.value && filterTagIDs.value.size > 0)
+        return locationStore.search !== '' || filterTagIDs.value.size > 0
     })
 
     watch(
@@ -493,6 +493,7 @@ const useFilesStore = defineStore('files', () => {
         searchRecursively.value = false
         searchWithRegex.value = false
         filterTagIDs.value = new Set()
+        filterTagMode.value = 'and'
     }
 
     return {

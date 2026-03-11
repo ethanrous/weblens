@@ -16,7 +16,7 @@
         >
             Failed to load tag files
             <span :class="{ 'text-text-secondary mt-1 text-xs': true }">
-                {{ error }}
+                {{ (error as Error)?.message ?? 'Unknown error' }}
             </span>
         </span>
 
@@ -58,7 +58,7 @@ const {
     error,
     status,
 } = useAsyncData(
-    'tag-files-' + tagID.value,
+    () => 'tag-files-' + tagID.value,
     async () => {
         const { data } = await useWeblensAPI().TagsAPI.getFilesByTag(tagID.value)
         return data
