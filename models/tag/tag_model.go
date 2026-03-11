@@ -9,7 +9,6 @@ import (
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // TagCollectionKey is the MongoDB collection name for tags.
@@ -246,46 +245,4 @@ func RemoveFileFromAllTags(ctx context.Context, fileID string) error {
 	}
 
 	return nil
-}
-
-// GetFileIDsByTagIDs returns file IDs that appear in ALL of the given tags (AND logic).
-func GetFileIDsByTagIDs(ctx context.Context, tagIDs []primitive.ObjectID) ([]string, error) {
-	col, err := db.GetCollection[any](ctx, TagCollectionKey)
-	if err != nil {
-		return nil, err
-	}
-
-	var tags []*Tag
-
-	cursor, err := col.Find(ctx, bson.M{"_id": bson.M{"$in": tagIDs}}, options.Find().SetProjection(bson.M{"fileIDs": 1}))
-	if err != nil {
-		return nil, db.WrapError(err, "failed to get file IDs by tag IDs")
-	}
-
-	if err := cursor.All(ctx, &tags); err != nil {
-		return nil, db.WrapError(err, "failed to decode tags")
-	}
-
-	// Intersect file IDs across all tags (AND logic)
-	if len(tags) == 0 {
-		return []string{}, nil
-	}
-
-	fileSet := make(map[string]int)
-
-	for _, tag := range tags {
-		for _, fID := range tag.FileIDs {
-			fileSet[fID]++
-		}
-	}
-
-	var result []string
-
-	for fID, count := range fileSet {
-		if count == len(tags) {
-			result = append(result, fID)
-		}
-	}
-
-	return result, nil
 }

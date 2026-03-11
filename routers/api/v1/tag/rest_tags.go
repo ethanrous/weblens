@@ -3,6 +3,7 @@ package tag
 
 import (
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/ethanrous/weblens/models/db"
@@ -16,6 +17,12 @@ import (
 	"github.com/ethanrous/weblens/services/reshape"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
+
+var hexColorRegex = regexp.MustCompile(`^#[0-9a-fA-F]{3,8}$`)
+
+func isValidHexColor(color string) bool {
+	return hexColorRegex.MatchString(color)
+}
 
 type createTagParams struct {
 	Name  string `json:"name"`
@@ -92,6 +99,18 @@ func CreateTag(ctx context_service.RequestContext) {
 
 	if strings.TrimSpace(params.Color) == "" {
 		ctx.Error(http.StatusBadRequest, wlerrors.New("tag color is required"))
+
+		return
+	}
+
+	if len(strings.TrimSpace(params.Name)) > 255 {
+		ctx.Error(http.StatusBadRequest, wlerrors.New("tag name must be 255 characters or fewer"))
+
+		return
+	}
+
+	if !isValidHexColor(strings.TrimSpace(params.Color)) {
+		ctx.Error(http.StatusBadRequest, wlerrors.New("tag color must be a valid hex color (e.g. #ff0000)"))
 
 		return
 	}
@@ -174,7 +193,19 @@ func UpdateTag(ctx context_service.RequestContext) {
 		return
 	}
 
-	err = tag_model.UpdateTag(ctx, tag.TagID, strings.TrimSpace(params.Name), params.Color)
+	if params.Name != "" && len(strings.TrimSpace(params.Name)) > 255 {
+		ctx.Error(http.StatusBadRequest, wlerrors.New("tag name must be 255 characters or fewer"))
+
+		return
+	}
+
+	if params.Color != "" && !isValidHexColor(strings.TrimSpace(params.Color)) {
+		ctx.Error(http.StatusBadRequest, wlerrors.New("tag color must be a valid hex color (e.g. #ff0000)"))
+
+		return
+	}
+
+	err = tag_model.UpdateTag(ctx, tag.TagID, strings.TrimSpace(params.Name), strings.TrimSpace(params.Color))
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 
@@ -415,6 +446,8 @@ func GetFilesByTag(ctx context_service.RequestContext) {
 
 		info, err := reshape.WeblensFileToFileInfo(ctx, file)
 		if err != nil {
+			ctx.Log().Error().Stack().Err(err).Msgf("Failed to convert file to FileInfo for file ID: %s", fileID)
+
 			continue
 		}
 

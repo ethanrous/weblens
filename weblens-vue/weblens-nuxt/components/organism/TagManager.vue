@@ -255,6 +255,8 @@ async function handleDelete(tagID: string) {
 }
 
 onMounted(() => {
-    tagsStore.fetchTags()
+    if (tagsStore.tagsList.length === 0) {
+        tagsStore.fetchTags()
+    }
 })
 </script>

@@ -221,7 +221,7 @@ async function goToFile() {
 
 async function handleDownload() {
     if (!props.targetFile) {
-        console.warn('No target file to scan')
+        console.warn('No target file to download')
         return
     }
 

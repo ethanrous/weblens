@@ -337,7 +337,7 @@ func SearchFiles(ctx context_service.RequestContext) {
 	tagIDsFilter := ctx.QueryArray("tags")
 
 	if filenameSearch == "" && len(tagIDsFilter) == 0 {
-		ctx.Error(http.StatusBadRequest, wlerrors.New("missing 'search' query parameter"))
+		ctx.Error(http.StatusBadRequest, wlerrors.New("at least one of 'search' or 'tags' query parameters is required"))
 
 		return
 	}
@@ -384,13 +384,15 @@ func SearchFiles(ctx context_service.RequestContext) {
 			return
 		}
 
+		andInitialized := false
+
 		for _, t := range tags {
 			currentTagSet := set.New[string](t.FileIDs...)
 			if tagJoinLogic == "or" {
 				tagFilterFileIDs = tagFilterFileIDs.Union(currentTagSet)
-			} else if tagJoinLogic == "and" && tagFilterFileIDs.Len() == 0 {
-				// We have to initialize the set with the first tag's file IDs for the "and" logic, then we can do intersect afterwards
+			} else if !andInitialized {
 				tagFilterFileIDs = currentTagSet
+				andInitialized = true
 			} else {
 				tagFilterFileIDs = tagFilterFileIDs.Intersection(currentTagSet)
 			}
