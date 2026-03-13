@@ -9,7 +9,7 @@ import (
 )
 
 // FileActionToFileActionInfo converts a FileAction to a FileActionInfo structure suitable for API responses.
-func FileActionToFileActionInfo(fa history.FileAction) wlstructs.FileActionInfo {
+func FileActionToFileActionInfo(fa history.FileAction, liveParentID string) wlstructs.FileActionInfo {
 	return wlstructs.FileActionInfo{
 		ActionType:      fa.ActionType,
 		DestinationPath: fa.DestinationPath.ToPortable(),
@@ -21,6 +21,7 @@ func FileActionToFileActionInfo(fa history.FileAction) wlstructs.FileActionInfo 
 		Timestamp:       fa.Timestamp.UnixMilli(),
 		TowerID:         fa.TowerID,
 		ContentID:       fa.ContentID,
+		LiveParentID:    liveParentID,
 	}
 }
 

@@ -1,7 +1,7 @@
 <template>
     <div :class="{ 'flex min-w-40 flex-col gap-1.5': true }">
         <WeblensButton
-            v-if="targetIsFolder"
+            v-if="targetIsActiveFolder"
             label="New Folder"
             fill-width
             :disabled="!canModifyParent"
@@ -64,7 +64,7 @@
         </WeblensButton>
 
         <WeblensButton
-            v-if="targetIsFolder"
+            v-if="targetIsActiveFolder"
             label="Scan Folder"
             fill-width
             :disabled="!canModifyTarget || websocketStore.status !== 'OPEN'"
@@ -105,6 +105,7 @@
         </WeblensButton>
 
         <WeblensButton
+            v-if="targetIsActiveFolder"
             label="Folder History"
             fill-width
             @click.stop="
@@ -170,7 +171,7 @@ const props = defineProps<{
     selectedFiles?: string[]
 }>()
 
-const targetIsFolder = computed(() => {
+const targetIsActiveFolder = computed(() => {
     return (
         filesStore.activeFile && filesStore.activeFile.IsFolder() && filesStore.activeFile.id === props.targetFile?.id
     )

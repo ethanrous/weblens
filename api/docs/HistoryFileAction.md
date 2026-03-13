@@ -12,6 +12,7 @@ Name | Type | Description | Notes
 **FileID** | Pointer to **string** |  | [optional] 
 **Filepath** | Pointer to [**WlfsFilepath**](WlfsFilepath.md) |  | [optional] 
 **Id** | Pointer to **string** |  | [optional] 
+**OldFileID** | Pointer to **string** | Used for restore actions to reference the file being restored | [optional] 
 **OriginPath** | Pointer to [**WlfsFilepath**](WlfsFilepath.md) |  | [optional] 
 **Size** | Pointer to **int32** |  | [optional] 
 **Timestamp** | Pointer to **string** |  | [optional] 
@@ -235,6 +236,31 @@ SetId sets Id field to given value.
 `func (o *HistoryFileAction) HasId() bool`
 
 HasId returns a boolean if a field has been set.
+
+### GetOldFileID
+
+`func (o *HistoryFileAction) GetOldFileID() string`
+
+GetOldFileID returns the OldFileID field if non-nil, zero value otherwise.
+
+### GetOldFileIDOk
+
+`func (o *HistoryFileAction) GetOldFileIDOk() (*string, bool)`
+
+GetOldFileIDOk returns a tuple with the OldFileID field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetOldFileID
+
+`func (o *HistoryFileAction) SetOldFileID(v string)`
+
+SetOldFileID sets OldFileID field to given value.
+
+### HasOldFileID
+
+`func (o *HistoryFileAction) HasOldFileID() bool`
+
+HasOldFileID returns a boolean if a field has been set.
 
 ### GetOriginPath
 

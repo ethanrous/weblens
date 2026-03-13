@@ -2,6 +2,14 @@
 
 Rolling summary of recent work. Keep last ~5 sessions, remove older ones.
 
+## 2026-03-11
+
+- File history panel: grouped actions by `eventID` for compact display
+  - Created `FileEventGroup.vue` — collapsed header with chevron expand for multi-action events, single actions render inline
+  - Created `ActionIcon.vue` — renders correct icon per action type
+  - Refactored `FileAction.vue` — compact single-line layout with `compact` prop, removed fixed `h-20` height
+  - Updated `FileHistory.vue` — groups flat `FileActionInfo[]` by `eventID` into `EventGroup[]` via computed, renders `FileEventGroup` instead of individual actions
+
 ## 2026-03-10
 
 - Implemented file restore from history (full stack):

@@ -13,6 +13,7 @@ Name | Type | Description | Notes
 **fileID** | **string** |  | [optional] [default to undefined]
 **filepath** | [**WlfsFilepath**](WlfsFilepath.md) |  | [optional] [default to undefined]
 **id** | **string** |  | [optional] [default to undefined]
+**oldFileID** | **string** | Used for restore actions to reference the file being restored | [optional] [default to undefined]
 **originPath** | [**WlfsFilepath**](WlfsFilepath.md) |  | [optional] [default to undefined]
 **size** | **number** |  | [optional] [default to undefined]
 **timestamp** | **string** |  | [optional] [default to undefined]
@@ -32,6 +33,7 @@ const instance: HistoryFileAction = {
     fileID,
     filepath,
     id,
+    oldFileID,
     originPath,
     size,
     timestamp,

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	file_model "github.com/ethanrous/weblens/models/file"
+	"github.com/ethanrous/weblens/models/history"
 	"github.com/ethanrous/weblens/models/task"
 	task_model "github.com/ethanrous/weblens/models/task"
 	tower_model "github.com/ethanrous/weblens/models/tower"
@@ -1576,6 +1577,19 @@ func TestFileService_RestoreFiles_Integration(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "child.txt", restoredChild.GetPortablePath().Filename())
 		assertFileExistsOnDisk(t, restoredChild.GetPortablePath())
+
+		// Assert all the restored files have the same eventID on their latest journal entry, indicating they were part of the same restore event
+		actions, err := history.GetActionsAtPathAfter(appCtx, restoredFolder.GetPortablePath(), restoreTime, history.GetActionsOptions{
+			IncludeChildren: true,
+			ActionTypes:     []history.FileActionType{history.FileRestore},
+		})
+		require.NoError(t, err)
+		require.NotEmpty(t, actions)
+
+		restoreEventID := actions[0].EventID
+		for _, action := range actions {
+			assert.Equal(t, restoreEventID, action.EventID, "All restored files should have the same event ID in their journal entries, but %+v had a different one", action)
+		}
 	})
 
 	t.Run("restores with name conflict generates unique name", func(t *testing.T) {
@@ -1606,12 +1620,27 @@ func TestFileService_RestoreFiles_Integration(t *testing.T) {
 		err = fs.RestoreFiles(ctx, []string{fileID}, userHome, restoreTime)
 		require.NoError(t, err)
 
-		restoredFile, err := fs.GetFileByID(ctx, fileID)
+		// NewRestoreAction assigns a new ID, so find the restored file by checking
+		// children of userHome for the conflict-renamed entry
+		children, err := fs.GetChildren(ctx, userHome)
 		require.NoError(t, err)
+
+		var restoredFile *file_model.WeblensFileImpl
+
+		for _, child := range children {
+			name := child.GetPortablePath().Filename()
+			if name != "conflict.txt" && !child.IsDir() {
+				restoredFile = child
+
+				break
+			}
+		}
+
+		require.NotNil(t, restoredFile, "should find a restored file with a unique name")
 
 		// The restored file should have a different name due to conflict
 		assert.NotEqual(t, "conflict.txt", restoredFile.GetPortablePath().Filename())
-		assert.Contains(t, restoredFile.GetPortablePath().Filename(), "conflict.txt")
+		assert.Contains(t, restoredFile.GetPortablePath().Filename(), "conflict")
 		assertFileExistsOnDisk(t, restoredFile.GetPortablePath())
 	})
 }

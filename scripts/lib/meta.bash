@@ -43,13 +43,15 @@ show_as_subtask() {
     local esc=$'\e'
 
     if [[ "$WEBLENS_VERBOSE" = "false" ]] && [[ "$verbose" = false ]]; then
-        printf "\e[%s|-- %s\e[0m\n" "$color_code" "$task_name"
+        printf "\e[%s|-- %s\e[0m" "$color_code" "$task_name..."
         local buf cmd_status
         buf=$("$@" 2>&1) && cmd_status=0 || cmd_status=$?
         if [[ $cmd_status -ne 0 ]]; then
             local err_prefix="${esc}[31m| ${esc}[0m"
-            printf "\e[31m|-- %s failed (exit code %d):\e[0m\n" "$task_name" "$cmd_status"
-            printf '%s\n' "${err_prefix}${buf//$'\n'/$'\n'${err_prefix}}"
+            printf " \e[31m failed (exit code %d):\e[0m\n" "$cmd_status"
+            log_file="_build/logs/$(date +%Y%m%d-%H%M%S)-${task_name// /_}.log"
+            echo "$buf" >"$log_file"
+            printf "\e[31m|-- Command output has been saved to: %s\e[0m\n" "$log_file"
             printf "\e[31m|--------------------------\e[0m\n\n"
         fi
         return "$cmd_status"

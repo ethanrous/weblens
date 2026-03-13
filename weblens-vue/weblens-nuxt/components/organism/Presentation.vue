@@ -26,7 +26,7 @@
                 >
                     <div
                         v-if="renderInfo"
-                        :class="{ 'flex w-max min-w-max flex-col gap-6 px-8 lg:px-0': true }"
+                        :class="{ 'flex w-max max-w-full flex-col gap-6 px-8 lg:px-0': true }"
                     >
                         <slot name="fileInfo" />
 

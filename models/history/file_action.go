@@ -45,7 +45,8 @@ type FileAction struct {
 	TowerID         string         `bson:"towerID" json:"towerID"`
 	ContentID       string         `bson:"contentID,omitempty" json:"contentID"`
 	FileID          string         `bson:"fileID" json:"fileID"`
-	Doer            string         `bson:"doer" json:"doer"` // The user or system that performed the action
+	OldFileID       string         `bson:"oldFileID,omitempty" json:"oldFileID"` // Used for restore actions to reference the file being restored
+	Doer            string         `bson:"doer" json:"doer"`                     // The user or system that performed the action
 
 	Size int64 `bson:"size" json:"size"`
 
@@ -156,7 +157,7 @@ func NewDeleteAction(ctx context.Context, file *file_model.WeblensFileImpl) File
 }
 
 // NewRestoreAction creates a new FileAction representing a file restoration event.
-func NewRestoreAction(ctx context.Context, file *file_model.WeblensFileImpl) FileAction {
+func NewRestoreAction(ctx context.Context, file *file_model.WeblensFileImpl, oldFileID string) FileAction {
 	towerID := ctx.Value("towerID").(string)
 
 	eventID := ""
@@ -170,16 +171,22 @@ func NewRestoreAction(ctx context.Context, file *file_model.WeblensFileImpl) Fil
 		eventID = primitive.NewObjectID().Hex()
 	}
 
+	// Restore actions MUST create a new file, even though it may seem intuitive to reuse the same fileID as the file being restored. This is because a restore action semantically represents a new file being created from the backup of the deleted file, rather than simply "undeleting" the original file. We cannot assume the original file has been deleted, and could still exist, just moved to another path. Reusing the same fileID would cause conflicts in the journal, making it incorrectly report the restored files path and history.
+	file.SetID(primitive.NewObjectID().Hex())
+
 	return FileAction{
 		ActionType: FileRestore,
 		ContentID:  file.GetContentID(),
 		EventID:    eventID,
 		FileID:     file.ID(),
+		OldFileID:  oldFileID,
 		Filepath:   file.GetPortablePath(),
 		Size:       file.Size(),
 		Timestamp:  eventTime,
 		TowerID:    towerID,
 		Doer:       event.Doer,
+
+		file: file,
 	}
 }
 
@@ -208,6 +215,11 @@ func (fa *FileAction) SetSize(size int64) {
 // GetSize returns the size of the file action.
 func (fa *FileAction) GetSize() int64 {
 	return fa.Size
+}
+
+// IsCreateIsh returns true if the file action is a creation-like action, i.e. leaves behind a file (FileCreate, FileRestore, or FileMove).
+func (fa *FileAction) IsCreateIsh() bool {
+	return fa.ActionType == FileCreate || fa.ActionType == FileRestore || fa.ActionType == FileMove
 }
 
 // GetOriginPath returns the origin path of the file action, or the Filepath if no OriginPath is present.
@@ -239,6 +251,8 @@ func (fa *FileAction) GetRelevantPath() wlfs.Filepath {
 		return fa.DestinationPath
 	case FileDelete:
 		return fa.OriginPath
+	case FileRestore:
+		return fa.Filepath
 	default:
 		return wlfs.Filepath{}
 	}
@@ -400,7 +414,7 @@ func GetActionAtFilepath(ctx context.Context, filepath wlfs.Filepath) (*FileActi
 
 // GetLastActionByFileIDBefore retrieves the most recent FileAction for a file before a given timestamp.
 func GetLastActionByFileIDBefore(ctx context.Context, fileID string, ts time.Time) (action FileAction, err error) {
-	col, err := db.GetCollection[any](ctx, FileHistoryCollectionKey)
+	col, err := db.GetCollection[*FileAction](ctx, FileHistoryCollectionKey)
 	if err != nil {
 		return
 	}
@@ -409,7 +423,7 @@ func GetLastActionByFileIDBefore(ctx context.Context, fileID string, ts time.Tim
 
 	err = col.FindOne(ctx, filter, options.FindOne().SetSort(bson.M{"timestamp": -1})).Decode(&action)
 	if err != nil {
-		return
+		return action, db.WrapError(err, "GetLastActionByFileIDBefore looking for fileID %s before %s", fileID, ts)
 	}
 
 	return
@@ -436,27 +450,38 @@ func UpdateAction(ctx context.Context, action *FileAction) error {
 	return nil
 }
 
-// GetActionsAtPathBefore retrieves FileActions at a path before a given timestamp, optionally including child paths.
-func GetActionsAtPathBefore(ctx context.Context, path wlfs.Filepath, timestamp time.Time, includeChildren bool) ([]FileAction, error) {
-	return getActionsAtPath(ctx, path, timestamp, true, includeChildren)
+// GetActionsOptions defines options for retrieving FileActions, such as whether to include child paths and which action types to filter by.
+type GetActionsOptions struct {
+	IncludeChildren bool
+	ActionTypes     []FileActionType
 }
 
-// GetActionsAtPathAfter retrieves FileActions at a path after a given timestamp, optionally including child paths.
-func GetActionsAtPathAfter(ctx context.Context, path wlfs.Filepath, timestamp time.Time, includeChildren bool) ([]FileAction, error) {
-	return getActionsAtPath(ctx, path, timestamp, false, includeChildren)
+// GetActionsAtPathBefore retrieves FileActions at a path before a given timestamp, optionally including child paths. Only the first option struct is considered if multiple are provided.
+func GetActionsAtPathBefore(ctx context.Context, path wlfs.Filepath, timestamp time.Time, opts ...GetActionsOptions) ([]FileAction, error) {
+	return getActionsAtPath(ctx, path, timestamp, true, opts...)
 }
 
-func getActionsAtPath(ctx context.Context, path wlfs.Filepath, timestamp time.Time, before, includeChildren bool) ([]FileAction, error) {
+// GetActionsAtPathAfter retrieves FileActions at a path after a given timestamp, optionally including child paths. Only the first option struct is considered if multiple are provided.
+func GetActionsAtPathAfter(ctx context.Context, path wlfs.Filepath, timestamp time.Time, opts ...GetActionsOptions) ([]FileAction, error) {
+	return getActionsAtPath(ctx, path, timestamp, false, opts...)
+}
+
+func getActionsAtPath(ctx context.Context, path wlfs.Filepath, timestamp time.Time, before bool, opts ...GetActionsOptions) ([]FileAction, error) {
 	col, err := db.GetCollection[any](ctx, FileHistoryCollectionKey)
 	if err != nil {
 		return nil, err
+	}
+
+	o := GetActionsOptions{}
+	if len(opts) > 0 {
+		o = opts[0]
 	}
 
 	filter := bson.M{}
 
 	if !path.IsZero() {
 		depth := 0
-		if includeChildren {
+		if o.IncludeChildren {
 			depth = 1
 		}
 
@@ -464,14 +489,18 @@ func getActionsAtPath(ctx context.Context, path wlfs.Filepath, timestamp time.Ti
 	}
 
 	if before {
-		filter["timestamp"] = bson.M{"$lt": timestamp}
+		filter["timestamp"] = bson.M{"$lte": timestamp}
 	} else {
 		filter["timestamp"] = bson.M{"$gt": timestamp}
 	}
 
-	opts := options.Find().SetSort(bson.M{"timestamp": -1})
+	if len(o.ActionTypes) > 0 {
+		filter["actionType"] = bson.M{"$in": o.ActionTypes}
+	}
 
-	cursor, err := col.Find(ctx, filter, opts)
+	mongoOpts := options.Find().SetSort(bson.M{"timestamp": -1})
+
+	cursor, err := col.Find(ctx, filter, mongoOpts)
 	if err != nil {
 		return nil, err
 	}

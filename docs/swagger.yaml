@@ -78,9 +78,9 @@ definitions:
         type: string
       filepath:
         type: string
-      originPath:
+      liveParentID:
         type: string
-      parentID:
+      originPath:
         type: string
       size:
         format: int64
@@ -94,7 +94,6 @@ definitions:
     - actionType
     - eventID
     - fileID
-    - parentID
     - size
     - timestamp
     - towerID
@@ -683,6 +682,9 @@ definitions:
       filepath:
         $ref: '#/definitions/wlfs.Filepath'
       id:
+        type: string
+      oldFileID:
+        description: Used for restore actions to reference the file being restored
         type: string
       originPath:
         $ref: '#/definitions/wlfs.Filepath'

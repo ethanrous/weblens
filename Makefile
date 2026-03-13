@@ -8,10 +8,7 @@ gen-ui: FORCE
 agno: FORCE
 	bash -c 'source ./scripts/lib/all.bash && build_agno'
 
-ui: FORCE
-	cd ui && pnpm run dev
-
-test: FORCE
+test-server: FORCE
 	./scripts/test-weblens.bash
 
 test-ui: FORCE
@@ -73,6 +70,6 @@ docker\:build: $(GO_SOURCE) $(TS_SOURCE)
 container: FORCE
 	./scripts/gogogadgetdocker.bash -p -s -a amd64
 
-precommit: lint test
+precommit: lint test-server test-ui
 
 FORCE:

@@ -5,7 +5,7 @@
         :class="{ 'inline-flex items-center': true }"
     >
         {{ part }}
-        <IconChevronRight
+        <IconSlash
             v-if="i < parts.length - 1"
             size="14"
         />
@@ -13,7 +13,7 @@
 </template>
 
 <script setup lang="ts">
-import { IconChevronRight } from '@tabler/icons-vue'
+import { IconSlash } from '@tabler/icons-vue'
 import type { PortablePath } from '~/types/portablePath'
 
 const props = defineProps<{

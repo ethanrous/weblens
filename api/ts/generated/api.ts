@@ -56,8 +56,8 @@ export interface FileActionInfo {
     'eventID': string;
     'fileID': string;
     'filepath'?: string;
+    'liveParentID'?: string;
     'originPath'?: string;
-    'parentID': string;
     'size': number;
     'timestamp': number;
     'towerID': string;
@@ -115,6 +115,10 @@ export interface HistoryFileAction {
     'fileID'?: string;
     'filepath'?: WlfsFilepath;
     'id'?: string;
+    /**
+     * Used for restore actions to reference the file being restored
+     */
+    'oldFileID'?: string;
     'originPath'?: WlfsFilepath;
     'size'?: number;
     'timestamp'?: string;

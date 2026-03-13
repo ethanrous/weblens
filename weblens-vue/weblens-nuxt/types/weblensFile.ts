@@ -4,6 +4,7 @@ import WeblensShare from '~/types/weblensShare'
 import { useWeblensAPI } from '~/api/AllApi'
 import type { FileActionInfo, FileInfo, PermissionsInfo } from '@ethanrous/weblens-api'
 import useLocationStore from '~/stores/location'
+import { PortablePath } from './portablePath'
 
 export class SelectedState {
     public static NotSelected = new SelectedState(0b0)
@@ -72,7 +73,10 @@ class WeblensFile implements FileInfo {
     id: string
     owner: string = ''
     private filename: string = ''
+
     portablePath: string = ''
+    private _filepath: PortablePath = PortablePath.empty()
+
     parentID: string = ''
 
     modifyDate?: Date
@@ -94,6 +98,7 @@ class WeblensFile implements FileInfo {
     hovering?: boolean
     index: number = -1
     visible: boolean = true
+    rewindTimestamp: number = 0
 
     permissions?: PermissionsInfo
 
@@ -119,6 +124,8 @@ class WeblensFile implements FileInfo {
         if (!this.filename) {
             this.GetFilename()
         }
+
+        this._filepath = new PortablePath(this.portablePath)
     }
 
     ID(): string {
@@ -205,6 +212,10 @@ class WeblensFile implements FileInfo {
         }
 
         return this.filename
+    }
+
+    GetFilepath(): PortablePath {
+        return this._filepath
     }
 
     GetModified(): Date {
@@ -403,7 +414,7 @@ class WeblensFile implements FileInfo {
         return `${window.location.origin}/media/${this.contentID}`
     }
 
-    public async GoTo(replace: boolean = false): Promise<void> {
+    public FileURL(opts?: { forcePresent?: boolean }): string {
         const locationStore = useLocationStore()
         let path = '/files/' + this.URLID()
 
@@ -413,20 +424,41 @@ class WeblensFile implements FileInfo {
             } else if ((this.shareID ? this.shareID : locationStore.activeShareID) === undefined) {
                 console.error('No active share ID to navigate to shared file')
 
-                return
+                return ''
             } else {
                 path = `/files/share/${this.shareID ? this.shareID : locationStore.activeShareID}/${this.URLID()}`
             }
         }
 
         console.debug('Navigating to', path, 'with hash', this.URLHash())
-        await navigateTo(
-            {
-                path: path,
-                hash: this.URLHash(),
-            },
-            { replace: replace },
-        )
+
+        // If this file is a past file, we want to include the rewind timestamp in the query params so that the file browser can rewind to the correct time
+        const tsString = opts?.forcePresent
+            ? null
+            : this.rewindTimestamp > 0
+              ? new Date(this.rewindTimestamp).toISOString()
+              : undefined
+
+        return `${path}${this.URLHash() ?? ''}${tsString ? '?rewindTo=' + encodeURIComponent(tsString) : ''}`
+    }
+
+    public async GoTo(opts?: { replace?: boolean; newTab?: boolean }): Promise<void> {
+        if (!this.id) {
+            console.error('File has no ID, refusing to navigate', this)
+
+            return
+        }
+
+        const navPath = this.FileURL()
+
+        await navigateTo(navPath, {
+            replace: opts?.replace ?? false,
+            open: opts?.newTab
+                ? {
+                      target: '_blank',
+                  }
+                : undefined,
+        })
     }
 
     public static Home(): WeblensFile {
@@ -467,12 +499,17 @@ class WeblensFile implements FileInfo {
     }
 
     public static FromAction(action: FileActionInfo): WeblensFile {
-        return new WeblensFile({
+        const newF = new WeblensFile({
             id: action.fileID,
             portablePath: action.filepath,
-            parentID: action.parentID,
-            isDir: action.filepath?.endsWith('/'),
+            parentID: action.liveParentID,
+            isDir: action.filepath?.endsWith('/') ?? false,
         })
+
+        newF.pastFile = true
+        newF.rewindTimestamp = action.timestamp
+
+        return newF
     }
 }
 

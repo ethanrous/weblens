@@ -9,17 +9,17 @@ export class WLError {
     constructor(error: Partial<WLError> | NuxtError | AxiosError) {
         if ('response' in error && error.response) {
             this.status = error.response.status
+
             const data = error.response.data
-            this.message =
-                data &&
-                typeof data === 'object' &&
-                'message' in data &&
-                typeof (data as Record<string, unknown>).message === 'string'
-                    ? ((data as Record<string, unknown>).message as string)
-                    : error.message
-        } else if ('statusCode' in error && error.statusCode) {
+            if (data && typeof data === 'object') {
+                this.message =
+                    (data as Record<string, string>).message ?? (data as Record<string, string>).error ?? error.message
+            } else {
+                this.message = error.message
+            }
+        } else if ('status' in error && error.status) {
             this.message = error.message
-            this.status = error.statusCode
+            this.status = error.status
         }
 
         this.stack = error.stack

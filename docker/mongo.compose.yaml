@@ -14,13 +14,10 @@ configs:
           address: "mongot.search-community:27028"
           tls:
             mode: "disabled"
-      metrics:
-        enabled: true
-        address: "mongot.search-community:9946"
       healthCheck:
         address: "mongot.search-community:8080"
       logging:
-        verbosity: WARN
+        verbosity: INFO
   mongot-pwfile:
     content: "mongotPassword"
 
@@ -68,7 +65,7 @@ services:
       - /mongot-community/mongot
       - --config=/mongot-config.yml
       - --jvm-flags
-      - "-Xms8g -Xmx8g"
+      - "-Xms12g -Xmx12g"
     configs:
       - source: mongot-config
         target: /mongot-config.yml

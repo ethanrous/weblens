@@ -102,7 +102,7 @@ if [[ "$skip_build" != true ]] && ! does_agno_exist; then
     build_agno
 fi
 
-show_as_subtask "Starting services..." "blue" -- ./scripts/envup.bash
+show_as_subtask "Starting services" "blue" -- ./scripts/envup.bash
 
 WEBLENS_LOG_LEVEL="${WEBLENS_LOG_LEVEL:-debug}"
 

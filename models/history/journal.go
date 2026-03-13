@@ -28,6 +28,10 @@ func DoesFileExistInHistory(ctx context.Context, filepath file_system.Filepath) 
 								{Key: "actionType", Value: "fileMove"},
 								{Key: "destinationPath", Value: filepath.String()},
 							},
+							bson.D{
+								{Key: "actionType", Value: "fileRestore"},
+								{Key: "filepath", Value: filepath.String()},
+							},
 						},
 					},
 				},
@@ -209,57 +213,33 @@ func GetLifetimes(ctx context.Context, opts ...GetLifetimesOptions) ([]FileLifet
 			bson.D{{Key: "$sort", Value: bson.D{{Key: "timestamp", Value: 1}}}},
 			fileIDGroup,
 			bson.D{{Key: "$match", Value: bson.D{{Key: "actions", Value: bson.D{{Key: "$not", Value: bson.D{{Key: "$elemMatch", Value: bson.D{{Key: "actionType", Value: "fileDelete"}}}}}}}}}},
+			// Compute the file's current path from its last action (destinationPath for moves, filepath otherwise)
 			bson.D{
 				{Key: "$addFields", Value: bson.D{
-					{Key: "fileCreateAction", Value: bson.D{
-						{Key: "$first", Value: bson.D{
-							{Key: "$filter", Value: bson.D{
-								{Key: "input", Value: "$actions"},
-								{Key: "as", Value: "a"},
-								{Key: "cond", Value: bson.D{
-									{Key: "$eq", Value: bson.A{
-										"$$a.actionType",
-										"fileCreate",
-									},
-									},
-								},
-								},
-							},
-							},
-						},
-						},
-					},
-					},
-				},
-				},
+					{Key: "lastAction", Value: bson.D{{Key: "$last", Value: "$actions"}}},
+				}},
 			},
 			bson.D{
-				{Key: "$project", Value: bson.D{
-					{Key: "originalGroupID", Value: "$_id"},
-					{Key: "actions", Value: 1},
-					{Key: "fileCreateAction", Value: 1},
-					{Key: "fileCreateTimestamp", Value: "$fileCreateAction.timestamp"},
-					{Key: "fileCreateFilepath", Value: "$fileCreateAction.filepath"},
-				},
-				},
+				{Key: "$addFields", Value: bson.D{
+					{Key: "currentPath", Value: bson.D{
+						{Key: "$ifNull", Value: bson.A{"$lastAction.destinationPath", "$lastAction.filepath"}},
+					}},
+				}},
 			},
-			bson.D{{Key: "$sort", Value: bson.D{{Key: "fileCreateAction.timestamp", Value: -1}}}},
+			// Dedup by current path: if multiple files claim the same path, keep the most recently active one
+			bson.D{{Key: "$sort", Value: bson.D{{Key: "lastAction.timestamp", Value: -1}}}},
 			bson.D{
 				{Key: "$group", Value: bson.D{
-					{Key: "_id", Value: "$fileCreateAction.filepath"},
+					{Key: "_id", Value: "$currentPath"},
 					{Key: "doc", Value: bson.D{{Key: "$first", Value: "$$ROOT"}}},
-				},
-				},
+				}},
 			},
 			bson.D{{Key: "$replaceRoot", Value: bson.D{{Key: "newRoot", Value: "$doc"}}}},
 			bson.D{
 				{Key: "$project", Value: bson.D{
-					{Key: "originalGroupID", Value: 0},
-					{Key: "fileCreateAction", Value: 0},
-					{Key: "fileCreateTimestamp", Value: 0},
-					{Key: "fileCreateFilepath", Value: 0},
-				},
-				},
+					{Key: "lastAction", Value: 0},
+					{Key: "currentPath", Value: 0},
+				}},
 			},
 		)
 	} else {

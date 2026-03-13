@@ -28,6 +28,8 @@ type HistoryFileAction struct {
 	FileID *string `json:"fileID,omitempty"`
 	Filepath *WlfsFilepath `json:"filepath,omitempty"`
 	Id *string `json:"id,omitempty"`
+	// Used for restore actions to reference the file being restored
+	OldFileID *string `json:"oldFileID,omitempty"`
 	OriginPath *WlfsFilepath `json:"originPath,omitempty"`
 	Size *int32 `json:"size,omitempty"`
 	Timestamp *string `json:"timestamp,omitempty"`
@@ -307,6 +309,38 @@ func (o *HistoryFileAction) SetId(v string) {
 	o.Id = &v
 }
 
+// GetOldFileID returns the OldFileID field value if set, zero value otherwise.
+func (o *HistoryFileAction) GetOldFileID() string {
+	if o == nil || IsNil(o.OldFileID) {
+		var ret string
+		return ret
+	}
+	return *o.OldFileID
+}
+
+// GetOldFileIDOk returns a tuple with the OldFileID field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *HistoryFileAction) GetOldFileIDOk() (*string, bool) {
+	if o == nil || IsNil(o.OldFileID) {
+		return nil, false
+	}
+	return o.OldFileID, true
+}
+
+// HasOldFileID returns a boolean if a field has been set.
+func (o *HistoryFileAction) HasOldFileID() bool {
+	if o != nil && !IsNil(o.OldFileID) {
+		return true
+	}
+
+	return false
+}
+
+// SetOldFileID gets a reference to the given string and assigns it to the OldFileID field.
+func (o *HistoryFileAction) SetOldFileID(v string) {
+	o.OldFileID = &v
+}
+
 // GetOriginPath returns the OriginPath field value if set, zero value otherwise.
 func (o *HistoryFileAction) GetOriginPath() WlfsFilepath {
 	if o == nil || IsNil(o.OriginPath) {
@@ -468,6 +502,9 @@ func (o HistoryFileAction) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.Id) {
 		toSerialize["id"] = o.Id
+	}
+	if !IsNil(o.OldFileID) {
+		toSerialize["oldFileID"] = o.OldFileID
 	}
 	if !IsNil(o.OriginPath) {
 		toSerialize["originPath"] = o.OriginPath

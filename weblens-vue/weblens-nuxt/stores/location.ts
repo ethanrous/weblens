@@ -1,3 +1,4 @@
+import { useStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { useWeblensAPI } from '~/api/AllApi'
 import WeblensShare from '~/types/weblensShare'
@@ -9,6 +10,10 @@ export enum FbModeT {
     external,
     stats,
     search,
+}
+
+type HistorySettings = {
+    isOpen: boolean
 }
 
 const useLocationStore = defineStore('location', () => {
@@ -58,7 +63,15 @@ const useLocationStore = defineStore('location', () => {
 
     const user = computed(() => userStore.user)
 
-    const isHistoryOpen = ref<boolean>(false)
+    const historySettings = useStorage('wl-history-view', {} as HistorySettings)
+    const isHistoryOpen = ref<boolean>(historySettings.value.isOpen === true)
+
+    watch(isHistoryOpen, (newVal) => {
+        historySettings.value = {
+            ...historySettings.value,
+            isOpen: newVal,
+        }
+    })
 
     const activeFolderID = computed(() => {
         let fileID = route.value.params.fileID
@@ -243,6 +256,7 @@ const useLocationStore = defineStore('location', () => {
     watch(isInTimeline, () => {
         setQueryParam('timeline', isInTimeline.value ? 'true' : null)
         search.value = '' // Clear search when changing timeline mode
+        isHistoryOpen.value = false // Close history when changing timeline mode
     })
 
     return {

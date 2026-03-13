@@ -10,8 +10,8 @@ Name | Type | Description | Notes
 **EventID** | **string** |  | 
 **FileID** | **string** |  | 
 **Filepath** | Pointer to **string** |  | [optional] 
+**LiveParentID** | Pointer to **string** |  | [optional] 
 **OriginPath** | Pointer to **string** |  | [optional] 
-**ParentID** | **string** |  | 
 **Size** | **int64** |  | 
 **Timestamp** | **int64** |  | 
 **TowerID** | **string** |  | 
@@ -20,7 +20,7 @@ Name | Type | Description | Notes
 
 ### NewFileActionInfo
 
-`func NewFileActionInfo(actionType string, eventID string, fileID string, parentID string, size int64, timestamp int64, towerID string, ) *FileActionInfo`
+`func NewFileActionInfo(actionType string, eventID string, fileID string, size int64, timestamp int64, towerID string, ) *FileActionInfo`
 
 NewFileActionInfo instantiates a new FileActionInfo object
 This constructor will assign default values to properties that have it defined,
@@ -170,6 +170,31 @@ SetFilepath sets Filepath field to given value.
 
 HasFilepath returns a boolean if a field has been set.
 
+### GetLiveParentID
+
+`func (o *FileActionInfo) GetLiveParentID() string`
+
+GetLiveParentID returns the LiveParentID field if non-nil, zero value otherwise.
+
+### GetLiveParentIDOk
+
+`func (o *FileActionInfo) GetLiveParentIDOk() (*string, bool)`
+
+GetLiveParentIDOk returns a tuple with the LiveParentID field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetLiveParentID
+
+`func (o *FileActionInfo) SetLiveParentID(v string)`
+
+SetLiveParentID sets LiveParentID field to given value.
+
+### HasLiveParentID
+
+`func (o *FileActionInfo) HasLiveParentID() bool`
+
+HasLiveParentID returns a boolean if a field has been set.
+
 ### GetOriginPath
 
 `func (o *FileActionInfo) GetOriginPath() string`
@@ -194,26 +219,6 @@ SetOriginPath sets OriginPath field to given value.
 `func (o *FileActionInfo) HasOriginPath() bool`
 
 HasOriginPath returns a boolean if a field has been set.
-
-### GetParentID
-
-`func (o *FileActionInfo) GetParentID() string`
-
-GetParentID returns the ParentID field if non-nil, zero value otherwise.
-
-### GetParentIDOk
-
-`func (o *FileActionInfo) GetParentIDOk() (*string, bool)`
-
-GetParentIDOk returns a tuple with the ParentID field if it's non-nil, zero value otherwise
-and a boolean to check if the value has been set.
-
-### SetParentID
-
-`func (o *FileActionInfo) SetParentID(v string)`
-
-SetParentID sets ParentID field to given value.
-
 
 ### GetSize
 

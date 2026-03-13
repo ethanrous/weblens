@@ -14,7 +14,7 @@ watchEffect(() => {
     const loggedIn = userStore.user.isLoggedIn
 
     if (loggedIn.isSet() && loggedIn.get()) {
-        WeblensFile.Home().GoTo(true)
+        WeblensFile.Home().GoTo({ replace: true })
     } else if (loggedIn.isSet() && !loggedIn.get()) {
         console.debug('User is not logged at root, redirecting to login page')
 

@@ -3623,7 +3623,6 @@ const docTemplate = `{
                 "actionType",
                 "eventID",
                 "fileID",
-                "parentID",
                 "size",
                 "timestamp",
                 "towerID"
@@ -3647,10 +3646,10 @@ const docTemplate = `{
                 "filepath": {
                     "type": "string"
                 },
-                "originPath": {
+                "liveParentID": {
                     "type": "string"
                 },
-                "parentID": {
+                "originPath": {
                     "type": "string"
                 },
                 "size": {
@@ -4516,6 +4515,10 @@ const docTemplate = `{
                     "$ref": "#/definitions/wlfs.Filepath"
                 },
                 "id": {
+                    "type": "string"
+                },
+                "oldFileID": {
+                    "description": "Used for restore actions to reference the file being restored",
                     "type": "string"
                 },
                 "originPath": {

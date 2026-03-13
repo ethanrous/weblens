@@ -3621,7 +3621,6 @@
                 "actionType",
                 "eventID",
                 "fileID",
-                "parentID",
                 "size",
                 "timestamp",
                 "towerID"
@@ -3645,10 +3644,10 @@
                 "filepath": {
                     "type": "string"
                 },
-                "originPath": {
+                "liveParentID": {
                     "type": "string"
                 },
-                "parentID": {
+                "originPath": {
                     "type": "string"
                 },
                 "size": {
@@ -4514,6 +4513,10 @@
                     "$ref": "#/definitions/wlfs.Filepath"
                 },
                 "id": {
+                    "type": "string"
+                },
+                "oldFileID": {
+                    "description": "Used for restore actions to reference the file being restored",
                     "type": "string"
                 },
                 "originPath": {

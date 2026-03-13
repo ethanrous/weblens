@@ -295,7 +295,7 @@ func GetFolderHistory(ctx context_service.RequestContext) {
 		return
 	}
 
-	actions, err := history.GetActionsAtPathAfter(ctx, file.GetPortablePath(), time.Time{}, true)
+	actions, err := history.GetActionsAtPathAfter(ctx, file.GetPortablePath(), time.Time{}, history.GetActionsOptions{IncludeChildren: true})
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 
@@ -303,8 +303,27 @@ func GetFolderHistory(ctx context_service.RequestContext) {
 	}
 
 	actionInfos := make([]wlstructs.FileActionInfo, 0, len(actions))
+	activeParentPathMap := make(map[wlfs.Filepath]string)
+
 	for _, a := range actions {
-		actionInfos = append(actionInfos, reshape.FileActionToFileActionInfo(a))
+		liveParentID := ""
+
+		// Compute the live parent ID for the action's relevant path by looking up the latest action at the parent path.
+		// We want to give context to the client about where the parent file might be right now, so we can navigate to it.
+		parentPath := a.GetRelevantPath().Dir()
+		if cachedParentID, ok := activeParentPathMap[parentPath]; ok {
+			liveParentID = cachedParentID
+		} else {
+			parentLatestAction, err := history.GetActionAtFilepath(ctx, parentPath)
+			if err == nil && parentLatestAction.IsCreateIsh() {
+				liveParentID = parentLatestAction.FileID
+
+				// Cache the parent path to live parent ID mapping for future iterations
+				activeParentPathMap[parentPath] = parentLatestAction.FileID
+			}
+		}
+
+		actionInfos = append(actionInfos, reshape.FileActionToFileActionInfo(a, liveParentID))
 	}
 
 	ctx.JSON(http.StatusOK, actionInfos)

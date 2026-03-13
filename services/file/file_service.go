@@ -360,49 +360,57 @@ func (fs *ServiceImpl) RestoreFiles(ctx context.Context, ids []string, newParent
 	actions := make([]history.FileAction, 0)
 	restoredFiles := make([]*file_model.WeblensFileImpl, 0)
 
-	for len(queue) > 0 {
-		current := queue[0]
-		queue = queue[1:]
+	// Actions created during a transaction automatically get an event ID and timestamp, so we don't need to set those manually here
+	err := db.WithTransaction(ctx, func(ctx context.Context) error {
+		for len(queue) > 0 {
+			current := queue[0]
+			queue = queue[1:]
 
-		pastFile, err := journal.GetPastFileByID(ctx, current.fileID, restoreTime)
-		if err != nil {
-			return wlerrors.Wrapf(err, "failed to get past file [%s] at time [%s]", current.fileID, restoreTime)
-		}
+			pastFile, err := journal.GetPastFileByID(ctx, current.fileID, restoreTime)
+			if err != nil {
+				return wlerrors.Wrapf(err, "failed to get past file [%s] at time [%s]", current.fileID, restoreTime)
+			}
 
-		filename := pastFile.GetPortablePath().Filename()
+			filename := pastFile.GetPortablePath().Filename()
 
-		destPath, err := MakeUniqueChildName(current.parent.GetPortablePath(), filename, pastFile.IsDir())
-		if err != nil {
-			return err
-		}
-
-		if pastFile.IsDir() {
-			restoredDir, err := fs.restoreDirectory(ctx, pastFile, current.parent, destPath)
+			destPath, err := MakeUniqueChildName(current.parent.GetPortablePath(), filename, pastFile.IsDir())
 			if err != nil {
 				return err
 			}
 
-			actions = append(actions, history.NewRestoreAction(ctx, restoredDir))
-			restoredFiles = append(restoredFiles, restoredDir)
+			if pastFile.IsDir() {
+				restoreDir, restoreAction, err := fs.restoreDirectory(ctx, pastFile, current.parent, destPath)
+				if err != nil {
+					return err
+				}
 
-			// Enqueue children for restoration
-			for _, child := range pastFile.GetChildren() {
-				queue = append(queue, restorePair{parent: restoredDir, fileID: child.ID()})
-			}
-		} else {
-			restoredFile, err := fs.restoreRegularFile(ctx, pastFile, current.parent, destPath)
-			if err != nil {
-				return err
-			}
+				actions = append(actions, restoreAction)
+				restoredFiles = append(restoredFiles, restoreDir)
 
-			actions = append(actions, history.NewRestoreAction(ctx, restoredFile))
-			restoredFiles = append(restoredFiles, restoredFile)
+				// Enqueue children for restoration
+				for _, child := range pastFile.GetChildren() {
+					queue = append(queue, restorePair{parent: restoreDir, fileID: child.ID()})
+				}
+			} else {
+				restoredFile, restoreAction, err := fs.restoreRegularFile(ctx, pastFile, current.parent, destPath)
+				if err != nil {
+					return err
+				}
+
+				actions = append(actions, restoreAction)
+				restoredFiles = append(restoredFiles, restoredFile)
+			}
 		}
-	}
 
-	err := history.SaveActions(ctx, actions)
+		err := history.SaveActions(ctx, actions)
+		if err != nil {
+			return wlerrors.Wrap(err, "failed to save restore actions")
+		}
+
+		return nil
+	})
 	if err != nil {
-		return wlerrors.Wrap(err, "failed to save restore actions")
+		return err
 	}
 
 	err = fs.ResizeUp(ctx, newParent)
@@ -479,19 +487,19 @@ func (fs *ServiceImpl) DeleteZips(ctx context.Context) error {
 		return wlerrors.WithStack(context_service.ErrNoContext)
 	}
 
-	zipFolder, err := appCtx.FileService.GetFileByFilepath(ctx, file_model.ZipsDirPath)
+	zipFolder, err := fs.GetFileByFilepath(ctx, file_model.ZipsDirPath)
 	if err != nil {
 		return err
 	}
 
-	children, err := appCtx.FileService.GetChildren(ctx, zipFolder)
+	children, err := fs.GetChildren(ctx, zipFolder)
 	if err != nil {
 		return err
 	}
 
 	appCtx.Log().Debug().Msgf("Deleting [%d] zip files from takeout cache", len(children))
 
-	err = appCtx.FileService.DeleteFiles(ctx, children...)
+	err = fs.DeleteFiles(ctx, children...)
 	if err != nil {
 		return err
 	}
@@ -1058,74 +1066,74 @@ func (fs *ServiceImpl) deleteFilesWithTransaction(ctx context.Context, files []*
 }
 
 // restoreDirectory creates a new directory in the destination for a past directory file.
-func (fs *ServiceImpl) restoreDirectory(ctx context.Context, pastFile, parent *file_model.WeblensFileImpl, destPath file_system.Filepath) (*file_model.WeblensFileImpl, error) {
-	dir, err := mkdir(destPath)
+func (fs *ServiceImpl) restoreDirectory(ctx context.Context, pastFile, parent *file_model.WeblensFileImpl, destPath file_system.Filepath) (restoreDir *file_model.WeblensFileImpl, action history.FileAction, err error) {
+	restoreDir, err = mkdir(destPath)
 	if err != nil {
-		return nil, err
+		return
 	}
 
-	err = dir.SetParent(parent)
+	err = restoreDir.SetParent(parent)
 	if err != nil {
-		return nil, err
+		return
 	}
 
-	err = parent.AddChild(dir)
+	err = parent.AddChild(restoreDir)
 	if err != nil {
-		return nil, err
+		return
 	}
 
-	dir.SetID(pastFile.ID())
+	action = history.NewRestoreAction(ctx, restoreDir, pastFile.ID())
 
-	err = fs.AddFile(ctx, dir)
+	err = fs.AddFile(ctx, restoreDir)
 	if err != nil {
-		return nil, err
+		return
 	}
 
-	return dir, nil
+	return
 }
 
 // restoreRegularFile hard-links content from the RESTORE tree (or live USERS tree) into the destination.
-func (fs *ServiceImpl) restoreRegularFile(ctx context.Context, pastFile, parent *file_model.WeblensFileImpl, destPath file_system.Filepath) (*file_model.WeblensFileImpl, error) {
+func (fs *ServiceImpl) restoreRegularFile(ctx context.Context, pastFile, parent *file_model.WeblensFileImpl, destPath file_system.Filepath) (restoreFile *file_model.WeblensFileImpl, action history.FileAction, err error) {
 	contentID := pastFile.GetContentID()
 	if contentID == "" {
-		return nil, wlerrors.Errorf("cannot restore file [%s]: no content ID recorded in history", pastFile.ID())
+		return nil, action, wlerrors.Errorf("cannot restore file [%s]: no content ID recorded in history", pastFile.ID())
 	}
 
 	sourcePath, err := fs.findRestoreSource(ctx, pastFile.ID(), contentID)
 	if err != nil {
-		return nil, err
+		return nil, action, wlerrors.Wrapf(err, "failed to find restore source for file [%s]", pastFile.ID())
 	}
 
-	restoredFile := file_model.NewWeblensFile(file_model.NewFileOptions{
+	restoreFile = file_model.NewWeblensFile(file_model.NewFileOptions{
 		Path:      destPath,
 		ContentID: contentID,
 		Size:      pastFile.Size(),
 	})
 
-	err = restoredFile.SetParent(parent)
+	err = restoreFile.SetParent(parent)
 	if err != nil {
-		return nil, err
+		return nil, action, err
 	}
 
-	err = parent.AddChild(restoredFile)
+	err = parent.AddChild(restoreFile)
 	if err != nil {
-		return nil, err
+		return nil, action, err
 	}
 
 	// Hard-link the content from the source to the new destination
 	err = os.Link(sourcePath, destPath.ToAbsolute())
 	if err != nil {
-		return nil, wlerrors.Wrapf(err, "failed to hard-link restore content from [%s] to [%s]", sourcePath, destPath.ToAbsolute())
+		return nil, action, wlerrors.Wrapf(err, "failed to hard-link restore content from [%s] to [%s]", sourcePath, destPath.ToAbsolute())
 	}
 
-	restoredFile.SetID(pastFile.ID())
+	action = history.NewRestoreAction(ctx, restoreFile, pastFile.ID())
 
-	err = fs.AddFile(ctx, restoredFile)
+	err = fs.AddFile(ctx, restoreFile)
 	if err != nil {
-		return nil, err
+		return nil, action, err
 	}
 
-	return restoredFile, nil
+	return restoreFile, action, nil
 }
 
 // findRestoreSource locates the content for a file being restored,
