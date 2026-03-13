@@ -14,6 +14,7 @@ export enum FbModeT {
 
 type HistorySettings = {
     isOpen: boolean
+    width: number
 }
 
 const useLocationStore = defineStore('location', () => {
@@ -65,11 +66,19 @@ const useLocationStore = defineStore('location', () => {
 
     const historySettings = useStorage('wl-history-view', {} as HistorySettings)
     const isHistoryOpen = ref<boolean>(historySettings.value.isOpen === true)
+    const historyWidth = ref<number>(historySettings.value.width ?? 640)
 
     watch(isHistoryOpen, (newVal) => {
         historySettings.value = {
             ...historySettings.value,
             isOpen: newVal,
+        }
+    })
+
+    watch(historyWidth, (newVal) => {
+        historySettings.value = {
+            ...historySettings.value,
+            width: newVal,
         }
     })
 
@@ -214,6 +223,10 @@ const useLocationStore = defineStore('location', () => {
         isHistoryOpen.value = opened
     }
 
+    function setHistoryWidth(w: number) {
+        historyWidth.value = Math.round(Math.max(280, Math.min(w, window.innerWidth * 0.5)))
+    }
+
     async function setViewTimestamp(ts: number) {
         const tsString = ts > 0 ? new Date(ts).toISOString() : undefined
 
@@ -280,6 +293,8 @@ const useLocationStore = defineStore('location', () => {
 
         isHistoryOpen,
         setHistoryOpen,
+        historyWidth,
+        setHistoryWidth,
 
         viewTimestamp,
         isViewingPast,

@@ -50,7 +50,7 @@
                 </span>
                 <span
                     :class="{
-                        'bg-background-tertiary text-text-secondary inline-flex items-center rounded px-1.5 text-xs': true,
+                        'bg-card-background-primary text-text-secondary ml-1 inline-flex items-center rounded p-1 text-xs': true,
                         'text-text-tertiary group-hover:text-text-secondary': afterRewindTimestamp,
                     }"
                 >
@@ -72,6 +72,7 @@
         <div
             v-if="expanded"
             :class="{ 'flex flex-col gap-0.5 border-t px-1 py-1': true }"
+            @click.stop
         >
             <FileAction
                 v-for="action in visibleActions"

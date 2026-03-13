@@ -2,11 +2,22 @@
     <div
         id="file-history-sidebar"
         :class="{
-            'min-w-0 border-l transition-[width]': true,
-            'h-full w-160 min-w-160': locationStore.isHistoryOpen,
-            'w-0': !locationStore.isHistoryOpen,
+            'relative min-w-0 overflow-hidden border-l': true,
+            'transition-[width]': !isDragging,
+            'h-full': locationStore.isHistoryOpen,
+        }"
+        :style="{
+            width: locationStore.isHistoryOpen ? locationStore.historyWidth + 'px' : '0px',
+            'min-width': locationStore.isHistoryOpen ? locationStore.historyWidth + 'px' : '0px',
         }"
     >
+        <ResizeHandle
+            v-if="locationStore.isHistoryOpen"
+            @drag-start="onDragStart"
+            @drag="onDrag"
+            @drag-end="isDragging = false"
+            @reset="locationStore.setHistoryWidth(640)"
+        />
         <div :class="{ 'flex h-full flex-col p-2': true }">
             <div :class="{ 'mb-2 flex border-b pb-2': true }">
                 <IconX
@@ -46,6 +57,7 @@
 import { IconX } from '@tabler/icons-vue'
 import useLocationStore from '~/stores/location'
 import FileIcon from '../atom/FileIcon.vue'
+import ResizeHandle from '../atom/ResizeHandle.vue'
 import useFilesStore from '~/stores/files'
 import { useWeblensAPI } from '~/api/AllApi'
 import FileEventGroup from '../molecule/FileEventGroup.vue'
@@ -56,6 +68,18 @@ import { WLError } from '~/types/wlError'
 
 const locationStore = useLocationStore()
 const filesStore = useFilesStore()
+
+const isDragging = ref(false)
+const widthAtDragStart = ref(0)
+
+function onDragStart() {
+    isDragging.value = true
+    widthAtDragStart.value = locationStore.historyWidth
+}
+
+function onDrag(deltaX: number) {
+    locationStore.setHistoryWidth(widthAtDragStart.value - deltaX)
+}
 
 const { data: historyData, error } = useAsyncData(
     'file-history-' + locationStore.activeFolderID + '-' + locationStore.isHistoryOpen,

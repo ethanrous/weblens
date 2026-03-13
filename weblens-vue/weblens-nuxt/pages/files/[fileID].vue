@@ -6,7 +6,7 @@
         <FileDragCounter />
         <RewindIndicator />
 
-        <div :class="{ 'relative flex h-full w-full': true }">
+        <div :class="{ 'relative flex h-full w-full min-w-0': true }">
             <NoResults
                 v-if="
                     filesStore.fileFetchError && filesStore.fileFetchError.status === 404 && locationStore.isViewingPast
