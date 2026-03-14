@@ -6,10 +6,26 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/ethan/repos/weblens/.claude/hooks/stop-reflect.sh"
+            "command": ".claude/hooks/stop-reflect.sh"
           }
         ]
       }
     ]
+  },
+  "mcpServers": {
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"],
+      "env": {}
+    },
+    "mongodb": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "mongodb-mcp-server@latest", "--readOnly"],
+      "env": {
+        "MDB_MCP_CONNECTION_STRING": "mongodb://127.0.0.1:27017/?replicaSet=rs0&directConnection=true"
+      }
+    }
   }
 }

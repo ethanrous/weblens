@@ -5,14 +5,14 @@ STRONG_PATTERNS="fixed|workaround|gotcha|that's wrong|check again|we already|sho
 WEAK_PATTERNS="error|bug|issue|problem|fail"
 
 if echo "$CONTEXT" | grep -qiE "$STRONG_PATTERNS"; then
-    cat << 'EOF'
+    cat <<'EOF'
 {
   "decision": "approve",
-  "systemMessage": "This session involved fixes or discoveries. Update memory files in .claude/rules/memory-*.md to capture learnings: decisions in memory-decisions.md, preferences in memory-preferences.md, session summary in memory-sessions.md."
+  "systemMessage": "This session involved fixes or discoveries. Update file(s) in .claude/rules/*.md to capture learnings."
 }
 EOF
 elif echo "$CONTEXT" | grep -qiE "$WEAK_PATTERNS"; then
-    echo '{"decision":"approve","systemMessage":"If you learned something non-obvious this session, update the relevant .claude/rules/memory-*.md files before ending."}'
+    echo '{"decision":"approve","systemMessage":"If you learned something non-obvious this session, update the relevant .claude/rules/*.md files before ending."}'
 else
     echo '{"decision": "approve"}'
 fi
