@@ -14,6 +14,12 @@
 - Go integration tests in `/e2e/` spin up real server instances with isolated DBs and dynamic ports
 - Frontend E2E: `make test-ui` (Playwright via `./scripts/test-playwright.bash`)
 
+### Avoid:
+
+- Writing new E2E tests for backend logic that can be tested with Go unit tests. E2E tests are slower and more brittle, so reserve them for critical user flows or frontend interactions.
+- Creating new tests or test files for every bug. Instead, add to existing test files that cover the relevant domain. Only create new test files if the domain is genuinely new and doesn't fit existing tests.
+- Adding custom timeouts to every assertion in Playwright tests. Use the default timeout unless you have a specific reason to change it for a particular assertion. i.e. `expect(...).toBeVisible({ timeout: 10000 })` should only be used when absolutely necessary, not as a blanket approach.
+
 ## Writing tests
 
 - Follow TDD: write the test BEFORE any fix. Do not skip to implementation.
@@ -21,7 +27,7 @@
 - Reuse setup code and test helpers from existing tests. Don't write new boilerplate if you can extend an existing test.
 - If you uncover a bug while writing a test, stop and write the test first. Don't fix the bug before you have a failing test that captures it.
 - NEVER write a test that passes when you know the code is currently broken. If you find a bug unrelated to your current task, ask the user how to proceed — you may need to write a separate test for the new bug, or it may be out of scope.
-- Do not write comments in the test code explaining the bug you are trying to fix. Comments explaining the test logic are fine, but the test name and assertions should be clear enough to capture the expected behavior without a comment for the specific bugfix case.
+- Do not write comments in the test code explaining the bug you are trying to fix. Comments explaining the test logic are fine, but comments like "CRITICAL: " or "BUG: " that describe the issue are not — the test itself should capture the behavior, and instead the commit message will describe the bug and fix.
 
 ## What NOT to Test
 

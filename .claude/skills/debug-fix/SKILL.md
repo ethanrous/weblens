@@ -5,7 +5,7 @@ description: Use when encountering any bug, test failure, or unexpected behavior
 
 # Debug
 
-Orchestrates the full debug-to-fix pipeline for weblens bugs. Routes to the correct debug agent based on where the bug lives, then passes the diagnosed root cause to the correct fix agent.
+Orchestrates the full debug-to-fix pipeline for weblens bugs. Routes to the correct debug agent(s) based on where the bug lives, then passes the diagnosed root cause to the correct fix agent(s).
 
 ## Decision: Backend or Frontend?
 
@@ -22,8 +22,7 @@ digraph route {
     "Involves Go, API, MongoDB, task system?" -> "Launch debug-backend agent" [label="yes"];
     "Involves Go, API, MongoDB, task system?" -> "Involves UI, components, stores, browser?" [label="no"];
     "Involves UI, components, stores, browser?" -> "Launch debug-frontend agent" [label="yes"];
-    "Involves UI, components, stores, browser?" -> "Affects both?" [label="unclear"];
-    "Affects both?" -> "Launch both in parallel, then *fix* the API/backend first" [label="yes — API is source of truth"];
+    "Affects both?" -> "Launch both in parallel using a single message, then *fix*" [label="yes"];
 }
 ```
 
@@ -46,37 +45,37 @@ digraph route {
 - Anything visible in the browser or related to user interaction
 - Anything in `weblens-vue/weblens-nuxt/`
 
-### Ambiguous? Launch both debug agents in parallel, but fix backend first if both find issues.
-
-When the API returns wrong data and the UI shows wrong data, the bug is almost always in the backend. Debug the API response first — if the API is correct, then debug the frontend.
+### Ambiguous? Launch both debug agents in parallel using a SINGLE message.
 
 ## Phase 1: Diagnose
 
-Launch the appropriate debug agent with the full bug report:
+Run multiple debug agent invocations in a SINGLE message. For example, if the bug is ambiguous, you can launch both debug agents at the same time. Or, just 1 if that's all that is needed.
 
-```
-Agent(subagent_type="debug-backend" OR "debug-frontend", prompt=<bug details>)
-```
-
-The debug agent will:
+The debug agents will:
 
 1. Reproduce the bug
 2. Isolate the code path
 3. Identify the root cause
-4. Write a *failing* test
+4. Write a _failing_ test
 5. Report back with: root cause, affected files/lines, failing test location
 
-**Wait for the debug agent to complete before proceeding.**
+**Wait for the debug agents to complete before proceeding.**
 
-## Phase 2: Fix
+## Phase 2: Plan the fix
 
-Take the debug agent's output and launch the appropriate fix agent:
+Before launching the fix agents, review the debug agents' output to understand the root cause and the failing test. This is crucial for ensuring the fix agent has the correct context to implement an effective fix.
+Use a planner agent to synthesize the debug agents' outputs into a clear plan for the fix agent. This plan should include:
 
-```
-Agent(subagent_type="fix-backend" OR "fix-frontend", model="sonnet", prompt=<root cause + failing test + affected files>)
-```
+- A concise summary of the root cause
+- The specific behavior that needs to be changed (as captured by the failing test)
+- The exact files and lines that are affected and likely need changes
+- The location of the failing test that must pass after the fix
 
-Pass these to the fix agent verbatim:
+## Phase 3: Fix
+
+Take the plan from the previous step and launch the appropriate fix agent(s). Always launch these in a SINGLE message, ensuring they launch in parallel.
+
+Pass these to the fix agents verbatim:
 
 - **Root cause** — the debugger's diagnosis
 - **Failing test** — file path and test name
@@ -97,15 +96,6 @@ After the fix agent completes, verify the result:
 1. Confirm the fix agent reported all tests passing
 2. Confirm lint passed
 3. If either failed, resume the fix agent with the failure details
-
-## Cross-boundary bugs
-
-If the debug agent discovers the bug spans both backend and frontend:
-
-1. Fix backend first, (API is source of truth) - but only after understanding the full picture from BOTH debug agents. If the backend is the root cause, then fixing it should resolve the frontend issue as well.
-2. If the frontend also needs changes, you can launch the frontend fix agent after the backend fix is complete.
-
-Launch `fix-backend` first, wait for completion, then launch `fix-frontend` if the frontend also needs changes.
 
 ## Quick reference
 

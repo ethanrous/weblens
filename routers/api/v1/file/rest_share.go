@@ -118,8 +118,8 @@ func GetFileShare(ctx ctxservice.RequestContext) {
 		return
 	}
 
-	// Public shares can be viewed by anyone; private shares require ownership
-	if !share.IsPublic() && (ctx.Requester == nil || !auth.CanUserModifyShare(ctx.Requester, *share)) {
+	// Public shares can be viewed by anyone; private shares require ownership or accessor status
+	if !share.IsPublic() && (ctx.Requester == nil || !auth.CanUserAccessShare(ctx.Requester, *share)) {
 		ctx.Error(http.StatusNotFound, wlerrors.New("share not found"))
 
 		return

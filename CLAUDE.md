@@ -30,7 +30,7 @@ ALWAYS use the `debug-fix` skill for any bug, test failure, or unexpected behavi
 **Debug agents** (opus — diagnosis only, no implementation):
 
 - `debug-backend` — Go backend issues. Uses MongoDB MCP, structured logging, pprof. Writes a failing test and reports root cause.
-- `debug-frontend` — Vue/Nuxt/Tailwind issues. Uses Playwright MCP to interact with live dev server. Writes a failing test and reports root cause.
+- `debug-frontend` — Vue/Nuxt/Tailwind issues. Uses "Claude in Chrome" to interact with live dev server. Writes a failing test and reports root cause.
 
 **Fix agents** (sonnet — implementation only, requires diagnosed root cause):
 

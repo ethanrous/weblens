@@ -11,6 +11,7 @@ run_native_tests() {
     build_frontend ${lazy:=false}
 
     target="${1:-./...}" # Default to ./... if no target specified
+    run="${2:-}"
 
     # Go is very picky about whitespace, so we need to strip it out
     target=$(awk '{$1=$1};1' <<<"$target")
@@ -35,8 +36,7 @@ run_native_tests() {
     # Install gotestsum for better test output formatting
     go install gotest.tools/gotestsum@latest
 
-    # shellcheck disable=SC2086
-    gotestsum --packages="${target}" -- -cover -race -coverprofile=_build/cover/coverage.out -json -timeout=1m -coverpkg ./... -tags=test
+    gotestsum --packages="${target}" -- -cover -race -coverprofile=_build/cover/coverage.out -json -timeout=1m -coverpkg ./... -tags=test -run "${run}"
 
     portable_sed '/github\.com\/ethanrous\/weblens\/api/d' ./_build/cover/coverage.out
 }
@@ -62,6 +62,7 @@ run_container_tests() {
 }
 
 tests=""
+run=""
 baseVersion="v0"
 containerize=false
 lazy=true
@@ -77,6 +78,10 @@ while [ "${1:-}" != "" ]; do
         ;;
     "--no-lazy")
         lazy=false
+        ;;
+    "-run")
+        shift
+        run="$1"
         ;;
     "-h" | "--help")
         usage="Usage: $0 [-n|--native [package_target]]"
@@ -104,7 +109,7 @@ if [[ "$containerize" = false ]]; then
         printf "Skipping Agno build (lazy mode)...\n"
     fi
 
-    run_native_tests "${tests}"
+    run_native_tests "${tests}" "${run}"
 else
     run_container_tests
 fi
