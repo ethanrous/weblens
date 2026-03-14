@@ -30,6 +30,13 @@ Existing spec files in `weblens-vue/weblens-nuxt/e2e/`:
 | `file-history.spec.ts` | File history, folder rewind |
 | `dev-actions.spec.ts` | Developer page actions, user management |
 | `presentation-info.spec.ts` | File presentation mode, info panel |
+| `presentation.spec.ts` | Presentation/lightbox navigation and controls |
+| `file-preview.spec.ts` | File content preview (text, image, video) |
+| `media-timeline.spec.ts` | Media timeline view, thumbnail loading |
+| `empty-states.spec.ts` | Empty folder, no media, no shares states |
+| `setup.spec.ts` | Initial server setup flow |
+| `share-browsing.spec.ts` | Browsing shared files as recipient |
+| `share-interactions.spec.ts` | Share creation, permission editing, link copying |
 
 **Add new tests to the matching file.** For example, if you added a new context menu action, add a `test()` inside the relevant `test.describe()` in `context-menu.spec.ts` or `file-operations.spec.ts` — don't create a new file.
 

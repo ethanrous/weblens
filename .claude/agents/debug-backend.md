@@ -131,10 +131,10 @@ Background jobs (scan, upload, zip, backup) run in `models/task/WorkerPool`. Deb
 
 ### Profiling
 
-When the dev server runs with `WEBLENS_DO_PROFILING=true` (default in dev), pprof endpoints are available:
-- `http://localhost:8080/debug/pprof/` — Index
-- `http://localhost:8080/debug/pprof/goroutine` — Goroutine dump (useful for deadlocks)
-- `http://localhost:8080/debug/pprof/heap` — Memory profile
+When the dev server runs with `WEBLENS_DO_PROFILING=true` (enabled by `scripts/start.bash`), pprof endpoints are available on a separate server:
+- `http://127.0.0.1:6060/debug/pprof/` — Index
+- `http://127.0.0.1:6060/debug/pprof/goroutine` — Goroutine dump (useful for deadlocks)
+- `http://127.0.0.1:6060/debug/pprof/heap` — Memory profile
 
 ### Portable paths
 
@@ -172,7 +172,7 @@ Follow TDD: write the test BEFORE any fix. Add it to the existing test file for 
 | `WEBLENS_LOG_FORMAT` | `dev` (colored) or `json` | `json` |
 | `WEBLENS_LOG_PATH` | Log file path | stdout |
 | `WEBLENS_MONGODB_URI` | MongoDB connection | `mongodb://127.0.0.1:27017/?replicaSet=rs0&directConnection=true` |
-| `WEBLENS_DO_PROFILING` | Enable pprof endpoints | `false` (`true` in dev) |
+| `WEBLENS_DO_PROFILING` | Enable pprof server on `:6060` | `false` (enabled by `scripts/start.bash`) |
 | `WEBLENS_DO_CACHE` | Enable caching | `true` |
 | `WEBLENS_PORT` | Server port | `8080` |
 | `WEBLENS_DATA_PATH` | User data directory | — |

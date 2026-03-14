@@ -6,7 +6,7 @@
 - **`routers/`** - HTTP routing (chi), middleware (auth, CORS, logging), request context
 - **`services/`** - Business logic (`file/`, `media/`, `jobs/`, `auth/`, `notify/`, `journal/`, `tower/`)
 - **`models/`** - Data models, interfaces, DB operations (`file/`, `media/`, `usermodel/`, `task/`, `share/`, `history/`, `tower/`)
-- **`modules/`** - Pure utilities (`config/`, `startup/`, `wlfs/`, `log/`)
+- **`modules/`** - Pure utilities (`config/`, `startup/`, `wlfs/`, `wlog/`)
 - **`e2e/`** - Integration tests using full server stack with generated API client
 
 Each layer depends only on the one below it. `routers` depend on `services`, which depend on `models` and `modules`. No circular dependencies.
