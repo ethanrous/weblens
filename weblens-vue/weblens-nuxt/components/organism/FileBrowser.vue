@@ -1,11 +1,11 @@
 <template>
     <div
         id="filebrowser-container"
-        :class="{ 'filebrowser-container relative z-40 flex h-full min-h-0 w-full min-w-60 items-center': true }"
+        :class="{ 'filebrowser-container relative z-39 flex h-full min-h-0 w-full min-w-60 items-center': true }"
     >
+        <FileContextMenu />
         <FileDragCounter />
         <RewindIndicator />
-        <FileContextMenu />
 
         <div :class="{ 'relative flex h-full w-full min-w-0': true }">
             <NoResults

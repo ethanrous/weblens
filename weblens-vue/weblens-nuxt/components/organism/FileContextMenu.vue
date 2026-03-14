@@ -3,7 +3,7 @@
         id="file-context-menu"
         ref="contextMenu"
         :class="{
-            'file-context-menu animate-fade-in z-99 shadow-lg': true,
+            'file-context-menu animate-fade-in shadow-lg': true,
             'gone hidden': !menuStore.isOpen,
         }"
         :style="{ top: menuPosition.y + 'px', left: menuPosition.x + 'px' }"
@@ -150,7 +150,8 @@ onMounted(() => {
     transition-property: height, top, left, opacity;
 
     border: 1px solid var(--color-border-primary);
-    z-index: 10;
+    z-index: 90;
+    isolation: isolate;
 
     @apply shadow-sm;
 }
