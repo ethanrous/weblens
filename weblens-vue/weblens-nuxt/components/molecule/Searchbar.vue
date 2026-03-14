@@ -1,7 +1,7 @@
 <template>
     <div
         :class="{
-            'ease-wl-default absolute top-0 z-50 flex h-10.5 w-full justify-center transition-[height,top,width] duration-300': true,
+            'ease-wl-default absolute top-0 z-40 flex h-10.5 w-full justify-center transition-[height,top,width] duration-300': true,
             'h-[min(80vh,424px)] max-lg:top-[calc((100vh-424px)/2)] max-lg:w-[80vw]': filterOpen,
         }"
     >

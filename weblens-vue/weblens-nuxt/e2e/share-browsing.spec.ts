@@ -104,6 +104,29 @@ test.describe('Share Browsing', () => {
         const sharedFiles = page.locator('[id^="file-card-"]')
         await expect(noShared.or(sharedFiles.first())).toBeVisible()
     })
+
+    test('should show single Shared breadcrumb on share root page', async ({ page }) => {
+        // Navigate to the shared files root
+        await page.getByRole('button', { name: 'Shared' }).click()
+        await page.waitForURL('**/files/share')
+
+        // Wait for the page content to load
+        const noShared = page.getByText('No files shared with you')
+        const sharedFiles = page.locator('[id^="file-card-"]')
+        await expect(noShared.or(sharedFiles.first())).toBeVisible()
+
+        // The breadcrumb bar should contain exactly one "Shared" entry, not two.
+        // The chevron separator only appears between crumb entries (v-if="index > 0"),
+        // so if there are two crumbs there will be exactly one chevron.
+        const breadcrumbBar = page.locator('.flex.h-max.w-full.items-center.border-t')
+        await expect(breadcrumbBar).toBeVisible()
+
+        const chevrons = breadcrumbBar.locator('.tabler-icon-chevron-right')
+        await expect(chevrons).toHaveCount(0)
+
+        const sharedCrumbs = breadcrumbBar.getByText('Shared', { exact: true })
+        await expect(sharedCrumbs).toHaveCount(1)
+    })
 })
 
 test.describe('Share Browsing - Private Share Accessor', () => {

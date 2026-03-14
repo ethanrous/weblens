@@ -20,7 +20,7 @@
                 />
             </div>
 
-            <div :class="{ 'z-99 flex w-full gap-2': true }">
+            <div :class="{ 'z-99 flex w-full items-center gap-2': true }">
                 <UserSearch
                     :exclude-fn="excludeFn"
                     @select:user="addAccessor"
@@ -56,8 +56,16 @@
             />
             <div :class="{ 'flex gap-2': true }">
                 <WeblensButton
+                    label="Delete Share"
+                    :flavor="'danger'"
+                    :disabled="!share?.ID()"
+                    @click.stop="deleteShare()"
+                >
+                    <IconTrash />
+                </WeblensButton>
+                <WeblensButton
                     label="Done"
-                    :class="{ 'ml-auto w-1/2': true }"
+                    :class="{ 'ml-auto w-1/4': true }"
                     @click.stop="menuStore.setSharing(false)"
                 />
             </div>
@@ -76,6 +84,7 @@ import { onClickOutside } from '@vueuse/core'
 import Table from '../atom/Table.vue'
 import type { UserInfo } from '@ethanrous/weblens-api'
 import { TableType, type TableColumn, type TableColumns } from '~/types/table'
+import { useWeblensAPI } from '~/api/AllApi'
 
 const menuStore = useContextMenuStore()
 
@@ -190,5 +199,15 @@ async function toggleTimelienOnly() {
     }
 
     await share.value.toggleTimelineOnly()
+}
+
+async function deleteShare() {
+    if (!share.value) {
+        console.error('No share to delete')
+        return
+    }
+
+    await useWeblensAPI().SharesAPI.deleteFileShare(share.value.ID())
+    menuStore.setSharing(false)
 }
 </script>

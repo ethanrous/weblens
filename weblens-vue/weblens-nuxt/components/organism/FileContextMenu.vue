@@ -3,7 +3,7 @@
         id="file-context-menu"
         ref="contextMenu"
         :class="{
-            'file-context-menu animate-fade-in shadow-lg': true,
+            'file-context-menu animate-fade-in z-99 shadow-lg': true,
             'gone hidden': !menuStore.isOpen,
         }"
         :style="{ top: menuPosition.y + 'px', left: menuPosition.x + 'px' }"
@@ -64,8 +64,9 @@ const menuSize = useElementSize(menuRef)
 const container = shallowRef(document.getElementById('filebrowser-container'))
 const containerBounds = useElementBounding(container)
 
-onClickOutside(menuRef, () => {
+onClickOutside(menuRef, (e) => {
     if (menuStore.isOpen) {
+        e.stopPropagation()
         menuStore.setMenuOpen(false)
     }
 })

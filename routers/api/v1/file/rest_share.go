@@ -388,4 +388,8 @@ func DeleteShare(ctx ctxservice.RequestContext) {
 
 		return
 	}
+
+	ctx.Log().Debug().Msgf("Deleted share [%s]", shareID.Hex())
+
+	ctx.Status(http.StatusOK)
 }

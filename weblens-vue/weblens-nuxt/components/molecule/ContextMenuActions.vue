@@ -55,7 +55,7 @@
 
         <WeblensButton
             v-if="!multipleSelected"
-            label="Share"
+            :label="targetFile?.shareID ? 'Edit Share' : 'Share'"
             fill-width
             :disabled="!canModifyTarget || protectedFile"
             @click.stop="emit('shareFile')"
