@@ -53,10 +53,10 @@ test.describe('Folder-Level Context Menu', () => {
         await historyBtn.click()
 
         // History panel should open with "History of" heading
-        await expect(page.getByText('History of')).toBeVisible({ timeout: 15000 })
+        await expect(page.getByText('History of')).toBeVisible()
 
         // Should show at least one history action (folder was just created)
-        await expect(page.getByText('File Created').first()).toBeVisible({ timeout: 15000 })
+        await expect(page.getByText('ContextMenuTestFolder Created0 sec.ago')).toBeVisible()
 
         // Close history panel — the X icon's parent div intercepts pointer events
         // and the icon may be outside the default viewport. Widen viewport and force click.

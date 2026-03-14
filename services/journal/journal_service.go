@@ -23,7 +23,7 @@ func getPastFileIDAtPath(ctx context.Context, path wlfs.Filepath, time time.Time
 		return path.RootAlias, nil
 	}
 
-	actions, err := history.GetActionsAtPathBefore(ctx, path, time, false)
+	actions, err := history.GetActionsAtPathBefore(ctx, path, time, history.GetActionsOptions{IncludeChildren: false})
 	if err != nil {
 		return "", err
 	}
@@ -41,7 +41,7 @@ func getPastFileIDAtPath(ctx context.Context, path wlfs.Filepath, time time.Time
 func getPastFileChildren(ctx context.Context, pastFile *file_model.WeblensFileImpl, time time.Time) (map[wlfs.Filepath]*file_model.WeblensFileImpl, error) {
 	path := pastFile.GetPortablePath()
 
-	actions, err := history.GetActionsAtPathBefore(ctx, path, time, true)
+	actions, err := history.GetActionsAtPathBefore(ctx, path, time, history.GetActionsOptions{IncludeChildren: true})
 	if err != nil {
 		return nil, err
 	}
@@ -101,14 +101,74 @@ func getPastFileChildren(ctx context.Context, pastFile *file_model.WeblensFileIm
 }
 
 // GetPastFileByID retrieves the historical state of a file by its ID at a specific point in time.
-// It finds the file's path at the given time and delegates to GetPastFileByPath.
-func GetPastFileByID(ctx context.Context, fileID string, time time.Time) (*file_model.WeblensFileImpl, error) {
-	lastAction, err := history.GetLastActionByFileIDBefore(ctx, fileID, time)
+// Unlike GetPastFileByPath, this uses the known file ID directly instead of looking it up by path,
+// which avoids ambiguity when multiple files have existed at the same path over time.
+func GetPastFileByID(ctx context.Context, fileID string, timestamp time.Time) (*file_model.WeblensFileImpl, error) {
+	lastActionInPast, err := history.GetLastActionByFileIDBefore(ctx, fileID, timestamp)
+	if err != nil && !db.IsNotFound(err) {
+		return nil, err
+	} else if db.IsNotFound(err) {
+		// If we didn't find any actions for this file ID before the timestamp, it might be because the file was created after the timestamp.
+		// We have to check if there was a file at this *path* in the past, at the timestamp, but perhaps with a different ID. This is a bit of an edge case,
+		// but it can happen if a file was deleted and then a new file was created/moved/restored/etc at the same path.
+
+		// Get the latest action of the current file ID to find its current path, and then check if there was a different file at that path in the past.
+		currentFileLatestAction, err := history.GetLastActionByFileIDBefore(ctx, fileID, time.Now())
+		if err != nil {
+			return nil, err
+		}
+
+		viewingPath := currentFileLatestAction.GetRelevantPath()
+
+		actions, err := history.GetActionsAtPathBefore(ctx, viewingPath, timestamp, history.GetActionsOptions{IncludeChildren: false})
+		if err != nil {
+			return nil, err
+		}
+
+		if len(actions) == 0 {
+			return nil, wlerrors.Errorf("no actions found for path [%s] before time [%s]", viewingPath, timestamp)
+		}
+
+		// Choose the most recent action at that path before the timestamp, which should correspond to the file that existed at that path at that time.
+		lastActionInPast = actions[len(actions)-1]
+	}
+
+	path := lastActionInPast.GetRelevantPath()
+
+	newFile := file_model.NewWeblensFile(file_model.NewFileOptions{
+		Path:         path,
+		FileID:       fileID,
+		IsPastFile:   true,
+		ContentID:    lastActionInPast.ContentID,
+		Size:         lastActionInPast.Size,
+		ModifiedDate: option.Of(lastActionInPast.Timestamp),
+	})
+
+	_, err = getPastFileChildren(ctx, newFile, timestamp)
+	if err != nil {
+		return nil, wlerrors.Errorf("failed to get past file children: %w", err)
+	}
+
+	parentPath := path.Dir()
+
+	parentFileID, err := getPastFileIDAtPath(ctx, parentPath, timestamp)
 	if err != nil {
 		return nil, err
 	}
 
-	return GetPastFileByPath(ctx, lastAction.GetRelevantPath(), time)
+	parent := file_model.NewWeblensFile(file_model.NewFileOptions{Path: parentPath, FileID: parentFileID, IsPastFile: true})
+
+	err = newFile.SetParent(parent)
+	if err != nil {
+		return nil, err
+	}
+
+	err = parent.AddChild(newFile)
+	if err != nil {
+		return nil, err
+	}
+
+	return newFile, nil
 }
 
 // GetPastFileByPath retrieves the historical state of a file at a given path and point in time.

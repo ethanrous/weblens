@@ -3,10 +3,12 @@
         v-if="file"
         class="flex w-full flex-col gap-2 p-1"
     >
-        <div :class="{ 'flex items-center gap-1': true }">
-            <IconFolder v-if="file.isDir" />
-            <IconFile v-else />
-            <h3 class="truncate">{{ file.GetFilename() }}</h3>
+        <div :class="{ 'flex items-start gap-1': true }">
+            <FileIcon
+                :file="file"
+                :class="{ 'mt-1': true }"
+            />
+            <h3 class="leading-tight break-all">{{ file.GetFilename() }}</h3>
         </div>
 
         <div class="flex flex-col">
@@ -118,16 +120,7 @@
 </template>
 
 <script setup lang="ts">
-import {
-    IconCalendar,
-    IconDatabase,
-    IconDownload,
-    IconFile,
-    IconFolder,
-    IconPlus,
-    IconSearch,
-    IconUser,
-} from '@tabler/icons-vue'
+import { IconCalendar, IconDatabase, IconDownload, IconFile, IconPlus, IconSearch, IconUser } from '@tabler/icons-vue'
 import useFilesStore from '~/stores/files'
 import useTagsStore from '~/stores/tags'
 import WeblensButton from '../atom/WeblensButton.vue'
@@ -138,6 +131,7 @@ import WeblensFile from '~/types/weblensFile'
 import { handleDownload } from '~/api/FileBrowserApi'
 import ProgressSquare from '../atom/ProgressSquare.vue'
 import TagPill from '../atom/TagPill.vue'
+import FileIcon from '../atom/FileIcon.vue'
 
 const fileStore = useFilesStore()
 const presentationStore = usePresentationStore()

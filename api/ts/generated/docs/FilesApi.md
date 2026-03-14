@@ -16,7 +16,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 |[**getSharedFiles**](#getsharedfiles) | **GET** /files/shared | Get files shared with the logged in user|
 |[**getUploadResult**](#getuploadresult) | **GET** /upload/{uploadID} | Get the result of an upload task. This will block until the upload is complete|
 |[**moveFiles**](#movefiles) | **PATCH** /files | Move a list of files to a new parent folder|
-|[**restoreFiles**](#restorefiles) | **POST** /files/structsore | structsore files from some time in the past|
+|[**restoreFiles**](#restorefiles) | **POST** /files/restore | Restore files from some time in the past|
 |[**searchFiles**](#searchfiles) | **GET** /files/search | Search for files by filename|
 |[**startUpload**](#startupload) | **POST** /upload | Begin a new upload task|
 |[**unTrashFiles**](#untrashfiles) | **PATCH** /files/untrash | Move a list of files out of the trash, structsoring them to where they were before|
@@ -689,7 +689,7 @@ import {
 const configuration = new Configuration();
 const apiInstance = new FilesApi(configuration);
 
-let request: RestoreFilesBody; //RestoreFiles files request body
+let request: RestoreFilesBody; //Restore files request body
 
 const { status, data } = await apiInstance.restoreFiles(
     request
@@ -700,7 +700,7 @@ const { status, data } = await apiInstance.restoreFiles(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **request** | **RestoreFilesBody**| RestoreFiles files request body | |
+| **request** | **RestoreFilesBody**| Restore files request body | |
 
 
 ### Return type
@@ -720,7 +720,7 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-|**200** | structsore files info |  -  |
+|**200** | Restore files info |  -  |
 |**400** | Bad Request |  -  |
 |**404** | Not Found |  -  |
 |**500** | Internal Server Error |  -  |

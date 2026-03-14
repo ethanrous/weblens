@@ -15,6 +15,11 @@ run_native_tests() {
     # Go is very picky about whitespace, so we need to strip it out
     target=$(awk '{$1=$1};1' <<<"$target")
 
+    # If the target does not start with "./" or "github.com/ethanrous/weblens", prepend "./" to it
+    if [[ ! "$target" =~ ^(\./|github\.com/ethanrous/weblens) ]]; then
+        target="./$target"
+    fi
+
     # Set up environment variables for testing
     export WEBLENS_DO_CACHE=false
     export WEBLENS_MONGODB_URI=${WEBLENS_MONGODB_URI:-"mongodb://127.0.0.1:27019/?replicaSet=rs0&directConnection=true"}
@@ -31,7 +36,7 @@ run_native_tests() {
     go install gotest.tools/gotestsum@latest
 
     # shellcheck disable=SC2086
-    gotestsum -- -cover -race -coverprofile=_build/cover/coverage.out -json -timeout=1m -coverpkg ./... -tags=test ${target}
+    gotestsum --packages="${target}" -- -cover -race -coverprofile=_build/cover/coverage.out -json -timeout=1m -coverpkg ./... -tags=test
 
     portable_sed '/github\.com\/ethanrous\/weblens\/api/d' ./_build/cover/coverage.out
 }
@@ -85,11 +90,14 @@ while [ "${1:-}" != "" ]; do
     shift
 done
 
+# Cleanup other test stacks if they exist. Mongot will OOM if multiple test stacks are running at the same time.
+./scripts/envdown.bash --ignore "test"
+
 if [[ "$lazy" = true ]] && is_mongo_running --stack-name "test"; then
     printf "Skipping mongo container re-deploy (lazy mode)...\n"
 else
-    show_as_subtask "Resetting mongo testing volumes..." "green" -- cleanup_mongo --stack-name "test"
-    show_as_subtask "Launching mongo..." "green" -- launch_mongo --stack-name "test" --mongo-port 27019
+    show_as_subtask "Resetting mongo testing volumes" "green" -- cleanup_mongo --stack-name "test"
+    show_as_subtask "Launching mongo" "green" -- launch_mongo --stack-name "test" --mongo-port 27019
 fi
 
 if [[ "$containerize" = false ]]; then

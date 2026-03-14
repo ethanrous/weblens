@@ -56,8 +56,8 @@ export interface FileActionInfo {
     'eventID': string;
     'fileID': string;
     'filepath'?: string;
+    'liveParentID'?: string;
     'originPath'?: string;
-    'parentID': string;
     'size': number;
     'timestamp': number;
     'towerID': string;
@@ -65,7 +65,8 @@ export interface FileActionInfo {
 export interface FileInfo {
     'childrenIds'?: Array<string>;
     'contentID'?: string;
-    'hasRestoreMedia'?: boolean;
+    'hasMedia'?: boolean;
+    'hasRestoreData'?: boolean;
     'id'?: string;
     'isDir'?: boolean;
     'modifiable'?: boolean;
@@ -115,6 +116,10 @@ export interface HistoryFileAction {
     'fileID'?: string;
     'filepath'?: WlfsFilepath;
     'id'?: string;
+    /**
+     * Used for restore actions to reference the file being restored
+     */
+    'oldFileID'?: string;
     'originPath'?: WlfsFilepath;
     'size'?: number;
     'timestamp'?: string;
@@ -1257,15 +1262,15 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
         },
         /**
          * 
-         * @summary structsore files from some time in the past
-         * @param {RestoreFilesBody} request RestoreFiles files request body
+         * @summary Restore files from some time in the past
+         * @param {RestoreFilesBody} request Restore files request body
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
         restoreFiles: async (request: RestoreFilesBody, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'request' is not null or undefined
             assertParamExists('restoreFiles', 'request', request)
-            const localVarPath = `/files/structsore`;
+            const localVarPath = `/files/restore`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -1708,8 +1713,8 @@ export const FilesApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
-         * @summary structsore files from some time in the past
-         * @param {RestoreFilesBody} request RestoreFiles files request body
+         * @summary Restore files from some time in the past
+         * @param {RestoreFilesBody} request Restore files request body
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -1938,8 +1943,8 @@ export const FilesApiFactory = function (configuration?: Configuration, basePath
         },
         /**
          * 
-         * @summary structsore files from some time in the past
-         * @param {RestoreFilesBody} request RestoreFiles files request body
+         * @summary Restore files from some time in the past
+         * @param {RestoreFilesBody} request Restore files request body
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -2160,8 +2165,8 @@ export class FilesApi extends BaseAPI {
 
     /**
      * 
-     * @summary structsore files from some time in the past
-     * @param {RestoreFilesBody} request RestoreFiles files request body
+     * @summary Restore files from some time in the past
+     * @param {RestoreFilesBody} request Restore files request body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */

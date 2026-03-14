@@ -92,7 +92,6 @@ func GetBackup(ctx context.Context, tower tower_model.Instance, since time.Time)
 			FileID:     apiAction.FileID,
 			ActionType: apiAction.ActionType,
 			EventID:    apiAction.EventID,
-			ParentID:   apiAction.ParentID,
 			TowerID:    apiAction.TowerID,
 			Timestamp:  apiAction.Timestamp,
 			Size:       apiAction.Size,

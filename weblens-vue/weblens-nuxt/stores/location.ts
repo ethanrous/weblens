@@ -1,3 +1,4 @@
+import { useStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { useWeblensAPI } from '~/api/AllApi'
 import WeblensShare from '~/types/weblensShare'
@@ -9,6 +10,11 @@ export enum FbModeT {
     external,
     stats,
     search,
+}
+
+type HistorySettings = {
+    isOpen: boolean
+    width: number
 }
 
 const useLocationStore = defineStore('location', () => {
@@ -58,7 +64,23 @@ const useLocationStore = defineStore('location', () => {
 
     const user = computed(() => userStore.user)
 
-    const isHistoryOpen = ref<boolean>(false)
+    const historySettings = useStorage('wl-history-view', {} as HistorySettings)
+    const isHistoryOpen = ref<boolean>(historySettings.value.isOpen === true)
+    const historyWidth = ref<number>(historySettings.value.width ?? 640)
+
+    watch(isHistoryOpen, (newVal) => {
+        historySettings.value = {
+            ...historySettings.value,
+            isOpen: newVal,
+        }
+    })
+
+    watch(historyWidth, (newVal) => {
+        historySettings.value = {
+            ...historySettings.value,
+            width: newVal,
+        }
+    })
 
     const activeFolderID = computed(() => {
         let fileID = route.value.params.fileID
@@ -201,6 +223,10 @@ const useLocationStore = defineStore('location', () => {
         isHistoryOpen.value = opened
     }
 
+    function setHistoryWidth(w: number) {
+        historyWidth.value = Math.round(Math.max(280, Math.min(w, window.innerWidth * 0.5)))
+    }
+
     async function setViewTimestamp(ts: number) {
         const tsString = ts > 0 ? new Date(ts).toISOString() : undefined
 
@@ -243,6 +269,7 @@ const useLocationStore = defineStore('location', () => {
     watch(isInTimeline, () => {
         setQueryParam('timeline', isInTimeline.value ? 'true' : null)
         search.value = '' // Clear search when changing timeline mode
+        isHistoryOpen.value = false // Close history when changing timeline mode
     })
 
     return {
@@ -266,6 +293,8 @@ const useLocationStore = defineStore('location', () => {
 
         isHistoryOpen,
         setHistoryOpen,
+        historyWidth,
+        setHistoryWidth,
 
         viewTimestamp,
         isViewingPast,

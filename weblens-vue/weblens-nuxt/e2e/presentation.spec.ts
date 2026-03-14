@@ -22,7 +22,7 @@ test.describe('Presentation Mode', () => {
 
     test('should enter presentation mode by pressing Space after selecting a folder', async ({ page }) => {
         // Wait for files to load
-        await expect(page.getByText('PresentationTestA')).toBeVisible({ timeout: 15000 })
+        await expect(page.getByText('PresentationTestA')).toBeVisible()
 
         // Click on a folder to select it (sets filesStore.lastSelected)
         const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'PresentationTestA' })
@@ -38,7 +38,7 @@ test.describe('Presentation Mode', () => {
         // The Presentation component should render as a fullscreen-modal
         // For a folder, it shows a folder icon and the folder name
         const presentationModal = page.locator('.presentation')
-        await expect(presentationModal).toBeVisible({ timeout: 15000 })
+        await expect(presentationModal).toBeVisible()
 
         // Verify the folder name is shown in the presentation (h1 heading)
         await expect(presentationModal.locator('h1').filter({ hasText: 'PresentationTestA' })).toBeVisible()
@@ -46,14 +46,14 @@ test.describe('Presentation Mode', () => {
 
     test('should navigate between files in presentation with arrow keys', async ({ page }) => {
         // Wait for files and select a folder
-        await expect(page.getByText('PresentationTestA')).toBeVisible({ timeout: 15000 })
+        await expect(page.getByText('PresentationTestA')).toBeVisible()
         const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'PresentationTestA' })
         await folderCard.click()
 
         // Enter presentation
         await page.keyboard.press('Space')
         const presentationModal = page.locator('.presentation')
-        await expect(presentationModal).toBeVisible({ timeout: 15000 })
+        await expect(presentationModal).toBeVisible()
 
         // Press ArrowRight to navigate to the next file
         await page.keyboard.press('ArrowRight')
@@ -68,27 +68,27 @@ test.describe('Presentation Mode', () => {
         await page.keyboard.press('Escape')
 
         // Presentation should close
-        await expect(presentationModal).not.toBeVisible({ timeout: 15000 })
+        await expect(presentationModal).not.toBeVisible()
     })
 
     test('should toggle presentation with Space key (open then close)', async ({ page }) => {
-        await expect(page.getByText('PresentationTestA')).toBeVisible({ timeout: 15000 })
+        await expect(page.getByText('PresentationTestA')).toBeVisible()
         const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'PresentationTestA' })
         await folderCard.click()
 
         // Open presentation with Space
         await page.keyboard.press('Space')
         const presentationModal = page.locator('.presentation')
-        await expect(presentationModal).toBeVisible({ timeout: 15000 })
+        await expect(presentationModal).toBeVisible()
 
         // Close presentation with Space again
         await page.keyboard.press('Space')
-        await expect(presentationModal).not.toBeVisible({ timeout: 15000 })
+        await expect(presentationModal).not.toBeVisible()
     })
 
     test('should open context menu by right-clicking on empty file scroller area', async ({ page }) => {
         // Wait for files to load
-        await expect(page.getByText('PresentationTestA')).toBeVisible({ timeout: 15000 })
+        await expect(page.getByText('PresentationTestA')).toBeVisible()
 
         // Right-click on the file scroller container (the outer wrapper, not individual file cards)
         // The scroller container handles contextmenu events and opens the active folder context menu
@@ -113,7 +113,7 @@ test.describe('Presentation Mode', () => {
     })
 
     test('should show folder icon in presentation for folder items', async ({ page }) => {
-        await expect(page.getByText('PresentationTestA')).toBeVisible({ timeout: 15000 })
+        await expect(page.getByText('PresentationTestA')).toBeVisible()
         const fileCards = page.locator('[id^="file-card-"]')
 
         // Find a folder card (has folder icon)
@@ -129,7 +129,7 @@ test.describe('Presentation Mode', () => {
         await page.keyboard.press('Space')
 
         const presentationSidecar = page.locator('#presentation-info-sidecar')
-        await expect(presentationSidecar).toBeVisible({ timeout: 15000 })
+        await expect(presentationSidecar).toBeVisible()
 
         // Folder presentation shows the folder icon
         const folderIcon = presentationSidecar.locator('.tabler-icon-folder')
@@ -137,7 +137,7 @@ test.describe('Presentation Mode', () => {
 
         // Close
         await page.keyboard.press('Escape')
-        await expect(presentationSidecar).not.toBeVisible({ timeout: 15000 })
+        await expect(presentationSidecar).not.toBeVisible()
     })
 })
 
@@ -148,7 +148,7 @@ test.describe('Error Page', () => {
 
         // The error page should show 404 content
         // error.vue checks error.statusCode === 404 and shows "404" heading and "Page not found"
-        await expect(page.getByText('404')).toBeVisible({ timeout: 15000 })
+        await expect(page.getByText('404')).toBeVisible()
         await expect(page.getByText('Page not found')).toBeVisible()
 
         // The "Go Home" button should be visible
@@ -161,10 +161,10 @@ test.describe('Error Page', () => {
 
         // Click "Go Home" button
         const goHomeBtn = page.getByRole('button', { name: 'Go Home' })
-        if (await goHomeBtn.isVisible({ timeout: 15000 }).catch(() => false)) {
+        if (await goHomeBtn.isVisible().catch(() => false)) {
             await goHomeBtn.click()
             // Should navigate to the home page
-            await page.waitForURL('**/files/home', { timeout: 15000 })
+            await page.waitForURL('**/files/home')
         }
     })
 })
@@ -187,7 +187,7 @@ test.describe('Upload Progress and File Size Formatting', () => {
         })
 
         // Wait for the file to appear in the file list
-        await expect(page.getByText('large-test-file.txt')).toBeVisible({ timeout: 15000 })
+        await expect(page.getByText('large-test-file.txt')).toBeVisible()
 
         // Verify the file size is displayed in the file card (e.g., "102.4kB - Sun Feb 08 2026")
         // humanBytes formats sizes with lowercase k: "102.4kB"
@@ -199,7 +199,7 @@ test.describe('Upload Progress and File Size Formatting', () => {
         const trashBtn = page.locator('#filebrowser-container').getByRole('button', { name: 'Trash' })
         if (await trashBtn.isEnabled({ timeout: 2000 }).catch(() => false)) {
             await trashBtn.click()
-            await expect(fileCard).not.toBeVisible({ timeout: 15000 })
+            await expect(fileCard).not.toBeVisible()
         } else {
             // Close context menu if Trash is disabled
             await page.keyboard.press('Escape')

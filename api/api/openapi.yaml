@@ -107,6 +107,38 @@ paths:
       summary: Get path completion suggestions
       tags:
       - Files
+  /files/restore:
+    post:
+      operationId: RestoreFiles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RestoreFilesBody"
+        description: Restore files request body
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestoreFilesInfo"
+          description: Restore files info
+        "400":
+          content: {}
+          description: Bad Request
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Restore files from some time in the past
+      tags:
+      - Files
+      x-codegen-request-body-name: request
   /files/search:
     get:
       operationId: SearchFiles
@@ -211,38 +243,6 @@ paths:
       summary: Get files shared with the logged in user
       tags:
       - Files
-  /files/structsore:
-    post:
-      operationId: RestoreFiles
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/RestoreFilesBody"
-        description: RestoreFiles files request body
-        required: true
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RestoreFilesInfo"
-          description: structsore files info
-        "400":
-          content: {}
-          description: Bad Request
-        "404":
-          content: {}
-          description: Not Found
-        "500":
-          content: {}
-          description: Internal Server Error
-      security:
-      - SessionAuth: []
-      summary: structsore files from some time in the past
-      tags:
-      - Files
-      x-codegen-request-body-name: request
   /files/untrash:
     patch:
       operationId: UnTrashFiles
@@ -2547,8 +2547,8 @@ components:
           contentID: contentID
           destinationPath: destinationPath
           towerID: towerID
-          parentID: parentID
           fileID: fileID
+          liveParentID: liveParentID
           timestamp: 6
         - actionType: actionType
           eventID: eventID
@@ -2558,8 +2558,8 @@ components:
           contentID: contentID
           destinationPath: destinationPath
           towerID: towerID
-          parentID: parentID
           fileID: fileID
+          liveParentID: liveParentID
           timestamp: 6
         lifetimesCount: 0
         instances:
@@ -2683,8 +2683,8 @@ components:
         contentID: contentID
         destinationPath: destinationPath
         towerID: towerID
-        parentID: parentID
         fileID: fileID
+        liveParentID: liveParentID
         timestamp: 6
       properties:
         actionType:
@@ -2699,9 +2699,9 @@ components:
           type: string
         filepath:
           type: string
-        originPath:
+        liveParentID:
           type: string
-        parentID:
+        originPath:
           type: string
         size:
           format: int64
@@ -2715,7 +2715,6 @@ components:
       - actionType
       - eventID
       - fileID
-      - parentID
       - size
       - timestamp
       - towerID
@@ -2723,11 +2722,12 @@ components:
     FileInfo:
       example:
         owner: owner
+        hasRestoreData: true
         childrenIds:
         - childrenIds
         - childrenIds
         contentID: contentID
-        hasRestoreMedia: true
+        hasMedia: true
         shareID: shareID
         portablePath: portablePath
         parentID: parentID
@@ -2749,7 +2749,9 @@ components:
           type: array
         contentID:
           type: string
-        hasRestoreMedia:
+        hasMedia:
+          type: boolean
+        hasRestoreData:
           type: boolean
         id:
           type: string
@@ -2857,11 +2859,12 @@ components:
           height: 2
         children:
         - owner: owner
+          hasRestoreData: true
           childrenIds:
           - childrenIds
           - childrenIds
           contentID: contentID
-          hasRestoreMedia: true
+          hasMedia: true
           shareID: shareID
           portablePath: portablePath
           parentID: parentID
@@ -2877,11 +2880,12 @@ components:
           modifiable: true
           isDir: true
         - owner: owner
+          hasRestoreData: true
           childrenIds:
           - childrenIds
           - childrenIds
           contentID: contentID
-          hasRestoreMedia: true
+          hasMedia: true
           shareID: shareID
           portablePath: portablePath
           parentID: parentID
@@ -2898,11 +2902,12 @@ components:
           isDir: true
         self:
           owner: owner
+          hasRestoreData: true
           childrenIds:
           - childrenIds
           - childrenIds
           contentID: contentID
-          hasRestoreMedia: true
+          hasMedia: true
           shareID: shareID
           portablePath: portablePath
           parentID: parentID
@@ -2919,11 +2924,12 @@ components:
           isDir: true
         parents:
         - owner: owner
+          hasRestoreData: true
           childrenIds:
           - childrenIds
           - childrenIds
           contentID: contentID
-          hasRestoreMedia: true
+          hasMedia: true
           shareID: shareID
           portablePath: portablePath
           parentID: parentID
@@ -2939,11 +2945,12 @@ components:
           modifiable: true
           isDir: true
         - owner: owner
+          hasRestoreData: true
           childrenIds:
           - childrenIds
           - childrenIds
           contentID: contentID
-          hasRestoreMedia: true
+          hasMedia: true
           shareID: shareID
           portablePath: portablePath
           parentID: parentID
@@ -3757,17 +3764,18 @@ components:
       type: object
     history.FileAction:
       example:
-        actionType: actionType
         eventID: eventID
-        filepath:
+        originPath:
           rootAlias: rootAlias
           relPath: relPath
-        originPath:
+        contentID: contentID
+        actionType: actionType
+        filepath:
           rootAlias: rootAlias
           relPath: relPath
         size: 0
         doer: doer
-        contentID: contentID
+        oldFileID: oldFileID
         id: id
         destinationPath:
           rootAlias: rootAlias
@@ -3792,6 +3800,9 @@ components:
         filepath:
           $ref: "#/components/schemas/wlfs.Filepath"
         id:
+          type: string
+        oldFileID:
+          description: Used for restore actions to reference the file being restored
           type: string
         originPath:
           $ref: "#/components/schemas/wlfs.Filepath"

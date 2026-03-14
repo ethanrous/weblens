@@ -59,6 +59,16 @@
                 This folder is empty
             </span>
         </div>
+
+        <WeblensButton
+            v-if="locationStore.isViewingPast && filesStore.fileFetchError?.status === 404"
+            label="Go Back"
+            type="outline"
+            @click="$router.back()"
+        >
+            <IconArrowLeft size="16" />
+        </WeblensButton>
+
         <WeblensButton
             v-if="filesStore.filterTagIDs.size > 0"
             label="Clear Filters"
@@ -71,7 +81,7 @@
 </template>
 
 <script setup lang="ts">
-import { IconFileSad, IconFilterOff, IconSearch, IconTrashX } from '@tabler/icons-vue'
+import { IconArrowLeft, IconFileSad, IconFilterOff, IconSearch, IconTrashX } from '@tabler/icons-vue'
 import useFilesStore from '~/stores/files'
 import WeblensButton from '../atom/WeblensButton.vue'
 import FileIcon from '../atom/FileIcon.vue'

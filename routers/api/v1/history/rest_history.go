@@ -57,7 +57,7 @@ func DoFullBackup(ctx ctxservice.RequestContext) {
 
 	ctx.Log().Trace().Msgf("Getting backup info since %s", since.String())
 
-	fileActions, err := history.GetActionsAtPathAfter(ctx, wlfs.Filepath{}, since, false)
+	fileActions, err := history.GetActionsAtPathAfter(ctx, wlfs.Filepath{}, since, history.GetActionsOptions{IncludeChildren: false})
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, wlerrors.Wrap(err, "failed to get actions"))
 
@@ -137,7 +137,7 @@ func GetPagedHistoryActions(ctx ctxservice.RequestContext) {
 
 	actionInfos := make([]wlstructs.FileActionInfo, 0, len(actions))
 	for _, action := range actions {
-		actionInfos = append(actionInfos, reshape.FileActionToFileActionInfo(action))
+		actionInfos = append(actionInfos, reshape.FileActionToFileActionInfo(action, ""))
 	}
 
 	ctx.JSON(http.StatusOK, actionInfos)

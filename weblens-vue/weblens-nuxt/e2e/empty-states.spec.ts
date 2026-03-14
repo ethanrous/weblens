@@ -26,7 +26,7 @@ test.describe('Empty States', () => {
         await folderCard.dblclick()
 
         // Should show "This folder is empty" (NoResults.vue else branch)
-        await expect(page.getByText('This folder is empty')).toBeVisible({ timeout: 15000 })
+        await expect(page.getByText('This folder is empty')).toBeVisible()
 
         // Navigate back
         await page.locator('.tabler-icon-chevron-left').first().click()
@@ -36,9 +36,7 @@ test.describe('Empty States', () => {
     test('should show no search results message for nonexistent files', async ({ page }) => {
         await createFolder(page, 'SomeFolder')
 
-        await expect(page.locator('[id^="file-card-"]').first()).toBeVisible({
-            timeout: 15000,
-        })
+        await expect(page.locator('[id^="file-card-"]').first()).toBeVisible()
 
         // Search for something that doesn't exist
         const searchInput = page.getByPlaceholder('Search Files...')
@@ -47,7 +45,7 @@ test.describe('Empty States', () => {
 
         // Should show "No files found" (NoResults.vue search branch)
         const noFilesFound = page.getByText('No files found in')
-        await expect(noFilesFound).toBeVisible({ timeout: 15000 })
+        await expect(noFilesFound).toBeVisible()
 
         // Clear search
         await searchInput.clear()
@@ -56,29 +54,29 @@ test.describe('Empty States', () => {
     test('should show shared files empty state', async ({ page }) => {
         // Navigate to shared root
         await page.getByRole('button', { name: 'Shared' }).click()
-        await page.waitForURL('**/files/share', { timeout: 15000 })
+        await page.waitForURL('**/files/share')
 
         // Should show empty state or shared files
         const noShared = page.getByText('No files shared with you')
         const sharedFiles = page.locator('[id^="file-card-"]')
 
-        await expect(noShared.or(sharedFiles.first())).toBeVisible({ timeout: 15000 })
+        await expect(noShared.or(sharedFiles.first())).toBeVisible()
 
         await page.getByRole('button', { name: 'Home' }).click()
-        await page.waitForURL('**/files/home', { timeout: 15000 })
+        await page.waitForURL('**/files/home')
     })
 
     test('should show trash empty state or trash items', async ({ page }) => {
         await page.getByRole('button', { name: 'Trash' }).click()
-        await page.waitForURL('**/files/trash', { timeout: 15000 })
+        await page.waitForURL('**/files/trash')
 
         // Should show either the empty trash message or file cards (auto-wait for either)
         const emptyMsg = page.getByText('Someone already took the trash out')
         const fileCards = page.locator('[id^="file-card-"]')
-        await expect(emptyMsg.or(fileCards.first())).toBeVisible({ timeout: 15000 })
+        await expect(emptyMsg.or(fileCards.first())).toBeVisible()
 
         await page.getByRole('button', { name: 'Home' }).click()
-        await page.waitForURL('**/files/home', { timeout: 15000 })
+        await page.waitForURL('**/files/home')
     })
 
     test('should handle navigation to invalid file ID gracefully', async ({ page }) => {

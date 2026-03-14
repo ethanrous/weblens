@@ -15,7 +15,7 @@ import (
 func NewBackupInfo(ctx context.Context, fileHistory []history.FileAction, users []*usermodel.User, instances []tower.Instance, tokens []*auth.Token) wlstructs.BackupInfo {
 	fileActionInfos := make([]wlstructs.FileActionInfo, 0, len(fileHistory))
 	for _, a := range fileHistory {
-		fileActionInfos = append(fileActionInfos, FileActionToFileActionInfo(a))
+		fileActionInfos = append(fileActionInfos, FileActionToFileActionInfo(a, ""))
 	}
 
 	userInfos := make([]wlstructs.UserInfoArchive, 0, len(users))

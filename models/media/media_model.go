@@ -22,6 +22,7 @@ import (
 var hdirVectorIndexKey = "hdir_vector_index"
 var contentIDIndexKey = "contentID_unique_index"
 var ownerIndexKey = "owner_index"
+var fileIDsIndex = "fileIDs_index"
 
 func init() {
 	startup.RegisterHook(registerIndexes)
@@ -192,6 +193,30 @@ func GetMediasByContentIDs(ctx context.Context, contentIDs ...ContentID) ([]*Med
 	err = cur.All(ctx, &media)
 	if err != nil {
 		return nil, db.WrapError(err, "get media by contentIds")
+	}
+
+	return media, nil
+}
+
+// GetMediasByFileIDs retrieves media items that are associated with any of the given file IDs.
+func GetMediasByFileIDs(ctx context.Context, fileIDs ...string) ([]*Media, error) {
+	col, err := db.GetCollection[*Media](ctx, MediaCollectionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	media := []*Media{}
+
+	filter := bson.M{"fileIDs": bson.M{"$in": fileIDs}}
+
+	cur, err := col.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	err = cur.All(ctx, &media)
+	if err != nil {
+		return nil, db.WrapError(err, "get media by fileIDs")
 	}
 
 	return media, nil
@@ -673,7 +698,6 @@ func registerIndexes(ctx context.Context, _ config.Provider) error {
 		return err
 	}
 
-	// Create the unique contentID index
 	err = col.NewIndex(mongo.IndexModel{
 		Keys:    bson.D{{Key: "contentID", Value: 1}},
 		Options: options.Index().SetUnique(true).SetName(contentIDIndexKey),
@@ -682,7 +706,6 @@ func registerIndexes(ctx context.Context, _ config.Provider) error {
 		return err
 	}
 
-	// Create the owner index
 	err = col.NewIndex(mongo.IndexModel{
 		Keys:    bson.D{{Key: "owner", Value: 1}},
 		Options: options.Index().SetName(ownerIndexKey),
@@ -691,7 +714,14 @@ func registerIndexes(ctx context.Context, _ config.Provider) error {
 		return err
 	}
 
-	// Create the index if it does not exist
+	err = col.NewIndex(mongo.IndexModel{
+		Keys:    bson.D{{Key: "fileIDs", Value: 1}},
+		Options: options.Index().SetName(fileIDsIndex),
+	})
+	if err != nil {
+		return err
+	}
+
 	err = col.NewSearchIndex(mongo.SearchIndexModel{
 		Definition: bson.M{
 			"fields": bson.A{bson.M{"type": "vector", "path": "hdir", "numDimensions": 1024, "similarity": "cosine", "quantization": "scalar"}, bson.M{"type": "filter", "path": "contentID"}},

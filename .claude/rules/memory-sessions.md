@@ -2,6 +2,24 @@
 
 Rolling summary of recent work. Keep last ~5 sessions, remove older ones.
 
+## 2026-03-11
+
+- File history panel: grouped actions by `eventID` for compact display
+  - Created `FileEventGroup.vue` — collapsed header with chevron expand for multi-action events, single actions render inline
+  - Created `ActionIcon.vue` — renders correct icon per action type
+  - Refactored `FileAction.vue` — compact single-line layout with `compact` prop, removed fixed `h-20` height
+  - Updated `FileHistory.vue` — groups flat `FileActionInfo[]` by `eventID` into `EventGroup[]` via computed, renders `FileEventGroup` instead of individual actions
+
+## 2026-03-10
+
+- Implemented file restore from history (full stack):
+  - Backend: `NewRestoreAction` in `models/history/file_action.go`, `RestoreFiles` service method in `services/file/file_service.go` (BFS queue, hard-links from RESTORE tree, handles dirs recursively), REST handler in `routers/api/v1/file/rest_files.go`
+  - Fixed `journal.GetPastFileByID` to include `ContentID` and `Size` from history action, and bypass path-based lookup to avoid ambiguity when multiple files existed at same path
+  - Fixed swagger annotations ("structsore" → "restore"), ran `make swag` to regenerate
+  - Frontend: Added "Restore" button to `ContextMenuActions.vue` (visible when `isViewingPast`), calls generated API's `restoreFiles` method
+  - Tests: 3 integration tests (single file, directory with children, name conflict)
+  - All 115 file service tests pass
+
 ## 2026-03-07
 
 - Migrated tag API from hand-written `TagApi.ts` to generated `@ethanrous/weblens-api` client

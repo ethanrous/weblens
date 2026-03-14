@@ -295,7 +295,7 @@ func GetFolderHistory(ctx context_service.RequestContext) {
 		return
 	}
 
-	actions, err := history.GetActionsAtPathAfter(ctx, file.GetPortablePath(), time.Time{}, true)
+	actions, err := history.GetActionsAtPathAfter(ctx, file.GetPortablePath(), time.Time{}, history.GetActionsOptions{IncludeChildren: true})
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 
@@ -303,8 +303,27 @@ func GetFolderHistory(ctx context_service.RequestContext) {
 	}
 
 	actionInfos := make([]wlstructs.FileActionInfo, 0, len(actions))
+	activeParentPathMap := make(map[wlfs.Filepath]string)
+
 	for _, a := range actions {
-		actionInfos = append(actionInfos, reshape.FileActionToFileActionInfo(a))
+		liveParentID := ""
+
+		// Compute the live parent ID for the action's relevant path by looking up the latest action at the parent path.
+		// We want to give context to the client about where the parent file might be right now, so we can navigate to it.
+		parentPath := a.GetRelevantPath().Dir()
+		if cachedParentID, ok := activeParentPathMap[parentPath]; ok {
+			liveParentID = cachedParentID
+		} else {
+			parentLatestAction, err := history.GetActionAtFilepath(ctx, parentPath)
+			if err == nil && parentLatestAction.IsCreateIsh() {
+				liveParentID = parentLatestAction.FileID
+
+				// Cache the parent path to live parent ID mapping for future iterations
+				activeParentPathMap[parentPath] = parentLatestAction.FileID
+			}
+		}
+
+		actionInfos = append(actionInfos, reshape.FileActionToFileActionInfo(a, liveParentID))
 	}
 
 	ctx.JSON(http.StatusOK, actionInfos)
@@ -494,7 +513,8 @@ func SearchFiles(ctx context_service.RequestContext) {
 		}
 	}
 
-	sortFileInfos(fileInfos, ctx.Query("sortProp"), ctx.Query("sortOrder"))
+	// TODO: add media searching+sorting									VVV
+	sortFileInfos(fileInfos, ctx.Query("sortProp"), ctx.Query("sortOrder"), nil)
 
 	ctx.JSON(http.StatusOK, fileInfos)
 }
@@ -922,20 +942,22 @@ func AutocompletePath(ctx context_service.RequestContext) {
 //
 //	@Security	SessionAuth
 //
-//	@Summary	structsore files from some time in the past
+//	@Summary	Restore files from some time in the past
 //	@Tags		Files
 //	@Accept		json
 //	@Produce	json
-//	@Param		request	body		wlstructs.RestoreFilesParams	true	"RestoreFiles files request body"
-//	@Success	200		{object}	wlstructs.RestoreFilesInfo	"structsore files info"
+//	@Param		request	body		wlstructs.RestoreFilesParams	true	"Restore files request body"
+//	@Success	200		{object}	wlstructs.RestoreFilesInfo		"Restore files info"
 //	@Failure	400
 //	@Failure	404
 //	@Failure	500
-//	@Router		/files/structsore [post]
+//	@Router		/files/restore [post]
 func RestoreFiles(ctx context_service.RequestContext) {
 	body, err := netwrk.ReadRequestBody[wlstructs.RestoreFilesParams](ctx.Req)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, wlerrors.New("Failed to read request body"))
+
+		return
 	}
 
 	if body.Timestamp == 0 {
@@ -944,49 +966,45 @@ func RestoreFiles(ctx context_service.RequestContext) {
 		return
 	}
 
-	ctx.Status(http.StatusNotImplemented)
-	// structsoreTime := time.UnixMilli(body.Timestamp)
+	if len(body.FileIDs) == 0 {
+		ctx.Error(http.StatusBadRequest, wlerrors.New("Missing body parameter 'fileIDs'"))
 
-	// parentLt := ctx.FileService.GetJournalByTree("USERS").Get(body.NewParentID)
-	// if parentLt == nil {
-	// 	ctx.Error(http.StatusNotFound, errors.New("Could not find new parent"))
-	// 	return
-	// }
-	//
-	// // New parent folder is the folder it was in at the time we are structsoring from, if
-	// // it still exists, otherwise it is the users home folder
-	// var newParent *file_model.WeblensFileImpl
-	// if parentLt.GetLatestAction().GetActionType() == fileTree.FileDelete {
-	// 	newParent, err = ctx.FileService.GetFileSafe(u.HomeID, u, nil)
-	//
-	// 	// this should never error, but you never know
-	// 	if SafeErrorAndExit(err, w, log) {
-	// 		return
-	// 	}
-	// } else {
-	// 	newParent, err = ctx.FileService.GetFileSafe(body.NewParentID, u, nil)
-	// 	if SafeErrorAndExit(err, w, log) {
-	// 		return
-	// 	}
-	// }
-	//
-	// // actions := parentLt.GetActions()
-	// // for i, action := range actions {
-	// // 	if action.Timestamp.After(structsoreTime) && (action.ActionType != fileTree.FileSizeChange || i == len(actions)-1) {
-	// // 		if i != 0 {
-	// // 			structsoreTime = actions[i-1].Timestamp
-	// // 		}
-	// // 		break
-	// // 	}
-	// // }
-	//
-	// err = ctx.FileService.structsoreFiles(body.FileIds, newParent, structsoreTime, pack.Caster)
-	// if SafeErrorAndExit(err, w, log) {
-	// 	return
-	// }
-	// res := wlstructs.structsoreFilesInfo{NewParentID: newParent.ID()}
-	// writeJSON(w, http.StatusOK, res)
-	_ = ""
+		return
+	}
+
+	restoreTime := time.UnixMilli(body.Timestamp)
+
+	// Resolve destination parent folder. If newParentID is provided and the folder
+	// still exists, use it; otherwise fall back to the user's home directory.
+	var newParent *file_model.WeblensFileImpl
+	if body.NewParentID != "" {
+		newParent, err = CheckFileAccessByID(ctx, body.NewParentID)
+		if err != nil {
+			return
+		}
+	} else {
+		newParent, err = ctx.FileService.GetFileByID(ctx, ctx.Requester.HomeID)
+		if err != nil {
+			ctx.Error(http.StatusInternalServerError, wlerrors.Wrap(err, "failed to get user home"))
+
+			return
+		}
+	}
+
+	if !newParent.IsDir() {
+		ctx.Error(http.StatusBadRequest, wlerrors.New("New parent must be a directory"))
+
+		return
+	}
+
+	err = ctx.FileService.RestoreFiles(ctx, body.FileIDs, newParent, restoreTime)
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, wlerrors.Wrap(err, "failed to restore files"))
+
+		return
+	}
+
+	ctx.JSON(http.StatusOK, wlstructs.RestoreFilesInfo{NewParentID: newParent.ID()})
 }
 
 // UpdateFile godoc
@@ -1522,32 +1540,31 @@ func getChildMedias(
 	ctx context_service.RequestContext,
 	children []*file_model.WeblensFileImpl,
 ) ([]*media_model.Media, error) {
-	contentIDs := make([]string, 0, len(children))
+	regFileIDs := make([]string, 0, len(children)) // Regular file IDs to lookup directly in media collection
+	dirFileIDs := make([]string, 0)                // Directory file IDs that require cover lookup
 
 	for _, child := range children {
-		if child.IsDir() && child.GetContentID() == "" {
-			cover, err := cover_model.GetCoverByFolderID(ctx, child.ID())
-
-			if db.IsNotFound(err) {
-				// No cover for this folder, skip it
-				continue
-			} else if err != nil {
-				ctx.Log().Error().Stack().Err(err).Msgf("failed to get child media")
-
-				continue
-			}
-
-			child.SetContentID(cover.CoverPhotoID)
+		if child.IsDir() {
+			// cover, err := cover_model.GetCoverByFolderID(ctx, child.ID())
+			//
+			// if db.IsNotFound(err) {
+			// 	// No cover for this folder, skip it
+			// 	continue
+			// } else if err != nil {
+			// 	ctx.Log().Error().Stack().Err(err).Msgf("failed to get child media")
+			//
+			// 	continue
+			// }
+			//
+			// child.SetContentID(cover.CoverPhotoID)
+			//
+			dirFileIDs = append(dirFileIDs, child.ID())
+		} else {
+			regFileIDs = append(regFileIDs, child.ID())
 		}
-
-		if child.GetContentID() == "" {
-			continue
-		}
-
-		contentIDs = append(contentIDs, child.GetContentID())
 	}
 
-	medias, err := media_model.GetMediasByContentIDs(ctx, contentIDs...)
+	medias, err := media_model.GetMediasByFileIDs(ctx, regFileIDs...)
 	if err != nil {
 		return nil, err
 	}
@@ -1555,16 +1572,31 @@ func getChildMedias(
 	return medias, nil
 }
 
-func sortFileInfos(files []wlstructs.FileInfo, sortBy string, sortDir string) {
+func sortFileInfos(files []wlstructs.FileInfo, sortBy string, sortDir string, medias map[string]*media_model.Media) {
 	wlslices.SortFunc(files, func(f1, f2 wlstructs.FileInfo) int {
 		var less int
 
 		switch sortBy {
 		case "modified", "updatedAt":
+			// When sorting by date, if we have a media associated with the file, we should sort by the media's create date instead of the file's mod time, as this will be more accurate to when the content of the file was last updated.
+			f1mod := f1.ModTime
+			if f1.HasMedia && medias != nil {
+				if media, ok := medias[f1.ContentID]; ok {
+					f1mod = media.CreateDate.UnixMilli()
+				}
+			}
+
+			f2mod := f2.ModTime
+			if f2.HasMedia && medias != nil {
+				if media, ok := medias[f2.ContentID]; ok {
+					f2mod = media.CreateDate.UnixMilli()
+				}
+			}
+
 			switch {
-			case f1.ModTime < f2.ModTime:
+			case f1mod < f2mod:
 				less = -1
-			case f1.ModTime > f2.ModTime:
+			case f1mod > f2mod:
 				less = 1
 			}
 		case "size":

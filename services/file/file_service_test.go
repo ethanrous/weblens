@@ -6,6 +6,7 @@ import (
 	"time"
 
 	file_model "github.com/ethanrous/weblens/models/file"
+	"github.com/ethanrous/weblens/models/history"
 	"github.com/ethanrous/weblens/models/task"
 	task_model "github.com/ethanrous/weblens/models/task"
 	tower_model "github.com/ethanrous/weblens/models/tower"
@@ -1496,5 +1497,150 @@ func TestFileService_DeleteFiles_Recursive(t *testing.T) {
 		_, err = fs.GetFileByID(ctx, level1.ID())
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, file_model.ErrFileNotFound)
+	})
+}
+
+func TestFileService_RestoreFiles_Integration(t *testing.T) {
+	t.Run("restores a single deleted file", func(t *testing.T) {
+		ctx, _ := newIntegrationTestContext(t)
+		appCtx, ok := ctxservice.FromContext(ctx)
+		require.True(t, ok)
+
+		fs := appCtx.GetFileService()
+
+		userHome, err := fs.GetFileByFilepath(ctx, file_model.UsersRootPath.Child("testuser", true))
+		require.NoError(t, err)
+
+		// Create a file, record the time it existed, then delete it
+		content := []byte("restore me please")
+		file := createTestFile(t, ctx, fs, userHome, "restore-target.txt", content)
+		fileID := file.ID()
+
+		// Record time while file exists — this is the "past" moment the user sees
+		restoreTime := time.Now()
+
+		// Small delay so delete timestamp is strictly after restoreTime
+		time.Sleep(10 * time.Millisecond)
+
+		err = fs.DeleteFiles(ctx, file)
+		require.NoError(t, err)
+
+		// Verify file is deleted
+		assertFileNotInService(t, ctx, fs, fileID)
+
+		// Restore the file
+		err = fs.RestoreFiles(ctx, []string{fileID}, userHome, restoreTime)
+		require.NoError(t, err)
+
+		// Verify the restored file exists in the service and on disk
+		restoredFile, err := fs.GetFileByID(ctx, fileID)
+		require.NoError(t, err)
+		assert.Equal(t, "restore-target.txt", restoredFile.GetPortablePath().Filename())
+		assertFileExistsOnDisk(t, restoredFile.GetPortablePath())
+	})
+
+	t.Run("restores a directory with children", func(t *testing.T) {
+		ctx, _ := newIntegrationTestContext(t)
+		appCtx, ok := ctxservice.FromContext(ctx)
+		require.True(t, ok)
+
+		fs := appCtx.GetFileService()
+
+		userHome, err := fs.GetFileByFilepath(ctx, file_model.UsersRootPath.Child("testuser", true))
+		require.NoError(t, err)
+
+		// Create a folder with a child file
+		folder := createTestFolder(t, ctx, fs, userHome, "restore-dir")
+		childFile := createTestFile(t, ctx, fs, folder, "child.txt", []byte("child content"))
+		folderID := folder.ID()
+		childID := childFile.ID()
+
+		restoreTime := time.Now()
+
+		time.Sleep(10 * time.Millisecond)
+
+		err = fs.DeleteFiles(ctx, folder)
+		require.NoError(t, err)
+
+		assertFileNotInService(t, ctx, fs, folderID)
+		assertFileNotInService(t, ctx, fs, childID)
+
+		// Restore the directory
+		err = fs.RestoreFiles(ctx, []string{folderID}, userHome, restoreTime)
+		require.NoError(t, err)
+
+		restoredFolder, err := fs.GetFileByID(ctx, folderID)
+		require.NoError(t, err)
+		assert.True(t, restoredFolder.IsDir())
+
+		restoredChild, err := fs.GetFileByID(ctx, childID)
+		require.NoError(t, err)
+		assert.Equal(t, "child.txt", restoredChild.GetPortablePath().Filename())
+		assertFileExistsOnDisk(t, restoredChild.GetPortablePath())
+
+		// Assert all the restored files have the same eventID on their latest journal entry, indicating they were part of the same restore event
+		actions, err := history.GetActionsAtPathAfter(appCtx, restoredFolder.GetPortablePath(), restoreTime, history.GetActionsOptions{
+			IncludeChildren: true,
+			ActionTypes:     []history.FileActionType{history.FileRestore},
+		})
+		require.NoError(t, err)
+		require.NotEmpty(t, actions)
+
+		restoreEventID := actions[0].EventID
+		for _, action := range actions {
+			assert.Equal(t, restoreEventID, action.EventID, "All restored files should have the same event ID in their journal entries, but %+v had a different one", action)
+		}
+	})
+
+	t.Run("restores with name conflict generates unique name", func(t *testing.T) {
+		ctx, _ := newIntegrationTestContext(t)
+		appCtx, ok := ctxservice.FromContext(ctx)
+		require.True(t, ok)
+
+		fs := appCtx.GetFileService()
+
+		userHome, err := fs.GetFileByFilepath(ctx, file_model.UsersRootPath.Child("testuser", true))
+		require.NoError(t, err)
+
+		// Create, delete, then create again with same name
+		file := createTestFile(t, ctx, fs, userHome, "conflict.txt", []byte("original"))
+		fileID := file.ID()
+
+		restoreTime := time.Now()
+
+		time.Sleep(10 * time.Millisecond)
+
+		err = fs.DeleteFiles(ctx, file)
+		require.NoError(t, err)
+
+		// Create a new file with the same name
+		_ = createTestFile(t, ctx, fs, userHome, "conflict.txt", []byte("new content"))
+
+		// Restore the original — should get a unique name
+		err = fs.RestoreFiles(ctx, []string{fileID}, userHome, restoreTime)
+		require.NoError(t, err)
+
+		// NewRestoreAction assigns a new ID, so find the restored file by checking
+		// children of userHome for the conflict-renamed entry
+		children, err := fs.GetChildren(ctx, userHome)
+		require.NoError(t, err)
+
+		var restoredFile *file_model.WeblensFileImpl
+
+		for _, child := range children {
+			name := child.GetPortablePath().Filename()
+			if name != "conflict.txt" && !child.IsDir() {
+				restoredFile = child
+
+				break
+			}
+		}
+
+		require.NotNil(t, restoredFile, "should find a restored file with a unique name")
+
+		// The restored file should have a different name due to conflict
+		assert.NotEqual(t, "conflict.txt", restoredFile.GetPortablePath().Filename())
+		assert.Contains(t, restoredFile.GetPortablePath().Filename(), "conflict")
+		assertFileExistsOnDisk(t, restoredFile.GetPortablePath())
 	})
 }

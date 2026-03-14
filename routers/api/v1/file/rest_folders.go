@@ -109,13 +109,15 @@ func formatRespondFolderInfo(ctx context_service.RequestContext, dir *file_model
 		return err
 	}
 
-	// mediaFiles := append(children, dir)
+	medias, err := getChildMedias(ctx, children)
+	if err != nil {
+		return err
+	}
 
-	medias := []*media_model.Media{}
-	// medias, err := getChildMedias(ctx, mediaFiles)
-	// if err != nil {
-	// 	return err
-	// }
+	mediaMap := make(map[string]*media_model.Media, len(medias))
+	for _, m := range medias {
+		mediaMap[m.ContentID] = m
+	}
 
 	childInfos := make([]wlstructs.FileInfo, 0, len(children))
 	infoOpts := reshape.FileInfoOptions{Perms: option.Of(*perms)}
@@ -130,10 +132,14 @@ func formatRespondFolderInfo(ctx context_service.RequestContext, dir *file_model
 			return err
 		}
 
+		if _, exists := mediaMap[child.GetContentID()]; exists {
+			info.HasMedia = true
+		}
+
 		childInfos = append(childInfos, info)
 	}
 
-	sortFileInfos(childInfos, ctx.Query("sortProp"), ctx.Query("sortOrder"))
+	sortFileInfos(childInfos, ctx.Query("sortProp"), ctx.Query("sortOrder"), mediaMap)
 
 	selfInfo, err := reshape.WeblensFileToFileInfo(ctx, dir, infoOpts)
 	if err != nil {

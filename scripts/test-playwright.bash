@@ -45,10 +45,10 @@ else
 fi
 
 # Cleanup other test stacks if they exist. Mongot will OOM if multiple test stacks are running at the same time.
-./scripts/envdown.bash
+./scripts/envdown.bash --ignore "test-pw"
 
 if ! is_mongo_running --stack-name "test-pw"; then
-    show_as_subtask "Launching mongo..." "green" -- launch_mongo --stack-name "test-pw" --mongo-port 27020
+    show_as_subtask "Launching mongo" "green" -- launch_mongo --stack-name "test-pw" --mongo-port 27020
 else
     printf "MongoDB container is already running...\n"
 fi
@@ -61,7 +61,7 @@ build_frontend "$lazy"
 
 # Build Go binary
 if [[ "$lazy" = false ]] || [[ ! -e "$WEBLENS_ROOT/_build/bin/weblens_debug" ]]; then
-    show_as_subtask "Building Go binary..." --color "green" -- build_weblens_binary
+    show_as_subtask "Building Go binary" --color "green" -- build_weblens_binary
 else
     printf "Skipping Go binary build (lazy mode)...\n"
 fi
@@ -71,7 +71,7 @@ rm -rf ./_build/playwright/report/coverage/ >/dev/null || true
 # Install Playwright browsers if needed
 pushd "${WEBLENS_ROOT}/weblens-vue/weblens-nuxt" >/dev/null
 
-show_as_subtask "Installing Playwright browsers..." --color "green" -- pnpm exec playwright install chromium
+show_as_subtask "Installing Playwright browsers" --color "green" -- pnpm exec playwright install chromium
 
 PLAYWRIGHT_LOG_PATH=$(get_log_file --prefix "weblens-playwright-test" --subdir "playwright")
 
@@ -81,7 +81,7 @@ if [[ $headed ]]; then
     echo "Running in headed mode (browser UI will be visible)..."
 fi
 
-if ! show_as_subtask "Running Playwright tests..." -v --color "green" -- bash -c "set -o pipefail; NODE_OPTIONS=--max-old-space-size=8192 PW_WORKERS=${PW_WORKERS:-} pnpm exec playwright test \"${filter}\" ${grep} \"${headed:-}\" | tee \"$PLAYWRIGHT_LOG_PATH\""; then
+if ! show_as_subtask "Running Playwright tests" -v --color "green" -- bash -c "set -o pipefail; NODE_OPTIONS=--max-old-space-size=8192 PW_WORKERS=${PW_WORKERS:-} pnpm exec playwright test \"${filter}\" ${grep} \"${headed:-}\" | tee \"$PLAYWRIGHT_LOG_PATH\""; then
     echo "Playwright tests failed. Check logs for details."
     popd >/dev/null
 

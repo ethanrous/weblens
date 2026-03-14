@@ -11,8 +11,8 @@ Name | Type | Description | Notes
 **eventID** | **string** |  | [default to undefined]
 **fileID** | **string** |  | [default to undefined]
 **filepath** | **string** |  | [optional] [default to undefined]
+**liveParentID** | **string** |  | [optional] [default to undefined]
 **originPath** | **string** |  | [optional] [default to undefined]
-**parentID** | **string** |  | [default to undefined]
 **size** | **number** |  | [default to undefined]
 **timestamp** | **number** |  | [default to undefined]
 **towerID** | **string** |  | [default to undefined]
@@ -29,8 +29,8 @@ const instance: FileActionInfo = {
     eventID,
     fileID,
     filepath,
+    liveParentID,
     originPath,
-    parentID,
     size,
     timestamp,
     towerID,

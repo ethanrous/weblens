@@ -1,7 +1,7 @@
 <template>
     <div :class="{ 'flex min-w-40 flex-col gap-1.5': true }">
         <WeblensButton
-            v-if="targetIsFolder"
+            v-if="targetIsActiveFolder"
             label="New Folder"
             fill-width
             :disabled="!canModifyParent"
@@ -64,7 +64,7 @@
         </WeblensButton>
 
         <WeblensButton
-            v-if="targetIsFolder"
+            v-if="targetIsActiveFolder"
             label="Scan Folder"
             fill-width
             :disabled="!canModifyTarget || websocketStore.status !== 'OPEN'"
@@ -95,6 +95,17 @@
         </WeblensButton>
 
         <WeblensButton
+            v-if="locationStore.isViewingPast"
+            label="Restore"
+            fill-width
+            :disabled="!targetFile || isRestoring"
+            @click.stop="handleRestore"
+        >
+            <IconRestore />
+        </WeblensButton>
+
+        <WeblensButton
+            v-if="targetIsActiveFolder"
             label="Folder History"
             fill-width
             @click.stop="
@@ -127,6 +138,7 @@ import {
     IconInfoCircle,
     IconPencil,
     IconPhotoScan,
+    IconRestore,
     IconSearch,
     IconTag,
     IconTrash,
@@ -159,7 +171,7 @@ const props = defineProps<{
     selectedFiles?: string[]
 }>()
 
-const targetIsFolder = computed(() => {
+const targetIsActiveFolder = computed(() => {
     return (
         filesStore.activeFile && filesStore.activeFile.IsFolder() && filesStore.activeFile.id === props.targetFile?.id
     )
@@ -264,6 +276,32 @@ async function handleDownload() {
 watch([() => props.targetFile, () => props.selectedFiles], () => {
     downloadTaskID.value = undefined
 })
+
+const isRestoring = ref(false)
+
+async function handleRestore(): Promise<void> {
+    if (!props.targetFile || !props.selectedFiles) {
+        return
+    }
+
+    isRestoring.value = true
+
+    try {
+        await useWeblensAPI().FilesAPI.restoreFiles({
+            fileIDs: props.selectedFiles,
+            newParentID: filesStore.activeFile?.id ?? '',
+            timestamp: locationStore.viewTimestamp,
+        })
+
+        // Exit past view and navigate to the parent folder
+        locationStore.setViewTimestamp(0)
+        menuStore.setMenuOpen(false)
+    } catch (error) {
+        console.error('Error restoring files:', error)
+    } finally {
+        isRestoring.value = false
+    }
+}
 
 async function handleDeleteFile(): Promise<void> {
     if (!props.targetFile) {

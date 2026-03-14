@@ -2,6 +2,7 @@ package file
 
 import (
 	"context"
+	"maps"
 	"path/filepath"
 	"time"
 
@@ -352,7 +353,9 @@ func loadLifetimes(ctx context_service.AppContext) (map[file_system.Filepath]his
 	if fpMapI, ok := fpMapCache.Get("filepath_map"); ok {
 		fpMap, ok := fpMapI.(map[file_system.Filepath]history.FileAction)
 		if ok {
-			return fpMap, nil
+			// TODO: This is awful, we should find a better system here
+			// Clone the map to avoid race conditions with concurrent access, since the map may be modified after being stored in the cache
+			return maps.Clone(fpMap), nil
 		}
 
 		return nil, wlerrors.Errorf("invalid filepath_map in context")

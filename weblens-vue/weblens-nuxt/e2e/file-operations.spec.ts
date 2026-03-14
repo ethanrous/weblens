@@ -49,7 +49,9 @@ test.describe('File Operations', () => {
         await expect(fileBrowser.getByRole('button', { name: 'Rename' })).toBeVisible()
         await expect(fileBrowser.getByRole('button', { name: 'Share' })).toBeVisible()
         await expect(fileBrowser.getByRole('button', { name: 'Download' })).toBeVisible()
-        await expect(fileBrowser.getByRole('button', { name: 'Folder History' })).toBeVisible()
+
+        // Since this is a specific file and not the enclosing folder, we should NOT see "Folder History" options
+        await expect(fileBrowser.getByRole('button', { name: 'Folder History' })).not.toBeVisible()
 
         // The trash button should show "Trash" (not "Delete" since we're not in trash)
         await expect(fileBrowser.getByRole('button', { name: 'Trash' })).toBeVisible()
@@ -132,16 +134,11 @@ test.describe('File Operations', () => {
         // Note: the "History of" heading is always in the DOM (parent uses w-0 without
         // overflow:hidden when closed), so we check for actual history data instead.
         await expect(
-            page
-                .locator('.file-action-card')
-                .filter({ hasText: 'File Created' })
-                .filter({ hasText: 'Operations Folder A' }),
-        ).toBeVisible({
-            timeout: 15000,
-        })
+            page.locator('.file-action-card').filter({ hasText: 'Created' }).filter({ hasText: 'Operations Folder A' }),
+        ).toBeVisible()
 
         // Close the history panel by clicking the X icon next to the "History of" heading
-        await page.getByRole('heading', { name: 'History of' }).locator('..').locator('.tabler-icon-x').click()
+        await page.locator('#file-history-sidebar').locator('.tabler-icon-x').click()
     })
 
     test('should use search with recursive filter', async ({ page }) => {

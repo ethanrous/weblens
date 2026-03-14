@@ -27,8 +27,8 @@ type FileActionInfo struct {
 	EventID string `json:"eventID"`
 	FileID string `json:"fileID"`
 	Filepath *string `json:"filepath,omitempty"`
+	LiveParentID *string `json:"liveParentID,omitempty"`
 	OriginPath *string `json:"originPath,omitempty"`
-	ParentID string `json:"parentID"`
 	Size int64 `json:"size"`
 	Timestamp int64 `json:"timestamp"`
 	TowerID string `json:"towerID"`
@@ -40,12 +40,11 @@ type _FileActionInfo FileActionInfo
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewFileActionInfo(actionType string, eventID string, fileID string, parentID string, size int64, timestamp int64, towerID string) *FileActionInfo {
+func NewFileActionInfo(actionType string, eventID string, fileID string, size int64, timestamp int64, towerID string) *FileActionInfo {
 	this := FileActionInfo{}
 	this.ActionType = actionType
 	this.EventID = eventID
 	this.FileID = fileID
-	this.ParentID = parentID
 	this.Size = size
 	this.Timestamp = timestamp
 	this.TowerID = towerID
@@ -228,6 +227,38 @@ func (o *FileActionInfo) SetFilepath(v string) {
 	o.Filepath = &v
 }
 
+// GetLiveParentID returns the LiveParentID field value if set, zero value otherwise.
+func (o *FileActionInfo) GetLiveParentID() string {
+	if o == nil || IsNil(o.LiveParentID) {
+		var ret string
+		return ret
+	}
+	return *o.LiveParentID
+}
+
+// GetLiveParentIDOk returns a tuple with the LiveParentID field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *FileActionInfo) GetLiveParentIDOk() (*string, bool) {
+	if o == nil || IsNil(o.LiveParentID) {
+		return nil, false
+	}
+	return o.LiveParentID, true
+}
+
+// HasLiveParentID returns a boolean if a field has been set.
+func (o *FileActionInfo) HasLiveParentID() bool {
+	if o != nil && !IsNil(o.LiveParentID) {
+		return true
+	}
+
+	return false
+}
+
+// SetLiveParentID gets a reference to the given string and assigns it to the LiveParentID field.
+func (o *FileActionInfo) SetLiveParentID(v string) {
+	o.LiveParentID = &v
+}
+
 // GetOriginPath returns the OriginPath field value if set, zero value otherwise.
 func (o *FileActionInfo) GetOriginPath() string {
 	if o == nil || IsNil(o.OriginPath) {
@@ -258,30 +289,6 @@ func (o *FileActionInfo) HasOriginPath() bool {
 // SetOriginPath gets a reference to the given string and assigns it to the OriginPath field.
 func (o *FileActionInfo) SetOriginPath(v string) {
 	o.OriginPath = &v
-}
-
-// GetParentID returns the ParentID field value
-func (o *FileActionInfo) GetParentID() string {
-	if o == nil {
-		var ret string
-		return ret
-	}
-
-	return o.ParentID
-}
-
-// GetParentIDOk returns a tuple with the ParentID field value
-// and a boolean to check if the value has been set.
-func (o *FileActionInfo) GetParentIDOk() (*string, bool) {
-	if o == nil {
-		return nil, false
-	}
-	return &o.ParentID, true
-}
-
-// SetParentID sets field value
-func (o *FileActionInfo) SetParentID(v string) {
-	o.ParentID = v
 }
 
 // GetSize returns the Size field value
@@ -378,10 +385,12 @@ func (o FileActionInfo) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.Filepath) {
 		toSerialize["filepath"] = o.Filepath
 	}
+	if !IsNil(o.LiveParentID) {
+		toSerialize["liveParentID"] = o.LiveParentID
+	}
 	if !IsNil(o.OriginPath) {
 		toSerialize["originPath"] = o.OriginPath
 	}
-	toSerialize["parentID"] = o.ParentID
 	toSerialize["size"] = o.Size
 	toSerialize["timestamp"] = o.Timestamp
 	toSerialize["towerID"] = o.TowerID
@@ -396,7 +405,6 @@ func (o *FileActionInfo) UnmarshalJSON(data []byte) (err error) {
 		"actionType",
 		"eventID",
 		"fileID",
-		"parentID",
 		"size",
 		"timestamp",
 		"towerID",

@@ -144,6 +144,54 @@ const docTemplate = `{
                 }
             }
         },
+        "/files/restore": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Files"
+                ],
+                "summary": "Restore files from some time in the past",
+                "operationId": "RestoreFiles",
+                "parameters": [
+                    {
+                        "description": "Restore files request body",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/RestoreFilesBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Restore files info",
+                        "schema": {
+                            "$ref": "#/definitions/RestoreFilesInfo"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
         "/files/search": {
             "get": {
                 "security": [
@@ -273,54 +321,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/FolderInfo"
                         }
-                    },
-                    "404": {
-                        "description": "Not Found"
-                    },
-                    "500": {
-                        "description": "Internal Server Error"
-                    }
-                }
-            }
-        },
-        "/files/structsore": {
-            "post": {
-                "security": [
-                    {
-                        "SessionAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Files"
-                ],
-                "summary": "structsore files from some time in the past",
-                "operationId": "RestoreFiles",
-                "parameters": [
-                    {
-                        "description": "RestoreFiles files request body",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/RestoreFilesBody"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "structsore files info",
-                        "schema": {
-                            "$ref": "#/definitions/RestoreFilesInfo"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request"
                     },
                     "404": {
                         "description": "Not Found"
@@ -3623,7 +3623,6 @@ const docTemplate = `{
                 "actionType",
                 "eventID",
                 "fileID",
-                "parentID",
                 "size",
                 "timestamp",
                 "towerID"
@@ -3647,10 +3646,10 @@ const docTemplate = `{
                 "filepath": {
                     "type": "string"
                 },
-                "originPath": {
+                "liveParentID": {
                     "type": "string"
                 },
-                "parentID": {
+                "originPath": {
                     "type": "string"
                 },
                 "size": {
@@ -3678,7 +3677,10 @@ const docTemplate = `{
                 "contentID": {
                     "type": "string"
                 },
-                "hasRestoreMedia": {
+                "hasMedia": {
+                    "type": "boolean"
+                },
+                "hasRestoreData": {
                     "type": "boolean"
                 },
                 "id": {
@@ -4516,6 +4518,10 @@ const docTemplate = `{
                     "$ref": "#/definitions/wlfs.Filepath"
                 },
                 "id": {
+                    "type": "string"
+                },
+                "oldFileID": {
+                    "description": "Used for restore actions to reference the file being restored",
                     "type": "string"
                 },
                 "originPath": {

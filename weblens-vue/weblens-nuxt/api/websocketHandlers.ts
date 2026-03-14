@@ -15,6 +15,10 @@ function handleModified(msg: WsMessage) {
         return
     }
 
+    if (msg.content.mediaData) {
+        useMediaStore().addMedia(msg.content.mediaData)
+    }
+
     if (msg.content.fileInfo.parentID !== useLocationStore().activeFolderID) {
         useFilesStore().removeFiles(msg.content.fileInfo.id)
     } else {

@@ -4,9 +4,8 @@
         ref="fileRef"
         :class="{
             'border-card-background-primary flex max-h-full rounded border transition select-none': true,
-            'hover:bg-card-background-selected/90 bg-card-background-selected border-theme-primary': fileState.Has(
-                SelectedState.Selected,
-            ),
+            'hover:bg-card-background-selected/90 border-card-background-selected bg-card-background-selected':
+                fileState.Has(SelectedState.Selected),
             'hover:bg-card-background-selected/50 hover:border-theme-primary hover:border': fileState.Has(
                 SelectedState.Hovering,
             ),
@@ -141,7 +140,7 @@ watchEffect(() => {
     }
 
     const m = mediaStore.mediaMap.get(file.GetContentID())
-    if (!m && visible.value) {
+    if (!m && visible.value && file.hasMedia) {
         mediaStore.fetchSingleMedia(file.GetContentID())
     }
 

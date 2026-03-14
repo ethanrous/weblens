@@ -155,8 +155,8 @@ interface FileActionInfo {
     'eventID': string;
     'fileID': string;
     'filepath'?: string;
+    'liveParentID'?: string;
     'originPath'?: string;
-    'parentID': string;
     'size': number;
     'timestamp': number;
     'towerID': string;
@@ -164,7 +164,8 @@ interface FileActionInfo {
 interface FileInfo {
     'childrenIds'?: Array<string>;
     'contentID'?: string;
-    'hasRestoreMedia'?: boolean;
+    'hasMedia'?: boolean;
+    'hasRestoreData'?: boolean;
     'id'?: string;
     'isDir'?: boolean;
     'modifiable'?: boolean;
@@ -214,6 +215,10 @@ interface HistoryFileAction {
     'fileID'?: string;
     'filepath'?: WlfsFilepath;
     'id'?: string;
+    /**
+     * Used for restore actions to reference the file being restored
+     */
+    'oldFileID'?: string;
     'originPath'?: WlfsFilepath;
     'size'?: number;
     'timestamp'?: string;
@@ -802,8 +807,8 @@ declare const FilesApiAxiosParamCreator: (configuration?: Configuration) => {
     moveFiles: (request: MoveFilesParams, shareID?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
-     * @summary structsore files from some time in the past
-     * @param {RestoreFilesBody} request RestoreFiles files request body
+     * @summary Restore files from some time in the past
+     * @param {RestoreFilesBody} request Restore files request body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -974,8 +979,8 @@ declare const FilesApiFp: (configuration?: Configuration) => {
     moveFiles(request: MoveFilesParams, shareID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
     /**
      *
-     * @summary structsore files from some time in the past
-     * @param {RestoreFilesBody} request RestoreFiles files request body
+     * @summary Restore files from some time in the past
+     * @param {RestoreFilesBody} request Restore files request body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -1146,8 +1151,8 @@ declare const FilesApiFactory: (configuration?: Configuration, basePath?: string
     moveFiles(request: MoveFilesParams, shareID?: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
     /**
      *
-     * @summary structsore files from some time in the past
-     * @param {RestoreFilesBody} request RestoreFiles files request body
+     * @summary Restore files from some time in the past
+     * @param {RestoreFilesBody} request Restore files request body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -1318,8 +1323,8 @@ declare class FilesApi extends BaseAPI {
     moveFiles(request: MoveFilesParams, shareID?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any, {}>>;
     /**
      *
-     * @summary structsore files from some time in the past
-     * @param {RestoreFilesBody} request RestoreFiles files request body
+     * @summary Restore files from some time in the past
+     * @param {RestoreFilesBody} request Restore files request body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */

@@ -8,9 +8,9 @@ type FileActionInfo struct {
 	OriginPath      string `json:"originPath,omitempty"`
 	DestinationPath string `json:"destinationPath,omitempty"`
 	EventID         string `json:"eventID" validate:"required"`
-	ParentID        string `json:"parentID" validate:"required"`
 	TowerID         string `json:"towerID" validate:"required"`
 	Timestamp       int64  `json:"timestamp" validate:"required" format:"int64"`
 	Size            int64  `json:"size" validate:"required" format:"int64"`
 	ContentID       string `json:"contentID,omitempty"`
+	LiveParentID    string `json:"liveParentID,omitempty"`
 } // @name FileActionInfo

@@ -39,6 +39,7 @@ import type { NuxtError } from '#app'
 import { IconFileSad, IconHome } from '@tabler/icons-vue'
 import WeblensButton from '~/components/atom/WeblensButton.vue'
 import WeblensFile from './types/weblensFile'
+useUserStore()
 
 defineProps<{ error: NuxtError }>()
 </script>

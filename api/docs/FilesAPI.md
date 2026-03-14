@@ -16,7 +16,7 @@ Method | HTTP request | Description
 [**GetSharedFiles**](FilesAPI.md#GetSharedFiles) | **Get** /files/shared | Get files shared with the logged in user
 [**GetUploadResult**](FilesAPI.md#GetUploadResult) | **Get** /upload/{uploadID} | Get the result of an upload task. This will block until the upload is complete
 [**MoveFiles**](FilesAPI.md#MoveFiles) | **Patch** /files | Move a list of files to a new parent folder
-[**RestoreFiles**](FilesAPI.md#RestoreFiles) | **Post** /files/structsore | structsore files from some time in the past
+[**RestoreFiles**](FilesAPI.md#RestoreFiles) | **Post** /files/restore | Restore files from some time in the past
 [**SearchFiles**](FilesAPI.md#SearchFiles) | **Get** /files/search | Search for files by filename
 [**StartUpload**](FilesAPI.md#StartUpload) | **Post** /upload | Begin a new upload task
 [**UnTrashFiles**](FilesAPI.md#UnTrashFiles) | **Patch** /files/untrash | Move a list of files out of the trash, structsoring them to where they were before
@@ -827,7 +827,7 @@ No authorization required
 
 > RestoreFilesInfo RestoreFiles(ctx).Request(request).Execute()
 
-structsore files from some time in the past
+Restore files from some time in the past
 
 ### Example
 
@@ -842,7 +842,7 @@ import (
 )
 
 func main() {
-	request := *openapiclient.NewRestoreFilesBody() // RestoreFilesBody | RestoreFiles files request body
+	request := *openapiclient.NewRestoreFilesBody() // RestoreFilesBody | Restore files request body
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
@@ -867,7 +867,7 @@ Other parameters are passed through a pointer to a apiRestoreFilesRequest struct
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **request** | [**RestoreFilesBody**](RestoreFilesBody.md) | RestoreFiles files request body | 
+ **request** | [**RestoreFilesBody**](RestoreFilesBody.md) | Restore files request body | 
 
 ### Return type
 
