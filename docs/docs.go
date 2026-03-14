@@ -3677,7 +3677,10 @@ const docTemplate = `{
                 "contentID": {
                     "type": "string"
                 },
-                "hasRestoreMedia": {
+                "hasMedia": {
+                    "type": "boolean"
+                },
+                "hasRestoreData": {
                     "type": "boolean"
                 },
                 "id": {

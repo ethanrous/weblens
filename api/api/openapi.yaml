@@ -2722,11 +2722,12 @@ components:
     FileInfo:
       example:
         owner: owner
+        hasRestoreData: true
         childrenIds:
         - childrenIds
         - childrenIds
         contentID: contentID
-        hasRestoreMedia: true
+        hasMedia: true
         shareID: shareID
         portablePath: portablePath
         parentID: parentID
@@ -2748,7 +2749,9 @@ components:
           type: array
         contentID:
           type: string
-        hasRestoreMedia:
+        hasMedia:
+          type: boolean
+        hasRestoreData:
           type: boolean
         id:
           type: string
@@ -2856,11 +2859,12 @@ components:
           height: 2
         children:
         - owner: owner
+          hasRestoreData: true
           childrenIds:
           - childrenIds
           - childrenIds
           contentID: contentID
-          hasRestoreMedia: true
+          hasMedia: true
           shareID: shareID
           portablePath: portablePath
           parentID: parentID
@@ -2876,11 +2880,12 @@ components:
           modifiable: true
           isDir: true
         - owner: owner
+          hasRestoreData: true
           childrenIds:
           - childrenIds
           - childrenIds
           contentID: contentID
-          hasRestoreMedia: true
+          hasMedia: true
           shareID: shareID
           portablePath: portablePath
           parentID: parentID
@@ -2897,11 +2902,12 @@ components:
           isDir: true
         self:
           owner: owner
+          hasRestoreData: true
           childrenIds:
           - childrenIds
           - childrenIds
           contentID: contentID
-          hasRestoreMedia: true
+          hasMedia: true
           shareID: shareID
           portablePath: portablePath
           parentID: parentID
@@ -2918,11 +2924,12 @@ components:
           isDir: true
         parents:
         - owner: owner
+          hasRestoreData: true
           childrenIds:
           - childrenIds
           - childrenIds
           contentID: contentID
-          hasRestoreMedia: true
+          hasMedia: true
           shareID: shareID
           portablePath: portablePath
           parentID: parentID
@@ -2938,11 +2945,12 @@ components:
           modifiable: true
           isDir: true
         - owner: owner
+          hasRestoreData: true
           childrenIds:
           - childrenIds
           - childrenIds
           contentID: contentID
-          hasRestoreMedia: true
+          hasMedia: true
           shareID: shareID
           portablePath: portablePath
           parentID: parentID

@@ -21,7 +21,8 @@ var _ MappedNullable = &FileInfo{}
 type FileInfo struct {
 	ChildrenIds []string `json:"childrenIds,omitempty"`
 	ContentID *string `json:"contentID,omitempty"`
-	HasRestoreMedia *bool `json:"hasRestoreMedia,omitempty"`
+	HasMedia *bool `json:"hasMedia,omitempty"`
+	HasRestoreData *bool `json:"hasRestoreData,omitempty"`
 	Id *string `json:"id,omitempty"`
 	IsDir *bool `json:"isDir,omitempty"`
 	Modifiable *bool `json:"modifiable,omitempty"`
@@ -116,36 +117,68 @@ func (o *FileInfo) SetContentID(v string) {
 	o.ContentID = &v
 }
 
-// GetHasRestoreMedia returns the HasRestoreMedia field value if set, zero value otherwise.
-func (o *FileInfo) GetHasRestoreMedia() bool {
-	if o == nil || IsNil(o.HasRestoreMedia) {
+// GetHasMedia returns the HasMedia field value if set, zero value otherwise.
+func (o *FileInfo) GetHasMedia() bool {
+	if o == nil || IsNil(o.HasMedia) {
 		var ret bool
 		return ret
 	}
-	return *o.HasRestoreMedia
+	return *o.HasMedia
 }
 
-// GetHasRestoreMediaOk returns a tuple with the HasRestoreMedia field value if set, nil otherwise
+// GetHasMediaOk returns a tuple with the HasMedia field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *FileInfo) GetHasRestoreMediaOk() (*bool, bool) {
-	if o == nil || IsNil(o.HasRestoreMedia) {
+func (o *FileInfo) GetHasMediaOk() (*bool, bool) {
+	if o == nil || IsNil(o.HasMedia) {
 		return nil, false
 	}
-	return o.HasRestoreMedia, true
+	return o.HasMedia, true
 }
 
-// HasHasRestoreMedia returns a boolean if a field has been set.
-func (o *FileInfo) HasHasRestoreMedia() bool {
-	if o != nil && !IsNil(o.HasRestoreMedia) {
+// HasHasMedia returns a boolean if a field has been set.
+func (o *FileInfo) HasHasMedia() bool {
+	if o != nil && !IsNil(o.HasMedia) {
 		return true
 	}
 
 	return false
 }
 
-// SetHasRestoreMedia gets a reference to the given bool and assigns it to the HasRestoreMedia field.
-func (o *FileInfo) SetHasRestoreMedia(v bool) {
-	o.HasRestoreMedia = &v
+// SetHasMedia gets a reference to the given bool and assigns it to the HasMedia field.
+func (o *FileInfo) SetHasMedia(v bool) {
+	o.HasMedia = &v
+}
+
+// GetHasRestoreData returns the HasRestoreData field value if set, zero value otherwise.
+func (o *FileInfo) GetHasRestoreData() bool {
+	if o == nil || IsNil(o.HasRestoreData) {
+		var ret bool
+		return ret
+	}
+	return *o.HasRestoreData
+}
+
+// GetHasRestoreDataOk returns a tuple with the HasRestoreData field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *FileInfo) GetHasRestoreDataOk() (*bool, bool) {
+	if o == nil || IsNil(o.HasRestoreData) {
+		return nil, false
+	}
+	return o.HasRestoreData, true
+}
+
+// HasHasRestoreData returns a boolean if a field has been set.
+func (o *FileInfo) HasHasRestoreData() bool {
+	if o != nil && !IsNil(o.HasRestoreData) {
+		return true
+	}
+
+	return false
+}
+
+// SetHasRestoreData gets a reference to the given bool and assigns it to the HasRestoreData field.
+func (o *FileInfo) SetHasRestoreData(v bool) {
+	o.HasRestoreData = &v
 }
 
 // GetId returns the Id field value if set, zero value otherwise.
@@ -516,8 +549,11 @@ func (o FileInfo) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.ContentID) {
 		toSerialize["contentID"] = o.ContentID
 	}
-	if !IsNil(o.HasRestoreMedia) {
-		toSerialize["hasRestoreMedia"] = o.HasRestoreMedia
+	if !IsNil(o.HasMedia) {
+		toSerialize["hasMedia"] = o.HasMedia
+	}
+	if !IsNil(o.HasRestoreData) {
+		toSerialize["hasRestoreData"] = o.HasRestoreData
 	}
 	if !IsNil(o.Id) {
 		toSerialize["id"] = o.Id

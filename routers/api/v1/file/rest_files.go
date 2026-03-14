@@ -513,7 +513,8 @@ func SearchFiles(ctx context_service.RequestContext) {
 		}
 	}
 
-	sortFileInfos(fileInfos, ctx.Query("sortProp"), ctx.Query("sortOrder"))
+	// TODO: add media searching+sorting									VVV
+	sortFileInfos(fileInfos, ctx.Query("sortProp"), ctx.Query("sortOrder"), nil)
 
 	ctx.JSON(http.StatusOK, fileInfos)
 }
@@ -1539,32 +1540,31 @@ func getChildMedias(
 	ctx context_service.RequestContext,
 	children []*file_model.WeblensFileImpl,
 ) ([]*media_model.Media, error) {
-	contentIDs := make([]string, 0, len(children))
+	regFileIDs := make([]string, 0, len(children)) // Regular file IDs to lookup directly in media collection
+	dirFileIDs := make([]string, 0)                // Directory file IDs that require cover lookup
 
 	for _, child := range children {
-		if child.IsDir() && child.GetContentID() == "" {
-			cover, err := cover_model.GetCoverByFolderID(ctx, child.ID())
-
-			if db.IsNotFound(err) {
-				// No cover for this folder, skip it
-				continue
-			} else if err != nil {
-				ctx.Log().Error().Stack().Err(err).Msgf("failed to get child media")
-
-				continue
-			}
-
-			child.SetContentID(cover.CoverPhotoID)
+		if child.IsDir() {
+			// cover, err := cover_model.GetCoverByFolderID(ctx, child.ID())
+			//
+			// if db.IsNotFound(err) {
+			// 	// No cover for this folder, skip it
+			// 	continue
+			// } else if err != nil {
+			// 	ctx.Log().Error().Stack().Err(err).Msgf("failed to get child media")
+			//
+			// 	continue
+			// }
+			//
+			// child.SetContentID(cover.CoverPhotoID)
+			//
+			dirFileIDs = append(dirFileIDs, child.ID())
+		} else {
+			regFileIDs = append(regFileIDs, child.ID())
 		}
-
-		if child.GetContentID() == "" {
-			continue
-		}
-
-		contentIDs = append(contentIDs, child.GetContentID())
 	}
 
-	medias, err := media_model.GetMediasByContentIDs(ctx, contentIDs...)
+	medias, err := media_model.GetMediasByFileIDs(ctx, regFileIDs...)
 	if err != nil {
 		return nil, err
 	}
@@ -1572,16 +1572,31 @@ func getChildMedias(
 	return medias, nil
 }
 
-func sortFileInfos(files []wlstructs.FileInfo, sortBy string, sortDir string) {
+func sortFileInfos(files []wlstructs.FileInfo, sortBy string, sortDir string, medias map[string]*media_model.Media) {
 	wlslices.SortFunc(files, func(f1, f2 wlstructs.FileInfo) int {
 		var less int
 
 		switch sortBy {
 		case "modified", "updatedAt":
+			// When sorting by date, if we have a media associated with the file, we should sort by the media's create date instead of the file's mod time, as this will be more accurate to when the content of the file was last updated.
+			f1mod := f1.ModTime
+			if f1.HasMedia && medias != nil {
+				if media, ok := medias[f1.ContentID]; ok {
+					f1mod = media.CreateDate.UnixMilli()
+				}
+			}
+
+			f2mod := f2.ModTime
+			if f2.HasMedia && medias != nil {
+				if media, ok := medias[f2.ContentID]; ok {
+					f2mod = media.CreateDate.UnixMilli()
+				}
+			}
+
 			switch {
-			case f1.ModTime < f2.ModTime:
+			case f1mod < f2mod:
 				less = -1
-			case f1.ModTime > f2.ModTime:
+			case f1mod > f2mod:
 				less = 1
 			}
 		case "size":

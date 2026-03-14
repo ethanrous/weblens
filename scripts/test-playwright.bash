@@ -45,7 +45,7 @@ else
 fi
 
 # Cleanup other test stacks if they exist. Mongot will OOM if multiple test stacks are running at the same time.
-./scripts/envdown.bash
+./scripts/envdown.bash --ignore "test-pw"
 
 if ! is_mongo_running --stack-name "test-pw"; then
     show_as_subtask "Launching mongo" "green" -- launch_mongo --stack-name "test-pw" --mongo-port 27020

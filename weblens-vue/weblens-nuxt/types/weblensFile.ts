@@ -86,9 +86,11 @@ class WeblensFile implements FileInfo {
 
     isDir?: boolean
     pastFile: boolean = false
-    hasRestoreMedia?: boolean
+    hasRestoreData?: boolean
     modifiable: boolean = false
     displayable?: boolean
+
+    hasMedia: boolean = false
 
     size: number = -1
     shareID?: string
@@ -125,7 +127,9 @@ class WeblensFile implements FileInfo {
             this.GetFilename()
         }
 
-        this._filepath = new PortablePath(this.portablePath)
+        if (this.portablePath) {
+            this._filepath = new PortablePath(this.portablePath)
+        }
     }
 
     ID(): string {
@@ -463,6 +467,9 @@ class WeblensFile implements FileInfo {
 
     public static Home(): WeblensFile {
         const user = useUserStore().user
+        if (!user.homeID) {
+            throw new Error('User has no home ID, cannot create home file')
+        }
 
         return new WeblensFile({
             id: user.homeID,

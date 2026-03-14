@@ -53,6 +53,8 @@ show_as_subtask() {
             echo "$buf" >"$log_file"
             printf "\e[31m|-- Command output has been saved to: %s\e[0m\n" "$log_file"
             printf "\e[31m|--------------------------\e[0m\n\n"
+        else
+            printf "\e[32m succeeded.\e[0m\n"
         fi
         return "$cmd_status"
     fi

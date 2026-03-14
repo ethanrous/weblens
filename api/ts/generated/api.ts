@@ -65,7 +65,8 @@ export interface FileActionInfo {
 export interface FileInfo {
     'childrenIds'?: Array<string>;
     'contentID'?: string;
-    'hasRestoreMedia'?: boolean;
+    'hasMedia'?: boolean;
+    'hasRestoreData'?: boolean;
     'id'?: string;
     'isDir'?: boolean;
     'modifiable'?: boolean;

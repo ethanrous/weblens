@@ -7,7 +7,8 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **childrenIds** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
 **contentID** | **string** |  | [optional] [default to undefined]
-**hasRestoreMedia** | **boolean** |  | [optional] [default to undefined]
+**hasMedia** | **boolean** |  | [optional] [default to undefined]
+**hasRestoreData** | **boolean** |  | [optional] [default to undefined]
 **id** | **string** |  | [optional] [default to undefined]
 **isDir** | **boolean** |  | [optional] [default to undefined]
 **modifiable** | **boolean** |  | [optional] [default to undefined]
@@ -28,7 +29,8 @@ import { FileInfo } from './api';
 const instance: FileInfo = {
     childrenIds,
     contentID,
-    hasRestoreMedia,
+    hasMedia,
+    hasRestoreData,
     id,
     isDir,
     modifiable,

@@ -2,20 +2,21 @@ package wlstructs
 
 // FileInfo is a structure for safely sending file information to the client.
 type FileInfo struct {
-	ID              string          `json:"id"`
-	PortablePath    string          `json:"portablePath"`
-	ParentID        string          `json:"parentID"`
-	ContentID       string          `json:"contentID"`
-	Owner           string          `json:"owner"`
-	ShareID         string          `json:"shareID,omitempty"`
-	Children        []string        `json:"childrenIds"`
-	Size            int64           `json:"size" swaggertype:"integer" format:"int64"`
-	ModTime         int64           `json:"modifyTimestamp" swaggertype:"integer" format:"int64"`
-	IsDir           bool            `json:"isDir"`
-	Modifiable      bool            `json:"modifiable"`
-	PastFile        bool            `json:"pastFile"`
-	HasRestoreMedia bool            `json:"hasRestoreMedia"`
-	Permissions     PermissionsInfo `json:"permissions,omitzero"`
+	ID             string          `json:"id"`
+	PortablePath   string          `json:"portablePath"`
+	ParentID       string          `json:"parentID"`
+	ContentID      string          `json:"contentID"`
+	Owner          string          `json:"owner"`
+	ShareID        string          `json:"shareID,omitempty"`
+	Children       []string        `json:"childrenIds"`
+	Size           int64           `json:"size" swaggertype:"integer" format:"int64"`
+	ModTime        int64           `json:"modifyTimestamp" swaggertype:"integer" format:"int64"`
+	IsDir          bool            `json:"isDir"`
+	Modifiable     bool            `json:"modifiable"`
+	PastFile       bool            `json:"pastFile"`
+	HasRestoreData bool            `json:"hasRestoreData"`
+	HasMedia       bool            `json:"hasMedia"`
+	Permissions    PermissionsInfo `json:"permissions,omitzero"`
 } // @name FileInfo
 
 // FolderInfoResponse represents the complete information about a folder including its children, parents, media, and self reference.

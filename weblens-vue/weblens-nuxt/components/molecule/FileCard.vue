@@ -140,7 +140,7 @@ watchEffect(() => {
     }
 
     const m = mediaStore.mediaMap.get(file.GetContentID())
-    if (!m && visible.value) {
+    if (!m && visible.value && file.hasMedia) {
         mediaStore.fetchSingleMedia(file.GetContentID())
     }
 

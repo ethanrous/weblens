@@ -132,19 +132,19 @@ func WeblensFileToFileInfo(ctx context.Context, f *file_model.WeblensFileImpl, o
 	perms := toPermissionInfo(o.Perms.GetOr(share_model.Permissions{}))
 
 	return wlstructs.FileInfo{
-		Children:        childrenIDs,
-		ContentID:       contentID,
-		HasRestoreMedia: hasRestoreMedia,
-		ID:              f.ID(),
-		IsDir:           f.IsDir(),
-		ModTime:         f.ModTime().UnixMilli(),
-		Modifiable:      modifiable,
-		Owner:           ownerName,
-		ParentID:        parentID,
-		PastFile:        o.IsPastFile,
-		PortablePath:    portablePath.String(),
-		ShareID:         shareID,
-		Size:            size,
-		Permissions:     perms,
+		Children:       childrenIDs,
+		ContentID:      contentID,
+		HasRestoreData: hasRestoreMedia,
+		ID:             f.ID(),
+		IsDir:          f.IsDir(),
+		ModTime:        f.ModTime().UnixMilli(),
+		Modifiable:     modifiable,
+		Owner:          ownerName,
+		ParentID:       parentID,
+		PastFile:       o.IsPastFile,
+		PortablePath:   portablePath.String(),
+		ShareID:        shareID,
+		Size:           size,
+		Permissions:    perms,
 	}, nil
 }

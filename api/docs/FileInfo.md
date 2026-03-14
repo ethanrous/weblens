@@ -6,7 +6,8 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **ChildrenIds** | Pointer to **[]string** |  | [optional] 
 **ContentID** | Pointer to **string** |  | [optional] 
-**HasRestoreMedia** | Pointer to **bool** |  | [optional] 
+**HasMedia** | Pointer to **bool** |  | [optional] 
+**HasRestoreData** | Pointer to **bool** |  | [optional] 
 **Id** | Pointer to **string** |  | [optional] 
 **IsDir** | Pointer to **bool** |  | [optional] 
 **Modifiable** | Pointer to **bool** |  | [optional] 
@@ -88,30 +89,55 @@ SetContentID sets ContentID field to given value.
 
 HasContentID returns a boolean if a field has been set.
 
-### GetHasRestoreMedia
+### GetHasMedia
 
-`func (o *FileInfo) GetHasRestoreMedia() bool`
+`func (o *FileInfo) GetHasMedia() bool`
 
-GetHasRestoreMedia returns the HasRestoreMedia field if non-nil, zero value otherwise.
+GetHasMedia returns the HasMedia field if non-nil, zero value otherwise.
 
-### GetHasRestoreMediaOk
+### GetHasMediaOk
 
-`func (o *FileInfo) GetHasRestoreMediaOk() (*bool, bool)`
+`func (o *FileInfo) GetHasMediaOk() (*bool, bool)`
 
-GetHasRestoreMediaOk returns a tuple with the HasRestoreMedia field if it's non-nil, zero value otherwise
+GetHasMediaOk returns a tuple with the HasMedia field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetHasRestoreMedia
+### SetHasMedia
 
-`func (o *FileInfo) SetHasRestoreMedia(v bool)`
+`func (o *FileInfo) SetHasMedia(v bool)`
 
-SetHasRestoreMedia sets HasRestoreMedia field to given value.
+SetHasMedia sets HasMedia field to given value.
 
-### HasHasRestoreMedia
+### HasHasMedia
 
-`func (o *FileInfo) HasHasRestoreMedia() bool`
+`func (o *FileInfo) HasHasMedia() bool`
 
-HasHasRestoreMedia returns a boolean if a field has been set.
+HasHasMedia returns a boolean if a field has been set.
+
+### GetHasRestoreData
+
+`func (o *FileInfo) GetHasRestoreData() bool`
+
+GetHasRestoreData returns the HasRestoreData field if non-nil, zero value otherwise.
+
+### GetHasRestoreDataOk
+
+`func (o *FileInfo) GetHasRestoreDataOk() (*bool, bool)`
+
+GetHasRestoreDataOk returns a tuple with the HasRestoreData field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetHasRestoreData
+
+`func (o *FileInfo) SetHasRestoreData(v bool)`
+
+SetHasRestoreData sets HasRestoreData field to given value.
+
+### HasHasRestoreData
+
+`func (o *FileInfo) HasHasRestoreData() bool`
+
+HasHasRestoreData returns a boolean if a field has been set.
 
 ### GetId
 
