@@ -24,12 +24,16 @@ test.describe('Navigation and Redirects', () => {
         await expect(page).toHaveURL(/\/login/)
     })
 
-    test('should show Log In button on settings page when unauthenticated', async ({ page }) => {
-        // Settings page does not redirect unauthenticated users to /login.
-        // Instead, it shows the settings layout with a "Log In" button.
+    test('should redirect unauthenticated user accessing /settings to /login', async ({ page }) => {
         await page.goto('/settings')
+        await page.waitForURL('**/login')
+        await expect(page).toHaveURL(/\/login$/)
+    })
 
-        await expect(page.getByRole('button', { name: 'Log In' })).toBeVisible({ timeout: 15000 })
+    test('should redirect unauthenticated user accessing /settings/users to /login', async ({ page }) => {
+        await page.goto('/settings/users')
+        await page.waitForURL('**/login')
+        await expect(page).toHaveURL(/\/login$/)
     })
 
     test('should redirect root to files/home when authenticated', async ({ page, login: _login }) => {

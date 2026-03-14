@@ -1,4 +1,4 @@
-import { test, expect, createFolder, uploadTestFile } from './fixtures'
+import { test, expect, createFolder, uploadTestFile, createUser, login } from './fixtures'
 
 /**
  * Tests for the presentation info sidecar panel.
@@ -191,6 +191,95 @@ test.describe('Presentation Info Panel', () => {
 
         // Verify download filename
         expect(download.suggestedFilename()).toContain('info-panel-test')
+
+        await page.keyboard.press('Escape')
+    })
+
+    test('should disable download button when share has canDownload=false', async ({ page, baseURL }) => {
+        // Create a second user via UI
+        await createUser(page, 'no_download_user', 'testpass123')
+
+        // Navigate back to home
+        await page.goto(`${baseURL}/files/home`)
+        await expect(page.locator('h3').filter({ hasText: 'Home' })).toBeVisible({ timeout: 15000 })
+
+        // Wait for the uploaded file to be visible
+        const fileCard = page.locator('[id^="file-card-"]').filter({ hasText: 'info-panel-test.txt' })
+        await expect(fileCard).toBeVisible({ timeout: 15000 })
+
+        // Get the file's parent folder ID via API
+        const userResp = await page.request.get(`${baseURL}/api/v1/users/me`)
+        const userInfo = await userResp.json()
+        const homeID = userInfo.homeID
+
+        // Verify the home folder has children (file was uploaded in beforeEach)
+        const folderResp = await page.request.get(`${baseURL}/api/v1/folder/${homeID}`)
+        const folderData = await folderResp.json()
+        const testFile = folderData.children.find((f: { portablePath: string }) =>
+            f.portablePath.endsWith('info-panel-test.txt'),
+        )
+        expect(testFile).toBeTruthy()
+
+        // Create a share on the file's parent folder
+        const shareResp = await page.request.post(`${baseURL}/api/v1/share/file`, {
+            data: { fileID: homeID, public: false },
+        })
+        expect(shareResp.ok()).toBeTruthy()
+        const shareInfo = await shareResp.json()
+        const shareID = shareInfo.shareID
+
+        // Add the second user with CanDownload=false
+        const addUserResp = await page.request.post(`${baseURL}/api/v1/share/${shareID}/accessors`, {
+            data: {
+                username: 'no_download_user',
+                canView: true,
+                canDownload: false,
+                canEdit: false,
+                canDelete: false,
+            },
+        })
+        expect(addUserResp.ok()).toBeTruthy()
+
+        // Log out and login as the restricted user
+        await page.goto(`${baseURL}/settings`)
+        await page.waitForURL('**/settings/account')
+        await page.getByRole('button', { name: 'Log Out' }).click()
+        await page.waitForURL('**/login')
+        await login(page, 'no_download_user', 'testpass123')
+
+        // Navigate to Shared files
+        await page.getByRole('button', { name: 'Shared' }).click()
+        await page.waitForURL('**/files/share', { timeout: 15000 })
+
+        // Should see the shared folder — click into it
+        const sharedFolder = page.locator('[id^="file-card-"]').first()
+        await expect(sharedFolder).toBeVisible({ timeout: 15000 })
+        await sharedFolder.dblclick()
+
+        // Wait for the shared file to appear
+        const sharedFile = page.locator('[id^="file-card-"]').filter({ hasText: 'info-panel-test.txt' })
+        await expect(sharedFile).toBeVisible({ timeout: 15000 })
+
+        // Select file and open presentation
+        await sharedFile.click()
+        await page.keyboard.press('Space')
+
+        const presentation = page.locator('.presentation')
+        await expect(presentation).toBeVisible({ timeout: 15000 })
+
+        // Ensure info panel is open
+        const fileDetailsText = presentation.getByText('File Details')
+        try {
+            await expect(fileDetailsText).toBeVisible({ timeout: 3000 })
+        } catch {
+            await page.keyboard.press('i')
+        }
+        await expect(fileDetailsText).toBeVisible({ timeout: 5000 })
+
+        // The Download button should be disabled
+        const downloadBtn = presentation.getByRole('button', { name: 'Download' })
+        await expect(downloadBtn).toBeVisible()
+        await expect(downloadBtn).toBeDisabled()
 
         await page.keyboard.press('Escape')
     })

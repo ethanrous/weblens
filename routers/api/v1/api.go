@@ -58,7 +58,7 @@ func Routes(_ context_service.AppContext) *router.Router {
 		// POST because it needs body for all the params.
 		// Kinda hacky, but its better than GET with a body or with 100 query params.
 		// Also, this can take a while, so we set a long timeout.
-		r.Get("", router.RequireSignIn, middleware.Timeout(time.Minute*10), media_api.GetMediaBatch)
+		r.Get("", middleware.Timeout(time.Minute*10), media_api.GetMediaBatch)
 
 		r.Get("/random", router.RequireSignIn, media_api.GetRandomMedia)
 	})

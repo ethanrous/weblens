@@ -170,6 +170,11 @@ const useLocationStore = defineStore('location', () => {
             return navigateTo('/files/home')
         }
 
+        // If not logged in and on a settings page, redirect to login
+        if (route.value.path.startsWith('/settings') && !isLoggedIn) {
+            return navigateTo({ path: '/login' })
+        }
+
         if (!isInFiles.value) return
 
         // If not logged in and not in share, redirect to login

@@ -24,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import { useDark, useWindowSize } from '@vueuse/core'
+import { useDark, useDocumentVisibility, useWindowSize } from '@vueuse/core'
 import Loader from '~/components/atom/Loader.vue'
 import FileSidebar from '~/components/organism/FileSidebar.vue'
 import ConfirmModal from './components/molecule/ConfirmModal.vue'
@@ -37,7 +37,9 @@ const route = useRoute()
 
 // Initialize stores that need to be active globally
 useLocationStore()
-useWebsocketStore()
+const websocketStore = useWebsocketStore()
+
+const isPageVisible = useDocumentVisibility()
 
 const dark = useDark()
 watchEffect(() => {
@@ -78,5 +80,17 @@ const sidebarClosed = computed(() => {
 
 const loaded = computed(() => {
     return towerStore.towerInfo && userStore.user.isLoggedIn.isSet()
+})
+
+// If the page becomes visible and the websocket is not connected, reload the page. If the page goes idle or the server
+// goes down while the user is away, the websocket will disconnect and won't reconnect until the page is reloaded.
+watch(isPageVisible, (visible) => {
+    if (visible === 'visible' && websocketStore.status === 'CLOSED' && userStore.user.isLoggedIn.get() === true) {
+        console.debug(
+            `Page is now visible and websocket is not connected (${websocketStore.status}), opening websocket...`,
+        )
+
+        reloadNuxtApp()
+    }
 })
 </script>

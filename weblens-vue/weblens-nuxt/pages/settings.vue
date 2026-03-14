@@ -1,5 +1,8 @@
 <template>
-    <div :class="{ 'flex h-screen w-screen justify-center': true }">
+    <div
+        v-if="userStore.user.isLoggedIn.get({ default: false })"
+        :class="{ 'flex h-screen w-screen justify-center': true }"
+    >
         <div :class="{ 'flex h-full w-[20%] flex-col gap-2 border p-4': true }">
             <WeblensButton
                 v-if="towerStore.towerInfo?.role === TowerRole.BACKUP"

@@ -90,9 +90,6 @@ while [ "${1:-}" != "" ]; do
     shift
 done
 
-# Cleanup other test stacks if they exist. Mongot will OOM if multiple test stacks are running at the same time.
-./scripts/envdown.bash --ignore "test"
-
 if [[ "$lazy" = true ]] && is_mongo_running --stack-name "test"; then
     printf "Skipping mongo container re-deploy (lazy mode)...\n"
 else

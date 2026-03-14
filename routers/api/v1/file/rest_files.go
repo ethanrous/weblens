@@ -143,7 +143,7 @@ func GetFileStats(ctx context_service.RequestContext) {
 //	@Success	404			{object}	wlstructs.WeblensErrorInfo	"Error Info"
 //	@Router		/files/{fileID}/download [get]
 func DownloadFile(ctx context_service.RequestContext) {
-	file, err := checkFileAccess(ctx)
+	file, err := checkFileAccess(ctx, share_model.SharePermissionDownload)
 	if err != nil {
 		return
 	}
@@ -778,7 +778,7 @@ func CreateTakeout(ctx context_service.RequestContext) {
 	files := make([]*file_model.WeblensFileImpl, 0, len(takeoutRequest.FileIDs))
 
 	for _, fileID := range takeoutRequest.FileIDs {
-		file, err := CheckFileAccessByID(ctx, fileID, share_model.SharePermissionView)
+		file, err := CheckFileAccessByID(ctx, fileID, share_model.SharePermissionView, share_model.SharePermissionDownload)
 		if err != nil {
 			return
 		}
