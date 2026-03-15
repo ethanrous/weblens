@@ -61,13 +61,7 @@ export default defineConfig({
             },
         ],
     ],
-    timeout: 30_000,
-
-    // Folder creation relies on WebSocket updates which can take variable time.
-    // Set a generous default assertion timeout to handle this.
-    expect: {
-        timeout: 15_000,
-    },
+    timeout: 10_000,
 
     use: {
         baseURL,

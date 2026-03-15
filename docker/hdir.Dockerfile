@@ -1,4 +1,3 @@
-# Use the official PyTorch image as a base
 FROM ghcr.io/astral-sh/uv:bookworm-slim
 
 # Set the working directory
@@ -15,7 +14,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 COPY hdir/open.main.py main.py
 
-RUN uv run --python 3.13 main.py --preload
+# DON'T PRELOAD THE MODEL. This makes the image massive, and this will happen automatically on the first run anyway.
+# The user should mount a volume at `/root/.cache/huggingface` to persist the model across runs instead.
+# RUN uv run --python 3.13 main.py --preload
 
 # Expose the server port (update if needed)
 EXPOSE 5000

@@ -58,13 +58,14 @@ const test = base.extend<Fixtures>({
             logStream.end()
 
             const coverage = await page.coverage.stopJSCoverage()
-            if (coverage.length > 0) {
-                await addCoverageReport(coverage, testInfo)
+            const nuxtCoverage = coverage.filter((entry) => entry.url.includes('/_nuxt/'))
+            if (nuxtCoverage.length > 0) {
+                await addCoverageReport(nuxtCoverage, testInfo)
             }
 
             if (testInfo.status !== testInfo.expectedStatus) {
                 console.warn(
-                    `Test "${testInfo.title}" failed - see browser console logs in ${showLogFile(logFilePath)} and backend logs at ${showLogFile(testBackend.logPath)}`,
+                    `Test "${testInfo.title}" failed\nSee browser console logs at: ${showLogFile(logFilePath)}\nAnd backend logs at: ${showLogFile(testBackend.logPath)}\n`,
                 )
             }
         },
@@ -83,23 +84,20 @@ async function login(
     await page.getByRole('button', { name: 'Sign in' }).click()
     await page.waitForURL('**/files/home')
     // Wait for the folder data to finish loading so activeFile is available
-    await page.locator('h3').filter({ hasText: 'Home' }).waitFor({ state: 'visible', timeout: 15000 })
+    await page.locator('h3').filter({ hasText: 'Home' }).waitFor({ state: 'visible' })
 }
 
 async function createFolder(page: import('@playwright/test').Page, name: string) {
     // Wait for the file browser to finish loading — either files are shown or the empty state
-    await Promise.race([
-        page.locator('#file-scroller').first().waitFor({ state: 'attached', timeout: 15000 }),
-        page.getByText('This folder is empty').waitFor({ state: 'visible', timeout: 15000 }),
-    ])
+    await page.locator('#filebrowser-container').waitFor({ state: 'attached' })
 
     await page.getByRole('button', { name: 'New Folder' }).click()
     const nameInput = page.locator('.file-context-menu input')
-    await expect(nameInput).toBeEnabled({ timeout: 10000 })
+    await expect(nameInput).toBeEnabled()
     await nameInput.fill(name)
     await nameInput.press('Enter')
-    await expect(page.locator('[id^="file-card-"]').filter({ hasText: name })).toBeVisible({ timeout: 15000 })
-    await expect(nameInput).not.toBeVisible({ timeout: 3000 })
+    await expect(page.locator('[id^="file-card-"]').filter({ hasText: name })).toBeVisible()
+    await expect(nameInput).not.toBeVisible()
 }
 
 async function uploadTestFile(page: import('@playwright/test').Page, name: string, content: string) {
@@ -111,7 +109,7 @@ async function uploadTestFile(page: import('@playwright/test').Page, name: strin
         mimeType: 'text/plain',
         buffer: Buffer.from(content),
     })
-    await expect(page.locator('[id^="file-card-"]').filter({ hasText: name })).toBeVisible({ timeout: 15000 })
+    await expect(page.locator('[id^="file-card-"]').filter({ hasText: name })).toBeVisible()
 }
 
 async function createUser(page: import('@playwright/test').Page, username: string, password: string) {
@@ -120,7 +118,7 @@ async function createUser(page: import('@playwright/test').Page, username: strin
     await page.getByPlaceholder('Username').fill(username)
     await page.getByPlaceholder('Password').fill(password)
     await page.getByRole('button', { name: 'Create User' }).click()
-    await expect(page.getByText(username)).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText(username)).toBeVisible()
 }
 
 export { test, expect, login, createFolder, uploadTestFile, createUser, DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_PASSWORD }

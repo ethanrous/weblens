@@ -64,10 +64,12 @@ else
 fi
 
 rm -rf ./_build/playwright/report/coverage/ >/dev/null || true
+mkdir -p _build/playwright/report/coverage/.cache
 
 # Install Playwright browsers if needed
 pushd "${WEBLENS_ROOT}/weblens-vue/weblens-nuxt" >/dev/null
 
+# Don't need to lazy this, it exits quick if browsers are already installed
 show_as_subtask "Installing Playwright browsers" --color "green" -- pnpm exec playwright install chromium
 
 PLAYWRIGHT_LOG_PATH=$(get_log_file --prefix "weblens-playwright-test" --subdir "playwright")
