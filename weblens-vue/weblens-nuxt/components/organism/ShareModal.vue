@@ -207,7 +207,12 @@ async function deleteShare() {
         return
     }
 
-    await useWeblensAPI().SharesAPI.deleteFileShare(share.value.ID())
-    menuStore.setSharing(false)
+    try {
+        await useWeblensAPI().SharesAPI.deleteFileShare(share.value.ID())
+        share.value = undefined
+        menuStore.setSharing(false)
+    } catch (e) {
+        console.error('Failed to delete share', e)
+    }
 }
 </script>

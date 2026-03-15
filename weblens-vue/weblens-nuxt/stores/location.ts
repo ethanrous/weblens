@@ -111,24 +111,15 @@ const useLocationStore = defineStore('location', () => {
         return hash
     })
 
-    const activeShare = ref<WeblensShare | undefined>(undefined)
-
-    watch(
-        activeShareID,
-        async (shareID) => {
-            if (!shareID) {
-                activeShare.value = undefined
-                return
-            }
-
-            try {
-                const shareInfo = (await useWeblensAPI().SharesAPI.getFileShare(shareID)).data
-                activeShare.value = new WeblensShare(shareInfo)
-            } catch {
-                activeShare.value = undefined
-            }
+    const { data: activeShare } = useAsyncData(
+        'active-share',
+        async () => {
+            const shareID = activeShareID.value
+            if (!shareID) return null
+            const shareInfo = (await useWeblensAPI().SharesAPI.getFileShare(shareID)).data
+            return new WeblensShare(shareInfo)
         },
-        { immediate: true },
+        { watch: [activeShareID] },
     )
 
     const inShareRoot = computed(() => {

@@ -34,7 +34,7 @@ type cachingTestContext struct {
 	db        *mongo.Database
 	logger    *zerolog.Logger
 	caches    map[string]*sturdyc.Client[any]
-	cacheLock sync.RWMutex
+	cacheLock *sync.RWMutex
 }
 
 func (c *cachingTestContext) Database() *mongo.Database {
@@ -53,6 +53,11 @@ func (c *cachingTestContext) GetCache(col string) *sturdyc.Client[any] {
 	c.cacheLock.Lock()
 	defer c.cacheLock.Unlock()
 
+	// Double-check after acquiring write lock
+	if cache, ok = c.caches[col]; ok {
+		return cache
+	}
+
 	cache = sturdyc.New[any](1000, 10, time.Hour, 10)
 	c.caches[col] = cache
 
@@ -67,10 +72,11 @@ func (c *cachingTestContext) WithLogger(_ zerolog.Logger) {}
 
 func (c *cachingTestContext) WithContext(ctx context.Context) context.Context {
 	return &cachingTestContext{
-		Context: ctx,
-		db:      c.db,
-		logger:  c.logger,
-		caches:  c.caches,
+		Context:   ctx,
+		db:        c.db,
+		logger:    c.logger,
+		caches:    c.caches,
+		cacheLock: c.cacheLock,
 	}
 }
 
@@ -110,10 +116,11 @@ func SetupTestDBWithCache(t *testing.T, collectionKey string, indexModels ...mon
 	logger := wlog.NewZeroLogger()
 
 	ctx := &cachingTestContext{
-		Context: context.Background(),
-		db:      testDB,
-		logger:  logger,
-		caches:  make(map[string]*sturdyc.Client[any]),
+		Context:   context.Background(),
+		db:        testDB,
+		logger:    logger,
+		caches:    make(map[string]*sturdyc.Client[any]),
+		cacheLock: &sync.RWMutex{},
 	}
 
 	col, err := GetCollection[any](ctx, collectionKey)
