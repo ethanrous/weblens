@@ -1,7 +1,9 @@
 import { test as base, expect, type Page, type TestInfo } from '@playwright/test'
-import { addCoverageReport } from 'monocart-reporter'
 import { makeLogFile, showLogFile, startTestBackend, stopTestBackend, type TestBackend } from './backend-manager'
 import fs from 'fs'
+import path from 'path'
+
+const NYC_OUTPUT_DIR = path.resolve(import.meta.dirname, '../../../_build/playwright/.nyc_output')
 
 const DEFAULT_ADMIN_USERNAME = 'admin'
 const DEFAULT_ADMIN_PASSWORD = 'adminadmin1'
@@ -49,18 +51,17 @@ const test = base.extend<Fixtures>({
                 logStream.write(`[${new Date().toISOString()}] [Browser ${msg.type().toUpperCase()}] ${msg.text()}\n`)
             })
 
-            await page.coverage.startJSCoverage({
-                resetOnNavigation: true,
-            })
-
             await use()
 
             logStream.end()
 
-            const coverage = await page.coverage.stopJSCoverage()
-            const nuxtCoverage = coverage.filter((entry) => entry.url.includes('/_nuxt/'))
-            if (nuxtCoverage.length > 0) {
-                await addCoverageReport(nuxtCoverage, testInfo)
+            const coverage = await page.evaluate(() => (window as unknown as Record<string, unknown>).__coverage__)
+            if (coverage) {
+                fs.mkdirSync(NYC_OUTPUT_DIR, { recursive: true })
+                fs.writeFileSync(
+                    path.join(NYC_OUTPUT_DIR, `coverage-${testInfo.testId}.json`),
+                    JSON.stringify(coverage),
+                )
             }
 
             if (testInfo.status !== testInfo.expectedStatus) {

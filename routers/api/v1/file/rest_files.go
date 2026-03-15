@@ -21,6 +21,7 @@ import (
 	tag_model "github.com/ethanrous/weblens/models/tag"
 	"github.com/ethanrous/weblens/models/task"
 	"github.com/ethanrous/weblens/modules/netwrk"
+	"github.com/ethanrous/weblens/modules/option"
 	"github.com/ethanrous/weblens/modules/set"
 	"github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/modules/wlerrors"
@@ -448,7 +449,8 @@ func SearchFiles(ctx context_service.RequestContext) {
 	}
 
 	doRegex := ctx.QueryBool("regex")
-	fileInfos := []wlstructs.FileInfo{}
+
+	files := []*file_model.WeblensFileImpl{}
 
 	if doRegex == true {
 		re, err := regexp.Compile(filenameSearch)
@@ -471,14 +473,7 @@ func SearchFiles(ctx context_service.RequestContext) {
 				continue
 			}
 
-			fileInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, f)
-			if err != nil {
-				ctx.Log().Error().Stack().Err(err).Msgf("Failed to convert file to FileInfo for file ID: %s", f.ID())
-
-				continue
-			}
-
-			fileInfos = append(fileInfos, fileInfo)
+			files = append(files, f)
 		}
 	} else {
 		matches := fuzzy.RankFindFold(filenameSearch, filenames)
@@ -488,7 +483,8 @@ func SearchFiles(ctx context_service.RequestContext) {
 			},
 		)
 
-		fileInfos = make([]wlstructs.FileInfo, 0, len(matches))
+		// Preallocate the files slice with the length of matches
+		files = make([]*file_model.WeblensFileImpl, 0, len(matches))
 
 		for _, match := range matches {
 			f, err := ctx.FileService.GetFileByID(ctx, fileIDs[match.OriginalIndex])
@@ -502,15 +498,37 @@ func SearchFiles(ctx context_service.RequestContext) {
 				continue
 			}
 
-			fileInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, f)
+			files = append(files, f)
+		}
+	}
+
+	fileInfos := make([]wlstructs.FileInfo, 0, len(files))
+	filePermsMap := make(map[string]*share_model.Permissions)
+
+	for _, f := range files {
+		var parentPerms *share_model.Permissions
+
+		parent := f.GetParent()
+
+		if pp, ok := filePermsMap[parent.ID()]; ok {
+			parentPerms = pp
+		} else {
+			parentPerms, err = auth.CanUserAccessFile(ctx, ctx.Requester, parent, ctx.Share)
 			if err != nil {
-				ctx.Log().Error().Stack().Err(err).Msgf("Failed to convert file to FileInfo for file ID: %s", f.ID())
+				ctx.Log().Error().Stack().Err(err).Msgf("Failed to check permissions for file ID: %s", f.ID())
 
 				continue
 			}
-
-			fileInfos = append(fileInfos, fileInfo)
 		}
+
+		fileInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, f, reshape.FileInfoOptions{Perms: option.Of(*parentPerms)})
+		if err != nil {
+			ctx.Log().Error().Stack().Err(err).Msgf("Failed to convert file to FileInfo for file ID: %s", f.ID())
+
+			continue
+		}
+
+		fileInfos = append(fileInfos, fileInfo)
 	}
 
 	// TODO: add media searching+sorting									VVV

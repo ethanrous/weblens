@@ -12,7 +12,6 @@
     "postinstall": "nuxt prepare",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:report": "playwright show-report ../../_build/playwright/report",
     "test:e2e:coverage": "open ../../_build/playwright/report/coverage/index.html",
     "clean": "rm -rf .nuxt .output dist"
   },
@@ -54,10 +53,11 @@
     "jsdom": "^26.1.0",
     "knip": "^5.83.1",
     "less": "^4.5.1",
-    "monocart-reporter": "^2.9.0",
+    "nyc": "^18.0.0",
     "prettier": "3.7.4",
     "prettier-plugin-tailwindcss": "^0.6.14",
     "typescript": "~5.8.3",
+    "vite-plugin-istanbul": "^8.0.0",
     "vite-plugin-vue-devtools": "^8.0.5",
     "vue-tsc": "^2.2.12"
   },

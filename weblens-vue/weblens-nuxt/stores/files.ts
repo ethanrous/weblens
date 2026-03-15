@@ -291,6 +291,43 @@ const useFilesStore = defineStore('files', () => {
     })
 
     // Funcs //
+
+    // Insert a file into the files array based on the current sort condition and direction
+    function insertFileSorted(filesList: WeblensFile[], newFile: WeblensFile): WeblensFile[] {
+        const compare = (a: WeblensFile, b: WeblensFile) => {
+            let aValue: string | number | Date = ''
+            let bValue: string | number | Date = ''
+
+            switch (sortCondition.value) {
+                case 'name':
+                    aValue = a.GetFilename()
+                    bValue = b.GetFilename()
+                    break
+                case 'updatedAt':
+                    aValue = a.GetModified()
+                    bValue = b.GetModified()
+                    break
+                case 'size':
+                    aValue = a.GetSize()
+                    bValue = b.GetSize()
+                    break
+            }
+
+            if (aValue < bValue) {
+                return sortDirection.value === 'asc' ? -1 : 1
+            } else if (aValue > bValue) {
+                return sortDirection.value === 'asc' ? 1 : -1
+            } else {
+                return 0
+            }
+        }
+
+        filesList.push(newFile)
+        filesList.sort(compare)
+
+        return filesList
+    }
+
     function setSelected(fileID: string, selected: boolean, doShiftSelect = false) {
         if (selected) {
             if (doShiftSelect && lastSelectedIndex.value !== -1 && nextSelectedIndex.value !== null) {
@@ -365,12 +402,19 @@ const useFilesStore = defineStore('files', () => {
 
         const newFile = new WeblensFile(file)
 
+        // Inherit permissions from parent if permissions are missing.
         if (!newFile.permissions && newFile.ParentID() === locationStore.activeFolderID) {
             newFile.permissions = activeFile.value?.permissions
         }
 
-        const filtered = files.value.filter((f) => f.ID() !== newFile.ID())
-        files.value = [...filtered, newFile]
+        // Get index of file in files array, if it exists
+        const index = files.value.findIndex((f) => f.ID() === newFile.ID())
+        if (index === -1) {
+            files.value = insertFileSorted(files.value, newFile)
+        } else {
+            files.value[index] = newFile
+        }
+
         triggerRef(files)
     }
 

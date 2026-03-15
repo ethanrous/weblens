@@ -240,12 +240,14 @@ func ScanFileTsk(ctx context_service.AppContext, meta job.ScanMeta) error {
 			}
 		}
 
+		// Check if the media has thumbnails cached on the filesystem. If not, we need to regenerate them.
 		isCached, err = media_service.IsCached(ctx, media)
 		if err != nil {
 			return err
 		}
 	}
 
+	// Generate the thumbnails if they do not exist
 	if !isCached {
 		_, err = media_service.HandleCacheCreation(ctx, media, meta.File)
 		if err != nil {
@@ -386,15 +388,16 @@ func getScanResult(t *task.Task) task.Result {
 	meta, ok := t.GetMeta().(job.ScanMeta)
 	if ok {
 		result = task.Result{
-			"filename": meta.File.GetPortablePath().Filename(),
-			"fileID":   meta.File.ID(),
+			"portablePath": meta.File.GetPortablePath(),
+			"filename":     meta.File.GetPortablePath().Filename(), // Kept for backwards compatibility
+			"fileID":       meta.File.ID(),
 		}
 
 		createdIn := tp.CreatedInTask()
 		if tp != nil && createdIn != nil {
-			result["taskJobTarget"] = createdIn.GetMeta().(job.ScanMeta).File.GetPortablePath().Filename()
+			result["taskJobTarget"] = createdIn.GetMeta().(job.ScanMeta).File.GetPortablePath()
 		} else if tp == nil {
-			result["taskJobTarget"] = meta.File.GetPortablePath().Filename()
+			result["taskJobTarget"] = meta.File.GetPortablePath()
 		}
 	}
 

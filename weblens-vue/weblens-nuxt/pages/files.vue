@@ -102,7 +102,7 @@ const mediaID = computed(() => {
 })
 
 const presentationNextFn = computed(() => {
-    if (presentingFile.value?.ID() === filesStore.activeFile?.ID()) return
+    if (!locationStore.isInTimeline && presentingFile.value?.ID() === filesStore.activeFile?.ID()) return
 
     return () => {
         if (locationStore.isInTimeline) {
@@ -120,7 +120,7 @@ const presentationNextFn = computed(() => {
 })
 
 const presentationPrevFn = computed(() => {
-    if (presentingFile.value?.ID() === filesStore.activeFile?.ID()) return
+    if (!locationStore.isInTimeline && presentingFile.value?.ID() === filesStore.activeFile?.ID()) return
 
     return () => {
         if (locationStore.isInTimeline) {

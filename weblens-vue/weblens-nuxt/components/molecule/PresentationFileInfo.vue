@@ -3,7 +3,7 @@
         v-if="file"
         class="flex w-full flex-col gap-2 p-1"
     >
-        <div :class="{ 'flex items-start gap-1': true }">
+        <div :class="{ 'my-4 flex items-start gap-1': true }">
             <FileIcon
                 :file="file"
                 :class="{ 'mt-1': true }"

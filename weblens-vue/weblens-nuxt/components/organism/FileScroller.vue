@@ -59,6 +59,7 @@
                         :file-index="index"
                         :file-shape="filesStore.fileShape"
                     />
+                    <span v-else>WHAT</span>
                 </template>
             </div>
         </div>

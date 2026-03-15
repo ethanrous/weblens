@@ -10,6 +10,12 @@ function handleModified(msg: WsMessage) {
         return
     }
 
+    if (useLocationStore().isInTimeline || useLocationStore().search) {
+        console.debug('Ignoring file from websocket update update - in timeline or search mode')
+
+        return
+    }
+
     // Don't update the trash file unless we're currently in the trash.
     if (!useLocationStore().isInTrash && msg.content.fileInfo.id === useUserStore().user.trashID) {
         return
@@ -55,7 +61,7 @@ export function handleWebsocketMessage(msg: WsMessage) {
             let targetFile: WeblensFile | undefined
             let taskParams: TaskParams
             if (msg.taskType === TaskType.ScanDirectory) {
-                targetFile = new WeblensFile({ portablePath: msg.content.filename, isDir: true })
+                targetFile = new WeblensFile({ portablePath: msg.content.portablePath, isDir: true })
                 taskParams = {
                     taskID: msg.subscribeKey,
                     taskType: TaskType.ScanDirectory,
@@ -100,7 +106,7 @@ export function handleWebsocketMessage(msg: WsMessage) {
         case WsEvent.FileScanStartedEvent:
         case WsEvent.FileScanFailedEvent:
         case WsEvent.FileScanCompleteEvent: {
-            const targetFile = new WeblensFile({ portablePath: msg.content.filename, isDir: true })
+            const targetFile = new WeblensFile({ portablePath: msg.content.portablePath, isDir: true })
 
             useTasksStore().upsertTask(msg.subscribeKey, {
                 taskID: msg.subscribeKey,
@@ -117,7 +123,7 @@ export function handleWebsocketMessage(msg: WsMessage) {
         }
 
         case WsEvent.FolderScanCompleteEvent: {
-            const targetFile = new WeblensFile({ portablePath: msg.content.filename, isDir: true })
+            const targetFile = new WeblensFile({ portablePath: msg.content.portablePath, isDir: true })
 
             useTasksStore().upsertTask(msg.subscribeKey, {
                 taskID: msg.subscribeKey,
