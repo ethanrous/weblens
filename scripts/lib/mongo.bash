@@ -21,7 +21,7 @@ is_mongo_running() {
         return 1
     fi
 
-    if docker compose ls --filter "name=weblens-$stack_name" --format json 2>/dev/null | grep '"running(2)"' &>/dev/null; then
+    if docker compose ls --filter "name=weblens-$stack_name" --format json 2>/dev/null | grep '"running(1)"' &>/dev/null; then
         return 0
     fi
 
@@ -67,29 +67,23 @@ launch_mongo() {
     export MONGO_DATA_ROOT="${WEBLENS_ROOT}/_build/db/$stack_name/"
     export MONGO_HOST_PORT=$mongo_port
 
-    # Calculate dynamic port offsets so multiple mongo stacks can run simultaneously
-    local port_offset=$((mongo_port - 27017))
-    export MONGOT_HEALTHCHECK_PORT=${MONGOT_HEALTHCHECK_PORT:-$((38081 + port_offset))}
-    export MONGOT_HOST_PORT_GRPC=${MONGOT_HOST_PORT_GRPC:-$((27028 + port_offset))}
-    export MONGOT_HOST_PORT_METRICS=${MONGOT_HOST_PORT_METRICS:-$((9946 + port_offset))}
-
     echo "Starting MongoDB container [$stack_name] on port [:$mongo_port] ..."
 
-    mkdir -p "${MONGO_DATA_ROOT}/mongod" "${MONGO_DATA_ROOT}/mongot"
-    chmod 777 "${MONGO_DATA_ROOT}/mongod" "${MONGO_DATA_ROOT}/mongot"
+    mkdir -p "${MONGO_DATA_ROOT}/mongod" "${MONGO_DATA_ROOT}/configdb" "${MONGO_DATA_ROOT}/mongot"
+    chmod 777 "${MONGO_DATA_ROOT}/mongod" "${MONGO_DATA_ROOT}/configdb" "${MONGO_DATA_ROOT}/mongot"
 
     export MONGO_PROJECT_NAME="$stack_name"
     if ! dockerc compose -f ./docker/mongo.compose.yaml --project-name "weblens-$stack_name" up -d; then
         log_dump_file="./_build/logs/failed-mongo-$stack_name.log"
-        echo "dumping mongod container logs to [$log_dump_file]..."
-        dockerc logs "weblens-$stack_name-mongod" >./_build/logs/failed-mongo-"$stack_name".log || true
+        echo "dumping mongo container logs to [$log_dump_file]..."
+        dockerc logs "weblens-$stack_name-mongo" >./_build/logs/failed-mongo-"$stack_name".log || true
         return 1
     else
-        # Wait for mongod to be healthy before returning
+        # Wait for mongo to be healthy before returning
         local retries=30
         local wait_time=1
         local count=0
-        until docker inspect --format='{{json .State.Health}}' weblens-"$stack_name"-mongod; do
+        until docker inspect --format='{{json .State.Health}}' weblens-"$stack_name"-mongo 2>/dev/null | grep -q '"healthy"'; do
             if [[ $count -ge $retries ]]; then
                 echo "MongoDB container failed to become healthy after $((retries * wait_time)) seconds. Check container logs for details." >&2
                 return 1
@@ -97,23 +91,6 @@ launch_mongo() {
             sleep $wait_time
             ((count++))
         done
-
-        # Wait for mongot to be healthy before returning
-
-        count=0
-        echo "Waiting for Mongot to be healthy on port [:$MONGOT_HEALTHCHECK_PORT] ..."
-        set +e
-        until curl --fail http://127.0.0.1:"${MONGOT_HEALTHCHECK_PORT}"/health; do
-            if [[ $count -ge $retries ]]; then
-                echo "Mongot container failed to become healthy after $((retries * wait_time)) seconds. Check container logs for details." >&2
-                docker ps -a >&2
-                docker logs "weblens-$stack_name-mongot" --tail 200 >&2
-                return 1
-            fi
-            sleep $wait_time
-            ((count++))
-        done
-
     fi
 }
 export -f launch_mongo
@@ -146,8 +123,7 @@ dump_mongo_logs() {
 
     echo "Dumping MongoDB logs for stack [$stack_name] to [$logfile] ..."
 
-    dockerc logs "weblens-$stack_name-mongod" >"$logfile-mongod.log" || true
-    dockerc logs "weblens-$stack_name-mongot" >"$logfile-mongot.log" || true
+    dockerc logs "weblens-$stack_name-mongo" >"$logfile-mongo.log" || true
 }
 export -f dump_mongo_logs
 

@@ -179,7 +179,7 @@ func getDefaultConfig() Provider {
 	return Provider{
 		Host:              "0.0.0.0",
 		Port:              "8080",
-		MongoDBUri:        "mongodb://127.0.0.1:27017/?replicaSet=rs0&directConnection=true",
+		MongoDBUri:        "mongodb://127.0.0.1:27017/?directConnection=true",
 		MongoDBName:       "weblens",
 		HdirURI:           "http://weblens-hdir:5000",
 		UIPath:            "/app/web",

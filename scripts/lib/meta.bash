@@ -45,6 +45,7 @@ show_as_subtask() {
     if [[ "$WEBLENS_VERBOSE" = "false" ]] && [[ "$verbose" = false ]]; then
         printf "\e[%s|-- %s\e[0m" "$color_code" "$task_name..."
         local buf cmd_status
+        echo "Running command: $*"
         buf=$("$@" 2>&1) && cmd_status=0 || cmd_status=$?
         if [[ $cmd_status -ne 0 ]]; then
             local err_prefix="${esc}[31m| ${esc}[0m"

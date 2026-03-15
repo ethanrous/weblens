@@ -51,7 +51,7 @@ else
 fi
 
 # Clean up any existing test databases in mongo
-show_as_subtask "Dropping existing mongo DBs" "green" -- docker exec weblens-test-pw-mongo-mongod mongosh --eval 'db.adminCommand({"listDatabases": 1, filter: { "name": /^pw-/ }}).databases.forEach(d => db.getSiblingDB(d.name).dropDatabase())'
+show_as_subtask "Dropping existing mongo DBs" "green" -- docker exec weblens-test-pw-mongo-mongo mongosh --eval 'db.adminCommand({"listDatabases": 1, filter: { "name": /^pw-/ }}).databases.forEach(d => db.getSiblingDB(d.name).dropDatabase())'
 
 export VITE_DEBUG_BUILD=true
 build_frontend "$lazy"

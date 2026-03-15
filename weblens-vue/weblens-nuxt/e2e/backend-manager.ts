@@ -129,7 +129,7 @@ export async function startTestBackend(workerIndex: number, testName: string): P
     const logStream = fs.createWriteStream(logPath)
 
     // Spawn the binary directly (mongo is already running from worker fixture)
-    const mongoUri = `mongodb://127.0.0.1:${MONGO_PORT}/?replicaSet=rs0&directConnection=true`
+    const mongoUri = `mongodb://127.0.0.1:${MONGO_PORT}/?directConnection=true`
     const child = spawn(binaryPath, [], {
         cwd: REPO_ROOT,
         env: {
