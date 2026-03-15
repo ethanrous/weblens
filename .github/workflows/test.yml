@@ -173,7 +173,7 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Preload mongo image
-        run: docker pull mmongodb/mongodb-atlas-local:8.2.5
+        run: docker pull mongodb/mongodb-atlas-local:8.2.5
 
       - name: Run E2E tests
         run: |
