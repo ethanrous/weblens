@@ -45,7 +45,7 @@ docker run --name weblens \
 -p 8080:8080 \ 
 -v {{ /files/on/host }}:/media/users \ 
 -v {{ /cache/on/host }}:/media/cache \
--e MONGODB_URI="mongodb://weblens-mongo:27017/?replicaSet=rs0" \ # This is the default, and can be omitted, but you can change it to fit your setup, if needed.
+-e MONGODB_URI="mongodb://weblens-mongo:27017/?directConnection=true" \ # This is the default, and can be omitted, but you can change it to fit your setup, if needed.
 --network weblens-net \
 docker.io/ethrous/weblens:latest
 ```

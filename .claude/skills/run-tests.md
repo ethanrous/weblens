@@ -38,7 +38,7 @@ What `test-weblens.bash` does:
 ### Environment
 
 Key env vars set by the script:
-- `WEBLENS_MONGODB_URI` — defaults to `mongodb://127.0.0.1:27019/?replicaSet=rs0&directConnection=true`
+- `WEBLENS_MONGODB_URI` — defaults to `mongodb://127.0.0.1:27019/?directConnection=true`
 - `WEBLENS_DO_CACHE=false`
 - `WEBLENS_LOG_LEVEL=debug`
 

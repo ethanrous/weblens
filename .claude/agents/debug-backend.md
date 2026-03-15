@@ -190,7 +190,7 @@ Follow TDD: write the test BEFORE any fix. Add it to the existing test file for 
 | `WEBLENS_LOG_LEVEL`    | Log verbosity                  | `info` (prod), `debug` (dev)                                      |
 | `WEBLENS_LOG_FORMAT`   | `dev` (colored) or `json`      | `json`                                                            |
 | `WEBLENS_LOG_PATH`     | Log file path                  | stdout                                                            |
-| `WEBLENS_MONGODB_URI`  | MongoDB connection             | `mongodb://127.0.0.1:27017/?replicaSet=rs0&directConnection=true` |
+| `WEBLENS_MONGODB_URI`  | MongoDB connection             | `mongodb://127.0.0.1:27017/?directConnection=true` |
 | `WEBLENS_DO_PROFILING` | Enable pprof server on `:6060` | `false` (enabled by `scripts/start.bash`)                         |
 | `WEBLENS_DO_CACHE`     | Enable caching                 | `true`                                                            |
 | `WEBLENS_PORT`         | Server port                    | `8080`                                                            |

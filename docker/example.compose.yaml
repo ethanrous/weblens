@@ -1,28 +1,37 @@
-version: "3.8"
-
 services:
   weblens:
     container_name: weblens
-    image: ethrous/weblens:{ VERSION }-{ ARCH }
+    image: ethrous/weblens:latest
     ports:
       - 8080:8080
     environment:
-      MONGODB_URI: "mongodb://{ MONGO_ROOT_USERNAME }:{ MONGO_ROOT_PASSWORD }@mongo:27017"
-      DATA_ROOT_PATH: [ "/media" ]
-      CACHES_PATH: [ "/cache" ]
-      PROXY_ADDRESS: [ "https://{ WWW.MY_WEBLENS_SERVER.COM }" ]
-      DEV_MODE: true/[false]
+      WEBLENS_MONGODB_URI: "mongodb://weblens-mongo:27017/?directConnection=true"
+      WEBLENS_DATA_PATH: "/data"
+      WEBLENS_CACHE_PATH: "/cache"
     volumes:
-      -{ /MEDIA/PATH/ON/HOST }:/media
-      -{ /CACHE/PATH/ON/HOST }:/cache
+      - ${DATA_HOST_PATH}:/data
+      - ${CACHE_HOST_PATH}:/cache
+    depends_on:
+      mongo:
+        condition: service_healthy
 
   mongo:
-    container_name: mongo
-    image: mongo
+    container_name: weblens-mongo
+    image: mongodb/mongodb-atlas-local:8.2.5
+    hostname: mongo.weblens
     ports:
       - 27017:27017
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: { MONGO_ROOT_USERNAME }
-      MONGO_INITDB_ROOT_PASSWORD: { MONGO_ROOT_PASSWORD }
     volumes:
-      -{ /DATABASE/PATH/ON/HOST }:/data/db
+      - ${DATABASE_HOST_PATH}/mongod:/data/db
+      - ${DATABASE_HOST_PATH}/configdb:/data/configdb
+      - ${DATABASE_HOST_PATH}/mongot:/data/mongot
+    deploy:
+      resources:
+        limits:
+          memory: 4g
+    healthcheck:
+      test: mongosh --eval "db.adminCommand('ping')"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s

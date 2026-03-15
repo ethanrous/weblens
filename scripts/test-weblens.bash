@@ -23,7 +23,7 @@ run_native_tests() {
 
     # Set up environment variables for testing
     export WEBLENS_DO_CACHE=false
-    export WEBLENS_MONGODB_URI=${WEBLENS_MONGODB_URI:-"mongodb://127.0.0.1:27019/?replicaSet=rs0&directConnection=true"}
+    export WEBLENS_MONGODB_URI=${WEBLENS_MONGODB_URI:-"mongodb://127.0.0.1:27019/?directConnection=true"}
     export WEBLENS_LOG_LEVEL="${WEBLENS_LOG_LEVEL:-debug}"
     export WEBLENS_LOG_FORMAT="dev"
     export CGO_LDFLAGS="-w"
@@ -53,7 +53,7 @@ run_container_tests() {
         -v ./:/src \
         -v /src/weblens-vue/weblens-nuxt/node_modules \
         -v /src/build \
-        -e WEBLENS_MONGODB_URI="mongodb://weblens-test-mongo:27017/?replicaSet=rs0" \
+        -e WEBLENS_MONGODB_URI="mongodb://weblens-test-mongo:27017/?directConnection=true" \
         ethrous/weblens-roux":$baseVersion" /src/scripts/test-weblens.bash "${tests}"; then
         echo "Tests failed, exiting..."
         exit 1

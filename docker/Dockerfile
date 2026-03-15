@@ -90,7 +90,6 @@ WORKDIR /app
 
 COPY --from=web /src/weblens-nuxt/.output/public/ /app/web/
 COPY --from=backend /server/weblens /app/weblens
-COPY config/ /app/config
 COPY public /app/static
 
 RUN mkdir -p /usr/share/vulkan/icd.d/

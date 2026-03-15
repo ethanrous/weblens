@@ -18,7 +18,7 @@
       "command": "npx",
       "args": ["-y", "mongodb-mcp-server@latest", "--readOnly"],
       "env": {
-        "MDB_MCP_CONNECTION_STRING": "mongodb://127.0.0.1:27017/?replicaSet=rs0&directConnection=true"
+        "MDB_MCP_CONNECTION_STRING": "mongodb://127.0.0.1:27017/?directConnection=true"
       }
     }
   }
