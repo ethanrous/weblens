@@ -107,6 +107,14 @@ func GetMediaBatch(ctx ctxservice.RequestContext) {
 		return
 	}
 
+	// The paginated fallback uses ctx.Requester.Username and is not share-aware.
+	// Require authentication when no folder or media IDs are provided.
+	if !ctx.IsLoggedIn {
+		ctx.Error(http.StatusUnauthorized, wlerrors.New("authentication required"))
+
+		return
+	}
+
 	getMediaPaginated(ctx, sort, raw, hidden, int(page), int(limit))
 }
 

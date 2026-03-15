@@ -298,6 +298,79 @@ func TestCanUserAccessFile_WrongFileForShare(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestCanUserAccessFile_SharedUser_DownloadPermission(t *testing.T) {
+	ctx := context.Background()
+
+	fileOwner := &user_model.User{Username: "fileowner"}
+	sharedUser := &user_model.User{Username: "shareduser", UserPerms: user_model.UserPermissionBasic}
+	_ = fileOwner
+
+	filepath := file_system.BuildFilePath(file_model.UsersTreeKey, "fileowner/photos/image.jpg")
+	file := file_model.NewWeblensFile(file_model.NewFileOptions{
+		Path:       filepath,
+		MemOnly:    true,
+		GenerateID: true,
+	})
+
+	t.Run("download denied when CanDownload is false", func(t *testing.T) {
+		share := &share_model.FileShare{
+			ShareID:   primitive.NewObjectID(),
+			FileID:    file.ID(),
+			Public:    false,
+			Enabled:   true,
+			Accessors: []string{"shareduser"},
+			Permissions: map[string]*share_model.Permissions{
+				"shareduser": {CanView: true, CanDownload: false, CanEdit: false, CanDelete: false},
+			},
+		}
+
+		_, err := auth.CanUserAccessFile(ctx, sharedUser, file, share, share_model.SharePermissionDownload)
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, auth.ErrFileAccessNotPermitted)
+	})
+
+	t.Run("download allowed when CanDownload is true", func(t *testing.T) {
+		share := &share_model.FileShare{
+			ShareID:   primitive.NewObjectID(),
+			FileID:    file.ID(),
+			Public:    false,
+			Enabled:   true,
+			Accessors: []string{"shareduser"},
+			Permissions: map[string]*share_model.Permissions{
+				"shareduser": {CanView: true, CanDownload: true, CanEdit: false, CanDelete: false},
+			},
+		}
+
+		perms, err := auth.CanUserAccessFile(ctx, sharedUser, file, share, share_model.SharePermissionDownload)
+		require.NoError(t, err)
+		assert.True(t, perms.CanView)
+		assert.True(t, perms.CanDownload)
+	})
+
+	t.Run("view allowed but download denied when only view permission", func(t *testing.T) {
+		share := &share_model.FileShare{
+			ShareID:   primitive.NewObjectID(),
+			FileID:    file.ID(),
+			Public:    false,
+			Enabled:   true,
+			Accessors: []string{"shareduser"},
+			Permissions: map[string]*share_model.Permissions{
+				"shareduser": {CanView: true, CanDownload: false, CanEdit: false, CanDelete: false},
+			},
+		}
+
+		// View-only should succeed
+		perms, err := auth.CanUserAccessFile(ctx, sharedUser, file, share, share_model.SharePermissionView)
+		require.NoError(t, err)
+		assert.True(t, perms.CanView)
+
+		// View + Download should fail
+		_, err = auth.CanUserAccessFile(ctx, sharedUser, file, share, share_model.SharePermissionView, share_model.SharePermissionDownload)
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, auth.ErrFileAccessNotPermitted)
+	})
+}
+
 func TestCookieExpiration(t *testing.T) {
 	t.Run("user cookie expires in the future", func(t *testing.T) {
 		user := &user_model.User{Username: "testuser"}

@@ -45,7 +45,7 @@
                 :class="{ 'mt-3': true }"
                 label="Download JPEG ..."
                 type="outline"
-                :disabled="qualitySliderOpen"
+                :disabled="qualitySliderOpen || !canDownload"
                 @click="
                     () => {
                         quality = 85
@@ -86,6 +86,7 @@
                             :class="{ 'ml-auto': true }"
                             label="Download"
                             type="outline"
+                            :disabled="!canDownload"
                             :square-size="32"
                             @click="handleDownload()"
                         />
@@ -184,6 +185,7 @@ import { downloadSingleFile } from '~/api/FileBrowserApi'
 import useFilesStore from '~/stores/files'
 import Seeker from '../atom/Seeker.vue'
 
+const filesStore = useFilesStore()
 const mediaStore = useMediaStore()
 const qualitySliderOpen = ref<boolean>(false)
 const quality = ref<number>(85)
@@ -194,6 +196,13 @@ const props = defineProps<{
 
 const media = computed(() => {
     return mediaStore.mediaMap.get(props.mediaId)
+})
+
+const canDownload = computed(() => {
+    const fileID = media.value?.fileIDs?.[0]
+    if (!fileID) return false
+    const file = filesStore.getFileByID(fileID)
+    return file?.CanDownload() ?? false
 })
 
 const mediaType = computed(() => {
@@ -232,7 +241,7 @@ const likedByText = computed(() => {
 async function handleDownload() {
     if (!media.value?.fileIDs?.length) return
 
-    const file = useFilesStore().getFileByID(media.value.fileIDs[0])
+    const file = filesStore.getFileByID(media.value.fileIDs[0])
     let filename = file?.GetFilename()
     if (!filename) {
         filename = `media_${media.value.ID()}`

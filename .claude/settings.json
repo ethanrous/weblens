@@ -13,12 +13,6 @@
     ]
   },
   "mcpServers": {
-    "playwright": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["@playwright/mcp@latest"],
-      "env": {}
-    },
     "mongodb": {
       "type": "stdio",
       "command": "npx",

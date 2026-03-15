@@ -111,23 +111,19 @@ const useLocationStore = defineStore('location', () => {
         return hash
     })
 
-    const { data: activeShare } = useAsyncData('share-' + route.value.params.shareID, async () => {
-        if (!route.value.params.shareID) {
-            return
-        }
-
-        if (Array.isArray(route.value.params.shareID)) {
-            console.warn('ShareID param is array')
-            return
-        }
-
-        const shareInfo = (await useWeblensAPI().SharesAPI.getFileShare(route.value.params.shareID as string)).data
-
-        return new WeblensShare(shareInfo)
-    })
+    const { data: activeShare } = useAsyncData(
+        'active-share',
+        async () => {
+            const shareID = activeShareID.value
+            if (!shareID) return null
+            const shareInfo = (await useWeblensAPI().SharesAPI.getFileShare(shareID)).data
+            return new WeblensShare(shareInfo)
+        },
+        { watch: [activeShareID] },
+    )
 
     const inShareRoot = computed(() => {
-        return isInShare.value && !activeShare.value
+        return isInShare.value && !activeShareID.value
     })
 
     const isInFiles = computed(() => {
@@ -168,6 +164,11 @@ const useLocationStore = defineStore('location', () => {
 
         if (route.value.path === '/login' && isLoggedIn) {
             return navigateTo('/files/home')
+        }
+
+        // If not logged in and on a settings page, redirect to login
+        if (route.value.path.startsWith('/settings') && !isLoggedIn) {
+            return navigateTo({ path: '/login' })
         }
 
         if (!isInFiles.value) return

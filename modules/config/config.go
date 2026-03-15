@@ -366,3 +366,11 @@ func SetLogLevel(level zerolog.Level) {
 
 	cnf.LogLevel = level
 }
+
+// SetDoCache sets the caching flag in the configuration.
+func SetDoCache(doCache bool) {
+	cnfMu.Lock()
+	defer cnfMu.Unlock()
+
+	cnf.DoCache = doCache
+}

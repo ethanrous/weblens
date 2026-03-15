@@ -23,6 +23,22 @@ make gen-ui                                      		# Build frontend
 
 Dev servers: frontend `:3000` (proxies API), backend `:8080`.
 
+## Debugging workflow:
+
+ALWAYS use the `debug-fix` skill for any bug, test failure, or unexpected behavior. It automatically routes to the correct agents and orchestrates the full diagnose-then-fix pipeline.
+
+**Debug agents** (opus — diagnosis only, no implementation):
+
+- `debug-backend` — Go backend issues. Uses MongoDB MCP, structured logging, pprof. Writes a failing test and reports root cause.
+- `debug-frontend` — Vue/Nuxt/Tailwind issues. Uses "Claude in Chrome" to interact with live dev server. Writes a failing test and reports root cause.
+
+**Fix agents** (sonnet — implementation only, requires diagnosed root cause):
+
+- `fix-backend` — Implements Go backend fixes following project conventions (layers, DI, error handling, Swagger).
+- `fix-frontend` — Implements Nuxt frontend fixes following project conventions (Pinia, atomic design, Tailwind, Playwright tests).
+
+The `debug-fix` skill launches the appropriate debug agent first, then passes the root cause to the matching fix agent. Do not use fix agents without a diagnosis — they expect a root cause and failing test as input.
+
 ## Development Workflow: Test-Driven Development (MANDATORY)
 
 Every bug fix and feature MUST follow this sequence. Do not skip steps.

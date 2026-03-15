@@ -64,8 +64,9 @@ const menuSize = useElementSize(menuRef)
 const container = shallowRef(document.getElementById('filebrowser-container'))
 const containerBounds = useElementBounding(container)
 
-onClickOutside(menuRef, () => {
+onClickOutside(menuRef, (e) => {
     if (menuStore.isOpen) {
+        e.stopPropagation()
         menuStore.setMenuOpen(false)
     }
 })
@@ -149,7 +150,8 @@ onMounted(() => {
     transition-property: height, top, left, opacity;
 
     border: 1px solid var(--color-border-primary);
-    z-index: 10;
+    z-index: 90;
+    isolation: isolate;
 
     @apply shadow-sm;
 }

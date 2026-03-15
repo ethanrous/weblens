@@ -1,10 +1,12 @@
 package e2e_test
 
 import (
+	"encoding/base64"
 	"net/http"
 	"testing"
 
 	openapi "github.com/ethanrous/weblens/api"
+	"github.com/ethanrous/weblens/models/auth"
 	"github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/stretchr/testify/assert"
@@ -316,6 +318,61 @@ func TestUpdateSharePermissions(t *testing.T) {
 	} else {
 		t.Error("permuser permissions not found in share info")
 	}
+}
+
+func TestGetPrivateShareAsAccessor(t *testing.T) {
+	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
+	require.NoError(t, err, "Failed to start test server")
+
+	adminClient := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
+
+	// Create a second user who will be an accessor on the share
+	autoActivate := true
+	_, err = adminClient.UsersAPI.CreateUser(t.Context()).NewUserParams(openapi.NewUserParams{
+		Username:     "accessor",
+		Password:     "TestPass123",
+		FullName:     "Accessor User",
+		AutoActivate: &autoActivate,
+	}).Execute()
+	require.NoError(t, err)
+
+	accessorToken, err := auth.GenerateNewToken(coreSetup.ctx, "accessor-token", "accessor", coreSetup.ctx.LocalTowerID)
+	require.NoError(t, err)
+
+	accessorClient := getAPIClientFromConfig(coreSetup.cnf, base64.StdEncoding.EncodeToString(accessorToken.Token[:]))
+
+	// Admin creates a folder and a private share with the accessor user
+	adminUser, _, err := adminClient.UsersAPI.GetUser(t.Context()).Execute()
+	require.NoError(t, err)
+
+	folder, _, err := adminClient.FolderAPI.CreateFolder(t.Context()).Request(openapi.CreateFolderBody{
+		ParentFolderID: adminUser.GetHomeID(),
+		NewFolderName:  "private-shared-folder",
+	}).Execute()
+	require.NoError(t, err)
+
+	createdShare, _, err := adminClient.ShareAPI.CreateFileShare(t.Context()).Request(openapi.FileShareParams{
+		FileID: openapi.PtrString(folder.GetId()),
+		Public: openapi.PtrBool(false),
+		Users:  []string{"accessor"},
+	}).Execute()
+	require.NoError(t, err)
+
+	shareID := createdShare.GetShareID()
+	require.NotEmpty(t, shareID)
+
+	// Admin (owner) should be able to get the share
+	shareInfo, resp, err := adminClient.ShareAPI.GetFileShare(t.Context(), shareID).Execute()
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, shareID, shareInfo.GetShareID())
+
+	// Accessor should also be able to get the private share they have access to
+	shareInfo, resp, err = accessorClient.ShareAPI.GetFileShare(t.Context(), shareID).Execute()
+	require.NoError(t, err, "accessor user should be able to view a private share they are listed on")
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, shareID, shareInfo.GetShareID())
+	assert.Equal(t, folder.GetId(), shareInfo.GetFileID())
 }
 
 func TestDeleteFileShare(t *testing.T) {

@@ -39,6 +39,11 @@
                         +{{ fileTags.length - 3 }}
                     </span>
                 </div>
+
+                <IconUser
+                    v-if="file.shareID"
+                    :size="18"
+                />
             </div>
             <span
                 :class="{
@@ -61,6 +66,7 @@
 <script setup lang="ts">
 import { SelectedState } from '@/types/weblensFile'
 import type WeblensFile from '@/types/weblensFile'
+import { IconUser } from '@tabler/icons-vue'
 import useTagsStore from '~/stores/tags'
 
 const tagsStore = useTagsStore()

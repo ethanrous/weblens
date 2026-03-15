@@ -93,6 +93,7 @@
             <WeblensButton
                 :label="downloadTaskID ? 'Zipping...' : 'Download'"
                 type="outline"
+                :disabled="!file?.CanDownload()"
                 @click.stop="download()"
             >
                 <IconDownload size="16" />

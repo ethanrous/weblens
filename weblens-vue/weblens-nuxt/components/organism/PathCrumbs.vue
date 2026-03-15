@@ -107,7 +107,7 @@ const crumbFiles = computed(() => {
         files.push(filesStore.activeFile)
     }
 
-    if (locationStore.isInShare) {
+    if (locationStore.isInShare && !filesStore.activeFile?.IsShareRoot()) {
         files.unshift(WeblensFile.ShareRoot())
     }
 

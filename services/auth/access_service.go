@@ -125,6 +125,16 @@ func CanUserModifyShare(user *user_model.User, share share_model.FileShare) bool
 	return user.GetUsername() == share.GetOwner()
 }
 
+// CanUserAccessShare checks if a user has permission to read a share's metadata.
+// This is true if the user is the owner or is listed as an accessor.
+func CanUserAccessShare(user *user_model.User, share share_model.FileShare) bool {
+	if user.GetUsername() == share.GetOwner() {
+		return true
+	}
+
+	return share.GetUserPermissions(user.GetUsername()) != nil
+}
+
 // SetSessionToken generates and sets session cookies for the authenticated user.
 func SetSessionToken(ctx context_service.RequestContext) error {
 	if ctx.Requester == nil {

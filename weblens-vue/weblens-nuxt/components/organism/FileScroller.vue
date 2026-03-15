@@ -1,7 +1,5 @@
 <template>
     <div :class="{ 'page-root relative': true }">
-        <FileContextMenu />
-
         <span
             v-if="!filesStore.searchUpToDate && filesStore.searchRecursively && locationStore.search !== ''"
             :class="{ 'text-text-secondary m-auto inline-flex items-center gap-1': true }"
@@ -74,7 +72,6 @@ import { isParent } from '~/util/domHelpers'
 import { HandleDrop } from '~/api/uploadApi'
 import useFilesStore from '~/stores/files'
 import { onKeyDown, useActiveElement, useMagicKeys } from '@vueuse/core'
-import FileContextMenu from './FileContextMenu.vue'
 import Loader from '../atom/Loader.vue'
 import useLocationStore from '~/stores/location'
 import NoResults from '../molecule/NoResults.vue'

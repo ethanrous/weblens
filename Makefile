@@ -1,4 +1,4 @@
-all: run
+all: dev
 
 gen-ui: FORCE
 	cd weblens-vue/weblens-nuxt && \
@@ -14,6 +14,8 @@ test-server: FORCE
 test-ui: FORCE
 	./scripts/test-playwright.bash
 
+test: test-server test-ui
+
 cover-ui: FORCE
 	cd weblens-vue/weblens-nuxt && pnpm run test:e2e:coverage
 
@@ -24,15 +26,6 @@ cover-view:
 
 dev: FORCE
 	./scripts/start.bash "${@:1}"
-
-dev-s: FORCE
-	./scripts/start.bash --dev --secure $(ARGS)
-
-dev\:backup: FORCE
-	./scripts/start.bash --dev -t backup
-
-dev\:static: FORCE
-	./scripts/start.bash --rebuild --dev "${@:2}"
 
 swag: FORCE
 	./scripts/swaggo.bash
@@ -50,7 +43,7 @@ clean:
 	# UI stuff
 	cd weblens-vue/weblens-nuxt && pnpm run clean
 
-really-clean:
+really-clean: clean
 	rm -rf ./_build
 	rm -rf ./ui/dist
 	rm -rf ./ui/node_modules

@@ -118,8 +118,8 @@ func GetFileShare(ctx ctxservice.RequestContext) {
 		return
 	}
 
-	// Public shares can be viewed by anyone; private shares require ownership
-	if !share.IsPublic() && (ctx.Requester == nil || !auth.CanUserModifyShare(ctx.Requester, *share)) {
+	// Public shares can be viewed by anyone; private shares require ownership or accessor status
+	if !share.IsPublic() && (ctx.Requester == nil || !auth.CanUserAccessShare(ctx.Requester, *share)) {
 		ctx.Error(http.StatusNotFound, wlerrors.New("share not found"))
 
 		return
@@ -388,4 +388,8 @@ func DeleteShare(ctx ctxservice.RequestContext) {
 
 		return
 	}
+
+	ctx.Log().Debug().Msgf("Deleted share [%s]", shareID.Hex())
+
+	ctx.Status(http.StatusOK)
 }

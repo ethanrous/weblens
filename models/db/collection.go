@@ -258,6 +258,13 @@ func (c *ContextualizedCollection[T]) CountDocuments(_ context.Context, filter a
 
 // DeleteOne deletes a single document matching the filter.
 func (c *ContextualizedCollection[T]) DeleteOne(_ context.Context, filter any, opts ...*options.DeleteOptions) (*mongo.DeleteResult, error) {
+	if config.GetConfig().DoCache {
+		cache := context_mod.ToZ(c.ctx).GetCache(c.collection.Name())
+		for _, key := range cache.ScanKeys() {
+			cache.Delete(key)
+		}
+	}
+
 	return c.collection.DeleteOne(c.ctx, filter, opts...)
 }
 

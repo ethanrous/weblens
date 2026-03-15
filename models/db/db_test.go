@@ -285,6 +285,40 @@ func TestContextualizedCollection_CRUD(t *testing.T) {
 // 	})
 // }
 
+func TestDeleteOneInvalidatesCache(t *testing.T) {
+	ctx := db.SetupTestDBWithCache(t, testCollectionKey)
+
+	collection, err := db.GetCollection[any](ctx, testCollectionKey)
+	require.NoError(t, err)
+
+	doc := TestDocument{
+		ID:        primitive.NewObjectID(),
+		Name:      "cacheInvalidateTest",
+		Value:     99,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	_, err = collection.InsertOne(ctx, doc)
+	require.NoError(t, err)
+
+	// Populate the cache by reading the document
+	var found TestDocument
+
+	err = collection.FindOne(ctx, bson.M{"_id": doc.ID}).Decode(&found)
+	require.NoError(t, err)
+	assert.Equal(t, doc.Name, found.Name)
+
+	// Delete the document
+	result, err := collection.DeleteOne(ctx, bson.M{"_id": doc.ID})
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), result.DeletedCount)
+
+	// FindOne should return ErrNoDocuments, not the stale cached result
+	err = collection.FindOne(ctx, bson.M{"_id": doc.ID}).Decode(&found)
+	assert.ErrorIs(t, err, mongo.ErrNoDocuments)
+}
+
 func TestContextualizedCollection_EdgeCases(t *testing.T) {
 	ctx := db.SetupTestDB(t, testCollectionKey)
 

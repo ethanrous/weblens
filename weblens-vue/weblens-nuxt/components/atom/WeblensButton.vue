@@ -2,7 +2,6 @@
     <button
         ref="buttonRef"
         :class="{
-            'animate-fade-in': true,
             'justify-center': centerContent || !textContent || justIcon,
             'aspect-square': !textContent || justIcon,
             'rounded-none first:rounded-l last:rounded-r': merge === 'row',
