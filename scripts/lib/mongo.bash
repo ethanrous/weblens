@@ -89,7 +89,7 @@ launch_mongo() {
                 return 1
             fi
             sleep $wait_time
-            ((count++))
+            ((count++)) || true
         done
     fi
 }
