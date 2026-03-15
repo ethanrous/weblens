@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
+# Remove after debugging
+set -x
+
 source ./scripts/lib/all.bash
 
 lazy=false

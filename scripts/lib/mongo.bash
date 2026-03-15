@@ -72,9 +72,6 @@ launch_mongo() {
     mkdir -p "${MONGO_DATA_ROOT}/mongod" "${MONGO_DATA_ROOT}/configdb" "${MONGO_DATA_ROOT}/mongot"
     chmod 777 "${MONGO_DATA_ROOT}/mongod" "${MONGO_DATA_ROOT}/configdb" "${MONGO_DATA_ROOT}/mongot"
 
-    # DEBUG: remove after debugging
-    set -x
-
     export MONGO_PROJECT_NAME="$stack_name"
     if ! dockerc compose -f ./docker/mongo.compose.yaml --project-name "weblens-$stack_name" up -d; then
         log_dump_file="./_build/logs/failed-mongo-$stack_name.log"
