@@ -44,7 +44,7 @@ func (r ApiAddFilesToUploadRequest) ShareID(shareID string) ApiAddFilesToUploadR
 	return r
 }
 
-func (r ApiAddFilesToUploadRequest) Execute() (*NewFilesInfo, *http.Response, error) {
+func (r ApiAddFilesToUploadRequest) Execute() (*FileIDArrayInfo, *http.Response, error) {
 	return r.ApiService.AddFilesToUploadExecute(r)
 }
 
@@ -64,13 +64,13 @@ func (a *FilesAPIService) AddFilesToUpload(ctx context.Context, uploadID string)
 }
 
 // Execute executes the request
-//  @return NewFilesInfo
-func (a *FilesAPIService) AddFilesToUploadExecute(r ApiAddFilesToUploadRequest) (*NewFilesInfo, *http.Response, error) {
+//  @return FileIDArrayInfo
+func (a *FilesAPIService) AddFilesToUploadExecute(r ApiAddFilesToUploadRequest) (*FileIDArrayInfo, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodPost
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  *NewFilesInfo
+		localVarReturnValue  *FileIDArrayInfo
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "FilesAPIService.AddFilesToUpload")
@@ -1516,7 +1516,7 @@ func (r ApiSearchFilesRequest) TagJoinLogic(tagJoinLogic string) ApiSearchFilesR
 	return r
 }
 
-func (r ApiSearchFilesRequest) Execute() ([]FileInfo, *http.Response, error) {
+func (r ApiSearchFilesRequest) Execute() (*FilesInfo, *http.Response, error) {
 	return r.ApiService.SearchFilesExecute(r)
 }
 
@@ -1534,13 +1534,13 @@ func (a *FilesAPIService) SearchFiles(ctx context.Context) ApiSearchFilesRequest
 }
 
 // Execute executes the request
-//  @return []FileInfo
-func (a *FilesAPIService) SearchFilesExecute(r ApiSearchFilesRequest) ([]FileInfo, *http.Response, error) {
+//  @return FilesInfo
+func (a *FilesAPIService) SearchFilesExecute(r ApiSearchFilesRequest) (*FilesInfo, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodGet
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  []FileInfo
+		localVarReturnValue  *FilesInfo
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "FilesAPIService.SearchFiles")

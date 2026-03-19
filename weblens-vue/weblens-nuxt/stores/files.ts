@@ -88,6 +88,30 @@ const useFilesStore = defineStore('files', () => {
         { immediate: true },
     )
 
+    // Sync searchRecursively with ?recursive query param
+    watch(
+        () => locationStore.getQueryParam('recursive'),
+        (newVal) => {
+            searchRecursively.value = newVal === 'true'
+        },
+        { immediate: true },
+    )
+    watch(searchRecursively, () => {
+        locationStore.setQueryParam('recursive', searchRecursively.value ? 'true' : null)
+    })
+
+    // Sync searchWithRegex with ?regex query param
+    watch(
+        () => locationStore.getQueryParam('regex'),
+        (newVal) => {
+            searchWithRegex.value = newVal === 'true'
+        },
+        { immediate: true },
+    )
+    watch(searchWithRegex, () => {
+        locationStore.setQueryParam('regex', searchWithRegex.value ? 'true' : null)
+    })
+
     const {
         data: filesResponse,
         error,
@@ -201,9 +225,11 @@ const useFilesStore = defineStore('files', () => {
                 filterTagMode.value,
             )
 
-            const results = res.data.map((f: FileInfo) => {
+            const results = res.data.files.map((f: FileInfo) => {
                 return new WeblensFile(f)
             })
+
+            mediaStore.addMedia(...(res.data.medias ?? []))
 
             return results
         },

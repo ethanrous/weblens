@@ -98,6 +98,13 @@ definitions:
     - timestamp
     - towerID
     type: object
+  FileIDArrayInfo:
+    properties:
+      fileIDs:
+        items:
+          type: string
+        type: array
+    type: object
   FileInfo:
     properties:
       childrenIds:
@@ -149,6 +156,19 @@ definitions:
         type: array
       wormhole:
         type: boolean
+    type: object
+  FilesInfo:
+    properties:
+      files:
+        items:
+          $ref: '#/definitions/FileInfo'
+        type: array
+      medias:
+        items:
+          $ref: '#/definitions/MediaInfo'
+        type: array
+    required:
+    - files
     type: object
   FilesListParams:
     properties:
@@ -309,13 +329,6 @@ definitions:
         type: string
       parentFolderID:
         type: string
-    type: object
-  NewFilesInfo:
-    properties:
-      fileIDs:
-        items:
-          type: string
-        type: array
     type: object
   NewFilesParams:
     properties:
@@ -1121,11 +1134,9 @@ paths:
         type: string
       responses:
         "200":
-          description: File Info
+          description: Search results
           schema:
-            items:
-              $ref: '#/definitions/FileInfo'
-            type: array
+            $ref: '#/definitions/FilesInfo'
         "400":
           description: Bad Request
         "401":
@@ -2612,7 +2623,7 @@ paths:
         "201":
           description: FileIds
           schema:
-            $ref: '#/definitions/NewFilesInfo'
+            $ref: '#/definitions/FileIDArrayInfo'
         "401":
           description: Unauthorized
         "404":

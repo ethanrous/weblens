@@ -23,7 +23,7 @@ import (
 //	@Tags		Share
 //	@Produce	json
 //	@Param		request	body		wlstructs.FileShareParams	true	"New File Share Params"
-//	@Success	200		{object}	wlstructs.ShareInfo		"New File Share"
+//	@Success	200		{object}	wlstructs.ShareInfo			"New File Share"
 //	@Success	409
 //	@Router		/share/file [post]
 func CreateFileShare(ctx ctxservice.RequestContext) {

@@ -62,6 +62,9 @@ export interface FileActionInfo {
     'timestamp': number;
     'towerID': string;
 }
+export interface FileIDArrayInfo {
+    'fileIDs'?: Array<string>;
+}
 export interface FileInfo {
     'childrenIds'?: Array<string>;
     'contentID'?: string;
@@ -85,6 +88,10 @@ export interface FileShareParams {
     'timelineOnly'?: boolean;
     'users'?: Array<string>;
     'wormhole'?: boolean;
+}
+export interface FilesInfo {
+    'files': Array<FileInfo>;
+    'medias'?: Array<MediaInfo>;
 }
 export interface FilesListParams {
     'fileIDs'?: Array<string>;
@@ -208,9 +215,6 @@ export interface NewFileParams {
     'isDir'?: boolean;
     'newFileName'?: string;
     'parentFolderID'?: string;
-}
-export interface NewFilesInfo {
-    'fileIDs'?: Array<string>;
 }
 export interface NewFilesParams {
     'newFiles'?: Array<NewFileParams>;
@@ -1554,7 +1558,7 @@ export const FilesApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async addFilesToUpload(uploadID: string, request: NewFilesParams, shareID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<NewFilesInfo>> {
+        async addFilesToUpload(uploadID: string, request: NewFilesParams, shareID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FileIDArrayInfo>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.addFilesToUpload(uploadID, request, shareID, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['FilesApi.addFilesToUpload']?.[localVarOperationServerIndex]?.url;
@@ -1738,7 +1742,7 @@ export const FilesApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<FileInfo>>> {
+        async searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FilesInfo>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.searchFiles(search, baseFolderID, sortProp, sortOrder, recursive, regex, tags, tagJoinLogic, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['FilesApi.searchFiles']?.[localVarOperationServerIndex]?.url;
@@ -1820,7 +1824,7 @@ export const FilesApiFactory = function (configuration?: Configuration, basePath
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        addFilesToUpload(uploadID: string, request: NewFilesParams, shareID?: string, options?: RawAxiosRequestConfig): AxiosPromise<NewFilesInfo> {
+        addFilesToUpload(uploadID: string, request: NewFilesParams, shareID?: string, options?: RawAxiosRequestConfig): AxiosPromise<FileIDArrayInfo> {
             return localVarFp.addFilesToUpload(uploadID, request, shareID, options).then((request) => request(axios, basePath));
         },
         /**
@@ -1965,7 +1969,7 @@ export const FilesApiFactory = function (configuration?: Configuration, basePath
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options?: RawAxiosRequestConfig): AxiosPromise<Array<FileInfo>> {
+        searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options?: RawAxiosRequestConfig): AxiosPromise<FilesInfo> {
             return localVarFp.searchFiles(search, baseFolderID, sortProp, sortOrder, recursive, regex, tags, tagJoinLogic, options).then((request) => request(axios, basePath));
         },
         /**

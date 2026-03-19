@@ -32,6 +32,22 @@ function handleModified(msg: WsMessage) {
     }
 }
 
+function handleFileScan(msg: WsMessage) {
+    const targetFile = new WeblensFile({ portablePath: msg.content.taskJobTarget, isDir: true })
+
+    useTasksStore().upsertTask(msg.subscribeKey, {
+        taskID: msg.subscribeKey,
+        taskType: TaskType.ScanDirectory,
+
+        percentComplete: msg.content.percentProgress,
+        countComplete: msg.content.tasksComplete,
+        countTotal: msg.content.tasksTotal,
+        tasksFailed: msg.content.tasksFailed,
+
+        target: targetFile,
+    })
+}
+
 export function handleWebsocketMessage(msg: WsMessage) {
     if (msg.error) {
         console.error('WebSocket error:', msg.error)
@@ -58,19 +74,11 @@ export function handleWebsocketMessage(msg: WsMessage) {
             break
 
         case WsEvent.TaskCreatedEvent: {
-            let targetFile: WeblensFile | undefined
             let taskParams: TaskParams
             if (msg.taskType === TaskType.ScanDirectory) {
-                targetFile = new WeblensFile({ portablePath: msg.content.portablePath, isDir: true })
-                taskParams = {
-                    taskID: msg.subscribeKey,
-                    taskType: TaskType.ScanDirectory,
+                handleFileScan(msg)
 
-                    percentComplete: 0,
-                    target: targetFile,
-                    countComplete: 0,
-                    countTotal: 0,
-                }
+                break
             } else if (msg.taskType === TaskType.CreateZip) {
                 taskParams = {
                     taskID: msg.subscribeKey,
@@ -106,19 +114,7 @@ export function handleWebsocketMessage(msg: WsMessage) {
         case WsEvent.FileScanStartedEvent:
         case WsEvent.FileScanFailedEvent:
         case WsEvent.FileScanCompleteEvent: {
-            const targetFile = new WeblensFile({ portablePath: msg.content.portablePath, isDir: true })
-
-            useTasksStore().upsertTask(msg.subscribeKey, {
-                taskID: msg.subscribeKey,
-                taskType: TaskType.ScanDirectory,
-
-                percentComplete: msg.content.percentProgress,
-                countComplete: msg.content.tasksComplete,
-                countTotal: msg.content.tasksTotal,
-                tasksFailed: msg.content.tasksFailed,
-
-                target: targetFile,
-            })
+            handleFileScan(msg)
             break
         }
 

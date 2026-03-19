@@ -12,9 +12,11 @@ docs/Bundle.md
 docs/CreateFolderBody.md
 docs/FeatureFlagsApi.md
 docs/FileActionInfo.md
+docs/FileIDArrayInfo.md
 docs/FileInfo.md
 docs/FileShareParams.md
 docs/FilesApi.md
+docs/FilesInfo.md
 docs/FilesListParams.md
 docs/FolderApi.md
 docs/FolderInfo.md
@@ -29,7 +31,6 @@ docs/MediaTypeInfo.md
 docs/MediaTypesInfo.md
 docs/MoveFilesParams.md
 docs/NewFileParams.md
-docs/NewFilesInfo.md
 docs/NewFilesParams.md
 docs/NewServerParams.md
 docs/NewUploadInfo.md

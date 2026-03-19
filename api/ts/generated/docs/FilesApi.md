@@ -24,7 +24,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 |[**uploadFileChunk**](#uploadfilechunk) | **PUT** /upload/{uploadID}/file/{fileID} | Add a chunk to a file upload|
 
 # **addFilesToUpload**
-> NewFilesInfo addFilesToUpload(request)
+> FileIDArrayInfo addFilesToUpload(request)
 
 
 ### Example
@@ -61,7 +61,7 @@ const { status, data } = await apiInstance.addFilesToUpload(
 
 ### Return type
 
-**NewFilesInfo**
+**FileIDArrayInfo**
 
 ### Authorization
 
@@ -728,7 +728,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **searchFiles**
-> Array<FileInfo> searchFiles()
+> FilesInfo searchFiles()
 
 
 ### Example
@@ -779,7 +779,7 @@ const { status, data } = await apiInstance.searchFiles(
 
 ### Return type
 
-**Array<FileInfo>**
+**FilesInfo**
 
 ### Authorization
 
@@ -794,7 +794,7 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-|**200** | File Info |  -  |
+|**200** | Search results |  -  |
 |**400** | Bad Request |  -  |
 |**401** | Unauthorized |  -  |
 |**500** | Internal Server Error |  -  |

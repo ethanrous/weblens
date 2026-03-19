@@ -47,7 +47,7 @@
                 v-else
                 :error="error"
                 message="Failed to load file history."
-                :class="{ 'block! translate-0!': true }"
+                :class="{ 'left-[unset] mx-auto block! translate-0!': true }"
             />
         </div>
     </div>

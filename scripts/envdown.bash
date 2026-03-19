@@ -29,6 +29,8 @@ done
 
 if is_hdir_running; then
     stop_hdir
+elif is_hdir_running --containerized false; then
+    stop_hdir
 else
     echo "HDIR is not running."
 fi

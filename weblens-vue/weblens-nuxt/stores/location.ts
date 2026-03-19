@@ -21,48 +21,43 @@ const useLocationStore = defineStore('location', () => {
     const router = useRouter()
     const route = computed(() => router.currentRoute.value)
 
-    // Batched query param updates — merges all setQueryParam calls within the
-    // same tick into a single navigateTo so rapid changes don't clobber each other.
-    let pendingQueryUpdates: Record<string, string | null> = {}
-    let isQueryUpdatePending = false
+    // Synchronous query state — always up-to-date, no async lag.
+    // localQuery is the single source of truth for query params within the app.
+    const localQuery = reactive<Record<string, string>>({})
 
-    async function setQueryParam(key: string, value: string | null | undefined) {
-        pendingQueryUpdates[key] = value ?? null
-        if (!isQueryUpdatePending) {
-            isQueryUpdatePending = true
-            await nextTick(async () => {
-                const newQuery: Record<string, string | undefined> = {}
-                for (const [k, v] of Object.entries(route.value.query)) {
-                    if (typeof v === 'string') {
-                        newQuery[k] = v
-                    }
-                }
-                let hasChanges = false
-                for (const [k, v] of Object.entries(pendingQueryUpdates)) {
-                    const newVal = v === null || v === '' ? undefined : v
-                    if (newQuery[k] !== newVal) {
-                        hasChanges = true
-                        newQuery[k] = newVal
-                    }
-                }
-                if (hasChanges) {
-                    await navigateTo({ query: newQuery })
-                }
-                pendingQueryUpdates = {}
-                isQueryUpdatePending = false
-            })
+    // Sync from route on external changes (page load, back/forward, link navigation)
+    watch(
+        () => route.value.query,
+        (q) => {
+            for (const key of Object.keys(localQuery)) {
+                if (!(key in q)) Reflect.deleteProperty(localQuery, key)
+            }
+            for (const [k, v] of Object.entries(q)) {
+                if (typeof v === 'string') localQuery[k] = v
+            }
+        },
+        { immediate: true },
+    )
+
+    function setQueryParam(key: string, value: string | null | undefined) {
+        if (value === null || value === undefined || value === '') {
+            Reflect.deleteProperty(localQuery, key)
+        } else {
+            localQuery[key] = value
         }
+        navigateTo({ query: { ...localQuery } })
     }
 
     function getQueryParam(key: string): string | undefined {
-        const val = route.value.query[key]
-        return typeof val === 'string' ? val : undefined
+        return localQuery[key]
     }
 
     const userStore = useUserStore()
     const towerStore = useTowerStore()
 
     const user = computed(() => userStore.user)
+
+    const returnTo = ref<string | null>(null)
 
     const historySettings = useStorage('wl-history-view', {} as HistorySettings)
     const isHistoryOpen = ref<boolean>(historySettings.value.isOpen === true)
@@ -205,19 +200,20 @@ const useLocationStore = defineStore('location', () => {
     })
 
     const viewTimestamp = computed(() => {
-        const rewindTo = route.value.query['rewindTo']
+        const rewindTo = getQueryParam('rewindTo')
         if (rewindTo) {
-            const ts = new Date(rewindTo as string).getTime()
-            if (!isNaN(ts)) {
-                return ts
-            }
+            const ts = new Date(rewindTo).getTime()
+            if (!isNaN(ts)) return ts
         }
-
         return 0
     })
 
     const isViewingPast = computed(() => {
         return viewTimestamp.value > 0
+    })
+
+    const isInSettings = computed(() => {
+        return (route.value.name as string | undefined)?.startsWith('settings') ?? false
     })
 
     function setHistoryOpen(opened: boolean) {
@@ -230,13 +226,7 @@ const useLocationStore = defineStore('location', () => {
 
     async function setViewTimestamp(ts: number) {
         const tsString = ts > 0 ? new Date(ts).toISOString() : undefined
-
-        await navigateTo({
-            query: {
-                ...route.value.query,
-                rewindTo: tsString,
-            },
-        })
+        setQueryParam('rewindTo', tsString)
     }
 
     const activeTowerID = computed(() => {
@@ -249,28 +239,28 @@ const useLocationStore = defineStore('location', () => {
 
     const search = ref('')
     watch(
-        () => route.value.query.search,
+        () => getQueryParam('search'),
         (newVal) => {
-            search.value = (typeof newVal === 'string' ? newVal : '') || ''
+            search.value = newVal ?? ''
         },
         { immediate: true },
     )
-    watch(search, async () => {
-        await setQueryParam('search', search.value || null)
+    watch(search, () => {
+        setQueryParam('search', search.value || null)
     })
 
     const isInTimeline = ref(false)
     watch(
-        () => route.value.query.timeline,
+        () => getQueryParam('timeline'),
         (newVal) => {
             isInTimeline.value = newVal === 'true'
         },
         { immediate: true },
     )
-    watch(isInTimeline, async () => {
-        await setQueryParam('timeline', isInTimeline.value ? 'true' : null)
-        search.value = '' // Clear search when changing timeline mode
-        isHistoryOpen.value = false // Close history when changing timeline mode
+    watch(isInTimeline, () => {
+        setQueryParam('timeline', isInTimeline.value ? 'true' : null)
+        search.value = ''
+        isHistoryOpen.value = false
     })
 
     return {
@@ -285,8 +275,11 @@ const useLocationStore = defineStore('location', () => {
         activeFolderID,
         isInTimeline,
 
-        // isInTrash is true when the active file is or is in the users trash.
+        // isInTrash is true when the active file is, or is in, the users trash.
         isInTrash,
+
+        isInSettings,
+        returnTo,
 
         highlightFileID,
 

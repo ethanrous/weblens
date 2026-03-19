@@ -1,7 +1,27 @@
 #!/bin/bash
 
 is_hdir_running() {
-    if dockerc ps | grep weblens-hdir &>/dev/null; then
+    containerized=true
+    while [ "${1:-}" != "" ]; do
+        case "$1" in
+        "--containerized")
+            shift
+            containerized="$1"
+            ;;
+        *)
+            "Unknown argument: $1"
+            echo "Usage: is_hdir_running [--containerized true|false]"
+            exit 1
+            ;;
+        esac
+        shift
+    done
+
+    if [[ "$containerized" == true ]]; then
+        if dockerc ps | grep weblens-hdir &>/dev/null; then
+            return 0
+        fi
+    elif pgrep -f "uv run open.main.py" &>/dev/null; then
         return 0
     fi
 
@@ -10,15 +30,49 @@ is_hdir_running() {
 export -f is_hdir_running
 
 launch_hdir() {
-    if ! dockerc image ls | grep weblens_hdir &>/dev/null; then
-        build_hdir
-    fi
+    containerized=true
+    while [ "${1:-}" != "" ]; do
+        case "$1" in
+        "--containerized")
+            shift
+            containerized="$1"
+            ;;
+        *)
+            "Unknown argument: $1"
+            echo "Usage: launch_hdir [--containerized true|false]"
+            exit 1
+            ;;
+        esac
+        shift
+    done
 
-    dockerc run --rm -d --name weblens-hdir --publish 5001:5000 -v "${WEBLENS_ROOT}/_build/fs/core/cache/:/images" -v "${WEBLENS_ROOT}/_build/hdir/model-cache/:/root/.cache/huggingface" --network weblens-net ethrous/weblens_hdir
+    if [[ "$containerized" == true ]]; then
+        if ! dockerc image ls | grep weblens_hdir &>/dev/null; then
+            build_hdir
+        fi
+
+        dockerc run --rm -d --name weblens-hdir --publish 5500:5500 -v "${WEBLENS_ROOT}/_build/fs/core/cache/:/images" -v "${WEBLENS_ROOT}/_build/hdir/model-cache/:/root/.cache/huggingface" --network weblens-net ethrous/weblens_hdir
+    else
+        echo "Launching HDIR in development mode. ${WEBLENS_ROOT}/hdir"
+        (
+            cd "${WEBLENS_ROOT}/hdir" || return 1
+            uv run open.main.py
+        ) >"${WEBLENS_ROOT}/_build/logs/hdir.log" 2>&1 &
+    fi
 }
 export -f launch_hdir
 
 stop_hdir() {
-    dockerc stop weblens-hdir 2>/dev/null || true
+    if is_hdir_running --containerized true; then
+        dockerc stop weblens-hdir 2>/dev/null || true
+
+        echo "Removing weblens-hdir container..."
+    fi
+
+    if is_hdir_running --containerized false; then
+        pkill -f "uv run open.main.py" 2>/dev/null || true
+
+        echo "Stopping HDIR development server..."
+    fi
 }
 export -f stop_hdir

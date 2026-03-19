@@ -16,7 +16,7 @@ import (
 )
 
 // getPastFileIDAtPath retrieves the file ID that existed at the given path at a specific point in time.
-// Returns the root alias for root paths, otherwise queries the action history to find the file ID.
+// Returns the root alias for root paths, otherwise queries the journal to find the file ID.
 func getPastFileIDAtPath(ctx context.Context, path wlfs.Filepath, time time.Time) (string, error) {
 	if path.IsRoot() {
 		// The root path's file ID is always the root alias
@@ -39,6 +39,10 @@ func getPastFileIDAtPath(ctx context.Context, path wlfs.Filepath, time time.Time
 
 // getPastFileChildren retrieves the children of a past file at a specific point in time.
 func getPastFileChildren(ctx context.Context, pastFile *file_model.WeblensFileImpl, time time.Time) (map[wlfs.Filepath]*file_model.WeblensFileImpl, error) {
+	if !pastFile.IsDir() {
+		return nil, wlerrors.Wrapf(file_model.ErrDirectoryRequired, "cannot get children of non-directory file [%s]", pastFile.GetPortablePath())
+	}
+
 	path := pastFile.GetPortablePath()
 
 	actions, err := history.GetActionsAtPathBefore(ctx, path, time, history.GetActionsOptions{IncludeChildren: true})
@@ -52,8 +56,6 @@ func getPastFileChildren(ctx context.Context, pastFile *file_model.WeblensFileIm
 		if action.GetRelevantPath() == path {
 			continue
 		}
-
-		wlog.FromContext(ctx).Debug().Msgf("Considering action for child: %s, parent path: %s", action.GetRelevantPath(), path)
 
 		pathKey := action.GetRelevantPath()
 		if action.ActionType == history.FileMove && action.OriginPath.Dir() == path {
@@ -104,6 +106,8 @@ func getPastFileChildren(ctx context.Context, pastFile *file_model.WeblensFileIm
 // Unlike GetPastFileByPath, this uses the known file ID directly instead of looking it up by path,
 // which avoids ambiguity when multiple files have existed at the same path over time.
 func GetPastFileByID(ctx context.Context, fileID string, timestamp time.Time) (*file_model.WeblensFileImpl, error) {
+	wlog.FromContext(ctx).Trace().Msgf("Getting past file by ID [%s] at time [%s]", fileID, timestamp)
+
 	lastActionInPast, err := history.GetLastActionByFileIDBefore(ctx, fileID, timestamp)
 	if err != nil && !db.IsNotFound(err) {
 		return nil, err
@@ -144,9 +148,12 @@ func GetPastFileByID(ctx context.Context, fileID string, timestamp time.Time) (*
 		ModifiedDate: option.Of(lastActionInPast.Timestamp),
 	})
 
-	_, err = getPastFileChildren(ctx, newFile, timestamp)
-	if err != nil {
-		return nil, wlerrors.Errorf("failed to get past file children: %w", err)
+	// WARN: this might need to be uncommented
+	if newFile.IsDir() {
+		_, err = getPastFileChildren(ctx, newFile, timestamp)
+		if err != nil {
+			return nil, wlerrors.Errorf("failed to get past file children: %w", err)
+		}
 	}
 
 	parentPath := path.Dir()

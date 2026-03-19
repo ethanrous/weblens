@@ -119,6 +119,8 @@ func (wp *WorkerPool) NewTaskPool(replace bool, createdBy *Task) (*Pool, error) 
 
 		if !createdBy.GetTaskPool().IsGlobal() {
 			tp.createdBy = t
+
+			tp.parentTaskPool = createdBy.GetTaskPool()
 		}
 	}
 
@@ -237,9 +239,12 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta Meta
 	t := wp.GetTask(taskID)
 
 	if t != nil {
-		t.Log().Warn().Msgf("Task [%s] already exists, not re-queuing", taskID)
+		exited, _ := t.Status()
+		if !exited {
+			t.Log().Warn().Msgf("Task [%s] already exists and is running, not re-queuing", taskID)
 
-		return t, nil
+			return t, nil
+		}
 	}
 
 	newl := wlog.FromContext(ctx).With().
@@ -303,11 +308,8 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta Meta
 		return nil, wlerrors.Errorf("attempting to add task [%s] to closed task queue [pool created by %s]", t.JobName(), pool.ID())
 	}
 
-	pool.totalTasks.Add(1)
-
-	if !pool.IsRoot() {
-		pool.GetRootPool().IncTaskCount(1)
-	}
+	// Inc the task count for the pool and all parent pools.
+	pool.IncTaskCount(1)
 
 	// Set the tasks queue
 	t.setTaskPoolInternal(pool)

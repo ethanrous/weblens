@@ -3,13 +3,16 @@ package task
 import (
 	"context"
 	"fmt"
+	"maps"
 	"math"
 	"runtime"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlog"
 	"github.com/rs/zerolog"
 )
 
@@ -49,7 +52,7 @@ type PoolStatus struct {
 	Complete int64
 
 	// The count of failed tasks on this task pool
-	Failed int
+	Failed int64
 
 	// The count of all tasks that have been queued on this task pool
 	Total int64
@@ -85,7 +88,13 @@ func (tp *Pool) ID() string {
 
 // IncTaskCount increments the total task count for this pool by the specified amount.
 func (tp *Pool) IncTaskCount(count int) {
+	wlog.FromContext(tp.workerPool.ctx).Debug().Msgf("Incrementing task count for pool [%s] by %d", tp.ID(), count)
 	tp.totalTasks.Add(int64(count))
+
+	if tp.parentTaskPool != nil {
+		wlog.FromContext(tp.workerPool.ctx).Debug().Msgf("[%s] has parent task pool [%s] - Incrementing that as well", tp.ID(), tp.parentTaskPool.ID())
+		tp.parentTaskPool.IncTaskCount(count)
+	}
 }
 
 // GetTotalTaskCount returns the total number of tasks that have been added to this pool.
@@ -96,6 +105,10 @@ func (tp *Pool) GetTotalTaskCount() int {
 // IncCompletedTasks increments the completed task count for this pool by the specified amount.
 func (tp *Pool) IncCompletedTasks(count int) {
 	tp.completedTasks.Add(int64(count))
+
+	if tp.parentTaskPool != nil {
+		tp.parentTaskPool.IncCompletedTasks(count)
+	}
 }
 
 // GetCompletedTaskCount returns the number of tasks that have completed in this pool.
@@ -156,8 +169,18 @@ func (tp *Pool) GetRootPool() *Pool {
 	return tmpTp
 }
 
+// GetTasks returns a slice of all tasks currently attached to this pool.
+func (tp *Pool) GetTasks() []*Task {
+	tp.taskLock.RLock()
+	defer tp.taskLock.RUnlock()
+
+	return slices.Collect(maps.Values(tp.tasks))
+}
+
 // Status returns the current status of the task pool including completion progress.
 func (tp *Pool) Status() PoolStatus {
+	wlog.FromContext(tp.workerPool.ctx).Debug().CallerSkipFrame(1).Msgf("Getting status for pool [%s]", tp.ID())
+
 	complete := tp.completedTasks.Load()
 	total := tp.totalTasks.Load()
 
@@ -167,7 +190,7 @@ func (tp *Pool) Status() PoolStatus {
 	}
 
 	tp.taskLock.RLock()
-	errorCount := len(tp.erroredTasks)
+	errorCount := int64(len(tp.erroredTasks))
 	tp.taskLock.RUnlock()
 
 	return PoolStatus{
@@ -348,18 +371,8 @@ func (tp *Pool) QueueTask(tsk *Task) (err error) {
 		return wlerrors.WithStack(wlerrors.New("attempting to add task to closed task queue"))
 	}
 
-	tp.totalTasks.Add(1)
-
-	if tp.parentTaskPool != nil {
-		tmpTp := tp
-		for tmpTp.parentTaskPool != nil {
-			tmpTp = tmpTp.parentTaskPool
-		}
-
-		if tmpTp != tp {
-			tmpTp.totalTasks.Add(1)
-		}
-	}
+	// Increment the total task count for this pool and all parent pools
+	tp.IncTaskCount(1)
 
 	// Set the tasks queue
 	tsk.taskPool = tp

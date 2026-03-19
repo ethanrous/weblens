@@ -47,7 +47,7 @@ type fileIDsParams struct {
 //	@Summary	Get all tags for the authenticated user
 //	@Tags		Tags
 //	@Produce	json
-//	@Success	200	{array}		tag_model.Tag	"User's tags"
+//	@Success	200	{array}	tag_model.Tag	"User's tags"
 //	@Failure	401
 //	@Failure	500
 //	@Router		/tags [get]
@@ -366,8 +366,8 @@ func RemoveFilesFromTag(ctx context_service.RequestContext) {
 //	@Summary	Get tags for a file
 //	@Tags		Tags
 //	@Produce	json
-//	@Param		fileID	path		string			true	"File ID"
-//	@Success	200		{array}		tag_model.Tag	"Tags containing the file"
+//	@Param		fileID	path	string			true	"File ID"
+//	@Success	200		{array}	tag_model.Tag	"Tags containing the file"
 //	@Failure	400
 //	@Failure	401
 //	@Failure	500
@@ -410,8 +410,8 @@ func GetTagsForFile(ctx context_service.RequestContext) {
 //	@Summary	Get all files in a tag
 //	@Tags		Tags
 //	@Produce	json
-//	@Param		tagID	path		string				true	"Tag ID"
-//	@Success	200		{array}		wlstructs.FileInfo	"Files in the tag"
+//	@Param		tagID	path	string				true	"Tag ID"
+//	@Success	200		{array}	wlstructs.FileInfo	"Files in the tag"
 //	@Failure	400
 //	@Failure	401
 //	@Failure	403
