@@ -289,7 +289,7 @@ export const useMediaStore = defineStore('media', () => {
 
             showRaw.value = searchFilters.value[locationStore.activeFolderID]?.showRaw ?? mediaSettingsDefaults.showRaw
         } else {
-            await locationStore.setQueryParam('raw', null)
+            locationStore.setQueryParam('raw', null)
         }
     })
 

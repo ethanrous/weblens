@@ -4,6 +4,7 @@ package wlstructs
 type ShareInfo struct {
 	ShareID      string                     `json:"shareID"`
 	FileID       string                     `json:"fileID"`
+	IsDir        bool                       `json:"isDir"`
 	ShareName    string                     `json:"shareName"`
 	Owner        string                     `json:"owner"`
 	ShareType    string                     `json:"shareType"`

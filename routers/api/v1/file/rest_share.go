@@ -93,7 +93,7 @@ func CreateFileShare(ctx ctxservice.RequestContext) {
 		return
 	}
 
-	newShareInfo := reshape.ShareToShareInfo(ctx, newShare)
+	newShareInfo := reshape.ShareToShareInfo(ctx, newShare, file.IsDir())
 	ctx.JSON(http.StatusCreated, newShareInfo)
 }
 
@@ -119,13 +119,26 @@ func GetFileShare(ctx ctxservice.RequestContext) {
 	}
 
 	// Public shares can be viewed by anyone; private shares require ownership or accessor status
-	if !share.IsPublic() && (ctx.Requester == nil || !auth.CanUserAccessShare(ctx.Requester, *share)) {
-		ctx.Error(http.StatusNotFound, wlerrors.New("share not found"))
+	if !share.IsPublic() {
+		if ctx.Requester.IsPublic() {
+			ctx.Error(http.StatusUnauthorized, wlerrors.New("authentication required to access this share"))
+
+			return
+		} else if !auth.CanUserAccessShare(ctx.Requester, *share) {
+			ctx.Error(http.StatusForbidden, wlerrors.New("not authorized to access this share"))
+
+			return
+		}
+	}
+
+	file, err := ctx.FileService.GetFileByID(ctx, share.FileID)
+	if err != nil {
+		ctx.Error(http.StatusNotFound, err)
 
 		return
 	}
 
-	shareInfo := reshape.ShareToShareInfo(ctx, share)
+	shareInfo := reshape.ShareToShareInfo(ctx, share, file.IsDir())
 	ctx.JSON(http.StatusOK, shareInfo)
 }
 
@@ -234,7 +247,14 @@ func AddUserToShare(ctx ctxservice.RequestContext) {
 		return
 	}
 
-	shareInfo := reshape.ShareToShareInfo(ctx, share)
+	file, err := ctx.FileService.GetFileByID(ctx, share.FileID)
+	if err != nil {
+		ctx.Error(http.StatusNotFound, err)
+
+		return
+	}
+
+	shareInfo := reshape.ShareToShareInfo(ctx, share, file.IsDir())
 	ctx.JSON(http.StatusOK, shareInfo)
 }
 
@@ -282,7 +302,14 @@ func RemoveUserFromShare(ctx ctxservice.RequestContext) {
 		return
 	}
 
-	shareInfo := reshape.ShareToShareInfo(ctx, share)
+	file, err := ctx.FileService.GetFileByID(ctx, share.FileID)
+	if err != nil {
+		ctx.Error(http.StatusNotFound, err)
+
+		return
+	}
+
+	shareInfo := reshape.ShareToShareInfo(ctx, share, file.IsDir())
 	ctx.JSON(http.StatusOK, shareInfo)
 }
 
@@ -351,7 +378,14 @@ func SetShareAccessors(ctx ctxservice.RequestContext) {
 		return
 	}
 
-	shareInfo := reshape.ShareToShareInfo(ctx, share)
+	file, err := ctx.FileService.GetFileByID(ctx, share.FileID)
+	if err != nil {
+		ctx.Error(http.StatusNotFound, err)
+
+		return
+	}
+
+	shareInfo := reshape.ShareToShareInfo(ctx, share, file.IsDir())
 	ctx.JSON(http.StatusOK, shareInfo)
 }
 

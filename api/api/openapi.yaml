@@ -3532,6 +3532,7 @@ components:
         shareName: shareName
         updated: 5
         fileID: fileID
+        isDir: true
       properties:
         accessors:
           items:
@@ -3544,6 +3545,8 @@ components:
           type: integer
         fileID:
           type: string
+        isDir:
+          type: boolean
         owner:
           type: string
         permissions:

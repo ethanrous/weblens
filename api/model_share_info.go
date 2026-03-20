@@ -23,6 +23,7 @@ type ShareInfo struct {
 	Enabled *bool `json:"enabled,omitempty"`
 	Expires *int64 `json:"expires,omitempty"`
 	FileID *string `json:"fileID,omitempty"`
+	IsDir *bool `json:"isDir,omitempty"`
 	Owner *string `json:"owner,omitempty"`
 	Permissions *map[string]PermissionsInfo `json:"permissions,omitempty"`
 	Public *bool `json:"public,omitempty"`
@@ -177,6 +178,38 @@ func (o *ShareInfo) HasFileID() bool {
 // SetFileID gets a reference to the given string and assigns it to the FileID field.
 func (o *ShareInfo) SetFileID(v string) {
 	o.FileID = &v
+}
+
+// GetIsDir returns the IsDir field value if set, zero value otherwise.
+func (o *ShareInfo) GetIsDir() bool {
+	if o == nil || IsNil(o.IsDir) {
+		var ret bool
+		return ret
+	}
+	return *o.IsDir
+}
+
+// GetIsDirOk returns a tuple with the IsDir field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ShareInfo) GetIsDirOk() (*bool, bool) {
+	if o == nil || IsNil(o.IsDir) {
+		return nil, false
+	}
+	return o.IsDir, true
+}
+
+// HasIsDir returns a boolean if a field has been set.
+func (o *ShareInfo) HasIsDir() bool {
+	if o != nil && !IsNil(o.IsDir) {
+		return true
+	}
+
+	return false
+}
+
+// SetIsDir gets a reference to the given bool and assigns it to the IsDir field.
+func (o *ShareInfo) SetIsDir(v bool) {
+	o.IsDir = &v
 }
 
 // GetOwner returns the Owner field value if set, zero value otherwise.
@@ -488,6 +521,9 @@ func (o ShareInfo) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.FileID) {
 		toSerialize["fileID"] = o.FileID
+	}
+	if !IsNil(o.IsDir) {
+		toSerialize["isDir"] = o.IsDir
 	}
 	if !IsNil(o.Owner) {
 		toSerialize["owner"] = o.Owner

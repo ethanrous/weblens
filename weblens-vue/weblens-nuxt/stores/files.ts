@@ -122,34 +122,51 @@ const useFilesStore = defineStore('files', () => {
             if (
                 !user.value.isLoggedIn.isSet() ||
                 locationStore.isInTimeline ||
-                (!locationStore.activeFolderID && !locationStore.isInShare)
+                (!locationStore.activeFolderID && !locationStore.isInShare) ||
+                (locationStore.isInShare && locationStore.activeShareID && !locationStore.activeShare)
             ) {
                 return {}
             }
 
-            let res: AxiosResponse<FolderInfo, FolderInfo>
+            let res: { r: AxiosResponse<FolderInfo>; t: 'folder' } | { r: AxiosResponse<FileInfo>; t: 'file' }
             if (locationStore.isInShare && !locationStore.activeShareID) {
-                res = await useWeblensAPI().FilesAPI.getSharedFiles()
+                res = { r: await useWeblensAPI().FilesAPI.getSharedFiles(), t: 'folder' }
+            } else if (locationStore.isInShare && locationStore.activeShare && !locationStore.activeShare.isDir) {
+                res = {
+                    r: await useWeblensAPI().FilesAPI.getFile(
+                        locationStore.activeShare.fileID,
+                        locationStore.activeShareID,
+                    ),
+                    t: 'file',
+                }
             } else {
-                res = await useWeblensAPI().FoldersAPI.getFolder(
-                    locationStore.activeFolderID,
-                    locationStore.activeShareID,
-                    locationStore.viewTimestamp,
-                    sortCondition.value,
-                    sortDirection.value,
-                )
+                res = {
+                    r: await useWeblensAPI().FoldersAPI.getFolder(
+                        locationStore.activeFolderID,
+                        locationStore.activeShareID,
+                        locationStore.viewTimestamp,
+                        sortCondition.value,
+                        sortDirection.value,
+                    ),
+                    t: 'folder',
+                }
             }
 
-            if (!res.data.self || !res.data.children) {
+            if (res.t === 'file') {
+                const activeFile = new WeblensFile(res.r.data)
+                return { activeFile }
+            }
+
+            if (!res.r.data.self || !res.r.data.children) {
                 return {}
             }
 
-            const newChildren = res.data.children
+            const newChildren = res.r.data.children
                 ?.map((fInfo) => {
                     const f = new WeblensFile(fInfo)
                     f.displayable =
                         (f.contentID !== '' &&
-                            res.data.medias?.findIndex((mediaInfo) => mediaInfo.contentID === f.contentID) !== -1) ??
+                            res.r.data.medias?.findIndex((mediaInfo) => mediaInfo.contentID === f.contentID) !== -1) ??
                         false
                     if (locationStore.highlightFileID !== '' && locationStore.highlightFileID === f.ID()) {
                         setSelected(f.ID(), true)
@@ -159,12 +176,12 @@ const useFilesStore = defineStore('files', () => {
                 .filter((file) => !file.IsTrash())
 
             const mediaMap = new Map<string, WeblensMedia>()
-            res.data.medias?.forEach((mInfo) => {
+            res.r.data.medias?.forEach((mInfo) => {
                 const m = new WeblensMedia(mInfo)
                 mediaMap.set(m.contentID, m)
             })
 
-            mediaStore.addMedia(...(res.data.medias ?? []))
+            mediaStore.addMedia(...(res.r.data.medias ?? []))
 
             newChildren.forEach((f) => {
                 const m = mediaMap.get(f.contentID)
@@ -177,8 +194,8 @@ const useFilesStore = defineStore('files', () => {
 
             // children.value = newChildren
 
-            const parents = res.data.parents?.map((fInfo) => new WeblensFile(fInfo))
-            const activeFile = new WeblensFile(res.data.self)
+            const parents = res.r.data.parents?.map((fInfo) => new WeblensFile(fInfo))
+            const activeFile = new WeblensFile(res.r.data.self)
             return { activeFile: activeFile, children: newChildren, parents }
         },
         {
@@ -187,6 +204,7 @@ const useFilesStore = defineStore('files', () => {
                 () => locationStore.activeFolderID,
                 () => locationStore.viewTimestamp,
                 () => locationStore.isInTimeline,
+                () => locationStore.activeShare,
                 isSearching,
                 sortCondition,
                 sortDirection,

@@ -4170,6 +4170,9 @@ const docTemplate = `{
                 "fileID": {
                     "type": "string"
                 },
+                "isDir": {
+                    "type": "boolean"
+                },
                 "owner": {
                     "type": "string"
                 },

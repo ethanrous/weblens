@@ -372,6 +372,7 @@ interface ShareInfo {
     'enabled'?: boolean;
     'expires'?: number;
     'fileID'?: string;
+    'isDir'?: boolean;
     'owner'?: string;
     'permissions'?: {
         [key: string]: PermissionsInfo;

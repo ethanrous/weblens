@@ -59,7 +59,14 @@ func GetFile(ctx context_service.RequestContext) {
 		return
 	}
 
-	fileInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, file)
+	perms, err := auth.CanUserAccessFile(ctx, ctx.Requester, file, ctx.Share)
+	if err != nil {
+		ctx.Error(http.StatusForbidden, err)
+
+		return
+	}
+
+	fileInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, file, reshape.FileInfoOptions{Perms: option.Of(*perms)})
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 

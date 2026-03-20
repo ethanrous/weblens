@@ -8,6 +8,7 @@ Name | Type | Description | Notes
 **Enabled** | Pointer to **bool** |  | [optional] 
 **Expires** | Pointer to **int64** |  | [optional] 
 **FileID** | Pointer to **string** |  | [optional] 
+**IsDir** | Pointer to **bool** |  | [optional] 
 **Owner** | Pointer to **string** |  | [optional] 
 **Permissions** | Pointer to [**map[string]PermissionsInfo**](PermissionsInfo.md) |  | [optional] 
 **Public** | Pointer to **bool** |  | [optional] 
@@ -136,6 +137,31 @@ SetFileID sets FileID field to given value.
 `func (o *ShareInfo) HasFileID() bool`
 
 HasFileID returns a boolean if a field has been set.
+
+### GetIsDir
+
+`func (o *ShareInfo) GetIsDir() bool`
+
+GetIsDir returns the IsDir field if non-nil, zero value otherwise.
+
+### GetIsDirOk
+
+`func (o *ShareInfo) GetIsDirOk() (*bool, bool)`
+
+GetIsDirOk returns a tuple with the IsDir field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetIsDir
+
+`func (o *ShareInfo) SetIsDir(v bool)`
+
+SetIsDir sets IsDir field to given value.
+
+### HasIsDir
+
+`func (o *ShareInfo) HasIsDir() bool`
+
+HasIsDir returns a boolean if a field has been set.
 
 ### GetOwner
 

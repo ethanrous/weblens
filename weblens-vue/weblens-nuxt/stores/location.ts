@@ -111,7 +111,20 @@ const useLocationStore = defineStore('location', () => {
         async () => {
             const shareID = activeShareID.value
             if (!shareID) return null
-            const shareInfo = (await useWeblensAPI().SharesAPI.getFileShare(shareID)).data
+            const shareReq = await useWeblensAPI()
+                .SharesAPI.getFileShare(shareID)
+                .catch((err) => {
+                    if (err.status === 401) {
+                        console.warn('Unauthorized access to share, redirecting to login page.')
+                        navigateTo('/login?returnTo=' + encodeURIComponent(route.value.fullPath))
+
+                        return null
+                    }
+                })
+
+            if (!shareReq) return null
+
+            const shareInfo = shareReq.data
             return new WeblensShare(shareInfo)
         },
         { watch: [activeShareID] },
