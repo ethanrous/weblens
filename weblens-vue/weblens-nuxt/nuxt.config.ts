@@ -1,7 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 
 import tailwindcss from '@tailwindcss/vite'
-import istanbul from 'vite-plugin-istanbul'
 
 const isBuild = process.env.VITE_BUILD === 'true'
 const isDebugBuild = process.env.VITE_DEBUG_BUILD === 'true'
@@ -63,7 +62,7 @@ export default defineNuxtConfig({
         plugins: [
             tailwindcss(),
             isDebugBuild &&
-                istanbul({
+                (await import('vite-plugin-istanbul')).default({
                     include: [
                         'pages/**/*',
                         'components/**/*',
