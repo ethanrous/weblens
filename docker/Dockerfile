@@ -35,7 +35,10 @@ FROM rust:slim AS agno-builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
-    && rm -rf /var/lib/apt/lists/*
+    libheif1 \
+    && rm -rf /var/lib/apt/lists/*;
+
+ENV PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig
 
 WORKDIR /src
 COPY ./agno ./agno

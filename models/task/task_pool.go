@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/modules/wlerrors"
-	"github.com/ethanrous/weblens/modules/wlog"
 	"github.com/rs/zerolog"
 )
 
@@ -88,11 +87,9 @@ func (tp *Pool) ID() string {
 
 // IncTaskCount increments the total task count for this pool by the specified amount.
 func (tp *Pool) IncTaskCount(count int) {
-	wlog.FromContext(tp.workerPool.ctx).Debug().Msgf("Incrementing task count for pool [%s] by %d", tp.ID(), count)
 	tp.totalTasks.Add(int64(count))
 
 	if tp.parentTaskPool != nil {
-		wlog.FromContext(tp.workerPool.ctx).Debug().Msgf("[%s] has parent task pool [%s] - Incrementing that as well", tp.ID(), tp.parentTaskPool.ID())
 		tp.parentTaskPool.IncTaskCount(count)
 	}
 }
@@ -179,8 +176,6 @@ func (tp *Pool) GetTasks() []*Task {
 
 // Status returns the current status of the task pool including completion progress.
 func (tp *Pool) Status() PoolStatus {
-	wlog.FromContext(tp.workerPool.ctx).Debug().CallerSkipFrame(1).Msgf("Getting status for pool [%s]", tp.ID())
-
 	complete := tp.completedTasks.Load()
 	total := tp.totalTasks.Load()
 
