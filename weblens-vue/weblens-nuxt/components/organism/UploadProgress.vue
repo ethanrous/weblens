@@ -2,9 +2,9 @@
     <div
         ref="containerRef"
         :class="{
-            'bg-background-primary goneable absolute top-18 right-2 z-20 flex flex-col items-center overflow-hidden rounded border shadow-md transition-[height,width,border-radius,opacity] duration-300 ease-out': true,
+            'bg-background-primary goneable absolute top-18 right-2 z-50 flex flex-col items-center overflow-hidden rounded border shadow-md transition-[height,width,border-radius,opacity] duration-300 ease-out': true,
             gone: uploads.length === 0,
-            'w-72': open,
+            'w-80': open,
             'w-56': !open,
         }"
         :style="{
