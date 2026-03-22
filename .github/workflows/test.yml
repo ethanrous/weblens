@@ -39,6 +39,13 @@ jobs:
       - name: Build Agno
         if: steps.cache-agno-binary.outputs.cache-hit != 'true'
         run: |
+          apt-get update && apt-get install -y --no-install-recommends \
+              build-essential \
+              pkg-config \
+              cmake \
+              curl
+
+          export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig
           export WEBLENS_VERBOSE=true
           source ./scripts/lib/all.bash
           build_agno

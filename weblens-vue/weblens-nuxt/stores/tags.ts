@@ -17,6 +17,11 @@ const useTagsStore = defineStore('tags', () => {
     }
 
     async function fetchTags() {
+        if (!useUserStore().user.isLoggedIn) {
+            tags.value = new Map()
+            return
+        }
+
         loading.value = true
         try {
             const { data } = await useWeblensAPI().TagsAPI.getUserTags()

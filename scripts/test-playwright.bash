@@ -79,7 +79,7 @@ if [[ $headed ]]; then
     echo "Running in headed mode (browser UI will be visible)..."
 fi
 
-if ! show_as_subtask "Running Playwright tests" -v --color "green" -- bash -c "set -o pipefail; PW_WORKERS=${PW_WORKERS:-} pnpm exec playwright test \"${filter}\" ${grep} \"${headed:-}\" | tee \"$PLAYWRIGHT_LOG_PATH\""; then
+if ! show_as_subtask "Running Playwright tests" -v --color "green" -- bash -c "set -o pipefail; VITE_BUILD=true PW_WORKERS=${PW_WORKERS:-} pnpm exec playwright test \"${filter}\" ${grep} \"${headed:-}\" | tee \"$PLAYWRIGHT_LOG_PATH\""; then
     echo "Playwright tests failed. Check logs for details."
     popd >/dev/null
 
@@ -92,9 +92,9 @@ fi
 if [ -d "${WEBLENS_ROOT}/_build/playwright/.nyc_output" ]; then
     show_as_subtask "Generating coverage report" --color "green" -- \
         pnpm exec nyc report \
-            --temp-dir "${WEBLENS_ROOT}/_build/playwright/.nyc_output" \
-            --report-dir "${WEBLENS_ROOT}/_build/playwright/report/coverage" \
-            --reporter html --reporter text-summary
+        --temp-dir "${WEBLENS_ROOT}/_build/playwright/.nyc_output" \
+        --report-dir "${WEBLENS_ROOT}/_build/playwright/report/coverage" \
+        --reporter html --reporter text-summary
 fi
 
 popd >/dev/null

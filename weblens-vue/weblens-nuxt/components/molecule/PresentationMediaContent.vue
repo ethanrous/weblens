@@ -45,7 +45,6 @@ const props = defineProps<{
 const { data: media } = useAsyncData(
     'media-' + props.mediaId,
     async () => {
-        console.log('fetching media in PresentationMediaContent, mediaID:', props.mediaId)
         if (!props.mediaId) return null
 
         const media = mediaStore.mediaMap.get(props.mediaId)

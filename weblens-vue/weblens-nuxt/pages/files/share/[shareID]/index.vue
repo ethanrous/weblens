@@ -1,5 +1,5 @@
 <template>
-    <div :class="{ 'flex h-full items-center justify-center mx-auto': true }">
+    <div :class="{ 'mx-auto flex h-full items-center justify-center': true }">
         <Loader />
     </div>
 </template>

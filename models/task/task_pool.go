@@ -346,7 +346,7 @@ func (tp *Pool) QueueTask(tsk *Task) (err error) {
 		return err
 	}
 
-	if tsk.taskPool != nil && (tsk.taskPool != tp || tsk.queueState != Created) {
+	if tsk.taskPool != nil && (tsk.taskPool != tp || tsk.queueState.Load() != Created) {
 		// Task is already queued, we are not allowed to move it to another queue.
 		// We can call .ClearAndRecompute() on the task and it will queue it
 		// again, but it cannot be transferred
@@ -375,7 +375,7 @@ func (tp *Pool) QueueTask(tsk *Task) (err error) {
 	tp.workerPool.lifetimeQueuedCount.Add(1)
 
 	// Put the task in the queue
-	tsk.queueState = InQueue
+	tsk.queueState.Set(InQueue)
 	if len(tp.workerPool.retryBuffer) != 0 || len(tp.workerPool.taskStream) == cap(tp.workerPool.taskStream) {
 		tp.workerPool.addToRetryBuffer(tsk)
 	} else {

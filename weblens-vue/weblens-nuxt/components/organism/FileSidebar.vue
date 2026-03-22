@@ -256,7 +256,7 @@ async function goToSettings() {
 
     locationStore.returnTo = useRouter().currentRoute.value.fullPath
 
-    return navigateTo('/settings')
+    return navigateTo('/settings/account')
 }
 
 onMounted(() => {

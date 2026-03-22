@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ethanrous/weblens/modules/wlatomic"
 	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/modules/wlog"
@@ -262,7 +263,12 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta Meta
 		metadata: meta,
 		work:     job,
 
-		queueState: Created,
+		StartTime:  wlatomic.New(time.Time{}),
+		QueueTime:  wlatomic.New(time.Time{}),
+		FinishTime: wlatomic.New(time.Time{}),
+
+		queueState: wlatomic.New(Created),
+		exitStatus: wlatomic.New(TaskNoStatus),
 
 		// signal chan must be buffered so caller doesn't block trying to close many tasks
 		waitChan: make(chan struct{}),
@@ -290,7 +296,7 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta Meta
 		return nil, wlerrors.New("Not re-queuing task that has error set")
 	}
 
-	if t.taskPool != nil && (t.taskPool != pool || t.queueState != Created) {
+	if t.taskPool != nil && (t.taskPool != pool || t.queueState.Load() != Created) {
 		// Task is already queued, we are not allowed to move it to another queue.
 		// We can call .ClearAndRecompute() on the task and it will queue it
 		// again, but it cannot be transferred
@@ -317,14 +323,15 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta Meta
 	wp.lifetimeQueuedCount.Add(1)
 
 	// Put the task in the queue
-	t.queueState = InQueue
+	t.queueState.Set(InQueue)
+
 	if len(wp.retryBuffer) != 0 || len(wp.taskStream) == cap(wp.taskStream) {
 		wp.addToRetryBuffer(t)
 	} else {
 		wp.taskStream <- t
 	}
 
-	t.SetQueueTime(time.Now())
+	t.QueueTime.Set(time.Now())
 
 	pool.addTask(t)
 
@@ -458,16 +465,16 @@ func (wp *WorkerPool) execWorker(workerCtx context.Context, isReplacement bool) 
 					default:
 					}
 
-					if t.exitStatus != TaskNoStatus {
+					if t.exitStatus.Load() != TaskNoStatus {
 						// If the task has already been completed, we don't want to run it again
-						wlog.FromContext(t.Ctx).Trace().Str("exit_status", string(t.exitStatus)).Msgf("Task already has exit status, not running")
+						wlog.FromContext(t.Ctx).Trace().Str("exit_status", string(t.exitStatus.Load())).Msgf("Task already has exit status, not running")
 
 						continue
 					}
 
 					// Replacement workers are not allowed to do "scan_directory" tasks
 					// TODO: - generalize
-					if isReplacement && t.jobName == "scan_directory" && t.exitStatus == TaskNoStatus {
+					if isReplacement && t.jobName == "scan_directory" && t.exitStatus.Load() == TaskNoStatus {
 						// If there are twice the number of free spaces in the chan, don't bother pulling
 						// everything into the waiting buffer, just put it at the end right now.
 						if cap(wp.taskStream)-len(wp.taskStream) > int(wp.currentWorkers.Load())*2 {
@@ -519,7 +526,7 @@ func (wp *WorkerPool) execWorker(workerCtx context.Context, isReplacement bool) 
 						t.updateMu.RLock()
 						defer t.updateMu.RUnlock()
 
-						e.Dur("task_duration_ms", t.ExeTime()).Dur("queue_time_ms", t.QueueTimeDuration()).Str("exit_status", string(t.exitStatus)).Msgf("Task finished")
+						e.Dur("task_duration_ms", t.ExeTime()).Dur("queue_time_ms", t.QueueTimeDuration()).Str("exit_status", string(t.exitStatus.Load())).Msgf("Task finished")
 					})
 
 					// Dec tasks being processed
@@ -560,7 +567,7 @@ func (wp *WorkerPool) execWorker(workerCtx context.Context, isReplacement bool) 
 					// Do not use any global pool as the root
 					rootTaskPool := t.taskPool.GetRootPool()
 
-					if t.exitStatus == TaskError && !rootTaskPool.IsGlobal() {
+					if t.exitStatus.Load() == TaskError && !rootTaskPool.IsGlobal() {
 						rootTaskPool.AddError(t)
 					}
 
@@ -807,18 +814,14 @@ func (wp *WorkerPool) safetyWork(task *Task, workerID int64) {
 
 	task.SetQueueState(Executing)
 
-	if task.exitStatus != TaskNoStatus {
-		task.Log().Trace().Msgf("Task [%s] already has exit status [%s], not running", task.taskID, task.exitStatus)
+	if task.exitStatus.Load() != TaskNoStatus {
+		task.Log().Trace().Msgf("Task [%s] already has exit status [%s], not running", task.taskID, task.exitStatus.Load())
 	} else {
-		task.updateMu.Lock()
-		task.StartTime = time.Now()
-		task.updateMu.Unlock()
+		task.StartTime.Set(time.Now())
 
 		task.work.handler(task)
 
-		task.updateMu.Lock()
-		task.FinishTime = time.Now()
-		task.updateMu.Unlock()
+		task.FinishTime.Set(time.Now())
 	}
 }
 
@@ -827,7 +830,7 @@ func (wp *WorkerPool) cleanupTask(task *Task, workerID int64) {
 	defer wp.workerRecover(task, workerID)
 
 	// Run the cleanup routine for errors, if any
-	if task.exitStatus == TaskError || task.exitStatus == TaskCanceled {
+	if task.exitStatus.Load() == TaskError || task.exitStatus.Load() == TaskCanceled {
 		task.Log().Trace().Func(func(e *zerolog.Event) {
 			e.Int("error_cleanup_count", len(task.errorCleanups)).Msgf("Task has %d error cleanup(s) to run", len(task.errorCleanups))
 		})
@@ -859,7 +862,7 @@ func (wp *WorkerPool) cleanupTask(task *Task, workerID int64) {
 	// The post action is intended to run after the task has completed, and after
 	// the cleanup has run. This is useful for tasks that need to use the result of
 	// the task to do something else, but don't want to block until the task is done
-	if task.postAction != nil && task.exitStatus == TaskSuccess {
+	if task.postAction != nil && task.exitStatus.Load() == TaskSuccess {
 		task.Log().Trace().Msg("Running task post-action")
 		task.postAction(task.result)
 		task.Log().Trace().Msg("Finished task post-action")

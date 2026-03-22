@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethanrous/weblens/modules/wlatomic"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/modules/wlog"
 	"github.com/rs/zerolog"
@@ -16,9 +17,9 @@ import (
 
 // Task represents a unit of work that can be queued and executed by a worker pool.
 type Task struct {
-	QueueTime  time.Time
-	StartTime  time.Time
-	FinishTime time.Time
+	QueueTime  *wlatomic.AtomicValue[time.Time] // required
+	StartTime  *wlatomic.AtomicValue[time.Time]
+	FinishTime *wlatomic.AtomicValue[time.Time]
 
 	Ctx        context.Context
 	ctxMu      sync.RWMutex
@@ -42,9 +43,9 @@ type Task struct {
 
 	taskID     string
 	jobName    string
-	queueState QueueState
+	queueState *wlatomic.AtomicValue[QueueState]
 
-	exitStatus ExitStatus // "success", "error" or "canceled"
+	exitStatus *wlatomic.AtomicValue[ExitStatus] // "success", "error" or "canceled"
 
 	// Function to be run to clean up when the task completes, no matter the exit status
 	cleanups []HandlerFunc
@@ -143,48 +144,18 @@ func (t *Task) SetChildTaskPool(pool *Pool) {
 
 // Status returns a boolean representing if a task has completed, and a string describing its exit type, if completed.
 func (t *Task) Status() (bool, ExitStatus) {
-	t.updateMu.RLock()
-	defer t.updateMu.RUnlock()
-
-	return t.queueState == Exited, t.exitStatus
+	return t.queueState.Load() == Exited, t.exitStatus.Load()
 }
 
 // GetStartTime returns the time when the task started executing.
 func (t *Task) GetStartTime() time.Time {
-	t.updateMu.RLock()
-	defer t.updateMu.RUnlock()
-
-	return t.StartTime
+	return t.StartTime.Load()
 }
 
 // GetFinishTime returns the time when the task finished executing.
 func (t *Task) GetFinishTime() time.Time {
-	t.updateMu.RLock()
-	defer t.updateMu.RUnlock()
-
-	return t.FinishTime
+	return t.FinishTime.Load()
 }
-
-// Q queues task on given taskPool tp,
-// if tp is nil, will default to the global task pool.
-// Essentially an alias for tp.QueueTask(t), so you can
-// NewTask(...).Q(). Returns the given task to further support this
-// func (t *Task) Q(tp *Pool) (*Task, error) {
-// 	if tp == nil {
-// 		t.Log().Error().Msg("nil task pool")
-//
-// 		return nil, wlerrors.Errorf("nil task pool")
-// 	}
-//
-// 	err := tp.QueueTask(t)
-// 	if err != nil {
-// 		t.Log().Error().Stack().Err(err).Msg("")
-//
-// 		return nil, err
-// 	}
-//
-// 	return t, nil
-// }
 
 // Wait Block until a task is finished. "Finished" can define success, failure, or cancel
 func (t *Task) Wait() {
@@ -199,7 +170,7 @@ func (t *Task) Wait() {
 	<-t.waitChan
 }
 
-// Cancel Unknowable if this is the last operation of a task, so t.success()
+// Cancel - Unknowable if this is the last operation of a task, so t.success()
 // will not have an effect after a task is cancelled. t.error() may
 // override the exit status in special cases, such as a timeout,
 // which is both an error and a reason for cancellation.
@@ -214,9 +185,9 @@ func (t *Task) Cancel() {
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
 
-	if t.exitStatus == TaskNoStatus {
-		t.queueState = Exited
-		t.exitStatus = TaskCanceled
+	if t.exitStatus.Load() == TaskNoStatus {
+		t.queueState.Set(Exited)
+		t.exitStatus.Set(TaskCanceled)
 	}
 
 	t.cancelFunc(nil)
@@ -235,10 +206,8 @@ func (t *Task) ClearAndRecompute() {
 	t.Cancel()
 	t.Wait()
 
-	t.updateMu.Lock()
-	t.exitStatus = TaskNoStatus
-	t.queueState = Created
-	t.updateMu.Unlock()
+	t.exitStatus.Set(TaskNoStatus)
+	t.queueState.Set(Created)
 
 	t.waitChan = make(chan struct{})
 
@@ -325,7 +294,7 @@ func (t *Task) SetPostAction(action func(Result)) {
 	defer t.updateMu.Unlock()
 
 	// If the task has already completed, run the post task in this thread instead
-	switch t.exitStatus {
+	switch t.exitStatus.Load() {
 	case TaskSuccess:
 		action(t.result)
 	case TaskNoStatus:
@@ -371,8 +340,8 @@ func (t *Task) Success(msg ...any) {
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
 
-	t.queueState = Exited
-	t.exitStatus = TaskSuccess
+	t.queueState.Set(Exited)
+	t.exitStatus.Set(TaskSuccess)
 
 	if len(msg) != 0 {
 		t.Log().Info().Msgf("Task succeeded with a message: %s", fmt.Sprint(msg...))
@@ -381,18 +350,12 @@ func (t *Task) Success(msg ...any) {
 
 // QueueState returns the current queue state of the task.
 func (t *Task) QueueState() QueueState {
-	t.updateMu.RLock()
-	defer t.updateMu.RUnlock()
-
-	return t.queueState
+	return t.queueState.Load()
 }
 
 // SetQueueState sets the queue state of the task.
 func (t *Task) SetQueueState(s QueueState) {
-	t.updateMu.Lock()
-	defer t.updateMu.Unlock()
-
-	t.queueState = s
+	t.queueState.Set(s)
 }
 
 // SetTimeout sets a timeout for the task.
@@ -495,34 +458,20 @@ func (t *Task) AtomicSetResult(fn func(Result) Result) {
 
 // ExeTime returns the execution duration of the task.
 func (t *Task) ExeTime() time.Duration {
-	t.updateMu.RLock()
-	defer t.updateMu.RUnlock()
-
-	if t.FinishTime.IsZero() {
-		return time.Since(t.StartTime)
+	if t.FinishTime.Load().IsZero() {
+		return time.Since(t.StartTime.Load())
 	}
 
-	return t.FinishTime.Sub(t.StartTime)
+	return t.FinishTime.Load().Sub(t.StartTime.Load())
 }
 
 // QueueTimeDuration returns how long the task waited in the queue.
 func (t *Task) QueueTimeDuration() time.Duration {
-	t.updateMu.RLock()
-	defer t.updateMu.RUnlock()
-
-	if t.StartTime.IsZero() {
-		return time.Since(t.QueueTime)
+	if t.StartTime.Load().IsZero() {
+		return time.Since(t.QueueTime.Load())
 	}
 
-	return t.StartTime.Sub(t.QueueTime)
-}
-
-// SetQueueTime sets the time when the task was queued.
-func (t *Task) SetQueueTime(qt time.Time) {
-	t.updateMu.Lock()
-	defer t.updateMu.Unlock()
-
-	t.QueueTime = qt
+	return t.StartTime.Load().Sub(t.QueueTime.Load())
 }
 
 func (t *Task) setWorkerID(workerID int64) {
@@ -554,7 +503,7 @@ func (t *Task) error(err error) {
 	// E.g. A file is being moved, so we cancel all tasks on it,
 	// and move it in the filesystem. The task goes to find the file, it can't (because it was moved)
 	// and throws this error. Now we are here and we realize the task was canceled, so that error is not valid
-	if t.queueState == Exited {
+	if t.queueState.Load() == Exited {
 		t.updateMu.Unlock()
 
 		return
@@ -565,9 +514,9 @@ func (t *Task) error(err error) {
 	t.cancelFunc(err)
 
 	t.err = err
-	t.queueState = Exited
 
-	t.exitStatus = TaskError
+	t.queueState.Set(Exited)
+	t.exitStatus.Set(TaskError)
 
 	t.updateMu.Unlock()
 }

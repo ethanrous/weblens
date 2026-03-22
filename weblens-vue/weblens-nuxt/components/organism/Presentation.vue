@@ -8,7 +8,7 @@
             @click.stop="presentationStore.clearPresentation"
         >
             <div :class="{ 'relative flex h-full w-full': true }">
-                <div :class="{ 'mr-auto ml-3 flex w-full justify-center items-center': true }">
+                <div :class="{ 'mr-auto ml-3 flex w-full items-center justify-center': true }">
                     <slot
                         name="media"
                         :presentation-size="presentationSize"
