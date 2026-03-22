@@ -23,7 +23,6 @@ console.debug(`Nuxt is running in ${isBuild ? 'build' : 'dev'} mode on port ${vi
 export default defineNuxtConfig({
     compatibilityDate: '2025-05-15',
     ssr: false,
-    // buildDir: isBuild ? '.nuxt' : '.nuxt-dev',
     devtools: {
         enabled: false,
 
