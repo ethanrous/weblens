@@ -376,6 +376,7 @@ func (tp *Pool) QueueTask(tsk *Task) (err error) {
 
 	// Put the task in the queue
 	tsk.queueState.Set(InQueue)
+
 	if len(tp.workerPool.retryBuffer) != 0 || len(tp.workerPool.taskStream) == cap(tp.workerPool.taskStream) {
 		tp.workerPool.addToRetryBuffer(tsk)
 	} else {
