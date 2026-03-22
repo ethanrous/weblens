@@ -146,9 +146,9 @@ jobs:
           version: v2.10
 
       - name: pnpm lint
-        working-directory: weblens-vue/weblens-nuxt
         run: |
-          source ../../scripts/lib/all.bash && build_frontend
+          source ./scripts/lib/all.bash && build_frontend
+          cd weblens-vue/weblens-nuxt
           pnpm lint
           exit $?
 
