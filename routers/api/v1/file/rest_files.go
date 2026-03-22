@@ -21,6 +21,7 @@ import (
 	tag_model "github.com/ethanrous/weblens/models/tag"
 	"github.com/ethanrous/weblens/models/task"
 	"github.com/ethanrous/weblens/modules/netwrk"
+	"github.com/ethanrous/weblens/modules/option"
 	"github.com/ethanrous/weblens/modules/set"
 	"github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/modules/wlerrors"
@@ -58,7 +59,14 @@ func GetFile(ctx context_service.RequestContext) {
 		return
 	}
 
-	fileInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, file)
+	perms, err := auth.CanUserAccessFile(ctx, ctx.Requester, file, ctx.Share)
+	if err != nil {
+		ctx.Error(http.StatusForbidden, err)
+
+		return
+	}
+
+	fileInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, file, reshape.FileInfoOptions{Perms: option.Of(*perms)})
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 
@@ -137,7 +145,7 @@ func GetFileStats(ctx context_service.RequestContext) {
 //	@Param		fileID		path		string						true	"File ID"
 //	@Param		shareID		query		string						false	"Share ID"
 //	@Param		format		query		string						false	"File format conversion"
-//	@Param		quality		query		int							false	"JPEG quality (1-100)"	default(85)
+//	@Param		quality		query		int							false	"JPEG quality (1-100)"		default(85)
 //	@Param		isTakeout	query		bool						false	"Is this a takeout file"	Enums(true, false)	default(false)
 //	@Success	200			{string}	binary						"File content"
 //	@Success	404			{object}	wlstructs.WeblensErrorInfo	"Error Info"
@@ -234,11 +242,11 @@ func DownloadFile(ctx context_service.RequestContext) {
 //	@Tags		Folder
 //	@Accept		json
 //	@Produce	json
-//	@Param		folderID	path		string						true	"Folder ID"
-//	@Param		shareID		query		string						false	"Share ID"
-//	@Param		timestamp	query		int							false	"Past timestamp to view the folder at, in ms since epoch"
-//	@Param		sortProp		query	string				false	"Property to sort by"		Enums(name, size, updatedAt)	default(name)
-//	@Param		sortOrder		query	string				false	"Sort order"				Enums(asc, desc)			default(asc)
+//	@Param		folderID	path		string							true	"Folder ID"
+//	@Param		shareID		query		string							false	"Share ID"
+//	@Param		timestamp	query		int								false	"Past timestamp to view the folder at, in ms since epoch"
+//	@Param		sortProp	query		string							false	"Property to sort by"	Enums(name, size, updatedAt)	default(name)
+//	@Param		sortOrder	query		string							false	"Sort order"			Enums(asc, desc)				default(asc)
 //	@Success	200			{object}	wlstructs.FolderInfoResponse	"Folder Info"
 //	@Router		/folder/{folderID} [get]
 func GetFolder(ctx context_service.RequestContext) {
@@ -284,8 +292,8 @@ func GetFolder(ctx context_service.RequestContext) {
 //
 //	@Summary	Get actions of a folder at a given time
 //	@Tags		Folder
-//	@Param		fileID		path	string					true	"File ID"
-//	@Success	200			{array}	wlstructs.FileActionInfo	"File actions"
+//	@Param		fileID	path	string						true	"File ID"
+//	@Success	200		{array}	wlstructs.FileActionInfo	"File actions"
 //	@Failure	400
 //	@Failure	500
 //	@Router		/files/{fileID}/history [get]
@@ -338,15 +346,15 @@ func GetFolderHistory(ctx context_service.RequestContext) {
 //	@Summary	Search for files by filename
 //	@Tags		Files
 //
-//	@Param		search			query	string				true	"Filename to search for"
-//	@Param		baseFolderID	query	string				false	"The folder to search in, defaults to the user's home folder"
-//	@Param		sortProp		query	string				false	"Property to sort by"		Enums(name, size, updatedAt)	default(name)
-//	@Param		sortOrder		query	string				false	"Sort order"				Enums(asc, desc)			default(asc)
-//	@Param		recursive		query	boolean				false	"Search recursively"		Enums(true, false)	default(false)
-//	@Param		regex			query	boolean				false	"Whether to treat the search term as a regex pattern"	Enums(true, false)	default(false)
-//	@Param		tags			query	string				false	"Comma-separated list of tags to filter by"
-//	@Param		tagJoinLogic	query	string				false	"Logic to combine multiple tags with, either 'and' or 'or'"	Enums(and, or)	default(or)
-//	@Success	200				{array}	wlstructs.FileInfo	"File Info"
+//	@Param		search			query		string						true	"Filename to search for"
+//	@Param		baseFolderID	query		string						false	"The folder to search in, defaults to the user's home folder"
+//	@Param		sortProp		query		string						false	"Property to sort by"									Enums(name, size, updatedAt)	default(name)
+//	@Param		sortOrder		query		string						false	"Sort order"											Enums(asc, desc)				default(asc)
+//	@Param		recursive		query		boolean						false	"Search recursively"									Enums(true, false)				default(false)
+//	@Param		regex			query		boolean						false	"Whether to treat the search term as a regex pattern"	Enums(true, false)				default(false)
+//	@Param		tags			query		string						false	"Comma-separated list of tags to filter by"
+//	@Param		tagJoinLogic	query		string						false	"Logic to combine multiple tags with, either 'and' or 'or'"	Enums(and, or)	default(or)
+//	@Success	200				{object}	wlstructs.FilesInfo	"Search results"
 //	@Failure	400
 //	@Failure	401
 //	@Failure	500
@@ -448,7 +456,8 @@ func SearchFiles(ctx context_service.RequestContext) {
 	}
 
 	doRegex := ctx.QueryBool("regex")
-	fileInfos := []wlstructs.FileInfo{}
+
+	files := []*file_model.WeblensFileImpl{}
 
 	if doRegex == true {
 		re, err := regexp.Compile(filenameSearch)
@@ -471,14 +480,7 @@ func SearchFiles(ctx context_service.RequestContext) {
 				continue
 			}
 
-			fileInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, f)
-			if err != nil {
-				ctx.Log().Error().Stack().Err(err).Msgf("Failed to convert file to FileInfo for file ID: %s", f.ID())
-
-				continue
-			}
-
-			fileInfos = append(fileInfos, fileInfo)
+			files = append(files, f)
 		}
 	} else {
 		matches := fuzzy.RankFindFold(filenameSearch, filenames)
@@ -488,7 +490,8 @@ func SearchFiles(ctx context_service.RequestContext) {
 			},
 		)
 
-		fileInfos = make([]wlstructs.FileInfo, 0, len(matches))
+		// Preallocate the files slice with the length of matches
+		files = make([]*file_model.WeblensFileImpl, 0, len(matches))
 
 		for _, match := range matches {
 			f, err := ctx.FileService.GetFileByID(ctx, fileIDs[match.OriginalIndex])
@@ -502,21 +505,61 @@ func SearchFiles(ctx context_service.RequestContext) {
 				continue
 			}
 
-			fileInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, f)
-			if err != nil {
-				ctx.Log().Error().Stack().Err(err).Msgf("Failed to convert file to FileInfo for file ID: %s", f.ID())
-
-				continue
-			}
-
-			fileInfos = append(fileInfos, fileInfo)
+			files = append(files, f)
 		}
 	}
 
-	// TODO: add media searching+sorting									VVV
-	sortFileInfos(fileInfos, ctx.Query("sortProp"), ctx.Query("sortOrder"), nil)
+	fileInfos := make([]wlstructs.FileInfo, 0, len(files))
+	filePermsMap := make(map[string]*share_model.Permissions)
 
-	ctx.JSON(http.StatusOK, fileInfos)
+	medias, err := getChildMedias(ctx, files)
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, err)
+	}
+
+	mediaMap := make(map[string]*media_model.Media, len(medias))
+	for _, m := range medias {
+		mediaMap[m.ContentID] = m
+	}
+
+	for _, f := range files {
+		var parentPerms *share_model.Permissions
+
+		parent := f.GetParent()
+
+		if pp, ok := filePermsMap[parent.ID()]; ok {
+			parentPerms = pp
+		} else {
+			parentPerms, err = auth.CanUserAccessFile(ctx, ctx.Requester, parent, ctx.Share)
+			if err != nil {
+				ctx.Log().Error().Stack().Err(err).Msgf("Failed to check permissions for file ID: %s", f.ID())
+
+				continue
+			}
+		}
+
+		fileInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, f, reshape.FileInfoOptions{Perms: option.Of(*parentPerms)})
+		if err != nil {
+			ctx.Log().Error().Stack().Err(err).Msgf("Failed to convert file to FileInfo for file ID: %s", f.ID())
+
+			continue
+		}
+
+		fileInfo.HasMedia = mediaMap[fileInfo.ContentID] != nil
+
+		fileInfos = append(fileInfos, fileInfo)
+	}
+
+	sortFileInfos(fileInfos, ctx.Query("sortProp"), ctx.Query("sortOrder"), mediaMap)
+
+	mediaInfos := make([]wlstructs.MediaInfo, 0, len(medias))
+	for _, m := range medias {
+		mediaInfos = append(mediaInfos, reshape.MediaToMediaInfo(m))
+	}
+
+	resp := wlstructs.FilesInfo{Files: fileInfos, Medias: mediaInfos}
+
+	ctx.JSON(http.StatusOK, resp)
 }
 
 // CreateFolder godoc
@@ -755,7 +798,7 @@ func GetSharedFiles(ctx context_service.RequestContext) {
 //	@Summary		Create a zip file
 //	@Description	Dispatch a task to create a zip file of the given files, or get the id of a previously created zip file if it already exists
 //	@Tags			Files
-//	@Param			shareID	query		string					false	"Share ID"
+//	@Param			shareID	query		string						false	"Share ID"
 //	@Param			request	body		wlstructs.FilesListParams	true	"File Ids"
 //	@Success		200		{object}	wlstructs.TakeoutInfo		"Zip Takeout Info"
 //	@Success		202		{object}	wlstructs.TakeoutInfo		"Task Dispatch Info"
@@ -849,7 +892,7 @@ func ClearZipCache(ctx context_service.RequestContext) {
 //
 //	@Summary	Get path completion suggestions
 //	@Tags		Files
-//	@Param		searchPath	query		string						true	"Search path"
+//	@Param		searchPath	query		string							true	"Search path"
 //	@Success	200			{object}	wlstructs.FolderInfoResponse	"Path info"
 //	@Failure	500
 //	@Router		/files/autocomplete [get]
@@ -1064,7 +1107,7 @@ func UpdateFile(ctx context_service.RequestContext) {
 //	@Summary	Move a list of files to a new parent folder
 //	@Tags		Files
 //	@Param		request	body	wlstructs.MoveFilesParams	true	"Move files request body"
-//	@Param		shareID	query	string					false	"Share ID"
+//	@Param		shareID	query	string						false	"Share ID"
 //	@Success	200
 //	@Failure	404
 //	@Failure	500
@@ -1188,8 +1231,8 @@ func UnTrashFiles(ctx context_service.RequestContext) {
 //	@Summary	Delete Files "permanently"
 //	@Tags		Files
 //	@Param		request			body	wlstructs.FilesListParams	true	"Delete files request body"
-//	@Param		ignoreTrash		query	boolean					false	"Delete files even if they are not in the trash"
-//	@Param		preserveFolder	query	boolean					false	"Preserve parent folder if it is empty after deletion"
+//	@Param		ignoreTrash		query	boolean						false	"Delete files even if they are not in the trash"
+//	@Param		preserveFolder	query	boolean						false	"Preserve parent folder if it is empty after deletion"
 //	@Success	200
 //	@Failure	401
 //	@Failure	404
@@ -1277,8 +1320,8 @@ const chunkChanSize = 10
 //	@Summary	Begin a new upload task
 //	@Tags		Files
 //	@Param		request	body		wlstructs.NewUploadParams	true	"New upload request body"
-//	@Param		shareID	query		string					false	"Share ID"
-//	@Success	201		{object}	wlstructs.NewUploadInfo	"Upload Info"
+//	@Param		shareID	query		string						false	"Share ID"
+//	@Success	201		{object}	wlstructs.NewUploadInfo		"Upload Info"
 //	@Failure	401
 //	@Failure	404
 //	@Failure	500
@@ -1324,10 +1367,10 @@ func NewUploadTask(ctx context_service.RequestContext) {
 //
 //	@Summary	Add a file to an upload task
 //	@Tags		Files
-//	@Param		uploadID	path		string					true	"Upload ID"
-//	@Param		shareID		query		string					false	"Share ID"
+//	@Param		uploadID	path		string						true	"Upload ID"
+//	@Param		shareID		query		string						false	"Share ID"
 //	@Param		request		body		wlstructs.NewFilesParams	true	"New file params"
-//	@Success	201			{object}	wlstructs.NewFilesInfo	"FileIds"
+//	@Success	201			{object}	wlstructs.FileIDArrayInfo		"FileIds"
 //	@Failure	401
 //	@Failure	404
 //	@Failure	500
@@ -1411,7 +1454,7 @@ func NewFileUpload(ctx context_service.RequestContext) {
 		}
 	}
 
-	newInfo := wlstructs.NewFilesInfo{FileIDs: ids}
+	newInfo := wlstructs.FileIDArrayInfo{FileIDs: ids}
 	ctx.JSON(http.StatusCreated, newInfo)
 }
 

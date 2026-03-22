@@ -13,6 +13,16 @@ cache_path = (
     else "/images/"
 )
 
+if not cache_path.endswith("/"):
+    cache_path += "/"
+
+if not os.path.exists(cache_path):
+    print(f"Cache path '{cache_path}' does not exist. Exiting...", flush=True)
+    exit(1)
+
+
+print(f"Using cache path: {cache_path}")
+
 device = "cpu"
 if torch.backends.mps.is_available():
     device = torch.device("mps")
@@ -77,7 +87,7 @@ def encodeText():
 
 
 if __name__ == "__main__":
-    port = 5000
+    port = 5500
     if "--port" in sys.argv:
         port_index = sys.argv.index("--port") + 1
         port = int(sys.argv[port_index])

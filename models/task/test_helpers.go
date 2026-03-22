@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethanrous/weblens/modules/wlatomic"
 	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 	"github.com/ethanrous/weblens/modules/wlog"
 	"github.com/rs/zerolog"
@@ -23,10 +24,12 @@ func NewTestTask(id, jobName string, workerID int64, exitStatus ExitStatus, resu
 		taskID:     id,
 		jobName:    jobName,
 		WorkerID:   workerID,
-		exitStatus: exitStatus,
-		queueState: Exited,
+		exitStatus: wlatomic.New(exitStatus),
+		queueState: wlatomic.New(Exited),
 		result:     result,
-		StartTime:  startTime,
+		StartTime:  wlatomic.New(startTime),
+		QueueTime:  wlatomic.New(time.Time{}),
+		FinishTime: wlatomic.New(time.Time{}),
 		Ctx:        ctx,
 	}
 }
@@ -144,8 +147,8 @@ func NewTestQueueableTask(id, jobName string) *Task {
 	return &Task{
 		taskID:     id,
 		jobName:    jobName,
-		queueState: Created,
-		exitStatus: TaskNoStatus,
+		queueState: wlatomic.New(Created),
+		exitStatus: wlatomic.New(TaskNoStatus),
 		work:       job{handler: func(_ *Task) {}, opts: Options{}},
 		waitChan:   make(chan struct{}),
 		Ctx:        ctx,

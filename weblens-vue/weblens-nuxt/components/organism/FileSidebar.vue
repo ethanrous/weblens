@@ -30,14 +30,21 @@
         >
             <WeblensButton
                 label="Home"
-                :type="'light'"
+                :type="locationStore.isInSettings ? 'outline' : 'light'"
                 :selected="filesStore.activeFile?.IsHome()"
                 allow-collapse
                 fill-width
                 :disabled="!userStore.loggedIn"
-                @click.stop="WeblensFile.Home().GoTo()"
+                @click.stop="goHome()"
             >
-                <IconHome size="18" />
+                <IconFolder
+                    v-if="locationStore.isInSettings"
+                    size="18"
+                />
+                <IconHome
+                    v-else
+                    size="18"
+                />
             </WeblensButton>
 
             <WeblensButton
@@ -46,7 +53,7 @@
                 :selected="locationStore.inShareRoot"
                 allow-collapse
                 fill-width
-                :disabled="!userStore.loggedIn"
+                :disabled="!userStore.loggedIn || locationStore.isInSettings"
                 @click.stop="WeblensFile.ShareRoot().GoTo()"
             >
                 <IconUsers size="18" />
@@ -58,7 +65,7 @@
                 :selected="filesStore.activeFile?.IsTrash()"
                 allow-collapse
                 fill-width
-                :disabled="!userStore.loggedIn"
+                :disabled="!userStore.loggedIn || locationStore.isInSettings"
                 @click.stop="WeblensFile.Trash().GoTo()"
             >
                 <IconTrash size="18" />
@@ -74,7 +81,10 @@
                 allow-collapse
                 fill-width
                 :disabled="
-                    contextMenuStore.menuMode === 'newName' || !userStore.loggedIn || locationStore.isViewingPast
+                    contextMenuStore.menuMode === 'newName' ||
+                    !userStore.loggedIn ||
+                    locationStore.isViewingPast ||
+                    locationStore.isInSettings
                 "
                 @click.stop="handleNewFolder"
             >
@@ -85,7 +95,7 @@
                 label="Upload"
                 allow-collapse
                 fill-width
-                :disabled="!userStore.loggedIn || locationStore.isViewingPast"
+                :disabled="!userStore.loggedIn || locationStore.isViewingPast || locationStore.isInSettings"
                 @files-selected="handleUpload"
             >
                 <IconUpload size="18" />
@@ -100,7 +110,7 @@
                 label="Manage Tags"
                 allow-collapse
                 fill-width
-                :disabled="!userStore.loggedIn"
+                :disabled="!userStore.loggedIn || locationStore.isInSettings"
                 @click.stop="showTagManager = true"
             >
                 <IconTags size="18" />
@@ -118,7 +128,7 @@
                     :selected="activeTagID === tag.id"
                     allow-collapse
                     fill-width
-                    :disabled="!userStore.loggedIn"
+                    :disabled="!userStore.loggedIn || locationStore.isInSettings"
                     @click.stop="navigateTo(`/files/tag/${tag.id}`)"
                 >
                     <span
@@ -140,7 +150,7 @@
                 :type="(route.name as string).startsWith('settings') ? 'default' : 'outline'"
                 fill-width
                 allow-collapse
-                @click.stop="goToSettings"
+                @click.stop="goToSettings()"
             >
                 <IconSettings size="18" />
             </WeblensButton>
@@ -167,6 +177,7 @@
 import {
     IconChevronLeft,
     IconChevronRight,
+    IconFolder,
     IconFolderPlus,
     IconHome,
     IconSettings,
@@ -227,8 +238,25 @@ function handleNewFolder() {
     contextMenuStore.setMenuOpen(true)
 }
 
-function goToSettings() {
-    navigateTo('/settings')
+async function goHome() {
+    if (locationStore.isInSettings && locationStore.returnTo) {
+        const returnTo = locationStore.returnTo
+        locationStore.returnTo = null
+
+        return navigateTo(returnTo)
+    }
+
+    return WeblensFile.Home().GoTo()
+}
+
+async function goToSettings() {
+    if (locationStore.isInSettings) {
+        return goHome()
+    }
+
+    locationStore.returnTo = useRouter().currentRoute.value.fullPath
+
+    return navigateTo('/settings/account')
 }
 
 onMounted(() => {

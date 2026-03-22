@@ -93,7 +93,7 @@ export class Task<T extends TaskType = TaskType> {
             }
         }
 
-        if (this.percentComplete !== 0 && this.percentComplete < 100) {
+        if (this.percentComplete !== undefined && this.percentComplete < 100) {
             this._status = TaskStatus.InProgress
         }
     }

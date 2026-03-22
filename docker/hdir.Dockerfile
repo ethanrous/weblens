@@ -19,7 +19,7 @@ COPY hdir/open.main.py main.py
 # RUN uv run --python 3.13 main.py --preload
 
 # Expose the server port (update if needed)
-EXPOSE 5000
+EXPOSE 5500
 
 CMD ["uv", "run", "--python", "3.13", "main.py"]
 

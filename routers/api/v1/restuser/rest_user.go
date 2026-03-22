@@ -72,7 +72,7 @@ func Create(ctx ctxservice.RequestContext) {
 //	@Tags		Users
 //	@Produce	json
 //	@Param		loginParams	body		wlstructs.LoginParams	true	"Login params"
-//	@Success	200			{object}	wlstructs.UserInfo	"Logged-in users info"
+//	@Success	200			{object}	wlstructs.UserInfo		"Logged-in users info"
 //	@Failure	401
 //	@Router		/users/auth [post]
 func Login(ctx ctxservice.RequestContext) {
@@ -405,12 +405,12 @@ func Activate(ctx ctxservice.RequestContext) {
 //	@Tags		Users
 //	@Produce	json
 //
-//	@Param		username	path	string	true	"Username of user to update"
-//	@Param		newFullName	query	string	true	"New full name of user"
-//	@Success	200 {object}	wlstructs.UserInfo
-//	@Failure	400	{object}	wlstructs.WeblensErrorInfo
-//	@Failure	401	{object}	wlstructs.WeblensErrorInfo
-//	@Failure	404	{object}	wlstructs.WeblensErrorInfo
+//	@Param		username	path		string	true	"Username of user to update"
+//	@Param		newFullName	query		string	true	"New full name of user"
+//	@Success	200			{object}	wlstructs.UserInfo
+//	@Failure	400			{object}	wlstructs.WeblensErrorInfo
+//	@Failure	401			{object}	wlstructs.WeblensErrorInfo
+//	@Failure	404			{object}	wlstructs.WeblensErrorInfo
 //	@Router		/users/{username}/fullName [patch]
 func ChangeDisplayName(ctx ctxservice.RequestContext) {
 	username := ctx.Path("username")

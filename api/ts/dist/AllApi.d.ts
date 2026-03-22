@@ -161,6 +161,9 @@ interface FileActionInfo {
     'timestamp': number;
     'towerID': string;
 }
+interface FileIDArrayInfo {
+    'fileIDs'?: Array<string>;
+}
 interface FileInfo {
     'childrenIds'?: Array<string>;
     'contentID'?: string;
@@ -184,6 +187,10 @@ interface FileShareParams {
     'timelineOnly'?: boolean;
     'users'?: Array<string>;
     'wormhole'?: boolean;
+}
+interface FilesInfo {
+    'files': Array<FileInfo>;
+    'medias'?: Array<MediaInfo>;
 }
 interface FilesListParams {
     'fileIDs'?: Array<string>;
@@ -312,9 +319,6 @@ interface NewFileParams {
     'newFileName'?: string;
     'parentFolderID'?: string;
 }
-interface NewFilesInfo {
-    'fileIDs'?: Array<string>;
-}
 interface NewFilesParams {
     'newFiles'?: Array<NewFileParams>;
 }
@@ -368,6 +372,7 @@ interface ShareInfo {
     'enabled'?: boolean;
     'expires'?: number;
     'fileID'?: string;
+    'isDir'?: boolean;
     'owner'?: string;
     'permissions'?: {
         [key: string]: PermissionsInfo;
@@ -880,7 +885,7 @@ declare const FilesApiFp: (configuration?: Configuration) => {
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    addFilesToUpload(uploadID: string, request: NewFilesParams, shareID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<NewFilesInfo>>;
+    addFilesToUpload(uploadID: string, request: NewFilesParams, shareID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FileIDArrayInfo>>;
     /**
      *
      * @summary Get path completion suggestions
@@ -999,7 +1004,7 @@ declare const FilesApiFp: (configuration?: Configuration) => {
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<FileInfo>>>;
+    searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FilesInfo>>;
     /**
      *
      * @summary Begin a new upload task
@@ -1052,7 +1057,7 @@ declare const FilesApiFactory: (configuration?: Configuration, basePath?: string
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    addFilesToUpload(uploadID: string, request: NewFilesParams, shareID?: string, options?: RawAxiosRequestConfig): AxiosPromise<NewFilesInfo>;
+    addFilesToUpload(uploadID: string, request: NewFilesParams, shareID?: string, options?: RawAxiosRequestConfig): AxiosPromise<FileIDArrayInfo>;
     /**
      *
      * @summary Get path completion suggestions
@@ -1171,7 +1176,7 @@ declare const FilesApiFactory: (configuration?: Configuration, basePath?: string
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options?: RawAxiosRequestConfig): AxiosPromise<Array<FileInfo>>;
+    searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options?: RawAxiosRequestConfig): AxiosPromise<FilesInfo>;
     /**
      *
      * @summary Begin a new upload task
@@ -1224,7 +1229,7 @@ declare class FilesApi extends BaseAPI {
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    addFilesToUpload(uploadID: string, request: NewFilesParams, shareID?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<NewFilesInfo, any, {}>>;
+    addFilesToUpload(uploadID: string, request: NewFilesParams, shareID?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FileIDArrayInfo, any, {}>>;
     /**
      *
      * @summary Get path completion suggestions
@@ -1343,7 +1348,7 @@ declare class FilesApi extends BaseAPI {
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FileInfo[], any, {}>>;
+    searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FilesInfo, any, {}>>;
     /**
      *
      * @summary Begin a new upload task
@@ -3498,4 +3503,4 @@ type WLAPI = {
 };
 declare function WeblensAPIFactory(apiEndpoint: string): WLAPI;
 
-export { type APIKeyParams, APIKeysApi, APIKeysApiAxiosParamCreator, APIKeysApiFactory, APIKeysApiFp, type AddUserParams, type BackupInfo, type Bundle, type CreateFolderBody, FeatureFlagsApi, FeatureFlagsApiAxiosParamCreator, FeatureFlagsApiFactory, FeatureFlagsApiFp, type FileActionInfo, type FileInfo, type FileShareParams, FilesApi, FilesApiAxiosParamCreator, FilesApiFactory, FilesApiFp, type FilesListParams, FolderApi, FolderApiAxiosParamCreator, FolderApiFactory, FolderApiFp, type FolderInfo, GetFolderSortOrderEnum, GetFolderSortPropEnum, GetMediaImageQualityEnum, GetMediaSortDirectionEnum, GetMediaSortEnum, type GithubComEthanrousWeblensModelsTagTag, type HistoryFileAction, type LoginBody, MediaApi, MediaApiAxiosParamCreator, MediaApiFactory, MediaApiFp, type MediaBatchInfo, type MediaIDsParams, type MediaInfo, type MediaTypeInfo, type MediaTypesInfo, type MoveFilesParams, type NewFileParams, type NewFilesInfo, type NewFilesParams, type NewServerParams, type NewUploadInfo, type NewUploadParams, type NewUserParams, type PasswordUpdateParams, type PermissionsInfo, type PermissionsParams, type RestoreFilesBody, type RestoreFilesInfo, SearchFilesSortOrderEnum, SearchFilesSortPropEnum, SearchFilesTagJoinLogicEnum, ShareApi, ShareApiAxiosParamCreator, ShareApiFactory, ShareApiFp, type ShareInfo, type TagCreateTagParams, type TagFileIDsParams, type TagUpdateTagParams, TagsApi, TagsApiAxiosParamCreator, TagsApiFactory, TagsApiFp, type TakeoutInfo, type TaskInfo, type TokenInfo, type TowerHealth, TowerHealthStatusEnum, type TowerInfo, TowersApi, TowersApiAxiosParamCreator, TowersApiFactory, TowersApiFp, type UpdateFileParams, type UserInfo, type UserInfoArchive, UsersApi, UsersApiAxiosParamCreator, UsersApiFactory, UsersApiFp, type WLAPI, type WLResponseInfo, WeblensAPIFactory, type WeblensErrorInfo, type WlfsFilepath, type WlstructsInitServerParams, type WlstructsSetConfigParam };
+export { type APIKeyParams, APIKeysApi, APIKeysApiAxiosParamCreator, APIKeysApiFactory, APIKeysApiFp, type AddUserParams, type BackupInfo, type Bundle, type CreateFolderBody, FeatureFlagsApi, FeatureFlagsApiAxiosParamCreator, FeatureFlagsApiFactory, FeatureFlagsApiFp, type FileActionInfo, type FileIDArrayInfo, type FileInfo, type FileShareParams, FilesApi, FilesApiAxiosParamCreator, FilesApiFactory, FilesApiFp, type FilesInfo, type FilesListParams, FolderApi, FolderApiAxiosParamCreator, FolderApiFactory, FolderApiFp, type FolderInfo, GetFolderSortOrderEnum, GetFolderSortPropEnum, GetMediaImageQualityEnum, GetMediaSortDirectionEnum, GetMediaSortEnum, type GithubComEthanrousWeblensModelsTagTag, type HistoryFileAction, type LoginBody, MediaApi, MediaApiAxiosParamCreator, MediaApiFactory, MediaApiFp, type MediaBatchInfo, type MediaIDsParams, type MediaInfo, type MediaTypeInfo, type MediaTypesInfo, type MoveFilesParams, type NewFileParams, type NewFilesParams, type NewServerParams, type NewUploadInfo, type NewUploadParams, type NewUserParams, type PasswordUpdateParams, type PermissionsInfo, type PermissionsParams, type RestoreFilesBody, type RestoreFilesInfo, SearchFilesSortOrderEnum, SearchFilesSortPropEnum, SearchFilesTagJoinLogicEnum, ShareApi, ShareApiAxiosParamCreator, ShareApiFactory, ShareApiFp, type ShareInfo, type TagCreateTagParams, type TagFileIDsParams, type TagUpdateTagParams, TagsApi, TagsApiAxiosParamCreator, TagsApiFactory, TagsApiFp, type TakeoutInfo, type TaskInfo, type TokenInfo, type TowerHealth, TowerHealthStatusEnum, type TowerInfo, TowersApi, TowersApiAxiosParamCreator, TowersApiFactory, TowersApiFp, type UpdateFileParams, type UserInfo, type UserInfoArchive, UsersApi, UsersApiAxiosParamCreator, UsersApiFactory, UsersApiFp, type WLAPI, type WLResponseInfo, WeblensAPIFactory, type WeblensErrorInfo, type WlfsFilepath, type WlstructsInitServerParams, type WlstructsSetConfigParam };

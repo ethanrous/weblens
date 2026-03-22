@@ -10,6 +10,12 @@ function handleModified(msg: WsMessage) {
         return
     }
 
+    if (useLocationStore().isInTimeline || useLocationStore().search) {
+        console.debug('Ignoring file from websocket update update - in timeline or search mode')
+
+        return
+    }
+
     // Don't update the trash file unless we're currently in the trash.
     if (!useLocationStore().isInTrash && msg.content.fileInfo.id === useUserStore().user.trashID) {
         return
@@ -24,6 +30,22 @@ function handleModified(msg: WsMessage) {
     } else {
         useFilesStore().addFile(msg.content.fileInfo)
     }
+}
+
+function handleFileScan(msg: WsMessage) {
+    const targetFile = new WeblensFile({ portablePath: msg.content.taskJobTarget, isDir: true })
+
+    useTasksStore().upsertTask(msg.subscribeKey, {
+        taskID: msg.subscribeKey,
+        taskType: TaskType.ScanDirectory,
+
+        percentComplete: msg.content.percentProgress,
+        countComplete: msg.content.tasksComplete,
+        countTotal: msg.content.tasksTotal,
+        tasksFailed: msg.content.tasksFailed,
+
+        target: targetFile,
+    })
 }
 
 export function handleWebsocketMessage(msg: WsMessage) {
@@ -52,19 +74,11 @@ export function handleWebsocketMessage(msg: WsMessage) {
             break
 
         case WsEvent.TaskCreatedEvent: {
-            let targetFile: WeblensFile | undefined
             let taskParams: TaskParams
             if (msg.taskType === TaskType.ScanDirectory) {
-                targetFile = new WeblensFile({ portablePath: msg.content.filename, isDir: true })
-                taskParams = {
-                    taskID: msg.subscribeKey,
-                    taskType: TaskType.ScanDirectory,
+                handleFileScan(msg)
 
-                    percentComplete: 0,
-                    target: targetFile,
-                    countComplete: 0,
-                    countTotal: 0,
-                }
+                break
             } else if (msg.taskType === TaskType.CreateZip) {
                 taskParams = {
                     taskID: msg.subscribeKey,
@@ -100,24 +114,12 @@ export function handleWebsocketMessage(msg: WsMessage) {
         case WsEvent.FileScanStartedEvent:
         case WsEvent.FileScanFailedEvent:
         case WsEvent.FileScanCompleteEvent: {
-            const targetFile = new WeblensFile({ portablePath: msg.content.filename, isDir: true })
-
-            useTasksStore().upsertTask(msg.subscribeKey, {
-                taskID: msg.subscribeKey,
-                taskType: TaskType.ScanDirectory,
-
-                percentComplete: msg.content.percentProgress,
-                countComplete: msg.content.tasksComplete,
-                countTotal: msg.content.tasksTotal,
-                tasksFailed: msg.content.tasksFailed,
-
-                target: targetFile,
-            })
+            handleFileScan(msg)
             break
         }
 
         case WsEvent.FolderScanCompleteEvent: {
-            const targetFile = new WeblensFile({ portablePath: msg.content.filename, isDir: true })
+            const targetFile = new WeblensFile({ portablePath: msg.content.portablePath, isDir: true })
 
             useTasksStore().upsertTask(msg.subscribeKey, {
                 taskID: msg.subscribeKey,

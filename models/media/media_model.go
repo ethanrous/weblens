@@ -24,6 +24,23 @@ var contentIDIndexKey = "contentID_unique_index"
 var ownerIndexKey = "owner_index"
 var fileIDsIndex = "fileIDs_index"
 
+// IndexModels defines MongoDB indexes for the media collection.
+// Excludes the vector search index which requires the `search` index method instead.
+var IndexModels = []mongo.IndexModel{
+	{
+		Keys:    bson.D{{Key: "contentID", Value: 1}},
+		Options: options.Index().SetUnique(true).SetName(contentIDIndexKey),
+	},
+	{
+		Keys:    bson.D{{Key: "owner", Value: 1}},
+		Options: options.Index().SetName(ownerIndexKey),
+	},
+	{
+		Keys:    bson.D{{Key: "fileIDs", Value: 1}},
+		Options: options.Index().SetName(fileIDsIndex),
+	},
+}
+
 func init() {
 	startup.RegisterHook(registerIndexes)
 }
@@ -638,6 +655,9 @@ func (m *Media) AddFileToMedia(ctx context.Context, fileID string) error {
 		return wlerrors.WithStack(err)
 	}
 
+	// Make sure to also update the in-memory struct to keep it consistent with the database
+	m.FileIDs = append(m.FileIDs, fileID)
+
 	return nil
 }
 
@@ -698,28 +718,10 @@ func registerIndexes(ctx context.Context, _ config.Provider) error {
 		return err
 	}
 
-	err = col.NewIndex(mongo.IndexModel{
-		Keys:    bson.D{{Key: "contentID", Value: 1}},
-		Options: options.Index().SetUnique(true).SetName(contentIDIndexKey),
-	})
-	if err != nil {
-		return err
-	}
-
-	err = col.NewIndex(mongo.IndexModel{
-		Keys:    bson.D{{Key: "owner", Value: 1}},
-		Options: options.Index().SetName(ownerIndexKey),
-	})
-	if err != nil {
-		return err
-	}
-
-	err = col.NewIndex(mongo.IndexModel{
-		Keys:    bson.D{{Key: "fileIDs", Value: 1}},
-		Options: options.Index().SetName(fileIDsIndex),
-	})
-	if err != nil {
-		return err
+	for _, idx := range IndexModels {
+		if err := col.NewIndex(idx); err != nil {
+			return err
+		}
 	}
 
 	err = col.NewSearchIndex(mongo.SearchIndexModel{

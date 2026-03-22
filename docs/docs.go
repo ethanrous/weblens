@@ -283,12 +283,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "File Info",
+                        "description": "Search results",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/FileInfo"
-                            }
+                            "$ref": "#/definitions/FilesInfo"
                         }
                     },
                     "400": {
@@ -2939,7 +2936,7 @@ const docTemplate = `{
                     "201": {
                         "description": "FileIds",
                         "schema": {
-                            "$ref": "#/definitions/NewFilesInfo"
+                            "$ref": "#/definitions/FileIDArrayInfo"
                         }
                     },
                     "401": {
@@ -3665,6 +3662,17 @@ const docTemplate = `{
                 }
             }
         },
+        "FileIDArrayInfo": {
+            "type": "object",
+            "properties": {
+                "fileIDs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "FileInfo": {
             "type": "object",
             "properties": {
@@ -3740,6 +3748,26 @@ const docTemplate = `{
                 },
                 "wormhole": {
                     "type": "boolean"
+                }
+            }
+        },
+        "FilesInfo": {
+            "type": "object",
+            "required": [
+                "files"
+            ],
+            "properties": {
+                "files": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/FileInfo"
+                    }
+                },
+                "medias": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/MediaInfo"
+                    }
                 }
             }
         },
@@ -3975,17 +4003,6 @@ const docTemplate = `{
                 }
             }
         },
-        "NewFilesInfo": {
-            "type": "object",
-            "properties": {
-                "fileIDs": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
         "NewFilesParams": {
             "type": "object",
             "properties": {
@@ -4152,6 +4169,9 @@ const docTemplate = `{
                 },
                 "fileID": {
                     "type": "string"
+                },
+                "isDir": {
+                    "type": "boolean"
                 },
                 "owner": {
                     "type": "string"

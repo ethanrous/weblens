@@ -31,11 +31,17 @@ RUN --mount=type=cache,target=/pnpm/store \
 RUN pnpm generate;
 
 # Build agno static library (targeting glibc for Debian compatibility)
-FROM rust:slim AS agno-builder
+FROM rust:slim-bookworm AS agno-builder
 
+# cmake + curl: needed to build libde265 and libheif from source as static libraries
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
+    build-essential \
+    pkg-config \
+    cmake \
+    curl \
+    && rm -rf /var/lib/apt/lists/*;
+
+ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig
 
 WORKDIR /src
 COPY ./agno ./agno
@@ -45,7 +51,7 @@ RUN chmod +x ./scripts/lib/*.bash;
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
-    --mount=type=cache,target=/src/agno/target \
+    --mount=type=cache,id=agno-target-bookworm,target=/src/agno/target \
     ./scripts/build-agno.bash "/build/lib/";
 RUN ls -l /build/lib/libagno.a;
 

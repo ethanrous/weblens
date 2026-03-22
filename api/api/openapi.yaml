@@ -204,10 +204,8 @@ paths:
           content:
             '*/*':
               schema:
-                items:
-                  $ref: "#/components/schemas/FileInfo"
-                type: array
-          description: File Info
+                $ref: "#/components/schemas/FilesInfo"
+          description: Search results
         "400":
           content: {}
           description: Bad Request
@@ -2083,7 +2081,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/NewFilesInfo"
+                $ref: "#/components/schemas/FileIDArrayInfo"
           description: FileIds
         "401":
           content: {}
@@ -2719,6 +2717,17 @@ components:
       - timestamp
       - towerID
       type: object
+    FileIDArrayInfo:
+      example:
+        fileIDs:
+        - fileIDs
+        - fileIDs
+      properties:
+        fileIDs:
+          items:
+            type: string
+          type: array
+      type: object
     FileInfo:
       example:
         owner: owner
@@ -2800,6 +2809,106 @@ components:
           type: array
         wormhole:
           type: boolean
+      type: object
+    FilesInfo:
+      example:
+        medias:
+        - owner: owner
+          pageCount: 9
+          hidden: true
+          likedBy:
+          - likedBy
+          - likedBy
+          contentID: contentID
+          mimeType: mimeType
+          enabled: true
+          duration: 5
+          hdirScore: 5.637376656633329
+          fileIDs:
+          - fileIDs
+          - fileIDs
+          imported: true
+          width: 3
+          location:
+          - 7.061401241503109
+          - 7.061401241503109
+          createDate: 1
+          height: 2
+        - owner: owner
+          pageCount: 9
+          hidden: true
+          likedBy:
+          - likedBy
+          - likedBy
+          contentID: contentID
+          mimeType: mimeType
+          enabled: true
+          duration: 5
+          hdirScore: 5.637376656633329
+          fileIDs:
+          - fileIDs
+          - fileIDs
+          imported: true
+          width: 3
+          location:
+          - 7.061401241503109
+          - 7.061401241503109
+          createDate: 1
+          height: 2
+        files:
+        - owner: owner
+          hasRestoreData: true
+          childrenIds:
+          - childrenIds
+          - childrenIds
+          contentID: contentID
+          hasMedia: true
+          shareID: shareID
+          portablePath: portablePath
+          parentID: parentID
+          modifyTimestamp: 0
+          pastFile: true
+          size: 6
+          permissions:
+            canView: true
+            canEdit: true
+            canDownload: true
+            canDelete: true
+          id: id
+          modifiable: true
+          isDir: true
+        - owner: owner
+          hasRestoreData: true
+          childrenIds:
+          - childrenIds
+          - childrenIds
+          contentID: contentID
+          hasMedia: true
+          shareID: shareID
+          portablePath: portablePath
+          parentID: parentID
+          modifyTimestamp: 0
+          pastFile: true
+          size: 6
+          permissions:
+            canView: true
+            canEdit: true
+            canDownload: true
+            canDelete: true
+          id: id
+          modifiable: true
+          isDir: true
+      properties:
+        files:
+          items:
+            $ref: "#/components/schemas/FileInfo"
+          type: array
+        medias:
+          items:
+            $ref: "#/components/schemas/MediaInfo"
+          type: array
+      required:
+      - files
       type: object
     FilesListParams:
       example:
@@ -3241,17 +3350,6 @@ components:
         parentFolderID:
           type: string
       type: object
-    NewFilesInfo:
-      example:
-        fileIDs:
-        - fileIDs
-        - fileIDs
-      properties:
-        fileIDs:
-          items:
-            type: string
-          type: array
-      type: object
     NewFilesParams:
       example:
         newFiles:
@@ -3434,6 +3532,7 @@ components:
         shareName: shareName
         updated: 5
         fileID: fileID
+        isDir: true
       properties:
         accessors:
           items:
@@ -3446,6 +3545,8 @@ components:
           type: integer
         fileID:
           type: string
+        isDir:
+          type: boolean
         owner:
           type: string
         permissions:

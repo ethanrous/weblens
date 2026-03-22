@@ -199,13 +199,13 @@ func TestGenerateJWTCookie(t *testing.T) {
 	t.Run("generates valid cookie string with security flags", func(t *testing.T) {
 		user := &user_model.User{Username: "testuser"}
 
-		cookie, err := auth.GenerateJWTCookie(user)
+		cookie, err := auth.GenerateJWTCookie(user, true)
 		require.NoError(t, err)
 		assert.Contains(t, cookie, "weblens-session-token=")
 		assert.Contains(t, cookie, "Path=/")
 		assert.Contains(t, cookie, "Expires=")
 		assert.Contains(t, cookie, "HttpOnly")
-		assert.Contains(t, cookie, "Secure")
+		assert.Contains(t, cookie, "Secure=true")
 		assert.Contains(t, cookie, "SameSite=Lax")
 	})
 }

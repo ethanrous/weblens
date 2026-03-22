@@ -12,20 +12,22 @@ does_agno_exist() {
 }
 
 build_agno() {
-    local agno_lib_path
+    local agno_lib_dir_path
     if [[ -n "${1:-}" ]]; then
-        agno_lib_path="$1"
+        agno_lib_dir_path="$1"
     else
-        agno_lib_path="${WEBLENS_ROOT}/services/media/agno/lib/"
+        agno_lib_dir_path="${WEBLENS_ROOT}/services/media/agno/lib"
     fi
-    mkdir -p "$agno_lib_path"
+    mkdir -p "$agno_lib_dir_path"
+
+    lib_agno_path="$agno_lib_dir_path/libagno.a"
 
     # Remove any existing Agno library files before building
-    rm -f "${agno_lib_path}/libagno.a"
+    rm -f "${lib_agno_path}"
 
     pushd agno >/dev/null || return 1
-    show_as_subtask "Building Agno to $agno_lib_path" "orange" -- "${WEBLENS_ROOT}/agno/build/sh/build-agno.bash" "$agno_lib_path"
-    cp ./lib/agno.h "$agno_lib_path" || return 1
+    show_as_subtask "Building Agno to $lib_agno_path" "orange" -- "${WEBLENS_ROOT}/agno/build/sh/build-agno.bash" "$lib_agno_path"
+    cp ./lib/agno.h "$agno_lib_dir_path" || return 1
     popd >/dev/null || return 1
 }
 export -f build_agno

@@ -39,9 +39,16 @@ jobs:
       - name: Build Agno
         if: steps.cache-agno-binary.outputs.cache-hit != 'true'
         run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends \
+              build-essential \
+              pkg-config \
+              cmake \
+              curl
+
+          export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig
           export WEBLENS_VERBOSE=true
           source ./scripts/lib/all.bash
-          build_agno
+          sudo build_agno
 
       - name: Upload Agno binary
         uses: actions/upload-artifact@v4
@@ -139,8 +146,9 @@ jobs:
           version: v2.10
 
       - name: pnpm lint
-        working-directory: weblens-vue/weblens-nuxt
         run: |
+          source ./scripts/lib/all.bash && build_frontend
+          cd weblens-vue/weblens-nuxt
           pnpm lint
           exit $?
 

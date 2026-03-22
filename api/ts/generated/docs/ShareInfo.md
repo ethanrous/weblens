@@ -9,6 +9,7 @@ Name | Type | Description | Notes
 **enabled** | **boolean** |  | [optional] [default to undefined]
 **expires** | **number** |  | [optional] [default to undefined]
 **fileID** | **string** |  | [optional] [default to undefined]
+**isDir** | **boolean** |  | [optional] [default to undefined]
 **owner** | **string** |  | [optional] [default to undefined]
 **permissions** | [**{ [key: string]: PermissionsInfo; }**](PermissionsInfo.md) |  | [optional] [default to undefined]
 **_public** | **boolean** |  | [optional] [default to undefined]
@@ -29,6 +30,7 @@ const instance: ShareInfo = {
     enabled,
     expires,
     fileID,
+    isDir,
     owner,
     permissions,
     _public,

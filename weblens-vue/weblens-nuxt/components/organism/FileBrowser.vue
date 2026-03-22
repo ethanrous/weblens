@@ -31,7 +31,7 @@
                 :class="{ 'flex h-full w-full': true }"
             >
                 <FileScroller
-                    :files="filesStore.files"
+                    :files="[...filesStore.files]"
                     :no-require-parent-match="filesStore.isSearching"
                 />
             </div>

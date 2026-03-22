@@ -22,45 +22,7 @@ export default defineConfig({
 
     globalSetup: './e2e/global-setup',
 
-    reporter: [
-        ['line'],
-        [
-            'monocart-reporter',
-            {
-                name: 'Weblens E2E Report',
-                outputFile: path.join(buildDir, 'report/index.html'),
-                coverage: {
-                    cleanCache: true,
-                    reports: ['v8'],
-                    entryFilter: (entry: { url: string }) => {
-                        return entry.url.includes('/_nuxt/')
-                    },
-                    sourceFilter: (sourcePath: string) => {
-                        return (
-                            sourcePath.includes('/pages/') ||
-                            sourcePath.includes('/components/') ||
-                            sourcePath.includes('/composables/') ||
-                            sourcePath.includes('/stores/') ||
-                            sourcePath.includes('/util/') ||
-                            sourcePath.includes('/router/') ||
-                            sourcePath.includes('/modules/') ||
-                            sourcePath.includes('/server/') ||
-                            sourcePath.includes('/types/')
-                        )
-                    },
-                    sourcePath: (filePath: string) => {
-                        // Strip the nuxt project root prefix to show clean relative paths
-                        // like "pages/login.vue" instead of full absolute paths
-                        const nuxtRoot = path.resolve(__dirname) + '/'
-                        if (filePath.startsWith(nuxtRoot)) {
-                            return filePath.slice(nuxtRoot.length)
-                        }
-                        return filePath
-                    },
-                },
-            },
-        ],
-    ],
+    reporter: [['line']],
     timeout: 10_000,
 
     use: {

@@ -21,9 +21,11 @@ docs/Bundle.md
 docs/CreateFolderBody.md
 docs/FeatureFlagsAPI.md
 docs/FileActionInfo.md
+docs/FileIDArrayInfo.md
 docs/FileInfo.md
 docs/FileShareParams.md
 docs/FilesAPI.md
+docs/FilesInfo.md
 docs/FilesListParams.md
 docs/FolderAPI.md
 docs/FolderInfo.md
@@ -38,7 +40,6 @@ docs/MediaTypeInfo.md
 docs/MediaTypesInfo.md
 docs/MoveFilesParams.md
 docs/NewFileParams.md
-docs/NewFilesInfo.md
 docs/NewFilesParams.md
 docs/NewServerParams.md
 docs/NewUploadInfo.md
@@ -79,8 +80,10 @@ model_backup_info.go
 model_bundle.go
 model_create_folder_body.go
 model_file_action_info.go
+model_file_id_array_info.go
 model_file_info.go
 model_file_share_params.go
+model_files_info.go
 model_files_list_params.go
 model_folder_info.go
 model_github_com_ethanrous_weblens_models_tag_tag.go
@@ -93,7 +96,6 @@ model_media_type_info.go
 model_media_types_info.go
 model_move_files_params.go
 model_new_file_params.go
-model_new_files_info.go
 model_new_files_params.go
 model_new_server_params.go
 model_new_upload_info.go

@@ -141,7 +141,9 @@ func SetSessionToken(ctx context_service.RequestContext) error {
 		return wlerrors.New("requester is nil")
 	}
 
-	sessionCookie, err := GenerateJWTCookie(ctx.Requester)
+	secure := ctx.Req.TLS != nil
+
+	sessionCookie, err := GenerateJWTCookie(ctx.Requester, secure)
 	if err != nil {
 		return err
 	}
@@ -155,13 +157,13 @@ func SetSessionToken(ctx context_service.RequestContext) error {
 }
 
 // GenerateJWTCookie creates a session cookie containing a JWT for the user.
-func GenerateJWTCookie(user *user_model.User) (string, error) {
+func GenerateJWTCookie(user *user_model.User, secure bool) (string, error) {
 	token, expires, err := cryptography.GenerateJWT(user.GetUsername())
 	if err != nil {
 		return "", err
 	}
 
-	cookie := fmt.Sprintf("%s=%s;Path=/;Expires=%s;HttpOnly;Secure;SameSite=Lax", cryptography.SessionTokenCookie, token, expires.Format(time.RFC1123))
+	cookie := fmt.Sprintf("%s=%s;Path=/;Expires=%s;HttpOnly;Secure=%t;SameSite=Lax", cryptography.SessionTokenCookie, token, expires.Format(time.RFC1123), secure)
 
 	return cookie, nil
 }

@@ -281,12 +281,9 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "File Info",
+                        "description": "Search results",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/FileInfo"
-                            }
+                            "$ref": "#/definitions/FilesInfo"
                         }
                     },
                     "400": {
@@ -2937,7 +2934,7 @@
                     "201": {
                         "description": "FileIds",
                         "schema": {
-                            "$ref": "#/definitions/NewFilesInfo"
+                            "$ref": "#/definitions/FileIDArrayInfo"
                         }
                     },
                     "401": {
@@ -3663,6 +3660,17 @@
                 }
             }
         },
+        "FileIDArrayInfo": {
+            "type": "object",
+            "properties": {
+                "fileIDs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "FileInfo": {
             "type": "object",
             "properties": {
@@ -3738,6 +3746,26 @@
                 },
                 "wormhole": {
                     "type": "boolean"
+                }
+            }
+        },
+        "FilesInfo": {
+            "type": "object",
+            "required": [
+                "files"
+            ],
+            "properties": {
+                "files": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/FileInfo"
+                    }
+                },
+                "medias": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/MediaInfo"
+                    }
                 }
             }
         },
@@ -3973,17 +4001,6 @@
                 }
             }
         },
-        "NewFilesInfo": {
-            "type": "object",
-            "properties": {
-                "fileIDs": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
         "NewFilesParams": {
             "type": "object",
             "properties": {
@@ -4150,6 +4167,9 @@
                 },
                 "fileID": {
                     "type": "string"
+                },
+                "isDir": {
+                    "type": "boolean"
                 },
                 "owner": {
                     "type": "string"

@@ -53,8 +53,8 @@ export const useMediaStore = defineStore('media', () => {
         },
         { immediate: true },
     )
-    watch(showRaw, () => {
-        locationStore.setQueryParam('raw', showRaw.value ? null : 'false')
+    watch(showRaw, async () => {
+        await locationStore.setQueryParam('raw', showRaw.value ? null : 'false')
     })
 
     function initSearchFilters() {
@@ -278,7 +278,7 @@ export const useMediaStore = defineStore('media', () => {
         return timelineMedia.value[currentMedia.index - 1]?.contentID ?? null
     }
 
-    watch([() => locationStore.isInTimeline, () => locationStore.activeFolderID], () => {
+    watch([() => locationStore.isInTimeline, () => locationStore.activeFolderID], async () => {
         clearData()
 
         if (locationStore.isInTimeline) {

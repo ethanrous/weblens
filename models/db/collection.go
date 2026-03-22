@@ -215,12 +215,12 @@ func (c *ContextualizedCollection[T]) FindOne(_ context.Context, filter any, opt
 
 		v, ok := cache.Get(string(filterStr))
 		if ok {
-			wlog.FromContext(c.ctx).Trace().Msgf("Cache hit for collection [%s] with filter %v", c.collection.Name(), filter)
+			wlog.FromContext(c.ctx).Trace().CallerSkipFrame(1).Msgf("Cache hit for collection [%s] with filter %v", c.collection.Name(), filter)
 
 			return &decoder[T]{ctx: c.ctx, value: v}
 		}
 
-		wlog.FromContext(c.ctx).Trace().Msgf("FindOne on collection [%s] with filter %v", c.collection.Name(), filter)
+		wlog.FromContext(c.ctx).Trace().CallerSkipFrame(1).Msgf("FindOne on collection [%s] with filter %v", c.collection.Name(), filter)
 	}
 
 	ret := c.collection.FindOne(c.ctx, filter, opts...)

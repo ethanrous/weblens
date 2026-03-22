@@ -59,7 +59,24 @@ export default defineNuxtConfig({
         client: isDebugBuild,
     },
     vite: {
-        plugins: [tailwindcss()],
+        plugins: [
+            tailwindcss(),
+            isDebugBuild &&
+                (await import('vite-plugin-istanbul')).default({
+                    include: [
+                        'pages/**/*',
+                        'components/**/*',
+                        'composables/**/*',
+                        'stores/**/*',
+                        'util/**/*',
+                        'router/**/*',
+                        'modules/**/*',
+                        'server/**/*',
+                        'types/**/*',
+                    ],
+                    extension: ['.js', '.ts', '.vue'],
+                }),
+        ],
     },
     app: {
         head: {

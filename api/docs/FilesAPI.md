@@ -27,7 +27,7 @@ Method | HTTP request | Description
 
 ## AddFilesToUpload
 
-> NewFilesInfo AddFilesToUpload(ctx, uploadID).Request(request).ShareID(shareID).Execute()
+> FileIDArrayInfo AddFilesToUpload(ctx, uploadID).Request(request).ShareID(shareID).Execute()
 
 Add a file to an upload task
 
@@ -55,7 +55,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error when calling `FilesAPI.AddFilesToUpload``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
-	// response from `AddFilesToUpload`: NewFilesInfo
+	// response from `AddFilesToUpload`: FileIDArrayInfo
 	fmt.Fprintf(os.Stdout, "Response from `FilesAPI.AddFilesToUpload`: %v\n", resp)
 }
 ```
@@ -81,7 +81,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**NewFilesInfo**](NewFilesInfo.md)
+[**FileIDArrayInfo**](FileIDArrayInfo.md)
 
 ### Authorization
 
@@ -889,7 +889,7 @@ No authorization required
 
 ## SearchFiles
 
-> []FileInfo SearchFiles(ctx).Search(search).BaseFolderID(baseFolderID).SortProp(sortProp).SortOrder(sortOrder).Recursive(recursive).Regex(regex).Tags(tags).TagJoinLogic(tagJoinLogic).Execute()
+> FilesInfo SearchFiles(ctx).Search(search).BaseFolderID(baseFolderID).SortProp(sortProp).SortOrder(sortOrder).Recursive(recursive).Regex(regex).Tags(tags).TagJoinLogic(tagJoinLogic).Execute()
 
 Search for files by filename
 
@@ -922,7 +922,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error when calling `FilesAPI.SearchFiles``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
-	// response from `SearchFiles`: []FileInfo
+	// response from `SearchFiles`: FilesInfo
 	fmt.Fprintf(os.Stdout, "Response from `FilesAPI.SearchFiles`: %v\n", resp)
 }
 ```
@@ -949,7 +949,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**[]FileInfo**](FileInfo.md)
+[**FilesInfo**](FilesInfo.md)
 
 ### Authorization
 

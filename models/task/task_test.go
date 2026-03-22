@@ -473,7 +473,7 @@ func TestPool_Status(t *testing.T) {
 		status := pool.Status()
 		assert.Equal(t, int64(0), status.Complete)
 		assert.Equal(t, int64(0), status.Total)
-		assert.Equal(t, 0, status.Failed)
+		assert.Equal(t, int64(0), status.Failed)
 		assert.Equal(t, float64(0), status.Progress)
 	})
 
@@ -1322,7 +1322,7 @@ func TestTask_SetQueueTime(t *testing.T) {
 		testTime := time.Now().Add(-1 * time.Hour)
 
 		wp.RegisterJob("queue-time-job", func(tsk *task.Task) {
-			tsk.SetQueueTime(testTime)
+			tsk.QueueTime.Set(testTime)
 			tsk.Success()
 		})
 
