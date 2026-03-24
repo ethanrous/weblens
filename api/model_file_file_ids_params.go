@@ -14,33 +14,33 @@ import (
 	"encoding/json"
 )
 
-// checks if the TagFileIDsParams type satisfies the MappedNullable interface at compile time
-var _ MappedNullable = &TagFileIDsParams{}
+// checks if the FileFileIDsParams type satisfies the MappedNullable interface at compile time
+var _ MappedNullable = &FileFileIDsParams{}
 
-// TagFileIDsParams struct for TagFileIDsParams
-type TagFileIDsParams struct {
+// FileFileIDsParams struct for FileFileIDsParams
+type FileFileIDsParams struct {
 	FileIDs []string `json:"fileIDs,omitempty"`
 }
 
-// NewTagFileIDsParams instantiates a new TagFileIDsParams object
+// NewFileFileIDsParams instantiates a new FileFileIDsParams object
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewTagFileIDsParams() *TagFileIDsParams {
-	this := TagFileIDsParams{}
+func NewFileFileIDsParams() *FileFileIDsParams {
+	this := FileFileIDsParams{}
 	return &this
 }
 
-// NewTagFileIDsParamsWithDefaults instantiates a new TagFileIDsParams object
+// NewFileFileIDsParamsWithDefaults instantiates a new FileFileIDsParams object
 // This constructor will only assign default values to properties that have it defined,
 // but it doesn't guarantee that properties required by API are set
-func NewTagFileIDsParamsWithDefaults() *TagFileIDsParams {
-	this := TagFileIDsParams{}
+func NewFileFileIDsParamsWithDefaults() *FileFileIDsParams {
+	this := FileFileIDsParams{}
 	return &this
 }
 
 // GetFileIDs returns the FileIDs field value if set, zero value otherwise.
-func (o *TagFileIDsParams) GetFileIDs() []string {
+func (o *FileFileIDsParams) GetFileIDs() []string {
 	if o == nil || IsNil(o.FileIDs) {
 		var ret []string
 		return ret
@@ -50,7 +50,7 @@ func (o *TagFileIDsParams) GetFileIDs() []string {
 
 // GetFileIDsOk returns a tuple with the FileIDs field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *TagFileIDsParams) GetFileIDsOk() ([]string, bool) {
+func (o *FileFileIDsParams) GetFileIDsOk() ([]string, bool) {
 	if o == nil || IsNil(o.FileIDs) {
 		return nil, false
 	}
@@ -58,7 +58,7 @@ func (o *TagFileIDsParams) GetFileIDsOk() ([]string, bool) {
 }
 
 // HasFileIDs returns a boolean if a field has been set.
-func (o *TagFileIDsParams) HasFileIDs() bool {
+func (o *FileFileIDsParams) HasFileIDs() bool {
 	if o != nil && !IsNil(o.FileIDs) {
 		return true
 	}
@@ -67,11 +67,11 @@ func (o *TagFileIDsParams) HasFileIDs() bool {
 }
 
 // SetFileIDs gets a reference to the given []string and assigns it to the FileIDs field.
-func (o *TagFileIDsParams) SetFileIDs(v []string) {
+func (o *FileFileIDsParams) SetFileIDs(v []string) {
 	o.FileIDs = v
 }
 
-func (o TagFileIDsParams) MarshalJSON() ([]byte, error) {
+func (o FileFileIDsParams) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
@@ -79,7 +79,7 @@ func (o TagFileIDsParams) MarshalJSON() ([]byte, error) {
 	return json.Marshal(toSerialize)
 }
 
-func (o TagFileIDsParams) ToMap() (map[string]interface{}, error) {
+func (o FileFileIDsParams) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	if !IsNil(o.FileIDs) {
 		toSerialize["fileIDs"] = o.FileIDs
@@ -87,38 +87,38 @@ func (o TagFileIDsParams) ToMap() (map[string]interface{}, error) {
 	return toSerialize, nil
 }
 
-type NullableTagFileIDsParams struct {
-	value *TagFileIDsParams
+type NullableFileFileIDsParams struct {
+	value *FileFileIDsParams
 	isSet bool
 }
 
-func (v NullableTagFileIDsParams) Get() *TagFileIDsParams {
+func (v NullableFileFileIDsParams) Get() *FileFileIDsParams {
 	return v.value
 }
 
-func (v *NullableTagFileIDsParams) Set(val *TagFileIDsParams) {
+func (v *NullableFileFileIDsParams) Set(val *FileFileIDsParams) {
 	v.value = val
 	v.isSet = true
 }
 
-func (v NullableTagFileIDsParams) IsSet() bool {
+func (v NullableFileFileIDsParams) IsSet() bool {
 	return v.isSet
 }
 
-func (v *NullableTagFileIDsParams) Unset() {
+func (v *NullableFileFileIDsParams) Unset() {
 	v.value = nil
 	v.isSet = false
 }
 
-func NewNullableTagFileIDsParams(val *TagFileIDsParams) *NullableTagFileIDsParams {
-	return &NullableTagFileIDsParams{value: val, isSet: true}
+func NewNullableFileFileIDsParams(val *FileFileIDsParams) *NullableFileFileIDsParams {
+	return &NullableFileFileIDsParams{value: val, isSet: true}
 }
 
-func (v NullableTagFileIDsParams) MarshalJSON() ([]byte, error) {
+func (v NullableFileFileIDsParams) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v.value)
 }
 
-func (v *NullableTagFileIDsParams) UnmarshalJSON(src []byte) error {
+func (v *NullableFileFileIDsParams) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }

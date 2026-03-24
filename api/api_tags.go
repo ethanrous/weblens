@@ -27,11 +27,11 @@ type ApiAddFilesToTagRequest struct {
 	ctx context.Context
 	ApiService *TagsAPIService
 	tagID string
-	request *TagFileIDsParams
+	request *FileFileIDsParams
 }
 
 // File IDs to add
-func (r ApiAddFilesToTagRequest) Request(request TagFileIDsParams) ApiAddFilesToTagRequest {
+func (r ApiAddFilesToTagRequest) Request(request FileFileIDsParams) ApiAddFilesToTagRequest {
 	r.request = &request
 	return r
 }
@@ -128,11 +128,11 @@ func (a *TagsAPIService) AddFilesToTagExecute(r ApiAddFilesToTagRequest) (*http.
 type ApiCreateTagRequest struct {
 	ctx context.Context
 	ApiService *TagsAPIService
-	request *TagCreateTagParams
+	request *FileCreateTagParams
 }
 
 // Create tag request body
-func (r ApiCreateTagRequest) Request(request TagCreateTagParams) ApiCreateTagRequest {
+func (r ApiCreateTagRequest) Request(request FileCreateTagParams) ApiCreateTagRequest {
 	r.request = &request
 	return r
 }
@@ -728,11 +728,11 @@ type ApiRemoveFilesFromTagRequest struct {
 	ctx context.Context
 	ApiService *TagsAPIService
 	tagID string
-	request *TagFileIDsParams
+	request *FileFileIDsParams
 }
 
 // File IDs to remove
-func (r ApiRemoveFilesFromTagRequest) Request(request TagFileIDsParams) ApiRemoveFilesFromTagRequest {
+func (r ApiRemoveFilesFromTagRequest) Request(request FileFileIDsParams) ApiRemoveFilesFromTagRequest {
 	r.request = &request
 	return r
 }
@@ -830,11 +830,11 @@ type ApiUpdateTagRequest struct {
 	ctx context.Context
 	ApiService *TagsAPIService
 	tagID string
-	request *TagUpdateTagParams
+	request *FileUpdateTagParams
 }
 
 // Update tag request body
-func (r ApiUpdateTagRequest) Request(request TagUpdateTagParams) ApiUpdateTagRequest {
+func (r ApiUpdateTagRequest) Request(request FileUpdateTagParams) ApiUpdateTagRequest {
 	r.request = &request
 	return r
 }

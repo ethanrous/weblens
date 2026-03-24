@@ -662,6 +662,27 @@ definitions:
       error:
         type: string
     type: object
+  file.createTagParams:
+    properties:
+      color:
+        type: string
+      name:
+        type: string
+    type: object
+  file.fileIDsParams:
+    properties:
+      fileIDs:
+        items:
+          type: string
+        type: array
+    type: object
+  file.updateTagParams:
+    properties:
+      color:
+        type: string
+      name:
+        type: string
+    type: object
   github_com_ethanrous_weblens_models_tag.Tag:
     properties:
       color:
@@ -710,27 +731,6 @@ definitions:
       timestamp:
         type: string
       towerID:
-        type: string
-    type: object
-  tag.createTagParams:
-    properties:
-      color:
-        type: string
-      name:
-        type: string
-    type: object
-  tag.fileIDsParams:
-    properties:
-      fileIDs:
-        items:
-          type: string
-        type: array
-    type: object
-  tag.updateTagParams:
-    properties:
-      color:
-        type: string
-      name:
         type: string
     type: object
   wlfs.Filepath:
@@ -2009,7 +2009,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/tag.createTagParams'
+          $ref: '#/definitions/file.createTagParams'
       produces:
       - application/json
       responses:
@@ -2100,7 +2100,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/tag.updateTagParams'
+          $ref: '#/definitions/file.updateTagParams'
       responses:
         "200":
           description: OK
@@ -2135,7 +2135,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/tag.fileIDsParams'
+          $ref: '#/definitions/file.fileIDsParams'
       responses:
         "200":
           description: OK
@@ -2199,7 +2199,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/tag.fileIDsParams'
+          $ref: '#/definitions/file.fileIDsParams'
       responses:
         "200":
           description: OK

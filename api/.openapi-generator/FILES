@@ -21,9 +21,12 @@ docs/Bundle.md
 docs/CreateFolderBody.md
 docs/FeatureFlagsAPI.md
 docs/FileActionInfo.md
+docs/FileCreateTagParams.md
+docs/FileFileIDsParams.md
 docs/FileIDArrayInfo.md
 docs/FileInfo.md
 docs/FileShareParams.md
+docs/FileUpdateTagParams.md
 docs/FilesAPI.md
 docs/FilesInfo.md
 docs/FilesListParams.md
@@ -52,9 +55,6 @@ docs/RestoreFilesBody.md
 docs/RestoreFilesInfo.md
 docs/ShareAPI.md
 docs/ShareInfo.md
-docs/TagCreateTagParams.md
-docs/TagFileIDsParams.md
-docs/TagUpdateTagParams.md
 docs/TagsAPI.md
 docs/TakeoutInfo.md
 docs/TaskInfo.md
@@ -80,9 +80,12 @@ model_backup_info.go
 model_bundle.go
 model_create_folder_body.go
 model_file_action_info.go
+model_file_create_tag_params.go
+model_file_file_ids_params.go
 model_file_id_array_info.go
 model_file_info.go
 model_file_share_params.go
+model_file_update_tag_params.go
 model_files_info.go
 model_files_list_params.go
 model_folder_info.go
@@ -107,9 +110,6 @@ model_permissions_params.go
 model_restore_files_body.go
 model_restore_files_info.go
 model_share_info.go
-model_tag_create_tag_params.go
-model_tag_file_ids_params.go
-model_tag_update_tag_params.go
 model_takeout_info.go
 model_task_info.go
 model_token_info.go

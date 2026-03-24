@@ -12,9 +12,12 @@ docs/Bundle.md
 docs/CreateFolderBody.md
 docs/FeatureFlagsApi.md
 docs/FileActionInfo.md
+docs/FileCreateTagParams.md
+docs/FileFileIDsParams.md
 docs/FileIDArrayInfo.md
 docs/FileInfo.md
 docs/FileShareParams.md
+docs/FileUpdateTagParams.md
 docs/FilesApi.md
 docs/FilesInfo.md
 docs/FilesListParams.md
@@ -43,9 +46,6 @@ docs/RestoreFilesBody.md
 docs/RestoreFilesInfo.md
 docs/ShareApi.md
 docs/ShareInfo.md
-docs/TagCreateTagParams.md
-docs/TagFileIDsParams.md
-docs/TagUpdateTagParams.md
 docs/TagsApi.md
 docs/TakeoutInfo.md
 docs/TaskInfo.md

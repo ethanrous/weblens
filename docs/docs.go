@@ -1940,7 +1940,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/tag.createTagParams"
+                            "$ref": "#/definitions/file.createTagParams"
                         }
                     }
                 ],
@@ -2126,7 +2126,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/tag.updateTagParams"
+                            "$ref": "#/definitions/file.updateTagParams"
                         }
                     }
                 ],
@@ -2228,7 +2228,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/tag.fileIDsParams"
+                            "$ref": "#/definitions/file.fileIDsParams"
                         }
                     }
                 ],
@@ -2281,7 +2281,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/tag.fileIDsParams"
+                            "$ref": "#/definitions/file.fileIDsParams"
                         }
                     }
                 ],
@@ -4480,6 +4480,39 @@ const docTemplate = `{
                 }
             }
         },
+        "file.createTagParams": {
+            "type": "object",
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "file.fileIDsParams": {
+            "type": "object",
+            "properties": {
+                "fileIDs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "file.updateTagParams": {
+            "type": "object",
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_ethanrous_weblens_models_tag.Tag": {
             "type": "object",
             "properties": {
@@ -4551,39 +4584,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "towerID": {
-                    "type": "string"
-                }
-            }
-        },
-        "tag.createTagParams": {
-            "type": "object",
-            "properties": {
-                "color": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "tag.fileIDsParams": {
-            "type": "object",
-            "properties": {
-                "fileIDs": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "tag.updateTagParams": {
-            "type": "object",
-            "properties": {
-                "color": {
-                    "type": "string"
-                },
-                "name": {
                     "type": "string"
                 }
             }

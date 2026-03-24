@@ -3456,7 +3456,7 @@ var TagsApiAxiosParamCreator = function(configuration) {
      * 
      * @summary Add files to a tag
      * @param {string} tagID Tag ID
-     * @param {TagFileIDsParams} request File IDs to add
+     * @param {FileFileIDsParams} request File IDs to add
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -3485,7 +3485,7 @@ var TagsApiAxiosParamCreator = function(configuration) {
     /**
      * 
      * @summary Create a new tag
-     * @param {TagCreateTagParams} request Create tag request body
+     * @param {FileCreateTagParams} request Create tag request body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -3647,7 +3647,7 @@ var TagsApiAxiosParamCreator = function(configuration) {
      * 
      * @summary Remove files from a tag
      * @param {string} tagID Tag ID
-     * @param {TagFileIDsParams} request File IDs to remove
+     * @param {FileFileIDsParams} request File IDs to remove
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -3677,7 +3677,7 @@ var TagsApiAxiosParamCreator = function(configuration) {
      * 
      * @summary Update a tag\'s name and/or color
      * @param {string} tagID Tag ID
-     * @param {TagUpdateTagParams} request Update tag request body
+     * @param {FileUpdateTagParams} request Update tag request body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -3712,7 +3712,7 @@ var TagsApiFp = function(configuration) {
      * 
      * @summary Add files to a tag
      * @param {string} tagID Tag ID
-     * @param {TagFileIDsParams} request File IDs to add
+     * @param {FileFileIDsParams} request File IDs to add
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -3726,7 +3726,7 @@ var TagsApiFp = function(configuration) {
     /**
      * 
      * @summary Create a new tag
-     * @param {TagCreateTagParams} request Create tag request body
+     * @param {FileCreateTagParams} request Create tag request body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -3810,7 +3810,7 @@ var TagsApiFp = function(configuration) {
      * 
      * @summary Remove files from a tag
      * @param {string} tagID Tag ID
-     * @param {TagFileIDsParams} request File IDs to remove
+     * @param {FileFileIDsParams} request File IDs to remove
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -3825,7 +3825,7 @@ var TagsApiFp = function(configuration) {
      * 
      * @summary Update a tag\'s name and/or color
      * @param {string} tagID Tag ID
-     * @param {TagUpdateTagParams} request Update tag request body
+     * @param {FileUpdateTagParams} request Update tag request body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -3845,7 +3845,7 @@ var TagsApiFactory = function(configuration, basePath, axios) {
      * 
      * @summary Add files to a tag
      * @param {string} tagID Tag ID
-     * @param {TagFileIDsParams} request File IDs to add
+     * @param {FileFileIDsParams} request File IDs to add
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -3855,7 +3855,7 @@ var TagsApiFactory = function(configuration, basePath, axios) {
     /**
      * 
      * @summary Create a new tag
-     * @param {TagCreateTagParams} request Create tag request body
+     * @param {FileCreateTagParams} request Create tag request body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -3915,7 +3915,7 @@ var TagsApiFactory = function(configuration, basePath, axios) {
      * 
      * @summary Remove files from a tag
      * @param {string} tagID Tag ID
-     * @param {TagFileIDsParams} request File IDs to remove
+     * @param {FileFileIDsParams} request File IDs to remove
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -3926,7 +3926,7 @@ var TagsApiFactory = function(configuration, basePath, axios) {
      * 
      * @summary Update a tag\'s name and/or color
      * @param {string} tagID Tag ID
-     * @param {TagUpdateTagParams} request Update tag request body
+     * @param {FileUpdateTagParams} request Update tag request body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -3940,7 +3940,7 @@ var TagsApi = class extends BaseAPI {
    * 
    * @summary Add files to a tag
    * @param {string} tagID Tag ID
-   * @param {TagFileIDsParams} request File IDs to add
+   * @param {FileFileIDsParams} request File IDs to add
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */
@@ -3950,7 +3950,7 @@ var TagsApi = class extends BaseAPI {
   /**
    * 
    * @summary Create a new tag
-   * @param {TagCreateTagParams} request Create tag request body
+   * @param {FileCreateTagParams} request Create tag request body
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */
@@ -4010,7 +4010,7 @@ var TagsApi = class extends BaseAPI {
    * 
    * @summary Remove files from a tag
    * @param {string} tagID Tag ID
-   * @param {TagFileIDsParams} request File IDs to remove
+   * @param {FileFileIDsParams} request File IDs to remove
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */
@@ -4021,7 +4021,7 @@ var TagsApi = class extends BaseAPI {
    * 
    * @summary Update a tag\'s name and/or color
    * @param {string} tagID Tag ID
-   * @param {TagUpdateTagParams} request Update tag request body
+   * @param {FileUpdateTagParams} request Update tag request body
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */

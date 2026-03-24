@@ -211,31 +211,31 @@ func TestSearchFiles(t *testing.T) {
 
 	// --- Create tags and assign files ---
 
-	tag1, _, err := client.TagsAPI.CreateTag(t.Context()).Request(openapi.TagCreateTagParams{
+	tag1, _, err := client.TagsAPI.CreateTag(t.Context()).Request(openapi.FileCreateTagParams{
 		Name:  openapi.PtrString("tag-alpha"),
 		Color: openapi.PtrString("#ff0000"),
 	}).Execute()
 	require.NoError(t, err)
 
-	tag2, _, err := client.TagsAPI.CreateTag(t.Context()).Request(openapi.TagCreateTagParams{
+	tag2, _, err := client.TagsAPI.CreateTag(t.Context()).Request(openapi.FileCreateTagParams{
 		Name:  openapi.PtrString("tag-beta"),
 		Color: openapi.PtrString("#00ff00"),
 	}).Execute()
 	require.NoError(t, err)
 
 	// Tag folder1 with tag1 only
-	_, err = client.TagsAPI.AddFilesToTag(t.Context(), tag1.GetId()).Request(openapi.TagFileIDsParams{
+	_, err = client.TagsAPI.AddFilesToTag(t.Context(), tag1.GetId()).Request(openapi.FileFileIDsParams{
 		FileIDs: []string{folder1.GetId()},
 	}).Execute()
 	require.NoError(t, err)
 
 	// Tag folder2 with both tag1 and tag2
-	_, err = client.TagsAPI.AddFilesToTag(t.Context(), tag1.GetId()).Request(openapi.TagFileIDsParams{
+	_, err = client.TagsAPI.AddFilesToTag(t.Context(), tag1.GetId()).Request(openapi.FileFileIDsParams{
 		FileIDs: []string{folder2.GetId()},
 	}).Execute()
 	require.NoError(t, err)
 
-	_, err = client.TagsAPI.AddFilesToTag(t.Context(), tag2.GetId()).Request(openapi.TagFileIDsParams{
+	_, err = client.TagsAPI.AddFilesToTag(t.Context(), tag2.GetId()).Request(openapi.FileFileIDsParams{
 		FileIDs: []string{folder2.GetId()},
 	}).Execute()
 	require.NoError(t, err)

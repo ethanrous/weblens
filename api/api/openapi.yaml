@@ -1365,7 +1365,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/tag.createTagParams"
+              $ref: "#/components/schemas/file.createTagParams"
         description: Create tag request body
         required: true
       responses:
@@ -1506,7 +1506,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/tag.updateTagParams"
+              $ref: "#/components/schemas/file.updateTagParams"
         description: Update tag request body
         required: true
       responses:
@@ -1548,7 +1548,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/tag.fileIDsParams"
+              $ref: "#/components/schemas/file.fileIDsParams"
         description: File IDs to remove
         required: true
       responses:
@@ -1625,7 +1625,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/tag.fileIDsParams"
+              $ref: "#/components/schemas/file.fileIDsParams"
         description: File IDs to add
         required: true
       responses:
@@ -3832,6 +3832,27 @@ components:
         error:
           type: string
       type: object
+    file.createTagParams:
+      properties:
+        color:
+          type: string
+        name:
+          type: string
+      type: object
+    file.fileIDsParams:
+      properties:
+        fileIDs:
+          items:
+            type: string
+          type: array
+      type: object
+    file.updateTagParams:
+      properties:
+        color:
+          type: string
+        name:
+          type: string
+      type: object
     github_com_ethanrous_weblens_models_tag.Tag:
       example:
         owner: owner
@@ -3910,27 +3931,6 @@ components:
         timestamp:
           type: string
         towerID:
-          type: string
-      type: object
-    tag.createTagParams:
-      properties:
-        color:
-          type: string
-        name:
-          type: string
-      type: object
-    tag.fileIDsParams:
-      properties:
-        fileIDs:
-          items:
-            type: string
-          type: array
-      type: object
-    tag.updateTagParams:
-      properties:
-        color:
-          type: string
-        name:
           type: string
       type: object
     wlfs.Filepath:
