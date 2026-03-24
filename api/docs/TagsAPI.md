@@ -216,7 +216,7 @@ No authorization required
 
 ## GetFilesByTag
 
-> []FileInfo GetFilesByTag(ctx, tagID).Execute()
+> FilesInfo GetFilesByTag(ctx, tagID).Execute()
 
 Get all files in a tag
 
@@ -242,7 +242,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error when calling `TagsAPI.GetFilesByTag``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
-	// response from `GetFilesByTag`: []FileInfo
+	// response from `GetFilesByTag`: FilesInfo
 	fmt.Fprintf(os.Stdout, "Response from `TagsAPI.GetFilesByTag`: %v\n", resp)
 }
 ```
@@ -266,7 +266,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**[]FileInfo**](FileInfo.md)
+[**FilesInfo**](FilesInfo.md)
 
 ### Authorization
 

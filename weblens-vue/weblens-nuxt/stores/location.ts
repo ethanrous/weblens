@@ -94,6 +94,10 @@ const useLocationStore = defineStore('location', () => {
         return (route.value.params.shareID as string | undefined) ?? ''
     })
 
+    const activeTagID = computed(() => {
+        return (route.value.params.tagID as string | undefined) ?? ''
+    })
+
     const isInShare = computed(() => {
         return (route.value.name as string | undefined)?.startsWith('files-share') ?? false
     })
@@ -281,6 +285,8 @@ const useLocationStore = defineStore('location', () => {
         isInShare,
         activeShare,
         inShareRoot,
+
+        activeTagID,
 
         activeTowerID,
         setActiveTowerID,

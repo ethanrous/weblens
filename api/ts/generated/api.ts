@@ -4598,7 +4598,7 @@ export const TagsApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getFilesByTag(tagID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<FileInfo>>> {
+        async getFilesByTag(tagID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FilesInfo>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.getFilesByTag(tagID, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['TagsApi.getFilesByTag']?.[localVarOperationServerIndex]?.url;
@@ -4717,7 +4717,7 @@ export const TagsApiFactory = function (configuration?: Configuration, basePath?
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getFilesByTag(tagID: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<FileInfo>> {
+        getFilesByTag(tagID: string, options?: RawAxiosRequestConfig): AxiosPromise<FilesInfo> {
             return localVarFp.getFilesByTag(tagID, options).then((request) => request(axios, basePath));
         },
         /**

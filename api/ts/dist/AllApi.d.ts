@@ -2468,7 +2468,7 @@ declare const TagsApiFp: (configuration?: Configuration) => {
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFilesByTag(tagID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<FileInfo>>>;
+    getFilesByTag(tagID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FilesInfo>>;
     /**
      *
      * @summary Get a tag by ID
@@ -2547,7 +2547,7 @@ declare const TagsApiFactory: (configuration?: Configuration, basePath?: string,
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFilesByTag(tagID: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<FileInfo>>;
+    getFilesByTag(tagID: string, options?: RawAxiosRequestConfig): AxiosPromise<FilesInfo>;
     /**
      *
      * @summary Get a tag by ID
@@ -2626,7 +2626,7 @@ declare class TagsApi extends BaseAPI {
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getFilesByTag(tagID: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FileInfo[], any, {}>>;
+    getFilesByTag(tagID: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FilesInfo, any, {}>>;
     /**
      *
      * @summary Get a tag by ID

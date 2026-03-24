@@ -41,6 +41,8 @@
         v-if="targetFile && menuStore.isSharing"
         :file="targetFile"
     />
+
+    <MoveFilesModal v-if="selectedFiles && menuStore.menuMode === 'move'" />
 </template>
 
 <script setup lang="ts">
@@ -54,6 +56,7 @@ import useLocationStore from '~/stores/location'
 import ShareModal from './ShareModal.vue'
 import { useWeblensAPI } from '~/api/AllApi'
 import type WeblensFile from '~/types/weblensFile'
+import MoveFilesModal from './MoveFilesModal.vue'
 
 const filesStore = useFilesStore()
 const menuStore = useContextMenuStore()

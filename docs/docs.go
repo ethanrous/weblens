@@ -2180,10 +2180,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Files in the tag",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/FileInfo"
-                            }
+                            "$ref": "#/definitions/FilesInfo"
                         }
                     },
                     "400": {

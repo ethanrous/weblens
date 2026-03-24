@@ -32,7 +32,7 @@
             >
                 <FileScroller
                     :files="[...filesStore.files]"
-                    :no-require-parent-match="filesStore.isSearching"
+                    :no-require-parent-match="filesStore.isSearching || Boolean(locationStore.activeTagID)"
                 />
             </div>
 

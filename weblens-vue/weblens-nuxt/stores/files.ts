@@ -10,6 +10,7 @@ import { useWeblensAPI } from '~/api/AllApi'
 import { useStorage } from '@vueuse/core'
 import type {
     FileInfo,
+    FilesInfo,
     FolderInfo,
     GetFolderSortOrderEnum,
     GetFolderSortPropEnum,
@@ -120,16 +121,25 @@ const useFilesStore = defineStore('files', () => {
         'files-' + locationStore.activeFolderID,
         async () => {
             if (
+                // Make sure were logged in
                 !user.value.isLoggedIn.isSet() ||
+                // Don't fetch files if we're in the timeline
                 locationStore.isInTimeline ||
-                (!locationStore.activeFolderID && !locationStore.isInShare) ||
+                // Don't try to fetch if we don't have one of: an active folder, active share, or active tag
+                (!locationStore.activeFolderID && !locationStore.isInShare && !locationStore.activeTagID) ||
+                // If we're in a share but don't have the share data yet, we might not know the active folder ID, so wait until we have the share data
                 (locationStore.isInShare && locationStore.activeShareID && !locationStore.activeShare)
             ) {
                 return {}
             }
 
-            let res: { r: AxiosResponse<FolderInfo>; t: 'folder' } | { r: AxiosResponse<FileInfo>; t: 'file' }
-            if (locationStore.isInShare && !locationStore.activeShareID) {
+            let res:
+                | { r: AxiosResponse<FolderInfo>; t: 'folder' }
+                | { r: AxiosResponse<FileInfo>; t: 'file' }
+                | { r: AxiosResponse<FilesInfo>; t: 'files' }
+            if (locationStore.activeTagID) {
+                res = { r: await useWeblensAPI().TagsAPI.getFilesByTag(locationStore.activeTagID), t: 'files' }
+            } else if (locationStore.isInShare && !locationStore.activeShareID) {
                 res = { r: await useWeblensAPI().FilesAPI.getSharedFiles(), t: 'folder' }
             } else if (locationStore.isInShare && locationStore.activeShare && !locationStore.activeShare.isDir) {
                 res = {
@@ -157,11 +167,22 @@ const useFilesStore = defineStore('files', () => {
                 return { activeFile }
             }
 
-            if (!res.r.data.self || !res.r.data.children) {
+            if (res.t === 'folder' && (!res.r.data.self || !res.r.data.children)) {
                 return {}
             }
 
-            const newChildren = res.r.data.children
+            let children: FileInfo[] = []
+            if (res.t === 'files') {
+                children = res.r.data.files
+            } else if (res.t === 'folder' && res.r.data.children !== undefined) {
+                children = res.r.data.children
+            } else {
+                console.error('Unexpected response type or missing data:', res)
+
+                return {}
+            }
+
+            const newChildren = children
                 ?.map((fInfo) => {
                     const f = new WeblensFile(fInfo)
                     f.displayable =
@@ -192,10 +213,13 @@ const useFilesStore = defineStore('files', () => {
                 f.contentCreationDate = new Date(m.createDate)
             })
 
-            // children.value = newChildren
+            let parents: WeblensFile[] = []
+            let activeFile: WeblensFile | undefined = undefined
+            if (res.t === 'folder' && res.r.data.self) {
+                parents = res.r.data.parents?.map((fInfo) => new WeblensFile(fInfo)) ?? []
+                activeFile = new WeblensFile(res.r.data.self)
+            }
 
-            const parents = res.r.data.parents?.map((fInfo) => new WeblensFile(fInfo))
-            const activeFile = new WeblensFile(res.r.data.self)
             return { activeFile: activeFile, children: newChildren, parents }
         },
         {
@@ -205,6 +229,7 @@ const useFilesStore = defineStore('files', () => {
                 () => locationStore.viewTimestamp,
                 () => locationStore.isInTimeline,
                 () => locationStore.activeShare,
+                () => locationStore.activeTagID,
                 isSearching,
                 sortCondition,
                 sortDirection,

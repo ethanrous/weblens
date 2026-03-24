@@ -330,7 +330,7 @@ type ApiGetFilesByTagRequest struct {
 	tagID string
 }
 
-func (r ApiGetFilesByTagRequest) Execute() ([]FileInfo, *http.Response, error) {
+func (r ApiGetFilesByTagRequest) Execute() (*FilesInfo, *http.Response, error) {
 	return r.ApiService.GetFilesByTagExecute(r)
 }
 
@@ -350,13 +350,13 @@ func (a *TagsAPIService) GetFilesByTag(ctx context.Context, tagID string) ApiGet
 }
 
 // Execute executes the request
-//  @return []FileInfo
-func (a *TagsAPIService) GetFilesByTagExecute(r ApiGetFilesByTagRequest) ([]FileInfo, *http.Response, error) {
+//  @return FilesInfo
+func (a *TagsAPIService) GetFilesByTagExecute(r ApiGetFilesByTagRequest) (*FilesInfo, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodGet
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  []FileInfo
+		localVarReturnValue  *FilesInfo
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "TagsAPIService.GetFilesByTag")

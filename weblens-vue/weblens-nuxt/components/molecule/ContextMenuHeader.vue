@@ -23,7 +23,7 @@ import FileIcon from '../atom/FileIcon.vue'
 const props = defineProps<{
     file?: WeblensFile
     selectedFiles?: string[]
-    namingFile?: 'rename' | 'newName'
+    namingFile?: MenuMode
 }>()
 
 const label = computed(() => {

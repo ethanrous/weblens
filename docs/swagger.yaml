@@ -2168,9 +2168,7 @@ paths:
         "200":
           description: Files in the tag
           schema:
-            items:
-              $ref: '#/definitions/FileInfo'
-            type: array
+            $ref: '#/definitions/FilesInfo'
         "400":
           description: Bad Request
         "401":

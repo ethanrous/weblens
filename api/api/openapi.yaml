@@ -1590,9 +1590,7 @@ paths:
           content:
             application/json:
               schema:
-                items:
-                  $ref: "#/components/schemas/FileInfo"
-                type: array
+                $ref: "#/components/schemas/FilesInfo"
           description: Files in the tag
         "400":
           content: {}

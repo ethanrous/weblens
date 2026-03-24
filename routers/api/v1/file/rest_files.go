@@ -346,14 +346,14 @@ func GetFolderHistory(ctx context_service.RequestContext) {
 //	@Summary	Search for files by filename
 //	@Tags		Files
 //
-//	@Param		search			query		string						true	"Filename to search for"
-//	@Param		baseFolderID	query		string						false	"The folder to search in, defaults to the user's home folder"
-//	@Param		sortProp		query		string						false	"Property to sort by"									Enums(name, size, updatedAt)	default(name)
-//	@Param		sortOrder		query		string						false	"Sort order"											Enums(asc, desc)				default(asc)
-//	@Param		recursive		query		boolean						false	"Search recursively"									Enums(true, false)				default(false)
-//	@Param		regex			query		boolean						false	"Whether to treat the search term as a regex pattern"	Enums(true, false)				default(false)
-//	@Param		tags			query		string						false	"Comma-separated list of tags to filter by"
-//	@Param		tagJoinLogic	query		string						false	"Logic to combine multiple tags with, either 'and' or 'or'"	Enums(and, or)	default(or)
+//	@Param		search			query		string				true	"Filename to search for"
+//	@Param		baseFolderID	query		string				false	"The folder to search in, defaults to the user's home folder"
+//	@Param		sortProp		query		string				false	"Property to sort by"									Enums(name, size, updatedAt)	default(name)
+//	@Param		sortOrder		query		string				false	"Sort order"											Enums(asc, desc)				default(asc)
+//	@Param		recursive		query		boolean				false	"Search recursively"									Enums(true, false)				default(false)
+//	@Param		regex			query		boolean				false	"Whether to treat the search term as a regex pattern"	Enums(true, false)				default(false)
+//	@Param		tags			query		string				false	"Comma-separated list of tags to filter by"
+//	@Param		tagJoinLogic	query		string				false	"Logic to combine multiple tags with, either 'and' or 'or'"	Enums(and, or)	default(or)
 //	@Success	200				{object}	wlstructs.FilesInfo	"Search results"
 //	@Failure	400
 //	@Failure	401
@@ -509,55 +509,12 @@ func SearchFiles(ctx context_service.RequestContext) {
 		}
 	}
 
-	fileInfos := make([]wlstructs.FileInfo, 0, len(files))
-	filePermsMap := make(map[string]*share_model.Permissions)
-
-	medias, err := getChildMedias(ctx, files)
+	resp, err := filesInfoFromFiles(ctx, files)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
+
+		return
 	}
-
-	mediaMap := make(map[string]*media_model.Media, len(medias))
-	for _, m := range medias {
-		mediaMap[m.ContentID] = m
-	}
-
-	for _, f := range files {
-		var parentPerms *share_model.Permissions
-
-		parent := f.GetParent()
-
-		if pp, ok := filePermsMap[parent.ID()]; ok {
-			parentPerms = pp
-		} else {
-			parentPerms, err = auth.CanUserAccessFile(ctx, ctx.Requester, parent, ctx.Share)
-			if err != nil {
-				ctx.Log().Error().Stack().Err(err).Msgf("Failed to check permissions for file ID: %s", f.ID())
-
-				continue
-			}
-		}
-
-		fileInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, f, reshape.FileInfoOptions{Perms: option.Of(*parentPerms)})
-		if err != nil {
-			ctx.Log().Error().Stack().Err(err).Msgf("Failed to convert file to FileInfo for file ID: %s", f.ID())
-
-			continue
-		}
-
-		fileInfo.HasMedia = mediaMap[fileInfo.ContentID] != nil
-
-		fileInfos = append(fileInfos, fileInfo)
-	}
-
-	sortFileInfos(fileInfos, ctx.Query("sortProp"), ctx.Query("sortOrder"), mediaMap)
-
-	mediaInfos := make([]wlstructs.MediaInfo, 0, len(medias))
-	for _, m := range medias {
-		mediaInfos = append(mediaInfos, reshape.MediaToMediaInfo(m))
-	}
-
-	resp := wlstructs.FilesInfo{Files: fileInfos, Medias: mediaInfos}
 
 	ctx.JSON(http.StatusOK, resp)
 }
@@ -1370,7 +1327,7 @@ func NewUploadTask(ctx context_service.RequestContext) {
 //	@Param		uploadID	path		string						true	"Upload ID"
 //	@Param		shareID		query		string						false	"Share ID"
 //	@Param		request		body		wlstructs.NewFilesParams	true	"New file params"
-//	@Success	201			{object}	wlstructs.FileIDArrayInfo		"FileIds"
+//	@Success	201			{object}	wlstructs.FileIDArrayInfo	"FileIds"
 //	@Failure	401
 //	@Failure	404
 //	@Failure	500
