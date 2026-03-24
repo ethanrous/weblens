@@ -34,12 +34,9 @@ RUN pnpm generate;
 FROM rust:slim-bookworm AS agno-builder
 
 # cmake + curl: needed to build libde265 and libheif from source as static libraries
-# RUN apt-get update && apt-get install -y --no-install-recommends \
-#     build-essential \
-#     pkg-config \
-#     cmake \
-#     curl \
-#     && rm -rf /var/lib/apt/lists/*;
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*;
 #
 # ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig
 
