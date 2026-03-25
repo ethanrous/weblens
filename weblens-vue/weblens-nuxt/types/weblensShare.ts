@@ -41,10 +41,12 @@ export default class WeblensShare implements ShareInfo {
         this.shareID = init.shareID || ''
         this.fileID = init.fileID || ''
         this.shareName = init.shareName || ''
+        this.isDir = init.isDir ?? false
         this.expires = init.expires || 0
         this._public = init.public ?? false
         this.wormhole = init.wormhole ?? false
         this.owner = init.owner || ''
+        this.timelineOnly = init.timelineOnly ?? false
 
         if (init.accessors) {
             this.accessors = init.accessors

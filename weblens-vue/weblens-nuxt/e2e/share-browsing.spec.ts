@@ -18,7 +18,7 @@ test.describe('Share Browsing', () => {
         // Navigate into the folder and upload a file
         const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'ShareBrowseFolder' })
         await folderCard.dblclick()
-        await expect(page.locator('h3').filter({ hasText: 'ShareBrowseFolder' })).toBeVisible()
+        await expect(page.locator('h3').filter({ hasText: 'ShareBrowseFolder' }).first()).toBeVisible()
         await uploadTestFile(page, 'shared-file.txt', 'This file lives in a shared folder.')
         // Navigate back to home
         await page.locator('.tabler-icon-chevron-left').first().click()
@@ -85,7 +85,7 @@ test.describe('Share Browsing', () => {
         await page.goto(shareUrl)
 
         // The shared folder heading should show the folder name
-        await expect(page.locator('h3').filter({ hasText: 'ShareBrowseFolder' })).toBeVisible()
+        await expect(page.locator('h3').filter({ hasText: 'ShareBrowseFolder' }).first()).toBeVisible()
 
         // The shared file should be visible
         await expect(page.getByText('shared-file.txt')).toBeVisible()
@@ -142,7 +142,7 @@ test.describe('Share Browsing - Private Share Accessor', () => {
 
         const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'PrivateShareFolder' })
         await folderCard.dblclick()
-        await expect(page.locator('h3').filter({ hasText: 'PrivateShareFolder' })).toBeVisible()
+        await expect(page.locator('h3').filter({ hasText: 'PrivateShareFolder' }).first()).toBeVisible()
         await uploadTestFile(page, 'accessor-file.txt', 'File visible to share accessor.')
 
         // Navigate back to home
@@ -197,7 +197,7 @@ test.describe('Share Browsing - Private Share Accessor', () => {
         await sharedFolderCard.dblclick()
 
         // The folder heading should be visible
-        await expect(page.locator('h3').filter({ hasText: 'PrivateShareFolder' })).toBeVisible()
+        await expect(page.locator('h3').filter({ hasText: 'PrivateShareFolder' }).first()).toBeVisible()
 
         // The file inside the shared folder should be visible
         await expect(page.getByText('accessor-file.txt')).toBeVisible()
