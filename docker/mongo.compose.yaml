@@ -3,6 +3,7 @@ services:
     image: mongodb/mongodb-atlas-local:8.2.5
     container_name: weblens-${MONGO_PROJECT_NAME}-mongo
     hostname: mongo.weblens
+    user: "0:0"
     ports:
       - ${MONGO_HOST_PORT:-27017}:27017
     entrypoint: ["/bin/bash", "-c"]
@@ -16,7 +17,7 @@ services:
         exec /usr/local/bin/runner server
     volumes:
       - ${MONGO_DATA_ROOT}/mongod:/data/db
-      # - ${MONGO_DATA_ROOT}/configdb:/data/configdb
+      - ${MONGO_DATA_ROOT}/configdb:/data/configdb
       - ${MONGO_DATA_ROOT}/mongot:/data/mongot
     deploy:
       resources:
