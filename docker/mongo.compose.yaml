@@ -16,7 +16,7 @@ services:
         exec /usr/local/bin/runner server
     volumes:
       - ${MONGO_DATA_ROOT}/mongod:/data/db
-      - ${MONGO_DATA_ROOT}/configdb:/data/configdb
+      # - ${MONGO_DATA_ROOT}/configdb:/data/configdb
       - ${MONGO_DATA_ROOT}/mongot:/data/mongot
     deploy:
       resources:
