@@ -95,10 +95,7 @@ jobs:
           # Restart docker to fix networking bug...
           sudo systemctl restart docker
 
-          set -x
           ./scripts/test-weblens.bash
-          exit $?
-          cat _build/logs/e2e-test-backends/
 
       - name: Upload test report
         if: always()
@@ -106,7 +103,7 @@ jobs:
         with:
           name: server-test-logs
           path: |
-            _build/logs/e2e-test-backends/
+            _build/logs/
           retention-days: 7
 
   lint:
@@ -195,7 +192,7 @@ jobs:
           name: playwright-report
           path: |
             _build/playwright/
-            _build/logs/playwright/
+            _build/logs/
           retention-days: 7
 
   test-build-container:
