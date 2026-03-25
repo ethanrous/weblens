@@ -4,7 +4,7 @@ export class PortablePath {
     private isDirectory: boolean = false
 
     constructor(path: string) {
-        const parts = path.split(':')
+        const parts = path.split(':', 2)
         if (parts.length !== 2) {
             throw new Error(`Invalid portable path format: '${path}'. Expected format is 'ROOT_ALIAS:path/to/file'`)
         }

@@ -109,5 +109,6 @@ ENV WEBLENS_BUILD_VERSION=$WEBLENS_BUILD_VERSION
 EXPOSE 8080
 
 LABEL org.opencontainers.image.source="https://github.com/ethanrous/weblens"
+LABEL app.weblens.build.version=$WEBLENS_BUILD_VERSION
 
 ENTRYPOINT ["/app/weblens"]
