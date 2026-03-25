@@ -72,11 +72,12 @@ launch_mongo() {
     mkdir -p "${MONGO_DATA_ROOT}/mongod" "${MONGO_DATA_ROOT}/configdb" "${MONGO_DATA_ROOT}/mongot"
     chmod 777 "${MONGO_DATA_ROOT}/mongod" "${MONGO_DATA_ROOT}/configdb" "${MONGO_DATA_ROOT}/mongot"
 
-    # If the keyfile doesn't exist, create it with random content and set permissions to 400
-    if [ ! -f "${MONGO_DATA_ROOT}keyfile" ]; then
-        tr -dc 'a-zA-Z0-9' </dev/urandom | head -c 756 >"${MONGO_DATA_ROOT}keyfile"
-        chmod 400 "${MONGO_DATA_ROOT}keyfile"
-    fi
+    # FIXME: remove this
+    # # If the keyfile doesn't exist, create it with random content and set permissions to 400
+    # if [ ! -f "${MONGO_DATA_ROOT}keyfile" ]; then
+    #     tr -dc 'a-zA-Z0-9' </dev/urandom | head -c 756 >"${MONGO_DATA_ROOT}keyfile" || true
+    #     chmod 400 "${MONGO_DATA_ROOT}keyfile"
+    # fi
 
     export MONGO_PROJECT_NAME="$stack_name"
     if ! dockerc compose -f ./docker/mongo.compose.yaml --project-name "weblens-$stack_name" up -d; then

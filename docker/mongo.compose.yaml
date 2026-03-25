@@ -9,6 +9,7 @@ services:
     command:
       - |
         if [ ! -f /data/configdb/keyfile ]; then
+          touch /data/configdb/keyfile
           tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 756 > /data/configdb/keyfile
           chmod 400 /data/configdb/keyfile
         fi
