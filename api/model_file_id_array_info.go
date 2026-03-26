@@ -14,33 +14,33 @@ import (
 	"encoding/json"
 )
 
-// checks if the NewFilesInfo type satisfies the MappedNullable interface at compile time
-var _ MappedNullable = &NewFilesInfo{}
+// checks if the FileIDArrayInfo type satisfies the MappedNullable interface at compile time
+var _ MappedNullable = &FileIDArrayInfo{}
 
-// NewFilesInfo struct for NewFilesInfo
-type NewFilesInfo struct {
+// FileIDArrayInfo struct for FileIDArrayInfo
+type FileIDArrayInfo struct {
 	FileIDs []string `json:"fileIDs,omitempty"`
 }
 
-// NewNewFilesInfo instantiates a new NewFilesInfo object
+// NewFileIDArrayInfo instantiates a new FileIDArrayInfo object
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewNewFilesInfo() *NewFilesInfo {
-	this := NewFilesInfo{}
+func NewFileIDArrayInfo() *FileIDArrayInfo {
+	this := FileIDArrayInfo{}
 	return &this
 }
 
-// NewNewFilesInfoWithDefaults instantiates a new NewFilesInfo object
+// NewFileIDArrayInfoWithDefaults instantiates a new FileIDArrayInfo object
 // This constructor will only assign default values to properties that have it defined,
 // but it doesn't guarantee that properties required by API are set
-func NewNewFilesInfoWithDefaults() *NewFilesInfo {
-	this := NewFilesInfo{}
+func NewFileIDArrayInfoWithDefaults() *FileIDArrayInfo {
+	this := FileIDArrayInfo{}
 	return &this
 }
 
 // GetFileIDs returns the FileIDs field value if set, zero value otherwise.
-func (o *NewFilesInfo) GetFileIDs() []string {
+func (o *FileIDArrayInfo) GetFileIDs() []string {
 	if o == nil || IsNil(o.FileIDs) {
 		var ret []string
 		return ret
@@ -50,7 +50,7 @@ func (o *NewFilesInfo) GetFileIDs() []string {
 
 // GetFileIDsOk returns a tuple with the FileIDs field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *NewFilesInfo) GetFileIDsOk() ([]string, bool) {
+func (o *FileIDArrayInfo) GetFileIDsOk() ([]string, bool) {
 	if o == nil || IsNil(o.FileIDs) {
 		return nil, false
 	}
@@ -58,7 +58,7 @@ func (o *NewFilesInfo) GetFileIDsOk() ([]string, bool) {
 }
 
 // HasFileIDs returns a boolean if a field has been set.
-func (o *NewFilesInfo) HasFileIDs() bool {
+func (o *FileIDArrayInfo) HasFileIDs() bool {
 	if o != nil && !IsNil(o.FileIDs) {
 		return true
 	}
@@ -67,11 +67,11 @@ func (o *NewFilesInfo) HasFileIDs() bool {
 }
 
 // SetFileIDs gets a reference to the given []string and assigns it to the FileIDs field.
-func (o *NewFilesInfo) SetFileIDs(v []string) {
+func (o *FileIDArrayInfo) SetFileIDs(v []string) {
 	o.FileIDs = v
 }
 
-func (o NewFilesInfo) MarshalJSON() ([]byte, error) {
+func (o FileIDArrayInfo) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
@@ -79,7 +79,7 @@ func (o NewFilesInfo) MarshalJSON() ([]byte, error) {
 	return json.Marshal(toSerialize)
 }
 
-func (o NewFilesInfo) ToMap() (map[string]interface{}, error) {
+func (o FileIDArrayInfo) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	if !IsNil(o.FileIDs) {
 		toSerialize["fileIDs"] = o.FileIDs
@@ -87,38 +87,38 @@ func (o NewFilesInfo) ToMap() (map[string]interface{}, error) {
 	return toSerialize, nil
 }
 
-type NullableNewFilesInfo struct {
-	value *NewFilesInfo
+type NullableFileIDArrayInfo struct {
+	value *FileIDArrayInfo
 	isSet bool
 }
 
-func (v NullableNewFilesInfo) Get() *NewFilesInfo {
+func (v NullableFileIDArrayInfo) Get() *FileIDArrayInfo {
 	return v.value
 }
 
-func (v *NullableNewFilesInfo) Set(val *NewFilesInfo) {
+func (v *NullableFileIDArrayInfo) Set(val *FileIDArrayInfo) {
 	v.value = val
 	v.isSet = true
 }
 
-func (v NullableNewFilesInfo) IsSet() bool {
+func (v NullableFileIDArrayInfo) IsSet() bool {
 	return v.isSet
 }
 
-func (v *NullableNewFilesInfo) Unset() {
+func (v *NullableFileIDArrayInfo) Unset() {
 	v.value = nil
 	v.isSet = false
 }
 
-func NewNullableNewFilesInfo(val *NewFilesInfo) *NullableNewFilesInfo {
-	return &NullableNewFilesInfo{value: val, isSet: true}
+func NewNullableFileIDArrayInfo(val *FileIDArrayInfo) *NullableFileIDArrayInfo {
+	return &NullableFileIDArrayInfo{value: val, isSet: true}
 }
 
-func (v NullableNewFilesInfo) MarshalJSON() ([]byte, error) {
+func (v NullableFileIDArrayInfo) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v.value)
 }
 
-func (v *NullableNewFilesInfo) UnmarshalJSON(src []byte) error {
+func (v *NullableFileIDArrayInfo) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }

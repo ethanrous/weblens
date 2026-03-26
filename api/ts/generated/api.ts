@@ -62,6 +62,16 @@ export interface FileActionInfo {
     'timestamp': number;
     'towerID': string;
 }
+export interface FileCreateTagParams {
+    'color'?: string;
+    'name'?: string;
+}
+export interface FileFileIDsParams {
+    'fileIDs'?: Array<string>;
+}
+export interface FileIDArrayInfo {
+    'fileIDs'?: Array<string>;
+}
 export interface FileInfo {
     'childrenIds'?: Array<string>;
     'contentID'?: string;
@@ -85,6 +95,14 @@ export interface FileShareParams {
     'timelineOnly'?: boolean;
     'users'?: Array<string>;
     'wormhole'?: boolean;
+}
+export interface FileUpdateTagParams {
+    'color'?: string;
+    'name'?: string;
+}
+export interface FilesInfo {
+    'files': Array<FileInfo>;
+    'medias'?: Array<MediaInfo>;
 }
 export interface FilesListParams {
     'fileIDs'?: Array<string>;
@@ -209,9 +227,6 @@ export interface NewFileParams {
     'newFileName'?: string;
     'parentFolderID'?: string;
 }
-export interface NewFilesInfo {
-    'fileIDs'?: Array<string>;
-}
 export interface NewFilesParams {
     'newFiles'?: Array<NewFileParams>;
 }
@@ -265,6 +280,7 @@ export interface ShareInfo {
     'enabled'?: boolean;
     'expires'?: number;
     'fileID'?: string;
+    'isDir'?: boolean;
     'owner'?: string;
     'permissions'?: { [key: string]: PermissionsInfo; };
     'public'?: boolean;
@@ -274,17 +290,6 @@ export interface ShareInfo {
     'timelineOnly'?: boolean;
     'updated'?: number;
     'wormhole'?: boolean;
-}
-export interface TagCreateTagParams {
-    'color'?: string;
-    'name'?: string;
-}
-export interface TagFileIDsParams {
-    'fileIDs'?: Array<string>;
-}
-export interface TagUpdateTagParams {
-    'color'?: string;
-    'name'?: string;
 }
 export interface TakeoutInfo {
     'filename'?: string;
@@ -1554,7 +1559,7 @@ export const FilesApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async addFilesToUpload(uploadID: string, request: NewFilesParams, shareID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<NewFilesInfo>> {
+        async addFilesToUpload(uploadID: string, request: NewFilesParams, shareID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FileIDArrayInfo>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.addFilesToUpload(uploadID, request, shareID, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['FilesApi.addFilesToUpload']?.[localVarOperationServerIndex]?.url;
@@ -1738,7 +1743,7 @@ export const FilesApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<FileInfo>>> {
+        async searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FilesInfo>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.searchFiles(search, baseFolderID, sortProp, sortOrder, recursive, regex, tags, tagJoinLogic, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['FilesApi.searchFiles']?.[localVarOperationServerIndex]?.url;
@@ -1820,7 +1825,7 @@ export const FilesApiFactory = function (configuration?: Configuration, basePath
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        addFilesToUpload(uploadID: string, request: NewFilesParams, shareID?: string, options?: RawAxiosRequestConfig): AxiosPromise<NewFilesInfo> {
+        addFilesToUpload(uploadID: string, request: NewFilesParams, shareID?: string, options?: RawAxiosRequestConfig): AxiosPromise<FileIDArrayInfo> {
             return localVarFp.addFilesToUpload(uploadID, request, shareID, options).then((request) => request(axios, basePath));
         },
         /**
@@ -1965,7 +1970,7 @@ export const FilesApiFactory = function (configuration?: Configuration, basePath
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options?: RawAxiosRequestConfig): AxiosPromise<Array<FileInfo>> {
+        searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options?: RawAxiosRequestConfig): AxiosPromise<FilesInfo> {
             return localVarFp.searchFiles(search, baseFolderID, sortProp, sortOrder, recursive, regex, tags, tagJoinLogic, options).then((request) => request(axios, basePath));
         },
         /**
@@ -4227,11 +4232,11 @@ export const TagsApiAxiosParamCreator = function (configuration?: Configuration)
          * 
          * @summary Add files to a tag
          * @param {string} tagID Tag ID
-         * @param {TagFileIDsParams} request File IDs to add
+         * @param {FileFileIDsParams} request File IDs to add
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        addFilesToTag: async (tagID: string, request: TagFileIDsParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        addFilesToTag: async (tagID: string, request: FileFileIDsParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'tagID' is not null or undefined
             assertParamExists('addFilesToTag', 'tagID', tagID)
             // verify required parameter 'request' is not null or undefined
@@ -4264,11 +4269,11 @@ export const TagsApiAxiosParamCreator = function (configuration?: Configuration)
         /**
          * 
          * @summary Create a new tag
-         * @param {TagCreateTagParams} request Create tag request body
+         * @param {FileCreateTagParams} request Create tag request body
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        createTag: async (request: TagCreateTagParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        createTag: async (request: FileCreateTagParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'request' is not null or undefined
             assertParamExists('createTag', 'request', request)
             const localVarPath = `/tags`;
@@ -4465,11 +4470,11 @@ export const TagsApiAxiosParamCreator = function (configuration?: Configuration)
          * 
          * @summary Remove files from a tag
          * @param {string} tagID Tag ID
-         * @param {TagFileIDsParams} request File IDs to remove
+         * @param {FileFileIDsParams} request File IDs to remove
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        removeFilesFromTag: async (tagID: string, request: TagFileIDsParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        removeFilesFromTag: async (tagID: string, request: FileFileIDsParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'tagID' is not null or undefined
             assertParamExists('removeFilesFromTag', 'tagID', tagID)
             // verify required parameter 'request' is not null or undefined
@@ -4503,11 +4508,11 @@ export const TagsApiAxiosParamCreator = function (configuration?: Configuration)
          * 
          * @summary Update a tag\'s name and/or color
          * @param {string} tagID Tag ID
-         * @param {TagUpdateTagParams} request Update tag request body
+         * @param {FileUpdateTagParams} request Update tag request body
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        updateTag: async (tagID: string, request: TagUpdateTagParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        updateTag: async (tagID: string, request: FileUpdateTagParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'tagID' is not null or undefined
             assertParamExists('updateTag', 'tagID', tagID)
             // verify required parameter 'request' is not null or undefined
@@ -4550,11 +4555,11 @@ export const TagsApiFp = function(configuration?: Configuration) {
          * 
          * @summary Add files to a tag
          * @param {string} tagID Tag ID
-         * @param {TagFileIDsParams} request File IDs to add
+         * @param {FileFileIDsParams} request File IDs to add
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async addFilesToTag(tagID: string, request: TagFileIDsParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+        async addFilesToTag(tagID: string, request: FileFileIDsParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.addFilesToTag(tagID, request, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['TagsApi.addFilesToTag']?.[localVarOperationServerIndex]?.url;
@@ -4563,11 +4568,11 @@ export const TagsApiFp = function(configuration?: Configuration) {
         /**
          * 
          * @summary Create a new tag
-         * @param {TagCreateTagParams} request Create tag request body
+         * @param {FileCreateTagParams} request Create tag request body
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async createTag(request: TagCreateTagParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GithubComEthanrousWeblensModelsTagTag>> {
+        async createTag(request: FileCreateTagParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GithubComEthanrousWeblensModelsTagTag>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.createTag(request, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['TagsApi.createTag']?.[localVarOperationServerIndex]?.url;
@@ -4593,7 +4598,7 @@ export const TagsApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getFilesByTag(tagID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<FileInfo>>> {
+        async getFilesByTag(tagID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FilesInfo>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.getFilesByTag(tagID, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['TagsApi.getFilesByTag']?.[localVarOperationServerIndex]?.url;
@@ -4641,11 +4646,11 @@ export const TagsApiFp = function(configuration?: Configuration) {
          * 
          * @summary Remove files from a tag
          * @param {string} tagID Tag ID
-         * @param {TagFileIDsParams} request File IDs to remove
+         * @param {FileFileIDsParams} request File IDs to remove
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async removeFilesFromTag(tagID: string, request: TagFileIDsParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+        async removeFilesFromTag(tagID: string, request: FileFileIDsParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.removeFilesFromTag(tagID, request, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['TagsApi.removeFilesFromTag']?.[localVarOperationServerIndex]?.url;
@@ -4655,11 +4660,11 @@ export const TagsApiFp = function(configuration?: Configuration) {
          * 
          * @summary Update a tag\'s name and/or color
          * @param {string} tagID Tag ID
-         * @param {TagUpdateTagParams} request Update tag request body
+         * @param {FileUpdateTagParams} request Update tag request body
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async updateTag(tagID: string, request: TagUpdateTagParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+        async updateTag(tagID: string, request: FileUpdateTagParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.updateTag(tagID, request, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['TagsApi.updateTag']?.[localVarOperationServerIndex]?.url;
@@ -4678,21 +4683,21 @@ export const TagsApiFactory = function (configuration?: Configuration, basePath?
          * 
          * @summary Add files to a tag
          * @param {string} tagID Tag ID
-         * @param {TagFileIDsParams} request File IDs to add
+         * @param {FileFileIDsParams} request File IDs to add
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        addFilesToTag(tagID: string, request: TagFileIDsParams, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+        addFilesToTag(tagID: string, request: FileFileIDsParams, options?: RawAxiosRequestConfig): AxiosPromise<void> {
             return localVarFp.addFilesToTag(tagID, request, options).then((request) => request(axios, basePath));
         },
         /**
          * 
          * @summary Create a new tag
-         * @param {TagCreateTagParams} request Create tag request body
+         * @param {FileCreateTagParams} request Create tag request body
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        createTag(request: TagCreateTagParams, options?: RawAxiosRequestConfig): AxiosPromise<GithubComEthanrousWeblensModelsTagTag> {
+        createTag(request: FileCreateTagParams, options?: RawAxiosRequestConfig): AxiosPromise<GithubComEthanrousWeblensModelsTagTag> {
             return localVarFp.createTag(request, options).then((request) => request(axios, basePath));
         },
         /**
@@ -4712,7 +4717,7 @@ export const TagsApiFactory = function (configuration?: Configuration, basePath?
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getFilesByTag(tagID: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<FileInfo>> {
+        getFilesByTag(tagID: string, options?: RawAxiosRequestConfig): AxiosPromise<FilesInfo> {
             return localVarFp.getFilesByTag(tagID, options).then((request) => request(axios, basePath));
         },
         /**
@@ -4748,22 +4753,22 @@ export const TagsApiFactory = function (configuration?: Configuration, basePath?
          * 
          * @summary Remove files from a tag
          * @param {string} tagID Tag ID
-         * @param {TagFileIDsParams} request File IDs to remove
+         * @param {FileFileIDsParams} request File IDs to remove
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        removeFilesFromTag(tagID: string, request: TagFileIDsParams, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+        removeFilesFromTag(tagID: string, request: FileFileIDsParams, options?: RawAxiosRequestConfig): AxiosPromise<void> {
             return localVarFp.removeFilesFromTag(tagID, request, options).then((request) => request(axios, basePath));
         },
         /**
          * 
          * @summary Update a tag\'s name and/or color
          * @param {string} tagID Tag ID
-         * @param {TagUpdateTagParams} request Update tag request body
+         * @param {FileUpdateTagParams} request Update tag request body
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        updateTag(tagID: string, request: TagUpdateTagParams, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+        updateTag(tagID: string, request: FileUpdateTagParams, options?: RawAxiosRequestConfig): AxiosPromise<void> {
             return localVarFp.updateTag(tagID, request, options).then((request) => request(axios, basePath));
         },
     };
@@ -4777,22 +4782,22 @@ export class TagsApi extends BaseAPI {
      * 
      * @summary Add files to a tag
      * @param {string} tagID Tag ID
-     * @param {TagFileIDsParams} request File IDs to add
+     * @param {FileFileIDsParams} request File IDs to add
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public addFilesToTag(tagID: string, request: TagFileIDsParams, options?: RawAxiosRequestConfig) {
+    public addFilesToTag(tagID: string, request: FileFileIDsParams, options?: RawAxiosRequestConfig) {
         return TagsApiFp(this.configuration).addFilesToTag(tagID, request, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
      * 
      * @summary Create a new tag
-     * @param {TagCreateTagParams} request Create tag request body
+     * @param {FileCreateTagParams} request Create tag request body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public createTag(request: TagCreateTagParams, options?: RawAxiosRequestConfig) {
+    public createTag(request: FileCreateTagParams, options?: RawAxiosRequestConfig) {
         return TagsApiFp(this.configuration).createTag(request, options).then((request) => request(this.axios, this.basePath));
     }
 
@@ -4854,11 +4859,11 @@ export class TagsApi extends BaseAPI {
      * 
      * @summary Remove files from a tag
      * @param {string} tagID Tag ID
-     * @param {TagFileIDsParams} request File IDs to remove
+     * @param {FileFileIDsParams} request File IDs to remove
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public removeFilesFromTag(tagID: string, request: TagFileIDsParams, options?: RawAxiosRequestConfig) {
+    public removeFilesFromTag(tagID: string, request: FileFileIDsParams, options?: RawAxiosRequestConfig) {
         return TagsApiFp(this.configuration).removeFilesFromTag(tagID, request, options).then((request) => request(this.axios, this.basePath));
     }
 
@@ -4866,11 +4871,11 @@ export class TagsApi extends BaseAPI {
      * 
      * @summary Update a tag\'s name and/or color
      * @param {string} tagID Tag ID
-     * @param {TagUpdateTagParams} request Update tag request body
+     * @param {FileUpdateTagParams} request Update tag request body
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public updateTag(tagID: string, request: TagUpdateTagParams, options?: RawAxiosRequestConfig) {
+    public updateTag(tagID: string, request: FileUpdateTagParams, options?: RawAxiosRequestConfig) {
         return TagsApiFp(this.configuration).updateTag(tagID, request, options).then((request) => request(this.axios, this.basePath));
     }
 }

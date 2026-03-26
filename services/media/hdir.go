@@ -125,6 +125,8 @@ func GetHighDimensionImageEncoding(ctx context_service.AppContext, m *media_mode
 
 	hdirServerURL := config.GetConfig().HdirURI
 
+	ctx.Log().Trace().Msgf("Requesting HDIR encoding for media with content ID %s from file %s at HDIR server %s", m.ContentID, f.GetPortablePath(), hdirServerURL)
+
 	resp, err := http.Get(hdirServerURL + "/encode?img-path=" + f.GetPortablePath().String())
 	if err != nil {
 		if strings.Contains(err.Error(), "no such host") { // If the HDIR server is not available, we don't retry

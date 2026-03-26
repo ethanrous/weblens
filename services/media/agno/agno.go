@@ -177,7 +177,7 @@ func GetGPSCoordinates(img *Image) ([2]float64, error) {
 func (img *Image) getExifValue(exifTag int) any {
 	img.mu.Lock()
 	defer img.mu.Unlock()
-	v := C.get_exif_value(img.img, C.int16_t(exifTag)) //nolint:nlreturn
+	v := C.get_exif_value(img.img, C.uint16_t(exifTag)) //nolint:nlreturn
 
 	if v.len == 0 && v.data == nil {
 		return nil

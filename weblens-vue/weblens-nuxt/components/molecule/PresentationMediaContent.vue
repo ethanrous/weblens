@@ -1,5 +1,5 @@
 <template>
-    <div v-if="!media || presentationSize.height.value == 0 || presentationSize.height.value == 0"></div>
+    <div v-if="!media || presentationSize.height.value == 0"></div>
     <VideoPlayer
         v-else-if="media.IsVideo()"
         :media="media"
@@ -42,7 +42,20 @@ const props = defineProps<{
     }
 }>()
 
-const media = computed(() => {
-    return mediaStore.mediaMap.get(props.mediaId)
-})
+const { data: media } = useAsyncData(
+    'media-' + props.mediaId,
+    async () => {
+        if (!props.mediaId) return null
+
+        const media = mediaStore.mediaMap.get(props.mediaId)
+        if (media) {
+            return media
+        } else {
+            return mediaStore.fetchSingleMedia(props.mediaId)
+        }
+    },
+    {
+        watch: [() => props.mediaId],
+    },
+)
 </script>

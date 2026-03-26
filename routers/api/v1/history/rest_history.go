@@ -26,7 +26,7 @@ import (
 //	@Summary	Get information about a file
 //	@Tags		Towers
 //	@Produce	json
-//	@Param		timestamp	query		string				true	"Timestamp in milliseconds since epoch"
+//	@Param		timestamp	query		string					true	"Timestamp in milliseconds since epoch"
 //	@Success	200			{object}	wlstructs.BackupInfo	"Backup Info"
 //	@Failure	400
 //	@Failure	404
@@ -106,8 +106,8 @@ func DoFullBackup(ctx ctxservice.RequestContext) {
 //	@Summary	Get a page of file actions
 //	@Tags		Towers
 //	@Produce	json
-//	@Param		page		query		int					false	"Page number"
-//	@Param		pageSize	query		int					false	"Number of items per page"
+//	@Param		page		query	int					false	"Page number"
+//	@Param		pageSize	query	int					false	"Number of items per page"
 //	@Success	200			{array}	history.FileAction	"File Actions"
 //	@Failure	400
 //	@Failure	404

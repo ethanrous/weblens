@@ -4,10 +4,43 @@ import (
 	"context"
 
 	"github.com/ethanrous/weblens/models/db"
+	"github.com/ethanrous/weblens/modules/config"
+	"github.com/ethanrous/weblens/modules/startup"
 	"github.com/ethanrous/weblens/modules/wlfs"
 	file_system "github.com/ethanrous/weblens/modules/wlfs"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+var fileIDIndexKey = "fileID_index"
+var filepathIndexKey = "filepath_index"
+var originPathIndexKey = "originPath_index"
+var destinationPathIndexKey = "destinationPath_index"
+
+// IndexModels defines MongoDB indexes for the fileHistory collection.
+var IndexModels = []mongo.IndexModel{
+	{
+		Keys:    bson.D{{Key: "fileID", Value: 1}},
+		Options: options.Index().SetName(fileIDIndexKey),
+	},
+	{
+		Keys:    bson.D{{Key: "filepath", Value: 1}},
+		Options: options.Index().SetName(filepathIndexKey),
+	},
+	{
+		Keys:    bson.D{{Key: "originPath", Value: 1}},
+		Options: options.Index().SetName(originPathIndexKey),
+	},
+	{
+		Keys:    bson.D{{Key: "destinationPath", Value: 1}},
+		Options: options.Index().SetName(destinationPathIndexKey),
+	},
+}
+
+func init() {
+	startup.RegisterHook(registerIndexes)
+}
 
 // FileHistoryCollectionKey is the MongoDB collection name for storing file history.
 const FileHistoryCollectionKey = "fileHistory"
@@ -259,4 +292,19 @@ func GetLifetimes(ctx context.Context, opts ...GetLifetimesOptions) ([]FileLifet
 	}
 
 	return lifetimes, nil
+}
+
+func registerIndexes(ctx context.Context, _ config.Provider) error {
+	col, err := db.GetCollection[any](ctx, FileHistoryCollectionKey)
+	if err != nil {
+		return err
+	}
+
+	for _, idx := range IndexModels {
+		if err := col.NewIndex(idx); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

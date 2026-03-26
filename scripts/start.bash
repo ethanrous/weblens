@@ -102,8 +102,6 @@ if [[ "$skip_build" != true ]] && ! does_agno_exist; then
     build_agno
 fi
 
-show_as_subtask "Starting services" "blue" -- ./scripts/envup.bash
-
 WEBLENS_LOG_LEVEL="${WEBLENS_LOG_LEVEL:-debug}"
 
 file_path="$WEBLENS_ROOT/_build/fs/$tower_role"
@@ -112,7 +110,7 @@ if [[ "$sub_stack_group" != "" ]]; then
 fi
 
 export WEBLENS_MONGODB_URI="mongodb://127.0.0.1:$mongo_port/?directConnection=true"
-export WEBLENS_HDIR_URI="http://127.0.0.1:5001"
+export WEBLENS_HDIR_URI="http://127.0.0.1:5500"
 export WEBLENS_DATA_PATH="$file_path/data"
 export WEBLENS_CACHE_PATH="$file_path/cache"
 export WEBLENS_LOG_FORMAT="${WEBLENS_LOG_FORMAT:-dev}"
@@ -123,6 +121,8 @@ export WEBLENS_JWT_SECRET="DEV"
 
 export AGNO_LOG_LEVEL=warn
 export AGNO_LOG_FORMAT=human
+
+show_as_subtask "Starting services" "blue" -- ./scripts/envup.bash
 
 printf "Running \e[34mWeblens\e[0m locally for development...\n"
 

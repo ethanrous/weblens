@@ -59,6 +59,8 @@
                         :file-index="index"
                         :file-shape="filesStore.fileShape"
                     />
+
+                    <span v-else>Unexpected Filetype</span>
                 </template>
             </div>
         </div>

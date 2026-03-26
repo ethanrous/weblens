@@ -3,6 +3,7 @@ import { useWeblensAPI } from '~/api/AllApi'
 
 export default class WeblensShare implements ShareInfo {
     shareID: string = ''
+    isDir: boolean = false
     accessors: UserInfo[] = []
     private _permissions: Record<string, PermissionsInfo> = {}
     expires: number = 0
@@ -20,6 +21,7 @@ export default class WeblensShare implements ShareInfo {
     clone(): WeblensShare {
         return new WeblensShare({
             shareID: this.shareID,
+            isDir: this.isDir,
             accessors: [...this.accessors],
             permissions: { ...this._permissions },
             expires: this.expires,
@@ -39,10 +41,12 @@ export default class WeblensShare implements ShareInfo {
         this.shareID = init.shareID || ''
         this.fileID = init.fileID || ''
         this.shareName = init.shareName || ''
+        this.isDir = init.isDir ?? false
         this.expires = init.expires || 0
         this._public = init.public ?? false
         this.wormhole = init.wormhole ?? false
         this.owner = init.owner || ''
+        this.timelineOnly = init.timelineOnly ?? false
 
         if (init.accessors) {
             this.accessors = init.accessors

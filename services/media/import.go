@@ -115,12 +115,6 @@ func loadImageFromFile(f *file_model.WeblensFileImpl, _ media_model.MType) (*agn
 	}
 
 	return img, nil
-	// return nil, errors.Errorf("agno loading not yet implemented")
-	// img, err := vips.NewImageFromFile(filePath, nil)
-	// if err != nil {
-	// 	return nil, errors.WithStack(err)
-	// }
-	// return img, nil
 }
 
 func getCreateDateFromExif(img *agno.Image, file *file_model.WeblensFileImpl) (createDate time.Time, err error) {
@@ -139,22 +133,33 @@ func getCreateDateFromExif(img *agno.Image, file *file_model.WeblensFileImpl) (c
 		return file.ModTime(), nil
 	}
 
-	createDate, err = time.Parse("2006:01:02 15:04:05.000-07:00", r)
-	if err != nil {
-		createDate, err = time.Parse("2006:01:02 15:04:05.00-07:00", r)
+	offset, _ := agno.GetExifValue[string](img, agno.OffsetTime)
+
+	dateFormats := []string{
+		"2006:01:02 15:04:05.000-07:00",
+		"2006:01:02 15:04:05.00-07:00",
+		"2006:01:02 15:04:05-07:00",
+		// Some EXIF data may not include timezone information, so we try parsing without it as well, and then apply the offset time if available
+		"2006:01:02 15:04:05",
 	}
 
-	if err != nil {
-		createDate, err = time.Parse("2006:01:02 15:04:05", r)
+	for _, format := range dateFormats {
+		createDate, err = time.Parse(format, r)
+		if err == nil {
+			wlog.GlobalLogger().Debug().Msgf("Got date TIME from EXIF for file %s: %s", file.ID(), createDate)
+
+			return createDate, nil
+		}
+
+		if offset != "" {
+			createDate, err = time.Parse(format, r+offset)
+			if err == nil {
+				wlog.GlobalLogger().Debug().Msgf("Got date TIME from EXIF for file %s: %s", file.ID(), createDate)
+
+				return createDate, nil
+			}
+		}
 	}
 
-	if err != nil {
-		createDate, err = time.Parse("2006:01:02 15:04:05-07:00", r)
-	}
-
-	if err != nil {
-		createDate = file.ModTime()
-	}
-
-	return createDate, nil
+	return file.ModTime(), nil
 }

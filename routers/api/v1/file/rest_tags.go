@@ -1,5 +1,4 @@
-// Package tag provides REST API handlers for file tag management.
-package tag
+package file
 
 import (
 	"net/http"
@@ -11,10 +10,8 @@ import (
 	tag_model "github.com/ethanrous/weblens/models/tag"
 	"github.com/ethanrous/weblens/modules/netwrk"
 	"github.com/ethanrous/weblens/modules/wlerrors"
-	"github.com/ethanrous/weblens/modules/wlstructs"
 	"github.com/ethanrous/weblens/services/auth"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
-	"github.com/ethanrous/weblens/services/reshape"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -47,7 +44,7 @@ type fileIDsParams struct {
 //	@Summary	Get all tags for the authenticated user
 //	@Tags		Tags
 //	@Produce	json
-//	@Success	200	{array}		tag_model.Tag	"User's tags"
+//	@Success	200	{array}	tag_model.Tag	"User's tags"
 //	@Failure	401
 //	@Failure	500
 //	@Router		/tags [get]
@@ -366,8 +363,8 @@ func RemoveFilesFromTag(ctx context_service.RequestContext) {
 //	@Summary	Get tags for a file
 //	@Tags		Tags
 //	@Produce	json
-//	@Param		fileID	path		string			true	"File ID"
-//	@Success	200		{array}		tag_model.Tag	"Tags containing the file"
+//	@Param		fileID	path	string			true	"File ID"
+//	@Success	200		{array}	tag_model.Tag	"Tags containing the file"
 //	@Failure	400
 //	@Failure	401
 //	@Failure	500
@@ -411,7 +408,7 @@ func GetTagsForFile(ctx context_service.RequestContext) {
 //	@Tags		Tags
 //	@Produce	json
 //	@Param		tagID	path		string				true	"Tag ID"
-//	@Success	200		{array}		wlstructs.FileInfo	"Files in the tag"
+//	@Success	200		{object}	wlstructs.FilesInfo	"Files in the tag"
 //	@Failure	400
 //	@Failure	401
 //	@Failure	403
@@ -424,7 +421,7 @@ func GetFilesByTag(ctx context_service.RequestContext) {
 		return
 	}
 
-	fileInfos := make([]wlstructs.FileInfo, 0, len(tag.FileIDs))
+	files := make([]*file_model.WeblensFileImpl, 0, len(tag.FileIDs))
 
 	for _, fileID := range tag.FileIDs {
 		file, err := ctx.FileService.GetFileByID(ctx, fileID)
@@ -444,17 +441,17 @@ func GetFilesByTag(ctx context_service.RequestContext) {
 			continue
 		}
 
-		info, err := reshape.WeblensFileToFileInfo(ctx, file)
-		if err != nil {
-			ctx.Log().Error().Stack().Err(err).Msgf("Failed to convert file to FileInfo for file ID: %s", fileID)
-
-			continue
-		}
-
-		fileInfos = append(fileInfos, info)
+		files = append(files, file)
 	}
 
-	ctx.JSON(http.StatusOK, fileInfos)
+	resp, err := filesInfoFromFiles(ctx, files)
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, err)
+
+		return
+	}
+
+	ctx.JSON(http.StatusOK, resp)
 }
 
 // getTagFromPath extracts the tag ID from the URL path, fetches the tag,

@@ -42,7 +42,7 @@ show_as_subtask() {
     color_code="$(get_color_code "$task_color")"
     local esc=$'\e'
 
-    if [[ "$WEBLENS_VERBOSE" = "false" ]] && [[ "$verbose" = false ]]; then
+    if [[ "$WEBLENS_QUIET" == "true" ]] && [[ "$verbose" = false ]]; then
         printf "\e[%s|-- %s\e[0m" "$color_code" "$task_name..."
         local buf cmd_status
         buf=$("$@" 2>&1) && cmd_status=0 || cmd_status=$?

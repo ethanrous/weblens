@@ -21,17 +21,21 @@ services:
     hostname: mongo.weblens
     ports:
       - 27017:27017
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        if [ ! -f /data/configdb/keyfile ]; then
+          tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 756 > /data/configdb/keyfile
+          chmod 400 /data/configdb/keyfile
+        fi
+        exec /usr/local/bin/runner server
     volumes:
       - ${DATABASE_HOST_PATH}/mongod:/data/db
       - ${DATABASE_HOST_PATH}/configdb:/data/configdb
       - ${DATABASE_HOST_PATH}/mongot:/data/mongot
-    deploy:
-      resources:
-        limits:
-          memory: 4g
     healthcheck:
-      test: mongosh --eval "db.adminCommand('ping')"
+      test: mongosh --eval "db.adminCommand('ping')" && bash -c 'echo > /dev/tcp/localhost/27027'
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 15s
+      start_period: 30s

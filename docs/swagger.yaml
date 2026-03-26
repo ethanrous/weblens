@@ -98,6 +98,13 @@ definitions:
     - timestamp
     - towerID
     type: object
+  FileIDArrayInfo:
+    properties:
+      fileIDs:
+        items:
+          type: string
+        type: array
+    type: object
   FileInfo:
     properties:
       childrenIds:
@@ -149,6 +156,19 @@ definitions:
         type: array
       wormhole:
         type: boolean
+    type: object
+  FilesInfo:
+    properties:
+      files:
+        items:
+          $ref: '#/definitions/FileInfo'
+        type: array
+      medias:
+        items:
+          $ref: '#/definitions/MediaInfo'
+        type: array
+    required:
+    - files
     type: object
   FilesListParams:
     properties:
@@ -310,13 +330,6 @@ definitions:
       parentFolderID:
         type: string
     type: object
-  NewFilesInfo:
-    properties:
-      fileIDs:
-        items:
-          type: string
-        type: array
-    type: object
   NewFilesParams:
     properties:
       newFiles:
@@ -426,6 +439,8 @@ definitions:
         type: integer
       fileID:
         type: string
+      isDir:
+        type: boolean
       owner:
         type: string
       permissions:
@@ -647,6 +662,27 @@ definitions:
       error:
         type: string
     type: object
+  file.createTagParams:
+    properties:
+      color:
+        type: string
+      name:
+        type: string
+    type: object
+  file.fileIDsParams:
+    properties:
+      fileIDs:
+        items:
+          type: string
+        type: array
+    type: object
+  file.updateTagParams:
+    properties:
+      color:
+        type: string
+      name:
+        type: string
+    type: object
   github_com_ethanrous_weblens_models_tag.Tag:
     properties:
       color:
@@ -695,27 +731,6 @@ definitions:
       timestamp:
         type: string
       towerID:
-        type: string
-    type: object
-  tag.createTagParams:
-    properties:
-      color:
-        type: string
-      name:
-        type: string
-    type: object
-  tag.fileIDsParams:
-    properties:
-      fileIDs:
-        items:
-          type: string
-        type: array
-    type: object
-  tag.updateTagParams:
-    properties:
-      color:
-        type: string
-      name:
         type: string
     type: object
   wlfs.Filepath:
@@ -1121,11 +1136,9 @@ paths:
         type: string
       responses:
         "200":
-          description: File Info
+          description: Search results
           schema:
-            items:
-              $ref: '#/definitions/FileInfo'
-            type: array
+            $ref: '#/definitions/FilesInfo'
         "400":
           description: Bad Request
         "401":
@@ -1996,7 +2009,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/tag.createTagParams'
+          $ref: '#/definitions/file.createTagParams'
       produces:
       - application/json
       responses:
@@ -2087,7 +2100,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/tag.updateTagParams'
+          $ref: '#/definitions/file.updateTagParams'
       responses:
         "200":
           description: OK
@@ -2122,7 +2135,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/tag.fileIDsParams'
+          $ref: '#/definitions/file.fileIDsParams'
       responses:
         "200":
           description: OK
@@ -2155,9 +2168,7 @@ paths:
         "200":
           description: Files in the tag
           schema:
-            items:
-              $ref: '#/definitions/FileInfo'
-            type: array
+            $ref: '#/definitions/FilesInfo'
         "400":
           description: Bad Request
         "401":
@@ -2188,7 +2199,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/tag.fileIDsParams'
+          $ref: '#/definitions/file.fileIDsParams'
       responses:
         "200":
           description: OK
@@ -2612,7 +2623,7 @@ paths:
         "201":
           description: FileIds
           schema:
-            $ref: '#/definitions/NewFilesInfo'
+            $ref: '#/definitions/FileIDArrayInfo'
         "401":
           description: Unauthorized
         "404":

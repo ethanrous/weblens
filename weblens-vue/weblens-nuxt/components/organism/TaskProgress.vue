@@ -1,5 +1,6 @@
 <template>
     <div
+        id="task-progress-container"
         ref="tasksContainer"
         :class="{ 'my-2 flex h-max w-full flex-col': true }"
     >
@@ -27,7 +28,12 @@
                     />
                 </div>
 
-                <span :class="{ 'text-text-secondary mr-auto mb-2 text-xs text-nowrap': true }">Indexing Media</span>
+                <span
+                    v-if="task.isScanDirectoryTask()"
+                    :class="{ 'text-text-secondary mr-auto mb-2 text-xs text-nowrap': true }"
+                >
+                    Indexing Media
+                </span>
 
                 <div v-if="containerSize.width.value > 100">
                     <div

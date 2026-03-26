@@ -31,11 +31,14 @@ RUN --mount=type=cache,target=/pnpm/store \
 RUN pnpm generate;
 
 # Build agno static library (targeting glibc for Debian compatibility)
-FROM rust:slim AS agno-builder
+FROM rust:slim-bookworm AS agno-builder
 
+# cmake + curl: needed to build libde265 and libheif from source as static libraries
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*;
+#
+# ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig
 
 WORKDIR /src
 COPY ./agno ./agno
@@ -45,23 +48,25 @@ RUN chmod +x ./scripts/lib/*.bash;
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
-    --mount=type=cache,target=/src/agno/target \
+    --mount=type=cache,id=agno-target-bookworm,target=/src/agno/target \
     ./scripts/build-agno.bash "/build/lib/";
+
+# Verify the static library was built correctly, if not this will fail the build.
 RUN ls -l /build/lib/libagno.a;
 
 # Build server binary
 FROM --platform=linux/${ARCHITECTURE} golang:${GO_VERSION}-bookworm AS backend
 
 # Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    liblcms2-dev \
-    libpng-dev \
-    libraw-dev \
-    libwebp-dev \
-    libtiff-dev \
-    pkg-config \
-    && rm -rf /var/lib/apt/lists/*;
+# RUN apt-get update && apt-get install -y --no-install-recommends \
+#     build-essential \
+#     liblcms2-dev \
+#     libpng-dev \
+#     libraw-dev \
+#     libwebp-dev \
+#     libtiff-dev \
+#     pkg-config \
+#     && rm -rf /var/lib/apt/lists/*;
 
 WORKDIR /src
 COPY . .
@@ -83,7 +88,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     libvulkan1 \
     ca-certificates \
-    libvulkan-dev vulkan-tools libegl1 libxext6 \
+    libvulkan-dev \
+    vulkan-tools \
+    libegl1 \
+    libxext6 \
     && rm -rf /var/lib/apt/lists/*;
 
 WORKDIR /app
@@ -101,5 +109,6 @@ ENV WEBLENS_BUILD_VERSION=$WEBLENS_BUILD_VERSION
 EXPOSE 8080
 
 LABEL org.opencontainers.image.source="https://github.com/ethanrous/weblens"
+LABEL app.weblens.build.version=$WEBLENS_BUILD_VERSION
 
 ENTRYPOINT ["/app/weblens"]

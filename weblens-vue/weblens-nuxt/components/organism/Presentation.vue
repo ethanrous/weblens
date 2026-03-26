@@ -8,7 +8,7 @@
             @click.stop="presentationStore.clearPresentation"
         >
             <div :class="{ 'relative flex h-full w-full': true }">
-                <div :class="{ 'mr-auto flex w-full': true }">
+                <div :class="{ 'mr-auto ml-3 flex w-full items-center justify-center': true }">
                     <slot
                         name="media"
                         :presentation-size="presentationSize"
@@ -26,7 +26,7 @@
                 >
                     <div
                         v-if="renderInfo"
-                        :class="{ 'flex w-max max-w-full flex-col gap-6 px-8 lg:px-0': true }"
+                        :class="{ 'flex flex-col gap-6 px-8 lg:w-116.5 lg:max-w-[38vw] lg:px-0': true }"
                     >
                         <slot name="fileInfo" />
 

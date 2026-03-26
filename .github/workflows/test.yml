@@ -39,7 +39,6 @@ jobs:
       - name: Build Agno
         if: steps.cache-agno-binary.outputs.cache-hit != 'true'
         run: |
-          export WEBLENS_VERBOSE=true
           source ./scripts/lib/all.bash
           build_agno
 
@@ -96,10 +95,7 @@ jobs:
           # Restart docker to fix networking bug...
           sudo systemctl restart docker
 
-          set -x
           ./scripts/test-weblens.bash
-          exit $?
-          cat _build/logs/e2e-test-backends/
 
       - name: Upload test report
         if: always()
@@ -107,7 +103,7 @@ jobs:
         with:
           name: server-test-logs
           path: |
-            _build/logs/e2e-test-backends/
+            _build/logs/
           retention-days: 7
 
   lint:
@@ -139,8 +135,9 @@ jobs:
           version: v2.10
 
       - name: pnpm lint
-        working-directory: weblens-vue/weblens-nuxt
         run: |
+          source ./scripts/lib/all.bash && build_frontend
+          cd weblens-vue/weblens-nuxt
           pnpm lint
           exit $?
 
@@ -195,7 +192,7 @@ jobs:
           name: playwright-report
           path: |
             _build/playwright/
-            _build/logs/playwright/
+            _build/logs/
           retention-days: 7
 
   test-build-container:

@@ -35,17 +35,17 @@ const (
 //	@Summary	Get paginated media
 //	@Tags		Media
 //	@Produce	json
-//	@Param		shareID			query	string						false	"File ShareID"
-//	@Param		raw				query	bool						false	"Include raw media"				Enums(true, false)
-//	@Param		hidden			query	bool						false	"Include hidden media"			Enums(true, false)
-//	@Param		sort			query	string						false	"Sort field"					Enums(createDate)
-//	@Param		sortDirection	query	int							false	"Sort direction"				Enums(1, -1)
-//	@Param		search			query	string						false	"Search query"
-//	@Param		page			query	int							false	"Page number"
-//	@Param		limit			query	int							false	"Page size"
-//	@Param		folderIDs		query	[]string					false	"Folder IDs to filter by"
-//	@Param		mediaIDs		query	[]string					false	"Media IDs to fetch"
-//	@Success	200			{object}	wlstructs.MediaBatchInfo	"Media Batch"
+//	@Param		shareID			query		string						false	"File ShareID"
+//	@Param		raw				query		bool						false	"Include raw media"		Enums(true, false)
+//	@Param		hidden			query		bool						false	"Include hidden media"	Enums(true, false)
+//	@Param		sort			query		string						false	"Sort field"			Enums(createDate)
+//	@Param		sortDirection	query		int							false	"Sort direction"		Enums(1, -1)
+//	@Param		search			query		string						false	"Search query"
+//	@Param		page			query		int							false	"Page number"
+//	@Param		limit			query		int							false	"Page size"
+//	@Param		folderIDs		query		[]string					false	"Folder IDs to filter by"
+//	@Param		mediaIDs		query		[]string					false	"Media IDs to fetch"
+//	@Success	200				{object}	wlstructs.MediaBatchInfo	"Media Batch"
 //	@Success	400
 //	@Success	500
 //	@Router		/media [get]
@@ -306,7 +306,7 @@ func CleanupMedia(ctx ctxservice.RequestContext) {
 //
 //	@Summary	DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
 //	@Tags		Media
-//	@Param		username	query		string	false	"Username of owner whose media to drop. If empty, drops all media."
+//	@Param		username	query	string	false	"Username of owner whose media to drop. If empty, drops all media."
 //	@Produce	json
 //	@Success	200
 //	@Failure	403
@@ -518,7 +518,7 @@ func streamVideo(ctx ctxservice.RequestContext) {
 //	@Summary	Set media visibility
 //	@Tags		Media
 //	@Produce	json
-//	@Param		hidden		query	bool					true	"Set the media visibility"	Enums(true, false)
+//	@Param		hidden		query	bool						true	"Set the media visibility"	Enums(true, false)
 //	@Param		mediaIDs	body	wlstructs.MediaIDsParams	true	"MediaIDs to change visibility of"
 //	@Success	200
 //	@Success	404
@@ -653,7 +653,7 @@ func StreamVideo(ctx ctxservice.RequestContext) {
 //	@Summary	Get random media
 //	@Tags		Media
 //	@Produce	json
-//	@Param		count	query		number					true	"Number of random medias to get"
+//	@Param		count	query		number						true	"Number of random medias to get"
 //	@Success	200		{object}	wlstructs.MediaBatchInfo	"Media Batch"
 //	@Success	404
 //	@Success	500

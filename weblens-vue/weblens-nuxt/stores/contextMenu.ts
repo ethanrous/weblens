@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import type { coordinates } from '~/types/style'
 
-export type MenuMode = 'rename' | 'newName' | 'tags'
+export type MenuMode = 'rename' | 'newName' | 'tags' | 'move' | 'share'
 
 export const useContextMenuStore = defineStore('contextMenu', () => {
     const isOpen = ref<boolean>(false)

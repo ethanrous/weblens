@@ -56,12 +56,14 @@ lint\:fix:
 	golangci-lint run --fix ./...
 	cd weblens-vue/weblens-nuxt && pnpm run lint:fix
 
-# Publish the full docker image
-docker\:build: $(GO_SOURCE) $(TS_SOURCE)
-	./scripts/gogogadgetdocker.bash 
 
+# Publish the full docker image
 container: FORCE
-	./scripts/gogogadgetdocker.bash -p -s -a amd64
+	./scripts/gogogadgetdocker.bash --push --skip-tests --arch amd64
+
+# Test docker image build (same as above but without pushing to registry)
+container-test: FORCE
+	./scripts/gogogadgetdocker.bash --skip-tests --arch amd64
 
 precommit: lint test-server test-ui
 

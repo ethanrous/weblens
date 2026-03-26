@@ -10,6 +10,7 @@ import { useWeblensAPI } from '~/api/AllApi'
 import { useStorage } from '@vueuse/core'
 import type {
     FileInfo,
+    FilesInfo,
     FolderInfo,
     GetFolderSortOrderEnum,
     GetFolderSortPropEnum,
@@ -88,6 +89,30 @@ const useFilesStore = defineStore('files', () => {
         { immediate: true },
     )
 
+    // Sync searchRecursively with ?recursive query param
+    watch(
+        () => locationStore.getQueryParam('recursive'),
+        (newVal) => {
+            searchRecursively.value = newVal === 'true'
+        },
+        { immediate: true },
+    )
+    watch(searchRecursively, () => {
+        locationStore.setQueryParam('recursive', searchRecursively.value ? 'true' : null)
+    })
+
+    // Sync searchWithRegex with ?regex query param
+    watch(
+        () => locationStore.getQueryParam('regex'),
+        (newVal) => {
+            searchWithRegex.value = newVal === 'true'
+        },
+        { immediate: true },
+    )
+    watch(searchWithRegex, () => {
+        locationStore.setQueryParam('regex', searchWithRegex.value ? 'true' : null)
+    })
+
     const {
         data: filesResponse,
         error,
@@ -96,36 +121,73 @@ const useFilesStore = defineStore('files', () => {
         'files-' + locationStore.activeFolderID,
         async () => {
             if (
+                // Make sure were logged in
                 !user.value.isLoggedIn.isSet() ||
+                // Don't fetch files if we're in the timeline
                 locationStore.isInTimeline ||
-                (!locationStore.activeFolderID && !locationStore.isInShare)
+                // Don't try to fetch if we don't have one of: an active folder, active share, or active tag
+                (!locationStore.activeFolderID && !locationStore.isInShare && !locationStore.activeTagID) ||
+                // If we're in a share but don't have the share data yet, we might not know the active folder ID, so wait until we have the share data
+                (locationStore.isInShare && locationStore.activeShareID && !locationStore.activeShare)
             ) {
                 return {}
             }
 
-            let res: AxiosResponse<FolderInfo, FolderInfo>
-            if (locationStore.isInShare && !locationStore.activeShareID) {
-                res = await useWeblensAPI().FilesAPI.getSharedFiles()
+            let res:
+                | { r: AxiosResponse<FolderInfo>; t: 'folder' }
+                | { r: AxiosResponse<FileInfo>; t: 'file' }
+                | { r: AxiosResponse<FilesInfo>; t: 'files' }
+            if (locationStore.activeTagID) {
+                res = { r: await useWeblensAPI().TagsAPI.getFilesByTag(locationStore.activeTagID), t: 'files' }
+            } else if (locationStore.isInShare && !locationStore.activeShareID) {
+                res = { r: await useWeblensAPI().FilesAPI.getSharedFiles(), t: 'folder' }
+            } else if (locationStore.isInShare && locationStore.activeShare && !locationStore.activeShare.isDir) {
+                res = {
+                    r: await useWeblensAPI().FilesAPI.getFile(
+                        locationStore.activeShare.fileID,
+                        locationStore.activeShareID,
+                    ),
+                    t: 'file',
+                }
             } else {
-                res = await useWeblensAPI().FoldersAPI.getFolder(
-                    locationStore.activeFolderID,
-                    locationStore.activeShareID,
-                    locationStore.viewTimestamp,
-                    sortCondition.value,
-                    sortDirection.value,
-                )
+                res = {
+                    r: await useWeblensAPI().FoldersAPI.getFolder(
+                        locationStore.activeFolderID,
+                        locationStore.activeShareID,
+                        locationStore.viewTimestamp,
+                        sortCondition.value,
+                        sortDirection.value,
+                    ),
+                    t: 'folder',
+                }
             }
 
-            if (!res.data.self || !res.data.children) {
+            if (res.t === 'file') {
+                const activeFile = new WeblensFile(res.r.data)
+                return { activeFile }
+            }
+
+            if (res.t === 'folder' && (!res.r.data.self || !res.r.data.children)) {
                 return {}
             }
 
-            const newChildren = res.data.children
+            let children: FileInfo[] = []
+            if (res.t === 'files') {
+                children = res.r.data.files
+            } else if (res.t === 'folder' && res.r.data.children !== undefined) {
+                children = res.r.data.children
+            } else {
+                console.error('Unexpected response type or missing data:', res)
+
+                return {}
+            }
+
+            const newChildren = children
                 ?.map((fInfo) => {
                     const f = new WeblensFile(fInfo)
                     f.displayable =
                         (f.contentID !== '' &&
-                            res.data.medias?.findIndex((mediaInfo) => mediaInfo.contentID === f.contentID) !== -1) ??
+                            res.r.data.medias?.findIndex((mediaInfo) => mediaInfo.contentID === f.contentID) !== -1) ??
                         false
                     if (locationStore.highlightFileID !== '' && locationStore.highlightFileID === f.ID()) {
                         setSelected(f.ID(), true)
@@ -135,12 +197,12 @@ const useFilesStore = defineStore('files', () => {
                 .filter((file) => !file.IsTrash())
 
             const mediaMap = new Map<string, WeblensMedia>()
-            res.data.medias?.forEach((mInfo) => {
+            res.r.data.medias?.forEach((mInfo) => {
                 const m = new WeblensMedia(mInfo)
                 mediaMap.set(m.contentID, m)
             })
 
-            mediaStore.addMedia(...(res.data.medias ?? []))
+            mediaStore.addMedia(...(res.r.data.medias ?? []))
 
             newChildren.forEach((f) => {
                 const m = mediaMap.get(f.contentID)
@@ -151,10 +213,13 @@ const useFilesStore = defineStore('files', () => {
                 f.contentCreationDate = new Date(m.createDate)
             })
 
-            // children.value = newChildren
+            let parents: WeblensFile[] = []
+            let activeFile: WeblensFile | undefined = undefined
+            if (res.t === 'folder' && res.r.data.self) {
+                parents = res.r.data.parents?.map((fInfo) => new WeblensFile(fInfo)) ?? []
+                activeFile = new WeblensFile(res.r.data.self)
+            }
 
-            const parents = res.data.parents?.map((fInfo) => new WeblensFile(fInfo))
-            const activeFile = new WeblensFile(res.data.self)
             return { activeFile: activeFile, children: newChildren, parents }
         },
         {
@@ -163,6 +228,8 @@ const useFilesStore = defineStore('files', () => {
                 () => locationStore.activeFolderID,
                 () => locationStore.viewTimestamp,
                 () => locationStore.isInTimeline,
+                () => locationStore.activeShare,
+                () => locationStore.activeTagID,
                 isSearching,
                 sortCondition,
                 sortDirection,
@@ -201,9 +268,11 @@ const useFilesStore = defineStore('files', () => {
                 filterTagMode.value,
             )
 
-            const results = res.data.map((f: FileInfo) => {
+            const results = res.data.files.map((f: FileInfo) => {
                 return new WeblensFile(f)
             })
+
+            mediaStore.addMedia(...(res.data.medias ?? []))
 
             return results
         },
@@ -291,6 +360,43 @@ const useFilesStore = defineStore('files', () => {
     })
 
     // Funcs //
+
+    // Insert a file into the files array based on the current sort condition and direction
+    function insertFileSorted(filesList: WeblensFile[], newFile: WeblensFile): WeblensFile[] {
+        const compare = (a: WeblensFile, b: WeblensFile) => {
+            let aValue: string | number | Date = ''
+            let bValue: string | number | Date = ''
+
+            switch (sortCondition.value) {
+                case 'name':
+                    aValue = a.GetFilename()
+                    bValue = b.GetFilename()
+                    break
+                case 'updatedAt':
+                    aValue = a.GetModified()
+                    bValue = b.GetModified()
+                    break
+                case 'size':
+                    aValue = a.GetSize()
+                    bValue = b.GetSize()
+                    break
+            }
+
+            if (aValue < bValue) {
+                return sortDirection.value === 'asc' ? -1 : 1
+            } else if (aValue > bValue) {
+                return sortDirection.value === 'asc' ? 1 : -1
+            } else {
+                return 0
+            }
+        }
+
+        filesList.push(newFile)
+        filesList.sort(compare)
+
+        return filesList
+    }
+
     function setSelected(fileID: string, selected: boolean, doShiftSelect = false) {
         if (selected) {
             if (doShiftSelect && lastSelectedIndex.value !== -1 && nextSelectedIndex.value !== null) {
@@ -365,12 +471,19 @@ const useFilesStore = defineStore('files', () => {
 
         const newFile = new WeblensFile(file)
 
+        // Inherit permissions from parent if permissions are missing.
         if (!newFile.permissions && newFile.ParentID() === locationStore.activeFolderID) {
             newFile.permissions = activeFile.value?.permissions
         }
 
-        const filtered = files.value.filter((f) => f.ID() !== newFile.ID())
-        files.value = [...filtered, newFile]
+        // Get index of file in files array, if it exists
+        const index = files.value.findIndex((f) => f.ID() === newFile.ID())
+        if (index === -1) {
+            files.value = insertFileSorted(files.value, newFile)
+        } else {
+            files.value[index] = newFile
+        }
+
         triggerRef(files)
     }
 

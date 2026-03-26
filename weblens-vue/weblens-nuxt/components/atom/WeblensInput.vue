@@ -17,6 +17,7 @@
             :value="value"
             :disabled="disabled"
             :class="inputClass"
+            @keydown.space.stop.exact
             @input.stop.prevent="
                 (e) => {
                     emit('update:value', (e.target as HTMLInputElement).value)
@@ -49,7 +50,7 @@
         <div
             v-if="clearButton && value"
             :class="{
-                'text-text-tertiary hover:text-text-primary hover:bg-card-background-secondary z-90 cursor-pointer rounded p-1 transition': true,
+                'text-text-tertiary hover:text-text-primary hover:bg-card-background-secondary z-50 cursor-pointer rounded p-1 transition': true,
             }"
             @click.stop="handleClear"
         >

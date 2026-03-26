@@ -24,14 +24,14 @@ All URIs are relative to *http://localhost:8080/api/v1*
 import {
     TagsApi,
     Configuration,
-    TagFileIDsParams
+    FileFileIDsParams
 } from './api';
 
 const configuration = new Configuration();
 const apiInstance = new TagsApi(configuration);
 
 let tagID: string; //Tag ID (default to undefined)
-let request: TagFileIDsParams; //File IDs to add
+let request: FileFileIDsParams; //File IDs to add
 
 const { status, data } = await apiInstance.addFilesToTag(
     tagID,
@@ -43,7 +43,7 @@ const { status, data } = await apiInstance.addFilesToTag(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **request** | **TagFileIDsParams**| File IDs to add | |
+| **request** | **FileFileIDsParams**| File IDs to add | |
 | **tagID** | [**string**] | Tag ID | defaults to undefined|
 
 
@@ -83,13 +83,13 @@ No authorization required
 import {
     TagsApi,
     Configuration,
-    TagCreateTagParams
+    FileCreateTagParams
 } from './api';
 
 const configuration = new Configuration();
 const apiInstance = new TagsApi(configuration);
 
-let request: TagCreateTagParams; //Create tag request body
+let request: FileCreateTagParams; //Create tag request body
 
 const { status, data } = await apiInstance.createTag(
     request
@@ -100,7 +100,7 @@ const { status, data } = await apiInstance.createTag(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **request** | **TagCreateTagParams**| Create tag request body | |
+| **request** | **FileCreateTagParams**| Create tag request body | |
 
 
 ### Return type
@@ -184,7 +184,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **getFilesByTag**
-> Array<FileInfo> getFilesByTag()
+> FilesInfo getFilesByTag()
 
 
 ### Example
@@ -214,7 +214,7 @@ const { status, data } = await apiInstance.getFilesByTag(
 
 ### Return type
 
-**Array<FileInfo>**
+**FilesInfo**
 
 ### Authorization
 
@@ -400,14 +400,14 @@ No authorization required
 import {
     TagsApi,
     Configuration,
-    TagFileIDsParams
+    FileFileIDsParams
 } from './api';
 
 const configuration = new Configuration();
 const apiInstance = new TagsApi(configuration);
 
 let tagID: string; //Tag ID (default to undefined)
-let request: TagFileIDsParams; //File IDs to remove
+let request: FileFileIDsParams; //File IDs to remove
 
 const { status, data } = await apiInstance.removeFilesFromTag(
     tagID,
@@ -419,7 +419,7 @@ const { status, data } = await apiInstance.removeFilesFromTag(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **request** | **TagFileIDsParams**| File IDs to remove | |
+| **request** | **FileFileIDsParams**| File IDs to remove | |
 | **tagID** | [**string**] | Tag ID | defaults to undefined|
 
 
@@ -459,14 +459,14 @@ No authorization required
 import {
     TagsApi,
     Configuration,
-    TagUpdateTagParams
+    FileUpdateTagParams
 } from './api';
 
 const configuration = new Configuration();
 const apiInstance = new TagsApi(configuration);
 
 let tagID: string; //Tag ID (default to undefined)
-let request: TagUpdateTagParams; //Update tag request body
+let request: FileUpdateTagParams; //Update tag request body
 
 const { status, data } = await apiInstance.updateTag(
     tagID,
@@ -478,7 +478,7 @@ const { status, data } = await apiInstance.updateTag(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
-| **request** | **TagUpdateTagParams**| Update tag request body | |
+| **request** | **FileUpdateTagParams**| Update tag request body | |
 | **tagID** | [**string**] | Tag ID | defaults to undefined|
 
 

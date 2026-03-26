@@ -16,6 +16,7 @@ fi
 # fi
 
 WEBLENS_VERBOSE=${WEBLENS_VERBOSE:-false}
+WEBLENS_QUIET=${WEBLENS_QUIET:-false}
 
 LIB_DIR="$WEBLENS_ROOT/scripts/lib"
 

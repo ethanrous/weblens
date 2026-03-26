@@ -14,34 +14,34 @@ import (
 	"encoding/json"
 )
 
-// checks if the TagCreateTagParams type satisfies the MappedNullable interface at compile time
-var _ MappedNullable = &TagCreateTagParams{}
+// checks if the FileUpdateTagParams type satisfies the MappedNullable interface at compile time
+var _ MappedNullable = &FileUpdateTagParams{}
 
-// TagCreateTagParams struct for TagCreateTagParams
-type TagCreateTagParams struct {
+// FileUpdateTagParams struct for FileUpdateTagParams
+type FileUpdateTagParams struct {
 	Color *string `json:"color,omitempty"`
 	Name *string `json:"name,omitempty"`
 }
 
-// NewTagCreateTagParams instantiates a new TagCreateTagParams object
+// NewFileUpdateTagParams instantiates a new FileUpdateTagParams object
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewTagCreateTagParams() *TagCreateTagParams {
-	this := TagCreateTagParams{}
+func NewFileUpdateTagParams() *FileUpdateTagParams {
+	this := FileUpdateTagParams{}
 	return &this
 }
 
-// NewTagCreateTagParamsWithDefaults instantiates a new TagCreateTagParams object
+// NewFileUpdateTagParamsWithDefaults instantiates a new FileUpdateTagParams object
 // This constructor will only assign default values to properties that have it defined,
 // but it doesn't guarantee that properties required by API are set
-func NewTagCreateTagParamsWithDefaults() *TagCreateTagParams {
-	this := TagCreateTagParams{}
+func NewFileUpdateTagParamsWithDefaults() *FileUpdateTagParams {
+	this := FileUpdateTagParams{}
 	return &this
 }
 
 // GetColor returns the Color field value if set, zero value otherwise.
-func (o *TagCreateTagParams) GetColor() string {
+func (o *FileUpdateTagParams) GetColor() string {
 	if o == nil || IsNil(o.Color) {
 		var ret string
 		return ret
@@ -51,7 +51,7 @@ func (o *TagCreateTagParams) GetColor() string {
 
 // GetColorOk returns a tuple with the Color field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *TagCreateTagParams) GetColorOk() (*string, bool) {
+func (o *FileUpdateTagParams) GetColorOk() (*string, bool) {
 	if o == nil || IsNil(o.Color) {
 		return nil, false
 	}
@@ -59,7 +59,7 @@ func (o *TagCreateTagParams) GetColorOk() (*string, bool) {
 }
 
 // HasColor returns a boolean if a field has been set.
-func (o *TagCreateTagParams) HasColor() bool {
+func (o *FileUpdateTagParams) HasColor() bool {
 	if o != nil && !IsNil(o.Color) {
 		return true
 	}
@@ -68,12 +68,12 @@ func (o *TagCreateTagParams) HasColor() bool {
 }
 
 // SetColor gets a reference to the given string and assigns it to the Color field.
-func (o *TagCreateTagParams) SetColor(v string) {
+func (o *FileUpdateTagParams) SetColor(v string) {
 	o.Color = &v
 }
 
 // GetName returns the Name field value if set, zero value otherwise.
-func (o *TagCreateTagParams) GetName() string {
+func (o *FileUpdateTagParams) GetName() string {
 	if o == nil || IsNil(o.Name) {
 		var ret string
 		return ret
@@ -83,7 +83,7 @@ func (o *TagCreateTagParams) GetName() string {
 
 // GetNameOk returns a tuple with the Name field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *TagCreateTagParams) GetNameOk() (*string, bool) {
+func (o *FileUpdateTagParams) GetNameOk() (*string, bool) {
 	if o == nil || IsNil(o.Name) {
 		return nil, false
 	}
@@ -91,7 +91,7 @@ func (o *TagCreateTagParams) GetNameOk() (*string, bool) {
 }
 
 // HasName returns a boolean if a field has been set.
-func (o *TagCreateTagParams) HasName() bool {
+func (o *FileUpdateTagParams) HasName() bool {
 	if o != nil && !IsNil(o.Name) {
 		return true
 	}
@@ -100,11 +100,11 @@ func (o *TagCreateTagParams) HasName() bool {
 }
 
 // SetName gets a reference to the given string and assigns it to the Name field.
-func (o *TagCreateTagParams) SetName(v string) {
+func (o *FileUpdateTagParams) SetName(v string) {
 	o.Name = &v
 }
 
-func (o TagCreateTagParams) MarshalJSON() ([]byte, error) {
+func (o FileUpdateTagParams) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
 		return []byte{}, err
@@ -112,7 +112,7 @@ func (o TagCreateTagParams) MarshalJSON() ([]byte, error) {
 	return json.Marshal(toSerialize)
 }
 
-func (o TagCreateTagParams) ToMap() (map[string]interface{}, error) {
+func (o FileUpdateTagParams) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	if !IsNil(o.Color) {
 		toSerialize["color"] = o.Color
@@ -123,38 +123,38 @@ func (o TagCreateTagParams) ToMap() (map[string]interface{}, error) {
 	return toSerialize, nil
 }
 
-type NullableTagCreateTagParams struct {
-	value *TagCreateTagParams
+type NullableFileUpdateTagParams struct {
+	value *FileUpdateTagParams
 	isSet bool
 }
 
-func (v NullableTagCreateTagParams) Get() *TagCreateTagParams {
+func (v NullableFileUpdateTagParams) Get() *FileUpdateTagParams {
 	return v.value
 }
 
-func (v *NullableTagCreateTagParams) Set(val *TagCreateTagParams) {
+func (v *NullableFileUpdateTagParams) Set(val *FileUpdateTagParams) {
 	v.value = val
 	v.isSet = true
 }
 
-func (v NullableTagCreateTagParams) IsSet() bool {
+func (v NullableFileUpdateTagParams) IsSet() bool {
 	return v.isSet
 }
 
-func (v *NullableTagCreateTagParams) Unset() {
+func (v *NullableFileUpdateTagParams) Unset() {
 	v.value = nil
 	v.isSet = false
 }
 
-func NewNullableTagCreateTagParams(val *TagCreateTagParams) *NullableTagCreateTagParams {
-	return &NullableTagCreateTagParams{value: val, isSet: true}
+func NewNullableFileUpdateTagParams(val *FileUpdateTagParams) *NullableFileUpdateTagParams {
+	return &NullableFileUpdateTagParams{value: val, isSet: true}
 }
 
-func (v NullableTagCreateTagParams) MarshalJSON() ([]byte, error) {
+func (v NullableFileUpdateTagParams) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v.value)
 }
 
-func (v *NullableTagCreateTagParams) UnmarshalJSON(src []byte) error {
+func (v *NullableFileUpdateTagParams) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }

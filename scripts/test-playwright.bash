@@ -63,8 +63,7 @@ else
     printf "Skipping Go binary build (lazy mode)...\n"
 fi
 
-rm -rf ./_build/playwright/report/coverage/ >/dev/null || true
-mkdir -p _build/playwright/report/coverage/.cache
+rm -rf ./_build/playwright/.nyc_output/ ./_build/playwright/report/coverage/ >/dev/null || true
 
 # Install Playwright browsers if needed
 pushd "${WEBLENS_ROOT}/weblens-vue/weblens-nuxt" >/dev/null
@@ -80,14 +79,24 @@ if [[ $headed ]]; then
     echo "Running in headed mode (browser UI will be visible)..."
 fi
 
-if ! show_as_subtask "Running Playwright tests" -v --color "green" -- bash -c "set -o pipefail; NODE_OPTIONS=--max-old-space-size=8192 PW_WORKERS=${PW_WORKERS:-} pnpm exec playwright test \"${filter}\" ${grep} \"${headed:-}\" | tee \"$PLAYWRIGHT_LOG_PATH\""; then
+if ! show_as_subtask "Running Playwright tests" -v --color "green" -- bash -c "set -o pipefail; VITE_BUILD=true PW_WORKERS=${PW_WORKERS:-} pnpm exec playwright test \"${filter}\" ${grep} \"${headed:-}\" | tee \"$PLAYWRIGHT_LOG_PATH\""; then
     echo "Playwright tests failed. Check logs for details."
     popd >/dev/null
 
     echo "Playwright test logs saved to: .${PLAYWRIGHT_LOG_PATH#"${WEBLENS_ROOT}"}"
 
     exit 1
-else
-    echo "Playwright tests passed successfully."
-    exit 0
 fi
+
+# Generate coverage report from Istanbul data
+if [ -d "${WEBLENS_ROOT}/_build/playwright/.nyc_output" ]; then
+    show_as_subtask "Generating coverage report" --color "green" -- \
+        pnpm exec nyc report \
+        --temp-dir "${WEBLENS_ROOT}/_build/playwright/.nyc_output" \
+        --report-dir "${WEBLENS_ROOT}/_build/playwright/report/coverage" \
+        --reporter html --reporter text-summary
+fi
+
+popd >/dev/null
+echo "Playwright tests passed successfully."
+exit 0

@@ -160,7 +160,7 @@ func (l WLConsoleLogger) write(p []byte) (n int, err error) {
 	}
 
 	if extras != "" {
-		extras += "]"
+		extras += "]\n\t-> "
 	}
 
 	timeStr := time.Now().Format(time.TimeOnly + ".000")

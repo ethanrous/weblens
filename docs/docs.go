@@ -283,12 +283,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "File Info",
+                        "description": "Search results",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/FileInfo"
-                            }
+                            "$ref": "#/definitions/FilesInfo"
                         }
                     },
                     "400": {
@@ -1943,7 +1940,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/tag.createTagParams"
+                            "$ref": "#/definitions/file.createTagParams"
                         }
                     }
                 ],
@@ -2129,7 +2126,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/tag.updateTagParams"
+                            "$ref": "#/definitions/file.updateTagParams"
                         }
                     }
                 ],
@@ -2183,10 +2180,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Files in the tag",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/FileInfo"
-                            }
+                            "$ref": "#/definitions/FilesInfo"
                         }
                     },
                     "400": {
@@ -2234,7 +2228,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/tag.fileIDsParams"
+                            "$ref": "#/definitions/file.fileIDsParams"
                         }
                     }
                 ],
@@ -2287,7 +2281,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/tag.fileIDsParams"
+                            "$ref": "#/definitions/file.fileIDsParams"
                         }
                     }
                 ],
@@ -2939,7 +2933,7 @@ const docTemplate = `{
                     "201": {
                         "description": "FileIds",
                         "schema": {
-                            "$ref": "#/definitions/NewFilesInfo"
+                            "$ref": "#/definitions/FileIDArrayInfo"
                         }
                     },
                     "401": {
@@ -3665,6 +3659,17 @@ const docTemplate = `{
                 }
             }
         },
+        "FileIDArrayInfo": {
+            "type": "object",
+            "properties": {
+                "fileIDs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "FileInfo": {
             "type": "object",
             "properties": {
@@ -3740,6 +3745,26 @@ const docTemplate = `{
                 },
                 "wormhole": {
                     "type": "boolean"
+                }
+            }
+        },
+        "FilesInfo": {
+            "type": "object",
+            "required": [
+                "files"
+            ],
+            "properties": {
+                "files": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/FileInfo"
+                    }
+                },
+                "medias": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/MediaInfo"
+                    }
                 }
             }
         },
@@ -3975,17 +4000,6 @@ const docTemplate = `{
                 }
             }
         },
-        "NewFilesInfo": {
-            "type": "object",
-            "properties": {
-                "fileIDs": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
         "NewFilesParams": {
             "type": "object",
             "properties": {
@@ -4152,6 +4166,9 @@ const docTemplate = `{
                 },
                 "fileID": {
                     "type": "string"
+                },
+                "isDir": {
+                    "type": "boolean"
                 },
                 "owner": {
                     "type": "string"
@@ -4463,6 +4480,39 @@ const docTemplate = `{
                 }
             }
         },
+        "file.createTagParams": {
+            "type": "object",
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "file.fileIDsParams": {
+            "type": "object",
+            "properties": {
+                "fileIDs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "file.updateTagParams": {
+            "type": "object",
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_ethanrous_weblens_models_tag.Tag": {
             "type": "object",
             "properties": {
@@ -4534,39 +4584,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "towerID": {
-                    "type": "string"
-                }
-            }
-        },
-        "tag.createTagParams": {
-            "type": "object",
-            "properties": {
-                "color": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "tag.fileIDsParams": {
-            "type": "object",
-            "properties": {
-                "fileIDs": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "tag.updateTagParams": {
-            "type": "object",
-            "properties": {
-                "color": {
-                    "type": "string"
-                },
-                "name": {
                     "type": "string"
                 }
             }

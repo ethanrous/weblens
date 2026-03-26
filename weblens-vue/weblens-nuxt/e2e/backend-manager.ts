@@ -3,7 +3,6 @@ import fs from 'fs'
 import path from 'path'
 import http from 'http'
 import { fileURLToPath } from 'url'
-import { randomInt } from 'crypto'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = path.resolve(__dirname, '../../..')
@@ -54,10 +53,20 @@ export interface TestBackend {
     logPath: string
 }
 
-function pollHealth(url: string, timeoutMs: number, logPath: string): Promise<void> {
+function pollHealth(url: string, timeoutMs: number, logPath: string, childPid: number): Promise<void> {
     const start = Date.now()
     return new Promise((resolve, reject) => {
         const check = () => {
+            // Bail out immediately if the backend process died during startup
+            if (!isProcessRunning(childPid)) {
+                reject(
+                    new Error(
+                        `Backend process (PID ${childPid}) died during startup. Check logs at ${showLogFile(logPath)}`,
+                    ),
+                )
+                return
+            }
+
             const req = http.get(url, (res) => {
                 if (res.statusCode === 200) {
                     resolve()
@@ -102,7 +111,9 @@ function isProcessRunning(pid: number): boolean {
 }
 
 export async function startTestBackend(workerIndex: number, testName: string): Promise<TestBackend> {
-    const port = WEBLENS_PORT_BASE + workerIndex * 1000 + randomInt(999)
+    // Use deterministic port per worker to avoid random port collisions with
+    // stale backends that haven't fully released their port yet.
+    const port = WEBLENS_PORT_BASE + workerIndex * 1000
     const dbName = `pw-${testName.replaceAll(/[^a-zA-Z0-9_-]/g, '_')}`.slice(0, 63) // MongoDB database names have a max length of 64
 
     // Fresh filesystem per test
@@ -163,7 +174,17 @@ export async function startTestBackend(workerIndex: number, testName: string): P
 
     const start = Date.now()
     const baseURL = `http://localhost:${port}`
-    await pollHealth(`${baseURL}/health`, 25_000, logPath)
+    await pollHealth(`${baseURL}/health`, 25_000, logPath, child.pid)
+
+    // Double-check that the health response came from OUR process, not a stale
+    // backend that happened to be on the same port.
+    if (!isProcessRunning(child.pid)) {
+        throw new Error(
+            `[worker-${workerIndex}] Backend process (PID ${child.pid}) died after health check passed. ` +
+                `Health response likely came from a stale process. Check logs at ${showLogFile(logPath)}`,
+        )
+    }
+
     if (VERBOSE)
         console.debug(
             `Backend for test ${testName} with PID ${child.pid} on port :${port} is healthy after ${Date.now() - start}ms - logs at ${logPath}`,
@@ -198,6 +219,14 @@ export async function stopTestBackend(backend: TestBackend): Promise<void> {
             process.kill(pid, 'SIGKILL')
         } catch {
             // Already exited
+        }
+
+        // Wait briefly for the OS to reclaim the process and release its port
+        for (let i = 0; i < 10; i++) {
+            await sleep(100)
+            if (!isProcessRunning(pid)) {
+                return
+            }
         }
     }
 }

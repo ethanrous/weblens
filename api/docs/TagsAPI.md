@@ -36,7 +36,7 @@ import (
 
 func main() {
 	tagID := "tagID_example" // string | Tag ID
-	request := *openapiclient.NewTagFileIDsParams() // TagFileIDsParams | File IDs to add
+	request := *openapiclient.NewFileFileIDsParams() // FileFileIDsParams | File IDs to add
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
@@ -64,7 +64,7 @@ Other parameters are passed through a pointer to a apiAddFilesToTagRequest struc
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
- **request** | [**TagFileIDsParams**](TagFileIDsParams.md) | File IDs to add | 
+ **request** | [**FileFileIDsParams**](FileFileIDsParams.md) | File IDs to add | 
 
 ### Return type
 
@@ -103,7 +103,7 @@ import (
 )
 
 func main() {
-	request := *openapiclient.NewTagCreateTagParams() // TagCreateTagParams | Create tag request body
+	request := *openapiclient.NewFileCreateTagParams() // FileCreateTagParams | Create tag request body
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
@@ -128,7 +128,7 @@ Other parameters are passed through a pointer to a apiCreateTagRequest struct vi
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **request** | [**TagCreateTagParams**](TagCreateTagParams.md) | Create tag request body | 
+ **request** | [**FileCreateTagParams**](FileCreateTagParams.md) | Create tag request body | 
 
 ### Return type
 
@@ -216,7 +216,7 @@ No authorization required
 
 ## GetFilesByTag
 
-> []FileInfo GetFilesByTag(ctx, tagID).Execute()
+> FilesInfo GetFilesByTag(ctx, tagID).Execute()
 
 Get all files in a tag
 
@@ -242,7 +242,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error when calling `TagsAPI.GetFilesByTag``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
-	// response from `GetFilesByTag`: []FileInfo
+	// response from `GetFilesByTag`: FilesInfo
 	fmt.Fprintf(os.Stdout, "Response from `TagsAPI.GetFilesByTag`: %v\n", resp)
 }
 ```
@@ -266,7 +266,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**[]FileInfo**](FileInfo.md)
+[**FilesInfo**](FilesInfo.md)
 
 ### Authorization
 
@@ -497,7 +497,7 @@ import (
 
 func main() {
 	tagID := "tagID_example" // string | Tag ID
-	request := *openapiclient.NewTagFileIDsParams() // TagFileIDsParams | File IDs to remove
+	request := *openapiclient.NewFileFileIDsParams() // FileFileIDsParams | File IDs to remove
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
@@ -525,7 +525,7 @@ Other parameters are passed through a pointer to a apiRemoveFilesFromTagRequest 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
- **request** | [**TagFileIDsParams**](TagFileIDsParams.md) | File IDs to remove | 
+ **request** | [**FileFileIDsParams**](FileFileIDsParams.md) | File IDs to remove | 
 
 ### Return type
 
@@ -565,7 +565,7 @@ import (
 
 func main() {
 	tagID := "tagID_example" // string | Tag ID
-	request := *openapiclient.NewTagUpdateTagParams() // TagUpdateTagParams | Update tag request body
+	request := *openapiclient.NewFileUpdateTagParams() // FileUpdateTagParams | Update tag request body
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
@@ -593,7 +593,7 @@ Other parameters are passed through a pointer to a apiUpdateTagRequest struct vi
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
- **request** | [**TagUpdateTagParams**](TagUpdateTagParams.md) | Update tag request body | 
+ **request** | [**FileUpdateTagParams**](FileUpdateTagParams.md) | Update tag request body | 
 
 ### Return type
 

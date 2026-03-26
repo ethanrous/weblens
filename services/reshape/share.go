@@ -10,7 +10,7 @@ import (
 )
 
 // ShareToShareInfo converts a FileShare model to a ShareInfo transfer object.
-func ShareToShareInfo(ctx context.Context, s *share_model.FileShare) wlstructs.ShareInfo {
+func ShareToShareInfo(ctx context.Context, s *share_model.FileShare, isDir bool) wlstructs.ShareInfo {
 	accessors := make([]wlstructs.UserInfo, 0, len(s.Accessors))
 
 	for _, a := range s.Accessors {
@@ -32,6 +32,7 @@ func ShareToShareInfo(ctx context.Context, s *share_model.FileShare) wlstructs.S
 	return wlstructs.ShareInfo{
 		ShareID:     id,
 		FileID:      s.FileID,
+		IsDir:       isDir,
 		ShareName:   s.ShareName,
 		Owner:       s.Owner,
 		Accessors:   accessors,

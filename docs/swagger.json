@@ -281,12 +281,9 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "File Info",
+                        "description": "Search results",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/FileInfo"
-                            }
+                            "$ref": "#/definitions/FilesInfo"
                         }
                     },
                     "400": {
@@ -1941,7 +1938,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/tag.createTagParams"
+                            "$ref": "#/definitions/file.createTagParams"
                         }
                     }
                 ],
@@ -2127,7 +2124,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/tag.updateTagParams"
+                            "$ref": "#/definitions/file.updateTagParams"
                         }
                     }
                 ],
@@ -2181,10 +2178,7 @@
                     "200": {
                         "description": "Files in the tag",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/FileInfo"
-                            }
+                            "$ref": "#/definitions/FilesInfo"
                         }
                     },
                     "400": {
@@ -2232,7 +2226,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/tag.fileIDsParams"
+                            "$ref": "#/definitions/file.fileIDsParams"
                         }
                     }
                 ],
@@ -2285,7 +2279,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/tag.fileIDsParams"
+                            "$ref": "#/definitions/file.fileIDsParams"
                         }
                     }
                 ],
@@ -2937,7 +2931,7 @@
                     "201": {
                         "description": "FileIds",
                         "schema": {
-                            "$ref": "#/definitions/NewFilesInfo"
+                            "$ref": "#/definitions/FileIDArrayInfo"
                         }
                     },
                     "401": {
@@ -3663,6 +3657,17 @@
                 }
             }
         },
+        "FileIDArrayInfo": {
+            "type": "object",
+            "properties": {
+                "fileIDs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "FileInfo": {
             "type": "object",
             "properties": {
@@ -3738,6 +3743,26 @@
                 },
                 "wormhole": {
                     "type": "boolean"
+                }
+            }
+        },
+        "FilesInfo": {
+            "type": "object",
+            "required": [
+                "files"
+            ],
+            "properties": {
+                "files": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/FileInfo"
+                    }
+                },
+                "medias": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/MediaInfo"
+                    }
                 }
             }
         },
@@ -3973,17 +3998,6 @@
                 }
             }
         },
-        "NewFilesInfo": {
-            "type": "object",
-            "properties": {
-                "fileIDs": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
         "NewFilesParams": {
             "type": "object",
             "properties": {
@@ -4150,6 +4164,9 @@
                 },
                 "fileID": {
                     "type": "string"
+                },
+                "isDir": {
+                    "type": "boolean"
                 },
                 "owner": {
                     "type": "string"
@@ -4461,6 +4478,39 @@
                 }
             }
         },
+        "file.createTagParams": {
+            "type": "object",
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "file.fileIDsParams": {
+            "type": "object",
+            "properties": {
+                "fileIDs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "file.updateTagParams": {
+            "type": "object",
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_ethanrous_weblens_models_tag.Tag": {
             "type": "object",
             "properties": {
@@ -4532,39 +4582,6 @@
                     "type": "string"
                 },
                 "towerID": {
-                    "type": "string"
-                }
-            }
-        },
-        "tag.createTagParams": {
-            "type": "object",
-            "properties": {
-                "color": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "tag.fileIDsParams": {
-            "type": "object",
-            "properties": {
-                "fileIDs": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "tag.updateTagParams": {
-            "type": "object",
-            "properties": {
-                "color": {
-                    "type": "string"
-                },
-                "name": {
                     "type": "string"
                 }
             }

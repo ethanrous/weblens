@@ -11,7 +11,6 @@ import (
 	history_api "github.com/ethanrous/weblens/routers/api/v1/history"
 	media_api "github.com/ethanrous/weblens/routers/api/v1/media"
 	user_api "github.com/ethanrous/weblens/routers/api/v1/restuser"
-	tag_api "github.com/ethanrous/weblens/routers/api/v1/tag"
 	tower_api "github.com/ethanrous/weblens/routers/api/v1/tower"
 	"github.com/ethanrous/weblens/routers/api/v1/websocket"
 	"github.com/ethanrous/weblens/routers/router"
@@ -104,24 +103,21 @@ func Routes(_ context_service.AppContext) *router.Router {
 		r.Post("", file_api.CreateFolder)
 	}, router.RequireSignIn)
 
-	// Journal
-	// r.Get("/journal", getLifetimesSince)
-
 	// Tags
 	r.Group("/tags", func() {
-		r.Get("", tag_api.GetUserTags)
-		r.Post("", tag_api.CreateTag)
+		r.Get("", file_api.GetUserTags)
+		r.Post("", file_api.CreateTag)
 
 		r.Group("/{tagID}", func() {
-			r.Get("", tag_api.GetTag)
-			r.Patch("", tag_api.UpdateTag)
-			r.Delete("", tag_api.DeleteTag)
-			r.Get("/files", tag_api.GetFilesByTag)
-			r.Post("/files", tag_api.AddFilesToTag)
-			r.Delete("/files", tag_api.RemoveFilesFromTag)
+			r.Get("", file_api.GetTag)
+			r.Patch("", file_api.UpdateTag)
+			r.Delete("", file_api.DeleteTag)
+			r.Get("/files", file_api.GetFilesByTag)
+			r.Post("/files", file_api.AddFilesToTag)
+			r.Delete("/files", file_api.RemoveFilesFromTag)
 		})
 
-		r.Get("/file/{fileID}", tag_api.GetTagsForFile)
+		r.Get("/file/{fileID}", file_api.GetTagsForFile)
 	}, router.RequireSignIn)
 
 	// Upload

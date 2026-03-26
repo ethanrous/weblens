@@ -606,6 +606,10 @@ func (f *WeblensFileImpl) RemoveChild(child string) error {
 
 // SetParent sets the parent directory for the file.
 func (f *WeblensFileImpl) SetParent(p *WeblensFileImpl) error {
+	if !p.IsDir() {
+		return wlerrors.Wrapf(ErrDirectoryRequired, "cannot set parent to %s because it is not a directory", p.GetPortablePath())
+	}
+
 	if f.GetPortablePath().Dir() != p.GetPortablePath() {
 		return wlerrors.Wrapf(ErrNotChild, "%s is not the parent of %s", p.GetPortablePath(), f.GetPortablePath())
 	}

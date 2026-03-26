@@ -15,6 +15,7 @@ import (
 	"github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/wlfs"
+	"github.com/ethanrous/weblens/modules/wlstructs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -156,7 +157,7 @@ func TestSearchFiles(t *testing.T) {
 		results, resp, err := client.FilesAPI.SearchFiles(t.Context()).Search("searchable").Execute()
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
-		assert.Equal(t, 2, len(results))
+		assert.Equal(t, 2, len(results.Files))
 	})
 
 	t.Run("empty search returns 400", func(t *testing.T) {
@@ -169,14 +170,14 @@ func TestSearchFiles(t *testing.T) {
 		results, resp, err := client.FilesAPI.SearchFiles(t.Context()).Search("nonexistent-xyz-999").Execute()
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
-		assert.Equal(t, 0, len(results))
+		assert.Equal(t, 0, len(results.Files))
 	})
 
 	t.Run("search with regex", func(t *testing.T) {
 		results, resp, err := client.FilesAPI.SearchFiles(t.Context()).Search("searchable-folder[12]").Regex(true).Execute()
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
-		assert.Equal(t, 2, len(results))
+		assert.Equal(t, 2, len(results.Files))
 	})
 
 	t.Run("search with invalid regex returns 400", func(t *testing.T) {
@@ -190,7 +191,7 @@ func TestSearchFiles(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		// Should find searchable-folder1, searchable-folder2, and searchable-nested
-		assert.GreaterOrEqual(t, len(results), 3)
+		assert.GreaterOrEqual(t, len(results.Files), 3)
 	})
 
 	t.Run("search with baseFolderID", func(t *testing.T) {
@@ -198,54 +199,52 @@ func TestSearchFiles(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		// Only searchable-nested is a direct child of folder1
-		assert.Equal(t, 1, len(results))
+		assert.Equal(t, 1, len(results.Files))
 	})
 
 	t.Run("search with sort desc", func(t *testing.T) {
 		results, resp, err := client.FilesAPI.SearchFiles(t.Context()).Search("searchable").SortProp("name").SortOrder("desc").Execute()
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
-		assert.Equal(t, 2, len(results))
+		assert.Equal(t, 2, len(results.Files))
 	})
 
 	// --- Create tags and assign files ---
 
-	tag1, _, err := client.TagsAPI.CreateTag(t.Context()).Request(openapi.TagCreateTagParams{
+	tag1, _, err := client.TagsAPI.CreateTag(t.Context()).Request(openapi.FileCreateTagParams{
 		Name:  openapi.PtrString("tag-alpha"),
 		Color: openapi.PtrString("#ff0000"),
 	}).Execute()
 	require.NoError(t, err)
 
-	tag2, _, err := client.TagsAPI.CreateTag(t.Context()).Request(openapi.TagCreateTagParams{
+	tag2, _, err := client.TagsAPI.CreateTag(t.Context()).Request(openapi.FileCreateTagParams{
 		Name:  openapi.PtrString("tag-beta"),
 		Color: openapi.PtrString("#00ff00"),
 	}).Execute()
 	require.NoError(t, err)
 
 	// Tag folder1 with tag1 only
-	_, err = client.TagsAPI.AddFilesToTag(t.Context(), tag1.GetId()).Request(openapi.TagFileIDsParams{
+	_, err = client.TagsAPI.AddFilesToTag(t.Context(), tag1.GetId()).Request(openapi.FileFileIDsParams{
 		FileIDs: []string{folder1.GetId()},
 	}).Execute()
 	require.NoError(t, err)
 
 	// Tag folder2 with both tag1 and tag2
-	_, err = client.TagsAPI.AddFilesToTag(t.Context(), tag1.GetId()).Request(openapi.TagFileIDsParams{
+	_, err = client.TagsAPI.AddFilesToTag(t.Context(), tag1.GetId()).Request(openapi.FileFileIDsParams{
 		FileIDs: []string{folder2.GetId()},
 	}).Execute()
 	require.NoError(t, err)
 
-	_, err = client.TagsAPI.AddFilesToTag(t.Context(), tag2.GetId()).Request(openapi.TagFileIDsParams{
+	_, err = client.TagsAPI.AddFilesToTag(t.Context(), tag2.GetId()).Request(openapi.FileFileIDsParams{
 		FileIDs: []string{folder2.GetId()},
 	}).Execute()
 	require.NoError(t, err)
-
-	// --- BUG: search without tag filter when user has tags should still work ---
 
 	t.Run("search without tags when user has tags", func(t *testing.T) {
 		results, resp, err := client.FilesAPI.SearchFiles(t.Context()).Search("searchable").Execute()
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
-		assert.Equal(t, 2, len(results))
+		assert.Equal(t, 2, len(results.Files))
 	})
 
 	// --- Tag filtering tests ---
@@ -255,7 +254,7 @@ func TestSearchFiles(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		// Only folder2 has tag2 and matches "searchable"
-		assert.Equal(t, 1, len(results))
+		assert.Equal(t, 1, len(results.Files))
 	})
 
 	t.Run("search with tag matching all tagged files", func(t *testing.T) {
@@ -263,14 +262,14 @@ func TestSearchFiles(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		// Both folder1 and folder2 have tag1
-		assert.Equal(t, 2, len(results))
+		assert.Equal(t, 2, len(results.Files))
 	})
 
 	t.Run("search with tag no name match", func(t *testing.T) {
 		results, resp, err := client.FilesAPI.SearchFiles(t.Context()).Search("nonexistent-xyz-999").Tags(tag1.GetId()).Execute()
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
-		assert.Equal(t, 0, len(results))
+		assert.Equal(t, 0, len(results.Files))
 	})
 
 	// --- Raw HTTP tests for multi-tag and edge cases ---
@@ -321,11 +320,11 @@ func TestSearchFiles(t *testing.T) {
 			assert.Equal(t, tt.expectedStatus, resp.StatusCode)
 
 			if tt.expectedCount > 0 {
-				var results []map[string]interface{}
+				var results wlstructs.FilesInfo
 
 				err = json.NewDecoder(resp.Body).Decode(&results)
 				require.NoError(t, err)
-				assert.Equal(t, tt.expectedCount, len(results))
+				assert.Equal(t, tt.expectedCount, len(results.Files))
 			}
 		})
 	}

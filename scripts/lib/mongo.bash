@@ -74,9 +74,11 @@ launch_mongo() {
 
     export MONGO_PROJECT_NAME="$stack_name"
     if ! dockerc compose -f ./docker/mongo.compose.yaml --project-name "weblens-$stack_name" up -d; then
-        log_dump_file="./_build/logs/failed-mongo-$stack_name.log"
+        log_dump_file="./_build/logs/mongo/failed-mongo-$stack_name.log"
+        mkdir -p "$(dirname "$log_dump_file")"
+
         echo "dumping mongo container logs to [$log_dump_file]..."
-        dockerc logs "weblens-$stack_name-mongo" >./_build/logs/failed-mongo-"$stack_name".log || true
+        dockerc logs "weblens-$stack_name-mongo" >"$log_dump_file" || true
         return 1
     else
         # Wait for mongo to be healthy before returning
@@ -85,7 +87,13 @@ launch_mongo() {
         local count=0
         until docker inspect --format='{{json .State.Health}}' weblens-"$stack_name"-mongo 2>/dev/null | grep -q '"healthy"'; do
             if [[ $count -ge $retries ]]; then
-                echo "MongoDB container failed to become healthy after $((retries * wait_time)) seconds. Check container logs for details." >&2
+                log_dump_file="./_build/logs/mongo/failed-mongo-$stack_name.log"
+                mkdir -p "$(dirname "$log_dump_file")"
+
+                echo "MongoDB container failed to become healthy after $((retries * wait_time)) seconds. Check container logs at $log_dump_file for details" >&2
+
+                dockerc logs "weblens-$stack_name-mongo" >"$log_dump_file" || true
+
                 return 1
             fi
             sleep $wait_time

@@ -3,8 +3,18 @@ services:
     image: mongodb/mongodb-atlas-local:8.2.5
     container_name: weblens-${MONGO_PROJECT_NAME}-mongo
     hostname: mongo.weblens
+    user: "0:0"
     ports:
       - ${MONGO_HOST_PORT:-27017}:27017
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        if [ ! -f /data/configdb/keyfile ]; then
+          touch /data/configdb/keyfile
+          tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 756 > /data/configdb/keyfile
+          chmod 400 /data/configdb/keyfile
+        fi
+        exec /usr/local/bin/runner server
     volumes:
       - ${MONGO_DATA_ROOT}/mongod:/data/db
       - ${MONGO_DATA_ROOT}/configdb:/data/configdb
@@ -14,11 +24,11 @@ services:
         limits:
           memory: 4g
     healthcheck:
-      test: mongosh --eval "db.adminCommand('ping')"
+      test: mongosh --eval "db.adminCommand('ping')" && bash -c 'echo > /dev/tcp/localhost/27027'
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 15s
+      start_period: 30s
 
 networks:
   default:

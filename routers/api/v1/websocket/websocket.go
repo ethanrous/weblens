@@ -10,18 +10,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethanrous/weblens/modules/config"
 	client_model "github.com/ethanrous/weblens/models/client"
 	"github.com/ethanrous/weblens/models/job"
 	share_model "github.com/ethanrous/weblens/models/share"
 	task_model "github.com/ethanrous/weblens/models/task"
 	tower_model "github.com/ethanrous/weblens/models/tower"
+	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/websocket"
 	websocket_mod "github.com/ethanrous/weblens/modules/websocket"
 	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/services/auth"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
+	"github.com/ethanrous/weblens/services/jobs"
 	"github.com/ethanrous/weblens/services/notify"
 	"github.com/ethanrous/weblens/services/reshape"
 	gorilla "github.com/gorilla/websocket"
@@ -280,10 +281,9 @@ func handleScanDirectory(ctx context_service.RequestContext, msg websocket_mod.W
 		return err
 	}
 
-	notif := notify.NewTaskNotification(t, websocket_mod.TaskCreatedEvent, t.GetMeta().FormatToResult())
-	ctx.ClientService.Notify(ctx, notif)
+	notif := notify.NewTaskNotification(t, websocket_mod.TaskCreatedEvent, jobs.GetScanResult(t))
 
-	return nil
+	return c.Send(notif)
 }
 
 func wsWebClientSwitchboard(ctx context_service.RequestContext, msgBuf []byte, c *client_model.WsClient) error {

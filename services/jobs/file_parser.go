@@ -164,7 +164,7 @@ func ScanDirectory(t *task.Task) {
 	}
 
 	// Let any client subscribers know we are done
-	result := getScanResult(t)
+	result := GetScanResult(t)
 	notif := notify.NewPoolNotification(pool.GetRootPool(), websocket.FolderScanCompleteEvent, result)
 	ctx.Notify(ctx, notif)
 
@@ -240,12 +240,14 @@ func ScanFileTsk(ctx context_service.AppContext, meta job.ScanMeta) error {
 			}
 		}
 
+		// Check if the media has thumbnails cached on the filesystem. If not, we need to regenerate them.
 		isCached, err = media_service.IsCached(ctx, media)
 		if err != nil {
 			return err
 		}
 	}
 
+	// Generate the thumbnails if they do not exist
 	if !isCached {
 		_, err = media_service.HandleCacheCreation(ctx, media, meta.File)
 		if err != nil {
@@ -256,6 +258,7 @@ func ScanFileTsk(ctx context_service.AppContext, meta job.ScanMeta) error {
 	if len(media.HDIR) == 0 && cnf.EnableHDIR {
 		_, err = media_service.GetHighDimensionImageEncoding(ctx, media)
 		if err != nil {
+			// return wlerrors.Errorf("Failed to get HDIR encoding: %w", err)
 			ctx.Log().Error().Err(err).Msgf("Failed to get HDIR encoding for %s", media.ID())
 		}
 	}
@@ -284,6 +287,51 @@ func ScanFileTsk(ctx context_service.AppContext, meta job.ScanMeta) error {
 	ctx.Notify(ctx, notif...)
 
 	return nil
+}
+
+// GetScanResult compiles the result information for a scan task, including progress and file details.
+func GetScanResult(t *task.Task) task.Result {
+	var tp *task.Pool
+
+	if t.GetChildTaskPool() != nil {
+		tp = t.GetChildTaskPool().GetRootPool()
+	} else if t.GetTaskPool() != nil {
+		tp = t.GetTaskPool().GetRootPool()
+	}
+
+	var result = task.Result{}
+
+	meta, ok := t.GetMeta().(job.ScanMeta)
+	if ok {
+		result = task.Result{
+			"portablePath": meta.File.GetPortablePath(),
+			"fileID":       meta.File.ID(),
+		}
+
+		createdIn := tp.CreatedInTask()
+		if tp != nil && createdIn != nil {
+			result["taskJobTarget"] = createdIn.GetMeta().(job.ScanMeta).File.GetPortablePath()
+		} else if tp == nil {
+			result["taskJobTarget"] = meta.File.GetPortablePath()
+		}
+	}
+
+	if tp != nil {
+		status := tp.Status()
+		result["percentProgress"] = status.Progress
+		result["tasksComplete"] = status.Complete
+		result["tasksFailed"] = status.Failed
+		result["tasksTotal"] = status.Total
+		result["runtime"] = t.ExeTime()
+
+		if tp.CreatedInTask() != nil {
+			result["taskJobName"] = tp.CreatedInTask().JobName()
+		}
+	} else {
+		result["taskJobName"] = t.JobName()
+	}
+
+	return result
 }
 
 func queueScanFileIfNeeded(ctx context_service.AppContext, t *task.Task, mf *file_model.WeblensFileImpl, doHdir bool, alreadyFiles *[]*file_model.WeblensFileImpl, alreadyMedia *[]*media_model.Media, pool *task.Pool) error {
@@ -359,9 +407,9 @@ func reportSubscanStatus(tsk *task.Task) {
 
 	var notif websocket.WsResponseInfo
 	if tsk.GetTaskPool().IsGlobal() || tsk.GetTaskPool().CreatedInTask() == nil {
-		notif = notify.NewTaskNotification(tsk, event, getScanResult(tsk))
+		notif = notify.NewTaskNotification(tsk, event, GetScanResult(tsk))
 	} else {
-		notif = notify.NewPoolNotification(tsk.GetTaskPool(), event, getScanResult(tsk))
+		notif = notify.NewPoolNotification(tsk.GetTaskPool(), event, GetScanResult(tsk))
 	}
 
 	ctx, ok := context_service.FromContext(tsk.Ctx)
@@ -372,46 +420,4 @@ func reportSubscanStatus(tsk *task.Task) {
 	}
 
 	ctx.Notify(tsk.Ctx, notif)
-}
-
-func getScanResult(t *task.Task) task.Result {
-	var tp *task.Pool
-
-	if t.GetTaskPool() != nil {
-		tp = t.GetTaskPool().GetRootPool()
-	}
-
-	var result = task.Result{}
-
-	meta, ok := t.GetMeta().(job.ScanMeta)
-	if ok {
-		result = task.Result{
-			"filename": meta.File.GetPortablePath().Filename(),
-			"fileID":   meta.File.ID(),
-		}
-
-		createdIn := tp.CreatedInTask()
-		if tp != nil && createdIn != nil {
-			result["taskJobTarget"] = createdIn.GetMeta().(job.ScanMeta).File.GetPortablePath().Filename()
-		} else if tp == nil {
-			result["taskJobTarget"] = meta.File.GetPortablePath().Filename()
-		}
-	}
-
-	if tp != nil {
-		status := tp.Status()
-		result["percentProgress"] = status.Progress
-		result["tasksComplete"] = status.Complete
-		result["tasksFailed"] = status.Failed
-		result["tasksTotal"] = status.Total
-		result["runtime"] = t.ExeTime()
-
-		if tp.CreatedInTask() != nil {
-			result["taskJobName"] = tp.CreatedInTask().JobName()
-		}
-	} else {
-		result["taskJobName"] = t.JobName()
-	}
-
-	return result
 }
