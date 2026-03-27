@@ -122,6 +122,8 @@ export WEBLENS_JWT_SECRET="DEV"
 export AGNO_LOG_LEVEL=warn
 export AGNO_LOG_FORMAT=human
 
+export GO_BUILD_TAGS="pdfium"
+
 show_as_subtask "Starting services" "blue" -- ./scripts/envup.bash
 
 printf "Running \e[34mWeblens\e[0m locally for development...\n"

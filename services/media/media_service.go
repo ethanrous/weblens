@@ -12,7 +12,6 @@ import (
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/modules/wlog"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
-	"github.com/ethanrous/weblens/services/media/agno"
 )
 
 type cacheKey string
@@ -74,9 +73,9 @@ func GetConverted(ctx context.Context, m *media_model.Media, format media_model.
 	if err != nil {
 		return nil, err
 	}
-	defer img.Free()
+	defer img.Close() //nolint:errcheck
 
-	bs, err := agno.WriteJpeg(img, quality)
+	bs, err := img.WriteJPEG(quality)
 	if err != nil {
 		return nil, err
 	}

@@ -1,11 +1,11 @@
 package media
 
 import (
+	"github.com/ethanrous/agno/bindings/go/agno"
 	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
-	"github.com/ethanrous/weblens/services/media/agno"
 )
 
 // HandleCacheCreation creates media cache files (thumbs and highres) for the given media and file.
@@ -18,7 +18,7 @@ func HandleCacheCreation(ctx context_service.AppContext, m *media_model.Media, f
 			return nil, err
 		}
 
-		defer img.Free()
+		defer img.Close() //nolint:errcheck
 
 		m.PageCount = 1
 
@@ -30,7 +30,7 @@ func HandleCacheCreation(ctx context_service.AppContext, m *media_model.Media, f
 			return nil, wlerrors.New("multi-page media not yet supported")
 		}
 
-		err = handleNewHighRes(ctx, m, img, 0)
+		img, err = handleNewHighRes(ctx, m, img, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -44,7 +44,7 @@ func HandleCacheCreation(ctx context_service.AppContext, m *media_model.Media, f
 				thumbHeight = ThumbMaxSize
 			}
 
-			err = img.Resize(float64(thumbHeight) / float64(m.Height))
+			img, err = img.Resize(float64(thumbHeight) / float64(m.Height))
 			if err != nil {
 				return nil, wlerrors.WithStack(err)
 			}
@@ -55,7 +55,7 @@ func HandleCacheCreation(ctx context_service.AppContext, m *media_model.Media, f
 		if err != nil && !wlerrors.Is(err, file_model.ErrFileAlreadyExists) {
 			return nil, wlerrors.WithStack(err)
 		} else if err == nil {
-			err = agno.WriteWebp(thumb.GetPortablePath().ToAbsolute(), img)
+			err = img.WriteWebP(thumb.GetPortablePath().ToAbsolute())
 			if err != nil {
 				return nil, err
 			}
@@ -84,7 +84,7 @@ func HandleCacheCreation(ctx context_service.AppContext, m *media_model.Media, f
 	return thumbBytes, nil
 }
 
-func handleNewHighRes(ctx context_service.AppContext, m *media_model.Media, img *agno.Image, page int) error {
+func handleNewHighRes(ctx context_service.AppContext, m *media_model.Media, img *agno.Image, page int) (*agno.Image, error) {
 	// Resize highres image if too big
 	if m.Width > HighresMaxSize || m.Height > HighresMaxSize {
 		var fullHeight int
@@ -94,26 +94,28 @@ func handleNewHighRes(ctx context_service.AppContext, m *media_model.Media, img 
 			fullHeight = HighresMaxSize
 		}
 
-		err := img.Resize(float64(fullHeight) / float64(m.Height))
+		var err error
+
+		img, err = img.Resize(float64(fullHeight) / float64(m.Height))
 		if err != nil {
-			return wlerrors.WithStack(err)
+			return nil, wlerrors.WithStack(err)
 		}
 	}
 
 	// Create and write highres cache file
 	highres, err := ctx.FileService.NewCacheFile(m.ID(), string(media_model.HighRes), page)
 	if err != nil && !wlerrors.Is(err, file_model.ErrFileAlreadyExists) {
-		return err
+		return nil, err
 	} else if err == nil {
-		err = agno.WriteWebp(highres.GetPortablePath().ToAbsolute(), img)
+		err = img.WriteWebP(highres.GetPortablePath().ToAbsolute())
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		m.SetHighresCacheFiles(highres, page)
 	}
 
-	return nil
+	return img, nil
 }
 
 func getCacheFile(ctx context_service.AppContext, m *media_model.Media, quality media_model.Quality, pageNum int) (*file_model.WeblensFileImpl, error) {
