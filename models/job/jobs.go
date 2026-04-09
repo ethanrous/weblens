@@ -16,8 +16,6 @@ const (
 	GatherFsStatsTask = "gather_filesystem_stats"
 	// BackupTask is the task identifier for performing a backup.
 	BackupTask = "do_backup"
-	// HashFileTask is the task identifier for hashing a file.
-	HashFileTask = "hash_file"
 	// LoadFilesystemTask is the task identifier for loading the filesystem.
 	LoadFilesystemTask = "load_filesystem"
 	// CopyFileFromCoreTask is the task identifier for copying a file from core.

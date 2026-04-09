@@ -26,7 +26,7 @@ func FmtCacheFileName(mID string, quality Quality, pageNum int) (string, error) 
 	}
 
 	var pageNumStr string
-	if pageNum > 1 && quality == HighRes {
+	if pageNum > 0 && quality == HighRes {
 		pageNumStr = fmt.Sprintf(pageNumExtensionFormat, pageNum)
 	}
 

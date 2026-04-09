@@ -418,6 +418,21 @@ func DropHDIRs(ctx context.Context) error {
 	return nil
 }
 
+// DeleteMediaByContentID deletes a media from the database by its content ID.
+func DeleteMediaByContentID(ctx context.Context, contentID ContentID) error {
+	col, err := db.GetCollection[*Media](ctx, MediaCollectionKey)
+	if err != nil {
+		return err
+	}
+
+	_, err = col.DeleteOne(ctx, bson.M{"contentID": contentID})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // NewMedia creates a new Media instance with the given content ID.
 func NewMedia(contentID ContentID) *Media {
 	return &Media{

@@ -9,11 +9,6 @@ import (
 	"github.com/ethanrous/weblens/models/job"
 	job_model "github.com/ethanrous/weblens/models/job"
 	"github.com/ethanrous/weblens/models/task"
-	"github.com/ethanrous/weblens/modules/websocket"
-	"github.com/ethanrous/weblens/modules/wlerrors"
-	context_service "github.com/ethanrous/weblens/services/ctxservice"
-	"github.com/ethanrous/weblens/services/notify"
-	"github.com/rs/zerolog"
 )
 
 func parseRangeHeader(contentRange string) (rangeMin, rangeMax, total int64, err error) {
@@ -93,48 +88,6 @@ func GatherFilesystemStats(tsk *task.Task) {
 	tsk.Success()
 }
 
-// HashFile generates a content ID hash for a file.
-func HashFile(tsk *task.Task) {
-	meta := tsk.GetMeta().(job.HashFileMeta)
-
-	contentID, err := file_model.GenerateContentID(tsk.Ctx, meta.File)
-	tsk.ReqNoErr(err)
-
-	if contentID == "" && meta.File.Size() != 0 {
-		tsk.Fail(file_model.ErrNoContentID)
-	}
-
-	tsk.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Hashed file [%s] to [%s]", meta.File.GetPortablePath(), contentID) })
-
-	// TODO: sync database content id if this file is created before being added to db (i.e upload)
-	// err = dataStore.SetContentID(meta.file, contentID)
-	// if err != nil {
-	// 	t.ErrorAndExit(err)
-	// }
-
-	tsk.SetResult(task.Result{"contentID": contentID})
-
-	poolStatus := tsk.GetTaskPool().Status()
-	notif := notify.NewTaskNotification(
-		tsk, websocket.TaskCompleteEvent, task.Result{
-			"filename":      meta.File.GetPortablePath().Filename(),
-			"tasksTotal":    poolStatus.Total,
-			"tasksComplete": poolStatus.Complete,
-		},
-	)
-
-	appCtx, ok := context_service.FromContext(tsk.Ctx)
-	if !ok {
-		tsk.Fail(wlerrors.New("failed to get context"))
-
-		return
-	}
-
-	appCtx.Notify(tsk.Ctx, notif)
-
-	tsk.Success()
-}
-
 // RegisterJobs registers all available job handlers with the worker pool.
 func RegisterJobs(workerPool *task.WorkerPool) {
 	workerPool.RegisterJob(job_model.ScanDirectoryTask, ScanDirectory)
@@ -145,6 +98,5 @@ func RegisterJobs(workerPool *task.WorkerPool) {
 	workerPool.RegisterJob(job_model.BackupTask, DoBackup)
 	workerPool.RegisterJob(job_model.CopyFileFromCoreTask, CopyFileFromCore)
 	workerPool.RegisterJob(job_model.RestoreCoreTask, RestoreCore)
-	workerPool.RegisterJob(job_model.HashFileTask, HashFile)
 	workerPool.RegisterJob(job_model.LoadFilesystemTask, LoadAtPath)
 }

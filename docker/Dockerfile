@@ -2,6 +2,10 @@ ARG ARCHITECTURE
 
 ARG NODE_VERSION=22.14.0
 ARG GO_VERSION=1.26
+ARG AGNO_VERSION=0.0.8
+
+# For AGNO_URL_OVERRIDE, you can specify a custom URL to download the AGNO library.
+ARG AGNO_URL_OVERRIDE
 
 # Build UI
 FROM node:${NODE_VERSION}-alpine AS web
@@ -30,51 +34,47 @@ RUN --mount=type=cache,target=/pnpm/store \
     pnpm install --frozen-lockfile --prod --offline;
 RUN pnpm generate;
 
-# Build agno static library (targeting glibc for Debian compatibility)
-FROM rust:slim-bookworm AS agno-builder
-
-# cmake + curl: needed to build libde265 and libheif from source as static libraries
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*;
-#
-# ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig
-
-WORKDIR /src
-COPY ./agno ./agno
-COPY ./scripts ./scripts
-
-RUN chmod +x ./scripts/lib/*.bash;
-
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/usr/local/cargo/git \
-    --mount=type=cache,id=agno-target-bookworm,target=/src/agno/target \
-    ./scripts/build-agno.bash "/build/lib/";
-
-# Verify the static library was built correctly, if not this will fail the build.
-RUN ls -l /build/lib/libagno.a;
-
 # Build server binary
 FROM --platform=linux/${ARCHITECTURE} golang:${GO_VERSION}-bookworm AS backend
 
-# Install build dependencies
-# RUN apt-get update && apt-get install -y --no-install-recommends \
-#     build-essential \
-#     liblcms2-dev \
-#     libpng-dev \
-#     libraw-dev \
-#     libwebp-dev \
-#     libtiff-dev \
-#     pkg-config \
-#     && rm -rf /var/lib/apt/lists/*;
+ARG ARCHITECTURE
+ARG AGNO_VERSION
+
+RUN apt-get update && apt-get install -y --no-install-recommends unzip && rm -rf /var/lib/apt/lists/*;
 
 WORKDIR /src
-COPY . .
 
-RUN mkdir -p /src/services/media/agno/lib && cp /src/agno/lib/agno.h /src/services/media/agno/lib/agno.h;
-COPY --from=agno-builder /build/lib/libagno.a /src/services/media/agno/lib/libagno.a
+# Copy only what the Go build needs
+COPY go.mod go.sum ./
+COPY api/*.go api/go.mod api/go.sum api/api/ ./api/
+COPY cmd/ ./cmd/
+COPY docs/ ./docs/
+COPY models/ ./models/
+COPY modules/ ./modules/
+COPY routers/ ./routers/
+COPY services/ ./services/
 
-RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=1 CGO_CFLAGS_ALLOW='-Xpreprocessor' GOOS=linux GOARCH=${ARCHITECTURE} go build -v -ldflags="-s -w" -o /server/weblens ./cmd/weblens/main.go;
+# Download pre-built agno library to standard lib path
+ARG AGNO_URL_OVERRIDE
+# ARG GH_TOKEN
+ENV AGNO_URL=${AGNO_URL_OVERRIDE:-https://github.com/ethanrous/agno/releases/download/v${AGNO_VERSION}/libagno-linux-x86_64-gpu.a}
+
+# If AGNO_URL has actions/runs in it, we need to unzip the artifact instead of downloading it directly to the final location
+RUN if echo ${AGNO_URL} | grep -q "/zip"; then \
+        curl -fL -H "Authorization: Bearer ${GH_TOKEN}" \
+        -H "Accept: application/vnd.github.v3+json" \
+        ${AGNO_URL} -o /tmp/agno.zip && \
+        unzip /tmp/agno.zip -d /usr/local/lib/ && \
+        rm /tmp/agno.zip; \
+    else \
+        curl -fL ${AGNO_URL} -o /usr/local/lib/libagno.a; \
+    fi;
+
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=1 CGO_CFLAGS_ALLOW='-Xpreprocessor' \
+    CGO_LDFLAGS="-L/usr/local/lib -lagno -lstdc++ -lm" \
+    GOOS=linux GOARCH=${ARCHITECTURE} \
+    go build -v -ldflags="-s -w" -o /server/weblens ./cmd/weblens/main.go;
 
 # Combine into final image
 FROM --platform=linux/${ARCHITECTURE} debian:bookworm-slim AS final

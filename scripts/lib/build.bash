@@ -59,7 +59,7 @@ build_weblens_binary() {
         tags_flag="-tags=${go_tags}"
     fi
 
-    go build -v "${tags_flag}" -gcflags=all="-N -l" -ldflags=-compressdwarf=false -o "$debug_bin" ./cmd/weblens/main.go 2>&1
+    go build -v ${tags_flag} -gcflags=all="-N -l" -ldflags=-compressdwarf=false -o "$debug_bin" ./cmd/weblens/main.go 2>&1
 }
 export -f build_weblens_binary
 

@@ -112,6 +112,39 @@ func IsCached(ctx context_service.AppContext, m *media_model.Media) (bool, error
 	return true, nil
 }
 
+// PurgeCache removes all cached files for the given media.
+func PurgeCache(ctx context_service.AppContext, m *media_model.Media) error {
+	cacheFiles := make([]*file_model.WeblensFileImpl, 0, m.PageCount+1)
+
+	lowres, err := getCacheFile(ctx, m, media_model.LowRes, 0)
+	if err != nil && !wlerrors.Is(err, file_model.ErrFileNotFound) {
+		return err
+	}
+
+	if lowres != nil {
+		cacheFiles = append(cacheFiles, lowres)
+	}
+
+	for page := 0; page < m.PageCount; page++ {
+		highres, err := getCacheFile(ctx, m, media_model.HighRes, page)
+		if err != nil && !wlerrors.Is(err, file_model.ErrFileNotFound) {
+			return err
+		}
+
+		if highres != nil {
+			cacheFiles = append(cacheFiles, highres)
+		}
+	}
+
+	for _, f := range cacheFiles {
+		if err := ctx.FileService.DeleteCacheFile(f); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // FetchCacheImg retrieves the cached image for the given media, quality, and page number.
 func FetchCacheImg(ctx context_service.AppContext, m *media_model.Media, q media_model.Quality, pageNum int) ([]byte, error) {
 	cacheKey := m.ContentID + string(q) + strconv.Itoa(pageNum)

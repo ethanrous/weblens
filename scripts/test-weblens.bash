@@ -26,7 +26,6 @@ run_native_tests() {
     export WEBLENS_MONGODB_URI=${WEBLENS_MONGODB_URI:-"mongodb://127.0.0.1:27019/?directConnection=true"}
     export WEBLENS_LOG_LEVEL="${WEBLENS_LOG_LEVEL:-debug}"
     export WEBLENS_LOG_FORMAT="dev"
-    export CGO_LDFLAGS="-w"
 
     echo "Running tests with mongo [$WEBLENS_MONGODB_URI] and test target: [$target]"
 
@@ -103,11 +102,7 @@ else
 fi
 
 if [[ "$containerize" = false ]]; then
-    if [[ "$lazy" = false ]] || [[ ! -e "$WEBLENS_ROOT/services/media/agno/lib/libagno.a" ]]; then
-        build_agno
-    else
-        printf "Skipping Agno build (lazy mode)...\n"
-    fi
+    build_agno
 
     run_native_tests "${tests}" "${run}"
 else

@@ -3,12 +3,12 @@ package media
 import (
 	"time"
 
+	"github.com/ethanrous/agno/bindings/go/agno"
 	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/modules/wlog"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
-	"github.com/ethanrous/agno/bindings/go/agno"
 )
 
 func newMedia(ctx context_service.AppContext, f *file_model.WeblensFileImpl) (*media_model.Media, error) {
@@ -94,14 +94,7 @@ func NewMediaFromFile(ctx context_service.AppContext, f *file_model.WeblensFileI
 		return nil, media_model.ErrMediaBadMimeType
 	}
 
-	// TODO: get page count from EXIF
-	// if mType.IsMultiPage() {
-	// 	m.PageCount = int(fileMetas[0].Fields["PageCount"].(float64))
-	// } else {
-	// 	m.PageCount = 1
-	// }
-
-	m.PageCount = 1
+	m.PageCount = img.PageCount()
 
 	return m, nil
 }
@@ -146,16 +139,12 @@ func getCreateDateFromExif(img *agno.Image, file *file_model.WeblensFileImpl) (c
 	for _, format := range dateFormats {
 		createDate, err = time.Parse(format, r)
 		if err == nil {
-			wlog.GlobalLogger().Debug().Msgf("Got date TIME from EXIF for file %s: %s", file.ID(), createDate)
-
 			return createDate, nil
 		}
 
 		if offset != "" {
 			createDate, err = time.Parse(format, r+offset)
 			if err == nil {
-				wlog.GlobalLogger().Debug().Msgf("Got date TIME from EXIF for file %s: %s", file.ID(), createDate)
-
 				return createDate, nil
 			}
 		}

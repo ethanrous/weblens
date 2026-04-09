@@ -8,6 +8,7 @@ import (
 	"github.com/ethanrous/weblens/models/job"
 	media_model "github.com/ethanrous/weblens/models/media"
 	share_model "github.com/ethanrous/weblens/models/share"
+	"github.com/ethanrous/weblens/models/task"
 	"github.com/ethanrous/weblens/modules/option"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/modules/wlstructs"
@@ -122,6 +123,8 @@ func formatRespondFolderInfo(ctx context_service.RequestContext, dir *file_model
 	childInfos := make([]wlstructs.FileInfo, 0, len(children))
 	infoOpts := reshape.FileInfoOptions{Perms: option.Of(*perms)}
 
+	var scanTask *task.Task
+
 	for _, child := range children {
 		if child == nil {
 			continue
@@ -134,6 +137,15 @@ func formatRespondFolderInfo(ctx context_service.RequestContext, dir *file_model
 
 		if _, exists := mediaMap[child.GetContentID()]; exists {
 			info.HasMedia = true
+		} else if scanTask == nil && !child.IsDir() {
+			ctx.Log().Debug().Msgf("Dispatching scan task for parent folder [%s] since child [%s] has no media but is expected to have one", dir.GetPortablePath(), child.GetPortablePath())
+
+			t, err := ctx.TaskService.DispatchJob(ctx, job.ScanDirectoryTask, job.ScanMeta{File: parent}, nil)
+			if err != nil {
+				ctx.Log().Error().Err(err).Msgf("Failed to dispatch scan task for file [%s]", parent.GetPortablePath())
+			}
+
+			scanTask = t
 		}
 
 		childInfos = append(childInfos, info)

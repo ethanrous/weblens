@@ -11,6 +11,7 @@ import (
 	"github.com/ethanrous/weblens/models/task"
 	"github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlog"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	media_service "github.com/ethanrous/weblens/services/media"
 	"github.com/ethanrous/weblens/services/notify"
@@ -72,7 +73,7 @@ func ScanDirectory(t *task.Task) {
 	})
 
 	t.Log().Debug().Func(func(e *zerolog.Event) {
-		e.Msgf("Beginning directory scan for [%s] (%s)", meta.File.GetPortablePath(), meta.File.ID())
+		e.Msgf("Beginning directory scan for [%s] (%s) - force re-index: %t", meta.File.GetPortablePath(), meta.File.ID(), meta.ForceReIndex)
 	})
 
 	var alreadyFiles []*file_model.WeblensFileImpl
@@ -93,11 +94,12 @@ func ScanDirectory(t *task.Task) {
 		"state":    "Discovering files",
 	})
 
+	// Find all the files in the directory that need to be scanned.
 	err = meta.File.LeafMap(
 		ctx,
 		ctx.FileService,
 		func(mf *file_model.WeblensFileImpl) error {
-			return queueScanFileIfNeeded(ctx, t, mf, cnf.EnableHDIR, &alreadyFiles, &alreadyMedia, pool)
+			return queueScanFileIfNeeded(ctx, t, mf, cnf.EnableHDIR, meta.ForceReIndex, &alreadyFiles, &alreadyMedia, pool)
 		},
 	)
 
@@ -210,7 +212,7 @@ func ScanFileTsk(ctx context_service.AppContext, meta job.ScanMeta) error {
 	}
 
 	existingMedia, err := media_model.GetMediaByContentID(ctx, meta.File.GetContentID())
-	if err == nil && existingMedia.IsSufficentlyProcessed(cnf.EnableHDIR) {
+	if err == nil && !meta.ForceReIndex && existingMedia.IsSufficentlyProcessed(cnf.EnableHDIR) {
 		ctx.Log().Trace().Msgf("Media [%s] already sufficiently processed, skipping", existingMedia.ID())
 
 		if !slices.Contains(existingMedia.FileIDs, meta.File.ID()) {
@@ -221,13 +223,28 @@ func ScanFileTsk(ctx context_service.AppContext, meta job.ScanMeta) error {
 		}
 
 		return nil
+	} else if err == nil && meta.ForceReIndex {
+		// Remove the existing media so we can re-index it fresh
+		ctx.Log().Trace().Msgf("Force re-index enabled, removing existing media [%s] for file [%s]", existingMedia.ID(), meta.File.GetPortablePath())
+
+		err = media_model.DeleteMediaByContentID(ctx, existingMedia.ContentID)
+		if err != nil {
+			return wlerrors.Errorf("failed to delete existing media for re-index: %w", err)
+		}
+
+		err = media_service.PurgeCache(ctx, existingMedia)
+		if err != nil {
+			return wlerrors.Errorf("failed to purge cache for existing media during re-index: %w", err)
+		}
+
+		existingMedia = nil
 	}
 
 	media := existingMedia
 	mediaIsNew := media == nil
 	isCached := false
 
-	if mediaIsNew {
+	if mediaIsNew || meta.ForceReIndex {
 		media, err = media_service.NewMediaFromFile(ctx, meta.File)
 		if err != nil {
 			return err
@@ -271,7 +288,9 @@ func ScanFileTsk(ctx context_service.AppContext, meta job.ScanMeta) error {
 
 	err = media_model.SaveMedia(ctx, media)
 	if err != nil {
-		return err
+		ctx.Log().Debug().Msgf("Failed to save media %s - %s", media.MediaID, media.ID())
+
+		return wlerrors.Errorf("failed to save media: %w", err)
 	}
 
 	mediaInfo := reshape.MediaToMediaInfo(media)
@@ -293,9 +312,11 @@ func ScanFileTsk(ctx context_service.AppContext, meta job.ScanMeta) error {
 func GetScanResult(t *task.Task) task.Result {
 	var tp *task.Pool
 
+	wlog.FromContext(t.Ctx).Trace().CallerSkipFrame(1).Msgf("Getting scan result for task %s", t.ID())
+
 	if t.GetChildTaskPool() != nil {
 		tp = t.GetChildTaskPool().GetRootPool()
-	} else if t.GetTaskPool() != nil {
+	} else if t.GetTaskPool() != nil && t.GetTaskPool().ID() != task.GlobalTaskPoolID { // Global task pool doesn't have meaningful progress info, so we ignore that here
 		tp = t.GetTaskPool().GetRootPool()
 	}
 
@@ -334,7 +355,7 @@ func GetScanResult(t *task.Task) task.Result {
 	return result
 }
 
-func queueScanFileIfNeeded(ctx context_service.AppContext, t *task.Task, mf *file_model.WeblensFileImpl, doHdir bool, alreadyFiles *[]*file_model.WeblensFileImpl, alreadyMedia *[]*media_model.Media, pool *task.Pool) error {
+func queueScanFileIfNeeded(ctx context_service.AppContext, t *task.Task, mf *file_model.WeblensFileImpl, doHdir, forceReIndex bool, alreadyFiles *[]*file_model.WeblensFileImpl, alreadyMedia *[]*media_model.Media, pool *task.Pool) error {
 	if mf.IsDir() {
 		t.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Skipping file %s, not regular file", mf.GetPortablePath()) })
 
@@ -359,7 +380,7 @@ func queueScanFileIfNeeded(ctx context_service.AppContext, t *task.Task, mf *fil
 	}
 
 	m, err := media_model.GetMediaByContentID(ctx, mf.GetContentID())
-	if err == nil && m.IsSufficentlyProcessed(doHdir) {
+	if err == nil && !forceReIndex && m.IsSufficentlyProcessed(doHdir) {
 		if !slices.Contains(m.FileIDs, mf.ID()) {
 			err = m.AddFileToMedia(ctx, mf.ID())
 			if err != nil {
@@ -376,7 +397,8 @@ func queueScanFileIfNeeded(ctx context_service.AppContext, t *task.Task, mf *fil
 	}
 
 	subMeta := job.ScanMeta{
-		File: mf,
+		File:         mf,
+		ForceReIndex: forceReIndex,
 	}
 
 	t.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Dispatching scanFile job for [%s]", mf.GetPortablePath()) })

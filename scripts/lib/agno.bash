@@ -1,10 +1,11 @@
 #!/bin/bash
 
+AGNO_VERSION="v0.0.8"
+
 does_agno_exist() {
     local agno_lib_dir="${WEBLENS_ROOT}/_build/lib"
-    local agno_header_path="$agno_lib_dir/agno.h"
     local agno_lib_path="$agno_lib_dir/libagno.a"
-    if [[ -f "$agno_header_path" ]] && [[ -f "$agno_lib_path" ]]; then
+    if [[ -f "$agno_lib_path" ]]; then
         return 0
     fi
 
@@ -22,33 +23,22 @@ build_agno() {
 
     lib_agno_path="$agno_lib_dir_path/libagno.a"
 
-    # Remove any existing Agno library files before building
-    rm -f "${lib_agno_path}"
+    if [[ ! -e "$lib_agno_path" ]]; then
+        latest_release=$(gh api -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2026-03-10" '/repos/ethanrous/agno/releases?per_page=1' | jq -r '.[0].name')
+        if [[ "$latest_release" != "$AGNO_VERSION" ]]; then
+            orange=$(get_color_code "orange")
+            printf "\e[%sUpdate available: Latest release of agno is $latest_release, but we are loading $AGNO_VERSION. Consider updating AGNO_VERSION in ${BASH_SOURCE[0]} to the latest release.\n\e[0m" "$orange"
+        fi
 
-    export AGNO_FEATURES="gpu,pdf-pdfium"
-
-    if [[ ! -e "$lib_agno_path/libpdfium.a" ]]; then
-        latest_release=$(gh api -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2026-03-10" '/repos/paulocoutinhox/pdfium-lib/releases?per_page=1' | jq -r '.[0].name')
-        curl https://github.com/paulocoutinhox/pdfium-lib/releases/download/"$latest_release"/macos.tgz -L -o /tmp/pdfium.tgz
-        tar -xzf /tmp/pdfium.tgz -C /tmp
-        mkdir -p "$agno_lib_dir_path"
-        mv /tmp/release/lib/libpdfium.a "$agno_lib_dir_path/libpdfium.a"
+        curl https://github.com/ethanrous/agno/releases/download/"${AGNO_VERSION}"/libagno-macos-aarch64-gpu.a -L -o "$lib_agno_path"
     fi
 
-    pushd agno >/dev/null || return 1
-    show_as_subtask "Building Agno to $lib_agno_path" "orange" -- "${WEBLENS_ROOT}/agno/build/sh/build-agno.bash" "$lib_agno_path"
-    cp ./lib/agno.h "$agno_lib_dir_path" || return 1
-    popd >/dev/null || return 1
-
-    # Export CGO variables for subsequent Go builds.
-    # AGNO_LIB_DIR overrides the default library path.
-    local lib_dir="${AGNO_LIB_DIR:-$agno_lib_dir_path}"
-    export CGO_CFLAGS="-I${WEBLENS_ROOT}/agno/lib"
-    export CGO_LDFLAGS="-L${lib_dir} -lagno -lstdc++ -lm"
+    setup_agno_cgo
 }
 export -f build_agno
 
 setup_agno_cgo() {
+    echo "Setting up CGO flags for AGNO..."
     local lib_dir="${AGNO_LIB_DIR:-${WEBLENS_ROOT}/_build/lib}"
     export CGO_CFLAGS="-I${WEBLENS_ROOT}/agno/lib"
     export CGO_LDFLAGS="-L${lib_dir} -lagno -lstdc++ -lm"

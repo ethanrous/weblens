@@ -13,6 +13,10 @@ func HandleCacheCreation(ctx context_service.AppContext, m *media_model.Media, f
 	mType := GetMediaType(m)
 
 	if !mType.IsVideo {
+		if mType.IsMultiPage() {
+			return handleMultiPageCache(ctx, m, file)
+		}
+
 		img, err := loadImageFromFile(file, mType)
 		if err != nil {
 			return nil, err
@@ -24,30 +28,15 @@ func HandleCacheCreation(ctx context_service.AppContext, m *media_model.Media, f
 
 		// Read image dimensions
 		m.Width, m.Height = img.Dimensions()
-		ctx.Log().Debug().Msgf("Loaded image dimensions for %s: %dx%d (pages: %d)", file.GetPortablePath(), m.Width, m.Height, m.PageCount)
-
-		if mType.IsMultiPage() {
-			return nil, wlerrors.New("multi-page media not yet supported")
-		}
 
 		img, err = handleNewHighRes(ctx, m, img, 0)
 		if err != nil {
 			return nil, err
 		}
 
-		// Resize thumb image if too big
-		if m.Width > ThumbMaxSize || m.Height > ThumbMaxSize {
-			var thumbHeight uint
-			if m.Width > m.Height {
-				thumbHeight = uint(float64(ThumbMaxSize) / float64(m.Width) * float64(m.Height))
-			} else {
-				thumbHeight = ThumbMaxSize
-			}
-
-			img, err = img.Resize(float64(thumbHeight) / float64(m.Height))
-			if err != nil {
-				return nil, wlerrors.WithStack(err)
-			}
+		img, err = resizeToFit(img, ThumbMaxSize)
+		if err != nil {
+			return nil, wlerrors.WithStack(err)
 		}
 
 		// Create and write thumb cache file
@@ -84,38 +73,113 @@ func HandleCacheCreation(ctx context_service.AppContext, m *media_model.Media, f
 	return thumbBytes, nil
 }
 
-func handleNewHighRes(ctx context_service.AppContext, m *media_model.Media, img *agno.Image, page int) (*agno.Image, error) {
-	// Resize highres image if too big
-	if m.Width > HighresMaxSize || m.Height > HighresMaxSize {
-		var fullHeight int
-		if m.Width > m.Height {
-			fullHeight = int(float64(HighresMaxSize) * float64(m.Height) / float64(m.Width))
-		} else {
-			fullHeight = HighresMaxSize
+// handleMultiPageCache creates cache files for all pages of a multi-page document (e.g., PDF).
+// High-res WebP files are created for every page. The thumbnail is generated from page 0.
+func handleMultiPageCache(ctx context_service.AppContext, m *media_model.Media, file *file_model.WeblensFileImpl) ([]byte, error) {
+	filePath := file.GetPortablePath().ToAbsolute()
+
+	img, err := agno.OpenPage(filePath, 0, 0, 0)
+	if err != nil {
+		return nil, wlerrors.Errorf("failed to load page 0 of %s: %w", file.GetPortablePath(), err)
+	}
+
+	defer func() {
+		if img != nil {
+			img.Close() //nolint:errcheck
+		}
+	}()
+
+	m.Width, m.Height = img.Dimensions()
+	m.PageCount = img.PageCount()
+
+	ctx.Log().Debug().Msgf(
+		"Loaded multi-page media %s: %dx%d (%d pages)",
+		file.GetPortablePath(), m.Width, m.Height, m.PageCount,
+	)
+
+	img, err = handleNewHighRes(ctx, m, img, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	img, err = resizeToFit(img, ThumbMaxSize)
+	if err != nil {
+		return nil, wlerrors.WithStack(err)
+	}
+
+	thumb, err := ctx.FileService.NewCacheFile(m.ID(), string(media_model.LowRes), 0)
+	if err != nil && !wlerrors.Is(err, file_model.ErrFileAlreadyExists) {
+		return nil, wlerrors.WithStack(err)
+	} else if err == nil {
+		err = img.WriteWebP(thumb.GetPortablePath().ToAbsolute())
+		if err != nil {
+			return nil, err
 		}
 
-		var err error
+		m.SetLowresCacheFile(thumb)
+	}
 
-		img, err = img.Resize(float64(fullHeight) / float64(m.Height))
+	img.Close() //nolint:errcheck
+	img = nil
+
+	for page := 1; page < m.PageCount; page++ {
+		pageImg, err := agno.OpenPage(filePath, page, 0, 0)
 		if err != nil {
-			return nil, wlerrors.WithStack(err)
+			return nil, wlerrors.Errorf("failed to load page %d of %s: %w", page, file.GetPortablePath(), err)
+		}
+
+		resultImg, err := handleNewHighRes(ctx, m, pageImg, page)
+		if resultImg != nil {
+			resultImg.Close() //nolint:errcheck
+		}
+
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	// Create and write highres cache file
+	return nil, nil
+}
+
+func handleNewHighRes(ctx context_service.AppContext, m *media_model.Media, img *agno.Image, page int) (*agno.Image, error) {
+	var err error
+
+	img, err = resizeToFit(img, HighresMaxSize)
+	if err != nil {
+		return nil, wlerrors.WithStack(err)
+	}
+
 	highres, err := ctx.FileService.NewCacheFile(m.ID(), string(media_model.HighRes), page)
 	if err != nil && !wlerrors.Is(err, file_model.ErrFileAlreadyExists) {
-		return nil, err
+		return img, err
 	} else if err == nil {
 		err = img.WriteWebP(highres.GetPortablePath().ToAbsolute())
 		if err != nil {
-			return nil, err
+			return img, err
 		}
 
 		m.SetHighresCacheFiles(highres, page)
 	}
 
 	return img, nil
+}
+
+// resizeToFit scales img so its largest dimension fits within maxSize, preserving aspect ratio.
+// Returns the original img unchanged if it already fits. The receiver is consumed if resizing occurs.
+func resizeToFit(img *agno.Image, maxSize int) (*agno.Image, error) {
+	w, h := img.Dimensions()
+	if w <= maxSize && h <= maxSize {
+		return img, nil
+	}
+
+	var targetH int
+	if w > h {
+		targetH = int(float64(maxSize) * float64(h) / float64(w))
+	} else {
+		targetH = maxSize
+	}
+
+	return img.Resize(float64(targetH) / float64(h))
 }
 
 func getCacheFile(ctx context_service.AppContext, m *media_model.Media, quality media_model.Quality, pageNum int) (*file_model.WeblensFileImpl, error) {

@@ -418,3 +418,138 @@ func TestAddFileToMedia(t *testing.T) {
 		assert.Contains(t, m.GetFiles(), "f2")
 	})
 }
+
+func TestFmtCacheFileName(t *testing.T) {
+	tests := []struct {
+		name     string
+		mediaID  string
+		quality  media.Quality
+		pageNum  int
+		expected string
+	}{
+		{
+			name:     "single page thumbnail",
+			mediaID:  "abc123",
+			quality:  media.LowRes,
+			pageNum:  0,
+			expected: "abc123-thumbnail.webp",
+		},
+		{
+			name:     "single page fullres",
+			mediaID:  "abc123",
+			quality:  media.HighRes,
+			pageNum:  0,
+			expected: "abc123-fullres.webp",
+		},
+		{
+			name:     "multi-page fullres page 1",
+			mediaID:  "abc123",
+			quality:  media.HighRes,
+			pageNum:  1,
+			expected: "abc123-fullres_1.webp",
+		},
+		{
+			name:     "multi-page fullres page 2",
+			mediaID:  "abc123",
+			quality:  media.HighRes,
+			pageNum:  2,
+			expected: "abc123-fullres_2.webp",
+		},
+		{
+			name:     "thumbnail ignores page number",
+			mediaID:  "abc123",
+			quality:  media.LowRes,
+			pageNum:  5,
+			expected: "abc123-thumbnail.webp",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := media.FmtCacheFileName(tt.mediaID, tt.quality, tt.pageNum)
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+func TestParseCacheFileName(t *testing.T) {
+	tests := []struct {
+		name        string
+		filename    string
+		wantID      string
+		wantQuality media.Quality
+		wantPage    int
+	}{
+		{
+			name:        "thumbnail",
+			filename:    "abc123-thumbnail.webp",
+			wantID:      "abc123",
+			wantQuality: media.LowRes,
+			wantPage:    0,
+		},
+		{
+			name:        "fullres no page",
+			filename:    "abc123-fullres.webp",
+			wantID:      "abc123",
+			wantQuality: media.HighRes,
+			wantPage:    0,
+		},
+		{
+			name:        "fullres page 1",
+			filename:    "abc123-fullres_1.webp",
+			wantID:      "abc123",
+			wantQuality: media.HighRes,
+			wantPage:    1,
+		},
+		{
+			name:        "fullres page 2",
+			filename:    "abc123-fullres_2.webp",
+			wantID:      "abc123",
+			wantQuality: media.HighRes,
+			wantPage:    2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotID, gotQ, gotPage, err := media.ParseCacheFileName(tt.filename)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantID, gotID)
+			assert.Equal(t, tt.wantQuality, gotQ)
+			assert.Equal(t, tt.wantPage, gotPage)
+		})
+	}
+}
+
+func TestCacheFileNameRoundTrip(t *testing.T) {
+	cases := []struct {
+		quality media.Quality
+		page    int
+	}{
+		{media.LowRes, 0},
+		{media.HighRes, 0},
+		{media.HighRes, 1},
+		{media.HighRes, 5},
+	}
+
+	for _, c := range cases {
+		name := fmt.Sprintf("%s_page%d", c.quality, c.page)
+		t.Run(name, func(t *testing.T) {
+			filename, err := media.FmtCacheFileName("test-id", c.quality, c.page)
+			require.NoError(t, err)
+
+			gotID, gotQ, gotPage, err := media.ParseCacheFileName(filename)
+			require.NoError(t, err)
+			assert.Equal(t, "test-id", gotID)
+			assert.Equal(t, c.quality, gotQ)
+
+			// LowRes always parses page as 0 (no page suffix)
+			if c.quality == media.HighRes {
+				assert.Equal(t, c.page, gotPage)
+			} else {
+				assert.Equal(t, 0, gotPage)
+			}
+		})
+	}
+}

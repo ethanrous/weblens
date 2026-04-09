@@ -36,6 +36,7 @@ type TaskDispatcher interface {
 type ScanMeta struct {
 	File         *file_model.WeblensFileImpl
 	PartialMedia *media_model.Media
+	ForceReIndex bool
 
 	FileBytes []byte
 }
@@ -43,8 +44,9 @@ type ScanMeta struct {
 // MetaString returns a JSON string representation of the scan metadata.
 func (m ScanMeta) MetaString() string {
 	data := map[string]any{
-		"JobName": ScanFileTask,
-		"FileIds": m.File.ID(),
+		"JobName":      ScanFileTask,
+		"FileIds":      m.File.ID(),
+		"ForceReIndex": m.ForceReIndex,
 	}
 
 	bs, err := json.Marshal(data)
@@ -329,42 +331,6 @@ func (m BackupMeta) Verify() error {
 		return wlerrors.New("no core id in backup metadata")
 	}
 
-	return nil
-}
-
-// HashFileMeta holds metadata for file hashing tasks.
-type HashFileMeta struct {
-	File *file_model.WeblensFileImpl
-}
-
-// MetaString returns a JSON string representation of the hash metadata.
-func (m HashFileMeta) MetaString() string {
-	data := map[string]any{
-		"JobName": HashFileTask,
-		"fileID":  m.File.ID(),
-	}
-
-	bs, err := json.Marshal(data)
-	if err != nil {
-		err = wlerrors.WithStack(err)
-		log.Error().Stack().Err(err).Msg("Could not marshal hasher metadata")
-	}
-
-	return string(bs)
-}
-
-// FormatToResult converts the hash metadata to a task result.
-func (m HashFileMeta) FormatToResult() task.Result {
-	return task.Result{}
-}
-
-// JobName returns the job name for file hashing tasks.
-func (m HashFileMeta) JobName() string {
-	return HashFileTask
-}
-
-// Verify checks that the hash metadata contains all required fields.
-func (m HashFileMeta) Verify() error {
 	return nil
 }
 
