@@ -147,5 +147,5 @@ jobs:
         run: |
           sudo systemctl restart docker
 
-          ./scripts/gogogadgetdocker.bash -s -t devel
+          ./scripts/gogogadgetdocker.bash -s -t devel -a amd64
           exit $?
