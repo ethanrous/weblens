@@ -114,6 +114,7 @@ export WEBLENS_HDIR_URI="http://127.0.0.1:5500"
 export WEBLENS_DATA_PATH="$file_path/data"
 export WEBLENS_CACHE_PATH="$file_path/cache"
 export WEBLENS_UI_PATH=./weblens-vue/weblens-nuxt/.output/public
+export WEBLENS_STATIC_CONTENT_PATH="$WEBLENS_ROOT/public"
 export WEBLENS_LOG_FORMAT="${WEBLENS_LOG_FORMAT:-dev}"
 export WEBLENS_DO_CACHE="${WEBLENS_DO_CACHE:-true}"
 export WEBLENS_DO_PROFILING="${WEBLENS_DO_PROFILING:-true}"
