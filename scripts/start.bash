@@ -102,7 +102,7 @@ if [[ "$skip_build" != true ]] && ! does_agno_exist; then
     build_agno
 fi
 
-WEBLENS_LOG_LEVEL="${WEBLENS_LOG_LEVEL:-debug}"
+export WEBLENS_LOG_LEVEL="${WEBLENS_LOG_LEVEL:-debug}"
 
 file_path="$WEBLENS_ROOT/_build/fs/$tower_role"
 if [[ "$sub_stack_group" != "" ]]; then
@@ -113,6 +113,7 @@ export WEBLENS_MONGODB_URI="mongodb://127.0.0.1:$mongo_port/?directConnection=tr
 export WEBLENS_HDIR_URI="http://127.0.0.1:5500"
 export WEBLENS_DATA_PATH="$file_path/data"
 export WEBLENS_CACHE_PATH="$file_path/cache"
+export WEBLENS_UI_PATH=./weblens-vue/weblens-nuxt/.output/public
 export WEBLENS_LOG_FORMAT="${WEBLENS_LOG_FORMAT:-dev}"
 export WEBLENS_DO_CACHE="${WEBLENS_DO_CACHE:-true}"
 export WEBLENS_DO_PROFILING="${WEBLENS_DO_PROFILING:-true}"

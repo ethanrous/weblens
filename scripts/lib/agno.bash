@@ -1,6 +1,6 @@
 #!/bin/bash
 
-AGNO_VERSION="v0.0.8"
+AGNO_VERSION="v0.0.10"
 
 does_agno_exist() {
     local agno_lib_dir="${WEBLENS_ROOT}/_build/lib"

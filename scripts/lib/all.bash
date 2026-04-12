@@ -20,6 +20,8 @@ WEBLENS_QUIET=${WEBLENS_QUIET:-false}
 
 LIB_DIR="$WEBLENS_ROOT/scripts/lib"
 
+export NUXT_TELEMETRY_DISABLED=1
+
 source "$LIB_DIR/meta.bash"
 source "$LIB_DIR/build.bash"
 source "$LIB_DIR/mongo.bash"

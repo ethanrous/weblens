@@ -329,9 +329,8 @@ func GetScanResult(t *task.Task) task.Result {
 			"fileID":       meta.File.ID(),
 		}
 
-		createdIn := tp.CreatedInTask()
-		if tp != nil && createdIn != nil {
-			result["taskJobTarget"] = createdIn.GetMeta().(job.ScanMeta).File.GetPortablePath()
+		if tp != nil && tp.CreatedInTask() != nil {
+			result["taskJobTarget"] = tp.CreatedInTask().GetMeta().(job.ScanMeta).File.GetPortablePath()
 		} else if tp == nil {
 			result["taskJobTarget"] = meta.File.GetPortablePath()
 		}
