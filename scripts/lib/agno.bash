@@ -30,7 +30,21 @@ build_agno() {
             printf "\e[%sUpdate available: Latest release of agno is $latest_release, but we are loading $AGNO_VERSION. Consider updating AGNO_VERSION in ${BASH_SOURCE[0]} to the latest release.\n\e[0m" "$orange"
         fi
 
-        curl https://github.com/ethanrous/agno/releases/download/"${AGNO_VERSION}"/libagno-macos-aarch64-gpu.a -L -o "$lib_agno_path"
+        local arch=$(uname -m)
+        local platform="macos"
+        
+        if [[ "$(uname)" == "Linux" ]]; then
+            platform="linux"
+        fi
+        
+        if [[ "$arch" == "aarch64" ]] || [[ "$arch" == "arm64" ]]; then
+            arch_suffix="-aarch64-gpu"
+        else
+            arch_suffix="-x86_64-gpu"
+        fi
+
+        curl "https://github.com/ethanrous/agno/releases/download/${AGNO_VERSION}/libagno-${platform}${arch_suffix}.a" -L -o "$lib_agno_path"
+        ranlib "$lib_agno_path"
     fi
 
     setup_agno_cgo
