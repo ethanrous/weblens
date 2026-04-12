@@ -54,3 +54,30 @@ func TestCoverPhoto_CRUD(t *testing.T) {
 	err = cover.DeleteCoverByFolderID(ctx, "nonexistent-folder")
 	require.Error(t, err)
 }
+
+func TestGetCoversByFolderIDs(t *testing.T) {
+	ctx := db.SetupTestDB(t, cover.CoverPhotoCollectionKey)
+
+	// Set up covers for multiple folders
+	_, err := cover.SetCoverPhoto(ctx, "folder-a", "photo-a")
+	require.NoError(t, err)
+	_, err = cover.SetCoverPhoto(ctx, "folder-b", "photo-b")
+	require.NoError(t, err)
+
+	// Batch fetch including a folder with no cover
+	covers, err := cover.GetCoversByFolderIDs(ctx, "folder-a", "folder-b", "folder-c")
+	require.NoError(t, err)
+	require.Len(t, covers, 2)
+
+	coverMap := make(map[string]string)
+	for _, c := range covers {
+		coverMap[c.FolderID] = c.CoverPhotoID
+	}
+	require.Equal(t, "photo-a", coverMap["folder-a"])
+	require.Equal(t, "photo-b", coverMap["folder-b"])
+
+	// Empty input returns empty result
+	covers, err = cover.GetCoversByFolderIDs(ctx)
+	require.NoError(t, err)
+	require.Empty(t, covers)
+}
