@@ -261,7 +261,8 @@ func handleScanDirectory(ctx context_service.RequestContext, msg websocket_mod.W
 	}
 
 	meta := job.ScanMeta{
-		File: folder,
+		File:         folder,
+		ForceReIndex: true,
 	}
 
 	var jobName string

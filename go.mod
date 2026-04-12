@@ -3,6 +3,7 @@ module github.com/ethanrous/weblens
 go 1.26
 
 require (
+	github.com/ethanrous/agno/bindings/go/agno v0.0.10
 	github.com/ethanrous/weblens/api v0.0.0
 	github.com/go-chi/chi/v5 v5.2.0
 	github.com/golang-jwt/jwt/v5 v5.2.1

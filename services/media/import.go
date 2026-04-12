@@ -3,12 +3,12 @@ package media
 import (
 	"time"
 
+	"github.com/ethanrous/agno/bindings/go/agno"
 	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/modules/wlog"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
-	"github.com/ethanrous/weblens/services/media/agno"
 )
 
 func newMedia(ctx context_service.AppContext, f *file_model.WeblensFileImpl) (*media_model.Media, error) {
@@ -28,7 +28,7 @@ func newMedia(ctx context_service.AppContext, f *file_model.WeblensFileImpl) (*m
 
 // NewMediaFromFile creates a new Media object from a file by extracting metadata from EXIF data.
 func NewMediaFromFile(ctx context_service.AppContext, f *file_model.WeblensFileImpl) (m *media_model.Media, err error) {
-	img, err := agno.ImageByFilepath(f.GetPortablePath().ToAbsolute())
+	img, err := agno.Open(f.GetPortablePath().ToAbsolute())
 	if err != nil {
 		return nil, err
 	}
@@ -57,14 +57,14 @@ func NewMediaFromFile(ctx context_service.AppContext, f *file_model.WeblensFileI
 		m.MimeType = mType.Mime
 
 		if media_model.ParseMime(m.MimeType).IsVideo {
-			width, err := agno.GetExifValue[int](img, agno.ImageWidth)
+			width, err := agno.ExifValue[int](img, agno.ImageWidth)
 			if err != nil {
 				return nil, err
 			}
 
 			m.Width = width
 
-			height, err := agno.GetExifValue[int](img, agno.ImageHeight)
+			height, err := agno.ExifValue[int](img, agno.ImageHeight)
 			if err != nil {
 				return nil, err
 			}
@@ -81,7 +81,7 @@ func NewMediaFromFile(ctx context_service.AppContext, f *file_model.WeblensFileI
 	}
 
 	if m.Location[0] == 0 && m.Location[1] == 0 {
-		loc, err := agno.GetGPSCoordinates(img)
+		loc, err := img.GPSCoordinates()
 		if err != nil {
 			ctx.Log().Warn().Msgf("failed to get GPS coordinates from EXIF for file %s: %v", f.ID(), err)
 		} else {
@@ -94,14 +94,7 @@ func NewMediaFromFile(ctx context_service.AppContext, f *file_model.WeblensFileI
 		return nil, media_model.ErrMediaBadMimeType
 	}
 
-	// TODO: get page count from EXIF
-	// if mType.IsMultiPage() {
-	// 	m.PageCount = int(fileMetas[0].Fields["PageCount"].(float64))
-	// } else {
-	// 	m.PageCount = 1
-	// }
-
-	m.PageCount = 1
+	m.PageCount = img.PageCount()
 
 	return m, nil
 }
@@ -109,7 +102,7 @@ func NewMediaFromFile(ctx context_service.AppContext, f *file_model.WeblensFileI
 func loadImageFromFile(f *file_model.WeblensFileImpl, _ media_model.MType) (*agno.Image, error) {
 	filePath := f.GetPortablePath().ToAbsolute()
 
-	img, err := agno.ImageByFilepath(filePath)
+	img, err := agno.Open(filePath)
 	if err != nil {
 		return nil, err
 	}
@@ -118,13 +111,13 @@ func loadImageFromFile(f *file_model.WeblensFileImpl, _ media_model.MType) (*agn
 }
 
 func getCreateDateFromExif(img *agno.Image, file *file_model.WeblensFileImpl) (createDate time.Time, err error) {
-	r, err := agno.GetExifValue[string](img, agno.CreateDate)
+	r, err := agno.ExifValue[string](img, agno.CreateDate)
 	if err != nil {
-		r, err = agno.GetExifValue[string](img, agno.DateTimeOriginal)
+		r, err = agno.ExifValue[string](img, agno.DateTimeOriginal)
 	}
 
 	if err != nil {
-		r, err = agno.GetExifValue[string](img, agno.ModifyDate)
+		r, err = agno.ExifValue[string](img, agno.ModifyDate)
 	}
 
 	if err != nil {
@@ -133,7 +126,7 @@ func getCreateDateFromExif(img *agno.Image, file *file_model.WeblensFileImpl) (c
 		return file.ModTime(), nil
 	}
 
-	offset, _ := agno.GetExifValue[string](img, agno.OffsetTime)
+	offset, _ := agno.ExifValue[string](img, agno.OffsetTime)
 
 	dateFormats := []string{
 		"2006:01:02 15:04:05.000-07:00",
@@ -146,16 +139,12 @@ func getCreateDateFromExif(img *agno.Image, file *file_model.WeblensFileImpl) (c
 	for _, format := range dateFormats {
 		createDate, err = time.Parse(format, r)
 		if err == nil {
-			wlog.GlobalLogger().Debug().Msgf("Got date TIME from EXIF for file %s: %s", file.ID(), createDate)
-
 			return createDate, nil
 		}
 
 		if offset != "" {
 			createDate, err = time.Parse(format, r+offset)
 			if err == nil {
-				wlog.GlobalLogger().Debug().Msgf("Got date TIME from EXIF for file %s: %s", file.ID(), createDate)
-
 				return createDate, nil
 			}
 		}

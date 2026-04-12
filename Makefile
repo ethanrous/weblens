@@ -58,11 +58,11 @@ lint\:fix:
 
 
 # Publish the full docker image
-container: FORCE
+image: FORCE
 	./scripts/gogogadgetdocker.bash --push --skip-tests --arch amd64
 
 # Test docker image build (same as above but without pushing to registry)
-container-test: FORCE
+image-test: FORCE
 	./scripts/gogogadgetdocker.bash --skip-tests --arch amd64
 
 precommit: lint test-server test-ui

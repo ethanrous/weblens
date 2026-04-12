@@ -21,6 +21,7 @@ skip_tests=false
 
 usage="TODO"
 dockerfile="Dockerfile"
+extras=""
 
 while [ "${1:-}" != "" ]; do
     case "$1" in
@@ -46,6 +47,10 @@ while [ "${1:-}" != "" ]; do
     "-d" | "--dockerfile")
         shift
         dockerfile=$1
+        ;;
+    "--extras")
+        shift
+        extras=$1
         ;;
     *)
         echo "Unknown argument: $1"
@@ -94,7 +99,7 @@ echo "Weblens build version: $WEBLENS_BUILD_VERSION"
 printf "Building Weblens container..."
 
 dockerc rmi "$full_tag" &>/dev/null
-if ! dockerc build --platform "linux/$arch" -t "$full_tag" --build-arg WEBLENS_BUILD_VERSION="$WEBLENS_BUILD_VERSION" --build-arg ARCHITECTURE="$arch" -f "./docker/$dockerfile" .; then
+if ! dockerc build --platform "linux/$arch" -t "$full_tag" --build-arg WEBLENS_BUILD_VERSION="$WEBLENS_BUILD_VERSION" --build-arg ARCHITECTURE="$arch" $extras -f "./docker/$dockerfile" .; then
     printf "Container build failed\n"
     exit 1
 fi

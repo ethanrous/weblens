@@ -14,7 +14,7 @@ import (
 func (fs *ServiceImpl) GetMediaCacheByFilename(_ context.Context, thumbFileName string) (*file_model.WeblensFileImpl, error) {
 	f := file_model.NewWeblensFile(file_model.NewFileOptions{Path: file_model.ThumbsDirPath.Child(thumbFileName, false)})
 	if !f.Exists() {
-		return nil, wlerrors.WithStack(file_model.ErrFileNotFound)
+		return nil, wlerrors.Wrapf(wlerrors.WithStack(file_model.ErrFileNotFound), "failed to get cache file with filename: %s", thumbFileName)
 	}
 
 	return f, nil

@@ -86,6 +86,11 @@ def encodeText():
     return jsonify({"text_features": text_features.cpu().numpy().tolist()[0]})
 
 
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok"})
+
+
 if __name__ == "__main__":
     port = 5500
     if "--port" in sys.argv:

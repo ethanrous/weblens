@@ -251,17 +251,11 @@ async function goHome() {
 
 async function goToSettings() {
     if (locationStore.isInSettings) {
-        return goHome()
+        goHome()
+        return
     }
 
-    locationStore.returnTo = useRouter().currentRoute.value.fullPath
-
-    return navigateTo('/settings/account')
+    locationStore.returnTo = route.fullPath
+    navigateTo('/settings/account')
 }
-
-onMounted(() => {
-    if (userStore.loggedIn && tagsStore.tagsList.length === 0) {
-        tagsStore.fetchTags()
-    }
-})
 </script>

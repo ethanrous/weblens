@@ -44,14 +44,22 @@ build_weblens_binary() {
         return
     fi
 
-    export CGO_CFLAGS='-g -O0'
+    setup_agno_cgo
+
+    export CGO_CFLAGS="${CGO_CFLAGS:-} -g -O0"
     export CGO_CXXFLAGS='-g -O0'
-    export CGO_LDFLAGS='-g'
+    export CGO_LDFLAGS="${CGO_LDFLAGS:-} -g"
     export CGO_ENABLED=1
 
     rm -f "$debug_bin"
 
-    go build -v -gcflags=all="-N -l" -ldflags=-compressdwarf=false -o "$debug_bin" ./cmd/weblens/main.go 2>&1
+    local go_tags="${GO_BUILD_TAGS:-}"
+    local tags_flag=""
+    if [[ -n "$go_tags" ]]; then
+        tags_flag="-tags=${go_tags}"
+    fi
+
+    go build -v ${tags_flag} -gcflags=all="-N -l" -ldflags=-compressdwarf=false -o "$debug_bin" ./cmd/weblens/main.go 2>&1
 }
 export -f build_weblens_binary
 

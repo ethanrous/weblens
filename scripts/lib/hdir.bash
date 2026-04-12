@@ -53,11 +53,26 @@ launch_hdir() {
 
         dockerc run --rm -d --name weblens-hdir --publish 5500:5500 -v "${WEBLENS_ROOT}/_build/fs/core/cache/:/images" -v "${WEBLENS_ROOT}/_build/hdir/model-cache/:/root/.cache/huggingface" --network weblens-net ethrous/weblens_hdir
     else
-        echo "Launching HDIR in development mode. ${WEBLENS_ROOT}/hdir"
+        mkdir -p ${WEBLENS_ROOT}/_build/logs
+        touch ${WEBLENS_ROOT}/_build/logs/hdir.log
+
+        echo "Launching HDIR in development mode"
         (
-            cd "${WEBLENS_ROOT}/hdir" || return 1
+            cd "${WEBLENS_ROOT}/hdir" || exit 1
             uv run open.main.py
         ) >"${WEBLENS_ROOT}/_build/logs/hdir.log" 2>&1 &
+
+        echo "Waiting for HDIR server to become ready..."
+        for i in $(seq 1 60); do
+            if curl -s http://localhost:5500/health > /dev/null 2>&1; then
+                echo "HDIR development server launched. Logs are being written to ${WEBLENS_ROOT}/_build/logs/hdir.log"
+                return 0
+            fi
+            sleep 1
+        done
+
+        echo "Failed to launch HDIR development server within timeout. Check logs for details: ${WEBLENS_ROOT}/_build/logs/hdir.log"
+        return 1
     fi
 }
 export -f launch_hdir

@@ -443,7 +443,7 @@ func (wp *WorkerPool) execWorker(workerCtx context.Context, isReplacement bool) 
 			}
 
 			remainingWorkers := wp.currentWorkers.Add(-1)
-			wlog.FromContext(workerCtx).Debug().Int64("remaining_workers_count", remainingWorkers).Msgf("worker exiting")
+			wlog.FromContext(workerCtx).Trace().Int64("remaining_workers_count", remainingWorkers).Msgf("worker exiting")
 		}()
 
 		// WorkLoop:

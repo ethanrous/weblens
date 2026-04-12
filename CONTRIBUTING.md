@@ -3,11 +3,22 @@
 Weblens aims to eventually be feature-full and rock-solid stable, but it is still early in development (the term "beta" may be pushing it), so it is likely to have bugs or missing features. Bug reports, feature suggestions, and pull requests are all welcome and encouraged here on GitHub 
 
 ## Development Setup
-Weblens should only require docker to get up and running with a dev environment. Inside the container, all dependencies are installed, and the code is mounted in a volume, so you can edit the code on your host machine and see the changes immediately, both frontend and backend.
 
-You can run the dev environment with:
+
+### Dependencies:
+Currently development is best tested on MacOS using homebrew:
 ```bash
-make dev # or `make dev-s` for https with self-signed certs
+brew install gh
+brew install --cask docker
+brew install node
+brew install pnpm
+brew install go-air
+```
+However, we're not doing anything particularly special for setup here, though, so I bet this would work just fine on a Linux machine as well. Development on Windows is not currently supported, but I also believe it should work fine with WSL.
+
+Once you have everything installed, you can run the dev environment with:
+```bash
+make dev 
 ```
 
 On the first run, this will build the docker image, install all dependencies, build the server and client, and then start the container, this can take a couple minutes. The container will run the api server on port 8080, and a HMR server for the frontend on port 3000. You can access the web server at `https://local.weblens.io:3000`.
