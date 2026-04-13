@@ -7,7 +7,7 @@
         >
             <template #media="props">
                 <PresentationMediaContent
-                    v-if="locationStore.isInTimeline || presentingFile?.contentID"
+                    v-if="!presentingFile?.IsFolder() && (locationStore.isInTimeline || presentingFile?.contentID)"
                     :media-id="mediaID"
                     :presentation-size="props.presentationSize"
                 />
@@ -18,9 +18,11 @@
                         'flex h-full w-full min-w-max flex-col items-center justify-center': true,
                     }"
                 >
-                    <IconFolder
-                        size="18rem"
-                        stroke="1"
+                    <FolderImageIcon
+                        :class="{ 'm-0! max-h-1/2': true }"
+                        :file="presentingFile"
+                        :media="media"
+                        :quality="PhotoQuality.HighRes"
                     />
 
                     <h1>{{ presentingFile.GetFilename() }}</h1>
@@ -86,6 +88,8 @@ import useLocationStore from '~/stores/location'
 import useWebsocketStore from '~/stores/websocket'
 import { IconCalendar, IconDatabase, IconFolder, IconHash } from '@tabler/icons-vue'
 import PresentationMediaInfo from '~/components/molecule/PresentationMediaInfo.vue'
+import FolderImageIcon from '~/components/atom/FolderImageIcon.vue'
+import { PhotoQuality } from '~/types/weblensMedia'
 
 const wsStore = useWebsocketStore()
 const locationStore = useLocationStore()
@@ -99,6 +103,12 @@ const presentingFile = computed(() => {
 
 const mediaID = computed(() => {
     return locationStore.isInTimeline ? presentationStore.presentationMediaID : (presentingFile.value?.contentID ?? '')
+})
+
+const media = computed(() => {
+    if (!mediaID.value) return
+
+    return mediaStore.mediaMap.get(mediaID.value) ?? undefined
 })
 
 const presentationNextFn = computed(() => {

@@ -45,8 +45,13 @@
             @context-menu="handleContextMenu"
         >
             <template #file-visual>
+                <FolderImageIcon
+                    v-if="file.IsFolder()"
+                    :file="file"
+                    :media="media"
+                />
                 <MediaImage
-                    v-if="file.contentID"
+                    v-else-if="file.contentID"
                     :class="{ 'animate-fade-in': true }"
                     :media="media"
                     :quality="PhotoQuality.LowRes"
@@ -77,6 +82,7 @@ import { moveFiles } from '~/api/FileBrowserApi'
 import type { coordinates } from '~/types/style'
 import FileRow from './FileRow.vue'
 import useLocationStore from '~/stores/location'
+import FolderImageIcon from '../atom/FolderImageIcon.vue'
 
 const filesStore = useFilesStore()
 const presentationStore = usePresentationStore()

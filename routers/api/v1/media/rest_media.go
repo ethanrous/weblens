@@ -776,8 +776,7 @@ func getProcessedMedia(ctx ctxservice.RequestContext, q media_model.Quality, for
 	}
 
 	mt := media_model.ParseMime(m.MimeType)
-
-	if format == "pdf" && q == media_model.HighRes && mt.IsMultiPage() {
+	if q == media_model.HighRes && mt.IsMultiPage() && slices.Contains([]string{"pdf", "gif"}, format) {
 		f, err := ctx.FileService.GetFileByContentID(ctx, m.ContentID)
 		if err != nil {
 			ctx.Error(http.StatusNotFound, err)
@@ -785,17 +784,16 @@ func getProcessedMedia(ctx ctxservice.RequestContext, q media_model.Quality, for
 			return
 		}
 
-		pdfBytes, err := f.ReadAll()
+		multiPageBytes, err := f.ReadAll()
 		if err != nil {
 			ctx.Error(http.StatusInternalServerError, err)
 
 			return
 		}
 
-		_, err = ctx.Write(pdfBytes)
-		if err != nil {
-			ctx.Error(http.StatusInternalServerError, err)
-		}
+		ctx.SetHeader("Cache-Control", "max-age=3600")
+		ctx.SetHeader("Content-Type", "image/"+format)
+		ctx.Bytes(http.StatusOK, multiPageBytes)
 
 		return
 	}

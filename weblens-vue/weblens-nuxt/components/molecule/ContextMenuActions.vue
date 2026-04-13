@@ -64,6 +64,16 @@
         </WeblensButton>
 
         <WeblensButton
+            v-if="canSetAsCover"
+            label="Set as Cover"
+            fill-width
+            :disabled="!canSetAsCover"
+            @click.stop="emit('setCover')"
+        >
+            <IconPhoto />
+        </WeblensButton>
+
+        <WeblensButton
             v-if="targetIsActiveFolder"
             label="Scan Folder"
             fill-width
@@ -119,6 +129,17 @@
         </WeblensButton>
 
         <WeblensButton
+            v-if="canRemoveCover"
+            label="Remove Cover"
+            fill-width
+            flavor="danger"
+            :disabled="!canRemoveCover || isRemovingCover"
+            @click.stop="handleRemoveCover"
+        >
+            <IconPhotoOff />
+        </WeblensButton>
+
+        <WeblensButton
             :label="deleteText"
             fill-width
             flavor="danger"
@@ -137,6 +158,8 @@ import {
     IconHistoryToggle,
     IconInfoCircle,
     IconPencil,
+    IconPhoto,
+    IconPhotoOff,
     IconPhotoScan,
     IconRestore,
     IconSearch,
@@ -161,10 +184,26 @@ const userStore = useUserStore()
 const websocketStore = useWebsocketStore()
 
 const downloadTaskID = ref<string>()
+const isRemovingCover = ref(false)
 
 const emit = defineEmits<{
-    (e: 'createFolder' | 'renameFile' | 'shareFile' | 'tagFiles'): void
+    (e: 'createFolder' | 'renameFile' | 'shareFile' | 'tagFiles' | 'setCover'): void
 }>()
+
+async function handleRemoveCover() {
+    if (!props.targetFile) return
+
+    isRemovingCover.value = true
+
+    try {
+        await useWeblensAPI().FoldersAPI.removeFolderCover(props.targetFile.id)
+        menuStore.setMenuOpen(false)
+    } catch (error) {
+        console.error('Error removing cover:', error)
+    } finally {
+        isRemovingCover.value = false
+    }
+}
 
 const props = defineProps<{
     targetFile?: WeblensFile
@@ -187,6 +226,30 @@ const canModifyTarget = computed(() => {
 
 const canModifyParent = computed(() => {
     return filesStore.activeFile?.modifiable && !locationStore.isViewingPast
+})
+
+const canSetAsCover = computed(() => {
+    if (multipleSelected.value) {
+        return false
+    }
+
+    if (!props.targetFile || props.targetFile.IsFolder()) {
+        return false
+    }
+
+    return props.targetFile.hasMedia && props.targetFile.contentID !== ''
+})
+
+const canRemoveCover = computed(() => {
+    if (multipleSelected.value) {
+        return false
+    }
+
+    if (!props.targetFile || !props.targetFile.IsFolder()) {
+        return false
+    }
+
+    return props.targetFile.contentID !== ''
 })
 
 const multipleSelected = computed(() => {

@@ -7,6 +7,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 |[**createFolder**](#createfolder) | **POST** /folder | Create a new folder|
 |[**getFolder**](#getfolder) | **GET** /folder/{folderID} | Get a folder|
 |[**getFolderHistory**](#getfolderhistory) | **GET** /files/{fileID}/history | Get actions of a folder at a given time|
+|[**removeFolderCover**](#removefoldercover) | **DELETE** /folder/{folderID}/cover | Remove the cover image of a folder|
 |[**scanFolder**](#scanfolder) | **POST** /folder/{folderID}/scan | Dispatch a folder scan|
 |[**setFolderCover**](#setfoldercover) | **PATCH** /folder/{folderID}/cover | Set the cover image of a folder|
 
@@ -174,6 +175,59 @@ No authorization required
 |-------------|-------------|------------------|
 |**200** | File actions |  -  |
 |**400** | Bad Request |  -  |
+|**500** | Internal Server Error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **removeFolderCover**
+> removeFolderCover()
+
+
+### Example
+
+```typescript
+import {
+    FolderApi,
+    Configuration
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new FolderApi(configuration);
+
+let folderID: string; //Folder ID (default to undefined)
+
+const { status, data } = await apiInstance.removeFolderCover(
+    folderID
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **folderID** | [**string**] | Folder ID | defaults to undefined|
+
+
+### Return type
+
+void (empty response body)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: Not defined
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | OK |  -  |
+|**400** | Bad Request |  -  |
+|**404** | Not Found |  -  |
 |**500** | Internal Server Error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

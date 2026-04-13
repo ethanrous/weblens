@@ -22,6 +22,7 @@
             @rename-file="menuStore.setMenuMode('rename')"
             @share-file="menuStore.setSharing(true)"
             @tag-files="menuStore.setMenuMode('tags')"
+            @set-cover="handleSetCoverClick"
         />
 
         <TagSelector
@@ -43,6 +44,13 @@
     />
 
     <MoveFilesModal v-if="selectedFiles && menuStore.menuMode === 'move'" />
+
+    <FolderPickerModal
+        v-if="showFolderPicker"
+        :visible="showFolderPicker"
+        @close="showFolderPicker = false"
+        @select="handleSelectFolder"
+    />
 </template>
 
 <script setup lang="ts">
@@ -57,6 +65,7 @@ import ShareModal from './ShareModal.vue'
 import { useWeblensAPI } from '~/api/AllApi'
 import type WeblensFile from '~/types/weblensFile'
 import MoveFilesModal from './MoveFilesModal.vue'
+import FolderPickerModal from './FolderPickerModal.vue'
 
 const filesStore = useFilesStore()
 const menuStore = useContextMenuStore()
@@ -136,6 +145,28 @@ async function handleNameFile(newName: string) {
 onMounted(() => {
     container.value = document.getElementById('filebrowser-container')
 })
+
+const showFolderPicker = ref(false)
+const coverTargetFile = ref<WeblensFile>()
+
+function handleSetCoverClick() {
+    coverTargetFile.value = targetFile.value
+    menuStore.setMenuOpen(false)
+    showFolderPicker.value = true
+}
+
+async function handleSelectFolder(folderID: string) {
+    if (!coverTargetFile.value || !folderID) return
+
+    try {
+        await useWeblensAPI().FoldersAPI.setFolderCover(folderID, coverTargetFile.value.contentID)
+    } catch (error) {
+        console.error('Error setting cover:', error)
+    } finally {
+        showFolderPicker.value = false
+        coverTargetFile.value = undefined
+    }
+}
 </script>
 
 <style>
@@ -147,12 +178,10 @@ onMounted(() => {
     height: max-content;
     width: max-content;
     border-radius: 0.375rem; /* rounded */
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-border-primary);
     padding: calc(var(--spacing) * 2);
     transition: height 0.1s var(--ease-wl-default);
     transition-property: height, top, left, opacity;
-
-    border: 1px solid var(--color-border-primary);
     z-index: 90;
     isolation: isolate;
 

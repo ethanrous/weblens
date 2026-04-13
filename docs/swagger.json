@@ -842,6 +842,41 @@
             }
         },
         "/folder/{folderID}/cover": {
+            "delete": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "tags": [
+                    "Folder"
+                ],
+                "summary": "Remove the cover image of a folder",
+                "operationId": "RemoveFolderCover",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Folder ID",
+                        "name": "folderID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            },
             "patch": {
                 "security": [
                     {

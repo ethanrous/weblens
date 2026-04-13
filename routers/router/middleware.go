@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	media_model "github.com/ethanrous/weblens/models/media"
 	share_model "github.com/ethanrous/weblens/models/share"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/usermodel"
@@ -56,6 +57,31 @@ func RequireSignIn(next Handler) Handler {
 
 			return
 		}
+
+		next.ServeHTTP(ctx)
+	})
+}
+
+// RequirePermissionsMedia returns a middleware that ensures the requester has permissions to access the media before proceeding.
+func RequirePermissionsMedia(next Handler) Handler {
+	return HandlerFunc(func(ctx context_service.RequestContext) {
+		mediaID := ctx.Path("mediaID")
+		media, err := media_model.GetMediaByContentID(ctx, mediaID)
+		if err != nil {
+			ctx.Error(http.StatusNotFound, wlerrors.Wrap(err, "failed to get media"))
+
+			return
+		}
+
+		if len(media.FileIDs) == 0 {
+			ctx.Error(http.StatusNotFound, wlerrors.New("media has no associated files"))
+
+			return
+		}
+
+		fileID := media.FileIDs[0] // Assuming the first file ID is the primary one for permission checks
+		file, err := ctx.FileService.GetFileByID(ctx, fileID)
+		auth_service.CanUserAccessFile(ctx, ctx.Requester, file, ctx.Share, share_model.SharePermissionView)
 
 		next.ServeHTTP(ctx)
 	})

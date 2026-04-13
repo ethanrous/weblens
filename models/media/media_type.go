@@ -29,7 +29,8 @@ const MediaTypeJSON = `{
         "IsDisplayable": true,
         "IsRaw": false,
         "IsVideo": false,
-        "SupportsImgRecog": false
+        "SupportsImgRecog": true,
+        "MultiPage": true
     },
     "image/jpeg": {
         "FriendlyName": "Jpeg",

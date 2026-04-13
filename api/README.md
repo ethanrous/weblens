@@ -104,6 +104,7 @@ Class | Method | HTTP request | Description
 *FolderAPI* | [**CreateFolder**](docs/FolderAPI.md#createfolder) | **Post** /folder | Create a new folder
 *FolderAPI* | [**GetFolder**](docs/FolderAPI.md#getfolder) | **Get** /folder/{folderID} | Get a folder
 *FolderAPI* | [**GetFolderHistory**](docs/FolderAPI.md#getfolderhistory) | **Get** /files/{fileID}/history | Get actions of a folder at a given time
+*FolderAPI* | [**RemoveFolderCover**](docs/FolderAPI.md#removefoldercover) | **Delete** /folder/{folderID}/cover | Remove the cover image of a folder
 *FolderAPI* | [**ScanFolder**](docs/FolderAPI.md#scanfolder) | **Post** /folder/{folderID}/scan | Dispatch a folder scan
 *FolderAPI* | [**SetFolderCover**](docs/FolderAPI.md#setfoldercover) | **Patch** /folder/{folderID}/cover | Set the cover image of a folder
 *MediaAPI* | [**CleanupMedia**](docs/MediaAPI.md#cleanupmedia) | **Post** /media/cleanup | Make sure all media is correctly synced with the file system

@@ -7,6 +7,7 @@ Method | HTTP request | Description
 [**CreateFolder**](FolderAPI.md#CreateFolder) | **Post** /folder | Create a new folder
 [**GetFolder**](FolderAPI.md#GetFolder) | **Get** /folder/{folderID} | Get a folder
 [**GetFolderHistory**](FolderAPI.md#GetFolderHistory) | **Get** /files/{fileID}/history | Get actions of a folder at a given time
+[**RemoveFolderCover**](FolderAPI.md#RemoveFolderCover) | **Delete** /folder/{folderID}/cover | Remove the cover image of a folder
 [**ScanFolder**](FolderAPI.md#ScanFolder) | **Post** /folder/{folderID}/scan | Dispatch a folder scan
 [**SetFolderCover**](FolderAPI.md#SetFolderCover) | **Patch** /folder/{folderID}/cover | Set the cover image of a folder
 
@@ -216,6 +217,72 @@ No authorization required
 
 - **Content-Type**: Not defined
 - **Accept**: */*
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
+[[Back to Model list]](../README.md#documentation-for-models)
+[[Back to README]](../README.md)
+
+
+## RemoveFolderCover
+
+> RemoveFolderCover(ctx, folderID).Execute()
+
+Remove the cover image of a folder
+
+### Example
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	openapiclient "github.com/ethanrous/weblens/api"
+)
+
+func main() {
+	folderID := "folderID_example" // string | Folder ID
+
+	configuration := openapiclient.NewConfiguration()
+	apiClient := openapiclient.NewAPIClient(configuration)
+	r, err := apiClient.FolderAPI.RemoveFolderCover(context.Background(), folderID).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `FolderAPI.RemoveFolderCover``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+}
+```
+
+### Path Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+**ctx** | **context.Context** | context for authentication, logging, cancellation, deadlines, tracing, etc.
+**folderID** | **string** | Folder ID | 
+
+### Other Parameters
+
+Other parameters are passed through a pointer to a apiRemoveFolderCoverRequest struct via the builder pattern
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+
+
+### Return type
+
+ (empty response body)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: Not defined
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
 [[Back to Model list]](../README.md#documentation-for-models)

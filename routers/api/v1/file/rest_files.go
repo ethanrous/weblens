@@ -599,7 +599,7 @@ func CreateFolder(ctx context_service.RequestContext) {
 //	@Summary	Set the cover image of a folder
 //	@Tags		Folder
 //	@Param		folderID	path	string	true	"Folder ID"
-//	@Param		mediaID		query	string	true	"Media ID"
+//	@Param		contentID	query	string	true	"Content ID of the media to use as cover"
 //	@Success	200
 //	@Failure	400
 //	@Failure	404
@@ -611,13 +611,17 @@ func SetFolderCover(ctx context_service.RequestContext) {
 		return
 	}
 
-	mediaID := ctx.Query("mediaID")
+	if !folder.IsDir() {
+		ctx.Error(http.StatusBadRequest, wlerrors.Errorf("file is not a folder"))
 
-	media, err := media_model.GetMediaByContentID(ctx, mediaID)
+		return
+	}
+
+	contentID := ctx.Query("contentID")
+
+	media, err := media_model.GetMediaByContentID(ctx, contentID)
 	if err != nil {
 		if wlerrors.Is(err, media_model.ErrMediaNotFound) {
-			// If the media doesn't exist, we can still set the cover to an empty state
-			// This allows us to remove the cover if needed
 			ctx.Error(http.StatusBadRequest, err)
 
 			return
@@ -638,6 +642,62 @@ func SetFolderCover(ctx context_service.RequestContext) {
 	fInfo, err := reshape.WeblensFileToFileInfo(ctx, folder)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
+
+		return
+	}
+
+	notif := notify.NewFileNotification(
+		ctx,
+		fInfo,
+		websocket.FileUpdatedEvent,
+		notify.FileNotificationOptions{MediaInfo: reshape.MediaToMediaInfo(media)},
+	)
+	ctx.Notify(ctx, notif...)
+
+	ctx.Status(http.StatusOK)
+}
+
+// RemoveFolderCover godoc
+//
+//	@ID			RemoveFolderCover
+//
+//	@Security	SessionAuth
+//
+//	@Summary	Remove the cover image of a folder
+//	@Tags		Folder
+//	@Param		folderID	path	string	true	"Folder ID"
+//	@Success	200
+//	@Failure	400
+//	@Failure	404
+//	@Failure	500
+//	@Router	/folder/{folderID}/cover [delete]
+func RemoveFolderCover(ctx context_service.RequestContext) {
+	f, err := checkFileAccess(ctx)
+	if err != nil {
+		return
+	}
+
+	if !f.IsDir() {
+		ctx.Error(http.StatusBadRequest, wlerrors.Errorf("file is not a folder"))
+
+		return
+	}
+
+	if err := cover_model.DeleteCoverByFolderID(ctx, f.ID()); err != nil {
+		if db.IsNotFound(err) {
+			ctx.Status(http.StatusNoContent)
+
+			return
+		}
+
+		ctx.Error(http.StatusInternalServerError, wlerrors.Errorf("failed to remove folder cover: %w", err))
+
+		return
+	}
+
+	fInfo, err := reshape.WeblensFileToFileInfo(ctx.AppContext, f, reshape.FileInfoOptions{})
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, wlerrors.Errorf("failed to get file info: %w", err))
 
 		return
 	}
@@ -843,6 +903,7 @@ func ClearZipCache(ctx context_service.RequestContext) {
 
 // AutocompletePath godoc
 //
+//
 //	@ID			AutocompletePath
 //
 //	@Security	SessionAuth
@@ -861,16 +922,16 @@ func AutocompletePath(ctx context_service.RequestContext) {
 		return
 	}
 
+	lastSlashI := strings.LastIndex(searchPath, "/")
+	childName := searchPath[lastSlashI+1:]
+	searchPath = searchPath[:lastSlashI] + "/"
+
 	filepath, err := wlfs.ParsePortable(searchPath)
 	if err != nil {
 		ctx.Error(http.StatusBadRequest, err)
 
 		return
 	}
-
-	lastSlashI := strings.LastIndex(searchPath, "/")
-	childName := searchPath[lastSlashI+1:]
-	searchPath = searchPath[:lastSlashI] + "/"
 
 	folder, err := ctx.FileService.GetFileByFilepath(ctx, filepath)
 	if err != nil {
@@ -886,43 +947,61 @@ func AutocompletePath(ctx context_service.RequestContext) {
 	}
 
 	children := folder.GetChildren()
-	if folder.GetParent().ID() == "ROOT" {
-		trashIndex := wlslices.IndexFunc(children, func(f *file_model.WeblensFileImpl) bool {
-			return f.ID() == ctx.Requester.TrashID
-		})
+	trashIndex := wlslices.IndexFunc(children, func(f *file_model.WeblensFileImpl) bool {
+		return f.ID() == ctx.Requester.TrashID
+	})
+	if trashIndex >= 0 {
 		children = wlslices.Delete(children, trashIndex, trashIndex+1)
 	}
 
-	filenames := make([]string, 0, len(children))
-	for _, child := range children {
-		filenames = append(filenames, child.GetPortablePath().Filename())
-	}
+	childInfos := make([]wlstructs.FileInfo, 0, len(children))
 
-	matches := fuzzy.RankFindFold(childName, filenames)
-	wlslices.SortFunc(
-		matches, func(a, b fuzzy.Rank) int {
-			diff := a.Distance - b.Distance
-			if diff == 0 {
-				return strings.Compare(a.Target, b.Target)
+	if childName == "" {
+		// Empty search term: return all children sorted alphabetically
+		wlslices.SortFunc(children, func(a, b *file_model.WeblensFileImpl) int {
+			return strings.Compare(a.GetPortablePath().Filename(), b.GetPortablePath().Filename())
+		})
+
+		for _, child := range children {
+			childInfo, err := reshape.WeblensFileToFileInfo(ctx.AppContext, child)
+			if err != nil {
+				ctx.Error(http.StatusInternalServerError, wlerrors.New("failed to convert file to FileInfo"))
+
+				return
 			}
 
-			return diff
-		},
-	)
-
-	childInfos := make([]wlstructs.FileInfo, 0, len(matches))
-
-	for _, match := range matches {
-		f := children[match.OriginalIndex]
-
-		childInfo, err := reshape.WeblensFileToFileInfo(ctx.AppContext, f)
-		if err != nil {
-			ctx.Error(http.StatusInternalServerError, wlerrors.New("failed to convert file to FileInfo"))
-
-			return
+			childInfos = append(childInfos, childInfo)
+		}
+	} else {
+		filenames := make([]string, 0, len(children))
+		for _, child := range children {
+			filenames = append(filenames, child.GetPortablePath().Filename())
 		}
 
-		childInfos = append(childInfos, childInfo)
+		matches := fuzzy.RankFindFold(childName, filenames)
+		wlslices.SortFunc(
+			matches, func(a, b fuzzy.Rank) int {
+				diff := a.Distance - b.Distance
+				if diff == 0 {
+					return strings.Compare(a.Target, b.Target)
+				}
+
+				return diff
+			},
+		)
+
+		for _, match := range matches {
+			f := children[match.OriginalIndex]
+
+			childInfo, err := reshape.WeblensFileToFileInfo(ctx.AppContext, f)
+			if err != nil {
+				ctx.Error(http.StatusInternalServerError, wlerrors.New("failed to convert file to FileInfo"))
+
+				return
+			}
+
+			childInfos = append(childInfos, childInfo)
+		}
 	}
 
 	selfInfo, err := reshape.WeblensFileToFileInfo(ctx.AppContext, folder)
@@ -1540,25 +1619,12 @@ func getChildMedias(
 	ctx context_service.RequestContext,
 	children []*file_model.WeblensFileImpl,
 ) ([]*media_model.Media, error) {
-	regFileIDs := make([]string, 0, len(children)) // Regular file IDs to lookup directly in media collection
-	dirFileIDs := make([]string, 0)                // Directory file IDs that require cover lookup
+	regFileIDs := make([]string, 0, len(children))
+	dirIDs := make([]string, 0)
 
 	for _, child := range children {
 		if child.IsDir() {
-			// cover, err := cover_model.GetCoverByFolderID(ctx, child.ID())
-			//
-			// if db.IsNotFound(err) {
-			// 	// No cover for this folder, skip it
-			// 	continue
-			// } else if err != nil {
-			// 	ctx.Log().Error().Stack().Err(err).Msgf("failed to get child media")
-			//
-			// 	continue
-			// }
-			//
-			// child.SetContentID(cover.CoverPhotoID)
-			//
-			dirFileIDs = append(dirFileIDs, child.ID())
+			dirIDs = append(dirIDs, child.ID())
 		} else {
 			regFileIDs = append(regFileIDs, child.ID())
 		}
@@ -1567,6 +1633,27 @@ func getChildMedias(
 	medias, err := media_model.GetMediasByFileIDs(ctx, regFileIDs...)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(dirIDs) > 0 {
+		covers, err := cover_model.GetCoversByFolderIDs(ctx, dirIDs...)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(covers) > 0 {
+			coverContentIDs := make([]media_model.ContentID, 0, len(covers))
+			for _, c := range covers {
+				coverContentIDs = append(coverContentIDs, c.CoverPhotoID)
+			}
+
+			coverMedias, err := media_model.GetMediasByContentIDs(ctx, coverContentIDs...)
+			if err != nil {
+				return nil, err
+			}
+
+			medias = append(medias, coverMedias...)
+		}
 	}
 
 	return medias, nil

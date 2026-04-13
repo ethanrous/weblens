@@ -1848,6 +1848,32 @@ var FolderApiAxiosParamCreator = function(configuration) {
     },
     /**
      * 
+     * @summary Remove the cover image of a folder
+     * @param {string} folderID Folder ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    removeFolderCover: async (folderID, options = {}) => {
+      assertParamExists("removeFolderCover", "folderID", folderID);
+      const localVarPath = `/folder/{folderID}/cover`.replace(`{${"folderID"}}`, encodeURIComponent(String(folderID)));
+      const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+      let baseOptions;
+      if (configuration) {
+        baseOptions = configuration.baseOptions;
+      }
+      const localVarRequestOptions = __spreadValues(__spreadValues({ method: "DELETE" }, baseOptions), options);
+      const localVarHeaderParameter = {};
+      const localVarQueryParameter = {};
+      setSearchParams(localVarUrlObj, localVarQueryParameter);
+      let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+      localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
+      return {
+        url: toPathString(localVarUrlObj),
+        options: localVarRequestOptions
+      };
+    },
+    /**
+     * 
      * @summary Dispatch a folder scan
      * @param {string} folderID Folder ID
      * @param {string} [shareID] Share ID
@@ -1962,6 +1988,20 @@ var FolderApiFp = function(configuration) {
     },
     /**
      * 
+     * @summary Remove the cover image of a folder
+     * @param {string} folderID Folder ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    async removeFolderCover(folderID, options) {
+      var _a, _b, _c;
+      const localVarAxiosArgs = await localVarAxiosParamCreator.removeFolderCover(folderID, options);
+      const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
+      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["FolderApi.removeFolderCover"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
+      return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+    },
+    /**
+     * 
      * @summary Dispatch a folder scan
      * @param {string} folderID Folder ID
      * @param {string} [shareID] Share ID
@@ -2032,6 +2072,16 @@ var FolderApiFactory = function(configuration, basePath, axios) {
     },
     /**
      * 
+     * @summary Remove the cover image of a folder
+     * @param {string} folderID Folder ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    removeFolderCover(folderID, options) {
+      return localVarFp.removeFolderCover(folderID, options).then((request) => request(axios, basePath));
+    },
+    /**
+     * 
      * @summary Dispatch a folder scan
      * @param {string} folderID Folder ID
      * @param {string} [shareID] Share ID
@@ -2089,6 +2139,16 @@ var FolderApi = class extends BaseAPI {
    */
   getFolderHistory(fileID, options) {
     return FolderApiFp(this.configuration).getFolderHistory(fileID, options).then((request) => request(this.axios, this.basePath));
+  }
+  /**
+   * 
+   * @summary Remove the cover image of a folder
+   * @param {string} folderID Folder ID
+   * @param {*} [options] Override http request option.
+   * @throws {RequiredError}
+   */
+  removeFolderCover(folderID, options) {
+    return FolderApiFp(this.configuration).removeFolderCover(folderID, options).then((request) => request(this.axios, this.basePath));
   }
   /**
    * 

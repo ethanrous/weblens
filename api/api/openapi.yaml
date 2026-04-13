@@ -599,6 +599,33 @@ paths:
       tags:
       - Folder
   /folder/{folderID}/cover:
+    delete:
+      operationId: RemoveFolderCover
+      parameters:
+      - description: Folder ID
+        in: path
+        name: folderID
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "400":
+          content: {}
+          description: Bad Request
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Remove the cover image of a folder
+      tags:
+      - Folder
     patch:
       operationId: SetFolderCover
       parameters:

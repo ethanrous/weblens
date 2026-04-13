@@ -53,14 +53,19 @@ func getIndexFields(ctx ctxservice.RequestContext, proxyAddress string) (fields 
 			// TODO: consider sending file name in private shares. An option, perhaps?
 			fields.Title = f.GetPortablePath().Filename() + " - Weblens"
 
+			shareType := "file"
+			if f.IsDir() {
+				shareType = "folder"
+			}
+
 			if !share.IsPublic() {
-				fields.Description = "Weblens private file share. Sign in with your weblens account to view"
+				fields.Description = fmt.Sprintf("Weblens %s share. Sign in to view", shareType)
 				fields.Image = "/static/favicon_48x48.png"
 
 				return fields
 			}
 
-			fields.Description = "Weblens file share"
+			fields.Description = fmt.Sprintf("Weblens %s share", shareType)
 
 			var m *media_model.Media
 

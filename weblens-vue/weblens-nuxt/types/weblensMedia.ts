@@ -1,6 +1,8 @@
 import type { MediaInfo, MediaTypeInfo } from '@ethanrous/weblens-api'
 import type { AxiosError, AxiosResponse } from 'axios'
 import { API_ENDPOINT, useWeblensAPI } from '~/api/AllApi'
+import useFilesStore from '~/stores/files'
+import useLocationStore from '~/stores/location'
 
 export enum PhotoQuality {
     LowRes = 'thumbnail',
@@ -145,11 +147,20 @@ class WeblensMedia implements MediaInfo {
 
     public ImgUrl(quality: PhotoQuality = PhotoQuality.LowRes): string {
         let format = 'webp'
-        if (this.mimeType === 'application/pdf' && quality === PhotoQuality.HighRes) {
-            format = 'pdf'
+        if (quality === PhotoQuality.HighRes) {
+            if (this.mimeType === 'application/pdf') {
+                format = 'pdf'
+            } else if (this.mimeType === 'image/gif') {
+                format = 'gif'
+            }
         }
 
-        return `${API_ENDPOINT.value}/media/${this.contentID}.${format}?quality=${quality}&page=0`
+        let url = `${API_ENDPOINT.value}/media/${this.contentID}.${format}?quality=${quality}&page=0`
+        if (useLocationStore().activeShareID) {
+            url += `&shareID=${useLocationStore().activeShareID}`
+        }
+
+        return url
     }
 
     public MediaUrl(): string {

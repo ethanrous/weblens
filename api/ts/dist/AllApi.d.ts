@@ -1,5 +1,5 @@
 import * as axios from 'axios';
-import { AxiosInstance, RawAxiosRequestConfig, AxiosPromise } from 'axios';
+import { RawAxiosRequestConfig, AxiosInstance, AxiosPromise } from 'axios';
 
 /**
  * Weblens API
@@ -1439,6 +1439,14 @@ declare const FolderApiAxiosParamCreator: (configuration?: Configuration) => {
     getFolderHistory: (fileID: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
+     * @summary Remove the cover image of a folder
+     * @param {string} folderID Folder ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    removeFolderCover: (folderID: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    /**
+     *
      * @summary Dispatch a folder scan
      * @param {string} folderID Folder ID
      * @param {string} [shareID] Share ID
@@ -1489,6 +1497,14 @@ declare const FolderApiFp: (configuration?: Configuration) => {
      * @throws {RequiredError}
      */
     getFolderHistory(fileID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<FileActionInfo>>>;
+    /**
+     *
+     * @summary Remove the cover image of a folder
+     * @param {string} folderID Folder ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    removeFolderCover(folderID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
     /**
      *
      * @summary Dispatch a folder scan
@@ -1543,6 +1559,14 @@ declare const FolderApiFactory: (configuration?: Configuration, basePath?: strin
     getFolderHistory(fileID: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<FileActionInfo>>;
     /**
      *
+     * @summary Remove the cover image of a folder
+     * @param {string} folderID Folder ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    removeFolderCover(folderID: string, options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    /**
+     *
      * @summary Dispatch a folder scan
      * @param {string} folderID Folder ID
      * @param {string} [shareID] Share ID
@@ -1593,6 +1617,14 @@ declare class FolderApi extends BaseAPI {
      * @throws {RequiredError}
      */
     getFolderHistory(fileID: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FileActionInfo[], any, {}>>;
+    /**
+     *
+     * @summary Remove the cover image of a folder
+     * @param {string} folderID Folder ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    removeFolderCover(folderID: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any, {}>>;
     /**
      *
      * @summary Dispatch a folder scan
