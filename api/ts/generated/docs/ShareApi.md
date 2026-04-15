@@ -9,7 +9,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 |[**deleteFileShare**](#deletefileshare) | **DELETE** /share/{shareID} | Delete a file share|
 |[**getFileShare**](#getfileshare) | **GET** /share/{shareID} | Get a file share|
 |[**removeUserFromShare**](#removeuserfromshare) | **DELETE** /share/{shareID}/accessors/{username} | Remove a user from a file share|
-|[**setSharePublic**](#setsharepublic) | **PATCH** /share/{shareID}/public | Update a share\&#39;s \&quot;public\&quot; status|
+|[**updateFileShare**](#updatefileshare) | **PATCH** /share/{shareID} | Update a file share|
 |[**updateShareAccessorPermissions**](#updateshareaccessorpermissions) | **PATCH** /share/{shareID}/accessors/{username} | Update a share\&#39;s user permissions|
 
 # **addUserToShare**
@@ -275,8 +275,8 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **setSharePublic**
-> setSharePublic()
+# **updateFileShare**
+> ShareInfo updateFileShare(request)
 
 
 ### Example
@@ -284,18 +284,19 @@ No authorization required
 ```typescript
 import {
     ShareApi,
-    Configuration
+    Configuration,
+    FileShareParams
 } from './api';
 
 const configuration = new Configuration();
 const apiInstance = new ShareApi(configuration);
 
 let shareID: string; //Share ID (default to undefined)
-let _public: boolean; //Share Public Status (default to undefined)
+let request: FileShareParams; //Updated File Share Params
 
-const { status, data } = await apiInstance.setSharePublic(
+const { status, data } = await apiInstance.updateFileShare(
     shareID,
-    _public
+    request
 );
 ```
 
@@ -303,13 +304,13 @@ const { status, data } = await apiInstance.setSharePublic(
 
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
+| **request** | **FileShareParams**| Updated File Share Params | |
 | **shareID** | [**string**] | Share ID | defaults to undefined|
-| **_public** | [**boolean**] | Share Public Status | defaults to undefined|
 
 
 ### Return type
 
-void (empty response body)
+**ShareInfo**
 
 ### Authorization
 
@@ -318,14 +319,14 @@ No authorization required
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: Not defined
+ - **Accept**: application/json
 
 
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-|**200** | OK |  -  |
-|**404** | Not Found |  -  |
+|**200** | Updated File Share |  -  |
+|**409** | Conflict |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

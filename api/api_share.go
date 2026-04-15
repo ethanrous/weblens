@@ -541,32 +541,32 @@ func (a *ShareAPIService) RemoveUserFromShareExecute(r ApiRemoveUserFromShareReq
 	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
-type ApiSetSharePublicRequest struct {
+type ApiUpdateFileShareRequest struct {
 	ctx context.Context
 	ApiService *ShareAPIService
 	shareID string
-	public *bool
+	request *FileShareParams
 }
 
-// Share Public Status
-func (r ApiSetSharePublicRequest) Public(public bool) ApiSetSharePublicRequest {
-	r.public = &public
+// Updated File Share Params
+func (r ApiUpdateFileShareRequest) Request(request FileShareParams) ApiUpdateFileShareRequest {
+	r.request = &request
 	return r
 }
 
-func (r ApiSetSharePublicRequest) Execute() (*http.Response, error) {
-	return r.ApiService.SetSharePublicExecute(r)
+func (r ApiUpdateFileShareRequest) Execute() (*ShareInfo, *http.Response, error) {
+	return r.ApiService.UpdateFileShareExecute(r)
 }
 
 /*
-SetSharePublic Update a share's \"public\" status
+UpdateFileShare Update a file share
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @param shareID Share ID
- @return ApiSetSharePublicRequest
+ @return ApiUpdateFileShareRequest
 */
-func (a *ShareAPIService) SetSharePublic(ctx context.Context, shareID string) ApiSetSharePublicRequest {
-	return ApiSetSharePublicRequest{
+func (a *ShareAPIService) UpdateFileShare(ctx context.Context, shareID string) ApiUpdateFileShareRequest {
+	return ApiUpdateFileShareRequest{
 		ApiService: a,
 		ctx: ctx,
 		shareID: shareID,
@@ -574,29 +574,30 @@ func (a *ShareAPIService) SetSharePublic(ctx context.Context, shareID string) Ap
 }
 
 // Execute executes the request
-func (a *ShareAPIService) SetSharePublicExecute(r ApiSetSharePublicRequest) (*http.Response, error) {
+//  @return ShareInfo
+func (a *ShareAPIService) UpdateFileShareExecute(r ApiUpdateFileShareRequest) (*ShareInfo, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodPatch
 		localVarPostBody     interface{}
 		formFiles            []formFile
+		localVarReturnValue  *ShareInfo
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ShareAPIService.SetSharePublic")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ShareAPIService.UpdateFileShare")
 	if err != nil {
-		return nil, &GenericOpenAPIError{error: err.Error()}
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/share/{shareID}/public"
+	localVarPath := localBasePath + "/share/{shareID}"
 	localVarPath = strings.Replace(localVarPath, "{"+"shareID"+"}", url.PathEscape(parameterValueToString(r.shareID, "shareID")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
-	if r.public == nil {
-		return nil, reportError("public is required and must be specified")
+	if r.request == nil {
+		return localVarReturnValue, nil, reportError("request is required and must be specified")
 	}
 
-	parameterAddToHeaderOrQuery(localVarQueryParams, "public", r.public, "", "")
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 
@@ -607,28 +608,30 @@ func (a *ShareAPIService) SetSharePublicExecute(r ApiSetSharePublicRequest) (*ht
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{}
+	localVarHTTPHeaderAccepts := []string{"application/json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
 	if localVarHTTPHeaderAccept != "" {
 		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
 	}
+	// body params
+	localVarPostBody = r.request
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
-		return nil, err
+		return localVarReturnValue, nil, err
 	}
 
 	localVarHTTPResponse, err := a.client.callAPI(req)
 	if err != nil || localVarHTTPResponse == nil {
-		return localVarHTTPResponse, err
+		return localVarReturnValue, localVarHTTPResponse, err
 	}
 
 	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
 	localVarHTTPResponse.Body.Close()
 	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
 	if err != nil {
-		return localVarHTTPResponse, err
+		return localVarReturnValue, localVarHTTPResponse, err
 	}
 
 	if localVarHTTPResponse.StatusCode >= 300 {
@@ -636,10 +639,19 @@ func (a *ShareAPIService) SetSharePublicExecute(r ApiSetSharePublicRequest) (*ht
 			body:  localVarBody,
 			error: localVarHTTPResponse.Status,
 		}
-		return localVarHTTPResponse, newErr
+		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
 
-	return localVarHTTPResponse, nil
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
 }
 
 type ApiUpdateShareAccessorPermissionsRequest struct {

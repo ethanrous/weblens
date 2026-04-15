@@ -1341,9 +1341,9 @@ paths:
         name: folderID
         required: true
         type: string
-      - description: Media ID
+      - description: Content ID of the media to use as cover
         in: query
-        name: mediaID
+        name: contentID
         required: true
         type: string
       responses:
@@ -1586,6 +1586,10 @@ paths:
         in: query
         name: page
         type: integer
+      - description: Share ID
+        in: query
+        name: shareID
+        type: string
       produces:
       - image/*
       responses:
@@ -1870,6 +1874,32 @@ paths:
       summary: Get a file share
       tags:
       - Share
+    patch:
+      operationId: UpdateFileShare
+      parameters:
+      - description: Share ID
+        in: path
+        name: shareID
+        required: true
+        type: string
+      - description: Updated File Share Params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/FileShareParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated File Share
+          schema:
+            $ref: '#/definitions/ShareInfo'
+        "409":
+          description: Conflict
+      summary: Update a file share
+      tags:
+      - Share
   /share/{shareID}/accessors:
     post:
       operationId: AddUserToShare
@@ -1952,30 +1982,6 @@ paths:
         "404":
           description: Not Found
       summary: Update a share's user permissions
-      tags:
-      - Share
-  /share/{shareID}/public:
-    patch:
-      operationId: SetSharePublic
-      parameters:
-      - description: Share ID
-        in: path
-        name: shareID
-        required: true
-        type: string
-      - description: Share Public Status
-        in: query
-        name: public
-        required: true
-        type: boolean
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-        "404":
-          description: Not Found
-      summary: Update a share's "public" status
       tags:
       - Share
   /share/file:
@@ -2674,6 +2680,11 @@ paths:
       - description: Share ID
         in: query
         name: shareID
+        type: string
+      - description: Content range of the chunk
+        in: header
+        name: Content-Range
+        required: true
         type: string
       - description: File chunk
         in: formData

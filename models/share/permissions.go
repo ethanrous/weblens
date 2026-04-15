@@ -6,6 +6,8 @@ import "github.com/ethanrous/weblens/modules/wlog"
 type Permission string
 
 const (
+	// SharePermissionViewMedia allows read access to the media content of the file share, if applicable.
+	SharePermissionViewMedia Permission = "viewMedia"
 	// SharePermissionView allows read access to the file share.
 	SharePermissionView Permission = "view"
 	// SharePermissionDownload allows download access to the file share.
@@ -18,19 +20,21 @@ const (
 
 // Permissions represents the specific permissions a user can have on a file share.
 type Permissions struct {
-	CanView     bool `bson:"canView"` // Indicates if the user can view the share
-	CanEdit     bool `bson:"canEdit"`
-	CanDownload bool `bson:"canDownload"`
-	CanDelete   bool `bson:"canDelete"`
+	CanViewMedia bool `bson:"canViewMedia"` // Indicates if the user can view media content of the share
+	CanView      bool `bson:"canView"`      // Indicates if the user can view files in the share
+	CanEdit      bool `bson:"canEdit"`
+	CanDownload  bool `bson:"canDownload"`
+	CanDelete    bool `bson:"canDelete"`
 }
 
 // NewPermissions creates a new Permissions instance with default values.
 func NewPermissions() *Permissions {
 	return &Permissions{
-		CanView:     true, // Default to allowing viewing
-		CanEdit:     false,
-		CanDownload: true, // Default to allowing downloads
-		CanDelete:   false,
+		CanViewMedia: true, // Default to allowing viewing media
+		CanView:      true, // Default to allowing viewing files
+		CanEdit:      false,
+		CanDownload:  true, // Default to allowing downloads
+		CanDelete:    false,
 	}
 }
 
@@ -38,10 +42,11 @@ func NewPermissions() *Permissions {
 func NewFullPermissions() *Permissions {
 	// Allow all permissions
 	return &Permissions{
-		CanView:     true,
-		CanEdit:     true,
-		CanDownload: true,
-		CanDelete:   true,
+		CanViewMedia: true,
+		CanView:      true,
+		CanEdit:      true,
+		CanDownload:  true,
+		CanDelete:    true,
 	}
 }
 
@@ -81,6 +86,8 @@ func (p *Permissions) RemovePermission(permission Permission) {
 // HasPermission checks if a specific permission is granted.
 func (p *Permissions) HasPermission(permission Permission) bool {
 	switch permission {
+	case SharePermissionViewMedia:
+		return p.CanViewMedia
 	case SharePermissionView:
 		return p.CanView
 	case SharePermissionEdit:

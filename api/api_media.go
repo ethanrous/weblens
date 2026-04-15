@@ -596,6 +596,7 @@ type ApiGetMediaImageRequest struct {
 	extension string
 	quality *string
 	page *int32
+	shareID *string
 }
 
 // Image Quality
@@ -607,6 +608,12 @@ func (r ApiGetMediaImageRequest) Quality(quality string) ApiGetMediaImageRequest
 // Page number
 func (r ApiGetMediaImageRequest) Page(page int32) ApiGetMediaImageRequest {
 	r.page = &page
+	return r
+}
+
+// Share ID
+func (r ApiGetMediaImageRequest) ShareID(shareID string) ApiGetMediaImageRequest {
+	r.shareID = &shareID
 	return r
 }
 
@@ -660,6 +667,9 @@ func (a *MediaAPIService) GetMediaImageExecute(r ApiGetMediaImageRequest) (strin
 	parameterAddToHeaderOrQuery(localVarQueryParams, "quality", r.quality, "", "")
 	if r.page != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "page", r.page, "", "")
+	}
+	if r.shareID != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "shareID", r.shareID, "", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}

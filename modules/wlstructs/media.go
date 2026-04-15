@@ -44,7 +44,7 @@ type MediaInfo struct {
 	HDIRScore float64 `json:"hdirScore,omitempty"`
 
 	Imported bool `json:"imported"`
-} // @Name MediaInfo
+} //	@Name	MediaInfo
 
 // MediaTypeInfo represents information about a specific media type.
 type MediaTypeInfo struct {
@@ -57,17 +57,17 @@ type MediaTypeInfo struct {
 	Video           bool     `json:"IsVideo"`
 	ImgRecog        bool     `json:"SupportsImgRecog"`
 	MultiPage       bool     `json:"MultiPage"`
-} // @name MediaTypeInfo
+} //	@name	MediaTypeInfo
 
 // MediaTypesInfo represents the complete mapping of media types indexed by both mime type and file extension.
 type MediaTypesInfo struct {
 	MimeMap map[string]MediaTypeInfo `json:"mimeMap"`
 	ExtMap  map[string]MediaTypeInfo `json:"extMap"`
-} // @name MediaTypesInfo
+} //	@name	MediaTypesInfo
 
 // MediaBatchInfo represents a paginated batch of media items with count information.
 type MediaBatchInfo struct {
 	Media           []MediaInfo `json:"Media"`
 	MediaCount      int         `json:"mediaCount"`
 	TotalMediaCount int         `json:"totalMediaCount"`
-} // @name MediaBatchInfo
+} //	@name	MediaBatchInfo

@@ -98,6 +98,7 @@ const fileName = computed(() => {
         const tag = tagsStore.tags.get(activeTagID.value)
         return tag ? tag.name : 'Tag'
     }
+    console.log('Active file:', activeFile.value)
     return activeFile.value ? activeFile.value.GetFilename() : ''
 })
 

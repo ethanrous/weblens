@@ -208,6 +208,23 @@ func (s *FileShare) SetPublic(ctx context.Context, pub bool) error {
 	return nil
 }
 
+// SetTimelineOnly sets whether the share is timeline-only.
+func (s *FileShare) SetTimelineOnly(ctx context.Context, timelineOnly bool) error {
+	collection, err := db.GetCollection[any](ctx, ShareCollectionKey)
+	if err != nil {
+		return err
+	}
+
+	s.TimelineOnly = timelineOnly
+
+	_, err = collection.UpdateOne(ctx, bson.M{"_id": s.ShareID}, bson.M{"$set": bson.M{"timelineOnly": timelineOnly}})
+	if err != nil {
+		return wlerrors.WithStack(err)
+	}
+
+	return nil
+}
+
 // AddUser adds a user to the share with the specified permissions.
 func (s *FileShare) AddUser(ctx context.Context, username string, perms *Permissions) error {
 	collection, err := db.GetCollection[any](ctx, ShareCollectionKey)

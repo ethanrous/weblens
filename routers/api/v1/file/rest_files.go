@@ -670,7 +670,7 @@ func SetFolderCover(ctx context_service.RequestContext) {
 //	@Failure	400
 //	@Failure	404
 //	@Failure	500
-//	@Router	/folder/{folderID}/cover [delete]
+//	@Router		/folder/{folderID}/cover [delete]
 func RemoveFolderCover(ctx context_service.RequestContext) {
 	f, err := checkFileAccess(ctx)
 	if err != nil {
@@ -902,7 +902,6 @@ func ClearZipCache(ctx context_service.RequestContext) {
 }
 
 // AutocompletePath godoc
-//
 //
 //	@ID			AutocompletePath
 //
@@ -1503,10 +1502,11 @@ func NewFileUpload(ctx context_service.RequestContext) {
 //
 //	@Summary	Add a chunk to a file upload
 //	@Tags		Files
-//	@Param		uploadID	path		string	true	"Upload ID"
-//	@Param		fileID		path		string	true	"File ID"
-//	@Param		shareID		query		string	false	"Share ID"
-//	@Param		chunk		formData	file	true	"File chunk"
+//	@Param		uploadID		path		string	true	"Upload ID"
+//	@Param		fileID			path		string	true	"File ID"
+//	@Param		shareID			query		string	false	"Share ID"
+//	@Param		Content-Range	header		string	true	"Content range of the chunk"
+//	@Param		chunk			formData	file	true	"File chunk"
 //	@Success	200
 //	@Failure	401
 //	@Failure	404

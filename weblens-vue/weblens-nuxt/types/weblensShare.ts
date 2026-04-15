@@ -26,6 +26,7 @@ export default class WeblensShare implements ShareInfo {
             permissions: { ...this._permissions },
             expires: this.expires,
             public: this._public,
+            timelineOnly: this.timelineOnly,
             fileID: this.fileID,
             shareName: this.shareName,
             wormhole: this.wormhole,
@@ -89,7 +90,23 @@ export default class WeblensShare implements ShareInfo {
         return `${window.location.origin}/files/share/${this.shareID}${this.timelineOnly ? '?timeline=true' : ''}`
     }
 
-    private async createShare() {
+    private get info(): ShareInfo {
+        return {
+            shareID: this.shareID,
+            fileID: this.fileID,
+            shareName: this.shareName,
+            isDir: this.isDir,
+            expires: this.expires,
+            public: this._public,
+            wormhole: this.wormhole,
+            owner: this.owner,
+            timelineOnly: this.timelineOnly,
+            accessors: this.accessors,
+            permissions: this._permissions,
+        }
+    }
+
+    private async createShareIfNeeded() {
         if (this.shareID) {
             return
         }
@@ -121,7 +138,7 @@ export default class WeblensShare implements ShareInfo {
     }
 
     public async addAccessor(username: string) {
-        await this.createShare()
+        await this.createShareIfNeeded()
 
         const newInfo = (
             await useWeblensAPI().SharesAPI.addUserToShare(this.shareID, {
@@ -155,25 +172,25 @@ export default class WeblensShare implements ShareInfo {
     }
 
     public async setPublic(isPublic: boolean) {
-        await this.createShare()
+        await this.createShareIfNeeded()
 
         if (this._public === isPublic) {
             return
         }
 
-        await useWeblensAPI().SharesAPI.setSharePublic(this.shareID, isPublic)
         this._public = isPublic
+        await useWeblensAPI().SharesAPI.updateFileShare(this.shareID, this.info)
     }
 
     public async setTimelineOnly(timelineOnly: boolean) {
-        await this.createShare()
+        await this.createShareIfNeeded()
 
         if (this.timelineOnly === timelineOnly) {
             return
         }
 
-        // await useWeblensAPI().SharesAPI.setTimelineOnly(this.shareID, timelineOnly)
         this.timelineOnly = timelineOnly
+        await useWeblensAPI().SharesAPI.updateFileShare(this.shareID, this.info)
     }
 
     public async updateAccessorPerms(user: string, perms: PermissionsParams) {

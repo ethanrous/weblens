@@ -9,7 +9,7 @@ Method | HTTP request | Description
 [**DeleteFileShare**](ShareAPI.md#DeleteFileShare) | **Delete** /share/{shareID} | Delete a file share
 [**GetFileShare**](ShareAPI.md#GetFileShare) | **Get** /share/{shareID} | Get a file share
 [**RemoveUserFromShare**](ShareAPI.md#RemoveUserFromShare) | **Delete** /share/{shareID}/accessors/{username} | Remove a user from a file share
-[**SetSharePublic**](ShareAPI.md#SetSharePublic) | **Patch** /share/{shareID}/public | Update a share&#39;s \&quot;public\&quot; status
+[**UpdateFileShare**](ShareAPI.md#UpdateFileShare) | **Patch** /share/{shareID} | Update a file share
 [**UpdateShareAccessorPermissions**](ShareAPI.md#UpdateShareAccessorPermissions) | **Patch** /share/{shareID}/accessors/{username} | Update a share&#39;s user permissions
 
 
@@ -353,11 +353,11 @@ No authorization required
 [[Back to README]](../README.md)
 
 
-## SetSharePublic
+## UpdateFileShare
 
-> SetSharePublic(ctx, shareID).Public(public).Execute()
+> ShareInfo UpdateFileShare(ctx, shareID).Request(request).Execute()
 
-Update a share's \"public\" status
+Update a file share
 
 ### Example
 
@@ -373,15 +373,17 @@ import (
 
 func main() {
 	shareID := "shareID_example" // string | Share ID
-	public := true // bool | Share Public Status
+	request := *openapiclient.NewFileShareParams() // FileShareParams | Updated File Share Params
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	r, err := apiClient.ShareAPI.SetSharePublic(context.Background(), shareID).Public(public).Execute()
+	resp, r, err := apiClient.ShareAPI.UpdateFileShare(context.Background(), shareID).Request(request).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `ShareAPI.SetSharePublic``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error when calling `ShareAPI.UpdateFileShare``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
+	// response from `UpdateFileShare`: ShareInfo
+	fmt.Fprintf(os.Stdout, "Response from `ShareAPI.UpdateFileShare`: %v\n", resp)
 }
 ```
 
@@ -395,17 +397,17 @@ Name | Type | Description  | Notes
 
 ### Other Parameters
 
-Other parameters are passed through a pointer to a apiSetSharePublicRequest struct via the builder pattern
+Other parameters are passed through a pointer to a apiUpdateFileShareRequest struct via the builder pattern
 
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
- **public** | **bool** | Share Public Status | 
+ **request** | [**FileShareParams**](FileShareParams.md) | Updated File Share Params | 
 
 ### Return type
 
- (empty response body)
+[**ShareInfo**](ShareInfo.md)
 
 ### Authorization
 
@@ -414,7 +416,7 @@ No authorization required
 ### HTTP request headers
 
 - **Content-Type**: Not defined
-- **Accept**: Not defined
+- **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints)
 [[Back to Model list]](../README.md#documentation-for-models)

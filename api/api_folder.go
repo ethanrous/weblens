@@ -597,12 +597,12 @@ type ApiSetFolderCoverRequest struct {
 	ctx context.Context
 	ApiService *FolderAPIService
 	folderID string
-	mediaID *string
+	contentID *string
 }
 
-// Media ID
-func (r ApiSetFolderCoverRequest) MediaID(mediaID string) ApiSetFolderCoverRequest {
-	r.mediaID = &mediaID
+// Content ID of the media to use as cover
+func (r ApiSetFolderCoverRequest) ContentID(contentID string) ApiSetFolderCoverRequest {
+	r.contentID = &contentID
 	return r
 }
 
@@ -644,11 +644,11 @@ func (a *FolderAPIService) SetFolderCoverExecute(r ApiSetFolderCoverRequest) (*h
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
-	if r.mediaID == nil {
-		return nil, reportError("mediaID is required and must be specified")
+	if r.contentID == nil {
+		return nil, reportError("contentID is required and must be specified")
 	}
 
-	parameterAddToHeaderOrQuery(localVarQueryParams, "mediaID", r.mediaID, "", "")
+	parameterAddToHeaderOrQuery(localVarQueryParams, "contentID", r.contentID, "", "")
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 

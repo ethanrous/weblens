@@ -1,7 +1,7 @@
 <template>
     <div
         :class="{
-            'fullscreen-modal p-12 transition lg:p-48': true,
+            'fullscreen-modal p-12 transition xl:p-48': true,
             'pointer-events-none opacity-0': !menuStore.isSharing,
         }"
     >
@@ -22,11 +22,12 @@
 
             <div :class="{ 'z-99 flex w-full items-center gap-2': true }">
                 <UserSearch
+                    :class="{ 'min-w-10': true }"
                     :exclude-fn="excludeFn"
                     @select:user="addAccessor"
                 />
                 <WeblensButton
-                    :class="{ 'w-10 sm:w-40': true }"
+                    :class="{ 'flex w-10 sm:w-40': true }"
                     :label="share?.IsPublic() ? 'Public' : 'Private'"
                     :type="share?.IsPublic() ? 'default' : 'outline'"
                     allow-collapse
@@ -36,14 +37,14 @@
                     <IconLockOpen v-else />
                 </WeblensButton>
                 <WeblensButton
-                    :class="{ 'w-10 sm:w-40': true }"
-                    label="Timeline Only"
-                    :type="share?.timelineOnly ? 'default' : 'outline'"
+                    :class="{ 'min-w-0 sm:min-w-40': true }"
+                    :label="share?.timelineOnly ? 'Timeline Only' : 'Timeline + Files'"
+                    :type="share?.timelineOnly ? 'outline' : 'default'"
                     allow-collapse
                     @click="toggleTimelienOnly"
                 >
-                    <IconPhoto v-if="share?.timelineOnly" />
-                    <IconPhotoOff v-else />
+                    <IconFileOff v-if="share?.timelineOnly" />
+                    <IconFile v-else />
                 </WeblensButton>
             </div>
             <Table
@@ -56,12 +57,12 @@
             />
             <div :class="{ 'flex gap-2': true }">
                 <WeblensButton
-                    label="Delete Share"
+                    label="Revoke Share"
                     :flavor="'danger'"
                     :disabled="!share?.ID()"
                     @click.stop="deleteShare()"
                 >
-                    <IconTrash />
+                    <IconUserOff />
                 </WeblensButton>
                 <WeblensButton
                     label="Done"
@@ -74,7 +75,7 @@
 </template>
 
 <script setup lang="ts">
-import { IconLock, IconLockOpen, IconPhoto, IconPhotoOff, IconTrash } from '@tabler/icons-vue'
+import { IconFile, IconFileOff, IconLock, IconLockOpen, IconUserOff } from '@tabler/icons-vue'
 import WeblensButton from '../atom/WeblensButton.vue'
 import type WeblensFile from '~/types/weblensFile'
 import FileIcon from '../atom/FileIcon.vue'
@@ -155,7 +156,7 @@ const accessors = computed<TableColumns>(() => {
         unshare: {
             flavor: 'danger',
             tableType: TableType.Button,
-            icon: IconTrash,
+            icon: IconUserOff,
             onclick: async () => {
                 if (!share.value) return
                 await share.value.removeAccessor(u.username)
@@ -209,7 +210,7 @@ async function deleteShare() {
 
     try {
         await useWeblensAPI().SharesAPI.deleteFileShare(share.value.ID())
-        share.value = undefined
+        share.value = null
         menuStore.setSharing(false)
     } catch (e) {
         console.error('Failed to delete share', e)

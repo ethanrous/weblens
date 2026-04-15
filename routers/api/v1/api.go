@@ -167,7 +167,7 @@ func Routes(_ context_service.AppContext) *router.Router {
 		r.Group("", func() {
 			r.Post("/file", file_api.CreateFileShare)
 			r.Group("/{shareID}", func() {
-				r.Patch("/public", file_api.SetSharePublic)
+				r.Patch("", file_api.UpdateFileShare)
 				r.Delete("", file_api.DeleteShare)
 
 				r.Group("/accessors", func() {

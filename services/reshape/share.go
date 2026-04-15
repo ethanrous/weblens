@@ -30,18 +30,19 @@ func ShareToShareInfo(ctx context.Context, s *share_model.FileShare, isDir bool)
 	}
 
 	return wlstructs.ShareInfo{
-		ShareID:     id,
-		FileID:      s.FileID,
-		IsDir:       isDir,
-		ShareName:   s.ShareName,
-		Owner:       s.Owner,
-		Accessors:   accessors,
-		Permissions: PermissionsToPermissionsInfo(ctx, s.Permissions),
-		Public:      s.Public,
-		Wormhole:    s.Wormhole,
-		Enabled:     s.Enabled,
-		Expires:     s.Expires.UnixMilli(),
-		Updated:     s.Updated.UnixMilli(),
+		ShareID:      id,
+		FileID:       s.FileID,
+		IsDir:        isDir,
+		ShareName:    s.ShareName,
+		Owner:        s.Owner,
+		Accessors:    accessors,
+		Permissions:  PermissionsToPermissionsInfo(ctx, s.Permissions),
+		Public:       s.Public,
+		TimelineOnly: s.TimelineOnly,
+		Wormhole:     s.Wormhole,
+		Enabled:      s.Enabled,
+		Expires:      s.Expires.UnixMilli(),
+		Updated:      s.Updated.UnixMilli(),
 	}
 }
 

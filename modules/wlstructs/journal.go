@@ -13,4 +13,4 @@ type FileActionInfo struct {
 	Size            int64  `json:"size" validate:"required" format:"int64"`
 	ContentID       string `json:"contentID,omitempty"`
 	LiveParentID    string `json:"liveParentID,omitempty"`
-} // @name FileActionInfo
+} //	@name	FileActionInfo

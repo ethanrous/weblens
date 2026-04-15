@@ -16,7 +16,7 @@ type ShareInfo struct {
 	Wormhole     bool                       `json:"wormhole"`
 	TimelineOnly bool                       `json:"timelineOnly"`
 	Enabled      bool                       `json:"enabled"`
-} // @name ShareInfo
+} //	@name	ShareInfo
 
 // PermissionsInfo represents permission settings for API responses.
 type PermissionsInfo struct {
@@ -24,4 +24,4 @@ type PermissionsInfo struct {
 	CanEdit     bool `json:"canEdit"`
 	CanDownload bool `json:"canDownload"`
 	CanDelete   bool `json:"canDelete"`
-} // @name PermissionsInfo
+} //	@name	PermissionsInfo

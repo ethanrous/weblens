@@ -124,7 +124,7 @@ Class | Method | HTTP request | Description
 *ShareAPI* | [**DeleteFileShare**](docs/ShareAPI.md#deletefileshare) | **Delete** /share/{shareID} | Delete a file share
 *ShareAPI* | [**GetFileShare**](docs/ShareAPI.md#getfileshare) | **Get** /share/{shareID} | Get a file share
 *ShareAPI* | [**RemoveUserFromShare**](docs/ShareAPI.md#removeuserfromshare) | **Delete** /share/{shareID}/accessors/{username} | Remove a user from a file share
-*ShareAPI* | [**SetSharePublic**](docs/ShareAPI.md#setsharepublic) | **Patch** /share/{shareID}/public | Update a share&#39;s \&quot;public\&quot; status
+*ShareAPI* | [**UpdateFileShare**](docs/ShareAPI.md#updatefileshare) | **Patch** /share/{shareID} | Update a file share
 *ShareAPI* | [**UpdateShareAccessorPermissions**](docs/ShareAPI.md#updateshareaccessorpermissions) | **Patch** /share/{shareID}/accessors/{username} | Update a share&#39;s user permissions
 *TagsAPI* | [**AddFilesToTag**](docs/TagsAPI.md#addfilestotag) | **Post** /tags/{tagID}/files | Add files to a tag
 *TagsAPI* | [**CreateTag**](docs/TagsAPI.md#createtag) | **Post** /tags | Create a new tag

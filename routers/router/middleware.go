@@ -79,9 +79,20 @@ func RequirePermissionsMedia(next Handler) Handler {
 			return
 		}
 
-		fileID := media.FileIDs[0] // Assuming the first file ID is the primary one for permission checks
+		fileID := media.FileIDs[0]
 		file, err := ctx.FileService.GetFileByID(ctx, fileID)
-		auth_service.CanUserAccessFile(ctx, ctx.Requester, file, ctx.Share, share_model.SharePermissionView)
+		if err != nil {
+			ctx.Error(http.StatusNotFound, wlerrors.Wrap(err, "failed to get file for media"))
+
+			return
+		}
+
+		_, err = auth_service.CanUserAccessFile(ctx, ctx.Requester, file, ctx.Share, share_model.SharePermissionView)
+		if err != nil {
+			ctx.Error(http.StatusForbidden, wlerrors.Wrap(err, "access denied"))
+
+			return
+		}
 
 		next.ServeHTTP(ctx)
 	})

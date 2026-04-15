@@ -361,7 +361,7 @@ No authorization required
 
 ## SetFolderCover
 
-> SetFolderCover(ctx, folderID).MediaID(mediaID).Execute()
+> SetFolderCover(ctx, folderID).ContentID(contentID).Execute()
 
 Set the cover image of a folder
 
@@ -379,11 +379,11 @@ import (
 
 func main() {
 	folderID := "folderID_example" // string | Folder ID
-	mediaID := "mediaID_example" // string | Media ID
+	contentID := "contentID_example" // string | Content ID of the media to use as cover
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	r, err := apiClient.FolderAPI.SetFolderCover(context.Background(), folderID).MediaID(mediaID).Execute()
+	r, err := apiClient.FolderAPI.SetFolderCover(context.Background(), folderID).ContentID(contentID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FolderAPI.SetFolderCover``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -407,7 +407,7 @@ Other parameters are passed through a pointer to a apiSetFolderCoverRequest stru
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
- **mediaID** | **string** | Media ID | 
+ **contentID** | **string** | Content ID of the media to use as cover | 
 
 ### Return type
 

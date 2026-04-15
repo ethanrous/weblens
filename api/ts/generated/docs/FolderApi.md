@@ -303,11 +303,11 @@ const configuration = new Configuration();
 const apiInstance = new FolderApi(configuration);
 
 let folderID: string; //Folder ID (default to undefined)
-let mediaID: string; //Media ID (default to undefined)
+let contentID: string; //Content ID of the media to use as cover (default to undefined)
 
 const { status, data } = await apiInstance.setFolderCover(
     folderID,
-    mediaID
+    contentID
 );
 ```
 
@@ -316,7 +316,7 @@ const { status, data } = await apiInstance.setFolderCover(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **folderID** | [**string**] | Folder ID | defaults to undefined|
-| **mediaID** | [**string**] | Media ID | defaults to undefined|
+| **contentID** | [**string**] | Content ID of the media to use as cover | defaults to undefined|
 
 
 ### Return type

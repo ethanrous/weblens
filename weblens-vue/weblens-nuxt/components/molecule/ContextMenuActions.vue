@@ -26,9 +26,10 @@
             fill-width
             :disabled="!targetFile"
             @click.stop="
-                targetFile &&
-                usePresentationStore().setPresentationFileID(targetFile?.ID()) &&
-                menuStore.setMenuOpen(false)
+                () => {
+                    usePresentationStore().setPresentationFileID(targetFile!.ID())
+                    menuStore.setMenuOpen(false)
+                }
             "
         >
             <IconInfoCircle />

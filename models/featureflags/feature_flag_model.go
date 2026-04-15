@@ -31,7 +31,7 @@ const (
 type Bundle struct {
 	AllowRegistrations bool `bson:"auth.allow_registrations" json:"auth.allow_registrations"`
 	EnableHDIR         bool `bson:"media.hdir_processing_enabled" json:"media.hdir_processing_enabled"`
-} // @name Bundle
+} //	@name	Bundle
 
 // Default returns the default flags
 func Default() Bundle {

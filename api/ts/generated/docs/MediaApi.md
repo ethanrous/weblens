@@ -308,12 +308,14 @@ let mediaID: string; //Media ID (default to undefined)
 let extension: string; //Extension (default to undefined)
 let quality: 'thumbnail' | 'fullres'; //Image Quality (default to undefined)
 let page: number; //Page number (optional) (default to undefined)
+let shareID: string; //Share ID (optional) (default to undefined)
 
 const { status, data } = await apiInstance.getMediaImage(
     mediaID,
     extension,
     quality,
-    page
+    page,
+    shareID
 );
 ```
 
@@ -325,6 +327,7 @@ const { status, data } = await apiInstance.getMediaImage(
 | **extension** | [**string**] | Extension | defaults to undefined|
 | **quality** | [**&#39;thumbnail&#39; | &#39;fullres&#39;**]**Array<&#39;thumbnail&#39; &#124; &#39;fullres&#39;>** | Image Quality | defaults to undefined|
 | **page** | [**number**] | Page number | (optional) defaults to undefined|
+| **shareID** | [**string**] | Share ID | (optional) defaults to undefined|
 
 
 ### Return type

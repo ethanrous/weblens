@@ -401,6 +401,7 @@ func GetMediaInfo(ctx ctxservice.RequestContext) {
 //	@Param		extension	path		string	true	"Extension"
 //	@Param		quality		query		string	true	"Image Quality"	Enums(thumbnail, fullres)
 //	@Param		page		query		int		false	"Page number"
+//	@Param		shareID		query		string	false	"Share ID"
 //	@Success	200			{string}	binary	"image bytes"
 //	@Success	500
 //	@Router		/media/{mediaID}.{extension} [get]

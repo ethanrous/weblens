@@ -24,7 +24,7 @@ import (
 //	@Produce	json
 //	@Param		request	body		wlstructs.FileShareParams	true	"New File Share Params"
 //	@Success	200		{object}	wlstructs.ShareInfo			"New File Share"
-//	@Success	409
+//	@Failure	409
 //	@Router		/share/file [post]
 func CreateFileShare(ctx ctxservice.RequestContext) {
 	shareParams, err := netwrk.ReadRequestBody[wlstructs.FileShareParams](ctx.Req)
@@ -97,6 +97,71 @@ func CreateFileShare(ctx ctxservice.RequestContext) {
 	ctx.JSON(http.StatusCreated, newShareInfo)
 }
 
+// UpdateFileShare godoc
+//
+//	@ID			UpdateFileShare
+//
+//	@Summary	Update a file share
+//	@Tags		Share
+//	@Produce	json
+//	@Param		shareID	path		string						true	"Share ID"
+//	@Param		request	body		wlstructs.FileShareParams	true	"Updated File Share Params"
+//	@Success	200		{object}	wlstructs.ShareInfo			"Updated File Share"
+//	@Failure	409
+//	@Router		/share/{shareID} [patch]
+func UpdateFileShare(ctx ctxservice.RequestContext) {
+	shareParams, err := netwrk.ReadRequestBody[wlstructs.FileShareParams](ctx.Req)
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, err)
+
+		return
+	}
+
+	shareID := share_model.IDFromString(ctx.Path("shareID"))
+
+	share, err := share_model.GetShareByID(ctx, shareID)
+	if err != nil {
+		if db.IsNotFound(err) {
+			ctx.Error(http.StatusNotFound, wlerrors.New("share for specified file does not exist"))
+
+			return
+		}
+
+		ctx.Error(http.StatusInternalServerError, err)
+
+		return
+	}
+
+	if !auth.CanUserModifyShare(ctx.Requester, *share) {
+		ctx.Error(http.StatusForbidden, wlerrors.New("not authorized to modify this share"))
+
+		return
+	}
+
+	err = share.SetPublic(ctx, shareParams.Public)
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, err)
+
+		return
+	}
+
+	err = share.SetTimelineOnly(ctx, shareParams.TimelineOnly)
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, err)
+
+		return
+	}
+
+	f, err := ctx.FileService.GetFileByID(ctx, share.FileID)
+	if err != nil {
+		ctx.Error(http.StatusNotFound, err)
+
+		return
+	}
+
+	ctx.JSON(http.StatusOK, reshape.ShareToShareInfo(ctx, share, f.IsDir()))
+}
+
 // GetFileShare godoc
 //
 //	@ID			GetFileShare
@@ -140,51 +205,6 @@ func GetFileShare(ctx ctxservice.RequestContext) {
 
 	shareInfo := reshape.ShareToShareInfo(ctx, share, file.IsDir())
 	ctx.JSON(http.StatusOK, shareInfo)
-}
-
-// SetSharePublic godoc
-//
-//	@ID			SetSharePublic
-//
-//	@Summary	Update a share's "public" status
-//	@Tags		Share
-//	@Produce	json
-//	@Param		shareID	path	string	true	"Share ID"
-//	@Param		public	query	bool	true	"Share Public Status"
-//	@Success	200
-//	@Failure	404
-//	@Router		/share/{shareID}/public [patch]
-func SetSharePublic(ctx ctxservice.RequestContext) {
-	shareID := share_model.IDFromString(ctx.Path("shareID"))
-
-	share, err := share_model.GetShareByID(ctx, shareID)
-	if err != nil {
-		ctx.Error(http.StatusNotFound, err)
-
-		return
-	}
-
-	if !auth.CanUserModifyShare(ctx.Requester, *share) {
-		ctx.Error(http.StatusForbidden, wlerrors.New("not authorized to modify this share"))
-
-		return
-	}
-
-	publicStr := ctx.Query("public")
-	if publicStr != "true" && publicStr != "false" {
-		ctx.Error(http.StatusBadRequest, wlerrors.New("public query parameter must be 'true' or 'false'"))
-
-		return
-	}
-
-	err = share.SetPublic(ctx, publicStr == "true")
-	if err != nil {
-		ctx.Error(http.StatusInternalServerError, err)
-
-		return
-	}
-
-	ctx.Status(http.StatusOK)
 }
 
 // AddUserToShare godoc

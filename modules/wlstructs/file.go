@@ -17,13 +17,13 @@ type FileInfo struct {
 	HasRestoreData bool            `json:"hasRestoreData"`
 	HasMedia       bool            `json:"hasMedia"`
 	Permissions    PermissionsInfo `json:"permissions,omitzero"`
-} // @name FileInfo
+} //	@name	FileInfo
 
 // FilesInfo represents the response containing a list of files and media information.
 type FilesInfo struct {
 	Files  []FileInfo  `json:"files" validate:"required"`
 	Medias []MediaInfo `json:"medias"`
-} // @name FilesInfo
+} //	@name	FilesInfo
 
 // FolderInfoResponse represents the complete information about a folder including its children, parents, media, and self reference.
 type FolderInfoResponse struct {
@@ -31,22 +31,22 @@ type FolderInfoResponse struct {
 	Parents  []FileInfo  `json:"parents"`
 	Medias   []MediaInfo `json:"medias"`
 	Self     FileInfo    `json:"self"`
-} // @name FolderInfo
+} //	@name	FolderInfo
 
 // NewUploadInfo represents the response containing a new upload identifier.
 type NewUploadInfo struct {
 	UploadID string `json:"uploadID"`
-} // @name NewUploadInfo
+} //	@name	NewUploadInfo
 
 // NewFileInfo represents the response containing a newly created file identifier.
 type NewFileInfo struct {
 	FileID string `json:"fileID"`
-} // @name NewFileInfo
+} //	@name	NewFileInfo
 
 // FileIDArrayInfo represents the response containing multiple newly created file identifiers.
 type FileIDArrayInfo struct {
 	FileIDs []string `json:"fileIDs"`
-} // @name FileIDArrayInfo
+} //	@name	FileIDArrayInfo
 
 // RestoreFilesInfo represents the response containing the new parent identifier after restoring files.
 type RestoreFilesInfo struct {
