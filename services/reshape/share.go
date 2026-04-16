@@ -68,15 +68,14 @@ func toPermissionInfo(perms share_model.Permissions) wlstructs.PermissionsInfo {
 // PermissionsParamsToPermissions converts PermissionsParams to a Permissions model.
 func PermissionsParamsToPermissions(_ context.Context, perms wlstructs.PermissionsParams) (share_model.Permissions, error) {
 	newPerms := share_model.Permissions{
-		CanView:     perms.CanView,
-		CanEdit:     perms.CanEdit,
-		CanDownload: perms.CanDownload,
-		CanDelete:   perms.CanDelete,
+		// Ensure that CanViewMedia is always true, for now.
+		// This may be revisited in the future for more granular control.
+		CanViewMedia: true,
+		CanView:      perms.CanView,
+		CanEdit:      perms.CanEdit,
+		CanDownload:  perms.CanDownload,
+		CanDelete:    perms.CanDelete,
 	}
-
-	// Ensure that CanView is always true, for now.
-	// This may be revisited in the future for more granular control.
-	newPerms.CanView = true
 
 	return newPerms, nil
 }

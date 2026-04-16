@@ -53,8 +53,8 @@ export const useMediaStore = defineStore('media', () => {
         },
         { immediate: true },
     )
-    watch(showRaw, async () => {
-        await locationStore.setQueryParam('raw', showRaw.value ? null : 'false')
+    watch(showRaw, () => {
+        locationStore.setQueryParam('raw', showRaw.value ? null : 'false')
     })
 
     function initSearchFilters() {

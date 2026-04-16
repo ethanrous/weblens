@@ -122,8 +122,9 @@ export default class WeblensShare implements ShareInfo {
 
     public checkPermission(permission: keyof PermissionsParams, username?: string): boolean {
         if (!username) {
-            username = useUserStore().user.username
+            username = useUserStore().getActiveUsername()
         }
+        console.log('USERNAME?', username)
 
         if (this.owner === username) {
             return true
@@ -194,6 +195,7 @@ export default class WeblensShare implements ShareInfo {
     }
 
     public async updateAccessorPerms(user: string, perms: PermissionsParams) {
-        await useWeblensAPI().SharesAPI.updateShareAccessorPermissions(this.shareID, user, perms)
+        const newShare = await useWeblensAPI().SharesAPI.updateShareAccessorPermissions(this.shareID, user, perms)
+        this.assign(newShare.data)
     }
 }

@@ -1,5 +1,10 @@
 <template>
-    <div class="flex h-max w-max items-center gap-2">
+    <div
+        :class="{
+            'flex h-max w-max items-center gap-2': true,
+            'pointer-events-none opacity-50': disabled,
+        }"
+    >
         <div class="cb-wrap">
             <input
                 :id="id"
@@ -39,10 +44,16 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{ label?: string; checked: boolean }>()
+defineProps<{
+    checked: boolean
+    label?: string
+    disabled?: boolean
+}>()
+
 const emit = defineEmits<{
     (e: 'checked:changed', checked: boolean): void
 }>()
+
 const id = useId()
 </script>
 

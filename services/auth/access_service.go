@@ -88,14 +88,8 @@ func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_mo
 		return &share_model.Permissions{}, wlerrors.ReplaceStack(wlerrors.Errorf("denying user [%s] access to file [%s]: %w", user.Username, file.ID(), ErrFileAccessNotPermitted))
 	}
 
-	if user.IsPublic() {
-		if share != nil && share.IsPublic() {
-			return share_model.NewPermissions(), nil
-		}
-
-		return &share_model.Permissions{}, ErrMustAuthenticate
-	}
-
+	// The "system" user has access to everything. Users cannot authenticate as the system user, so
+	// this is only used for internal system operations that need to bypass permission checks.
 	if user.IsSystemUser() && user.Username == "WEBLENS" {
 		return share_model.NewFullPermissions(), nil
 	}
@@ -116,8 +110,20 @@ func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_mo
 		// If the user has the required permissions, we can access it
 		return allowedPerms, nil
 	}
-	// If the share is public, and allows access to the specific file we want, we can access it regardless of the accessors list
-	return share.GetUserPermissions(user_model.PublicUserName), nil
+
+	// We should never get here
+	return &share_model.Permissions{}, wlerrors.New("unexpected error in CanUserAccessFile: reached end of permissions check without identifying permissions or an error")
+
+	// if user.IsPublic() {
+	// 	if share != nil && share.IsPublic() {
+	// 		return share_model.NewPermissions(), nil
+	// 	}
+	//
+	// 	return &share_model.Permissions{}, ErrMustAuthenticate
+	// }
+	//
+	// // If the share is public, and allows access to the specific file we want, we can access it regardless of the accessors list
+	// return share.GetUserPermissions(user_model.PublicUserName), nil
 }
 
 // CanUserModifyShare checks if a user has permission to modify a share.

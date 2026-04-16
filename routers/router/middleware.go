@@ -66,6 +66,7 @@ func RequireSignIn(next Handler) Handler {
 func RequirePermissionsMedia(next Handler) Handler {
 	return HandlerFunc(func(ctx context_service.RequestContext) {
 		mediaID := ctx.Path("mediaID")
+
 		media, err := media_model.GetMediaByContentID(ctx, mediaID)
 		if err != nil {
 			ctx.Error(http.StatusNotFound, wlerrors.Wrap(err, "failed to get media"))
@@ -80,6 +81,7 @@ func RequirePermissionsMedia(next Handler) Handler {
 		}
 
 		fileID := media.FileIDs[0]
+
 		file, err := ctx.FileService.GetFileByID(ctx, fileID)
 		if err != nil {
 			ctx.Error(http.StatusNotFound, wlerrors.Wrap(err, "failed to get file for media"))
@@ -87,7 +89,7 @@ func RequirePermissionsMedia(next Handler) Handler {
 			return
 		}
 
-		_, err = auth_service.CanUserAccessFile(ctx, ctx.Requester, file, ctx.Share, share_model.SharePermissionView)
+		_, err = auth_service.CanUserAccessFile(ctx, ctx.Requester, file, ctx.Share, share_model.SharePermissionViewMedia)
 		if err != nil {
 			ctx.Error(http.StatusForbidden, wlerrors.Wrap(err, "access denied"))
 

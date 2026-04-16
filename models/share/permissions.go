@@ -50,6 +50,18 @@ func NewFullPermissions() *Permissions {
 	}
 }
 
+// NewEmptyPermissions creates a new Permissions instance with all permissions disabled.
+func NewEmptyPermissions() *Permissions {
+	// Deny all permissions
+	return &Permissions{
+		CanViewMedia: false,
+		CanView:      false,
+		CanEdit:      false,
+		CanDownload:  false,
+		CanDelete:    false,
+	}
+}
+
 // SetEdit sets the edit permission.
 func (p *Permissions) SetEdit(canEdit bool) {
 	p.CanEdit = canEdit

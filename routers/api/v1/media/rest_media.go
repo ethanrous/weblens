@@ -120,7 +120,7 @@ func GetMediaBatch(ctx ctxservice.RequestContext) {
 
 func getMediaByFolders(ctx ctxservice.RequestContext, folderIDs []string, search string, sortDirection, page, limit int, raw bool) {
 	for _, folderID := range folderIDs {
-		_, err := file_api.CheckFileAccessByID(ctx, folderID, share.SharePermissionView)
+		_, err := file_api.CheckFileAccessByID(ctx, folderID, share.SharePermissionViewMedia)
 		if err != nil {
 			return
 		}
@@ -195,11 +195,11 @@ func getMediaByIDs(ctx ctxservice.RequestContext, mediaIDs []string) {
 			return
 		}
 
-		// Verify the requester has access to at least one backing file
+		// Verify the requester has access to view media of at least one backing file
 		hasAccess := false
 
 		for _, fileID := range m.GetFiles() {
-			if _, err := file_api.CheckFileAccessByID(ctx, fileID, share.SharePermissionView); err == nil {
+			if _, err := file_api.CheckFileAccessByID(ctx, fileID, share.SharePermissionViewMedia); err == nil {
 				hasAccess = true
 
 				break
@@ -781,6 +781,13 @@ func getProcessedMedia(ctx ctxservice.RequestContext, q media_model.Quality, for
 		f, err := ctx.FileService.GetFileByContentID(ctx, m.ContentID)
 		if err != nil {
 			ctx.Error(http.StatusNotFound, err)
+
+			return
+		}
+
+		_, err = file_api.CheckFileAccessByID(ctx, f.ID(), share.SharePermissionViewMedia)
+		if err != nil {
+			ctx.Error(http.StatusForbidden, wlerrors.New("not authorized to access this media"))
 
 			return
 		}

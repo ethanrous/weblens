@@ -124,7 +124,7 @@ const useFilesStore = defineStore('files', () => {
                 // Make sure were logged in
                 !user.value.isLoggedIn.isSet() ||
                 // Don't fetch files if we're in the timeline
-                // locationStore.isInTimeline ||
+                (locationStore.isInShare && locationStore.isInTimeline) ||
                 // Don't try to fetch if we don't have one of: an active folder, active share, or active tag
                 (!locationStore.activeFolderID && !locationStore.isInShare && !locationStore.activeTagID) ||
                 // If we're in a share but don't have the share data yet, we might not know the active folder ID, so wait until we have the share data

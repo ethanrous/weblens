@@ -54,7 +54,7 @@ import (
 //	@Failure	404
 //	@Router		/files/{fileID} [get]
 func GetFile(ctx context_service.RequestContext) {
-	file, err := checkFileAccess(ctx)
+	file, err := checkFileAccess(ctx, share_model.SharePermissionView)
 	if err != nil {
 		return
 	}
@@ -92,7 +92,7 @@ func GetFile(ctx context_service.RequestContext) {
 //	@Failure	400
 //	@Router		/files/{fileID}/text [get]
 func GetFileText(ctx context_service.RequestContext) {
-	file, err := checkFileAccess(ctx)
+	file, err := checkFileAccess(ctx, share_model.SharePermissionView)
 	if err != nil {
 		return
 	}
@@ -250,7 +250,7 @@ func DownloadFile(ctx context_service.RequestContext) {
 //	@Success	200			{object}	wlstructs.FolderInfoResponse	"Folder Info"
 //	@Router		/folder/{folderID} [get]
 func GetFolder(ctx context_service.RequestContext) {
-	folder, err := checkFileAccess(ctx)
+	folder, err := checkFileAccess(ctx, share_model.SharePermissionView)
 	if err != nil {
 		return
 	}
@@ -298,7 +298,7 @@ func GetFolder(ctx context_service.RequestContext) {
 //	@Failure	500
 //	@Router		/files/{fileID}/history [get]
 func GetFolderHistory(ctx context_service.RequestContext) {
-	file, err := checkFileAccess(ctx)
+	file, err := checkFileAccess(ctx, share_model.SharePermissionView)
 	if err != nil {
 		return
 	}
