@@ -1726,10 +1726,11 @@ declare const MediaApiAxiosParamCreator: (configuration?: Configuration) => {
      *
      * @summary Get media info
      * @param {string} mediaID Media ID
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMediaInfo: (mediaID: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    getMediaInfo: (mediaID: string, shareID?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Get media type dictionary
@@ -1840,10 +1841,11 @@ declare const MediaApiFp: (configuration?: Configuration) => {
      *
      * @summary Get media info
      * @param {string} mediaID Media ID
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMediaInfo(mediaID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MediaInfo>>;
+    getMediaInfo(mediaID: string, shareID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MediaInfo>>;
     /**
      *
      * @summary Get media type dictionary
@@ -1954,10 +1956,11 @@ declare const MediaApiFactory: (configuration?: Configuration, basePath?: string
      *
      * @summary Get media info
      * @param {string} mediaID Media ID
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMediaInfo(mediaID: string, options?: RawAxiosRequestConfig): AxiosPromise<MediaInfo>;
+    getMediaInfo(mediaID: string, shareID?: string, options?: RawAxiosRequestConfig): AxiosPromise<MediaInfo>;
     /**
      *
      * @summary Get media type dictionary
@@ -2068,10 +2071,11 @@ declare class MediaApi extends BaseAPI {
      *
      * @summary Get media info
      * @param {string} mediaID Media ID
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMediaInfo(mediaID: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<MediaInfo, any, {}>>;
+    getMediaInfo(mediaID: string, shareID?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<MediaInfo, any, {}>>;
     /**
      *
      * @summary Get media type dictionary

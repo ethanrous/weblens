@@ -91,7 +91,7 @@ const useLocationStore = defineStore('location', () => {
     })
 
     const activeShareID = computed(() => {
-        return (route.value.params.shareID as string | undefined) ?? ''
+        return (route.value.params.shareID as string | undefined) ?? getQueryParam('shareID') ?? ''
     })
 
     const activeTagID = computed(() => {

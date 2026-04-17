@@ -1564,6 +1564,12 @@ const docTemplate = `{
                         "name": "mediaID",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Share ID",
+                        "name": "shareID",
+                        "in": "query"
                     }
                 ],
                 "responses": {

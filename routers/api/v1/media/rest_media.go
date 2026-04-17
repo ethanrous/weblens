@@ -372,6 +372,7 @@ func DropHDIRs(ctx ctxservice.RequestContext) {
 //	@Tags		Media
 //	@Produce	json
 //	@Param		mediaID	path		string				true	"Media ID"
+//	@Param		shareID	query		string				false	"Share ID"
 //	@Success	200		{object}	wlstructs.MediaInfo	"Media Info"
 //	@Router		/media/{mediaID}/info [get]
 func GetMediaInfo(ctx ctxservice.RequestContext) {

@@ -3054,10 +3054,11 @@ export const MediaApiAxiosParamCreator = function (configuration?: Configuration
          * 
          * @summary Get media info
          * @param {string} mediaID Media ID
+         * @param {string} [shareID] Share ID
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getMediaInfo: async (mediaID: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        getMediaInfo: async (mediaID: string, shareID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'mediaID' is not null or undefined
             assertParamExists('getMediaInfo', 'mediaID', mediaID)
             const localVarPath = `/media/{mediaID}/info`
@@ -3072,6 +3073,10 @@ export const MediaApiAxiosParamCreator = function (configuration?: Configuration
             const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
+
+            if (shareID !== undefined) {
+                localVarQueryParameter['shareID'] = shareID;
+            }
 
             localVarHeaderParameter['Accept'] = 'application/json';
 
@@ -3372,11 +3377,12 @@ export const MediaApiFp = function(configuration?: Configuration) {
          * 
          * @summary Get media info
          * @param {string} mediaID Media ID
+         * @param {string} [shareID] Share ID
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getMediaInfo(mediaID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MediaInfo>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getMediaInfo(mediaID, options);
+        async getMediaInfo(mediaID: string, shareID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MediaInfo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getMediaInfo(mediaID, shareID, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['MediaApi.getMediaInfo']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -3532,11 +3538,12 @@ export const MediaApiFactory = function (configuration?: Configuration, basePath
          * 
          * @summary Get media info
          * @param {string} mediaID Media ID
+         * @param {string} [shareID] Share ID
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getMediaInfo(mediaID: string, options?: RawAxiosRequestConfig): AxiosPromise<MediaInfo> {
-            return localVarFp.getMediaInfo(mediaID, options).then((request) => request(axios, basePath));
+        getMediaInfo(mediaID: string, shareID?: string, options?: RawAxiosRequestConfig): AxiosPromise<MediaInfo> {
+            return localVarFp.getMediaInfo(mediaID, shareID, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -3678,11 +3685,12 @@ export class MediaApi extends BaseAPI {
      * 
      * @summary Get media info
      * @param {string} mediaID Media ID
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public getMediaInfo(mediaID: string, options?: RawAxiosRequestConfig) {
-        return MediaApiFp(this.configuration).getMediaInfo(mediaID, options).then((request) => request(this.axios, this.basePath));
+    public getMediaInfo(mediaID: string, shareID?: string, options?: RawAxiosRequestConfig) {
+        return MediaApiFp(this.configuration).getMediaInfo(mediaID, shareID, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

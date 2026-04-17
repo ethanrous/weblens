@@ -100,8 +100,9 @@ export const useMediaStore = defineStore('media', () => {
 
         if (!mp) {
             hasPromise = false
+            console.debug('activeShareId', locationStore.activeShareID)
             mp = useWeblensAPI()
-                .MediaAPI.getMediaInfo(contentID)
+                .MediaAPI.getMediaInfo(contentID, locationStore.activeShareID)
                 .then((res: { data: MediaInfo }) => new WeblensMedia(res.data))
                 .catch((err: unknown) => {
                     console.error('Error fetching single media:', err)

@@ -73,6 +73,7 @@ func TestGetCoversByFolderIDs(t *testing.T) {
 	for _, c := range covers {
 		coverMap[c.FolderID] = c.CoverPhotoID
 	}
+
 	require.Equal(t, "photo-a", coverMap["folder-a"])
 	require.Equal(t, "photo-b", coverMap["folder-b"])
 

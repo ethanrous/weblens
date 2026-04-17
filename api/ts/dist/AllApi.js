@@ -2406,10 +2406,11 @@ var MediaApiAxiosParamCreator = function(configuration) {
      * 
      * @summary Get media info
      * @param {string} mediaID Media ID
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMediaInfo: async (mediaID, options = {}) => {
+    getMediaInfo: async (mediaID, shareID, options = {}) => {
       assertParamExists("getMediaInfo", "mediaID", mediaID);
       const localVarPath = `/media/{mediaID}/info`.replace(`{${"mediaID"}}`, encodeURIComponent(String(mediaID)));
       const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2420,6 +2421,9 @@ var MediaApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
+      if (shareID !== void 0) {
+        localVarQueryParameter["shareID"] = shareID;
+      }
       localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
@@ -2682,12 +2686,13 @@ var MediaApiFp = function(configuration) {
      * 
      * @summary Get media info
      * @param {string} mediaID Media ID
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    async getMediaInfo(mediaID, options) {
+    async getMediaInfo(mediaID, shareID, options) {
       var _a, _b, _c;
-      const localVarAxiosArgs = await localVarAxiosParamCreator.getMediaInfo(mediaID, options);
+      const localVarAxiosArgs = await localVarAxiosParamCreator.getMediaInfo(mediaID, shareID, options);
       const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
       const localVarOperationServerBasePath = (_c = (_b = operationServerMap["MediaApi.getMediaInfo"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
       return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -2844,11 +2849,12 @@ var MediaApiFactory = function(configuration, basePath, axios) {
      * 
      * @summary Get media info
      * @param {string} mediaID Media ID
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMediaInfo(mediaID, options) {
-      return localVarFp.getMediaInfo(mediaID, options).then((request) => request(axios, basePath));
+    getMediaInfo(mediaID, shareID, options) {
+      return localVarFp.getMediaInfo(mediaID, shareID, options).then((request) => request(axios, basePath));
     },
     /**
      * 
@@ -2980,11 +2986,12 @@ var MediaApi = class extends BaseAPI {
    * 
    * @summary Get media info
    * @param {string} mediaID Media ID
+   * @param {string} [shareID] Share ID
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */
-  getMediaInfo(mediaID, options) {
-    return MediaApiFp(this.configuration).getMediaInfo(mediaID, options).then((request) => request(this.axios, this.basePath));
+  getMediaInfo(mediaID, shareID, options) {
+    return MediaApiFp(this.configuration).getMediaInfo(mediaID, shareID, options).then((request) => request(this.axios, this.basePath));
   }
   /**
    * 

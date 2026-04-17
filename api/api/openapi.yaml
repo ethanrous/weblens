@@ -1105,6 +1105,11 @@ paths:
         required: true
         schema:
           type: string
+      - description: Share ID
+        in: query
+        name: shareID
+        schema:
+          type: string
       responses:
         "200":
           content:

@@ -36,8 +36,8 @@
             <TimelineControls v-if="locationStore.isInTimeline" />
 
             <WeblensButton
-                @click="locationStore.isInTimeline = !locationStore.isInTimeline"
                 :disabled="locationStore.isInShare && !locationStore.activeShare?.checkPermission('canView')"
+                @click="locationStore.isInTimeline = !locationStore.isInTimeline"
             >
                 <IconFolder v-if="locationStore.isInTimeline" />
                 <IconPhoto v-if="!locationStore.isInTimeline" />
@@ -101,7 +101,7 @@ const fileName = computed(() => {
         const tag = tagsStore.tags.get(activeTagID.value)
         return tag ? tag.name : 'Tag'
     }
-    console.log('Active file:', activeFile.value)
+    console.debug('Active file:', activeFile.value)
     return activeFile.value ? activeFile.value.GetFilename() : ''
 })
 

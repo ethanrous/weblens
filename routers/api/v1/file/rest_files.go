@@ -414,7 +414,7 @@ func SearchFiles(ctx context_service.RequestContext) {
 		andInitialized := false
 
 		for _, t := range tags {
-			currentTagSet := set.New[string](t.FileIDs...)
+			currentTagSet := set.New(t.FileIDs...)
 			if tagJoinLogic == "or" {
 				tagFilterFileIDs = tagFilterFileIDs.Union(currentTagSet)
 			} else if !andInitialized {
@@ -946,6 +946,7 @@ func AutocompletePath(ctx context_service.RequestContext) {
 	}
 
 	children := folder.GetChildren()
+
 	trashIndex := wlslices.IndexFunc(children, func(f *file_model.WeblensFileImpl) bool {
 		return f.ID() == ctx.Requester.TrashID
 	})

@@ -424,7 +424,7 @@ No authorization required
 
 ## GetMediaInfo
 
-> MediaInfo GetMediaInfo(ctx, mediaID).Execute()
+> MediaInfo GetMediaInfo(ctx, mediaID).ShareID(shareID).Execute()
 
 Get media info
 
@@ -442,10 +442,11 @@ import (
 
 func main() {
 	mediaID := "mediaID_example" // string | Media ID
+	shareID := "shareID_example" // string | Share ID (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.MediaAPI.GetMediaInfo(context.Background(), mediaID).Execute()
+	resp, r, err := apiClient.MediaAPI.GetMediaInfo(context.Background(), mediaID).ShareID(shareID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `MediaAPI.GetMediaInfo``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -471,6 +472,7 @@ Other parameters are passed through a pointer to a apiGetMediaInfoRequest struct
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
+ **shareID** | **string** | Share ID | 
 
 ### Return type
 

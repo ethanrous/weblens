@@ -37,8 +37,8 @@
                         >
                             <div class="flex items-center justify-center gap-2">
                                 <component
-                                    v-if="item.icon"
                                     :is="item.icon"
+                                    v-if="item.icon"
                                 />
                                 {{ item.text }}
                             </div>
@@ -80,7 +80,7 @@ import type { TableColumn, TableRow } from '~/types/table'
 import TableCell from './TableCell.vue'
 import { camelCaseToWords } from '~/util/string'
 
-const props = defineProps<{
+defineProps<{
     columns: string[]
     rows: TableRow[]
     emptyText?: string

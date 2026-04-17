@@ -57,12 +57,6 @@
                     :quality="PhotoQuality.LowRes"
                     no-click
                 />
-                <IconFolder
-                    v-else-if="file.IsFolder()"
-                    size="80%"
-                    stroke="1"
-                    :class="{ 'm-auto h-full': true }"
-                />
             </template>
         </component>
     </div>
@@ -75,7 +69,7 @@ import MediaImage from '../atom/MediaImage.vue'
 import { PhotoQuality } from '~/types/weblensMedia'
 import type WeblensMedia from '~/types/weblensMedia'
 import useFilesStore, { type FileShape } from '~/stores/files'
-import { IconFolder } from '@tabler/icons-vue'
+
 import { SelectedState } from '@/types/weblensFile'
 import { useElementVisibility, useMousePressed } from '@vueuse/core'
 import { moveFiles } from '~/api/FileBrowserApi'

@@ -2,13 +2,13 @@
     <Teleport to="body">
         <div
             v-if="visible"
-            class="fixed inset-0 z-[9998] bg-black/50"
+            class="fixed inset-0 z-9998 bg-black/50"
             @click.self="$emit('close')"
         />
 
         <div
             v-if="visible"
-            class="fixed inset-0 z-[9999] flex items-center justify-center p-8"
+            class="fixed inset-0 z-9999 flex items-center justify-center p-8"
             @click.self="$emit('close')"
         >
             <div
@@ -20,7 +20,7 @@
                 <input
                     ref="searchInput"
                     v-model="displayPath"
-                    class="bg-background-secondary w-full rounded border px-3 py-2 text-sm outline-none focus:border-blue-500"
+                    class="bg-background-secondary w-full rounded border px-3 py-2 text-sm outline-none"
                     placeholder="Type a folder path..."
                     @input="onSearchInput"
                 />
@@ -30,9 +30,15 @@
                         v-if="currentFolder"
                         class="flex items-center gap-2 rounded border px-3 py-2"
                     >
-                        <IconFolder :size="16" class="shrink-0 opacity-50" />
+                        <IconFolder
+                            :size="16"
+                            class="shrink-0 opacity-50"
+                        />
                         <span class="truncate text-sm opacity-70">{{ currentFolderName }}</span>
-                        <div class="ml-auto" @click="selectCurrentFolder">
+                        <div
+                            class="ml-auto"
+                            @click="selectCurrentFolder"
+                        >
                             <WeblensButton
                                 label="Select"
                                 type="outline"
@@ -46,14 +52,20 @@
                         class="hover:bg-background-secondary flex cursor-pointer items-center gap-2 rounded px-3 py-2 transition"
                         @click="navigateInto(folder)"
                     >
-                        <IconFolder :size="16" class="shrink-0" />
+                        <IconFolder
+                            :size="16"
+                            class="shrink-0"
+                        />
                         <span class="truncate text-sm">{{ folderDisplayName(folder) }}</span>
-                        <IconChevronRight :size="14" class="ml-auto shrink-0 opacity-40" />
+                        <IconChevronRight
+                            :size="14"
+                            class="ml-auto shrink-0 opacity-40"
+                        />
                     </div>
 
                     <div
                         v-if="errorMessage && !loading"
-                        class="text-red-400 py-4 text-center text-sm"
+                        class="text-danger py-4 text-center text-sm"
                     >
                         {{ errorMessage }}
                     </div>
@@ -73,7 +85,10 @@
                     </div>
                 </div>
 
-                <div class="flex justify-end" @click="$emit('close')">
+                <div
+                    class="flex justify-end"
+                    @click="$emit('close')"
+                >
                     <WeblensButton
                         label="Cancel"
                         type="outline"
@@ -166,9 +181,7 @@ function onSearchInput() {
 function navigateInto(folder: FileInfo) {
     if (!folder.portablePath) return
 
-    const portable = folder.portablePath.endsWith('/')
-        ? folder.portablePath
-        : folder.portablePath + '/'
+    const portable = folder.portablePath.endsWith('/') ? folder.portablePath : folder.portablePath + '/'
 
     displayPath.value = toDisplayPath(portable)
     fetchAutocomplete(portable)
@@ -179,14 +192,18 @@ function selectCurrentFolder() {
     emit('select', currentFolder.value.id)
 }
 
-watch(() => props.visible, (vis) => {
-    if (vis) {
-        displayPath.value = '~/'
-        fetchAutocomplete(homePrefix.value)
-        nextTick(() => searchInput.value?.focus())
-    } else {
-        folderResults.value = []
-        currentFolder.value = undefined
-    }
-}, { immediate: true })
+watch(
+    () => props.visible,
+    (vis) => {
+        if (vis) {
+            displayPath.value = '~/'
+            fetchAutocomplete(homePrefix.value)
+            nextTick(() => searchInput.value?.focus())
+        } else {
+            folderResults.value = []
+            currentFolder.value = undefined
+        }
+    },
+    { immediate: true },
+)
 </script>

@@ -729,6 +729,13 @@ type ApiGetMediaInfoRequest struct {
 	ctx context.Context
 	ApiService *MediaAPIService
 	mediaID string
+	shareID *string
+}
+
+// Share ID
+func (r ApiGetMediaInfoRequest) ShareID(shareID string) ApiGetMediaInfoRequest {
+	r.shareID = &shareID
+	return r
 }
 
 func (r ApiGetMediaInfoRequest) Execute() (*MediaInfo, *http.Response, error) {
@@ -772,6 +779,9 @@ func (a *MediaAPIService) GetMediaInfoExecute(r ApiGetMediaInfoRequest) (*MediaI
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
+	if r.shareID != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "shareID", r.shareID, "", "")
+	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 

@@ -31,7 +31,6 @@
 </template>
 
 <script setup lang="ts">
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { TableType } from '~/types/table'
 import type { TableColumn } from '~/types/table'
 import WeblensButton from './WeblensButton.vue'

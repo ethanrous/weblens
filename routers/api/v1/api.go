@@ -38,7 +38,7 @@ func Routes(_ context_service.AppContext) *router.Router {
 		r.Get("/types", media_api.GetMediaTypes)
 
 		r.Group("/{mediaID}", func() {
-			r.Get("/info", router.RequireSignIn, media_api.GetMediaInfo)
+			r.Get("/info", router.RequirePermissionsMedia, media_api.GetMediaInfo)
 			r.Get(".{extension}", router.RequirePermissionsMedia, media_api.GetMediaImage)
 			r.Get("/stream", router.RequireSignIn, media_api.StreamVideo)
 			r.Get("/{chunkName}", router.RequireSignIn, media_api.StreamVideo)
