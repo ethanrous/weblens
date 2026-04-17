@@ -119,7 +119,7 @@ func getIndexFields(ctx ctxservice.RequestContext, proxyAddress string) (fields 
 				fields.Image = fmt.Sprintf("%s/media/%s.webp?quality=thumbnail&shareID=%s", apiBasePath, m.ContentID, share.ID().Hex())
 			}
 		}
-	} else if strings.HasPrefix(path, "/media/") {
+	} else if strings.HasPrefix(path, "media/") {
 		handleMediaPage(ctx, path[len("/media/"):], &fields)
 	}
 

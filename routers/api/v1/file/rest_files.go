@@ -1639,10 +1639,8 @@ func getChildMedias(
 	if len(dirIDs) > 0 {
 		covers, err := cover_model.GetCoversByFolderIDs(ctx, dirIDs...)
 		if err != nil {
-			return nil, err
-		}
-
-		if len(covers) > 0 {
+			ctx.Log().Error().Stack().Err(err).Msg("Failed to get covers for folders")
+		} else if len(covers) > 0 {
 			coverContentIDs := make([]media_model.ContentID, 0, len(covers))
 			for _, c := range covers {
 				coverContentIDs = append(coverContentIDs, c.CoverPhotoID)

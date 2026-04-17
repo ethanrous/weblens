@@ -80,17 +80,21 @@ func RequirePermissionsMedia(next Handler) Handler {
 			return
 		}
 
-		fileID := media.FileIDs[0]
+		hasAccess := false
+		for _, fileID := range media.FileIDs {
+			file, err := ctx.FileService.GetFileByID(ctx, fileID)
+			if err != nil {
+				continue
+			}
 
-		file, err := ctx.FileService.GetFileByID(ctx, fileID)
-		if err != nil {
-			ctx.Error(http.StatusNotFound, wlerrors.Wrap(err, "failed to get file for media"))
-
-			return
+			_, err = auth_service.CanUserAccessFile(ctx, ctx.Requester, file, ctx.Share, share_model.SharePermissionViewMedia)
+			if err == nil {
+				hasAccess = true
+				break
+			}
 		}
 
-		_, err = auth_service.CanUserAccessFile(ctx, ctx.Requester, file, ctx.Share, share_model.SharePermissionViewMedia)
-		if err != nil {
+		if !hasAccess {
 			ctx.Error(http.StatusForbidden, wlerrors.Wrap(err, "access denied"))
 
 			return

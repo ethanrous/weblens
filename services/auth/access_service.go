@@ -71,6 +71,14 @@ func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_mo
 		return &share_model.Permissions{}, err
 	}
 
+	if user.IsPublic() {
+		if share != nil && share.IsPublic() {
+			return share_model.NewPermissions(), nil
+		}
+
+		return &share_model.Permissions{}, ErrMustAuthenticate
+	}
+
 	// If the user is the owner of the file, we can access it regardless of the share
 	// FIXME: Make admin access more granular. The current behavior is so backup operations can work.
 	if ownerName == user.GetUsername() || user.IsAdmin() {
@@ -102,28 +110,19 @@ func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_mo
 		for _, requiredPerm := range requiredPerms {
 			if !allowedPerms.HasPermission(requiredPerm) {
 				wlog.FromContext(ctx).Debug().Msgf("User [%s] does not have permission: %s", user.GetUsername(), requiredPerm)
-				// If the user does not have the required permissions, we say cannot access it at all
 				return &share_model.Permissions{}, ErrFileAccessNotPermitted
 			}
 		}
 
-		// If the user has the required permissions, we can access it
 		return allowedPerms, nil
 	}
 
-	// We should never get here
-	return &share_model.Permissions{}, wlerrors.New("unexpected error in CanUserAccessFile: reached end of permissions check without identifying permissions or an error")
+	// Public share with no explicit user permissions — allow access
+	if share.Public {
+		return share_model.NewPermissions(), nil
+	}
 
-	// if user.IsPublic() {
-	// 	if share != nil && share.IsPublic() {
-	// 		return share_model.NewPermissions(), nil
-	// 	}
-	//
-	// 	return &share_model.Permissions{}, ErrMustAuthenticate
-	// }
-	//
-	// // If the share is public, and allows access to the specific file we want, we can access it regardless of the accessors list
-	// return share.GetUserPermissions(user_model.PublicUserName), nil
+	return &share_model.Permissions{}, wlerrors.New("unexpected error in CanUserAccessFile: reached end of permissions check without identifying permissions or an error")
 }
 
 // CanUserModifyShare checks if a user has permission to modify a share.
