@@ -76,6 +76,7 @@ func getIndexFields(ctx ctxservice.RequestContext, proxyAddress string) (fields 
 	if len(path) > 0 && path[0] == '/' {
 		path = path[1:]
 	}
+
 	share, url, isFileSharePath := getShare(ctx, proxyAddress)
 	fields.URL = url
 
