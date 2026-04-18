@@ -64,7 +64,7 @@ func handleMediaPage(ctx ctxservice.RequestContext, mediaID string, fields *inde
 	imgURL := fmt.Sprintf("%s/media/%s.webp?quality=thumbnail", apiBasePath, m.ContentID)
 
 	if ctx.Query("shareID") != "" {
-		imgURL += "?shareID=" + ctx.Query("shareID")
+		imgURL += "&shareID=" + ctx.Query("shareID")
 		fields.Description += " Share"
 	}
 
@@ -73,6 +73,9 @@ func handleMediaPage(ctx ctxservice.RequestContext, mediaID string, fields *inde
 
 func getIndexFields(ctx ctxservice.RequestContext, proxyAddress string) (fields indexFields) {
 	path := ctx.Req.URL.Path
+	if len(path) > 0 && path[0] == '/' {
+		path = path[1:]
+	}
 	share, url, isFileSharePath := getShare(ctx, proxyAddress)
 	fields.URL = url
 
@@ -120,7 +123,7 @@ func getIndexFields(ctx ctxservice.RequestContext, proxyAddress string) (fields 
 			}
 		}
 	} else if strings.HasPrefix(path, "media/") {
-		handleMediaPage(ctx, path[len("/media/"):], &fields)
+		handleMediaPage(ctx, path[len("media/"):], &fields)
 	}
 
 	if fields.Image == "" {

@@ -124,7 +124,6 @@ export default class WeblensShare implements ShareInfo {
         if (!username) {
             username = useUserStore().getActiveUsername()
         }
-        console.debug('USERNAME?', username)
 
         if (this.owner === username) {
             return true

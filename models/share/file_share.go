@@ -193,6 +193,10 @@ func DeleteShare(ctx context.Context, shareID primitive.ObjectID) error {
 
 // SetPublic sets whether the share is public.
 func (s *FileShare) SetPublic(ctx context.Context, pub bool) error {
+	if s.Public == pub {
+		return nil
+	}
+
 	collection, err := db.GetCollection[*FileShare](ctx, ShareCollectionKey)
 	if err != nil {
 		return err
@@ -202,9 +206,8 @@ func (s *FileShare) SetPublic(ctx context.Context, pub bool) error {
 	newPublicPermissions := NewPermissions()
 
 	if !pub {
-		// If the share is being set to private, remove all permissions for the public user.
-		// This isn't really checked anywhere, since public = "false" already denies all access,
-		// but it's cleaner to not have dangling permissions for the public user when the share isn't public.
+		// When flipping to private, clear the public user's permissions so nothing dangles;
+		// the public=false flag alone already denies access.
 		newPublicPermissions = NewEmptyPermissions()
 	}
 
@@ -221,6 +224,10 @@ func (s *FileShare) SetPublic(ctx context.Context, pub bool) error {
 
 // SetTimelineOnly sets whether the share is timeline-only.
 func (s *FileShare) SetTimelineOnly(ctx context.Context, timelineOnly bool) error {
+	if s.TimelineOnly == timelineOnly {
+		return nil
+	}
+
 	collection, err := db.GetCollection[*FileShare](ctx, ShareCollectionKey)
 	if err != nil {
 		return err

@@ -41,8 +41,6 @@ class WeblensMedia implements MediaInfo {
     abort?: AbortController
     index: number = -1
 
-    private loadError?: PhotoQuality
-
     constructor(init: MediaInfo) {
         Object.assign(this, init)
 
@@ -164,7 +162,6 @@ class WeblensMedia implements MediaInfo {
     public MediaUrl(shareID?: string): string {
         let url = `${window.location.origin}/media/${this.contentID}`
         if (shareID) {
-            console.debug('Using shareID', shareID)
             url += `?shareID=${encodeURIComponent(shareID)}`
         }
 
@@ -174,38 +171,6 @@ class WeblensMedia implements MediaInfo {
     public StreamVideoUrl(): string {
         return `${API_ENDPOINT.value}/media/${this.contentID}/stream`
     }
-
-    // private async getImageData(quality: PhotoQuality, signal: AbortSignal, pageNumber: number = 0): Promise<string> {
-    //     return useWeblensAPI()
-    //         .MediaAPI.getMediaImage(this.contentID, 'webp', quality, pageNumber, {
-    //             responseType: 'blob',
-    //             signal: signal,
-    //         })
-    //         .then((res: AxiosResponse) => {
-    //             if (res.status !== 200) {
-    //                 return Promise.reject(new Error(res.statusText))
-    //             }
-    //
-    //             const blob = new Blob([res.data])
-    //             switch (quality) {
-    //                 case PhotoQuality.LowRes: {
-    //                     this.thumbnail = URL.createObjectURL(blob)
-    //                     return this.thumbnail
-    //                 }
-    //                 case PhotoQuality.HighRes: {
-    //                     this.fullres[pageNumber] = URL.createObjectURL(blob)
-    //                     return this.fullres[pageNumber]
-    //                 }
-    //             }
-    //         })
-    //         .catch((r: AxiosError) => {
-    //             if (!signal.aborted) {
-    //                 console.error('Failed to get image from server:', r)
-    //                 this.loadError = quality
-    //             }
-    //             return ''
-    //         })
-    // }
 }
 
 export type GalleryRowItem = { m: WeblensMedia; w: number }

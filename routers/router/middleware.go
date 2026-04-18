@@ -97,7 +97,7 @@ func RequirePermissionsMedia(next Handler) Handler {
 		}
 
 		if !hasAccess {
-			ctx.Error(http.StatusForbidden, wlerrors.Wrap(err, "access denied"))
+			ctx.Error(http.StatusForbidden, wlerrors.New("access denied"))
 
 			return
 		}

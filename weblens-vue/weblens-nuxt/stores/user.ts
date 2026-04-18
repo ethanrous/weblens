@@ -34,7 +34,6 @@ export const useUserStore = defineStore('user', () => {
     }
 
     function getActiveUsername(): string {
-        console.debug('Getting active username...', user.value)
         return user.value.isLoggedIn.get({ default: false }) ? user.value.username : UNAUTHENTICATED_USER_NAME
     }
 

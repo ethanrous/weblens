@@ -35,15 +35,12 @@
                             class="shrink-0 opacity-50"
                         />
                         <span class="truncate text-sm opacity-70">{{ currentFolderName }}</span>
-                        <div
+                        <WeblensButton
+                            label="Select"
+                            type="outline"
                             class="ml-auto"
-                            @click="selectCurrentFolder"
-                        >
-                            <WeblensButton
-                                label="Select"
-                                type="outline"
-                            />
-                        </div>
+                            :on-click="selectCurrentFolder"
+                        />
                     </div>
 
                     <div
@@ -85,13 +82,11 @@
                     </div>
                 </div>
 
-                <div
-                    class="flex justify-end"
-                    @click="$emit('close')"
-                >
+                <div class="flex justify-end">
                     <WeblensButton
                         label="Cancel"
                         type="outline"
+                        :on-click="() => emit('close')"
                     />
                 </div>
             </div>
@@ -204,6 +199,5 @@ watch(
             currentFolder.value = undefined
         }
     },
-    { immediate: true },
 )
 </script>

@@ -67,9 +67,8 @@ func toPermissionInfo(perms share_model.Permissions) wlstructs.PermissionsInfo {
 
 // PermissionsParamsToPermissions converts PermissionsParams to a Permissions model.
 func PermissionsParamsToPermissions(_ context.Context, perms wlstructs.PermissionsParams) (share_model.Permissions, error) {
+	// TODO: CanViewMedia is forced on until the API exposes it as a separate toggle.
 	newPerms := share_model.Permissions{
-		// Ensure that CanViewMedia is always true, for now.
-		// This may be revisited in the future for more granular control.
 		CanViewMedia: true,
 		CanView:      perms.CanView,
 		CanEdit:      perms.CanEdit,
