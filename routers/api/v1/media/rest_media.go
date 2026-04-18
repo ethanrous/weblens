@@ -800,8 +800,13 @@ func getProcessedMedia(ctx ctxservice.RequestContext, q media_model.Quality, for
 			return
 		}
 
+		contentType := "image/" + format
+		if format == "pdf" {
+			contentType = "application/pdf"
+		}
+
 		ctx.SetHeader("Cache-Control", "max-age=3600")
-		ctx.SetHeader("Content-Type", "image/"+format)
+		ctx.SetHeader("Content-Type", contentType)
 		ctx.Bytes(http.StatusOK, multiPageBytes)
 
 		return

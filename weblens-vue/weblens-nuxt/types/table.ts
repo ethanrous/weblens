@@ -16,7 +16,6 @@ type commonCellProps = {
 export type TableTypes = {
     [TableType.Button]: {
         tableType: TableType.Button
-        onclick?: (e: Event) => void
         icon?: Icon
     } & ButtonProps &
         commonCellProps

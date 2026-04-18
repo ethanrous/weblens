@@ -672,7 +672,7 @@ func SetFolderCover(ctx context_service.RequestContext) {
 //	@Failure	500
 //	@Router		/folder/{folderID}/cover [delete]
 func RemoveFolderCover(ctx context_service.RequestContext) {
-	f, err := checkFileAccess(ctx)
+	f, err := checkFileAccess(ctx, share_model.SharePermissionEdit)
 	if err != nil {
 		return
 	}

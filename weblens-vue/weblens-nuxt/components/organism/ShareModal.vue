@@ -153,7 +153,7 @@ const accessors = computed<TableColumns>(() => {
             flavor: 'danger',
             tableType: TableType.Button,
             icon: IconUserOff,
-            onclick: async () => {
+            onClick: async () => {
                 if (!share.value) return
                 await share.value.removeAccessor(u.username)
                 share.value = share.value.clone()
@@ -197,12 +197,12 @@ const publicShareRows = computed<TableRow[]>(() => {
             },
             canViewFiles: {
                 tableType: TableType.Checkbox,
-                checked: share.value?.permissions[UNAUTHENTICATED_USER_NAME]?.canView ?? false,
+                checked: share.value?.permissions?.[UNAUTHENTICATED_USER_NAME]?.canView ?? false,
                 disabled: !share.value.IsPublic(),
                 onchanged: async (c: boolean) => {
                     if (!share.value) return
                     await share.value.updateAccessorPerms(UNAUTHENTICATED_USER_NAME, {
-                        ...share.value?.permissions[UNAUTHENTICATED_USER_NAME],
+                        ...share.value?.permissions?.[UNAUTHENTICATED_USER_NAME],
                         canView: c,
                     })
 
@@ -211,12 +211,12 @@ const publicShareRows = computed<TableRow[]>(() => {
             },
             canDownload: {
                 tableType: TableType.Checkbox,
-                checked: share.value?.permissions[UNAUTHENTICATED_USER_NAME]?.canDownload ?? false,
+                checked: share.value?.permissions?.[UNAUTHENTICATED_USER_NAME]?.canDownload ?? false,
                 disabled: !share.value.IsPublic(),
                 onchanged: async (c: boolean) => {
                     if (!share.value) return
                     await share.value.updateAccessorPerms(UNAUTHENTICATED_USER_NAME, {
-                        ...share.value?.permissions[UNAUTHENTICATED_USER_NAME],
+                        ...share.value?.permissions?.[UNAUTHENTICATED_USER_NAME],
                         canDownload: c,
                     })
 
@@ -225,12 +225,12 @@ const publicShareRows = computed<TableRow[]>(() => {
             },
             canEdit: {
                 tableType: TableType.Checkbox,
-                checked: share.value?.permissions[UNAUTHENTICATED_USER_NAME]?.canEdit ?? false,
+                checked: share.value?.permissions?.[UNAUTHENTICATED_USER_NAME]?.canEdit ?? false,
                 disabled: !share.value.IsPublic(),
                 onchanged: async (c: boolean) => {
                     if (!share.value) return
                     await share.value.updateAccessorPerms(UNAUTHENTICATED_USER_NAME, {
-                        ...share.value?.permissions[UNAUTHENTICATED_USER_NAME],
+                        ...share.value?.permissions?.[UNAUTHENTICATED_USER_NAME],
                         canEdit: c,
                     })
 
@@ -239,12 +239,12 @@ const publicShareRows = computed<TableRow[]>(() => {
             },
             canDelete: {
                 tableType: TableType.Checkbox,
-                checked: share.value?.permissions[UNAUTHENTICATED_USER_NAME]?.canDelete ?? false,
+                checked: share.value?.permissions?.[UNAUTHENTICATED_USER_NAME]?.canDelete ?? false,
                 disabled: !share.value.IsPublic(),
                 onchanged: async (c: boolean) => {
                     if (!share.value) return
                     await share.value.updateAccessorPerms(UNAUTHENTICATED_USER_NAME, {
-                        ...share.value?.permissions[UNAUTHENTICATED_USER_NAME],
+                        ...share.value?.permissions?.[UNAUTHENTICATED_USER_NAME],
                         canDelete: c,
                     })
 

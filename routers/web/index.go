@@ -27,7 +27,7 @@ func getShare(ctx ctxservice.RequestContext, proxyAddress string) (share *share_
 	var err error
 
 	if strings.HasPrefix(path, "files/share/") {
-		isFileSharePath := true
+		isFileSharePath = true
 		path = path[len("files/share/"):]
 		slashIndex := strings.Index(path, "/")
 

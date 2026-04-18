@@ -13,7 +13,10 @@
         v-else-if="cellData?.tableType === TableType.Button"
         v-bind="cellData"
     >
-        <component :is="cellData.icon" />
+        <component
+            :is="cellData.icon"
+            v-if="cellData.icon"
+        />
     </WeblensButton>
     <WeblensCheckbox
         v-else-if="cellData?.tableType === TableType.Checkbox"
