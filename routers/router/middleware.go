@@ -81,6 +81,7 @@ func RequirePermissionsMedia(next Handler) Handler {
 		}
 
 		hasAccess := false
+
 		for _, fileID := range media.FileIDs {
 			file, err := ctx.FileService.GetFileByID(ctx, fileID)
 			if err != nil {
@@ -90,6 +91,7 @@ func RequirePermissionsMedia(next Handler) Handler {
 			_, err = auth_service.CanUserAccessFile(ctx, ctx.Requester, file, ctx.Share, share_model.SharePermissionViewMedia)
 			if err == nil {
 				hasAccess = true
+
 				break
 			}
 		}

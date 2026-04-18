@@ -8,7 +8,7 @@
         <div
             ref="modal"
             :class="{
-                'bg-background-primary flex h-full w-full flex-col gap-4 rounded border p-4': true,
+                'bg-background-primary flex h-full w-full flex-col gap-4 overflow-y-auto rounded border p-4': true,
             }"
             @click.stop
         >
@@ -197,7 +197,7 @@ const publicShareRows = computed<TableRow[]>(() => {
             },
             canViewFiles: {
                 tableType: TableType.Checkbox,
-                checked: share.value?.permissions[UNAUTHENTICATED_USER_NAME].canView ?? false,
+                checked: share.value?.permissions[UNAUTHENTICATED_USER_NAME]?.canView ?? false,
                 disabled: !share.value.IsPublic(),
                 onchanged: async (c: boolean) => {
                     if (!share.value) return
@@ -211,7 +211,7 @@ const publicShareRows = computed<TableRow[]>(() => {
             },
             canDownload: {
                 tableType: TableType.Checkbox,
-                checked: share.value?.permissions[UNAUTHENTICATED_USER_NAME].canDownload ?? false,
+                checked: share.value?.permissions[UNAUTHENTICATED_USER_NAME]?.canDownload ?? false,
                 disabled: !share.value.IsPublic(),
                 onchanged: async (c: boolean) => {
                     if (!share.value) return
@@ -225,7 +225,7 @@ const publicShareRows = computed<TableRow[]>(() => {
             },
             canEdit: {
                 tableType: TableType.Checkbox,
-                checked: share.value?.permissions[UNAUTHENTICATED_USER_NAME].canEdit ?? false,
+                checked: share.value?.permissions[UNAUTHENTICATED_USER_NAME]?.canEdit ?? false,
                 disabled: !share.value.IsPublic(),
                 onchanged: async (c: boolean) => {
                     if (!share.value) return
@@ -239,7 +239,7 @@ const publicShareRows = computed<TableRow[]>(() => {
             },
             canDelete: {
                 tableType: TableType.Checkbox,
-                checked: share.value?.permissions[UNAUTHENTICATED_USER_NAME].canDelete ?? false,
+                checked: share.value?.permissions[UNAUTHENTICATED_USER_NAME]?.canDelete ?? false,
                 disabled: !share.value.IsPublic(),
                 onchanged: async (c: boolean) => {
                     if (!share.value) return

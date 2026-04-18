@@ -260,7 +260,7 @@ func AddUserToShare(ctx ctxservice.RequestContext) {
 		return
 	}
 
-	err = share.AddUser(ctx, newUsername, &params)
+	err = share.AddUser(ctx, newUsername, params)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 

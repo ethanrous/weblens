@@ -110,6 +110,7 @@ func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_mo
 		for _, requiredPerm := range requiredPerms {
 			if !allowedPerms.HasPermission(requiredPerm) {
 				wlog.FromContext(ctx).Debug().Msgf("User [%s] does not have permission: %s", user.GetUsername(), requiredPerm)
+
 				return &share_model.Permissions{}, ErrFileAccessNotPermitted
 			}
 		}

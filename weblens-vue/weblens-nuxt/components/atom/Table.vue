@@ -1,5 +1,5 @@
 <template>
-    <div :class="{ 'flex overflow-y-auto rounded border': true }">
+    <div :class="{ 'flex shrink-0 overflow-y-auto rounded border': true }">
         <table
             :class="{
                 'w-full caption-bottom border-separate border-spacing-0 text-sm xl:table-fixed': true,
@@ -23,6 +23,14 @@
                 </tr>
             </thead>
             <tbody :class="{ '[&_tr:last-child]:border-0': true }">
+                <tr v-if="emptyText && rows.length === 0">
+                    <td
+                        :colspan="columns.length"
+                        :class="{ 'text-text-tertiary p-4 text-center font-medium': true }"
+                    >
+                        {{ emptyText }}
+                    </td>
+                </tr>
                 <template
                     v-for="(item, index) in rows"
                     :key="index"

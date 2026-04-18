@@ -81,11 +81,17 @@ func PermissionsParamsToPermissions(_ context.Context, perms wlstructs.Permissio
 }
 
 // UnpackNewUserParams extracts the username and permissions from AddUserParams.
-func UnpackNewUserParams(ctx context.Context, params wlstructs.AddUserParams) (string, share_model.Permissions, error) {
-	perms, err := PermissionsParamsToPermissions(ctx, params.PermissionsParams)
-	if err != nil {
-		return "", share_model.Permissions{}, err
+// Returns a nil Permissions pointer when the caller did not specify any permission
+// fields, so that the model layer applies its default permissions.
+func UnpackNewUserParams(ctx context.Context, params wlstructs.AddUserParams) (string, *share_model.Permissions, error) {
+	if !params.CanView && !params.CanEdit && !params.CanDownload && !params.CanDelete {
+		return params.Username, nil, nil
 	}
 
-	return params.Username, perms, nil
+	perms, err := PermissionsParamsToPermissions(ctx, params.PermissionsParams)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return params.Username, &perms, nil
 }
