@@ -130,6 +130,8 @@ test.describe('Share Browsing', () => {
 })
 
 test.describe('Share Browsing - Private Share Accessor', () => {
+    test.describe.configure({ timeout: 30_000 })
+
     test.beforeEach(async ({ page, login: _login }) => {
         // Create a second user who will be the share accessor
         await createUser(page, 'share_accessor', 'shareaccess1')
