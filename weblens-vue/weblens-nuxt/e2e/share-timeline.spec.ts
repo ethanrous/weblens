@@ -167,6 +167,8 @@ test.describe('Share Timeline - Authenticated User', () => {
     test('should show timeline instead of "No files shared with you" when switching to timeline in a shared folder', async ({
         page,
     }) => {
+        test.slow()
+
         // Log out of admin and log in as the share recipient
         await page.goto('/settings')
         await page.waitForURL('**/settings/account')

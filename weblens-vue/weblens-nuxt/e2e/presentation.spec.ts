@@ -187,11 +187,11 @@ test.describe('Upload Progress and File Size Formatting', () => {
         })
 
         // Wait for the file to appear in the file list
-        await expect(page.getByText('large-test-file.txt')).toBeVisible()
+        const fileCard = page.locator('[id^="file-card-"]').filter({ hasText: 'large-test-file.txt' })
+        await expect(fileCard).toBeVisible()
 
         // Verify the file size is displayed in the file card (e.g., "102.4kB - Sun Feb 08 2026")
         // humanBytes formats sizes with lowercase k: "102.4kB"
-        const fileCard = page.locator('[id^="file-card-"]').filter({ hasText: 'large-test-file.txt' })
         await expect(fileCard.getByText(/\d+(\.\d+)?kB/)).toBeVisible()
 
         // Clean up: trash the uploaded file (guard against disabled Trash button)
