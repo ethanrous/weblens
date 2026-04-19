@@ -606,7 +606,7 @@ func CreateFolder(ctx context_service.RequestContext) {
 //	@Failure	500
 //	@Router		/folder/{folderID}/cover [patch]
 func SetFolderCover(ctx context_service.RequestContext) {
-	folder, err := checkFileAccess(ctx)
+	folder, err := checkFileAccess(ctx, share_model.SharePermissionEdit)
 	if err != nil {
 		return
 	}
