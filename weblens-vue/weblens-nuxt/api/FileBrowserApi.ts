@@ -62,6 +62,11 @@ export function UnsubFromFolder(subID: string) {
 }
 
 export async function GetTrashChildIds(): Promise<string[]> {
+    if (!useUserStore().user.trashID) {
+        console.warn('No trash folder found, cannot get child ids')
+        return []
+    }
+
     const { data: folder } = await useWeblensAPI().FoldersAPI.getFolder(useUserStore().user.trashID)
 
     if (!folder || !folder.children) {

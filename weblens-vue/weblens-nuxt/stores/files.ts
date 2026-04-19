@@ -155,6 +155,10 @@ const useFilesStore = defineStore('files', () => {
                     t: 'file',
                 }
             } else {
+                if (!locationStore.activeFolderID) {
+                    return {}
+                }
+
                 res = {
                     r: await useWeblensAPI().FoldersAPI.getFolder(
                         locationStore.activeFolderID,
