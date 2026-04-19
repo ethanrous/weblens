@@ -9,7 +9,7 @@
 
 ---
 
-Weblens is a self-hosted file management. It runs as a Docker container, stores files on your own hardware, and gives you a web UI to upload, organize, browse, and share them.
+Weblens is a self-hosted file management server. It runs as a Docker container, stores files on your own hardware, and gives you a web UI to upload, organize, browse, and share them.
 
 ## Features
 
