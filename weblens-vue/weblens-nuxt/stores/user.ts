@@ -9,6 +9,7 @@ export const useUserStore = defineStore('user', () => {
 
     function setUser(info: UserInfo, isLoggedIn: boolean = false) {
         console.debug('Setting user info:', info, 'Logged in:', isLoggedIn)
+
         user.value = new User(info, isLoggedIn)
     }
 
@@ -29,6 +30,8 @@ export const useUserStore = defineStore('user', () => {
         if (loggedIn.value) {
             await useWeblensAPI().UsersAPI.logoutUser()
         }
+
+        setUser({} as UserInfo, false)
 
         await navigateTo('/login')
     }
