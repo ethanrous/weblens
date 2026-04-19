@@ -1,100 +1,83 @@
 <h1 align="center">Weblens</h1>
-<h3 align="center">Self-Hosted file manager and photo server</h3>
+<h3 align="center">Self-hosted file manager and photo server</h3>
 
 <p align="center">
-    <img width="300" src="images/brand/logo.png" alt="weblens logo" />
-    <br/>
-    <br/>    
-    <a href="https://github.com/ethanrous/weblens/actions/workflows/go.yml"></a>
-    <img alt="Weblens Fulltest" src="https://github.com/ethanrous/weblens/actions/workflows/go.yml/badge.svg?branch=main"/>
+    <img width="240" src="images/brand/logo.png" alt="Weblens logo" />
+    <br/><br/>
+    <img alt="CI" src="https://github.com/ethanrous/weblens/actions/workflows/go.yml/badge.svg?branch=main"/>
 </p>
-<br/>
 
-# Overview
+---
 
-Weblens is a self-hosted file management and sharing system that aims to provide a simple and snappy experience.
+Weblens is a self-hosted file management and photo server. It runs as a Docker container, stores files on your own hardware, and gives you a web UI to upload, organize, browse, and share them.
 
-## Features lightning round
-* File management: including history, backup, and restore
-* File sharing with other users and anonymous guests
-* Fast and extensive global search and searching features
-* Clean, productive web interface
-* Media viewing and management, including video and raw photo support, metadata editing, and more
-* API (still likely to include breaking changes with future updates, documentation at /docs/index.html on any running weblens server)
-* Focus on performance and simplicity
-* And plenty of bugs! Oh and more features too
+## Features
 
-### Roadmap
-* Search and organization
-   * File and media tagging and improved search
-   * Local machine learning support for image recognition
-* Backup
-   * Core "emulation" for backup servers
-   * Restore individual files from backup server
-   * Direct backup to cloud storage providers
-* Improved metadata editing 
-* WebDav support
+- **File management** — upload, organize, rename, delete, and move files through a web interface
+- **File history** — recover deleted or overwritten files without a separate backup tool
+- **Sharing** — share files and folders with other users or via anonymous guest links
+- **Media browser** — view photos and videos in-browser, including RAW formats and video playback
+- **Search** — fast full-text search across filenames and metadata
+- **Backup server** — run a second Weblens instance as an offsite mirror of your primary server
+- **REST API** — documented at `/docs/index.html` on any running instance
 
-<br/>
-
-# Ready to get started?
 ## Installation
-Weblens is distributed as a Docker image. Here is a minimal docker setup to get started:
-```bash
-docker run --name weblens \
--p 8080:8080 \ 
--v {{ /files/on/host }}:/media/users \ 
--v {{ /cache/on/host }}:/media/cache \
--e MONGODB_URI="mongodb://weblens-mongo:27017/?directConnection=true" \ # This is the default, and can be omitted, but you can change it to fit your setup, if needed.
---network weblens-net \
-docker.io/ethrous/weblens:latest
-```
-Also, Weblens uses MongoDB. This can easily be setup using another container
-```bash
-docker run --name weblens-mongo \ # Name must match the MONGODB_URI above
--v {{ /db/on/host }}:/data/db \
---network weblens-net \
-docker.io/ethrous/weblens-mongo:latest
-```
-Replace anything above with `{{ DOUBLE_BRACES }}` with values specific to your setup.
 
-⚠️ **Note** Having the containers on the same Docker network is extremely helpful. [Read how to set up a Docker network](https://docs.docker.com/reference/cli/docker/network/create/). If you wish not to do this, you will have to modify the MONGODB_URI to something routable, and export port 27017 on the mongo container.
+Weblens is distributed as a Docker image. The easiest way to get started is with Docker Compose.
 
-If you prefer to use docker-compose or want view the other configuration options, [check out the docker-compose.yml example](scripts/docker-compose.yml).
+Copy the example files from the `docker/` directory:
+
+```bash
+cp docker/example.compose.yaml compose.yaml
+cp docker/example.compose.env .env
+```
+
+Edit `.env` to set the three paths:
+
+```env
+DATA_HOST_PATH=/path/to/your/data       # Where user files are stored
+CACHE_HOST_PATH=/path/to/your/cache     # Where thumbnails and temp files go
+DATABASE_HOST_PATH=/path/to/your/db     # Where MongoDB stores its data
+```
+
+Then start the stack:
+
+```bash
+docker compose up -d
+```
+
+Weblens will be available at `http://localhost:8080`.
+
+> The `DATA_HOST_PATH` is your long-term file storage — point it at wherever you have space. `CACHE_HOST_PATH` benefits from fast storage (SSD) since it holds thumbnails and processed media.
 
 ## Setup
-Once you have the containers configured and running, you can begin setting up your Weblens server. 
 
-A Weblens server can be configured as a ["core"](#weblens-core) server, or as a ["backup"](#weblens-backup) server. A core server is the main server that is used day to day, and an optional backup server is a one that mirrors the contents of 1 or more core servers. Ideally a backup server is physically distant from any core it backs up.
+On first visit, Weblens will prompt you to configure the server. You can set it up as a **core** server or a **backup** server.
 
-![WeblensSetup.png](images/screenshots/WeblensSetup.png)
+### Core server
 
-### Weblens Core
-If you are new to Weblens, you will want to set up a *core* server. If instead you want to create an offsite backup, see setup instructions for a [Weblens Backup](#weblens-backup) server.
+A core server is the primary instance you use day-to-day. Configure it with an owner account, a server name, and optionally a public address if it's behind a reverse proxy.
 
-Configuring a core server requires you to create an owner user, give the server a name, and optionally set the server address (e.g. if it is behind a reverse proxy)
+![Core setup](images/screenshots/CoreSetup.png)
 
-![CoreSetup.png](images/screenshots/CoreSetup.png)
+### Backup server
 
-And thats it! You will be dropped into the files page, and you can begin uploading and organizing files, and inviting other users to share with.
+A backup server mirrors one or more core servers. It only needs outbound access to the core — it does not need to be publicly accessible.
 
-### Weblens Backup
+To set one up, you need an API key from your core server's admin settings. Give the backup server a name, the core's address, and that key.
 
-Weblens backup servers are designed to be a simple set-and-forget solution to keep your data safe. Unlike core servers, which need to be accessible on the internet (or via VPN, etc.), a backup server can be setup behind a firewall or on a private network, and just needs to be able to reach the core server.
+![Backup setup](images/screenshots/WeblensBackupConfiguration.png)
 
-⚠️ **Note** that a Backup server requires an existing [core server](#weblens-core), and for you to be an admin of that server
+In the event of a disaster on your core server, the backup server can restore all data to a new core instance. If you only need protection against accidental deletion, the built-in file history on the core server is sufficient — a separate backup instance is optional.
 
-To configure a backup server, give it a name, the public address of the core server, and an API key generated by the core server.
+## Roadmap
 
-![WeblensBackupConfiguration.png](images/screenshots/WeblensBackupConfiguration.png)
+- File and media tagging with improved search
+- Local ML-based image recognition
+- WebDAV support
+- Direct backup to cloud storage providers
+- Restore individual files from a backup server
 
-After setting up your backup, under the "remotes" section of the adming settings on your core server, you can now view the status of your backup server.
+## Contributing
 
-In the event of a disaster that takes out your core server, you can perform a "restore" operation on your backup server, and all your data will be restored to a new core server of your choosing. If, instead, you just want protection from accidental deletion of files, a core server has this functionality built in, and would not need a backup server to acomplish this.
-
-<br/>
-
-# Want to contribute?
-
-Visit the [contributing instructions](CONTRIBUTING.md) for how you can help improve Weblens!
-
+Bug reports, feature requests, and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup instructions.
