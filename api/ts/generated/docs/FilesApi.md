@@ -989,12 +989,14 @@ const apiInstance = new FilesApi(configuration);
 
 let uploadID: string; //Upload ID (default to undefined)
 let fileID: string; //File ID (default to undefined)
+let contentRange: string; //Content range of the chunk (default to undefined)
 let chunk: File; //File chunk (default to undefined)
 let shareID: string; //Share ID (optional) (default to undefined)
 
 const { status, data } = await apiInstance.uploadFileChunk(
     uploadID,
     fileID,
+    contentRange,
     chunk,
     shareID
 );
@@ -1006,6 +1008,7 @@ const { status, data } = await apiInstance.uploadFileChunk(
 |------------- | ------------- | ------------- | -------------|
 | **uploadID** | [**string**] | Upload ID | defaults to undefined|
 | **fileID** | [**string**] | File ID | defaults to undefined|
+| **contentRange** | [**string**] | Content range of the chunk | defaults to undefined|
 | **chunk** | [**File**] | File chunk | defaults to undefined|
 | **shareID** | [**string**] | Share ID | (optional) defaults to undefined|
 

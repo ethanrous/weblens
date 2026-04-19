@@ -10,7 +10,7 @@ type TokenInfo struct {
 	RemoteUsing string `json:"remoteUsing" validate:"required"`
 	CreatedBy   string `json:"createdBy" validate:"required"`
 	Token       string `json:"token" validate:"required"`
-} // @name TokenInfo
+} //	@name	TokenInfo
 
 // type APIKeyInfo struct {
 // 	ID           string `json:"id" validate:"required"`

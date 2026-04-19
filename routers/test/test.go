@@ -12,4 +12,3 @@ import (
 func NewWeblensTestInstance(_ string, _ config.Provider, _ zerolog.Logger) (ctxservice.AppContext, error) {
 	return ctxservice.AppContext{}, wlerrors.New("not implemented")
 }
-

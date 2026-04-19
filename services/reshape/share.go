@@ -30,18 +30,19 @@ func ShareToShareInfo(ctx context.Context, s *share_model.FileShare, isDir bool)
 	}
 
 	return wlstructs.ShareInfo{
-		ShareID:     id,
-		FileID:      s.FileID,
-		IsDir:       isDir,
-		ShareName:   s.ShareName,
-		Owner:       s.Owner,
-		Accessors:   accessors,
-		Permissions: PermissionsToPermissionsInfo(ctx, s.Permissions),
-		Public:      s.Public,
-		Wormhole:    s.Wormhole,
-		Enabled:     s.Enabled,
-		Expires:     s.Expires.UnixMilli(),
-		Updated:     s.Updated.UnixMilli(),
+		ShareID:      id,
+		FileID:       s.FileID,
+		IsDir:        isDir,
+		ShareName:    s.ShareName,
+		Owner:        s.Owner,
+		Accessors:    accessors,
+		Permissions:  PermissionsToPermissionsInfo(ctx, s.Permissions),
+		Public:       s.Public,
+		TimelineOnly: s.TimelineOnly,
+		Wormhole:     s.Wormhole,
+		Enabled:      s.Enabled,
+		Expires:      s.Expires.UnixMilli(),
+		Updated:      s.Updated.UnixMilli(),
 	}
 }
 
@@ -66,26 +67,30 @@ func toPermissionInfo(perms share_model.Permissions) wlstructs.PermissionsInfo {
 
 // PermissionsParamsToPermissions converts PermissionsParams to a Permissions model.
 func PermissionsParamsToPermissions(_ context.Context, perms wlstructs.PermissionsParams) (share_model.Permissions, error) {
+	// TODO: CanViewMedia is forced on until the API exposes it as a separate toggle.
 	newPerms := share_model.Permissions{
-		CanView:     perms.CanView,
-		CanEdit:     perms.CanEdit,
-		CanDownload: perms.CanDownload,
-		CanDelete:   perms.CanDelete,
+		CanViewMedia: true,
+		CanView:      perms.CanView,
+		CanEdit:      perms.CanEdit,
+		CanDownload:  perms.CanDownload,
+		CanDelete:    perms.CanDelete,
 	}
-
-	// Ensure that CanView is always true, for now.
-	// This may be revisited in the future for more granular control.
-	newPerms.CanView = true
 
 	return newPerms, nil
 }
 
 // UnpackNewUserParams extracts the username and permissions from AddUserParams.
-func UnpackNewUserParams(ctx context.Context, params wlstructs.AddUserParams) (string, share_model.Permissions, error) {
-	perms, err := PermissionsParamsToPermissions(ctx, params.PermissionsParams)
-	if err != nil {
-		return "", share_model.Permissions{}, err
+// Returns a nil Permissions pointer when the caller did not specify any permission
+// fields, so that the model layer applies its default permissions.
+func UnpackNewUserParams(ctx context.Context, params wlstructs.AddUserParams) (string, *share_model.Permissions, error) {
+	if !params.CanView && !params.CanEdit && !params.CanDownload && !params.CanDelete {
+		return params.Username, nil, nil
 	}
 
-	return params.Username, perms, nil
+	perms, err := PermissionsParamsToPermissions(ctx, params.PermissionsParams)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return params.Username, &perms, nil
 }

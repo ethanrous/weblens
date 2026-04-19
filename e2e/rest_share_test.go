@@ -112,24 +112,20 @@ func TestSetSharePublic(t *testing.T) {
 	assert.False(t, createdShare.GetPublic())
 
 	// Set share to public
-	resp, err := client.ShareAPI.SetSharePublic(t.Context(), createdShare.GetShareID()).Public(true).Execute()
+	updatedShare, resp, err := client.ShareAPI.UpdateFileShare(t.Context(), createdShare.GetShareID()).Request(openapi.FileShareParams{
+		Public: openapi.PtrBool(true),
+	}).Execute()
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	// Verify the change
-	shareInfo, _, err := client.ShareAPI.GetFileShare(t.Context(), createdShare.GetShareID()).Execute()
-	require.NoError(t, err)
-	assert.True(t, shareInfo.GetPublic())
+	assert.True(t, updatedShare.GetPublic())
 
 	// Set share back to private
-	resp, err = client.ShareAPI.SetSharePublic(t.Context(), createdShare.GetShareID()).Public(false).Execute()
+	updatedShare, resp, err = client.ShareAPI.UpdateFileShare(t.Context(), createdShare.GetShareID()).Request(openapi.FileShareParams{
+		Public: openapi.PtrBool(false),
+	}).Execute()
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	// Verify the change
-	shareInfo, _, err = client.ShareAPI.GetFileShare(t.Context(), createdShare.GetShareID()).Execute()
-	require.NoError(t, err)
-	assert.False(t, shareInfo.GetPublic())
+	assert.False(t, updatedShare.GetPublic())
 }
 
 func TestAddUserToShare(t *testing.T) {

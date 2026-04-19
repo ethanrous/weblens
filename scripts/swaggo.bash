@@ -6,7 +6,7 @@ publish_api_patch() {
     npm version patch
     npm publish
 
-    new_version=$(package.json | jq -r .version)
+    new_version=$(jq -r .version package.json)
     popd
 
     pushd ./weblens-vue/weblens-nuxt/
@@ -45,6 +45,7 @@ echo "DONE"
 
 printf "Compiling typescript api..."
 pushd ./api/ts
+npm install
 npm run build
 popd
 echo "DONE"

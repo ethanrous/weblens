@@ -1987,8 +1987,15 @@ type ApiUploadFileChunkRequest struct {
 	ApiService *FilesAPIService
 	uploadID string
 	fileID string
+	contentRange *string
 	chunk *os.File
 	shareID *string
+}
+
+// Content range of the chunk
+func (r ApiUploadFileChunkRequest) ContentRange(contentRange string) ApiUploadFileChunkRequest {
+	r.contentRange = &contentRange
+	return r
 }
 
 // File chunk
@@ -2044,6 +2051,9 @@ func (a *FilesAPIService) UploadFileChunkExecute(r ApiUploadFileChunkRequest) (*
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
+	if r.contentRange == nil {
+		return nil, reportError("contentRange is required and must be specified")
+	}
 	if r.chunk == nil {
 		return nil, reportError("chunk is required and must be specified")
 	}
@@ -2068,6 +2078,7 @@ func (a *FilesAPIService) UploadFileChunkExecute(r ApiUploadFileChunkRequest) (*
 	if localVarHTTPHeaderAccept != "" {
 		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
 	}
+	parameterAddToHeaderOrQuery(localVarHeaderParams, "Content-Range", r.contentRange, "", "")
 	var chunkLocalVarFormFileName string
 	var chunkLocalVarFileName     string
 	var chunkLocalVarFileBytes    []byte

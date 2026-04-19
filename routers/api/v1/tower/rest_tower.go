@@ -24,7 +24,7 @@ import (
 //	@Summary	Get server health status
 //	@Tags		Towers
 //	@Produce	json
-//	@Success	200 {object}	wlstructs.TowerHealth 	"Health status"
+//	@Success	200	{object}	wlstructs.TowerHealth	"Health status"
 //	@Router		/health [get]
 func GetServerHealthStatus(ctx context_service.RequestContext) {
 	ctx.JSON(http.StatusOK, wlstructs.TowerHealth{
@@ -97,7 +97,7 @@ func GetRemotes(ctx context_service.RequestContext) {
 //	@Security	ApiKeyAuth[admin]
 //
 //	@Param		request	body		wlstructs.NewServerParams	true	"New Server Params"
-//	@Success	201		{object}	wlstructs.TowerInfo		"New Server Info"
+//	@Success	201		{object}	wlstructs.TowerInfo			"New Server Info"
 //	@Success	400
 //	@Router		/tower/remote [post]
 func AttachRemote(ctx context_service.RequestContext) {

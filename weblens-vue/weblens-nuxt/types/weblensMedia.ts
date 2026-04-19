@@ -1,6 +1,6 @@
 import type { MediaInfo, MediaTypeInfo } from '@ethanrous/weblens-api'
-import type { AxiosError, AxiosResponse } from 'axios'
 import { API_ENDPOINT, useWeblensAPI } from '~/api/AllApi'
+import useLocationStore from '~/stores/location'
 
 export enum PhotoQuality {
     LowRes = 'thumbnail',
@@ -40,8 +40,6 @@ class WeblensMedia implements MediaInfo {
 
     abort?: AbortController
     index: number = -1
-
-    private loadError?: PhotoQuality
 
     constructor(init: MediaInfo) {
         Object.assign(this, init)
@@ -130,7 +128,7 @@ class WeblensMedia implements MediaInfo {
     // This allows us to load the media info from the server with just the contentID.
     // Something like `const media = new WeblensMedia({ contentID: 'xxxx' }).LoadInfo()`
     async LoadInfo(): Promise<WeblensMedia> {
-        const res = await useWeblensAPI().MediaAPI.getMediaInfo(this.contentID)
+        const res = await useWeblensAPI().MediaAPI.getMediaInfo(this.contentID, useLocationStore().activeShareID)
         Object.assign(this, res.data)
 
         return this
@@ -145,51 +143,33 @@ class WeblensMedia implements MediaInfo {
 
     public ImgUrl(quality: PhotoQuality = PhotoQuality.LowRes): string {
         let format = 'webp'
-        if (this.mimeType === 'application/pdf' && quality === PhotoQuality.HighRes) {
-            format = 'pdf'
+        if (quality === PhotoQuality.HighRes) {
+            if (this.mimeType === 'application/pdf') {
+                format = 'pdf'
+            } else if (this.mimeType === 'image/gif') {
+                format = 'gif'
+            }
         }
 
-        return `${API_ENDPOINT.value}/media/${this.contentID}.${format}?quality=${quality}&page=0`
+        let url = `${API_ENDPOINT.value}/media/${this.contentID}.${format}?quality=${quality}&page=0`
+        if (useLocationStore().activeShareID) {
+            url += `&shareID=${useLocationStore().activeShareID}`
+        }
+
+        return url
     }
 
-    public MediaUrl(): string {
-        return `${window.location.origin}/media/${this.contentID}`
+    public MediaUrl(shareID?: string): string {
+        let url = `${window.location.origin}/media/${this.contentID}`
+        if (shareID) {
+            url += `?shareID=${encodeURIComponent(shareID)}`
+        }
+
+        return url
     }
 
     public StreamVideoUrl(): string {
         return `${API_ENDPOINT.value}/media/${this.contentID}/stream`
-    }
-
-    private async getImageData(quality: PhotoQuality, signal: AbortSignal, pageNumber: number = 0): Promise<string> {
-        return useWeblensAPI()
-            .MediaAPI.getMediaImage(this.contentID, 'webp', quality, pageNumber, {
-                responseType: 'blob',
-                signal: signal,
-            })
-            .then((res: AxiosResponse) => {
-                if (res.status !== 200) {
-                    return Promise.reject(new Error(res.statusText))
-                }
-
-                const blob = new Blob([res.data])
-                switch (quality) {
-                    case PhotoQuality.LowRes: {
-                        this.thumbnail = URL.createObjectURL(blob)
-                        return this.thumbnail
-                    }
-                    case PhotoQuality.HighRes: {
-                        this.fullres[pageNumber] = URL.createObjectURL(blob)
-                        return this.fullres[pageNumber]
-                    }
-                }
-            })
-            .catch((r: AxiosError) => {
-                if (!signal.aborted) {
-                    console.error('Failed to get image from server:', r)
-                    this.loadError = quality
-                }
-                return ''
-            })
     }
 }
 

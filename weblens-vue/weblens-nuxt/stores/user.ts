@@ -1,6 +1,6 @@
 import type { UserInfo } from '@ethanrous/weblens-api'
 import { useWeblensAPI } from '~/api/AllApi'
-import User from '~/types/user'
+import User, { UNAUTHENTICATED_USER_NAME } from '~/types/user'
 
 export const useUserStore = defineStore('user', () => {
     const user = shallowRef(new User())
@@ -33,6 +33,10 @@ export const useUserStore = defineStore('user', () => {
         await navigateTo('/login')
     }
 
+    function getActiveUsername(): string {
+        return user.value.isLoggedIn.get({ default: false }) ? user.value.username : UNAUTHENTICATED_USER_NAME
+    }
+
     onMounted(() => {
         loadUser()
     })
@@ -43,5 +47,6 @@ export const useUserStore = defineStore('user', () => {
 
         setUser,
         logout,
+        getActiveUsername,
     }
 })

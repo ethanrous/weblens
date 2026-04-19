@@ -40,26 +40,6 @@ run_native_tests() {
     portable_sed '/github\.com\/ethanrous\/weblens\/api/d' ./_build/cover/coverage.out
 }
 
-run_container_tests() {
-    rm -rf ./_build/fs/test-container
-
-    if ! dockerc run --rm --platform="linux/amd64" \
-        --network weblens-net \
-        -v ./_build/fs/test-container/data:/data \
-        -v ./_build/fs/test-container/cache:/cache \
-        -v ./_build/cache/test/go/build:/tmp/go-cache \
-        -v ./_build/cover:/cover \
-        -v ./:/src \
-        -v /src/weblens-vue/weblens-nuxt/node_modules \
-        -v /src/build \
-        -e WEBLENS_MONGODB_URI="mongodb://weblens-test-mongo:27017/?directConnection=true" \
-        ethrous/weblens-roux":$baseVersion" /src/scripts/test-weblens.bash "${tests}"; then
-        echo "Tests failed, exiting..."
-        exit 1
-    fi
-
-}
-
 tests=""
 run=""
 baseVersion="v0"
@@ -68,9 +48,6 @@ lazy=true
 
 while [ "${1:-}" != "" ]; do
     case "$1" in
-    "-c" | "--containerize")
-        containerize=true
-        ;;
     "-b" | "--base-version")
         shift
         baseVersion="$1"
@@ -101,10 +78,6 @@ else
     show_as_subtask "Launching mongo" "green" -- launch_mongo --stack-name "test" --mongo-port 27019
 fi
 
-if [[ "$containerize" = false ]]; then
-    build_agno
+build_agno
 
-    run_native_tests "${tests}" "${run}"
-else
-    run_container_tests
-fi
+run_native_tests "${tests}" "${run}"

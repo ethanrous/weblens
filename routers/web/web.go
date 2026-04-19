@@ -14,8 +14,8 @@ import (
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 )
 
-// CacheMiddleware creates a middleware that sets cache headers and optionally enables gzip encoding.
-func CacheMiddleware(addGzip bool, cacheTime int) router.PassthroughHandler {
+// cacheMiddleware creates a middleware that sets cache headers and optionally enables gzip encoding.
+func cacheMiddleware(addGzip bool, cacheTime int) router.PassthroughHandler {
 	cacheTimeStr := fmt.Sprintf("public, max-age=%d", cacheTime)
 
 	return func(next router.Handler) router.Handler {
@@ -43,10 +43,14 @@ func NewMemFs(ctx context_service.AppContext, cnf config.Provider) *InMemoryFS {
 func UIRoutes(memFs *InMemoryFS) *router.Router {
 	r := router.NewRouter()
 
-	r.Handle("/_nuxt/*", CacheMiddleware(true, int((time.Hour*24).Seconds())), http.FileServer(memFs))
-	r.Get("/static/{filename}", CacheMiddleware(false, int(time.Hour.Seconds())), serveStaticContent)
+	r.Handle("/_nuxt/*", cacheMiddleware(true, int((time.Hour*24).Seconds())), http.FileServer(memFs))
+	r.Get("/static/{filename}", cacheMiddleware(false, int(time.Hour.Seconds())), serveStaticContentFromCtx)
 	r.Get("/docs", func(ctx context_service.RequestContext) {
 		http.Redirect(ctx.W, ctx.Req, "/docs/", http.StatusMovedPermanently)
+	})
+
+	r.Get("/favicon.ico", func(ctx context_service.RequestContext) {
+		serveStaticContent(ctx, "favicon.ico")
 	})
 
 	r.NotFound(
@@ -73,9 +77,13 @@ func UIRoutes(memFs *InMemoryFS) *router.Router {
 
 var staticDir = ""
 
-func serveStaticContent(ctx context_service.RequestContext) {
+func serveStaticContentFromCtx(ctx context_service.RequestContext) {
 	filename := ctx.Path("filename")
 
+	serveStaticContent(ctx, filename)
+}
+
+func serveStaticContent(ctx context_service.RequestContext, filename string) {
 	cnf := config.GetConfig()
 
 	if staticDir == "" {

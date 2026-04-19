@@ -347,7 +347,7 @@ No authorization required
 
 ## GetMediaImage
 
-> string GetMediaImage(ctx, mediaID, extension).Quality(quality).Page(page).Execute()
+> string GetMediaImage(ctx, mediaID, extension).Quality(quality).Page(page).ShareID(shareID).Execute()
 
 Get a media image bytes
 
@@ -368,10 +368,11 @@ func main() {
 	extension := "extension_example" // string | Extension
 	quality := "quality_example" // string | Image Quality
 	page := int32(56) // int32 | Page number (optional)
+	shareID := "shareID_example" // string | Share ID (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.MediaAPI.GetMediaImage(context.Background(), mediaID, extension).Quality(quality).Page(page).Execute()
+	resp, r, err := apiClient.MediaAPI.GetMediaImage(context.Background(), mediaID, extension).Quality(quality).Page(page).ShareID(shareID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `MediaAPI.GetMediaImage``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -401,6 +402,7 @@ Name | Type | Description  | Notes
 
  **quality** | **string** | Image Quality | 
  **page** | **int32** | Page number | 
+ **shareID** | **string** | Share ID | 
 
 ### Return type
 
@@ -422,7 +424,7 @@ No authorization required
 
 ## GetMediaInfo
 
-> MediaInfo GetMediaInfo(ctx, mediaID).Execute()
+> MediaInfo GetMediaInfo(ctx, mediaID).ShareID(shareID).Execute()
 
 Get media info
 
@@ -440,10 +442,11 @@ import (
 
 func main() {
 	mediaID := "mediaID_example" // string | Media ID
+	shareID := "shareID_example" // string | Share ID (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.MediaAPI.GetMediaInfo(context.Background(), mediaID).Execute()
+	resp, r, err := apiClient.MediaAPI.GetMediaInfo(context.Background(), mediaID).ShareID(shareID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `MediaAPI.GetMediaInfo``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -469,6 +472,7 @@ Other parameters are passed through a pointer to a apiGetMediaInfoRequest struct
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
+ **shareID** | **string** | Share ID | 
 
 ### Return type
 

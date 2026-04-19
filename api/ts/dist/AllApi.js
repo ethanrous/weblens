@@ -998,14 +998,16 @@ var FilesApiAxiosParamCreator = function(configuration) {
      * @summary Add a chunk to a file upload
      * @param {string} uploadID Upload ID
      * @param {string} fileID File ID
+     * @param {string} contentRange Content range of the chunk
      * @param {File} chunk File chunk
      * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    uploadFileChunk: async (uploadID, fileID, chunk, shareID, options = {}) => {
+    uploadFileChunk: async (uploadID, fileID, contentRange, chunk, shareID, options = {}) => {
       assertParamExists("uploadFileChunk", "uploadID", uploadID);
       assertParamExists("uploadFileChunk", "fileID", fileID);
+      assertParamExists("uploadFileChunk", "contentRange", contentRange);
       assertParamExists("uploadFileChunk", "chunk", chunk);
       const localVarPath = `/upload/{uploadID}/file/{fileID}`.replace(`{${"uploadID"}}`, encodeURIComponent(String(uploadID))).replace(`{${"fileID"}}`, encodeURIComponent(String(fileID)));
       const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1024,6 +1026,9 @@ var FilesApiAxiosParamCreator = function(configuration) {
         localVarFormParams.append("chunk", chunk);
       }
       localVarHeaderParameter["Content-Type"] = "multipart/form-data";
+      if (contentRange != null) {
+        localVarHeaderParameter["Content-Range"] = String(contentRange);
+      }
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
@@ -1301,14 +1306,15 @@ var FilesApiFp = function(configuration) {
      * @summary Add a chunk to a file upload
      * @param {string} uploadID Upload ID
      * @param {string} fileID File ID
+     * @param {string} contentRange Content range of the chunk
      * @param {File} chunk File chunk
      * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    async uploadFileChunk(uploadID, fileID, chunk, shareID, options) {
+    async uploadFileChunk(uploadID, fileID, contentRange, chunk, shareID, options) {
       var _a, _b, _c;
-      const localVarAxiosArgs = await localVarAxiosParamCreator.uploadFileChunk(uploadID, fileID, chunk, shareID, options);
+      const localVarAxiosArgs = await localVarAxiosParamCreator.uploadFileChunk(uploadID, fileID, contentRange, chunk, shareID, options);
       const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
       const localVarOperationServerBasePath = (_c = (_b = operationServerMap["FilesApi.uploadFileChunk"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
       return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -1513,13 +1519,14 @@ var FilesApiFactory = function(configuration, basePath, axios) {
      * @summary Add a chunk to a file upload
      * @param {string} uploadID Upload ID
      * @param {string} fileID File ID
+     * @param {string} contentRange Content range of the chunk
      * @param {File} chunk File chunk
      * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    uploadFileChunk(uploadID, fileID, chunk, shareID, options) {
-      return localVarFp.uploadFileChunk(uploadID, fileID, chunk, shareID, options).then((request) => request(axios, basePath));
+    uploadFileChunk(uploadID, fileID, contentRange, chunk, shareID, options) {
+      return localVarFp.uploadFileChunk(uploadID, fileID, contentRange, chunk, shareID, options).then((request) => request(axios, basePath));
     }
   };
 };
@@ -1719,13 +1726,14 @@ var FilesApi = class extends BaseAPI {
    * @summary Add a chunk to a file upload
    * @param {string} uploadID Upload ID
    * @param {string} fileID File ID
+   * @param {string} contentRange Content range of the chunk
    * @param {File} chunk File chunk
    * @param {string} [shareID] Share ID
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */
-  uploadFileChunk(uploadID, fileID, chunk, shareID, options) {
-    return FilesApiFp(this.configuration).uploadFileChunk(uploadID, fileID, chunk, shareID, options).then((request) => request(this.axios, this.basePath));
+  uploadFileChunk(uploadID, fileID, contentRange, chunk, shareID, options) {
+    return FilesApiFp(this.configuration).uploadFileChunk(uploadID, fileID, contentRange, chunk, shareID, options).then((request) => request(this.axios, this.basePath));
   }
 };
 var SearchFilesSortPropEnum = {
@@ -1848,6 +1856,32 @@ var FolderApiAxiosParamCreator = function(configuration) {
     },
     /**
      * 
+     * @summary Remove the cover image of a folder
+     * @param {string} folderID Folder ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    removeFolderCover: async (folderID, options = {}) => {
+      assertParamExists("removeFolderCover", "folderID", folderID);
+      const localVarPath = `/folder/{folderID}/cover`.replace(`{${"folderID"}}`, encodeURIComponent(String(folderID)));
+      const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+      let baseOptions;
+      if (configuration) {
+        baseOptions = configuration.baseOptions;
+      }
+      const localVarRequestOptions = __spreadValues(__spreadValues({ method: "DELETE" }, baseOptions), options);
+      const localVarHeaderParameter = {};
+      const localVarQueryParameter = {};
+      setSearchParams(localVarUrlObj, localVarQueryParameter);
+      let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+      localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
+      return {
+        url: toPathString(localVarUrlObj),
+        options: localVarRequestOptions
+      };
+    },
+    /**
+     * 
      * @summary Dispatch a folder scan
      * @param {string} folderID Folder ID
      * @param {string} [shareID] Share ID
@@ -1881,13 +1915,13 @@ var FolderApiAxiosParamCreator = function(configuration) {
      * 
      * @summary Set the cover image of a folder
      * @param {string} folderID Folder ID
-     * @param {string} mediaID Media ID
+     * @param {string} contentID Content ID of the media to use as cover
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setFolderCover: async (folderID, mediaID, options = {}) => {
+    setFolderCover: async (folderID, contentID, options = {}) => {
       assertParamExists("setFolderCover", "folderID", folderID);
-      assertParamExists("setFolderCover", "mediaID", mediaID);
+      assertParamExists("setFolderCover", "contentID", contentID);
       const localVarPath = `/folder/{folderID}/cover`.replace(`{${"folderID"}}`, encodeURIComponent(String(folderID)));
       const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
       let baseOptions;
@@ -1897,8 +1931,8 @@ var FolderApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "PATCH" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
-      if (mediaID !== void 0) {
-        localVarQueryParameter["mediaID"] = mediaID;
+      if (contentID !== void 0) {
+        localVarQueryParameter["contentID"] = contentID;
       }
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
@@ -1962,6 +1996,20 @@ var FolderApiFp = function(configuration) {
     },
     /**
      * 
+     * @summary Remove the cover image of a folder
+     * @param {string} folderID Folder ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    async removeFolderCover(folderID, options) {
+      var _a, _b, _c;
+      const localVarAxiosArgs = await localVarAxiosParamCreator.removeFolderCover(folderID, options);
+      const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
+      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["FolderApi.removeFolderCover"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
+      return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+    },
+    /**
+     * 
      * @summary Dispatch a folder scan
      * @param {string} folderID Folder ID
      * @param {string} [shareID] Share ID
@@ -1979,13 +2027,13 @@ var FolderApiFp = function(configuration) {
      * 
      * @summary Set the cover image of a folder
      * @param {string} folderID Folder ID
-     * @param {string} mediaID Media ID
+     * @param {string} contentID Content ID of the media to use as cover
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    async setFolderCover(folderID, mediaID, options) {
+    async setFolderCover(folderID, contentID, options) {
       var _a, _b, _c;
-      const localVarAxiosArgs = await localVarAxiosParamCreator.setFolderCover(folderID, mediaID, options);
+      const localVarAxiosArgs = await localVarAxiosParamCreator.setFolderCover(folderID, contentID, options);
       const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
       const localVarOperationServerBasePath = (_c = (_b = operationServerMap["FolderApi.setFolderCover"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
       return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -2032,6 +2080,16 @@ var FolderApiFactory = function(configuration, basePath, axios) {
     },
     /**
      * 
+     * @summary Remove the cover image of a folder
+     * @param {string} folderID Folder ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    removeFolderCover(folderID, options) {
+      return localVarFp.removeFolderCover(folderID, options).then((request) => request(axios, basePath));
+    },
+    /**
+     * 
      * @summary Dispatch a folder scan
      * @param {string} folderID Folder ID
      * @param {string} [shareID] Share ID
@@ -2045,12 +2103,12 @@ var FolderApiFactory = function(configuration, basePath, axios) {
      * 
      * @summary Set the cover image of a folder
      * @param {string} folderID Folder ID
-     * @param {string} mediaID Media ID
+     * @param {string} contentID Content ID of the media to use as cover
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setFolderCover(folderID, mediaID, options) {
-      return localVarFp.setFolderCover(folderID, mediaID, options).then((request) => request(axios, basePath));
+    setFolderCover(folderID, contentID, options) {
+      return localVarFp.setFolderCover(folderID, contentID, options).then((request) => request(axios, basePath));
     }
   };
 };
@@ -2092,6 +2150,16 @@ var FolderApi = class extends BaseAPI {
   }
   /**
    * 
+   * @summary Remove the cover image of a folder
+   * @param {string} folderID Folder ID
+   * @param {*} [options] Override http request option.
+   * @throws {RequiredError}
+   */
+  removeFolderCover(folderID, options) {
+    return FolderApiFp(this.configuration).removeFolderCover(folderID, options).then((request) => request(this.axios, this.basePath));
+  }
+  /**
+   * 
    * @summary Dispatch a folder scan
    * @param {string} folderID Folder ID
    * @param {string} [shareID] Share ID
@@ -2105,12 +2173,12 @@ var FolderApi = class extends BaseAPI {
    * 
    * @summary Set the cover image of a folder
    * @param {string} folderID Folder ID
-   * @param {string} mediaID Media ID
+   * @param {string} contentID Content ID of the media to use as cover
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */
-  setFolderCover(folderID, mediaID, options) {
-    return FolderApiFp(this.configuration).setFolderCover(folderID, mediaID, options).then((request) => request(this.axios, this.basePath));
+  setFolderCover(folderID, contentID, options) {
+    return FolderApiFp(this.configuration).setFolderCover(folderID, contentID, options).then((request) => request(this.axios, this.basePath));
   }
 };
 var GetFolderSortPropEnum = {
@@ -2299,10 +2367,11 @@ var MediaApiAxiosParamCreator = function(configuration) {
      * @param {string} extension Extension
      * @param {GetMediaImageQualityEnum} quality Image Quality
      * @param {number} [page] Page number
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMediaImage: async (mediaID, extension, quality, page, options = {}) => {
+    getMediaImage: async (mediaID, extension, quality, page, shareID, options = {}) => {
       assertParamExists("getMediaImage", "mediaID", mediaID);
       assertParamExists("getMediaImage", "extension", extension);
       assertParamExists("getMediaImage", "quality", quality);
@@ -2321,6 +2390,9 @@ var MediaApiAxiosParamCreator = function(configuration) {
       if (page !== void 0) {
         localVarQueryParameter["page"] = page;
       }
+      if (shareID !== void 0) {
+        localVarQueryParameter["shareID"] = shareID;
+      }
       localVarHeaderParameter["Accept"] = "image/*";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
@@ -2334,10 +2406,11 @@ var MediaApiAxiosParamCreator = function(configuration) {
      * 
      * @summary Get media info
      * @param {string} mediaID Media ID
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMediaInfo: async (mediaID, options = {}) => {
+    getMediaInfo: async (mediaID, shareID, options = {}) => {
       assertParamExists("getMediaInfo", "mediaID", mediaID);
       const localVarPath = `/media/{mediaID}/info`.replace(`{${"mediaID"}}`, encodeURIComponent(String(mediaID)));
       const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2348,6 +2421,9 @@ var MediaApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
+      if (shareID !== void 0) {
+        localVarQueryParameter["shareID"] = shareID;
+      }
       localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
@@ -2595,12 +2671,13 @@ var MediaApiFp = function(configuration) {
      * @param {string} extension Extension
      * @param {GetMediaImageQualityEnum} quality Image Quality
      * @param {number} [page] Page number
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    async getMediaImage(mediaID, extension, quality, page, options) {
+    async getMediaImage(mediaID, extension, quality, page, shareID, options) {
       var _a, _b, _c;
-      const localVarAxiosArgs = await localVarAxiosParamCreator.getMediaImage(mediaID, extension, quality, page, options);
+      const localVarAxiosArgs = await localVarAxiosParamCreator.getMediaImage(mediaID, extension, quality, page, shareID, options);
       const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
       const localVarOperationServerBasePath = (_c = (_b = operationServerMap["MediaApi.getMediaImage"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
       return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -2609,12 +2686,13 @@ var MediaApiFp = function(configuration) {
      * 
      * @summary Get media info
      * @param {string} mediaID Media ID
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    async getMediaInfo(mediaID, options) {
+    async getMediaInfo(mediaID, shareID, options) {
       var _a, _b, _c;
-      const localVarAxiosArgs = await localVarAxiosParamCreator.getMediaInfo(mediaID, options);
+      const localVarAxiosArgs = await localVarAxiosParamCreator.getMediaInfo(mediaID, shareID, options);
       const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
       const localVarOperationServerBasePath = (_c = (_b = operationServerMap["MediaApi.getMediaInfo"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
       return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -2760,21 +2838,23 @@ var MediaApiFactory = function(configuration, basePath, axios) {
      * @param {string} extension Extension
      * @param {GetMediaImageQualityEnum} quality Image Quality
      * @param {number} [page] Page number
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMediaImage(mediaID, extension, quality, page, options) {
-      return localVarFp.getMediaImage(mediaID, extension, quality, page, options).then((request) => request(axios, basePath));
+    getMediaImage(mediaID, extension, quality, page, shareID, options) {
+      return localVarFp.getMediaImage(mediaID, extension, quality, page, shareID, options).then((request) => request(axios, basePath));
     },
     /**
      * 
      * @summary Get media info
      * @param {string} mediaID Media ID
+     * @param {string} [shareID] Share ID
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getMediaInfo(mediaID, options) {
-      return localVarFp.getMediaInfo(mediaID, options).then((request) => request(axios, basePath));
+    getMediaInfo(mediaID, shareID, options) {
+      return localVarFp.getMediaInfo(mediaID, shareID, options).then((request) => request(axios, basePath));
     },
     /**
      * 
@@ -2895,21 +2975,23 @@ var MediaApi = class extends BaseAPI {
    * @param {string} extension Extension
    * @param {GetMediaImageQualityEnum} quality Image Quality
    * @param {number} [page] Page number
+   * @param {string} [shareID] Share ID
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */
-  getMediaImage(mediaID, extension, quality, page, options) {
-    return MediaApiFp(this.configuration).getMediaImage(mediaID, extension, quality, page, options).then((request) => request(this.axios, this.basePath));
+  getMediaImage(mediaID, extension, quality, page, shareID, options) {
+    return MediaApiFp(this.configuration).getMediaImage(mediaID, extension, quality, page, shareID, options).then((request) => request(this.axios, this.basePath));
   }
   /**
    * 
    * @summary Get media info
    * @param {string} mediaID Media ID
+   * @param {string} [shareID] Share ID
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */
-  getMediaInfo(mediaID, options) {
-    return MediaApiFp(this.configuration).getMediaInfo(mediaID, options).then((request) => request(this.axios, this.basePath));
+  getMediaInfo(mediaID, shareID, options) {
+    return MediaApiFp(this.configuration).getMediaInfo(mediaID, shareID, options).then((request) => request(this.axios, this.basePath));
   }
   /**
    * 
@@ -3121,16 +3203,16 @@ var ShareApiAxiosParamCreator = function(configuration) {
     },
     /**
      * 
-     * @summary Update a share\'s \"public\" status
+     * @summary Update a file share
      * @param {string} shareID Share ID
-     * @param {boolean} _public Share Public Status
+     * @param {FileShareParams} request Updated File Share Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setSharePublic: async (shareID, _public, options = {}) => {
-      assertParamExists("setSharePublic", "shareID", shareID);
-      assertParamExists("setSharePublic", "_public", _public);
-      const localVarPath = `/share/{shareID}/public`.replace(`{${"shareID"}}`, encodeURIComponent(String(shareID)));
+    updateFileShare: async (shareID, request, options = {}) => {
+      assertParamExists("updateFileShare", "shareID", shareID);
+      assertParamExists("updateFileShare", "request", request);
+      const localVarPath = `/share/{shareID}`.replace(`{${"shareID"}}`, encodeURIComponent(String(shareID)));
       const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
       let baseOptions;
       if (configuration) {
@@ -3139,12 +3221,12 @@ var ShareApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "PATCH" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
-      if (_public !== void 0) {
-        localVarQueryParameter["public"] = _public;
-      }
+      localVarHeaderParameter["Content-Type"] = "application/json";
+      localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
       localVarRequestOptions.headers = __spreadValues(__spreadValues(__spreadValues({}, localVarHeaderParameter), headersFromBaseOptions), options.headers);
+      localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration);
       return {
         url: toPathString(localVarUrlObj),
         options: localVarRequestOptions
@@ -3262,17 +3344,17 @@ var ShareApiFp = function(configuration) {
     },
     /**
      * 
-     * @summary Update a share\'s \"public\" status
+     * @summary Update a file share
      * @param {string} shareID Share ID
-     * @param {boolean} _public Share Public Status
+     * @param {FileShareParams} request Updated File Share Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    async setSharePublic(shareID, _public, options) {
+    async updateFileShare(shareID, request, options) {
       var _a, _b, _c;
-      const localVarAxiosArgs = await localVarAxiosParamCreator.setSharePublic(shareID, _public, options);
+      const localVarAxiosArgs = await localVarAxiosParamCreator.updateFileShare(shareID, request, options);
       const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
-      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["ShareApi.setSharePublic"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
+      const localVarOperationServerBasePath = (_c = (_b = operationServerMap["ShareApi.updateFileShare"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
       return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
     },
     /**
@@ -3350,14 +3432,14 @@ var ShareApiFactory = function(configuration, basePath, axios) {
     },
     /**
      * 
-     * @summary Update a share\'s \"public\" status
+     * @summary Update a file share
      * @param {string} shareID Share ID
-     * @param {boolean} _public Share Public Status
+     * @param {FileShareParams} request Updated File Share Params
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    setSharePublic(shareID, _public, options) {
-      return localVarFp.setSharePublic(shareID, _public, options).then((request) => request(axios, basePath));
+    updateFileShare(shareID, request, options) {
+      return localVarFp.updateFileShare(shareID, request, options).then((request2) => request2(axios, basePath));
     },
     /**
      * 
@@ -3428,14 +3510,14 @@ var ShareApi = class extends BaseAPI {
   }
   /**
    * 
-   * @summary Update a share\'s \"public\" status
+   * @summary Update a file share
    * @param {string} shareID Share ID
-   * @param {boolean} _public Share Public Status
+   * @param {FileShareParams} request Updated File Share Params
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */
-  setSharePublic(shareID, _public, options) {
-    return ShareApiFp(this.configuration).setSharePublic(shareID, _public, options).then((request) => request(this.axios, this.basePath));
+  updateFileShare(shareID, request, options) {
+    return ShareApiFp(this.configuration).updateFileShare(shareID, request, options).then((request2) => request2(this.axios, this.basePath));
   }
   /**
    * 

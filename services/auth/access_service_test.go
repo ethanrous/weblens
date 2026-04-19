@@ -21,7 +21,8 @@ func TestCanUserAccessFile_OwnerAccess(t *testing.T) {
 
 	// Create a test user
 	testUser := &user_model.User{
-		Username: "testuser",
+		Username:  "testuser",
+		UserPerms: user_model.UserPermissionBasic,
 	}
 
 	// Create a file owned by testuser
@@ -60,8 +61,8 @@ func TestCanUserAccessFile_NonOwnerNoShare(t *testing.T) {
 	ctx := context.Background()
 
 	// Create users
-	fileOwner := &user_model.User{Username: "fileowner"}
-	otherUser := &user_model.User{Username: "otheruser"}
+	fileOwner := &user_model.User{Username: "fileowner", UserPerms: user_model.UserPermissionBasic}
+	otherUser := &user_model.User{Username: "otheruser", UserPerms: user_model.UserPermissionBasic}
 
 	// Create a file owned by fileowner
 	filepath := file_system.BuildFilePath(file_model.UsersTreeKey, "fileowner/photos/image.jpg")
@@ -249,7 +250,7 @@ func TestCanUserAccessFile_DisabledShare(t *testing.T) {
 	ctx := context.Background()
 
 	// Create users
-	otherUser := &user_model.User{Username: "otheruser"}
+	otherUser := &user_model.User{Username: "otheruser", UserPerms: user_model.UserPermissionBasic}
 
 	// Create a file
 	filepath := file_system.BuildFilePath(file_model.UsersTreeKey, "testuser/photos/image.jpg")
@@ -275,7 +276,7 @@ func TestCanUserAccessFile_DisabledShare(t *testing.T) {
 func TestCanUserAccessFile_WrongFileForShare(t *testing.T) {
 	ctx := context.Background()
 
-	otherUser := &user_model.User{Username: "otheruser"}
+	otherUser := &user_model.User{Username: "otheruser", UserPerms: user_model.UserPermissionBasic}
 
 	// Create file A
 	filepathA := file_system.BuildFilePath(file_model.UsersTreeKey, "testuser/photos/imageA.jpg")

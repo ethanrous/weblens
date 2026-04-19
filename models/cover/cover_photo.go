@@ -93,3 +93,28 @@ func UpsertCoverByFolderID(ctx context.Context, folderID, coverPhotoID string) e
 
 	return nil
 }
+
+// GetCoversByFolderIDs retrieves cover photos for multiple folders in a single query.
+// Folders without covers are silently omitted from the result.
+func GetCoversByFolderIDs(ctx context.Context, folderIDs ...string) ([]Photo, error) {
+	if len(folderIDs) == 0 {
+		return nil, nil
+	}
+
+	col, err := db.GetCollection[any](ctx, CoverPhotoCollectionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	cursor, err := col.Find(ctx, bson.M{"folderID": bson.M{"$in": folderIDs}})
+	if err != nil {
+		return nil, db.WrapError(err, "failed to get covers by folder IDs")
+	}
+
+	var covers []Photo
+	if err := cursor.All(ctx, &covers); err != nil {
+		return nil, db.WrapError(err, "failed to decode cover photos")
+	}
+
+	return covers, nil
+}

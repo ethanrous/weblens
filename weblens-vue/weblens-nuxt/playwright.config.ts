@@ -8,7 +8,7 @@ const baseURL = 'http://localhost:14100'
 
 const buildDir = path.resolve(__dirname, '../../_build/playwright')
 
-const defaultWorkers = 4
+const defaultWorkers = 8
 
 export default defineConfig({
     testDir: './e2e/',

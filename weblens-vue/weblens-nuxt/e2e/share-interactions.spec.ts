@@ -56,13 +56,15 @@ test.describe('Share Modal Interactions', () => {
         const shareModal = page.locator('.fullscreen-modal')
         await expect(shareModal.locator('h4').filter({ hasText: 'Share' })).toBeVisible({ timeout: 15000 })
 
-        // Toggle Timeline Only
-        const timelineOnlyBtn = shareModal.getByRole('button', { name: 'Timeline Only' })
-        await expect(timelineOnlyBtn.first()).toBeVisible()
-        await timelineOnlyBtn.first().click()
+        // Toggle Timeline Only. The button label flips between states, so match either.
+        const timelineBtn = shareModal
+            .getByRole('button', { name: 'Timeline Only' })
+            .or(shareModal.getByRole('button', { name: 'Timeline + Files' }))
+        await expect(timelineBtn.first()).toBeVisible()
+        await timelineBtn.first().click()
 
         // Toggle it back
-        await timelineOnlyBtn.first().click()
+        await timelineBtn.first().click()
 
         await shareModal.getByRole('button', { name: 'Done' }).first().click()
     })

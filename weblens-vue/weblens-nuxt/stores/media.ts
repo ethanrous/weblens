@@ -53,8 +53,8 @@ export const useMediaStore = defineStore('media', () => {
         },
         { immediate: true },
     )
-    watch(showRaw, async () => {
-        await locationStore.setQueryParam('raw', showRaw.value ? null : 'false')
+    watch(showRaw, () => {
+        locationStore.setQueryParam('raw', showRaw.value ? null : 'false')
     })
 
     function initSearchFilters() {
@@ -101,7 +101,7 @@ export const useMediaStore = defineStore('media', () => {
         if (!mp) {
             hasPromise = false
             mp = useWeblensAPI()
-                .MediaAPI.getMediaInfo(contentID)
+                .MediaAPI.getMediaInfo(contentID, locationStore.activeShareID)
                 .then((res: { data: MediaInfo }) => new WeblensMedia(res.data))
                 .catch((err: unknown) => {
                     console.error('Error fetching single media:', err)

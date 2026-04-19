@@ -844,6 +844,41 @@ const docTemplate = `{
             }
         },
         "/folder/{folderID}/cover": {
+            "delete": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "tags": [
+                    "Folder"
+                ],
+                "summary": "Remove the cover image of a folder",
+                "operationId": "RemoveFolderCover",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Folder ID",
+                        "name": "folderID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            },
             "patch": {
                 "security": [
                     {
@@ -865,8 +900,8 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Media ID",
-                        "name": "mediaID",
+                        "description": "Content ID of the media to use as cover",
+                        "name": "contentID",
                         "in": "query",
                         "required": true
                     }
@@ -1448,6 +1483,12 @@ const docTemplate = `{
                         "description": "Page number",
                         "name": "page",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Share ID",
+                        "name": "shareID",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -1523,6 +1564,12 @@ const docTemplate = `{
                         "name": "mediaID",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Share ID",
+                        "name": "shareID",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -1719,6 +1766,45 @@ const docTemplate = `{
                         "description": "Not Found"
                     }
                 }
+            },
+            "patch": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Share"
+                ],
+                "summary": "Update a file share",
+                "operationId": "UpdateFileShare",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Share ID",
+                        "name": "shareID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated File Share Params",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/FileShareParams"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Updated File Share",
+                        "schema": {
+                            "$ref": "#/definitions/ShareInfo"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict"
+                    }
+                }
             }
         },
         "/share/{shareID}/accessors": {
@@ -1840,42 +1926,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/ShareInfo"
                         }
-                    },
-                    "404": {
-                        "description": "Not Found"
-                    }
-                }
-            }
-        },
-        "/share/{shareID}/public": {
-            "patch": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Share"
-                ],
-                "summary": "Update a share's \"public\" status",
-                "operationId": "SetSharePublic",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Share ID",
-                        "name": "shareID",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Share Public Status",
-                        "name": "public",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
                     },
                     "404": {
                         "description": "Not Found"
@@ -2980,6 +3030,13 @@ const docTemplate = `{
                         "description": "Share ID",
                         "name": "shareID",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Content range of the chunk",
+                        "name": "Content-Range",
+                        "in": "header",
+                        "required": true
                     },
                     {
                         "type": "file",

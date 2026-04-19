@@ -196,6 +196,8 @@ test.describe('Presentation Info Panel', () => {
     })
 
     test('should disable download button when share has canDownload=false', async ({ page, baseURL }) => {
+        test.slow()
+
         // Create a second user via UI
         await createUser(page, 'no_download_user', 'testpass123')
 

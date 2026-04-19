@@ -124,11 +124,13 @@ const useFilesStore = defineStore('files', () => {
                 // Make sure were logged in
                 !user.value.isLoggedIn.isSet() ||
                 // Don't fetch files if we're in the timeline
-                locationStore.isInTimeline ||
+                (locationStore.isInShare && locationStore.isInTimeline) ||
                 // Don't try to fetch if we don't have one of: an active folder, active share, or active tag
                 (!locationStore.activeFolderID && !locationStore.isInShare && !locationStore.activeTagID) ||
-                // If we're in a share but don't have the share data yet, we might not know the active folder ID, so wait until we have the share data
-                (locationStore.isInShare && locationStore.activeShareID && !locationStore.activeShare)
+                // If we're in a share but don't have the share data yet, wait until we have it
+                (locationStore.isInShare && locationStore.activeShareID && !locationStore.activeShare) ||
+                // Don't fetch files if we're in timeline without an active folder or share
+                (locationStore.isInTimeline && !locationStore.activeFolderID && !locationStore.activeShareID)
             ) {
                 return {}
             }
@@ -141,15 +143,22 @@ const useFilesStore = defineStore('files', () => {
                 res = { r: await useWeblensAPI().TagsAPI.getFilesByTag(locationStore.activeTagID), t: 'files' }
             } else if (locationStore.isInShare && !locationStore.activeShareID) {
                 res = { r: await useWeblensAPI().FilesAPI.getSharedFiles(), t: 'folder' }
-            } else if (locationStore.isInShare && locationStore.activeShare && !locationStore.activeShare.isDir) {
+            } else if (
+                locationStore.isInTimeline ||
+                (locationStore.isInShare && locationStore.activeShare && !locationStore.activeShare.isDir)
+            ) {
                 res = {
                     r: await useWeblensAPI().FilesAPI.getFile(
-                        locationStore.activeShare.fileID,
+                        locationStore.activeShare?.fileID ?? locationStore.activeFolderID,
                         locationStore.activeShareID,
                     ),
                     t: 'file',
                 }
             } else {
+                if (!locationStore.activeFolderID) {
+                    return {}
+                }
+
                 res = {
                     r: await useWeblensAPI().FoldersAPI.getFolder(
                         locationStore.activeFolderID,

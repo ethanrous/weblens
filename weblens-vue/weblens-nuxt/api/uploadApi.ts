@@ -44,6 +44,7 @@ async function pushChunkNew(
         const res = await useWeblensAPI().FilesAPI.uploadFileChunk(
             serverUploadID,
             uploadMeta.fileID,
+            headers['Content-Range'],
             uploadMeta.file.slice(chunkLowByte, chunkHighByte) as File,
             shareID,
             {

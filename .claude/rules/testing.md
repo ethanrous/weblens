@@ -19,6 +19,7 @@
 - Writing new E2E tests for backend logic that can be tested with Go unit tests. E2E tests are slower and more brittle, so reserve them for critical user flows or frontend interactions.
 - Creating new tests or test files for every bug. Instead, add to existing test files that cover the relevant domain. Only create new test files if the domain is genuinely new and doesn't fit existing tests.
 - Adding custom timeouts to every assertion in Playwright tests. Use the default timeout unless you have a specific reason to change it for a particular assertion. i.e. `expect(...).toBeVisible({ timeout: 10000 })` should only be used when absolutely necessary, not as a blanket approach.
+- Using raw `net/http` requests in e2e tests. Always use the generated API client (`api/` package). If the client is missing a parameter (e.g., a query param or header), add it to the Swagger annotation on the endpoint in `routers/api/v1/` and run `make swag` to regenerate the client before writing the test.
 
 ## Writing tests
 

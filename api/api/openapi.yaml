@@ -599,6 +599,33 @@ paths:
       tags:
       - Folder
   /folder/{folderID}/cover:
+    delete:
+      operationId: RemoveFolderCover
+      parameters:
+      - description: Folder ID
+        in: path
+        name: folderID
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content: {}
+          description: OK
+        "400":
+          content: {}
+          description: Bad Request
+        "404":
+          content: {}
+          description: Not Found
+        "500":
+          content: {}
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Remove the cover image of a folder
+      tags:
+      - Folder
     patch:
       operationId: SetFolderCover
       parameters:
@@ -608,9 +635,9 @@ paths:
         required: true
         schema:
           type: string
-      - description: Media ID
+      - description: Content ID of the media to use as cover
         in: query
-        name: mediaID
+        name: contentID
         required: true
         schema:
           type: string
@@ -1021,6 +1048,11 @@ paths:
         name: page
         schema:
           type: integer
+      - description: Share ID
+        in: query
+        name: shareID
+        schema:
+          type: string
       responses:
         "200":
           content:
@@ -1071,6 +1103,11 @@ paths:
         in: path
         name: mediaID
         required: true
+        schema:
+          type: string
+      - description: Share ID
+        in: query
+        name: shareID
         schema:
           type: string
       responses:
@@ -1214,6 +1251,36 @@ paths:
       summary: Get a file share
       tags:
       - Share
+    patch:
+      operationId: UpdateFileShare
+      parameters:
+      - description: Share ID
+        in: path
+        name: shareID
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          '*/*':
+            schema:
+              $ref: "#/components/schemas/FileShareParams"
+        description: Updated File Share Params
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShareInfo"
+          description: Updated File Share
+        "409":
+          content: {}
+          description: Conflict
+      summary: Update a file share
+      tags:
+      - Share
+      x-codegen-request-body-name: request
   /share/{shareID}/accessors:
     post:
       operationId: AddUserToShare
@@ -1310,32 +1377,6 @@ paths:
       tags:
       - Share
       x-codegen-request-body-name: request
-  /share/{shareID}/public:
-    patch:
-      operationId: SetSharePublic
-      parameters:
-      - description: Share ID
-        in: path
-        name: shareID
-        required: true
-        schema:
-          type: string
-      - description: Share Public Status
-        in: query
-        name: public
-        required: true
-        schema:
-          type: boolean
-      responses:
-        "200":
-          content: {}
-          description: OK
-        "404":
-          content: {}
-          description: Not Found
-      summary: Update a share's "public" status
-      tags:
-      - Share
   /tags:
     get:
       operationId: GetUserTags
@@ -2115,6 +2156,12 @@ paths:
       - description: Share ID
         in: query
         name: shareID
+        schema:
+          type: string
+      - description: Content range of the chunk
+        in: header
+        name: Content-Range
+        required: true
         schema:
           type: string
       requestBody:

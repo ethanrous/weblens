@@ -15,4 +15,4 @@ type TaskInfo struct {
 	WorkerID  int       `json:"workerID" validate:"required"`
 	StartTime time.Time `json:"startTime"`
 	Result    any       `json:"result,omitempty"`
-} // @name TaskInfo
+} //	@name	TaskInfo

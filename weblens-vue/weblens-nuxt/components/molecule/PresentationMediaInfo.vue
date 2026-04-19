@@ -138,16 +138,18 @@
         <div class="flex w-full flex-col">
             <span class="text-text-secondary mb-1 text-xs font-semibold uppercase"> Share </span>
             <CopyBox
+                v-if="shareID"
                 :class="{
                     'relative w-full min-w-0 overflow-x-auto': true,
                 }"
-                :text="media.MediaUrl()"
+                :text="media.MediaUrl(shareID)"
             >
                 <IconLink
                     size="20"
                     class="shrink-0"
                 />
             </CopyBox>
+            <span v-else> Share this file or its folder to get a share link. </span>
         </div>
 
         <div
@@ -236,6 +238,30 @@ const likedByText = computed(() => {
     if (!liked?.length) return ''
     if (liked.length === 1) return liked[0]
     return `${liked[0]} and ${liked.length - 1} other${liked.length - 1 > 1 ? 's' : ''}`
+})
+
+const shareID = computed(() => {
+    const fileID = media.value?.fileIDs?.[0]
+
+    if (!fileID) return undefined
+
+    const file = filesStore.getFileByID(fileID)
+    if (!file) {
+        return undefined
+    } else if (file.shareID) {
+        return file.shareID
+    }
+
+    if (file.parentID) {
+        const parentFile = filesStore.getFileByID(file.parentID)
+        if (!parentFile) {
+            return undefined
+        } else {
+            return parentFile.shareID
+        }
+    }
+
+    return undefined
 })
 
 async function handleDownload() {

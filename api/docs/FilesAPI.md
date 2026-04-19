@@ -1165,7 +1165,7 @@ No authorization required
 
 ## UploadFileChunk
 
-> UploadFileChunk(ctx, uploadID, fileID).Chunk(chunk).ShareID(shareID).Execute()
+> UploadFileChunk(ctx, uploadID, fileID).ContentRange(contentRange).Chunk(chunk).ShareID(shareID).Execute()
 
 Add a chunk to a file upload
 
@@ -1184,12 +1184,13 @@ import (
 func main() {
 	uploadID := "uploadID_example" // string | Upload ID
 	fileID := "fileID_example" // string | File ID
+	contentRange := "contentRange_example" // string | Content range of the chunk
 	chunk := os.NewFile(1234, "some_file") // *os.File | File chunk
 	shareID := "shareID_example" // string | Share ID (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	r, err := apiClient.FilesAPI.UploadFileChunk(context.Background(), uploadID, fileID).Chunk(chunk).ShareID(shareID).Execute()
+	r, err := apiClient.FilesAPI.UploadFileChunk(context.Background(), uploadID, fileID).ContentRange(contentRange).Chunk(chunk).ShareID(shareID).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FilesAPI.UploadFileChunk``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -1215,6 +1216,7 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
 
+ **contentRange** | **string** | Content range of the chunk | 
  **chunk** | ***os.File** | File chunk | 
  **shareID** | **string** | Share ID | 
 

@@ -45,18 +45,17 @@
             @context-menu="handleContextMenu"
         >
             <template #file-visual>
+                <FolderImageIcon
+                    v-if="file.IsFolder()"
+                    :file="file"
+                    :media="media"
+                />
                 <MediaImage
-                    v-if="file.contentID"
+                    v-else-if="file.contentID"
                     :class="{ 'animate-fade-in': true }"
                     :media="media"
                     :quality="PhotoQuality.LowRes"
                     no-click
-                />
-                <IconFolder
-                    v-else-if="file.IsFolder()"
-                    size="80%"
-                    stroke="1"
-                    :class="{ 'm-auto h-full': true }"
                 />
             </template>
         </component>
@@ -70,13 +69,14 @@ import MediaImage from '../atom/MediaImage.vue'
 import { PhotoQuality } from '~/types/weblensMedia'
 import type WeblensMedia from '~/types/weblensMedia'
 import useFilesStore, { type FileShape } from '~/stores/files'
-import { IconFolder } from '@tabler/icons-vue'
+
 import { SelectedState } from '@/types/weblensFile'
 import { useElementVisibility, useMousePressed } from '@vueuse/core'
 import { moveFiles } from '~/api/FileBrowserApi'
 import type { coordinates } from '~/types/style'
 import FileRow from './FileRow.vue'
 import useLocationStore from '~/stores/location'
+import FolderImageIcon from '../atom/FolderImageIcon.vue'
 
 const filesStore = useFilesStore()
 const presentationStore = usePresentationStore()

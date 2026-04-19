@@ -1,6 +1,8 @@
 import type { UserInfo } from '@ethanrous/weblens-api'
 import { Optional } from '~/util/option'
 
+export const UNAUTHENTICATED_USER_NAME = 'PUBLIC'
+
 export enum UserPermissions {
     PUBLIC = 0,
     BASIC = 1,

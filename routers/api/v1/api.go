@@ -38,8 +38,8 @@ func Routes(_ context_service.AppContext) *router.Router {
 		r.Get("/types", media_api.GetMediaTypes)
 
 		r.Group("/{mediaID}", func() {
-			r.Get("/info", router.RequireSignIn, media_api.GetMediaInfo)
-			r.Get(".{extension}", router.RequireSignIn, media_api.GetMediaImage)
+			r.Get("/info", router.RequirePermissionsMedia, media_api.GetMediaInfo)
+			r.Get(".{extension}", router.RequirePermissionsMedia, media_api.GetMediaImage)
 			r.Get("/stream", router.RequireSignIn, media_api.StreamVideo)
 			r.Get("/{chunkName}", router.RequireSignIn, media_api.StreamVideo)
 			r.Patch("/liked", router.RequireSignIn, media_api.SetMediaLiked)
@@ -98,6 +98,7 @@ func Routes(_ context_service.AppContext) *router.Router {
 		r.Group("/{folderID}", func() {
 			r.Post("/scan", file_api.ScanDir)
 			r.Patch("/cover", file_api.SetFolderCover)
+			r.Delete("/cover", file_api.RemoveFolderCover)
 		})
 
 		r.Post("", file_api.CreateFolder)
@@ -166,7 +167,7 @@ func Routes(_ context_service.AppContext) *router.Router {
 		r.Group("", func() {
 			r.Post("/file", file_api.CreateFileShare)
 			r.Group("/{shareID}", func() {
-				r.Patch("/public", file_api.SetSharePublic)
+				r.Patch("", file_api.UpdateFileShare)
 				r.Delete("", file_api.DeleteShare)
 
 				r.Group("/accessors", func() {

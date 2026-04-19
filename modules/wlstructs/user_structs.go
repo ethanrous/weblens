@@ -7,13 +7,13 @@ type NewUserParams struct {
 	Password     string `json:"password" validate:"required"`
 	Admin        bool   `json:"admin"`
 	AutoActivate bool   `json:"autoActivate"`
-} // @name NewUserParams
+} //	@name	NewUserParams
 
 // LoginParams contains parameters for user login.
 type LoginParams struct {
 	Username string `json:"username" validate:"required"`
 	Password string `json:"password" validate:"required"`
-} // @name LoginBody
+} //	@name	LoginBody
 
 // UserInfo represents user information for API responses.
 type UserInfo struct {
@@ -26,11 +26,11 @@ type UserInfo struct {
 	Username        string `json:"username" validate:"required"`
 	IsOnline        bool   `json:"isOnline"`
 	UpdatedAt       int64  `json:"updatedAt" validate:"required" swaggertype:"integer" format:"int64"`
-} // @name UserInfo
+} //	@name	UserInfo
 
 // UserInfoArchive extends UserInfo with password for backup/restore operations.
 type UserInfoArchive struct {
 	UserInfo
 
 	Password string `json:"password" omitEmpty:"true"`
-} // @name UserInfoArchive
+} //	@name	UserInfoArchive

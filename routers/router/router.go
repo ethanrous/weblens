@@ -17,24 +17,24 @@ type Router struct {
 	middlewares []func(http.Handler) http.Handler
 }
 
-// @title						Weblens API
-// @version					1.0
-// @description				Programmatic access to the Weblens server
-// @license.name				MIT
-// @license.url				https://opensource.org/licenses/MIT
-// @host						localhost:8080
-// @schemes					http https
-// @BasePath					/api/v1/
+//	@title						Weblens API
+//	@version					1.0
+//	@description				Programmatic access to the Weblens server
+//	@license.name				MIT
+//	@license.url				https://opensource.org/licenses/MIT
+//	@host						localhost:8080
+//	@schemes					http https
+//	@BasePath					/api/v1/
 //
-// @securityDefinitions.apikey	SessionAuth
-// @in							cookie
-// @name						weblens-session-token
+//	@securityDefinitions.apikey	SessionAuth
+//	@in							cookie
+//	@name						weblens-session-token
 //
-// @securityDefinitions.apikey	APIKeyAuth
-// @in							header
-// @name						Authorization
+//	@securityDefinitions.apikey	APIKeyAuth
+//	@in							header
+//	@name						Authorization
 //
-// @scope.admin				Grants read and write access to privileged data
+//	@scope.admin				Grants read and write access to privileged data
 
 // NewRouter creates a new Router instance with an underlying chi router.
 func NewRouter() *Router {

@@ -135,7 +135,7 @@ func formatRespondFolderInfo(ctx context_service.RequestContext, dir *file_model
 			return err
 		}
 
-		if _, exists := mediaMap[child.GetContentID()]; exists {
+		if _, exists := mediaMap[info.ContentID]; exists {
 			info.HasMedia = true
 		} else if scanTask == nil && !child.IsDir() {
 			ctx.Log().Debug().Msgf("Dispatching scan task for parent folder [%s] since child [%s] has no media but is expected to have one", dir.GetPortablePath(), child.GetPortablePath())

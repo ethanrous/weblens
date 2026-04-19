@@ -24,14 +24,14 @@ type NewServerParams struct {
 	Name        string `json:"name"`
 	CoreAddress string `json:"coreAddress"`
 	UsingKey    string `json:"usingKey"`
-} // @name NewServerParams
+} //	@name	NewServerParams
 
 // UpdateServerParams contains parameters for updating a server.
 type UpdateServerParams struct {
 	Name        string `json:"name"`
 	CoreAddress string `json:"coreAddress"`
 	UsingKey    string `json:"usingKey"`
-} // @name UpdateServerParams
+} //	@name	UpdateServerParams
 
 // NewCoreBody contains parameters for registering with a core server.
 type NewCoreBody struct {
@@ -46,7 +46,7 @@ type SetConfigParam struct {
 }
 
 // FeatureFlagParams represents a list of configuration parameters to set.
-type FeatureFlagParams []SetConfigParam // @name FeatureFlagParams
+type FeatureFlagParams []SetConfigParam //	@name	FeatureFlagParams
 
 // type SetConfigParams struct {
 // 	AllowRegistrations bool `json:"allowRegistrations"`

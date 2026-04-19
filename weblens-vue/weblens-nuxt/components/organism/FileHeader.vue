@@ -35,7 +35,10 @@
             <FileSortControls v-if="!locationStore.isInTimeline" />
             <TimelineControls v-if="locationStore.isInTimeline" />
 
-            <WeblensButton @click="locationStore.isInTimeline = !locationStore.isInTimeline">
+            <WeblensButton
+                :disabled="locationStore.isInShare && !locationStore.activeShare?.checkPermission('canView')"
+                @click="locationStore.isInTimeline = !locationStore.isInTimeline"
+            >
                 <IconFolder v-if="locationStore.isInTimeline" />
                 <IconPhoto v-if="!locationStore.isInTimeline" />
             </WeblensButton>

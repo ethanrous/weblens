@@ -6,4 +6,4 @@ type TakeoutInfo struct {
 	TaskID    string `json:"taskID"`
 	Filename  string `json:"filename"`
 	Single    bool   `json:"single"`
-} // @name TakeoutInfo
+} //	@name	TakeoutInfo

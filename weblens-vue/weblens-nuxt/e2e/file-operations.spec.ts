@@ -83,13 +83,19 @@ test.describe('File Operations', () => {
         await page.locator('#filebrowser-container').getByRole('button', { name: 'Share' }).click()
 
         // Share modal should appear with the "Share" heading
-        // Scope to the fullscreen-modal container to avoid ambiguity with other Done buttons
+        // Scope to the fullscreen-modal container to avoid ambiguity with other Done buttons and headings
         const shareModal = page.locator('.fullscreen-modal')
-        await expect(page.getByRole('heading', { name: 'Share' })).toBeVisible({ timeout: 15000 })
+        await expect(shareModal.getByRole('heading', { name: 'Share' })).toBeVisible({ timeout: 15000 })
 
-        // The share modal should have Private/Public toggle and Timeline Only toggle
+        // The share modal should have Private/Public toggle and Timeline toggle.
+        // The timeline button label flips between 'Timeline Only' and 'Timeline + Files'
+        // depending on the current share.timelineOnly state.
         await expect(shareModal.getByRole('button', { name: 'Private' })).toBeVisible()
-        await expect(shareModal.getByRole('button', { name: 'Timeline Only' })).toBeVisible()
+        await expect(
+            shareModal
+                .getByRole('button', { name: 'Timeline Only' })
+                .or(shareModal.getByRole('button', { name: 'Timeline + Files' })),
+        ).toBeVisible()
 
         // Should have a Done button
         await expect(shareModal.getByRole('button', { name: 'Done' })).toBeVisible()

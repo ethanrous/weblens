@@ -1,5 +1,5 @@
 <template>
-    <div :class="{ 'flex overflow-y-auto rounded border': true }">
+    <div :class="{ 'flex shrink-0 overflow-y-auto rounded border': true }">
         <table
             :class="{
                 'w-full caption-bottom border-separate border-spacing-0 text-sm xl:table-fixed': true,
@@ -23,60 +23,59 @@
                 </tr>
             </thead>
             <tbody :class="{ '[&_tr:last-child]:border-0': true }">
-                <tr v-if="rows.length === 0 && emptyText">
-                    <td :colspan="columns.length">
-                        <span :class="{ 'text-text-secondary p-8 text-center': true }">{{ emptyText }}</span>
-                    </td>
-                </tr>
-                <tr
-                    v-for="(row, index) in rows"
-                    :key="index"
-                    :class="{
-                        'hover:bg-muted/50 data-[state=selected]:bg-muted even:bg-accent/25 cursor-pointer border-b transition-colors': true,
-                    }"
-                >
+                <tr v-if="emptyText && rows.length === 0">
                     <td
-                        v-for="column in columns"
-                        :key="column"
-                        :class="{
-                            'overflow-hidden p-4 text-center align-middle overflow-ellipsis first:text-left last:text-right [&:has([role=checkbox])]:pr-0 *:[[role=checkbox]]:translate-y-0.5': true,
-                            'text-nowrap': (row[column] as TableTypes[TableType.JSON])?.tableType !== TableType.JSON,
-                        }"
+                        :colspan="columns.length"
+                        :class="{ 'text-text-tertiary p-4 text-center font-medium': true }"
                     >
-                        <slot :name="column + '-' + index" />
-                        <span v-if="typeof row[column] === 'string' || typeof row[column] === 'number'">
-                            {{ row[column] }}
-                        </span>
-                        <span v-else-if="row[column]?.tableType === TableType.JSON">
-                            {{ row[column].value }}
-                        </span>
-                        <span v-else-if="row[column]?.tableType === TableType.Text">
-                            {{ row[column].text }}
-                        </span>
-                        <WeblensButton
-                            v-else-if="row[column]?.tableType === TableType.Button"
-                            :class="{ 'h-8': true }"
-                            :label="row[column].label"
-                            :flavor="row[column].flavor ?? 'primary'"
-                            :disabled="row[column].disabled ?? false"
-                            @click="row[column].onclick"
-                        >
-                            <component :is="row[column].icon" />
-                        </WeblensButton>
-                        <WeblensCheckbox
-                            v-else-if="row[column]?.tableType === TableType.Checkbox"
-                            :class="{ 'inline-block': true }"
-                            :label="row[column].label"
-                            :checked="row[column].checked"
-                            @checked:changed="
-                                (v) => {
-                                    const thing = row[column] as TableColumn<TableType.Checkbox>
-                                    thing.onchanged(v)
-                                }
-                            "
-                        />
+                        {{ emptyText }}
                     </td>
                 </tr>
+                <template
+                    v-for="(item, index) in rows"
+                    :key="index"
+                >
+                    <tr
+                        v-if="item && 'sectionHeader' in item"
+                        :class="[item.className || '']"
+                    >
+                        <td
+                            :colspan="columns.length"
+                            :class="{ 'p-4 font-medium': true }"
+                        >
+                            <div class="flex items-center justify-center gap-2">
+                                <component
+                                    :is="item.icon"
+                                    v-if="item.icon"
+                                />
+                                {{ item.text }}
+                            </div>
+                        </td>
+                    </tr>
+                    <template v-else-if="!isEmptyRow(item)">
+                        <tr
+                            :class="{
+                                'hover:bg-muted/50 data-[state=selected]:bg-muted even:bg-accent/25 border-b transition-colors': true,
+                            }"
+                        >
+                            <td
+                                v-for="column in columns"
+                                :key="column"
+                                :class="{
+                                    'overflow-hidden p-4 text-center align-middle first:text-left last:text-right [&:has([role=checkbox])]:pr-0 *:[[role=checkbox]]:translate-y-0.5': true,
+                                    'text-nowrap':
+                                        (item[column] as TableColumn<TableType.JSON>)?.tableType !== TableType.JSON,
+                                }"
+                            >
+                                <TableCell
+                                    :column="column"
+                                    :index="index"
+                                    :cell-data="item[column]"
+                                />
+                            </td>
+                        </tr>
+                    </template>
+                </template>
             </tbody>
         </table>
     </div>
@@ -85,14 +84,19 @@
 <script setup lang="ts">
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { TableType } from '~/types/table'
-import type { TableColumn, TableColumns, TableTypes } from '~/types/table'
-import WeblensButton from './WeblensButton.vue'
-import WeblensCheckbox from './WeblensCheckbox.vue'
+import type { TableColumn, TableRow } from '~/types/table'
+import TableCell from './TableCell.vue'
 import { camelCaseToWords } from '~/util/string'
 
 defineProps<{
     columns: string[]
-    rows: TableColumns
+    rows: TableRow[]
     emptyText?: string
 }>()
+
+function isEmptyRow(row: TableRow): boolean {
+    if ('sectionHeader' in row) return true
+    if (row === null || row === undefined) return true
+    return Object.keys(row).length === 0
+}
 </script>

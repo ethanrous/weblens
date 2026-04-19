@@ -29,7 +29,8 @@ const MediaTypeJSON = `{
         "IsDisplayable": true,
         "IsRaw": false,
         "IsVideo": false,
-        "SupportsImgRecog": false
+        "SupportsImgRecog": true,
+        "MultiPage": true
     },
     "image/jpeg": {
         "FriendlyName": "Jpeg",
@@ -205,7 +206,7 @@ type MType struct {
 	IsVideo         bool     `json:"IsVideo"`
 	ImgRecog        bool     `json:"SupportsImgRecog"`
 	MultiPage       bool     `json:"MultiPage"`
-} // @name MediaType
+} //	@name	MediaType
 
 // ParseExtension Get a pointer to the weblens Media type of a file given the file extension
 func ParseExtension(ext string) MType {

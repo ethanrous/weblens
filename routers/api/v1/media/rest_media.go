@@ -120,7 +120,7 @@ func GetMediaBatch(ctx ctxservice.RequestContext) {
 
 func getMediaByFolders(ctx ctxservice.RequestContext, folderIDs []string, search string, sortDirection, page, limit int, raw bool) {
 	for _, folderID := range folderIDs {
-		_, err := file_api.CheckFileAccessByID(ctx, folderID, share.SharePermissionView)
+		_, err := file_api.CheckFileAccessByID(ctx, folderID, share.SharePermissionViewMedia)
 		if err != nil {
 			return
 		}
@@ -195,11 +195,11 @@ func getMediaByIDs(ctx ctxservice.RequestContext, mediaIDs []string) {
 			return
 		}
 
-		// Verify the requester has access to at least one backing file
+		// Verify the requester has access to view media of at least one backing file
 		hasAccess := false
 
 		for _, fileID := range m.GetFiles() {
-			if _, err := file_api.CheckFileAccessByID(ctx, fileID, share.SharePermissionView); err == nil {
+			if _, err := file_api.CheckFileAccessByID(ctx, fileID, share.SharePermissionViewMedia); err == nil {
 				hasAccess = true
 
 				break
@@ -372,6 +372,7 @@ func DropHDIRs(ctx ctxservice.RequestContext) {
 //	@Tags		Media
 //	@Produce	json
 //	@Param		mediaID	path		string				true	"Media ID"
+//	@Param		shareID	query		string				false	"Share ID"
 //	@Success	200		{object}	wlstructs.MediaInfo	"Media Info"
 //	@Router		/media/{mediaID}/info [get]
 func GetMediaInfo(ctx ctxservice.RequestContext) {
@@ -401,6 +402,7 @@ func GetMediaInfo(ctx ctxservice.RequestContext) {
 //	@Param		extension	path		string	true	"Extension"
 //	@Param		quality		query		string	true	"Image Quality"	Enums(thumbnail, fullres)
 //	@Param		page		query		int		false	"Page number"
+//	@Param		shareID		query		string	false	"Share ID"
 //	@Success	200			{string}	binary	"image bytes"
 //	@Success	500
 //	@Router		/media/{mediaID}.{extension} [get]
@@ -776,8 +778,7 @@ func getProcessedMedia(ctx ctxservice.RequestContext, q media_model.Quality, for
 	}
 
 	mt := media_model.ParseMime(m.MimeType)
-
-	if format == "pdf" && q == media_model.HighRes && mt.IsMultiPage() {
+	if q == media_model.HighRes && mt.IsMultiPage() && slices.Contains([]string{"pdf", "gif"}, format) {
 		f, err := ctx.FileService.GetFileByContentID(ctx, m.ContentID)
 		if err != nil {
 			ctx.Error(http.StatusNotFound, err)
@@ -785,17 +786,28 @@ func getProcessedMedia(ctx ctxservice.RequestContext, q media_model.Quality, for
 			return
 		}
 
-		pdfBytes, err := f.ReadAll()
+		_, err = file_api.CheckFileAccessByID(ctx, f.ID(), share.SharePermissionViewMedia)
+		if err != nil {
+			ctx.Error(http.StatusForbidden, wlerrors.New("not authorized to access this media"))
+
+			return
+		}
+
+		multiPageBytes, err := f.ReadAll()
 		if err != nil {
 			ctx.Error(http.StatusInternalServerError, err)
 
 			return
 		}
 
-		_, err = ctx.Write(pdfBytes)
-		if err != nil {
-			ctx.Error(http.StatusInternalServerError, err)
+		contentType := "image/" + format
+		if format == "pdf" {
+			contentType = "application/pdf"
 		}
+
+		ctx.SetHeader("Cache-Control", "max-age=3600")
+		ctx.SetHeader("Content-Type", contentType)
+		ctx.Bytes(http.StatusOK, multiPageBytes)
 
 		return
 	}
