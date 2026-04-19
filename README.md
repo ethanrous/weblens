@@ -37,9 +37,10 @@ CACHE_HOST_PATH=/path/to/your/cache     # Where thumbnails and temp files go
 DATABASE_HOST_PATH=/path/to/your/db     # Where MongoDB stores its data
 ```
 
+> The `DATA_HOST_PATH` is your long-term file storage - point it at wherever you have space. `CACHE_HOST_PATH` benefits from fast storage (SSD) since it holds thumbnails and processed media.
+
 Weblens will be available at `http://localhost:8080`, by default.
 
-> The `DATA_HOST_PATH` is your long-term file storage - point it at wherever you have space. `CACHE_HOST_PATH` benefits from fast storage (SSD) since it holds thumbnails and processed media.
 
 ## Setup
 
@@ -58,11 +59,11 @@ To set one up, you need an API key from your core server's admin settings. Give 
 In the event of a disaster on your core server, the backup server can restore all data to a new core instance. If you only need protection against accidental deletion, the built-in file history on the core server is sufficient - a separate backup instance is optional.
 
 ![Files](images/screenshots/files.jpg)
-![Timeline](images/screenshots/Timeline.jpg)
+![Timeline](images/screenshots/timeline.jpg)
 
 ## Roadmap
 
-- File and media tagging with improved, unified search
+- Better file and media tagging with improved, unified search
 - WebDAV support
 - Direct backup to cloud storage providers
 - Restore individual files from a backup server
