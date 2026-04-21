@@ -154,7 +154,7 @@ const useLocationStore = defineStore('location', () => {
             return navigateTo('/setup')
         } else if (route.value.path === '/setup' && towerRole !== TowerRole.UNINITIALIZED) {
             // If the tower is initialized, redirect away from setup page
-            if (isLoggedIn) return navigateTo('/files/home')
+            if (isLoggedIn) return homeOrReturnTo()
 
             return navigateTo('/login')
         }
@@ -175,7 +175,7 @@ const useLocationStore = defineStore('location', () => {
         }
 
         if (route.value.path === '/login' && isLoggedIn) {
-            return navigateTo('/files/home')
+            return homeOrReturnTo()
         }
 
         // If not logged in and on a settings page, redirect to login
@@ -280,6 +280,15 @@ const useLocationStore = defineStore('location', () => {
         isHistoryOpen.value = false
     })
 
+    async function homeOrReturnTo() {
+        const returnTo = getQueryParam('returnTo')
+        if (returnTo) {
+            return navigateTo(returnTo)
+        }
+
+        return navigateTo('/files/home')
+    }
+
     return {
         activeShareID,
         isInShare,
@@ -317,6 +326,8 @@ const useLocationStore = defineStore('location', () => {
 
         setQueryParam,
         getQueryParam,
+
+        homeOrReturnTo,
     }
 })
 

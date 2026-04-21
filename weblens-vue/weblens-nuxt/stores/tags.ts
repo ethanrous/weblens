@@ -17,7 +17,7 @@ const useTagsStore = defineStore('tags', () => {
     }
 
     async function fetchTags() {
-        if (!useUserStore().user.isLoggedIn) {
+        if (!useUserStore().user.isLoggedIn.get()) {
             tags.value = new Map()
             return
         }

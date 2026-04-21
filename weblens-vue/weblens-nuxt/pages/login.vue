@@ -28,15 +28,11 @@
                     v-model:value="username"
                     placeholder="Username"
                     auto-focus
-                    square-size="{44}"
-                    auto-complete="username"
                 />
                 <WeblensInput
                     v-model:value="password"
                     placeholder="Password"
-                    square-size="{44}"
                     password
-                    auto-complete="current-password"
                 />
                 <span
                     v-if="formError"
@@ -53,7 +49,7 @@
                         center-content
                     />
                 </div>
-                <div class="border-color-border-primary flex items-center justify-center gap-2 border-t-[1px] p-2">
+                <div class="border-color-border-primary flex items-center justify-center gap-2 border-t p-2">
                     <span class="text-color-text-primary ml-auto">New Here?</span>
                     <a href="/signup">Request an Account</a>
                 </div>
@@ -79,6 +75,7 @@ import { useWeblensAPI } from '~/api/AllApi'
 import Logo from '~/components/atom/Logo.vue'
 import WeblensButton from '~/components/atom/WeblensButton.vue'
 import WeblensInput from '~/components/atom/WeblensInput.vue'
+import useLocationStore from '~/stores/location'
 import User from '~/types/user'
 
 const username = ref('')
@@ -87,6 +84,7 @@ const loading = ref(false)
 const formError = ref<string | null>(null)
 
 const userStore = useUserStore()
+const locationStore = useLocationStore()
 
 onKeyDown('Enter', doLogin)
 
@@ -103,12 +101,11 @@ async function doLogin() {
     return useWeblensAPI()
         .UsersAPI.loginUser({ username: username.value, password: password.value })
         .then((res) => {
-            // useFileBrowserStore.getState().reset()
             const user = new User(res.data)
 
             userStore.setUser(user, true)
 
-            navigateTo({ path: '/files/home' })
+            return locationStore.homeOrReturnTo()
         })
         .catch((err: AxiosError) => {
             loading.value = false
