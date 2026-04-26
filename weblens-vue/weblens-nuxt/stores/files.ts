@@ -469,6 +469,14 @@ const useFilesStore = defineStore('files', () => {
         return files.value.find((file) => file.ID() === id)
     }
 
+    function getFileByContentID(contentID: string): WeblensFile | undefined {
+        if (!files.value) {
+            return undefined
+        }
+
+        return files.value.find((file) => file.contentID === contentID)
+    }
+
     function addFile(file: FileInfo) {
         if (!files.value) {
             return
@@ -648,6 +656,7 @@ const useFilesStore = defineStore('files', () => {
         setMovedFile,
         removeFiles,
         getFileByID,
+        getFileByContentID,
 
         setSelected,
         selectAll,

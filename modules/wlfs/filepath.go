@@ -278,3 +278,12 @@ func (wf *Filepath) UnmarshalBSONValue(_ bsontype.Type, data []byte) error {
 
 	return nil
 }
+
+// IsParentOf returns whether or not this path is a parent of the other given Filepath.
+func (wf Filepath) IsParentOf(other Filepath) bool {
+	if wf.RootAlias != other.RootAlias || wf.RelPath == "" || !strings.HasPrefix(other.RelPath, wf.RelPath) {
+		return false
+	}
+
+	return true
+}

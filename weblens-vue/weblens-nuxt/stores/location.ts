@@ -194,7 +194,7 @@ const useLocationStore = defineStore('location', () => {
 
         // If in share but no fileID, redirect to share root. This allows sharing links to be shorter
         // e.g. /files/share/:shareID instead of /files/share/:shareID/:fileID
-        if (isInShare && activeShare.value && !route.value.params.fileID) {
+        if (isInShare && activeShareID.value && activeShare.value && !route.value.params.fileID) {
             return navigateTo({
                 path: `/files/share/${activeShareID.value}/${activeShare.value?.fileID}`,
                 query: route.value.query,

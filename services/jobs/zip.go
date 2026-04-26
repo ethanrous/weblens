@@ -11,6 +11,7 @@ import (
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/job"
 	"github.com/ethanrous/weblens/models/task"
+	zip_model "github.com/ethanrous/weblens/models/zip"
 	"github.com/ethanrous/weblens/modules/cryptography"
 	"github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/modules/wlerrors"
@@ -40,11 +41,14 @@ func CreateZip(tsk *task.Task) {
 	}
 
 	filesInfoMap := map[string]os.FileInfo{}
+	topLevelFileIDs := []string{}
 
 	slices_mod.Map(
 		zipMeta.Files,
-		func(file *file_model.WeblensFileImpl) error {
-			return file.RecursiveMap(
+		func(topLevelFile *file_model.WeblensFileImpl) error {
+			topLevelFileIDs = append(topLevelFileIDs, topLevelFile.ID())
+
+			return topLevelFile.RecursiveMap(
 				func(f *file_model.WeblensFileImpl) error {
 					fAbs := f.GetPortablePath().ToAbsolute()
 
@@ -135,6 +139,16 @@ func CreateZip(tsk *task.Task) {
 			archiveErr = &err
 		}
 	}()
+
+	// Take this time to write the zip to the database while the zip
+	// is being executed in the other goroutine
+	zipObj := zip_model.NewZip(topLevelFileIDs, zipFile.ID())
+
+	err = zip_model.SaveZip(ctx, zipObj)
+	if err != nil {
+		// Fail the task
+		tsk.Fail(err)
+	}
 
 	bytesTotal := slices_mod.Reduce(
 		zipMeta.Files, func(file *file_model.WeblensFileImpl, acc int64) int64 {

@@ -127,6 +127,94 @@ test.describe('Share Browsing', () => {
         const sharedCrumbs = breadcrumbBar.getByText('Shared', { exact: true })
         await expect(sharedCrumbs).toHaveCount(1)
     })
+
+    test('should not throw during back-navigation from a share into the share root', async ({ page }) => {
+        // Reproduces a regression where navigating from a specific share URL
+        // back to /files/share triggers a Vue lifecycle error:
+        //   [Vue warn]: Unhandled error during execution of component update
+        //     at <FileBrowser key=0 > at <Share onVnodeUnmounted=fn ... >
+        // Underlying: TypeError: Cannot read properties of null (reading 'insertBefore')
+        // emitted while pages/files/share.vue swaps its v-if branch from <NuxtPage> to <FileBrowser>.
+
+        const pageErrors: Error[] = []
+        const consoleWarnings: string[] = []
+
+        page.on('pageerror', (err) => {
+            pageErrors.push(err)
+        })
+        page.on('console', (msg) => {
+            const type = msg.type()
+            if (type === 'warning' || type === 'error') {
+                consoleWarnings.push(`[${type}] ${msg.text()}`)
+            }
+        })
+
+        // Create a public share for the test folder so we have a routable share URL.
+        const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'ShareBrowseFolder' })
+        await expect(folderCard).toBeVisible()
+        await folderCard.click({ button: 'right' })
+        await page.locator('#filebrowser-container').getByRole('button', { name: 'Share' }).click()
+
+        const shareModal = page.locator('.fullscreen-modal')
+        await expect(shareModal.locator('h4').filter({ hasText: 'Share' })).toBeVisible()
+
+        const publicBtn = shareModal
+            .getByRole('button', { name: 'Private' })
+            .or(shareModal.getByRole('button', { name: 'Public' }))
+        const btnText = await publicBtn.first().textContent()
+        if (btnText?.includes('Private')) {
+            await publicBtn.first().click()
+        }
+        await shareModal.getByRole('button', { name: 'Done' }).first().click()
+
+        // Re-open to read the share URL (path /files/share/<shareID>/<fileID>).
+        await folderCard.click({ button: 'right' })
+        await page.locator('#filebrowser-container').getByRole('button', { name: 'Share' }).click()
+        await expect(shareModal.locator('h4').filter({ hasText: 'Share' })).toBeVisible()
+
+        const linkText = (await shareModal.getByText(/\/files\/share\//).textContent()) ?? ''
+        const linkMatch = linkText.match(/(\/files\/share\/[^\s]+)/)
+        expect(linkMatch).not.toBeNull()
+        const sharePath = linkMatch![1]
+
+        await shareModal.getByRole('button', { name: 'Done' }).first().click()
+
+        // Build SPA history: home -> /files/share -> share file -> back lands at /files/share.
+        // Use the in-page Vue Router so the navigation is a real SPA transition (the bug
+        // does not reproduce on a hard page load).
+        await page.evaluate(async (target) => {
+            const router = (window as unknown as { useNuxtApp: () => { $router: { push: (p: string) => Promise<unknown> } } })
+                .useNuxtApp().$router
+            await router.push('/files/home')
+            await new Promise((r) => setTimeout(r, 200))
+            await router.push('/files/share')
+            await new Promise((r) => setTimeout(r, 400))
+            await router.push(target)
+            await new Promise((r) => setTimeout(r, 600))
+        }, sharePath)
+
+        // Wait until the share file content is mounted before going back.
+        await expect(page.locator('h3').filter({ hasText: 'ShareBrowseFolder' }).first()).toBeVisible()
+
+        await page.evaluate(async () => {
+            ;(window as unknown as { useNuxtApp: () => { $router: { back: () => void } } }).useNuxtApp().$router.back()
+            await new Promise((r) => setTimeout(r, 800))
+        })
+
+        await page.waitForURL('**/files/share')
+
+        const vueWarnings = consoleWarnings.filter((m) => m.includes('[Vue warn]'))
+        const insertBeforeErrors = [
+            ...pageErrors.map((e) => e.message),
+            ...consoleWarnings,
+        ].filter((m) => m.includes("Cannot read properties of null (reading 'insertBefore')"))
+
+        expect(vueWarnings, `Vue warnings on back-nav to share root:\n${vueWarnings.join('\n')}`).toEqual([])
+        expect(
+            insertBeforeErrors,
+            `null insertBefore errors on back-nav to share root:\n${insertBeforeErrors.join('\n')}`,
+        ).toEqual([])
+    })
 })
 
 test.describe('Share Browsing - Private Share Accessor', () => {

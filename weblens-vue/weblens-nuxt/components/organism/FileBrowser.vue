@@ -32,7 +32,7 @@
             >
                 <FileScroller
                     :files="[...filesStore.files]"
-                    :no-require-parent-match="filesStore.isSearching || Boolean(locationStore.activeTagID)"
+                    :no-require-parent-match="noRequireParentMatch"
                 />
             </div>
 
@@ -58,4 +58,14 @@ import FileContextMenu from './FileContextMenu.vue'
 
 const filesStore = useFilesStore()
 const locationStore = useLocationStore()
+
+// By default, the file scroller requires the parent folder to match the current location.
+// This is not true when searching or viewing a tag, etc. so we need to pass a prop to the file scroller.
+const noRequireParentMatch = computed(() => {
+    return (
+        filesStore.isSearching ||
+        Boolean(locationStore.activeTagID) ||
+        (locationStore.isInShare && !locationStore.activeShareID)
+    )
+})
 </script>

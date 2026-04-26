@@ -1,5 +1,6 @@
 import type { MediaInfo, MediaTypeInfo } from '@ethanrous/weblens-api'
 import { API_ENDPOINT, useWeblensAPI } from '~/api/AllApi'
+import useFilesStore from '~/stores/files'
 import useLocationStore from '~/stores/location'
 
 export enum PhotoQuality {
@@ -141,6 +142,7 @@ class WeblensMedia implements MediaInfo {
         }
     }
 
+    // ImgUrl returns the URL to fetch the thumbnail with the given quality from the API.
     public ImgUrl(quality: PhotoQuality = PhotoQuality.LowRes): string {
         let format = 'webp'
         if (quality === PhotoQuality.HighRes) {
@@ -152,13 +154,21 @@ class WeblensMedia implements MediaInfo {
         }
 
         let url = `${API_ENDPOINT.value}/media/${this.contentID}.${format}?quality=${quality}&page=0`
-        if (useLocationStore().activeShareID) {
-            url += `&shareID=${useLocationStore().activeShareID}`
+
+        let shareID: string | undefined = useLocationStore().activeShareID
+        if (!shareID && this.fileIDs) {
+            const file = useFilesStore().getFileByContentID(this.ID())
+            shareID = file?.shareID
+        }
+
+        if (shareID) {
+            url += `&shareID=${shareID}`
         }
 
         return url
     }
 
+    // MediaUrl returns the sharable URL for this media, not the api endpoint to fetch the thumbnail
     public MediaUrl(shareID?: string): string {
         let url = `${window.location.origin}/media/${this.contentID}`
         if (shareID) {

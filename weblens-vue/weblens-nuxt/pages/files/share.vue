@@ -1,21 +1,10 @@
 <template>
-    <div
-        id="filebrowser-container"
-        :class="{ 'page-root': true }"
-    >
-        <FileScroller
-            v-if="locationStore.inShareRoot"
-            :files="filesStore.files ?? []"
-        />
-        <NuxtPage v-if="!locationStore.inShareRoot" />
-    </div>
+    <FileBrowser v-if="locationStore.inShareRoot" />
+    <NuxtPage v-else />
 </template>
 
 <script setup lang="ts">
-import FileScroller from '~/components/organism/FileScroller.vue'
-import useFilesStore from '~/stores/files'
+import FileBrowser from '~/components/organism/FileBrowser.vue'
 import useLocationStore from '~/stores/location'
-
 const locationStore = useLocationStore()
-const filesStore = useFilesStore()
 </script>
