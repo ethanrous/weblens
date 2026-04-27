@@ -160,7 +160,7 @@
                 label="Log In"
                 fill-width
                 allow-collapse
-                @click.stop="userStore.logout()"
+                @click.stop="goToLogin()"
             >
                 <IconUser size="18" />
             </WeblensButton>
@@ -257,5 +257,9 @@ async function goToSettings() {
 
     locationStore.returnTo = route.fullPath
     navigateTo('/settings/account')
+}
+
+async function goToLogin() {
+    navigateTo('/login?returnTo=' + encodeURIComponent(route.fullPath))
 }
 </script>

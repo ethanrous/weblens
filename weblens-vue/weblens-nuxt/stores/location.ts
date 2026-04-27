@@ -194,11 +194,23 @@ const useLocationStore = defineStore('location', () => {
 
         // If in share but no fileID, redirect to share root. This allows sharing links to be shorter
         // e.g. /files/share/:shareID instead of /files/share/:shareID/:fileID
-        if (isInShare && activeShare.value && !route.value.params.fileID) {
+        if (isInShare && activeShareID.value && activeShare.value && !route.value.params.fileID) {
             return navigateTo({
                 path: `/files/share/${activeShareID.value}/${activeShare.value?.fileID}`,
                 query: route.value.query,
             })
+        }
+
+        // If the user tries to access a share to a folder where they should not be allowed to view the files,
+        // redirect them to the timeline view only.
+        if (
+            isInShare &&
+            activeShareID.value &&
+            activeShare.value &&
+            !activeShare.value.checkPermission('canView') &&
+            !isInTimeline.value
+        ) {
+            isInTimeline.value = true
         }
     })
 

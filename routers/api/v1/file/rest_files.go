@@ -166,10 +166,7 @@ func DownloadFile(ctx context_service.RequestContext) {
 	// 	}
 	// }
 
-	ctx.Log().Debug().Msgf("Headers?: %v", ctx.Req.Header)
-
 	acceptType := ctx.Query("format")
-	ctx.Log().Debug().Msgf("Accept type: [%s]", acceptType)
 
 	if acceptType != "" && acceptType != "image/webp" {
 		mt := media_model.ParseMime(acceptType)
@@ -729,12 +726,15 @@ func GetSharedFiles(ctx context_service.RequestContext) {
 	}
 
 	children := make([]*file_model.WeblensFileImpl, 0, len(shares))
+	sharesMap := make(map[string]*share_model.FileShare, len(shares))
 
 	for _, share := range shares {
+		sharesMap[share.FileID] = &share
+
 		f, err := ctx.FileService.GetFileByID(ctx, share.FileID)
 		if err != nil {
 			if wlerrors.Is(err, file_model.ErrFileNotFound) {
-				ctx.Log().Error().Stack().Err(err).Msg("Could not find file acompanying a file share")
+				ctx.Log().Error().Stack().Err(err).Msg("Could not find file accompanying a file share")
 
 				continue
 			}
@@ -750,7 +750,12 @@ func GetSharedFiles(ctx context_service.RequestContext) {
 	childInfos := make([]wlstructs.FileInfo, 0, len(children))
 
 	for _, child := range children {
-		fInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, child)
+		var perms *share_model.Permissions
+		if perms, err = auth.CanUserAccessFile(ctx, ctx.Requester, child, sharesMap[child.ID()]); err != nil {
+			continue
+		}
+
+		fInfo, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, child, reshape.FileInfoOptions{Perms: option.Of(*perms)})
 		if err != nil {
 			// If we can't convert the file to a FileInfo, log the error and continue
 			ctx.Error(http.StatusInternalServerError, wlerrors.New("failed to convert file to FileInfo"))
@@ -1692,7 +1697,11 @@ func sortFileInfos(files []wlstructs.FileInfo, sortBy string, sortDir string, me
 			case f1.Size > f2.Size:
 				less = 1
 			}
-		default: // Sort by name
+		default: // Sort by name (below)
+		}
+
+		// If we have not made a decision, it means the two files are equal in the sort order we are trying to perform, and we should sort by file name.
+		if less == 0 {
 			path1, _ := wlfs.ParsePortable(f1.PortablePath)
 			path2, _ := wlfs.ParsePortable(f2.PortablePath)
 			less = wlslices.NatSortCompare(path1.Filename(), path2.Filename())

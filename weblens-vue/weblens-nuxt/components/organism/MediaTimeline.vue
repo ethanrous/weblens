@@ -11,7 +11,7 @@
         />
 
         <div
-            v-else-if="rows.rows.length === 0 && !mediaStore.timelineLoading && mediaStore.searchUpToDate"
+            v-else-if="rows.rows.length === 0 && !loading && mediaStore.searchUpToDate"
             :class="{ 'm-auto flex flex-col items-center gap-3': true }"
         >
             <h3 :class="{ 'text-text-secondary text-lg': true }">No media found</h3>
@@ -77,7 +77,7 @@
         </template>
         <Loader
             v-if="mediaStore.canLoadMore"
-            :class="{ 'mx-auto my-10': true }"
+            :class="{ 'm-auto': true }"
         />
         <div
             ref="bottomSpacer"
@@ -110,18 +110,31 @@ const timelineWidthBounced = useDebounce(timelineSize.width, 100)
 
 const MARGIN_SIZE = 4
 
+const computedSizesLoading = ref<boolean>(true)
+
+function disableLoading() {
+    computedSizesLoading.value = false
+}
+
 const rows = computed(() => {
     if (timelineWidthBounced.value <= 0) {
         return { rows: [], remainingGap: 0 }
     }
 
-    return GetMediaRows(
+    const rows = GetMediaRows(
         mediaStore.timelineMedia,
         mediaStore.timelineImageSize,
         timelineWidthBounced.value - 8,
         MARGIN_SIZE,
         mediaStore.canLoadMore ? mediaStore.totalMedias : mediaStore.timelineMedia.length,
     )
+
+    disableLoading()
+    return rows
+})
+
+const loading = computed(() => {
+    return mediaStore.timelineLoading || computedSizesLoading.value
 })
 
 const visible = useElementVisibility(bottomSpacer, {
