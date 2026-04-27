@@ -1,4 +1,4 @@
-package zip
+package takeout
 
 import (
 	"context"
@@ -25,7 +25,7 @@ var indexModels = []mongo.IndexModel{
 }
 
 func registerIndexes(ctx context.Context, _ config.Provider) error {
-	col, err := db.GetCollection[*Zip](ctx, ZipCollectionKey)
+	col, err := db.GetCollection[*Takeout](ctx, TakeoutCollectionKey)
 	if err != nil {
 		return err
 	}
@@ -40,7 +40,7 @@ func registerIndexes(ctx context.Context, _ config.Provider) error {
 }
 
 func dropZips(ctx context.Context, _ config.Provider) error {
-	col, err := db.GetCollection[*Zip](ctx, ZipCollectionKey)
+	col, err := db.GetCollection[*Takeout](ctx, TakeoutCollectionKey)
 	if err != nil {
 		return err
 	}

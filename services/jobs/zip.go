@@ -10,8 +10,8 @@ import (
 
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/job"
+	takeout_model "github.com/ethanrous/weblens/models/takeout"
 	"github.com/ethanrous/weblens/models/task"
-	zip_model "github.com/ethanrous/weblens/models/zip"
 	"github.com/ethanrous/weblens/modules/cryptography"
 	"github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/modules/wlerrors"
@@ -142,9 +142,9 @@ func CreateZip(tsk *task.Task) {
 
 	// Take this time to write the zip to the database while the zip
 	// is being executed in the other goroutine
-	zipObj := zip_model.NewZip(topLevelFileIDs, zipFile.ID())
+	zipObj := takeout_model.NewZip(topLevelFileIDs, zipFile.ID())
 
-	err = zip_model.SaveZip(ctx, zipObj)
+	err = takeout_model.SaveZip(ctx, zipObj)
 	if err != nil {
 		// Fail the task
 		tsk.Fail(err)

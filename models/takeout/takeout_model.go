@@ -1,5 +1,5 @@
-// Package zip contains types for a zip file of multiple files
-package zip
+// Package takeout contains types for a zip file of multiple files
+package takeout
 
 import (
 	"context"
@@ -8,26 +8,26 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-// ZipCollectionKey is the key for the zip collection in the database
-const ZipCollectionKey = "zip"
+// TakeoutCollectionKey is the key for the zip collection in the database
+const TakeoutCollectionKey = "takeout"
 
-// Zip relates a zip file to its source files
-type Zip struct {
+// Takeout relates a zip file to its source files
+type Takeout struct {
 	SourceFileIDs []string `bson:"sourceFileIDs"`
-	ZipFileID     string   `bson:"zipFileID"`
+	TakeoutFileID string   `bson:"zipFileID"`
 }
 
 // NewZip returns a new Zip struct.
-func NewZip(sourceFileIDs []string, zipID string) *Zip {
-	return &Zip{
+func NewZip(sourceFileIDs []string, zipID string) *Takeout {
+	return &Takeout{
 		SourceFileIDs: sourceFileIDs,
-		ZipFileID:     zipID,
+		TakeoutFileID: zipID,
 	}
 }
 
 // SaveZip saves a Zip struct to the database.
-func SaveZip(ctx context.Context, zip *Zip) error {
-	col, err := db.GetCollection[Zip](ctx, ZipCollectionKey)
+func SaveZip(ctx context.Context, zip *Takeout) error {
+	col, err := db.GetCollection[Takeout](ctx, TakeoutCollectionKey)
 	if err != nil {
 		return err
 	}
@@ -41,13 +41,13 @@ func SaveZip(ctx context.Context, zip *Zip) error {
 }
 
 // GetZip returns a Zip struct from the database.
-func GetZip(ctx context.Context, zipFileID string) (*Zip, error) {
-	col, err := db.GetCollection[*Zip](ctx, ZipCollectionKey)
+func GetZip(ctx context.Context, zipFileID string) (*Takeout, error) {
+	col, err := db.GetCollection[*Takeout](ctx, TakeoutCollectionKey)
 	if err != nil {
 		return nil, db.WrapError(err, "get zip collection")
 	}
 
-	var media Zip
+	var media Takeout
 
 	err = col.FindOne(ctx, bson.M{"zipFileID": zipFileID}).Decode(&media)
 	if err != nil {

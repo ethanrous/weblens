@@ -7,7 +7,7 @@ import (
 
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/share"
-	zip_model "github.com/ethanrous/weblens/models/zip"
+	takeout_model "github.com/ethanrous/weblens/models/takeout"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/services/auth"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
@@ -57,7 +57,7 @@ func CheckFileAccessByID(ctx context_service.RequestContext, fileID string, perm
 
 	// TODO: bypass source file checks if zip owner is accessor
 	if file_model.ZipsDirPath.IsParentOf(file.GetPortablePath()) {
-		zip, err := zip_model.GetZip(ctx, file.ID())
+		zip, err := takeout_model.GetZip(ctx, file.ID())
 		if err != nil {
 			err = wlerrors.Wrapf(err, "failed to get zip object for %s (%s)", file.GetPortablePath(), file.ID())
 			ctx.Error(http.StatusInternalServerError, err)
