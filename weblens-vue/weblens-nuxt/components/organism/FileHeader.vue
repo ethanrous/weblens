@@ -113,6 +113,14 @@ const canNavigate = computed(() => {
         return false
     }
 
+    if (
+        !userStore.user.isLoggedIn.get() &&
+        locationStore.isInShare &&
+        locationStore.activeShare?.fileID === locationStore.activeFolderID
+    ) {
+        return false
+    }
+
     if (activeFile.value?.IsSharedWithMe()) {
         return true
     }
@@ -138,7 +146,7 @@ function navigateBack() {
     }
 
     // If in a share, and the file has no parents, go to share root (/files/share)
-    if (activeFile.value?.IsSharedWithMe() && activeFile.value?.parents.length === 0) {
+    if (activeFile.value?.IsSharedWithMe() && activeFile.value?.ID() === locationStore.activeShare?.GetFileID()) {
         return WeblensFile.ShareRoot().GoTo()
     }
 

@@ -186,9 +186,13 @@ import WeblensButton from '../atom/WeblensButton.vue'
 import { downloadSingleFile } from '~/api/FileBrowserApi'
 import useFilesStore from '~/stores/files'
 import Seeker from '../atom/Seeker.vue'
+import useLocationStore from '~/stores/location'
+import { useWeblensAPI } from '~/api/AllApi'
+import WeblensFile from '~/types/weblensFile'
 
 const filesStore = useFilesStore()
 const mediaStore = useMediaStore()
+const locationStore = useLocationStore()
 const qualitySliderOpen = ref<boolean>(false)
 const quality = ref<number>(85)
 
@@ -200,11 +204,24 @@ const media = computed(() => {
     return mediaStore.mediaMap.get(props.mediaId)
 })
 
-const canDownload = computed(() => {
+const { data: file } = useAsyncData(async () => {
     const fileID = media.value?.fileIDs?.[0]
-    if (!fileID) return false
-    const file = filesStore.getFileByID(fileID)
-    return file?.CanDownload() ?? false
+    if (!fileID) {
+        return
+    }
+
+    let file = filesStore.getFileByID(fileID)
+    if (file) {
+        return file
+    }
+
+    file = new WeblensFile((await useWeblensAPI().FilesAPI.getFile(fileID, locationStore.activeShareID)).data)
+
+    return file
+})
+
+const canDownload = computed(() => {
+    return file.value?.CanDownload() ?? false
 })
 
 const mediaType = computed(() => {

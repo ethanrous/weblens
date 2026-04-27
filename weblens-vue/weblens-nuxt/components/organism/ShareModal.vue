@@ -26,16 +26,6 @@
                     :exclude-fn="excludeFn"
                     @select:user="addAccessor"
                 />
-                <WeblensButton
-                    :class="{ 'min-w-0 sm:min-w-40': true }"
-                    :label="share?.timelineOnly ? 'Timeline Only' : 'Timeline + Files'"
-                    :type="share?.timelineOnly ? 'outline' : 'default'"
-                    allow-collapse
-                    @click="toggleTimelienOnly"
-                >
-                    <IconFileOff v-if="share?.timelineOnly" />
-                    <IconFile v-else />
-                </WeblensButton>
             </div>
             <Table
                 :columns="['username', 'canDownload', 'canEdit', 'canDelete', 'unshare']"
@@ -43,13 +33,22 @@
             />
             <span :class="{ 'text-text-secondary mt-4': true }">Public Share Settings</span>
             <Table
-                :columns="['public', 'canViewFiles', 'canDownload', 'canEdit', 'canDelete']"
+                :columns="['public', 'canViewFiles', 'canDownload', 'canEdit']"
                 :rows="publicShareRows"
             />
-            <CopyBox
-                :text="share?.ID() ? share?.GetLink() : undefined"
-                :class="{ 'mt-auto': true }"
-            />
+
+            <div :class="{ 'mt-auto inline-flex w-full items-center gap-2': true }">
+                <WeblensButton @click="doTimeline = !doTimeline">
+                    <IconPhoto v-if="doTimeline" />
+                    <IconFolder v-if="!doTimeline" />
+                </WeblensButton>
+
+                <CopyBox
+                    :text="share?.ID() ? share?.GetLink(doTimeline) : undefined"
+                    :class="{ grow: true }"
+                />
+            </div>
+
             <div :class="{ 'flex gap-2': true }">
                 <WeblensButton
                     label="Revoke Share"
@@ -70,7 +69,7 @@
 </template>
 
 <script setup lang="ts">
-import { IconFile, IconFileOff, IconLock, IconLockOpen, IconUserOff } from '@tabler/icons-vue'
+import { IconFolder, IconLock, IconLockOpen, IconPhoto, IconUserOff } from '@tabler/icons-vue'
 import WeblensButton from '../atom/WeblensButton.vue'
 import type WeblensFile from '~/types/weblensFile'
 import FileIcon from '../atom/FileIcon.vue'
@@ -84,6 +83,8 @@ import { useWeblensAPI } from '~/api/AllApi'
 import { UNAUTHENTICATED_USER_NAME } from '~/types/user'
 
 const menuStore = useContextMenuStore()
+
+const doTimeline = ref<boolean>(false)
 
 const modal = ref<HTMLDivElement>()
 onClickOutside(modal, () => {
@@ -237,20 +238,20 @@ const publicShareRows = computed<TableRow[]>(() => {
                     share.value = share.value.clone()
                 },
             },
-            canDelete: {
-                tableType: TableType.Checkbox,
-                checked: share.value?.permissions?.[UNAUTHENTICATED_USER_NAME]?.canDelete ?? false,
-                disabled: !share.value.IsPublic(),
-                onchanged: async (c: boolean) => {
-                    if (!share.value) return
-                    await share.value.updateAccessorPerms(UNAUTHENTICATED_USER_NAME, {
-                        ...share.value?.permissions?.[UNAUTHENTICATED_USER_NAME],
-                        canDelete: c,
-                    })
-
-                    share.value = share.value.clone()
-                },
-            },
+            // canDelete: {
+            //     tableType: TableType.Checkbox,
+            //     checked: share.value?.permissions?.[UNAUTHENTICATED_USER_NAME]?.canDelete ?? false,
+            //     disabled: !share.value.IsPublic(),
+            //     onchanged: async (c: boolean) => {
+            //         if (!share.value) return
+            //         await share.value.updateAccessorPerms(UNAUTHENTICATED_USER_NAME, {
+            //             ...share.value?.permissions?.[UNAUTHENTICATED_USER_NAME],
+            //             canDelete: c,
+            //         })
+            //
+            //         share.value = share.value.clone()
+            //     },
+            // },
         },
     ]
 })
@@ -280,15 +281,6 @@ async function toggleIsPublic() {
     }
 
     await share.value.toggleIsPublic()
-}
-
-async function toggleTimelienOnly() {
-    if (!share.value) {
-        console.error('No share to toggle isPublic')
-        return
-    }
-
-    await share.value.toggleTimelineOnly()
 }
 
 async function deleteShare() {

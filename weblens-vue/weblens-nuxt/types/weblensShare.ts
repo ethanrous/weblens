@@ -86,8 +86,8 @@ export default class WeblensShare implements ShareInfo {
         return this.accessors
     }
 
-    GetLink(): string {
-        return `${window.location.origin}/files/share/${this.shareID}${this.timelineOnly ? '?timeline=true' : ''}`
+    GetLink(timeline: boolean = false): string {
+        return `${window.location.origin}/files/share/${this.shareID}${timeline ? '?timeline=true' : ''}`
     }
 
     private get info(): ShareInfo {

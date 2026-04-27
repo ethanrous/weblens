@@ -12,6 +12,7 @@ import (
 	"github.com/ethanrous/weblens/services/auth"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/journal"
+	"github.com/rs/zerolog"
 )
 
 func checkFileAccess(ctx context_service.RequestContext, perms ...share.Permission) (file *file_model.WeblensFileImpl, err error) {
@@ -52,8 +53,6 @@ func CheckFileAccessByID(ctx context_service.RequestContext, fileID string, perm
 		return nil, err
 	}
 
-	ctx.Log().Debug().Msgf("GOT FILE %+v", file)
-
 	files := []*file_model.WeblensFileImpl{file}
 
 	// TODO: bypass source file checks if zip owner is accessor
@@ -86,7 +85,15 @@ func CheckFileAccessByID(ctx context_service.RequestContext, fileID string, perm
 	}
 
 	for _, file := range files {
-		ctx.Log().Debug().Msgf("Checking file access for [%s] with permissions %v and share %v", file.ID(), perms, ctx.Share)
+		ctx.Log().Debug().Func(func(e *zerolog.Event) {
+			e = e.Str("fileID", file.ID()).Str("username", ctx.Requester.Username)
+
+			if ctx.Share != nil {
+				e = e.Str("shareID", ctx.Share.ID().Hex())
+			}
+
+			e.Msgf("Checking file access for permissions %v", perms)
+		})
 
 		// Check if the user has access to the file
 		if _, err = auth.CanUserAccessFile(ctx, ctx.Requester, file, ctx.Share, perms...); err != nil {

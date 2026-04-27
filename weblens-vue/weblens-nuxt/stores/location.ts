@@ -200,6 +200,18 @@ const useLocationStore = defineStore('location', () => {
                 query: route.value.query,
             })
         }
+
+        // If the user tries to access a share to a folder where they should not be allowed to view the files,
+        // redirect them to the timeline view only.
+        if (
+            isInShare &&
+            activeShareID.value &&
+            activeShare.value &&
+            !activeShare.value.checkPermission('canView') &&
+            !isInTimeline.value
+        ) {
+            isInTimeline.value = true
+        }
     })
 
     const isInTrash = computed(() => {

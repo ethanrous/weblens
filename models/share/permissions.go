@@ -1,6 +1,11 @@
 package share
 
-import "github.com/ethanrous/weblens/modules/wlog"
+import (
+	"fmt"
+
+	"github.com/ethanrous/weblens/modules/wlog"
+	"github.com/rs/zerolog"
+)
 
 // Permission represents a specific type of access permission for file shares.
 type Permission string
@@ -113,4 +118,10 @@ func (p *Permissions) HasPermission(permission Permission) bool {
 
 		return false
 	}
+}
+
+// MarshalZerologObject implements the zerolog LogObjectMarshaler interface
+func (p *Permissions) MarshalZerologObject(e *zerolog.Event) {
+	permsStr := fmt.Sprintf("view:%t,media:%t,edit:%t,download:%t,delete:%t", p.CanView, p.CanViewMedia, p.CanEdit, p.CanDownload, p.CanDelete)
+	e.Str("permissions", permsStr)
 }

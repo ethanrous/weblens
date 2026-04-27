@@ -1,6 +1,6 @@
 <template>
     <div
-        v-if="file"
+        v-if="file && canView"
         class="flex w-full flex-col gap-2 p-1"
     >
         <div :class="{ 'my-4 flex items-start gap-1': true }">
@@ -84,7 +84,7 @@
             <WeblensButton
                 label="Show in Files"
                 type="outline"
-                :disabled="file.ID() === fileStore.activeFile?.ID()"
+                :disabled="file.ID() === filesStore.activeFile?.ID()"
                 @click.stop="goToFile"
             >
                 <IconSearch size="16" />
@@ -106,18 +106,6 @@
             :progress="zipProgress"
         />
     </div>
-
-    <div v-else-if="mediaId">
-        <span class="text-text-secondary mb-2 text-xs font-semibold uppercase"> File Details </span>
-
-        <WeblensButton
-            label="Show Source File"
-            type="outline"
-            @click.stop="goToFileByMediaID"
-        >
-            <IconSearch size="16" />
-        </WeblensButton>
-    </div>
 </template>
 
 <script setup lang="ts">
@@ -133,12 +121,14 @@ import { handleDownload } from '~/api/FileBrowserApi'
 import ProgressSquare from '../atom/ProgressSquare.vue'
 import TagPill from '../atom/TagPill.vue'
 import FileIcon from '../atom/FileIcon.vue'
+import useLocationStore from '~/stores/location'
 
-const fileStore = useFilesStore()
+const filesStore = useFilesStore()
 const presentationStore = usePresentationStore()
 const mediaStore = useMediaStore()
 const tasksStore = useTasksStore()
 const tagsStore = useTagsStore()
+const locationStore = useLocationStore()
 
 const showTagSelector = ref(false)
 
@@ -157,9 +147,36 @@ const props = defineProps<{
     mediaId: string
 }>()
 
-const file = computed(() => {
-    return fileStore.getFileByID(props.fileId)
+const media = computed(() => {
+    return mediaStore.mediaMap.get(props.mediaId)
 })
+
+const canView = computed(() => {
+    return locationStore.activeShare?.checkPermission('canView') ?? false
+})
+
+const { data: file } = useAsyncData(
+    async () => {
+        const fileID = media.value?.fileIDs?.[0]
+        if (!fileID) {
+            return
+        }
+
+        let file = filesStore.getFileByID(fileID)
+        if (file) {
+            return file
+        }
+
+        if (!canView.value) {
+            return
+        }
+
+        file = new WeblensFile((await useWeblensAPI().FilesAPI.getFile(fileID, locationStore.activeShareID)).data)
+
+        return file
+    },
+    { watch: [() => props.fileId, media] },
+)
 
 const zipProgress = computed(() => {
     if (!downloadTaskID.value) return null
@@ -183,20 +200,6 @@ function goToFile() {
         presentationStore.clearPresentation()
         file.value.GoTo()
     }
-}
-
-async function goToFileByMediaID() {
-    const fileIDs = mediaStore.mediaMap.get(props.mediaId)?.fileIDs
-    if (!fileIDs?.length) {
-        console.error('No file found for media ID:', props.mediaId)
-        return
-    }
-
-    const fileID = fileIDs[0]
-    const fileInfo = (await useWeblensAPI().FilesAPI.getFile(fileID)).data
-    const f = new WeblensFile(fileInfo)
-    presentationStore.clearPresentation()
-    f.GoTo()
 }
 
 const downloadTaskID = ref<string | null>(null)
