@@ -112,6 +112,10 @@ const MARGIN_SIZE = 4
 
 const computedSizesLoading = ref<boolean>(true)
 
+function disableLoading() {
+    computedSizesLoading.value = false
+}
+
 const rows = computed(() => {
     if (timelineWidthBounced.value <= 0) {
         return { rows: [], remainingGap: 0 }
@@ -125,7 +129,7 @@ const rows = computed(() => {
         mediaStore.canLoadMore ? mediaStore.totalMedias : mediaStore.timelineMedia.length,
     )
 
-    computedSizesLoading.value = false
+    disableLoading()
     return rows
 })
 

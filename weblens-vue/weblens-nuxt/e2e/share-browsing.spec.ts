@@ -183,8 +183,9 @@ test.describe('Share Browsing', () => {
         // Use the in-page Vue Router so the navigation is a real SPA transition (the bug
         // does not reproduce on a hard page load).
         await page.evaluate(async (target) => {
-            const router = (window as unknown as { useNuxtApp: () => { $router: { push: (p: string) => Promise<unknown> } } })
-                .useNuxtApp().$router
+            const router = (
+                window as unknown as { useNuxtApp: () => { $router: { push: (p: string) => Promise<unknown> } } }
+            ).useNuxtApp().$router
             await router.push('/files/home')
             await new Promise((r) => setTimeout(r, 200))
             await router.push('/files/share')
@@ -204,10 +205,9 @@ test.describe('Share Browsing', () => {
         await page.waitForURL('**/files/share')
 
         const vueWarnings = consoleWarnings.filter((m) => m.includes('[Vue warn]'))
-        const insertBeforeErrors = [
-            ...pageErrors.map((e) => e.message),
-            ...consoleWarnings,
-        ].filter((m) => m.includes("Cannot read properties of null (reading 'insertBefore')"))
+        const insertBeforeErrors = [...pageErrors.map((e) => e.message), ...consoleWarnings].filter((m) =>
+            m.includes("Cannot read properties of null (reading 'insertBefore')"),
+        )
 
         expect(vueWarnings, `Vue warnings on back-nav to share root:\n${vueWarnings.join('\n')}`).toEqual([])
         expect(

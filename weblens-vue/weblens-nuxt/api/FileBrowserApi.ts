@@ -105,8 +105,6 @@ export async function handleDownload(
                     // Single directory: use the directory name (backend returns dirname.zip)
                     filename = takeoutInfo.filename
                     shareID = targetFiles[0].shareID
-
-                    console.log('TARGET FILE SHARE ID', shareID)
                 } else {
                     // Multiple files: use taskID.weblens.zip
                     if (!taskID) {
@@ -131,7 +129,6 @@ export async function downloadSingleFile(
     quality: number = 100,
     shareID?: string,
 ) {
-    console.trace('HERE!', shareID)
     let formatStr: `image/${Exclude<AllowedDownloadFormats, 'zip'>}` | undefined
     if (format && format !== 'zip') {
         formatStr = `image/${format}`
@@ -146,7 +143,6 @@ export async function downloadSingleFile(
     )
 
     const url = API_ENDPOINT.value + args.url
-    console.log('CALLING ', url)
 
     if (format && format !== 'zip') {
         filename = filename.split('.').slice(0, -1).join('.') + '.' + format
