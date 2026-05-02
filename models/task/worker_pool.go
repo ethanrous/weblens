@@ -271,7 +271,8 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta Meta
 		exitStatus: wlatomic.New(TaskNoStatus),
 
 		// signal chan must be buffered so caller doesn't block trying to close many tasks
-		waitChan: make(chan struct{}),
+		waitChan:        make(chan struct{}),
+		firstResultChan: make(chan struct{}),
 
 		Ctx:        ctx,
 		cancelFunc: cancel,

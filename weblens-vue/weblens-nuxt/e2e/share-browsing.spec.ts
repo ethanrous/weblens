@@ -202,7 +202,7 @@ test.describe('Share Browsing', () => {
             await new Promise((r) => setTimeout(r, 800))
         })
 
-        await page.waitForURL('**/files/share')
+        await page.waitForURL('**/files/share/**')
 
         const vueWarnings = consoleWarnings.filter((m) => m.includes('[Vue warn]'))
         const insertBeforeErrors = [...pageErrors.map((e) => e.message), ...consoleWarnings].filter((m) =>

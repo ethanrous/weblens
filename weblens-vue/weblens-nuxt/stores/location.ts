@@ -170,11 +170,8 @@ const useLocationStore = defineStore('location', () => {
             return
         }
 
-        if (isLoggedIn && route.value.path === '/files') {
-            return navigateTo('/files/home')
-        }
-
-        if (route.value.path === '/login' && isLoggedIn) {
+        const noSlashRoute = route.value.path.replaceAll('/', '')
+        if (isLoggedIn && (noSlashRoute === '' || noSlashRoute === 'files' || noSlashRoute === 'login')) {
             return homeOrReturnTo()
         }
 

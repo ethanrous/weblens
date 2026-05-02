@@ -152,12 +152,13 @@ const media = computed(() => {
 })
 
 const canView = computed(() => {
-    return locationStore.activeShare?.checkPermission('canView') ?? false
+    if (!locationStore.activeShare) return true
+    return locationStore.activeShare.checkPermission('canView') ?? false
 })
 
 const { data: file } = useAsyncData(
     async () => {
-        const fileID = media.value?.fileIDs?.[0]
+        const fileID = props.fileId || media.value?.fileIDs?.[0]
         if (!fileID) {
             return
         }

@@ -17,7 +17,7 @@ func init() {
 }
 
 var zipFileIDKey = "zipfileID_unique_index"
-var indexModels = []mongo.IndexModel{
+var IndexModels = []mongo.IndexModel{
 	{
 		Keys:    bson.D{{Key: "zipFileID", Value: 1}},
 		Options: options.Index().SetUnique(true).SetName(zipFileIDKey),
@@ -30,7 +30,7 @@ func registerIndexes(ctx context.Context, _ config.Provider) error {
 		return err
 	}
 
-	for _, idx := range indexModels {
+	for _, idx := range IndexModels {
 		if err := col.NewIndex(idx); err != nil {
 			return err
 		}

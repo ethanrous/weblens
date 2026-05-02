@@ -46,7 +46,7 @@ test.describe('Share Modal Interactions', () => {
         await shareModal.getByRole('button', { name: 'Done' }).first().click()
     })
 
-    test('should toggle Timeline Only in share modal', async ({ page }) => {
+    test('should toggle timeline link mode in share modal', async ({ page }) => {
         const folderCard = page.locator('[id^="file-card-"]').filter({ hasText: 'ShareInteractionTest' })
         await expect(folderCard).toBeVisible({ timeout: 15000 })
         await folderCard.click({ button: 'right' })
@@ -56,15 +56,38 @@ test.describe('Share Modal Interactions', () => {
         const shareModal = page.locator('.fullscreen-modal')
         await expect(shareModal.locator('h4').filter({ hasText: 'Share' })).toBeVisible({ timeout: 15000 })
 
-        // Toggle Timeline Only. The button label flips between states, so match either.
-        const timelineBtn = shareModal
-            .getByRole('button', { name: 'Timeline Only' })
-            .or(shareModal.getByRole('button', { name: 'Timeline + Files' }))
-        await expect(timelineBtn.first()).toBeVisible()
-        await timelineBtn.first().click()
+        // Make the share public so a link is generated and CopyBox is non-empty.
+        const publicBtn = shareModal
+            .getByRole('button', { name: 'Private' })
+            .or(shareModal.getByRole('button', { name: 'Public' }))
+        if (((await publicBtn.first().textContent()) ?? '').includes('Private')) {
+            await publicBtn.first().click()
+        }
 
-        // Toggle it back
-        await timelineBtn.first().click()
+        // The timeline toggle sits in an inline-flex row alongside the CopyBox
+        // (ShareModal.vue:40-50). The button contains an IconFolder or IconPhoto svg.
+        const timelineBtn = shareModal.locator('button').filter({
+            has: page.locator('svg.tabler-icon-folder, svg.tabler-icon-photo'),
+        }).first()
+        await expect(timelineBtn).toBeVisible()
+
+        // The CopyBox is the sibling of the timeline button in the same flex row.
+        // It has bg-card-background-primary in its class, unlike the search input.
+        const copyBox = timelineBtn.locator('xpath=following-sibling::*[1]')
+        await expect(copyBox).toBeVisible()
+
+        // Capture the share link in the default (non-timeline) state.
+        await expect(copyBox).toContainText(/\/files\/share\//)
+        const linkBefore = (await copyBox.textContent()) ?? ''
+        expect(linkBefore).not.toMatch(/[?&]timeline=/)
+
+        // Toggle on, link should now contain timeline=true.
+        await timelineBtn.click()
+        await expect(copyBox).toContainText(/timeline/, { timeout: 5000 })
+
+        // Toggle off, link should drop the timeline parameter.
+        await timelineBtn.click()
+        await expect(copyBox).not.toContainText(/timeline/, { timeout: 5000 })
 
         await shareModal.getByRole('button', { name: 'Done' }).first().click()
     })

@@ -872,6 +872,19 @@ func CreateTakeout(ctx context_service.RequestContext) {
 		return
 	}
 
+	// Give the task a chance to make progress before we report status:
+	//   - <-done    : task ran to completion (cached-zip path returns sync)
+	//   - <-result  : task fired its first SetResult, which the zip job does
+	//                 after it has written the takeout DB record
+	//   - timeout   : safety net so we never block indefinitely
+	done := make(chan struct{})
+	go func() { t.Wait(); close(done) }()
+	select {
+	case <-done:
+	case <-t.FirstResultChan():
+	case <-time.After(10 * time.Second):
+	}
+
 	completed, status := t.Status()
 	if completed && status == task.TaskSuccess {
 		result := t.GetResult()
