@@ -2,7 +2,7 @@
     <div class="animate-fade-in relative m-auto h-full w-full">
         <div
             v-if="file.contentID && media"
-            class="folder-wrapper rounded-xs h-full w-full"
+            class="folder-wrapper h-full w-full rounded-xs"
         >
             <svg
                 class="folder-border pointer-events-none absolute inset-0 h-full w-full"
