@@ -2,12 +2,13 @@ import type { PermissionsInfo, PermissionsParams, ShareInfo, UserInfo } from '@e
 import { useWeblensAPI } from '~/api/AllApi'
 
 export default class WeblensShare implements ShareInfo {
+    private _permissions: Record<string, PermissionsInfo> = {}
+    private _public: boolean = false
+
     shareID: string = ''
     isDir: boolean = false
     accessors: UserInfo[] = []
-    private _permissions: Record<string, PermissionsInfo> = {}
     expires: number = 0
-    private _public: boolean = false
     fileID: string = ''
     shareName: string = ''
     wormhole: boolean = false
@@ -16,22 +17,6 @@ export default class WeblensShare implements ShareInfo {
 
     constructor(init: ShareInfo) {
         this.assign(init)
-    }
-
-    clone(): WeblensShare {
-        return new WeblensShare({
-            shareID: this.shareID,
-            isDir: this.isDir,
-            accessors: [...this.accessors],
-            permissions: { ...this._permissions },
-            expires: this.expires,
-            public: this._public,
-            timelineOnly: this.timelineOnly,
-            fileID: this.fileID,
-            shareName: this.shareName,
-            wormhole: this.wormhole,
-            owner: this.owner,
-        })
     }
 
     private assign(init: ShareInfo) {
@@ -58,38 +43,6 @@ export default class WeblensShare implements ShareInfo {
         }
     }
 
-    ID(): string {
-        return this.shareID
-    }
-
-    IsPublic() {
-        return this._public
-    }
-
-    public get public(): boolean {
-        return this._public
-    }
-
-    public get permissions(): Record<string, PermissionsParams> {
-        return this._permissions
-    }
-
-    IsWormhole() {
-        return this.wormhole
-    }
-
-    GetFileID(): string {
-        return this.fileID
-    }
-
-    GetAccessors(): UserInfo[] {
-        return this.accessors
-    }
-
-    GetLink(): string {
-        return `${window.location.origin}/files/share/${this.shareID}${this.timelineOnly ? '?timeline=true' : ''}`
-    }
-
     private get info(): ShareInfo {
         return {
             shareID: this.shareID,
@@ -106,18 +59,45 @@ export default class WeblensShare implements ShareInfo {
         }
     }
 
-    private async createShareIfNeeded() {
-        if (this.shareID) {
-            return
+    private async updateShare(newInfo?: Partial<ShareInfo>) {
+        if (!newInfo) {
+            const res = await useWeblensAPI().SharesAPI.updateFileShare(this.shareID, this.info)
+            newInfo = res.data
         }
 
-        const { data: shareInfo } = await useWeblensAPI().SharesAPI.createFileShare({
-            fileID: this.fileID,
-            public: this._public,
-            wormhole: this.wormhole,
-        })
+        this.assign(newInfo)
+    }
 
-        this.assign(shareInfo)
+    public ID(): string {
+        return this.shareID
+    }
+
+    public IsPublic() {
+        return this._public
+    }
+
+    public get public(): boolean {
+        return this._public
+    }
+
+    public get permissions(): Record<string, PermissionsParams> {
+        return this._permissions
+    }
+
+    public IsWormhole() {
+        return this.wormhole
+    }
+
+    public GetFileID(): string {
+        return this.fileID
+    }
+
+    public GetAccessors(): UserInfo[] {
+        return this.accessors
+    }
+
+    public GetLink(timeline: boolean = false): string {
+        return `${window.location.origin}/files/share/${this.shareID}${timeline ? '?timeline=true' : ''}`
     }
 
     public checkPermission(permission: keyof PermissionsParams, username?: string): boolean {
@@ -138,8 +118,6 @@ export default class WeblensShare implements ShareInfo {
     }
 
     public async addAccessor(username: string) {
-        await this.createShareIfNeeded()
-
         const newInfo = (
             await useWeblensAPI().SharesAPI.addUserToShare(this.shareID, {
                 username: username,
@@ -150,7 +128,7 @@ export default class WeblensShare implements ShareInfo {
             return
         }
 
-        this.accessors = newInfo.accessors
+        await this.updateShare(newInfo)
     }
 
     public async removeAccessor(username: string) {
@@ -160,41 +138,37 @@ export default class WeblensShare implements ShareInfo {
             return
         }
 
-        this.accessors = newInfo.accessors
+        await this.updateShare(newInfo)
+    }
+
+    public async updateAccessorPerms(user: string, perms: PermissionsParams) {
+        const newShare = await useWeblensAPI().SharesAPI.updateShareAccessorPermissions(this.shareID, user, perms)
+        await this.updateShare(newShare.data)
     }
 
     public async toggleIsPublic() {
         return this.setPublic(!this._public)
     }
 
-    public async toggleTimelineOnly() {
-        return this.setTimelineOnly(!this.timelineOnly)
-    }
-
     public async setPublic(isPublic: boolean) {
-        await this.createShareIfNeeded()
-
         if (this._public === isPublic) {
             return
         }
 
         this._public = isPublic
-        await useWeblensAPI().SharesAPI.updateFileShare(this.shareID, this.info)
+        await this.updateShare()
+    }
+
+    public async toggleTimelineOnly() {
+        return this.setTimelineOnly(!this.timelineOnly)
     }
 
     public async setTimelineOnly(timelineOnly: boolean) {
-        await this.createShareIfNeeded()
-
         if (this.timelineOnly === timelineOnly) {
             return
         }
 
         this.timelineOnly = timelineOnly
-        await useWeblensAPI().SharesAPI.updateFileShare(this.shareID, this.info)
-    }
-
-    public async updateAccessorPerms(user: string, perms: PermissionsParams) {
-        const newShare = await useWeblensAPI().SharesAPI.updateShareAccessorPermissions(this.shareID, user, perms)
-        this.assign(newShare.data)
+        await this.updateShare()
     }
 }

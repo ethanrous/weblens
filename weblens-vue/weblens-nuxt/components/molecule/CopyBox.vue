@@ -1,11 +1,11 @@
 <template>
     <div
         :class="{
-            'bg-card-background-primary/75 inline-flex h-8 shrink-0 cursor-text items-center gap-1 overflow-hidden rounded border transition': true,
+            'bg-card-background-primary/75 inline-flex h-10 shrink-0 cursor-text items-center gap-1 overflow-hidden rounded border transition': true,
             'select-all': canCopy,
             'select-none': !canCopy,
             'border-green-600': copied,
-            'pl-1': !slots.default,
+            'pl-2': !slots.default,
         }"
         @click.stop="copyToClipboard"
     >
@@ -23,10 +23,11 @@
         </span>
         <IconClipboard
             :class="{
-                'mr-1 ml-auto shrink-0 rounded p-0.5': true,
+                'mr-1 ml-auto shrink-0 rounded p-1': true,
                 'hover:bg-card-background-hover cursor-pointer': canCopy,
                 'text-text-tertiary': !canCopy,
             }"
+            size="30"
         />
     </div>
 </template>

@@ -12,6 +12,40 @@ export default class TaskQueue {
         this.maxConcurrentRunners = maxConcurrentRunners ?? 1
     }
 
+    private async runWithNextRunner<T>({
+        getNext,
+        onFailure,
+        initCtx,
+    }: {
+        getNext: (ctx: T) => Task<T, void> | undefined
+        onFailure?: (err: Error) => void
+        initCtx: T
+    }) {
+        let ctx: T = initCtx
+        while (true) {
+            const task = getNext(ctx)
+            if (!task) {
+                break // Exit if no more tasks are available
+            }
+
+            try {
+                ctx = await task()
+            } catch (err) {
+                console.error('Task failed:', err)
+                onFailure?.(err as Error)
+                break // Exit on error
+            }
+        }
+    }
+
+    private getTask(taskGroupID?: string): Task | undefined {
+        if (taskGroupID) {
+            return this.groupQueue.get(taskGroupID)?.shift()
+        }
+
+        return this.queue.shift()
+    }
+
     async addTask(task: Task, taskGroupID?: string) {
         if (taskGroupID !== undefined) {
             let groupQueue = this.groupQueue.get(taskGroupID)
@@ -61,32 +95,6 @@ export default class TaskQueue {
         }
     }
 
-    private async runWithNextRunner<T>({
-        getNext,
-        onFailure,
-        initCtx,
-    }: {
-        getNext: (ctx: T) => Task<T, void> | undefined
-        onFailure?: (err: Error) => void
-        initCtx: T
-    }) {
-        let ctx: T = initCtx
-        while (true) {
-            const task = getNext(ctx)
-            if (!task) {
-                break // Exit if no more tasks are available
-            }
-
-            try {
-                ctx = await task()
-            } catch (err) {
-                console.error('Task failed:', err)
-                onFailure?.(err as Error)
-                break // Exit on error
-            }
-        }
-    }
-
     public async runWithNext<T>({
         getNext,
         initCtx,
@@ -99,13 +107,5 @@ export default class TaskQueue {
         groupID?: string
     }) {
         await this.addTask(() => this.runWithNextRunner({ getNext, onFailure, initCtx }), groupID)
-    }
-
-    private getTask(taskGroupID?: string): Task | undefined {
-        if (taskGroupID) {
-            return this.groupQueue.get(taskGroupID)?.shift()
-        }
-
-        return this.queue.shift()
     }
 }

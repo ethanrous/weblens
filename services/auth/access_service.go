@@ -71,13 +71,13 @@ func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_mo
 		return &share_model.Permissions{}, err
 	}
 
-	if user.IsPublic() {
-		if share != nil && share.IsPublic() {
-			return share_model.NewPermissions(), nil
-		}
-
-		return &share_model.Permissions{}, ErrMustAuthenticate
-	}
+	// if user.IsPublic() {
+	// 	if share != nil && share.IsPublic() {
+	// 		return share_model.NewPermissions(), nil
+	// 	}
+	//
+	// 	return &share_model.Permissions{}, ErrMustAuthenticate
+	// }
 
 	// If the user is the owner of the file, we can access it regardless of the share
 	// FIXME: Make admin access more granular. The current behavior is so backup operations can work.

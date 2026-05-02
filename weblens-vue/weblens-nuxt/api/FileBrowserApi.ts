@@ -100,9 +100,11 @@ export async function handleDownload(
                 }
 
                 let filename: string
+                let shareID: string | undefined
                 if (targetFiles.length === 1) {
                     // Single directory: use the directory name (backend returns dirname.zip)
                     filename = takeoutInfo.filename
+                    shareID = targetFiles[0].shareID
                 } else {
                     // Multiple files: use taskID.weblens.zip
                     if (!taskID) {
@@ -111,7 +113,7 @@ export async function handleDownload(
                     filename = (taskID ?? takeoutInfo.takeoutID) + '.weblens.zip'
                 }
 
-                await downloadSingleFile(takeoutInfo.takeoutID, filename, 'zip').catch((error) => {
+                await downloadSingleFile(takeoutInfo.takeoutID, filename, 'zip', undefined, shareID).catch((error) => {
                     console.error('Error downloading file:', error)
                 })
             })(),
@@ -125,6 +127,7 @@ export async function downloadSingleFile(
     filename: string,
     format?: AllowedDownloadFormats,
     quality: number = 100,
+    shareID?: string,
 ) {
     let formatStr: `image/${Exclude<AllowedDownloadFormats, 'zip'>}` | undefined
     if (format && format !== 'zip') {
@@ -133,7 +136,7 @@ export async function downloadSingleFile(
 
     const args = await FilesApiAxiosParamCreator().downloadFile(
         fileID,
-        useLocationStore().activeShareID,
+        shareID ?? useLocationStore().activeShareID,
         formatStr,
         quality,
         format === 'zip',
@@ -156,11 +159,16 @@ export async function downloadSingleFile(
 export async function downloadManyFiles(
     fileIDs: string[],
 ): Promise<{ taskID?: string; takeoutInfo: Promise<TakeoutInfo> }> {
+    let shareID: string | undefined = useLocationStore().activeShareID
+    if (!shareID && useFilesStore().getFileByID(fileIDs[0])) {
+        shareID = useFilesStore().getFileByID(fileIDs[0])?.shareID
+    }
+
     const res = await useWeblensAPI().FilesAPI.createTakeout(
         {
             fileIDs: fileIDs,
         },
-        useLocationStore().activeShareID,
+        shareID,
     )
 
     if (res.status === 202) {

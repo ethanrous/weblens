@@ -7,6 +7,8 @@ import useLocationStore from '~/stores/location'
 import { PortablePath } from './portablePath'
 
 export class SelectedState {
+    private selected: number
+
     public static NotSelected = new SelectedState(0b0)
     public static Hovering = new SelectedState(0b1)
     public static InRange = new SelectedState(0b10)
@@ -16,8 +18,6 @@ export class SelectedState {
     public static Moved = new SelectedState(0b100000)
 
     public static ALL = new SelectedState(0b111111)
-
-    private selected: number
 
     constructor(selected: number | SelectedState = SelectedState.NotSelected) {
         if (selected instanceof SelectedState) {
@@ -70,12 +70,15 @@ export enum FbMenuModeT {
 }
 
 class WeblensFile implements FileInfo {
+    private filename: string = ''
+    private _filepath: PortablePath = PortablePath.empty()
+    private selected: SelectedState
+    private share?: WeblensShare
+
     id: string
     owner: string = ''
-    private filename: string = ''
 
     portablePath: string = ''
-    private _filepath: PortablePath = PortablePath.empty()
 
     parentID: string = ''
 
@@ -106,9 +109,6 @@ class WeblensFile implements FileInfo {
 
     public fromAPI: boolean = false
 
-    private selected: SelectedState
-    private share: WeblensShare
-
     contentID: string = ''
 
     constructor(init: FileInfo) {
@@ -121,7 +121,6 @@ class WeblensFile implements FileInfo {
         if (!this.parents) {
             this.parents = []
         }
-        this.share = new WeblensShare({ fileID: this.id, owner: this.owner })
 
         if (!this.filename) {
             this.GetFilename()
@@ -347,22 +346,45 @@ class WeblensFile implements FileInfo {
         return this.permissions?.canDownload === true
     }
 
+    // Share creates a new share for this file
+    public async Share(): Promise<WeblensShare> {
+        if (this.shareID) {
+            return Promise.reject(new Error('File already has share ID'))
+        }
+
+        const { data: shareInfo } = await useWeblensAPI().SharesAPI.createFileShare({
+            fileID: this.id,
+            public: false,
+        })
+
+        const share = new WeblensShare(shareInfo)
+        this.SetShare(share)
+
+        return share
+    }
+
     public SetShare(share: WeblensShare) {
         if (this.shareID && this.shareID !== share.ID()) {
             console.error('Trying to set share with mismatched id, expected', this.shareID, 'but got', share.ID())
+
             return
         } else if (!this.shareID) {
             this.shareID = share.ID()
         }
+
         this.share = share
     }
 
-    public async GetShare(refetch?: boolean): Promise<WeblensShare> {
-        if (this.share.shareID && !this.shareID) {
+    public async GetShare(refetch?: boolean): Promise<WeblensShare | undefined> {
+        if (!this.shareID && !this.share) {
+            return
+        }
+
+        if (this.share?.shareID && !this.shareID) {
             this.shareID = this.share.shareID
         }
 
-        if (this.share.shareID && !refetch) {
+        if (this.share?.shareID && !refetch) {
             return this.share
         } else if (!this.shareID) {
             return this.share
@@ -375,6 +397,24 @@ class WeblensFile implements FileInfo {
 
         this.share = new WeblensShare(res.data)
         return this.share
+    }
+
+    public async DeleteShare(): Promise<void> {
+        if (!this.shareID) {
+            console.error('No share ID to delete share for')
+
+            return
+        }
+
+        const res = await useWeblensAPI().SharesAPI.deleteFileShare(this.shareID)
+        if (res.status !== 200) {
+            console.error('Failed to delete share', res)
+
+            return Promise.reject(new Error('Failed to delete share'))
+        }
+
+        this.shareID = undefined
+        this.share = undefined
     }
 
     public URLID(): string {
@@ -417,7 +457,7 @@ class WeblensFile implements FileInfo {
         const locationStore = useLocationStore()
         let path = '/files/' + this.URLID()
 
-        if (!this.IsHome() && locationStore.isInShare) {
+        if (!this.IsHome() && !this.IsTrash() && locationStore.isInShare) {
             if (this.IsShareRoot()) {
                 path = `/files/share`
             } else if ((this.shareID ? this.shareID : locationStore.activeShareID) === undefined) {
@@ -449,6 +489,8 @@ class WeblensFile implements FileInfo {
         }
 
         const navPath = this.FileURL()
+
+        console.debug('Navigating to', navPath, 'with options', opts)
 
         await navigateTo(navPath, {
             replace: opts?.replace ?? false,

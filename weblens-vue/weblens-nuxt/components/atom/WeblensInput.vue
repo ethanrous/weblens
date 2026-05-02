@@ -2,7 +2,7 @@
     <div
         ref="inputContainer"
         :class="{
-            'hover:bg-background-hover relative flex h-12 cursor-text items-center gap-2 rounded-lg border p-2 transition-[width]': true,
+            'hover:bg-background-hover relative flex h-12 cursor-text items-center gap-2 rounded-lg border p-2 pl-3 transition-[width]': true,
             'rounded-none first:rounded-l last:rounded-r': merge === 'row',
             'rounded-none first:rounded-t last:rounded-b': merge === 'column',
         }"
@@ -23,9 +23,10 @@
                     emit('update:value', (e.target as HTMLInputElement).value)
                 }
             "
-            @keydown.escape="
+            @keydown.escape.stop="
                 () => {
                     if (focused) {
+                        emit('escaped')
                         input?.blur()
                     }
                 }
@@ -100,7 +101,7 @@ const type = computed(() => {
 
 const emit = defineEmits<{
     (e: 'update:value' | 'submit', value: string): void
-    (e: 'clear' | 'focused'): void
+    (e: 'clear' | 'focused' | 'blur' | 'escaped'): void
 }>()
 
 function focus() {
@@ -136,6 +137,8 @@ watchEffect(() => {
         }
 
         emit('focused')
+    } else {
+        emit('blur')
     }
 })
 

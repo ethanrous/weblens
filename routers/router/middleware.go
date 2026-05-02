@@ -62,6 +62,42 @@ func RequireSignIn(next Handler) Handler {
 	})
 }
 
+// RequireFilePermissions returns a middleware that ensures the requester has requested permissions to access the file before proceeding.
+func RequireFilePermissions(permissions ...share_model.Permission) func(next Handler) Handler {
+	return func(next Handler) Handler {
+		return HandlerFunc(func(ctx context_service.RequestContext) {
+			fileID := ctx.Path("fileID")
+
+			file, err := ctx.FileService.GetFileByID(ctx, fileID)
+			if err != nil {
+				ctx.Error(http.StatusInternalServerError, err)
+
+				return
+			}
+
+			ctx.Log().Debug().Func(func(e *zerolog.Event) {
+				e = e.Str("fileID", file.ID()).Str("username", ctx.Requester.Username)
+
+				if ctx.Share != nil {
+					e = e.Str("shareID", ctx.Share.ID().Hex())
+					e = e.EmbedObject(ctx.Share.GetUserPermissions(ctx.Requester.Username))
+				}
+
+				e.Msgf("Checking file access for permissions %v", permissions)
+			})
+
+			_, err = auth_service.CanUserAccessFile(ctx, ctx.Requester, file, ctx.Share, permissions...)
+			if err != nil {
+				ctx.Error(http.StatusForbidden, err)
+
+				return
+			}
+
+			next.ServeHTTP(ctx)
+		})
+	}
+}
+
 // RequirePermissionsMedia returns a middleware that ensures the requester has permissions to access the media before proceeding.
 func RequirePermissionsMedia(next Handler) Handler {
 	return HandlerFunc(func(ctx context_service.RequestContext) {

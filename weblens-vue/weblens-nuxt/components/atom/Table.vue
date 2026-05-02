@@ -15,7 +15,7 @@
                         v-for="column in columns"
                         :key="column"
                         :class="{
-                            'text-text-secondary bg-background relative h-10 w-max border-r border-b px-2 align-middle font-medium whitespace-nowrap first:text-left last:border-r-0 last:text-right [&:has([role=checkbox])]:pr-0 *:[[role=checkbox]]:translate-y-0.5': true,
+                            'text-text-secondary bg-background relative h-10 w-max border-r border-b px-2 align-middle font-medium whitespace-nowrap last:border-r-0 [&:has([role=checkbox])]:pr-0 *:[[role=checkbox]]:translate-y-0.5': true,
                         }"
                     >
                         {{ camelCaseToWords(column) }}
@@ -62,7 +62,7 @@
                                 v-for="column in columns"
                                 :key="column"
                                 :class="{
-                                    'overflow-hidden p-4 text-center align-middle first:text-left last:text-right [&:has([role=checkbox])]:pr-0 *:[[role=checkbox]]:translate-y-0.5': true,
+                                    'overflow-hidden p-4 text-center align-middle [&:has([role=checkbox])]:pr-0 *:[[role=checkbox]]:translate-y-0.5': true,
                                     'text-nowrap':
                                         (item[column] as TableColumn<TableType.JSON>)?.tableType !== TableType.JSON,
                                 }"

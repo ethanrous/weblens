@@ -20,36 +20,34 @@
                 />
             </div>
 
-            <div :class="{ 'z-99 flex w-full items-center gap-2': true }">
-                <UserSearch
-                    :class="{ 'min-w-10': true }"
-                    :exclude-fn="excludeFn"
-                    @select:user="addAccessor"
-                />
-                <WeblensButton
-                    :class="{ 'min-w-0 sm:min-w-40': true }"
-                    :label="share?.timelineOnly ? 'Timeline Only' : 'Timeline + Files'"
-                    :type="share?.timelineOnly ? 'outline' : 'default'"
-                    allow-collapse
-                    @click="toggleTimelienOnly"
-                >
-                    <IconFileOff v-if="share?.timelineOnly" />
-                    <IconFile v-else />
-                </WeblensButton>
-            </div>
             <Table
                 :columns="['username', 'canDownload', 'canEdit', 'canDelete', 'unshare']"
                 :rows="rows"
             />
+            <UserSearch
+                :class="{ 'min-w-10': true }"
+                :exclude-fn="excludeFn"
+                @select:user="addAccessor"
+            />
+
             <span :class="{ 'text-text-secondary mt-4': true }">Public Share Settings</span>
             <Table
-                :columns="['public', 'canViewFiles', 'canDownload', 'canEdit', 'canDelete']"
+                :columns="['public', 'canViewFiles', 'canDownload', 'canEdit']"
                 :rows="publicShareRows"
             />
-            <CopyBox
-                :text="share?.ID() ? share?.GetLink() : undefined"
-                :class="{ 'mt-auto': true }"
-            />
+
+            <div :class="{ 'mt-auto inline-flex w-full items-center gap-2': true }">
+                <WeblensButton @click="doTimeline = !doTimeline">
+                    <IconPhoto v-if="doTimeline" />
+                    <IconFolder v-if="!doTimeline" />
+                </WeblensButton>
+
+                <CopyBox
+                    :text="share?.ID() ? share?.GetLink(doTimeline) : undefined"
+                    :class="{ grow: true }"
+                />
+            </div>
+
             <div :class="{ 'flex gap-2': true }">
                 <WeblensButton
                     label="Revoke Share"
@@ -70,7 +68,7 @@
 </template>
 
 <script setup lang="ts">
-import { IconFile, IconFileOff, IconLock, IconLockOpen, IconUserOff } from '@tabler/icons-vue'
+import { IconFolder, IconLock, IconLockOpen, IconPhoto, IconUserOff } from '@tabler/icons-vue'
 import WeblensButton from '../atom/WeblensButton.vue'
 import type WeblensFile from '~/types/weblensFile'
 import FileIcon from '../atom/FileIcon.vue'
@@ -80,10 +78,11 @@ import { onClickOutside } from '@vueuse/core'
 import Table from '../atom/Table.vue'
 import type { UserInfo } from '@ethanrous/weblens-api'
 import { TableType, type TableColumn, type TableColumns, type TableRow } from '~/types/table'
-import { useWeblensAPI } from '~/api/AllApi'
 import { UNAUTHENTICATED_USER_NAME } from '~/types/user'
 
 const menuStore = useContextMenuStore()
+
+const doTimeline = ref<boolean>(false)
 
 const modal = ref<HTMLDivElement>()
 onClickOutside(modal, () => {
@@ -94,7 +93,7 @@ const props = defineProps<{
     file: WeblensFile
 }>()
 
-const { data: share } = useAsyncData(
+const { data: share, refresh: refreshShare } = useAsyncData(
     'share-' + props.file.ID(),
     async () => {
         return await props.file.GetShare()
@@ -121,7 +120,8 @@ const accessors = computed<TableColumns>(() => {
                     ...share.value?.permissions[u.username],
                     canDownload: c,
                 })
-                share.value = share.value.clone()
+
+                await refreshShare()
             },
         },
         canEdit: {
@@ -133,7 +133,8 @@ const accessors = computed<TableColumns>(() => {
                     ...share.value?.permissions[u.username],
                     canEdit: c,
                 })
-                share.value = share.value.clone()
+
+                await refreshShare()
             },
         },
         canDelete: {
@@ -146,7 +147,7 @@ const accessors = computed<TableColumns>(() => {
                     canDelete: c,
                 })
 
-                share.value = share.value.clone()
+                await refreshShare()
             },
         },
         unshare: {
@@ -156,7 +157,8 @@ const accessors = computed<TableColumns>(() => {
             onClick: async () => {
                 if (!share.value) return
                 await share.value.removeAccessor(u.username)
-                share.value = share.value.clone()
+
+                await refreshShare()
             },
         },
     }))
@@ -179,26 +181,27 @@ const rows = computed<TableRow[]>(() => {
 })
 
 const publicShareRows = computed<TableRow[]>(() => {
-    if (!share.value) {
-        return []
-    }
-
     return [
         {
             public: {
                 tableType: TableType.Button,
-                checked: share.value.IsPublic(),
-                label: share.value.IsPublic() ? 'Public' : 'Private',
-                type: share.value.IsPublic() ? 'default' : 'outline',
-                icon: share.value.IsPublic() ? IconLockOpen : IconLock,
+                label: share.value?.IsPublic() ? 'Public' : 'Private',
+                type: share.value?.IsPublic() ? 'default' : 'outline',
+                icon: share.value?.IsPublic() ? IconLockOpen : IconLock,
                 onClick: async () => {
-                    await toggleIsPublic()
+                    let sh = share.value
+                    if (!sh) {
+                        sh = await props.file.Share()
+                    }
+
+                    await sh.toggleIsPublic()
+                    await refreshShare()
                 },
             },
             canViewFiles: {
                 tableType: TableType.Checkbox,
                 checked: share.value?.permissions?.[UNAUTHENTICATED_USER_NAME]?.canView ?? false,
-                disabled: !share.value.IsPublic(),
+                disabled: !share.value?.IsPublic(),
                 onchanged: async (c: boolean) => {
                     if (!share.value) return
                     await share.value.updateAccessorPerms(UNAUTHENTICATED_USER_NAME, {
@@ -206,13 +209,13 @@ const publicShareRows = computed<TableRow[]>(() => {
                         canView: c,
                     })
 
-                    share.value = share.value.clone()
+                    await refreshShare()
                 },
             },
             canDownload: {
                 tableType: TableType.Checkbox,
                 checked: share.value?.permissions?.[UNAUTHENTICATED_USER_NAME]?.canDownload ?? false,
-                disabled: !share.value.IsPublic(),
+                disabled: !share.value?.IsPublic(),
                 onchanged: async (c: boolean) => {
                     if (!share.value) return
                     await share.value.updateAccessorPerms(UNAUTHENTICATED_USER_NAME, {
@@ -220,13 +223,13 @@ const publicShareRows = computed<TableRow[]>(() => {
                         canDownload: c,
                     })
 
-                    share.value = share.value.clone()
+                    await refreshShare()
                 },
             },
             canEdit: {
                 tableType: TableType.Checkbox,
                 checked: share.value?.permissions?.[UNAUTHENTICATED_USER_NAME]?.canEdit ?? false,
-                disabled: !share.value.IsPublic(),
+                disabled: !share.value?.IsPublic(),
                 onchanged: async (c: boolean) => {
                     if (!share.value) return
                     await share.value.updateAccessorPerms(UNAUTHENTICATED_USER_NAME, {
@@ -234,21 +237,7 @@ const publicShareRows = computed<TableRow[]>(() => {
                         canEdit: c,
                     })
 
-                    share.value = share.value.clone()
-                },
-            },
-            canDelete: {
-                tableType: TableType.Checkbox,
-                checked: share.value?.permissions?.[UNAUTHENTICATED_USER_NAME]?.canDelete ?? false,
-                disabled: !share.value.IsPublic(),
-                onchanged: async (c: boolean) => {
-                    if (!share.value) return
-                    await share.value.updateAccessorPerms(UNAUTHENTICATED_USER_NAME, {
-                        ...share.value?.permissions?.[UNAUTHENTICATED_USER_NAME],
-                        canDelete: c,
-                    })
-
-                    share.value = share.value.clone()
+                    await refreshShare()
                 },
             },
         },
@@ -256,13 +245,13 @@ const publicShareRows = computed<TableRow[]>(() => {
 })
 
 async function addAccessor(user: UserInfo) {
-    if (!share.value) {
-        console.error('No share to add accessor')
-        return
+    let sh = share.value
+    if (!sh) {
+        sh = await props.file.Share()
     }
 
-    await share.value.addAccessor(user.username)
-    share.value = share.value.clone()
+    await sh.addAccessor(user.username)
+    await refreshShare()
 }
 
 function excludeFn(u: UserInfo) {
@@ -273,36 +262,13 @@ function excludeFn(u: UserInfo) {
     return true
 }
 
-async function toggleIsPublic() {
-    if (!share.value) {
-        console.error('No share to toggle isPublic')
-        return
-    }
-
-    await share.value.toggleIsPublic()
-}
-
-async function toggleTimelienOnly() {
-    if (!share.value) {
-        console.error('No share to toggle isPublic')
-        return
-    }
-
-    await share.value.toggleTimelineOnly()
-}
-
 async function deleteShare() {
     if (!share.value) {
         console.error('No share to delete')
         return
     }
 
-    try {
-        await useWeblensAPI().SharesAPI.deleteFileShare(share.value.ID())
-        share.value = null
-        menuStore.setSharing(false)
-    } catch (e) {
-        console.error('Failed to delete share', e)
-    }
+    await props.file.DeleteShare()
+    await refreshShare()
 }
 </script>

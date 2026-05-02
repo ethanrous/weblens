@@ -49,7 +49,7 @@
                     :class="{
                         'bg-card-background-primary/50 absolute bottom-10 left-10 m-2 cursor-pointer rounded p-1': true,
                     }"
-                    size="40"
+                    size="32"
                     @click.stop="previous()"
                 />
                 <IconArrowRight
@@ -57,7 +57,7 @@
                     :class="{
                         'bg-card-background-primary/50 absolute right-10 bottom-10 m-2 cursor-pointer rounded p-1': true,
                     }"
-                    size="40"
+                    size="32"
                     @click.stop="next()"
                 />
             </div>

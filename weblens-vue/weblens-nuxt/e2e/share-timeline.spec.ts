@@ -147,7 +147,7 @@ test.describe('Share Timeline - Authenticated User', () => {
         await expect(shareModal.locator('h4').filter({ hasText: 'Share' })).toBeVisible()
 
         // Add the second user as accessor
-        const userSearchInput = shareModal.getByRole('textbox', { name: 'Search Users...' })
+        const userSearchInput = shareModal.getByRole('textbox', { name: 'Find people...' })
         if (await userSearchInput.isVisible().catch(() => false)) {
             await userSearchInput.fill('share_timeline_user')
             const userResult = shareModal

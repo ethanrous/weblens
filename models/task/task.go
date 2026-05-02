@@ -60,6 +60,11 @@ type Task struct {
 
 	waitChan chan struct{}
 
+	// firstResultChan is closed the first time SetResult is invoked, so
+	// callers waiting on early task progress can unblock without polling.
+	firstResultChan chan struct{}
+	firstResultOnce sync.Once
+
 	WorkerID int64
 }
 
@@ -420,6 +425,12 @@ func (t *Task) SetResult(results Result) {
 		e.Interface("result", results).Msgf("Task [%s][%s] updated its result", t.taskID, t.jobName)
 	})
 
+	t.firstResultOnce.Do(func() {
+		if t.firstResultChan != nil {
+			close(t.firstResultChan)
+		}
+	})
+
 	if t.resultsCallback != nil {
 		resultClone := maps.Clone(t.result)
 		t.resultsMu.Unlock()
@@ -429,6 +440,14 @@ func (t *Task) SetResult(results Result) {
 	}
 
 	t.resultsMu.Unlock()
+}
+
+// FirstResultChan returns a channel that is closed the first time the task's
+// result is set via SetResult. Callers can use it as a readiness signal to
+// avoid polling for early task progress. The channel is created with the task
+// and never re-opened — once closed it stays closed for the task's lifetime.
+func (t *Task) FirstResultChan() <-chan struct{} {
+	return t.firstResultChan
 }
 
 // AtomicSetResult atomically updates the task result using the provided function.
