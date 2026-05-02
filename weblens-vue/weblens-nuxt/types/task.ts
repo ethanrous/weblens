@@ -37,6 +37,7 @@ export type TaskParams<T extends TaskType = TaskType> = { taskID: string } & Tas
 
 export class Task<T extends TaskType = TaskType> {
     private _params!: TaskParams<T>
+    private _status: TaskStatus = TaskStatus.Pending
 
     taskID: string
     taskType: T
@@ -49,8 +50,6 @@ export class Task<T extends TaskType = TaskType> {
     bytesSoFar: number = 0
     bytesTotal: number = 0
     speedBytes: number = 0
-
-    private _status: TaskStatus = TaskStatus.Pending
 
     constructor(params: TaskParams<T>) {
         this.taskID = params.taskID

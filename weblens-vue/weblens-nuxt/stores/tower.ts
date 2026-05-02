@@ -11,7 +11,11 @@ export enum TowerRole {
 }
 
 export const useTowerStore = defineStore('tower', () => {
-    const { data: towerInfo, refresh } = useAsyncData(
+    const {
+        data: towerInfo,
+        refresh,
+        error,
+    } = useAsyncData(
         'tower',
         async () => {
             const towerRes = await useWeblensAPI().TowersAPI.getServerInfo()
@@ -19,6 +23,15 @@ export const useTowerStore = defineStore('tower', () => {
         },
         { immediate: true, lazy: false },
     )
+
+    watch(error, (err) => {
+        if (err) {
+            console.error('Error fetching tower info:', err)
+            setTimeout(() => {
+                refresh()
+            }, 5000) // Retry after 5 seconds
+        }
+    })
 
     return {
         towerInfo,
