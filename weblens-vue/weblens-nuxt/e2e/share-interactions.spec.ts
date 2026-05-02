@@ -107,7 +107,7 @@ test.describe('Share Modal Interactions', () => {
 
         // Search for a user in the UserSearch component.
         // Use the textbox role for more specific targeting.
-        const userSearchInput = shareModal.getByRole('textbox', { name: 'Search Users...' })
+        const userSearchInput = shareModal.getByRole('textbox', { name: 'Find people...' })
         if (await userSearchInput.isVisible({ timeout: 3000 }).catch(() => false)) {
             await userSearchInput.fill('test')
 

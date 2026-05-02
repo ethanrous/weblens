@@ -249,7 +249,7 @@ test.describe('Share Browsing - Private Share Accessor', () => {
         await expect(shareModal.locator('h4').filter({ hasText: 'Share' })).toBeVisible()
 
         // Add the accessor user
-        const userSearchInput = shareModal.getByRole('textbox', { name: 'Search Users...' })
+        const userSearchInput = shareModal.getByRole('textbox', { name: 'Find people...' })
         await expect(userSearchInput).toBeVisible()
         await userSearchInput.fill('share_accessor')
         const userResult = shareModal
