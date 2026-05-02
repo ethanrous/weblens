@@ -48,7 +48,7 @@
         <WeblensButton
             label="Tags"
             fill-width
-            :disabled="!targetFile"
+            :disabled="!targetFile || !canModifyTarget"
             @click.stop="emit('tagFiles')"
         >
             <IconTag />
@@ -94,7 +94,7 @@
                 'rounded-b-xs': downloadTaskPercentComplete !== undefined,
             }"
             :disabled="!targetFile?.CanDownload()"
-            @click.stop="handleDownload"
+            @click.stop="doDownload"
         >
             <IconDownload />
             <ProgressSquare
@@ -171,7 +171,7 @@ import {
 import WeblensButton from '../atom/WeblensButton.vue'
 import type WeblensFile from '~/types/weblensFile'
 import useFilesStore from '~/stores/files'
-import { downloadManyFiles, downloadSingleFile, ScanDirectory } from '~/api/FileBrowserApi'
+import { handleDownload, ScanDirectory } from '~/api/FileBrowserApi'
 import { useWeblensAPI } from '~/api/AllApi'
 import useLocationStore from '~/stores/location'
 import ProgressSquare from '../atom/ProgressSquare.vue'
@@ -222,7 +222,7 @@ const protectedFile = computed(() => {
 })
 
 const canModifyTarget = computed(() => {
-    return props.targetFile?.modifiable && !locationStore.isViewingPast
+    return props.targetFile?.modifiable && !locationStore.isViewingPast && props.targetFile?.CanEdit()
 })
 
 const canModifyParent = computed(() => {
@@ -230,7 +230,7 @@ const canModifyParent = computed(() => {
 })
 
 const canSetAsCover = computed(() => {
-    if (multipleSelected.value) {
+    if (multipleSelected.value || !canModifyTarget.value) {
         return false
     }
 
@@ -242,15 +242,15 @@ const canSetAsCover = computed(() => {
 })
 
 const canRemoveCover = computed(() => {
-    if (multipleSelected.value) {
+    if (multipleSelected.value || !canModifyTarget.value) {
         return false
     }
 
-    if (!props.targetFile || !props.targetFile.IsFolder()) {
+    if (!props.targetFile || !props.targetFile.IsFolder() || !props.targetFile.contentID) {
         return false
     }
 
-    return props.targetFile.contentID !== ''
+    return true
 })
 
 const multipleSelected = computed(() => {
@@ -295,46 +295,29 @@ async function goToFile() {
     menuStore.setMenuOpen(false)
 }
 
-async function handleDownload() {
-    if (!props.targetFile) {
+async function doDownload() {
+    let files: WeblensFile[] = []
+    if (props.selectedFiles && props.selectedFiles.length > 0) {
+        files = props.selectedFiles.map((fID) => filesStore.getFileByID(fID)).filter((f) => !!f)
+    } else if (props.targetFile) {
+        files = [props.targetFile]
+    } else {
         console.warn('No target file to download')
+
         return
     }
 
-    if (!multipleSelected.value && !props.targetFile.IsFolder()) {
-        await downloadSingleFile(props.targetFile?.ID(), props.targetFile?.GetFilename())
-            .then(() => {
-                menuStore.setMenuOpen(false)
-            })
-            .catch((error) => {
-                console.error('Error downloading file:', error)
-            })
+    const downloadInfo = await handleDownload(files)
+
+    if (!downloadInfo) {
         return
-    } else if (props.selectedFiles) {
-        const takeoutRes = await downloadManyFiles(props.selectedFiles)
-
-        if (takeoutRes.taskID) {
-            downloadTaskID.value = takeoutRes.taskID
-        }
-
-        const takeoutInfo = await takeoutRes.takeoutInfo
-
-        if (!takeoutInfo.takeoutID || !takeoutInfo.filename) {
-            console.warn('Missing takeoutID or filename returned from downloadManyFiles', takeoutInfo)
-            return
-        }
-
-        await downloadSingleFile(takeoutInfo.takeoutID, takeoutInfo.filename, 'zip')
-            .then(() => {
-                menuStore.setMenuOpen(false)
-            })
-            .catch((error) => {
-                console.error('Error downloading file:', error)
-            })
-            .finally(() => {
-                downloadTaskID.value = undefined
-            })
     }
+
+    downloadTaskID.value = downloadInfo.zipTaskID
+    await downloadInfo.downloadPromise.finally(() => {
+        menuStore.setMenuOpen(false)
+        downloadTaskID.value = undefined
+    })
 }
 
 watch([() => props.targetFile, () => props.selectedFiles], () => {

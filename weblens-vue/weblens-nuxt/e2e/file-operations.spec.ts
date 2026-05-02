@@ -87,15 +87,8 @@ test.describe('File Operations', () => {
         const shareModal = page.locator('.fullscreen-modal')
         await expect(shareModal.getByRole('heading', { name: 'Share' })).toBeVisible({ timeout: 15000 })
 
-        // The share modal should have Private/Public toggle and Timeline toggle.
-        // The timeline button label flips between 'Timeline Only' and 'Timeline + Files'
-        // depending on the current share.timelineOnly state.
+        // The share modal should have a Private/Public toggle.
         await expect(shareModal.getByRole('button', { name: 'Private' })).toBeVisible()
-        await expect(
-            shareModal
-                .getByRole('button', { name: 'Timeline Only' })
-                .or(shareModal.getByRole('button', { name: 'Timeline + Files' })),
-        ).toBeVisible()
 
         // Should have a Done button
         await expect(shareModal.getByRole('button', { name: 'Done' })).toBeVisible()

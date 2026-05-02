@@ -91,12 +91,17 @@ func TestCanUserAccessFile_PublicUser_PublicShare(t *testing.T) {
 		GenerateID: true,
 	})
 
-	// Create a public share for this file
+	// Create a public share for this file. Mirror the Permissions map that
+	// production SetPublic writes so the access path returns real perms,
+	// not nil. See models/share/file_share.go:214.
 	share := &share_model.FileShare{
 		ShareID: primitive.NewObjectID(),
 		FileID:  file.ID(),
 		Public:  true,
 		Enabled: true,
+		Permissions: map[string]*share_model.Permissions{
+			user_model.PublicUserName: share_model.NewPermissions(),
+		},
 	}
 
 	// Public user should be able to access public share

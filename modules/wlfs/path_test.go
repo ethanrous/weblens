@@ -485,3 +485,24 @@ func TestToAbsolute(t *testing.T) {
 		})
 	}
 }
+
+func TestFilepathIsParentOf(t *testing.T) {
+	tests.Setup(t)
+
+	tests := []struct {
+		name   string
+		parent wlfs.Filepath
+		child  wlfs.Filepath
+		want   bool
+	}{
+		{name: "true direct parent", parent: wlfs.Filepath{RootAlias: "caches", RelPath: "zips/"}, child: wlfs.Filepath{RootAlias: "caches", RelPath: "zips/abc.zip"}, want: true},
+		{name: "true nested descendant", parent: wlfs.Filepath{RootAlias: "users", RelPath: "alice/"}, child: wlfs.Filepath{RootAlias: "users", RelPath: "alice/photos/2024/img.jpg"}, want: true},
+		{name: "false different root", parent: wlfs.Filepath{RootAlias: "users", RelPath: "alice/"}, child: wlfs.Filepath{RootAlias: "caches", RelPath: "alice/img.jpg"}, want: false},
+		{name: "false sibling not descendant", parent: wlfs.Filepath{RootAlias: "users", RelPath: "alice/photos/"}, child: wlfs.Filepath{RootAlias: "users", RelPath: "alice/videos/clip.mp4"}, want: false},
+		{name: "false empty parent rel path", parent: wlfs.Filepath{RootAlias: "caches", RelPath: ""}, child: wlfs.Filepath{RootAlias: "caches", RelPath: "zips/abc.zip"}, want: false},
+		{name: "true identical paths", parent: wlfs.Filepath{RootAlias: "caches", RelPath: "zips/abc.zip"}, child: wlfs.Filepath{RootAlias: "caches", RelPath: "zips/abc.zip"}, want: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) { assert.Equal(t, tt.want, tt.parent.IsParentOf(tt.child)) })
+	}
+}

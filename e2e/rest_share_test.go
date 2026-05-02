@@ -1,7 +1,11 @@
 package e2e_test
 
 import (
+	"bytes"
 	"encoding/base64"
+	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"testing"
 
@@ -411,4 +415,198 @@ func TestDeleteFileShare(t *testing.T) {
 	_, resp, err = client.ShareAPI.GetFileShare(t.Context(), shareID).Execute()
 	assert.Error(t, err)
 	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+}
+
+func uploadTextFile(t *testing.T, setup setupResult, client *openapi.APIClient, parentFolderID, name, content string) string {
+	t.Helper()
+
+	contentBytes := []byte(content)
+
+	uploadInfo, _, err := client.FilesAPI.StartUpload(t.Context()).Request(openapi.NewUploadParams{
+		RootFolderID: openapi.PtrString(parentFolderID),
+		ChunkSize:    openapi.PtrInt32(int32(len(contentBytes))),
+	}).Execute()
+	require.NoError(t, err)
+
+	uploadID := uploadInfo.GetUploadID()
+
+	filesInfo, _, err := client.FilesAPI.AddFilesToUpload(t.Context(), uploadID).Request(openapi.NewFilesParams{
+		NewFiles: []openapi.NewFileParams{{
+			NewFileName:    openapi.PtrString(name),
+			ParentFolderID: openapi.PtrString(parentFolderID),
+			FileSize:       openapi.PtrInt32(int32(len(contentBytes))),
+			IsDir:          openapi.PtrBool(false),
+		}},
+	}).Execute()
+	require.NoError(t, err)
+
+	uploadedFileIDs := filesInfo.GetFileIDs()
+	require.Len(t, uploadedFileIDs, 1)
+	uploadedFileID := uploadedFileIDs[0]
+
+	var body bytes.Buffer
+
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("chunk", name)
+	require.NoError(t, err)
+	_, err = io.Copy(part, bytes.NewReader(contentBytes))
+	require.NoError(t, err)
+	require.NoError(t, writer.Close())
+
+	chunkURL := fmt.Sprintf("%s/api/v1/upload/%s/file/%s", setup.address, uploadID, uploadedFileID)
+	chunkReq, err := http.NewRequestWithContext(t.Context(), http.MethodPut, chunkURL, &body)
+	require.NoError(t, err)
+	chunkReq.Header.Set("Authorization", "Bearer "+setup.token)
+	chunkReq.Header.Set("Content-Type", writer.FormDataContentType())
+	chunkReq.Header.Set("Content-Range", fmt.Sprintf("bytes=0-%d/%d", len(contentBytes)-1, len(contentBytes)))
+
+	chunkResp, err := http.DefaultClient.Do(chunkReq)
+	require.NoError(t, err)
+
+	defer func() { _ = chunkResp.Body.Close() }()
+
+	require.Equal(t, http.StatusOK, chunkResp.StatusCode)
+
+	_, err = client.FilesAPI.GetUploadResult(t.Context(), uploadID).Execute()
+	require.NoError(t, err)
+
+	return uploadedFileID
+}
+
+func TestDownloadFile_ShareDownloadPermission(t *testing.T) {
+	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
+	require.NoError(t, err)
+
+	adminClient := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
+
+	autoActivate := true
+	_, err = adminClient.UsersAPI.CreateUser(t.Context()).NewUserParams(openapi.NewUserParams{
+		Username: "downloader", Password: "TestPass123", FullName: "Downloader", AutoActivate: &autoActivate,
+	}).Execute()
+	require.NoError(t, err)
+
+	downloaderToken, err := auth.GenerateNewToken(coreSetup.ctx, "downloader-token", "downloader", coreSetup.ctx.LocalTowerID)
+	require.NoError(t, err)
+
+	downloaderClient := getAPIClientFromConfig(coreSetup.cnf, base64.StdEncoding.EncodeToString(downloaderToken.Token[:]))
+
+	adminUser, _, err := adminClient.UsersAPI.GetUser(t.Context()).Execute()
+	require.NoError(t, err)
+	folder, _, err := adminClient.FolderAPI.CreateFolder(t.Context()).Request(openapi.CreateFolderBody{
+		ParentFolderID: adminUser.GetHomeID(), NewFolderName: "download-perm-folder",
+	}).Execute()
+	require.NoError(t, err)
+
+	uploadedFileID := uploadTextFile(t, coreSetup, adminClient, folder.GetId(), "downloadable.txt", "hello from share")
+
+	createdShare, _, err := adminClient.ShareAPI.CreateFileShare(t.Context()).Request(openapi.FileShareParams{
+		FileID: openapi.PtrString(folder.GetId()),
+		Public: openapi.PtrBool(false),
+		Users:  []string{"downloader"},
+	}).Execute()
+	require.NoError(t, err)
+
+	shareID := createdShare.GetShareID()
+
+	t.Run("view-only accessor is forbidden", func(t *testing.T) {
+		_, _, err := adminClient.ShareAPI.UpdateShareAccessorPermissions(t.Context(), shareID, "downloader").Request(openapi.PermissionsParams{
+			CanView: openapi.PtrBool(true), CanDownload: openapi.PtrBool(false),
+		}).Execute()
+		require.NoError(t, err)
+
+		_, resp, err := downloaderClient.FilesAPI.DownloadFile(t.Context(), uploadedFileID).ShareID(shareID).Execute()
+		require.Error(t, err)
+		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
+	})
+
+	t.Run("download-permitted accessor succeeds", func(t *testing.T) {
+		_, _, err := adminClient.ShareAPI.UpdateShareAccessorPermissions(t.Context(), shareID, "downloader").Request(openapi.PermissionsParams{
+			CanView: openapi.PtrBool(true), CanDownload: openapi.PtrBool(true),
+		}).Execute()
+		require.NoError(t, err)
+
+		body, resp, err := downloaderClient.FilesAPI.DownloadFile(t.Context(), uploadedFileID).ShareID(shareID).Execute()
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		require.NotNil(t, body)
+	})
+}
+
+func TestGetSharedFiles_ReturnsPerFilePermissions(t *testing.T) {
+	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
+	require.NoError(t, err)
+
+	adminClient := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
+
+	autoActivate := true
+	_, err = adminClient.UsersAPI.CreateUser(t.Context()).NewUserParams(openapi.NewUserParams{
+		Username: "viewer", Password: "TestPass123", FullName: "Viewer", AutoActivate: &autoActivate,
+	}).Execute()
+	require.NoError(t, err)
+
+	viewerToken, err := auth.GenerateNewToken(coreSetup.ctx, "viewer-token", "viewer", coreSetup.ctx.LocalTowerID)
+	require.NoError(t, err)
+
+	viewerClient := getAPIClientFromConfig(coreSetup.cnf, base64.StdEncoding.EncodeToString(viewerToken.Token[:]))
+
+	adminUser, _, err := adminClient.UsersAPI.GetUser(t.Context()).Execute()
+	require.NoError(t, err)
+
+	// Two folders, two shares, two distinct permission sets for the same accessor.
+	downloadable, _, err := adminClient.FolderAPI.CreateFolder(t.Context()).Request(openapi.CreateFolderBody{
+		ParentFolderID: adminUser.GetHomeID(), NewFolderName: "perms-downloadable",
+	}).Execute()
+	require.NoError(t, err)
+	viewOnly, _, err := adminClient.FolderAPI.CreateFolder(t.Context()).Request(openapi.CreateFolderBody{
+		ParentFolderID: adminUser.GetHomeID(), NewFolderName: "perms-view-only",
+	}).Execute()
+	require.NoError(t, err)
+
+	dlShare, _, err := adminClient.ShareAPI.CreateFileShare(t.Context()).Request(openapi.FileShareParams{
+		FileID: openapi.PtrString(downloadable.GetId()), Users: []string{"viewer"},
+	}).Execute()
+	require.NoError(t, err)
+	_, _, err = adminClient.ShareAPI.UpdateShareAccessorPermissions(t.Context(), dlShare.GetShareID(), "viewer").Request(openapi.PermissionsParams{
+		CanView: openapi.PtrBool(true), CanDownload: openapi.PtrBool(true),
+	}).Execute()
+	require.NoError(t, err)
+
+	voShare, _, err := adminClient.ShareAPI.CreateFileShare(t.Context()).Request(openapi.FileShareParams{
+		FileID: openapi.PtrString(viewOnly.GetId()), Users: []string{"viewer"},
+	}).Execute()
+	require.NoError(t, err)
+	_, _, err = adminClient.ShareAPI.UpdateShareAccessorPermissions(t.Context(), voShare.GetShareID(), "viewer").Request(openapi.PermissionsParams{
+		CanView: openapi.PtrBool(true), CanDownload: openapi.PtrBool(false),
+	}).Execute()
+	require.NoError(t, err)
+
+	resp, _, err := viewerClient.FilesAPI.GetSharedFiles(t.Context()).Execute()
+	require.NoError(t, err)
+
+	children := resp.GetChildren()
+
+	dlID := downloadable.GetId()
+	voID := viewOnly.GetId()
+
+	var dlFile, voFile *openapi.FileInfo
+
+	for i := range children {
+		switch children[i].GetId() {
+		case dlID:
+			dlFile = &children[i]
+		case voID:
+			voFile = &children[i]
+		}
+	}
+
+	require.NotNil(t, dlFile, "perms-downloadable should appear in shared files response")
+	require.NotNil(t, voFile, "perms-view-only should appear in shared files response")
+
+	dlPerms := dlFile.GetPermissions()
+	assert.True(t, dlPerms.GetCanView(), "downloadable share should have CanView=true in response")
+	assert.True(t, dlPerms.GetCanDownload(), "downloadable share should have CanDownload=true in response")
+
+	voPerms := voFile.GetPermissions()
+	assert.True(t, voPerms.GetCanView(), "view-only share should have CanView=true in response")
+	assert.False(t, voPerms.GetCanDownload(), "view-only share should have CanDownload=false in response")
 }

@@ -30,8 +30,8 @@
         >
             <WeblensButton
                 label="Home"
-                :type="locationStore.isInSettings ? 'outline' : 'light'"
-                :selected="filesStore.activeFile?.IsHome()"
+                :type="filesStore.activeFile?.IsHome() ? 'light' : 'outline'"
+                :selected="filesStore.activeFile && !locationStore.isInShare && !locationStore.isInTrash"
                 allow-collapse
                 fill-width
                 :disabled="!userStore.loggedIn"
@@ -49,8 +49,8 @@
 
             <WeblensButton
                 label="Shared"
-                :type="'light'"
-                :selected="locationStore.inShareRoot"
+                :type="locationStore.inShareRoot ? 'light' : 'outline'"
+                :selected="locationStore.isInShare"
                 allow-collapse
                 fill-width
                 :disabled="!userStore.loggedIn || locationStore.isInSettings"
@@ -61,8 +61,8 @@
 
             <WeblensButton
                 label="Trash"
-                :type="'light'"
-                :selected="filesStore.activeFile?.IsTrash()"
+                :type="locationStore.isInTrash ? 'light' : 'outline'"
+                :selected="locationStore.isInTrash"
                 allow-collapse
                 fill-width
                 :disabled="!userStore.loggedIn || locationStore.isInSettings"
@@ -160,7 +160,7 @@
                 label="Log In"
                 fill-width
                 allow-collapse
-                @click.stop="userStore.logout()"
+                @click.stop="goToLogin()"
             >
                 <IconUser size="18" />
             </WeblensButton>
@@ -257,5 +257,9 @@ async function goToSettings() {
 
     locationStore.returnTo = route.fullPath
     navigateTo('/settings/account')
+}
+
+async function goToLogin() {
+    navigateTo('/login?returnTo=' + encodeURIComponent(route.fullPath))
 }
 </script>
