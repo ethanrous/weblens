@@ -32,6 +32,7 @@ func TestZipDownload_CascadesSourceFilePermissions(t *testing.T) {
 
 	zipperToken, err := auth.GenerateNewToken(coreSetup.ctx, "zipper-token", "zipper", coreSetup.ctx.LocalTowerID)
 	require.NoError(t, err)
+
 	zipperClient := getAPIClientFromConfig(coreSetup.cnf, base64.StdEncoding.EncodeToString(zipperToken.Token[:]))
 
 	adminUser, _, err := adminClient.UsersAPI.GetUser(t.Context()).Execute()
@@ -48,6 +49,7 @@ func TestZipDownload_CascadesSourceFilePermissions(t *testing.T) {
 		FileID: openapi.PtrString(folder.GetId()), Users: []string{"zipper"},
 	}).Execute()
 	require.NoError(t, err)
+
 	shareID := share.GetShareID()
 
 	_, _, err = adminClient.ShareAPI.UpdateShareAccessorPermissions(t.Context(), shareID, "zipper").Request(openapi.PermissionsParams{
@@ -57,6 +59,7 @@ func TestZipDownload_CascadesSourceFilePermissions(t *testing.T) {
 
 	// Poll until the zip task completes: 202 means still pending, 200 means cached and ready.
 	var takeoutID string
+
 	require.Eventually(t, func() bool {
 		info, _, err := zipperClient.FilesAPI.CreateTakeout(t.Context()).ShareID(shareID).Request(openapi.FilesListParams{
 			FileIDs: []string{folder.GetId()},
@@ -64,11 +67,14 @@ func TestZipDownload_CascadesSourceFilePermissions(t *testing.T) {
 		if err != nil {
 			return false
 		}
+
 		id := info.GetTakeoutID()
 		if id != "" {
 			takeoutID = id
+
 			return true
 		}
+
 		return false
 	}, 30*time.Second, 500*time.Millisecond, "zip task should complete and return a TakeoutID")
 

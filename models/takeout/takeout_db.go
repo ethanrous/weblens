@@ -17,6 +17,8 @@ func init() {
 }
 
 var zipFileIDKey = "zipfileID_unique_index"
+
+// IndexModels defines the MongoDB indexes for the takeout collection.
 var IndexModels = []mongo.IndexModel{
 	{
 		Keys:    bson.D{{Key: "zipFileID", Value: 1}},

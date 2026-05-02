@@ -878,7 +878,9 @@ func CreateTakeout(ctx context_service.RequestContext) {
 	//                 after it has written the takeout DB record
 	//   - timeout   : safety net so we never block indefinitely
 	done := make(chan struct{})
+
 	go func() { t.Wait(); close(done) }()
+
 	select {
 	case <-done:
 	case <-t.FirstResultChan():

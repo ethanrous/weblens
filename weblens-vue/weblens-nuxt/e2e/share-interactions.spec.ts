@@ -66,9 +66,12 @@ test.describe('Share Modal Interactions', () => {
 
         // The timeline toggle sits in an inline-flex row alongside the CopyBox
         // (ShareModal.vue:40-50). The button contains an IconFolder or IconPhoto svg.
-        const timelineBtn = shareModal.locator('button').filter({
-            has: page.locator('svg.tabler-icon-folder, svg.tabler-icon-photo'),
-        }).first()
+        const timelineBtn = shareModal
+            .locator('button')
+            .filter({
+                has: page.locator('svg.tabler-icon-folder, svg.tabler-icon-photo'),
+            })
+            .first()
         await expect(timelineBtn).toBeVisible()
 
         // The CopyBox is the sibling of the timeline button in the same flex row.

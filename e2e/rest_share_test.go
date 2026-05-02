@@ -445,6 +445,7 @@ func uploadTextFile(t *testing.T, setup setupResult, client *openapi.APIClient, 
 	uploadedFileID := uploadedFileIDs[0]
 
 	var body bytes.Buffer
+
 	writer := multipart.NewWriter(&body)
 	part, err := writer.CreateFormFile("chunk", name)
 	require.NoError(t, err)
@@ -461,7 +462,9 @@ func uploadTextFile(t *testing.T, setup setupResult, client *openapi.APIClient, 
 
 	chunkResp, err := http.DefaultClient.Do(chunkReq)
 	require.NoError(t, err)
+
 	defer func() { _ = chunkResp.Body.Close() }()
+
 	require.Equal(t, http.StatusOK, chunkResp.StatusCode)
 
 	_, err = client.FilesAPI.GetUploadResult(t.Context(), uploadID).Execute()
@@ -484,6 +487,7 @@ func TestDownloadFile_ShareDownloadPermission(t *testing.T) {
 
 	downloaderToken, err := auth.GenerateNewToken(coreSetup.ctx, "downloader-token", "downloader", coreSetup.ctx.LocalTowerID)
 	require.NoError(t, err)
+
 	downloaderClient := getAPIClientFromConfig(coreSetup.cnf, base64.StdEncoding.EncodeToString(downloaderToken.Token[:]))
 
 	adminUser, _, err := adminClient.UsersAPI.GetUser(t.Context()).Execute()
@@ -501,6 +505,7 @@ func TestDownloadFile_ShareDownloadPermission(t *testing.T) {
 		Users:  []string{"downloader"},
 	}).Execute()
 	require.NoError(t, err)
+
 	shareID := createdShare.GetShareID()
 
 	t.Run("view-only accessor is forbidden", func(t *testing.T) {
@@ -541,6 +546,7 @@ func TestGetSharedFiles_ReturnsPerFilePermissions(t *testing.T) {
 
 	viewerToken, err := auth.GenerateNewToken(coreSetup.ctx, "viewer-token", "viewer", coreSetup.ctx.LocalTowerID)
 	require.NoError(t, err)
+
 	viewerClient := getAPIClientFromConfig(coreSetup.cnf, base64.StdEncoding.EncodeToString(viewerToken.Token[:]))
 
 	adminUser, _, err := adminClient.UsersAPI.GetUser(t.Context()).Execute()
@@ -583,6 +589,7 @@ func TestGetSharedFiles_ReturnsPerFilePermissions(t *testing.T) {
 	voID := viewOnly.GetId()
 
 	var dlFile, voFile *openapi.FileInfo
+
 	for i := range children {
 		switch children[i].GetId() {
 		case dlID:
@@ -591,6 +598,7 @@ func TestGetSharedFiles_ReturnsPerFilePermissions(t *testing.T) {
 			voFile = &children[i]
 		}
 	}
+
 	require.NotNil(t, dlFile, "perms-downloadable should appear in shared files response")
 	require.NotNil(t, voFile, "perms-view-only should appear in shared files response")
 
