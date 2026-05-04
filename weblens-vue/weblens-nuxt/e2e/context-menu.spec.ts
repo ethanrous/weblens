@@ -1,4 +1,9 @@
 import { test, expect, createFolder } from './fixtures'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const testMediaDir = path.resolve(__dirname, '../../../images/testMedia')
 
 /**
  * Tests for the file context menu system.
@@ -164,5 +169,74 @@ test.describe('Trash Context Menu', () => {
         await expect(deleteBtn).toBeVisible({ timeout: 3000 })
 
         await page.keyboard.press('Escape')
+    })
+})
+
+test.describe('FolderPickerModal via Set as Cover', () => {
+    test.beforeEach(async ({ page, login: _login }) => {
+        // Need a folder so we have a non-home target to pick as the cover destination.
+        await createFolder(page, 'CoverTargetFolder')
+    })
+
+    test('opens picker at the image parent and sets the folder cover', async ({ page }) => {
+        test.slow() // media upload + scan + autocomplete
+
+        // Upload a real image so the file ends up with hasMedia + contentID,
+        // which is what enables the "Set as Cover" action.
+        const fileChooserPromise = page.waitForEvent('filechooser')
+        await page.getByRole('button', { name: 'Upload' }).click()
+        const fileChooser = await fileChooserPromise
+        await fileChooser.setFiles([path.join(testMediaDir, 'DSC08113.jpg')])
+
+        const imageCard = page.locator('[id^="file-card-"]').filter({ hasText: 'DSC08113.jpg' })
+        await expect(imageCard).toBeVisible({ timeout: 15_000 })
+        // Wait for the backend to scan the media — the thumbnail rendering means
+        // contentID has been set on the file via WebSocket FileUpdatedEvent.
+        await expect(imageCard.locator('.media-image-lowres')).toBeVisible({ timeout: 15_000 })
+
+        // Reload so the folder is re-fetched via the GET endpoint, which populates
+        // hasMedia from the media map. Without this, the in-memory file keeps
+        // hasMedia=false (the WS update doesn't carry hasMedia) and the
+        // "Set as Cover" button stays hidden.
+        await page.reload()
+        await expect(page.locator('h3').filter({ hasText: 'Home' })).toBeVisible({ timeout: 15_000 })
+
+        const reloadedImageCard = page.locator('[id^="file-card-"]').filter({ hasText: 'DSC08113.jpg' })
+        await expect(reloadedImageCard).toBeVisible({ timeout: 15_000 })
+        await reloadedImageCard.click({ button: 'right' })
+
+        const fileBrowser = page.locator('#filebrowser-container')
+        const setCoverBtn = fileBrowser.getByRole('button', { name: 'Set as Cover' })
+        await expect(setCoverBtn).toBeVisible({ timeout: 15_000 })
+        await setCoverBtn.click()
+
+        // FolderPickerModal opens. The input is a WeblensInput, so the actual <input>
+        // is nested. Match by placeholder text the modal sets.
+        const pickerInput = page.getByPlaceholder('File path...')
+        await expect(pickerInput).toBeVisible({ timeout: 5_000 })
+
+        // The image lives at USERS:<user>/DSC08113.jpg, so its parent is the home
+        // directory. The picker should open showing "~/" as the suggested path.
+        await expect(pickerInput).toHaveValue('~/')
+
+        // The newly-created folder should be listed as a child of home (i.e. the
+        // initial autocomplete call must have actually been made for the home dir,
+        // not skipped or pointed at the wrong path).
+        // Scope to the modal's scrollable folder list and match cursor-pointer rows.
+        const folderRow = page.locator('div.cursor-pointer').filter({ hasText: /^CoverTargetFolder$/ })
+        await expect(folderRow.first()).toBeVisible({ timeout: 10_000 })
+
+        // Navigate into the folder by clicking it. This exercises navigateInto(),
+        // which currently throws ReferenceError on toDisplayPath.
+        await folderRow.first().click()
+        await expect(pickerInput).toHaveValue('~/CoverTargetFolder/')
+
+        // The "Select" button on the current-folder row commits the cover.
+        const selectBtn = page.getByRole('button', { name: 'Select' })
+        await expect(selectBtn).toBeVisible()
+        await selectBtn.click()
+
+        // Modal closes after a successful set.
+        await expect(pickerInput).not.toBeVisible({ timeout: 10_000 })
     })
 })

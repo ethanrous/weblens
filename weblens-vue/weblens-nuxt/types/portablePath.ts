@@ -1,3 +1,5 @@
+export const USERS_ROOT_ALIAS = 'USERS'
+
 export class PortablePath {
     private rootAlias: string
     private relativePath: string[]
@@ -37,6 +39,15 @@ export class PortablePath {
         return true
     }
 
+    public get parent(): PortablePath | null {
+        if (this.relativePath.length <= 1) {
+            return null
+        }
+
+        const parentPath = this.relativePath.slice(0, -1).join('/')
+        return new PortablePath(`${this.rootAlias}:${parentPath}/`)
+    }
+
     public equals(other: PortablePath): boolean {
         if (this.rootAlias !== other.rootAlias || this.relativePath.length !== other.relativePath.length) {
             return false
@@ -53,7 +64,7 @@ export class PortablePath {
         return this.relativePath[1] === '.user_trash'
     }
 
-    public toString(opts?: { noHome: boolean }): string {
+    public toString(opts?: { noHome?: boolean; noTrailingSlash?: boolean }): string {
         if (opts?.noHome) {
             const path = [...this.relativePath]
             path.splice(0, 1)
@@ -61,7 +72,18 @@ export class PortablePath {
             return `${path.join('/')}`
         }
 
-        return `${this.rootAlias}:${this.relativePath.join('/')}`
+        const trailing = this.isDirectory && !opts?.noTrailingSlash ? '/' : ''
+        return `${this.rootAlias}:${this.relativePath.join('/')}${trailing}`
+    }
+
+    public get friendlyPath(): string {
+        let parts = this.relativePath
+        if (parts.length > 0 && parts[0] === useUserStore().user.username) {
+            parts = parts.slice(1)
+        }
+
+        const trailing = this.isDirectory && parts.length > 0 ? '/' : ''
+        return '~/' + parts.join('/') + trailing
     }
 
     public get filename(): string {
@@ -90,5 +112,24 @@ export class PortablePath {
 
     static empty(): PortablePath {
         return new PortablePath(':')
+    }
+
+    static fromFriendly(friendly: string): PortablePath {
+        if (friendly.startsWith('~/')) {
+            const username = useUserStore().user.username
+            const rest = friendly.slice(2)
+            return new PortablePath(`${USERS_ROOT_ALIAS}:${username}${rest ? '/' + rest : '/'}`)
+        }
+
+        if (friendly.includes(':')) {
+            return new PortablePath(friendly)
+        }
+
+        throw new Error(`Cannot interpret as a friendly path: '${friendly}'`)
+    }
+
+    static Home(): PortablePath {
+        const username = useUserStore().user.username
+        return new PortablePath(`${USERS_ROOT_ALIAS}:${username}/`)
     }
 }

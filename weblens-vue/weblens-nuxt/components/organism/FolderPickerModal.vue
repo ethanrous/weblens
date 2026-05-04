@@ -17,12 +17,11 @@
             >
                 <h4>Select Folder</h4>
 
-                <input
+                <WeblensInput
                     ref="searchInput"
-                    v-model="displayPath"
-                    class="bg-background-secondary w-full rounded border px-3 py-2 text-sm outline-none"
-                    placeholder="Type a folder path..."
-                    @input="onSearchInput"
+                    v-model:value="displayPath"
+                    placeholder="File path..."
+                    @update:value="onSearchInput"
                 />
 
                 <div class="flex max-h-64 flex-col gap-1 overflow-y-auto">
@@ -44,9 +43,12 @@
                     </div>
 
                     <div
-                        v-for="folder in folderResults"
+                        v-for="(folder, i) in folderResults"
                         :key="folder.id"
-                        class="hover:bg-background-secondary flex cursor-pointer items-center gap-2 rounded px-3 py-2 transition"
+                        :class="{
+                            'hover:bg-background-secondary flex cursor-pointer items-center gap-2 rounded px-3 py-2 transition': true,
+                            'bg-background-secondary': selectedResult === i,
+                        }"
                         @click="navigateInto(folder)"
                     >
                         <IconFolder
@@ -96,48 +98,62 @@
 
 <script setup lang="ts">
 import { IconChevronRight, IconFolder } from '@tabler/icons-vue'
-import { useDebounceFn } from '@vueuse/core'
+import { onKeyDown, useDebounceFn } from '@vueuse/core'
 import type { FileInfo } from '@ethanrous/weblens-api'
 import WeblensButton from '../atom/WeblensButton.vue'
 import { useWeblensAPI } from '~/api/AllApi'
+import { PortablePath } from '~/types/portablePath'
+import WeblensInput from '../atom/WeblensInput.vue'
 
 const props = defineProps<{
+    suggestedPath?: PortablePath
     visible: boolean
 }>()
+
+const searchInput = ref<HTMLInputElement>()
+const initialPath = props.suggestedPath ?? PortablePath.Home()
+
+const displayPath = ref<string>(initialPath.friendlyPath)
+const folderResults = ref<FileInfo[]>([])
+const selectedResult = ref<number>(-1)
+const loading = ref(false)
+const errorMessage = ref('')
+
+onKeyDown(['ArrowUp', 'ArrowDown', 'Tab', 'Enter'], (e) => {
+    if ((selectedResult.value === -1 || folderResults.value.length === 0) && e.key === 'Enter') {
+        selectCurrentFolder()
+        return
+    } else if (folderResults.value.length === 0) {
+        return
+    }
+
+    e.preventDefault()
+    if (e.key === 'ArrowUp') {
+        selectedResult.value = Math.max(selectedResult.value - 1, -1)
+    } else if (e.key === 'ArrowDown') {
+        selectedResult.value = Math.min(selectedResult.value + 1, folderResults.value.length - 1)
+    } else if (
+        (e.key === 'Enter' || e.key === 'Tab') &&
+        selectedResult.value >= 0 &&
+        selectedResult.value < folderResults.value.length
+    ) {
+        navigateInto(folderResults.value[selectedResult.value])
+        selectedResult.value = -1
+    }
+})
+
+const currentFolder = ref<FileInfo | undefined>(
+    props.suggestedPath ? { portablePath: props.suggestedPath.toString() } : undefined,
+)
 
 const emit = defineEmits<{
     (e: 'close'): void
     (e: 'select', folderID: string): void
 }>()
 
-const userStore = useUserStore()
-const searchInput = ref<HTMLInputElement>()
-
-const homePrefix = computed(() => `USERS:${userStore.user.username}/`)
-
-function toDisplayPath(portablePath: string): string {
-    if (portablePath.startsWith(homePrefix.value)) {
-        return '~/' + portablePath.slice(homePrefix.value.length)
-    }
-    return portablePath
-}
-
-function toPortablePath(display: string): string {
-    if (display.startsWith('~/')) {
-        return homePrefix.value + display.slice(2)
-    }
-    return display
-}
-
-const displayPath = ref('~/')
-const folderResults = ref<FileInfo[]>([])
-const currentFolder = ref<FileInfo>()
-const loading = ref(false)
-const errorMessage = ref('')
-
 const currentFolderName = computed(() => {
     if (!currentFolder.value?.portablePath) return ''
-    return toDisplayPath(currentFolder.value.portablePath).replace(/\/$/, '').split('/').pop() || '~'
+    return new PortablePath(currentFolder.value.portablePath).friendlyPath
 })
 
 function folderDisplayName(f: FileInfo): string {
@@ -170,16 +186,27 @@ async function fetchAutocomplete(portable: string) {
 const debouncedFetch = useDebounceFn((portable: string) => fetchAutocomplete(portable), 250)
 
 function onSearchInput() {
-    debouncedFetch(toPortablePath(displayPath.value))
+    try {
+        const portable = PortablePath.fromFriendly(displayPath.value)
+        debouncedFetch(portable.toString())
+    } catch {
+        // The user is mid-edit and the path is not yet a valid friendly path
+        // (e.g. they cleared the input). Drop results until they type more.
+        folderResults.value = []
+        currentFolder.value = undefined
+        errorMessage.value = ''
+    }
 }
 
 function navigateInto(folder: FileInfo) {
     if (!folder.portablePath) return
 
-    const portable = folder.portablePath.endsWith('/') ? folder.portablePath : folder.portablePath + '/'
+    const folderPath = new PortablePath(
+        folder.portablePath.endsWith('/') ? folder.portablePath : folder.portablePath + '/',
+    )
 
-    displayPath.value = toDisplayPath(portable)
-    fetchAutocomplete(portable)
+    displayPath.value = folderPath.friendlyPath
+    fetchAutocomplete(folderPath.toString())
 }
 
 function selectCurrentFolder() {
@@ -191,13 +218,15 @@ watch(
     () => props.visible,
     (vis) => {
         if (vis) {
-            displayPath.value = '~/'
-            fetchAutocomplete(homePrefix.value)
+            const target = props.suggestedPath ?? PortablePath.Home()
+            displayPath.value = target.friendlyPath
+            fetchAutocomplete(target.toString())
             nextTick(() => searchInput.value?.focus())
         } else {
             folderResults.value = []
             currentFolder.value = undefined
         }
     },
+    { immediate: true },
 )
 </script>

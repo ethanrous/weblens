@@ -48,7 +48,7 @@
 import { useElementSize } from '@vueuse/core'
 import type { ButtonProps } from '~/types/button'
 
-const props = defineProps<ButtonProps>()
+const { selected = true, allowCollapse, label, onClick, errorText } = defineProps<ButtonProps>()
 
 const slots = useSlots()
 
@@ -74,7 +74,7 @@ const textWidth = computed(() => {
 
 const justIcon = computed(() => {
     if (
-        props.allowCollapse &&
+        allowCollapse &&
         slots.default &&
         buttonSize.width.value < fakeTextSize.width.value + 24 /* Icon size without padding */
     ) {
@@ -89,19 +89,19 @@ const textContent = computed(() => {
         return buttonError.value
     }
 
-    if (props.label) {
-        return props.label
+    if (label) {
+        return label
     }
 
     return ''
 })
 
 async function handleClick(e: MouseEvent) {
-    if (!props.onClick) {
+    if (!onClick) {
         return
     }
 
-    const maybePromise = props.onClick(e)
+    const maybePromise = onClick(e)
     try {
         if (maybePromise instanceof Promise) {
             doingClick.value = true
@@ -110,12 +110,12 @@ async function handleClick(e: MouseEvent) {
     } catch (error) {
         console.error('Error during button click:', error)
 
-        if (!props.errorText) {
+        if (!errorText) {
             buttonError.value = 'Error'
-        } else if (typeof props.errorText === 'string') {
-            buttonError.value = props.errorText
-        } else if (typeof props.errorText === 'function') {
-            buttonError.value = props.errorText(error as Error)
+        } else if (typeof errorText === 'string') {
+            buttonError.value = errorText
+        } else if (typeof errorText === 'function') {
+            buttonError.value = errorText(error as Error)
         }
 
         await new Promise((resolve) => {
