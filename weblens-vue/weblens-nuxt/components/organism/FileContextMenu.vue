@@ -48,6 +48,7 @@
     <FolderPickerModal
         v-if="showFolderPicker"
         :visible="showFolderPicker"
+        :suggested-path="coverTargetFile ? (coverTargetFile.GetFilepath().parent ?? undefined) : undefined"
         @close="showFolderPicker = false"
         @select="handleSelectFolder"
     />
