@@ -223,9 +223,7 @@ test.describe('FolderPickerModal via Set as Cover', () => {
         // initial autocomplete call must have actually been made for the home dir,
         // not skipped or pointed at the wrong path).
         // Scope to the modal's scrollable folder list and match cursor-pointer rows.
-        const folderRow = page
-            .locator('div.cursor-pointer')
-            .filter({ hasText: /^CoverTargetFolder$/ })
+        const folderRow = page.locator('div.cursor-pointer').filter({ hasText: /^CoverTargetFolder$/ })
         await expect(folderRow.first()).toBeVisible({ timeout: 10_000 })
 
         // Navigate into the folder by clicking it. This exercises navigateInto(),

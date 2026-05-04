@@ -210,7 +210,6 @@ function navigateInto(folder: FileInfo) {
 }
 
 function selectCurrentFolder() {
-    console.log('Selecting folder', currentFolder.value)
     if (!currentFolder.value?.id) return
     emit('select', currentFolder.value.id)
 }
