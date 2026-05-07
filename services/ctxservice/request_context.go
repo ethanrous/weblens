@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/models/client"
+	file_model "github.com/ethanrous/weblens/models/file"
 	share_model "github.com/ethanrous/weblens/models/share"
 	tower_model "github.com/ethanrous/weblens/models/tower"
 	user_model "github.com/ethanrous/weblens/models/usermodel"
@@ -45,6 +46,7 @@ type RequestContext struct {
 	IsLoggedIn bool
 
 	Share *share_model.FileShare
+	File  *file_model.WeblensFileImpl
 
 	mongoSession mongo.SessionContext
 }
@@ -422,6 +424,14 @@ func (c RequestContext) WithRequester(u *user_model.User) RequestContext {
 
 		c.Log().Trace().Msgf("Set requester in context: %s", u.Username)
 	}
+
+	return c
+}
+
+// WithFile sets the resolved file in the RequestContext. Used by RequireFilePermissions
+// middleware to make the access-checked file available to handlers downstream.
+func (c RequestContext) WithFile(f *file_model.WeblensFileImpl) RequestContext {
+	c.File = f
 
 	return c
 }

@@ -54,11 +54,9 @@ import (
 //	@Failure	404
 //	@Router		/files/{fileID} [get]
 func GetFile(ctx context_service.RequestContext) {
-	file, err := checkFileAccess(ctx, share_model.SharePermissionView)
-	if err != nil {
-		return
-	}
+	file := ctx.File
 
+	// Re-check without a required permission to obtain the *Permissions value for the response.
 	perms, err := auth.CanUserAccessFile(ctx, ctx.Requester, file, ctx.Share)
 	if err != nil {
 		ctx.Error(http.StatusForbidden, err)
@@ -92,10 +90,7 @@ func GetFile(ctx context_service.RequestContext) {
 //	@Failure	400
 //	@Router		/files/{fileID}/text [get]
 func GetFileText(ctx context_service.RequestContext) {
-	file, err := checkFileAccess(ctx, share_model.SharePermissionView)
-	if err != nil {
-		return
-	}
+	file := ctx.File
 
 	filename := file.GetPortablePath().Filename()
 
@@ -124,10 +119,8 @@ func GetFileText(ctx context_service.RequestContext) {
 //	@Failure	501
 //	@Router		/files/{fileID}/stats [get]
 func GetFileStats(ctx context_service.RequestContext) {
-	_, err := checkFileAccess(ctx)
-	if err != nil {
-		return
-	}
+	// Access check is enforced by RequireFilePermissions middleware; ctx.File is the resolved file.
+	_ = ctx.File
 
 	ctx.Status(http.StatusNotImplemented)
 }
@@ -151,10 +144,7 @@ func GetFileStats(ctx context_service.RequestContext) {
 //	@Success	404			{object}	wlstructs.WeblensErrorInfo	"Error Info"
 //	@Router		/files/{fileID}/download [get]
 func DownloadFile(ctx context_service.RequestContext) {
-	file, err := checkFileAccess(ctx, share_model.SharePermissionDownload)
-	if err != nil {
-		return
-	}
+	file := ctx.File
 
 	// TODO: Make sure to check if the requester is another tower
 	// i := getInstanceFromCtx(r)
@@ -247,10 +237,7 @@ func DownloadFile(ctx context_service.RequestContext) {
 //	@Success	200			{object}	wlstructs.FolderInfoResponse	"Folder Info"
 //	@Router		/folder/{folderID} [get]
 func GetFolder(ctx context_service.RequestContext) {
-	folder, err := checkFileAccess(ctx, share_model.SharePermissionView)
-	if err != nil {
-		return
-	}
+	folder := ctx.File
 
 	date := time.UnixMilli(0)
 
@@ -275,7 +262,7 @@ func GetFolder(ctx context_service.RequestContext) {
 		return
 	}
 
-	err = formatRespondFolderInfo(ctx, folder)
+	err := formatRespondFolderInfo(ctx, folder)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 	}
@@ -295,10 +282,7 @@ func GetFolder(ctx context_service.RequestContext) {
 //	@Failure	500
 //	@Router		/files/{fileID}/history [get]
 func GetFolderHistory(ctx context_service.RequestContext) {
-	file, err := checkFileAccess(ctx, share_model.SharePermissionView)
-	if err != nil {
-		return
-	}
+	file := ctx.File
 
 	actions, err := history.GetActionsAtPathAfter(ctx, file.GetPortablePath(), time.Time{}, history.GetActionsOptions{IncludeChildren: true})
 	if err != nil {
@@ -603,10 +587,7 @@ func CreateFolder(ctx context_service.RequestContext) {
 //	@Failure	500
 //	@Router		/folder/{folderID}/cover [patch]
 func SetFolderCover(ctx context_service.RequestContext) {
-	folder, err := checkFileAccess(ctx, share_model.SharePermissionEdit)
-	if err != nil {
-		return
-	}
+	folder := ctx.File
 
 	if !folder.IsDir() {
 		ctx.Error(http.StatusBadRequest, wlerrors.Errorf("file is not a folder"))
@@ -690,10 +671,7 @@ func SetFolderCover(ctx context_service.RequestContext) {
 //	@Failure	500
 //	@Router		/folder/{folderID}/cover [delete]
 func RemoveFolderCover(ctx context_service.RequestContext) {
-	f, err := checkFileAccess(ctx, share_model.SharePermissionEdit)
-	if err != nil {
-		return
-	}
+	f := ctx.File
 
 	if !f.IsDir() {
 		ctx.Error(http.StatusBadRequest, wlerrors.Errorf("file is not a folder"))
@@ -1146,10 +1124,7 @@ func RestoreFiles(ctx context_service.RequestContext) {
 //	@Failure	500
 //	@Router		/files/{fileID} [patch]
 func UpdateFile(ctx context_service.RequestContext) {
-	file, err := checkFileAccess(ctx)
-	if err != nil {
-		return
-	}
+	file := ctx.File
 
 	if file_model.IsFileInTrash(file) {
 		ctx.Error(http.StatusForbidden, wlerrors.New("cannot rename file in trash"))

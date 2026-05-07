@@ -35,10 +35,7 @@ import (
 //	@Failure	500
 //	@Router		/folder/{folderID}/scan [post]
 func ScanDir(ctx context_service.RequestContext) {
-	folder, err := checkFileAccess(ctx)
-	if err != nil {
-		return
-	}
+	folder := ctx.File
 
 	meta := job.ScanMeta{
 		File: folder,
