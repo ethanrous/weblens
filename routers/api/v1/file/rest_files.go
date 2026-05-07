@@ -629,6 +629,27 @@ func SetFolderCover(ctx context_service.RequestContext) {
 		return
 	}
 
+	hasMediaAccess := false
+
+	for _, fileID := range media.GetFiles() {
+		mediaFile, err := ctx.FileService.GetFileByID(ctx, fileID)
+		if err != nil {
+			continue
+		}
+
+		if _, err := auth.CanUserAccessFile(ctx, ctx.Requester, mediaFile, ctx.Share, share_model.SharePermissionViewMedia); err == nil {
+			hasMediaAccess = true
+
+			break
+		}
+	}
+
+	if !hasMediaAccess {
+		ctx.Error(http.StatusForbidden, wlerrors.New("not authorized to use this media as a folder cover"))
+
+		return
+	}
+
 	_, err = cover_model.SetCoverPhoto(ctx, folder.ID(), media.ID())
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
@@ -1458,10 +1479,8 @@ func NewFileUpload(ctx context_service.RequestContext) {
 	var ids []string
 
 	for _, newFInfo := range params.NewFiles {
-		parent, err := ctx.FileService.GetFileByID(ctx, newFInfo.ParentFolderID)
+		parent, err := CheckFileAccessByID(ctx, newFInfo.ParentFolderID, share_model.SharePermissionEdit)
 		if err != nil {
-			ctx.Error(http.StatusNotFound, wlerrors.Wrap(err, "Could not find parent folder for new file"))
-
 			return
 		}
 

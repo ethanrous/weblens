@@ -2,6 +2,7 @@ package e2e_test
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"testing"
 
 	openapi "github.com/ethanrous/weblens/api"
+	"github.com/ethanrous/weblens/models/auth"
 	"github.com/ethanrous/weblens/models/tower"
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/wlfs"
@@ -626,4 +628,78 @@ func TestDownloadFile(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	})
+}
+
+// TestNewFileUpload_RejectsForeignParentFolder verifies that a user cannot
+// write files into another user's folder by supplying a foreign ParentFolderID
+// in AddFilesToUpload. The upload task may belong to the attacker, but each
+// file's parent must be re-validated against the requester's permissions.
+func TestNewFileUpload_RejectsForeignParentFolder(t *testing.T) {
+	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
+	require.NoError(t, err, "Failed to start test server")
+
+	adminClient := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
+
+	adminUser, _, err := adminClient.UsersAPI.GetUser(t.Context()).Execute()
+	require.NoError(t, err)
+
+	adminHomeID := adminUser.GetHomeID()
+	require.NotEmpty(t, adminHomeID)
+
+	autoActivate := true
+	_, err = adminClient.UsersAPI.CreateUser(t.Context()).NewUserParams(openapi.NewUserParams{
+		Username:     "attacker",
+		Password:     "TestPass123",
+		FullName:     "Attacker User",
+		AutoActivate: &autoActivate,
+	}).Execute()
+	require.NoError(t, err)
+
+	attackerToken, err := auth.GenerateNewToken(coreSetup.ctx, "attacker-token", "attacker", coreSetup.ctx.LocalTowerID)
+	require.NoError(t, err)
+
+	attackerClient := getAPIClientFromConfig(coreSetup.cnf, base64.StdEncoding.EncodeToString(attackerToken.Token[:]))
+
+	attackerUser, _, err := attackerClient.UsersAPI.GetUser(t.Context()).Execute()
+	require.NoError(t, err)
+
+	attackerHomeID := attackerUser.GetHomeID()
+	require.NotEmpty(t, attackerHomeID)
+
+	uploadInfo, _, err := attackerClient.FilesAPI.StartUpload(t.Context()).Request(openapi.NewUploadParams{
+		RootFolderID: openapi.PtrString(attackerHomeID),
+		ChunkSize:    openapi.PtrInt32(1024),
+	}).Execute()
+	require.NoError(t, err, "attacker should be allowed to start an upload on their own folder")
+
+	uploadID := uploadInfo.GetUploadID()
+	require.NotEmpty(t, uploadID)
+
+	_, resp, err := attackerClient.FilesAPI.AddFilesToUpload(t.Context(), uploadID).Request(openapi.NewFilesParams{
+		NewFiles: []openapi.NewFileParams{
+			{
+				NewFileName:    openapi.PtrString("evil.txt"),
+				ParentFolderID: openapi.PtrString(adminHomeID),
+				FileSize:       openapi.PtrInt32(10),
+				IsDir:          openapi.PtrBool(false),
+			},
+		},
+	}).Execute()
+	assert.Error(t, err, "attacker must not be able to write into admin's folder")
+	require.NotNil(t, resp)
+	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
+
+	folderInfo, _, err := adminClient.FolderAPI.GetFolder(t.Context(), adminHomeID).Execute()
+	require.NoError(t, err)
+
+	childNames := make([]string, 0, len(folderInfo.GetChildren()))
+
+	for _, child := range folderInfo.GetChildren() {
+		path, err := wlfs.ParsePortable(child.GetPortablePath())
+		require.NoError(t, err)
+
+		childNames = append(childNames, path.Filename())
+	}
+
+	assert.NotContains(t, childNames, "evil.txt", "no file should have been created in admin home")
 }
