@@ -468,6 +468,99 @@ func TestGetMediaImage_NoShare_Forbidden(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 }
 
+// TestGetMediaByIDs_AnyOfDoesNotCorruptResponse is a regression test for a
+// historical response-corruption bug in getMediaByIDs. The bug: the original
+// any-of loop called the access-check helper for each backing file, and that
+// helper wrote ctx.Error (a 403) on failure. If the first file in the iteration
+// was one the requester could not access, the response was corrupted with a 403
+// before the loop continued to a file the requester CAN access.
+//
+// This test constructs a media record backed by two files — adminFileID (denied
+// for userB) first, userBFileID (allowed for userB) second — and asserts that
+// userB gets a 200 from GetMedia with the content ID. On unfixed code the test
+// fails with a 403.
+func TestGetMediaByIDs_AnyOfDoesNotCorruptResponse(t *testing.T) {
+	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
+	require.NoError(t, err, "Failed to start test server")
+
+	adminClient := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
+
+	autoActivate := true
+	_, err = adminClient.UsersAPI.CreateUser(t.Context()).NewUserParams(openapi.NewUserParams{
+		Username:     "anyof-userb",
+		Password:     "TestPass123",
+		FullName:     "UserB AnyOf",
+		AutoActivate: &autoActivate,
+	}).Execute()
+	require.NoError(t, err)
+
+	userBToken, err := auth.GenerateNewToken(coreSetup.ctx, "anyof-userb-token", "anyof-userb", coreSetup.ctx.LocalTowerID)
+	require.NoError(t, err)
+
+	userBClient := getAPIClientFromConfig(coreSetup.cnf, base64.StdEncoding.EncodeToString(userBToken.Token[:]))
+
+	// Admin uploads an image into their home folder.
+	adminUser, _, err := adminClient.UsersAPI.GetUser(t.Context()).Execute()
+	require.NoError(t, err)
+
+	adminHomeID := adminUser.GetHomeID()
+	require.NotEmpty(t, adminHomeID)
+
+	adminFolder, _, err := adminClient.FolderAPI.CreateFolder(t.Context()).Request(openapi.CreateFolderBody{
+		ParentFolderID: adminHomeID,
+		NewFolderName:  "anyof-admin-folder",
+	}).Execute()
+	require.NoError(t, err)
+
+	adminFileID, contentID := uploadTestImage(t, coreSetup, adminClient, adminFolder.GetId())
+
+	// User B uploads an image into their own home folder.
+	userBUser, _, err := userBClient.UsersAPI.GetUser(t.Context()).Execute()
+	require.NoError(t, err)
+
+	userBHomeID := userBUser.GetHomeID()
+	require.NotEmpty(t, userBHomeID)
+
+	userBFolder, _, err := userBClient.FolderAPI.CreateFolder(t.Context()).Request(openapi.CreateFolderBody{
+		ParentFolderID: userBHomeID,
+		NewFolderName:  "anyof-userb-folder",
+	}).Execute()
+	require.NoError(t, err)
+
+	userBFileID, _ := uploadTestImage(t, coreSetup, userBClient, userBFolder.GetId())
+
+	// Insert a synthetic media record that claims both files as backing files.
+	// adminFileID is listed first so the any-of loop tries the denied file first,
+	// which is the condition that triggers the response-corruption bug.
+	syntheticMedia := &media_model.Media{
+		ContentID:  media_model.ContentID(contentID),
+		Owner:      "admin",
+		MimeType:   "image/jpeg",
+		FileIDs:    []string{adminFileID, userBFileID},
+		Width:      1920,
+		Height:     1080,
+		PageCount:  1,
+		CreateDate: time.Unix(1000, 0),
+		Enabled:    true,
+	}
+
+	err = media_model.SaveMedia(coreSetup.ctx, syntheticMedia)
+	require.NoError(t, err)
+
+	// User B fetches the media by content ID. The any-of semantics mean access via
+	// userBFileID should grant access to the media. The bug caused a 403 because
+	// the old inline loop wrote ctx.Error when adminFileID was denied, corrupting
+	// the response before the loop continued to userBFileID.
+	batch, resp, err := userBClient.MediaAPI.GetMedia(t.Context()).
+		MediaIDs([]string{contentID}).
+		Page(0).
+		Limit(10).
+		Execute()
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, int32(1), batch.GetTotalMediaCount())
+}
+
 // uploadTestImage uploads IMG_3973.JPG into the given folder and returns its file ID and content ID.
 func uploadTestImage(t *testing.T, setup setupResult, client *openapi.APIClient, folderID string) (string, string) {
 	t.Helper()

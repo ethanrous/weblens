@@ -1,3 +1,4 @@
+// Package file provides HTTP handlers for file and folder operations in the Weblens API.
 package file
 
 import (
@@ -357,7 +358,7 @@ func SearchFiles(ctx context_service.RequestContext) {
 		baseFolderID = ctx.Requester.HomeID
 	}
 
-	baseFolder, err := CheckFileAccessByID(ctx, baseFolderID)
+	baseFolder, err := auth.RequireFileAccessOne(ctx, baseFolderID)
 	if err != nil {
 		return
 	}
@@ -527,10 +528,8 @@ func CreateFolder(ctx context_service.RequestContext) {
 		return
 	}
 
-	parentFolder, err := CheckFileAccessByID(ctx, body.ParentFolderID, share_model.SharePermissionEdit)
+	parentFolder, err := auth.RequireFileAccessOne(ctx, body.ParentFolderID, share_model.SharePermissionEdit)
 	if err != nil {
-		ctx.Error(http.StatusForbidden, wlerrors.New("You do not have permission to create a folder in this location"))
-
 		return
 	}
 
@@ -839,15 +838,9 @@ func CreateTakeout(ctx context_service.RequestContext) {
 		return
 	}
 
-	files := make([]*file_model.WeblensFileImpl, 0, len(takeoutRequest.FileIDs))
-
-	for _, fileID := range takeoutRequest.FileIDs {
-		file, err := CheckFileAccessByID(ctx, fileID, share_model.SharePermissionView, share_model.SharePermissionDownload)
-		if err != nil {
-			return
-		}
-
-		files = append(files, file)
+	files, err := auth.RequireFileAccess(ctx, takeoutRequest.FileIDs, share_model.SharePermissionView, share_model.SharePermissionDownload)
+	if err != nil {
+		return
 	}
 
 	// If we only have 1 file, and it is not a directory, we should have requested to just
@@ -1075,8 +1068,9 @@ func RestoreFiles(ctx context_service.RequestContext) {
 	// Resolve destination parent folder. If newParentID is provided and the folder
 	// still exists, use it; otherwise fall back to the user's home directory.
 	var newParent *file_model.WeblensFileImpl
+
 	if body.NewParentID != "" {
-		newParent, err = CheckFileAccessByID(ctx, body.NewParentID)
+		newParent, err = auth.RequireFileAccessOne(ctx, body.NewParentID)
 		if err != nil {
 			return
 		}
@@ -1170,7 +1164,7 @@ func MoveFiles(ctx context_service.RequestContext) {
 		return
 	}
 
-	newParent, err := CheckFileAccessByID(ctx, filesData.NewParentID, share_model.SharePermissionEdit)
+	newParent, err := auth.RequireFileAccessOne(ctx, filesData.NewParentID, share_model.SharePermissionEdit)
 	if err != nil {
 		return
 	}
@@ -1254,16 +1248,9 @@ func UnTrashFiles(ctx context_service.RequestContext) {
 		return
 	}
 
-	fileIDs := params.FileIDs
-	files := make([]*file_model.WeblensFileImpl, 0, len(fileIDs))
-
-	for _, fileID := range fileIDs {
-		file, err := CheckFileAccessByID(ctx, fileID, share_model.SharePermissionEdit)
-		if err != nil {
-			return
-		}
-
-		files = append(files, file)
+	files, err := auth.RequireFileAccess(ctx, params.FileIDs, share_model.SharePermissionEdit)
+	if err != nil {
+		return
 	}
 
 	err = ctx.FileService.ReturnFilesFromTrash(ctx, files)
@@ -1304,17 +1291,9 @@ func DeleteFiles(ctx context_service.RequestContext) {
 		return
 	}
 
-	files := make([]*file_model.WeblensFileImpl, 0, len(params.FileIDs))
-
-	for _, fileID := range params.FileIDs {
-		file, err := CheckFileAccessByID(ctx, fileID, share_model.SharePermissionDelete)
-		if err != nil {
-			ctx.Error(http.StatusForbidden, err)
-
-			return
-		}
-
-		files = append(files, file)
+	files, err := auth.RequireFileAccess(ctx, params.FileIDs, share_model.SharePermissionDelete)
+	if err != nil {
+		return
 	}
 
 	preserveFolder := ctx.QueryBool("preserveFolder")
@@ -1386,8 +1365,7 @@ func NewUploadTask(ctx context_service.RequestContext) {
 		return
 	}
 
-	_, err = CheckFileAccessByID(ctx, upInfo.RootFolderID, share_model.SharePermissionEdit)
-	if err != nil {
+	if _, err := auth.RequireFileAccessOne(ctx, upInfo.RootFolderID, share_model.SharePermissionEdit); err != nil {
 		return
 	}
 
@@ -1451,13 +1429,20 @@ func NewFileUpload(ctx context_service.RequestContext) {
 		return
 	}
 
+	parentIDs := make([]string, 0, len(params.NewFiles))
+	for _, newFInfo := range params.NewFiles {
+		parentIDs = append(parentIDs, newFInfo.ParentFolderID)
+	}
+
+	parents, err := auth.RequireFileAccess(ctx, parentIDs, share_model.SharePermissionEdit)
+	if err != nil {
+		return
+	}
+
 	var ids []string
 
-	for _, newFInfo := range params.NewFiles {
-		parent, err := CheckFileAccessByID(ctx, newFInfo.ParentFolderID, share_model.SharePermissionEdit)
-		if err != nil {
-			return
-		}
+	for i, newFInfo := range params.NewFiles {
+		parent := parents[i]
 
 		child, _ := parent.GetChild(newFInfo.NewFileName)
 		if child != nil {

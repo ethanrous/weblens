@@ -16,7 +16,7 @@ import (
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/modules/wlslices"
 	"github.com/ethanrous/weblens/modules/wlstructs"
-	file_api "github.com/ethanrous/weblens/routers/api/v1/file"
+	"github.com/ethanrous/weblens/services/auth"
 	"github.com/ethanrous/weblens/services/ctxservice"
 	file_service "github.com/ethanrous/weblens/services/file"
 	media_service "github.com/ethanrous/weblens/services/media"
@@ -119,11 +119,8 @@ func GetMediaBatch(ctx ctxservice.RequestContext) {
 }
 
 func getMediaByFolders(ctx ctxservice.RequestContext, folderIDs []string, search string, sortDirection, page, limit int, raw bool) {
-	for _, folderID := range folderIDs {
-		_, err := file_api.CheckFileAccessByID(ctx, folderID, share.SharePermissionViewMedia)
-		if err != nil {
-			return
-		}
+	if _, err := auth.RequireFileAccess(ctx, folderIDs, share.SharePermissionViewMedia); err != nil {
+		return
 	}
 
 	if sortDirection == 0 {
@@ -196,19 +193,7 @@ func getMediaByIDs(ctx ctxservice.RequestContext, mediaIDs []string) {
 		}
 
 		// Verify the requester has access to view media of at least one backing file
-		hasAccess := false
-
-		for _, fileID := range m.GetFiles() {
-			if _, err := file_api.CheckFileAccessByID(ctx, fileID, share.SharePermissionViewMedia); err == nil {
-				hasAccess = true
-
-				break
-			}
-		}
-
-		if !hasAccess {
-			ctx.Error(http.StatusForbidden, wlerrors.New("not authorized to access this media"))
-
+		if _, err := auth.RequireAnyFileAccess(ctx, m.GetFiles(), share.SharePermissionViewMedia); err != nil {
 			return
 		}
 
@@ -786,10 +771,7 @@ func getProcessedMedia(ctx ctxservice.RequestContext, q media_model.Quality, for
 			return
 		}
 
-		_, err = file_api.CheckFileAccessByID(ctx, f.ID(), share.SharePermissionViewMedia)
-		if err != nil {
-			ctx.Error(http.StatusForbidden, wlerrors.New("not authorized to access this media"))
-
+		if _, err := auth.RequireFileAccessOne(ctx, f.ID(), share.SharePermissionViewMedia); err != nil {
 			return
 		}
 
