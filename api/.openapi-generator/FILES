@@ -34,6 +34,7 @@ docs/FolderAPI.md
 docs/FolderInfo.md
 docs/GithubComEthanrousWeblensModelsTagTag.md
 docs/HistoryFileAction.md
+docs/HistoryFileActionType.md
 docs/LoginBody.md
 docs/MediaAPI.md
 docs/MediaBatchInfo.md
@@ -91,6 +92,7 @@ model_files_list_params.go
 model_folder_info.go
 model_github_com_ethanrous_weblens_models_tag_tag.go
 model_history_file_action.go
+model_history_file_action_type.go
 model_login_body.go
 model_media_batch_info.go
 model_media_ids_params.go

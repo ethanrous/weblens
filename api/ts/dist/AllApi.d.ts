@@ -222,7 +222,7 @@ interface GithubComEthanrousWeblensModelsTagTag {
     'updated'?: string;
 }
 interface HistoryFileAction {
-    'actionType'?: string;
+    'actionType'?: HistoryFileActionType;
     'contentID'?: string;
     'destinationPath'?: WlfsFilepath;
     /**
@@ -242,6 +242,15 @@ interface HistoryFileAction {
     'timestamp'?: string;
     'towerID'?: string;
 }
+declare const HistoryFileActionType: {
+    readonly FileCreate: "fileCreate";
+    readonly FileMove: "fileMove";
+    readonly FileSizeChange: "fileSizeChange";
+    readonly Backup: "backup";
+    readonly FileDelete: "fileDelete";
+    readonly FileRestore: "fileRestore";
+};
+type HistoryFileActionType = typeof HistoryFileActionType[keyof typeof HistoryFileActionType];
 interface LoginBody {
     'password': string;
     'username': string;
@@ -3547,4 +3556,4 @@ type WLAPI = {
 };
 declare function WeblensAPIFactory(apiEndpoint: string): WLAPI;
 
-export { type APIKeyParams, APIKeysApi, APIKeysApiAxiosParamCreator, APIKeysApiFactory, APIKeysApiFp, type AddUserParams, type BackupInfo, type Bundle, type CreateFolderBody, FeatureFlagsApi, FeatureFlagsApiAxiosParamCreator, FeatureFlagsApiFactory, FeatureFlagsApiFp, type FileActionInfo, type FileCreateTagParams, type FileFileIDsParams, type FileIDArrayInfo, type FileInfo, type FileShareParams, type FileUpdateTagParams, FilesApi, FilesApiAxiosParamCreator, FilesApiFactory, FilesApiFp, type FilesInfo, type FilesListParams, FolderApi, FolderApiAxiosParamCreator, FolderApiFactory, FolderApiFp, type FolderInfo, GetFolderSortOrderEnum, GetFolderSortPropEnum, GetMediaImageQualityEnum, GetMediaSortDirectionEnum, GetMediaSortEnum, type GithubComEthanrousWeblensModelsTagTag, type HistoryFileAction, type LoginBody, MediaApi, MediaApiAxiosParamCreator, MediaApiFactory, MediaApiFp, type MediaBatchInfo, type MediaIDsParams, type MediaInfo, type MediaTypeInfo, type MediaTypesInfo, type MoveFilesParams, type NewFileParams, type NewFilesParams, type NewServerParams, type NewUploadInfo, type NewUploadParams, type NewUserParams, type PasswordUpdateParams, type PermissionsInfo, type PermissionsParams, type RestoreFilesBody, type RestoreFilesInfo, SearchFilesSortOrderEnum, SearchFilesSortPropEnum, SearchFilesTagJoinLogicEnum, ShareApi, ShareApiAxiosParamCreator, ShareApiFactory, ShareApiFp, type ShareInfo, TagsApi, TagsApiAxiosParamCreator, TagsApiFactory, TagsApiFp, type TakeoutInfo, type TaskInfo, type TokenInfo, type TowerHealth, TowerHealthStatusEnum, type TowerInfo, TowersApi, TowersApiAxiosParamCreator, TowersApiFactory, TowersApiFp, type UpdateFileParams, type UserInfo, type UserInfoArchive, UsersApi, UsersApiAxiosParamCreator, UsersApiFactory, UsersApiFp, type WLAPI, type WLResponseInfo, WeblensAPIFactory, type WeblensErrorInfo, type WlfsFilepath, type WlstructsInitServerParams, type WlstructsSetConfigParam };
+export { type APIKeyParams, APIKeysApi, APIKeysApiAxiosParamCreator, APIKeysApiFactory, APIKeysApiFp, type AddUserParams, type BackupInfo, type Bundle, type CreateFolderBody, FeatureFlagsApi, FeatureFlagsApiAxiosParamCreator, FeatureFlagsApiFactory, FeatureFlagsApiFp, type FileActionInfo, type FileCreateTagParams, type FileFileIDsParams, type FileIDArrayInfo, type FileInfo, type FileShareParams, type FileUpdateTagParams, FilesApi, FilesApiAxiosParamCreator, FilesApiFactory, FilesApiFp, type FilesInfo, type FilesListParams, FolderApi, FolderApiAxiosParamCreator, FolderApiFactory, FolderApiFp, type FolderInfo, GetFolderSortOrderEnum, GetFolderSortPropEnum, GetMediaImageQualityEnum, GetMediaSortDirectionEnum, GetMediaSortEnum, type GithubComEthanrousWeblensModelsTagTag, type HistoryFileAction, HistoryFileActionType, type LoginBody, MediaApi, MediaApiAxiosParamCreator, MediaApiFactory, MediaApiFp, type MediaBatchInfo, type MediaIDsParams, type MediaInfo, type MediaTypeInfo, type MediaTypesInfo, type MoveFilesParams, type NewFileParams, type NewFilesParams, type NewServerParams, type NewUploadInfo, type NewUploadParams, type NewUserParams, type PasswordUpdateParams, type PermissionsInfo, type PermissionsParams, type RestoreFilesBody, type RestoreFilesInfo, SearchFilesSortOrderEnum, SearchFilesSortPropEnum, SearchFilesTagJoinLogicEnum, ShareApi, ShareApiAxiosParamCreator, ShareApiFactory, ShareApiFp, type ShareInfo, TagsApi, TagsApiAxiosParamCreator, TagsApiFactory, TagsApiFp, type TakeoutInfo, type TaskInfo, type TokenInfo, type TowerHealth, TowerHealthStatusEnum, type TowerInfo, TowersApi, TowersApiAxiosParamCreator, TowersApiFactory, TowersApiFp, type UpdateFileParams, type UserInfo, type UserInfoArchive, UsersApi, UsersApiAxiosParamCreator, UsersApiFactory, UsersApiFp, type WLAPI, type WLResponseInfo, WeblensAPIFactory, type WeblensErrorInfo, type WlfsFilepath, type WlstructsInitServerParams, type WlstructsSetConfigParam };

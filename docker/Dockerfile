@@ -16,7 +16,7 @@ FROM node:${NODE_VERSION}-alpine AS web
 COPY api/ts /api/ts
 COPY weblens-vue /src
 
-RUN npm install -g pnpm;
+RUN npm install -g pnpm@10.18.3;
 
 # Build the API client first
 WORKDIR /api/ts

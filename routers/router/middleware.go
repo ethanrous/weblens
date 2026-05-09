@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
 	share_model "github.com/ethanrous/weblens/models/share"
 	tower_model "github.com/ethanrous/weblens/models/tower"
@@ -62,38 +63,53 @@ func RequireSignIn(next Handler) Handler {
 	})
 }
 
-// RequireFilePermissions returns a middleware that ensures the requester has requested permissions to access the file before proceeding.
+// RequireFilePermissions returns a middleware that ensures the requester has the requested
+// permissions to access the file/folder identified by the route path before proceeding.
+//
+// Resolution rules:
+//   - File ID is read from `fileID` path param, falling back to `folderID`.
+//   - If a `timestamp` query param is present, the file is loaded from history via
+//     auth.CanUserAccessPastFileByID. History snapshots bypass share-permission filtering;
+//     only existence is enforced.
+//   - Otherwise auth.CanUserAccessFileByID resolves the file (including zip source-file
+//     iteration) and verifies the per-route permissions.
+//   - File-not-found returns 404; access denied returns 403.
+//
+// On success, the resolved file is attached to the request context as ctx.File so handlers
+// downstream can read it without a second lookup.
 func RequireFilePermissions(permissions ...share_model.Permission) func(next Handler) Handler {
 	return func(next Handler) Handler {
 		return HandlerFunc(func(ctx context_service.RequestContext) {
 			fileID := ctx.Path("fileID")
+			if fileID == "" {
+				fileID = ctx.Path("folderID")
+			}
 
-			file, err := ctx.FileService.GetFileByID(ctx, fileID)
+			ts, hasTimestamp, err := context_service.TimestampFromCtx(ctx)
 			if err != nil {
-				ctx.Error(http.StatusInternalServerError, err)
+				ctx.Error(http.StatusBadRequest, err)
 
 				return
 			}
 
-			ctx.Log().Debug().Func(func(e *zerolog.Event) {
-				e = e.Str("fileID", file.ID()).Str("username", ctx.Requester.Username)
+			var (
+				file       *file_model.WeblensFileImpl
+				accessErr  error
+			)
 
-				if ctx.Share != nil {
-					e = e.Str("shareID", ctx.Share.ID().Hex())
-					e = e.EmbedObject(ctx.Share.GetUserPermissions(ctx.Requester.Username))
-				}
+			if hasTimestamp {
+				file, accessErr = auth_service.CanUserAccessPastFileByID(ctx, fileID, ts)
+			} else {
+				file, accessErr = auth_service.CanUserAccessFileByID(ctx, fileID, permissions...)
+			}
 
-				e.Msgf("Checking file access for permissions %v", permissions)
-			})
-
-			_, err = auth_service.CanUserAccessFile(ctx, ctx.Requester, file, ctx.Share, permissions...)
-			if err != nil {
-				ctx.Error(http.StatusForbidden, err)
+			if accessErr != nil {
+				ctx.Error(http.StatusInternalServerError, accessErr)
 
 				return
 			}
 
-			next.ServeHTTP(ctx)
+			next.ServeHTTP(ctx.WithFile(file))
 		})
 	}
 }

@@ -104,6 +104,14 @@ var createRequestFunction = function(axiosArgs, globalAxios3, BASE_PATH2, config
 };
 
 // generated/api.ts
+var HistoryFileActionType = {
+  FileCreate: "fileCreate",
+  FileMove: "fileMove",
+  FileSizeChange: "fileSizeChange",
+  Backup: "backup",
+  FileDelete: "fileDelete",
+  FileRestore: "fileRestore"
+};
 var TowerHealthStatusEnum = {
   Healthy: "healthy",
   Unhealthy: "unhealthy"
@@ -5701,6 +5709,7 @@ export {
   GetMediaImageQualityEnum,
   GetMediaSortDirectionEnum,
   GetMediaSortEnum,
+  HistoryFileActionType,
   MediaApi,
   MediaApiAxiosParamCreator,
   MediaApiFactory,

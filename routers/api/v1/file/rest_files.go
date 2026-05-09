@@ -1,3 +1,4 @@
+// Package file provides HTTP handlers for file and folder operations in the Weblens API.
 package file
 
 import (
@@ -54,11 +55,9 @@ import (
 //	@Failure	404
 //	@Router		/files/{fileID} [get]
 func GetFile(ctx context_service.RequestContext) {
-	file, err := checkFileAccess(ctx, share_model.SharePermissionView)
-	if err != nil {
-		return
-	}
+	file := ctx.File
 
+	// Re-check without a required permission to obtain the *Permissions value for the response.
 	perms, err := auth.CanUserAccessFile(ctx, ctx.Requester, file, ctx.Share)
 	if err != nil {
 		ctx.Error(http.StatusForbidden, err)
@@ -92,10 +91,7 @@ func GetFile(ctx context_service.RequestContext) {
 //	@Failure	400
 //	@Router		/files/{fileID}/text [get]
 func GetFileText(ctx context_service.RequestContext) {
-	file, err := checkFileAccess(ctx, share_model.SharePermissionView)
-	if err != nil {
-		return
-	}
+	file := ctx.File
 
 	filename := file.GetPortablePath().Filename()
 
@@ -124,10 +120,8 @@ func GetFileText(ctx context_service.RequestContext) {
 //	@Failure	501
 //	@Router		/files/{fileID}/stats [get]
 func GetFileStats(ctx context_service.RequestContext) {
-	_, err := checkFileAccess(ctx)
-	if err != nil {
-		return
-	}
+	// Access check is enforced by RequireFilePermissions middleware; ctx.File is the resolved file.
+	_ = ctx.File
 
 	ctx.Status(http.StatusNotImplemented)
 }
@@ -151,10 +145,7 @@ func GetFileStats(ctx context_service.RequestContext) {
 //	@Success	404			{object}	wlstructs.WeblensErrorInfo	"Error Info"
 //	@Router		/files/{fileID}/download [get]
 func DownloadFile(ctx context_service.RequestContext) {
-	file, err := checkFileAccess(ctx, share_model.SharePermissionDownload)
-	if err != nil {
-		return
-	}
+	file := ctx.File
 
 	// TODO: Make sure to check if the requester is another tower
 	// i := getInstanceFromCtx(r)
@@ -247,10 +238,7 @@ func DownloadFile(ctx context_service.RequestContext) {
 //	@Success	200			{object}	wlstructs.FolderInfoResponse	"Folder Info"
 //	@Router		/folder/{folderID} [get]
 func GetFolder(ctx context_service.RequestContext) {
-	folder, err := checkFileAccess(ctx, share_model.SharePermissionView)
-	if err != nil {
-		return
-	}
+	folder := ctx.File
 
 	date := time.UnixMilli(0)
 
@@ -275,7 +263,7 @@ func GetFolder(ctx context_service.RequestContext) {
 		return
 	}
 
-	err = formatRespondFolderInfo(ctx, folder)
+	err := formatRespondFolderInfo(ctx, folder)
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 	}
@@ -295,10 +283,7 @@ func GetFolder(ctx context_service.RequestContext) {
 //	@Failure	500
 //	@Router		/files/{fileID}/history [get]
 func GetFolderHistory(ctx context_service.RequestContext) {
-	file, err := checkFileAccess(ctx, share_model.SharePermissionView)
-	if err != nil {
-		return
-	}
+	file := ctx.File
 
 	actions, err := history.GetActionsAtPathAfter(ctx, file.GetPortablePath(), time.Time{}, history.GetActionsOptions{IncludeChildren: true})
 	if err != nil {
@@ -373,7 +358,7 @@ func SearchFiles(ctx context_service.RequestContext) {
 		baseFolderID = ctx.Requester.HomeID
 	}
 
-	baseFolder, err := CheckFileAccessByID(ctx, baseFolderID)
+	baseFolder, err := auth.RequireFileAccessOne(ctx, baseFolderID)
 	if err != nil {
 		return
 	}
@@ -543,10 +528,8 @@ func CreateFolder(ctx context_service.RequestContext) {
 		return
 	}
 
-	parentFolder, err := CheckFileAccessByID(ctx, body.ParentFolderID, share_model.SharePermissionEdit)
+	parentFolder, err := auth.RequireFileAccessOne(ctx, body.ParentFolderID, share_model.SharePermissionEdit)
 	if err != nil {
-		ctx.Error(http.StatusForbidden, wlerrors.New("You do not have permission to create a folder in this location"))
-
 		return
 	}
 
@@ -603,10 +586,7 @@ func CreateFolder(ctx context_service.RequestContext) {
 //	@Failure	500
 //	@Router		/folder/{folderID}/cover [patch]
 func SetFolderCover(ctx context_service.RequestContext) {
-	folder, err := checkFileAccess(ctx, share_model.SharePermissionEdit)
-	if err != nil {
-		return
-	}
+	folder := ctx.File
 
 	if !folder.IsDir() {
 		ctx.Error(http.StatusBadRequest, wlerrors.Errorf("file is not a folder"))
@@ -625,6 +605,27 @@ func SetFolderCover(ctx context_service.RequestContext) {
 		}
 
 		ctx.Error(http.StatusInternalServerError, err)
+
+		return
+	}
+
+	hasMediaAccess := false
+
+	for _, fileID := range media.GetFiles() {
+		mediaFile, err := ctx.FileService.GetFileByID(ctx, fileID)
+		if err != nil {
+			continue
+		}
+
+		if _, err := auth.CanUserAccessFile(ctx, ctx.Requester, mediaFile, ctx.Share, share_model.SharePermissionViewMedia); err == nil {
+			hasMediaAccess = true
+
+			break
+		}
+	}
+
+	if !hasMediaAccess {
+		ctx.Error(http.StatusForbidden, wlerrors.New("not authorized to use this media as a folder cover"))
 
 		return
 	}
@@ -669,10 +670,7 @@ func SetFolderCover(ctx context_service.RequestContext) {
 //	@Failure	500
 //	@Router		/folder/{folderID}/cover [delete]
 func RemoveFolderCover(ctx context_service.RequestContext) {
-	f, err := checkFileAccess(ctx, share_model.SharePermissionEdit)
-	if err != nil {
-		return
-	}
+	f := ctx.File
 
 	if !f.IsDir() {
 		ctx.Error(http.StatusBadRequest, wlerrors.Errorf("file is not a folder"))
@@ -840,15 +838,9 @@ func CreateTakeout(ctx context_service.RequestContext) {
 		return
 	}
 
-	files := make([]*file_model.WeblensFileImpl, 0, len(takeoutRequest.FileIDs))
-
-	for _, fileID := range takeoutRequest.FileIDs {
-		file, err := CheckFileAccessByID(ctx, fileID, share_model.SharePermissionView, share_model.SharePermissionDownload)
-		if err != nil {
-			return
-		}
-
-		files = append(files, file)
+	files, err := auth.RequireFileAccess(ctx, takeoutRequest.FileIDs, share_model.SharePermissionView, share_model.SharePermissionDownload)
+	if err != nil {
+		return
 	}
 
 	// If we only have 1 file, and it is not a directory, we should have requested to just
@@ -1076,8 +1068,9 @@ func RestoreFiles(ctx context_service.RequestContext) {
 	// Resolve destination parent folder. If newParentID is provided and the folder
 	// still exists, use it; otherwise fall back to the user's home directory.
 	var newParent *file_model.WeblensFileImpl
+
 	if body.NewParentID != "" {
-		newParent, err = CheckFileAccessByID(ctx, body.NewParentID)
+		newParent, err = auth.RequireFileAccessOne(ctx, body.NewParentID)
 		if err != nil {
 			return
 		}
@@ -1125,10 +1118,7 @@ func RestoreFiles(ctx context_service.RequestContext) {
 //	@Failure	500
 //	@Router		/files/{fileID} [patch]
 func UpdateFile(ctx context_service.RequestContext) {
-	file, err := checkFileAccess(ctx)
-	if err != nil {
-		return
-	}
+	file := ctx.File
 
 	if file_model.IsFileInTrash(file) {
 		ctx.Error(http.StatusForbidden, wlerrors.New("cannot rename file in trash"))
@@ -1174,7 +1164,7 @@ func MoveFiles(ctx context_service.RequestContext) {
 		return
 	}
 
-	newParent, err := CheckFileAccessByID(ctx, filesData.NewParentID, share_model.SharePermissionEdit)
+	newParent, err := auth.RequireFileAccessOne(ctx, filesData.NewParentID, share_model.SharePermissionEdit)
 	if err != nil {
 		return
 	}
@@ -1258,16 +1248,9 @@ func UnTrashFiles(ctx context_service.RequestContext) {
 		return
 	}
 
-	fileIDs := params.FileIDs
-	files := make([]*file_model.WeblensFileImpl, 0, len(fileIDs))
-
-	for _, fileID := range fileIDs {
-		file, err := CheckFileAccessByID(ctx, fileID, share_model.SharePermissionEdit)
-		if err != nil {
-			return
-		}
-
-		files = append(files, file)
+	files, err := auth.RequireFileAccess(ctx, params.FileIDs, share_model.SharePermissionEdit)
+	if err != nil {
+		return
 	}
 
 	err = ctx.FileService.ReturnFilesFromTrash(ctx, files)
@@ -1308,17 +1291,9 @@ func DeleteFiles(ctx context_service.RequestContext) {
 		return
 	}
 
-	files := make([]*file_model.WeblensFileImpl, 0, len(params.FileIDs))
-
-	for _, fileID := range params.FileIDs {
-		file, err := CheckFileAccessByID(ctx, fileID, share_model.SharePermissionDelete)
-		if err != nil {
-			ctx.Error(http.StatusForbidden, err)
-
-			return
-		}
-
-		files = append(files, file)
+	files, err := auth.RequireFileAccess(ctx, params.FileIDs, share_model.SharePermissionDelete)
+	if err != nil {
+		return
 	}
 
 	preserveFolder := ctx.QueryBool("preserveFolder")
@@ -1390,8 +1365,7 @@ func NewUploadTask(ctx context_service.RequestContext) {
 		return
 	}
 
-	_, err = CheckFileAccessByID(ctx, upInfo.RootFolderID, share_model.SharePermissionEdit)
-	if err != nil {
+	if _, err := auth.RequireFileAccessOne(ctx, upInfo.RootFolderID, share_model.SharePermissionEdit); err != nil {
 		return
 	}
 
@@ -1455,15 +1429,20 @@ func NewFileUpload(ctx context_service.RequestContext) {
 		return
 	}
 
+	parentIDs := make([]string, 0, len(params.NewFiles))
+	for _, newFInfo := range params.NewFiles {
+		parentIDs = append(parentIDs, newFInfo.ParentFolderID)
+	}
+
+	parents, err := auth.RequireFileAccess(ctx, parentIDs, share_model.SharePermissionEdit)
+	if err != nil {
+		return
+	}
+
 	var ids []string
 
-	for _, newFInfo := range params.NewFiles {
-		parent, err := ctx.FileService.GetFileByID(ctx, newFInfo.ParentFolderID)
-		if err != nil {
-			ctx.Error(http.StatusNotFound, wlerrors.Wrap(err, "Could not find parent folder for new file"))
-
-			return
-		}
+	for i, newFInfo := range params.NewFiles {
+		parent := parents[i]
 
 		child, _ := parent.GetChild(newFInfo.NewFileName)
 		if child != nil {

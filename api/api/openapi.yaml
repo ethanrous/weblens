@@ -3936,7 +3936,7 @@ components:
           rootAlias: rootAlias
           relPath: relPath
         contentID: contentID
-        actionType: actionType
+        actionType: fileCreate
         filepath:
           rootAlias: rootAlias
           relPath: relPath
@@ -3952,7 +3952,7 @@ components:
         timestamp: timestamp
       properties:
         actionType:
-          type: string
+          $ref: "#/components/schemas/history.FileActionType"
         contentID:
           type: string
         destinationPath:
@@ -3980,6 +3980,22 @@ components:
         towerID:
           type: string
       type: object
+    history.FileActionType:
+      enum:
+      - fileCreate
+      - fileMove
+      - fileSizeChange
+      - backup
+      - fileDelete
+      - fileRestore
+      type: string
+      x-enum-varnames:
+      - FileCreate
+      - FileMove
+      - FileSizeChange
+      - Backup
+      - FileDelete
+      - FileRestore
     wlfs.Filepath:
       example:
         rootAlias: rootAlias

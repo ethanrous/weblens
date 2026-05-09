@@ -5,7 +5,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**actionType** | **string** |  | [optional] [default to undefined]
+**actionType** | [**HistoryFileActionType**](HistoryFileActionType.md) |  | [optional] [default to undefined]
 **contentID** | **string** |  | [optional] [default to undefined]
 **destinationPath** | [**WlfsFilepath**](WlfsFilepath.md) |  | [optional] [default to undefined]
 **doer** | **string** | The user or system that performed the action | [optional] [default to undefined]

@@ -705,7 +705,7 @@ definitions:
   history.FileAction:
     properties:
       actionType:
-        type: string
+        $ref: '#/definitions/history.FileActionType'
       contentID:
         type: string
       destinationPath:
@@ -733,6 +733,22 @@ definitions:
       towerID:
         type: string
     type: object
+  history.FileActionType:
+    enum:
+    - fileCreate
+    - fileMove
+    - fileSizeChange
+    - backup
+    - fileDelete
+    - fileRestore
+    type: string
+    x-enum-varnames:
+    - FileCreate
+    - FileMove
+    - FileSizeChange
+    - Backup
+    - FileDelete
+    - FileRestore
   wlfs.Filepath:
     properties:
       relPath:

@@ -19,7 +19,7 @@ var _ MappedNullable = &HistoryFileAction{}
 
 // HistoryFileAction struct for HistoryFileAction
 type HistoryFileAction struct {
-	ActionType *string `json:"actionType,omitempty"`
+	ActionType *HistoryFileActionType `json:"actionType,omitempty"`
 	ContentID *string `json:"contentID,omitempty"`
 	DestinationPath *WlfsFilepath `json:"destinationPath,omitempty"`
 	// The user or system that performed the action
@@ -54,9 +54,9 @@ func NewHistoryFileActionWithDefaults() *HistoryFileAction {
 }
 
 // GetActionType returns the ActionType field value if set, zero value otherwise.
-func (o *HistoryFileAction) GetActionType() string {
+func (o *HistoryFileAction) GetActionType() HistoryFileActionType {
 	if o == nil || IsNil(o.ActionType) {
-		var ret string
+		var ret HistoryFileActionType
 		return ret
 	}
 	return *o.ActionType
@@ -64,7 +64,7 @@ func (o *HistoryFileAction) GetActionType() string {
 
 // GetActionTypeOk returns a tuple with the ActionType field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *HistoryFileAction) GetActionTypeOk() (*string, bool) {
+func (o *HistoryFileAction) GetActionTypeOk() (*HistoryFileActionType, bool) {
 	if o == nil || IsNil(o.ActionType) {
 		return nil, false
 	}
@@ -80,8 +80,8 @@ func (o *HistoryFileAction) HasActionType() bool {
 	return false
 }
 
-// SetActionType gets a reference to the given string and assigns it to the ActionType field.
-func (o *HistoryFileAction) SetActionType(v string) {
+// SetActionType gets a reference to the given HistoryFileActionType and assigns it to the ActionType field.
+func (o *HistoryFileAction) SetActionType(v HistoryFileActionType) {
 	o.ActionType = &v
 }
 
