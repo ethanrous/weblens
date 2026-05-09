@@ -123,7 +123,7 @@ export interface GithubComEthanrousWeblensModelsTagTag {
     'updated'?: string;
 }
 export interface HistoryFileAction {
-    'actionType'?: string;
+    'actionType'?: HistoryFileActionType;
     'contentID'?: string;
     'destinationPath'?: WlfsFilepath;
     /**
@@ -143,6 +143,21 @@ export interface HistoryFileAction {
     'timestamp'?: string;
     'towerID'?: string;
 }
+
+
+
+export const HistoryFileActionType = {
+    FileCreate: 'fileCreate',
+    FileMove: 'fileMove',
+    FileSizeChange: 'fileSizeChange',
+    Backup: 'backup',
+    FileDelete: 'fileDelete',
+    FileRestore: 'fileRestore'
+} as const;
+
+export type HistoryFileActionType = typeof HistoryFileActionType[keyof typeof HistoryFileActionType];
+
+
 export interface LoginBody {
     'password': string;
     'username': string;

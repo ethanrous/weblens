@@ -4603,7 +4603,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "actionType": {
-                    "type": "string"
+                    "$ref": "#/definitions/history.FileActionType"
                 },
                 "contentID": {
                     "type": "string"
@@ -4644,6 +4644,25 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "history.FileActionType": {
+            "type": "string",
+            "enum": [
+                "fileCreate",
+                "fileMove",
+                "fileSizeChange",
+                "backup",
+                "fileDelete",
+                "fileRestore"
+            ],
+            "x-enum-varnames": [
+                "FileCreate",
+                "FileMove",
+                "FileSizeChange",
+                "Backup",
+                "FileDelete",
+                "FileRestore"
+            ]
         },
         "wlfs.Filepath": {
             "type": "object",

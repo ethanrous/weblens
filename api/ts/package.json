@@ -30,5 +30,11 @@
 	},
 	"main": "./dist/AllApi.js",
 	"module": "./dist/AllApi.js",
-	"types": "./dist/AllApi.d.ts"
+	"types": "./dist/AllApi.d.ts",
+	"packageManager": "pnpm@10.18.3",
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"esbuild"
+		]
+	}
 }

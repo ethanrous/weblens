@@ -4,7 +4,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**ActionType** | Pointer to **string** |  | [optional] 
+**ActionType** | Pointer to [**HistoryFileActionType**](HistoryFileActionType.md) |  | [optional] 
 **ContentID** | Pointer to **string** |  | [optional] 
 **DestinationPath** | Pointer to [**WlfsFilepath**](WlfsFilepath.md) |  | [optional] 
 **Doer** | Pointer to **string** | The user or system that performed the action | [optional] 
@@ -39,20 +39,20 @@ but it doesn't guarantee that properties required by API are set
 
 ### GetActionType
 
-`func (o *HistoryFileAction) GetActionType() string`
+`func (o *HistoryFileAction) GetActionType() HistoryFileActionType`
 
 GetActionType returns the ActionType field if non-nil, zero value otherwise.
 
 ### GetActionTypeOk
 
-`func (o *HistoryFileAction) GetActionTypeOk() (*string, bool)`
+`func (o *HistoryFileAction) GetActionTypeOk() (*HistoryFileActionType, bool)`
 
 GetActionTypeOk returns a tuple with the ActionType field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
 ### SetActionType
 
-`func (o *HistoryFileAction) SetActionType(v string)`
+`func (o *HistoryFileAction) SetActionType(v HistoryFileActionType)`
 
 SetActionType sets ActionType field to given value.
 

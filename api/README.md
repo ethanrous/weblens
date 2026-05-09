@@ -181,6 +181,7 @@ Class | Method | HTTP request | Description
  - [FolderInfo](docs/FolderInfo.md)
  - [GithubComEthanrousWeblensModelsTagTag](docs/GithubComEthanrousWeblensModelsTagTag.md)
  - [HistoryFileAction](docs/HistoryFileAction.md)
+ - [HistoryFileActionType](docs/HistoryFileActionType.md)
  - [LoginBody](docs/LoginBody.md)
  - [MediaBatchInfo](docs/MediaBatchInfo.md)
  - [MediaIDsParams](docs/MediaIDsParams.md)
