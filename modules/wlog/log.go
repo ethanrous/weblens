@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"runtime"
-	"runtime/debug"
 	"strings"
 	"sync"
 
@@ -105,29 +104,14 @@ func NewZeroLogger(opts ...CreateOpts) *zerolog.Logger {
 		}
 	}
 
-	config := config.GetConfig()
+	wlVersion := config.BuildVersion()
+	cfg := config.GetConfig()
 
 	var logWriter io.Writer
-	if config.LogFormat == "dev" {
+	if cfg.LogFormat == "dev" {
 		logWriter = newDevLogger(outputLocation)
 	} else {
 		logWriter = outputLocation
-	}
-
-	wlVersion := os.Getenv("WEBLENS_BUILD_VERSION")
-	if wlVersion == "" {
-		wlVersion = "unknown"
-
-		buildInfo, ok := debug.ReadBuildInfo()
-		if ok {
-			for _, v := range buildInfo.Settings {
-				if v.Key == "vcs.revision" {
-					wlVersion = v.Value
-
-					break
-				}
-			}
-		}
 	}
 
 	level := zerolog.InfoLevel
@@ -140,7 +124,7 @@ func NewZeroLogger(opts ...CreateOpts) *zerolog.Logger {
 
 	// If no options are provided, set the global loggers
 	if o.Global {
-		zerolog.SetGlobalLevel(config.LogLevel)
+		zerolog.SetGlobalLevel(cfg.LogLevel)
 
 		loggerMu.Lock()
 
@@ -152,9 +136,9 @@ func NewZeroLogger(opts ...CreateOpts) *zerolog.Logger {
 
 		loggerMu.Unlock()
 
-		log.Info().CallerSkipFrame(2).Msgf("Weblens logger initialized [%s][%s]", log.GetLevel(), config.LogFormat)
+		log.Info().CallerSkipFrame(2).Msgf("Weblens logger initialized [%s][%s]", log.GetLevel(), cfg.LogFormat)
 	} else {
-		log.Debug().CallerSkipFrame(1).Msgf("Created new Weblens logger [%s][%s]", log.GetLevel(), config.LogFormat)
+		log.Debug().CallerSkipFrame(1).Msgf("Created new Weblens logger [%s][%s]", log.GetLevel(), cfg.LogFormat)
 	}
 
 	return &log

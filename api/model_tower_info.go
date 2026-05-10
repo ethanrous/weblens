@@ -22,6 +22,8 @@ var _ MappedNullable = &TowerInfo{}
 // TowerInfo struct for TowerInfo
 type TowerInfo struct {
 	BackupSize int64 `json:"backupSize"`
+	// BuildVersion is the build version of the running server binary, sourced from WEBLENS_BUILD_VERSION or the embedded VCS revision.
+	BuildVersion *string `json:"buildVersion,omitempty"`
 	// Address of the remote server, only if the instance is a core. Not set for any remotes/backups on core server, as it IS the core
 	CoreAddress string `json:"coreAddress"`
 	Id string `json:"id"`
@@ -88,6 +90,38 @@ func (o *TowerInfo) GetBackupSizeOk() (*int64, bool) {
 // SetBackupSize sets field value
 func (o *TowerInfo) SetBackupSize(v int64) {
 	o.BackupSize = v
+}
+
+// GetBuildVersion returns the BuildVersion field value if set, zero value otherwise.
+func (o *TowerInfo) GetBuildVersion() string {
+	if o == nil || IsNil(o.BuildVersion) {
+		var ret string
+		return ret
+	}
+	return *o.BuildVersion
+}
+
+// GetBuildVersionOk returns a tuple with the BuildVersion field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *TowerInfo) GetBuildVersionOk() (*string, bool) {
+	if o == nil || IsNil(o.BuildVersion) {
+		return nil, false
+	}
+	return o.BuildVersion, true
+}
+
+// HasBuildVersion returns a boolean if a field has been set.
+func (o *TowerInfo) HasBuildVersion() bool {
+	if o != nil && !IsNil(o.BuildVersion) {
+		return true
+	}
+
+	return false
+}
+
+// SetBuildVersion gets a reference to the given string and assigns it to the BuildVersion field.
+func (o *TowerInfo) SetBuildVersion(v string) {
+	o.BuildVersion = &v
 }
 
 // GetCoreAddress returns the CoreAddress field value
@@ -349,6 +383,9 @@ func (o TowerInfo) MarshalJSON() ([]byte, error) {
 func (o TowerInfo) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["backupSize"] = o.BackupSize
+	if !IsNil(o.BuildVersion) {
+		toSerialize["buildVersion"] = o.BuildVersion
+	}
 	toSerialize["coreAddress"] = o.CoreAddress
 	toSerialize["id"] = o.Id
 	toSerialize["lastBackup"] = o.LastBackup

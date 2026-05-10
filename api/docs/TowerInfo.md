@@ -5,6 +5,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **BackupSize** | **int64** |  | 
+**BuildVersion** | Pointer to **string** | BuildVersion is the build version of the running server binary, sourced from WEBLENS_BUILD_VERSION or the embedded VCS revision. | [optional] 
 **CoreAddress** | **string** | Address of the remote server, only if the instance is a core. Not set for any remotes/backups on core server, as it IS the core | 
 **Id** | **string** |  | 
 **LastBackup** | **int64** |  | 
@@ -54,6 +55,31 @@ and a boolean to check if the value has been set.
 
 SetBackupSize sets BackupSize field to given value.
 
+
+### GetBuildVersion
+
+`func (o *TowerInfo) GetBuildVersion() string`
+
+GetBuildVersion returns the BuildVersion field if non-nil, zero value otherwise.
+
+### GetBuildVersionOk
+
+`func (o *TowerInfo) GetBuildVersionOk() (*string, bool)`
+
+GetBuildVersionOk returns a tuple with the BuildVersion field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetBuildVersion
+
+`func (o *TowerInfo) SetBuildVersion(v string)`
+
+SetBuildVersion sets BuildVersion field to given value.
+
+### HasBuildVersion
+
+`func (o *TowerInfo) HasBuildVersion() bool`
+
+HasBuildVersion returns a boolean if a field has been set.
 
 ### GetCoreAddress
 

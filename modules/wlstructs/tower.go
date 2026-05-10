@@ -33,6 +33,10 @@ type TowerInfo struct {
 	Started bool `json:"started" validate:"required"`
 
 	LogLevel string `json:"logLevel,omitempty"`
+
+	// BuildVersion is the build version of the running server binary, sourced
+	// from WEBLENS_BUILD_VERSION or the embedded VCS revision.
+	BuildVersion string `json:"buildVersion,omitempty"`
 } //	@name	TowerInfo
 
 // TowerHealth represents the health status of the server instance.

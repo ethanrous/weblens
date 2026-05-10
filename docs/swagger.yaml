@@ -544,6 +544,11 @@ definitions:
       backupSize:
         format: int64
         type: integer
+      buildVersion:
+        description: |-
+          BuildVersion is the build version of the running server binary, sourced
+          from WEBLENS_BUILD_VERSION or the embedded VCS revision.
+        type: string
       coreAddress:
         description: |-
           Address of the remote server, only if the instance is a core.
