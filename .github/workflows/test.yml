@@ -14,7 +14,7 @@ on:
     branches: ["main"]
 
 env:
-    GH_TOKEN: ${{ github.token }}
+  GH_TOKEN: ${{ github.token }}
 
 jobs:
   test-server:
@@ -139,7 +139,7 @@ jobs:
             _build/logs/
           retention-days: 7
 
-  test-build-container:
+  test-build-image:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -151,4 +151,11 @@ jobs:
           sudo systemctl restart docker
 
           ./scripts/gogogadgetdocker.bash -s -t devel -a amd64
-          exit $?
+
+          docker tag ghcr.io/ethanrous/weblens:devel ghcr.io/ethanrous/weblens:devel-$GITHUB_REF_NAME-$GITHUB_SHA
+          docker push ghcr.io/ethanrous/weblens:devel-$GITHUB_REF_NAME-$GITHUB_SHA
+
+          echo "Built and pushed image:
+            ```
+            ghcr.io/ethanrous/weblens:devel-$GITHUB_REF_NAME-$GITHUB_SHA
+            ```">>$GITHUB_STEP_SUMMARY
