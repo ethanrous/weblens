@@ -16,6 +16,10 @@ on:
 env:
   GH_TOKEN: ${{ github.token }}
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   test-server:
     runs-on: ubuntu-latest
