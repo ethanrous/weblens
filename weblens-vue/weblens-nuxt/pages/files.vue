@@ -68,10 +68,15 @@
             <PathCrumbs />
         </div>
 
-        <WebsocketStatus
-            :class="{ 'absolute right-4 bottom-4 hidden sm:block': true }"
-            :ws-status="wsStore.status"
-        />
+        <div class="absolute right-4 bottom-3 hidden items-center gap-2 sm:flex">
+            <span
+                v-if="towerStore.towerInfo?.buildVersion"
+                class="text-text-tertiary font-mono text-xs"
+            >
+                {{ towerStore.towerInfo.buildVersion }}
+            </span>
+            <WebsocketStatus :ws-status="wsStore.status" />
+        </div>
     </div>
 </template>
 
@@ -96,6 +101,7 @@ const locationStore = useLocationStore()
 const presentationStore = usePresentationStore()
 const filesStore = useFilesStore()
 const mediaStore = useMediaStore()
+const towerStore = useTowerStore()
 
 const presentingFile = computed(() => {
     return filesStore.getFileByID(presentationStore.presentationFileID)

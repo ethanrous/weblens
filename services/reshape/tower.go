@@ -5,6 +5,7 @@ import (
 
 	openapi "github.com/ethanrous/weblens/api"
 	tower_model "github.com/ethanrous/weblens/models/tower"
+	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/wlstructs"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 )
@@ -31,7 +32,7 @@ func TowerToTowerInfo(ctx context.Context, tower tower_model.Instance) wlstructs
 		}
 	}
 
-	return wlstructs.TowerInfo{
+	info := wlstructs.TowerInfo{
 		ID:           tower.TowerID,
 		Name:         tower.Name,
 		Role:         string(tower.Role),
@@ -45,6 +46,12 @@ func TowerToTowerInfo(ctx context.Context, tower tower_model.Instance) wlstructs
 		ReportedRole: string(tower.Role),
 		Online:       online,
 	}
+
+	if tower.IsThisTower {
+		info.BuildVersion = config.BuildVersion()
+	}
+
+	return info
 }
 
 // TowerInfoToTower converts a TowerInfo from the API to a tower Instance.

@@ -442,6 +442,10 @@ type TowerHealthStatusEnum = typeof TowerHealthStatusEnum[keyof typeof TowerHeal
 interface TowerInfo {
     'backupSize': number;
     /**
+     * BuildVersion is the build version of the running server binary, sourced from WEBLENS_BUILD_VERSION or the embedded VCS revision.
+     */
+    'buildVersion'?: string;
+    /**
      * Address of the remote server, only if the instance is a core. Not set for any remotes/backups on core server, as it IS the core
      */
     'coreAddress': string;

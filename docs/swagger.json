@@ -4385,6 +4385,10 @@
                     "type": "integer",
                     "format": "int64"
                 },
+                "buildVersion": {
+                    "description": "BuildVersion is the build version of the running server binary, sourced\nfrom WEBLENS_BUILD_VERSION or the embedded VCS revision.",
+                    "type": "string"
+                },
                 "coreAddress": {
                     "description": "Address of the remote server, only if the instance is a core.\nNot set for any remotes/backups on core server, as it IS the core",
                     "type": "string"

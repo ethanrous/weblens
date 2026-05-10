@@ -6,6 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **backupSize** | **number** |  | [default to undefined]
+**buildVersion** | **string** | BuildVersion is the build version of the running server binary, sourced from WEBLENS_BUILD_VERSION or the embedded VCS revision. | [optional] [default to undefined]
 **coreAddress** | **string** | Address of the remote server, only if the instance is a core. Not set for any remotes/backups on core server, as it IS the core | [default to undefined]
 **id** | **string** |  | [default to undefined]
 **lastBackup** | **number** |  | [default to undefined]
@@ -24,6 +25,7 @@ import { TowerInfo } from './api';
 
 const instance: TowerInfo = {
     backupSize,
+    buildVersion,
     coreAddress,
     id,
     lastBackup,
