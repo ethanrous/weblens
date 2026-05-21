@@ -11,7 +11,7 @@
         <div
             ref="innerRef"
             :class="{
-                'border-theme-primary absolute flex min-h-full w-full flex-col justify-start overflow-hidden rounded border transition-[height,width,scale]': true,
+                'border-button-outline absolute flex min-h-full w-full flex-col justify-start overflow-hidden rounded border transition-[height,width,scale]': true,
                 'before:bg-background-primary/80 backdrop-blur-sm before:absolute before:z-[-1] before:h-full before:w-full': true,
                 'rounded-r-none border-r-transparent': merge === 'right' && !isOpen,
                 'z-90 h-max w-32! shadow-lg': isOpen,
@@ -22,7 +22,7 @@
         >
             <div
                 :class="{
-                    'bg-theme-primary/35 absolute w-full rounded transition-[top]': true,
+                    'bg-button-background/35 absolute w-full transition-[top]': true,
                     'rounded-r-none': merge === 'right' && !isOpen,
                 }"
                 :style="{

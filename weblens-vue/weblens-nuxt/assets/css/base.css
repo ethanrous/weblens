@@ -142,6 +142,11 @@
     --color-button-text-disabled: var(--color-text-secondary);
 
     --color-message: var(--color-theme-primary);
+
+    /* -------------------------------------------------------------------- */
+
+    --color-button-background: var(--color-button-primary);
+    --color-button-outline: var(--color-button-primary);
 }
 
 @layer base {
@@ -237,9 +242,9 @@
         font-weight: 600;
         text-align: center;
 
-        background-color: var(--color-button-primary);
+        background-color: var(--color-button-background);
         color: var(--color-button-text);
-        outline: 1px solid rgb(from var(--color-button-primary) r g b / 0%);
+        outline: 1px solid rgb(from var(--color-button-outline) r g b / 0%);
 
         padding: 0 var(--wl-padding-lg);
         height: calc(var(--spacing) * 10);
@@ -258,54 +263,55 @@
     }
 
     button:where([data-flavor='danger']) {
-        --color-button-primary: var(--color-button-danger);
+        --color-button-background: var(--color-button-danger);
         --color-button-disabled: rgb(from var(--color-button-danger) r g b / 50%);
     }
 
     button:where([data-flavor='secondary']) {
-        --color-button-primary: var(--color-button-secondary);
+        --color-button-background: var(--color-button-secondary);
     }
 
     button:where([data-type='default']):hover,
     button:not([data-type]):hover {
-        background-color: rgb(from var(--color-button-primary) r g b / 50%);
+        background-color: rgb(from var(--color-button-background) r g b / 50%);
         box-shadow: var(--wl-soft-shadow);
-        outline: 1px solid var(--color-button-primary);
+        outline: 1px solid var(--color-button-outline);
     }
 
     button:where([data-type='outline']) {
-        outline: 1px solid var(--color-button-primary);
-        background-color: rgb(from var(--color-button-primary) r g b / 20%);
+        --color-button-text: var(--color-text-primary);
+        outline: 1px solid var(--color-button-outline);
+        background-color: rgb(from var(--color-button-background) r g b / 20%);
     }
 
-    button:where([data-type='outline']):where([data-selected='false']) {
+    button:where([data-type='outline']):where:not([data-selected='true']) {
         --color-button-text: var(--color-text-primary);
-        outline: 1px solid rgb(from var(--color-button-primary) r g b / 0%);
-        background-color: rgb(from var(--color-button-primary) r g b / 0%);
+        outline: 1px solid rgb(from var(--color-button-outline) r g b / 0%);
+        background-color: rgb(from var(--color-button-background) r g b / 0%);
     }
 
     button:where([data-type='outline']):hover {
-        background-color: rgb(from var(--color-button-primary) r g b / 40%);
+        background-color: rgb(from var(--color-button-background) r g b / 40%);
     }
 
     button:where([data-type='light']):where([data-selected='false']) {
         --color-button-text: var(--color-text-primary);
-        background-color: rgb(from var(--color-button-primary) r g b / 0%);
+        background-color: rgb(from var(--color-button-background) r g b / 0%);
     }
 
     button:where([data-type='light']):hover:where([data-selected='false']) {
-        background-color: rgb(from var(--color-button-primary) r g b / 40%);
+        background-color: rgb(from var(--color-button-background) r g b / 40%);
     }
 
     button:where([data-type='light']):where([data-selected='true']) {
-        background-color: rgb(from var(--color-button-primary) r g b / 65%);
+        background-color: rgb(from var(--color-button-background) r g b / 65%);
     }
 
     button:disabled {
         background-color: var(--color-button-disabled);
         color: var(--color-button-text-disabled);
         cursor: not-allowed;
-        outline: 1px solid rgb(from var(--color-button-primary) r g b / 0%);
+        outline: 1px solid rgb(from var(--color-button-outline) r g b / 0%);
         box-shadow: none;
         pointer-events: none;
     }
