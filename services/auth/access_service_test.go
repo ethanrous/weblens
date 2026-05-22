@@ -211,7 +211,7 @@ func TestGenerateJWTCookie(t *testing.T) {
 		assert.Contains(t, cookie, "Path=/")
 		assert.Contains(t, cookie, "Expires=")
 		assert.Contains(t, cookie, "HttpOnly")
-		assert.Contains(t, cookie, "Secure=true")
+		assert.Contains(t, cookie, "Secure")
 		assert.Contains(t, cookie, "SameSite=Lax")
 	})
 }
@@ -224,7 +224,6 @@ func TestGenerateUserCookie(t *testing.T) {
 		assert.Contains(t, cookie, "weblens-user-name=testuser")
 		assert.Contains(t, cookie, "Path=/")
 		assert.Contains(t, cookie, "Expires=")
-		assert.Contains(t, cookie, "HttpOnly")
 		assert.Contains(t, cookie, "Secure")
 		assert.Contains(t, cookie, "SameSite=Lax")
 	})

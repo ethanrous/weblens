@@ -169,7 +169,15 @@ func GenerateJWTCookie(user *user_model.User, secure bool) (string, error) {
 		return "", err
 	}
 
-	cookie := fmt.Sprintf("%s=%s;Path=/;Expires=%s;HttpOnly;Secure=%t;SameSite=Strict", cryptography.SessionTokenCookie, token, expires.Format(time.RFC1123), secure)
+	cookie := (&http.Cookie{
+		Name:     cryptography.SessionTokenCookie,
+		Value:    token,
+		Path:     "/",
+		Expires:  expires,
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+	}).String()
 
 	return cookie, nil
 }
@@ -177,7 +185,16 @@ func GenerateJWTCookie(user *user_model.User, secure bool) (string, error) {
 // GenerateUserCookie creates a cookie containing the username.
 func GenerateUserCookie(user *user_model.User, secure bool) string {
 	expires := time.Now().Add(time.Hour * 24 * 7).In(time.UTC)
-	cookie := fmt.Sprintf("%s=%s;Path=/;Expires=%s;HttpOnly;Secure=%t;SameSite=Strict", cryptography.UserCrumbCookie, user.Username, expires.Format(time.RFC1123), secure)
+
+	cookie := (&http.Cookie{
+		Name:     cryptography.UserCrumbCookie,
+		Value:    user.GetUsername(),
+		Path:     "/",
+		Expires:  expires,
+		HttpOnly: false,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+	}).String()
 
 	return cookie
 }
