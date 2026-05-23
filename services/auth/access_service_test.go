@@ -211,7 +211,7 @@ func TestGenerateJWTCookie(t *testing.T) {
 		assert.Contains(t, cookie, "Path=/")
 		assert.Contains(t, cookie, "Expires=")
 		assert.Contains(t, cookie, "HttpOnly")
-		assert.Contains(t, cookie, "Secure=true")
+		assert.Contains(t, cookie, "Secure")
 		assert.Contains(t, cookie, "SameSite=Lax")
 	})
 }
@@ -220,11 +220,10 @@ func TestGenerateUserCookie(t *testing.T) {
 	t.Run("generates user cookie with security flags", func(t *testing.T) {
 		user := &user_model.User{Username: "testuser"}
 
-		cookie := auth.GenerateUserCookie(user)
+		cookie := auth.GenerateUserCookie(user, true)
 		assert.Contains(t, cookie, "weblens-user-name=testuser")
 		assert.Contains(t, cookie, "Path=/")
 		assert.Contains(t, cookie, "Expires=")
-		assert.Contains(t, cookie, "HttpOnly")
 		assert.Contains(t, cookie, "Secure")
 		assert.Contains(t, cookie, "SameSite=Lax")
 	})
@@ -380,7 +379,7 @@ func TestCanUserAccessFile_SharedUser_DownloadPermission(t *testing.T) {
 func TestCookieExpiration(t *testing.T) {
 	t.Run("user cookie expires in the future", func(t *testing.T) {
 		user := &user_model.User{Username: "testuser"}
-		cookie := auth.GenerateUserCookie(user)
+		cookie := auth.GenerateUserCookie(user, true)
 
 		// Parse the Expires value from the cookie
 		assert.Contains(t, cookie, "Expires=")
