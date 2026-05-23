@@ -26,8 +26,11 @@ services:
       - |
         if [ ! -f /data/configdb/keyfile ]; then
           tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 756 > /data/configdb/keyfile
-          chmod 400 /data/configdb/keyfile
+          chmod 600 /data/configdb/keyfile
         fi
+
+        chown 1000:1000 /data/configdb/keyfile
+
         exec /usr/local/bin/runner server
     volumes:
       - ${DATABASE_HOST_PATH}/mongod:/data/db
