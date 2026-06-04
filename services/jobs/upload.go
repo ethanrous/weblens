@@ -265,6 +265,11 @@ WriterLoop:
 					return
 				}
 
+				embedMeta := job_model.ExtractAndEmbedMeta{File: chnk.File}
+				if _, dispatchErr := appCtx.DispatchJob(job_model.ExtractAndEmbedTask, embedMeta, nil); dispatchErr != nil {
+					appCtx.Log().Warn().Err(dispatchErr).Msgf("Failed to dispatch ExtractAndEmbedTask for %s", chnk.File.GetPortablePath())
+				}
+
 				fInfo, err := reshape.WeblensFileToFileInfo(appCtx, chnk.File)
 				if err != nil {
 					appCtx.Log().Error().Stack().Err(err).Msg("Failed to reshape file to file info")

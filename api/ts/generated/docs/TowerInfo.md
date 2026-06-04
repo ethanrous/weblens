@@ -8,6 +8,7 @@ Name | Type | Description | Notes
 **backupSize** | **number** |  | [default to undefined]
 **buildVersion** | **string** | BuildVersion is the build version of the running server binary, sourced from WEBLENS_BUILD_VERSION or the embedded VCS revision. | [optional] [default to undefined]
 **coreAddress** | **string** | Address of the remote server, only if the instance is a core. Not set for any remotes/backups on core server, as it IS the core | [default to undefined]
+**embedAvailable** | **boolean** | EmbedAvailable reports whether the embedding service (weblens-embed container) is currently reachable. Only populated for the local server. | [optional] [default to undefined]
 **id** | **string** |  | [default to undefined]
 **lastBackup** | **number** |  | [default to undefined]
 **logLevel** | **string** |  | [optional] [default to undefined]
@@ -27,6 +28,7 @@ const instance: TowerInfo = {
     backupSize,
     buildVersion,
     coreAddress,
+    embedAvailable,
     id,
     lastBackup,
     logLevel,

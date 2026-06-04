@@ -17,7 +17,7 @@ Method | HTTP request | Description
 [**GetUploadResult**](FilesAPI.md#GetUploadResult) | **Get** /upload/{uploadID} | Get the result of an upload task. This will block until the upload is complete
 [**MoveFiles**](FilesAPI.md#MoveFiles) | **Patch** /files | Move a list of files to a new parent folder
 [**RestoreFiles**](FilesAPI.md#RestoreFiles) | **Post** /files/restore | Restore files from some time in the past
-[**SearchFiles**](FilesAPI.md#SearchFiles) | **Get** /files/search | Search for files by filename
+[**SearchFiles**](FilesAPI.md#SearchFiles) | **Get** /files/search | Search for files by filename or content
 [**StartUpload**](FilesAPI.md#StartUpload) | **Post** /upload | Begin a new upload task
 [**UnTrashFiles**](FilesAPI.md#UnTrashFiles) | **Patch** /files/untrash | Move a list of files out of the trash, structsoring them to where they were before
 [**UpdateFile**](FilesAPI.md#UpdateFile) | **Patch** /files/{fileID} | Update a File
@@ -889,9 +889,9 @@ No authorization required
 
 ## SearchFiles
 
-> FilesInfo SearchFiles(ctx).Search(search).BaseFolderID(baseFolderID).SortProp(sortProp).SortOrder(sortOrder).Recursive(recursive).Regex(regex).Tags(tags).TagJoinLogic(tagJoinLogic).Execute()
+> []FileSearchResult SearchFiles(ctx).Search(search).BaseFolderID(baseFolderID).SortProp(sortProp).SortOrder(sortOrder).Recursive(recursive).Regex(regex).Tags(tags).TagJoinLogic(tagJoinLogic).IncludeContent(includeContent).Execute()
 
-Search for files by filename
+Search for files by filename or content
 
 ### Example
 
@@ -914,15 +914,16 @@ func main() {
 	regex := true // bool | Whether to treat the search term as a regex pattern (optional) (default to false)
 	tags := "tags_example" // string | Comma-separated list of tags to filter by (optional)
 	tagJoinLogic := "tagJoinLogic_example" // string | Logic to combine multiple tags with, either 'and' or 'or' (optional) (default to "or")
+	includeContent := true // bool | Include semantic content matches (optional) (default to true)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.FilesAPI.SearchFiles(context.Background()).Search(search).BaseFolderID(baseFolderID).SortProp(sortProp).SortOrder(sortOrder).Recursive(recursive).Regex(regex).Tags(tags).TagJoinLogic(tagJoinLogic).Execute()
+	resp, r, err := apiClient.FilesAPI.SearchFiles(context.Background()).Search(search).BaseFolderID(baseFolderID).SortProp(sortProp).SortOrder(sortOrder).Recursive(recursive).Regex(regex).Tags(tags).TagJoinLogic(tagJoinLogic).IncludeContent(includeContent).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FilesAPI.SearchFiles``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
-	// response from `SearchFiles`: FilesInfo
+	// response from `SearchFiles`: []FileSearchResult
 	fmt.Fprintf(os.Stdout, "Response from `FilesAPI.SearchFiles`: %v\n", resp)
 }
 ```
@@ -946,10 +947,11 @@ Name | Type | Description  | Notes
  **regex** | **bool** | Whether to treat the search term as a regex pattern | [default to false]
  **tags** | **string** | Comma-separated list of tags to filter by | 
  **tagJoinLogic** | **string** | Logic to combine multiple tags with, either &#39;and&#39; or &#39;or&#39; | [default to &quot;or&quot;]
+ **includeContent** | **bool** | Include semantic content matches | [default to true]
 
 ### Return type
 
-[**FilesInfo**](FilesInfo.md)
+[**[]FileSearchResult**](FileSearchResult.md)
 
 ### Authorization
 

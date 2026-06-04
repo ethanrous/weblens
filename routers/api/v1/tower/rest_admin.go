@@ -113,8 +113,8 @@ func SetFlags(ctx ctxservice.RequestContext) {
 		switch param.ConfigKey {
 		case featureflags.AllowRegistrations:
 			cnf.AllowRegistrations = param.ConfigValue.(bool)
-		case featureflags.EnableHDIR:
-			cnf.EnableHDIR = param.ConfigValue.(bool)
+		case featureflags.EnableEmbed:
+			cnf.EnableEmbed = param.ConfigValue.(bool)
 		default:
 			ctx.Error(http.StatusBadRequest, wlerrors.Errorf("Unknown feature flag: %s", param.ConfigKey))
 		}

@@ -5,7 +5,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **AuthAllowRegistrations** | Pointer to **bool** |  | [optional] 
-**MediaHdirProcessingEnabled** | Pointer to **bool** |  | [optional] 
+**EmbedProcessingEnabled** | Pointer to **bool** |  | [optional] 
 
 ## Methods
 
@@ -51,30 +51,30 @@ SetAuthAllowRegistrations sets AuthAllowRegistrations field to given value.
 
 HasAuthAllowRegistrations returns a boolean if a field has been set.
 
-### GetMediaHdirProcessingEnabled
+### GetEmbedProcessingEnabled
 
-`func (o *Bundle) GetMediaHdirProcessingEnabled() bool`
+`func (o *Bundle) GetEmbedProcessingEnabled() bool`
 
-GetMediaHdirProcessingEnabled returns the MediaHdirProcessingEnabled field if non-nil, zero value otherwise.
+GetEmbedProcessingEnabled returns the EmbedProcessingEnabled field if non-nil, zero value otherwise.
 
-### GetMediaHdirProcessingEnabledOk
+### GetEmbedProcessingEnabledOk
 
-`func (o *Bundle) GetMediaHdirProcessingEnabledOk() (*bool, bool)`
+`func (o *Bundle) GetEmbedProcessingEnabledOk() (*bool, bool)`
 
-GetMediaHdirProcessingEnabledOk returns a tuple with the MediaHdirProcessingEnabled field if it's non-nil, zero value otherwise
+GetEmbedProcessingEnabledOk returns a tuple with the EmbedProcessingEnabled field if it's non-nil, zero value otherwise
 and a boolean to check if the value has been set.
 
-### SetMediaHdirProcessingEnabled
+### SetEmbedProcessingEnabled
 
-`func (o *Bundle) SetMediaHdirProcessingEnabled(v bool)`
+`func (o *Bundle) SetEmbedProcessingEnabled(v bool)`
 
-SetMediaHdirProcessingEnabled sets MediaHdirProcessingEnabled field to given value.
+SetEmbedProcessingEnabled sets EmbedProcessingEnabled field to given value.
 
-### HasMediaHdirProcessingEnabled
+### HasEmbedProcessingEnabled
 
-`func (o *Bundle) HasMediaHdirProcessingEnabled() bool`
+`func (o *Bundle) HasEmbedProcessingEnabled() bool`
 
-HasMediaHdirProcessingEnabled returns a boolean if a field has been set.
+HasEmbedProcessingEnabled returns a boolean if a field has been set.
 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

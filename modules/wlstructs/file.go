@@ -52,3 +52,20 @@ type FileIDArrayInfo struct {
 type RestoreFilesInfo struct {
 	NewParentID string `json:"newParentID"`
 } //	@name	RestoreFilesInfo
+
+const (
+	// MatchKindFilename means the file's name fuzzy- or regex-matched the query.
+	MatchKindFilename = "filename"
+	// MatchKindContent means the file's extracted text or image content
+	// semantically matched the query.
+	MatchKindContent = "content"
+)
+
+// SearchResult is one entry in the /files/search response.
+type SearchResult struct {
+	File         FileInfo `json:"file"`
+	MatchKind    []string `json:"matchKind"`
+	MatchSnippet string   `json:"matchSnippet,omitempty"`
+	MatchPage    int      `json:"matchPage,omitempty"`
+	Score        float64  `json:"score"`
+} //	@name	SearchResult

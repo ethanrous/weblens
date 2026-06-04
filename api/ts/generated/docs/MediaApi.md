@@ -5,7 +5,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 |Method | HTTP request | Description|
 |------------- | ------------- | -------------|
 |[**cleanupMedia**](#cleanupmedia) | **POST** /media/cleanup | Make sure all media is correctly synced with the file system|
-|[**dropHDIRs**](#drophdirs) | **POST** /media/drop/hdirs | Drop all computed media HDIR data. Must be server owner.|
+|[**dropEmbeddings**](#dropembeddings) | **POST** /media/drop/embeddings | Drop every row from the embeddings collection (image and text). Must be server owner.|
 |[**dropMedia**](#dropmedia) | **POST** /media/drop | DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.|
 |[**getMedia**](#getmedia) | **GET** /media | Get paginated media|
 |[**getMediaFile**](#getmediafile) | **GET** /media/{mediaID}/file | Get file of media by id|
@@ -61,8 +61,8 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **dropHDIRs**
-> dropHDIRs()
+# **dropEmbeddings**
+> dropEmbeddings()
 
 
 ### Example
@@ -76,7 +76,7 @@ import {
 const configuration = new Configuration();
 const apiInstance = new MediaApi(configuration);
 
-const { status, data } = await apiInstance.dropHDIRs();
+const { status, data } = await apiInstance.dropEmbeddings();
 ```
 
 ### Parameters

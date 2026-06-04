@@ -1466,6 +1466,7 @@ type ApiSearchFilesRequest struct {
 	regex *bool
 	tags *string
 	tagJoinLogic *string
+	includeContent *bool
 }
 
 // Filename to search for
@@ -1516,12 +1517,18 @@ func (r ApiSearchFilesRequest) TagJoinLogic(tagJoinLogic string) ApiSearchFilesR
 	return r
 }
 
-func (r ApiSearchFilesRequest) Execute() (*FilesInfo, *http.Response, error) {
+// Include semantic content matches
+func (r ApiSearchFilesRequest) IncludeContent(includeContent bool) ApiSearchFilesRequest {
+	r.includeContent = &includeContent
+	return r
+}
+
+func (r ApiSearchFilesRequest) Execute() ([]FileSearchResult, *http.Response, error) {
 	return r.ApiService.SearchFilesExecute(r)
 }
 
 /*
-SearchFiles Search for files by filename
+SearchFiles Search for files by filename or content
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @return ApiSearchFilesRequest
@@ -1534,13 +1541,13 @@ func (a *FilesAPIService) SearchFiles(ctx context.Context) ApiSearchFilesRequest
 }
 
 // Execute executes the request
-//  @return FilesInfo
-func (a *FilesAPIService) SearchFilesExecute(r ApiSearchFilesRequest) (*FilesInfo, *http.Response, error) {
+//  @return []FileSearchResult
+func (a *FilesAPIService) SearchFilesExecute(r ApiSearchFilesRequest) ([]FileSearchResult, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodGet
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  *FilesInfo
+		localVarReturnValue  []FileSearchResult
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "FilesAPIService.SearchFiles")
@@ -1598,6 +1605,13 @@ func (a *FilesAPIService) SearchFilesExecute(r ApiSearchFilesRequest) (*FilesInf
 		var defaultValue string = "or"
 		parameterAddToHeaderOrQuery(localVarQueryParams, "tagJoinLogic", defaultValue, "", "")
 		r.tagJoinLogic = &defaultValue
+	}
+	if r.includeContent != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "includeContent", r.includeContent, "", "")
+	} else {
+		var defaultValue bool = true
+		parameterAddToHeaderOrQuery(localVarQueryParams, "includeContent", defaultValue, "", "")
+		r.includeContent = &defaultValue
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}

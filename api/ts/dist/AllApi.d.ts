@@ -141,7 +141,7 @@ interface BackupInfo {
 }
 interface Bundle {
     'auth.allow_registrations'?: boolean;
-    'media.hdir_processing_enabled'?: boolean;
+    'embed.processing_enabled'?: boolean;
 }
 interface CreateFolderBody {
     'children'?: Array<string>;
@@ -187,6 +187,13 @@ interface FileInfo {
     'portablePath'?: string;
     'shareID'?: string;
     'size'?: number;
+}
+interface FileSearchResult {
+    'file'?: FileInfo;
+    'matchKind'?: Array<string>;
+    'matchPage'?: number;
+    'matchSnippet'?: string;
+    'score'?: number;
 }
 interface FileShareParams {
     'fileID'?: string;
@@ -449,6 +456,10 @@ interface TowerInfo {
      * Address of the remote server, only if the instance is a core. Not set for any remotes/backups on core server, as it IS the core
      */
     'coreAddress': string;
+    /**
+     * EmbedAvailable reports whether the embedding service (weblens-embed container) is currently reachable. Only populated for the local server.
+     */
+    'embedAvailable'?: boolean;
     'id': string;
     'lastBackup': number;
     'logLevel'?: string;
@@ -833,7 +844,7 @@ declare const FilesApiAxiosParamCreator: (configuration?: Configuration) => {
     restoreFiles: (request: RestoreFilesBody, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
-     * @summary Search for files by filename
+     * @summary Search for files by filename or content
      * @param {string} search Filename to search for
      * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
      * @param {SearchFilesSortPropEnum} [sortProp] Property to sort by
@@ -842,10 +853,11 @@ declare const FilesApiAxiosParamCreator: (configuration?: Configuration) => {
      * @param {boolean} [regex] Whether to treat the search term as a regex pattern
      * @param {string} [tags] Comma-separated list of tags to filter by
      * @param {SearchFilesTagJoinLogicEnum} [tagJoinLogic] Logic to combine multiple tags with, either \&#39;and\&#39; or \&#39;or\&#39;
+     * @param {boolean} [includeContent] Include semantic content matches
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    searchFiles: (search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    searchFiles: (search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, includeContent?: boolean, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Begin a new upload task
@@ -1006,7 +1018,7 @@ declare const FilesApiFp: (configuration?: Configuration) => {
     restoreFiles(request: RestoreFilesBody, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<RestoreFilesInfo>>;
     /**
      *
-     * @summary Search for files by filename
+     * @summary Search for files by filename or content
      * @param {string} search Filename to search for
      * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
      * @param {SearchFilesSortPropEnum} [sortProp] Property to sort by
@@ -1015,10 +1027,11 @@ declare const FilesApiFp: (configuration?: Configuration) => {
      * @param {boolean} [regex] Whether to treat the search term as a regex pattern
      * @param {string} [tags] Comma-separated list of tags to filter by
      * @param {SearchFilesTagJoinLogicEnum} [tagJoinLogic] Logic to combine multiple tags with, either \&#39;and\&#39; or \&#39;or\&#39;
+     * @param {boolean} [includeContent] Include semantic content matches
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FilesInfo>>;
+    searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, includeContent?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<FileSearchResult>>>;
     /**
      *
      * @summary Begin a new upload task
@@ -1179,7 +1192,7 @@ declare const FilesApiFactory: (configuration?: Configuration, basePath?: string
     restoreFiles(request: RestoreFilesBody, options?: RawAxiosRequestConfig): AxiosPromise<RestoreFilesInfo>;
     /**
      *
-     * @summary Search for files by filename
+     * @summary Search for files by filename or content
      * @param {string} search Filename to search for
      * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
      * @param {SearchFilesSortPropEnum} [sortProp] Property to sort by
@@ -1188,10 +1201,11 @@ declare const FilesApiFactory: (configuration?: Configuration, basePath?: string
      * @param {boolean} [regex] Whether to treat the search term as a regex pattern
      * @param {string} [tags] Comma-separated list of tags to filter by
      * @param {SearchFilesTagJoinLogicEnum} [tagJoinLogic] Logic to combine multiple tags with, either \&#39;and\&#39; or \&#39;or\&#39;
+     * @param {boolean} [includeContent] Include semantic content matches
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options?: RawAxiosRequestConfig): AxiosPromise<FilesInfo>;
+    searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, includeContent?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<Array<FileSearchResult>>;
     /**
      *
      * @summary Begin a new upload task
@@ -1352,7 +1366,7 @@ declare class FilesApi extends BaseAPI {
     restoreFiles(request: RestoreFilesBody, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<RestoreFilesInfo, any, {}>>;
     /**
      *
-     * @summary Search for files by filename
+     * @summary Search for files by filename or content
      * @param {string} search Filename to search for
      * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
      * @param {SearchFilesSortPropEnum} [sortProp] Property to sort by
@@ -1361,10 +1375,11 @@ declare class FilesApi extends BaseAPI {
      * @param {boolean} [regex] Whether to treat the search term as a regex pattern
      * @param {string} [tags] Comma-separated list of tags to filter by
      * @param {SearchFilesTagJoinLogicEnum} [tagJoinLogic] Logic to combine multiple tags with, either \&#39;and\&#39; or \&#39;or\&#39;
+     * @param {boolean} [includeContent] Include semantic content matches
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FilesInfo, any, {}>>;
+    searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, includeContent?: boolean, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<FileSearchResult[], any, {}>>;
     /**
      *
      * @summary Begin a new upload task
@@ -1685,11 +1700,11 @@ declare const MediaApiAxiosParamCreator: (configuration?: Configuration) => {
     cleanupMedia: (options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
-     * @summary Drop all computed media HDIR data. Must be server owner.
+     * @summary Drop every row from the embeddings collection (image and text). Must be server owner.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    dropHDIRs: (options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    dropEmbeddings: (options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
@@ -1800,11 +1815,11 @@ declare const MediaApiFp: (configuration?: Configuration) => {
     cleanupMedia(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
     /**
      *
-     * @summary Drop all computed media HDIR data. Must be server owner.
+     * @summary Drop every row from the embeddings collection (image and text). Must be server owner.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    dropHDIRs(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
+    dropEmbeddings(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>>;
     /**
      *
      * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
@@ -1915,11 +1930,11 @@ declare const MediaApiFactory: (configuration?: Configuration, basePath?: string
     cleanupMedia(options?: RawAxiosRequestConfig): AxiosPromise<void>;
     /**
      *
-     * @summary Drop all computed media HDIR data. Must be server owner.
+     * @summary Drop every row from the embeddings collection (image and text). Must be server owner.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    dropHDIRs(options?: RawAxiosRequestConfig): AxiosPromise<void>;
+    dropEmbeddings(options?: RawAxiosRequestConfig): AxiosPromise<void>;
     /**
      *
      * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
@@ -2030,11 +2045,11 @@ declare class MediaApi extends BaseAPI {
     cleanupMedia(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any, {}>>;
     /**
      *
-     * @summary Drop all computed media HDIR data. Must be server owner.
+     * @summary Drop every row from the embeddings collection (image and text). Must be server owner.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    dropHDIRs(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any, {}>>;
+    dropEmbeddings(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<void, any, {}>>;
     /**
      *
      * @summary DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
@@ -3560,4 +3575,4 @@ type WLAPI = {
 };
 declare function WeblensAPIFactory(apiEndpoint: string): WLAPI;
 
-export { type APIKeyParams, APIKeysApi, APIKeysApiAxiosParamCreator, APIKeysApiFactory, APIKeysApiFp, type AddUserParams, type BackupInfo, type Bundle, type CreateFolderBody, FeatureFlagsApi, FeatureFlagsApiAxiosParamCreator, FeatureFlagsApiFactory, FeatureFlagsApiFp, type FileActionInfo, type FileCreateTagParams, type FileFileIDsParams, type FileIDArrayInfo, type FileInfo, type FileShareParams, type FileUpdateTagParams, FilesApi, FilesApiAxiosParamCreator, FilesApiFactory, FilesApiFp, type FilesInfo, type FilesListParams, FolderApi, FolderApiAxiosParamCreator, FolderApiFactory, FolderApiFp, type FolderInfo, GetFolderSortOrderEnum, GetFolderSortPropEnum, GetMediaImageQualityEnum, GetMediaSortDirectionEnum, GetMediaSortEnum, type GithubComEthanrousWeblensModelsTagTag, type HistoryFileAction, HistoryFileActionType, type LoginBody, MediaApi, MediaApiAxiosParamCreator, MediaApiFactory, MediaApiFp, type MediaBatchInfo, type MediaIDsParams, type MediaInfo, type MediaTypeInfo, type MediaTypesInfo, type MoveFilesParams, type NewFileParams, type NewFilesParams, type NewServerParams, type NewUploadInfo, type NewUploadParams, type NewUserParams, type PasswordUpdateParams, type PermissionsInfo, type PermissionsParams, type RestoreFilesBody, type RestoreFilesInfo, SearchFilesSortOrderEnum, SearchFilesSortPropEnum, SearchFilesTagJoinLogicEnum, ShareApi, ShareApiAxiosParamCreator, ShareApiFactory, ShareApiFp, type ShareInfo, TagsApi, TagsApiAxiosParamCreator, TagsApiFactory, TagsApiFp, type TakeoutInfo, type TaskInfo, type TokenInfo, type TowerHealth, TowerHealthStatusEnum, type TowerInfo, TowersApi, TowersApiAxiosParamCreator, TowersApiFactory, TowersApiFp, type UpdateFileParams, type UserInfo, type UserInfoArchive, UsersApi, UsersApiAxiosParamCreator, UsersApiFactory, UsersApiFp, type WLAPI, type WLResponseInfo, WeblensAPIFactory, type WeblensErrorInfo, type WlfsFilepath, type WlstructsInitServerParams, type WlstructsSetConfigParam };
+export { type APIKeyParams, APIKeysApi, APIKeysApiAxiosParamCreator, APIKeysApiFactory, APIKeysApiFp, type AddUserParams, type BackupInfo, type Bundle, type CreateFolderBody, FeatureFlagsApi, FeatureFlagsApiAxiosParamCreator, FeatureFlagsApiFactory, FeatureFlagsApiFp, type FileActionInfo, type FileCreateTagParams, type FileFileIDsParams, type FileIDArrayInfo, type FileInfo, type FileSearchResult, type FileShareParams, type FileUpdateTagParams, FilesApi, FilesApiAxiosParamCreator, FilesApiFactory, FilesApiFp, type FilesInfo, type FilesListParams, FolderApi, FolderApiAxiosParamCreator, FolderApiFactory, FolderApiFp, type FolderInfo, GetFolderSortOrderEnum, GetFolderSortPropEnum, GetMediaImageQualityEnum, GetMediaSortDirectionEnum, GetMediaSortEnum, type GithubComEthanrousWeblensModelsTagTag, type HistoryFileAction, HistoryFileActionType, type LoginBody, MediaApi, MediaApiAxiosParamCreator, MediaApiFactory, MediaApiFp, type MediaBatchInfo, type MediaIDsParams, type MediaInfo, type MediaTypeInfo, type MediaTypesInfo, type MoveFilesParams, type NewFileParams, type NewFilesParams, type NewServerParams, type NewUploadInfo, type NewUploadParams, type NewUserParams, type PasswordUpdateParams, type PermissionsInfo, type PermissionsParams, type RestoreFilesBody, type RestoreFilesInfo, SearchFilesSortOrderEnum, SearchFilesSortPropEnum, SearchFilesTagJoinLogicEnum, ShareApi, ShareApiAxiosParamCreator, ShareApiFactory, ShareApiFp, type ShareInfo, TagsApi, TagsApiAxiosParamCreator, TagsApiFactory, TagsApiFp, type TakeoutInfo, type TaskInfo, type TokenInfo, type TowerHealth, TowerHealthStatusEnum, type TowerInfo, TowersApi, TowersApiAxiosParamCreator, TowersApiFactory, TowersApiFp, type UpdateFileParams, type UserInfo, type UserInfoArchive, UsersApi, UsersApiAxiosParamCreator, UsersApiFactory, UsersApiFp, type WLAPI, type WLResponseInfo, WeblensAPIFactory, type WeblensErrorInfo, type WlfsFilepath, type WlstructsInitServerParams, type WlstructsSetConfigParam };

@@ -16,8 +16,8 @@ else
     echo "MongoDB is already running."
 fi
 
-if [[ "$role" == "core" ]] && ! is_hdir_running --containerized false; then
-    show_as_subtask "Launching HDIR" "orange" -- launch_hdir --containerized false
+if [[ "$role" == "core" ]] && ! is_embed_running --containerized false; then
+    show_as_subtask "Launching embed service" "orange" -- launch_embed --containerized false
 else
-    echo "HDIR is already running."
+    echo "Embed service is already running."
 fi

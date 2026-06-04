@@ -199,13 +199,21 @@ paths:
           - and
           - or
           type: string
+      - description: Include semantic content matches
+        in: query
+        name: includeContent
+        schema:
+          default: true
+          type: boolean
       responses:
         "200":
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/FilesInfo"
-          description: Search results
+                items:
+                  $ref: "#/components/schemas/file.SearchResult"
+                type: array
+          description: OK
         "400":
           content: {}
           description: Bad Request
@@ -217,7 +225,7 @@ paths:
           description: Internal Server Error
       security:
       - SessionAuth: []
-      summary: Search for files by filename
+      summary: Search for files by filename or content
       tags:
       - Files
   /files/shared:
@@ -927,9 +935,9 @@ paths:
         filesystem cache. Must be server owner.
       tags:
       - Media
-  /media/drop/hdirs:
+  /media/drop/embeddings:
     post:
-      operationId: DropHDIRs
+      operationId: DropEmbeddings
       responses:
         "200":
           content: {}
@@ -945,7 +953,8 @@ paths:
         - admin
       - ApiKeyAuth:
         - admin
-      summary: Drop all computed media HDIR data. Must be server owner.
+      summary: Drop every row from the embeddings collection (image and text). Must
+        be server owner.
       tags:
       - Media
   /media/random:
@@ -2606,28 +2615,30 @@ components:
           timestamp: 6
         lifetimesCount: 0
         instances:
-        - backupSize: 0
-          lastBackup: 6
-          buildVersion: buildVersion
+        - buildVersion: buildVersion
           role: role
+          started: true
+          backupSize: 0
+          lastBackup: 6
           logLevel: logLevel
           userCount: 1
           reportedRole: reportedRole
           name: name
+          embedAvailable: true
           online: true
-          started: true
           id: id
           coreAddress: coreAddress
-        - backupSize: 0
-          lastBackup: 6
-          buildVersion: buildVersion
+        - buildVersion: buildVersion
           role: role
+          started: true
+          backupSize: 0
+          lastBackup: 6
           logLevel: logLevel
           userCount: 1
           reportedRole: reportedRole
           name: name
+          embedAvailable: true
           online: true
-          started: true
           id: id
           coreAddress: coreAddress
         tokens:
@@ -2690,12 +2701,12 @@ components:
       type: object
     Bundle:
       example:
+        embed.processing_enabled: true
         auth.allow_registrations: true
-        media.hdir_processing_enabled: true
       properties:
         auth.allow_registrations:
           type: boolean
-        media.hdir_processing_enabled:
+        embed.processing_enabled:
           type: boolean
       type: object
     CreateFolderBody:
@@ -3720,16 +3731,17 @@ components:
       type: object
     TowerInfo:
       example:
-        backupSize: 0
-        lastBackup: 6
         buildVersion: buildVersion
         role: role
+        started: true
+        backupSize: 0
+        lastBackup: 6
         logLevel: logLevel
         userCount: 1
         reportedRole: reportedRole
         name: name
+        embedAvailable: true
         online: true
-        started: true
         id: id
         coreAddress: coreAddress
       properties:
@@ -3746,6 +3758,11 @@ components:
             Address of the remote server, only if the instance is a core.
             Not set for any remotes/backups on core server, as it IS the core
           type: string
+        embedAvailable:
+          description: |-
+            EmbedAvailable reports whether the embedding service (weblens-embed
+            container) is currently reachable. Only populated for the local server.
+          type: boolean
         id:
           type: string
         lastBackup:
@@ -3886,6 +3903,50 @@ components:
       properties:
         error:
           type: string
+      type: object
+    file.SearchResult:
+      example:
+        score: 6.027456183070403
+        matchSnippet: matchSnippet
+        file:
+          owner: owner
+          hasRestoreData: true
+          childrenIds:
+          - childrenIds
+          - childrenIds
+          contentID: contentID
+          hasMedia: true
+          shareID: shareID
+          portablePath: portablePath
+          parentID: parentID
+          modifyTimestamp: 0
+          pastFile: true
+          size: 6
+          permissions:
+            canView: true
+            canEdit: true
+            canDownload: true
+            canDelete: true
+          id: id
+          modifiable: true
+          isDir: true
+        matchPage: 0
+        matchKind:
+        - matchKind
+        - matchKind
+      properties:
+        file:
+          $ref: "#/components/schemas/FileInfo"
+        matchKind:
+          items:
+            type: string
+          type: array
+        matchPage:
+          type: integer
+        matchSnippet:
+          type: string
+        score:
+          type: number
       type: object
     file.createTagParams:
       properties:

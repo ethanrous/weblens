@@ -10,6 +10,7 @@
                     v-if="!presentingFile?.IsFolder() && (locationStore.isInTimeline || presentingFile?.contentID)"
                     :media-id="mediaID"
                     :presentation-size="props.presentationSize"
+                    :scroll-to="presentingFile?.matchPage"
                 />
 
                 <div

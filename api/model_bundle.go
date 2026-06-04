@@ -20,7 +20,7 @@ var _ MappedNullable = &Bundle{}
 // Bundle struct for Bundle
 type Bundle struct {
 	AuthAllowRegistrations *bool `json:"auth.allow_registrations,omitempty"`
-	MediaHdirProcessingEnabled *bool `json:"media.hdir_processing_enabled,omitempty"`
+	EmbedProcessingEnabled *bool `json:"embed.processing_enabled,omitempty"`
 }
 
 // NewBundle instantiates a new Bundle object
@@ -72,36 +72,36 @@ func (o *Bundle) SetAuthAllowRegistrations(v bool) {
 	o.AuthAllowRegistrations = &v
 }
 
-// GetMediaHdirProcessingEnabled returns the MediaHdirProcessingEnabled field value if set, zero value otherwise.
-func (o *Bundle) GetMediaHdirProcessingEnabled() bool {
-	if o == nil || IsNil(o.MediaHdirProcessingEnabled) {
+// GetEmbedProcessingEnabled returns the EmbedProcessingEnabled field value if set, zero value otherwise.
+func (o *Bundle) GetEmbedProcessingEnabled() bool {
+	if o == nil || IsNil(o.EmbedProcessingEnabled) {
 		var ret bool
 		return ret
 	}
-	return *o.MediaHdirProcessingEnabled
+	return *o.EmbedProcessingEnabled
 }
 
-// GetMediaHdirProcessingEnabledOk returns a tuple with the MediaHdirProcessingEnabled field value if set, nil otherwise
+// GetEmbedProcessingEnabledOk returns a tuple with the EmbedProcessingEnabled field value if set, nil otherwise
 // and a boolean to check if the value has been set.
-func (o *Bundle) GetMediaHdirProcessingEnabledOk() (*bool, bool) {
-	if o == nil || IsNil(o.MediaHdirProcessingEnabled) {
+func (o *Bundle) GetEmbedProcessingEnabledOk() (*bool, bool) {
+	if o == nil || IsNil(o.EmbedProcessingEnabled) {
 		return nil, false
 	}
-	return o.MediaHdirProcessingEnabled, true
+	return o.EmbedProcessingEnabled, true
 }
 
-// HasMediaHdirProcessingEnabled returns a boolean if a field has been set.
-func (o *Bundle) HasMediaHdirProcessingEnabled() bool {
-	if o != nil && !IsNil(o.MediaHdirProcessingEnabled) {
+// HasEmbedProcessingEnabled returns a boolean if a field has been set.
+func (o *Bundle) HasEmbedProcessingEnabled() bool {
+	if o != nil && !IsNil(o.EmbedProcessingEnabled) {
 		return true
 	}
 
 	return false
 }
 
-// SetMediaHdirProcessingEnabled gets a reference to the given bool and assigns it to the MediaHdirProcessingEnabled field.
-func (o *Bundle) SetMediaHdirProcessingEnabled(v bool) {
-	o.MediaHdirProcessingEnabled = &v
+// SetEmbedProcessingEnabled gets a reference to the given bool and assigns it to the EmbedProcessingEnabled field.
+func (o *Bundle) SetEmbedProcessingEnabled(v bool) {
+	o.EmbedProcessingEnabled = &v
 }
 
 func (o Bundle) MarshalJSON() ([]byte, error) {
@@ -117,8 +117,8 @@ func (o Bundle) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.AuthAllowRegistrations) {
 		toSerialize["auth.allow_registrations"] = o.AuthAllowRegistrations
 	}
-	if !IsNil(o.MediaHdirProcessingEnabled) {
-		toSerialize["media.hdir_processing_enabled"] = o.MediaHdirProcessingEnabled
+	if !IsNil(o.EmbedProcessingEnabled) {
+		toSerialize["embed.processing_enabled"] = o.EmbedProcessingEnabled
 	}
 	return toSerialize, nil
 }

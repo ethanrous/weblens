@@ -202,7 +202,7 @@ const docTemplate = `{
                 "tags": [
                     "Files"
                 ],
-                "summary": "Search for files by filename",
+                "summary": "Search for files by filename or content",
                 "operationId": "SearchFiles",
                 "parameters": [
                     {
@@ -279,13 +279,23 @@ const docTemplate = `{
                         "description": "Logic to combine multiple tags with, either 'and' or 'or'",
                         "name": "tagJoinLogic",
                         "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Include semantic content matches",
+                        "name": "includeContent",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Search results",
+                        "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/FilesInfo"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/file.SearchResult"
+                            }
                         }
                     },
                     "400": {
@@ -1307,7 +1317,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/media/drop/hdirs": {
+        "/media/drop/embeddings": {
             "post": {
                 "security": [
                     {
@@ -1327,8 +1337,8 @@ const docTemplate = `{
                 "tags": [
                     "Media"
                 ],
-                "summary": "Drop all computed media HDIR data. Must be server owner.",
-                "operationId": "DropHDIRs",
+                "summary": "Drop every row from the embeddings collection (image and text). Must be server owner.",
+                "operationId": "DropEmbeddings",
                 "responses": {
                     "200": {
                         "description": "OK"
@@ -3642,7 +3652,7 @@ const docTemplate = `{
                 "auth.allow_registrations": {
                     "type": "boolean"
                 },
-                "media.hdir_processing_enabled": {
+                "embed.processing_enabled": {
                     "type": "boolean"
                 }
             }
@@ -4395,6 +4405,10 @@ const docTemplate = `{
                     "description": "Address of the remote server, only if the instance is a core.\nNot set for any remotes/backups on core server, as it IS the core",
                     "type": "string"
                 },
+                "embedAvailable": {
+                    "description": "EmbedAvailable reports whether the embedding service (weblens-embed\ncontainer) is currently reachable. Only populated for the local server.",
+                    "type": "boolean"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -4538,6 +4552,29 @@ const docTemplate = `{
             "properties": {
                 "error": {
                     "type": "string"
+                }
+            }
+        },
+        "file.SearchResult": {
+            "type": "object",
+            "properties": {
+                "file": {
+                    "$ref": "#/definitions/FileInfo"
+                },
+                "matchKind": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "matchPage": {
+                    "type": "integer"
+                },
+                "matchSnippet": {
+                    "type": "string"
+                },
+                "score": {
+                    "type": "number"
                 }
             }
         },

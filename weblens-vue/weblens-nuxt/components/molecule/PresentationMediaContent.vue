@@ -8,6 +8,7 @@
     <PDF
         v-else-if="media.IsPDF()"
         :media="media"
+        :scroll-to="props.scrollTo"
     />
 
     <MediaImage
@@ -40,6 +41,7 @@ const props = defineProps<{
         width: ShallowRef<number>
         height: ShallowRef<number>
     }
+    scrollTo?: number
 }>()
 
 const { data: media } = useAsyncData(

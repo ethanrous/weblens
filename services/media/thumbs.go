@@ -182,6 +182,12 @@ func resizeToFit(img *agno.Image, maxSize int) (*agno.Image, error) {
 	return img.Resize(float64(targetH) / float64(h))
 }
 
+// GetCacheFile returns the cached thumbnail file for a media at the given quality and page.
+// Used by the embed pipeline to locate the lowres image for vector encoding.
+func GetCacheFile(ctx context_service.AppContext, m *media_model.Media, quality media_model.Quality, pageNum int) (*file_model.WeblensFileImpl, error) {
+	return getCacheFile(ctx, m, quality, pageNum)
+}
+
 func getCacheFile(ctx context_service.AppContext, m *media_model.Media, quality media_model.Quality, pageNum int) (*file_model.WeblensFileImpl, error) {
 	filename, err := media_model.FmtCacheFileName(m.ID(), quality, pageNum)
 	if err != nil {

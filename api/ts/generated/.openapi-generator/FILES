@@ -16,6 +16,7 @@ docs/FileCreateTagParams.md
 docs/FileFileIDsParams.md
 docs/FileIDArrayInfo.md
 docs/FileInfo.md
+docs/FileSearchResult.md
 docs/FileShareParams.md
 docs/FileUpdateTagParams.md
 docs/FilesApi.md

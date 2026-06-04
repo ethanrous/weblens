@@ -25,6 +25,7 @@ docs/FileCreateTagParams.md
 docs/FileFileIDsParams.md
 docs/FileIDArrayInfo.md
 docs/FileInfo.md
+docs/FileSearchResult.md
 docs/FileShareParams.md
 docs/FileUpdateTagParams.md
 docs/FilesAPI.md
@@ -85,6 +86,7 @@ model_file_create_tag_params.go
 model_file_file_ids_params.go
 model_file_id_array_info.go
 model_file_info.go
+model_file_search_result.go
 model_file_share_params.go
 model_file_update_tag_params.go
 model_files_info.go

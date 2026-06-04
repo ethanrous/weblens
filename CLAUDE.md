@@ -5,6 +5,7 @@ Weblens — self-hosted file management and photo server.
 - Go backend (chi, MongoDB)
 - Vue 3/Nuxt 4 + Tailwind SPA frontend at `./weblens-vue/weblens-nuxt/`
 - Rust image processing library (`agno/`) linked via CGO.
+- Python multimodal-embedding sidecar (`embed/`, Flask + Jina CLIP v2) for semantic image and document search. `make dev` starts this alongside the Go server.
 
 ## Quick Reference
 

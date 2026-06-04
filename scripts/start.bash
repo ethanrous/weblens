@@ -110,7 +110,7 @@ if [[ "$sub_stack_group" != "" ]]; then
 fi
 
 export WEBLENS_MONGODB_URI="mongodb://127.0.0.1:$mongo_port/?directConnection=true"
-export WEBLENS_HDIR_URI="http://127.0.0.1:5500"
+export WEBLENS_EMBED_URI="http://127.0.0.1:5500"
 export WEBLENS_DATA_PATH="$file_path/data"
 export WEBLENS_CACHE_PATH="$file_path/cache"
 export WEBLENS_UI_PATH=./weblens-vue/weblens-nuxt/.output/public

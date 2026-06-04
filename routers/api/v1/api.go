@@ -50,7 +50,7 @@ func Routes(_ context_service.AppContext) *router.Router {
 			r.Get("/{mediaID}/file", media_api.GetMediaFile)
 			r.Post("/cleanup", media_api.CleanupMedia)
 			r.Post("/drop", router.RequireOwner, media_api.DropMedia)
-			r.Post("/drop/hdirs", router.RequireOwner, media_api.DropHDIRs)
+			r.Post("/drop/embeddings", router.RequireOwner, media_api.DropEmbeddings)
 			r.Patch("/visibility", media_api.HideMedia)
 			r.Patch("/date", media_api.AdjustMediaDate)
 		}, router.RequireSignIn)

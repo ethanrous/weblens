@@ -109,42 +109,42 @@ func (a *MediaAPIService) CleanupMediaExecute(r ApiCleanupMediaRequest) (*http.R
 	return localVarHTTPResponse, nil
 }
 
-type ApiDropHDIRsRequest struct {
+type ApiDropEmbeddingsRequest struct {
 	ctx context.Context
 	ApiService *MediaAPIService
 }
 
-func (r ApiDropHDIRsRequest) Execute() (*http.Response, error) {
-	return r.ApiService.DropHDIRsExecute(r)
+func (r ApiDropEmbeddingsRequest) Execute() (*http.Response, error) {
+	return r.ApiService.DropEmbeddingsExecute(r)
 }
 
 /*
-DropHDIRs Drop all computed media HDIR data. Must be server owner.
+DropEmbeddings Drop every row from the embeddings collection (image and text). Must be server owner.
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @return ApiDropHDIRsRequest
+ @return ApiDropEmbeddingsRequest
 */
-func (a *MediaAPIService) DropHDIRs(ctx context.Context) ApiDropHDIRsRequest {
-	return ApiDropHDIRsRequest{
+func (a *MediaAPIService) DropEmbeddings(ctx context.Context) ApiDropEmbeddingsRequest {
+	return ApiDropEmbeddingsRequest{
 		ApiService: a,
 		ctx: ctx,
 	}
 }
 
 // Execute executes the request
-func (a *MediaAPIService) DropHDIRsExecute(r ApiDropHDIRsRequest) (*http.Response, error) {
+func (a *MediaAPIService) DropEmbeddingsExecute(r ApiDropEmbeddingsRequest) (*http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodPost
 		localVarPostBody     interface{}
 		formFiles            []formFile
 	)
 
-	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "MediaAPIService.DropHDIRs")
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "MediaAPIService.DropEmbeddings")
 	if err != nil {
 		return nil, &GenericOpenAPIError{error: err.Error()}
 	}
 
-	localVarPath := localBasePath + "/media/drop/hdirs"
+	localVarPath := localBasePath + "/media/drop/embeddings"
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := url.Values{}

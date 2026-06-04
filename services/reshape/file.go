@@ -17,6 +17,7 @@ type FileInfoOptions struct {
 	ModifiableOverride option.Option[bool]
 	Perms              option.Option[share_model.Permissions]
 	DontCheckShare     bool // If true, we won't check if the file has a share
+	HasMedia           bool // If true, thumbnails for this file exist
 }
 
 func compileOptions(opts ...FileInfoOptions) FileInfoOptions {
@@ -37,6 +38,10 @@ func compileOptions(opts ...FileInfoOptions) FileInfoOptions {
 
 		if opt.DontCheckShare {
 			compiled.DontCheckShare = true
+		}
+
+		if opt.HasMedia {
+			compiled.HasMedia = true
 		}
 	}
 
@@ -146,5 +151,6 @@ func WeblensFileToFileInfo(ctx context.Context, f *file_model.WeblensFileImpl, o
 		ShareID:        shareID,
 		Size:           size,
 		Permissions:    perms,
+		HasMedia:       o.HasMedia,
 	}, nil
 }

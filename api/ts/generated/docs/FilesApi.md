@@ -17,7 +17,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 |[**getUploadResult**](#getuploadresult) | **GET** /upload/{uploadID} | Get the result of an upload task. This will block until the upload is complete|
 |[**moveFiles**](#movefiles) | **PATCH** /files | Move a list of files to a new parent folder|
 |[**restoreFiles**](#restorefiles) | **POST** /files/restore | Restore files from some time in the past|
-|[**searchFiles**](#searchfiles) | **GET** /files/search | Search for files by filename|
+|[**searchFiles**](#searchfiles) | **GET** /files/search | Search for files by filename or content|
 |[**startUpload**](#startupload) | **POST** /upload | Begin a new upload task|
 |[**unTrashFiles**](#untrashfiles) | **PATCH** /files/untrash | Move a list of files out of the trash, structsoring them to where they were before|
 |[**updateFile**](#updatefile) | **PATCH** /files/{fileID} | Update a File|
@@ -728,7 +728,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **searchFiles**
-> FilesInfo searchFiles()
+> Array<FileSearchResult> searchFiles()
 
 
 ### Example
@@ -750,6 +750,7 @@ let recursive: boolean; //Search recursively (optional) (default to false)
 let regex: boolean; //Whether to treat the search term as a regex pattern (optional) (default to false)
 let tags: string; //Comma-separated list of tags to filter by (optional) (default to undefined)
 let tagJoinLogic: 'and' | 'or'; //Logic to combine multiple tags with, either \'and\' or \'or\' (optional) (default to 'or')
+let includeContent: boolean; //Include semantic content matches (optional) (default to true)
 
 const { status, data } = await apiInstance.searchFiles(
     search,
@@ -759,7 +760,8 @@ const { status, data } = await apiInstance.searchFiles(
     recursive,
     regex,
     tags,
-    tagJoinLogic
+    tagJoinLogic,
+    includeContent
 );
 ```
 
@@ -775,11 +777,12 @@ const { status, data } = await apiInstance.searchFiles(
 | **regex** | [**boolean**] | Whether to treat the search term as a regex pattern | (optional) defaults to false|
 | **tags** | [**string**] | Comma-separated list of tags to filter by | (optional) defaults to undefined|
 | **tagJoinLogic** | [**&#39;and&#39; | &#39;or&#39;**]**Array<&#39;and&#39; &#124; &#39;or&#39;>** | Logic to combine multiple tags with, either \&#39;and\&#39; or \&#39;or\&#39; | (optional) defaults to 'or'|
+| **includeContent** | [**boolean**] | Include semantic content matches | (optional) defaults to true|
 
 
 ### Return type
 
-**FilesInfo**
+**Array<FileSearchResult>**
 
 ### Authorization
 
@@ -794,7 +797,7 @@ No authorization required
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-|**200** | Search results |  -  |
+|**200** | OK |  -  |
 |**400** | Bad Request |  -  |
 |**401** | Unauthorized |  -  |
 |**500** | Internal Server Error |  -  |

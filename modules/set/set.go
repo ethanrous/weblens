@@ -14,6 +14,10 @@ func New[T comparable](items ...T) Set[T] {
 	return s
 }
 
+func NewN[T comparable](capacity int) Set[T] {
+	return make(Set[T], capacity)
+}
+
 // Add adds an item(s) to the Set.
 func (s Set[T]) Add(items ...T) {
 	for _, item := range items {
@@ -36,6 +40,16 @@ func (s Set[T]) Has(item T) bool {
 // Len returns the number of items in the Set.
 func (s Set[T]) Len() int {
 	return len(s)
+}
+
+// ToSlice returns a slice containing all items in the Set.
+func (s Set[T]) ToSlice() []T {
+	slice := make([]T, 0, s.Len())
+	for item := range s {
+		slice = append(slice, item)
+	}
+
+	return slice
 }
 
 // Union returns a new Set containing all unique items from both sets.

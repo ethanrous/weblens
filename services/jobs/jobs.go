@@ -99,4 +99,5 @@ func RegisterJobs(workerPool *task.WorkerPool) {
 	workerPool.RegisterJob(job_model.CopyFileFromCoreTask, CopyFileFromCore)
 	workerPool.RegisterJob(job_model.RestoreCoreTask, RestoreCore)
 	workerPool.RegisterJob(job_model.LoadFilesystemTask, LoadAtPath)
+	workerPool.RegisterJob(job_model.ExtractAndEmbedTask, ExtractAndEmbedFile)
 }

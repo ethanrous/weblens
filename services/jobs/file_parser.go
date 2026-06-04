@@ -4,6 +4,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/ethanrous/weblens/models/embedding"
 	"github.com/ethanrous/weblens/models/featureflags"
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/job"
@@ -13,6 +14,7 @@ import (
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/modules/wlog"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
+	"github.com/ethanrous/weblens/services/embed"
 	media_service "github.com/ethanrous/weblens/services/media"
 	"github.com/ethanrous/weblens/services/notify"
 	"github.com/ethanrous/weblens/services/reshape"
@@ -99,7 +101,7 @@ func ScanDirectory(t *task.Task) {
 		ctx,
 		ctx.FileService,
 		func(mf *file_model.WeblensFileImpl) error {
-			return queueScanFileIfNeeded(ctx, t, mf, cnf.EnableHDIR, meta.ForceReIndex, &alreadyFiles, &alreadyMedia, pool)
+			return queueScanFileIfNeeded(ctx, t, mf, cnf.EnableEmbed, meta.ForceReIndex, &alreadyFiles, &alreadyMedia, pool)
 		},
 	)
 
@@ -212,7 +214,13 @@ func ScanFileTsk(ctx context_service.AppContext, meta job.ScanMeta) error {
 	}
 
 	existingMedia, err := media_model.GetMediaByContentID(ctx, meta.File.GetContentID())
-	if err == nil && !meta.ForceReIndex && existingMedia.IsSufficentlyProcessed(cnf.EnableHDIR) {
+
+	var hasEmbedding bool
+	if err == nil && cnf.EnableEmbed {
+		hasEmbedding = hasImageEmbedding(ctx, string(existingMedia.ContentID))
+	}
+
+	if err == nil && !meta.ForceReIndex && existingMedia.IsSufficentlyProcessed(cnf.EnableEmbed, hasEmbedding) {
 		ctx.Log().Trace().Msgf("Media [%s] already sufficiently processed, skipping", existingMedia.ID())
 
 		if !slices.Contains(existingMedia.FileIDs, meta.File.ID()) {
@@ -230,6 +238,10 @@ func ScanFileTsk(ctx context_service.AppContext, meta job.ScanMeta) error {
 		err = media_model.DeleteMediaByContentID(ctx, existingMedia.ContentID)
 		if err != nil {
 			return wlerrors.Errorf("failed to delete existing media for re-index: %w", err)
+		}
+
+		if err := embedding.DeleteForSource(ctx, string(existingMedia.ContentID), embedding.KindImage); err != nil {
+			ctx.Log().Warn().Err(err).Msgf("Failed to delete image embeddings for media %s during re-index", existingMedia.ContentID)
 		}
 
 		err = media_service.PurgeCache(ctx, existingMedia)
@@ -272,17 +284,15 @@ func ScanFileTsk(ctx context_service.AppContext, meta job.ScanMeta) error {
 		}
 	}
 
-	if len(media.HDIR) == 0 && cnf.EnableHDIR {
-		_, err = media_service.GetHighDimensionImageEncoding(ctx, media)
-		if err != nil {
-			// return wlerrors.Errorf("Failed to get HDIR encoding: %w", err)
-			ctx.Log().Error().Err(err).Msgf("Failed to get HDIR encoding for %s", media.ID())
+	if cnf.EnableEmbed && !embed.Default().ServiceUnavailable() {
+		if err := writeImageEmbedding(ctx, media); err != nil {
+			ctx.Log().Error().Err(err).Msgf("Failed to write image embedding for %s", media.ID())
 		}
 	}
 
 	ctx.Log().Trace().Func(func(e *zerolog.Event) {
-		if !cnf.EnableHDIR {
-			e.Msgf("HDIR generation is disabled, skipping for media %s", media.ID())
+		if !cnf.EnableEmbed {
+			e.Msgf("Image embedding generation is disabled, skipping for media %s", media.ID())
 		}
 	})
 
@@ -378,8 +388,25 @@ func queueScanFileIfNeeded(ctx context_service.AppContext, t *task.Task, mf *fil
 		return nil
 	}
 
+	// Dispatch document-text extraction for this file. The handler gates by
+	// extension/size and is idempotent (skips when a matching content hash is
+	// already embedded), so dispatching on every scan is safe and backfills
+	// files that were imported before they were text-embedded.
+	if doHdir && shouldExtractTextOnScan(mf.GetPortablePath().Ext()) && !embed.Default().ServiceUnavailable() {
+		embedMeta := job.ExtractAndEmbedMeta{File: mf}
+		if _, dispatchErr := ctx.DispatchJob(job.ExtractAndEmbedTask, embedMeta, nil); dispatchErr != nil {
+			t.Log().Warn().Err(dispatchErr).Msgf("Failed to dispatch ExtractAndEmbedTask for %s", mf.GetPortablePath())
+		}
+	}
+
 	m, err := media_model.GetMediaByContentID(ctx, mf.GetContentID())
-	if err == nil && !forceReIndex && m.IsSufficentlyProcessed(doHdir) {
+
+	var mHasEmbedding bool
+	if err == nil && doHdir {
+		mHasEmbedding = hasImageEmbedding(ctx, string(m.ContentID))
+	}
+
+	if err == nil && !forceReIndex && m.IsSufficentlyProcessed(doHdir, mHasEmbedding) {
 		if !slices.Contains(m.FileIDs, mf.ID()) {
 			err = m.AddFileToMedia(ctx, mf.ID())
 			if err != nil {
@@ -441,4 +468,82 @@ func reportSubscanStatus(tsk *task.Task) {
 	}
 
 	ctx.Notify(tsk.Ctx, notif)
+}
+
+// hasImageEmbedding reports whether the embeddings collection already has an
+// image-kind row for the given sourceId (media contentID).
+func hasImageEmbedding(ctx context_service.AppContext, sourceID string) bool {
+	n, err := embedding.CountForSource(ctx, embedding.KindImage, sourceID)
+	if err != nil {
+		return false
+	}
+
+	return n > 0
+}
+
+// writeImageEmbedding encodes the cached image(s) for a media into the
+// embeddings collection. For single-page media this writes one row from the
+// lowres thumbnail. For multi-page media (PDFs, etc.) this writes one row per
+// page from the highres-per-page cache files, with chunkIndex = page number.
+// Per-page existence is checked individually so partially-embedded media fill
+// in their missing pages on rerun.
+//
+// Media types that do not support image recognition (PDFs, etc.) are skipped:
+// their text content — including OCR for scanned pages — is covered by
+// ExtractAndEmbedFile via the text-chunk pipeline. CLIP image embeddings of
+// document page renders are noisy (a "banana" query against a SOC 2 cover
+// page can score 0.55+ in the unified text+image space).
+func writeImageEmbedding(ctx context_service.AppContext, media *media_model.Media) error {
+	if !media_model.ParseMime(media.MimeType).SupportsImgRecog() {
+		return nil
+	}
+
+	pageCount := media.GetPageCount()
+	if pageCount < 1 {
+		pageCount = 1
+	}
+
+	multiPage := pageCount > 1
+	modelName := currentModelName()
+
+	for page := 0; page < pageCount; page++ {
+		exists, err := embedding.CountForChunk(ctx, embedding.KindImage, string(media.ContentID), modelName, page)
+		if err != nil {
+			return err
+		}
+
+		if exists > 0 {
+			continue
+		}
+
+		quality := media_model.LowRes
+		if multiPage {
+			quality = media_model.HighRes
+		}
+
+		cacheFile, err := media_service.GetCacheFile(ctx, media, quality, page)
+		if err != nil {
+			return wlerrors.Errorf("get cache file (page %d, quality %s): %w", page, quality, err)
+		}
+
+		vec, err := embed.Default().EncodeImage(ctx, cacheFile.GetPortablePath().String())
+		if err != nil {
+			return wlerrors.Errorf("encode image (page %d): %w", page, err)
+		}
+
+		err = embedding.Upsert(ctx, embedding.Embedding{
+			Kind:       embedding.KindImage,
+			SourceID:   string(media.ContentID),
+			ChunkIndex: page,
+			Page:       page + 1,
+			Vector:     vec,
+			Model:      modelName,
+			CreatedAt:  time.Now().UTC(),
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

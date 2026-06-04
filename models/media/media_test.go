@@ -343,20 +343,6 @@ func TestDropMediaByOwnerAll(t *testing.T) {
 	assert.Empty(t, got)
 }
 
-func TestDropHDIRs(t *testing.T) {
-	ctx := db.SetupTestDB(t, media.MediaCollectionKey, media.IndexModels...)
-
-	m := newTestMedia("hdir-test", "alice")
-	m.HDIR = []float64{0.1, 0.2, 0.3}
-	require.NoError(t, media.SaveMedia(ctx, m))
-
-	require.NoError(t, media.DropHDIRs(ctx))
-
-	got, err := media.GetMediaByContentID(ctx, "hdir-test")
-	require.NoError(t, err)
-	assert.Empty(t, got.HDIR)
-}
-
 func TestRemoveFileFromMedia(t *testing.T) {
 	ctx := db.SetupTestDB(t, media.MediaCollectionKey, media.IndexModels...)
 

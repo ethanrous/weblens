@@ -63,9 +63,9 @@ build_weblens_binary() {
 }
 export -f build_weblens_binary
 
-build_hdir() {
-    dockerc stop weblens-hdir 2>/dev/null || true
-    dockerc image rm weblens_hdir 2>/dev/null || true
-    dockerc build -f ./docker/hdir.Dockerfile -t ethrous/weblens_hdir .
+build_embed() {
+    dockerc stop weblens-embed 2>/dev/null || true
+    dockerc image rm weblens_embed 2>/dev/null || true
+    dockerc build -f ./docker/embed.Dockerfile -t ethrous/weblens_embed .
 }
-export -f build_hdir
+export -f build_embed

@@ -465,6 +465,50 @@ func (m RestoreCoreMeta) Verify() error {
 	return nil
 }
 
+// ExtractAndEmbedMeta holds metadata for extract-and-embed tasks.
+type ExtractAndEmbedMeta struct {
+	File *file_model.WeblensFileImpl
+}
+
+// MetaString returns a JSON string representation of the extract-and-embed metadata.
+func (m ExtractAndEmbedMeta) MetaString() string {
+	data := map[string]any{
+		"JobName": ExtractAndEmbedTask,
+		"FileId":  m.File.ID(),
+	}
+
+	bs, err := json.Marshal(data)
+	if err != nil {
+		err = wlerrors.WithStack(err)
+		log.Error().Stack().Err(err).Msg("Could not marshal extract-and-embed metadata")
+
+		return ""
+	}
+
+	return string(bs)
+}
+
+// FormatToResult converts the extract-and-embed metadata to a task result.
+func (m ExtractAndEmbedMeta) FormatToResult() task.Result {
+	return task.Result{
+		"filename": m.File.GetPortablePath(),
+	}
+}
+
+// JobName returns the job name for extract-and-embed tasks.
+func (m ExtractAndEmbedMeta) JobName() string {
+	return ExtractAndEmbedTask
+}
+
+// Verify checks that the extract-and-embed metadata contains all required fields.
+func (m ExtractAndEmbedMeta) Verify() error {
+	if m.File == nil {
+		return wlerrors.New("no file in extract-and-embed metadata")
+	}
+
+	return nil
+}
+
 // TaskStage represents a single stage in a multi-stage task.
 type TaskStage struct {
 	Key      string `json:"key"`

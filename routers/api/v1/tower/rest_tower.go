@@ -12,6 +12,7 @@ import (
 	"github.com/ethanrous/weblens/modules/wlstructs"
 	"github.com/ethanrous/weblens/routers/api/v1/websocket"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
+	"github.com/ethanrous/weblens/services/embed"
 	"github.com/ethanrous/weblens/services/reshape"
 	tower_service "github.com/ethanrous/weblens/services/tower"
 	"github.com/rs/zerolog"
@@ -54,6 +55,8 @@ func GetServerInfo(ctx context_service.RequestContext) {
 	if ctx.Doer().IsAdmin() {
 		towerInfo.LogLevel = config.GetConfig().LogLevel.String()
 	}
+
+	towerInfo.EmbedAvailable = !embed.Default().ServiceUnavailable()
 
 	ctx.JSON(http.StatusOK, towerInfo)
 }

@@ -96,7 +96,7 @@ Class | Method | HTTP request | Description
 *FilesAPI* | [**GetUploadResult**](docs/FilesAPI.md#getuploadresult) | **Get** /upload/{uploadID} | Get the result of an upload task. This will block until the upload is complete
 *FilesAPI* | [**MoveFiles**](docs/FilesAPI.md#movefiles) | **Patch** /files | Move a list of files to a new parent folder
 *FilesAPI* | [**RestoreFiles**](docs/FilesAPI.md#restorefiles) | **Post** /files/restore | Restore files from some time in the past
-*FilesAPI* | [**SearchFiles**](docs/FilesAPI.md#searchfiles) | **Get** /files/search | Search for files by filename
+*FilesAPI* | [**SearchFiles**](docs/FilesAPI.md#searchfiles) | **Get** /files/search | Search for files by filename or content
 *FilesAPI* | [**StartUpload**](docs/FilesAPI.md#startupload) | **Post** /upload | Begin a new upload task
 *FilesAPI* | [**UnTrashFiles**](docs/FilesAPI.md#untrashfiles) | **Patch** /files/untrash | Move a list of files out of the trash, structsoring them to where they were before
 *FilesAPI* | [**UpdateFile**](docs/FilesAPI.md#updatefile) | **Patch** /files/{fileID} | Update a File
@@ -108,7 +108,7 @@ Class | Method | HTTP request | Description
 *FolderAPI* | [**ScanFolder**](docs/FolderAPI.md#scanfolder) | **Post** /folder/{folderID}/scan | Dispatch a folder scan
 *FolderAPI* | [**SetFolderCover**](docs/FolderAPI.md#setfoldercover) | **Patch** /folder/{folderID}/cover | Set the cover image of a folder
 *MediaAPI* | [**CleanupMedia**](docs/MediaAPI.md#cleanupmedia) | **Post** /media/cleanup | Make sure all media is correctly synced with the file system
-*MediaAPI* | [**DropHDIRs**](docs/MediaAPI.md#drophdirs) | **Post** /media/drop/hdirs | Drop all computed media HDIR data. Must be server owner.
+*MediaAPI* | [**DropEmbeddings**](docs/MediaAPI.md#dropembeddings) | **Post** /media/drop/embeddings | Drop every row from the embeddings collection (image and text). Must be server owner.
 *MediaAPI* | [**DropMedia**](docs/MediaAPI.md#dropmedia) | **Post** /media/drop | DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
 *MediaAPI* | [**GetMedia**](docs/MediaAPI.md#getmedia) | **Get** /media | Get paginated media
 *MediaAPI* | [**GetMediaFile**](docs/MediaAPI.md#getmediafile) | **Get** /media/{mediaID}/file | Get file of media by id
@@ -174,6 +174,7 @@ Class | Method | HTTP request | Description
  - [FileFileIDsParams](docs/FileFileIDsParams.md)
  - [FileIDArrayInfo](docs/FileIDArrayInfo.md)
  - [FileInfo](docs/FileInfo.md)
+ - [FileSearchResult](docs/FileSearchResult.md)
  - [FileShareParams](docs/FileShareParams.md)
  - [FileUpdateTagParams](docs/FileUpdateTagParams.md)
  - [FilesInfo](docs/FilesInfo.md)

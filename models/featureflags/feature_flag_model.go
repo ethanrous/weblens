@@ -23,21 +23,21 @@ type FlagKey = string
 const (
 	// AllowRegistrations controls whether new user registration is allowed.
 	AllowRegistrations FlagKey = "auth.allow_registrations"
-	// EnableHDIR controls whether HDIR (high-dynamic-range image rendering) is enabled.
-	EnableHDIR FlagKey = "media.hdir_processing_enabled"
+	// EnableEmbed controls whether the embedding service is called for image and file processing.
+	EnableEmbed FlagKey = "embed.processing_enabled"
 )
 
 // Bundle represents the application feature flag document.
 type Bundle struct {
 	AllowRegistrations bool `bson:"auth.allow_registrations" json:"auth.allow_registrations"`
-	EnableHDIR         bool `bson:"media.hdir_processing_enabled" json:"media.hdir_processing_enabled"`
+	EnableEmbed        bool `bson:"embed.processing_enabled" json:"embed.processing_enabled"`
 } //	@name	Bundle
 
 // Default returns the default flags
 func Default() Bundle {
 	return Bundle{
 		AllowRegistrations: true,
-		EnableHDIR:         false,
+		EnableEmbed:        false,
 	}
 }
 

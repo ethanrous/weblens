@@ -111,6 +111,11 @@ class WeblensFile implements FileInfo {
 
     contentID: string = ''
 
+    public matchPage?: number = 0 // For search results, the page of the file the match was found on
+    public matchKind?: string[] // For search results, every way the file matched the query (filename, content, ...)
+    public matchSnippet?: string = '' // For search results, a snippet of the content that matched the search
+    public score?: number = 0 // For search results, the relevance score of the match
+
     constructor(init: FileInfo) {
         this.id = init.id ?? ''
 

@@ -37,6 +37,10 @@ type TowerInfo struct {
 	// BuildVersion is the build version of the running server binary, sourced
 	// from WEBLENS_BUILD_VERSION or the embedded VCS revision.
 	BuildVersion string `json:"buildVersion,omitempty"`
+
+	// EmbedAvailable reports whether the embedding service (weblens-embed
+	// container) is currently reachable. Only populated for the local server.
+	EmbedAvailable bool `json:"embedAvailable"`
 } //	@name	TowerInfo
 
 // TowerHealth represents the health status of the server instance.
