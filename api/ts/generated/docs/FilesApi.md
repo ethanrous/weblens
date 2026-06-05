@@ -728,7 +728,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **searchFiles**
-> Array<FileSearchResult> searchFiles()
+> Array<SearchResult> searchFiles()
 
 
 ### Example
@@ -782,7 +782,7 @@ const { status, data } = await apiInstance.searchFiles(
 
 ### Return type
 
-**Array<FileSearchResult>**
+**Array<SearchResult>**
 
 ### Authorization
 

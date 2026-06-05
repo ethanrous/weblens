@@ -16,7 +16,6 @@ docs/FileCreateTagParams.md
 docs/FileFileIDsParams.md
 docs/FileIDArrayInfo.md
 docs/FileInfo.md
-docs/FileSearchResult.md
 docs/FileShareParams.md
 docs/FileUpdateTagParams.md
 docs/FilesApi.md
@@ -46,6 +45,7 @@ docs/PermissionsInfo.md
 docs/PermissionsParams.md
 docs/RestoreFilesBody.md
 docs/RestoreFilesInfo.md
+docs/SearchResult.md
 docs/ShareApi.md
 docs/ShareInfo.md
 docs/TagsApi.md

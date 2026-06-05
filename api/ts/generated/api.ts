@@ -89,13 +89,6 @@ export interface FileInfo {
     'shareID'?: string;
     'size'?: number;
 }
-export interface FileSearchResult {
-    'file'?: FileInfo;
-    'matchKind'?: Array<string>;
-    'matchPage'?: number;
-    'matchSnippet'?: string;
-    'score'?: number;
-}
 export interface FileShareParams {
     'fileID'?: string;
     'public'?: boolean;
@@ -297,6 +290,13 @@ export interface RestoreFilesBody {
 export interface RestoreFilesInfo {
     'newParentID'?: string;
 }
+export interface SearchResult {
+    'file'?: FileInfo;
+    'matchKind'?: Array<string>;
+    'matchPage'?: number;
+    'matchSnippet'?: string;
+    'score'?: number;
+}
 export interface ShareInfo {
     'accessors'?: Array<UserInfo>;
     'enabled'?: boolean;
@@ -361,7 +361,7 @@ export interface TowerInfo {
      */
     'coreAddress': string;
     /**
-     * EmbedAvailable reports whether the embedding service (weblens-embed container) is currently reachable. Only populated for the local server.
+     * EmbedAvailable reports whether the embedding service is reachable; only populated for the local server.
      */
     'embedAvailable'?: boolean;
     'id': string;
@@ -1785,7 +1785,7 @@ export const FilesApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, includeContent?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<FileSearchResult>>> {
+        async searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, includeContent?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<SearchResult>>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.searchFiles(search, baseFolderID, sortProp, sortOrder, recursive, regex, tags, tagJoinLogic, includeContent, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['FilesApi.searchFiles']?.[localVarOperationServerIndex]?.url;
@@ -2014,7 +2014,7 @@ export const FilesApiFactory = function (configuration?: Configuration, basePath
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, includeContent?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<Array<FileSearchResult>> {
+        searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, includeContent?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<Array<SearchResult>> {
             return localVarFp.searchFiles(search, baseFolderID, sortProp, sortOrder, recursive, regex, tags, tagJoinLogic, includeContent, options).then((request) => request(axios, basePath));
         },
         /**

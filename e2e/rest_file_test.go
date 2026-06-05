@@ -333,7 +333,7 @@ func TestSearchFiles(t *testing.T) {
 			assert.Equal(t, tt.expectedStatus, resp.StatusCode)
 
 			if tt.expectedCount > 0 {
-				var results []openapi.FileSearchResult
+				var results []openapi.SearchResult
 
 				err = json.NewDecoder(resp.Body).Decode(&results)
 				require.NoError(t, err)
@@ -361,7 +361,7 @@ func TestSearchFiles_ReturnsPerFilePermissions(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	var result *openapi.FileSearchResult
+	var result *openapi.SearchResult
 
 	for i := range results {
 		fi := results[i].GetFile()

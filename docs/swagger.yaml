@@ -426,6 +426,21 @@ definitions:
       newParentID:
         type: string
     type: object
+  SearchResult:
+    properties:
+      file:
+        $ref: '#/definitions/FileInfo'
+      matchKind:
+        items:
+          type: string
+        type: array
+      matchPage:
+        type: integer
+      matchSnippet:
+        type: string
+      score:
+        type: number
+    type: object
   ShareInfo:
     properties:
       accessors:
@@ -555,9 +570,8 @@ definitions:
           Not set for any remotes/backups on core server, as it IS the core
         type: string
       embedAvailable:
-        description: |-
-          EmbedAvailable reports whether the embedding service (weblens-embed
-          container) is currently reachable. Only populated for the local server.
+        description: EmbedAvailable reports whether the embedding service is reachable;
+          only populated for the local server.
         type: boolean
       id:
         type: string
@@ -671,21 +685,6 @@ definitions:
     properties:
       error:
         type: string
-    type: object
-  file.SearchResult:
-    properties:
-      file:
-        $ref: '#/definitions/FileInfo'
-      matchKind:
-        items:
-          type: string
-        type: array
-      matchPage:
-        type: integer
-      matchSnippet:
-        type: string
-      score:
-        type: number
     type: object
   file.createTagParams:
     properties:
@@ -1185,7 +1184,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/file.SearchResult'
+              $ref: '#/definitions/SearchResult'
             type: array
         "400":
           description: Bad Request

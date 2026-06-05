@@ -211,7 +211,7 @@ paths:
             '*/*':
               schema:
                 items:
-                  $ref: "#/components/schemas/file.SearchResult"
+                  $ref: "#/components/schemas/SearchResult"
                 type: array
           description: OK
         "400":
@@ -3552,6 +3552,50 @@ components:
         newParentID:
           type: string
       type: object
+    SearchResult:
+      example:
+        score: 6.027456183070403
+        matchSnippet: matchSnippet
+        file:
+          owner: owner
+          hasRestoreData: true
+          childrenIds:
+          - childrenIds
+          - childrenIds
+          contentID: contentID
+          hasMedia: true
+          shareID: shareID
+          portablePath: portablePath
+          parentID: parentID
+          modifyTimestamp: 0
+          pastFile: true
+          size: 6
+          permissions:
+            canView: true
+            canEdit: true
+            canDownload: true
+            canDelete: true
+          id: id
+          modifiable: true
+          isDir: true
+        matchPage: 0
+        matchKind:
+        - matchKind
+        - matchKind
+      properties:
+        file:
+          $ref: "#/components/schemas/FileInfo"
+        matchKind:
+          items:
+            type: string
+          type: array
+        matchPage:
+          type: integer
+        matchSnippet:
+          type: string
+        score:
+          type: number
+      type: object
     ShareInfo:
       example:
         owner: owner
@@ -3759,9 +3803,8 @@ components:
             Not set for any remotes/backups on core server, as it IS the core
           type: string
         embedAvailable:
-          description: |-
-            EmbedAvailable reports whether the embedding service (weblens-embed
-            container) is currently reachable. Only populated for the local server.
+          description: EmbedAvailable reports whether the embedding service is reachable;
+            only populated for the local server.
           type: boolean
         id:
           type: string
@@ -3903,50 +3946,6 @@ components:
       properties:
         error:
           type: string
-      type: object
-    file.SearchResult:
-      example:
-        score: 6.027456183070403
-        matchSnippet: matchSnippet
-        file:
-          owner: owner
-          hasRestoreData: true
-          childrenIds:
-          - childrenIds
-          - childrenIds
-          contentID: contentID
-          hasMedia: true
-          shareID: shareID
-          portablePath: portablePath
-          parentID: parentID
-          modifyTimestamp: 0
-          pastFile: true
-          size: 6
-          permissions:
-            canView: true
-            canEdit: true
-            canDownload: true
-            canDelete: true
-          id: id
-          modifiable: true
-          isDir: true
-        matchPage: 0
-        matchKind:
-        - matchKind
-        - matchKind
-      properties:
-        file:
-          $ref: "#/components/schemas/FileInfo"
-        matchKind:
-          items:
-            type: string
-          type: array
-        matchPage:
-          type: integer
-        matchSnippet:
-          type: string
-        score:
-          type: number
       type: object
     file.createTagParams:
       properties:

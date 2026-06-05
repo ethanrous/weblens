@@ -889,7 +889,7 @@ No authorization required
 
 ## SearchFiles
 
-> []FileSearchResult SearchFiles(ctx).Search(search).BaseFolderID(baseFolderID).SortProp(sortProp).SortOrder(sortOrder).Recursive(recursive).Regex(regex).Tags(tags).TagJoinLogic(tagJoinLogic).IncludeContent(includeContent).Execute()
+> []SearchResult SearchFiles(ctx).Search(search).BaseFolderID(baseFolderID).SortProp(sortProp).SortOrder(sortOrder).Recursive(recursive).Regex(regex).Tags(tags).TagJoinLogic(tagJoinLogic).IncludeContent(includeContent).Execute()
 
 Search for files by filename or content
 
@@ -923,7 +923,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error when calling `FilesAPI.SearchFiles``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
-	// response from `SearchFiles`: []FileSearchResult
+	// response from `SearchFiles`: []SearchResult
 	fmt.Fprintf(os.Stdout, "Response from `FilesAPI.SearchFiles`: %v\n", resp)
 }
 ```
@@ -951,7 +951,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**[]FileSearchResult**](FileSearchResult.md)
+[**[]SearchResult**](SearchResult.md)
 
 ### Authorization
 

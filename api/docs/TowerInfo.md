@@ -7,7 +7,7 @@ Name | Type | Description | Notes
 **BackupSize** | **int64** |  | 
 **BuildVersion** | Pointer to **string** | BuildVersion is the build version of the running server binary, sourced from WEBLENS_BUILD_VERSION or the embedded VCS revision. | [optional] 
 **CoreAddress** | **string** | Address of the remote server, only if the instance is a core. Not set for any remotes/backups on core server, as it IS the core | 
-**EmbedAvailable** | Pointer to **bool** | EmbedAvailable reports whether the embedding service (weblens-embed container) is currently reachable. Only populated for the local server. | [optional] 
+**EmbedAvailable** | Pointer to **bool** | EmbedAvailable reports whether the embedding service is reachable; only populated for the local server. | [optional] 
 **Id** | **string** |  | 
 **LastBackup** | **int64** |  | 
 **LogLevel** | Pointer to **string** |  | [optional] 

@@ -1523,7 +1523,7 @@ func (r ApiSearchFilesRequest) IncludeContent(includeContent bool) ApiSearchFile
 	return r
 }
 
-func (r ApiSearchFilesRequest) Execute() ([]FileSearchResult, *http.Response, error) {
+func (r ApiSearchFilesRequest) Execute() ([]SearchResult, *http.Response, error) {
 	return r.ApiService.SearchFilesExecute(r)
 }
 
@@ -1541,13 +1541,13 @@ func (a *FilesAPIService) SearchFiles(ctx context.Context) ApiSearchFilesRequest
 }
 
 // Execute executes the request
-//  @return []FileSearchResult
-func (a *FilesAPIService) SearchFilesExecute(r ApiSearchFilesRequest) ([]FileSearchResult, *http.Response, error) {
+//  @return []SearchResult
+func (a *FilesAPIService) SearchFilesExecute(r ApiSearchFilesRequest) ([]SearchResult, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodGet
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  []FileSearchResult
+		localVarReturnValue  []SearchResult
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "FilesAPIService.SearchFiles")

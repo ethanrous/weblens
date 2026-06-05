@@ -294,7 +294,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/file.SearchResult"
+                                "$ref": "#/definitions/SearchResult"
                             }
                         }
                     },
@@ -4215,6 +4215,29 @@ const docTemplate = `{
                 }
             }
         },
+        "SearchResult": {
+            "type": "object",
+            "properties": {
+                "file": {
+                    "$ref": "#/definitions/FileInfo"
+                },
+                "matchKind": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "matchPage": {
+                    "type": "integer"
+                },
+                "matchSnippet": {
+                    "type": "string"
+                },
+                "score": {
+                    "type": "number"
+                }
+            }
+        },
         "ShareInfo": {
             "type": "object",
             "properties": {
@@ -4406,7 +4429,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "embedAvailable": {
-                    "description": "EmbedAvailable reports whether the embedding service (weblens-embed\ncontainer) is currently reachable. Only populated for the local server.",
+                    "description": "EmbedAvailable reports whether the embedding service is reachable; only populated for the local server.",
                     "type": "boolean"
                 },
                 "id": {
@@ -4552,29 +4575,6 @@ const docTemplate = `{
             "properties": {
                 "error": {
                     "type": "string"
-                }
-            }
-        },
-        "file.SearchResult": {
-            "type": "object",
-            "properties": {
-                "file": {
-                    "$ref": "#/definitions/FileInfo"
-                },
-                "matchKind": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "matchPage": {
-                    "type": "integer"
-                },
-                "matchSnippet": {
-                    "type": "string"
-                },
-                "score": {
-                    "type": "number"
                 }
             }
         },

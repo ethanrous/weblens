@@ -26,7 +26,7 @@ type TowerInfo struct {
 	BuildVersion *string `json:"buildVersion,omitempty"`
 	// Address of the remote server, only if the instance is a core. Not set for any remotes/backups on core server, as it IS the core
 	CoreAddress string `json:"coreAddress"`
-	// EmbedAvailable reports whether the embedding service (weblens-embed container) is currently reachable. Only populated for the local server.
+	// EmbedAvailable reports whether the embedding service is reachable; only populated for the local server.
 	EmbedAvailable *bool `json:"embedAvailable,omitempty"`
 	Id string `json:"id"`
 	LastBackup int64 `json:"lastBackup"`
