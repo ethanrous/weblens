@@ -377,13 +377,7 @@ func queueScanFileIfNeeded(ctx context_service.AppContext, t *task.Task, mf *fil
 		return nil
 	}
 
-	// Dispatch document-text extraction for this file. This must come before the
-	// displayability gate below: text/office/code files are not "displayable"
-	// media but still get content-indexed, so gating on displayability here
-	// would silently skip them. The handler gates by extension/size and the
-	// embed feature flag, and is idempotent (skips when a matching content hash
-	// is already embedded), so dispatching on every scan is safe and backfills
-	// files that were imported before they were text-embedded.
+	// Dispatch document-text extraction before the displayability gate, since non-displayable text/office/code files are still content-indexed.
 	if doHdir && shouldExtractTextOnScan(mf.GetPortablePath().Ext()) && !embed.Default().ServiceUnavailable() {
 		embedMeta := job.ExtractAndEmbedMeta{File: mf}
 		if _, dispatchErr := ctx.DispatchJob(job.ExtractAndEmbedTask, embedMeta, nil); dispatchErr != nil {
@@ -473,8 +467,7 @@ func reportSubscanStatus(tsk *task.Task) {
 	ctx.Notify(tsk.Ctx, notif)
 }
 
-// hasImageEmbedding reports whether the embeddings collection already has an
-// image-kind row for the given sourceId (media contentID).
+// hasImageEmbedding reports whether an image-kind embedding row exists for the given sourceId (media contentID).
 func hasImageEmbedding(ctx context_service.AppContext, sourceID string) bool {
 	n, err := embedding.CountForSource(ctx, embedding.KindImage, sourceID)
 	if err != nil {
@@ -484,18 +477,7 @@ func hasImageEmbedding(ctx context_service.AppContext, sourceID string) bool {
 	return n > 0
 }
 
-// writeImageEmbedding encodes the cached image(s) for a media into the
-// embeddings collection. For single-page media this writes one row from the
-// lowres thumbnail. For multi-page media (PDFs, etc.) this writes one row per
-// page from the highres-per-page cache files, with chunkIndex = page number.
-// Per-page existence is checked individually so partially-embedded media fill
-// in their missing pages on rerun.
-//
-// Media types that do not support image recognition (PDFs, etc.) are skipped:
-// their text content — including OCR for scanned pages — is covered by
-// ExtractAndEmbedFile via the text-chunk pipeline. CLIP image embeddings of
-// document page renders are noisy (a "banana" query against a SOC 2 cover
-// page can score 0.55+ in the unified text+image space).
+// writeImageEmbedding encodes a media's cached image(s) into the embeddings collection, one row per page; non-image-recognizable types are skipped.
 func writeImageEmbedding(ctx context_service.AppContext, media *media_model.Media) error {
 	if !media_model.ParseMime(media.MimeType).SupportsImgRecog() {
 		return nil

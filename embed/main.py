@@ -83,13 +83,7 @@ def encodeText():
     request_data = request.get_json()
     search_text: str = request_data["text"]
 
-    # Two encodings of the same query:
-    #  - text_features: the raw query, symmetric with how document chunks are
-    #    embedded in /extract-and-embed. Used for file_chunk matching.
-    #  - image_query_features: wrapped in a caption template. CLIP-family text
-    #    encoders discriminate images better when the query reads like a
-    #    caption ("a photo of ..."); this vector is used only for image
-    #    matching, where that bias is desired.
+    # Two query encodings: raw text_features for file_chunk matching, caption-prompted image_query_features for image matching.
     prompted = f"a photo of {search_text}"
 
     with torch.no_grad():

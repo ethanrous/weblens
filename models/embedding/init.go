@@ -11,9 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// EmbeddingDim is the output dimensionality of the configured multimodal model.
-// Jina CLIP v2 default = 1024. If the model is swapped, update this constant
-// and re-create the vector index.
+// EmbeddingDim is the output dimensionality of the configured multimodal model (Jina CLIP v2 = 1024).
 const EmbeddingDim = 1024
 
 const (

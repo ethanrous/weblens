@@ -118,9 +118,7 @@ func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_mo
 		return allowedPerms, nil
 	}
 
-	// Public share with no explicit user permissions — allow access. Fall back to
-	// empty (non-nil) permissions so callers can safely dereference the result; a
-	// CreateFileShare-style public share has no PUBLIC entry in its map.
+	// Public share: return its PUBLIC permissions, falling back to empty (non-nil) perms.
 	if share.Public {
 		if perms := share.GetUserPermissions(user_model.PublicUserName); perms != nil {
 			return perms, nil

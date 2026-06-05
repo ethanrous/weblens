@@ -1431,7 +1431,7 @@ func GetUploadResult(ctx context_service.RequestContext) {
 	ctx.Status(http.StatusOK)
 }
 
-// getChildMedias is a helper function that takes in a list of files and returns a map of media objects associated with those files, keyed by the content ID. For regular files, this will just be the media associated with the file's content ID. For folders, this will be the media associated with the folder's cover photo, if it has one.
+// getChildMedias returns media for the given files keyed by content ID (folders use their cover photo's media).
 func getChildMedias(
 	ctx context_service.RequestContext,
 	children []*file_model.WeblensFileImpl,

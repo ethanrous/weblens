@@ -572,9 +572,7 @@ func (m *Media) GetHighresCacheFiles(pageNum int) *file_model.WeblensFileImpl {
 	return m.highResCacheFiles[pageNum]
 }
 
-// IsSufficentlyProcessed returns true if the media has been sufficiently processed.
-// requireEmbed indicates the embedding pipeline is enabled; hasImageEmbedding is
-// the result of looking up the embeddings collection for this media's contentID.
+// IsSufficentlyProcessed returns true if the media has been sufficiently processed; requireEmbed gates on hasImageEmbedding.
 func (m *Media) IsSufficentlyProcessed(requireEmbed bool, hasImageEmbedding bool) bool {
 	m.updateMu.RLock()
 	defer m.updateMu.RUnlock()
@@ -583,11 +581,7 @@ func (m *Media) IsSufficentlyProcessed(requireEmbed bool, hasImageEmbedding bool
 		return false
 	}
 
-	// Only image-recognition media (photos) ever get an image embedding, so
-	// only they can be gated on one. PDFs, videos, etc. report
-	// SupportsImgRecog()==false and are content-indexed via text extraction
-	// instead, so requiring an image embedding for them would leave them
-	// perpetually "unprocessed" and re-scanned on every pass.
+	// Only image-recognition media get an image embedding; non-image media are content-indexed via text extraction.
 	if requireEmbed && ParseMime(m.MimeType).SupportsImgRecog() && !hasImageEmbedding {
 		return false
 	}

@@ -1,5 +1,4 @@
-// Package embedding defines the unified multimodal embedding collection.
-// Each row represents a single vector
+// Package embedding defines the unified multimodal embedding collection; each row is a single vector.
 package embedding
 
 import (
@@ -21,15 +20,7 @@ const (
 	KindFileChunk Kind = "file_chunk"
 )
 
-// Embedding is the unified model for all embedded vectors. Each embedding is associated with a single source:
-//   - For KindImage: SourceID is the media contentID, ChunkIndex is the
-//     0-indexed page (always 0 for single-page media), Snippet is empty.
-//   - For KindFileChunk: SourceID is the fileID, ChunkIndex enumerates chunks
-//     from 0, Snippet is a short preview of the chunk text.
-//
-// Page is the 1-indexed source page the chunk represents (PDF page, XLSX
-// sheet, PPTX slide, image page in a multi-page document). It is set to 0
-// for legacy rows written before the field existed.
+// Embedding is the unified model for all embedded vectors, each tied to a single source (image or file chunk).
 type Embedding struct {
 	ID          primitive.ObjectID `bson:"_id"`
 	Kind        Kind               `bson:"kind"`

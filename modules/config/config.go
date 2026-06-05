@@ -51,10 +51,10 @@ type Provider struct {
 	DataPath          string
 	CachePath         string
 	StaticContentPath string
-	// EmbedURI is the URI for the embedding service (multimodal model + text extraction). This is expected to be a separate service, and the endpoint for that service should be provided here.
+	// EmbedURI is the URI for the embedding service (multimodal model + text extraction).
 	EmbedURI string
 
-	// EmbedMaxFileSize is the maximum size in bytes of a file the embed service will attempt to extract+embed. Files larger than this are skipped.
+	// EmbedMaxFileSize is the max file size in bytes the embed service will extract+embed; larger files are skipped.
 	EmbedMaxFileSize int64
 
 	// Logging settings
@@ -184,8 +184,8 @@ func getDefaultConfig() Provider {
 		Port:              "8080",
 		MongoDBUri:        "mongodb://127.0.0.1:27017/?directConnection=true",
 		MongoDBName:       "weblens",
-		EmbedURI:         "http://weblens-embed:5500",
-		EmbedMaxFileSize: 50 * 1024 * 1024, // 50 MiB
+		EmbedURI:          "http://weblens-embed:5500",
+		EmbedMaxFileSize:  50 * 1024 * 1024, // 50 MiB
 		UIPath:            "/app/web",
 		StaticContentPath: "/app/static",
 

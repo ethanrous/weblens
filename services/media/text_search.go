@@ -14,9 +14,7 @@ type ScoreWrapper struct {
 	Score float64
 }
 
-// SortMediaByTextSimilarity ranks the provided media against the query text by
-// cosine similarity in the embedding space. Results scoring below minScore are
-// filtered out.
+// SortMediaByTextSimilarity ranks media by cosine similarity to the query, dropping hits below minScore.
 func SortMediaByTextSimilarity(ctx context_service.AppContext, search string, ms []*media_model.Media, minScore float64) ([]ScoreWrapper, error) {
 	if len(search) == 0 || len(ms) == 0 {
 		return []ScoreWrapper{}, nil

@@ -151,8 +151,7 @@ func TestCanUserAccessFile_PublicShare_NoPublicPerms_ReturnsNonNil(t *testing.T)
 		GenerateID: true,
 	})
 
-	// A public share created via the CreateFileShare path is Public=true but has
-	// no PUBLIC entry in its Permissions map (only SetPublic adds one).
+	// A public share created via CreateFileShare is Public=true with no PUBLIC entry in its map.
 	share := &share_model.FileShare{
 		ShareID: primitive.NewObjectID(),
 		FileID:  file.ID(),

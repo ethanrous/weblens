@@ -416,8 +416,7 @@ func TestIsSufficentlyProcessed(t *testing.T) {
 	}
 
 	t.Run("non-image-recognition media needs no image embedding", func(t *testing.T) {
-		// application/pdf and video/mp4 report SupportsImgRecog()==false, so an
-		// image embedding is never written for them.
+		// application/pdf and video/mp4 report SupportsImgRecog()==false, so no image embedding is written.
 		assert.True(t, newMedia("application/pdf").IsSufficentlyProcessed(true, false))
 		assert.True(t, newMedia("video/mp4").IsSufficentlyProcessed(true, false))
 	})

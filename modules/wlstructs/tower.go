@@ -38,8 +38,7 @@ type TowerInfo struct {
 	// from WEBLENS_BUILD_VERSION or the embedded VCS revision.
 	BuildVersion string `json:"buildVersion,omitempty"`
 
-	// EmbedAvailable reports whether the embedding service (weblens-embed
-	// container) is currently reachable. Only populated for the local server.
+	// EmbedAvailable reports whether the embedding service is reachable; only populated for the local server.
 	EmbedAvailable bool `json:"embedAvailable"`
 } //	@name	TowerInfo
 

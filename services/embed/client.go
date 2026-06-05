@@ -1,6 +1,4 @@
 // Package embed is the Go-side client for the weblens-embed service.
-// It owns the HTTP client to the container, the in-memory query-text cache,
-// and the service-availability circuit breaker.
 package embed
 
 import (
@@ -16,11 +14,7 @@ import (
 	"time"
 )
 
-// ChunkResult is one entry returned from /extract-and-embed.
-//
-// Page is the 1-indexed source page the chunk was extracted from (PDF page,
-// XLSX sheet, PPTX slide). For formats without natural pagination (plaintext,
-// DOCX, OCR'd images) every chunk reports page 1.
+// ChunkResult is one entry returned from /extract-and-embed; Page is the 1-indexed source page.
 type ChunkResult struct {
 	ChunkIndex int       `json:"chunkIndex"`
 	Page       int       `json:"page,omitempty"`
@@ -110,9 +104,7 @@ func (c *Client) EncodeImage(ctx context.Context, imgPath string) ([]float64, er
 	return vec, nil
 }
 
-// EncodeQueryText returns both the plain query embedding (for file-chunk
-// matching) and the caption-prompted embedding (for image matching). Cached
-// in memory by exact text.
+// EncodeQueryText returns the plain and caption-prompted query embeddings, cached by exact text.
 func (c *Client) EncodeQueryText(ctx context.Context, text string) (plain, image []float64, err error) {
 	c.queryCacheMu.RLock()
 
@@ -169,8 +161,7 @@ func (c *Client) EncodeQueryText(ctx context.Context, text string) (plain, image
 	return out.TextFeatures, out.ImageQueryFeatures, nil
 }
 
-// ExtractAndEmbedFile invokes /extract-and-embed and returns the per-chunk results.
-// Returns nil, nil for 422 (unprocessable) or 404 (not found) responses.
+// ExtractAndEmbedFile invokes /extract-and-embed and returns per-chunk results (nil on 422/404).
 func (c *Client) ExtractAndEmbedFile(ctx context.Context, path string, mimeHint string) ([]ChunkResult, error) {
 	if c.ServiceUnavailable() {
 		return nil, ErrServiceUnavailable

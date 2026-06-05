@@ -26,23 +26,13 @@ import (
 )
 
 const (
-	// minContentScore is the absolute raw-cosine floor below which a semantic
-	// hit is dropped. Measured separation on real data: image-noise tops out
-	// around 0.27, while genuine image matches start ~0.34 and document
-	// text-chunk matches ~0.43, so 0.30 cleanly rejects the noise band.
-	// Raw cosine means the same thing on Atlas and plain Mongo (scores are
-	// normalized to raw cosine in models/embedding/search.go).
+	// minContentScore is the raw-cosine floor below which a semantic hit is dropped.
 	minContentScore = 0.30
 
-	// imageDeferMargin: an image hit is suppressed when a file_chunk hit
-	// out-scores it by more than this margin. Text<->text cosine runs higher
-	// than text<->image cosine in CLIP space, so a clearly-better document
-	// match should win over a marginal image.
+	// imageDeferMargin is how far a file_chunk hit must out-score an image hit to suppress it.
 	imageDeferMargin = 0.10
 
-	// minRelevanceSpread vetoes a kind's entire surviving set when the gap
-	// between the top hit and the mean is below this value (max ~= mean means
-	// the model sees nothing distinctive).
+	// minRelevanceSpread vetoes a kind's set when its top hit barely exceeds the mean.
 	minRelevanceSpread = 0.03
 )
 
@@ -59,9 +49,7 @@ type contentHit struct {
 	Page    int
 }
 
-// collectCandidates walks baseFolder one level deep (or recursively) and
-// returns parallel slices of fileIDs and filenames, filtered by tagFilterFileIDs
-// when the set is non-empty.
+// collectCandidates returns parallel fileID/filename slices for baseFolder, filtered by tagFilterFileIDs.
 func collectCandidates(baseFolder *file_model.WeblensFileImpl, recursive bool, tagFilterFileIDs set.Set[string]) (fileIDs []string, filenames []string) {
 	if recursive {
 		_ = baseFolder.RecursiveMap(
@@ -90,14 +78,7 @@ func collectCandidates(baseFolder *file_model.WeblensFileImpl, recursive bool, t
 	return fileIDs, filenames
 }
 
-// runFilenameMatch matches search against filenames.
-//
-// In regex mode every filename whose pattern matches is returned with rank 0.
-// Otherwise the search term must appear as a case-insensitive substring of
-// the filename; the rank is the byte offset of the match, so earlier hits
-// rank as better. (We deliberately do not use subsequence-fuzzy matching —
-// a 6-char query like "banana" subsequence-matches almost any long filename
-// and produces irrelevant results.)
+// runFilenameMatch matches search against filenames (regex match, or case-insensitive substring ranked by offset).
 func runFilenameMatch(search string, useRegex bool, fileIDs []string, filenames []string) ([]fuzzyMatch, error) {
 	if useRegex {
 		re, err := regexp.Compile(search)
@@ -136,11 +117,7 @@ func runFilenameMatch(search string, useRegex bool, fileIDs []string, filenames 
 	return out, nil
 }
 
-// mergeContentHits demuxes []embedding.Hit onto file IDs. See
-// filterContentHits for the noise/relevance filtering applied first.
-//
-//   - KindFileChunk hits: hit.SourceID == fileID directly.
-//   - KindImage hits: hit.SourceID == media contentID — look up files via filesByMediaContentID.
+// mergeContentHits demuxes filtered []embedding.Hit onto file IDs (file_chunk by fileID, image via byMedia).
 func mergeContentHits(hits []embedding.Hit, byMedia map[string][]*file_model.WeblensFileImpl) map[string]contentHit {
 	filtered := filterContentHits(hits)
 
@@ -172,16 +149,7 @@ func mergeContentHits(hits []embedding.Hit, byMedia map[string][]*file_model.Web
 	return out
 }
 
-// filterContentHits gates raw vector-search hits (raw cosine, both kinds) down
-// to those that should surface. Steps:
-//
-//  1. Per-kind spread veto: if max ~= mean for a kind, the query has no
-//     distinctive match there and the whole kind is dropped.
-//  2. Absolute floor: drop individually weak hits below minContentScore.
-//  3. Cross-modal defer: drop image hits that a file_chunk hit out-scores by
-//     more than imageDeferMargin — a confident document match suppresses
-//     marginal images. When there is no surviving file_chunk hit, images
-//     compete only among themselves.
+// filterContentHits gates raw vector hits via per-kind spread veto, absolute floor, and cross-modal defer.
 func filterContentHits(hits []embedding.Hit) []embedding.Hit {
 	byKind := map[embedding.Kind][]embedding.Hit{}
 
@@ -219,8 +187,7 @@ func filterContentHits(hits []embedding.Hit) []embedding.Hit {
 
 	for kind, kindHits := range surviving {
 		for _, h := range kindHits {
-			// A confident document match suppresses marginal images; this only
-			// applies when a file_chunk hit actually survived to compete.
+			// A confident document match suppresses marginal images, when a file_chunk hit survived.
 			if kind == embedding.KindImage && len(textHits) > 0 && bestText-h.Score > imageDeferMargin {
 				continue
 			}
@@ -232,15 +199,7 @@ func filterContentHits(hits []embedding.Hit) []embedding.Hit {
 	return out
 }
 
-// hasMeaningfulSpread reports whether the gap between the top hit's score
-// and the set's mean exceeds minRelevanceSpread. Noise queries produce a
-// tight distribution (max ≈ mean) where every "candidate" is essentially
-// equally similar to the query — the model's way of saying "I see nothing
-// like this". Real queries produce a tail with a clear top above the bulk.
-//
-// Must be called on the full vector-search result for a kind, before the
-// absolute floor: the floor trims off the tail and would make any
-// surviving cluster look tight.
+// hasMeaningfulSpread reports whether the top hit exceeds the set's mean by at least minRelevanceSpread.
 func hasMeaningfulSpread(hits []embedding.Hit) bool {
 	if len(hits) < 2 {
 		return true
@@ -264,9 +223,7 @@ func hasMeaningfulSpread(hits []embedding.Hit) bool {
 	return maxVal-mean >= minRelevanceSpread
 }
 
-// fileMatch is the running per-file aggregation as we merge filename and
-// content matches. Each contributing source appends its kind to Kinds and
-// can overwrite the snippet/page if it has a higher score.
+// fileMatch is the running per-file aggregation as filename and content matches are merged.
 type fileMatch struct {
 	Score   float64
 	Kinds   []string
@@ -274,9 +231,7 @@ type fileMatch struct {
 	Page    int
 }
 
-// mergeSearchResults blends fuzzy filename ranks with content hits into
-// SearchResult slices. A file may appear in either, both, or neither input;
-// MatchKind reflects every source that contributed.
+// mergeSearchResults blends fuzzy filename ranks with content hits into SearchResult slices.
 func mergeSearchResults(
 	ctx context_service.RequestContext,
 	fnRanks []fuzzyMatch,
@@ -318,10 +273,7 @@ func mergeSearchResults(
 
 	out := make([]wlstructs.SearchResult, 0, len(matches))
 
-	// Cache parent-folder permissions so each result carries the requester's
-	// actual access, mirroring the non-search file listing. Without this, every
-	// result's permissions default to the zero value (all-false) and Modifiable
-	// defaults to true.
+	// Cache parent-folder permissions so each result carries the requester's actual access.
 	parentPerms := make(map[string]*share_model.Permissions)
 
 	for fid, fm := range matches {
@@ -487,8 +439,7 @@ func SearchFiles(ctx context_service.RequestContext) {
 		}
 	}
 
-	// Build the source-ID set for the embedding search: all candidate fileIDs plus
-	// all media content IDs (for image embeddings).
+	// Build the source-ID set for the embedding search: candidate fileIDs plus media content IDs.
 	sourceIDSet := make([]string, 0, len(candidates)+len(filesByMediaContentID))
 	for fid := range candidates {
 		sourceIDSet = append(sourceIDSet, fid)
@@ -593,10 +544,7 @@ func SearchFiles(ctx context_service.RequestContext) {
 		return
 	}
 
-	// Search results are always sorted by match score descending, with
-	// filename as a deterministic tie-break. Sort is intentionally not
-	// configurable: the relevance ranking is the whole value of running
-	// the search.
+	// Results are always sorted by match score descending, with filename as a deterministic tie-break.
 	wlslices.SortFunc(results, func(a, b wlstructs.SearchResult) int {
 		if slices.Contains(a.MatchKind, wlstructs.MatchKindFilename) && !slices.Contains(b.MatchKind, wlstructs.MatchKindFilename) {
 			return -1

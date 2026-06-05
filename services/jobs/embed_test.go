@@ -61,8 +61,7 @@ func newJobTestHarness(t *testing.T) (context.Context, *jobTestHarness) {
 	jobs.RegisterJobs(workerPool)
 	workerPool.Run(appCtx)
 	t.Cleanup(func() {
-		// Cancel the worker pool by cancelling the appCtx — the pool uses the same ctx.
-		// The pool ctx is the appCtx passed to Run; we just let it go out of scope.
+		// Worker pool shares the appCtx; let it go out of scope to cancel.
 	})
 
 	globalPool := workerPool.GetTaskPool(task.GlobalTaskPoolID)
@@ -73,8 +72,7 @@ func newJobTestHarness(t *testing.T) (context.Context, *jobTestHarness) {
 	embed.Default().SetBaseURLForTesting(stubServer.URL)
 	embed.Default().MarkAvailable()
 
-	// The embed feature flag defaults to off; enable it so the extract-and-embed
-	// handler actually runs. Tests that need it off override this explicitly.
+	// Enable the embed feature flag so the extract-and-embed handler runs.
 	require.NoError(t, featureflags.SaveFlags(appCtx, featureflags.Bundle{AllowRegistrations: true, EnableEmbed: true}))
 
 	h := &jobTestHarness{
@@ -87,8 +85,7 @@ func newJobTestHarness(t *testing.T) (context.Context, *jobTestHarness) {
 	return appCtx, h
 }
 
-// newEmbedStubServer starts an httptest server that handles /extract-and-embed
-// with a canned response of one chunk with 1024 float64 zeros.
+// newEmbedStubServer starts an httptest server returning one canned 1024-dim chunk.
 func newEmbedStubServer(t *testing.T) *httptest.Server {
 	t.Helper()
 

@@ -12,10 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// atlasSearchConfirmed is set true once a `$vectorSearch` aggregation returns a
-// non-empty result, indicating that the deployment supports Atlas vector
-// search. Once confirmed, an empty result from `$vectorSearch` is trusted as
-// a legitimate "no matches" answer instead of triggering a brute-force scan.
+// atlasSearchConfirmed is set true once $vectorSearch returns a non-empty result, confirming Atlas support.
 var atlasSearchConfirmed atomic.Bool
 
 // Hit is a single search result row.
@@ -40,9 +37,7 @@ type Query struct {
 	Limit int
 }
 
-// Search runs Atlas $vectorSearch against the embeddings collection. Falls
-// back to a brute-force cosine scan when $vectorSearch is unavailable (plain
-// Mongo without Atlas Search).
+// Search runs Atlas $vectorSearch, falling back to a brute-force cosine scan when unavailable.
 func Search(ctx context.Context, q Query) ([]Hit, error) {
 	col, err := db.GetCollection[Embedding](ctx, CollectionKey)
 	if err != nil {

@@ -360,8 +360,7 @@ func TestSearchFiles_ReturnsPerFilePermissions(t *testing.T) {
 
 	require.NotNil(t, result, "the created folder should appear in search results")
 
-	// A result for an owned file must carry the owner's permissions, not the
-	// zero value (which would also leave Modifiable defaulting to true).
+	// An owned file's result must carry the owner's permissions, not the zero value.
 	file := result.GetFile()
 	perms := file.GetPermissions()
 	assert.True(t, perms.GetCanView(), "owned search result should report CanView=true")

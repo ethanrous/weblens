@@ -1,10 +1,4 @@
-"""File-type dispatch for text extraction.
-
-Each extractor returns a list of (page_number, text) pairs. `page_number` is
-1-indexed and matches the source document's natural pagination where one
-exists (PDF page, XLSX sheet, PPTX slide). Non-paginated formats (plaintext,
-DOCX, OCR'd images) return a single entry with page=1.
-"""
+"""File-type dispatch for text extraction; returns 1-indexed (page, text) pairs."""
 from __future__ import annotations
 
 import os
@@ -33,10 +27,7 @@ _IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".heic", ".tif", ".tiff", ".bmp"}
 
 
 def extract_text(path: str, mime_hint: str | None = None) -> list[Page]:
-    """Extract text from a file as a list of (page, text) pairs.
-
-    Raises ExtractionError for unsupported types.
-    """
+    """Extract text from a file as a list of (page, text) pairs; raises ExtractionError for unsupported types."""
     ext = os.path.splitext(path)[1].lower()
     mime = (mime_hint or "").lower()
 

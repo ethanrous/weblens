@@ -9,8 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// Upsert inserts or replaces a row keyed by (kind, sourceId, chunkIndex). The
-// caller is expected to set every field on e; ID is regenerated if zero.
+// Upsert inserts or replaces a row keyed by (kind, sourceId, chunkIndex); ID is regenerated if zero.
 func Upsert(ctx context.Context, e Embedding) error {
 	col, err := db.GetCollection[Embedding](ctx, CollectionKey)
 	if err != nil {
@@ -49,8 +48,7 @@ func DeleteForSource(ctx context.Context, sourceID string, kind Kind) error {
 	return err
 }
 
-// DeleteAllOfKind removes every row of a given kind. Used by the admin
-// "drop image embeddings" endpoint.
+// DeleteAllOfKind removes every row of a given kind.
 func DeleteAllOfKind(ctx context.Context, kind Kind) error {
 	col, err := db.GetCollection[Embedding](ctx, CollectionKey)
 	if err != nil {
@@ -62,8 +60,7 @@ func DeleteAllOfKind(ctx context.Context, kind Kind) error {
 	return err
 }
 
-// DeleteAll removes every row from the embeddings collection. Used by the
-// admin "drop embeddings" endpoint to fully reset semantic search.
+// DeleteAll removes every row from the embeddings collection.
 func DeleteAll(ctx context.Context) error {
 	col, err := db.GetCollection[Embedding](ctx, CollectionKey)
 	if err != nil {
@@ -75,9 +72,7 @@ func DeleteAll(ctx context.Context) error {
 	return err
 }
 
-// PruneTrailingChunks deletes any rows for (kind, sourceId) with chunkIndex
-// >= keepFrom. Called after re-embedding a file whose new chunk count is less
-// than the previous chunk count.
+// PruneTrailingChunks deletes rows for (kind, sourceId) with chunkIndex >= keepFrom.
 func PruneTrailingChunks(ctx context.Context, kind Kind, sourceID string, keepFrom int) error {
 	col, err := db.GetCollection[Embedding](ctx, CollectionKey)
 	if err != nil {
@@ -93,9 +88,7 @@ func PruneTrailingChunks(ctx context.Context, kind Kind, sourceID string, keepFr
 	return err
 }
 
-// CountByContentHash counts rows matching (kind, sourceId, model, contentHash).
-// Used as an idempotency gate: if any row matches, the source has already been
-// embedded with the current model and content state.
+// CountByContentHash counts rows matching (kind, sourceId, model, contentHash) as an idempotency gate.
 func CountByContentHash(ctx context.Context, kind Kind, sourceID, modelName, contentHash string) (int64, error) {
 	col, err := db.GetCollection[Embedding](ctx, CollectionKey)
 	if err != nil {
@@ -123,8 +116,7 @@ func CountForSource(ctx context.Context, kind Kind, sourceID string) (int64, err
 	})
 }
 
-// GetForSource returns every embedding row for one source ID, ordered by
-// chunkIndex ascending. Returns an empty slice if none exist.
+// GetForSource returns every embedding row for one source ID, ordered by chunkIndex ascending.
 func GetForSource(ctx context.Context, sourceID string) ([]Embedding, error) {
 	col, err := db.GetCollection[Embedding](ctx, CollectionKey)
 	if err != nil {
@@ -146,8 +138,6 @@ func GetForSource(ctx context.Context, sourceID string) ([]Embedding, error) {
 }
 
 // CountForChunk counts rows matching (kind, sourceId, model, chunkIndex).
-// Used by the image-embedding pipeline to skip pages that already have a row
-// from the current model.
 func CountForChunk(ctx context.Context, kind Kind, sourceID, modelName string, chunkIndex int) (int64, error) {
 	col, err := db.GetCollection[Embedding](ctx, CollectionKey)
 	if err != nil {

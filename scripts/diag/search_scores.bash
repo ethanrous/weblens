@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
-# Prints raw cosine similarity of two queries against the embeddings collection.
-# Requires the embed sidecar running (default http://localhost:5500) and a
-# MongoDB with embeddings already written for the test corpus.
-#
-# Usage: ./scripts/diag/search_scores.bash "soc2" "SOC 2"
+# Encodes queries via the embed sidecar; usage: ./scripts/diag/search_scores.bash "soc2" "SOC 2"
 set -euo pipefail
 
 EMBED_URI="${WEBLENS_EMBED_URI:-http://localhost:5500}"

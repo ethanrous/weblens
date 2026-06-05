@@ -56,8 +56,7 @@ type RestoreFilesInfo struct {
 const (
 	// MatchKindFilename means the file's name fuzzy- or regex-matched the query.
 	MatchKindFilename = "filename"
-	// MatchKindContent means the file's extracted text or image content
-	// semantically matched the query.
+	// MatchKindContent means the file's extracted text or image content semantically matched the query.
 	MatchKindContent = "content"
 )
 

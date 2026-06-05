@@ -27,18 +27,13 @@ var eligibleExtensions = map[string]bool{
 	".tif": true, ".tiff": true, ".bmp": true,
 }
 
-// imageExtensions are eligible for OCR on the upload path but are embedded
-// visually (CLIP) during scan. We skip text extraction for them in the scan
-// pipeline to avoid OCR-ing every photo on every folder scan.
+// imageExtensions are embedded visually (CLIP) during scan, so text extraction is skipped for them on the scan path.
 var imageExtensions = map[string]bool{
 	".jpg": true, ".jpeg": true, ".png": true, ".heic": true,
 	".tif": true, ".tiff": true, ".bmp": true,
 }
 
-// shouldExtractTextOnScan reports whether a file with the given extension
-// should have document-text extraction dispatched during a folder scan. It
-// accepts an extension with or without a leading dot, any case. Image types
-// are excluded — they are embedded visually, not via OCR, on the scan path.
+// shouldExtractTextOnScan reports whether the given extension (with or without dot, any case) gets text extraction on scan; image types are excluded.
 func shouldExtractTextOnScan(ext string) bool {
 	ext = strings.ToLower(ext)
 	if ext != "" && ext[0] != '.' {
@@ -57,8 +52,7 @@ func ExtractAndEmbedFile(tsk *task.Task) {
 		return
 	}
 
-	// Respect the embed feature flag here so every dispatch site (upload and
-	// folder scan) is gated at the single choke point, not just the scan path.
+	// Respect the embed feature flag here so every dispatch site is gated at a single choke point.
 	ctx, ok := context_service.FromContext(tsk.Ctx)
 	if !ok {
 		tsk.Fail(errors.New("ExtractAndEmbedFile: failed to get app context"))
