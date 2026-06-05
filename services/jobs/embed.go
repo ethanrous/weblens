@@ -7,9 +7,11 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/models/embedding"
+	"github.com/ethanrous/weblens/models/featureflags"
 	job_model "github.com/ethanrous/weblens/models/job"
 	"github.com/ethanrous/weblens/models/task"
 	"github.com/ethanrous/weblens/modules/config"
+	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/embed"
 )
 
@@ -51,6 +53,29 @@ func ExtractAndEmbedFile(tsk *task.Task) {
 	meta, ok := tsk.GetMeta().(job_model.ExtractAndEmbedMeta)
 	if !ok {
 		tsk.Fail(errors.New("ExtractAndEmbedFile: wrong meta type"))
+
+		return
+	}
+
+	// Respect the embed feature flag here so every dispatch site (upload and
+	// folder scan) is gated at the single choke point, not just the scan path.
+	ctx, ok := context_service.FromContext(tsk.Ctx)
+	if !ok {
+		tsk.Fail(errors.New("ExtractAndEmbedFile: failed to get app context"))
+
+		return
+	}
+
+	flags, err := featureflags.GetFlags(ctx)
+	if err != nil {
+		tsk.Fail(err)
+
+		return
+	}
+
+	if !flags.EnableEmbed {
+		tsk.SetResult(task.Result{"skipped": "embed_disabled"})
+		tsk.Success()
 
 		return
 	}

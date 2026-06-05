@@ -10,7 +10,9 @@ import (
 	"github.com/ethanrous/weblens/models/embedding"
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/media"
+	share_model "github.com/ethanrous/weblens/models/share"
 	tag_model "github.com/ethanrous/weblens/models/tag"
+	"github.com/ethanrous/weblens/modules/option"
 	"github.com/ethanrous/weblens/modules/set"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/modules/wlfs"
@@ -316,6 +318,12 @@ func mergeSearchResults(
 
 	out := make([]wlstructs.SearchResult, 0, len(matches))
 
+	// Cache parent-folder permissions so each result carries the requester's
+	// actual access, mirroring the non-search file listing. Without this, every
+	// result's permissions default to the zero value (all-false) and Modifiable
+	// defaults to true.
+	parentPerms := make(map[string]*share_model.Permissions)
+
 	for fid, fm := range matches {
 		f, ok := candidates[fid]
 		if !ok {
@@ -323,9 +331,26 @@ func mergeSearchResults(
 		}
 
 		_, hasMedia := mediaMap[f.GetContentID()]
-		ctx.Log().Debug().Msgf("File %s has media: %t", fid, hasMedia)
+		opts := reshape.FileInfoOptions{HasMedia: hasMedia}
 
-		info, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, f, reshape.FileInfoOptions{HasMedia: hasMedia})
+		if parent := f.GetParent(); parent != nil {
+			perms, cached := parentPerms[parent.ID()]
+			if !cached {
+				p, err := auth.CanUserAccessFile(ctx, ctx.Requester, parent, ctx.Share)
+				if err != nil {
+					ctx.Log().Error().Err(err).Msgf("failed to check permissions for %s", fid)
+
+					continue
+				}
+
+				parentPerms[parent.ID()] = p
+				perms = p
+			}
+
+			opts.Perms = option.Of(*perms)
+		}
+
+		info, err := reshape.WeblensFileToFileInfo(&ctx.AppContext, f, opts)
 		if err != nil {
 			ctx.Log().Warn().Err(err).Msgf("reshape failed for %s", fid)
 

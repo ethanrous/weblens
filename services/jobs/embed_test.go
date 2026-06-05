@@ -11,11 +11,12 @@ import (
 
 	"github.com/ethanrous/weblens/models/db"
 	"github.com/ethanrous/weblens/models/embedding"
+	"github.com/ethanrous/weblens/models/featureflags"
 	file_model "github.com/ethanrous/weblens/models/file"
 	job_model "github.com/ethanrous/weblens/models/job"
 	"github.com/ethanrous/weblens/models/task"
-	"github.com/ethanrous/weblens/modules/wlog"
 	file_system "github.com/ethanrous/weblens/modules/wlfs"
+	"github.com/ethanrous/weblens/modules/wlog"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/embed"
 	"github.com/ethanrous/weblens/services/jobs"
@@ -71,6 +72,10 @@ func newJobTestHarness(t *testing.T) (context.Context, *jobTestHarness) {
 	stubServer := newEmbedStubServer(t)
 	embed.Default().SetBaseURLForTesting(stubServer.URL)
 	embed.Default().MarkAvailable()
+
+	// The embed feature flag defaults to off; enable it so the extract-and-embed
+	// handler actually runs. Tests that need it off override this explicitly.
+	require.NoError(t, featureflags.SaveFlags(appCtx, featureflags.Bundle{AllowRegistrations: true, EnableEmbed: true}))
 
 	h := &jobTestHarness{
 		appCtx:     appCtx,
@@ -228,4 +233,18 @@ func TestExtractAndEmbedFile_ServiceUnavailableIsNoop(t *testing.T) {
 
 	rows := h.QueryEmbeddings(t, f.ID())
 	assert.Empty(t, rows, "should write nothing when service is unavailable")
+}
+
+func TestExtractAndEmbedFile_DisabledFlagIsNoop(t *testing.T) {
+	_, h := newJobTestHarness(t)
+
+	require.NoError(t, featureflags.SaveFlags(h.appCtx, featureflags.Bundle{AllowRegistrations: true, EnableEmbed: false}))
+
+	f := h.CreateTextFile(t, "/notes.txt", "content while embed is disabled")
+
+	h.DispatchExtractAndEmbed(t, f)
+	h.WaitForJobs(t)
+
+	rows := h.QueryEmbeddings(t, f.ID())
+	assert.Empty(t, rows, "should write nothing when the embed feature flag is disabled")
 }

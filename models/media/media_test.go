@@ -405,6 +405,40 @@ func TestAddFileToMedia(t *testing.T) {
 	})
 }
 
+func TestIsSufficentlyProcessed(t *testing.T) {
+	newMedia := func(mime string) *media.Media {
+		m := media.NewMedia("isp-" + mime)
+		m.FileIDs = []string{"f1"}
+		m.MimeType = mime
+		m.Location = [2]float64{1, 1}
+
+		return m
+	}
+
+	t.Run("non-image-recognition media needs no image embedding", func(t *testing.T) {
+		// application/pdf and video/mp4 report SupportsImgRecog()==false, so an
+		// image embedding is never written for them.
+		assert.True(t, newMedia("application/pdf").IsSufficentlyProcessed(true, false))
+		assert.True(t, newMedia("video/mp4").IsSufficentlyProcessed(true, false))
+	})
+
+	t.Run("image media requires an image embedding when embed is enabled", func(t *testing.T) {
+		img := newMedia("image/jpeg")
+		assert.False(t, img.IsSufficentlyProcessed(true, false))
+		assert.True(t, img.IsSufficentlyProcessed(true, true))
+	})
+
+	t.Run("embed disabled requires no image embedding", func(t *testing.T) {
+		assert.True(t, newMedia("image/jpeg").IsSufficentlyProcessed(false, false))
+	})
+
+	t.Run("media without a location is not processed", func(t *testing.T) {
+		m := newMedia("image/jpeg")
+		m.Location = [2]float64{0, 0}
+		assert.False(t, m.IsSufficentlyProcessed(false, true))
+	})
+}
+
 func TestFmtCacheFileName(t *testing.T) {
 	tests := []struct {
 		name     string

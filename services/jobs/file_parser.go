@@ -377,6 +377,20 @@ func queueScanFileIfNeeded(ctx context_service.AppContext, t *task.Task, mf *fil
 		return nil
 	}
 
+	// Dispatch document-text extraction for this file. This must come before the
+	// displayability gate below: text/office/code files are not "displayable"
+	// media but still get content-indexed, so gating on displayability here
+	// would silently skip them. The handler gates by extension/size and the
+	// embed feature flag, and is idempotent (skips when a matching content hash
+	// is already embedded), so dispatching on every scan is safe and backfills
+	// files that were imported before they were text-embedded.
+	if doHdir && shouldExtractTextOnScan(mf.GetPortablePath().Ext()) && !embed.Default().ServiceUnavailable() {
+		embedMeta := job.ExtractAndEmbedMeta{File: mf}
+		if _, dispatchErr := ctx.DispatchJob(job.ExtractAndEmbedTask, embedMeta, nil); dispatchErr != nil {
+			t.Log().Warn().Err(dispatchErr).Msgf("Failed to dispatch ExtractAndEmbedTask for %s", mf.GetPortablePath())
+		}
+	}
+
 	mt := media_model.ParseExtension(mf.GetPortablePath().Ext())
 	if !mt.Displayable {
 		return nil
@@ -386,17 +400,6 @@ func queueScanFileIfNeeded(ctx context_service.AppContext, t *task.Task, mf *fil
 		t.Log().Error().Msgf("Skipping file %s, no content id", mf.GetPortablePath())
 
 		return nil
-	}
-
-	// Dispatch document-text extraction for this file. The handler gates by
-	// extension/size and is idempotent (skips when a matching content hash is
-	// already embedded), so dispatching on every scan is safe and backfills
-	// files that were imported before they were text-embedded.
-	if doHdir && shouldExtractTextOnScan(mf.GetPortablePath().Ext()) && !embed.Default().ServiceUnavailable() {
-		embedMeta := job.ExtractAndEmbedMeta{File: mf}
-		if _, dispatchErr := ctx.DispatchJob(job.ExtractAndEmbedTask, embedMeta, nil); dispatchErr != nil {
-			t.Log().Warn().Err(dispatchErr).Msgf("Failed to dispatch ExtractAndEmbedTask for %s", mf.GetPortablePath())
-		}
 	}
 
 	m, err := media_model.GetMediaByContentID(ctx, mf.GetContentID())

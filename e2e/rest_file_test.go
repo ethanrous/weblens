@@ -331,6 +331,43 @@ func TestSearchFiles(t *testing.T) {
 	}
 }
 
+func TestSearchFiles_ReturnsPerFilePermissions(t *testing.T) {
+	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
+	require.NoError(t, err)
+
+	client := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
+
+	userInfo, _, err := client.UsersAPI.GetUser(t.Context()).Execute()
+	require.NoError(t, err)
+
+	folder, _, err := client.FolderAPI.CreateFolder(t.Context()).Request(openapi.CreateFolderBody{
+		ParentFolderID: userInfo.GetHomeID(), NewFolderName: "searchable-perms",
+	}).Execute()
+	require.NoError(t, err)
+
+	results, resp, err := client.FilesAPI.SearchFiles(t.Context()).Search("searchable-perms").Execute()
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var result *openapi.FileSearchResult
+
+	for i := range results {
+		fi := results[i].GetFile()
+		if fi.GetId() == folder.GetId() {
+			result = &results[i]
+		}
+	}
+
+	require.NotNil(t, result, "the created folder should appear in search results")
+
+	// A result for an owned file must carry the owner's permissions, not the
+	// zero value (which would also leave Modifiable defaulting to true).
+	file := result.GetFile()
+	perms := file.GetPermissions()
+	assert.True(t, perms.GetCanView(), "owned search result should report CanView=true")
+	assert.True(t, perms.GetCanEdit(), "owned search result should report CanEdit=true")
+}
+
 func TestUpdateFile(t *testing.T) {
 	coreSetup, err := setupTestServer(t.Context(), t.Name(), config.Provider{InitRole: string(tower.RoleCore), GenerateAdminAPIToken: true})
 	require.NoError(t, err, "Failed to start test server")

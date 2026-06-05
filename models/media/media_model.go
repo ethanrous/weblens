@@ -398,7 +398,6 @@ func DropMediaByOwner(ctx context.Context, userFilter string) ([]string, error) 
 	return nil, nil
 }
 
-
 // DeleteMediaByContentID deletes a media from the database by its content ID.
 func DeleteMediaByContentID(ctx context.Context, contentID ContentID) error {
 	col, err := db.GetCollection[*Media](ctx, MediaCollectionKey)
@@ -584,7 +583,12 @@ func (m *Media) IsSufficentlyProcessed(requireEmbed bool, hasImageEmbedding bool
 		return false
 	}
 
-	if requireEmbed && !hasImageEmbedding {
+	// Only image-recognition media (photos) ever get an image embedding, so
+	// only they can be gated on one. PDFs, videos, etc. report
+	// SupportsImgRecog()==false and are content-indexed via text extraction
+	// instead, so requiring an image embedding for them would leave them
+	// perpetually "unprocessed" and re-scanned on every pass.
+	if requireEmbed && ParseMime(m.MimeType).SupportsImgRecog() && !hasImageEmbedding {
 		return false
 	}
 
