@@ -5,10 +5,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -86,7 +86,7 @@ func (c *Client) EncodeImage(ctx context.Context, imgPath string) ([]float64, er
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		c.flagIfNoHost(err)
+		c.flagUnreachable(err)
 
 		return nil, fmt.Errorf("embed encode image: %w", err)
 	}
@@ -135,7 +135,7 @@ func (c *Client) EncodeQueryText(ctx context.Context, text string) (plain, image
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		c.flagIfNoHost(err)
+		c.flagUnreachable(err)
 
 		return nil, nil, fmt.Errorf("embed encode text: %w", err)
 	}
@@ -182,7 +182,7 @@ func (c *Client) ExtractAndEmbedFile(ctx context.Context, path string, mimeHint 
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		c.flagIfNoHost(err)
+		c.flagUnreachable(err)
 
 		return nil, fmt.Errorf("embed extract: %w", err)
 	}
@@ -207,8 +207,14 @@ func (c *Client) ExtractAndEmbedFile(ctx context.Context, path string, mimeHint 
 	return out, nil
 }
 
-func (c *Client) flagIfNoHost(err error) {
-	if err != nil && strings.Contains(err.Error(), "no such host") {
-		c.unavailable.Store(true)
+// flagUnreachable trips the circuit breaker on a transport-level failure from
+// Do (DNS, dial, connection refused, timeout — the error wording varies by
+// platform). A cancelled or expired caller context is not the service's fault,
+// so it is left alone. The health ticker clears the flag once /health returns.
+func (c *Client) flagUnreachable(err error) {
+	if err == nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return
 	}
+
+	c.unavailable.Store(true)
 }

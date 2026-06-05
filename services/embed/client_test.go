@@ -34,10 +34,10 @@ func TestEncodeQueryText_Cached(t *testing.T) {
 }
 
 func TestServiceUnavailable_BlocksFurtherCalls(t *testing.T) {
-	c := embed.NewClient("http://nonexistent-host-for-test:1")
+	c := embed.NewClient("http://127.0.0.1:1")
 	_, _, err := c.EncodeQueryText(context.Background(), "x")
 	require.Error(t, err)
-	assert.True(t, c.ServiceUnavailable(), "no-such-host should flip the unavailable flag")
+	assert.True(t, c.ServiceUnavailable(), "an unreachable host should flip the unavailable flag")
 
 	_, _, err = c.EncodeQueryText(context.Background(), "y")
 	require.Error(t, err)
