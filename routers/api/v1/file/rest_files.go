@@ -1473,7 +1473,6 @@ func getChildMedias(
 			for _, coverM := range coverMedias {
 				mediaMap[coverM.ContentID] = coverM
 			}
-
 		}
 	}
 

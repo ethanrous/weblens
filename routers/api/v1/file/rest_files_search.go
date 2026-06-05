@@ -134,7 +134,10 @@ func mergeContentHits(hits []embedding.Hit, byMedia map[string][]*file_model.Web
 			fileIDs = []string{h.SourceID}
 			snippet = h.Snippet
 		case embedding.KindImage:
-			for _, f := range byMedia[h.SourceID] {
+			mediaFiles := byMedia[h.SourceID]
+			fileIDs = make([]string, 0, len(mediaFiles))
+
+			for _, f := range mediaFiles {
 				fileIDs = append(fileIDs, f.ID())
 			}
 		}

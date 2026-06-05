@@ -1,4 +1,4 @@
-package embed
+package embed //nolint:revive // package name intentionally mirrors the embed sidecar service
 
 import (
 	"context"
@@ -68,6 +68,7 @@ func probeHealth(ctx context.Context, c *Client) bool {
 	if err != nil {
 		return false
 	}
+
 	defer func() { _ = resp.Body.Close() }()
 
 	return resp.StatusCode == http.StatusOK

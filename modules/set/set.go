@@ -14,6 +14,7 @@ func New[T comparable](items ...T) Set[T] {
 	return s
 }
 
+// NewN creates a new empty Set preallocated for the given capacity.
 func NewN[T comparable](capacity int) Set[T] {
 	return make(Set[T], capacity)
 }
