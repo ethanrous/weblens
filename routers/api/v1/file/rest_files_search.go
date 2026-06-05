@@ -140,8 +140,22 @@ func mergeContentHits(hits []embedding.Hit, byMedia map[string][]*file_model.Web
 		}
 
 		for _, fid := range fileIDs {
-			if cur, ok := out[fid]; !ok || h.Score > cur.Score {
-				out[fid] = contentHit{Score: h.Score, Snippet: snippet, Page: h.Page}
+			cur, ok := out[fid]
+
+			switch {
+			case !ok || h.Score > cur.Score:
+				merged := contentHit{Score: h.Score, Snippet: snippet, Page: h.Page}
+				// Image hits carry no snippet/page; keep the prior text hit's so the result stays linkable.
+				if merged.Snippet == "" && ok {
+					merged.Snippet = cur.Snippet
+					merged.Page = cur.Page
+				}
+
+				out[fid] = merged
+			case cur.Snippet == "" && snippet != "":
+				cur.Snippet = snippet
+				cur.Page = h.Page
+				out[fid] = cur
 			}
 		}
 	}
@@ -238,8 +252,20 @@ func mergeSearchResults(
 	contentHits map[string]contentHit,
 	candidates map[string]*file_model.WeblensFileImpl,
 	mediaMap map[string]*media.Media,
+	tagBrowse bool,
 ) ([]wlstructs.SearchResult, error) {
 	matches := make(map[string]*fileMatch, len(fnRanks)+len(contentHits))
+
+	// Tags-only browse has no relevance query, so every tag-filtered candidate is a neutral result.
+	if tagBrowse {
+		for fid := range candidates {
+			if fid == ctx.Requester.HomeID || fid == ctx.Requester.TrashID {
+				continue
+			}
+
+			matches[fid] = &fileMatch{}
+		}
+	}
 
 	maxRank := 1
 	for _, m := range fnRanks {
@@ -414,8 +440,8 @@ func SearchFiles(ctx context_service.RequestContext) {
 	useRegex := ctx.QueryBool("regex")
 	includeContent := true
 
-	if v := ctx.Query("includeContent"); v == "false" {
-		includeContent = false
+	if v := ctx.Query("includeContent"); v != "" {
+		includeContent = ctx.QueryBool("includeContent")
 	}
 
 	fileIDs, filenames := collectCandidates(baseFolder, ctx.QueryBool("recursive"), tagFilterFileIDs)
@@ -460,6 +486,10 @@ func SearchFiles(ctx context_service.RequestContext) {
 	g.Go(func() error {
 		_ = gctx
 
+		if filenameSearch == "" {
+			return nil
+		}
+
 		var err error
 
 		fnMatches, err = runFilenameMatch(filenameSearch, useRegex, fileIDs, filenames)
@@ -469,7 +499,7 @@ func SearchFiles(ctx context_service.RequestContext) {
 
 	// Goroutine B: semantic content search (skipped for regex, disabled content, or unavailable service).
 	g.Go(func() error {
-		if useRegex || !includeContent || embed_service.Default().ServiceUnavailable() {
+		if filenameSearch == "" || useRegex || !includeContent || embed_service.Default().ServiceUnavailable() {
 			return nil
 		}
 
@@ -535,9 +565,7 @@ func SearchFiles(ctx context_service.RequestContext) {
 		return
 	}
 
-	ctx.Log().Debug().Msgf("Mapped %d media entries to %d content IDs for search results", len(medias), len(medias))
-
-	results, err := mergeSearchResults(ctx, fnMatches, embedHits, candidates, medias)
+	results, err := mergeSearchResults(ctx, fnMatches, embedHits, candidates, medias, filenameSearch == "")
 	if err != nil {
 		ctx.Error(http.StatusInternalServerError, err)
 

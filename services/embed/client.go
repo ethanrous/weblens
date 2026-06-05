@@ -42,6 +42,9 @@ type Client struct {
 // ErrServiceUnavailable indicates the embed container is offline.
 var ErrServiceUnavailable = fmt.Errorf("embed service unavailable")
 
+// ErrExtractionFailed means the sidecar could not extract the file (HTTP 422/404), distinct from a successful-but-empty extraction.
+var ErrExtractionFailed = fmt.Errorf("embed extraction failed")
+
 // NewClient constructs a Client. baseURL is the http://host:port of the embed container.
 func NewClient(baseURL string) *Client {
 	return &Client{
@@ -161,7 +164,7 @@ func (c *Client) EncodeQueryText(ctx context.Context, text string) (plain, image
 	return out.TextFeatures, out.ImageQueryFeatures, nil
 }
 
-// ExtractAndEmbedFile invokes /extract-and-embed and returns per-chunk results (nil on 422/404).
+// ExtractAndEmbedFile invokes /extract-and-embed; returns ErrExtractionFailed on 422/404 (vs. empty slice + nil for no text).
 func (c *Client) ExtractAndEmbedFile(ctx context.Context, path string, mimeHint string) ([]ChunkResult, error) {
 	if c.ServiceUnavailable() {
 		return nil, ErrServiceUnavailable
@@ -187,7 +190,7 @@ func (c *Client) ExtractAndEmbedFile(ctx context.Context, path string, mimeHint 
 	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode == http.StatusUnprocessableEntity || resp.StatusCode == http.StatusNotFound {
-		return nil, nil
+		return nil, ErrExtractionFailed
 	}
 
 	if resp.StatusCode != http.StatusOK {

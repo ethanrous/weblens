@@ -21,7 +21,7 @@ is_embed_running() {
         if dockerc ps | grep weblens-embed &>/dev/null; then
             return 0
         fi
-    elif pgrep -f "embed/main.py\|embed/\.venv/.*main.py\|hdir/open.main.py\|hdir/\.venv/.*open.main.py" &>/dev/null; then
+    elif pgrep -f "embed.*main.py" &>/dev/null; then
         return 0
     fi
 
@@ -70,9 +70,10 @@ launch_embed() {
                 return 0
             fi
             sleep 1
+            printf "."
         done
 
-        echo "Failed to launch embed development server within timeout. Check logs for details: ${WEBLENS_ROOT}/_build/logs/embed.log"
+        echo "\nFailed to launch embed development server within timeout. Check logs for details: ${WEBLENS_ROOT}/_build/logs/embed.log"
         return 1
     fi
 }
@@ -86,9 +87,9 @@ stop_embed() {
     fi
 
     if is_embed_running --containerized false; then
-        pkill -f "embed/main.py\|embed/\.venv/.*main.py\|hdir/open.main.py\|hdir/\.venv/.*open.main.py" 2>/dev/null || true
-
         echo "Stopping embed development server..."
+
+        pkill -f "embed.*main.py" 2>/dev/null || true
     fi
 }
 export -f stop_embed

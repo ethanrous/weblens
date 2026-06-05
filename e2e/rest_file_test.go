@@ -273,6 +273,18 @@ func TestSearchFiles(t *testing.T) {
 		assert.Equal(t, 0, len(results))
 	})
 
+	t.Run("tags-only search returns tagged files as neutral browse results", func(t *testing.T) {
+		results, resp, err := client.FilesAPI.SearchFiles(t.Context()).Search("").Tags(tag1.GetId()).Execute()
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, 2, len(results))
+
+		// No filename query: results are tag-browse only, not filename/content matches.
+		for _, r := range results {
+			assert.Empty(t, r.GetMatchKind())
+		}
+	})
+
 	// --- Raw HTTP tests for multi-tag and edge cases ---
 
 	rawSearchTests := []struct {

@@ -27,19 +27,19 @@ test.describe('Developer Page Actions', () => {
         await page.getByRole('button', { name: 'Refresh' }).click()
     })
 
-    test('should toggle HDIR image processing', async ({ page }) => {
-        // Find the HDIR button - it says either "Enable HDIR..." or "Disable HDIR..."
-        const hdirButton = page.getByRole('button', { name: /HDIR image processing/ })
-        await expect(hdirButton).toBeVisible()
+    test('should toggle embedding', async ({ page }) => {
+        // Find the HDIR button - it says either "Enable embed processing" or "Disable embed processing"
+        const embedButton = page.getByRole('button', { name: /embed processing/ })
+        await expect(embedButton).toBeVisible()
 
         // Click to toggle — verify the click doesn't error
-        await hdirButton.click()
+        await embedButton.click()
 
         // The button should still be visible after the toggle attempt
-        await expect(hdirButton).toBeVisible()
+        await expect(embedButton).toBeVisible()
 
         // Click again to restore state
-        await hdirButton.click()
+        await embedButton.click()
     })
 
     test('should enable trace logging', async ({ page }) => {
@@ -64,7 +64,7 @@ test.describe('Developer Page Actions', () => {
     })
 
     test('should click clear HDIR data', async ({ page }) => {
-        await page.getByRole('button', { name: 'Clear Media HDIR Data' }).click()
+        await page.getByRole('button', { name: 'Drop All Embeddings' }).click()
     })
 })
 

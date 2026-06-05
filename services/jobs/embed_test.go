@@ -245,3 +245,41 @@ func TestExtractAndEmbedFile_DisabledFlagIsNoop(t *testing.T) {
 	rows := h.QueryEmbeddings(t, f.ID())
 	assert.Empty(t, rows, "should write nothing when the embed feature flag is disabled")
 }
+
+func TestExtractAndEmbedFile_ExtractionFailurePreservesExistingChunks(t *testing.T) {
+	_, h := newJobTestHarness(t)
+
+	f := h.CreateTextFile(t, "/report.txt", "content; extraction is stubbed to fail below")
+
+	// Stale content hash so the idempotency gate doesn't short-circuit and extraction runs.
+	require.NoError(t, embedding.Upsert(h.appCtx, embedding.Embedding{
+		Kind:        embedding.KindFileChunk,
+		SourceID:    f.ID(),
+		ChunkIndex:  0,
+		Snippet:     "previously indexed content",
+		Vector:      make([]float64, 1024),
+		Model:       "jina-clip-v2",
+		ContentHash: "stale-content-hash",
+	}))
+	require.NotEmpty(t, h.QueryEmbeddings(t, f.ID()))
+
+	// Point the embed client at a sidecar that fails extraction with HTTP 422.
+	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			w.WriteHeader(http.StatusOK)
+
+			return
+		}
+
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		_, _ = w.Write([]byte(`{"error":"unsupported file type","code":"extraction_failed"}`))
+	}))
+	t.Cleanup(failing.Close)
+	embed.Default().SetBaseURLForTesting(failing.URL)
+
+	h.DispatchExtractAndEmbed(t, f)
+	h.WaitForJobs(t)
+
+	rows := h.QueryEmbeddings(t, f.ID())
+	assert.NotEmpty(t, rows, "a failed extraction (HTTP 422) must not wipe the file's existing embeddings")
+}
