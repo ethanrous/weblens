@@ -9,38 +9,18 @@ import (
 	"github.com/ethanrous/weblens/models/embedding"
 	"github.com/ethanrous/weblens/models/featureflags"
 	job_model "github.com/ethanrous/weblens/models/job"
+	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/models/task"
 	"github.com/ethanrous/weblens/modules/config"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/embed"
 )
 
-var eligibleExtensions = map[string]bool{
-	".txt": true, ".md": true, ".csv": true, ".log": true,
-	".json": true, ".yaml": true, ".yml": true,
-	".go": true, ".py": true, ".js": true, ".ts": true, ".tsx": true,
-	".vue": true, ".rs": true, ".java": true, ".c": true, ".cpp": true,
-	".h": true, ".hpp": true, ".sh": true, ".rb": true, ".kt": true, ".swift": true,
-	".pdf":  true,
-	".docx": true, ".xlsx": true, ".pptx": true,
-	".jpg": true, ".jpeg": true, ".png": true, ".heic": true,
-	".tif": true, ".tiff": true, ".bmp": true,
-}
-
-// imageExtensions are embedded visually (CLIP) during scan, so text extraction is skipped for them on the scan path.
-var imageExtensions = map[string]bool{
-	".jpg": true, ".jpeg": true, ".png": true, ".heic": true,
-	".tif": true, ".tiff": true, ".bmp": true,
-}
-
-// shouldExtractTextOnScan reports whether the given extension (with or without dot, any case) gets text extraction on scan; image types are excluded.
+// shouldExtractTextOnScan reports whether the given extension gets text extraction on scan; image types are excluded because they are embedded visually (CLIP) during scan.
 func shouldExtractTextOnScan(ext string) bool {
 	ext = strings.ToLower(ext)
-	if ext != "" && ext[0] != '.' {
-		ext = "." + ext
-	}
 
-	return eligibleExtensions[ext] && !imageExtensions[ext]
+	return media_model.EmbedEligible(ext) && !media_model.ParseExtension(ext).SupportsImgRecog()
 }
 
 // ExtractAndEmbedFile runs extraction + embedding for one file.
@@ -83,8 +63,8 @@ func ExtractAndEmbedFile(tsk *task.Task) {
 		return
 	}
 
-	ext := strings.ToLower(filepath.Ext(file.GetPortablePath().Filename()))
-	if !eligibleExtensions[ext] {
+	ext := filepath.Ext(file.GetPortablePath().Filename())
+	if !media_model.EmbedEligible(ext) {
 		tsk.SetResult(task.Result{"skipped": "extension"})
 		tsk.Success()
 

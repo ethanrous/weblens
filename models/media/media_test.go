@@ -438,6 +438,26 @@ func TestIsSufficentlyProcessed(t *testing.T) {
 	})
 }
 
+func TestEmbedEligible(t *testing.T) {
+	t.Run("image types are eligible", func(t *testing.T) {
+		assert.True(t, media.EmbedEligible("png"))
+		assert.True(t, media.EmbedEligible("jpeg"))
+	})
+
+	t.Run("document types are eligible", func(t *testing.T) {
+		assert.True(t, media.EmbedEligible("pdf"))
+	})
+
+	t.Run("unknown types are not eligible", func(t *testing.T) {
+		assert.False(t, media.EmbedEligible("exe"))
+	})
+
+	t.Run("normalizes case and leading dot", func(t *testing.T) {
+		assert.True(t, media.EmbedEligible(".PNG"))
+		assert.True(t, media.EmbedEligible("TXT"))
+	})
+}
+
 func TestFmtCacheFileName(t *testing.T) {
 	tests := []struct {
 		name     string
