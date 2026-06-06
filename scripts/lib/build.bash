@@ -65,7 +65,7 @@ export -f build_weblens_binary
 
 build_embed() {
     dockerc stop weblens-embed 2>/dev/null || true
-    dockerc image rm weblens_embed 2>/dev/null || true
+    dockerc image rm ghcr.io/ethanrous/weblens_embed 2>/dev/null || true
     dockerc build -f ./docker/embed.Dockerfile -t ghcr.io/ethanrous/weblens_embed .
 }
 export -f build_embed

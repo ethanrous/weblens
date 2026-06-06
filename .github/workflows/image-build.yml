@@ -69,10 +69,14 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
 
           ./scripts/gogogadgetdocker.bash -p -s -t $BUILD_TAG
-          exit $?
+
+          if [ "$GITHUB_REF" == "refs/heads/main" ] || [ "$RELEASE_BUILD" == true ]; then
+            docker tag "ghcr.io/ethanrous/weblens:${BUILD_TAG}" "ghcr.io/ethanrous/weblens:latest"
+            docker push "ghcr.io/ethanrous/weblens:latest"
+          fi
         env:
           BUILD_TAG: ${{ needs.compute-tag.outputs.build_tag }}
-          ENVIRON: ${{ inputs.deploy }}
+          RELEASE_BUILD: ${{ inputs.do_release_build }}
 
   build-embed-image:
     needs: compute-tag
