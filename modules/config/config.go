@@ -51,8 +51,11 @@ type Provider struct {
 	DataPath          string
 	CachePath         string
 	StaticContentPath string
-	// HdirURI is the URI for the HDIR (high dimension image recognition) service, used for machine learning on images to allow semantic search and other features. This is expected to be a separate service, and the endpoint for that service should be provided here.
-	HdirURI string
+	// EmbedURI is the URI for the embedding service (multimodal model + text extraction).
+	EmbedURI string
+
+	// EmbedMaxFileSize is the max file size in bytes the embed service will extract+embed; larger files are skipped.
+	EmbedMaxFileSize int64
 
 	// Logging settings
 	LogLevel  zerolog.Level
@@ -181,7 +184,8 @@ func getDefaultConfig() Provider {
 		Port:              "8080",
 		MongoDBUri:        "mongodb://127.0.0.1:27017/?directConnection=true",
 		MongoDBName:       "weblens",
-		HdirURI:           "http://weblens-hdir:5500",
+		EmbedURI:          "http://weblens-embed:5500",
+		EmbedMaxFileSize:  50 * 1024 * 1024, // 50 MiB
 		UIPath:            "/app/web",
 		StaticContentPath: "/app/static",
 
@@ -332,9 +336,22 @@ func getEnvOverride(config *Provider) {
 		config.DoProfile = doProfile
 	}
 
-	if hdirURI := os.Getenv("WEBLENS_HDIR_URI"); hdirURI != "" {
-		log.Trace().Msgf("Overriding HdirURI with WEBLENS_HDIR_URI: %v", hdirURI)
-		config.HdirURI = hdirURI
+	if embedURI, ok := os.LookupEnv("WEBLENS_EMBED_URI"); ok && embedURI != "" {
+		log.Trace().Msgf("Overriding EmbedURI with WEBLENS_EMBED_URI: %v", embedURI)
+		config.EmbedURI = embedURI
+	} else if hdirURI, ok := os.LookupEnv("WEBLENS_HDIR_URI"); ok && hdirURI != "" {
+		log.Warn().Msg("WEBLENS_HDIR_URI is deprecated; use WEBLENS_EMBED_URI. Honored for this release; removed in the next minor.")
+
+		config.EmbedURI = hdirURI
+	}
+
+	if maxSize, ok := os.LookupEnv("WEBLENS_EMBED_MAX_FILE_SIZE"); ok {
+		if n, err := strconv.ParseInt(maxSize, 10, 64); err == nil {
+			log.Trace().Msgf("Overriding EmbedMaxFileSize with WEBLENS_EMBED_MAX_FILE_SIZE: %v", n)
+			config.EmbedMaxFileSize = n
+		} else {
+			log.Warn().Err(err).Msgf("Invalid WEBLENS_EMBED_MAX_FILE_SIZE value %q; keeping default", maxSize)
+		}
 	}
 
 	if doQuickPassHashing, ok := envBool("WEBLENS_USE_DANGEROUSLY_INSECURE_PASSWORD_HASHING"); ok && doQuickPassHashing {

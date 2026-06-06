@@ -1,3 +1,4 @@
+// Package media provides functionalities related to media processing and management.
 package media
 
 import (

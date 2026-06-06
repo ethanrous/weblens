@@ -7,6 +7,7 @@ Name | Type | Description | Notes
 **BackupSize** | **int64** |  | 
 **BuildVersion** | Pointer to **string** | BuildVersion is the build version of the running server binary, sourced from WEBLENS_BUILD_VERSION or the embedded VCS revision. | [optional] 
 **CoreAddress** | **string** | Address of the remote server, only if the instance is a core. Not set for any remotes/backups on core server, as it IS the core | 
+**EmbedAvailable** | Pointer to **bool** | EmbedAvailable reports whether the embedding service is reachable; only populated for the local server. | [optional] 
 **Id** | **string** |  | 
 **LastBackup** | **int64** |  | 
 **LogLevel** | Pointer to **string** |  | [optional] 
@@ -100,6 +101,31 @@ and a boolean to check if the value has been set.
 
 SetCoreAddress sets CoreAddress field to given value.
 
+
+### GetEmbedAvailable
+
+`func (o *TowerInfo) GetEmbedAvailable() bool`
+
+GetEmbedAvailable returns the EmbedAvailable field if non-nil, zero value otherwise.
+
+### GetEmbedAvailableOk
+
+`func (o *TowerInfo) GetEmbedAvailableOk() (*bool, bool)`
+
+GetEmbedAvailableOk returns a tuple with the EmbedAvailable field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetEmbedAvailable
+
+`func (o *TowerInfo) SetEmbedAvailable(v bool)`
+
+SetEmbedAvailable sets EmbedAvailable field to given value.
+
+### HasEmbedAvailable
+
+`func (o *TowerInfo) HasEmbedAvailable() bool`
+
+HasEmbedAvailable returns a boolean if a field has been set.
 
 ### GetId
 

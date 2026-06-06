@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -317,188 +316,6 @@ func GetFolderHistory(ctx context_service.RequestContext) {
 	}
 
 	ctx.JSON(http.StatusOK, actionInfos)
-}
-
-// SearchFiles godoc
-//
-//	@ID			SearchFiles
-//
-//	@Security	SessionAuth
-//
-//	@Summary	Search for files by filename
-//	@Tags		Files
-//
-//	@Param		search			query		string				true	"Filename to search for"
-//	@Param		baseFolderID	query		string				false	"The folder to search in, defaults to the user's home folder"
-//	@Param		sortProp		query		string				false	"Property to sort by"									Enums(name, size, updatedAt)	default(name)
-//	@Param		sortOrder		query		string				false	"Sort order"											Enums(asc, desc)				default(asc)
-//	@Param		recursive		query		boolean				false	"Search recursively"									Enums(true, false)				default(false)
-//	@Param		regex			query		boolean				false	"Whether to treat the search term as a regex pattern"	Enums(true, false)				default(false)
-//	@Param		tags			query		string				false	"Comma-separated list of tags to filter by"
-//	@Param		tagJoinLogic	query		string				false	"Logic to combine multiple tags with, either 'and' or 'or'"	Enums(and, or)	default(or)
-//	@Success	200				{object}	wlstructs.FilesInfo	"Search results"
-//	@Failure	400
-//	@Failure	401
-//	@Failure	500
-//	@Router		/files/search [get]
-func SearchFiles(ctx context_service.RequestContext) {
-	filenameSearch := ctx.Query("search")
-	tagIDsFilter := ctx.QueryArray("tags")
-
-	if filenameSearch == "" && len(tagIDsFilter) == 0 {
-		ctx.Error(http.StatusBadRequest, wlerrors.New("at least one of 'search' or 'tags' query parameters is required"))
-
-		return
-	}
-
-	ctx.Log().Trace().Msgf("Searching for filename: %s", filenameSearch)
-
-	baseFolderID := ctx.Query("baseFolderID")
-	if baseFolderID == "" {
-		baseFolderID = ctx.Requester.HomeID
-	}
-
-	baseFolder, err := auth.RequireFileAccessOne(ctx, baseFolderID)
-	if err != nil {
-		return
-	}
-
-	if !baseFolder.IsDir() {
-		ctx.Error(http.StatusBadRequest, wlerrors.New("the baseFolderID must be a directory"))
-
-		return
-	}
-
-	// Compute tags filter
-	tagFilterFileIDs := set.New[string]()
-
-	if len(tagIDsFilter) > 0 {
-		tagJoinLogic := ctx.Query("tagJoinLogic")
-		if tagJoinLogic == "" {
-			tagJoinLogic = "or"
-		} else if tagJoinLogic != "or" && tagJoinLogic != "and" {
-			ctx.Error(http.StatusBadRequest, wlerrors.New("invalid tagJoinLogic, must be 'and' or 'or'"))
-
-			return
-		}
-
-		tags, err := tag_model.GetTagsByOwner(ctx, ctx.Requester.GetUsername(), tagIDsFilter...)
-		if err != nil {
-			ctx.Error(http.StatusInternalServerError, err)
-
-			return
-		} else if len(tags) != len(tagIDsFilter) {
-			ctx.Error(http.StatusBadRequest, wlerrors.Errorf("one or more tags not found of the provided tags: %v", tagIDsFilter))
-
-			return
-		}
-
-		andInitialized := false
-
-		for _, t := range tags {
-			currentTagSet := set.New(t.FileIDs...)
-			if tagJoinLogic == "or" {
-				tagFilterFileIDs = tagFilterFileIDs.Union(currentTagSet)
-			} else if !andInitialized {
-				tagFilterFileIDs = currentTagSet
-				andInitialized = true
-			} else {
-				tagFilterFileIDs = tagFilterFileIDs.Intersection(currentTagSet)
-			}
-		}
-	}
-
-	fileIDs := []string{}
-	filenames := []string{}
-
-	if ctx.QueryBool("recursive") {
-		_ = baseFolder.RecursiveMap(
-			func(f *file_model.WeblensFileImpl) error {
-				if tagFilterFileIDs.Len() != 0 && !tagFilterFileIDs.Has(f.ID()) {
-					return nil
-				}
-
-				fileIDs = append(fileIDs, f.ID())
-				filenames = append(filenames, f.GetPortablePath().Filename())
-
-				return nil
-			},
-		)
-	} else {
-		children := baseFolder.GetChildren()
-
-		for _, child := range children {
-			if tagFilterFileIDs.Len() != 0 && !tagFilterFileIDs.Has(child.ID()) {
-				continue
-			}
-
-			fileIDs = append(fileIDs, child.ID())
-			filenames = append(filenames, child.GetPortablePath().Filename())
-		}
-	}
-
-	doRegex := ctx.QueryBool("regex")
-
-	files := []*file_model.WeblensFileImpl{}
-
-	if doRegex == true {
-		re, err := regexp.Compile(filenameSearch)
-		if err != nil {
-			ctx.Error(http.StatusBadRequest, wlerrors.New("invalid regex pattern"))
-
-			return
-		}
-
-		for i, filename := range filenames {
-			matched := re.MatchString(filename)
-			if !matched {
-				continue
-			}
-
-			f, err := ctx.FileService.GetFileByID(ctx, fileIDs[i])
-			if err != nil {
-				ctx.Log().Error().Stack().Err(err).Msgf("Failed to get file by ID: %s", fileIDs[i])
-
-				continue
-			}
-
-			files = append(files, f)
-		}
-	} else {
-		matches := fuzzy.RankFindFold(filenameSearch, filenames)
-		wlslices.SortFunc(
-			matches, func(a, b fuzzy.Rank) int {
-				return a.Distance - b.Distance
-			},
-		)
-
-		// Preallocate the files slice with the length of matches
-		files = make([]*file_model.WeblensFileImpl, 0, len(matches))
-
-		for _, match := range matches {
-			f, err := ctx.FileService.GetFileByID(ctx, fileIDs[match.OriginalIndex])
-			if err != nil {
-				ctx.Log().Error().Stack().Err(err).Msgf("Failed to get file by ID: %s", fileIDs[match.OriginalIndex])
-
-				continue
-			}
-
-			if f.ID() == ctx.Requester.HomeID || f.ID() == ctx.Requester.TrashID {
-				continue
-			}
-
-			files = append(files, f)
-		}
-	}
-
-	resp, err := filesInfoFromFiles(ctx, files)
-	if err != nil {
-		ctx.Error(http.StatusInternalServerError, err)
-
-		return
-	}
-
-	ctx.JSON(http.StatusOK, resp)
 }
 
 // CreateFolder godoc
@@ -1614,26 +1431,29 @@ func GetUploadResult(ctx context_service.RequestContext) {
 	ctx.Status(http.StatusOK)
 }
 
-// Helper Function.
+// getChildMedias returns media for the given files keyed by content ID (folders use their cover photo's media).
 func getChildMedias(
 	ctx context_service.RequestContext,
 	children []*file_model.WeblensFileImpl,
-) ([]*media_model.Media, error) {
-	regFileIDs := make([]string, 0, len(children))
+) (map[string]*media_model.Media, error) {
+	regFileIDs := set.NewN[string](len(children))
+
 	dirIDs := make([]string, 0)
 
 	for _, child := range children {
 		if child.IsDir() {
 			dirIDs = append(dirIDs, child.ID())
 		} else {
-			regFileIDs = append(regFileIDs, child.ID())
+			regFileIDs.Add(child.ID())
 		}
 	}
 
-	medias, err := media_model.GetMediasByFileIDs(ctx, regFileIDs...)
+	medias, err := media_model.GetMediasByFileIDs(ctx, regFileIDs.ToSlice()...)
 	if err != nil {
 		return nil, err
 	}
+
+	mediaMap := mapMediasByContentID(medias)
 
 	if len(dirIDs) > 0 {
 		covers, err := cover_model.GetCoversByFolderIDs(ctx, dirIDs...)
@@ -1650,11 +1470,23 @@ func getChildMedias(
 				return nil, err
 			}
 
-			medias = append(medias, coverMedias...)
+			for _, coverM := range coverMedias {
+				mediaMap[coverM.ContentID] = coverM
+			}
 		}
 	}
 
-	return medias, nil
+	return mediaMap, nil
+}
+
+func mapMediasByContentID(medias []*media_model.Media) map[string]*media_model.Media {
+	mediaMap := make(map[string]*media_model.Media, len(medias))
+
+	for _, media := range medias {
+		mediaMap[string(media.ContentID)] = media
+	}
+
+	return mediaMap
 }
 
 func sortFileInfos(files []wlstructs.FileInfo, sortBy string, sortDir string, medias map[string]*media_model.Media) {

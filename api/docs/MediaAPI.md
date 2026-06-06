@@ -5,7 +5,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**CleanupMedia**](MediaAPI.md#CleanupMedia) | **Post** /media/cleanup | Make sure all media is correctly synced with the file system
-[**DropHDIRs**](MediaAPI.md#DropHDIRs) | **Post** /media/drop/hdirs | Drop all computed media HDIR data. Must be server owner.
+[**DropEmbeddings**](MediaAPI.md#DropEmbeddings) | **Post** /media/drop/embeddings | Drop every row from the embeddings collection (image and text). Must be server owner.
 [**DropMedia**](MediaAPI.md#DropMedia) | **Post** /media/drop | DANGEROUS. Drop all computed media and clear thumbnail in-memory and filesystem cache. Must be server owner.
 [**GetMedia**](MediaAPI.md#GetMedia) | **Get** /media | Get paginated media
 [**GetMediaFile**](MediaAPI.md#GetMediaFile) | **Get** /media/{mediaID}/file | Get file of media by id
@@ -76,11 +76,11 @@ No authorization required
 [[Back to README]](../README.md)
 
 
-## DropHDIRs
+## DropEmbeddings
 
-> DropHDIRs(ctx).Execute()
+> DropEmbeddings(ctx).Execute()
 
-Drop all computed media HDIR data. Must be server owner.
+Drop every row from the embeddings collection (image and text). Must be server owner.
 
 ### Example
 
@@ -98,9 +98,9 @@ func main() {
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	r, err := apiClient.MediaAPI.DropHDIRs(context.Background()).Execute()
+	r, err := apiClient.MediaAPI.DropEmbeddings(context.Background()).Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `MediaAPI.DropHDIRs``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error when calling `MediaAPI.DropEmbeddings``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
 }
@@ -112,7 +112,7 @@ This endpoint does not need any parameter.
 
 ### Other Parameters
 
-Other parameters are passed through a pointer to a apiDropHDIRsRequest struct via the builder pattern
+Other parameters are passed through a pointer to a apiDropEmbeddingsRequest struct via the builder pattern
 
 
 ### Return type

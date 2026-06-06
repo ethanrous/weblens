@@ -27,10 +27,10 @@ for mongo_stack in $mongo_stacks; do
     cleanup_mongo --stack-name "$mongo_stack"
 done
 
-if is_hdir_running; then
-    stop_hdir
-elif is_hdir_running --containerized false; then
-    stop_hdir
+if is_embed_running; then
+    stop_embed
+elif is_embed_running --containerized false; then
+    stop_embed
 else
-    echo "HDIR is not running."
+    echo "Embed service is not running."
 fi

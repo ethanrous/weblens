@@ -118,9 +118,13 @@ func CanUserAccessFile(ctx context.Context, user *user_model.User, file *file_mo
 		return allowedPerms, nil
 	}
 
-	// Public share with no explicit user permissions — allow access
+	// Public share: return its PUBLIC permissions, falling back to empty (non-nil) perms.
 	if share.Public {
-		return share.GetUserPermissions(user_model.PublicUserName), nil
+		if perms := share.GetUserPermissions(user_model.PublicUserName); perms != nil {
+			return perms, nil
+		}
+
+		return &share_model.Permissions{}, nil
 	}
 
 	return &share_model.Permissions{}, wlerrors.New("unexpected error in CanUserAccessFile: reached end of permissions check without identifying permissions or an error")

@@ -19,11 +19,14 @@ import Loader from './Loader.vue'
 
 const props = defineProps<{
     media: WeblensMedia
+    // The page number in the PDF to scroll to
+    scrollTo?: number
 }>()
 
 const pdfUrl = computed(() => {
-    return props.media.ImgUrl(PhotoQuality.HighRes)
+    return props.media.ImgUrl(PhotoQuality.HighRes) + '#view=FitW' + (props.scrollTo ? `&page=${props.scrollTo}` : '')
 })
+
 const loadingState = ref<'idle' | 'loading' | 'error' | 'success'>('idle')
 
 async function onLoadSuccess() {

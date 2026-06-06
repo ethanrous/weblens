@@ -10,6 +10,7 @@ import (
 	"time"
 
 	_ "github.com/ethanrous/weblens/docs" // Required for swagger docs generation
+	"github.com/ethanrous/weblens/models/embedding"
 	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/models/share"
@@ -152,7 +153,8 @@ func getMediaByFolders(ctx ctxservice.RequestContext, folderIDs []string, search
 	scores := []float64{}
 
 	if search != "" {
-		scoredMedia, err := media_service.SortMediaByTextSimilarity(ctx.AppContext, search, media, 0.60)
+		// 0.30 raw-cosine floor: image-noise tops ~0.27, real matches start ~0.34.
+		scoredMedia, err := media_service.SortMediaByTextSimilarity(ctx.AppContext, search, media, 0.30)
 		if err != nil {
 			ctx.Error(http.StatusInternalServerError, err)
 
@@ -323,24 +325,24 @@ func DropMedia(ctx ctxservice.RequestContext) {
 	ctx.Status(http.StatusOK)
 }
 
-// DropHDIRs godoc
+// DropEmbeddings godoc
 //
-//	@ID			DropHDIRs
+//	@ID			DropEmbeddings
 //
 //	@Security	SessionAuth[admin]
 //	@Security	ApiKeyAuth[admin]
 //
-//	@Summary	Drop all computed media HDIR data. Must be server owner.
+//	@Summary	Drop every row from the embeddings collection (image and text). Must be server owner.
 //	@Tags		Media
 //	@Produce	json
 //	@Success	200
 //	@Failure	403
 //	@Failure	500
-//	@Router		/media/drop/hdirs  [post]
-func DropHDIRs(ctx ctxservice.RequestContext) {
-	err := media_model.DropHDIRs(ctx)
+//	@Router		/media/drop/embeddings  [post]
+func DropEmbeddings(ctx ctxservice.RequestContext) {
+	err := embedding.DeleteAll(ctx)
 	if err != nil {
-		ctx.Log().Error().Stack().Err(err).Msg("Failed to drop media hdir data")
+		ctx.Log().Error().Stack().Err(err).Msg("Failed to drop embeddings")
 		ctx.Error(http.StatusInternalServerError, err)
 
 		return

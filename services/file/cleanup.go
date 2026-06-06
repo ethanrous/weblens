@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 
+	"github.com/ethanrous/weblens/models/embedding"
 	file_model "github.com/ethanrous/weblens/models/file"
 	media_model "github.com/ethanrous/weblens/models/media"
 	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
@@ -63,6 +64,10 @@ func rmFileMedia(ctx context.Context, file *file_model.WeblensFileImpl) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	if err := embedding.DeleteForSource(ctx, file.ID(), embedding.KindFileChunk); err != nil {
+		context_mod.ToZ(ctx).Log().Warn().Err(err).Msgf("Failed to delete embeddings for file %s", file.ID())
 	}
 
 	return nil

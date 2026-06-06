@@ -343,20 +343,6 @@ func TestDropMediaByOwnerAll(t *testing.T) {
 	assert.Empty(t, got)
 }
 
-func TestDropHDIRs(t *testing.T) {
-	ctx := db.SetupTestDB(t, media.MediaCollectionKey, media.IndexModels...)
-
-	m := newTestMedia("hdir-test", "alice")
-	m.HDIR = []float64{0.1, 0.2, 0.3}
-	require.NoError(t, media.SaveMedia(ctx, m))
-
-	require.NoError(t, media.DropHDIRs(ctx))
-
-	got, err := media.GetMediaByContentID(ctx, "hdir-test")
-	require.NoError(t, err)
-	assert.Empty(t, got.HDIR)
-}
-
 func TestRemoveFileFromMedia(t *testing.T) {
 	ctx := db.SetupTestDB(t, media.MediaCollectionKey, media.IndexModels...)
 
@@ -416,6 +402,59 @@ func TestAddFileToMedia(t *testing.T) {
 
 	t.Run("in-memory struct also updated", func(t *testing.T) {
 		assert.Contains(t, m.GetFiles(), "f2")
+	})
+}
+
+func TestIsSufficentlyProcessed(t *testing.T) {
+	newMedia := func(mime string) *media.Media {
+		m := media.NewMedia("isp-" + mime)
+		m.FileIDs = []string{"f1"}
+		m.MimeType = mime
+		m.Location = [2]float64{1, 1}
+
+		return m
+	}
+
+	t.Run("non-image-recognition media needs no image embedding", func(t *testing.T) {
+		// application/pdf and video/mp4 report SupportsImgRecog()==false, so no image embedding is written.
+		assert.True(t, newMedia("application/pdf").IsSufficentlyProcessed(true, false))
+		assert.True(t, newMedia("video/mp4").IsSufficentlyProcessed(true, false))
+	})
+
+	t.Run("image media requires an image embedding when embed is enabled", func(t *testing.T) {
+		img := newMedia("image/jpeg")
+		assert.False(t, img.IsSufficentlyProcessed(true, false))
+		assert.True(t, img.IsSufficentlyProcessed(true, true))
+	})
+
+	t.Run("embed disabled requires no image embedding", func(t *testing.T) {
+		assert.True(t, newMedia("image/jpeg").IsSufficentlyProcessed(false, false))
+	})
+
+	t.Run("media without a location is not processed", func(t *testing.T) {
+		m := newMedia("image/jpeg")
+		m.Location = [2]float64{0, 0}
+		assert.False(t, m.IsSufficentlyProcessed(false, true))
+	})
+}
+
+func TestEmbedEligible(t *testing.T) {
+	t.Run("image types are eligible", func(t *testing.T) {
+		assert.True(t, media.EmbedEligible("png"))
+		assert.True(t, media.EmbedEligible("jpeg"))
+	})
+
+	t.Run("document types are eligible", func(t *testing.T) {
+		assert.True(t, media.EmbedEligible("pdf"))
+	})
+
+	t.Run("unknown types are not eligible", func(t *testing.T) {
+		assert.False(t, media.EmbedEligible("exe"))
+	})
+
+	t.Run("normalizes case and leading dot", func(t *testing.T) {
+		assert.True(t, media.EmbedEligible(".PNG"))
+		assert.True(t, media.EmbedEligible("TXT"))
 	})
 }
 

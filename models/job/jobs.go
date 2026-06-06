@@ -22,4 +22,6 @@ const (
 	CopyFileFromCoreTask = "copy_file_from_core"
 	// RestoreCoreTask is the task identifier for restoring a core instance.
 	RestoreCoreTask = "restore_core"
+	// ExtractAndEmbedTask is the task identifier for extracting file text and writing per-chunk embeddings.
+	ExtractAndEmbedTask = "extract_and_embed"
 )

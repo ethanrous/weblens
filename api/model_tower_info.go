@@ -26,6 +26,8 @@ type TowerInfo struct {
 	BuildVersion *string `json:"buildVersion,omitempty"`
 	// Address of the remote server, only if the instance is a core. Not set for any remotes/backups on core server, as it IS the core
 	CoreAddress string `json:"coreAddress"`
+	// EmbedAvailable reports whether the embedding service is reachable; only populated for the local server.
+	EmbedAvailable *bool `json:"embedAvailable,omitempty"`
 	Id string `json:"id"`
 	LastBackup int64 `json:"lastBackup"`
 	LogLevel *string `json:"logLevel,omitempty"`
@@ -146,6 +148,38 @@ func (o *TowerInfo) GetCoreAddressOk() (*string, bool) {
 // SetCoreAddress sets field value
 func (o *TowerInfo) SetCoreAddress(v string) {
 	o.CoreAddress = v
+}
+
+// GetEmbedAvailable returns the EmbedAvailable field value if set, zero value otherwise.
+func (o *TowerInfo) GetEmbedAvailable() bool {
+	if o == nil || IsNil(o.EmbedAvailable) {
+		var ret bool
+		return ret
+	}
+	return *o.EmbedAvailable
+}
+
+// GetEmbedAvailableOk returns a tuple with the EmbedAvailable field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *TowerInfo) GetEmbedAvailableOk() (*bool, bool) {
+	if o == nil || IsNil(o.EmbedAvailable) {
+		return nil, false
+	}
+	return o.EmbedAvailable, true
+}
+
+// HasEmbedAvailable returns a boolean if a field has been set.
+func (o *TowerInfo) HasEmbedAvailable() bool {
+	if o != nil && !IsNil(o.EmbedAvailable) {
+		return true
+	}
+
+	return false
+}
+
+// SetEmbedAvailable gets a reference to the given bool and assigns it to the EmbedAvailable field.
+func (o *TowerInfo) SetEmbedAvailable(v bool) {
+	o.EmbedAvailable = &v
 }
 
 // GetId returns the Id field value
@@ -387,6 +421,9 @@ func (o TowerInfo) ToMap() (map[string]interface{}, error) {
 		toSerialize["buildVersion"] = o.BuildVersion
 	}
 	toSerialize["coreAddress"] = o.CoreAddress
+	if !IsNil(o.EmbedAvailable) {
+		toSerialize["embedAvailable"] = o.EmbedAvailable
+	}
 	toSerialize["id"] = o.Id
 	toSerialize["lastBackup"] = o.LastBackup
 	if !IsNil(o.LogLevel) {

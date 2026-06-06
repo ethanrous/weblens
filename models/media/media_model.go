@@ -19,7 +19,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var hdirVectorIndexKey = "hdir_vector_index"
 var contentIDIndexKey = "contentID_unique_index"
 var ownerIndexKey = "owner_index"
 var fileIDsIndex = "fileIDs_index"
@@ -84,10 +83,6 @@ type Media struct {
 
 	// Location of the media, if available. This is a slice of two floats, representing the coordinates of the media.
 	Location [2]float64 `bson:"location"`
-
-	// High Dimensional Image Representation, a slice of floats representing the image's high-dimensional representation.
-	// Used for image similarity searches.
-	HDIR []float64 `bson:"hdir"`
 
 	// Slices of files whos content hash to the contentId
 	FileIDs []string `bson:"fileIDs"`
@@ -403,21 +398,6 @@ func DropMediaByOwner(ctx context.Context, userFilter string) ([]string, error) 
 	return nil, nil
 }
 
-// DropHDIRs removes all HDIR (High Dimensional Image Representation) data from media documents.
-func DropHDIRs(ctx context.Context) error {
-	col, err := db.GetCollection[any](ctx, MediaCollectionKey)
-	if err != nil {
-		return err
-	}
-
-	_, err = col.UpdateMany(ctx, bson.M{}, bson.M{"$unset": bson.M{"hdir": ""}})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // DeleteMediaByContentID deletes a media from the database by its content ID.
 func DeleteMediaByContentID(ctx context.Context, contentID ContentID) error {
 	col, err := db.GetCollection[*Media](ctx, MediaCollectionKey)
@@ -592,8 +572,8 @@ func (m *Media) GetHighresCacheFiles(pageNum int) *file_model.WeblensFileImpl {
 	return m.highResCacheFiles[pageNum]
 }
 
-// IsSufficentlyProcessed returns true if the media has been sufficiently processed.
-func (m *Media) IsSufficentlyProcessed(requireHDIR bool) bool {
+// IsSufficentlyProcessed returns true if the media has been sufficiently processed; requireEmbed gates on hasImageEmbedding.
+func (m *Media) IsSufficentlyProcessed(requireEmbed bool, hasImageEmbedding bool) bool {
 	m.updateMu.RLock()
 	defer m.updateMu.RUnlock()
 
@@ -601,7 +581,8 @@ func (m *Media) IsSufficentlyProcessed(requireHDIR bool) bool {
 		return false
 	}
 
-	if requireHDIR && len(m.HDIR) == 0 {
+	// Only image-recognition media get an image embedding; non-image media are content-indexed via text extraction.
+	if requireEmbed && ParseMime(m.MimeType).SupportsImgRecog() && !hasImageEmbedding {
 		return false
 	}
 
@@ -676,57 +657,6 @@ func (m *Media) AddFileToMedia(ctx context.Context, fileID string) error {
 	return nil
 }
 
-// HDIRSearchResult represents a single result from an HDIR similarity search.
-type HDIRSearchResult struct {
-	ContentID ContentID `bson:"contentID"`
-	Score     float64   `bson:"score"`
-}
-
-// HDIRSearch performs a similarity search using the provided high-dimensional image representation (HDIR) vector.
-func HDIRSearch(ctx context.Context, target []float64, filter []*Media) ([]HDIRSearchResult, error) {
-	col, err := db.GetCollection[any](ctx, MediaCollectionKey)
-	if err != nil {
-		return nil, err
-	}
-
-	contentIDFilter := wlslices.Map(filter, func(m *Media) ContentID { return m.ContentID })
-
-	cursor, err := col.Aggregate(ctx, bson.A{
-		bson.M{
-			"$vectorSearch": bson.M{
-				"index": hdirVectorIndexKey,
-				"path":  "hdir",
-				"filter": bson.M{
-					"contentID": bson.M{"$in": contentIDFilter},
-				},
-				"queryVector":  target,
-				"limit":        len(contentIDFilter),
-				"exact":        true,
-				"scoreDetails": true,
-			},
-		},
-		bson.M{
-			"$project": bson.M{
-				"_id":       0,
-				"contentID": 1,
-				"score":     bson.M{"$meta": "vectorSearchScore"},
-			},
-		},
-	}, options.Aggregate().SetMaxTime(2*time.Minute))
-	if err != nil {
-		return nil, err
-	}
-
-	var results []HDIRSearchResult
-
-	err = cursor.All(ctx, &results)
-	if err != nil {
-		return nil, err
-	}
-
-	return results, nil
-}
-
 func registerIndexes(ctx context.Context, _ config.Provider) error {
 	col, err := db.GetCollection[any](ctx, MediaCollectionKey)
 	if err != nil {
@@ -737,16 +667,6 @@ func registerIndexes(ctx context.Context, _ config.Provider) error {
 		if err := col.NewIndex(idx); err != nil {
 			return err
 		}
-	}
-
-	err = col.NewSearchIndex(mongo.SearchIndexModel{
-		Definition: bson.M{
-			"fields": bson.A{bson.M{"type": "vector", "path": "hdir", "numDimensions": 1024, "similarity": "cosine", "quantization": "scalar"}, bson.M{"type": "filter", "path": "contentID"}},
-		},
-		Options: options.SearchIndexes().SetName(hdirVectorIndexKey).SetType("vectorSearch"),
-	})
-	if err != nil {
-		return err
 	}
 
 	return nil

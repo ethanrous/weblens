@@ -168,10 +168,10 @@ test.describe('Settings Page', () => {
         await expect(page.getByRole('button', { name: 'Refresh' })).toBeVisible()
         await expect(page.getByRole('button', { name: 'Scan All Media' })).toBeVisible()
         await expect(page.getByRole('button', { name: 'Enable trace logging' })).toBeVisible()
-        await expect(page.getByRole('button', { name: /HDIR image processing/ })).toBeVisible()
+        await expect(page.getByRole('button', { name: /embed processing/ })).toBeVisible()
 
         // Danger zone buttons
-        await expect(page.getByRole('button', { name: 'Clear Media HDIR Data' })).toBeVisible()
+        await expect(page.getByRole('button', { name: 'Drop All Embeddings' })).toBeVisible()
         await expect(page.getByRole('button', { name: 'Clean Media' })).toBeVisible()
         await expect(page.getByRole('button', { name: 'Flush Cache' })).toBeVisible()
 

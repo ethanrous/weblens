@@ -277,11 +277,33 @@ const useFilesStore = defineStore('files', () => {
                 filterTagMode.value,
             )
 
-            const results = res.data.files.map((f: FileInfo) => {
-                return new WeblensFile(f)
-            })
+            const results = (res.data ?? [])
+                .map((r) => {
+                    if (!r.file) {
+                        return undefined
+                    }
 
-            mediaStore.addMedia(...(res.data.medias ?? []))
+                    const wf = new WeblensFile(r.file)
+
+                    if (r.matchKind && r.matchKind.length > 0) {
+                        wf.matchKind = r.matchKind
+                    }
+
+                    if (r.matchSnippet) {
+                        wf.matchSnippet = r.matchSnippet
+                    }
+
+                    if (r.matchPage && r.matchPage > 0) {
+                        wf.matchPage = r.matchPage
+                    }
+
+                    if (r.score !== undefined) {
+                        wf.score = r.score
+                    }
+
+                    return wf
+                })
+                .filter((wf): wf is WeblensFile => wf !== undefined)
 
             return results
         },

@@ -42,7 +42,7 @@ export interface BackupInfo {
 }
 export interface Bundle {
     'auth.allow_registrations'?: boolean;
-    'media.hdir_processing_enabled'?: boolean;
+    'embed.processing_enabled'?: boolean;
 }
 export interface CreateFolderBody {
     'children'?: Array<string>;
@@ -290,6 +290,13 @@ export interface RestoreFilesBody {
 export interface RestoreFilesInfo {
     'newParentID'?: string;
 }
+export interface SearchResult {
+    'file'?: FileInfo;
+    'matchKind'?: Array<string>;
+    'matchPage'?: number;
+    'matchSnippet'?: string;
+    'score'?: number;
+}
 export interface ShareInfo {
     'accessors'?: Array<UserInfo>;
     'enabled'?: boolean;
@@ -353,6 +360,10 @@ export interface TowerInfo {
      * Address of the remote server, only if the instance is a core. Not set for any remotes/backups on core server, as it IS the core
      */
     'coreAddress': string;
+    /**
+     * EmbedAvailable reports whether the embedding service is reachable; only populated for the local server.
+     */
+    'embedAvailable'?: boolean;
     'id': string;
     'lastBackup': number;
     'logLevel'?: string;
@@ -1321,7 +1332,7 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
         },
         /**
          * 
-         * @summary Search for files by filename
+         * @summary Search for files by filename or content
          * @param {string} search Filename to search for
          * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
          * @param {SearchFilesSortPropEnum} [sortProp] Property to sort by
@@ -1330,10 +1341,11 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
          * @param {boolean} [regex] Whether to treat the search term as a regex pattern
          * @param {string} [tags] Comma-separated list of tags to filter by
          * @param {SearchFilesTagJoinLogicEnum} [tagJoinLogic] Logic to combine multiple tags with, either \&#39;and\&#39; or \&#39;or\&#39;
+         * @param {boolean} [includeContent] Include semantic content matches
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        searchFiles: async (search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        searchFiles: async (search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, includeContent?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'search' is not null or undefined
             assertParamExists('searchFiles', 'search', search)
             const localVarPath = `/files/search`;
@@ -1378,6 +1390,10 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
 
             if (tagJoinLogic !== undefined) {
                 localVarQueryParameter['tagJoinLogic'] = tagJoinLogic;
+            }
+
+            if (includeContent !== undefined) {
+                localVarQueryParameter['includeContent'] = includeContent;
             }
 
             localVarHeaderParameter['Accept'] = '*/*';
@@ -1756,7 +1772,7 @@ export const FilesApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
-         * @summary Search for files by filename
+         * @summary Search for files by filename or content
          * @param {string} search Filename to search for
          * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
          * @param {SearchFilesSortPropEnum} [sortProp] Property to sort by
@@ -1765,11 +1781,12 @@ export const FilesApiFp = function(configuration?: Configuration) {
          * @param {boolean} [regex] Whether to treat the search term as a regex pattern
          * @param {string} [tags] Comma-separated list of tags to filter by
          * @param {SearchFilesTagJoinLogicEnum} [tagJoinLogic] Logic to combine multiple tags with, either \&#39;and\&#39; or \&#39;or\&#39;
+         * @param {boolean} [includeContent] Include semantic content matches
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FilesInfo>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.searchFiles(search, baseFolderID, sortProp, sortOrder, recursive, regex, tags, tagJoinLogic, options);
+        async searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, includeContent?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<SearchResult>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.searchFiles(search, baseFolderID, sortProp, sortOrder, recursive, regex, tags, tagJoinLogic, includeContent, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['FilesApi.searchFiles']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -1984,7 +2001,7 @@ export const FilesApiFactory = function (configuration?: Configuration, basePath
         },
         /**
          * 
-         * @summary Search for files by filename
+         * @summary Search for files by filename or content
          * @param {string} search Filename to search for
          * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
          * @param {SearchFilesSortPropEnum} [sortProp] Property to sort by
@@ -1993,11 +2010,12 @@ export const FilesApiFactory = function (configuration?: Configuration, basePath
          * @param {boolean} [regex] Whether to treat the search term as a regex pattern
          * @param {string} [tags] Comma-separated list of tags to filter by
          * @param {SearchFilesTagJoinLogicEnum} [tagJoinLogic] Logic to combine multiple tags with, either \&#39;and\&#39; or \&#39;or\&#39;
+         * @param {boolean} [includeContent] Include semantic content matches
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options?: RawAxiosRequestConfig): AxiosPromise<FilesInfo> {
-            return localVarFp.searchFiles(search, baseFolderID, sortProp, sortOrder, recursive, regex, tags, tagJoinLogic, options).then((request) => request(axios, basePath));
+        searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, includeContent?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<Array<SearchResult>> {
+            return localVarFp.searchFiles(search, baseFolderID, sortProp, sortOrder, recursive, regex, tags, tagJoinLogic, includeContent, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -2208,7 +2226,7 @@ export class FilesApi extends BaseAPI {
 
     /**
      * 
-     * @summary Search for files by filename
+     * @summary Search for files by filename or content
      * @param {string} search Filename to search for
      * @param {string} [baseFolderID] The folder to search in, defaults to the user\&#39;s home folder
      * @param {SearchFilesSortPropEnum} [sortProp] Property to sort by
@@ -2217,11 +2235,12 @@ export class FilesApi extends BaseAPI {
      * @param {boolean} [regex] Whether to treat the search term as a regex pattern
      * @param {string} [tags] Comma-separated list of tags to filter by
      * @param {SearchFilesTagJoinLogicEnum} [tagJoinLogic] Logic to combine multiple tags with, either \&#39;and\&#39; or \&#39;or\&#39;
+     * @param {boolean} [includeContent] Include semantic content matches
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, options?: RawAxiosRequestConfig) {
-        return FilesApiFp(this.configuration).searchFiles(search, baseFolderID, sortProp, sortOrder, recursive, regex, tags, tagJoinLogic, options).then((request) => request(this.axios, this.basePath));
+    public searchFiles(search: string, baseFolderID?: string, sortProp?: SearchFilesSortPropEnum, sortOrder?: SearchFilesSortOrderEnum, recursive?: boolean, regex?: boolean, tags?: string, tagJoinLogic?: SearchFilesTagJoinLogicEnum, includeContent?: boolean, options?: RawAxiosRequestConfig) {
+        return FilesApiFp(this.configuration).searchFiles(search, baseFolderID, sortProp, sortOrder, recursive, regex, tags, tagJoinLogic, includeContent, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -2839,12 +2858,12 @@ export const MediaApiAxiosParamCreator = function (configuration?: Configuration
         },
         /**
          * 
-         * @summary Drop all computed media HDIR data. Must be server owner.
+         * @summary Drop every row from the embeddings collection (image and text). Must be server owner.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        dropHDIRs: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/media/drop/hdirs`;
+        dropEmbeddings: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/media/drop/embeddings`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -3317,14 +3336,14 @@ export const MediaApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
-         * @summary Drop all computed media HDIR data. Must be server owner.
+         * @summary Drop every row from the embeddings collection (image and text). Must be server owner.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async dropHDIRs(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.dropHDIRs(options);
+        async dropEmbeddings(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.dropEmbeddings(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['MediaApi.dropHDIRs']?.[localVarOperationServerIndex]?.url;
+            const localVarOperationServerBasePath = operationServerMap['MediaApi.dropEmbeddings']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -3493,12 +3512,12 @@ export const MediaApiFactory = function (configuration?: Configuration, basePath
         },
         /**
          * 
-         * @summary Drop all computed media HDIR data. Must be server owner.
+         * @summary Drop every row from the embeddings collection (image and text). Must be server owner.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        dropHDIRs(options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.dropHDIRs(options).then((request) => request(axios, basePath));
+        dropEmbeddings(options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.dropEmbeddings(options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -3635,12 +3654,12 @@ export class MediaApi extends BaseAPI {
 
     /**
      * 
-     * @summary Drop all computed media HDIR data. Must be server owner.
+     * @summary Drop every row from the embeddings collection (image and text). Must be server owner.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public dropHDIRs(options?: RawAxiosRequestConfig) {
-        return MediaApiFp(this.configuration).dropHDIRs(options).then((request) => request(this.axios, this.basePath));
+    public dropEmbeddings(options?: RawAxiosRequestConfig) {
+        return MediaApiFp(this.configuration).dropEmbeddings(options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

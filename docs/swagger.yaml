@@ -47,7 +47,7 @@ definitions:
     properties:
       auth.allow_registrations:
         type: boolean
-      media.hdir_processing_enabled:
+      embed.processing_enabled:
         type: boolean
     type: object
   CreateFolderBody:
@@ -426,6 +426,21 @@ definitions:
       newParentID:
         type: string
     type: object
+  SearchResult:
+    properties:
+      file:
+        $ref: '#/definitions/FileInfo'
+      matchKind:
+        items:
+          type: string
+        type: array
+      matchPage:
+        type: integer
+      matchSnippet:
+        type: string
+      score:
+        type: number
+    type: object
   ShareInfo:
     properties:
       accessors:
@@ -554,6 +569,10 @@ definitions:
           Address of the remote server, only if the instance is a core.
           Not set for any remotes/backups on core server, as it IS the core
         type: string
+      embedAvailable:
+        description: EmbedAvailable reports whether the embedding service is reachable;
+          only populated for the local server.
+        type: boolean
       id:
         type: string
       lastBackup:
@@ -1155,11 +1174,18 @@ paths:
         in: query
         name: tagJoinLogic
         type: string
+      - default: true
+        description: Include semantic content matches
+        in: query
+        name: includeContent
+        type: boolean
       responses:
         "200":
-          description: Search results
+          description: OK
           schema:
-            $ref: '#/definitions/FilesInfo'
+            items:
+              $ref: '#/definitions/SearchResult'
+            type: array
         "400":
           description: Bad Request
         "401":
@@ -1168,7 +1194,7 @@ paths:
           description: Internal Server Error
       security:
       - SessionAuth: []
-      summary: Search for files by filename
+      summary: Search for files by filename or content
       tags:
       - Files
   /files/shared:
@@ -1774,9 +1800,9 @@ paths:
         filesystem cache. Must be server owner.
       tags:
       - Media
-  /media/drop/hdirs:
+  /media/drop/embeddings:
     post:
-      operationId: DropHDIRs
+      operationId: DropEmbeddings
       produces:
       - application/json
       responses:
@@ -1791,7 +1817,8 @@ paths:
         - admin
       - ApiKeyAuth:
         - admin
-      summary: Drop all computed media HDIR data. Must be server owner.
+      summary: Drop every row from the embeddings collection (image and text). Must
+        be server owner.
       tags:
       - Media
   /media/random:

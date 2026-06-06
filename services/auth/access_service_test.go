@@ -138,6 +138,32 @@ func TestCanUserAccessFile_PublicUser_PrivateShare(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestCanUserAccessFile_PublicShare_NoPublicPerms_ReturnsNonNil(t *testing.T) {
+	ctx := context.Background()
+
+	// A regular signed-in user who is not the owner and not in the share's accessors.
+	otherUser := &user_model.User{Username: "otheruser", UserPerms: user_model.UserPermissionBasic}
+
+	filepath := file_system.BuildFilePath(file_model.UsersTreeKey, "fileowner/photos/image.jpg")
+	file := file_model.NewWeblensFile(file_model.NewFileOptions{
+		Path:       filepath,
+		MemOnly:    true,
+		GenerateID: true,
+	})
+
+	// A public share created via CreateFileShare is Public=true with no PUBLIC entry in its map.
+	share := &share_model.FileShare{
+		ShareID: primitive.NewObjectID(),
+		FileID:  file.ID(),
+		Public:  true,
+		Enabled: true,
+	}
+
+	perms, err := auth.CanUserAccessFile(ctx, otherUser, file, share)
+	require.NoError(t, err)
+	require.NotNil(t, perms, "a public share with no explicit perms must return non-nil perms; callers dereference the result")
+}
+
 func TestCanUserAccessFile_SystemUser(t *testing.T) {
 	ctx := context.Background()
 

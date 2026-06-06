@@ -54,6 +54,7 @@ docs/PermissionsInfo.md
 docs/PermissionsParams.md
 docs/RestoreFilesBody.md
 docs/RestoreFilesInfo.md
+docs/SearchResult.md
 docs/ShareAPI.md
 docs/ShareInfo.md
 docs/TagsAPI.md
@@ -111,6 +112,7 @@ model_permissions_info.go
 model_permissions_params.go
 model_restore_files_body.go
 model_restore_files_info.go
+model_search_result.go
 model_share_info.go
 model_takeout_info.go
 model_task_info.go
