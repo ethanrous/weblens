@@ -54,7 +54,4 @@ services:
       - ${DATA_HOST_PATH}:/data:ro
       - ${CACHE_HOST_PATH}:/cache:ro
       # Persist the embedding model across restarts.
-      - weblens-embed-model:/root/.cache/huggingface
-
-volumes:
-  weblens-embed-model:
+      - ${CACHE_HOST_PATH}/embed:/root/.cache/huggingface
