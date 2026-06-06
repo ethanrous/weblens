@@ -297,7 +297,7 @@ const useFilesStore = defineStore('files', () => {
                         wf.matchPage = r.matchPage
                     }
 
-                    if (r.score) {
+                    if (r.score !== undefined) {
                         wf.score = r.score
                     }
 

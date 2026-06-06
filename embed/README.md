@@ -5,8 +5,8 @@ Multimodal embedding sidecar. Loads [Jina CLIP v2](https://huggingface.co/jinaai
 | Method | Path                  | Body / params                   | Returns                                                 |
 | ------ | --------------------- | ------------------------------- | ------------------------------------------------------- |
 | GET    | `/encode`             | `?img-path=...`                 | `[1024 floats]` — image embedding                       |
-| POST   | `/encode-text`        | `{"text": "..."}`               | `{"text_features": [1024 floats]}` — text embedding     |
-| POST   | `/extract-and-embed`  | `{"path": "...", "mimeHint": "...?"}` | `[{chunkIndex, snippet, vector}, ...]` — per-chunk text embeddings |
+| POST   | `/encode-text`        | `{"text": "..."}`               | `{"text_features": [1024 floats], "image_query_features": [1024 floats]}` — raw + caption-prompted query embeddings |
+| POST   | `/extract-and-embed`  | `{"path": "...", "mimeHint": "...?"}` | `[{chunkIndex, page, snippet, vector}, ...]` — per-chunk text embeddings |
 | GET    | `/health`             | —                               | `{"status":"ok"}`                                       |
 
 Text extraction (`extract.py`) handles PDF, DOCX, XLSX, PPTX, plaintext / common code files, and OCR-fallback for images via tesseract. Chunking is token-aware using the model's tokenizer (500 tokens, 50 overlap).

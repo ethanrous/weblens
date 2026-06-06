@@ -336,10 +336,10 @@ func getEnvOverride(config *Provider) {
 		config.DoProfile = doProfile
 	}
 
-	if embedURI, ok := os.LookupEnv("WEBLENS_EMBED_URI"); ok {
+	if embedURI, ok := os.LookupEnv("WEBLENS_EMBED_URI"); ok && embedURI != "" {
 		log.Trace().Msgf("Overriding EmbedURI with WEBLENS_EMBED_URI: %v", embedURI)
 		config.EmbedURI = embedURI
-	} else if hdirURI, ok := os.LookupEnv("WEBLENS_HDIR_URI"); ok {
+	} else if hdirURI, ok := os.LookupEnv("WEBLENS_HDIR_URI"); ok && hdirURI != "" {
 		log.Warn().Msg("WEBLENS_HDIR_URI is deprecated; use WEBLENS_EMBED_URI. Honored for this release; removed in the next minor.")
 
 		config.EmbedURI = hdirURI
