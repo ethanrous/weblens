@@ -86,7 +86,7 @@ No authorization required
 
 ## CreateTag
 
-> GithubComEthanrousWeblensModelsTagTag CreateTag(ctx).Request(request).Execute()
+> TagTag CreateTag(ctx).Request(request).Execute()
 
 Create a new tag
 
@@ -112,7 +112,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error when calling `TagsAPI.CreateTag``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
-	// response from `CreateTag`: GithubComEthanrousWeblensModelsTagTag
+	// response from `CreateTag`: TagTag
 	fmt.Fprintf(os.Stdout, "Response from `TagsAPI.CreateTag`: %v\n", resp)
 }
 ```
@@ -132,7 +132,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GithubComEthanrousWeblensModelsTagTag**](GithubComEthanrousWeblensModelsTagTag.md)
+[**TagTag**](TagTag.md)
 
 ### Authorization
 
@@ -284,7 +284,7 @@ No authorization required
 
 ## GetTag
 
-> GithubComEthanrousWeblensModelsTagTag GetTag(ctx, tagID).Execute()
+> TagTag GetTag(ctx, tagID).Execute()
 
 Get a tag by ID
 
@@ -310,7 +310,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error when calling `TagsAPI.GetTag``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
-	// response from `GetTag`: GithubComEthanrousWeblensModelsTagTag
+	// response from `GetTag`: TagTag
 	fmt.Fprintf(os.Stdout, "Response from `TagsAPI.GetTag`: %v\n", resp)
 }
 ```
@@ -334,7 +334,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GithubComEthanrousWeblensModelsTagTag**](GithubComEthanrousWeblensModelsTagTag.md)
+[**TagTag**](TagTag.md)
 
 ### Authorization
 
@@ -352,7 +352,7 @@ No authorization required
 
 ## GetTagsForFile
 
-> []GithubComEthanrousWeblensModelsTagTag GetTagsForFile(ctx, fileID).Execute()
+> []TagTag GetTagsForFile(ctx, fileID).Execute()
 
 Get tags for a file
 
@@ -378,7 +378,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error when calling `TagsAPI.GetTagsForFile``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
-	// response from `GetTagsForFile`: []GithubComEthanrousWeblensModelsTagTag
+	// response from `GetTagsForFile`: []TagTag
 	fmt.Fprintf(os.Stdout, "Response from `TagsAPI.GetTagsForFile`: %v\n", resp)
 }
 ```
@@ -402,7 +402,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**[]GithubComEthanrousWeblensModelsTagTag**](GithubComEthanrousWeblensModelsTagTag.md)
+[**[]TagTag**](TagTag.md)
 
 ### Authorization
 
@@ -420,7 +420,7 @@ No authorization required
 
 ## GetUserTags
 
-> []GithubComEthanrousWeblensModelsTagTag GetUserTags(ctx).Execute()
+> []TagTag GetUserTags(ctx).Execute()
 
 Get all tags for the authenticated user
 
@@ -445,7 +445,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error when calling `TagsAPI.GetUserTags``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
-	// response from `GetUserTags`: []GithubComEthanrousWeblensModelsTagTag
+	// response from `GetUserTags`: []TagTag
 	fmt.Fprintf(os.Stdout, "Response from `TagsAPI.GetUserTags`: %v\n", resp)
 }
 ```
@@ -461,7 +461,7 @@ Other parameters are passed through a pointer to a apiGetUserTagsRequest struct 
 
 ### Return type
 
-[**[]GithubComEthanrousWeblensModelsTagTag**](GithubComEthanrousWeblensModelsTagTag.md)
+[**[]TagTag**](TagTag.md)
 
 ### Authorization
 

@@ -83,9 +83,7 @@ func NewMediaFromFile(ctx context_service.AppContext, f *file_model.WeblensFileI
 
 	if m.Location[0] == 0 && m.Location[1] == 0 {
 		loc, err := img.GPSCoordinates()
-		if err != nil {
-			ctx.Log().Warn().Msgf("failed to get GPS coordinates from EXIF for file %s: %v", f.ID(), err)
-		} else {
+		if err == nil {
 			m.Location = loc
 		}
 	}

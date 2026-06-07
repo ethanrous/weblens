@@ -5,19 +5,23 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **Completed** | **bool** |  | 
+**State** | **string** |  | 
+**CompletedChildTasks** | Pointer to **int32** |  | [optional] 
 **JobName** | **string** |  | 
+**ParentTaskID** | Pointer to **string** |  | [optional] 
 **Progress** | **int32** |  | 
 **Result** | Pointer to **map[string]interface{}** |  | [optional] 
 **StartTime** | Pointer to **string** |  | [optional] 
 **Status** | **string** |  | 
 **TaskID** | **string** |  | 
+**TotalChildTasks** | Pointer to **int32** |  | [optional] 
 **WorkerID** | **int32** |  | 
 
 ## Methods
 
 ### NewTaskInfo
 
-`func NewTaskInfo(completed bool, jobName string, progress int32, status string, taskID string, workerID int32, ) *TaskInfo`
+`func NewTaskInfo(completed bool, state string, jobName string, progress int32, status string, taskID string, workerID int32, ) *TaskInfo`
 
 NewTaskInfo instantiates a new TaskInfo object
 This constructor will assign default values to properties that have it defined,
@@ -52,6 +56,51 @@ and a boolean to check if the value has been set.
 SetCompleted sets Completed field to given value.
 
 
+### GetState
+
+`func (o *TaskInfo) GetState() string`
+
+GetState returns the State field if non-nil, zero value otherwise.
+
+### GetStateOk
+
+`func (o *TaskInfo) GetStateOk() (*string, bool)`
+
+GetStateOk returns a tuple with the State field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetState
+
+`func (o *TaskInfo) SetState(v string)`
+
+SetState sets State field to given value.
+
+
+### GetCompletedChildTasks
+
+`func (o *TaskInfo) GetCompletedChildTasks() int32`
+
+GetCompletedChildTasks returns the CompletedChildTasks field if non-nil, zero value otherwise.
+
+### GetCompletedChildTasksOk
+
+`func (o *TaskInfo) GetCompletedChildTasksOk() (*int32, bool)`
+
+GetCompletedChildTasksOk returns a tuple with the CompletedChildTasks field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetCompletedChildTasks
+
+`func (o *TaskInfo) SetCompletedChildTasks(v int32)`
+
+SetCompletedChildTasks sets CompletedChildTasks field to given value.
+
+### HasCompletedChildTasks
+
+`func (o *TaskInfo) HasCompletedChildTasks() bool`
+
+HasCompletedChildTasks returns a boolean if a field has been set.
+
 ### GetJobName
 
 `func (o *TaskInfo) GetJobName() string`
@@ -71,6 +120,31 @@ and a boolean to check if the value has been set.
 
 SetJobName sets JobName field to given value.
 
+
+### GetParentTaskID
+
+`func (o *TaskInfo) GetParentTaskID() string`
+
+GetParentTaskID returns the ParentTaskID field if non-nil, zero value otherwise.
+
+### GetParentTaskIDOk
+
+`func (o *TaskInfo) GetParentTaskIDOk() (*string, bool)`
+
+GetParentTaskIDOk returns a tuple with the ParentTaskID field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetParentTaskID
+
+`func (o *TaskInfo) SetParentTaskID(v string)`
+
+SetParentTaskID sets ParentTaskID field to given value.
+
+### HasParentTaskID
+
+`func (o *TaskInfo) HasParentTaskID() bool`
+
+HasParentTaskID returns a boolean if a field has been set.
 
 ### GetProgress
 
@@ -181,6 +255,31 @@ and a boolean to check if the value has been set.
 
 SetTaskID sets TaskID field to given value.
 
+
+### GetTotalChildTasks
+
+`func (o *TaskInfo) GetTotalChildTasks() int32`
+
+GetTotalChildTasks returns the TotalChildTasks field if non-nil, zero value otherwise.
+
+### GetTotalChildTasksOk
+
+`func (o *TaskInfo) GetTotalChildTasksOk() (*int32, bool)`
+
+GetTotalChildTasksOk returns a tuple with the TotalChildTasks field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetTotalChildTasks
+
+`func (o *TaskInfo) SetTotalChildTasks(v int32)`
+
+SetTotalChildTasks sets TotalChildTasks field to given value.
+
+### HasTotalChildTasks
+
+`func (o *TaskInfo) HasTotalChildTasks() bool`
+
+HasTotalChildTasks returns a boolean if a field has been set.
 
 ### GetWorkerID
 

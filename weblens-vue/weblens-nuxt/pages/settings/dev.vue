@@ -6,12 +6,12 @@
         >
             <IconRefresh />
         </WeblensButton>
-        <Table
+        <TaskTreeTable
             v-if="runningTasks !== null"
-            :class="{ 'my-4': true }"
+            :class="{ 'my-4 max-h-[60vh]': true }"
             empty-text="No running tasks"
-            :columns="['taskID', 'jobName', 'status', 'worker', 'startTime', 'cancel', 'result']"
-            :rows="runningTasks"
+            :tasks="runningTasks"
+            @cancel="onCancel"
         />
         <span v-else-if="error">{{ error }}</span>
 
@@ -95,9 +95,8 @@ import { useIntervalFn } from '@vueuse/core'
 import { useWeblensAPI } from '~/api/AllApi'
 import { CancelTask } from '~/api/FileBrowserApi'
 import Divider from '~/components/atom/Divider.vue'
-import Table from '~/components/atom/Table.vue'
+import TaskTreeTable from '~/components/molecule/TaskTreeTable.vue'
 import WeblensButton from '~/components/atom/WeblensButton.vue'
-import { TableType, type TableColumn } from '~/types/table'
 
 const towerStore = useTowerStore()
 const userStore = useUserStore()
@@ -138,28 +137,11 @@ const {
 } = useAsyncData('running-tasks', async () => {
     const res = await useWeblensAPI().TowersAPI.getRunningTasks()
 
-    let taskInfos = res.data
-    taskInfos = taskInfos.filter((t) => t.status === '')
+    // Copy before sorting (don't mutate the response); keep every task so parent subtask counts stay accurate.
+    let taskInfos = [...res.data]
+    taskInfos = taskInfos.filter((t) => Date.parse(t.startTime!) > 0)
 
-    let tasks = taskInfos.map((task) => ({
-        taskID: task.taskID,
-        jobName: task.jobName,
-        status: task.status,
-        worker: task.workerID,
-        startTime: task.startTime,
-        cancel: {
-            tableType: TableType.Button,
-            label: 'Cancel',
-            flavor: 'danger',
-            onclick: async () => {
-                CancelTask(task.taskID)
-                await refresh()
-            },
-        } as TableColumn<TableType.Button>,
-        result: { tableType: TableType.JSON, value: task.result } as TableColumn<TableType.JSON>,
-    }))
-
-    tasks = tasks.sort((a, b) => {
+    taskInfos.sort((a, b) => {
         const aMs = new Date(a.startTime ?? '').getTime()
         const bMs = new Date(b.startTime ?? '').getTime()
         if (isNaN(aMs) || isNaN(bMs) || aMs === bMs) {
@@ -181,8 +163,14 @@ const {
 
         return 0
     })
-    return tasks
+
+    return taskInfos
 })
+
+async function onCancel(taskID: string) {
+    CancelTask(taskID)
+    await refresh()
+}
 
 const { data: featureFlags, refresh: refreshFeatureFlags } = useAsyncData('feature-flags', async () => {
     const res = await useWeblensAPI().FeatureFlagsAPI.getFlags()

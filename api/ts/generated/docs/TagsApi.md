@@ -74,7 +74,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **createTag**
-> GithubComEthanrousWeblensModelsTagTag createTag(request)
+> TagTag createTag(request)
 
 
 ### Example
@@ -105,7 +105,7 @@ const { status, data } = await apiInstance.createTag(
 
 ### Return type
 
-**GithubComEthanrousWeblensModelsTagTag**
+**TagTag**
 
 ### Authorization
 
@@ -239,7 +239,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **getTag**
-> GithubComEthanrousWeblensModelsTagTag getTag()
+> TagTag getTag()
 
 
 ### Example
@@ -269,7 +269,7 @@ const { status, data } = await apiInstance.getTag(
 
 ### Return type
 
-**GithubComEthanrousWeblensModelsTagTag**
+**TagTag**
 
 ### Authorization
 
@@ -293,7 +293,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **getTagsForFile**
-> Array<GithubComEthanrousWeblensModelsTagTag> getTagsForFile()
+> Array<TagTag> getTagsForFile()
 
 
 ### Example
@@ -323,7 +323,7 @@ const { status, data } = await apiInstance.getTagsForFile(
 
 ### Return type
 
-**Array<GithubComEthanrousWeblensModelsTagTag>**
+**Array<TagTag>**
 
 ### Authorization
 
@@ -346,7 +346,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **getUserTags**
-> Array<GithubComEthanrousWeblensModelsTagTag> getUserTags()
+> Array<TagTag> getUserTags()
 
 
 ### Example
@@ -369,7 +369,7 @@ This endpoint does not have any parameters.
 
 ### Return type
 
-**Array<GithubComEthanrousWeblensModelsTagTag>**
+**Array<TagTag>**
 
 ### Authorization
 

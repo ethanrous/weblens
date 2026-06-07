@@ -137,7 +137,7 @@ func (r ApiCreateTagRequest) Request(request FileCreateTagParams) ApiCreateTagRe
 	return r
 }
 
-func (r ApiCreateTagRequest) Execute() (*GithubComEthanrousWeblensModelsTagTag, *http.Response, error) {
+func (r ApiCreateTagRequest) Execute() (*TagTag, *http.Response, error) {
 	return r.ApiService.CreateTagExecute(r)
 }
 
@@ -155,13 +155,13 @@ func (a *TagsAPIService) CreateTag(ctx context.Context) ApiCreateTagRequest {
 }
 
 // Execute executes the request
-//  @return GithubComEthanrousWeblensModelsTagTag
-func (a *TagsAPIService) CreateTagExecute(r ApiCreateTagRequest) (*GithubComEthanrousWeblensModelsTagTag, *http.Response, error) {
+//  @return TagTag
+func (a *TagsAPIService) CreateTagExecute(r ApiCreateTagRequest) (*TagTag, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodPost
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  *GithubComEthanrousWeblensModelsTagTag
+		localVarReturnValue  *TagTag
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "TagsAPIService.CreateTag")
@@ -431,7 +431,7 @@ type ApiGetTagRequest struct {
 	tagID string
 }
 
-func (r ApiGetTagRequest) Execute() (*GithubComEthanrousWeblensModelsTagTag, *http.Response, error) {
+func (r ApiGetTagRequest) Execute() (*TagTag, *http.Response, error) {
 	return r.ApiService.GetTagExecute(r)
 }
 
@@ -451,13 +451,13 @@ func (a *TagsAPIService) GetTag(ctx context.Context, tagID string) ApiGetTagRequ
 }
 
 // Execute executes the request
-//  @return GithubComEthanrousWeblensModelsTagTag
-func (a *TagsAPIService) GetTagExecute(r ApiGetTagRequest) (*GithubComEthanrousWeblensModelsTagTag, *http.Response, error) {
+//  @return TagTag
+func (a *TagsAPIService) GetTagExecute(r ApiGetTagRequest) (*TagTag, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodGet
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  *GithubComEthanrousWeblensModelsTagTag
+		localVarReturnValue  *TagTag
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "TagsAPIService.GetTag")
@@ -532,7 +532,7 @@ type ApiGetTagsForFileRequest struct {
 	fileID string
 }
 
-func (r ApiGetTagsForFileRequest) Execute() ([]GithubComEthanrousWeblensModelsTagTag, *http.Response, error) {
+func (r ApiGetTagsForFileRequest) Execute() ([]TagTag, *http.Response, error) {
 	return r.ApiService.GetTagsForFileExecute(r)
 }
 
@@ -552,13 +552,13 @@ func (a *TagsAPIService) GetTagsForFile(ctx context.Context, fileID string) ApiG
 }
 
 // Execute executes the request
-//  @return []GithubComEthanrousWeblensModelsTagTag
-func (a *TagsAPIService) GetTagsForFileExecute(r ApiGetTagsForFileRequest) ([]GithubComEthanrousWeblensModelsTagTag, *http.Response, error) {
+//  @return []TagTag
+func (a *TagsAPIService) GetTagsForFileExecute(r ApiGetTagsForFileRequest) ([]TagTag, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodGet
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  []GithubComEthanrousWeblensModelsTagTag
+		localVarReturnValue  []TagTag
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "TagsAPIService.GetTagsForFile")
@@ -632,7 +632,7 @@ type ApiGetUserTagsRequest struct {
 	ApiService *TagsAPIService
 }
 
-func (r ApiGetUserTagsRequest) Execute() ([]GithubComEthanrousWeblensModelsTagTag, *http.Response, error) {
+func (r ApiGetUserTagsRequest) Execute() ([]TagTag, *http.Response, error) {
 	return r.ApiService.GetUserTagsExecute(r)
 }
 
@@ -650,13 +650,13 @@ func (a *TagsAPIService) GetUserTags(ctx context.Context) ApiGetUserTagsRequest 
 }
 
 // Execute executes the request
-//  @return []GithubComEthanrousWeblensModelsTagTag
-func (a *TagsAPIService) GetUserTagsExecute(r ApiGetUserTagsRequest) ([]GithubComEthanrousWeblensModelsTagTag, *http.Response, error) {
+//  @return []TagTag
+func (a *TagsAPIService) GetUserTagsExecute(r ApiGetUserTagsRequest) ([]TagTag, *http.Response, error) {
 	var (
 		localVarHTTPMethod   = http.MethodGet
 		localVarPostBody     interface{}
 		formFiles            []formFile
-		localVarReturnValue  []GithubComEthanrousWeblensModelsTagTag
+		localVarReturnValue  []TagTag
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "TagsAPIService.GetUserTags")

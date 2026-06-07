@@ -94,6 +94,23 @@ const (
 	Exited
 )
 
+func (q QueueState) String() string {
+	switch q {
+	case Created:
+		return "Created"
+	case InQueue:
+		return "InQueue"
+	case Executing:
+		return "Executing"
+	case Sleeping:
+		return "Sleeping"
+	case Exited:
+		return "Exited"
+	default:
+		return "Unknown"
+	}
+}
+
 // ID returns the unique identifier of the task.
 func (t *Task) ID() string {
 	return t.taskID

@@ -23,7 +23,6 @@ docs/FilesInfo.md
 docs/FilesListParams.md
 docs/FolderApi.md
 docs/FolderInfo.md
-docs/GithubComEthanrousWeblensModelsTagTag.md
 docs/HistoryFileAction.md
 docs/HistoryFileActionType.md
 docs/LoginBody.md
@@ -48,6 +47,7 @@ docs/RestoreFilesInfo.md
 docs/SearchResult.md
 docs/ShareApi.md
 docs/ShareInfo.md
+docs/TagTag.md
 docs/TagsApi.md
 docs/TakeoutInfo.md
 docs/TaskInfo.md

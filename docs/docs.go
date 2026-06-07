@@ -1964,7 +1964,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_ethanrous_weblens_models_tag.Tag"
+                                "$ref": "#/definitions/tag.Tag"
                             }
                         }
                     },
@@ -2008,7 +2008,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created tag",
                         "schema": {
-                            "$ref": "#/definitions/github_com_ethanrous_weblens_models_tag.Tag"
+                            "$ref": "#/definitions/tag.Tag"
                         }
                     },
                     "400": {
@@ -2056,7 +2056,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_ethanrous_weblens_models_tag.Tag"
+                                "$ref": "#/definitions/tag.Tag"
                             }
                         }
                     },
@@ -2100,7 +2100,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Tag",
                         "schema": {
-                            "$ref": "#/definitions/github_com_ethanrous_weblens_models_tag.Tag"
+                            "$ref": "#/definitions/tag.Tag"
                         }
                     },
                     "400": {
@@ -4314,6 +4314,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "Completed",
+                "State",
                 "jobName",
                 "progress",
                 "status",
@@ -4324,7 +4325,16 @@ const docTemplate = `{
                 "Completed": {
                     "type": "boolean"
                 },
+                "State": {
+                    "type": "string"
+                },
+                "completedChildTasks": {
+                    "type": "integer"
+                },
                 "jobName": {
+                    "type": "string"
+                },
+                "parentTaskID": {
                     "type": "string"
                 },
                 "progress": {
@@ -4339,6 +4349,9 @@ const docTemplate = `{
                 },
                 "taskID": {
                     "type": "string"
+                },
+                "totalChildTasks": {
+                    "type": "integer"
                 },
                 "workerID": {
                     "type": "integer"
@@ -4611,35 +4624,6 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_ethanrous_weblens_models_tag.Tag": {
-            "type": "object",
-            "properties": {
-                "color": {
-                    "type": "string"
-                },
-                "created": {
-                    "type": "string"
-                },
-                "fileIDs": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "owner": {
-                    "type": "string"
-                },
-                "updated": {
-                    "type": "string"
-                }
-            }
-        },
         "history.FileAction": {
             "type": "object",
             "properties": {
@@ -4704,6 +4688,17 @@ const docTemplate = `{
                 "FileDelete",
                 "FileRestore"
             ]
+        },
+        "tag.Tag": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
         },
         "wlfs.Filepath": {
             "type": "object",
