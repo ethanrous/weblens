@@ -1395,7 +1395,7 @@ paths:
             application/json:
               schema:
                 items:
-                  $ref: "#/components/schemas/tag.Tag"
+                  $ref: "#/components/schemas/github_com_ethanrous_weblens_models_tag.Tag"
                 type: array
           description: User's tags
         "401":
@@ -1423,7 +1423,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/tag.Tag"
+                $ref: "#/components/schemas/github_com_ethanrous_weblens_models_tag.Tag"
           description: Created tag
         "400":
           content: {}
@@ -1459,7 +1459,7 @@ paths:
             application/json:
               schema:
                 items:
-                  $ref: "#/components/schemas/tag.Tag"
+                  $ref: "#/components/schemas/github_com_ethanrous_weblens_models_tag.Tag"
                 type: array
           description: Tags containing the file
         "400":
@@ -1524,7 +1524,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/tag.Tag"
+                $ref: "#/components/schemas/github_com_ethanrous_weblens_models_tag.Tag"
           description: Tag
         "400":
           content: {}
@@ -3981,6 +3981,35 @@ components:
         name:
           type: string
       type: object
+    github_com_ethanrous_weblens_models_tag.Tag:
+      example:
+        owner: owner
+        color: color
+        fileIDs:
+        - fileIDs
+        - fileIDs
+        created: created
+        name: name
+        id: id
+        updated: updated
+      properties:
+        color:
+          type: string
+        created:
+          type: string
+        fileIDs:
+          items:
+            type: string
+          type: array
+        id:
+          type: string
+        name:
+          type: string
+        owner:
+          type: string
+        updated:
+          type: string
+      type: object
     history.FileAction:
       example:
         eventID: eventID
@@ -4048,16 +4077,6 @@ components:
       - Backup
       - FileDelete
       - FileRestore
-    tag.Tag:
-      example:
-        name: name
-        value: value
-      properties:
-        name:
-          type: string
-        value:
-          type: string
-      type: object
     wlfs.Filepath:
       example:
         rootAlias: rootAlias

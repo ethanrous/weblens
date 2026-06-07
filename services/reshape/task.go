@@ -20,15 +20,17 @@ func TaskToTaskInfo(t *task.Task) wlstructs.TaskInfo {
 	complete, status := t.Status()
 	result := t.GetResults()
 
-	parentTaskId := ""
+	parentTaskID := ""
+
 	tp := t.GetTaskPool()
 	if tp != nil && tp.CreatedInTask() != nil {
-		parentTaskId = tp.CreatedInTask().ID()
+		parentTaskID = tp.CreatedInTask().ID()
 	}
 
 	ctp := t.GetChildTaskPool()
 	totalChildTasks := 0
 	completedChildTasks := 0
+
 	if ctp != nil {
 		totalChildTasks = ctp.GetTotalTaskCount()
 		completedChildTasks = ctp.GetCompletedTaskCount()
@@ -36,7 +38,7 @@ func TaskToTaskInfo(t *task.Task) wlstructs.TaskInfo {
 
 	return wlstructs.TaskInfo{
 		TaskID:              t.ID(),
-		ParentTaskID:        parentTaskId,
+		ParentTaskID:        parentTaskID,
 		JobName:             t.JobName(),
 		Progress:            0,
 		Status:              string(status),

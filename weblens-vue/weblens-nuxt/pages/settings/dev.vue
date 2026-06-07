@@ -138,8 +138,7 @@ const {
     const res = await useWeblensAPI().TowersAPI.getRunningTasks()
 
     // Copy before sorting (don't mutate the response); keep every task so parent subtask counts stay accurate.
-    let taskInfos = [...res.data]
-    taskInfos = taskInfos.filter((t) => Date.parse(t.startTime!) > 0)
+    const taskInfos = [...res.data]
 
     taskInfos.sort((a, b) => {
         const aMs = new Date(a.startTime ?? '').getTime()

@@ -113,6 +113,15 @@ export interface FolderInfo {
     'parents'?: Array<FileInfo>;
     'self'?: FileInfo;
 }
+export interface GithubComEthanrousWeblensModelsTagTag {
+    'color'?: string;
+    'created'?: string;
+    'fileIDs'?: Array<string>;
+    'id'?: string;
+    'name'?: string;
+    'owner'?: string;
+    'updated'?: string;
+}
 export interface HistoryFileAction {
     'actionType'?: HistoryFileActionType;
     'contentID'?: string;
@@ -303,10 +312,6 @@ export interface ShareInfo {
     'timelineOnly'?: boolean;
     'updated'?: number;
     'wormhole'?: boolean;
-}
-export interface TagTag {
-    'name'?: string;
-    'value'?: string;
 }
 export interface TakeoutInfo {
     'filename'?: string;
@@ -4700,7 +4705,7 @@ export const TagsApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async createTag(request: FileCreateTagParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TagTag>> {
+        async createTag(request: FileCreateTagParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GithubComEthanrousWeblensModelsTagTag>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.createTag(request, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['TagsApi.createTag']?.[localVarOperationServerIndex]?.url;
@@ -4739,7 +4744,7 @@ export const TagsApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getTag(tagID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TagTag>> {
+        async getTag(tagID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GithubComEthanrousWeblensModelsTagTag>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.getTag(tagID, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['TagsApi.getTag']?.[localVarOperationServerIndex]?.url;
@@ -4752,7 +4757,7 @@ export const TagsApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getTagsForFile(fileID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<TagTag>>> {
+        async getTagsForFile(fileID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<GithubComEthanrousWeblensModelsTagTag>>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.getTagsForFile(fileID, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['TagsApi.getTagsForFile']?.[localVarOperationServerIndex]?.url;
@@ -4764,7 +4769,7 @@ export const TagsApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getUserTags(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<TagTag>>> {
+        async getUserTags(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<GithubComEthanrousWeblensModelsTagTag>>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.getUserTags(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['TagsApi.getUserTags']?.[localVarOperationServerIndex]?.url;
@@ -4825,7 +4830,7 @@ export const TagsApiFactory = function (configuration?: Configuration, basePath?
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        createTag(request: FileCreateTagParams, options?: RawAxiosRequestConfig): AxiosPromise<TagTag> {
+        createTag(request: FileCreateTagParams, options?: RawAxiosRequestConfig): AxiosPromise<GithubComEthanrousWeblensModelsTagTag> {
             return localVarFp.createTag(request, options).then((request) => request(axios, basePath));
         },
         /**
@@ -4855,7 +4860,7 @@ export const TagsApiFactory = function (configuration?: Configuration, basePath?
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getTag(tagID: string, options?: RawAxiosRequestConfig): AxiosPromise<TagTag> {
+        getTag(tagID: string, options?: RawAxiosRequestConfig): AxiosPromise<GithubComEthanrousWeblensModelsTagTag> {
             return localVarFp.getTag(tagID, options).then((request) => request(axios, basePath));
         },
         /**
@@ -4865,7 +4870,7 @@ export const TagsApiFactory = function (configuration?: Configuration, basePath?
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getTagsForFile(fileID: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<TagTag>> {
+        getTagsForFile(fileID: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<GithubComEthanrousWeblensModelsTagTag>> {
             return localVarFp.getTagsForFile(fileID, options).then((request) => request(axios, basePath));
         },
         /**
@@ -4874,7 +4879,7 @@ export const TagsApiFactory = function (configuration?: Configuration, basePath?
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getUserTags(options?: RawAxiosRequestConfig): AxiosPromise<Array<TagTag>> {
+        getUserTags(options?: RawAxiosRequestConfig): AxiosPromise<Array<GithubComEthanrousWeblensModelsTagTag>> {
             return localVarFp.getUserTags(options).then((request) => request(axios, basePath));
         },
         /**

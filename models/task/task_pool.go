@@ -326,7 +326,7 @@ func (tp *Pool) Cancel() {
 		tp.log.Debug().Msgf("Task pool [%s] already canceled", tp.ID())
 	}
 
-	for _, t := range tp.tasks {
+	for _, t := range tp.GetTasks() {
 		t.Cancel()
 	}
 }

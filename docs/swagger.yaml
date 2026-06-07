@@ -716,6 +716,25 @@ definitions:
       name:
         type: string
     type: object
+  github_com_ethanrous_weblens_models_tag.Tag:
+    properties:
+      color:
+        type: string
+      created:
+        type: string
+      fileIDs:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      name:
+        type: string
+      owner:
+        type: string
+      updated:
+        type: string
+    type: object
   history.FileAction:
     properties:
       actionType:
@@ -763,13 +782,6 @@ definitions:
     - Backup
     - FileDelete
     - FileRestore
-  tag.Tag:
-    properties:
-      name:
-        type: string
-      value:
-        type: string
-    type: object
   wlfs.Filepath:
     properties:
       relPath:
@@ -2065,7 +2077,7 @@ paths:
           description: User's tags
           schema:
             items:
-              $ref: '#/definitions/tag.Tag'
+              $ref: '#/definitions/github_com_ethanrous_weblens_models_tag.Tag'
             type: array
         "401":
           description: Unauthorized
@@ -2093,7 +2105,7 @@ paths:
         "201":
           description: Created tag
           schema:
-            $ref: '#/definitions/tag.Tag'
+            $ref: '#/definitions/github_com_ethanrous_weblens_models_tag.Tag'
         "400":
           description: Bad Request
         "401":
@@ -2148,7 +2160,7 @@ paths:
         "200":
           description: Tag
           schema:
-            $ref: '#/definitions/tag.Tag'
+            $ref: '#/definitions/github_com_ethanrous_weblens_models_tag.Tag'
         "400":
           description: Bad Request
         "401":
@@ -2311,7 +2323,7 @@ paths:
           description: Tags containing the file
           schema:
             items:
-              $ref: '#/definitions/tag.Tag'
+              $ref: '#/definitions/github_com_ethanrous_weblens_models_tag.Tag'
             type: array
         "400":
           description: Bad Request

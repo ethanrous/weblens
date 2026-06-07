@@ -44,7 +44,7 @@ type fileIDsParams struct {
 //	@Summary	Get all tags for the authenticated user
 //	@Tags		Tags
 //	@Produce	json
-//	@Success	200	{array}	tag.Tag	"User's tags"
+//	@Success	200	{array}	tag_model.Tag	"User's tags"
 //	@Failure	401
 //	@Failure	500
 //	@Router		/tags [get]
@@ -74,7 +74,7 @@ func GetUserTags(ctx context_service.RequestContext) {
 //	@Accept		json
 //	@Produce	json
 //	@Param		request	body		createTagParams	true	"Create tag request body"
-//	@Success	201		{object}	tag.Tag	"Created tag"
+//	@Success	201		{object}	tag_model.Tag	"Created tag"
 //	@Failure	400
 //	@Failure	401
 //	@Failure	409
@@ -138,7 +138,7 @@ func CreateTag(ctx context_service.RequestContext) {
 //	@Tags		Tags
 //	@Produce	json
 //	@Param		tagID	path		string			true	"Tag ID"
-//	@Success	200		{object}	tag.Tag	"Tag"
+//	@Success	200		{object}	tag_model.Tag	"Tag"
 //	@Failure	400
 //	@Failure	401
 //	@Failure	403
@@ -364,7 +364,7 @@ func RemoveFilesFromTag(ctx context_service.RequestContext) {
 //	@Tags		Tags
 //	@Produce	json
 //	@Param		fileID	path	string			true	"File ID"
-//	@Success	200		{array}	tag.Tag	"Tags containing the file"
+//	@Success	200		{array}	tag_model.Tag	"Tags containing the file"
 //	@Failure	400
 //	@Failure	401
 //	@Failure	500

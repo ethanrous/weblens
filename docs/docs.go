@@ -1964,7 +1964,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/tag.Tag"
+                                "$ref": "#/definitions/github_com_ethanrous_weblens_models_tag.Tag"
                             }
                         }
                     },
@@ -2008,7 +2008,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created tag",
                         "schema": {
-                            "$ref": "#/definitions/tag.Tag"
+                            "$ref": "#/definitions/github_com_ethanrous_weblens_models_tag.Tag"
                         }
                     },
                     "400": {
@@ -2056,7 +2056,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/tag.Tag"
+                                "$ref": "#/definitions/github_com_ethanrous_weblens_models_tag.Tag"
                             }
                         }
                     },
@@ -2100,7 +2100,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Tag",
                         "schema": {
-                            "$ref": "#/definitions/tag.Tag"
+                            "$ref": "#/definitions/github_com_ethanrous_weblens_models_tag.Tag"
                         }
                     },
                     "400": {
@@ -4624,6 +4624,35 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_ethanrous_weblens_models_tag.Tag": {
+            "type": "object",
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "created": {
+                    "type": "string"
+                },
+                "fileIDs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "updated": {
+                    "type": "string"
+                }
+            }
+        },
         "history.FileAction": {
             "type": "object",
             "properties": {
@@ -4688,17 +4717,6 @@ const docTemplate = `{
                 "FileDelete",
                 "FileRestore"
             ]
-        },
-        "tag.Tag": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string"
-                },
-                "value": {
-                    "type": "string"
-                }
-            }
         },
         "wlfs.Filepath": {
             "type": "object",

@@ -20,7 +20,8 @@ export type VisibleTaskRow = {
 // buildTaskTree groups a flat task list into a forest by parentTaskID. Roots are
 // tasks whose parent is not present in the list (true roots plus orphans whose
 // parent has already exited). Sibling order follows the input order. Each node's
-// completedCount/totalCount/percent are computed over its direct children only.
+// completedCount/totalCount/percent come from the task's own completedChildTasks/
+// totalChildTasks (API response counts), so they hold even when child rows are absent.
 export function buildTaskTree(tasks: TaskInfo[]): TaskTreeNode[] {
     const nodes = new Map<string, TaskTreeNode>()
     for (const task of tasks) {

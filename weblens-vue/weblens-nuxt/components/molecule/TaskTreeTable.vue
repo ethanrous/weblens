@@ -68,7 +68,7 @@
                                 <span :class="{ truncate: true }">{{ row.task.jobName }}</span>
                             </div>
                             <div
-                                v-if="row.hasChildren"
+                                v-if="row.totalCount > 0"
                                 :class="{ 'flex items-center gap-2 pl-5': true }"
                             >
                                 <ProgressSquare
@@ -134,7 +134,7 @@ const emit = defineEmits<{
     cancel: [taskID: string]
 }>()
 
-const HEADERS = ['Job Name', 'Task ID', 'Status', 'Worker', 'Start Time', 'Result', 'Cancel']
+const HEADERS = ['Job Name', 'Task ID', 'State', 'Worker', 'Start Time', 'Result', 'Cancel']
 
 const expanded = ref<Set<string>>(new Set())
 
