@@ -19,7 +19,7 @@ The main build script is `scripts/gogogadgetdocker.bash`. The Dockerfile is at `
 
 ### Base image
 
-The base image `ethrous/weblens-roux` is built from `scripts/build-base-image.bash`. It pre-installs system dependencies to speed up CI builds. Rebuild only when system deps change.
+The base image `ghcr.io/ethanrous/weblens-roux` is built from `scripts/build-base-image.bash`. It pre-installs system dependencies to speed up CI builds. Rebuild only when system deps change.
 
 ### CI/CD
 

@@ -4,15 +4,16 @@ FROM ghcr.io/astral-sh/uv:bookworm-slim
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/*;
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git ca-certificates tesseract-ocr tesseract-ocr-eng \
+    && rm -rf /var/lib/apt/lists/*;
 
-# Copy the rest of the application code
-COPY embed/pyproject.toml .
+COPY embed/pyproject.toml embed/uv.lock ./
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --python 3.13;
+    uv sync --python 3.13 --no-install-project;
 
-COPY embed/main.py main.py
+COPY embed/main.py embed/extract.py ./
 
 # DON'T PRELOAD THE MODEL. This makes the image massive, and this will happen automatically on the first run anyway.
 # The user should mount a volume at `/root/.cache/huggingface` to persist the model across runs instead.

@@ -60,7 +60,7 @@ Semantic search over images and document text is powered by a separate Python si
 - `POST /extract-and-embed {path, mimeHint}` — extract text from a file (`extract.py` handles PDF / DOCX / XLSX / PPTX / OCR / plaintext), chunk it, return per-chunk vectors
 - `GET /health`
 
-The container image is `ethrous/weblens-embed`, built from `docker/embed.Dockerfile`. In dev mode `scripts/lib/embed.bash` runs `uv sync && uv run main.py` directly on the host (no container). `make dev` launches it via `scripts/envup.bash`.
+The container image is `ghcr.io/ethanrous/weblens_embed`, built from `docker/embed.Dockerfile`. In dev mode `scripts/lib/embed.bash` runs `uv sync && uv run main.py` directly on the host (no container). `make dev` launches it via `scripts/envup.bash`.
 
 **Go side (`services/embed/`)**: HTTP-only — no DB.
 - `client.go` — `NewClient`, `EncodeImage`, `EncodeQueryText` (cached), `ExtractAndEmbedFile`, circuit-breaker via `ServiceUnavailable()`.

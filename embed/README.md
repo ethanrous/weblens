@@ -26,11 +26,11 @@ Listens on `:5500`. `make dev` from the repo root does this automatically via `s
 ## Running in Docker
 
 ```bash
-docker build -f docker/embed.Dockerfile -t ethrous/weblens_embed .
+docker build -f docker/embed.Dockerfile -t ghcr.io/ethanrous/weblens_embed .
 docker run --rm -p 5500:5500 \
   -v $(pwd)/_build/fs/core/cache/:/images \
   -e WEBLENS_CACHE_PATH=/images \
-  ethrous/weblens_embed
+  ghcr.io/ethanrous/weblens_embed
 ```
 
 The first run downloads ~2 GB of model weights to `/root/.cache/huggingface` — mount a volume there to persist.

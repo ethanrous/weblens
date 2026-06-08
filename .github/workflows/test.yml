@@ -151,6 +151,7 @@ jobs:
       - uses: docker/setup-docker-action@v4
 
       - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -164,10 +165,50 @@ jobs:
 
           ./scripts/gogogadgetdocker.bash -s -t devel -a amd64
 
-          docker tag ghcr.io/ethanrous/weblens:devel ghcr.io/ethanrous/weblens:devel-$GITHUB_HEAD_REF-$GITHUB_SHA
-          docker push ghcr.io/ethanrous/weblens:devel-$GITHUB_HEAD_REF-$GITHUB_SHA
+          REF=${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}
+          docker tag ghcr.io/ethanrous/weblens:devel ghcr.io/ethanrous/weblens:devel-$REF-$GITHUB_SHA
+
+      - name: Push image
+        if: github.event_name != 'pull_request'
+        run: |
+          REF=${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}
+          docker push ghcr.io/ethanrous/weblens:devel-$REF-$GITHUB_SHA
 
           echo "Built and pushed image:" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "ghcr.io/ethanrous/weblens:devel-$GITHUB_HEAD_REF-$GITHUB_SHA" >> $GITHUB_STEP_SUMMARY
+          echo "ghcr.io/ethanrous/weblens:devel-$REF-$GITHUB_SHA" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  test-build-embed-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-docker-action@v4
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          # Use the GITHUB_TOKEN secret provided by GitHub Actions
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build embed image
+        run: |
+          sudo systemctl restart docker
+
+          REF=${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}
+          docker build -f docker/embed.Dockerfile -t ghcr.io/ethanrous/weblens_embed:devel-$REF-$GITHUB_SHA .
+
+      - name: Push embed image
+        if: github.event_name != 'pull_request'
+        run: |
+          REF=${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}
+          docker push ghcr.io/ethanrous/weblens_embed:devel-$REF-$GITHUB_SHA
+
+          echo "Built and pushed embed image:" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "ghcr.io/ethanrous/weblens_embed:devel-$REF-$GITHUB_SHA" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY

@@ -30,9 +30,6 @@ dev: FORCE
 swag: FORCE
 	./scripts/swaggo.bash
 
-roux: FORCE
-	./scripts/build-base-image.bash -t v0
-	docker push ethrous/weblens-roux:v0
 
 clean:
 	# Go stuff

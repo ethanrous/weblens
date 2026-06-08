@@ -1,13 +1,14 @@
 services:
   weblens:
     container_name: weblens
-    image: ethrous/weblens:latest
+    image: ghcr.io/ethanrous/weblens:latest
     ports:
       - 8080:8080
     environment:
       WEBLENS_MONGODB_URI: "mongodb://weblens-mongo:27017/?directConnection=true"
       WEBLENS_DATA_PATH: "/data"
       WEBLENS_CACHE_PATH: "/cache"
+      WEBLENS_EMBED_URI: "http://weblens-embed:5500"
     volumes:
       - ${DATA_HOST_PATH}:/data
       - ${CACHE_HOST_PATH}:/cache
@@ -42,3 +43,15 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+
+  weblens-embed:
+    container_name: weblens-embed
+    image: ghcr.io/ethanrous/weblens_embed:latest
+    environment:
+      # Must match weblens' WEBLENS_CACHE_PATH so `CACHES:` image paths resolve to the shared cache.
+      WEBLENS_CACHE_PATH: "/cache"
+    volumes:
+      - ${DATA_HOST_PATH}:/data:ro
+      - ${CACHE_HOST_PATH}:/cache:ro
+      # Persist the embedding model across restarts.
+      - ${CACHE_HOST_PATH}/embed:/root/.cache/huggingface
