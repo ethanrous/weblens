@@ -22,12 +22,16 @@ var _ MappedNullable = &TaskInfo{}
 // TaskInfo struct for TaskInfo
 type TaskInfo struct {
 	Completed bool `json:"Completed"`
+	State string `json:"State"`
+	CompletedChildTasks *int32 `json:"completedChildTasks,omitempty"`
 	JobName string `json:"jobName"`
+	ParentTaskID *string `json:"parentTaskID,omitempty"`
 	Progress int32 `json:"progress"`
 	Result map[string]interface{} `json:"result,omitempty"`
 	StartTime *string `json:"startTime,omitempty"`
 	Status string `json:"status"`
 	TaskID string `json:"taskID"`
+	TotalChildTasks *int32 `json:"totalChildTasks,omitempty"`
 	WorkerID int32 `json:"workerID"`
 }
 
@@ -37,9 +41,10 @@ type _TaskInfo TaskInfo
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewTaskInfo(completed bool, jobName string, progress int32, status string, taskID string, workerID int32) *TaskInfo {
+func NewTaskInfo(completed bool, state string, jobName string, progress int32, status string, taskID string, workerID int32) *TaskInfo {
 	this := TaskInfo{}
 	this.Completed = completed
+	this.State = state
 	this.JobName = jobName
 	this.Progress = progress
 	this.Status = status
@@ -80,6 +85,62 @@ func (o *TaskInfo) SetCompleted(v bool) {
 	o.Completed = v
 }
 
+// GetState returns the State field value
+func (o *TaskInfo) GetState() string {
+	if o == nil {
+		var ret string
+		return ret
+	}
+
+	return o.State
+}
+
+// GetStateOk returns a tuple with the State field value
+// and a boolean to check if the value has been set.
+func (o *TaskInfo) GetStateOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return &o.State, true
+}
+
+// SetState sets field value
+func (o *TaskInfo) SetState(v string) {
+	o.State = v
+}
+
+// GetCompletedChildTasks returns the CompletedChildTasks field value if set, zero value otherwise.
+func (o *TaskInfo) GetCompletedChildTasks() int32 {
+	if o == nil || IsNil(o.CompletedChildTasks) {
+		var ret int32
+		return ret
+	}
+	return *o.CompletedChildTasks
+}
+
+// GetCompletedChildTasksOk returns a tuple with the CompletedChildTasks field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *TaskInfo) GetCompletedChildTasksOk() (*int32, bool) {
+	if o == nil || IsNil(o.CompletedChildTasks) {
+		return nil, false
+	}
+	return o.CompletedChildTasks, true
+}
+
+// HasCompletedChildTasks returns a boolean if a field has been set.
+func (o *TaskInfo) HasCompletedChildTasks() bool {
+	if o != nil && !IsNil(o.CompletedChildTasks) {
+		return true
+	}
+
+	return false
+}
+
+// SetCompletedChildTasks gets a reference to the given int32 and assigns it to the CompletedChildTasks field.
+func (o *TaskInfo) SetCompletedChildTasks(v int32) {
+	o.CompletedChildTasks = &v
+}
+
 // GetJobName returns the JobName field value
 func (o *TaskInfo) GetJobName() string {
 	if o == nil {
@@ -102,6 +163,38 @@ func (o *TaskInfo) GetJobNameOk() (*string, bool) {
 // SetJobName sets field value
 func (o *TaskInfo) SetJobName(v string) {
 	o.JobName = v
+}
+
+// GetParentTaskID returns the ParentTaskID field value if set, zero value otherwise.
+func (o *TaskInfo) GetParentTaskID() string {
+	if o == nil || IsNil(o.ParentTaskID) {
+		var ret string
+		return ret
+	}
+	return *o.ParentTaskID
+}
+
+// GetParentTaskIDOk returns a tuple with the ParentTaskID field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *TaskInfo) GetParentTaskIDOk() (*string, bool) {
+	if o == nil || IsNil(o.ParentTaskID) {
+		return nil, false
+	}
+	return o.ParentTaskID, true
+}
+
+// HasParentTaskID returns a boolean if a field has been set.
+func (o *TaskInfo) HasParentTaskID() bool {
+	if o != nil && !IsNil(o.ParentTaskID) {
+		return true
+	}
+
+	return false
+}
+
+// SetParentTaskID gets a reference to the given string and assigns it to the ParentTaskID field.
+func (o *TaskInfo) SetParentTaskID(v string) {
+	o.ParentTaskID = &v
 }
 
 // GetProgress returns the Progress field value
@@ -240,6 +333,38 @@ func (o *TaskInfo) SetTaskID(v string) {
 	o.TaskID = v
 }
 
+// GetTotalChildTasks returns the TotalChildTasks field value if set, zero value otherwise.
+func (o *TaskInfo) GetTotalChildTasks() int32 {
+	if o == nil || IsNil(o.TotalChildTasks) {
+		var ret int32
+		return ret
+	}
+	return *o.TotalChildTasks
+}
+
+// GetTotalChildTasksOk returns a tuple with the TotalChildTasks field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *TaskInfo) GetTotalChildTasksOk() (*int32, bool) {
+	if o == nil || IsNil(o.TotalChildTasks) {
+		return nil, false
+	}
+	return o.TotalChildTasks, true
+}
+
+// HasTotalChildTasks returns a boolean if a field has been set.
+func (o *TaskInfo) HasTotalChildTasks() bool {
+	if o != nil && !IsNil(o.TotalChildTasks) {
+		return true
+	}
+
+	return false
+}
+
+// SetTotalChildTasks gets a reference to the given int32 and assigns it to the TotalChildTasks field.
+func (o *TaskInfo) SetTotalChildTasks(v int32) {
+	o.TotalChildTasks = &v
+}
+
 // GetWorkerID returns the WorkerID field value
 func (o *TaskInfo) GetWorkerID() int32 {
 	if o == nil {
@@ -275,7 +400,14 @@ func (o TaskInfo) MarshalJSON() ([]byte, error) {
 func (o TaskInfo) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["Completed"] = o.Completed
+	toSerialize["State"] = o.State
+	if !IsNil(o.CompletedChildTasks) {
+		toSerialize["completedChildTasks"] = o.CompletedChildTasks
+	}
 	toSerialize["jobName"] = o.JobName
+	if !IsNil(o.ParentTaskID) {
+		toSerialize["parentTaskID"] = o.ParentTaskID
+	}
 	toSerialize["progress"] = o.Progress
 	if !IsNil(o.Result) {
 		toSerialize["result"] = o.Result
@@ -285,6 +417,9 @@ func (o TaskInfo) ToMap() (map[string]interface{}, error) {
 	}
 	toSerialize["status"] = o.Status
 	toSerialize["taskID"] = o.TaskID
+	if !IsNil(o.TotalChildTasks) {
+		toSerialize["totalChildTasks"] = o.TotalChildTasks
+	}
 	toSerialize["workerID"] = o.WorkerID
 	return toSerialize, nil
 }
@@ -295,6 +430,7 @@ func (o *TaskInfo) UnmarshalJSON(data []byte) (err error) {
 	// that every required field exists as a key in the generic map.
 	requiredProperties := []string{
 		"Completed",
+		"State",
 		"jobName",
 		"progress",
 		"status",

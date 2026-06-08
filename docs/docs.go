@@ -4314,6 +4314,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "Completed",
+                "State",
                 "jobName",
                 "progress",
                 "status",
@@ -4324,7 +4325,16 @@ const docTemplate = `{
                 "Completed": {
                     "type": "boolean"
                 },
+                "State": {
+                    "type": "string"
+                },
+                "completedChildTasks": {
+                    "type": "integer"
+                },
                 "jobName": {
+                    "type": "string"
+                },
+                "parentTaskID": {
                     "type": "string"
                 },
                 "progress": {
@@ -4339,6 +4349,9 @@ const docTemplate = `{
                 },
                 "taskID": {
                     "type": "string"
+                },
+                "totalChildTasks": {
+                    "type": "integer"
                 },
                 "workerID": {
                     "type": "integer"

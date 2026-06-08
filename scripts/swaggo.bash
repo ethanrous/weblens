@@ -21,6 +21,14 @@ fi
 
 mkdir -p ./_build/logs
 
+# swag bakes GOROOT in at build time; export the live one so a Go upgrade doesn't break --parseDependency
+export GOROOT="$(go env GOROOT)"
+
+# pnpm 11's `pnpm bin -g` errors when its global bin dir isn't in PATH (e.g. make's non-interactive shell); add it directly
+if [[ -n "${PNPM_HOME:-}" ]]; then
+    export PATH="$PNPM_HOME:$PNPM_HOME/bin:$PATH"
+fi
+
 printf "Generating swagger docs..."
 if ! swag init --pd -g router.go -d './routers/router,./routers/api/v1' -q &>./_build/logs/swag.log; then
     echo "FAILED"
@@ -33,7 +41,7 @@ printf "########## END OF SWAG INIT ##########\n\n" >>./_build/logs/swag.log
 
 printf "Generating typescript api..."
 # export TS_POST_PROCESS_FILE="prettier --write"
-if ! "$(pnpm bin -g)"/openapi-generator-cli generate -i docs/swagger.json -g typescript-axios -o ./api/ts/generated --additional-properties=useESModules=true &>./_build/logs/swag-typescript.log; then
+if ! openapi-generator-cli generate -i docs/swagger.json -g typescript-axios -o ./api/ts/generated --additional-properties=useESModules=true &>./_build/logs/swag-typescript.log; then
     echo "FAILED"
     cat ./_build/logs/swag-typescript.log
     echo "########## ^ Openapi Generator Logs ^ ##########"
@@ -52,7 +60,7 @@ echo "DONE"
 
 printf "Generating go api..."
 rm ./api/*.go
-if ! "$(pnpm bin -g)"/openapi-generator-cli generate -i docs/swagger.json -g go --git-user-id ethanrous --git-repo-id weblens/api -o ./api/ &>./_build/logs/swag-go.log; then
+if ! openapi-generator-cli generate -i docs/swagger.json -g go --git-user-id ethanrous --git-repo-id weblens/api -o ./api/ &>./_build/logs/swag-go.log; then
     echo "FAILED"
     cat ./_build/logs/swag-go.log
     echo "########## ^ Openapi Generator Logs ^ ##########"

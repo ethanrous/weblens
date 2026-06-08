@@ -82,6 +82,8 @@ The container image is `ethrous/weblens-embed`, built from `docker/embed.Dockerf
 
 Nuxt 4 SPA (SSR disabled). Pinia stores in `stores/`. Atomic design components (`atom/`, `molecule/`, `organism/`). TypeScript API client at `api/ts/` generated from openapi spec (`@ethanrous/weblens-api`).
 
+**Reuse existing atoms (REQUIRED).** Build UI by composing existing atoms/components, not raw HTML controls. Use `WeblensButton` for every button — including icon-only toggles (`type="light"` + `:square-size` + an icon in the default slot; see the chevron in `components/molecule/FileEventGroup.vue`). Use `ProgressSquare` for progress bars, `WeblensCheckbox` for checkboxes, `Divider`, etc. A raw `<button>`/`<input>` is only acceptable for structural, non-interactive markup with no atom equivalent. Before hand-rolling an element, check `components/atom/` for an existing one; put new shared UI in `atom/`/`molecule/`/`organism/` by complexity.
+
 ## Rust Image Library (`agno/`)
 
 GPU-accelerated image processing (wgpu + SPIR-V, CPU fallback). Linked as `libagno.a` via CGO. See `agno/CLAUDE.md`.

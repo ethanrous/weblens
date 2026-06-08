@@ -4312,6 +4312,7 @@
             "type": "object",
             "required": [
                 "Completed",
+                "State",
                 "jobName",
                 "progress",
                 "status",
@@ -4322,7 +4323,16 @@
                 "Completed": {
                     "type": "boolean"
                 },
+                "State": {
+                    "type": "string"
+                },
+                "completedChildTasks": {
+                    "type": "integer"
+                },
                 "jobName": {
+                    "type": "string"
+                },
+                "parentTaskID": {
                     "type": "string"
                 },
                 "progress": {
@@ -4337,6 +4347,9 @@
                 },
                 "taskID": {
                     "type": "string"
+                },
+                "totalChildTasks": {
+                    "type": "integer"
                 },
                 "workerID": {
                     "type": "integer"

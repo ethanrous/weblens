@@ -24,6 +24,7 @@ var ErrChildTaskFailed = wlerrors.New("child task failed")
 // Pool manages a collection of tasks and tracks their execution progress.
 type Pool struct {
 	allQueuedFlag  atomic.Bool
+	canceled       atomic.Bool
 	cleanupFn      []PoolCleanupFunc
 	cleanupsDone   atomic.Bool
 	completedTasks atomic.Int64
@@ -317,14 +318,17 @@ func (tp *Pool) Errors() []*Task {
 // Cancel cancels all tasks in this pool.
 func (tp *Pool) Cancel() {
 	// Dont allow more tasks to join the queue while we are canceling them
-	// tp.taskLock.Lock()
 	tp.allQueuedFlag.Store(true)
 
-	for _, t := range tp.tasks {
-		t.Cancel()
+	if tp.canceled.CompareAndSwap(false, true) {
+		tp.log.Debug().Msgf("Canceling task pool [%s]", tp.ID())
+	} else {
+		tp.log.Debug().Msgf("Task pool [%s] already canceled", tp.ID())
 	}
 
-	// tp.taskLock.Unlock()
+	for _, t := range tp.GetTasks() {
+		t.Cancel()
+	}
 }
 
 // QueueTask adds a task to this pool for execution.

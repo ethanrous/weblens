@@ -321,12 +321,16 @@ export interface TakeoutInfo {
 }
 export interface TaskInfo {
     'Completed': boolean;
+    'State': string;
+    'completedChildTasks'?: number;
     'jobName': string;
+    'parentTaskID'?: string;
     'progress': number;
     'result'?: object;
     'startTime'?: string;
     'status': string;
     'taskID': string;
+    'totalChildTasks'?: number;
     'workerID': number;
 }
 export interface TokenInfo {
