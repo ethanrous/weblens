@@ -165,16 +165,18 @@ jobs:
 
           ./scripts/gogogadgetdocker.bash -s -t devel -a amd64
 
-          docker tag ghcr.io/ethanrous/weblens:devel ghcr.io/ethanrous/weblens:devel-$GITHUB_HEAD_REF-$GITHUB_SHA
+          REF=${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}
+          docker tag ghcr.io/ethanrous/weblens:devel ghcr.io/ethanrous/weblens:devel-$REF-$GITHUB_SHA
 
       - name: Push image
         if: github.event_name != 'pull_request'
         run: |
-          docker push ghcr.io/ethanrous/weblens:devel-$GITHUB_HEAD_REF-$GITHUB_SHA
+          REF=${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}
+          docker push ghcr.io/ethanrous/weblens:devel-$REF-$GITHUB_SHA
 
           echo "Built and pushed image:" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "ghcr.io/ethanrous/weblens:devel-$GITHUB_HEAD_REF-$GITHUB_SHA" >> $GITHUB_STEP_SUMMARY
+          echo "ghcr.io/ethanrous/weblens:devel-$REF-$GITHUB_SHA" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   test-build-embed-image:
@@ -197,14 +199,16 @@ jobs:
         run: |
           sudo systemctl restart docker
 
-          docker build -f docker/embed.Dockerfile -t ghcr.io/ethanrous/weblens_embed:devel-$GITHUB_HEAD_REF-$GITHUB_SHA .
+          REF=${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}
+          docker build -f docker/embed.Dockerfile -t ghcr.io/ethanrous/weblens_embed:devel-$REF-$GITHUB_SHA .
 
       - name: Push embed image
         if: github.event_name != 'pull_request'
         run: |
-          docker push ghcr.io/ethanrous/weblens_embed:devel-$GITHUB_HEAD_REF-$GITHUB_SHA
+          REF=${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}
+          docker push ghcr.io/ethanrous/weblens_embed:devel-$REF-$GITHUB_SHA
 
           echo "Built and pushed embed image:" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "ghcr.io/ethanrous/weblens_embed:devel-$GITHUB_HEAD_REF-$GITHUB_SHA" >> $GITHUB_STEP_SUMMARY
+          echo "ghcr.io/ethanrous/weblens_embed:devel-$REF-$GITHUB_SHA" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
