@@ -90,14 +90,14 @@ func GatherFilesystemStats(tsk *task.Task) {
 
 // RegisterJobs registers all available job handlers with the worker pool.
 func RegisterJobs(workerPool *task.WorkerPool) {
-	workerPool.RegisterJob(job_model.ScanDirectoryTask, ScanDirectory)
-	workerPool.RegisterJob(job_model.ScanFileTask, ScanFile)
-	workerPool.RegisterJob(job_model.UploadFilesTask, HandleFileUploads, task.Options{Persistent: true, Unique: true})
+	workerPool.RegisterJob(job_model.ScanDirectoryTask, ScanDirectory, task.Options{Priority: 1})
+	workerPool.RegisterJob(job_model.ScanFileTask, ScanFile, task.Options{Priority: 2})
+	workerPool.RegisterJob(job_model.UploadFilesTask, HandleFileUploads, task.Options{Persistent: true, Unique: true, Priority: 999})
 	workerPool.RegisterJob(job_model.CreateZipTask, CreateZip, task.Options{Persistent: true, Unique: false})
 	workerPool.RegisterJob(job_model.GatherFsStatsTask, GatherFilesystemStats)
 	workerPool.RegisterJob(job_model.BackupTask, DoBackup)
 	workerPool.RegisterJob(job_model.CopyFileFromCoreTask, CopyFileFromCore)
 	workerPool.RegisterJob(job_model.RestoreCoreTask, RestoreCore)
-	workerPool.RegisterJob(job_model.LoadFilesystemTask, LoadAtPath)
+	workerPool.RegisterJob(job_model.LoadFilesystemTask, LoadAtPath, task.Options{Priority: 999})
 	workerPool.RegisterJob(job_model.ExtractAndEmbedTask, ExtractAndEmbedFile)
 }

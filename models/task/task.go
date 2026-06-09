@@ -80,6 +80,9 @@ type Options struct {
 	// If true, duplicate tasks (based on metadata string) will not be added to the queue, and instead the existing
 	// task with matching metadata will be returned. Otherwise, multiple tasks with the same metadata can coexist in the queue.
 	Unique bool
+
+	// Priority indicates the priority of the task in the queue. Higher priority tasks are executed before lower priority ones. Larger numbers indicate higher priority. The default priority is 0.
+	Priority int
 }
 
 // QueueState represents the current state of a task in the queue.
@@ -221,33 +224,6 @@ func (t *Task) Cancel() {
 	// Do not exit task here, so that .Wait() -ing on a task will wait until the task actually exits,
 	// before starting again
 	// t.queueState = Exited
-}
-
-// ClearAndRecompute cancels the task, clears its state, and re-queues it.
-func (t *Task) ClearAndRecompute() {
-	t.Cancel()
-	t.Wait()
-
-	t.exitStatus.Set(TaskNoStatus)
-	t.queueState.Set(Created)
-
-	t.waitChan = make(chan struct{})
-
-	for k := range t.result {
-		delete(t.result, k)
-	}
-
-	if t.err != nil {
-		t.Log().Warn().Msgf("Retrying task that has previous error: %v", t.err)
-		t.err = nil
-	}
-
-	err := t.GetTaskPool().QueueTask(t)
-	if err != nil {
-		return
-	}
-
-	t.GetTaskPool().GetWorkerPool().taskMap[t.taskID] = t
 }
 
 // GetResult returns the task result.

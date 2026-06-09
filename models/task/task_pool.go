@@ -331,67 +331,6 @@ func (tp *Pool) Cancel() {
 	}
 }
 
-// QueueTask adds a task to this pool for execution.
-func (tp *Pool) QueueTask(tsk *Task) (err error) {
-	select {
-	case <-tp.workerPool.ctx.Done():
-		tp.log.Warn().Msg("Not queuing task while worker pool is going down")
-
-		return err
-	default:
-	}
-
-	if tsk.err != nil {
-		// Tasks that have failed will not be re-tried. If the errored task is removed from the
-		// task map, then it will be re-tried because the previous error was lost. This can be
-		// sometimes be useful, some tasks auto-remove themselves after they finish.
-		tp.log.Warn().Msg("Not re-queuing task that has error set, please restart weblens to try again")
-
-		return err
-	}
-
-	if tsk.taskPool != nil && (tsk.taskPool != tp || tsk.queueState.Load() != Created) {
-		// Task is already queued, we are not allowed to move it to another queue.
-		// We can call .ClearAndRecompute() on the task and it will queue it
-		// again, but it cannot be transferred
-		if tsk.taskPool != tp {
-			tp.log.Warn().Msgf("Attempted to re-queue a [%s] task that is already in a queue", tsk.jobName)
-
-			return err
-		}
-
-		tsk.taskPool.tasks[tsk.taskID] = tsk
-
-		return err
-	}
-
-	if tp.allQueuedFlag.Load() {
-		// We cannot add tasks to a queue that has been closed
-		return wlerrors.WithStack(wlerrors.New("attempting to add task to closed task queue"))
-	}
-
-	// Increment the total task count for this pool and all parent pools
-	tp.IncTaskCount(1)
-
-	// Set the tasks queue
-	tsk.taskPool = tp
-
-	tp.workerPool.lifetimeQueuedCount.Add(1)
-
-	// Put the task in the queue
-	tsk.queueState.Set(InQueue)
-
-	if len(tp.workerPool.retryBuffer) != 0 || len(tp.workerPool.taskStream) == cap(tp.workerPool.taskStream) {
-		tp.workerPool.addToRetryBuffer(tsk)
-	} else {
-		tp.workerPool.taskStream <- tsk
-	}
-
-	tsk.taskPool.tasks[tsk.taskID] = tsk
-
-	return err
-}
-
 // MarkGlobal specifies the work queue as being a "global" one
 func (tp *Pool) MarkGlobal() {
 	tp.treatAsGlobal = true
