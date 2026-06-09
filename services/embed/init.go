@@ -1,4 +1,4 @@
-package embed //nolint:revive // package name intentionally mirrors the embed sidecar service
+package embed
 
 import (
 	"context"
