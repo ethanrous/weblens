@@ -20,7 +20,7 @@
     >
         <slot />
         <span
-            v-if="textContent && !justIcon"
+            v-if="textContent && !justIcon && textWidth !== '0px'"
             :class="{
                 'mx-1 text-nowrap transition-[width]': true,
             }"
@@ -94,6 +94,10 @@ const textContent = computed(() => {
     }
 
     return ''
+})
+
+watchEffect(() => {
+    console.log('text', textContent.value, 'text width', textWidth.value, 'button width', buttonSize.width.value)
 })
 
 async function handleClick(e: MouseEvent) {

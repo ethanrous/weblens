@@ -68,6 +68,13 @@ type Task struct {
 	WorkerID int64
 }
 
+// Priority constants for task scheduling. Higher values run first.
+const (
+	PriorityLow    = 1   // background directory scans
+	PriorityMedium = 2   // file scans — drain ahead of their parent directory scans
+	PriorityHigh   = 999 // user-facing work (uploads, filesystem load)
+)
+
 // Options specifies configuration options for task behavior.
 type Options struct {
 	// Persistent indicates whether the task should persist after completion.

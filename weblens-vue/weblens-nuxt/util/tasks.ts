@@ -59,6 +59,13 @@ export function flattenVisible(roots: TaskTreeNode[], expanded: Set<string>): Vi
             if (seen.has(node.task.taskID)) {
                 continue
             }
+
+            // Don't display a node's children if it's still in the queue, even if it's expanded. This
+            // prevents the page from trying to render possibly hundreds of child rows that don't provide much value.
+            if (depth > 0 && node.task.State === 'InQueue') {
+                continue
+            }
+
             seen.add(node.task.taskID)
 
             rows.push({

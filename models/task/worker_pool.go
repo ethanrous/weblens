@@ -299,9 +299,7 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta Meta
 	}
 
 	if t.taskPool != nil && (t.taskPool != pool || t.queueState.Load() != Created) {
-		// Task is already queued, we are not allowed to move it to another queue.
-		// We can call .ClearAndRecompute() on the task and it will queue it
-		// again, but it cannot be transferred
+		// Task is already queued; it cannot be transferred to another queue.
 		if t.taskPool != pool {
 			return nil, wlerrors.Errorf("Attempted to re-queue a [%s] task that is already in another queue", t.jobName)
 		}
@@ -370,24 +368,10 @@ func (wp *WorkerPool) GetTasks() []*Task {
 	return slices.Collect(maps.Values(wp.taskMap))
 }
 
-func (wp *WorkerPool) getJobPriority(jobName string) (int, error) {
-	wp.jobsMu.RLock()
-	defer wp.jobsMu.RUnlock()
-
-	job, ok := wp.registeredJobs[jobName]
-	if !ok {
-		return 0, wlerrors.Errorf("job [%s] not registered", jobName)
-
-	}
-
-	return job.opts.Priority, nil
-}
-
 func (wp *WorkerPool) queueTask(t *Task, pool *Pool) {
 	wp.taskMu.Lock()
-	defer wp.taskMu.Unlock()
-
 	wp.taskMap[t.ID()] = t
+	wp.taskMu.Unlock()
 
 	// Inc the task count for the pool and all parent pools.
 	pool.IncTaskCount(1)
@@ -401,19 +385,15 @@ func (wp *WorkerPool) queueTask(t *Task, pool *Pool) {
 	t.queueState.Set(InQueue)
 
 	// Add task to queue in sorted order by priority (higher priority tasks should be closer to the front of the queue)
-	wp.taskQueue = wlslices.InsertFunc(wp.taskQueue, t, func(t1, t2 *Task) int {
-		p1, err := wp.getJobPriority(t1.JobName())
-		if err != nil {
-			p1 = 0
+	wp.taskQueueMu.Lock()
+	wp.taskQueue = wlslices.InsertFunc(wp.taskQueue, t, func(a, b *Task) int {
+		if a.work.opts.Priority == b.work.opts.Priority {
+			return -1 // tie: keep FIFO — new task goes after existing equal-priority tasks
 		}
 
-		p2, err := wp.getJobPriority(t2.JobName())
-		if err != nil {
-			p2 = 0
-		}
-
-		return p2 - p1
+		return b.work.opts.Priority - a.work.opts.Priority
 	})
+	wp.taskQueueMu.Unlock()
 
 	// Add the task to the task pool
 	pool.addTask(t)
@@ -647,9 +627,10 @@ e.g. all n `wp.maxWorkers` are "scan_directory" tasks parked and waiting
 for their "scan_file" children tasks to complete, but never will since
 all worker threads are taken up by blocked tasks.
 
-Replacement workers:
-1. Are not allowed to pick up "scan_directory" tasks
-2. will exit once the main thread has woken up, and shrunk the worker pool back down
+Replacement workers exit once the main thread has woken up and shrunk the
+worker pool back down. Task priority (see Options.Priority) keeps child
+tasks ahead of their parents in the queue, so a parked parent's children
+are scheduled first.
 */
 func (wp *WorkerPool) addReplacementWorker(ctx context.Context) {
 	wp.maxWorkers.Add(1)
@@ -723,8 +704,20 @@ func (wp *WorkerPool) reaper(ctx context.Context) {
 }
 
 func (wp *WorkerPool) taskScheduler(ctx context.Context) {
+	err := context_mod.AddToWg(ctx)
+	if err != nil {
+		wlog.FromContext(ctx).Error().Stack().Err(err).Msg("Failed to add task scheduler to wait group")
+
+		return
+	}
+
 	defer func() {
-		wlog.FromContext(ctx).Debug().Msg("buffer drainer exiting")
+		err = context_mod.WgDone(ctx)
+		if err != nil {
+			wlog.FromContext(ctx).Error().Stack().Err(err).Msg("Failed to remove task scheduler from wait group")
+		}
+
+		wlog.FromContext(ctx).Debug().Msg("task scheduler exiting")
 	}()
 
 	for {
@@ -734,7 +727,7 @@ func (wp *WorkerPool) taskScheduler(ctx context.Context) {
 				return
 			}
 
-			wlog.FromContext(ctx).Warn().Msg("buffer drainer not exiting?")
+			wlog.FromContext(ctx).Warn().Msg("task scheduler not exiting?")
 		case <-wp.schedulerNotifier:
 			// When we get a notification that tasks have been added to the queue, we drain the queue.
 			wp.taskQueueMu.Lock()
@@ -743,16 +736,28 @@ func (wp *WorkerPool) taskScheduler(ctx context.Context) {
 				t := wp.taskQueue[0]
 				wp.taskQueue = wp.taskQueue[1:]
 
+				wp.taskQueueMu.Unlock()
+
 				select {
 				case <-t.Ctx.Done():
 					// Task was canceled, do not run it
 					wlog.FromContext(t.Ctx).Trace().Msgf("Task was canceled while in queue, not running")
 
+					wp.taskQueueMu.Lock()
+
 					continue
 				default:
 				}
 
-				wp.taskStream <- t
+				// Send must remain cancellable so a full taskStream cannot block
+				// the scheduler forever during shutdown.
+				select {
+				case wp.taskStream <- t:
+				case <-ctx.Done():
+					return
+				}
+
+				wp.taskQueueMu.Lock()
 			}
 
 			wp.taskQueueMu.Unlock()
