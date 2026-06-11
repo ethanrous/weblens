@@ -53,8 +53,9 @@ launch_embed() {
 
         dockerc run --rm -d --name weblens-embed --publish 5500:5500 -v "${WEBLENS_ROOT}/_build/fs/core/cache/:/images" -v "${WEBLENS_ROOT}/_build/embed/model-cache/:/root/.cache/huggingface" --network weblens-net ghcr.io/ethanrous/weblens_embed
     else
-        mkdir -p ${WEBLENS_ROOT}/_build/logs
-        touch ${WEBLENS_ROOT}/_build/logs/embed.log
+        mkdir -p "${WEBLENS_CACHE_PATH:-${WEBLENS_ROOT}/_build/fs/core/cache/}"
+        mkdir -p "${WEBLENS_ROOT}/_build/logs"
+        touch "${WEBLENS_ROOT}/_build/logs/embed.log"
 
         echo "Launching embed service in development mode"
         (
