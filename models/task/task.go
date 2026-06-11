@@ -70,9 +70,10 @@ type Task struct {
 
 // Priority constants for task scheduling. Higher values run first.
 const (
-	PriorityLow    = 1   // background directory scans
-	PriorityMedium = 2   // file scans — drain ahead of their parent directory scans
-	PriorityHigh   = 999 // user-facing work (uploads, filesystem load)
+	PriorityLow     = 1   // background directory scans
+	PriorityMedium  = 2   // file scans — drain ahead of their parent directory scans
+	PriorityDefault = 3   // jobs registered without an explicit priority — never starved by background scans
+	PriorityHigh    = 999 // user-facing work (uploads, filesystem load)
 )
 
 // Options specifies configuration options for task behavior.
@@ -88,7 +89,7 @@ type Options struct {
 	// task with matching metadata will be returned. Otherwise, multiple tasks with the same metadata can coexist in the queue.
 	Unique bool
 
-	// Priority indicates the priority of the task in the queue. Higher priority tasks are executed before lower priority ones. Larger numbers indicate higher priority. The default priority is 0.
+	// Priority indicates the priority of the task in the queue. Higher priority tasks are executed before lower priority ones. Larger numbers indicate higher priority. Jobs registered without an explicit priority are assigned PriorityDefault.
 	Priority int
 }
 

@@ -96,10 +96,6 @@ const textContent = computed(() => {
     return ''
 })
 
-watchEffect(() => {
-    console.log('text', textContent.value, 'text width', textWidth.value, 'button width', buttonSize.width.value)
-})
-
 async function handleClick(e: MouseEvent) {
     if (!onClick) {
         return

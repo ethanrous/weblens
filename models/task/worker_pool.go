@@ -209,6 +209,12 @@ func (wp *WorkerPool) RegisterJob(jobName string, fn HandlerFunc, opts ...Option
 		o = opts[0]
 	}
 
+	// Every job must have a real priority; an unset priority resolves to the
+	// default so it is never scheduled behind background scan work.
+	if o.Priority == 0 {
+		o.Priority = PriorityDefault
+	}
+
 	wp.registeredJobs[jobName] = job{handler: fn, opts: o}
 }
 

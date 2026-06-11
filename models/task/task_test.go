@@ -2120,6 +2120,101 @@ func TestWorkerPool_PriorityScheduling(t *testing.T) {
 			assert.Less(t, slices.Index(order, lows[i].ID()), slices.Index(order, lows[i+1].ID()))
 		}
 	})
+
+	t.Run("jobs registered without a priority schedule ahead of background scan priorities", func(t *testing.T) {
+		wp := task.NewTestWorkerPool(1)
+		wp.Run(task.NewTestContext())
+
+		gateStarted := make(chan struct{})
+		release := make(chan struct{})
+
+		var orderMu sync.Mutex
+
+		var order []string
+
+		record := func(tsk *task.Task) {
+			orderMu.Lock()
+			defer orderMu.Unlock()
+
+			order = append(order, tsk.ID())
+		}
+
+		wp.RegisterJob("gate-job", func(_ *task.Task) {
+			close(gateStarted)
+			<-release
+		})
+		wp.RegisterJob("filler-job", record, task.Options{Priority: task.PriorityLow})
+		wp.RegisterJob("background-job", record, task.Options{Priority: task.PriorityMedium})
+		wp.RegisterJob("default-job", record)
+		wp.RegisterJob("high-job", record, task.Options{Priority: task.PriorityHigh})
+
+		// Occupy the single worker so subsequent tasks accumulate in the queue.
+		gate, err := wp.DispatchJob(context.Background(), "gate-job", newUniqueMeta("gate-job"), nil)
+		assert.NoError(t, err)
+
+		<-gateStarted
+
+		// Fill the taskStream buffer (2 slots) and the scheduler's in-hand slot,
+		// so everything dispatched below stays in the priority queue until release.
+		fillers := make([]*task.Task, 0, 3)
+
+		for range 3 {
+			tsk, err := wp.DispatchJob(context.Background(), "filler-job", newUniqueMeta("filler-job"), nil)
+			assert.NoError(t, err)
+
+			fillers = append(fillers, tsk)
+		}
+
+		backgrounds := make([]*task.Task, 0, 3)
+
+		for range 3 {
+			tsk, err := wp.DispatchJob(context.Background(), "background-job", newUniqueMeta("background-job"), nil)
+			assert.NoError(t, err)
+
+			backgrounds = append(backgrounds, tsk)
+		}
+
+		defaults := make([]*task.Task, 0, 3)
+
+		for range 3 {
+			tsk, err := wp.DispatchJob(context.Background(), "default-job", newUniqueMeta("default-job"), nil)
+			assert.NoError(t, err)
+
+			defaults = append(defaults, tsk)
+		}
+
+		highs := make([]*task.Task, 0, 3)
+
+		for range 3 {
+			tsk, err := wp.DispatchJob(context.Background(), "high-job", newUniqueMeta("high-job"), nil)
+			assert.NoError(t, err)
+
+			highs = append(highs, tsk)
+		}
+
+		close(release)
+
+		gate.Wait()
+
+		for _, tsk := range slices.Concat(fillers, backgrounds, defaults, highs) {
+			tsk.Wait()
+		}
+
+		// High-priority tasks execute before default-priority tasks.
+		for _, h := range highs {
+			for _, d := range defaults {
+				assert.Less(t, slices.Index(order, h.ID()), slices.Index(order, d.ID()))
+			}
+		}
+
+		// Default-priority tasks execute before background scan-priority tasks,
+		// even though the background tasks were dispatched first.
+		for _, d := range defaults {
+			for _, b := range backgrounds {
+				assert.Less(t, slices.Index(order, d.ID()), slices.Index(order, b.ID()))
+			}
+		}
+	})
 }
 
 func TestWorkerPool_SchedulerShutdown(t *testing.T) {
