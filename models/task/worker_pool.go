@@ -633,10 +633,8 @@ e.g. all n `wp.maxWorkers` are "scan_directory" tasks parked and waiting
 for their "scan_file" children tasks to complete, but never will since
 all worker threads are taken up by blocked tasks.
 
-Replacement workers exit once the main thread has woken up and shrunk the
-worker pool back down. Task priority (see Options.Priority) keeps child
-tasks ahead of their parents in the queue, so a parked parent's children
-are scheduled first.
+Replacement workers exit, typically, once the main thread has woken up and shrunk the
+worker pool back down.
 */
 func (wp *WorkerPool) addReplacementWorker(ctx context.Context) {
 	wp.maxWorkers.Add(1)

@@ -2143,7 +2143,10 @@ func TestWorkerPool_PriorityScheduling(t *testing.T) {
 			close(gateStarted)
 			<-release
 		})
-		wp.RegisterJob("filler-job", record, task.Options{Priority: task.PriorityLow})
+		// Fillers run at PriorityHigh so they are always the three tasks committed to
+		// the taskStream buffer and the scheduler's in-hand slot, even when the
+		// scheduler drains the queue slower than the dispatch loop below runs.
+		wp.RegisterJob("filler-job", record, task.Options{Priority: task.PriorityHigh})
 		wp.RegisterJob("background-job", record, task.Options{Priority: task.PriorityMedium})
 		wp.RegisterJob("default-job", record)
 		wp.RegisterJob("high-job", record, task.Options{Priority: task.PriorityHigh})
