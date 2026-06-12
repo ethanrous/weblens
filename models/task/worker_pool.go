@@ -736,6 +736,7 @@ func (wp *WorkerPool) taskScheduler(ctx context.Context) {
 			for len(wp.taskQueue) != 0 {
 				// Pop the first task off and schedule it.
 				t := wp.taskQueue[0]
+				wp.taskQueue[0] = nil
 				wp.taskQueue = wp.taskQueue[1:]
 
 				wp.taskQueueMu.Unlock()
