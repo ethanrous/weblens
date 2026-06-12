@@ -64,7 +64,7 @@ const (
 	FilesDeletedEvent            WsEvent = "filesDeleted"
 	FilesMovedEvent              WsEvent = "filesMoved"
 	FilesUpdatedEvent            WsEvent = "filesUpdated"
-	FolderScanCompleteEvent      WsEvent = "folderScanComplete"
+	DirectoryIndexCompleteEvent  WsEvent = "folderScanComplete"
 	PoolCancelledEvent           WsEvent = "poolCancelled"
 	PoolCompleteEvent            WsEvent = "poolComplete"
 	PoolCreatedEvent             WsEvent = "poolCreated"

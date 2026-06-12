@@ -75,16 +75,6 @@
         </WeblensButton>
 
         <WeblensButton
-            v-if="targetIsActiveFolder"
-            label="Scan Folder"
-            fill-width
-            :disabled="!canModifyTarget || websocketStore.status !== 'OPEN'"
-            @click.stop="handleScan"
-        >
-            <IconPhotoScan />
-        </WeblensButton>
-
-        <WeblensButton
             v-if="!locationStore.isInTrash"
             :key="targetFile?.ID()"
             :label="downloadTaskPercentComplete ? `Zipping (${downloadTaskPercentComplete.toFixed(0)}%)` : 'Download'"
@@ -127,6 +117,17 @@
             "
         >
             <IconHistoryToggle />
+        </WeblensButton>
+
+        <WeblensButton
+            v-if="targetIsActiveFolder"
+            label="Re-Index Folder"
+            fill-width
+            flavor="danger"
+            :disabled="!canModifyTarget || websocketStore.status !== 'OPEN'"
+            @click.stop="handleScan"
+        >
+            <IconPhotoScan />
         </WeblensButton>
 
         <WeblensButton

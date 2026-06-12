@@ -40,10 +40,29 @@ func DeleteForSource(ctx context.Context, sourceID string, kind Kind) error {
 		return err
 	}
 
-	_, err = col.DeleteMany(ctx, bson.M{
+	filter := bson.M{
 		"sourceId": sourceID,
-		"kind":     string(kind),
-	})
+	}
+
+	if kind != KindAll {
+		filter["kind"] = string(kind)
+	}
+
+	_, err = col.DeleteMany(ctx, filter)
+
+	return err
+}
+
+// DeleteAllForSources removes every row for a list of sources (files or media) of any kind
+func DeleteAllForSources(ctx context.Context, sourceIDs []string) error {
+	col, err := db.GetCollection[Embedding](ctx, CollectionKey)
+	if err != nil {
+		return err
+	}
+
+	filter := bson.M{"sourceId": bson.M{"$in": sourceIDs}}
+
+	_, err = col.DeleteMany(ctx, filter)
 
 	return err
 }
@@ -88,8 +107,8 @@ func PruneTrailingChunks(ctx context.Context, kind Kind, sourceID string, keepFr
 	return err
 }
 
-// CountByContentHash counts rows matching (kind, sourceId, model, contentHash) as an idempotency gate.
-func CountByContentHash(ctx context.Context, kind Kind, sourceID, modelName, contentHash string) (int64, error) {
+// CountByContentID counts rows matching (kind, sourceId, model, contentHash) as an idempotency gate.
+func CountByContentID(ctx context.Context, kind Kind, sourceID, modelName, contentHash string) (int64, error) {
 	col, err := db.GetCollection[Embedding](ctx, CollectionKey)
 	if err != nil {
 		return 0, err

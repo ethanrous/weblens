@@ -2,7 +2,7 @@
     <div
         ref="selectDropdown"
         :class="{
-            'relative z-60 flex h-full w-full max-w-32 min-w-10 transition-[z-index]': true,
+            'relative z-60 flex h-10 min-h-8 w-full max-w-32 min-w-10 transition-[z-index]': true,
             'z-90': isOpen,
             'delay-300': !isOpen,
         }"
@@ -11,7 +11,7 @@
         <div
             ref="innerRef"
             :class="{
-                'border-theme-primary absolute flex min-h-full w-full flex-col justify-start overflow-hidden rounded border transition-[height,width,scale]': true,
+                'border-theme-primary/50 absolute flex min-h-full w-full flex-col justify-start overflow-hidden rounded border transition-[height,width,scale]': true,
                 'before:bg-background-primary/80 backdrop-blur-sm before:absolute before:z-[-1] before:h-full before:w-full': true,
                 'rounded-r-none border-r-transparent': merge === 'right' && !isOpen,
                 'z-90 h-max w-32! shadow-lg': isOpen,
@@ -22,7 +22,7 @@
         >
             <div
                 :class="{
-                    'bg-theme-primary/35 absolute w-full rounded transition-[top]': true,
+                    'bg-theme-primary/10 absolute w-full rounded transition-[top]': true,
                     'rounded-r-none': merge === 'right' && !isOpen,
                 }"
                 :style="{
@@ -60,7 +60,16 @@
                     >
                         {{ selectedOption?.label }}
                     </span>
+
+                    <icon-chevron-down
+                        size="16"
+                        :class="{
+                            'ml-auto transition-transform': true,
+                            'rotate-180': isOpen,
+                        }"
+                    />
                 </div>
+
                 <div
                     v-for="(option, index) in opts"
                     :key="option.value"
@@ -102,7 +111,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Icon } from '@tabler/icons-vue'
+import { IconChevronDown, type Icon } from '@tabler/icons-vue'
 import { onClickOutside, useElementSize } from '@vueuse/core'
 
 const value = defineModel<keyof typeof props.options>('value')
@@ -123,15 +132,28 @@ onClickOutside(selectDropdown, () => {
 
 export type SelectOption = {
     label: string
-    value?: string
-    icon?: Icon
+    default?: boolean
     disabled?: boolean
+    icon?: Icon
+    value?: string
 }
 
 const props = defineProps<{
     options: Record<string, SelectOption>
     merge?: 'right' | 'left'
 }>()
+
+watchEffect(() => {
+    if (value.value && props.options[value.value]) {
+        return
+    }
+
+    const defaultOption = Object.entries(props.options).find(([_, v]) => v.default)
+
+    if (defaultOption) {
+        value.value = defaultOption[0]
+    }
+})
 
 const opts = computed(() => {
     const opts = { ...props.options }

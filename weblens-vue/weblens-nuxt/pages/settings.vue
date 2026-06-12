@@ -70,7 +70,7 @@
             </WeblensButton>
         </div>
 
-        <div :class="{ 'h-full w-full p-4': true }">
+        <div :class="{ 'h-full w-full overflow-scroll p-4': true }">
             <NuxtPage />
         </div>
     </div>

@@ -413,6 +413,23 @@ func DeleteMediaByContentID(ctx context.Context, contentID ContentID) error {
 	return nil
 }
 
+// DeleteMedias deletes media items from the database by their content ID. This is a batch version of DeleteMediaByContentID.
+func DeleteMedias(ctx context.Context, medias ...*Media) error {
+	col, err := db.GetCollection[*Media](ctx, MediaCollectionKey)
+	if err != nil {
+		return err
+	}
+
+	contentIDs := wlslices.Map(medias, func(m *Media) ContentID { return m.ContentID })
+
+	_, err = col.DeleteMany(ctx, bson.M{"contentID": bson.M{"$in": contentIDs}})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // NewMedia creates a new Media instance with the given content ID.
 func NewMedia(contentID ContentID) *Media {
 	return &Media{

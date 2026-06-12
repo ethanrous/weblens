@@ -14,6 +14,7 @@ import (
 	"github.com/ethanrous/weblens/modules/wlstructs"
 	"github.com/ethanrous/weblens/services/auth"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
+	"github.com/ethanrous/weblens/services/embed"
 	file_service "github.com/ethanrous/weblens/services/file"
 	"github.com/ethanrous/weblens/services/reshape"
 	"github.com/rs/zerolog"
@@ -37,7 +38,7 @@ import (
 func ScanDir(ctx context_service.RequestContext) {
 	folder := ctx.File
 
-	meta := job.ScanMeta{
+	meta := job.IndexMeta{
 		File: folder,
 	}
 
@@ -45,7 +46,7 @@ func ScanDir(ctx context_service.RequestContext) {
 	if folder.IsDir() {
 		jobName = job.ScanDirectoryTask
 	} else {
-		jobName = job.ScanFileTask
+		jobName = job.IndexFileTask
 	}
 
 	t, err := ctx.TaskService.DispatchJob(ctx, jobName, meta, nil)
@@ -132,17 +133,34 @@ func formatRespondFolderInfo(ctx context_service.RequestContext, dir *file_model
 			return err
 		}
 
-		if _, exists := mediaMap[info.ContentID]; exists {
-			info.HasMedia = true
-		} else if scanTask == nil && !child.IsDir() {
-			ctx.Log().Debug().Msgf("Dispatching scan task for parent folder [%s] since child [%s] has no media but is expected to have one", dir.GetPortablePath(), child.GetPortablePath())
+		mediaExists := false
+		_, mediaExists = mediaMap[info.ContentID]
 
-			t, err := ctx.TaskService.DispatchJob(ctx, job.ScanDirectoryTask, job.ScanMeta{File: parent}, nil)
-			if err != nil {
-				ctx.Log().Error().Err(err).Msgf("Failed to dispatch scan task for file [%s]", parent.GetPortablePath())
+		if mediaExists {
+			info.HasMedia = true
+		}
+
+		if scanTask == nil && !child.IsDir() {
+			shouldLaunchIndex := !mediaExists
+			if !shouldLaunchIndex && media_model.EmbedEligible(child.GetPortablePath().Ext()) {
+				isEmbedded, err := embed.IsFileEmbedded(ctx, child)
+				if err != nil {
+					return err
+				}
+
+				shouldLaunchIndex = !isEmbedded
 			}
 
-			scanTask = t
+			if shouldLaunchIndex {
+				ctx.Log().Debug().Msgf("Dispatching scan task for parent folder [%s] since child [%s] is missing media or index", dir.GetPortablePath(), child.GetPortablePath())
+
+				t, err := ctx.TaskService.DispatchJob(ctx, job.ScanDirectoryTask, job.IndexMeta{File: parent}, nil)
+				if err != nil {
+					ctx.Log().Error().Err(err).Msgf("Failed to dispatch scan task for file [%s]", parent.GetPortablePath())
+				}
+
+				scanTask = t
+			}
 		}
 
 		childInfos = append(childInfos, info)

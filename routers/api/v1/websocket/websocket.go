@@ -260,7 +260,7 @@ func handleScanDirectory(ctx context_service.RequestContext, msg websocket_mod.W
 		return err
 	}
 
-	meta := job.ScanMeta{
+	meta := job.IndexMeta{
 		File:         folder,
 		ForceReIndex: true,
 	}
@@ -269,7 +269,7 @@ func handleScanDirectory(ctx context_service.RequestContext, msg websocket_mod.W
 	if folder.IsDir() {
 		jobName = job.ScanDirectoryTask
 	} else {
-		jobName = job.ScanFileTask
+		jobName = job.IndexFileTask
 	}
 
 	t, err := ctx.TaskService.DispatchJob(ctx, jobName, meta, nil)

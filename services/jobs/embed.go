@@ -12,8 +12,10 @@ import (
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/models/task"
 	"github.com/ethanrous/weblens/modules/config"
+	"github.com/ethanrous/weblens/modules/wlerrors"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/embed"
+	media_service "github.com/ethanrous/weblens/services/media"
 )
 
 // shouldExtractTextOnScan reports whether the given extension gets text extraction on scan; image types are excluded because they are embedded visually (CLIP) during scan.
@@ -89,7 +91,21 @@ func ExtractAndEmbedFile(tsk *task.Task) {
 
 	modelName := currentModelName()
 
-	same, err := embedding.CountByContentHash(tsk.Ctx, embedding.KindFileChunk, file.ID(), modelName, file.GetContentID())
+	m, err := media_model.GetMediaByContentID(ctx, file.GetContentID())
+	if err != nil {
+		tsk.Fail(err)
+
+		return
+	}
+
+	err = writeImageEmbedding(ctx, m)
+	if err != nil {
+		tsk.Fail(err)
+
+		return
+	}
+
+	same, err := embedding.CountByContentID(tsk.Ctx, embedding.KindFileChunk, file.ID(), modelName, file.GetContentID())
 	if err != nil {
 		tsk.Fail(err)
 
@@ -147,6 +163,59 @@ func ExtractAndEmbedFile(tsk *task.Task) {
 
 	tsk.SetResult(task.Result{"chunks": len(chunks)})
 	tsk.Success()
+}
+
+// writeImageEmbedding encodes a media's cached image(s) into the embeddings collection, one row per page; non-image-recognizable types are skipped.
+func writeImageEmbedding(ctx context_service.AppContext, media *media_model.Media) error {
+	if !media_model.ParseMime(media.MimeType).SupportsImgRecog() {
+		return nil
+	}
+
+	pageCount := max(media.GetPageCount(), 1)
+
+	multiPage := pageCount > 1
+	modelName := currentModelName()
+
+	for page := range pageCount {
+		exists, err := embedding.CountForChunk(ctx, embedding.KindImage, string(media.ContentID), modelName, page)
+		if err != nil {
+			return err
+		}
+
+		if exists > 0 {
+			continue
+		}
+
+		quality := media_model.LowRes
+		if multiPage {
+			quality = media_model.HighRes
+		}
+
+		cacheFile, err := media_service.GetCacheFile(ctx, media, quality, page)
+		if err != nil {
+			return wlerrors.Errorf("get cache file (page %d, quality %s): %w", page, quality, err)
+		}
+
+		vec, err := embed.Default().EncodeImage(ctx, cacheFile.GetPortablePath().String())
+		if err != nil {
+			return wlerrors.Errorf("encode image (page %d): %w", page, err)
+		}
+
+		err = embedding.Upsert(ctx, embedding.Embedding{
+			Kind:       embedding.KindImage,
+			SourceID:   string(media.ContentID),
+			ChunkIndex: page,
+			Page:       page + 1,
+			Vector:     vec,
+			Model:      modelName,
+			CreatedAt:  time.Now().UTC(),
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // currentModelName must stay in sync with embed/main.py MODEL_ID.

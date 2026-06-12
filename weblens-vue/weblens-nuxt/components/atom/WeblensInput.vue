@@ -74,17 +74,17 @@ const input = ref<HTMLInputElement>()
 const { focused } = useFocusWithin(inputContainer)
 
 const props = defineProps<{
-    placeholder?: string
-    password?: boolean
-    keyName?: string
-    buttonish?: boolean
-    showSubmit?: boolean
     autoFocus?: boolean
-    search?: boolean
-    merge?: 'row' | 'column'
+    buttonish?: boolean
     clearButton?: boolean
     disabled?: boolean
     inputClass?: Record<string, boolean>
+    keyName?: string
+    merge?: 'row' | 'column'
+    password?: boolean
+    placeholder?: string
+    search?: boolean
+    showSubmit?: boolean
 }>()
 
 const value = defineModel<string>('value')
