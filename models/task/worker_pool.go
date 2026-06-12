@@ -4,6 +4,7 @@ import (
 	"context"
 	"maps"
 	"slices"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -37,6 +38,7 @@ type hit struct {
 }
 
 type workChannel chan *Task
+type workQueue []*Task
 type hitChannel chan hit
 
 type job struct {
@@ -53,27 +55,37 @@ type WorkerPool struct {
 
 	busyCount *atomic.Int64 // Number of workers currently executing a task
 
+	// registeredJobs holds the templates for all registered jobs that can be dispatched in this worker pool, indexed by job name.
 	registeredJobs map[string]job
+	jobsMu         sync.RWMutex
 
+	// The taskMap holds a reference to every task that has been queued in this worker pool, indexed by task ID.
+	// This allows for quick retrieval of any task by ID, and also serves as a master list of
+	// all tasks for status reporting and management purposes.
 	taskMap map[string]*Task
+	taskMu  sync.RWMutex
 
+	// The taskPoolMap holds a reference to every task pool that has been created in this worker pool, indexed by task pool ID.
 	taskPoolMap map[string]*Pool
+	taskPoolMu  sync.Mutex
 
+	// The taskStream is the channel that workers pull tasks from to execute. Tasks are added to the taskStream by the task scheduler.
 	taskStream workChannel
 	hitStream  hitChannel
 
-	retryBuffer    []*Task
+	// The taskQueue is the list of tasks that are waiting to be executed.
+	// Tasks are pulled from the queue and added to the taskStream by the task scheduler.
+	// The taskQueue is sorted by task priority.
+	taskQueue   workQueue
+	taskQueueMu sync.RWMutex
+
+	// The schedulerNotifier is used to wake up the task scheduler when new tasks are added to the taskQueue.
+	schedulerNotifier chan struct{}
+
 	maxWorkers     atomic.Int64 // Max allowed worker count
 	currentWorkers atomic.Int64 // Current total of workers on the pool
 
-	lifetimeQueuedCount atomic.Int64
-
-	jobsMu sync.RWMutex
-
-	taskMu sync.RWMutex
-
-	taskPoolMu   sync.Mutex
-	taskBufferMu sync.Mutex
+	lifetimeQueuedCount atomic.Int64 // Total count of tasks that have been queued on this worker pool since it was created
 }
 
 // NewWorkerPool creates and initializes a new worker pool with the specified number of workers.
@@ -89,8 +101,10 @@ func NewWorkerPool(initWorkers int) *WorkerPool {
 
 		busyCount: &atomic.Int64{},
 
-		taskStream:  make(workChannel, initWorkers*1000),
-		retryBuffer: []*Task{},
+		taskQueue:  []*Task{},
+		taskStream: make(workChannel, initWorkers*2),
+
+		schedulerNotifier: make(chan struct{}, 1),
 
 		hitStream: make(hitChannel, initWorkers*2),
 	}
@@ -147,17 +161,6 @@ func (wp *WorkerPool) NewTaskPool(replace bool, createdBy *Task) (*Pool, error) 
 	return tp, nil
 }
 
-// Status returns the count of tasks in the queue, the total number of tasks accepted,
-// number of busy workers, and the total number of live workers in the worker pool
-func (wp *WorkerPool) Status() (int, int, int, int, int) {
-	total := int(wp.lifetimeQueuedCount.Load())
-
-	wp.taskBufferMu.Lock()
-	defer wp.taskBufferMu.Unlock()
-
-	return len(wp.taskStream), total, int(wp.busyCount.Load()), int(wp.currentWorkers.Load()), len(wp.retryBuffer)
-}
-
 // GetTaskPool returns the task pool with the specified ID.
 func (wp *WorkerPool) GetTaskPool(tpID string) *Pool {
 	wp.taskPoolMu.Lock()
@@ -204,6 +207,12 @@ func (wp *WorkerPool) RegisterJob(jobName string, fn HandlerFunc, opts ...Option
 	o := Options{}
 	if len(opts) != 0 {
 		o = opts[0]
+	}
+
+	// Every job must have a real priority; an unset priority resolves to the
+	// default so it is never scheduled behind background scan work.
+	if o.Priority == 0 {
+		o.Priority = PriorityDefault
 	}
 
 	wp.registeredJobs[jobName] = job{handler: fn, opts: o}
@@ -278,8 +287,6 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta Meta
 		cancelFunc: cancel,
 	}
 
-	wp.addTask(t)
-
 	t.Log().Trace().Stack().Msgf("Task [%s] created", taskID)
 
 	select {
@@ -298,9 +305,7 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta Meta
 	}
 
 	if t.taskPool != nil && (t.taskPool != pool || t.queueState.Load() != Created) {
-		// Task is already queued, we are not allowed to move it to another queue.
-		// We can call .ClearAndRecompute() on the task and it will queue it
-		// again, but it cannot be transferred
+		// Task is already queued; it cannot be transferred to another queue.
 		if t.taskPool != pool {
 			return nil, wlerrors.Errorf("Attempted to re-queue a [%s] task that is already in another queue", t.jobName)
 		}
@@ -315,26 +320,7 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta Meta
 		return nil, wlerrors.Errorf("attempting to add task [%s] to closed task queue [pool created by %s]", t.JobName(), pool.ID())
 	}
 
-	// Inc the task count for the pool and all parent pools.
-	pool.IncTaskCount(1)
-
-	// Set the tasks queue
-	t.setTaskPoolInternal(pool)
-
-	wp.lifetimeQueuedCount.Add(1)
-
-	// Put the task in the queue
-	t.queueState.Set(InQueue)
-
-	if len(wp.retryBuffer) != 0 || len(wp.taskStream) == cap(wp.taskStream) {
-		wp.addToRetryBuffer(t)
-	} else {
-		wp.taskStream <- t
-	}
-
-	t.QueueTime.Set(time.Now())
-
-	pool.addTask(t)
+	wp.queueTask(t, pool)
 
 	return t, nil
 }
@@ -359,7 +345,7 @@ func (wp *WorkerPool) Run(ctx context.Context) {
 	go wp.reaper(ctx)
 
 	// Spawn the buffer worker
-	go wp.bufferDrainer(ctx)
+	go wp.taskScheduler(ctx)
 
 	// Spawn the status printer
 	// go wp.statusReporter(ctx)
@@ -388,11 +374,42 @@ func (wp *WorkerPool) GetTasks() []*Task {
 	return slices.Collect(maps.Values(wp.taskMap))
 }
 
-func (wp *WorkerPool) addTask(task *Task) {
+func (wp *WorkerPool) queueTask(t *Task, pool *Pool) {
 	wp.taskMu.Lock()
-	defer wp.taskMu.Unlock()
+	wp.taskMap[t.ID()] = t
+	wp.taskMu.Unlock()
 
-	wp.taskMap[task.ID()] = task
+	// Inc the task count for the pool and all parent pools.
+	pool.IncTaskCount(1)
+
+	// Set the tasks queue
+	t.setTaskPoolInternal(pool)
+
+	wp.lifetimeQueuedCount.Add(1)
+
+	// Put the task in the queue
+	t.queueState.Set(InQueue)
+
+	// Set the queue time before the task becomes visible to the scheduler; it is used for status reporting and timeout checks
+	t.QueueTime.Set(time.Now())
+
+	// Add task to queue in sorted order by priority (higher priority tasks should be closer to the front of the queue).
+	// Upper-bound insert: after all tasks with priority >= ours, so equal-priority tasks keep FIFO order.
+	wp.taskQueueMu.Lock()
+	i := sort.Search(len(wp.taskQueue), func(i int) bool {
+		return wp.taskQueue[i].work.opts.Priority < t.work.opts.Priority
+	})
+	wp.taskQueue = slices.Insert(wp.taskQueue, i, t)
+	wp.taskQueueMu.Unlock()
+
+	// Add the task to the task pool
+	pool.addTask(t)
+
+	// Finally, notify the scheduler that a new task has been added to the queue
+	select {
+	case wp.schedulerNotifier <- struct{}{}:
+	default:
+	}
 }
 
 func (wp *WorkerPool) removeTask(taskID string) {
@@ -460,7 +477,7 @@ func (wp *WorkerPool) execWorker(workerCtx context.Context, isReplacement bool) 
 					select {
 					case <-t.Ctx.Done():
 						// Task was canceled, do not run it
-						wlog.FromContext(t.Ctx).Trace().Msgf("Task was canceled while in queue, not running")
+						wlog.FromContext(t.Ctx).Trace().Msgf("Task was canceled before execution, skipping")
 
 						continue
 					default:
@@ -471,30 +488,6 @@ func (wp *WorkerPool) execWorker(workerCtx context.Context, isReplacement bool) 
 						wlog.FromContext(t.Ctx).Trace().Str("exit_status", string(t.exitStatus.Load())).Msgf("Task already has exit status, not running")
 
 						continue
-					}
-
-					// Replacement workers are not allowed to do "scan_directory" tasks
-					// TODO: - generalize
-					if isReplacement && t.jobName == "scan_directory" && t.exitStatus.Load() == TaskNoStatus {
-						// If there are twice the number of free spaces in the chan, don't bother pulling
-						// everything into the waiting buffer, just put it at the end right now.
-						if cap(wp.taskStream)-len(wp.taskStream) > int(wp.currentWorkers.Load())*2 {
-							wp.taskStream <- t
-
-							continue
-						}
-
-						tBuf := []*Task{t}
-
-						for t = range wp.taskStream {
-							if t.jobName == "scan_directory" {
-								tBuf = append(tBuf, t)
-							} else {
-								break
-							}
-						}
-
-						wp.addToRetryBuffer(tBuf...)
 					}
 
 					newl := wlog.FromContext(t.Ctx).With().
@@ -638,9 +631,8 @@ e.g. all n `wp.maxWorkers` are "scan_directory" tasks parked and waiting
 for their "scan_file" children tasks to complete, but never will since
 all worker threads are taken up by blocked tasks.
 
-Replacement workers:
-1. Are not allowed to pick up "scan_directory" tasks
-2. will exit once the main thread has woken up, and shrunk the worker pool back down
+Replacement workers exit, typically, once the main thread has woken up and shrunk the
+worker pool back down.
 */
 func (wp *WorkerPool) addReplacementWorker(ctx context.Context) {
 	wp.maxWorkers.Add(1)
@@ -713,38 +705,21 @@ func (wp *WorkerPool) reaper(ctx context.Context) {
 	}
 }
 
-// func (wp *WorkerPool) statusReporter(ctx context.Context) {
-// 	var lastCount int
-//
-// 	ticker := time.NewTicker(time.Second * 10)
-//
-// 	defer func() {
-// 		log.FromContext(ctx).Debug().Msg("status reporter exiting")
-// 	}()
-//
-// 	for {
-// 		select {
-// 		case _, ok := <-ctx.Done():
-// 			if !ok {
-// 				return
-// 			}
-// 		case <-ticker.C:
-// 			remaining, total, busy, alive, retrySize := wp.Status()
-// 			if lastCount != remaining || busy != 0 {
-// 				lastCount = remaining
-// 				log.FromContext(ctx).Debug().Int("queue_remaining", remaining).Int("queue_total", total).Int("queue_buffered", retrySize).Int("busy_workers", busy).Int("alive_workers", alive).Msgf(
-// 					"Worker pool status - %d tasks in queue, %d total tasks queued, %d busy workers, %d alive workers", remaining, total, busy, alive,
-// 				)
-// 			}
-// 		}
-// 	}
-// }
+func (wp *WorkerPool) taskScheduler(ctx context.Context) {
+	err := context_mod.AddToWg(ctx)
+	if err != nil {
+		wlog.FromContext(ctx).Error().Stack().Err(err).Msg("Failed to add task scheduler to wait group")
 
-func (wp *WorkerPool) bufferDrainer(ctx context.Context) {
-	ticker := time.NewTicker(time.Second * 10)
+		return
+	}
 
 	defer func() {
-		wlog.FromContext(ctx).Debug().Msg("buffer drainer exiting")
+		err = context_mod.WgDone(ctx)
+		if err != nil {
+			wlog.FromContext(ctx).Error().Stack().Err(err).Msg("Failed to remove task scheduler from wait group")
+		}
+
+		wlog.FromContext(ctx).Debug().Msg("task scheduler exiting")
 	}()
 
 	for {
@@ -754,28 +729,43 @@ func (wp *WorkerPool) bufferDrainer(ctx context.Context) {
 				return
 			}
 
-			wlog.FromContext(ctx).Warn().Msg("buffer drainer not exiting?")
-		case <-ticker.C:
-			wp.taskBufferMu.Lock()
+			wlog.FromContext(ctx).Warn().Msg("task scheduler not exiting?")
+		case <-wp.schedulerNotifier:
+			// When we get a notification that tasks have been added to the queue, we drain the queue.
+			wp.taskQueueMu.Lock()
+			for len(wp.taskQueue) != 0 {
+				// Pop the first task off and schedule it.
+				t := wp.taskQueue[0]
+				wp.taskQueue[0] = nil
+				wp.taskQueue = wp.taskQueue[1:]
 
-			if len(wp.retryBuffer) != 0 && len(wp.taskStream) == 0 {
-				for _, t := range wp.retryBuffer {
-					wp.taskStream <- t
+				wp.taskQueueMu.Unlock()
+
+				select {
+				case <-t.Ctx.Done():
+					// Task was canceled, do not run it
+					wlog.FromContext(t.Ctx).Trace().Msgf("Task was canceled while in queue, not running")
+
+					wp.taskQueueMu.Lock()
+
+					continue
+				default:
 				}
 
-				wp.retryBuffer = []*Task{}
+				// Send must remain cancellable so a full taskStream cannot block
+				// the scheduler forever during shutdown.
+				select {
+				case wp.taskStream <- t:
+				case <-ctx.Done():
+					return
+				}
+
+				wp.taskQueueMu.Lock()
 			}
 
-			wp.taskBufferMu.Unlock()
+			wp.taskQueueMu.Unlock()
 		}
 	}
-}
-
-func (wp *WorkerPool) addToRetryBuffer(tasks ...*Task) {
-	wp.taskBufferMu.Lock()
-	defer wp.taskBufferMu.Unlock()
-
-	wp.retryBuffer = append(wp.retryBuffer, tasks...)
 }
 
 func (wp *WorkerPool) getRegisteredJob(jobName string) job {

@@ -43,6 +43,7 @@
                     'flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs': true,
                     'border-green-700 bg-green-900/40 text-green-300': embedAvailable,
                     'border-red-700 bg-red-900/40 text-red-300': !embedAvailable,
+                    'opacity-50 select-none': !featureFlags?.['embed.processing_enabled'],
                 }"
                 :title="embedAvailable ? 'Embed service reachable' : 'Embed service unavailable'"
             >

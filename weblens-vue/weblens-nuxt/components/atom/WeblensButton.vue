@@ -20,7 +20,7 @@
     >
         <slot />
         <span
-            v-if="textContent && !justIcon"
+            v-if="textContent && !justIcon && textWidth !== '0px'"
             :class="{
                 'mx-1 text-nowrap transition-[width]': true,
             }"

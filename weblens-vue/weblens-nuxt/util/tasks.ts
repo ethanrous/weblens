@@ -59,6 +59,13 @@ export function flattenVisible(roots: TaskTreeNode[], expanded: Set<string>): Vi
             if (seen.has(node.task.taskID)) {
                 continue
             }
+
+            // Skip queued descendant nodes (and with them their subtrees) entirely. This prevents the
+            // page from trying to render possibly hundreds of child rows that don't provide much value.
+            if (depth > 0 && node.task.State === 'InQueue') {
+                continue
+            }
+
             seen.add(node.task.taskID)
 
             rows.push({

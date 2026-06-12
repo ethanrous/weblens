@@ -2,15 +2,38 @@ package task_test
 
 import (
 	"context"
+	"fmt"
+	"slices"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/ethanrous/weblens/models/task"
+	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/modules/wlog"
 	"github.com/stretchr/testify/assert"
 )
+
+// uniqueMeta is a task.Metadata whose MetaString is unique per instance, so
+// every dispatched task gets a distinct task ID and actually lands in the queue
+// (rather than collapsing onto an existing task ID).
+type uniqueMeta struct {
+	jobName  string
+	uniqueID string
+}
+
+func (m uniqueMeta) JobName() string             { return m.jobName }
+func (m uniqueMeta) MetaString() string          { return m.jobName + ":" + m.uniqueID }
+func (m uniqueMeta) FormatToResult() task.Result { return task.Result{} }
+func (m uniqueMeta) Verify() error               { return nil }
+
+var uniqueMetaCounter atomic.Int64
+
+func newUniqueMeta(jobName string) task.Metadata {
+	return uniqueMeta{jobName: jobName, uniqueID: fmt.Sprintf("%d", uniqueMetaCounter.Add(1))}
+}
 
 var intentionalFailure = wlerrors.Errorf("intentional failure for testing")
 
@@ -850,19 +873,6 @@ func TestWorkerPool_DispatchJob(t *testing.T) {
 	})
 }
 
-func TestWorkerPool_Status(t *testing.T) {
-	t.Run("returns status values", func(t *testing.T) {
-		wp := task.NewTestWorkerPool(2)
-
-		queueLen, total, busy, alive, retry := wp.Status()
-		assert.GreaterOrEqual(t, queueLen, 0)
-		assert.GreaterOrEqual(t, total, 0)
-		assert.GreaterOrEqual(t, busy, 0)
-		assert.GreaterOrEqual(t, alive, 0)
-		assert.GreaterOrEqual(t, retry, 0)
-	})
-}
-
 func TestWorkerPool_GetTask(t *testing.T) {
 	t.Run("returns nil for non-existent task", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(1)
@@ -929,20 +939,6 @@ func TestWorkerPool_ConcurrentAccess(t *testing.T) {
 
 			seen[pool.ID()] = true
 		}
-	})
-
-	t.Run("handles concurrent status reads", func(_ *testing.T) {
-		wp := task.NewTestWorkerPool(1)
-
-		var wg sync.WaitGroup
-
-		for range 100 {
-			wg.Go(func() {
-				_, _, _, _, _ = wp.Status()
-			})
-		}
-
-		wg.Wait()
 	})
 
 	t.Run("handles concurrent job registration", func(_ *testing.T) {
@@ -1966,6 +1962,316 @@ func TestPool_GetRootPool_NestedPools(t *testing.T) {
 		if grandchildPool != nil {
 			root := grandchildPool.GetRootPool()
 			assert.NotNil(t, root)
+		}
+	})
+}
+
+// ==================== Scheduler Concurrency Tests ====================
+
+func TestWorkerPool_ConcurrentDispatchQueueRace(t *testing.T) {
+	t.Run("concurrent dispatch races scheduler drain on taskQueue", func(t *testing.T) {
+		wp := task.NewTestWorkerPool(4)
+		wp.Run(task.NewTestContext())
+
+		wp.RegisterJob("race-job", func(_ *task.Task) {})
+
+		var wg sync.WaitGroup
+
+		for range 8 {
+			wg.Go(func() {
+				for range 200 {
+					meta := newUniqueMeta("race-job")
+
+					_, err := wp.DispatchJob(context.Background(), "race-job", meta, nil)
+					assert.NoError(t, err)
+				}
+			})
+		}
+
+		wg.Wait()
+	})
+}
+
+func TestWorkerPool_SchedulerCanceledTaskUnlock(t *testing.T) {
+	t.Run("scheduler does not panic when last queued task is canceled", func(t *testing.T) {
+		wp := task.NewTestWorkerPool(1)
+		wp.Run(task.NewTestContext())
+
+		release := make(chan struct{})
+
+		// A blocking handler keeps the single worker busy so dispatched tasks
+		// pile up in the queue, letting the scheduler pop tasks whose context
+		// has already been canceled.
+		wp.RegisterJob("blocker-job", func(tsk *task.Task) {
+			select {
+			case <-release:
+			case <-tsk.Ctx.Done():
+			}
+		})
+
+		// Saturate the worker and the taskStream buffer.
+		for range 4 {
+			meta := newUniqueMeta("blocker-job")
+			_, err := wp.DispatchJob(context.Background(), "blocker-job", meta, nil)
+			assert.NoError(t, err)
+		}
+
+		// Repeatedly dispatch a task and cancel it immediately so the scheduler
+		// hits the canceled branch in taskScheduler.
+		for range 2000 {
+			meta := newUniqueMeta("blocker-job")
+
+			tsk, err := wp.DispatchJob(context.Background(), "blocker-job", meta, nil)
+			assert.NoError(t, err)
+
+			tsk.Cancel()
+		}
+
+		// Give the scheduler time to drain (and panic if the bug is present).
+		time.Sleep(200 * time.Millisecond)
+
+		close(release)
+	})
+}
+
+func TestWorkerPool_PriorityScheduling(t *testing.T) {
+	t.Run("higher priority tasks execute before lower priority tasks", func(t *testing.T) {
+		wp := task.NewTestWorkerPool(1)
+		wp.Run(task.NewTestContext())
+
+		gateStarted := make(chan struct{})
+		release := make(chan struct{})
+
+		var orderMu sync.Mutex
+
+		var order []string
+
+		record := func(tsk *task.Task) {
+			orderMu.Lock()
+			defer orderMu.Unlock()
+
+			order = append(order, tsk.ID())
+		}
+
+		wp.RegisterJob("gate-job", func(_ *task.Task) {
+			close(gateStarted)
+			<-release
+		})
+		wp.RegisterJob("filler-job", record, task.Options{Priority: 1})
+		wp.RegisterJob("low-job", record, task.Options{Priority: 1})
+		wp.RegisterJob("high-job", record, task.Options{Priority: 2})
+
+		// Occupy the single worker so subsequent tasks accumulate in the queue.
+		gate, err := wp.DispatchJob(context.Background(), "gate-job", newUniqueMeta("gate-job"), nil)
+		assert.NoError(t, err)
+
+		<-gateStarted
+
+		// Fill the taskStream buffer (2 slots) and the scheduler's in-hand slot,
+		// so everything dispatched below stays in the priority queue until release.
+		fillers := make([]*task.Task, 0, 3)
+
+		for range 3 {
+			tsk, err := wp.DispatchJob(context.Background(), "filler-job", newUniqueMeta("filler-job"), nil)
+			assert.NoError(t, err)
+
+			fillers = append(fillers, tsk)
+		}
+
+		lows := make([]*task.Task, 0, 3)
+
+		for range 3 {
+			tsk, err := wp.DispatchJob(context.Background(), "low-job", newUniqueMeta("low-job"), nil)
+			assert.NoError(t, err)
+
+			lows = append(lows, tsk)
+		}
+
+		highs := make([]*task.Task, 0, 3)
+
+		for range 3 {
+			tsk, err := wp.DispatchJob(context.Background(), "high-job", newUniqueMeta("high-job"), nil)
+			assert.NoError(t, err)
+
+			highs = append(highs, tsk)
+		}
+
+		close(release)
+
+		gate.Wait()
+
+		for _, tsk := range slices.Concat(fillers, lows, highs) {
+			tsk.Wait()
+		}
+
+		// Every high-priority task must execute before every low-priority task.
+		for _, h := range highs {
+			for _, l := range lows {
+				assert.Less(t, slices.Index(order, h.ID()), slices.Index(order, l.ID()))
+			}
+		}
+
+		// Equal-priority tasks keep FIFO order.
+		for i := range len(highs) - 1 {
+			assert.Less(t, slices.Index(order, highs[i].ID()), slices.Index(order, highs[i+1].ID()))
+		}
+
+		for i := range len(lows) - 1 {
+			assert.Less(t, slices.Index(order, lows[i].ID()), slices.Index(order, lows[i+1].ID()))
+		}
+	})
+
+	t.Run("jobs registered without a priority schedule ahead of background scan priorities", func(t *testing.T) {
+		wp := task.NewTestWorkerPool(1)
+		wp.Run(task.NewTestContext())
+
+		gateStarted := make(chan struct{})
+		release := make(chan struct{})
+
+		var orderMu sync.Mutex
+
+		var order []string
+
+		record := func(tsk *task.Task) {
+			orderMu.Lock()
+			defer orderMu.Unlock()
+
+			order = append(order, tsk.ID())
+		}
+
+		wp.RegisterJob("gate-job", func(_ *task.Task) {
+			close(gateStarted)
+			<-release
+		})
+		// Fillers run at PriorityHigh so they are always the three tasks committed to
+		// the taskStream buffer and the scheduler's in-hand slot, even when the
+		// scheduler drains the queue slower than the dispatch loop below runs.
+		wp.RegisterJob("filler-job", record, task.Options{Priority: task.PriorityHigh})
+		wp.RegisterJob("background-job", record, task.Options{Priority: task.PriorityMedium})
+		wp.RegisterJob("default-job", record)
+		wp.RegisterJob("high-job", record, task.Options{Priority: task.PriorityHigh})
+
+		// Occupy the single worker so subsequent tasks accumulate in the queue.
+		gate, err := wp.DispatchJob(context.Background(), "gate-job", newUniqueMeta("gate-job"), nil)
+		assert.NoError(t, err)
+
+		<-gateStarted
+
+		// Fill the taskStream buffer (2 slots) and the scheduler's in-hand slot,
+		// so everything dispatched below stays in the priority queue until release.
+		fillers := make([]*task.Task, 0, 3)
+
+		for range 3 {
+			tsk, err := wp.DispatchJob(context.Background(), "filler-job", newUniqueMeta("filler-job"), nil)
+			assert.NoError(t, err)
+
+			fillers = append(fillers, tsk)
+		}
+
+		backgrounds := make([]*task.Task, 0, 3)
+
+		for range 3 {
+			tsk, err := wp.DispatchJob(context.Background(), "background-job", newUniqueMeta("background-job"), nil)
+			assert.NoError(t, err)
+
+			backgrounds = append(backgrounds, tsk)
+		}
+
+		defaults := make([]*task.Task, 0, 3)
+
+		for range 3 {
+			tsk, err := wp.DispatchJob(context.Background(), "default-job", newUniqueMeta("default-job"), nil)
+			assert.NoError(t, err)
+
+			defaults = append(defaults, tsk)
+		}
+
+		highs := make([]*task.Task, 0, 3)
+
+		for range 3 {
+			tsk, err := wp.DispatchJob(context.Background(), "high-job", newUniqueMeta("high-job"), nil)
+			assert.NoError(t, err)
+
+			highs = append(highs, tsk)
+		}
+
+		close(release)
+
+		gate.Wait()
+
+		for _, tsk := range slices.Concat(fillers, backgrounds, defaults, highs) {
+			tsk.Wait()
+		}
+
+		// High-priority tasks execute before default-priority tasks.
+		for _, h := range highs {
+			for _, d := range defaults {
+				assert.Less(t, slices.Index(order, h.ID()), slices.Index(order, d.ID()))
+			}
+		}
+
+		// Default-priority tasks execute before background scan-priority tasks,
+		// even though the background tasks were dispatched first.
+		for _, d := range defaults {
+			for _, b := range backgrounds {
+				assert.Less(t, slices.Index(order, d.ID()), slices.Index(order, b.ID()))
+			}
+		}
+	})
+}
+
+func TestWorkerPool_SchedulerShutdown(t *testing.T) {
+	t.Run("scheduler exits when canceled while blocked sending to task stream", func(t *testing.T) {
+		ctx, cancel := task.NewTestContextWithCancel()
+
+		wp := task.NewTestWorkerPool(1)
+		wp.Run(ctx)
+
+		started := make(chan struct{}, 4)
+		release := make(chan struct{})
+
+		wp.RegisterJob("blocking-job", func(_ *task.Task) {
+			started <- struct{}{}
+
+			<-release
+		})
+
+		// Occupy the single worker.
+		_, err := wp.DispatchJob(context.Background(), "blocking-job", newUniqueMeta("blocking-job"), nil)
+		assert.NoError(t, err)
+
+		<-started
+
+		// Fill the taskStream buffer (2 slots) plus one more so the scheduler
+		// blocks sending to the full stream.
+		for range 3 {
+			_, err := wp.DispatchJob(context.Background(), "blocking-job", newUniqueMeta("blocking-job"), nil)
+			assert.NoError(t, err)
+		}
+
+		// Give the scheduler time to reach the blocked send.
+		time.Sleep(100 * time.Millisecond)
+
+		cancel()
+
+		// Let the in-flight task finish; the worker then exits without draining
+		// the stream because the pool context is canceled.
+		close(release)
+
+		wg, ok := ctx.Value(context_mod.WgKey).(*sync.WaitGroup)
+		assert.True(t, ok)
+
+		done := make(chan struct{})
+
+		go func() {
+			wg.Wait()
+			close(done)
+		}()
+
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Fatal("worker pool did not shut down cleanly; scheduler is likely blocked sending to the task stream")
 		}
 	})
 }
