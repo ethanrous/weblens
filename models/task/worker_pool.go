@@ -4,6 +4,7 @@ import (
 	"context"
 	"maps"
 	"slices"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -12,7 +13,6 @@ import (
 	context_mod "github.com/ethanrous/weblens/modules/wlcontext"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/modules/wlog"
-	"github.com/ethanrous/weblens/modules/wlslices"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 )
@@ -390,22 +390,20 @@ func (wp *WorkerPool) queueTask(t *Task, pool *Pool) {
 	// Put the task in the queue
 	t.queueState.Set(InQueue)
 
-	// Add task to queue in sorted order by priority (higher priority tasks should be closer to the front of the queue)
-	wp.taskQueueMu.Lock()
-	wp.taskQueue = wlslices.InsertFunc(wp.taskQueue, t, func(a, b *Task) int {
-		if a.work.opts.Priority == b.work.opts.Priority {
-			return -1 // tie: keep FIFO — new task goes after existing equal-priority tasks
-		}
+	// Set the queue time before the task becomes visible to the scheduler; it is used for status reporting and timeout checks
+	t.QueueTime.Set(time.Now())
 
-		return b.work.opts.Priority - a.work.opts.Priority
+	// Add task to queue in sorted order by priority (higher priority tasks should be closer to the front of the queue).
+	// Upper-bound insert: after all tasks with priority >= ours, so equal-priority tasks keep FIFO order.
+	wp.taskQueueMu.Lock()
+	i := sort.Search(len(wp.taskQueue), func(i int) bool {
+		return wp.taskQueue[i].work.opts.Priority < t.work.opts.Priority
 	})
+	wp.taskQueue = slices.Insert(wp.taskQueue, i, t)
 	wp.taskQueueMu.Unlock()
 
 	// Add the task to the task pool
 	pool.addTask(t)
-
-	// Set the time the task was added to the queue, this is used for status reporting and timeout checks
-	t.QueueTime.Set(time.Now())
 
 	// Finally, notify the scheduler that a new task has been added to the queue
 	select {

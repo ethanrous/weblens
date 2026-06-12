@@ -89,7 +89,8 @@ type Options struct {
 	// task with matching metadata will be returned. Otherwise, multiple tasks with the same metadata can coexist in the queue.
 	Unique bool
 
-	// Priority indicates the priority of the task in the queue. Higher priority tasks are executed before lower priority ones. Larger numbers indicate higher priority. Jobs registered without an explicit priority are assigned PriorityDefault.
+	// Priority indicates the priority of the task in the queue. Higher priority tasks are executed before lower priority ones. Larger numbers indicate higher priority.
+	// 0 is reserved to mean "unspecified": RegisterJob resolves it to PriorityDefault, so a literal priority of 0 cannot be assigned.
 	Priority int
 }
 
