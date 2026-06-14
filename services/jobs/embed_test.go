@@ -218,6 +218,18 @@ func TestExtractAndEmbedFile_Idempotent(t *testing.T) {
 	assert.Equal(t, countBefore, countAfter, "second run with unchanged content should be a no-op")
 }
 
+func TestExtractAndEmbedFile_PhotoTypesAreSkipped(t *testing.T) {
+	_, h := newJobTestHarness(t)
+
+	f := h.CreateTextFile(t, "/photo.jpg", "fake image bytes")
+
+	h.DispatchExtractAndEmbed(t, f)
+	h.WaitForJobs(t)
+
+	rows := h.QueryEmbeddings(t, f.ID())
+	assert.Empty(t, rows, "photo files embed visually; text extraction should be skipped")
+}
+
 func TestExtractAndEmbedFile_ServiceUnavailableIsNoop(t *testing.T) {
 	_, h := newJobTestHarness(t)
 

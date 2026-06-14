@@ -3,9 +3,9 @@ package jobs
 import (
 	"errors"
 	"path/filepath"
-	"strings"
 	"time"
 
+	"github.com/ethanrous/weblens/models/db"
 	"github.com/ethanrous/weblens/models/embedding"
 	"github.com/ethanrous/weblens/models/featureflags"
 	job_model "github.com/ethanrous/weblens/models/job"
@@ -17,13 +17,6 @@ import (
 	"github.com/ethanrous/weblens/services/embed"
 	media_service "github.com/ethanrous/weblens/services/media"
 )
-
-// shouldExtractTextOnScan reports whether the given extension gets text extraction on scan; image types are excluded because they are embedded visually (CLIP) during scan.
-func shouldExtractTextOnScan(ext string) bool {
-	ext = strings.ToLower(ext)
-
-	return media_model.EmbedEligible(ext) && !media_model.ParseExtension(ext).SupportsImgRecog()
-}
 
 // ExtractAndEmbedFile runs extraction + embedding for one file.
 func ExtractAndEmbedFile(tsk *task.Task) {
@@ -91,16 +84,26 @@ func ExtractAndEmbedFile(tsk *task.Task) {
 
 	modelName := currentModelName()
 
+	// Files without a media row (text, documents) still get text extraction below.
 	m, err := media_model.GetMediaByContentID(ctx, file.GetContentID())
-	if err != nil {
+
+	switch {
+	case err == nil:
+		if err := writeImageEmbedding(ctx, m); err != nil {
+			tsk.Fail(err)
+
+			return
+		}
+	case !db.IsNotFound(err):
 		tsk.Fail(err)
 
 		return
 	}
 
-	err = writeImageEmbedding(ctx, m)
-	if err != nil {
-		tsk.Fail(err)
+	// Photos stop here: they embed visually above, and OCR on them yields junk like watermark text.
+	if !media_model.TextEmbedEligible(ext) {
+		tsk.SetResult(task.Result{"skipped": "text_extension"})
+		tsk.Success()
 
 		return
 	}

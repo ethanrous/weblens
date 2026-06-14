@@ -359,7 +359,7 @@ func queueFileIndexIfNeeded(ctx context_service.AppContext, t *task.Task, mf *fi
 		}
 	} else {
 		t.Log().Trace().Func(func(e *zerolog.Event) {
-			e.Msgf("Skipping extract and embed for file %s - embed disabled: %t, should extract text: %t, embed service unavailable: %t", mf.GetPortablePath(), doEmbed, shouldExtractTextOnScan(mf.GetPortablePath().Ext()), embed.Default().ServiceUnavailable())
+			e.Msgf("Skipping extract and embed for file %s - embed disabled: %t, extension eligible: %t, embed service unavailable: %t", mf.GetPortablePath(), doEmbed, media_model.EmbedEligible(mf.GetPortablePath().Ext()), embed.Default().ServiceUnavailable())
 		})
 	}
 

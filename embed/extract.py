@@ -72,8 +72,7 @@ def _extract_pdf(path: str) -> list[Page]:
             except Exception:
                 pil_img = None
             if pil_img is not None:
-                import pytesseract
-                text = pytesseract.image_to_string(pil_img)
+                text = _ocr(pil_img)
         if text:
             pages.append((page_index, text))
     return pages
@@ -113,11 +112,34 @@ def _extract_pptx(path: str) -> list[Page]:
     return pages
 
 
+# Tesseract per-word confidence (0-100) below which a word is discarded.
+_MIN_WORD_CONF = 60
+
+
+def _looks_legible(text: str) -> bool:
+    """Reject OCR output that is mostly punctuation or stray single letters."""
+    tokens = text.split()
+    if not tokens:
+        return False
+    nonspace = [c for c in text if not c.isspace()]
+    alpha_ratio = sum(c.isalnum() for c in nonspace) / len(nonspace)
+    avg_token_len = sum(len(t) for t in tokens) / len(tokens)
+    return alpha_ratio >= 0.7 and avg_token_len >= 2.5
+
+
+def _ocr(img) -> str:
+    import pytesseract
+    data = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
+    words = [w for w, c in zip(data["text"], data["conf"])
+             if w.strip() and float(c) >= _MIN_WORD_CONF]
+    text = " ".join(words)
+    return text if _looks_legible(text) else ""
+
+
 def _ocr_image(path: str) -> str:
     from PIL import Image
     try:
-        import pytesseract
+        import pytesseract  # ensure a clear error before opening the image
     except ImportError as e:
         raise ExtractionError(f"OCR unavailable: {e}") from e
-    img = Image.open(path)
-    return pytesseract.image_to_string(img)
+    return _ocr(Image.open(path))
