@@ -264,7 +264,7 @@ function handleDebugSubmit(val: string) {
                 }
             })
             .catch((err) => {
-                debugReturn.value = 'Error fetching media info: ' + err.message
+                debugReturn.value = 'Error fetching file info: ' + err.message
                 console.error('Error fetching file info:', err)
             })
     } else if (selectedDebugOption.value === 'media') {

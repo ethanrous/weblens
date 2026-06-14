@@ -154,9 +154,9 @@ func formatRespondFolderInfo(ctx context_service.RequestContext, dir *file_model
 			if shouldLaunchIndex {
 				ctx.Log().Debug().Msgf("Dispatching scan task for parent folder [%s] since child [%s] is missing media or index", dir.GetPortablePath(), child.GetPortablePath())
 
-				t, err := ctx.TaskService.DispatchJob(ctx, job.ScanDirectoryTask, job.IndexMeta{File: parent}, nil)
+				t, err := ctx.TaskService.DispatchJob(ctx, job.ScanDirectoryTask, job.IndexMeta{File: dir}, nil)
 				if err != nil {
-					ctx.Log().Error().Err(err).Msgf("Failed to dispatch scan task for file [%s]", parent.GetPortablePath())
+					ctx.Log().Error().Err(err).Msgf("Failed to dispatch scan task for file [%s]", dir.GetPortablePath())
 				}
 
 				scanTask = t

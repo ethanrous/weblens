@@ -17,7 +17,6 @@ import (
 	"github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	slices_mod "github.com/ethanrous/weblens/modules/wlslices"
-	"github.com/ethanrous/weblens/services/ctxservice"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 	"github.com/ethanrous/weblens/services/notify"
 	"github.com/ethanrous/weblens/services/reshape"
@@ -45,7 +44,7 @@ func removeTopLevels(t *task.Task, topLevels []*file_model.WeblensFileImpl) erro
 }
 
 func uploadCleanup(tsk *task.Task, rootFile *file_model.WeblensFileImpl, topLevels []*file_model.WeblensFileImpl, fileMap map[string]*job_model.FileUploadProgress, timeout bool) error {
-	appCtx, ok := ctxservice.FromContext(tsk.Ctx)
+	appCtx, ok := context_service.FromContext(tsk.Ctx)
 	if !ok {
 		return wlerrors.New("failed to get context")
 	}
@@ -59,9 +58,11 @@ func uploadCleanup(tsk *task.Task, rootFile *file_model.WeblensFileImpl, topLeve
 
 	select {
 	case <-tsk.Ctx.Done():
-		err := removeTopLevels(tsk, topLevels)
+		if err := removeTopLevels(tsk, topLevels); err != nil {
+			return wlerrors.Errorf("Failed to remove top level files during cleanup: %w", err)
+		}
 
-		return wlerrors.Errorf("Failed to remove top level files during cleanup: %w", err)
+		return tsk.Ctx.Err()
 	default:
 	}
 
@@ -160,7 +161,7 @@ func HandleFileUploads(tsk *task.Task) {
 	tsk.SetCleanup(func(tsk *task.Task) {
 		err := uploadCleanup(tsk, rootFile, topLevels, fileMap, timeout)
 		if err != nil {
-			tsk.Fail(wlerrors.Errorf("failed to run upload cleanup: %w", err))
+			tsk.Log().Error().Stack().Err(err).Msg("Failed to run upload cleanup")
 		}
 	})
 

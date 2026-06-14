@@ -44,7 +44,7 @@ type IndexMeta struct {
 // MetaString returns a JSON string representation of the scan metadata.
 func (m IndexMeta) MetaString() string {
 	data := map[string]any{
-		"JobName":      IndexFileTask,
+		"JobName":      m.JobName(),
 		"FileIds":      m.File.ID(),
 		"ForceReIndex": m.ForceReIndex,
 	}
