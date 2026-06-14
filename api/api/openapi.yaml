@@ -682,6 +682,11 @@ paths:
         name: shareID
         schema:
           type: string
+      - description: "Force a full re-index, rebuilding media and embeddings"
+        in: query
+        name: forceReindex
+        schema:
+          type: boolean
       responses:
         "200":
           content:

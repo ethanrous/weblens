@@ -29,9 +29,10 @@ import (
 //
 //	@Summary	Dispatch a folder scan
 //	@Tags		Folder
-//	@Param		folderID	path		string				true	"Folder ID"
-//	@Param		shareID		query		string				false	"Share ID"
-//	@Success	200			{object}	wlstructs.TaskInfo	"Task Info"
+//	@Param		folderID		path		string				true	"Folder ID"
+//	@Param		shareID			query		string				false	"Share ID"
+//	@Param		forceReindex	query		bool				false	"Force a full re-index, rebuilding media and embeddings"
+//	@Success	200				{object}	wlstructs.TaskInfo	"Task Info"
 //	@Failure	404
 //	@Failure	500
 //	@Router		/folder/{folderID}/scan [post]
@@ -39,7 +40,8 @@ func ScanDir(ctx context_service.RequestContext) {
 	folder := ctx.File
 
 	meta := job.IndexMeta{
-		File: folder,
+		File:         folder,
+		ForceReIndex: ctx.QueryBool("forceReindex"),
 	}
 
 	var jobName string

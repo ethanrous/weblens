@@ -2488,10 +2488,11 @@ export const FolderApiAxiosParamCreator = function (configuration?: Configuratio
          * @summary Dispatch a folder scan
          * @param {string} folderID Folder ID
          * @param {string} [shareID] Share ID
+         * @param {boolean} [forceReindex] Force a full re-index, rebuilding media and embeddings
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        scanFolder: async (folderID: string, shareID?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        scanFolder: async (folderID: string, shareID?: string, forceReindex?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'folderID' is not null or undefined
             assertParamExists('scanFolder', 'folderID', folderID)
             const localVarPath = `/folder/{folderID}/scan`
@@ -2509,6 +2510,10 @@ export const FolderApiAxiosParamCreator = function (configuration?: Configuratio
 
             if (shareID !== undefined) {
                 localVarQueryParameter['shareID'] = shareID;
+            }
+
+            if (forceReindex !== undefined) {
+                localVarQueryParameter['forceReindex'] = forceReindex;
             }
 
             localVarHeaderParameter['Accept'] = '*/*';
@@ -2633,11 +2638,12 @@ export const FolderApiFp = function(configuration?: Configuration) {
          * @summary Dispatch a folder scan
          * @param {string} folderID Folder ID
          * @param {string} [shareID] Share ID
+         * @param {boolean} [forceReindex] Force a full re-index, rebuilding media and embeddings
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async scanFolder(folderID: string, shareID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TaskInfo>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.scanFolder(folderID, shareID, options);
+        async scanFolder(folderID: string, shareID?: string, forceReindex?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TaskInfo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.scanFolder(folderID, shareID, forceReindex, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['FolderApi.scanFolder']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -2715,11 +2721,12 @@ export const FolderApiFactory = function (configuration?: Configuration, basePat
          * @summary Dispatch a folder scan
          * @param {string} folderID Folder ID
          * @param {string} [shareID] Share ID
+         * @param {boolean} [forceReindex] Force a full re-index, rebuilding media and embeddings
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        scanFolder(folderID: string, shareID?: string, options?: RawAxiosRequestConfig): AxiosPromise<TaskInfo> {
-            return localVarFp.scanFolder(folderID, shareID, options).then((request) => request(axios, basePath));
+        scanFolder(folderID: string, shareID?: string, forceReindex?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<TaskInfo> {
+            return localVarFp.scanFolder(folderID, shareID, forceReindex, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -2793,11 +2800,12 @@ export class FolderApi extends BaseAPI {
      * @summary Dispatch a folder scan
      * @param {string} folderID Folder ID
      * @param {string} [shareID] Share ID
+     * @param {boolean} [forceReindex] Force a full re-index, rebuilding media and embeddings
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public scanFolder(folderID: string, shareID?: string, options?: RawAxiosRequestConfig) {
-        return FolderApiFp(this.configuration).scanFolder(folderID, shareID, options).then((request) => request(this.axios, this.basePath));
+    public scanFolder(folderID: string, shareID?: string, forceReindex?: boolean, options?: RawAxiosRequestConfig) {
+        return FolderApiFp(this.configuration).scanFolder(folderID, shareID, forceReindex, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

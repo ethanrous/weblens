@@ -957,6 +957,12 @@ const docTemplate = `{
                         "description": "Share ID",
                         "name": "shareID",
                         "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Force a full re-index, rebuilding media and embeddings",
+                        "name": "forceReindex",
+                        "in": "query"
                     }
                 ],
                 "responses": {

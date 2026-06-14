@@ -113,7 +113,8 @@ const MediaTypeJSON = `{
         "IsRaw": false,
         "IsVideo": false,
         "RawThumbExifKey": "",
-        "SupportsImgRecog": true
+        "SupportsImgRecog": true,
+        "IsEmbeddable": true
     },
     "image/tiff": {
         "FriendlyName": "TIFF",

@@ -146,7 +146,7 @@ useIntervalFn(() => {
 }, 5000)
 
 async function scanAllMedia() {
-    await useWeblensAPI().FoldersAPI.scanFolder('USERS')
+    await useWeblensAPI().FoldersAPI.scanFolder('USERS', undefined, true)
 }
 
 async function flushCache() {
@@ -248,6 +248,9 @@ async function getMediaInfo(mediaID: string) {
 }
 
 function handleDebugSubmit(val: string) {
+    debugReturn.value = ''
+    debugMedia.value = undefined
+
     if (selectedDebugOption.value === 'file') {
         useWeblensAPI()
             .FilesAPI.getFile(val)

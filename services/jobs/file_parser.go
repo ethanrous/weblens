@@ -111,8 +111,6 @@ func IndexDirectory(t *task.Task) {
 			discoveredFiles[fID] = mf
 
 			return nil
-
-			// return queueScanFileIfNeeded(ctx, t, mf, flags.EnableEmbed, meta.ForceReIndex, &alreadyFiles, &alreadyMedia, pool)
 		},
 	)
 	if err != nil {
@@ -134,7 +132,7 @@ func IndexDirectory(t *task.Task) {
 	}
 
 	if meta.ForceReIndex {
-		err = clearExistingIndex(ctx, medias)
+		err = clearExistingIndex(ctx, medias, discoveredFileIDs.ToSlice())
 		if err != nil {
 			t.Fail(err)
 
@@ -264,7 +262,7 @@ func GetScanResult(t *task.Task) task.Result {
 	return result
 }
 
-func clearExistingIndex(ctx context_service.AppContext, medias []*media_model.Media) error {
+func clearExistingIndex(ctx context_service.AppContext, medias []*media_model.Media, fileIDs []string) error {
 	// Remove the existing media so we can re-index it fresh
 	ctx.Log().Trace().Msgf("Force re-index enabled, removing [%d] existing media", len(medias))
 
@@ -273,12 +271,16 @@ func clearExistingIndex(ctx context_service.AppContext, medias []*media_model.Me
 		return wlerrors.Errorf("failed to delete existing media for re-index: %w", err)
 	}
 
-	contentIDs := make([]string, len(medias))
-	for i, m := range medias {
-		contentIDs[i] = string(m.ContentID)
+	// Image embeddings are keyed by media contentID, file-chunk embeddings by fileID.
+	// Clear both so a force re-index rebuilds the full semantic index.
+	sourceIDs := make([]string, 0, len(medias)+len(fileIDs))
+	for _, m := range medias {
+		sourceIDs = append(sourceIDs, string(m.ContentID))
 	}
 
-	if err := embedding.DeleteAllForSources(ctx, contentIDs); err != nil {
+	sourceIDs = append(sourceIDs, fileIDs...)
+
+	if err := embedding.DeleteAllForSources(ctx, sourceIDs); err != nil {
 		return wlerrors.Errorf("failed to delete existing embeddings for re-index: %w", err)
 	}
 

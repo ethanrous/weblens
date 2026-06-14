@@ -487,11 +487,18 @@ type ApiScanFolderRequest struct {
 	ApiService *FolderAPIService
 	folderID string
 	shareID *string
+	forceReindex *bool
 }
 
 // Share ID
 func (r ApiScanFolderRequest) ShareID(shareID string) ApiScanFolderRequest {
 	r.shareID = &shareID
+	return r
+}
+
+// Force a full re-index, rebuilding media and embeddings
+func (r ApiScanFolderRequest) ForceReindex(forceReindex bool) ApiScanFolderRequest {
+	r.forceReindex = &forceReindex
 	return r
 }
 
@@ -538,6 +545,9 @@ func (a *FolderAPIService) ScanFolderExecute(r ApiScanFolderRequest) (*TaskInfo,
 
 	if r.shareID != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "shareID", r.shareID, "", "")
+	}
+	if r.forceReindex != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "forceReindex", r.forceReindex, "", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}

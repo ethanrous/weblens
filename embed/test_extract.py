@@ -75,8 +75,8 @@ def test_extract_pptx():
 
 def _fake_ocr_image(tmp_path, monkeypatch, words, confs):
     """Write a tiny image and stub pytesseract to return the given words/confidences."""
-    import pytesseract
-    from PIL import Image
+    pytesseract = pytest.importorskip("pytesseract")
+    Image = pytest.importorskip("PIL.Image")
 
     p = tmp_path / "img.png"
     Image.new("RGB", (10, 10)).save(p)
