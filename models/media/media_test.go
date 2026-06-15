@@ -444,6 +444,12 @@ func TestEmbedEligible(t *testing.T) {
 		assert.True(t, media.EmbedEligible("jpeg"))
 	})
 
+	t.Run("image-recognizable types are eligible", func(t *testing.T) {
+		for _, ext := range []string{"gif", "webp", "nef", "arw", "cr2"} {
+			assert.True(t, media.EmbedEligible(ext), "%s should be embed-eligible", ext)
+		}
+	})
+
 	t.Run("document types are eligible", func(t *testing.T) {
 		assert.True(t, media.EmbedEligible("pdf"))
 	})
@@ -462,6 +468,10 @@ func TestTextEmbedEligible(t *testing.T) {
 	t.Run("photo types are excluded, they embed visually", func(t *testing.T) {
 		assert.False(t, media.TextEmbedEligible("jpeg"))
 		assert.False(t, media.TextEmbedEligible("png"))
+
+		for _, ext := range []string{"gif", "webp", "nef", "arw", "cr2"} {
+			assert.False(t, media.TextEmbedEligible(ext), "%s embeds visually, not via text extraction", ext)
+		}
 	})
 
 	t.Run("document types are eligible", func(t *testing.T) {

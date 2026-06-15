@@ -117,6 +117,8 @@ func uploadCleanup(tsk *task.Task, rootFile *file_model.WeblensFileImpl, topLeve
 
 					continue
 				}
+			} else {
+				dispatchEmbedTask(appCtx, tl)
 			}
 		}
 	}

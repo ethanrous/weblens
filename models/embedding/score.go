@@ -30,9 +30,9 @@ func atlasScoreToCosine(score float64) float64 {
 
 // ScoreHits rescales raw per-kind cosine scores onto a shared (0, 1) scale so hits of
 // different kinds are comparable, dropping hits that don't stand out from their own
-// kind's score distribution. A hit's score becomes logistic(z), with z measured against
-// the kind's mean and stddev — or against the kind's noise floor when the distribution
-// can't support stats.
+// kind's score distribution. A hit survives if it's either a statistical standout above
+// its kind's noise cluster or strongly above the kind's absolute noise floor; below-floor
+// hits are always dropped. A hit's score becomes logistic(max(z_stats, z_floor)).
 func ScoreHits(hits []Hit) []Hit {
 	byKind := map[Kind][]Hit{}
 	for _, h := range hits {
@@ -50,13 +50,15 @@ func ScoreHits(hits []Hit) []Hit {
 				continue
 			}
 
-			z := (h.Score - kindFloor[kind]) / fallbackSigma
+			zFloor := (h.Score - kindFloor[kind]) / fallbackSigma
 
+			z := zFloor
 			if statsUsable {
-				z = (h.Score - mean) / sigma
-				if z < zKeep {
-					continue
-				}
+				z = math.Max((h.Score-mean)/sigma, zFloor)
+			}
+
+			if z < zKeep {
+				continue
 			}
 
 			h.Score = logistic(z)

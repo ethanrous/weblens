@@ -30,7 +30,8 @@ const MediaTypeJSON = `{
         "IsRaw": false,
         "IsVideo": false,
         "SupportsImgRecog": true,
-        "MultiPage": true
+        "MultiPage": true,
+        "IsEmbeddable": true
     },
     "image/jpeg": {
         "FriendlyName": "Jpeg",
@@ -66,29 +67,34 @@ const MediaTypeJSON = `{
         "IsRaw": true,
         "IsVideo": false,
         "RawThumbExifKey": "JpgFromRaw",
-        "SupportsImgRecog": true
+        "SupportsImgRecog": true,
+        "IsEmbeddable": true
     },
     "image/x-sony-arw": {
         "FriendlyName": "Sony ARW",
         "FileExtension": [
-            "ARW"
+            "ARW",
+            "arw"
         ],
         "IsDisplayable": true,
         "IsRaw": true,
         "IsVideo": false,
         "RawThumbExifKey": "PreviewImage",
-        "SupportsImgRecog": true
+        "SupportsImgRecog": true,
+        "IsEmbeddable": true
     },
     "image/x-canon-cr2": {
         "FriendlyName": "Cannon Raw",
         "FileExtension": [
-            "CR2"
+            "CR2",
+            "cr2"
         ],
         "IsDisplayable": true,
         "IsRaw": true,
         "IsVideo": false,
         "RawThumbExifKey": "PreviewImage",
-        "SupportsImgRecog": true
+        "SupportsImgRecog": true,
+        "IsEmbeddable": true
     },
     "image/heic": {
         "FriendlyName": "HEIC",
@@ -146,7 +152,8 @@ const MediaTypeJSON = `{
         "IsRaw": false,
         "IsVideo": false,
         "RawThumbExifKey": "",
-        "SupportsImgRecog": true
+        "SupportsImgRecog": true,
+        "IsEmbeddable": true
     },
     "application/pdf": {
         "FriendlyName": "PDF",

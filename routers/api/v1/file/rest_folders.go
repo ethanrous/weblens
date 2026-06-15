@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ethanrous/weblens/models/featureflags"
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/job"
 	media_model "github.com/ethanrous/weblens/models/media"
@@ -39,16 +40,25 @@ import (
 func ScanDir(ctx context_service.RequestContext) {
 	folder := ctx.File
 
-	meta := job.IndexMeta{
-		File:         folder,
-		ForceReIndex: ctx.QueryBool("forceReindex"),
-	}
+	var (
+		jobName string
+		meta    task.Metadata
+	)
 
-	var jobName string
-	if folder.IsDir() {
+	switch {
+	case folder.IsDir():
 		jobName = job.ScanDirectoryTask
-	} else {
+		meta = job.IndexMeta{File: folder, ForceReIndex: ctx.QueryBool("forceReindex")}
+	case media_model.ParseExtension(folder.GetPortablePath().Ext()).Displayable:
 		jobName = job.IndexFileTask
+		meta = job.IndexMeta{File: folder, ForceReIndex: ctx.QueryBool("forceReindex")}
+	case media_model.EmbedEligible(folder.GetPortablePath().Ext()):
+		jobName = job.ExtractAndEmbedTask
+		meta = job.ExtractAndEmbedMeta{File: folder}
+	default:
+		ctx.Error(http.StatusBadRequest, wlerrors.New("file is not displayable or embed-eligible"))
+
+		return
 	}
 
 	t, err := ctx.TaskService.DispatchJob(ctx, jobName, meta, nil)
@@ -123,6 +133,15 @@ func formatRespondFolderInfo(ctx context_service.RequestContext, dir *file_model
 	childInfos := make([]wlstructs.FileInfo, 0, len(children))
 	infoOpts := reshape.FileInfoOptions{Perms: option.Of(*perms)}
 
+	// Embedding-existence rescans only make sense when embeddings can actually be written.
+	embedActive := false
+
+	if flags, flagsErr := featureflags.GetFlags(ctx); flagsErr != nil {
+		ctx.Log().Warn().Err(flagsErr).Msg("Failed to read feature flags; treating embedding as inactive for folder listing")
+	} else {
+		embedActive = flags.EnableEmbed && !embed.Default().ServiceUnavailable()
+	}
+
 	var scanTask *task.Task
 
 	for _, child := range children {
@@ -144,10 +163,12 @@ func formatRespondFolderInfo(ctx context_service.RequestContext, dir *file_model
 
 		if scanTask == nil && !child.IsDir() {
 			shouldLaunchIndex := !mediaExists
-			if !shouldLaunchIndex && media_model.EmbedEligible(child.GetPortablePath().Ext()) {
+			if !shouldLaunchIndex && embedActive && media_model.EmbedEligible(child.GetPortablePath().Ext()) {
 				isEmbedded, err := embed.IsFileEmbedded(ctx, child)
 				if err != nil {
-					return err
+					ctx.Log().Warn().Err(err).Msgf("Failed to check embedding status for [%s]; skipping embed rescan", child.GetPortablePath())
+
+					isEmbedded = true
 				}
 
 				shouldLaunchIndex = !isEmbedded

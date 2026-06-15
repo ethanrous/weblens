@@ -65,8 +65,9 @@ func TestScoreHits_DropsHitsThatDontStandOut(t *testing.T) {
 }
 
 func TestScoreHits_TightStrongClusterAllSurvive(t *testing.T) {
-	// A near-uniform set of strong hits has no usable spread; all are kept.
-	hits := noiseHits(embedding.KindImage, 0.30, 0.31, 0.30, 0.31, 0.30)
+	// A near-uniform set of strong hits has no usable spread; all sit well above the
+	// image floor (0.22), so all are kept.
+	hits := noiseHits(embedding.KindImage, 0.35, 0.36, 0.35, 0.36, 0.35)
 
 	scored := embedding.ScoreHits(hits)
 
@@ -79,6 +80,18 @@ func TestScoreHits_TightJunkClusterAllDropped(t *testing.T) {
 	scored := embedding.ScoreHits(hits)
 
 	assert.Empty(t, scored)
+}
+
+func TestScoreHits_StrongClusterAllSurvive(t *testing.T) {
+	// Many genuinely-strong matches clustered tightly, all well above the file_chunk
+	// floor (0.40). The cluster has no statistical standout, but every hit is strong
+	// in absolute terms, so none should be dropped.
+	hits := noiseHits(embedding.KindFileChunk,
+		0.55, 0.57, 0.56, 0.58, 0.55, 0.59, 0.56, 0.57, 0.58, 0.55, 0.59, 0.56)
+
+	scored := embedding.ScoreHits(hits)
+
+	assert.Len(t, scored, len(hits))
 }
 
 func TestScoreHits_FewHitsKeptByStrength(t *testing.T) {

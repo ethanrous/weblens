@@ -309,6 +309,11 @@ func queueFileIndexIfNeeded(ctx context_service.AppContext, t *task.Task, mf *fi
 
 	mt := media_model.ParseExtension(mf.GetPortablePath().Ext())
 	if !mt.Displayable {
+		// Non-displayable files never run IndexFile, so dispatch text/OCR embedding directly here.
+		if doEmbed {
+			dispatchEmbedTask(ctx, mf)
+		}
+
 		return nil
 	}
 
@@ -351,21 +356,19 @@ func queueFileIndexIfNeeded(ctx context_service.AppContext, t *task.Task, mf *fi
 
 	newT.SetCleanup(reportSubscanStatus)
 
-	// Dispatch document-text extraction before the displayability gate, since non-displayable text/office/code files are still content-indexed.
-	if doEmbed && media_model.EmbedEligible(mf.GetPortablePath().Ext()) {
-		embedMeta := job.ExtractAndEmbedMeta{File: mf}
-		if embedT, dispatchErr := ctx.DispatchJob(job.ExtractAndEmbedTask, embedMeta, pool); dispatchErr != nil {
-			t.Log().Warn().Err(dispatchErr).Msgf("Failed to dispatch ExtractAndEmbedTask for %s", mf.GetPortablePath())
-		} else {
-			embedT.SetCleanup(reportSubscanStatus)
-		}
-	} else {
-		t.Log().Trace().Func(func(e *zerolog.Event) {
-			e.Msgf("Skipping extract and embed for file %s - embed disabled: %t, extension eligible: %t, embed service unavailable: %t", mf.GetPortablePath(), doEmbed, media_model.EmbedEligible(mf.GetPortablePath().Ext()), embed.Default().ServiceUnavailable())
-		})
+	return nil
+}
+
+// dispatchEmbedTask queues a background extract+embed task for the file on an
+// independent pool. ExtractAndEmbedFile self-gates flag/size/availability/idempotency.
+func dispatchEmbedTask(ctx context_service.AppContext, file *file_model.WeblensFileImpl) {
+	if !media_model.EmbedEligible(file.GetPortablePath().Ext()) || embed.Default().ServiceUnavailable() {
+		return
 	}
 
-	return nil
+	if _, err := ctx.DispatchJob(job.ExtractAndEmbedTask, job.ExtractAndEmbedMeta{File: file}, nil); err != nil {
+		ctx.Log().Warn().Err(err).Msgf("Failed to dispatch ExtractAndEmbedTask for %s", file.GetPortablePath())
+	}
 }
 
 func reportSubscanStatus(tsk *task.Task) {

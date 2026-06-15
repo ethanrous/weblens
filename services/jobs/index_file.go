@@ -3,6 +3,7 @@ package jobs
 import (
 	"slices"
 
+	"github.com/ethanrous/weblens/models/embedding"
 	"github.com/ethanrous/weblens/models/job"
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/models/task"
@@ -34,8 +35,11 @@ func IndexFile(tsk *task.Task) {
 	err := ScanFileTsk(ctx, meta)
 	if err != nil {
 		tsk.Fail(err)
+
+		return
 	}
 
+	dispatchEmbedTask(ctx, meta.File)
 	tsk.Success()
 }
 
@@ -65,6 +69,17 @@ func ScanFileTsk(ctx context_service.AppContext, meta job.IndexMeta) error {
 	isCached := false
 
 	if mediaIsNew || meta.ForceReIndex {
+		if meta.ForceReIndex && existingMedia != nil {
+			// Drop the old media's stale embeddings and cache before rebuilding it fresh.
+			if err := embedding.DeleteAllForSources(ctx, []string{string(existingMedia.ContentID), meta.File.ID()}); err != nil {
+				return wlerrors.Errorf("failed to delete existing embeddings for re-index: %w", err)
+			}
+
+			if err := media_service.PurgeCache(ctx, existingMedia); err != nil {
+				ctx.Log().Warn().Err(err).Msgf("Failed to purge cache for media %s during re-index", existingMedia.ContentID)
+			}
+		}
+
 		media, err = media_service.NewMediaFromFile(ctx, meta.File)
 		if err != nil {
 			return err

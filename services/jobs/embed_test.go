@@ -218,6 +218,23 @@ func TestExtractAndEmbedFile_Idempotent(t *testing.T) {
 	assert.Equal(t, countBefore, countAfter, "second run with unchanged content should be a no-op")
 }
 
+func TestExtractAndEmbedFile_NonDisplayableDocIsContentIndexed(t *testing.T) {
+	_, h := newJobTestHarness(t)
+
+	f := h.CreateTextFile(t, "/readme.md",
+		"# Project notes\n\nThis document is not displayable but should still be content-indexed.")
+
+	h.DispatchExtractAndEmbed(t, f)
+	h.WaitForJobs(t)
+
+	rows := h.QueryEmbeddings(t, f.ID())
+	require.NotEmpty(t, rows, "non-displayable embeddable documents should be content-indexed")
+
+	for _, r := range rows {
+		assert.Equal(t, embedding.KindFileChunk, r.Kind)
+	}
+}
+
 func TestExtractAndEmbedFile_PhotoTypesAreSkipped(t *testing.T) {
 	_, h := newJobTestHarness(t)
 
