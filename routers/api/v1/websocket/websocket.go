@@ -275,7 +275,7 @@ func handleScanDirectory(ctx context_service.RequestContext, msg websocket_mod.W
 		meta = job.IndexMeta{File: folder, ForceReIndex: true}
 	case media_model.EmbedEligible(folder.GetPortablePath().Ext()):
 		jobName = job.ExtractAndEmbedTask
-		meta = job.ExtractAndEmbedMeta{File: folder}
+		meta = job.ExtractAndEmbedMeta{File: folder, ForceReIndex: true}
 	default:
 		return wlerrors.New("file is not displayable or embed-eligible")
 	}

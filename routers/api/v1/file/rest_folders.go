@@ -151,6 +151,33 @@ func formatRespondFolderInfo(ctx context_service.RequestContext, dir *file_model
 		embedInProgress = false
 	}
 
+	// Batch the embedding-existence lookup for all embed-eligible children up front to avoid an
+	// N+1 of per-child count queries while listing the folder.
+	var embeddedFiles map[string]bool
+
+	if embedActive && !embedInProgress {
+		var candidates []*file_model.WeblensFileImpl
+
+		for _, child := range children {
+			if child == nil || child.IsDir() {
+				continue
+			}
+
+			if media_model.EmbedEligible(child.GetPortablePath().Ext()) {
+				candidates = append(candidates, child)
+			}
+		}
+
+		if len(candidates) > 0 {
+			embeddedFiles, err = embed.FilesEmbedded(ctx, candidates)
+			if err != nil {
+				ctx.Log().Warn().Err(err).Msg("Failed to batch-check embedding status; skipping embed rescan")
+
+				embedActive = false
+			}
+		}
+	}
+
 	for _, child := range children {
 		if child == nil {
 			continue
@@ -172,14 +199,7 @@ func formatRespondFolderInfo(ctx context_service.RequestContext, dir *file_model
 			if scanTask == nil && !child.IsDir() {
 				shouldLaunchIndex := !mediaExists
 				if !shouldLaunchIndex && embedActive && media_model.EmbedEligible(child.GetPortablePath().Ext()) {
-					isEmbedded, err := embed.IsFileEmbedded(ctx, child)
-					if err != nil {
-						ctx.Log().Warn().Err(err).Msgf("Failed to check embedding status for [%s]; skipping embed rescan", child.GetPortablePath())
-
-						isEmbedded = true
-					}
-
-					shouldLaunchIndex = !isEmbedded
+					shouldLaunchIndex = !embeddedFiles[child.ID()]
 				}
 
 				if shouldLaunchIndex {

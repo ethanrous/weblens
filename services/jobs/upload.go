@@ -62,7 +62,7 @@ func uploadCleanup(tsk *task.Task, rootFile *file_model.WeblensFileImpl, topLeve
 			return wlerrors.Errorf("Failed to remove top level files during cleanup: %w", err)
 		}
 
-		return tsk.Ctx.Err()
+		return nil
 	default:
 	}
 

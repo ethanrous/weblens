@@ -43,7 +43,7 @@ test.describe('Developer Page Actions', () => {
     })
 
     test('should enable trace logging', async ({ page }) => {
-        const traceButton = page.getByRole('button', { name: 'Enable trace logging' })
+        const traceButton = page.getByRole('button', { name: 'Enable Trace Logging' })
 
         // Check if already enabled (disabled state)
         const isDisabled = await traceButton.isDisabled()

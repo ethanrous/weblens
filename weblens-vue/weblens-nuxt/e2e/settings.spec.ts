@@ -166,7 +166,7 @@ test.describe('Settings Page', () => {
 
         // Verify all expected buttons are visible
         await expect(page.getByRole('button', { name: 'Reindex All Files' })).toBeVisible()
-        await expect(page.getByRole('button', { name: 'Enable trace logging' })).toBeVisible()
+        await expect(page.getByRole('button', { name: 'Enable Trace Logging' })).toBeVisible()
         await expect(
             page
                 .getByRole('button', { name: 'Enable Embedding' })

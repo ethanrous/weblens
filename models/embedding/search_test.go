@@ -139,6 +139,24 @@ func TestDeleteAllOfKind_RemovesOnlyMatchingKind(t *testing.T) {
 	assert.Equal(t, 1, remaining, "only the KindImage row should remain")
 }
 
+func TestSourceIDsWithEmbeddings_ReturnsOnlyPresentOfKind(t *testing.T) {
+	ctx := newTestCtx(t)
+
+	seed(ctx, t, []embedding.Embedding{
+		{Kind: embedding.KindFileChunk, SourceID: "file-1", ChunkIndex: 0, Vector: ones(1024), Model: "test"},
+		{Kind: embedding.KindFileChunk, SourceID: "file-1", ChunkIndex: 1, Vector: ones(1024), Model: "test"},
+		{Kind: embedding.KindFileChunk, SourceID: "file-2", ChunkIndex: 0, Vector: ones(1024), Model: "test"},
+		{Kind: embedding.KindImage, SourceID: "media-1", ChunkIndex: 0, Vector: ones(1024), Model: "test"},
+	})
+
+	// file-3 has no rows; media-1 is the wrong kind, so neither should come back.
+	present, err := embedding.SourceIDsWithEmbeddings(ctx, embedding.KindFileChunk,
+		[]string{"file-1", "file-2", "file-3", "media-1"})
+	require.NoError(t, err)
+
+	assert.Equal(t, map[string]struct{}{"file-1": {}, "file-2": {}}, present)
+}
+
 func TestPruneTrailingChunks(t *testing.T) {
 	ctx := newTestCtx(t)
 

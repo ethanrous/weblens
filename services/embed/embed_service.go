@@ -11,19 +11,40 @@ import (
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
 )
 
-// IsFileEmbedded checks whether any embeddings of either kind exist for a file, which is used to determine whether the file is embedded or not.
-func IsFileEmbedded(ctx context.Context, file *file_model.WeblensFileImpl) (bool, error) {
-	textEmbeddings, err := embedding.CountForSource(ctx, embedding.KindFileChunk, file.ID())
-	if err != nil {
-		return false, err
+// FilesEmbedded reports, keyed by file ID, which of the given files already have an embedding of
+// either kind (a text-chunk row keyed by file ID, or an image row keyed by content ID). It batches
+// the lookup into two distinct queries rather than two counts per file to avoid an N+1 on folder listings.
+func FilesEmbedded(ctx context.Context, files []*file_model.WeblensFileImpl) (map[string]bool, error) {
+	fileIDs := make([]string, 0, len(files))
+	contentIDs := make([]string, 0, len(files))
+
+	for _, f := range files {
+		fileIDs = append(fileIDs, f.ID())
+
+		if cid := f.GetContentID(); cid != "" {
+			contentIDs = append(contentIDs, cid)
+		}
 	}
 
-	imgEmbeddings, err := embedding.CountForSource(ctx, embedding.KindImage, file.GetContentID())
+	textPresent, err := embedding.SourceIDsWithEmbeddings(ctx, embedding.KindFileChunk, fileIDs)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
-	return textEmbeddings > 0 || imgEmbeddings > 0, nil
+	imgPresent, err := embedding.SourceIDsWithEmbeddings(ctx, embedding.KindImage, contentIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	embedded := make(map[string]bool, len(files))
+
+	for _, f := range files {
+		_, hasText := textPresent[f.ID()]
+		_, hasImg := imgPresent[f.GetContentID()]
+		embedded[f.ID()] = hasText || hasImg
+	}
+
+	return embedded, nil
 }
 
 // IsEmbeddingInProgress checks if there are any pending embedding jobs for the user, which is used to determine whether to show the "embedding in progress" state in the UI.

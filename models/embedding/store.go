@@ -156,6 +156,36 @@ func GetForSource(ctx context.Context, sourceID string) ([]Embedding, error) {
 	return rows, nil
 }
 
+// SourceIDsWithEmbeddings returns the subset of sourceIDs that have at least one row of the given kind.
+// It runs a single distinct query so callers can batch existence checks instead of counting per source.
+func SourceIDsWithEmbeddings(ctx context.Context, kind Kind, sourceIDs []string) (map[string]struct{}, error) {
+	present := make(map[string]struct{}, len(sourceIDs))
+	if len(sourceIDs) == 0 {
+		return present, nil
+	}
+
+	col, err := db.GetCollection[Embedding](ctx, CollectionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	values, err := col.GetCollection().Distinct(ctx, "sourceId", bson.M{
+		"kind":     string(kind),
+		"sourceId": bson.M{"$in": sourceIDs},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, v := range values {
+		if s, ok := v.(string); ok {
+			present[s] = struct{}{}
+		}
+	}
+
+	return present, nil
+}
+
 // CountForChunk counts rows matching (kind, sourceId, model, chunkIndex).
 func CountForChunk(ctx context.Context, kind Kind, sourceID, modelName string, chunkIndex int) (int64, error) {
 	col, err := db.GetCollection[Embedding](ctx, CollectionKey)
