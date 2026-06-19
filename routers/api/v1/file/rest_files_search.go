@@ -1,6 +1,7 @@
 package file
 
 import (
+	"cmp"
 	"maps"
 	"net/http"
 	"regexp"
@@ -8,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/ethanrous/weblens/models/embedding"
+	"github.com/ethanrous/weblens/models/featureflags"
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/media"
 	share_model "github.com/ethanrous/weblens/models/share"
@@ -23,17 +25,6 @@ import (
 	embed_service "github.com/ethanrous/weblens/services/embed"
 	"github.com/ethanrous/weblens/services/reshape"
 	"golang.org/x/sync/errgroup"
-)
-
-const (
-	// minContentScore is the raw-cosine floor below which a semantic hit is dropped.
-	minContentScore = 0.30
-
-	// imageDeferMargin is how far a file_chunk hit must out-score an image hit to suppress it.
-	imageDeferMargin = 0.10
-
-	// minRelevanceSpread vetoes a kind's set when its top hit barely exceeds the mean.
-	minRelevanceSpread = 0.03
 )
 
 // fuzzyMatch pairs a file ID with its fuzzy-rank distance (lower = better match).
@@ -117,127 +108,48 @@ func runFilenameMatch(search string, useRegex bool, fileIDs []string, filenames 
 	return out, nil
 }
 
-// mergeContentHits demuxes filtered []embedding.Hit onto file IDs (file_chunk by fileID, image via byMedia).
+// mergeContentHits normalizes hits via embedding.ScoreHits, then demuxes them onto file
+// IDs (file_chunk by fileID, image via byMedia), keeping each file's best score and the
+// best-scoring text hit's snippet/page.
 func mergeContentHits(hits []embedding.Hit, byMedia map[string][]*file_model.WeblensFileImpl) map[string]contentHit {
-	filtered := filterContentHits(hits)
+	scored := embedding.ScoreHits(hits)
+
+	// Descending order so the first hit seen per file is its best.
+	wlslices.SortFunc(scored, func(a, b embedding.Hit) int {
+		return cmp.Compare(b.Score, a.Score)
+	})
 
 	out := map[string]contentHit{}
 
-	for _, h := range filtered {
-		var (
-			fileIDs []string
-			snippet string
-		)
+	for _, h := range scored {
+		var fileIDs []string
 
 		switch h.Kind {
 		case embedding.KindFileChunk:
 			fileIDs = []string{h.SourceID}
-			snippet = h.Snippet
 		case embedding.KindImage:
-			mediaFiles := byMedia[h.SourceID]
-			fileIDs = make([]string, 0, len(mediaFiles))
-
-			for _, f := range mediaFiles {
+			for _, f := range byMedia[h.SourceID] {
 				fileIDs = append(fileIDs, f.ID())
 			}
 		}
 
 		for _, fid := range fileIDs {
 			cur, ok := out[fid]
+			if !ok {
+				cur.Score = h.Score
+			}
 
-			switch {
-			case !ok || h.Score > cur.Score:
-				merged := contentHit{Score: h.Score, Snippet: snippet, Page: h.Page}
-				// Image hits carry no snippet/page; keep the prior text hit's so the result stays linkable.
-				if merged.Snippet == "" && ok {
-					merged.Snippet = cur.Snippet
-					merged.Page = cur.Page
-				}
-
-				out[fid] = merged
-			case cur.Snippet == "" && snippet != "":
-				cur.Snippet = snippet
+			// Image hits carry no snippet; a lower-scored text hit's snippet keeps the result linkable.
+			if cur.Snippet == "" && h.Snippet != "" {
+				cur.Snippet = h.Snippet
 				cur.Page = h.Page
-				out[fid] = cur
 			}
+
+			out[fid] = cur
 		}
 	}
 
 	return out
-}
-
-// filterContentHits gates raw vector hits via per-kind spread veto, absolute floor, and cross-modal defer.
-func filterContentHits(hits []embedding.Hit) []embedding.Hit {
-	byKind := map[embedding.Kind][]embedding.Hit{}
-
-	for _, h := range hits {
-		switch h.Kind {
-		case embedding.KindFileChunk, embedding.KindImage:
-			byKind[h.Kind] = append(byKind[h.Kind], h)
-		}
-	}
-
-	surviving := map[embedding.Kind][]embedding.Hit{}
-
-	for kind, kindHits := range byKind {
-		if !hasMeaningfulSpread(kindHits) {
-			continue
-		}
-
-		for _, h := range kindHits {
-			if h.Score >= minContentScore {
-				surviving[kind] = append(surviving[kind], h)
-			}
-		}
-	}
-
-	textHits := surviving[embedding.KindFileChunk]
-
-	bestText := 0.0
-	for _, h := range textHits {
-		if h.Score > bestText {
-			bestText = h.Score
-		}
-	}
-
-	out := make([]embedding.Hit, 0, len(hits))
-
-	for kind, kindHits := range surviving {
-		for _, h := range kindHits {
-			// A confident document match suppresses marginal images, when a file_chunk hit survived.
-			if kind == embedding.KindImage && len(textHits) > 0 && bestText-h.Score > imageDeferMargin {
-				continue
-			}
-
-			out = append(out, h)
-		}
-	}
-
-	return out
-}
-
-// hasMeaningfulSpread reports whether the top hit exceeds the set's mean by at least minRelevanceSpread.
-func hasMeaningfulSpread(hits []embedding.Hit) bool {
-	if len(hits) < 2 {
-		return true
-	}
-
-	var (
-		sum    float64
-		maxVal = hits[0].Score
-	)
-
-	for _, h := range hits {
-		sum += h.Score
-
-		if h.Score > maxVal {
-			maxVal = h.Score
-		}
-	}
-
-	mean := sum / float64(len(hits))
-
-	return maxVal-mean >= minRelevanceSpread
 }
 
 // fileMatch is the running per-file aggregation as filename and content matches are merged.
@@ -451,7 +363,7 @@ func SearchFiles(ctx context_service.RequestContext) {
 
 	// Build a candidate map (fileID → file) and media-content-ID index for image embedding demux.
 	candidates := make(map[string]*file_model.WeblensFileImpl, len(fileIDs))
-	filesByMediaContentID := make(map[string][]*file_model.WeblensFileImpl)
+	filesByContentID := make(map[string][]*file_model.WeblensFileImpl)
 
 	for _, fid := range fileIDs {
 		f, err := ctx.FileService.GetFileByID(ctx, fid)
@@ -464,17 +376,17 @@ func SearchFiles(ctx context_service.RequestContext) {
 		candidates[fid] = f
 
 		if cid := f.GetContentID(); cid != "" {
-			filesByMediaContentID[cid] = append(filesByMediaContentID[cid], f)
+			filesByContentID[cid] = append(filesByContentID[cid], f)
 		}
 	}
 
 	// Build the source-ID set for the embedding search: candidate fileIDs plus media content IDs.
-	sourceIDSet := make([]string, 0, len(candidates)+len(filesByMediaContentID))
+	sourceIDSet := make([]string, 0, len(candidates)+len(filesByContentID))
 	for fid := range candidates {
 		sourceIDSet = append(sourceIDSet, fid)
 	}
 
-	for cid := range filesByMediaContentID {
+	for cid := range filesByContentID {
 		sourceIDSet = append(sourceIDSet, cid)
 	}
 
@@ -482,6 +394,16 @@ func SearchFiles(ctx context_service.RequestContext) {
 		fnMatches []fuzzyMatch
 		embedHits map[string]contentHit
 	)
+
+	// Only semantic search is flag-gated; a flag read failure falls back to filename-only results
+	// rather than failing the whole request.
+	flags, err := featureflags.GetFlags(ctx)
+	if err != nil {
+		ctx.Log().Warn().Err(err).Msg("failed to retrieve feature flags, disabling semantic search for this request")
+
+		flags = featureflags.Default()
+		flags.EnableEmbed = false
+	}
 
 	g, gctx := errgroup.WithContext(ctx)
 
@@ -502,7 +424,7 @@ func SearchFiles(ctx context_service.RequestContext) {
 
 	// Goroutine B: semantic content search (skipped for regex, disabled content, or unavailable service).
 	g.Go(func() error {
-		if filenameSearch == "" || useRegex || !includeContent || embed_service.Default().ServiceUnavailable() {
+		if filenameSearch == "" || useRegex || !includeContent || !flags.EnableEmbed || embed_service.Default().ServiceUnavailable() {
 			return nil
 		}
 
@@ -525,6 +447,14 @@ func SearchFiles(ctx context_service.RequestContext) {
 			return nil
 		}
 
+		// Photo files are matched visually via KindImage; any text rows for them
+		// (e.g. OCR'd watermarks written before the photo gate) are junk.
+		textHits = slices.DeleteFunc(textHits, func(h embedding.Hit) bool {
+			f, ok := candidates[h.SourceID]
+
+			return !ok || !media.TextEmbedEligible(f.GetPortablePath().Ext())
+		})
+
 		imageHits, err := embedding.Search(gctx, embedding.Query{
 			Vector:    imageVec,
 			SourceIDs: sourceIDSet,
@@ -537,7 +467,7 @@ func SearchFiles(ctx context_service.RequestContext) {
 			return nil
 		}
 
-		embedHits = mergeContentHits(append(textHits, imageHits...), filesByMediaContentID)
+		embedHits = mergeContentHits(append(textHits, imageHits...), filesByContentID)
 
 		return nil
 	})

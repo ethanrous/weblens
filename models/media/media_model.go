@@ -10,7 +10,6 @@ import (
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/startup"
 	"github.com/ethanrous/weblens/modules/wlerrors"
-	"github.com/ethanrous/weblens/modules/wlog"
 	"github.com/ethanrous/weblens/modules/wlslices"
 	slices_mod "github.com/ethanrous/weblens/modules/wlslices"
 	"go.mongodb.org/mongo-driver/bson"
@@ -195,7 +194,6 @@ func GetMediasByContentIDs(ctx context.Context, contentIDs ...ContentID) ([]*Med
 	media := []*Media{}
 
 	filter := bson.M{"contentID": bson.M{"$in": contentIDs}}
-	wlog.FromContext(ctx).Debug().Msgf("Getting medias by contentIDs with filter: %+v", filter)
 
 	cur, err := col.Find(ctx, filter)
 	if err != nil {
@@ -406,6 +404,23 @@ func DeleteMediaByContentID(ctx context.Context, contentID ContentID) error {
 	}
 
 	_, err = col.DeleteOne(ctx, bson.M{"contentID": contentID})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DeleteMedias deletes media items from the database by their content ID. This is a batch version of DeleteMediaByContentID.
+func DeleteMedias(ctx context.Context, medias ...*Media) error {
+	col, err := db.GetCollection[*Media](ctx, MediaCollectionKey)
+	if err != nil {
+		return err
+	}
+
+	contentIDs := wlslices.Map(medias, func(m *Media) ContentID { return m.ContentID })
+
+	_, err = col.DeleteMany(ctx, bson.M{"contentID": bson.M{"$in": contentIDs}})
 	if err != nil {
 		return err
 	}

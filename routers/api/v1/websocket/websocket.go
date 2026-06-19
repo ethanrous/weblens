@@ -12,6 +12,7 @@ import (
 
 	client_model "github.com/ethanrous/weblens/models/client"
 	"github.com/ethanrous/weblens/models/job"
+	media_model "github.com/ethanrous/weblens/models/media"
 	share_model "github.com/ethanrous/weblens/models/share"
 	task_model "github.com/ethanrous/weblens/models/task"
 	tower_model "github.com/ethanrous/weblens/models/tower"
@@ -260,16 +261,23 @@ func handleScanDirectory(ctx context_service.RequestContext, msg websocket_mod.W
 		return err
 	}
 
-	meta := job.ScanMeta{
-		File:         folder,
-		ForceReIndex: true,
-	}
+	var (
+		jobName string
+		meta    task_model.Metadata
+	)
 
-	var jobName string
-	if folder.IsDir() {
+	switch {
+	case folder.IsDir():
 		jobName = job.ScanDirectoryTask
-	} else {
-		jobName = job.ScanFileTask
+		meta = job.IndexMeta{File: folder, ForceReIndex: true}
+	case media_model.ParseExtension(folder.GetPortablePath().Ext()).Displayable:
+		jobName = job.IndexFileTask
+		meta = job.IndexMeta{File: folder, ForceReIndex: true}
+	case media_model.EmbedEligible(folder.GetPortablePath().Ext()):
+		jobName = job.ExtractAndEmbedTask
+		meta = job.ExtractAndEmbedMeta{File: folder, ForceReIndex: true}
+	default:
+		return wlerrors.New("file is not displayable or embed-eligible")
 	}
 
 	t, err := ctx.TaskService.DispatchJob(ctx, jobName, meta, nil)

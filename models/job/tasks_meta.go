@@ -32,8 +32,8 @@ type TaskDispatcher interface {
 	DispatchJob(jobName string, meta task.Metadata, pool *task.Pool) (*task.Task, error)
 }
 
-// ScanMeta holds metadata for file scanning tasks.
-type ScanMeta struct {
+// IndexMeta holds metadata for file scanning tasks.
+type IndexMeta struct {
 	File         *file_model.WeblensFileImpl
 	PartialMedia *media_model.Media
 	ForceReIndex bool
@@ -42,9 +42,9 @@ type ScanMeta struct {
 }
 
 // MetaString returns a JSON string representation of the scan metadata.
-func (m ScanMeta) MetaString() string {
+func (m IndexMeta) MetaString() string {
 	data := map[string]any{
-		"JobName":      ScanFileTask,
+		"JobName":      m.JobName(),
 		"FileIds":      m.File.ID(),
 		"ForceReIndex": m.ForceReIndex,
 	}
@@ -61,23 +61,23 @@ func (m ScanMeta) MetaString() string {
 }
 
 // FormatToResult converts the scan metadata to a task result.
-func (m ScanMeta) FormatToResult() task.Result {
+func (m IndexMeta) FormatToResult() task.Result {
 	return task.Result{
 		"filename": m.File.GetPortablePath(),
 	}
 }
 
 // JobName returns the appropriate job name based on whether the file is a directory.
-func (m ScanMeta) JobName() string {
+func (m IndexMeta) JobName() string {
 	if m.File.IsDir() {
 		return ScanDirectoryTask
 	}
 
-	return ScanFileTask
+	return IndexFileTask
 }
 
 // Verify checks that the scan metadata contains all required fields.
-func (m ScanMeta) Verify() error {
+func (m IndexMeta) Verify() error {
 	if m.File == nil {
 		return wlerrors.New("no file in scan metadata")
 	}
@@ -467,14 +467,16 @@ func (m RestoreCoreMeta) Verify() error {
 
 // ExtractAndEmbedMeta holds metadata for extract-and-embed tasks.
 type ExtractAndEmbedMeta struct {
-	File *file_model.WeblensFileImpl
+	File         *file_model.WeblensFileImpl
+	ForceReIndex bool
 }
 
 // MetaString returns a JSON string representation of the extract-and-embed metadata.
 func (m ExtractAndEmbedMeta) MetaString() string {
 	data := map[string]any{
-		"JobName": ExtractAndEmbedTask,
-		"FileId":  m.File.ID(),
+		"JobName":      ExtractAndEmbedTask,
+		"FileId":       m.File.ID(),
+		"ForceReIndex": m.ForceReIndex,
 	}
 
 	bs, err := json.Marshal(data)

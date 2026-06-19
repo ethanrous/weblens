@@ -18,6 +18,9 @@ const (
 	KindImage Kind = "image"
 	// KindFileChunk identifies an embedding produced from a text chunk of a file (SourceID = fileID).
 	KindFileChunk Kind = "file_chunk"
+
+	// KindAll is a wildcard for deletion operations, not a valid value for stored rows.
+	KindAll Kind = "all"
 )
 
 // Embedding is the unified model for all embedded vectors, each tied to a single source (image or file chunk).

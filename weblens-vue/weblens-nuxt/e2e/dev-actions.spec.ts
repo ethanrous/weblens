@@ -18,18 +18,18 @@ test.describe('Developer Page Actions', () => {
     })
 
     test('should scan all media and see task state', async ({ page }) => {
-        // Click Scan All Media
-        await page.getByRole('button', { name: 'Scan All Media' }).click()
+        // Click Reindex All Files to trigger a force re-index
+        await page.getByRole('button', { name: 'Reindex All Files' }).click()
 
-        // Wait a moment for the scan to start
-
-        // Click Refresh to update task list
-        await page.getByRole('button', { name: 'Refresh' }).click()
+        // The tasks list auto-refreshes (no manual refresh button); the Tasks section stays present
+        await expect(page.getByRole('heading', { name: 'Tasks' })).toBeVisible()
     })
 
     test('should toggle embedding', async ({ page }) => {
-        // Find the HDIR button - it says either "Enable embed processing" or "Disable embed processing"
-        const embedButton = page.getByRole('button', { name: /embed processing/ })
+        // The embed toggle says either "Enable Embedding" or "Disable Embedding"
+        const embedButton = page
+            .getByRole('button', { name: 'Enable Embedding' })
+            .or(page.getByRole('button', { name: 'Disable Embedding' }))
         await expect(embedButton).toBeVisible()
 
         // Click to toggle — verify the click doesn't error
@@ -43,7 +43,7 @@ test.describe('Developer Page Actions', () => {
     })
 
     test('should enable trace logging', async ({ page }) => {
-        const traceButton = page.getByRole('button', { name: 'Enable trace logging' })
+        const traceButton = page.getByRole('button', { name: 'Enable Trace Logging' })
 
         // Check if already enabled (disabled state)
         const isDisabled = await traceButton.isDisabled()

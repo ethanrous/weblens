@@ -291,7 +291,7 @@ No authorization required
 
 ## ScanFolder
 
-> TaskInfo ScanFolder(ctx, folderID).ShareID(shareID).Execute()
+> TaskInfo ScanFolder(ctx, folderID).ShareID(shareID).ForceReindex(forceReindex).Execute()
 
 Dispatch a folder scan
 
@@ -310,10 +310,11 @@ import (
 func main() {
 	folderID := "folderID_example" // string | Folder ID
 	shareID := "shareID_example" // string | Share ID (optional)
+	forceReindex := true // bool | Force a full re-index, rebuilding media and embeddings (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.FolderAPI.ScanFolder(context.Background(), folderID).ShareID(shareID).Execute()
+	resp, r, err := apiClient.FolderAPI.ScanFolder(context.Background(), folderID).ShareID(shareID).ForceReindex(forceReindex).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `FolderAPI.ScanFolder``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -340,6 +341,7 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
 
  **shareID** | **string** | Share ID | 
+ **forceReindex** | **bool** | Force a full re-index, rebuilding media and embeddings | 
 
 ### Return type
 

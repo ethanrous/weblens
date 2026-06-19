@@ -43,6 +43,92 @@ func removeTopLevels(t *task.Task, topLevels []*file_model.WeblensFileImpl) erro
 	return nil
 }
 
+func uploadCleanup(tsk *task.Task, rootFile *file_model.WeblensFileImpl, topLevels []*file_model.WeblensFileImpl, fileMap map[string]*job_model.FileUploadProgress, timeout bool) error {
+	appCtx, ok := context_service.FromContext(tsk.Ctx)
+	if !ok {
+		return wlerrors.New("failed to get context")
+	}
+
+	for _, f := range fileMap {
+		tsk.Log().Debug().Func(func(e *zerolog.Event) {
+			e.Msgf("Cleaning up file [%+v]", *f)
+		})
+	}
+	// e.Msgf("Upload fileMap has %d remaining - and chunk stream has %d remaining", len(fileMap), len(meta.ChunkStream))
+
+	select {
+	case <-tsk.Ctx.Done():
+		if err := removeTopLevels(tsk, topLevels); err != nil {
+			return wlerrors.Errorf("Failed to remove top level files during cleanup: %w", err)
+		}
+
+		return nil
+	default:
+	}
+
+	rootFile.Size()
+
+	fInfo, err := reshape.WeblensFileToFileInfo(appCtx, rootFile)
+	if err != nil {
+		appCtx.Log().Error().Stack().Err(err).Msg("Failed to reshape root file to file info")
+	}
+
+	notifs := notify.NewFileNotification(appCtx, fInfo, websocket.FileUpdatedEvent)
+
+	// Do not report that this task pool was created by this task, we want to detach
+	// and allow these scans to take place independently
+	newTp, err := tsk.GetTaskPool().GetWorkerPool().NewTaskPool(false, nil)
+	if err != nil {
+		return err
+	}
+
+	for _, tl := range topLevels {
+		fInfo, err := reshape.WeblensFileToFileInfo(appCtx, tl)
+		if err != nil {
+			appCtx.Log().Error().Stack().Err(err).Msg("Failed to reshape top level to file info")
+		}
+
+		notif := notify.NewFileNotification(appCtx, fInfo, websocket.FileUpdatedEvent)
+		notifs = append(notifs, notif...)
+
+		if tl.IsDir() {
+			if !timeout {
+				scanMeta := job_model.IndexMeta{
+					File: tl,
+				}
+
+				_, err = appCtx.DispatchJob(job_model.ScanDirectoryTask, scanMeta, newTp)
+				if err != nil {
+					tsk.Log().Error().Stack().Err(err).Msg("")
+
+					continue
+				}
+			}
+		} else if !timeout {
+			mt := media_model.ParseExtension(tl.GetPortablePath().Ext())
+			if mt.Displayable {
+				scanMeta := job_model.IndexMeta{
+					File: tl,
+				}
+
+				_, err = appCtx.DispatchJob(job_model.IndexFileTask, scanMeta, newTp)
+				if err != nil {
+					tsk.Log().Error().Stack().Err(err).Msg("")
+
+					continue
+				}
+			} else {
+				dispatchEmbedTask(appCtx, tl)
+			}
+		}
+	}
+
+	appCtx.Notify(appCtx, notifs...)
+	newTp.SignalAllQueued()
+
+	return nil
+}
+
 // HandleFileUploads is the job for reading file chunks coming in from client requests, and writing them out
 // to their corresponding files. Intention behind this implementation is to rid the
 // client of interacting with any blocking calls to make the upload process as fast as
@@ -75,83 +161,10 @@ func HandleFileUploads(tsk *task.Task) {
 
 	// Cleanup routine. This must be run even if the upload fails
 	tsk.SetCleanup(func(tsk *task.Task) {
-		for _, f := range fileMap {
-			tsk.Log().Debug().Func(func(e *zerolog.Event) {
-				e.Msgf("Cleaning up file [%+v]", *f)
-			})
-		}
-		// e.Msgf("Upload fileMap has %d remaining - and chunk stream has %d remaining", len(fileMap), len(meta.ChunkStream))
-
-		select {
-		case <-tsk.Ctx.Done():
-			err = removeTopLevels(tsk, topLevels)
-			if err != nil {
-				tsk.Log().Error().Stack().Err(err).Msg("Failed to remove top level files")
-			}
-
-			return
-		default:
-		}
-
-		rootFile.Size()
-
-		fInfo, err := reshape.WeblensFileToFileInfo(appCtx, rootFile)
+		err := uploadCleanup(tsk, rootFile, topLevels, fileMap, timeout)
 		if err != nil {
-			appCtx.Log().Error().Stack().Err(err).Msg("Failed to reshape root file to file info")
+			tsk.Log().Error().Stack().Err(err).Msg("Failed to run upload cleanup")
 		}
-
-		notifs := notify.NewFileNotification(appCtx, fInfo, websocket.FileUpdatedEvent)
-
-		// Do not report that this task pool was created by this task, we want to detach
-		// and allow these scans to take place independently
-		newTp, err := tsk.GetTaskPool().GetWorkerPool().NewTaskPool(false, nil)
-		if err != nil {
-			tsk.Fail(wlerrors.WithStack(err))
-
-			return
-		}
-
-		for _, tl := range topLevels {
-			fInfo, err := reshape.WeblensFileToFileInfo(appCtx, tl)
-			if err != nil {
-				appCtx.Log().Error().Stack().Err(err).Msg("Failed to reshape top level to file info")
-			}
-
-			notif := notify.NewFileNotification(appCtx, fInfo, websocket.FileUpdatedEvent)
-			notifs = append(notifs, notif...)
-
-			if tl.IsDir() {
-				if !timeout {
-					scanMeta := job_model.ScanMeta{
-						File: tl,
-					}
-
-					_, err = appCtx.DispatchJob(job_model.ScanDirectoryTask, scanMeta, newTp)
-					if err != nil {
-						tsk.Log().Error().Stack().Err(err).Msg("")
-
-						continue
-					}
-				}
-			} else if !timeout {
-				mt := media_model.ParseExtension(tl.GetPortablePath().Ext())
-				if mt.Displayable {
-					scanMeta := job_model.ScanMeta{
-						File: tl,
-					}
-
-					_, err = appCtx.DispatchJob(job_model.ScanFileTask, scanMeta, newTp)
-					if err != nil {
-						tsk.Log().Error().Stack().Err(err).Msg("")
-
-						continue
-					}
-				}
-			}
-		}
-
-		appCtx.Notify(appCtx, notifs...)
-		newTp.SignalAllQueued()
 	})
 
 	timeoutTicker := time.NewTicker(time.Minute)
@@ -220,43 +233,47 @@ WriterLoop:
 				continue
 			}
 
-			chnk := fileMap[chunk.FileID]
+			uploadInfo := fileMap[chunk.FileID]
 
-			if chnk.FileSizeTotal != total {
-				tsk.Fail(wlerrors.Errorf("upload size mismatch for file [%s / %s] (%d != %d)", chnk.File.GetPortablePath(), chnk.File.ID(), chnk.FileSizeTotal, total))
+			if uploadInfo.FileSizeTotal != total {
+				tsk.Fail(wlerrors.Errorf("upload size mismatch for file [%s / %s] (%d != %d)", uploadInfo.File.GetPortablePath(), uploadInfo.File.ID(), uploadInfo.FileSizeTotal, total))
 			}
 
 			// Add the new bytes to the counter for the file-size of this file.
 			// If we upload content in range e.g. 0-1 bytes, that includes 2 bytes,
 			// but top - bottom (1 - 0) is 1, so we add 1 to match
-			chnk.BytesWritten += (top - bottom) + 1
+			uploadInfo.BytesWritten += (top - bottom) + 1
 
 			// Write the bytes to the real file
-			err = chnk.File.WriteAt(chunk.Chunk, bottom)
+			err = uploadInfo.File.WriteAt(chunk.Chunk, bottom)
 			if err != nil {
-				tsk.ReqNoErr(err)
+				tsk.Fail(err)
+
+				return
 			}
 
 			// Add the bytes for this chunk to the Hash
-			_, err = chnk.Hash.Write(chunk.Chunk)
+			_, err = uploadInfo.Hash.Write(chunk.Chunk)
 			if err != nil {
-				tsk.ReqNoErr(err)
+				tsk.Fail(err)
+
+				return
 			}
 
 			// When file is finished writing
-			if chnk.BytesWritten >= chnk.FileSizeTotal {
+			if uploadInfo.BytesWritten >= uploadInfo.FileSizeTotal {
 				tsk.Log().Debug().Func(func(e *zerolog.Event) {
-					e.Msgf("Finished writing file [%s] with %d bytes", chnk.File.GetPortablePath(), chnk.BytesWritten)
+					e.Msgf("Finished writing file [%s] with %d bytes", uploadInfo.File.GetPortablePath(), uploadInfo.BytesWritten)
 				})
 
 				// Hash file content to get content ID.
-				chnk.File.SetContentID(base64.URLEncoding.EncodeToString(chnk.Hash.Sum(nil))[:20])
+				uploadInfo.File.SetContentID(base64.URLEncoding.EncodeToString(uploadInfo.Hash.Sum(nil))[:20])
 
-				if chnk.File.GetContentID() == "" {
-					tsk.Fail(wlerrors.Errorf("failed to generate contentID for file upload [%s]", chnk.File.GetPortablePath()))
+				if uploadInfo.File.GetContentID() == "" {
+					tsk.Fail(wlerrors.Errorf("failed to generate contentID for file upload [%s]", uploadInfo.File.GetPortablePath()))
 				}
 
-				newAction := history.NewCreateAction(appCtx, chnk.File)
+				newAction := history.NewCreateAction(appCtx, uploadInfo.File)
 
 				err = history.SaveAction(appCtx, &newAction)
 				if err != nil {
@@ -265,12 +282,7 @@ WriterLoop:
 					return
 				}
 
-				embedMeta := job_model.ExtractAndEmbedMeta{File: chnk.File}
-				if _, dispatchErr := appCtx.DispatchJob(job_model.ExtractAndEmbedTask, embedMeta, nil); dispatchErr != nil {
-					appCtx.Log().Warn().Err(dispatchErr).Msgf("Failed to dispatch ExtractAndEmbedTask for %s", chnk.File.GetPortablePath())
-				}
-
-				fInfo, err := reshape.WeblensFileToFileInfo(appCtx, chnk.File)
+				fInfo, err := reshape.WeblensFileToFileInfo(appCtx, uploadInfo.File)
 				if err != nil {
 					appCtx.Log().Error().Stack().Err(err).Msg("Failed to reshape file to file info")
 				}
@@ -291,8 +303,8 @@ WriterLoop:
 			}
 
 			tsk.Log().Trace().Func(func(e *zerolog.Event) {
-				if chnk.BytesWritten < chnk.FileSizeTotal {
-					e.Msgf("%s has not finished uploading yet %d of %d", chnk.File.GetPortablePath(), chnk.BytesWritten, chnk.FileSizeTotal)
+				if uploadInfo.BytesWritten < uploadInfo.FileSizeTotal {
+					e.Msgf("%s has not finished uploading yet %d of %d", uploadInfo.File.GetPortablePath(), uploadInfo.BytesWritten, uploadInfo.FileSizeTotal)
 				}
 			})
 

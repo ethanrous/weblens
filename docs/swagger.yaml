@@ -1429,6 +1429,10 @@ paths:
         in: query
         name: shareID
         type: string
+      - description: Force a full re-index, rebuilding media and embeddings
+        in: query
+        name: forceReindex
+        type: boolean
       responses:
         "200":
           description: Task Info

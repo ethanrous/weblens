@@ -249,10 +249,12 @@ const apiInstance = new FolderApi(configuration);
 
 let folderID: string; //Folder ID (default to undefined)
 let shareID: string; //Share ID (optional) (default to undefined)
+let forceReindex: boolean; //Force a full re-index, rebuilding media and embeddings (optional) (default to undefined)
 
 const { status, data } = await apiInstance.scanFolder(
     folderID,
-    shareID
+    shareID,
+    forceReindex
 );
 ```
 
@@ -262,6 +264,7 @@ const { status, data } = await apiInstance.scanFolder(
 |------------- | ------------- | ------------- | -------------|
 | **folderID** | [**string**] | Folder ID | defaults to undefined|
 | **shareID** | [**string**] | Share ID | (optional) defaults to undefined|
+| **forceReindex** | [**boolean**] | Force a full re-index, rebuilding media and embeddings | (optional) defaults to undefined|
 
 
 ### Return type

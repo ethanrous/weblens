@@ -10,6 +10,7 @@ import (
 	"github.com/ethanrous/weblens/models/job"
 	media_model "github.com/ethanrous/weblens/models/media"
 	"github.com/ethanrous/weblens/models/task"
+	"github.com/ethanrous/weblens/modules/set"
 	"github.com/ethanrous/weblens/modules/websocket"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/modules/wlog"
@@ -19,11 +20,10 @@ import (
 	"github.com/ethanrous/weblens/services/notify"
 	"github.com/ethanrous/weblens/services/reshape"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
-// ScanDirectory scans a directory and processes all files within it.
-func ScanDirectory(t *task.Task) {
+// IndexDirectory scans a directory and processes all files within it.
+func IndexDirectory(t *task.Task) {
 	ctx, ok := context_service.FromContext(t.Ctx)
 	if !ok {
 		t.Fail(wlerrors.New("failed to get context"))
@@ -31,7 +31,7 @@ func ScanDirectory(t *task.Task) {
 		return
 	}
 
-	meta := t.GetMeta().(job.ScanMeta)
+	meta := t.GetMeta().(job.IndexMeta)
 
 	t.SetErrorCleanup(func(_ *task.Task) {
 		err := t.ReadError()
@@ -41,9 +41,9 @@ func ScanDirectory(t *task.Task) {
 
 	if file_model.IsFileInTrash(meta.File) {
 		// Let any client subscribers know we are done
-		notif := notify.NewTaskNotification(t, websocket.FolderScanCompleteEvent, task.Result{"executionTime": t.ExeTime()})
+		notif := notify.NewTaskNotification(t, websocket.DirectoryIndexCompleteEvent, task.Result{"executionTime": t.ExeTime()})
 		ctx.Notify(ctx, notif)
-		t.Success("No media to scan")
+		t.Success("Not indexing file in trash")
 
 		return
 	}
@@ -56,6 +56,7 @@ func ScanDirectory(t *task.Task) {
 		return
 	}
 
+	// Any subscribers to the folder (or parent of the folder) we are indexing should also get updates about this index task.
 	ctx.ClientService.FolderSubToTask(ctx, meta.File.ID(), t)
 
 	parent := meta.File.GetParent()
@@ -63,6 +64,7 @@ func ScanDirectory(t *task.Task) {
 		ctx.ClientService.FolderSubToTask(ctx, parent.ID(), t)
 	}
 
+	// Unsubscribe clients from this task when it's done.
 	t.SetCleanup(func(tsk *task.Task) {
 		// Make sure we finish sending any messages to the client
 		// before we close unsubscribe from the task
@@ -75,7 +77,7 @@ func ScanDirectory(t *task.Task) {
 	})
 
 	t.Log().Debug().Func(func(e *zerolog.Event) {
-		e.Msgf("Beginning directory scan for [%s] (%s) - force re-index: %t", meta.File.GetPortablePath(), meta.File.ID(), meta.ForceReIndex)
+		e.Msgf("Beginning directory index for [%s] (%s) - force re-index: %t", meta.File.GetPortablePath(), meta.File.ID(), meta.ForceReIndex)
 	})
 
 	var alreadyFiles []*file_model.WeblensFileImpl
@@ -84,7 +86,7 @@ func ScanDirectory(t *task.Task) {
 
 	start := time.Now()
 
-	cnf, err := featureflags.GetFlags(ctx)
+	flags, err := featureflags.GetFlags(ctx)
 	if err != nil {
 		t.Fail(wlerrors.WithStack(err))
 
@@ -96,22 +98,71 @@ func ScanDirectory(t *task.Task) {
 		"state":    "Discovering files",
 	})
 
-	// Find all the files in the directory that need to be scanned.
+	discoveredFileIDs := set.New[string]()
+	discoveredFiles := make(map[string]*file_model.WeblensFileImpl)
+
+	// Find all the files in the directory that need to be indexed.
 	err = meta.File.LeafMap(
 		ctx,
 		ctx.FileService,
 		func(mf *file_model.WeblensFileImpl) error {
-			return queueScanFileIfNeeded(ctx, t, mf, cnf.EnableEmbed, meta.ForceReIndex, &alreadyFiles, &alreadyMedia, pool)
+			// LeafMap also visits directories; they never have media/embeddings, so
+			// skip them to avoid inflating the media lookup and force-reindex delete set.
+			if mf.IsDir() {
+				return nil
+			}
+
+			fID := mf.ID()
+			discoveredFileIDs.Add(fID)
+			discoveredFiles[fID] = mf
+
+			return nil
 		},
 	)
+	if err != nil {
+		t.Fail(wlerrors.WithStack(err))
+
+		return
+	}
+
+	medias, err := media_model.GetMediasByFileIDs(ctx, discoveredFileIDs.ToSlice()...)
+	if err != nil {
+		t.Fail(wlerrors.WithStack(err))
+
+		return
+	}
+
+	mediaMap := make(map[string]*media_model.Media, len(medias))
+	for _, m := range medias {
+		mediaMap[m.ContentID] = m
+	}
+
+	if meta.ForceReIndex {
+		err = clearExistingIndex(ctx, medias, discoveredFileIDs.ToSlice())
+		if err != nil {
+			t.Fail(err)
+
+			return
+		}
+	}
+
+	doEmbed := flags.EnableEmbed && !embed.Default().ServiceUnavailable()
+
+	for _, discoFile := range discoveredFiles {
+		media := mediaMap[discoFile.GetContentID()]
+
+		err = queueFileIndexIfNeeded(ctx, t, discoFile, media, doEmbed, meta.ForceReIndex, &alreadyFiles, &alreadyMedia, pool)
+		if err != nil {
+			t.Fail(wlerrors.WithStack(err))
+
+			return
+		}
+	}
 
 	t.SetResult(task.Result{
-		"filepath": meta.File.GetPortablePath().String(),
-		"state":    "Done discovering files",
-	})
-
-	log.Debug().Func(func(e *zerolog.Event) {
-		e.Str("portable_file_path", meta.File.GetPortablePath().String()).Msgf("Directory scan found files in %s", time.Since(start))
+		"filepath":                meta.File.GetPortablePath().String(),
+		"state":                   "Done discovering files",
+		"discoveredFilesDuration": time.Since(start).String(),
 	})
 
 	// If the files are already in the media service, we need to update the clients
@@ -142,12 +193,6 @@ func ScanDirectory(t *task.Task) {
 	}
 
 	pool.SignalAllQueued()
-
-	// err = meta.FileService.ResizeDown(meta.File, nil, meta.Caster)
-	// if err != nil {
-	// 	log.Error().Stack().Err(err).Msg("")
-	// }
-
 	pool.Wait(true, t)
 
 	errs := pool.Errors()
@@ -169,153 +214,12 @@ func ScanDirectory(t *task.Task) {
 
 	// Let any client subscribers know we are done
 	result := GetScanResult(t)
-	notif := notify.NewPoolNotification(pool.GetRootPool(), websocket.FolderScanCompleteEvent, result)
+	notif := notify.NewPoolNotification(pool.GetRootPool(), websocket.DirectoryIndexCompleteEvent, result)
 	ctx.Notify(ctx, notif)
 
 	t.Log().Debug().Func(func(e *zerolog.Event) { e.Msgf("Finished directory scan for %s", meta.File.GetPortablePath()) })
 
 	t.Success()
-}
-
-// ScanFile scans an individual file and processes its metadata.
-func ScanFile(tsk *task.Task) {
-	reportSubscanStatus(tsk)
-
-	meta := tsk.GetMeta().(job.ScanMeta)
-
-	ctx, ok := context_service.FromContext(tsk.Ctx)
-	if !ok {
-		tsk.Fail(wlerrors.New("failed to get context"))
-
-		return
-	}
-
-	tsk.SetResult(task.Result{
-		"filepath": meta.File.GetPortablePath().String(),
-	})
-
-	err := ScanFileTsk(ctx, meta)
-	if err != nil {
-		tsk.Fail(err)
-	}
-
-	tsk.Success()
-}
-
-// ScanFileTsk is the internal implementation for scanning a file with the given context and metadata.
-func ScanFileTsk(ctx context_service.AppContext, meta job.ScanMeta) error {
-	if !media_model.ParseExtension(meta.File.GetPortablePath().Ext()).Displayable {
-		return wlerrors.WithStack(media_model.ErrNotDisplayable)
-	}
-
-	cnf, err := featureflags.GetFlags(ctx)
-	if err != nil {
-		return wlerrors.WithStack(err)
-	}
-
-	existingMedia, err := media_model.GetMediaByContentID(ctx, meta.File.GetContentID())
-
-	var hasEmbedding bool
-	if err == nil && cnf.EnableEmbed {
-		hasEmbedding = hasImageEmbedding(ctx, string(existingMedia.ContentID))
-	}
-
-	if err == nil && !meta.ForceReIndex && existingMedia.IsSufficentlyProcessed(cnf.EnableEmbed, hasEmbedding) {
-		ctx.Log().Trace().Msgf("Media [%s] already sufficiently processed, skipping", existingMedia.ID())
-
-		if !slices.Contains(existingMedia.FileIDs, meta.File.ID()) {
-			err = existingMedia.AddFileToMedia(ctx, meta.File.ID())
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
-	} else if err == nil && meta.ForceReIndex {
-		// Remove the existing media so we can re-index it fresh
-		ctx.Log().Trace().Msgf("Force re-index enabled, removing existing media [%s] for file [%s]", existingMedia.ID(), meta.File.GetPortablePath())
-
-		err = media_model.DeleteMediaByContentID(ctx, existingMedia.ContentID)
-		if err != nil {
-			return wlerrors.Errorf("failed to delete existing media for re-index: %w", err)
-		}
-
-		if err := embedding.DeleteForSource(ctx, string(existingMedia.ContentID), embedding.KindImage); err != nil {
-			ctx.Log().Warn().Err(err).Msgf("Failed to delete image embeddings for media %s during re-index", existingMedia.ContentID)
-		}
-
-		err = media_service.PurgeCache(ctx, existingMedia)
-		if err != nil {
-			return wlerrors.Errorf("failed to purge cache for existing media during re-index: %w", err)
-		}
-
-		existingMedia = nil
-	}
-
-	media := existingMedia
-	mediaIsNew := media == nil
-	isCached := false
-
-	if mediaIsNew || meta.ForceReIndex {
-		media, err = media_service.NewMediaFromFile(ctx, meta.File)
-		if err != nil {
-			return err
-		}
-	} else {
-		if !slices.Contains(existingMedia.FileIDs, meta.File.ID()) {
-			err = existingMedia.AddFileToMedia(ctx, meta.File.ID())
-			if err != nil {
-				return err
-			}
-		}
-
-		// Check if the media has thumbnails cached on the filesystem. If not, we need to regenerate them.
-		isCached, err = media_service.IsCached(ctx, media)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Generate the thumbnails if they do not exist
-	if !isCached {
-		_, err = media_service.HandleCacheCreation(ctx, media, meta.File)
-		if err != nil {
-			return err
-		}
-	}
-
-	if cnf.EnableEmbed && !embed.Default().ServiceUnavailable() {
-		if err := writeImageEmbedding(ctx, media); err != nil {
-			ctx.Log().Error().Err(err).Msgf("Failed to write image embedding for %s", media.ID())
-		}
-	}
-
-	ctx.Log().Trace().Func(func(e *zerolog.Event) {
-		if !cnf.EnableEmbed {
-			e.Msgf("Image embedding generation is disabled, skipping for media %s", media.ID())
-		}
-	})
-
-	err = media_model.SaveMedia(ctx, media)
-	if err != nil {
-		ctx.Log().Debug().Msgf("Failed to save media %s - %s", media.MediaID, media.ID())
-
-		return wlerrors.Errorf("failed to save media: %w", err)
-	}
-
-	mediaInfo := reshape.MediaToMediaInfo(media)
-
-	o := notify.FileNotificationOptions{MediaInfo: mediaInfo}
-
-	fInfo, err := reshape.WeblensFileToFileInfo(ctx, meta.File)
-	if err != nil {
-		return err
-	}
-
-	notif := notify.NewFileNotification(ctx, fInfo, websocket.FileUpdatedEvent, o)
-	ctx.Notify(ctx, notif...)
-
-	return nil
 }
 
 // GetScanResult compiles the result information for a scan task, including progress and file details.
@@ -332,7 +236,7 @@ func GetScanResult(t *task.Task) task.Result {
 
 	var result = task.Result{}
 
-	meta, ok := t.GetMeta().(job.ScanMeta)
+	meta, ok := t.GetMeta().(job.IndexMeta)
 	if ok {
 		result = task.Result{
 			"portablePath": meta.File.GetPortablePath(),
@@ -340,7 +244,7 @@ func GetScanResult(t *task.Task) task.Result {
 		}
 
 		if tp != nil && tp.CreatedInTask() != nil {
-			result["taskJobTarget"] = tp.CreatedInTask().GetMeta().(job.ScanMeta).File.GetPortablePath()
+			result["taskJobTarget"] = tp.CreatedInTask().GetMeta().(job.IndexMeta).File.GetPortablePath()
 		} else if tp == nil {
 			result["taskJobTarget"] = meta.File.GetPortablePath()
 		}
@@ -364,7 +268,39 @@ func GetScanResult(t *task.Task) task.Result {
 	return result
 }
 
-func queueScanFileIfNeeded(ctx context_service.AppContext, t *task.Task, mf *file_model.WeblensFileImpl, doHdir, forceReIndex bool, alreadyFiles *[]*file_model.WeblensFileImpl, alreadyMedia *[]*media_model.Media, pool *task.Pool) error {
+func clearExistingIndex(ctx context_service.AppContext, medias []*media_model.Media, fileIDs []string) error {
+	// Remove the existing media so we can re-index it fresh
+	ctx.Log().Trace().Msgf("Force re-index enabled, removing [%d] existing media", len(medias))
+
+	err := media_model.DeleteMedias(ctx, medias...)
+	if err != nil {
+		return wlerrors.Errorf("failed to delete existing media for re-index: %w", err)
+	}
+
+	// Image embeddings are keyed by media contentID, file-chunk embeddings by fileID.
+	// Clear both so a force re-index rebuilds the full semantic index.
+	sourceIDs := make([]string, 0, len(medias)+len(fileIDs))
+	for _, m := range medias {
+		sourceIDs = append(sourceIDs, string(m.ContentID))
+	}
+
+	sourceIDs = append(sourceIDs, fileIDs...)
+
+	if err := embedding.DeleteAllForSources(ctx, sourceIDs); err != nil {
+		return wlerrors.Errorf("failed to delete existing embeddings for re-index: %w", err)
+	}
+
+	for _, m := range medias {
+		err = media_service.PurgeCache(ctx, m)
+		if err != nil {
+			ctx.Log().Warn().Err(err).Msgf("Failed to purge cache for media %s during re-index", m.ContentID)
+		}
+	}
+
+	return nil
+}
+
+func queueFileIndexIfNeeded(ctx context_service.AppContext, t *task.Task, mf *file_model.WeblensFileImpl, media *media_model.Media, doEmbed, forceReIndex bool, alreadyFiles *[]*file_model.WeblensFileImpl, alreadyMedia *[]*media_model.Media, pool *task.Pool) error {
 	if mf.IsDir() {
 		t.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Skipping file %s, not regular file", mf.GetPortablePath()) })
 
@@ -377,16 +313,13 @@ func queueScanFileIfNeeded(ctx context_service.AppContext, t *task.Task, mf *fil
 		return nil
 	}
 
-	// Dispatch document-text extraction before the displayability gate, since non-displayable text/office/code files are still content-indexed.
-	if doHdir && shouldExtractTextOnScan(mf.GetPortablePath().Ext()) && !embed.Default().ServiceUnavailable() {
-		embedMeta := job.ExtractAndEmbedMeta{File: mf}
-		if _, dispatchErr := ctx.DispatchJob(job.ExtractAndEmbedTask, embedMeta, nil); dispatchErr != nil {
-			t.Log().Warn().Err(dispatchErr).Msgf("Failed to dispatch ExtractAndEmbedTask for %s", mf.GetPortablePath())
-		}
-	}
-
 	mt := media_model.ParseExtension(mf.GetPortablePath().Ext())
 	if !mt.Displayable {
+		// Non-displayable files never run IndexFile, so dispatch text/OCR embedding directly here.
+		if doEmbed {
+			dispatchEmbedTask(ctx, mf)
+		}
+
 		return nil
 	}
 
@@ -396,22 +329,20 @@ func queueScanFileIfNeeded(ctx context_service.AppContext, t *task.Task, mf *fil
 		return nil
 	}
 
-	m, err := media_model.GetMediaByContentID(ctx, mf.GetContentID())
-
 	var mHasEmbedding bool
-	if err == nil && doHdir {
-		mHasEmbedding = hasImageEmbedding(ctx, string(m.ContentID))
+	if media != nil && doEmbed {
+		mHasEmbedding = hasImageEmbedding(ctx, string(media.ContentID))
 	}
 
-	if err == nil && !forceReIndex && m.IsSufficentlyProcessed(doHdir, mHasEmbedding) {
-		if !slices.Contains(m.FileIDs, mf.ID()) {
-			err = m.AddFileToMedia(ctx, mf.ID())
+	if media != nil && !forceReIndex && media.IsSufficentlyProcessed(doEmbed, mHasEmbedding) {
+		if !slices.Contains(media.FileIDs, mf.ID()) {
+			err := media.AddFileToMedia(ctx, mf.ID())
 			if err != nil {
 				return err
 			}
 
 			*alreadyFiles = append(*alreadyFiles, mf)
-			*alreadyMedia = append(*alreadyMedia, m)
+			*alreadyMedia = append(*alreadyMedia, media)
 		}
 
 		t.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Skipping file %s, already imported", mf.GetPortablePath()) })
@@ -419,14 +350,12 @@ func queueScanFileIfNeeded(ctx context_service.AppContext, t *task.Task, mf *fil
 		return nil
 	}
 
-	subMeta := job.ScanMeta{
+	fileIndexMeta := job.IndexMeta{
 		File:         mf,
 		ForceReIndex: forceReIndex,
 	}
 
-	t.Log().Trace().Func(func(e *zerolog.Event) { e.Msgf("Dispatching scanFile job for [%s]", mf.GetPortablePath()) })
-
-	newT, err := ctx.DispatchJob(job.ScanFileTask, subMeta, pool)
+	newT, err := ctx.DispatchJob(job.IndexFileTask, fileIndexMeta, pool)
 	if err != nil {
 		return err
 	}
@@ -434,6 +363,18 @@ func queueScanFileIfNeeded(ctx context_service.AppContext, t *task.Task, mf *fil
 	newT.SetCleanup(reportSubscanStatus)
 
 	return nil
+}
+
+// dispatchEmbedTask queues a background extract+embed task for the file on an
+// independent pool. ExtractAndEmbedFile self-gates flag/size/availability/idempotency.
+func dispatchEmbedTask(ctx context_service.AppContext, file *file_model.WeblensFileImpl) {
+	if !media_model.EmbedEligible(file.GetPortablePath().Ext()) || embed.Default().ServiceUnavailable() {
+		return
+	}
+
+	if _, err := ctx.DispatchJob(job.ExtractAndEmbedTask, job.ExtractAndEmbedMeta{File: file}, nil); err != nil {
+		ctx.Log().Warn().Err(err).Msgf("Failed to dispatch ExtractAndEmbedTask for %s", file.GetPortablePath())
+	}
 }
 
 func reportSubscanStatus(tsk *task.Task) {
@@ -475,60 +416,4 @@ func hasImageEmbedding(ctx context_service.AppContext, sourceID string) bool {
 	}
 
 	return n > 0
-}
-
-// writeImageEmbedding encodes a media's cached image(s) into the embeddings collection, one row per page; non-image-recognizable types are skipped.
-func writeImageEmbedding(ctx context_service.AppContext, media *media_model.Media) error {
-	if !media_model.ParseMime(media.MimeType).SupportsImgRecog() {
-		return nil
-	}
-
-	pageCount := media.GetPageCount()
-	if pageCount < 1 {
-		pageCount = 1
-	}
-
-	multiPage := pageCount > 1
-	modelName := currentModelName()
-
-	for page := 0; page < pageCount; page++ {
-		exists, err := embedding.CountForChunk(ctx, embedding.KindImage, string(media.ContentID), modelName, page)
-		if err != nil {
-			return err
-		}
-
-		if exists > 0 {
-			continue
-		}
-
-		quality := media_model.LowRes
-		if multiPage {
-			quality = media_model.HighRes
-		}
-
-		cacheFile, err := media_service.GetCacheFile(ctx, media, quality, page)
-		if err != nil {
-			return wlerrors.Errorf("get cache file (page %d, quality %s): %w", page, quality, err)
-		}
-
-		vec, err := embed.Default().EncodeImage(ctx, cacheFile.GetPortablePath().String())
-		if err != nil {
-			return wlerrors.Errorf("encode image (page %d): %w", page, err)
-		}
-
-		err = embedding.Upsert(ctx, embedding.Embedding{
-			Kind:       embedding.KindImage,
-			SourceID:   string(media.ContentID),
-			ChunkIndex: page,
-			Page:       page + 1,
-			Vector:     vec,
-			Model:      modelName,
-			CreatedAt:  time.Now().UTC(),
-		})
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }

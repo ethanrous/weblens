@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ethanrous/weblens/models/featureflags"
 	file_model "github.com/ethanrous/weblens/models/file"
 	"github.com/ethanrous/weblens/models/job"
 	media_model "github.com/ethanrous/weblens/models/media"
@@ -14,6 +15,7 @@ import (
 	"github.com/ethanrous/weblens/modules/wlstructs"
 	"github.com/ethanrous/weblens/services/auth"
 	context_service "github.com/ethanrous/weblens/services/ctxservice"
+	"github.com/ethanrous/weblens/services/embed"
 	file_service "github.com/ethanrous/weblens/services/file"
 	"github.com/ethanrous/weblens/services/reshape"
 	"github.com/rs/zerolog"
@@ -28,24 +30,35 @@ import (
 //
 //	@Summary	Dispatch a folder scan
 //	@Tags		Folder
-//	@Param		folderID	path		string				true	"Folder ID"
-//	@Param		shareID		query		string				false	"Share ID"
-//	@Success	200			{object}	wlstructs.TaskInfo	"Task Info"
+//	@Param		folderID		path		string				true	"Folder ID"
+//	@Param		shareID			query		string				false	"Share ID"
+//	@Param		forceReindex	query		bool				false	"Force a full re-index, rebuilding media and embeddings"
+//	@Success	200				{object}	wlstructs.TaskInfo	"Task Info"
 //	@Failure	404
 //	@Failure	500
 //	@Router		/folder/{folderID}/scan [post]
 func ScanDir(ctx context_service.RequestContext) {
 	folder := ctx.File
 
-	meta := job.ScanMeta{
-		File: folder,
-	}
+	var (
+		jobName string
+		meta    task.Metadata
+	)
 
-	var jobName string
-	if folder.IsDir() {
+	switch {
+	case folder.IsDir():
 		jobName = job.ScanDirectoryTask
-	} else {
-		jobName = job.ScanFileTask
+		meta = job.IndexMeta{File: folder, ForceReIndex: ctx.QueryBool("forceReindex")}
+	case media_model.ParseExtension(folder.GetPortablePath().Ext()).Displayable:
+		jobName = job.IndexFileTask
+		meta = job.IndexMeta{File: folder, ForceReIndex: ctx.QueryBool("forceReindex")}
+	case media_model.EmbedEligible(folder.GetPortablePath().Ext()):
+		jobName = job.ExtractAndEmbedTask
+		meta = job.ExtractAndEmbedMeta{File: folder, ForceReIndex: ctx.QueryBool("forceReindex")}
+	default:
+		ctx.Error(http.StatusBadRequest, wlerrors.New("file is not displayable or embed-eligible"))
+
+		return
 	}
 
 	t, err := ctx.TaskService.DispatchJob(ctx, jobName, meta, nil)
@@ -120,7 +133,50 @@ func formatRespondFolderInfo(ctx context_service.RequestContext, dir *file_model
 	childInfos := make([]wlstructs.FileInfo, 0, len(children))
 	infoOpts := reshape.FileInfoOptions{Perms: option.Of(*perms)}
 
+	// Embedding-existence rescans only make sense when embeddings can actually be written.
+	embedActive := false
+
+	if flags, flagsErr := featureflags.GetFlags(ctx); flagsErr != nil {
+		ctx.Log().Warn().Err(flagsErr).Msg("Failed to read feature flags; treating embedding as inactive for folder listing")
+	} else {
+		embedActive = flags.EnableEmbed && !embed.Default().ServiceUnavailable()
+	}
+
 	var scanTask *task.Task
+
+	embedInProgress, err := embed.IsEmbeddingInProgress(ctx, ctx.Requester)
+	if err != nil {
+		ctx.Log().Warn().Err(err).Msg("Failed to check embedding in progress status; skipping embed rescan logic")
+
+		embedInProgress = false
+	}
+
+	// Batch the embedding-existence lookup for all embed-eligible children up front to avoid an
+	// N+1 of per-child count queries while listing the folder.
+	var embeddedFiles map[string]bool
+
+	if embedActive && !embedInProgress {
+		var candidates []*file_model.WeblensFileImpl
+
+		for _, child := range children {
+			if child == nil || child.IsDir() {
+				continue
+			}
+
+			if media_model.EmbedEligible(child.GetPortablePath().Ext()) {
+				candidates = append(candidates, child)
+			}
+		}
+
+		if len(candidates) > 0 {
+			embeddedFiles, err = embed.FilesEmbedded(ctx, candidates)
+			if err != nil {
+				ctx.Log().Warn().Err(err).Msg("Failed to batch-check embedding status; skipping embed rescan")
+
+				embedActive = false
+			}
+		}
+	}
 
 	for _, child := range children {
 		if child == nil {
@@ -132,17 +188,31 @@ func formatRespondFolderInfo(ctx context_service.RequestContext, dir *file_model
 			return err
 		}
 
-		if _, exists := mediaMap[info.ContentID]; exists {
-			info.HasMedia = true
-		} else if scanTask == nil && !child.IsDir() {
-			ctx.Log().Debug().Msgf("Dispatching scan task for parent folder [%s] since child [%s] has no media but is expected to have one", dir.GetPortablePath(), child.GetPortablePath())
+		if !embedInProgress {
+			mediaExists := false
+			_, mediaExists = mediaMap[info.ContentID]
 
-			t, err := ctx.TaskService.DispatchJob(ctx, job.ScanDirectoryTask, job.ScanMeta{File: parent}, nil)
-			if err != nil {
-				ctx.Log().Error().Err(err).Msgf("Failed to dispatch scan task for file [%s]", parent.GetPortablePath())
+			if mediaExists {
+				info.HasMedia = true
 			}
 
-			scanTask = t
+			if scanTask == nil && !child.IsDir() {
+				shouldLaunchIndex := !mediaExists
+				if !shouldLaunchIndex && embedActive && media_model.EmbedEligible(child.GetPortablePath().Ext()) {
+					shouldLaunchIndex = !embeddedFiles[child.ID()]
+				}
+
+				if shouldLaunchIndex {
+					ctx.Log().Debug().Msgf("Dispatching scan task for parent folder [%s] since child [%s] is missing media or index", dir.GetPortablePath(), child.GetPortablePath())
+
+					t, err := ctx.TaskService.DispatchJob(ctx, job.ScanDirectoryTask, job.IndexMeta{File: dir}, nil)
+					if err != nil {
+						ctx.Log().Error().Err(err).Msgf("Failed to dispatch scan task for file [%s]", dir.GetPortablePath())
+					}
+
+					scanTask = t
+				}
+			}
 		}
 
 		childInfos = append(childInfos, info)

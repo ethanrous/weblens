@@ -21,7 +21,8 @@
       "nestif",
       "tagalign",
       "wsl",
-      "gocritic"
+      "gocritic",
+      "gomodguard"
     ],
     "exclusions": {
       "rules": [

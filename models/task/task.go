@@ -70,10 +70,11 @@ type Task struct {
 
 // Priority constants for task scheduling. Higher values run first.
 const (
-	PriorityLow     = 1   // background directory scans
-	PriorityMedium  = 2   // file scans — drain ahead of their parent directory scans
-	PriorityDefault = 3   // jobs registered without an explicit priority — never starved by background scans
-	PriorityHigh    = 999 // user-facing work (uploads, filesystem load)
+	PriorityBackground = -1  // background tasks that should always be starved by other work, such as media embed, cleanup, etc.
+	PriorityDefault    = 1   // Directory indexing, etc., should wait for other work to complete, but should run before background tasks
+	PriorityMedium     = 2   // file scans - drain ahead of their parent directory scans
+	PriorityHigh       = 3   // single-file indexing - runs ahead of directory scans, never starved by background work
+	PriorityXHigh      = 999 // user-facing work (uploads, filesystem load)
 )
 
 // Options specifies configuration options for task behavior.

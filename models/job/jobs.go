@@ -4,8 +4,8 @@ package job
 const (
 	// ScanDirectoryTask is the task identifier for scanning a directory.
 	ScanDirectoryTask = "scan_directory"
-	// ScanFileTask is the task identifier for scanning a file.
-	ScanFileTask = "scan_file"
+	// IndexFileTask is the task identifier for scanning a file.
+	IndexFileTask = "index_file"
 	// MoveFileTask is the task identifier for moving a file.
 	MoveFileTask = "move_file"
 	// UploadFilesTask is the task identifier for uploading files.

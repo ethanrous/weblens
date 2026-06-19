@@ -1486,10 +1486,11 @@ declare const FolderApiAxiosParamCreator: (configuration?: Configuration) => {
      * @summary Dispatch a folder scan
      * @param {string} folderID Folder ID
      * @param {string} [shareID] Share ID
+     * @param {boolean} [forceReindex] Force a full re-index, rebuilding media and embeddings
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    scanFolder: (folderID: string, shareID?: string, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    scanFolder: (folderID: string, shareID?: string, forceReindex?: boolean, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Set the cover image of a folder
@@ -1546,10 +1547,11 @@ declare const FolderApiFp: (configuration?: Configuration) => {
      * @summary Dispatch a folder scan
      * @param {string} folderID Folder ID
      * @param {string} [shareID] Share ID
+     * @param {boolean} [forceReindex] Force a full re-index, rebuilding media and embeddings
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    scanFolder(folderID: string, shareID?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TaskInfo>>;
+    scanFolder(folderID: string, shareID?: string, forceReindex?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<TaskInfo>>;
     /**
      *
      * @summary Set the cover image of a folder
@@ -1606,10 +1608,11 @@ declare const FolderApiFactory: (configuration?: Configuration, basePath?: strin
      * @summary Dispatch a folder scan
      * @param {string} folderID Folder ID
      * @param {string} [shareID] Share ID
+     * @param {boolean} [forceReindex] Force a full re-index, rebuilding media and embeddings
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    scanFolder(folderID: string, shareID?: string, options?: RawAxiosRequestConfig): AxiosPromise<TaskInfo>;
+    scanFolder(folderID: string, shareID?: string, forceReindex?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<TaskInfo>;
     /**
      *
      * @summary Set the cover image of a folder
@@ -1666,10 +1669,11 @@ declare class FolderApi extends BaseAPI {
      * @summary Dispatch a folder scan
      * @param {string} folderID Folder ID
      * @param {string} [shareID] Share ID
+     * @param {boolean} [forceReindex] Force a full re-index, rebuilding media and embeddings
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    scanFolder(folderID: string, shareID?: string, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TaskInfo, any, {}>>;
+    scanFolder(folderID: string, shareID?: string, forceReindex?: boolean, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TaskInfo, any, {}>>;
     /**
      *
      * @summary Set the cover image of a folder

@@ -30,7 +30,8 @@ const MediaTypeJSON = `{
         "IsRaw": false,
         "IsVideo": false,
         "SupportsImgRecog": true,
-        "MultiPage": true
+        "MultiPage": true,
+        "IsEmbeddable": true
     },
     "image/jpeg": {
         "FriendlyName": "Jpeg",
@@ -42,7 +43,8 @@ const MediaTypeJSON = `{
         "IsDisplayable": true,
         "IsRaw": false,
         "IsVideo": false,
-        "SupportsImgRecog": true
+        "SupportsImgRecog": true,
+        "IsEmbeddable": true
     },
     "image/png": {
         "FriendlyName": "Png",
@@ -52,7 +54,8 @@ const MediaTypeJSON = `{
         "IsDisplayable": true,
         "IsRaw": false,
         "IsVideo": false,
-        "SupportsImgRecog": true
+        "SupportsImgRecog": true,
+        "IsEmbeddable": true
     },
     "image/x-nikon-nef": {
         "FriendlyName": "Nikon Raw",
@@ -64,29 +67,34 @@ const MediaTypeJSON = `{
         "IsRaw": true,
         "IsVideo": false,
         "RawThumbExifKey": "JpgFromRaw",
-        "SupportsImgRecog": true
+        "SupportsImgRecog": true,
+        "IsEmbeddable": true
     },
     "image/x-sony-arw": {
         "FriendlyName": "Sony ARW",
         "FileExtension": [
-            "ARW"
+            "ARW",
+            "arw"
         ],
         "IsDisplayable": true,
         "IsRaw": true,
         "IsVideo": false,
         "RawThumbExifKey": "PreviewImage",
-        "SupportsImgRecog": true
+        "SupportsImgRecog": true,
+        "IsEmbeddable": true
     },
     "image/x-canon-cr2": {
         "FriendlyName": "Cannon Raw",
         "FileExtension": [
-            "CR2"
+            "CR2",
+            "cr2"
         ],
         "IsDisplayable": true,
         "IsRaw": true,
         "IsVideo": false,
         "RawThumbExifKey": "PreviewImage",
-        "SupportsImgRecog": true
+        "SupportsImgRecog": true,
+        "IsEmbeddable": true
     },
     "image/heic": {
         "FriendlyName": "HEIC",
@@ -98,7 +106,8 @@ const MediaTypeJSON = `{
         "IsRaw": false,
         "IsVideo": false,
         "RawThumbExifKey": "",
-        "SupportsImgRecog": true
+        "SupportsImgRecog": true,
+        "IsEmbeddable": true
     },
     "image/heif": {
         "FriendlyName": "HEIF",
@@ -110,7 +119,29 @@ const MediaTypeJSON = `{
         "IsRaw": false,
         "IsVideo": false,
         "RawThumbExifKey": "",
-        "SupportsImgRecog": true
+        "SupportsImgRecog": true,
+        "IsEmbeddable": true
+    },
+    "image/tiff": {
+        "FriendlyName": "TIFF",
+        "FileExtension": [
+            "tif",
+            "tiff"
+        ],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": false,
+        "IsEmbeddable": true
+    },
+    "image/bmp": {
+        "FriendlyName": "BMP",
+        "FileExtension": [
+            "bmp"
+        ],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": false,
+        "IsEmbeddable": true
     },
     "image/webp": {
         "FriendlyName": "webp",
@@ -121,7 +152,8 @@ const MediaTypeJSON = `{
         "IsRaw": false,
         "IsVideo": false,
         "RawThumbExifKey": "",
-        "SupportsImgRecog": true
+        "SupportsImgRecog": true,
+        "IsEmbeddable": true
     },
     "application/pdf": {
         "FriendlyName": "PDF",
@@ -133,7 +165,38 @@ const MediaTypeJSON = `{
         "IsVideo": false,
         "RawThumbExifKey": "",
         "SupportsImgRecog": false,
-        "MultiPage": true
+        "MultiPage": true,
+        "IsEmbeddable": true
+    },
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+        "FriendlyName": "Word",
+        "FileExtension": [
+            "docx"
+        ],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": false,
+        "IsEmbeddable": true
+    },
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+        "FriendlyName": "Excel",
+        "FileExtension": [
+            "xlsx"
+        ],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": false,
+        "IsEmbeddable": true
+    },
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": {
+        "FriendlyName": "PowerPoint",
+        "FileExtension": [
+            "pptx"
+        ],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": false,
+        "IsEmbeddable": true
     },
     "video/mp4": {
         "FriendlyName": "MP4",
@@ -168,6 +231,191 @@ const MediaTypeJSON = `{
         "IsRaw": false,
         "IsVideo": true,
         "SupportsImgRecog": false
+    },
+    "text/plain": {
+        "FriendlyName": "Text",
+        "FileExtension": [
+            "txt",
+            "log"
+        ],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": false,
+        "IsEmbeddable": true
+    },
+    "text/markdown": {
+        "FriendlyName": "Markdown",
+        "FileExtension": [
+            "md"
+        ],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": false,
+        "IsEmbeddable": true
+    },
+    "text/csv": {
+        "FriendlyName": "CSV",
+        "FileExtension": [
+            "csv"
+        ],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": false,
+        "IsEmbeddable": true
+    },
+    "application/json": {
+        "FriendlyName": "JSON",
+        "FileExtension": [
+            "json"
+        ],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": false,
+        "IsEmbeddable": true
+    },
+    "application/yaml": {
+        "FriendlyName": "YAML",
+        "FileExtension": [
+            "yaml",
+            "yml"
+        ],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": false,
+        "IsEmbeddable": true
+    },
+    "text/x-go": {
+        "FriendlyName": "Go",
+        "FileExtension": [
+            "go"
+        ],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": false,
+        "IsEmbeddable": true
+    },
+    "text/x-python": {
+        "FriendlyName": "Python",
+        "FileExtension": [
+            "py"
+        ],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": false,
+        "IsEmbeddable": true
+    },
+    "text/javascript": {
+        "FriendlyName": "JavaScript",
+        "FileExtension": [
+            "js"
+        ],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": false,
+        "IsEmbeddable": true
+    },
+    "application/typescript": {
+        "FriendlyName": "TypeScript",
+        "FileExtension": [
+            "ts",
+            "tsx"
+        ],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": false,
+        "IsEmbeddable": true
+    },
+    "text/x-vue": {
+        "FriendlyName": "Vue",
+        "FileExtension": [
+            "vue"
+        ],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": false,
+        "IsEmbeddable": true
+    },
+    "text/x-rust": {
+        "FriendlyName": "Rust",
+        "FileExtension": [
+            "rs"
+        ],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": false,
+        "IsEmbeddable": true
+    },
+    "text/x-java": {
+        "FriendlyName": "Java",
+        "FileExtension": [
+            "java"
+        ],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": false,
+        "IsEmbeddable": true
+    },
+    "text/x-c": {
+        "FriendlyName": "C",
+        "FileExtension": [
+            "c",
+            "h"
+        ],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": false,
+        "IsEmbeddable": true
+    },
+    "text/x-c++": {
+        "FriendlyName": "C++",
+        "FileExtension": [
+            "cpp",
+            "hpp"
+        ],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": false,
+        "IsEmbeddable": true
+    },
+    "application/x-sh": {
+        "FriendlyName": "Shell",
+        "FileExtension": [
+            "sh"
+        ],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": false,
+        "IsEmbeddable": true
+    },
+    "text/x-ruby": {
+        "FriendlyName": "Ruby",
+        "FileExtension": [
+            "rb"
+        ],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": false,
+        "IsEmbeddable": true
+    },
+    "text/x-kotlin": {
+        "FriendlyName": "Kotlin",
+        "FileExtension": [
+            "kt"
+        ],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": false,
+        "IsEmbeddable": true
+    },
+    "text/x-swift": {
+        "FriendlyName": "Swift",
+        "FileExtension": [
+            "swift"
+        ],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": false,
+        "IsEmbeddable": true
     }
 }
 `
@@ -206,6 +454,7 @@ type MType struct {
 	IsVideo         bool     `json:"IsVideo"`
 	ImgRecog        bool     `json:"SupportsImgRecog"`
 	MultiPage       bool     `json:"MultiPage"`
+	Embeddable      bool     `json:"IsEmbeddable"`
 } //	@name	MediaType
 
 // ParseExtension Get a pointer to the weblens Media type of a file given the file extension
@@ -279,6 +528,12 @@ func (mt MType) GetThumbExifKey() string {
 // SupportsImgRecog checks if the MediaType supports image recognition processing.
 func (mt MType) SupportsImgRecog() bool {
 	return mt.ImgRecog
+}
+
+// IsEmbeddable reports whether files of this type should be processed by the
+// semantic-embedding pipeline.
+func (mt MType) IsEmbeddable() bool {
+	return mt.Embeddable
 }
 
 func rawMimes() []string {

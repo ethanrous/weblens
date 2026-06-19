@@ -505,7 +505,7 @@ func (wp *WorkerPool) execWorker(workerCtx context.Context, isReplacement bool) 
 
 					// Inc tasks being processed
 					wp.busyCount.Add(1)
-					wlog.FromContext(t.Ctx).Debug().Func(func(e *zerolog.Event) {
+					wlog.FromContext(t.Ctx).Trace().Func(func(e *zerolog.Event) {
 						t.updateMu.RLock()
 						defer t.updateMu.RUnlock()
 
@@ -516,7 +516,7 @@ func (wp *WorkerPool) execWorker(workerCtx context.Context, isReplacement bool) 
 					// All the real work happens inside safetyWork here, everything before is setup, everything after is teardown.
 					wp.safetyWork(t, workerID)
 
-					wlog.FromContext(t.Ctx).Debug().Func(func(e *zerolog.Event) {
+					wlog.FromContext(t.Ctx).Trace().Func(func(e *zerolog.Event) {
 						t.updateMu.RLock()
 						defer t.updateMu.RUnlock()
 

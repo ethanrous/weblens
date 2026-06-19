@@ -40,10 +40,29 @@ func DeleteForSource(ctx context.Context, sourceID string, kind Kind) error {
 		return err
 	}
 
-	_, err = col.DeleteMany(ctx, bson.M{
+	filter := bson.M{
 		"sourceId": sourceID,
-		"kind":     string(kind),
-	})
+	}
+
+	if kind != KindAll {
+		filter["kind"] = string(kind)
+	}
+
+	_, err = col.DeleteMany(ctx, filter)
+
+	return err
+}
+
+// DeleteAllForSources removes every row for a list of sources (files or media) of any kind
+func DeleteAllForSources(ctx context.Context, sourceIDs []string) error {
+	col, err := db.GetCollection[Embedding](ctx, CollectionKey)
+	if err != nil {
+		return err
+	}
+
+	filter := bson.M{"sourceId": bson.M{"$in": sourceIDs}}
+
+	_, err = col.DeleteMany(ctx, filter)
 
 	return err
 }
@@ -88,8 +107,8 @@ func PruneTrailingChunks(ctx context.Context, kind Kind, sourceID string, keepFr
 	return err
 }
 
-// CountByContentHash counts rows matching (kind, sourceId, model, contentHash) as an idempotency gate.
-func CountByContentHash(ctx context.Context, kind Kind, sourceID, modelName, contentHash string) (int64, error) {
+// CountByContentID counts rows matching (kind, sourceId, model, contentHash) as an idempotency gate.
+func CountByContentID(ctx context.Context, kind Kind, sourceID, modelName, contentHash string) (int64, error) {
 	col, err := db.GetCollection[Embedding](ctx, CollectionKey)
 	if err != nil {
 		return 0, err
@@ -135,6 +154,36 @@ func GetForSource(ctx context.Context, sourceID string) ([]Embedding, error) {
 	}
 
 	return rows, nil
+}
+
+// SourceIDsWithEmbeddings returns the subset of sourceIDs that have at least one row of the given kind.
+// It runs a single distinct query so callers can batch existence checks instead of counting per source.
+func SourceIDsWithEmbeddings(ctx context.Context, kind Kind, sourceIDs []string) (map[string]struct{}, error) {
+	present := make(map[string]struct{}, len(sourceIDs))
+	if len(sourceIDs) == 0 {
+		return present, nil
+	}
+
+	col, err := db.GetCollection[Embedding](ctx, CollectionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	values, err := col.GetCollection().Distinct(ctx, "sourceId", bson.M{
+		"kind":     string(kind),
+		"sourceId": bson.M{"$in": sourceIDs},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, v := range values {
+		if s, ok := v.(string); ok {
+			present[s] = struct{}{}
+		}
+	}
+
+	return present, nil
 }
 
 // CountForChunk counts rows matching (kind, sourceId, model, chunkIndex).

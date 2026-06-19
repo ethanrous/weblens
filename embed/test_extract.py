@@ -73,6 +73,41 @@ def test_extract_pptx():
     assert all(p >= 1 for p, _ in pages)
 
 
+def _fake_ocr_image(tmp_path, monkeypatch, words, confs):
+    """Write a tiny image and stub pytesseract to return the given words/confidences."""
+    pytesseract = pytest.importorskip("pytesseract")
+    Image = pytest.importorskip("PIL.Image")
+
+    p = tmp_path / "img.png"
+    Image.new("RGB", (10, 10)).save(p)
+    monkeypatch.setattr(pytesseract, "image_to_string", lambda *a, **k: " ".join(words))
+    monkeypatch.setattr(pytesseract, "image_to_data", lambda *a, **k: {"text": words, "conf": confs})
+    return str(p)
+
+
+def test_ocr_drops_low_confidence_gibberish(tmp_path, monkeypatch):
+    path = _fake_ocr_image(tmp_path, monkeypatch,
+                           ["t", "»", "i", "oe.", "ta"], [12, 30, 5, 41, 22])
+    assert _joined(extract_text(path, "image/png")).strip() == ""
+
+
+def test_ocr_keeps_single_confident_word(tmp_path, monkeypatch):
+    path = _fake_ocr_image(tmp_path, monkeypatch, ["STOP"], [91])
+    assert _joined(extract_text(path, "image/png")) == "STOP"
+
+
+def test_ocr_filters_mixed_confidence_words(tmp_path, monkeypatch):
+    path = _fake_ocr_image(tmp_path, monkeypatch,
+                           ["EXIT", "p", "sign", "&."], [88, 15, 76, 3])
+    assert _joined(extract_text(path, "image/png")) == "EXIT sign"
+
+
+def test_ocr_drops_confident_but_illegible_text(tmp_path, monkeypatch):
+    path = _fake_ocr_image(tmp_path, monkeypatch,
+                           ["t", "a", ")", "_", "e"], [95, 95, 95, 95, 95])
+    assert _joined(extract_text(path, "image/png")).strip() == ""
+
+
 @pytest.mark.skipif(not _has_fixture("sample.png"), reason="fixture missing; run test_fixtures/_generate.py")
 def test_extract_image_ocr():
     try:

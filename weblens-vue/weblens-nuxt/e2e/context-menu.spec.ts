@@ -39,7 +39,7 @@ test.describe('Folder-Level Context Menu', () => {
 
         // Verify folder-level actions are present
         await expect(fileBrowser.getByRole('button', { name: 'New Folder' }).first()).toBeVisible()
-        await expect(fileBrowser.getByRole('button', { name: 'Scan Folder' }).first()).toBeVisible()
+        await expect(fileBrowser.getByRole('button', { name: 'Re-Index Folder' }).first()).toBeVisible()
         await expect(fileBrowser.getByRole('button', { name: 'Folder History' }).first()).toBeVisible()
         await expect(fileBrowser.getByRole('button', { name: 'Download' }).first()).toBeVisible()
 
@@ -78,7 +78,7 @@ test.describe('Folder-Level Context Menu', () => {
         const contextMenu = fileBrowser.locator('#file-context-menu')
         await expect(contextMenu).toBeVisible({ timeout: 15000 })
 
-        const scanBtn = fileBrowser.getByRole('button', { name: 'Scan Folder' }).first()
+        const scanBtn = fileBrowser.getByRole('button', { name: 'Re-Index Folder' }).first()
 
         if (await scanBtn.isEnabled({ timeout: 2000 }).catch(() => false)) {
             await scanBtn.click()
