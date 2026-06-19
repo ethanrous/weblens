@@ -10,7 +10,6 @@ import (
 	"github.com/ethanrous/weblens/modules/config"
 	"github.com/ethanrous/weblens/modules/startup"
 	"github.com/ethanrous/weblens/modules/wlerrors"
-	"github.com/ethanrous/weblens/modules/wlog"
 	"github.com/ethanrous/weblens/modules/wlslices"
 	slices_mod "github.com/ethanrous/weblens/modules/wlslices"
 	"go.mongodb.org/mongo-driver/bson"
@@ -195,7 +194,6 @@ func GetMediasByContentIDs(ctx context.Context, contentIDs ...ContentID) ([]*Med
 	media := []*Media{}
 
 	filter := bson.M{"contentID": bson.M{"$in": contentIDs}}
-	wlog.FromContext(ctx).Debug().Msgf("Getting medias by contentIDs with filter: %+v", filter)
 
 	cur, err := col.Find(ctx, filter)
 	if err != nil {

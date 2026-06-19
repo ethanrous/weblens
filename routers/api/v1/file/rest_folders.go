@@ -144,6 +144,13 @@ func formatRespondFolderInfo(ctx context_service.RequestContext, dir *file_model
 
 	var scanTask *task.Task
 
+	embedInProgress, err := embed.IsEmbeddingInProgress(ctx, ctx.Requester)
+	if err != nil {
+		ctx.Log().Warn().Err(err).Msg("Failed to check embedding in progress status; skipping embed rescan logic")
+
+		embedInProgress = false
+	}
+
 	for _, child := range children {
 		if child == nil {
 			continue
@@ -154,35 +161,37 @@ func formatRespondFolderInfo(ctx context_service.RequestContext, dir *file_model
 			return err
 		}
 
-		mediaExists := false
-		_, mediaExists = mediaMap[info.ContentID]
+		if !embedInProgress {
+			mediaExists := false
+			_, mediaExists = mediaMap[info.ContentID]
 
-		if mediaExists {
-			info.HasMedia = true
-		}
-
-		if scanTask == nil && !child.IsDir() {
-			shouldLaunchIndex := !mediaExists
-			if !shouldLaunchIndex && embedActive && media_model.EmbedEligible(child.GetPortablePath().Ext()) {
-				isEmbedded, err := embed.IsFileEmbedded(ctx, child)
-				if err != nil {
-					ctx.Log().Warn().Err(err).Msgf("Failed to check embedding status for [%s]; skipping embed rescan", child.GetPortablePath())
-
-					isEmbedded = true
-				}
-
-				shouldLaunchIndex = !isEmbedded
+			if mediaExists {
+				info.HasMedia = true
 			}
 
-			if shouldLaunchIndex {
-				ctx.Log().Debug().Msgf("Dispatching scan task for parent folder [%s] since child [%s] is missing media or index", dir.GetPortablePath(), child.GetPortablePath())
+			if scanTask == nil && !child.IsDir() {
+				shouldLaunchIndex := !mediaExists
+				if !shouldLaunchIndex && embedActive && media_model.EmbedEligible(child.GetPortablePath().Ext()) {
+					isEmbedded, err := embed.IsFileEmbedded(ctx, child)
+					if err != nil {
+						ctx.Log().Warn().Err(err).Msgf("Failed to check embedding status for [%s]; skipping embed rescan", child.GetPortablePath())
 
-				t, err := ctx.TaskService.DispatchJob(ctx, job.ScanDirectoryTask, job.IndexMeta{File: dir}, nil)
-				if err != nil {
-					ctx.Log().Error().Err(err).Msgf("Failed to dispatch scan task for file [%s]", dir.GetPortablePath())
+						isEmbedded = true
+					}
+
+					shouldLaunchIndex = !isEmbedded
 				}
 
-				scanTask = t
+				if shouldLaunchIndex {
+					ctx.Log().Debug().Msgf("Dispatching scan task for parent folder [%s] since child [%s] is missing media or index", dir.GetPortablePath(), child.GetPortablePath())
+
+					t, err := ctx.TaskService.DispatchJob(ctx, job.ScanDirectoryTask, job.IndexMeta{File: dir}, nil)
+					if err != nil {
+						ctx.Log().Error().Err(err).Msgf("Failed to dispatch scan task for file [%s]", dir.GetPortablePath())
+					}
+
+					scanTask = t
+				}
 			}
 		}
 
