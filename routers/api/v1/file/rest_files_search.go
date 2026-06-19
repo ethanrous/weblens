@@ -395,11 +395,14 @@ func SearchFiles(ctx context_service.RequestContext) {
 		embedHits map[string]contentHit
 	)
 
+	// Only semantic search is flag-gated; a flag read failure falls back to filename-only results
+	// rather than failing the whole request.
 	flags, err := featureflags.GetFlags(ctx)
 	if err != nil {
-		ctx.Error(http.StatusInternalServerError, wlerrors.Wrap(err, "failed to retrieve feature flags"))
+		ctx.Log().Warn().Err(err).Msg("failed to retrieve feature flags, disabling semantic search for this request")
 
-		return
+		flags = featureflags.Default()
+		flags.EnableEmbed = false
 	}
 
 	g, gctx := errgroup.WithContext(ctx)

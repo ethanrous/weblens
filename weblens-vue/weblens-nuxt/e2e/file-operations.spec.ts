@@ -67,7 +67,7 @@ test.describe('File Operations', () => {
         // Should see folder-specific context menu options
         // Scope to #filebrowser-container to avoid matching the sidebar's "New Folder" button
         const fileBrowser = page.locator('#filebrowser-container')
-        await expect(fileBrowser.getByRole('button', { name: 'Scan Folder' })).toBeVisible()
+        await expect(fileBrowser.getByRole('button', { name: 'Re-Index Folder' })).toBeVisible()
         await expect(fileBrowser.getByRole('button', { name: 'Folder History' })).toBeVisible()
 
         // Close it
@@ -202,8 +202,8 @@ test.describe('File Operations', () => {
         // Right-click on the background (active folder context menu)
         await page.locator('h3').filter({ hasText: 'Home' }).click()
 
-        // Click Scan Folder
-        await page.getByRole('button', { name: 'Scan Folder' }).click()
+        // Click Re-Index Folder
+        await page.getByRole('button', { name: 'Re-Index Folder' }).click()
 
         // Scanning triggers a websocket task. Just verify it doesn't error.
     })

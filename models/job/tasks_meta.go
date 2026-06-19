@@ -467,14 +467,16 @@ func (m RestoreCoreMeta) Verify() error {
 
 // ExtractAndEmbedMeta holds metadata for extract-and-embed tasks.
 type ExtractAndEmbedMeta struct {
-	File *file_model.WeblensFileImpl
+	File         *file_model.WeblensFileImpl
+	ForceReIndex bool
 }
 
 // MetaString returns a JSON string representation of the extract-and-embed metadata.
 func (m ExtractAndEmbedMeta) MetaString() string {
 	data := map[string]any{
-		"JobName": ExtractAndEmbedTask,
-		"FileId":  m.File.ID(),
+		"JobName":      ExtractAndEmbedTask,
+		"FileId":       m.File.ID(),
+		"ForceReIndex": m.ForceReIndex,
 	}
 
 	bs, err := json.Marshal(data)

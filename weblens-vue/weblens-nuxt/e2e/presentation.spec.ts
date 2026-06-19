@@ -104,7 +104,7 @@ test.describe('Presentation Mode', () => {
 
         // The context menu should open for the active folder (Home)
         const fileBrowser = page.locator('#filebrowser-container')
-        await expect(fileBrowser.getByRole('button', { name: 'Scan Folder' })).toBeVisible({
+        await expect(fileBrowser.getByRole('button', { name: 'Re-Index Folder' })).toBeVisible({
             timeout: 15000,
         })
 

@@ -137,7 +137,7 @@ test.describe('Settings Page', () => {
         // Click Developer
         await page.getByRole('button', { name: 'Developer' }).click()
         await page.waitForURL('**/settings/dev')
-        await expect(page.getByRole('button', { name: 'Refresh' })).toBeVisible()
+        await expect(page.getByRole('button', { name: 'Reindex All Files' })).toBeVisible()
 
         // Click Account
         await page.getByRole('button', { name: 'Account' }).click()
@@ -165,10 +165,13 @@ test.describe('Settings Page', () => {
         await page.waitForURL('**/settings/dev')
 
         // Verify all expected buttons are visible
-        await expect(page.getByRole('button', { name: 'Refresh' })).toBeVisible()
-        await expect(page.getByRole('button', { name: 'Scan All Media' })).toBeVisible()
+        await expect(page.getByRole('button', { name: 'Reindex All Files' })).toBeVisible()
         await expect(page.getByRole('button', { name: 'Enable trace logging' })).toBeVisible()
-        await expect(page.getByRole('button', { name: /embed processing/ })).toBeVisible()
+        await expect(
+            page
+                .getByRole('button', { name: 'Enable Embedding' })
+                .or(page.getByRole('button', { name: 'Disable Embedding' })),
+        ).toBeVisible()
 
         // Danger zone buttons
         await expect(page.getByRole('button', { name: 'Drop All Embeddings' })).toBeVisible()

@@ -106,6 +106,12 @@ func IndexDirectory(t *task.Task) {
 		ctx,
 		ctx.FileService,
 		func(mf *file_model.WeblensFileImpl) error {
+			// LeafMap also visits directories; they never have media/embeddings, so
+			// skip them to avoid inflating the media lookup and force-reindex delete set.
+			if mf.IsDir() {
+				return nil
+			}
+
 			fID := mf.ID()
 			discoveredFileIDs.Add(fID)
 			discoveredFiles[fID] = mf

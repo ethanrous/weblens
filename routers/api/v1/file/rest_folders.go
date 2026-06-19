@@ -54,7 +54,7 @@ func ScanDir(ctx context_service.RequestContext) {
 		meta = job.IndexMeta{File: folder, ForceReIndex: ctx.QueryBool("forceReindex")}
 	case media_model.EmbedEligible(folder.GetPortablePath().Ext()):
 		jobName = job.ExtractAndEmbedTask
-		meta = job.ExtractAndEmbedMeta{File: folder}
+		meta = job.ExtractAndEmbedMeta{File: folder, ForceReIndex: ctx.QueryBool("forceReindex")}
 	default:
 		ctx.Error(http.StatusBadRequest, wlerrors.New("file is not displayable or embed-eligible"))
 

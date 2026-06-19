@@ -99,5 +99,5 @@ func RegisterJobs(workerPool *task.WorkerPool) {
 	workerPool.RegisterJob(job_model.CopyFileFromCoreTask, CopyFileFromCore)
 	workerPool.RegisterJob(job_model.RestoreCoreTask, RestoreCore)
 	workerPool.RegisterJob(job_model.LoadFilesystemTask, LoadAtPath, task.Options{Priority: task.PriorityXHigh})
-	workerPool.RegisterJob(job_model.ExtractAndEmbedTask, ExtractAndEmbedFile)
+	workerPool.RegisterJob(job_model.ExtractAndEmbedTask, ExtractAndEmbedFile, task.Options{Priority: task.PriorityBackground})
 }

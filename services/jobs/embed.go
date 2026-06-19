@@ -89,7 +89,7 @@ func ExtractAndEmbedFile(tsk *task.Task) {
 
 	switch {
 	case err == nil:
-		if err := writeImageEmbedding(ctx, m); err != nil {
+		if err := writeImageEmbedding(ctx, m, meta.ForceReIndex); err != nil {
 			tsk.Fail(err)
 
 			return
@@ -115,7 +115,7 @@ func ExtractAndEmbedFile(tsk *task.Task) {
 		return
 	}
 
-	if same > 0 {
+	if same > 0 && !meta.ForceReIndex {
 		tsk.SetResult(task.Result{"skipped": "unchanged"})
 		tsk.Success()
 
@@ -169,7 +169,8 @@ func ExtractAndEmbedFile(tsk *task.Task) {
 }
 
 // writeImageEmbedding encodes a media's cached image(s) into the embeddings collection, one row per page; non-image-recognizable types are skipped.
-func writeImageEmbedding(ctx context_service.AppContext, media *media_model.Media) error {
+// When force is true, existing per-page rows are re-encoded and overwritten instead of skipped.
+func writeImageEmbedding(ctx context_service.AppContext, media *media_model.Media, force bool) error {
 	if !media_model.ParseMime(media.MimeType).SupportsImgRecog() {
 		return nil
 	}
@@ -185,7 +186,7 @@ func writeImageEmbedding(ctx context_service.AppContext, media *media_model.Medi
 			return err
 		}
 
-		if exists > 0 {
+		if exists > 0 && !force {
 			continue
 		}
 
