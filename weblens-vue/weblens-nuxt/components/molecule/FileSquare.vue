@@ -17,10 +17,21 @@
             :class="{
                 'flex h-[15%] min-h-max justify-end gap-0.5 px-2 pb-1 select-none sm:min-h-12 sm:flex-col sm:pb-2': true,
             }"
-            :title="filename + ' - ' + fileStats"
+            :title="displayName instanceof PortablePath ? displayName.friendlyPath : displayName + ' - ' + fileStats"
         >
             <div class="flex min-h-5 items-center gap-1">
-                <span :class="{ 'truncate font-semibold text-nowrap': true }">{{ filename }}</span>
+                <span
+                    v-if="typeof displayName === 'string'"
+                    :class="{ 'truncate font-semibold text-nowrap': true }"
+                >
+                    {{ displayName }}
+                </span>
+
+                <FilePath
+                    v-else-if="displayName instanceof PortablePath"
+                    :path="displayName"
+                />
+
                 <div
                     v-if="fileTags.length > 0"
                     class="ml-auto flex shrink-0 gap-0.5"
@@ -68,21 +79,20 @@ import { SelectedState } from '@/types/weblensFile'
 import type WeblensFile from '@/types/weblensFile'
 import { IconUser } from '@tabler/icons-vue'
 import useTagsStore from '~/stores/tags'
+import { PortablePath } from '~/types/portablePath'
+import FilePath from '../atom/FilePath.vue'
 
 const tagsStore = useTagsStore()
 
 const props = defineProps<{
     file: WeblensFile
+    displayName: string | PortablePath
     fileState: SelectedState
 }>()
 
 defineEmits<{
     (e: 'contextMenu', event: MouseEvent): void
 }>()
-
-const filename = computed(() => {
-    return props.file.GetFilename()
-})
 
 const fileTags = computed(() => {
     return tagsStore.getTagsByFileID(props.file.ID())

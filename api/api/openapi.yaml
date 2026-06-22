@@ -1959,6 +1959,20 @@ paths:
   /tower/tasks:
     get:
       operationId: GetRunningTasks
+      parameters:
+      - description: Include tasks that have already finished (still held in memory)
+        in: query
+        name: includeExited
+        schema:
+          default: false
+          type: boolean
+      - description: Only return finished tasks that completed after this Unix epoch-ms
+          cursor (incremental polling)
+        in: query
+        name: since
+        schema:
+          default: 0
+          type: integer
       responses:
         "200":
           content:
@@ -3695,12 +3709,16 @@ components:
     TaskInfo:
       example:
         jobName: jobName
-        result: "{}"
+        finishTime: finishTime
+        metadata: "{}"
         totalChildTasks: 1
         workerID: 5
-        State: State
         parentTaskID: parentTaskID
         completedChildTasks: 0
+        error: error
+        queueTime: queueTime
+        result: "{}"
+        State: State
         Completed: true
         progress: 6
         startTime: startTime
@@ -3713,12 +3731,20 @@ components:
           type: string
         completedChildTasks:
           type: integer
+        error:
+          type: string
+        finishTime:
+          type: string
         jobName:
           type: string
+        metadata:
+          type: object
         parentTaskID:
           type: string
         progress:
           type: integer
+        queueTime:
+          type: string
         result:
           type: object
         startTime:

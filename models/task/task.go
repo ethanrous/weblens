@@ -192,6 +192,11 @@ func (t *Task) GetFinishTime() time.Time {
 	return t.FinishTime.Load()
 }
 
+// GetQueueTime returns the time when the task was queued.
+func (t *Task) GetQueueTime() time.Time {
+	return t.QueueTime.Load()
+}
+
 // Wait Block until a task is finished. "Finished" can define success, failure, or cancel
 func (t *Task) Wait() {
 	if t == nil {

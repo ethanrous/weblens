@@ -76,16 +76,40 @@
             </div>
         </div>
 
-        <h4>Tasks</h4>
+        <div :class="{ 'flex items-center gap-2': true }">
+            <h4>Tasks</h4>
+            <div :class="{ 'ml-auto flex': true }">
+                <WeblensButton
+                    label="Gantt"
+                    type="light"
+                    merge="row"
+                    :selected="taskView === 'gantt'"
+                    :on-click="() => (taskView = 'gantt')"
+                />
+                <WeblensButton
+                    label="Table"
+                    type="light"
+                    merge="row"
+                    :selected="taskView === 'table'"
+                    :on-click="() => (taskView = 'table')"
+                />
+            </div>
+        </div>
 
+        <TaskGanttChart
+            v-if="taskView === 'gantt'"
+            :class="{ 'my-4': true }"
+            :tasks="allTasks"
+            empty-text="No tasks observed yet"
+        />
         <TaskTreeTable
-            v-if="runningTasks !== null"
+            v-else
             :class="{ 'my-4 max-h-[60vh]': true }"
             empty-text="No running tasks"
             :tasks="runningTasks"
             @cancel="onCancel"
         />
-        <span v-else-if="error">{{ error }}</span>
+        <span v-if="error">{{ error }}</span>
 
         <h4>Debug</h4>
 
@@ -130,6 +154,7 @@ import { useIntervalFn } from '@vueuse/core'
 import { useWeblensAPI } from '~/api/AllApi'
 import { CancelTask } from '~/api/FileBrowserApi'
 import TaskTreeTable from '~/components/molecule/TaskTreeTable.vue'
+import TaskGanttChart from '~/components/molecule/TaskGanttChart.vue'
 import WeblensButton from '~/components/atom/WeblensButton.vue'
 import WeblensInput from '~/components/atom/WeblensInput.vue'
 import WeblensOptions from '~/components/atom/WeblensOptions.vue'
@@ -140,10 +165,7 @@ const towerStore = useTowerStore()
 const userStore = useUserStore()
 
 const selectedDebugOption = ref<string>('file')
-
-useIntervalFn(() => {
-    refresh()
-}, 5000)
+const taskView = ref<'gantt' | 'table'>('gantt')
 
 async function scanAllMedia() {
     await useWeblensAPI().FoldersAPI.scanFolder('USERS', undefined, true)
@@ -170,41 +192,7 @@ async function enableTraceLogging() {
     await towerStore.refreshTowerInfo()
 }
 
-const {
-    data: runningTasks,
-    refresh,
-    error,
-} = useAsyncData('running-tasks', async () => {
-    const res = await useWeblensAPI().TowersAPI.getRunningTasks()
-
-    // Copy before sorting (don't mutate the response); keep every task so parent subtask counts stay accurate.
-    const taskInfos = [...res.data]
-
-    taskInfos.sort((a, b) => {
-        const aMs = new Date(a.startTime ?? '').getTime()
-        const bMs = new Date(b.startTime ?? '').getTime()
-        if (isNaN(aMs) || isNaN(bMs) || aMs === bMs) {
-            return 0
-        }
-
-        // Treat tasks with no start time as newest
-        if (aMs <= 0) {
-            return 1
-        } else if (bMs <= 0) {
-            return -1
-        }
-
-        if (aMs < bMs) {
-            return -1
-        } else if (aMs > bMs) {
-            return 1
-        }
-
-        return 0
-    })
-
-    return taskInfos
-})
+const { allTasks, runningTasks, error, refresh } = useTaskHistory()
 
 async function onCancel(taskID: string) {
     CancelTask(taskID)

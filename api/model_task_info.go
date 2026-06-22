@@ -24,9 +24,13 @@ type TaskInfo struct {
 	Completed bool `json:"Completed"`
 	State string `json:"State"`
 	CompletedChildTasks *int32 `json:"completedChildTasks,omitempty"`
+	Error *string `json:"error,omitempty"`
+	FinishTime *string `json:"finishTime,omitempty"`
 	JobName string `json:"jobName"`
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 	ParentTaskID *string `json:"parentTaskID,omitempty"`
 	Progress int32 `json:"progress"`
+	QueueTime *string `json:"queueTime,omitempty"`
 	Result map[string]interface{} `json:"result,omitempty"`
 	StartTime *string `json:"startTime,omitempty"`
 	Status string `json:"status"`
@@ -141,6 +145,70 @@ func (o *TaskInfo) SetCompletedChildTasks(v int32) {
 	o.CompletedChildTasks = &v
 }
 
+// GetError returns the Error field value if set, zero value otherwise.
+func (o *TaskInfo) GetError() string {
+	if o == nil || IsNil(o.Error) {
+		var ret string
+		return ret
+	}
+	return *o.Error
+}
+
+// GetErrorOk returns a tuple with the Error field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *TaskInfo) GetErrorOk() (*string, bool) {
+	if o == nil || IsNil(o.Error) {
+		return nil, false
+	}
+	return o.Error, true
+}
+
+// HasError returns a boolean if a field has been set.
+func (o *TaskInfo) HasError() bool {
+	if o != nil && !IsNil(o.Error) {
+		return true
+	}
+
+	return false
+}
+
+// SetError gets a reference to the given string and assigns it to the Error field.
+func (o *TaskInfo) SetError(v string) {
+	o.Error = &v
+}
+
+// GetFinishTime returns the FinishTime field value if set, zero value otherwise.
+func (o *TaskInfo) GetFinishTime() string {
+	if o == nil || IsNil(o.FinishTime) {
+		var ret string
+		return ret
+	}
+	return *o.FinishTime
+}
+
+// GetFinishTimeOk returns a tuple with the FinishTime field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *TaskInfo) GetFinishTimeOk() (*string, bool) {
+	if o == nil || IsNil(o.FinishTime) {
+		return nil, false
+	}
+	return o.FinishTime, true
+}
+
+// HasFinishTime returns a boolean if a field has been set.
+func (o *TaskInfo) HasFinishTime() bool {
+	if o != nil && !IsNil(o.FinishTime) {
+		return true
+	}
+
+	return false
+}
+
+// SetFinishTime gets a reference to the given string and assigns it to the FinishTime field.
+func (o *TaskInfo) SetFinishTime(v string) {
+	o.FinishTime = &v
+}
+
 // GetJobName returns the JobName field value
 func (o *TaskInfo) GetJobName() string {
 	if o == nil {
@@ -163,6 +231,38 @@ func (o *TaskInfo) GetJobNameOk() (*string, bool) {
 // SetJobName sets field value
 func (o *TaskInfo) SetJobName(v string) {
 	o.JobName = v
+}
+
+// GetMetadata returns the Metadata field value if set, zero value otherwise.
+func (o *TaskInfo) GetMetadata() map[string]interface{} {
+	if o == nil || IsNil(o.Metadata) {
+		var ret map[string]interface{}
+		return ret
+	}
+	return o.Metadata
+}
+
+// GetMetadataOk returns a tuple with the Metadata field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *TaskInfo) GetMetadataOk() (map[string]interface{}, bool) {
+	if o == nil || IsNil(o.Metadata) {
+		return map[string]interface{}{}, false
+	}
+	return o.Metadata, true
+}
+
+// HasMetadata returns a boolean if a field has been set.
+func (o *TaskInfo) HasMetadata() bool {
+	if o != nil && !IsNil(o.Metadata) {
+		return true
+	}
+
+	return false
+}
+
+// SetMetadata gets a reference to the given map[string]interface{} and assigns it to the Metadata field.
+func (o *TaskInfo) SetMetadata(v map[string]interface{}) {
+	o.Metadata = v
 }
 
 // GetParentTaskID returns the ParentTaskID field value if set, zero value otherwise.
@@ -219,6 +319,38 @@ func (o *TaskInfo) GetProgressOk() (*int32, bool) {
 // SetProgress sets field value
 func (o *TaskInfo) SetProgress(v int32) {
 	o.Progress = v
+}
+
+// GetQueueTime returns the QueueTime field value if set, zero value otherwise.
+func (o *TaskInfo) GetQueueTime() string {
+	if o == nil || IsNil(o.QueueTime) {
+		var ret string
+		return ret
+	}
+	return *o.QueueTime
+}
+
+// GetQueueTimeOk returns a tuple with the QueueTime field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *TaskInfo) GetQueueTimeOk() (*string, bool) {
+	if o == nil || IsNil(o.QueueTime) {
+		return nil, false
+	}
+	return o.QueueTime, true
+}
+
+// HasQueueTime returns a boolean if a field has been set.
+func (o *TaskInfo) HasQueueTime() bool {
+	if o != nil && !IsNil(o.QueueTime) {
+		return true
+	}
+
+	return false
+}
+
+// SetQueueTime gets a reference to the given string and assigns it to the QueueTime field.
+func (o *TaskInfo) SetQueueTime(v string) {
+	o.QueueTime = &v
 }
 
 // GetResult returns the Result field value if set, zero value otherwise.
@@ -404,11 +536,23 @@ func (o TaskInfo) ToMap() (map[string]interface{}, error) {
 	if !IsNil(o.CompletedChildTasks) {
 		toSerialize["completedChildTasks"] = o.CompletedChildTasks
 	}
+	if !IsNil(o.Error) {
+		toSerialize["error"] = o.Error
+	}
+	if !IsNil(o.FinishTime) {
+		toSerialize["finishTime"] = o.FinishTime
+	}
 	toSerialize["jobName"] = o.JobName
+	if !IsNil(o.Metadata) {
+		toSerialize["metadata"] = o.Metadata
+	}
 	if !IsNil(o.ParentTaskID) {
 		toSerialize["parentTaskID"] = o.ParentTaskID
 	}
 	toSerialize["progress"] = o.Progress
+	if !IsNil(o.QueueTime) {
+		toSerialize["queueTime"] = o.QueueTime
+	}
 	if !IsNil(o.Result) {
 		toSerialize["result"] = o.Result
 	}

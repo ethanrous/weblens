@@ -497,12 +497,19 @@ definitions:
         type: string
       completedChildTasks:
         type: integer
+      error:
+        type: string
+      finishTime:
+        type: string
       jobName:
         type: string
+      metadata: {}
       parentTaskID:
         type: string
       progress:
         type: integer
+      queueTime:
+        type: string
       result: {}
       startTime:
         type: string
@@ -2607,6 +2614,18 @@ paths:
   /tower/tasks:
     get:
       operationId: GetRunningTasks
+      parameters:
+      - default: false
+        description: Include tasks that have already finished (still held in memory)
+        in: query
+        name: includeExited
+        type: boolean
+      - default: 0
+        description: Only return finished tasks that completed after this Unix epoch-ms
+          cursor (incremental polling)
+        in: query
+        name: since
+        type: integer
       produces:
       - application/json
       responses:

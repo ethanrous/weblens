@@ -457,7 +457,7 @@ No authorization required
 
 ## GetRunningTasks
 
-> []TaskInfo GetRunningTasks(ctx).Execute()
+> []TaskInfo GetRunningTasks(ctx).IncludeExited(includeExited).Since(since).Execute()
 
 Get Running Tasks
 
@@ -474,10 +474,12 @@ import (
 )
 
 func main() {
+	includeExited := true // bool | Include tasks that have already finished (still held in memory) (optional) (default to false)
+	since := int32(56) // int32 | Only return finished tasks that completed after this Unix epoch-ms cursor (incremental polling) (optional) (default to 0)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.TowersAPI.GetRunningTasks(context.Background()).Execute()
+	resp, r, err := apiClient.TowersAPI.GetRunningTasks(context.Background()).IncludeExited(includeExited).Since(since).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `TowersAPI.GetRunningTasks``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -489,12 +491,17 @@ func main() {
 
 ### Path Parameters
 
-This endpoint does not need any parameter.
+
 
 ### Other Parameters
 
 Other parameters are passed through a pointer to a apiGetRunningTasksRequest struct via the builder pattern
 
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **includeExited** | **bool** | Include tasks that have already finished (still held in memory) | [default to false]
+ **since** | **int32** | Only return finished tasks that completed after this Unix epoch-ms cursor (incremental polling) | [default to 0]
 
 ### Return type
 

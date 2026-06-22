@@ -42,6 +42,7 @@
             :is="fileComponent"
             :file="file"
             :file-state="fileState"
+            :display-name="filename"
             @context-menu="handleContextMenu"
         >
             <template #file-visual>
@@ -111,6 +112,26 @@ const { file, fileIndex, fileShape } = defineProps<{
     fileIndex: number
     fileShape: FileShape
 }>()
+
+const filename = computed(() => {
+    if (locationStore.search && filesStore.activeFile) {
+        const filepath = file.GetFilepath()
+
+        const parent = filesStore.activeFile.GetFilepath().parent
+        // When we are at the root, don't attempt a relative path to anything
+        if (parent === null) {
+            return filepath
+        }
+
+        try {
+            return filepath.RelativeTo(parent)
+        } catch {
+            return filepath
+        }
+    }
+
+    return file.GetFilename()
+})
 
 function navigateToFile() {
     if (!file.IsFolder()) {

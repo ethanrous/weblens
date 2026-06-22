@@ -103,6 +103,20 @@ export class PortablePath {
         return [...this.relativePath]
     }
 
+    public RelativeTo(other: PortablePath): PortablePath {
+        if (this.rootAlias !== other.rootAlias) {
+            throw new Error('Cannot compute relative path for different root aliases')
+        }
+
+        if (!this.hasParent(other)) {
+            throw new Error('The other path is not a parent of this path')
+        }
+
+        const relativeParts = this.relativePath.slice(other.relativePath.length)
+        console.log(`Relative path from '${other.toString()}' to '${this.toString()}': '${relativeParts.join('/')}'`)
+        return new PortablePath(`${this.rootAlias}:${relativeParts.join('/')}`)
+    }
+
     static fromParts(rootAlias: string, relativePath: string[]): PortablePath {
         if (!rootAlias || !relativePath || relativePath.length === 0) {
             throw new Error('Root alias and relative path must be provided')

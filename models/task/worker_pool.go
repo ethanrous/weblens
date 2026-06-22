@@ -412,23 +412,6 @@ func (wp *WorkerPool) queueTask(t *Task, pool *Pool) {
 	}
 }
 
-func (wp *WorkerPool) removeTask(taskID string) {
-	wp.taskMu.RLock()
-	t := wp.taskMap[taskID]
-	wp.taskMu.RUnlock()
-
-	if t == nil {
-		return
-	}
-
-	t.GetTaskPool().RemoveTask(taskID)
-
-	wp.taskMu.Lock()
-	defer wp.taskMu.Unlock()
-
-	delete(wp.taskMap, taskID)
-}
-
 // execWorker is the "main" function for a worker. It spawns a worker and loops over the task channel
 // to pick up and execute tasks.
 //
@@ -563,11 +546,6 @@ func (wp *WorkerPool) execWorker(workerCtx context.Context, isReplacement bool) 
 
 					if t.exitStatus.Load() == TaskError && !rootTaskPool.IsGlobal() {
 						rootTaskPool.AddError(t)
-					}
-
-					// Remove the task from the worker pool's task map if it is not a "persistent" task.
-					if !t.work.opts.Persistent {
-						wp.removeTask(t.taskID)
 					}
 
 					// Update parent task pools about completed task
@@ -778,6 +756,8 @@ func (wp *WorkerPool) getRegisteredJob(jobName string) job {
 func (wp *WorkerPool) workerRecover(task *Task, _ int64) {
 	recovered := recover()
 	if recovered != nil {
+		task.FinishTime.Set(time.Now())
+
 		// Make sure what we got is an error
 		var err error
 

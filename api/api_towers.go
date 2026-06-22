@@ -730,6 +730,20 @@ func (a *TowersAPIService) GetRemotesExecute(r ApiGetRemotesRequest) ([]TowerInf
 type ApiGetRunningTasksRequest struct {
 	ctx context.Context
 	ApiService *TowersAPIService
+	includeExited *bool
+	since *int32
+}
+
+// Include tasks that have already finished (still held in memory)
+func (r ApiGetRunningTasksRequest) IncludeExited(includeExited bool) ApiGetRunningTasksRequest {
+	r.includeExited = &includeExited
+	return r
+}
+
+// Only return finished tasks that completed after this Unix epoch-ms cursor (incremental polling)
+func (r ApiGetRunningTasksRequest) Since(since int32) ApiGetRunningTasksRequest {
+	r.since = &since
+	return r
 }
 
 func (r ApiGetRunningTasksRequest) Execute() ([]TaskInfo, *http.Response, error) {
@@ -770,6 +784,20 @@ func (a *TowersAPIService) GetRunningTasksExecute(r ApiGetRunningTasksRequest) (
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
+	if r.includeExited != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "includeExited", r.includeExited, "", "")
+	} else {
+		var defaultValue bool = false
+		parameterAddToHeaderOrQuery(localVarQueryParams, "includeExited", defaultValue, "", "")
+		r.includeExited = &defaultValue
+	}
+	if r.since != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "since", r.since, "", "")
+	} else {
+		var defaultValue int32 = 0
+		parameterAddToHeaderOrQuery(localVarQueryParams, "since", defaultValue, "", "")
+		r.since = &defaultValue
+	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 

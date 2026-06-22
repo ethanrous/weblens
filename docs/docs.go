@@ -2758,6 +2758,22 @@ const docTemplate = `{
                 ],
                 "summary": "Get Running Tasks",
                 "operationId": "GetRunningTasks",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Include tasks that have already finished (still held in memory)",
+                        "name": "includeExited",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Only return finished tasks that completed after this Unix epoch-ms cursor (incremental polling)",
+                        "name": "since",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Task Infos",
@@ -4337,14 +4353,24 @@ const docTemplate = `{
                 "completedChildTasks": {
                     "type": "integer"
                 },
+                "error": {
+                    "type": "string"
+                },
+                "finishTime": {
+                    "type": "string"
+                },
                 "jobName": {
                     "type": "string"
                 },
+                "metadata": {},
                 "parentTaskID": {
                     "type": "string"
                 },
                 "progress": {
                     "type": "integer"
+                },
+                "queueTime": {
+                    "type": "string"
                 },
                 "result": {},
                 "startTime": {

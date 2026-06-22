@@ -25,6 +25,22 @@ test.describe('Developer Page Actions', () => {
         await expect(page.getByRole('heading', { name: 'Tasks' })).toBeVisible()
     })
 
+    test('should show task gantt and toggle to table view', async ({ page }) => {
+        // Trigger a scan so the worker pool has tasks to render
+        await page.getByRole('button', { name: 'Reindex All Files' }).click()
+
+        // Gantt is the default view
+        await expect(page.getByTestId('task-gantt')).toBeVisible()
+
+        // Toggle to the tree table
+        await page.getByRole('button', { name: 'Table' }).click()
+        await expect(page.getByRole('columnheader', { name: 'Job Name' })).toBeVisible()
+
+        // Toggle back to the gantt
+        await page.getByRole('button', { name: 'Gantt' }).click()
+        await expect(page.getByTestId('task-gantt')).toBeVisible()
+    })
+
     test('should toggle embedding', async ({ page }) => {
         // The embed toggle says either "Enable Embedding" or "Disable Embedding"
         const embedButton = page
