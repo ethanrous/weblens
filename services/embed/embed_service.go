@@ -57,6 +57,12 @@ func IsEmbeddingInProgress(ctx context.Context, user *user_model.User) (bool, er
 
 	tasks := appCtx.TaskService.GetTasks()
 	for _, t := range tasks {
+		// Only count active embedding work. Finished tasks linger in the task map, so without this
+		// the check would report "in progress" forever after the first embed.
+		if complete, _ := t.Status(); complete {
+			continue
+		}
+
 		if t.GetMeta().JobName() != job.ExtractAndEmbedTask {
 			continue
 		}

@@ -38,5 +38,6 @@ func TestFilterTasks(t *testing.T) {
 	assert.False(t, contains(tower.FilterTasks(all, false, 0), tsk.ID()), "exited task must be hidden when includeExited is false")
 	assert.True(t, contains(tower.FilterTasks(all, true, 0), tsk.ID()), "exited task is returned when includeExited and no cursor")
 	assert.True(t, contains(tower.FilterTasks(all, true, finishMs-1000), tsk.ID()), "exited task is returned when it finished after the cursor")
+	assert.True(t, contains(tower.FilterTasks(all, true, finishMs), tsk.ID()), "exited task finishing exactly at the cursor is still returned (inclusive bound)")
 	assert.False(t, contains(tower.FilterTasks(all, true, finishMs+1000), tsk.ID()), "exited task is dropped when it finished before the cursor")
 }

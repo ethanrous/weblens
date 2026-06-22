@@ -116,7 +116,13 @@ export function mergeTaskPoll(prev: Map<string, TaskInfo>, polled: TaskInfo[], n
 function barTiming(task: TaskInfo, nowMs: number): { startMs: number; endMs: number } {
     const start = parseTimeMs(task.startTime) || parseTimeMs(task.queueTime) || nowMs
     const finish = parseTimeMs(task.finishTime)
-    return { startMs: start, endMs: finish > 0 ? finish : nowMs }
+    if (finish > 0) {
+        return { startMs: start, endMs: finish }
+    }
+    // A finished task with no finish time must not keep growing toward "now"; clamp it to its start.
+    // Only genuinely running tasks extend to now.
+    const ended = task.Completed || task.State === 'Exited'
+    return { startMs: start, endMs: ended ? start : nowMs }
 }
 
 // buildGantt groups tasks into lanes (queued first, then worker lanes by id) and computes

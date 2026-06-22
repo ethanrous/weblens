@@ -460,6 +460,12 @@ func onWebConnect(ctx context_service.RequestContext, c *client_model.WsClient) 
 
 	if local.IsBackup() {
 		for _, backupTask := range ctx.TaskService.GetTasksByJobName(job.BackupTask) {
+			// Finished backup tasks stay in the task map, so skip them: a new client should only
+			// receive progress for a backup that is still running, not a stale completed one.
+			if complete, _ := backupTask.Status(); complete {
+				continue
+			}
+
 			r := backupTask.GetResults()
 			if len(r) == 0 {
 				continue

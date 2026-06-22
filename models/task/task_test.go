@@ -1552,6 +1552,15 @@ func TestWorkerPool_RetainsFinishedTask(t *testing.T) {
 	assert.Same(t, tsk, wp.GetTask(tsk.ID()), "a finished non-persistent task should remain queryable in the worker pool")
 }
 
+func TestTask_CancelStampsFinishTime(t *testing.T) {
+	tsk := task.NewTestQueueableTask("cancel-finish-time", "cancel-finish-job")
+	require.True(t, tsk.GetFinishTime().IsZero(), "a fresh task should have no finish time")
+
+	tsk.Cancel()
+
+	assert.False(t, tsk.GetFinishTime().IsZero(), "canceling a task should stamp its finish time")
+}
+
 func TestPool_Wait(t *testing.T) {
 	t.Run("waits for all tasks to complete", func(t *testing.T) {
 		wp := task.NewTestWorkerPool(4)

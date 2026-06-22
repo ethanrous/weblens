@@ -2621,8 +2621,9 @@ paths:
         name: includeExited
         type: boolean
       - default: 0
-        description: Only return finished tasks that completed after this Unix epoch-ms
-          cursor (incremental polling)
+        description: Only return finished tasks that completed at or after this Unix
+          epoch-ms cursor (incremental polling)
+        format: int64
         in: query
         name: since
         type: integer

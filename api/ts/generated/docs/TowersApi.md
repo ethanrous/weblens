@@ -376,7 +376,7 @@ const configuration = new Configuration();
 const apiInstance = new TowersApi(configuration);
 
 let includeExited: boolean; //Include tasks that have already finished (still held in memory) (optional) (default to false)
-let since: number; //Only return finished tasks that completed after this Unix epoch-ms cursor (incremental polling) (optional) (default to 0)
+let since: number; //Only return finished tasks that completed at or after this Unix epoch-ms cursor (incremental polling) (optional) (default to 0)
 
 const { status, data } = await apiInstance.getRunningTasks(
     includeExited,
@@ -389,7 +389,7 @@ const { status, data } = await apiInstance.getRunningTasks(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **includeExited** | [**boolean**] | Include tasks that have already finished (still held in memory) | (optional) defaults to false|
-| **since** | [**number**] | Only return finished tasks that completed after this Unix epoch-ms cursor (incremental polling) | (optional) defaults to 0|
+| **since** | [**number**] | Only return finished tasks that completed at or after this Unix epoch-ms cursor (incremental polling) | (optional) defaults to 0|
 
 
 ### Return type

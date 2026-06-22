@@ -53,8 +53,9 @@ type Task struct {
 	// Function to be run to clean up if the task errors
 	errorCleanups []HandlerFunc
 
-	updateMu  sync.RWMutex
-	resultsMu sync.RWMutex
+	updateMu   sync.RWMutex
+	resultsMu  sync.RWMutex
+	metadataMu sync.RWMutex
 
 	timerLock sync.RWMutex
 
@@ -187,6 +188,15 @@ func (t *Task) GetStartTime() time.Time {
 	return t.StartTime.Load()
 }
 
+// markFinished stamps the finish time exactly once. The earliest terminal transition
+// (success, error, cancel, panic, or timeout) wins, so a later cleanup/recover pass can't
+// overwrite the real completion time.
+func (t *Task) markFinished() {
+	if t.FinishTime.Load().IsZero() {
+		t.FinishTime.Set(time.Now())
+	}
+}
+
 // GetFinishTime returns the time when the task finished executing.
 func (t *Task) GetFinishTime() time.Time {
 	return t.FinishTime.Load()
@@ -228,6 +238,7 @@ func (t *Task) Cancel() {
 	if t.exitStatus.Load() == TaskNoStatus {
 		t.queueState.Set(Exited)
 		t.exitStatus.Set(TaskCanceled)
+		t.markFinished()
 	}
 
 	t.cancelFunc(nil)
@@ -271,12 +282,28 @@ func (t *Task) GetMeta() Metadata {
 	return t.metadata
 }
 
+// FormatMetadata returns the task metadata as a result map, or nil if there is no metadata.
+// It is safe to call concurrently with Manipulate, which mutates the metadata of a running task.
+func (t *Task) FormatMetadata() map[string]any {
+	t.metadataMu.RLock()
+	defer t.metadataMu.RUnlock()
+
+	if t.metadata == nil {
+		return nil
+	}
+
+	return t.metadata.FormatToResult().ToMap()
+}
+
 /*
 Manipulate is used to change the metadata of a task while it is running.
 This can be useful to have a task be waiting for input from a client,
 and this function can be used to send that data to the task via a chan, for example.
 */
 func (t *Task) Manipulate(fn func(meta Metadata) error) error {
+	t.metadataMu.Lock()
+	defer t.metadataMu.Unlock()
+
 	return fn(t.metadata)
 }
 
@@ -338,6 +365,9 @@ func (t *Task) SetCleanup(cleanup HandlerFunc) {
 
 // ReadError returns the error that caused the task to fail, if any.
 func (t *Task) ReadError() error {
+	t.updateMu.RLock()
+	defer t.updateMu.RUnlock()
+
 	switch t.err.(type) {
 	case nil:
 		return nil
@@ -544,6 +574,7 @@ func (t *Task) error(err error) {
 
 	t.queueState.Set(Exited)
 	t.exitStatus.Set(TaskError)
+	t.markFinished()
 
 	t.updateMu.Unlock()
 }

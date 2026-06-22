@@ -2815,7 +2815,7 @@ declare const TowersApiAxiosParamCreator: (configuration?: Configuration) => {
      *
      * @summary Get Running Tasks
      * @param {boolean} [includeExited] Include tasks that have already finished (still held in memory)
-     * @param {number} [since] Only return finished tasks that completed after this Unix epoch-ms cursor (incremental polling)
+     * @param {number} [since] Only return finished tasks that completed at or after this Unix epoch-ms cursor (incremental polling)
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -2920,7 +2920,7 @@ declare const TowersApiFp: (configuration?: Configuration) => {
      *
      * @summary Get Running Tasks
      * @param {boolean} [includeExited] Include tasks that have already finished (still held in memory)
-     * @param {number} [since] Only return finished tasks that completed after this Unix epoch-ms cursor (incremental polling)
+     * @param {number} [since] Only return finished tasks that completed at or after this Unix epoch-ms cursor (incremental polling)
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -3025,7 +3025,7 @@ declare const TowersApiFactory: (configuration?: Configuration, basePath?: strin
      *
      * @summary Get Running Tasks
      * @param {boolean} [includeExited] Include tasks that have already finished (still held in memory)
-     * @param {number} [since] Only return finished tasks that completed after this Unix epoch-ms cursor (incremental polling)
+     * @param {number} [since] Only return finished tasks that completed at or after this Unix epoch-ms cursor (incremental polling)
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -3130,7 +3130,7 @@ declare class TowersApi extends BaseAPI {
      *
      * @summary Get Running Tasks
      * @param {boolean} [includeExited] Include tasks that have already finished (still held in memory)
-     * @param {number} [since] Only return finished tasks that completed after this Unix epoch-ms cursor (incremental polling)
+     * @param {number} [since] Only return finished tasks that completed at or after this Unix epoch-ms cursor (incremental polling)
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */

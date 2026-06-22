@@ -1966,12 +1966,13 @@ paths:
         schema:
           default: false
           type: boolean
-      - description: Only return finished tasks that completed after this Unix epoch-ms
-          cursor (incremental polling)
+      - description: Only return finished tasks that completed at or after this Unix
+          epoch-ms cursor (incremental polling)
         in: query
         name: since
         schema:
           default: 0
+          format: int64
           type: integer
       responses:
         "200":

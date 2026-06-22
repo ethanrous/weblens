@@ -26,7 +26,7 @@
         </div>
 
         <div
-            v-if="model.lanes.length === 0"
+            v-if="tasks.length === 0"
             :class="{ 'text-text-tertiary rounded border p-4 text-center font-medium': true }"
         >
             {{ emptyText }}
@@ -180,6 +180,10 @@ function onScroll() {
     if (!el) {
         return
     }
+
+    // Dismiss the tooltip on any scroll. Auto-scroll/polls can unmount the hovered (virtualized) bar
+    // without firing its mouseleave, which would otherwise leave the tooltip stuck at a stale position.
+    hoveredId.value = null
 
     const atRight = el.scrollLeft + el.clientWidth >= el.scrollWidth - 4
     if (atRight) {

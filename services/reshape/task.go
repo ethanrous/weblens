@@ -21,8 +21,8 @@ func TaskToTaskInfo(t *task.Task) wlstructs.TaskInfo {
 	result := t.GetResults()
 
 	var metadata any
-	if meta := t.GetMeta(); meta != nil {
-		metadata = meta.FormatToResult().ToMap()
+	if m := t.FormatMetadata(); m != nil {
+		metadata = m
 	}
 
 	errMsg := ""

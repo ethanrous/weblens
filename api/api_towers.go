@@ -731,7 +731,7 @@ type ApiGetRunningTasksRequest struct {
 	ctx context.Context
 	ApiService *TowersAPIService
 	includeExited *bool
-	since *int32
+	since *int64
 }
 
 // Include tasks that have already finished (still held in memory)
@@ -740,8 +740,8 @@ func (r ApiGetRunningTasksRequest) IncludeExited(includeExited bool) ApiGetRunni
 	return r
 }
 
-// Only return finished tasks that completed after this Unix epoch-ms cursor (incremental polling)
-func (r ApiGetRunningTasksRequest) Since(since int32) ApiGetRunningTasksRequest {
+// Only return finished tasks that completed at or after this Unix epoch-ms cursor (incremental polling)
+func (r ApiGetRunningTasksRequest) Since(since int64) ApiGetRunningTasksRequest {
 	r.since = &since
 	return r
 }
@@ -794,7 +794,7 @@ func (a *TowersAPIService) GetRunningTasksExecute(r ApiGetRunningTasksRequest) (
 	if r.since != nil {
 		parameterAddToHeaderOrQuery(localVarQueryParams, "since", r.since, "", "")
 	} else {
-		var defaultValue int32 = 0
+		var defaultValue int64 = 0
 		parameterAddToHeaderOrQuery(localVarQueryParams, "since", defaultValue, "", "")
 		r.since = &defaultValue
 	}

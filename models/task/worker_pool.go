@@ -756,7 +756,7 @@ func (wp *WorkerPool) getRegisteredJob(jobName string) job {
 func (wp *WorkerPool) workerRecover(task *Task, _ int64) {
 	recovered := recover()
 	if recovered != nil {
-		task.FinishTime.Set(time.Now())
+		task.markFinished()
 
 		// Make sure what we got is an error
 		var err error
@@ -792,7 +792,7 @@ func (wp *WorkerPool) safetyWork(task *Task, workerID int64) {
 
 		task.work.handler(task)
 
-		task.FinishTime.Set(time.Now())
+		task.markFinished()
 	}
 }
 

@@ -40,6 +40,7 @@
                 />
                 <FilePath
                     :path="destPath"
+                    omit-first
                     omit-last
                 />
             </a>

@@ -11,8 +11,6 @@
                 'min-w-max': i === parts.length - 1,
             }"
         >
-            <!-- <template v-if="i !== parts.length - 1 && width < 24"> . </template> -->
-
             <template v-if="i === 0 && part === userStore.user.username">
                 <IconHome size="1.2em" />
             </template>
@@ -21,22 +19,21 @@
                 <IconTrash size="1.2em" />
             </template>
 
-            <template v-else-if="i === 0">
-                <IconFolder size="1.2em" />
-                <span :class="{ 'absolute mb-1 ml-2': true }">.</span>
-
-                <!-- <span :class="{'ml-1 min-w-0 truncate': true}">{{ part }}</span> -->
+            <template v-else>
+                <IconFolder
+                    v-if="i === 0"
+                    size="1.2em"
+                    :class="{ 'mr-1': true }"
+                />
+                <span
+                    :class="{
+                        'min-w-0 truncate': i !== parts.length - 1,
+                        'min-w-max': i === parts.length - 1,
+                    }"
+                >
+                    {{ part }}
+                </span>
             </template>
-
-            <span
-                v-else
-                :class="{
-                    'min-w-0 truncate': i !== parts.length - 1,
-                    'min-w-max': i === parts.length - 1,
-                }"
-            >
-                {{ part }}
-            </span>
 
             <IconSlash
                 v-if="i < parts.length - 1"

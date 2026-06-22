@@ -2768,8 +2768,9 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
+                        "format": "int64",
                         "default": 0,
-                        "description": "Only return finished tasks that completed after this Unix epoch-ms cursor (incremental polling)",
+                        "description": "Only return finished tasks that completed at or after this Unix epoch-ms cursor (incremental polling)",
                         "name": "since",
                         "in": "query"
                     }
