@@ -478,7 +478,7 @@ func (t *Task) SetResult(results Result) {
 // FirstResultChan returns a channel that is closed the first time the task's
 // result is set via SetResult. Callers can use it as a readiness signal to
 // avoid polling for early task progress. The channel is created with the task
-// and never re-opened — once closed it stays closed for the task's lifetime.
+// and never re-opened - once closed it stays closed for the task's lifetime.
 func (t *Task) FirstResultChan() <-chan struct{} {
 	return t.firstResultChan
 }

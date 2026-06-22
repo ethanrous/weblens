@@ -94,7 +94,7 @@ func CanUserAccessPastFileByID(ctx context_service.RequestContext, fileID string
 
 // RequireFileAccess verifies the requester has the given permissions on EVERY file in fileIDs
 // and returns the resolved files. The returned slice has the same length as fileIDs and is
-// indexed in the same order — callers can rely on `files[i]` corresponding to `fileIDs[i]`.
+// indexed in the same order - callers can rely on `files[i]` corresponding to `fileIDs[i]`.
 // On the first failure, it writes ctx.Error with the wrapped error and returns it so the caller
 // can `return`. The status code (404/403/500) is extracted from the error by ctx.Error via
 // wlerrors.AsStatus; the literal 500 passed below is just the fallback used when no status is
@@ -130,7 +130,7 @@ func RequireFileAccessOne(ctx context_service.RequestContext, fileID string, per
 
 // RequireAnyFileAccess returns the first file from fileIDs that the requester can access with
 // the given permissions. Returns 403 only if EVERY id is denied. Hard errors (404/500) on any
-// id surface immediately rather than falling through to the next id — only permission denials
+// id surface immediately rather than falling through to the next id - only permission denials
 // participate in the any-of semantics. This exists for media flows where a single piece of
 // media may be backed by multiple files; access on any one grants access to the media.
 func RequireAnyFileAccess(ctx context_service.RequestContext, fileIDs []string, perms ...share_model.Permission) (*file_model.WeblensFileImpl, error) {

@@ -26,7 +26,7 @@ func TestSaveMediaUpsert(t *testing.T) {
 	m := newTestMedia("A", "alice")
 	require.NoError(t, media.SaveMedia(ctx, m))
 
-	// Upsert with same contentID, different owner — reuse same object to keep _id stable
+	// Upsert with same contentID, different owner - reuse same object to keep _id stable
 	m.SetOwner("bob")
 	require.NoError(t, media.SaveMedia(ctx, m))
 
@@ -200,7 +200,7 @@ func TestGetPagedMedias(t *testing.T) {
 		require.NoError(t, media.SaveMedia(ctx, m))
 	}
 
-	// 1 video (duration > 0) — should be excluded
+	// 1 video (duration > 0) - should be excluded
 	vid := newTestMedia("vid1", "alice")
 	vid.MimeType = "video/mp4"
 	vid.Duration = 5000

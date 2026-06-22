@@ -26,7 +26,7 @@ test.describe('Presentation Info Panel', () => {
         const presentation = page.locator('.presentation')
         await expect(presentation).toBeVisible({ timeout: 15000 })
 
-        // Ensure info panel is open (toggle if needed — state persists in localStorage)
+        // Ensure info panel is open (toggle if needed - state persists in localStorage)
         const fileDetailsText = presentation.getByText('File Details')
         try {
             await expect(fileDetailsText).toBeVisible({ timeout: 3000 })
@@ -108,7 +108,7 @@ test.describe('Presentation Info Panel', () => {
         }
         await expect(fileDetailsText).toBeVisible({ timeout: 5000 })
 
-        // Click inside info panel (on the filename) — presentation should NOT close
+        // Click inside info panel (on the filename) - presentation should NOT close
         await presentation.locator('h3').filter({ hasText: 'info-panel-test.txt' }).click()
         await expect(presentation).toBeVisible()
         await expect(fileDetailsText).toBeVisible()
@@ -121,11 +121,11 @@ test.describe('Presentation Info Panel', () => {
         await page.keyboard.press('i')
         await expect(fileDetailsText).toBeVisible({ timeout: 5000 })
 
-        // Toggle via info circle icon click — panel closes
+        // Toggle via info circle icon click - panel closes
         await presentation.locator('.tabler-icon-info-circle').click()
         await expect(fileDetailsText).not.toBeVisible({ timeout: 5000 })
 
-        // Click icon again — panel opens
+        // Click icon again - panel opens
         await presentation.locator('.tabler-icon-info-circle').click()
         await expect(fileDetailsText).toBeVisible({ timeout: 5000 })
 
@@ -253,7 +253,7 @@ test.describe('Presentation Info Panel', () => {
         await page.getByRole('button', { name: 'Shared' }).click()
         await page.waitForURL('**/files/share', { timeout: 15000 })
 
-        // Should see the shared folder — click into it
+        // Should see the shared folder - click into it
         const sharedFolder = page.locator('[id^="file-card-"]').first()
         await expect(sharedFolder).toBeVisible({ timeout: 15000 })
         await sharedFolder.dblclick()

@@ -9,7 +9,7 @@ import { test, expect, createFolder, createUser, login, uploadTestFile } from '.
  * - stores/media.ts (fetchMoreMedia with shareID)
  * - stores/location.ts (isInTimeline, activeShare, inShareRoot in share context)
  * - components/organism/MediaTimeline.vue (timeline rendering in share context)
- * - routers/api/v1/api.go (media batch endpoint auth — GET /media requires share-based access)
+ * - routers/api/v1/api.go (media batch endpoint auth - GET /media requires share-based access)
  */
 
 test.describe('Share Timeline', () => {
@@ -89,7 +89,7 @@ test.describe('Share Timeline', () => {
         // Wait for the shared folder to load
         await expect(page.locator('h3').filter({ hasText: 'ShareTimelineFolder' })).toBeVisible()
 
-        // Verify we're unauthenticated — "Log In" button should be visible
+        // Verify we're unauthenticated - "Log In" button should be visible
         await expect(page.getByRole('button', { name: 'Log In' })).toBeVisible()
 
         // Switch to timeline mode using the timeline toggle button

@@ -57,19 +57,19 @@ func NewClient(baseURL string) *Client {
 // ServiceUnavailable reports whether the container has been marked offline.
 func (c *Client) ServiceUnavailable() bool { return c.unavailable.Load() }
 
-// MarkAvailable clears the unavailable flag — used by the health-check ticker.
+// MarkAvailable clears the unavailable flag - used by the health-check ticker.
 func (c *Client) MarkAvailable() { c.unavailable.Store(false) }
 
-// MarkUnavailable sets the unavailable flag — used in tests to simulate a downed service.
+// MarkUnavailable sets the unavailable flag - used in tests to simulate a downed service.
 func (c *Client) MarkUnavailable() { c.unavailable.Store(true) }
 
 // SetBaseURLForTesting overrides the base URL of the client. Only for use in tests.
 func (c *Client) SetBaseURLForTesting(url string) { c.baseURL = url }
 
-// BaseURL returns the configured base URL — used by the health-check ticker.
+// BaseURL returns the configured base URL - used by the health-check ticker.
 func (c *Client) BaseURL() string { return c.baseURL }
 
-// HTTPClient returns the underlying http.Client — used by the health-check ticker.
+// HTTPClient returns the underlying http.Client - used by the health-check ticker.
 func (c *Client) HTTPClient() *http.Client { return c.http }
 
 // EncodeImage returns the unified-model embedding for the image at imgPath.
@@ -208,7 +208,7 @@ func (c *Client) ExtractAndEmbedFile(ctx context.Context, path string, mimeHint 
 }
 
 // flagUnreachable trips the circuit breaker on a transport-level failure from
-// Do (DNS, dial, connection refused, timeout — the error wording varies by
+// Do (DNS, dial, connection refused, timeout - the error wording varies by
 // platform). A cancelled or expired caller context is not the service's fault,
 // so it is left alone. The health ticker clears the flag once /health returns.
 func (c *Client) flagUnreachable(err error) {

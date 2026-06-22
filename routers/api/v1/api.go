@@ -63,7 +63,7 @@ func Routes(_ context_service.AppContext) *router.Router {
 		r.Get("/random", router.RequireSignIn, media_api.GetRandomMedia)
 	})
 
-	// Files — read endpoints support share-based access; the middleware resolves the file
+	// Files - read endpoints support share-based access; the middleware resolves the file
 	// from {fileID}, applies share permission checks, and exposes the result via ctx.File.
 	r.Group("/files", func() {
 		r.Group("/{fileID}", func() {
@@ -75,7 +75,7 @@ func Routes(_ context_service.AppContext) *router.Router {
 		})
 	})
 
-	// Files — mutation endpoints require authentication
+	// Files - mutation endpoints require authentication
 	r.Group("/files", func() {
 		r.Patch("", file_api.MoveFiles)
 		r.Delete("", file_api.DeleteFiles)
@@ -90,12 +90,12 @@ func Routes(_ context_service.AppContext) *router.Router {
 		})
 	}, router.RequireSignIn)
 
-	// Folder — read endpoints support share-based access
+	// Folder - read endpoints support share-based access
 	r.Group("/folder/{folderID}", func() {
 		r.Get("", router.RequireFilePermissions(share_model.SharePermissionView), file_api.GetFolder)
 	})
 
-	// Folder — mutation endpoints require authentication
+	// Folder - mutation endpoints require authentication
 	r.Group("/folder", func() {
 		r.Group("/{folderID}", func() {
 			r.Post("/scan", router.RequireFilePermissions(), file_api.ScanDir)

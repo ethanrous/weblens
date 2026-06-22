@@ -89,7 +89,7 @@ async function login(
 }
 
 async function createFolder(page: import('@playwright/test').Page, name: string) {
-    // Wait for the file browser to finish loading — either files are shown or the empty state
+    // Wait for the file browser to finish loading - either files are shown or the empty state
     await page.locator('#filebrowser-container').waitFor({ state: 'attached' })
 
     await page.getByRole('button', { name: 'New Folder' }).click()

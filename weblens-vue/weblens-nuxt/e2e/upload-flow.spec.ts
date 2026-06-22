@@ -115,7 +115,7 @@ test.describe('Upload Flow', () => {
     })
 
     test('should upload media images and display visible thumbnails', async ({ page }) => {
-        // Triple timeout — media upload + backend processing + timeline fetch
+        // Triple timeout - media upload + backend processing + timeline fetch
         test.slow()
 
         await expect(page.locator('h3').filter({ hasText: 'Home' })).toBeVisible({ timeout: 15000 })

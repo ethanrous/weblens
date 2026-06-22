@@ -48,7 +48,7 @@ test.describe('Developer Page Actions', () => {
             .or(page.getByRole('button', { name: 'Disable Embedding' }))
         await expect(embedButton).toBeVisible()
 
-        // Click to toggle — verify the click doesn't error
+        // Click to toggle - verify the click doesn't error
         await embedButton.click()
 
         // The button should still be visible after the toggle attempt

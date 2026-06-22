@@ -133,7 +133,7 @@ useIntervalFn(() => {
     nowMs.value = Date.now()
 }, 1000)
 
-// Rebuild the model when the task set changes, not on every now tick — otherwise a large
+// Rebuild the model when the task set changes, not on every now tick - otherwise a large
 // retained history is re-grouped once a second.
 watch(
     () => tasks,

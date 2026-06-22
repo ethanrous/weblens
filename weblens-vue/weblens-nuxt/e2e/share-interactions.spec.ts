@@ -26,7 +26,7 @@ test.describe('Share Modal Interactions', () => {
         const shareModal = page.locator('.fullscreen-modal')
         await expect(shareModal.locator('h4').filter({ hasText: 'Share' })).toBeVisible({ timeout: 15000 })
 
-        // Toggle Public — creates a share on first toggle
+        // Toggle Public - creates a share on first toggle
         const publicPrivateBtn = shareModal
             .getByRole('button', { name: 'Private' })
             .or(shareModal.getByRole('button', { name: 'Public' }))
@@ -127,7 +127,7 @@ test.describe('Share Modal Interactions', () => {
                 await expect(accessorRow.first()).toBeVisible({ timeout: 5000 })
 
                 // Toggle a permission checkbox if present (exercises updateAccessorPerms).
-                // WeblensCheckbox uses visibility:hidden on <input> — use force click.
+                // WeblensCheckbox uses visibility:hidden on <input> - use force click.
                 const checkboxes = shareModal.locator('input[type="checkbox"]')
                 if ((await checkboxes.count()) > 0) {
                     await checkboxes.first().click({ force: true })

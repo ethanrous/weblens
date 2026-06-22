@@ -16,8 +16,8 @@ import (
 	"github.com/ethanrous/weblens/services/reshape"
 )
 
-// FilterTasks returns the tasks a poller should see: every still-active task, plus —
-// when includeExited is set — finished tasks. A positive sinceMs further limits finished
+// FilterTasks returns the tasks a poller should see: every still-active task, plus -
+// when includeExited is set - finished tasks. A positive sinceMs further limits finished
 // tasks to those that completed at or after that Unix epoch-ms cursor, so the gantt can poll
 // incrementally instead of re-fetching the whole retained history every time. The bound is
 // inclusive (>=) and the client dedups by task ID, so a task finishing in the same millisecond

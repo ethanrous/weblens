@@ -22,7 +22,7 @@ test.describe('File Browser', () => {
         // matching other folders that contain "Test Folder" as a substring
         await page.getByText('Test Folder', { exact: true }).dblclick()
 
-        // Wait for navigation — the header should now show "Test Folder"
+        // Wait for navigation - the header should now show "Test Folder"
         await expect(page.locator('h3').filter({ hasText: 'Test Folder' })).toBeVisible({
             timeout: 15000,
         })
@@ -38,7 +38,7 @@ test.describe('File Browser', () => {
         // Click the back chevron (IconChevronLeft in FileHeader)
         await page.locator('.tabler-icon-chevron-left').first().click()
 
-        // Should be back at home — header shows "Home" or the home folder name
+        // Should be back at home - header shows "Home" or the home folder name
         await page.waitForURL('**/files/home')
     })
 
@@ -66,7 +66,7 @@ test.describe('File Browser', () => {
         // The currently selected option's label is visible. Click the dropdown to open,
         // then select the other option.
 
-        // Find the shape selector — it shows the current shape label (e.g., "Grid")
+        // Find the shape selector - it shows the current shape label (e.g., "Grid")
         // WeblensOptions has both a visible label and a hidden measurement span,
         // so we use .first() to target the visible one.
         const gridLabel = page.getByText('Grid').first()
@@ -171,7 +171,7 @@ test.describe('File Browser', () => {
         // In timeline mode, the search placeholder changes to "Search Media..."
         await expect(page.getByPlaceholder('Search Media...')).toBeVisible({ timeout: 15000 })
 
-        // Toggle back to file mode — the button now shows a folder icon.
+        // Toggle back to file mode - the button now shows a folder icon.
         // Use last() because the sidebar UploadButton also wraps an IconFolder
         // in a button, but the header toggle appears later in the DOM.
         const folderToggle = page.locator('button:has(.tabler-icon-folder)')

@@ -96,7 +96,7 @@ test.describe('Tag Assignment via Context Menu', () => {
         const contextMenu = page.locator('#file-context-menu')
         await contextMenu.getByRole('button', { name: 'Tags' }).click()
 
-        // Tag selector replaces actions — check for the "New Tag" button which is unique to the selector
+        // Tag selector replaces actions - check for the "New Tag" button which is unique to the selector
         await expect(contextMenu.getByRole('button', { name: 'New Tag' })).toBeVisible({ timeout: 5000 })
 
         await page.keyboard.press('Escape')

@@ -37,7 +37,7 @@ test.describe('Navigation and Redirects', () => {
     })
 
     test('should redirect root to files/home when authenticated', async ({ page, login: _login }) => {
-        // Navigate to root — should redirect to files/home
+        // Navigate to root - should redirect to files/home
         await page.goto('/')
         await page.waitForURL('**/files/home')
         await expect(page).toHaveURL(/\/files\/home$/)
@@ -51,7 +51,7 @@ test.describe('Navigation and Redirects', () => {
     })
 
     test('should redirect /settings to /settings/account', async ({ page, login: _login }) => {
-        // Navigate to /settings — should redirect to /settings/account
+        // Navigate to /settings - should redirect to /settings/account
         await page.goto('/settings')
         await page.waitForURL('**/settings/account')
         await expect(page).toHaveURL(/\/settings\/account$/)
@@ -71,7 +71,7 @@ test.describe('Navigation and Redirects', () => {
         // On files page, sidebar should be visible
         await expect(page.getByRole('button', { name: 'Home' })).toBeVisible()
 
-        // Navigate to settings — sidebar should still be present but collapsed
+        // Navigate to settings - sidebar should still be present but collapsed
         await page.goto('/settings')
         await page.waitForURL('**/settings/account')
 

@@ -60,7 +60,7 @@ var upgrader = gorilla.Upgrader{
 
 		proxyAddr := config.GetConfig().ProxyAddress
 		if proxyAddr == "" {
-			// No proxy configured — allow same-host origins.
+			// No proxy configured - allow same-host origins.
 			// Also allow localhost origins on any port for dev mode
 			// where the frontend proxy runs on a different port.
 			originURL, err := url.Parse(origin)

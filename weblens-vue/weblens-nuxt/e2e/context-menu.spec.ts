@@ -63,7 +63,7 @@ test.describe('Folder-Level Context Menu', () => {
         // Should show at least one history action (folder was just created)
         await expect(page.getByText('ContextMenuTestFolder Created0 sec.ago')).toBeVisible()
 
-        // Close history panel — the X icon's parent div intercepts pointer events
+        // Close history panel - the X icon's parent div intercepts pointer events
         // and the icon may be outside the default viewport. Widen viewport and force click.
         const viewport = page.viewportSize()!
         await page.setViewportSize({ width: 1920, height: viewport.height })
@@ -190,7 +190,7 @@ test.describe('FolderPickerModal via Set as Cover', () => {
 
         const imageCard = page.locator('[id^="file-card-"]').filter({ hasText: 'DSC08113.jpg' })
         await expect(imageCard).toBeVisible({ timeout: 15_000 })
-        // Wait for the backend to scan the media — the thumbnail rendering means
+        // Wait for the backend to scan the media - the thumbnail rendering means
         // contentID has been set on the file via WebSocket FileUpdatedEvent.
         await expect(imageCard.locator('.media-image-lowres')).toBeVisible({ timeout: 15_000 })
 

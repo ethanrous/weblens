@@ -124,7 +124,7 @@ func ExtractAndEmbedFile(tsk *task.Task) {
 
 	chunks, err := embed.Default().ExtractAndEmbedFile(tsk.Ctx, absPath, "")
 	if errors.Is(err, embed.ErrExtractionFailed) {
-		// Extraction failed — leave existing embeddings in place instead of pruning them away.
+		// Extraction failed - leave existing embeddings in place instead of pruning them away.
 		tsk.SetResult(task.Result{"skipped": "extraction_failed"})
 		tsk.Success()
 
