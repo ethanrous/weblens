@@ -178,7 +178,8 @@ test.describe('Settings Page', () => {
         await expect(page.getByRole('button', { name: 'Clean Media' })).toBeVisible()
         await expect(page.getByRole('button', { name: 'Flush Cache' })).toBeVisible()
 
-        // Task table should show empty state
+        // Task table should show empty state (gantt is the default view; toggle to the table)
+        await page.getByRole('button', { name: 'Table' }).click()
         await expect(page.getByText('No running tasks')).toBeVisible()
     })
 
