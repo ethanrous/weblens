@@ -1,7 +1,7 @@
 <template>
     <div
         :class="{
-            'absolute top-1 bottom-1 cursor-default overflow-hidden rounded-sm border border-abyss-900 px-1 text-xs leading-none text-white/90': true,
+            'border-abyss-900 absolute top-1 bottom-1 cursor-default overflow-hidden rounded-sm border px-1 text-xs leading-none text-white/90': true,
             'flex items-center': true,
             [colorClass]: true,
         }"

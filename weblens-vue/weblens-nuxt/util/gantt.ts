@@ -27,8 +27,19 @@ export type GanttModel = {
 const MIN_BAR_PX = 6
 const AXIS_TARGET_PX = 120
 const TICK_STEPS_MS = [
-    1_000, 5_000, 15_000, 30_000, 60_000, 5 * 60_000, 15 * 60_000, 30 * 60_000,
-    60 * 60_000, 3 * 60 * 60_000, 6 * 60 * 60_000, 12 * 60 * 60_000, 24 * 60 * 60_000,
+    1_000,
+    5_000,
+    15_000,
+    30_000,
+    60_000,
+    5 * 60_000,
+    15 * 60_000,
+    30 * 60_000,
+    60 * 60_000,
+    3 * 60 * 60_000,
+    6 * 60 * 60_000,
+    12 * 60 * 60_000,
+    24 * 60 * 60_000,
 ]
 
 // parseTimeMs returns epoch ms for an ISO string, or 0 for missing/zero/invalid times.
@@ -77,11 +88,7 @@ export function stateColorClass(task: TaskInfo): string {
 // mergeTaskPoll folds a fresh poll into the accumulated session history. Polled tasks
 // overwrite their prior copy; tasks that vanished while still open are closed out at nowMs
 // (the backend evicts non-persistent tasks on completion, so this is our only finish signal).
-export function mergeTaskPoll(
-    prev: Map<string, TaskInfo>,
-    polled: TaskInfo[],
-    nowMs: number,
-): Map<string, TaskInfo> {
+export function mergeTaskPoll(prev: Map<string, TaskInfo>, polled: TaskInfo[], nowMs: number): Map<string, TaskInfo> {
     const next = new Map(prev)
     const polledIds = new Set<string>()
 

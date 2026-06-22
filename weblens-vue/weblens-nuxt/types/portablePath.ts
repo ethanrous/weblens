@@ -113,7 +113,6 @@ export class PortablePath {
         }
 
         const relativeParts = this.relativePath.slice(other.relativePath.length)
-        console.log(`Relative path from '${other.toString()}' to '${this.toString()}': '${relativeParts.join('/')}'`)
         return new PortablePath(`${this.rootAlias}:${relativeParts.join('/')}`)
     }
 
