@@ -275,8 +275,8 @@ func SaveAction(ctx context.Context, action *FileAction) error {
 	}
 
 	if action.file != nil && !action.file.IsDir() && action.file.GetContentID() == "" {
-		err := wlerrors.Errorf("creating FileAction for file with empty content ID")
-		wlog.FromContext(ctx).Warn().Stack().Err(err).Str("fileID", action.file.ID()).Str("filename", action.file.GetPortablePath().Filename()).Msg("Creating FileAction for file with empty content ID")
+		err := wlerrors.Errorf("saving FileAction for file with empty content ID")
+		wlog.FromContext(ctx).Warn().Stack().Err(err).Str("fileID", action.file.ID()).Str("filename", action.file.GetPortablePath().Filename()).Msg("Saving FileAction for file with empty content ID")
 	}
 
 	col, err := db.GetCollection[*FileAction](ctx, FileHistoryCollectionKey)
