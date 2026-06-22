@@ -188,15 +188,6 @@ func (t *Task) GetStartTime() time.Time {
 	return t.StartTime.Load()
 }
 
-// markFinished stamps the finish time exactly once. The earliest terminal transition
-// (success, error, cancel, panic, or timeout) wins, so a later cleanup/recover pass can't
-// overwrite the real completion time.
-func (t *Task) markFinished() {
-	if t.FinishTime.Load().IsZero() {
-		t.FinishTime.Set(time.Now())
-	}
-}
-
 // GetFinishTime returns the time when the task finished executing.
 func (t *Task) GetFinishTime() time.Time {
 	return t.FinishTime.Load()
@@ -586,4 +577,13 @@ func globbyHash(charLimit int, dataToHash ...any) string {
 	h.Write([]byte(s))
 
 	return base64.URLEncoding.EncodeToString(h.Sum(nil))[:charLimit]
+}
+
+// markFinished stamps the finish time exactly once. The earliest terminal transition
+// (success, error, cancel, panic, or timeout) wins, so a later cleanup/recover pass can't
+// overwrite the real completion time.
+func (t *Task) markFinished() {
+	if t.FinishTime.Load().IsZero() {
+		t.FinishTime.Set(time.Now())
+	}
 }
