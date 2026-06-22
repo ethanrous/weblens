@@ -113,7 +113,8 @@ export class PortablePath {
         }
 
         const relativeParts = this.relativePath.slice(other.relativePath.length)
-        return new PortablePath(`${this.rootAlias}:${relativeParts.join('/')}`)
+        const trailing = this.isDirectory ? '/' : ''
+        return new PortablePath(`${this.rootAlias}:${relativeParts.join('/')}${trailing}`)
     }
 
     static fromParts(rootAlias: string, relativePath: string[]): PortablePath {

@@ -66,6 +66,10 @@ type Task struct {
 	firstResultChan chan struct{}
 	firstResultOnce sync.Once
 
+	// finishOnce guards markFinished so the earliest terminal transition stamps
+	// FinishTime exactly once, even across callers that don't hold updateMu.
+	finishOnce sync.Once
+
 	WorkerID int64
 }
 
@@ -583,7 +587,7 @@ func globbyHash(charLimit int, dataToHash ...any) string {
 // (success, error, cancel, panic, or timeout) wins, so a later cleanup/recover pass can't
 // overwrite the real completion time.
 func (t *Task) markFinished() {
-	if t.FinishTime.Load().IsZero() {
+	t.finishOnce.Do(func() {
 		t.FinishTime.Set(time.Now())
-	}
+	})
 }
