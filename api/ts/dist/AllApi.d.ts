@@ -422,9 +422,13 @@ interface TaskInfo {
     'Completed': boolean;
     'State': string;
     'completedChildTasks'?: number;
+    'error'?: string;
+    'finishTime'?: string;
     'jobName': string;
+    'metadata'?: object;
     'parentTaskID'?: string;
     'progress': number;
+    'queueTime'?: string;
     'result'?: object;
     'startTime'?: string;
     'status': string;
@@ -2810,10 +2814,12 @@ declare const TowersApiAxiosParamCreator: (configuration?: Configuration) => {
     /**
      *
      * @summary Get Running Tasks
+     * @param {boolean} [includeExited] Include tasks that have already finished (still held in memory)
+     * @param {number} [since] Only return finished tasks that completed at or after this Unix epoch-ms cursor (incremental polling)
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getRunningTasks: (options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
+    getRunningTasks: (includeExited?: boolean, since?: number, options?: RawAxiosRequestConfig) => Promise<RequestArgs>;
     /**
      *
      * @summary Get server health status
@@ -2913,10 +2919,12 @@ declare const TowersApiFp: (configuration?: Configuration) => {
     /**
      *
      * @summary Get Running Tasks
+     * @param {boolean} [includeExited] Include tasks that have already finished (still held in memory)
+     * @param {number} [since] Only return finished tasks that completed at or after this Unix epoch-ms cursor (incremental polling)
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getRunningTasks(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<TaskInfo>>>;
+    getRunningTasks(includeExited?: boolean, since?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<TaskInfo>>>;
     /**
      *
      * @summary Get server health status
@@ -3016,10 +3024,12 @@ declare const TowersApiFactory: (configuration?: Configuration, basePath?: strin
     /**
      *
      * @summary Get Running Tasks
+     * @param {boolean} [includeExited] Include tasks that have already finished (still held in memory)
+     * @param {number} [since] Only return finished tasks that completed at or after this Unix epoch-ms cursor (incremental polling)
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getRunningTasks(options?: RawAxiosRequestConfig): AxiosPromise<Array<TaskInfo>>;
+    getRunningTasks(includeExited?: boolean, since?: number, options?: RawAxiosRequestConfig): AxiosPromise<Array<TaskInfo>>;
     /**
      *
      * @summary Get server health status
@@ -3119,10 +3129,12 @@ declare class TowersApi extends BaseAPI {
     /**
      *
      * @summary Get Running Tasks
+     * @param {boolean} [includeExited] Include tasks that have already finished (still held in memory)
+     * @param {number} [since] Only return finished tasks that completed at or after this Unix epoch-ms cursor (incremental polling)
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getRunningTasks(options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TaskInfo[], any, {}>>;
+    getRunningTasks(includeExited?: boolean, since?: number, options?: RawAxiosRequestConfig): Promise<axios.AxiosResponse<TaskInfo[], any, {}>>;
     /**
      *
      * @summary Get server health status

@@ -74,7 +74,10 @@ test.describe('Upload Flow', () => {
             buffer: Buffer.from('Sequential upload file 1'),
         })
 
-        await expect(page.getByText('upload-seq-1.txt')).toBeVisible({ timeout: 15000 })
+        // Scope to the file card to avoid matching the upload progress indicator text.
+        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'upload-seq-1.txt' })).toBeVisible({
+            timeout: 15000,
+        })
 
         // Upload second file
         fileChooserPromise = page.waitForEvent('filechooser')
@@ -87,7 +90,9 @@ test.describe('Upload Flow', () => {
             buffer: Buffer.from('Sequential upload file 2'),
         })
 
-        await expect(page.getByText('upload-seq-2.txt')).toBeVisible({ timeout: 15000 })
+        await expect(page.locator('[id^="file-card-"]').filter({ hasText: 'upload-seq-2.txt' })).toBeVisible({
+            timeout: 15000,
+        })
     })
 
     test('should show uploaded file sizes correctly formatted', async ({ page }) => {
@@ -110,7 +115,7 @@ test.describe('Upload Flow', () => {
     })
 
     test('should upload media images and display visible thumbnails', async ({ page }) => {
-        // Triple timeout — media upload + backend processing + timeline fetch
+        // Triple timeout - media upload + backend processing + timeline fetch
         test.slow()
 
         await expect(page.locator('h3').filter({ hasText: 'Home' })).toBeVisible({ timeout: 15000 })

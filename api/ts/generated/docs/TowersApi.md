@@ -375,11 +375,21 @@ import {
 const configuration = new Configuration();
 const apiInstance = new TowersApi(configuration);
 
-const { status, data } = await apiInstance.getRunningTasks();
+let includeExited: boolean; //Include tasks that have already finished (still held in memory) (optional) (default to false)
+let since: number; //Only return finished tasks that completed at or after this Unix epoch-ms cursor (incremental polling) (optional) (default to 0)
+
+const { status, data } = await apiInstance.getRunningTasks(
+    includeExited,
+    since
+);
 ```
 
 ### Parameters
-This endpoint does not have any parameters.
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **includeExited** | [**boolean**] | Include tasks that have already finished (still held in memory) | (optional) defaults to false|
+| **since** | [**number**] | Only return finished tasks that completed at or after this Unix epoch-ms cursor (incremental polling) | (optional) defaults to 0|
 
 
 ### Return type

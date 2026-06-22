@@ -14,7 +14,17 @@
                 'flex h-full w-full items-center gap-0.5 px-2 pb-1 select-none': true,
             }"
         >
-            <span :class="{ 'h-max truncate text-lg font-semibold text-nowrap': true }">{{ file.GetFilename() }}</span>
+            <span
+                v-if="typeof displayName === 'string'"
+                :class="{ 'h-max truncate text-lg font-semibold text-nowrap': true }"
+            >
+                {{ displayName }}
+            </span>
+
+            <FilePath
+                v-else-if="displayName instanceof PortablePath"
+                :path="displayName"
+            />
             <div
                 v-if="fileTags.length > 0"
                 class="flex items-center gap-1"
@@ -54,11 +64,14 @@
 import { SelectedState } from '@/types/weblensFile'
 import type WeblensFile from '@/types/weblensFile'
 import useTagsStore from '~/stores/tags'
+import { PortablePath } from '~/types/portablePath'
+import FilePath from '../atom/FilePath.vue'
 
 const tagsStore = useTagsStore()
 
 const props = defineProps<{
     file: WeblensFile
+    displayName: string | PortablePath
     fileState: SelectedState
 }>()
 

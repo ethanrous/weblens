@@ -53,8 +53,9 @@ type Task struct {
 	// Function to be run to clean up if the task errors
 	errorCleanups []HandlerFunc
 
-	updateMu  sync.RWMutex
-	resultsMu sync.RWMutex
+	updateMu   sync.RWMutex
+	resultsMu  sync.RWMutex
+	metadataMu sync.RWMutex
 
 	timerLock sync.RWMutex
 
@@ -64,6 +65,10 @@ type Task struct {
 	// callers waiting on early task progress can unblock without polling.
 	firstResultChan chan struct{}
 	firstResultOnce sync.Once
+
+	// finishOnce guards markFinished so the earliest terminal transition stamps
+	// FinishTime exactly once, even across callers that don't hold updateMu.
+	finishOnce sync.Once
 
 	WorkerID int64
 }
@@ -192,6 +197,11 @@ func (t *Task) GetFinishTime() time.Time {
 	return t.FinishTime.Load()
 }
 
+// GetQueueTime returns the time when the task was queued.
+func (t *Task) GetQueueTime() time.Time {
+	return t.QueueTime.Load()
+}
+
 // Wait Block until a task is finished. "Finished" can define success, failure, or cancel
 func (t *Task) Wait() {
 	if t == nil {
@@ -223,6 +233,7 @@ func (t *Task) Cancel() {
 	if t.exitStatus.Load() == TaskNoStatus {
 		t.queueState.Set(Exited)
 		t.exitStatus.Set(TaskCanceled)
+		t.markFinished()
 	}
 
 	t.cancelFunc(nil)
@@ -266,12 +277,28 @@ func (t *Task) GetMeta() Metadata {
 	return t.metadata
 }
 
+// FormatMetadata returns the task metadata as a result map, or nil if there is no metadata.
+// It is safe to call concurrently with Manipulate, which mutates the metadata of a running task.
+func (t *Task) FormatMetadata() map[string]any {
+	t.metadataMu.RLock()
+	defer t.metadataMu.RUnlock()
+
+	if t.metadata == nil {
+		return nil
+	}
+
+	return t.metadata.FormatToResult().ToMap()
+}
+
 /*
 Manipulate is used to change the metadata of a task while it is running.
 This can be useful to have a task be waiting for input from a client,
 and this function can be used to send that data to the task via a chan, for example.
 */
 func (t *Task) Manipulate(fn func(meta Metadata) error) error {
+	t.metadataMu.Lock()
+	defer t.metadataMu.Unlock()
+
 	return fn(t.metadata)
 }
 
@@ -333,6 +360,9 @@ func (t *Task) SetCleanup(cleanup HandlerFunc) {
 
 // ReadError returns the error that caused the task to fail, if any.
 func (t *Task) ReadError() error {
+	t.updateMu.RLock()
+	defer t.updateMu.RUnlock()
+
 	switch t.err.(type) {
 	case nil:
 		return nil
@@ -448,7 +478,7 @@ func (t *Task) SetResult(results Result) {
 // FirstResultChan returns a channel that is closed the first time the task's
 // result is set via SetResult. Callers can use it as a readiness signal to
 // avoid polling for early task progress. The channel is created with the task
-// and never re-opened — once closed it stays closed for the task's lifetime.
+// and never re-opened - once closed it stays closed for the task's lifetime.
 func (t *Task) FirstResultChan() <-chan struct{} {
 	return t.firstResultChan
 }
@@ -539,6 +569,7 @@ func (t *Task) error(err error) {
 
 	t.queueState.Set(Exited)
 	t.exitStatus.Set(TaskError)
+	t.markFinished()
 
 	t.updateMu.Unlock()
 }
@@ -550,4 +581,13 @@ func globbyHash(charLimit int, dataToHash ...any) string {
 	h.Write([]byte(s))
 
 	return base64.URLEncoding.EncodeToString(h.Sum(nil))[:charLimit]
+}
+
+// markFinished stamps the finish time exactly once. The earliest terminal transition
+// (success, error, cancel, panic, or timeout) wins, so a later cleanup/recover pass can't
+// overwrite the real completion time.
+func (t *Task) markFinished() {
+	t.finishOnce.Do(func() {
+		t.FinishTime.Set(time.Now())
+	})
 }

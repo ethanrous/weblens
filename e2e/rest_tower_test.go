@@ -56,12 +56,18 @@ func TestGetRunningTasks(t *testing.T) {
 
 	client := getAPIClientFromConfig(coreSetup.cnf, coreSetup.token)
 
-	// Get running tasks (admin only)
+	// Default: running tasks only.
 	tasks, resp, err := client.TowersAPI.GetRunningTasks(t.Context()).Execute()
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	// Tasks array should be non-nil (may be empty)
 	assert.NotNil(t, tasks)
+
+	// includeExited=true is accepted and still returns a valid (possibly larger) list.
+	allTasks, resp, err := client.TowersAPI.GetRunningTasks(t.Context()).IncludeExited(true).Execute()
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.NotNil(t, allTasks)
+	assert.GreaterOrEqual(t, len(allTasks), len(tasks))
 }
 
 func TestFlushCache(t *testing.T) {

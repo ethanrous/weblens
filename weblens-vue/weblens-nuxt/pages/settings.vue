@@ -1,7 +1,7 @@
 <template>
     <div
         v-if="userStore.user.isLoggedIn.get({ default: false })"
-        :class="{ 'flex h-screen w-screen justify-center': true }"
+        :class="{ 'flex h-screen min-w-0 flex-1 justify-center': true }"
     >
         <div :class="{ 'flex h-full w-[20%] flex-col gap-2 border p-4': true }">
             <WeblensButton
@@ -70,7 +70,7 @@
             </WeblensButton>
         </div>
 
-        <div :class="{ 'h-full w-full overflow-scroll p-4': true }">
+        <div :class="{ 'h-full w-full min-w-0 overflow-scroll p-4': true }">
             <NuxtPage />
         </div>
     </div>

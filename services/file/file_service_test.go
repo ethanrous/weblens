@@ -1516,7 +1516,7 @@ func TestFileService_RestoreFiles_Integration(t *testing.T) {
 		file := createTestFile(t, ctx, fs, userHome, "restore-target.txt", content)
 		fileID := file.ID()
 
-		// Record time while file exists — this is the "past" moment the user sees
+		// Record time while file exists - this is the "past" moment the user sees
 		restoreTime := time.Now()
 
 		// Small delay so delete timestamp is strictly after restoreTime
@@ -1616,7 +1616,7 @@ func TestFileService_RestoreFiles_Integration(t *testing.T) {
 		// Create a new file with the same name
 		_ = createTestFile(t, ctx, fs, userHome, "conflict.txt", []byte("new content"))
 
-		// Restore the original — should get a unique name
+		// Restore the original - should get a unique name
 		err = fs.RestoreFiles(ctx, []string{fileID}, userHome, restoreTime)
 		require.NoError(t, err)
 

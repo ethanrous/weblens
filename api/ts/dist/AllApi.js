@@ -4330,10 +4330,12 @@ var TowersApiAxiosParamCreator = function(configuration) {
     /**
      * 
      * @summary Get Running Tasks
+     * @param {boolean} [includeExited] Include tasks that have already finished (still held in memory)
+     * @param {number} [since] Only return finished tasks that completed at or after this Unix epoch-ms cursor (incremental polling)
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getRunningTasks: async (options = {}) => {
+    getRunningTasks: async (includeExited, since, options = {}) => {
       const localVarPath = `/tower/tasks`;
       const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
       let baseOptions;
@@ -4343,6 +4345,12 @@ var TowersApiAxiosParamCreator = function(configuration) {
       const localVarRequestOptions = __spreadValues(__spreadValues({ method: "GET" }, baseOptions), options);
       const localVarHeaderParameter = {};
       const localVarQueryParameter = {};
+      if (includeExited !== void 0) {
+        localVarQueryParameter["includeExited"] = includeExited;
+      }
+      if (since !== void 0) {
+        localVarQueryParameter["since"] = since;
+      }
       localVarHeaderParameter["Accept"] = "application/json";
       setSearchParams(localVarUrlObj, localVarQueryParameter);
       let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
@@ -4585,12 +4593,14 @@ var TowersApiFp = function(configuration) {
     /**
      * 
      * @summary Get Running Tasks
+     * @param {boolean} [includeExited] Include tasks that have already finished (still held in memory)
+     * @param {number} [since] Only return finished tasks that completed at or after this Unix epoch-ms cursor (incremental polling)
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    async getRunningTasks(options) {
+    async getRunningTasks(includeExited, since, options) {
       var _a, _b, _c;
-      const localVarAxiosArgs = await localVarAxiosParamCreator.getRunningTasks(options);
+      const localVarAxiosArgs = await localVarAxiosParamCreator.getRunningTasks(includeExited, since, options);
       const localVarOperationServerIndex = (_a = configuration == null ? void 0 : configuration.serverIndex) != null ? _a : 0;
       const localVarOperationServerBasePath = (_c = (_b = operationServerMap["TowersApi.getRunningTasks"]) == null ? void 0 : _b[localVarOperationServerIndex]) == null ? void 0 : _c.url;
       return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios2, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -4738,11 +4748,13 @@ var TowersApiFactory = function(configuration, basePath, axios) {
     /**
      * 
      * @summary Get Running Tasks
+     * @param {boolean} [includeExited] Include tasks that have already finished (still held in memory)
+     * @param {number} [since] Only return finished tasks that completed at or after this Unix epoch-ms cursor (incremental polling)
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    getRunningTasks(options) {
-      return localVarFp.getRunningTasks(options).then((request) => request(axios, basePath));
+    getRunningTasks(includeExited, since, options) {
+      return localVarFp.getRunningTasks(includeExited, since, options).then((request) => request(axios, basePath));
     },
     /**
      * 
@@ -4865,11 +4877,13 @@ var TowersApi = class extends BaseAPI {
   /**
    * 
    * @summary Get Running Tasks
+   * @param {boolean} [includeExited] Include tasks that have already finished (still held in memory)
+   * @param {number} [since] Only return finished tasks that completed at or after this Unix epoch-ms cursor (incremental polling)
    * @param {*} [options] Override http request option.
    * @throws {RequiredError}
    */
-  getRunningTasks(options) {
-    return TowersApiFp(this.configuration).getRunningTasks(options).then((request) => request(this.axios, this.basePath));
+  getRunningTasks(includeExited, since, options) {
+    return TowersApiFp(this.configuration).getRunningTasks(includeExited, since, options).then((request) => request(this.axios, this.basePath));
   }
   /**
    * 

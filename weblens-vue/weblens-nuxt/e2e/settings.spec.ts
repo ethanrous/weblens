@@ -56,15 +56,15 @@ test.describe('Settings Page', () => {
         // Button should be disabled when fields are empty
         await expect(updatePasswordBtn).toBeDisabled()
 
-        // Fill old password only — button should still be disabled
+        // Fill old password only - button should still be disabled
         await page.getByPlaceholder('Old Password').fill('adminadmin1')
         await expect(updatePasswordBtn).toBeDisabled()
 
-        // Fill new password same as old — button should still be disabled
+        // Fill new password same as old - button should still be disabled
         await page.getByPlaceholder('New Password').fill('adminadmin1')
         await expect(updatePasswordBtn).toBeDisabled()
 
-        // Fill different new password — button should now be enabled
+        // Fill different new password - button should now be enabled
         await page.getByPlaceholder('New Password').clear()
         await page.getByPlaceholder('New Password').fill('newpassword456')
         await expect(updatePasswordBtn).toBeEnabled()
@@ -82,7 +82,7 @@ test.describe('Settings Page', () => {
         await expect(page.getByText('Test Key')).toBeVisible({ timeout: 15000 })
         await expect(page.getByText('No API Keys found.')).not.toBeVisible()
 
-        // Delete the API key — click the trash icon button next to it
+        // Delete the API key - click the trash icon button next to it
         await page
             .locator('[data-flavor="danger"]')
             .filter({ has: page.locator('.tabler-icon-trash') })
@@ -178,7 +178,8 @@ test.describe('Settings Page', () => {
         await expect(page.getByRole('button', { name: 'Clean Media' })).toBeVisible()
         await expect(page.getByRole('button', { name: 'Flush Cache' })).toBeVisible()
 
-        // Task table should show empty state
+        // Task table should show empty state (gantt is the default view; toggle to the table)
+        await page.getByRole('button', { name: 'Table' }).click()
         await expect(page.getByText('No running tasks')).toBeVisible()
     })
 

@@ -3,6 +3,7 @@ package tower
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/ethanrous/weblens/models/featureflags"
 	"github.com/ethanrous/weblens/models/task"
@@ -15,6 +16,26 @@ import (
 	"github.com/ethanrous/weblens/services/reshape"
 )
 
+// FilterTasks returns the tasks a poller should see: every still-active task, plus -
+// when includeExited is set - finished tasks. A positive sinceMs further limits finished
+// tasks to those that completed at or after that Unix epoch-ms cursor, so the gantt can poll
+// incrementally instead of re-fetching the whole retained history every time. The bound is
+// inclusive (>=) and the client dedups by task ID, so a task finishing in the same millisecond
+// as the cursor is re-returned rather than lost.
+func FilterTasks(tasks []*task.Task, includeExited bool, sinceMs int64) []*task.Task {
+	return slices_mod.Filter(tasks, func(t *task.Task) bool {
+		if t.QueueState() != task.Exited {
+			return true
+		}
+
+		if !includeExited {
+			return false
+		}
+
+		return sinceMs <= 0 || t.GetFinishTime().UnixMilli() >= sinceMs
+	})
+}
+
 // GetRunningTasks godoc
 //
 //	@ID			GetRunningTasks
@@ -26,14 +47,26 @@ import (
 //	@Tags		Towers
 //	@Produce	json
 //
+//	@Param		includeExited	query	bool	false	"Include tasks that have already finished (still held in memory)"					default(false)
+//	@Param		since			query	int64	false	"Only return finished tasks that completed at or after this Unix epoch-ms cursor (incremental polling)"	default(0)
+//
 //	@Success	200	{array}	wlstructs.TaskInfo	"Task Infos"
 //	@Router		/tower/tasks [get]
 func GetRunningTasks(ctx ctxservice.RequestContext) {
-	tasksIter := ctx.TaskService.GetTasks()
+	var sinceMs int64
 
-	tasks := slices_mod.Filter(tasksIter, func(t *task.Task) bool {
-		return t.QueueState() != task.Exited
-	})
+	if s := ctx.Query("since"); s != "" {
+		parsed, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			ctx.Error(http.StatusBadRequest, wlerrors.New("invalid since format"))
+
+			return
+		}
+
+		sinceMs = parsed
+	}
+
+	tasks := FilterTasks(ctx.TaskService.GetTasks(), ctx.QueryBool("includeExited"), sinceMs)
 
 	taskInfos := reshape.TasksToTaskInfos(tasks)
 	ctx.JSON(http.StatusOK, taskInfos)

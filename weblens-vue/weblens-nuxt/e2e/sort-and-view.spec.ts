@@ -33,7 +33,7 @@ test.describe('Sort and View Controls', () => {
         // Sort controls are in FileHeader (outside #filebrowser-container).
         // WeblensOptions renders a visible label + a hidden measurement span.
         // In narrow layouts, iconOnly mode hides the label and only shows the icon.
-        // Click the sort dropdown icon to open it — the icon is always visible.
+        // Click the sort dropdown icon to open it - the icon is always visible.
         const sortIcon = page.locator('.tabler-icon-calendar, .tabler-icon-sort-a-z, .tabler-icon-file-analytics')
         await expect(sortIcon.first()).toBeVisible({ timeout: 3000 })
         await sortIcon.first().click()
@@ -46,7 +46,7 @@ test.describe('Sort and View Controls', () => {
         // Files should still be visible after sort change
         await expect(page.locator('[id^="file-card-"]').first()).toBeVisible()
 
-        // Verify sort changed — the sort-a-z icon should now be the active sort icon
+        // Verify sort changed - the sort-a-z icon should now be the active sort icon
         await expect(page.locator('.tabler-icon-sort-a-z').first()).toBeVisible()
     })
 
@@ -66,7 +66,7 @@ test.describe('Sort and View Controls', () => {
         // Files should still be visible
         await expect(page.locator('[id^="file-card-"]').first()).toBeVisible()
 
-        // Verify sort changed — the file-analytics icon should now be active
+        // Verify sort changed - the file-analytics icon should now be active
         await expect(page.locator('.tabler-icon-file-analytics').first()).toBeVisible()
     })
 
@@ -86,7 +86,7 @@ test.describe('Sort and View Controls', () => {
         // Files should still be visible
         await expect(page.locator('[id^="file-card-"]').first()).toBeVisible()
 
-        // Verify sort changed — the calendar icon should now be active
+        // Verify sort changed - the calendar icon should now be active
         await expect(page.locator('.tabler-icon-calendar').first()).toBeVisible()
     })
 

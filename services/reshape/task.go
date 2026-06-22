@@ -20,6 +20,16 @@ func TaskToTaskInfo(t *task.Task) wlstructs.TaskInfo {
 	complete, status := t.Status()
 	result := t.GetResults()
 
+	var metadata any
+	if m := t.FormatMetadata(); m != nil {
+		metadata = m
+	}
+
+	errMsg := ""
+	if err := t.ReadError(); err != nil {
+		errMsg = err.Error()
+	}
+
 	parentTaskID := ""
 
 	tp := t.GetTaskPool()
@@ -46,7 +56,11 @@ func TaskToTaskInfo(t *task.Task) wlstructs.TaskInfo {
 		Completed:           complete,
 		WorkerID:            t.GetWorkerID(),
 		Result:              result,
+		Metadata:            metadata,
+		Error:               errMsg,
 		StartTime:           t.GetStartTime(),
+		QueueTime:           t.GetQueueTime(),
+		FinishTime:          t.GetFinishTime(),
 		TotalChildTasks:     totalChildTasks,
 		CompletedChildTasks: completedChildTasks,
 	}

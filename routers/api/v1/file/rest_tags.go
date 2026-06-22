@@ -427,7 +427,7 @@ func GetFilesByTag(ctx context_service.RequestContext) {
 		file, err := ctx.FileService.GetFileByID(ctx, fileID)
 		if err != nil {
 			if wlerrors.Is(err, file_model.ErrFileNotFound) {
-				// Stale file ID in tag — skip silently
+				// Stale file ID in tag - skip silently
 				continue
 			}
 

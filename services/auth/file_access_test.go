@@ -210,11 +210,11 @@ func TestRequireFileAccess_AllMustPassDenied(t *testing.T) {
 	_, err := auth.RequireFileAccess(ctx, []string{f1.ID(), f2.ID()})
 	require.Error(t, err)
 
-	// ctx.Error should have been called exactly once — the recorder should have a non-200 status.
+	// ctx.Error should have been called exactly once - the recorder should have a non-200 status.
 	assert.NotEqual(t, http.StatusOK, w.Code, "ctx.Error should have written an error response")
 
 	// Only one error response should have been written (first failure stops the loop).
-	// The body should contain exactly one JSON error object — verify it is valid JSON.
+	// The body should contain exactly one JSON error object - verify it is valid JSON.
 	assert.Greater(t, w.Body.Len(), 0, "response body should be non-empty")
 }
 
@@ -241,9 +241,9 @@ func TestRequireAnyFileAccess_FirstPassesHappyPath(t *testing.T) {
 func TestRequireAnyFileAccess_FirstFailsSecondPasses(t *testing.T) {
 	bob := &user_model.User{Username: "bob", UserPerms: user_model.UserPermissionBasic}
 
-	// f1 is owned by alice — bob will be denied.
+	// f1 is owned by alice - bob will be denied.
 	f1 := newTestFile("alice", "file1.jpg")
-	// f2 is owned by bob — bob will be allowed.
+	// f2 is owned by bob - bob will be allowed.
 	f2 := newTestFile("bob", "file2.jpg")
 
 	w := httptest.NewRecorder()
@@ -283,7 +283,7 @@ func TestRequireAnyFileAccess_HardErrorBreaksLoop(t *testing.T) {
 	bob := &user_model.User{Username: "bob", UserPerms: user_model.UserPermissionBasic}
 
 	// f2 is owned by bob and would succeed if reached. But f1 is a missing ID, which
-	// produces a 404 hard error. Any-of semantics should NOT swallow hard errors —
+	// produces a 404 hard error. Any-of semantics should NOT swallow hard errors -
 	// the loop must break on the 404 rather than fall through to f2.
 	f2 := newTestFile("bob", "file2.jpg")
 

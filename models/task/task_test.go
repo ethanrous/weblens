@@ -14,6 +14,7 @@ import (
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/ethanrous/weblens/modules/wlog"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // uniqueMeta is a task.Metadata whose MetaString is unique per instance, so
@@ -1528,6 +1529,36 @@ func TestPool_RemoveTask(t *testing.T) {
 
 		pool.RemoveTask(tsk.ID())
 	})
+}
+
+func TestWorkerPool_RetainsFinishedTask(t *testing.T) {
+	wp := task.NewTestWorkerPool(2)
+	wp.Run(task.NewTestContext())
+
+	settled := make(chan struct{})
+
+	wp.RegisterJob("retain-finished-job", func(tsk *task.Task) {
+		tsk.SetPostAction(func(task.Result) { close(settled) })
+		tsk.Success()
+	})
+
+	meta := task.NewTestMetadata("retain-finished-job")
+	tsk, err := wp.DispatchJob(context.Background(), "retain-finished-job", meta, nil)
+	require.NoError(t, err)
+
+	tsk.Wait()
+	<-settled // wait for the post-action so the pool's task map has settled
+
+	assert.Same(t, tsk, wp.GetTask(tsk.ID()), "a finished non-persistent task should remain queryable in the worker pool")
+}
+
+func TestTask_CancelStampsFinishTime(t *testing.T) {
+	tsk := task.NewTestQueueableTask("cancel-finish-time", "cancel-finish-job")
+	require.True(t, tsk.GetFinishTime().IsZero(), "a fresh task should have no finish time")
+
+	tsk.Cancel()
+
+	assert.False(t, tsk.GetFinishTime().IsZero(), "canceling a task should stamp its finish time")
 }
 
 func TestPool_Wait(t *testing.T) {

@@ -60,7 +60,7 @@ var upgrader = gorilla.Upgrader{
 
 		proxyAddr := config.GetConfig().ProxyAddress
 		if proxyAddr == "" {
-			// No proxy configured — allow same-host origins.
+			// No proxy configured - allow same-host origins.
 			// Also allow localhost origins on any port for dev mode
 			// where the frontend proxy runs on a different port.
 			originURL, err := url.Parse(origin)
@@ -460,6 +460,12 @@ func onWebConnect(ctx context_service.RequestContext, c *client_model.WsClient) 
 
 	if local.IsBackup() {
 		for _, backupTask := range ctx.TaskService.GetTasksByJobName(job.BackupTask) {
+			// Finished backup tasks stay in the task map, so skip them: a new client should only
+			// receive progress for a backup that is still running, not a stale completed one.
+			if complete, _ := backupTask.Status(); complete {
+				continue
+			}
+
 			r := backupTask.GetResults()
 			if len(r) == 0 {
 				continue

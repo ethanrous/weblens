@@ -475,8 +475,8 @@ func TestGetMediaImage_NoShare_Forbidden(t *testing.T) {
 // was one the requester could not access, the response was corrupted with a 403
 // before the loop continued to a file the requester CAN access.
 //
-// This test constructs a media record backed by two files — adminFileID (denied
-// for userB) first, userBFileID (allowed for userB) second — and asserts that
+// This test constructs a media record backed by two files - adminFileID (denied
+// for userB) first, userBFileID (allowed for userB) second - and asserts that
 // userB gets a 200 from GetMedia with the content ID. On unfixed code the test
 // fails with a 403.
 func TestGetMediaByIDs_AnyOfDoesNotCorruptResponse(t *testing.T) {

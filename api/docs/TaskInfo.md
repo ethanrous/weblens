@@ -7,9 +7,13 @@ Name | Type | Description | Notes
 **Completed** | **bool** |  | 
 **State** | **string** |  | 
 **CompletedChildTasks** | Pointer to **int32** |  | [optional] 
+**Error** | Pointer to **string** |  | [optional] 
+**FinishTime** | Pointer to **string** |  | [optional] 
 **JobName** | **string** |  | 
+**Metadata** | Pointer to **map[string]interface{}** |  | [optional] 
 **ParentTaskID** | Pointer to **string** |  | [optional] 
 **Progress** | **int32** |  | 
+**QueueTime** | Pointer to **string** |  | [optional] 
 **Result** | Pointer to **map[string]interface{}** |  | [optional] 
 **StartTime** | Pointer to **string** |  | [optional] 
 **Status** | **string** |  | 
@@ -101,6 +105,56 @@ SetCompletedChildTasks sets CompletedChildTasks field to given value.
 
 HasCompletedChildTasks returns a boolean if a field has been set.
 
+### GetError
+
+`func (o *TaskInfo) GetError() string`
+
+GetError returns the Error field if non-nil, zero value otherwise.
+
+### GetErrorOk
+
+`func (o *TaskInfo) GetErrorOk() (*string, bool)`
+
+GetErrorOk returns a tuple with the Error field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetError
+
+`func (o *TaskInfo) SetError(v string)`
+
+SetError sets Error field to given value.
+
+### HasError
+
+`func (o *TaskInfo) HasError() bool`
+
+HasError returns a boolean if a field has been set.
+
+### GetFinishTime
+
+`func (o *TaskInfo) GetFinishTime() string`
+
+GetFinishTime returns the FinishTime field if non-nil, zero value otherwise.
+
+### GetFinishTimeOk
+
+`func (o *TaskInfo) GetFinishTimeOk() (*string, bool)`
+
+GetFinishTimeOk returns a tuple with the FinishTime field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetFinishTime
+
+`func (o *TaskInfo) SetFinishTime(v string)`
+
+SetFinishTime sets FinishTime field to given value.
+
+### HasFinishTime
+
+`func (o *TaskInfo) HasFinishTime() bool`
+
+HasFinishTime returns a boolean if a field has been set.
+
 ### GetJobName
 
 `func (o *TaskInfo) GetJobName() string`
@@ -120,6 +174,31 @@ and a boolean to check if the value has been set.
 
 SetJobName sets JobName field to given value.
 
+
+### GetMetadata
+
+`func (o *TaskInfo) GetMetadata() map[string]interface{}`
+
+GetMetadata returns the Metadata field if non-nil, zero value otherwise.
+
+### GetMetadataOk
+
+`func (o *TaskInfo) GetMetadataOk() (*map[string]interface{}, bool)`
+
+GetMetadataOk returns a tuple with the Metadata field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetMetadata
+
+`func (o *TaskInfo) SetMetadata(v map[string]interface{})`
+
+SetMetadata sets Metadata field to given value.
+
+### HasMetadata
+
+`func (o *TaskInfo) HasMetadata() bool`
+
+HasMetadata returns a boolean if a field has been set.
 
 ### GetParentTaskID
 
@@ -165,6 +244,31 @@ and a boolean to check if the value has been set.
 
 SetProgress sets Progress field to given value.
 
+
+### GetQueueTime
+
+`func (o *TaskInfo) GetQueueTime() string`
+
+GetQueueTime returns the QueueTime field if non-nil, zero value otherwise.
+
+### GetQueueTimeOk
+
+`func (o *TaskInfo) GetQueueTimeOk() (*string, bool)`
+
+GetQueueTimeOk returns a tuple with the QueueTime field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetQueueTime
+
+`func (o *TaskInfo) SetQueueTime(v string)`
+
+SetQueueTime sets QueueTime field to given value.
+
+### HasQueueTime
+
+`func (o *TaskInfo) HasQueueTime() bool`
+
+HasQueueTime returns a boolean if a field has been set.
 
 ### GetResult
 

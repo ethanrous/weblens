@@ -90,15 +90,15 @@ test.describe('Multi-User Scenarios', () => {
         const updateBtn = page.getByRole('button', { name: 'Update Password' })
         await expect(updateBtn).toBeDisabled()
 
-        // Fill old password only — button should still be disabled
+        // Fill old password only - button should still be disabled
         await page.getByPlaceholder('Old Password').fill('regularpass123')
         await expect(updateBtn).toBeDisabled()
 
-        // Fill new password same as old — button should still be disabled
+        // Fill new password same as old - button should still be disabled
         await page.getByPlaceholder('New Password').fill('regularpass123')
         await expect(updateBtn).toBeDisabled()
 
-        // Fill different new password — button should now be enabled
+        // Fill different new password - button should now be enabled
         await page.getByPlaceholder('New Password').clear()
         await page.getByPlaceholder('New Password').fill('newregularpass456')
         await expect(updateBtn).toBeEnabled()

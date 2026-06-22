@@ -47,7 +47,7 @@ test.describe('Login Page', () => {
         // Button should still be disabled
         await expect(page.getByRole('button', { name: 'Sign in' })).toBeDisabled()
 
-        // Fill password with exactly 6 chars — button should become enabled
+        // Fill password with exactly 6 chars - button should become enabled
         await page.getByPlaceholder('Password').fill('123456')
         await expect(page.getByRole('button', { name: 'Sign in' })).toBeEnabled()
     })
@@ -88,7 +88,7 @@ test.describe('Login Page', () => {
         page,
         login: _login,
     }) => {
-        // Try to go back to login page — should redirect to /files/home
+        // Try to go back to login page - should redirect to /files/home
         await page.goto('/login')
         await page.waitForURL('**/files/home')
         await expect(page).toHaveURL(/\/files\/home/)

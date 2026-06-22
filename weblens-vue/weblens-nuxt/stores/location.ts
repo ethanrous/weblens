@@ -21,7 +21,7 @@ const useLocationStore = defineStore('location', () => {
     const router = useRouter()
     const route = computed(() => router.currentRoute.value)
 
-    // Synchronous query state — always up-to-date, no async lag.
+    // Synchronous query state - always up-to-date, no async lag.
     // localQuery is the single source of truth for query params within the app.
     const localQuery = reactive<Record<string, string>>({})
 
