@@ -124,7 +124,7 @@ const filename = computed(() => {
         }
 
         try {
-            return filepath.RelativeTo(parent)
+            return filepath.relativeTo(parent)
         } catch {
             return filepath
         }

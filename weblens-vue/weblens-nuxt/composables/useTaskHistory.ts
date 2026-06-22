@@ -5,7 +5,7 @@ import { mergeTaskPoll, parseTimeMs } from '~/util/gantt'
 
 // useTaskHistory polls the tower task endpoint (including exited tasks) and accumulates
 // every observed task into a session-scoped map, so the gantt can show recent history
-// even after the backend evicts a finished task from memory.
+// even for tasks that have dropped out of the server's current poll response.
 export function useTaskHistory(pollMs = 3000) {
     const history = ref<Map<string, TaskInfo>>(new Map())
     const error = ref<unknown>(null)

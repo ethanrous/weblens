@@ -80,14 +80,14 @@ export function stateColorClass(task: TaskInfo): string {
         case 'canceled':
             return 'bg-graphite-400'
         default:
-            // Finished but final status not captured (non-persistent task evicted before a poll saw it).
+            // Finished but final status not captured (e.g. the task dropped out of a poll before its status was seen).
             return 'bg-graphite-600'
     }
 }
 
 // mergeTaskPoll folds a fresh poll into the accumulated session history. Polled tasks
 // overwrite their prior copy; tasks that vanished while still open are closed out at nowMs
-// (the backend evicts non-persistent tasks on completion, so this is our only finish signal).
+// (a task can drop out of a poll without a final status, so this is our only finish signal).
 export function mergeTaskPoll(prev: Map<string, TaskInfo>, polled: TaskInfo[], nowMs: number): Map<string, TaskInfo> {
     const next = new Map(prev)
     const polledIds = new Set<string>()

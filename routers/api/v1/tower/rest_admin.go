@@ -56,9 +56,14 @@ func GetRunningTasks(ctx ctxservice.RequestContext) {
 	var sinceMs int64
 
 	if s := ctx.Query("since"); s != "" {
-		if parsed, err := strconv.ParseInt(s, 10, 64); err == nil {
-			sinceMs = parsed
+		parsed, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			ctx.Error(http.StatusBadRequest, wlerrors.New("invalid since format"))
+
+			return
 		}
+
+		sinceMs = parsed
 	}
 
 	tasks := FilterTasks(ctx.TaskService.GetTasks(), ctx.QueryBool("includeExited"), sinceMs)

@@ -103,7 +103,7 @@ export class PortablePath {
         return [...this.relativePath]
     }
 
-    public RelativeTo(other: PortablePath): PortablePath {
+    public relativeTo(other: PortablePath): PortablePath {
         if (this.rootAlias !== other.rootAlias) {
             throw new Error('Cannot compute relative path for different root aliases')
         }

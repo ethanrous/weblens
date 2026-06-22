@@ -1535,10 +1535,10 @@ func TestWorkerPool_RetainsFinishedTask(t *testing.T) {
 	wp := task.NewTestWorkerPool(2)
 	wp.Run(task.NewTestContext())
 
-	evicted := make(chan struct{})
+	settled := make(chan struct{})
 
 	wp.RegisterJob("retain-finished-job", func(tsk *task.Task) {
-		tsk.SetPostAction(func(task.Result) { close(evicted) })
+		tsk.SetPostAction(func(task.Result) { close(settled) })
 		tsk.Success()
 	})
 
@@ -1547,7 +1547,7 @@ func TestWorkerPool_RetainsFinishedTask(t *testing.T) {
 	require.NoError(t, err)
 
 	tsk.Wait()
-	<-evicted // the post-action runs after the worker's eviction step, so the map is settled
+	<-settled // wait for the post-action so the pool's task map has settled
 
 	assert.Same(t, tsk, wp.GetTask(tsk.ID()), "a finished non-persistent task should remain queryable in the worker pool")
 }
