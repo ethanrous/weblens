@@ -37,12 +37,7 @@ while [ "${1:-}" != "" ]; do
     shift
 done
 
-# Build Agno if needed
-if ! does_agno_exist; then
-    build_agno
-else
-    printf "Skipping Agno build (lazy mode)...\n"
-fi
+setup_agno
 
 if ! is_mongo_running --stack-name "test-pw"; then
     show_as_subtask "Launching mongo" "green" -- launch_mongo --stack-name "test-pw" --mongo-port 27020

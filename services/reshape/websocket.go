@@ -9,7 +9,9 @@ import (
 func getSafeString(content websocket_mod.WsData, key string) (val string) {
 	if content != nil {
 		if id, ok := content[key]; ok {
-			val = id.(string)
+			if s, ok := id.(string); ok {
+				val = s
+			}
 		}
 	}
 
@@ -28,16 +30,12 @@ func GetSubscribeInfo(msg websocket_mod.WsResponseInfo) websocket_mod.Subscripti
 
 // GetCancelInfo extracts cancellation information from a websocket response message.
 func GetCancelInfo(msg websocket_mod.WsResponseInfo) websocket_mod.CancelInfo {
-	return websocket_mod.CancelInfo{
-		TaskID: msg.Content["taskID"].(string),
-	}
+	return websocket_mod.CancelInfo{TaskID: getSafeString(msg.Content, "taskID")}
 }
 
 // GetTowerInfo extracts tower information from a websocket response message.
 func GetTowerInfo(msg websocket_mod.WsResponseInfo) websocket_mod.TowerInfo {
-	return websocket_mod.TowerInfo{
-		TowerID: msg.Content["towerID"].(string),
-	}
+	return websocket_mod.TowerInfo{TowerID: getSafeString(msg.Content, "towerID")}
 }
 
 // GetScanInfo extracts scan information from a websocket response message.

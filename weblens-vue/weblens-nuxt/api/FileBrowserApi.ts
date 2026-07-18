@@ -6,6 +6,7 @@ import { API_ENDPOINT, useWeblensAPI } from './AllApi.js'
 import useFilesStore from '~/stores/files.js'
 import { FilesApiAxiosParamCreator, type FileInfo, type TakeoutInfo } from '@ethanrous/weblens-api'
 import useWebsocketStore from '~/stores/websocket.js'
+import { useReconnectListener } from '~/composables/useReconnectListener'
 
 export function SubToFolder(subID: string, shareID: string) {
     if (!subID) {
@@ -14,6 +15,8 @@ export function SubToFolder(subID: string, shareID: string) {
     } else if (subID === 'shared') {
         return
     }
+
+    useReconnectListener().addFolderSub(subID, shareID)
 
     useWebsocketStore().send({
         action: WsAction.Subscribe,
@@ -26,6 +29,8 @@ export function SubToFolder(subID: string, shareID: string) {
 }
 
 export function SubToTask(taskID: string, lookingFor?: string[]) {
+    useReconnectListener().addTaskSub(taskID)
+
     useWebsocketStore().send({
         action: WsAction.Subscribe,
         subscriptionType: WsSubscriptionType.Task,
@@ -51,7 +56,13 @@ export function CancelTask(taskID: string) {
 
 export function UnsubFromFolder(subID: string) {
     console.debug('Unsubscribing from folder:', subID)
-    if (!subID || useWebsocketStore().status !== 'OPEN') {
+    if (!subID) {
+        return
+    }
+
+    useReconnectListener().removeFolderSub(subID)
+
+    if (useWebsocketStore().status !== 'OPEN') {
         return
     }
 

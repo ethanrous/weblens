@@ -2,7 +2,6 @@ ARG ARCHITECTURE
 
 ARG NODE_VERSION=22.14.0
 ARG GO_VERSION=1.26
-ARG AGNO_VERSION=0.0.10
 
 # For AGNO_URL_OVERRIDE, you can specify a custom URL to download the AGNO library.
 ARG AGNO_URL_OVERRIDE
@@ -38,7 +37,6 @@ RUN pnpm generate;
 FROM --platform=linux/${ARCHITECTURE} golang:${GO_VERSION}-bookworm AS backend
 
 ARG ARCHITECTURE
-ARG AGNO_VERSION
 
 RUN apt-get update && apt-get install -y --no-install-recommends unzip && rm -rf /var/lib/apt/lists/*;
 
@@ -54,13 +52,16 @@ COPY modules/ ./modules/
 COPY routers/ ./routers/
 COPY services/ ./services/
 
-# Download pre-built agno library to standard lib path
+# Download pre-built agno library to standard lib path. The pinned version is
+# derived from go.mod (single source of truth), keeping the native library in
+# lockstep with the Go bindings.
 ARG AGNO_URL_OVERRIDE
 # ARG GH_TOKEN
-ENV AGNO_URL=${AGNO_URL_OVERRIDE:-https://github.com/ethanrous/agno/releases/download/v${AGNO_VERSION}/libagno-linux-x86_64-gpu.a}
 
 # If AGNO_URL has actions/runs in it, we need to unzip the artifact instead of downloading it directly to the final location
-RUN if echo ${AGNO_URL} | grep -q "/zip"; then \
+RUN AGNO_VERSION=$(awk '/github.com\/ethanrous\/agno\/bindings\/go\/agno / {print $2}' go.mod); \
+    AGNO_URL=${AGNO_URL_OVERRIDE:-https://github.com/ethanrous/agno/releases/download/${AGNO_VERSION}/libagno-linux-x86_64-gpu.a}; \
+    if echo ${AGNO_URL} | grep -q "/zip"; then \
         curl -fL -H "Authorization: Bearer ${GH_TOKEN}" \
         -H "Accept: application/vnd.github.v3+json" \
         ${AGNO_URL} -o /tmp/agno.zip && \

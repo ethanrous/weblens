@@ -56,6 +56,8 @@ type ClientManager struct {
 	taskTypeMu   sync.Mutex
 
 	notificationChan chan websocket_mod.WsResponseInfo
+
+	ctx context.Context
 }
 
 // NewClientManager creates and initializes a new ClientManager with a background notification worker.
@@ -71,6 +73,8 @@ func NewClientManager(ctx context.Context) *ClientManager {
 		taskTypeSubs: map[string][]*websocket_model.WsClient{},
 
 		notificationChan: make(chan websocket_mod.WsResponseInfo, notificationChanCapacity),
+
+		ctx: ctx,
 	}
 
 	go cm.notificationWorker(ctx)
@@ -111,13 +115,19 @@ func (cm *ClientManager) RemoteConnect(ctx context.Context, conn *websocket.Conn
 
 // ClientDisconnect removes a client from all subscriptions and disconnects them from the manager.
 func (cm *ClientManager) ClientDisconnect(ctx context.Context, c *websocket_model.WsClient) error {
-	if !c.Active.Load() {
+	c.SubLock()
+
+	if !c.Active.CompareAndSwap(true, false) {
+		c.SubUnlock()
 		wlog.FromContext(ctx).Warn().Msgf("Client [%s] is already disconnected", c.GetClientID())
 
 		return nil
 	}
 
-	for _, s := range c.GetSubscriptions() {
+	subs := c.GetSubscriptions()
+	c.SubUnlock()
+
+	for _, s := range subs {
 		err := cm.removeSubscription(ctx, s, c, true)
 
 		// Client is leaving anyway, no point returning an error from here
@@ -151,16 +161,39 @@ func (cm *ClientManager) DisconnectAll(ctx context.Context) error {
 
 // Notify queues one or more websocket messages to be sent to clients by the notification worker.
 func (cm *ClientManager) Notify(ctx context.Context, msg ...websocket_mod.WsResponseInfo) {
-	select {
-	case <-ctx.Done():
-		wlog.FromContext(ctx).Error().Stack().Err(wlerrors.WithStack(ctx.Err())).Msgf("Context done, not sending websocket message: %s", msg[0].EventTag)
-
-		return
-	default:
-	}
-
 	for _, m := range msg {
-		cm.notificationChan <- m
+		// If the manager has already stopped, don't queue into a worker that will
+		// never process the message; drop it and unblock any waiter deterministically.
+		if cm.ctx.Err() != nil {
+			wlog.FromContext(ctx).Warn().Msgf("Client manager stopped, dropping websocket message: %s", m.EventTag)
+
+			if m.Sent != nil {
+				close(m.Sent)
+			}
+
+			continue
+		}
+
+		select {
+		case cm.notificationChan <- m:
+		case <-ctx.Done():
+			wlog.FromContext(ctx).Error().Stack().Err(wlerrors.WithStack(ctx.Err())).Msgf("Context done, not sending websocket message: %s", m.EventTag)
+
+			// Unblock any caller waiting on delivery; the message was dropped.
+			if m.Sent != nil {
+				close(m.Sent)
+			}
+
+			return
+		case <-cm.ctx.Done():
+			wlog.FromContext(ctx).Warn().Msgf("Client manager stopped, dropping websocket message: %s", m.EventTag)
+
+			if m.Sent != nil {
+				close(m.Sent)
+			}
+
+			return
+		}
 	}
 }
 
@@ -174,9 +207,17 @@ func (cm *ClientManager) Flush(ctx context.Context) {
 	}
 
 	done := make(chan struct{})
-	cm.notificationChan <- websocket_mod.WsResponseInfo{
-		EventTag: websocket_mod.FlushEvent,
-		Sent:     done,
+
+	select {
+	case cm.notificationChan <- websocket_mod.WsResponseInfo{EventTag: websocket_mod.FlushEvent, Sent: done}:
+	case <-ctx.Done():
+		wlog.FromContext(ctx).Error().Stack().Err(wlerrors.WithStack(ctx.Err())).Msg("Context done, not flushing notifications")
+
+		return
+	case <-cm.ctx.Done():
+		wlog.FromContext(ctx).Warn().Msg("Client manager stopped, not flushing notifications")
+
+		return
 	}
 
 	select {
@@ -498,6 +539,15 @@ func (cm *ClientManager) PushTowerUpdate(tower tower_model.Instance) bool {
 }
 
 func (cm *ClientManager) addSubscription(ctx context.Context, subInfo websocket_mod.Subscription, client *websocket_model.WsClient) {
+	client.SubLock()
+	defer client.SubUnlock()
+
+	if !client.Active.Load() {
+		wlog.FromContext(ctx).Debug().Msgf("Skipping subscription [%s] for inactive client [%s]", subInfo.SubscriptionID, client.GetClientID())
+
+		return
+	}
+
 	switch subInfo.Type {
 	case websocket_mod.FolderSubscribe:
 		{
@@ -599,7 +649,17 @@ func (cm *ClientManager) notificationWorker(ctx context.Context) {
 		case <-ctx.Done():
 			wlog.FromContext(ctx).Debug().Msg("Notification worker stopped")
 
-			return
+			// Drain queued messages, unblocking any caller waiting on delivery.
+			for {
+				select {
+				case msg := <-cm.notificationChan:
+					if msg.Sent != nil {
+						close(msg.Sent)
+					}
+				default:
+					return
+				}
+			}
 		case msg := <-cm.notificationChan:
 			if msg.EventTag == "" {
 				wlog.FromContext(ctx).Error().Msg("Received empty event tag in notification worker")

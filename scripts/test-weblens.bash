@@ -78,6 +78,6 @@ else
     show_as_subtask "Launching mongo" "green" -- launch_mongo --stack-name "test" --mongo-port 27019
 fi
 
-build_agno
+setup_agno
 
 run_native_tests "${tests}" "${run}"

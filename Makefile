@@ -6,7 +6,7 @@ gen-ui: FORCE
 	pnpm generate
 
 agno: FORCE
-	bash -c 'source ./scripts/lib/all.bash && build_agno'
+	bash -c 'source ./scripts/lib/all.bash && setup_agno'
 
 test-server: FORCE
 	./scripts/test-weblens.bash

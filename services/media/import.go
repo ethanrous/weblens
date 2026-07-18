@@ -27,13 +27,39 @@ func newMedia(ctx context_service.AppContext, f *file_model.WeblensFileImpl) (*m
 	}, nil
 }
 
-// NewMediaFromFile creates a new Media object from a file by extracting metadata from EXIF data.
-func NewMediaFromFile(ctx context_service.AppContext, f *file_model.WeblensFileImpl) (m *media_model.Media, err error) {
+// ImportMediaFromFile creates a new Media object and its thumbnail cache files
+// from a single decode of the source file.
+func ImportMediaFromFile(ctx context_service.AppContext, f *file_model.WeblensFileImpl) (*media_model.Media, error) {
 	img, err := agno.Open(f.GetPortablePath().ToAbsolute())
 	if err != nil {
 		return nil, err
 	}
+	// Close is idempotent; safe even after cache creation consumes the image.
+	defer img.Close() //nolint:errcheck
 
+	m, err := newMediaFromImage(ctx, f, img)
+	if err != nil {
+		return nil, err
+	}
+
+	mType := GetMediaType(m)
+	if mType.IsVideo || mType.IsMultiPage() {
+		// These paths generate their caches from the source file, not img
+		_, err = HandleCacheCreation(ctx, m, f)
+	} else {
+		err = writeImageCaches(ctx, m, img)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return m, nil
+}
+
+// newMediaFromImage builds a Media object from a file's metadata using an
+// already-open image. The caller retains ownership of img.
+func newMediaFromImage(ctx context_service.AppContext, f *file_model.WeblensFileImpl, img *agno.Image) (m *media_model.Media, err error) {
 	if f.GetContentID() == "" {
 		return nil, wlerrors.WithStack(file_model.ErrNoContentID)
 	}

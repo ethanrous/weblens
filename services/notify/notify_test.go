@@ -24,8 +24,10 @@ import (
 type mockWsHandler struct {
 	upgrader         websocket.Upgrader
 	Done             chan struct{}
+	connReady        chan struct{}
 	m                sync.Mutex
 	messagesRecieved []websocket_mod.WsResponseInfo
+	conn             *websocket.Conn
 }
 
 func (s *mockWsHandler) MessagesReceived() []websocket_mod.WsResponseInfo {
@@ -33,6 +35,14 @@ func (s *mockWsHandler) MessagesReceived() []websocket_mod.WsResponseInfo {
 	defer s.m.Unlock()
 
 	return s.messagesRecieved
+}
+
+// Conn returns the server-side (peer) websocket connection, once established.
+func (s *mockWsHandler) Conn() *websocket.Conn {
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	return s.conn
 }
 
 func (s *mockWsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -49,6 +59,11 @@ func (s *mockWsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
+
+	s.m.Lock()
+	s.conn = conn
+	s.m.Unlock()
+	close(s.connReady)
 
 	for {
 		var msg websocket_mod.WsResponseInfo
@@ -67,7 +82,7 @@ func (s *mockWsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func mockClientConnect(ctx context.Context, manager *notify.ClientManager) (*client.WsClient, *mockWsHandler, error) {
-	h := &mockWsHandler{}
+	h := &mockWsHandler{connReady: make(chan struct{})}
 	d := wstest.NewDialer(h)
 
 	conn, _, err := d.Dial("ws://whatever/ws", nil)
@@ -178,6 +193,27 @@ func TestClientSubscribe(t *testing.T) {
 		assert.Never(t, func() bool {
 			return len(h.MessagesReceived()) > 0
 		}, 1*time.Second, 100*time.Millisecond, "did not expect to receive file notification message")
+	})
+
+	t.Run("subscribe after disconnect is refused", func(t *testing.T) {
+		m, c, _, err := setupManagerAndClient(appCtx)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		err = m.ClientDisconnect(appCtx, c)
+		if err != nil {
+			t.Fatalf("unexpected error disconnecting client: %v", err)
+		}
+
+		fileID := randomString(8)
+
+		err = m.SubscribeToFile(t.Context(), c, &mockIDer{id: fileID}, time.Now())
+		if err != nil {
+			t.Fatalf("unexpected error subscribing to file: %v", err)
+		}
+
+		assert.Empty(t, m.GetSubscribers(appCtx, websocket_mod.FolderSubscribe, fileID))
 	})
 
 	t.Run("FolderSubToTask correctly adds subscriptions to a task", func(t *testing.T) {
@@ -365,6 +401,54 @@ func TestClientDisconnect(t *testing.T) {
 		assert.Empty(t, emptyClients)
 	})
 
+	t.Run("send failure does not flip active so cleanup can still proceed", func(t *testing.T) {
+		m, c, h, err := setupManagerAndClient(appCtx)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		fileID := randomString(8)
+
+		err = m.SubscribeToFile(t.Context(), c, &mockIDer{id: fileID}, time.Now())
+		if err != nil {
+			t.Fatalf("unexpected error subscribing to file: %v", err)
+		}
+
+		select {
+		case <-h.connReady:
+		case <-time.After(2 * time.Second):
+			t.Fatal("timed out waiting for peer connection to be established")
+		}
+
+		err = h.Conn().Close()
+		if err != nil {
+			t.Fatalf("unexpected error closing peer connection: %v", err)
+		}
+
+		var sendErr error
+
+		for range 50 {
+			sendErr = c.Send(websocket_mod.WsResponseInfo{EventTag: websocket_mod.FileUpdatedEvent})
+			if sendErr != nil {
+				break
+			}
+		}
+
+		if sendErr == nil {
+			t.Fatal("expected send to eventually fail after peer connection was closed")
+		}
+
+		assert.True(t, c.IsOpen())
+
+		err = m.ClientDisconnect(appCtx, c)
+		if err != nil {
+			t.Fatalf("unexpected error disconnecting client: %v", err)
+		}
+
+		assert.Empty(t, m.GetSubscribers(appCtx, websocket_mod.FolderSubscribe, fileID))
+		assert.Empty(t, m.GetAllClients())
+	})
+
 	t.Run("all clients disconnect successfully", func(t *testing.T) {
 		m, c1, _, err := setupManagerAndClient(appCtx)
 		if err != nil {
@@ -411,4 +495,271 @@ func TestClientManager_GetClientByUsername(t *testing.T) {
 		retrievedClient := m.GetClientByUsername("nonexistentuser")
 		assert.Nil(t, retrievedClient)
 	})
+}
+
+func TestClientManager_ConcurrentSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	appCtx := ctxservice.NewTestContext(t.Context())
+
+	t.Run("concurrent folder subscriptions are thread-safe", func(t *testing.T) {
+		numClients := 50
+		numSubscriptions := 10
+
+		m := notify.NewClientManager(appCtx)
+
+		clients := make([]*client.WsClient, numClients)
+
+		clients[0], _, _ = mockClientConnect(ctxservice.NewTestContext(t.Context()), m)
+
+		for i := 1; i < numClients; i++ {
+			c, _, err := mockClientConnect(appCtx, m)
+			if err != nil {
+				t.Fatalf("unexpected error connecting client %d: %v", i, err)
+			}
+
+			clients[i] = c
+		}
+
+		var wg sync.WaitGroup
+
+		for i := 0; i < numClients; i++ {
+			for j := 0; j < numSubscriptions; j++ {
+				wg.Add(1)
+
+				go func(clientIdx int) {
+					defer wg.Done()
+
+					fileID := randomString(8)
+					if err := m.SubscribeToFile(
+						appCtx,
+						clients[clientIdx],
+						&mockIDer{id: fileID},
+						time.Now(),
+					); err != nil {
+						t.Errorf("failed to subscribe client %d to %s: %v", clientIdx, fileID, err)
+					}
+				}(i)
+			}
+		}
+
+		wg.Wait()
+
+		clients = m.GetAllClients()
+		assert.Len(t, clients, numClients)
+	})
+
+	t.Run("concurrent add and remove subscriptions is safe", func(t *testing.T) {
+		numClients := 20
+		numIterations := 50
+
+		m := notify.NewClientManager(appCtx)
+
+		clients := make([]*client.WsClient, numClients)
+
+		for i := 0; i < numClients; i++ {
+			c, _, err := mockClientConnect(appCtx, m)
+			if err != nil {
+				t.Fatalf("unexpected error connecting client %d: %v", i, err)
+			}
+
+			clients[i] = c
+		}
+
+		var wg sync.WaitGroup
+
+		cancelCh := make(chan struct{})
+
+		for i := 0; i < numClients; i++ {
+			for j := 0; j < numIterations; j++ {
+				wg.Add(2)
+
+				fileID := randomString(8)
+
+				go func(clientIdx int, fid string) {
+					defer wg.Done()
+
+					select {
+					case <-cancelCh:
+						return
+					default:
+					}
+
+					_ = m.SubscribeToFile(appCtx, clients[clientIdx], &mockIDer{id: fid}, time.Now())
+				}(i, fileID)
+
+				go func(clientIdx int, fid string) {
+					defer wg.Done()
+
+					select {
+					case <-cancelCh:
+						return
+					default:
+					}
+
+					_ = m.Unsubscribe(appCtx, clients[clientIdx], fid, time.Now())
+				}(i, fileID)
+			}
+		}
+
+		wg.Wait()
+
+		close(cancelCh)
+	})
+
+	t.Run("concurrent notifications are safe", func(t *testing.T) {
+		m := notify.NewClientManager(appCtx)
+
+		numClients := 10
+
+		clients := make([]*client.WsClient, numClients)
+
+		for i := 0; i < numClients; i++ {
+			c, _, err := mockClientConnect(appCtx, m)
+			if err != nil {
+				t.Fatalf("unexpected error connecting client %d: %v", i, err)
+			}
+
+			clients[i] = c
+		}
+
+		fileID := "notify-test-file"
+
+		var subWg sync.WaitGroup
+
+		for _, c := range clients {
+			subWg.Add(1)
+
+			go func(cl *client.WsClient) {
+				defer subWg.Done()
+
+				_ = m.SubscribeToFile(appCtx, cl, &mockIDer{id: fileID}, time.Now())
+			}(c)
+		}
+
+		subWg.Wait()
+
+		numNotifications := 100
+
+		var notifWg sync.WaitGroup
+
+		for i := 0; i < numNotifications; i++ {
+			notifWg.Add(1)
+
+			go func() {
+				defer notifWg.Done()
+
+				notif := notify.NewFileNotification(appCtx, wlstructs.FileInfo{ID: fileID}, websocket_mod.FileUpdatedEvent)
+				m.Notify(appCtx, notif...)
+			}()
+		}
+
+		notifWg.Wait()
+
+		m.Flush(appCtx)
+	})
+
+	t.Run("concurrent unsubscription cleanup is thread-safe", func(t *testing.T) {
+		numClients := 20
+
+		m := notify.NewClientManager(appCtx)
+
+		clients := make([]*client.WsClient, numClients)
+
+		fileID := "cleanup-test-file"
+
+		var subWg sync.WaitGroup
+
+		for i := 0; i < numClients; i++ {
+			c, _, err := mockClientConnect(appCtx, m)
+			if err != nil {
+				t.Fatalf("unexpected error connecting client %d: %v", i, err)
+			}
+
+			clients[i] = c
+
+			subWg.Add(1)
+
+			go func(cl *client.WsClient) {
+				defer subWg.Done()
+
+				_ = m.SubscribeToFile(appCtx, cl, &mockIDer{id: fileID}, time.Now())
+			}(c)
+		}
+
+		subWg.Wait()
+
+		subs := m.GetSubscribers(appCtx, websocket_mod.FolderSubscribe, fileID)
+		assert.Equal(t, numClients, len(subs))
+
+		var unSubWg sync.WaitGroup
+
+		for i := 0; i < numClients; i++ {
+			unSubWg.Add(1)
+
+			go func(cl *client.WsClient) {
+				defer unSubWg.Done()
+
+				_ = m.Unsubscribe(appCtx, cl, fileID, time.Now())
+			}(clients[i])
+		}
+
+		unSubWg.Wait()
+
+		finalSubs := m.GetSubscribers(appCtx, websocket_mod.FolderSubscribe, fileID)
+		assert.Empty(t, finalSubs)
+	})
+}
+
+func TestClientManager_NotifyClosesSentWhenDropped(t *testing.T) {
+	t.Parallel()
+
+	appCtx := ctxservice.NewTestContext(t.Context())
+
+	managerCtx, cancelManager := context.WithCancel(appCtx)
+	m := notify.NewClientManager(managerCtx)
+
+	cancelManager()
+
+	// Saturate the notification channel so the worker (now stopped) cannot drain
+	// it, forcing the sentinel below onto the drop path.
+	for range 1100 {
+		m.Notify(appCtx, websocket_mod.WsResponseInfo{EventTag: websocket_mod.FileUpdatedEvent, SubscribeKey: randomString(8)})
+	}
+
+	sent := make(chan struct{})
+	m.Notify(appCtx, websocket_mod.WsResponseInfo{EventTag: websocket_mod.TaskCanceledEvent, SubscribeKey: randomString(8), Sent: sent})
+
+	select {
+	case <-sent:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Notify dropped a message without closing its Sent channel; a waiter would hang forever")
+	}
+}
+
+func TestClientManager_NotifyDoesNotBlockAfterStop(t *testing.T) {
+	t.Parallel()
+
+	appCtx := ctxservice.NewTestContext(t.Context())
+
+	managerCtx, cancelManager := context.WithCancel(appCtx)
+	m := notify.NewClientManager(managerCtx)
+
+	cancelManager()
+
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+
+		for range 1100 {
+			m.Notify(appCtx, websocket_mod.WsResponseInfo{EventTag: websocket_mod.FileUpdatedEvent, SubscribeKey: randomString(8)})
+		}
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Notify blocked after the client manager was stopped")
+	}
 }
