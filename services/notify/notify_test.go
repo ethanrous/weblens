@@ -510,7 +510,12 @@ func TestClientManager_ConcurrentSubscriptions(t *testing.T) {
 
 		clients := make([]*client.WsClient, numClients)
 
-		clients[0], _, _ = mockClientConnect(ctxservice.NewTestContext(t.Context()), m)
+		var err error
+
+		clients[0], _, err = mockClientConnect(ctxservice.NewTestContext(t.Context()), m)
+		if err != nil {
+			t.Fatalf("unexpected error connecting client 0: %v", err)
+		}
 
 		for i := 1; i < numClients; i++ {
 			c, _, err := mockClientConnect(appCtx, m)
@@ -734,6 +739,36 @@ func TestClientManager_NotifyClosesSentWhenDropped(t *testing.T) {
 	case <-sent:
 	case <-time.After(5 * time.Second):
 		t.Fatal("Notify dropped a message without closing its Sent channel; a waiter would hang forever")
+	}
+}
+
+func TestClientManager_NotifyClosesAllSentWhenContextCancelled(t *testing.T) {
+	t.Parallel()
+
+	appCtx := ctxservice.NewTestContext(t.Context())
+	m := notify.NewClientManager(appCtx)
+
+	callerCtx, cancel := context.WithCancel(appCtx)
+	cancel()
+
+	const numMessages = 16
+
+	notifs := make([]websocket_mod.WsResponseInfo, numMessages)
+	sentChans := make([]chan struct{}, numMessages)
+
+	for i := range numMessages {
+		sentChans[i] = make(chan struct{})
+		notifs[i] = websocket_mod.WsResponseInfo{EventTag: websocket_mod.FileUpdatedEvent, SubscribeKey: randomString(8), Sent: sentChans[i]}
+	}
+
+	m.Notify(callerCtx, notifs...)
+
+	for i, sent := range sentChans {
+		select {
+		case <-sent:
+		case <-time.After(5 * time.Second):
+			t.Fatalf("message %d was never sent or dropped; a waiter would hang forever", i)
+		}
 	}
 }
 

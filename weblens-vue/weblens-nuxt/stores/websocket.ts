@@ -49,7 +49,7 @@ const useWebsocketStore = defineStore('websocket', () => {
 
         if (hasConnected.value) {
             console.debug('WebSocket reconnected, replaying subscriptions')
-            useReconnectListener().replay()
+            useReconnectListener().replay(send)
         }
 
         hasConnected.value = true

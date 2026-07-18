@@ -162,10 +162,11 @@ func (cm *ClientManager) DisconnectAll(ctx context.Context) error {
 // Notify queues one or more websocket messages to be sent to clients by the notification worker.
 func (cm *ClientManager) Notify(ctx context.Context, msg ...websocket_mod.WsResponseInfo) {
 	for _, m := range msg {
-		// If the manager has already stopped, don't queue into a worker that will
-		// never process the message; drop it and unblock any waiter deterministically.
-		if cm.ctx.Err() != nil {
-			wlog.FromContext(ctx).Warn().Msgf("Client manager stopped, dropping websocket message: %s", m.EventTag)
+		// If the manager has already stopped or the caller's context is done, don't
+		// queue into a worker that will never process the message; drop it and
+		// unblock any waiter deterministically.
+		if cm.ctx.Err() != nil || ctx.Err() != nil {
+			wlog.FromContext(ctx).Warn().Msgf("Context done, dropping websocket message: %s", m.EventTag)
 
 			if m.Sent != nil {
 				close(m.Sent)
@@ -184,7 +185,7 @@ func (cm *ClientManager) Notify(ctx context.Context, msg ...websocket_mod.WsResp
 				close(m.Sent)
 			}
 
-			return
+			continue
 		case <-cm.ctx.Done():
 			wlog.FromContext(ctx).Warn().Msgf("Client manager stopped, dropping websocket message: %s", m.EventTag)
 
@@ -192,7 +193,7 @@ func (cm *ClientManager) Notify(ctx context.Context, msg ...websocket_mod.WsResp
 				close(m.Sent)
 			}
 
-			return
+			continue
 		}
 	}
 }

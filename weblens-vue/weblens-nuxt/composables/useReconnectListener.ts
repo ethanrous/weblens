@@ -1,4 +1,4 @@
-import { SubToFolder, SubToTask } from '~/api/FileBrowserApi'
+import { WsAction, WsSubscriptionType } from '~/types/websocket'
 
 const folderSubs = ref(new Map<string, string>())
 
@@ -25,13 +25,25 @@ export function useReconnectListener() {
         taskSubs.value.delete(taskID)
     }
 
-    function replay() {
+    // Takes the websocket send function as a parameter (rather than importing
+    // the store or FileBrowserApi) to avoid a module import cycle.
+    function replay(send: (data: object) => void) {
         for (const [folderID, shareID] of folderSubs.value) {
-            SubToFolder(folderID, shareID)
+            send({
+                action: WsAction.Subscribe,
+                subscriptionType: WsSubscriptionType.Folder,
+                subscribeKey: folderID,
+                content: { shareID: shareID },
+            })
         }
 
         for (const taskID of taskSubs.value) {
-            SubToTask(taskID)
+            send({
+                action: WsAction.Subscribe,
+                subscriptionType: WsSubscriptionType.Task,
+                subscribeKey: taskID,
+                content: {},
+            })
         }
     }
 

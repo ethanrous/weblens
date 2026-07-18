@@ -60,12 +60,22 @@ func writeImageCaches(ctx context_service.AppContext, m *media_model.Media, img 
 	// Read image dimensions
 	m.Width, m.Height = img.Dimensions()
 
-	img, err = handleNewHighRes(ctx, m, img, 0)
+	// Reassign only on non-nil results so the deferred Close keeps the
+	// original image if a resize step fails.
+	highresImg, err := handleNewHighRes(ctx, m, img, 0)
+	if highresImg != nil {
+		img = highresImg
+	}
+
 	if err != nil {
 		return err
 	}
 
-	img, err = resizeToFit(img, ThumbMaxSize)
+	thumbImg, err := resizeToFit(img, ThumbMaxSize)
+	if thumbImg != nil {
+		img = thumbImg
+	}
+
 	if err != nil {
 		return wlerrors.WithStack(err)
 	}
@@ -110,12 +120,22 @@ func handleMultiPageCache(ctx context_service.AppContext, m *media_model.Media, 
 		file.GetPortablePath(), m.Width, m.Height, m.PageCount,
 	)
 
-	img, err = handleNewHighRes(ctx, m, img, 0)
+	// Reassign only on non-nil results so the deferred Close keeps the
+	// original image if a resize step fails.
+	highresImg, err := handleNewHighRes(ctx, m, img, 0)
+	if highresImg != nil {
+		img = highresImg
+	}
+
 	if err != nil {
 		return nil, err
 	}
 
-	img, err = resizeToFit(img, ThumbMaxSize)
+	thumbImg, err := resizeToFit(img, ThumbMaxSize)
+	if thumbImg != nil {
+		img = thumbImg
+	}
+
 	if err != nil {
 		return nil, wlerrors.WithStack(err)
 	}
