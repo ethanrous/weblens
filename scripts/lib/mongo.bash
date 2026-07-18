@@ -78,21 +78,21 @@ launch_mongo() {
         mkdir -p "$(dirname "$log_dump_file")"
 
         echo "dumping mongo container logs to [$log_dump_file]..."
-        dockerc logs "weblens-$stack_name" >"$log_dump_file" || true
+        dockerc logs "weblens-$stack_name-mongo" >"$log_dump_file" || true
         return 1
     else
         # Wait for mongo to be healthy before returning
         local retries=30
         local wait_time=1
         local count=0
-        until docker inspect --format='{{json .State.Health}}' weblens-"$stack_name" 2>/dev/null | grep -q '"healthy"'; do
+        until docker inspect --format='{{json .State.Health}}' weblens-"$stack_name"-mongo 2>/dev/null | grep -q '"healthy"'; do
             if [[ $count -ge $retries ]]; then
                 log_dump_file="./_build/logs/mongo/failed-mongo-$stack_name.log"
                 mkdir -p "$(dirname "$log_dump_file")"
 
                 echo "MongoDB container failed to become healthy after $((retries * wait_time)) seconds. Check container logs at $log_dump_file for details" >&2
 
-                dockerc logs "weblens-$stack_name" >"$log_dump_file" || true
+                dockerc logs "weblens-$stack_name-mongo" >"$log_dump_file" || true
 
                 return 1
             fi
@@ -131,7 +131,7 @@ dump_mongo_logs() {
 
     echo "Dumping MongoDB logs for stack [$stack_name] to [$logfile] ..."
 
-    dockerc logs "weblens-$stack_name" >"$logfile-mongo.log" || true
+    dockerc logs "weblens-$stack_name-mongo" >"$logfile-mongo.log" || true
 }
 export -f dump_mongo_logs
 
