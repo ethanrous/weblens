@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { API_WS_ENDPOINT } from '~/api/ApiEndpoint'
 import { handleWebsocketMessage } from '~/api/websocketHandlers'
 import type { WsMessage } from '~/types/websocket'
+import { useReconnectListener } from '~/composables/useReconnectListener'
 
 const useWebsocketStore = defineStore('websocket', () => {
     const userStore = useUserStore()
@@ -25,6 +26,8 @@ const useWebsocketStore = defineStore('websocket', () => {
         },
     })
 
+    const hasConnected = ref(false)
+
     watch(data, () => {
         const msg: WsMessage = JSON.parse(data.value)
         handleWebsocketMessage(msg)
@@ -37,6 +40,19 @@ const useWebsocketStore = defineStore('websocket', () => {
             openedOnce.value = true
             open()
         }
+    })
+
+    watch(status, (newStatus) => {
+        if (newStatus !== 'OPEN') {
+            return
+        }
+
+        if (hasConnected.value) {
+            console.debug('WebSocket reconnected, replaying subscriptions')
+            useReconnectListener().replay(send)
+        }
+
+        hasConnected.value = true
     })
 
     function send(data: object) {

@@ -134,7 +134,7 @@ func (wsc *WsClient) GetSubscriptions() []websocket_mod.Subscription {
 	wsc.updateMu.RLock()
 	defer wsc.updateMu.RUnlock()
 
-	return wsc.subscriptions
+	return slices.Clone(wsc.subscriptions)
 }
 
 // AddSubscription adds a new subscription to the client.
@@ -194,6 +194,9 @@ func (wsc *WsClient) Send(msg websocket_mod.WsResponseInfo) error {
 
 		err := wsc.conn.WriteJSON(msg)
 		if err != nil {
+			wsc.log.Warn().Err(err).Msg("Websocket write failed, closing connection")
+			_ = wsc.conn.Close()
+
 			return wlerrors.WithStack(err)
 		}
 	} else {

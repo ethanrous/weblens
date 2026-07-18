@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { Task, type TaskType, type TaskParams } from '~/types/task'
+import { useReconnectListener } from '~/composables/useReconnectListener'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type TaskPromiseParams<T = any> = {
@@ -59,9 +60,13 @@ export const useTasksStore = defineStore('tasks', () => {
             // Remove the promise from the map
             taskPromises.value.delete(taskID)
         }
+
+        useReconnectListener().removeTaskSub(taskID)
     }
 
     function cancelTask(taskID: string) {
+        useReconnectListener().removeTaskSub(taskID)
+
         if (!tasks.value || !tasks.value.has(taskID)) return
 
         const task = tasks.value.get(taskID)!
@@ -72,6 +77,8 @@ export const useTasksStore = defineStore('tasks', () => {
     }
 
     function failTask(taskID: string, opts?: { tasksFailed?: number }) {
+        useReconnectListener().removeTaskSub(taskID)
+
         if (!tasks.value || !tasks.value.has(taskID)) {
             console.warn('Tried to fail a task that does not exist:', taskID)
             return

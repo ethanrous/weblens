@@ -66,7 +66,6 @@ func ScanFileTsk(ctx context_service.AppContext, meta job.IndexMeta) error {
 
 	media := existingMedia
 	mediaIsNew := media == nil
-	isCached := false
 
 	if mediaIsNew || meta.ForceReIndex {
 		if meta.ForceReIndex && existingMedia != nil {
@@ -80,7 +79,7 @@ func ScanFileTsk(ctx context_service.AppContext, meta job.IndexMeta) error {
 			}
 		}
 
-		media, err = media_service.NewMediaFromFile(ctx, meta.File)
+		media, err = media_service.ImportMediaFromFile(ctx, meta.File)
 		if err != nil {
 			return err
 		}
@@ -93,17 +92,16 @@ func ScanFileTsk(ctx context_service.AppContext, meta job.IndexMeta) error {
 		}
 
 		// Check if the media has thumbnails cached on the filesystem. If not, we need to regenerate them.
-		isCached, err = media_service.IsCached(ctx, media)
+		isCached, err := media_service.IsCached(ctx, media)
 		if err != nil {
 			return err
 		}
-	}
 
-	// Generate the thumbnails if they do not exist
-	if !isCached {
-		_, err = media_service.HandleCacheCreation(ctx, media, meta.File)
-		if err != nil {
-			return err
+		if !isCached {
+			_, err = media_service.HandleCacheCreation(ctx, media, meta.File)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

@@ -6,6 +6,10 @@ import WeblensFile from '~/types/weblensFile'
 import { WsEvent, type WsMessage } from '~/types/websocket'
 
 function handleModified(msg: WsMessage) {
+    if (!msg.content?.fileInfo) {
+        return
+    }
+
     if (msg.content.fileInfo.id === useLocationStore().activeFolderID) {
         return
     }
@@ -33,6 +37,10 @@ function handleModified(msg: WsMessage) {
 }
 
 function handleFileScan(msg: WsMessage) {
+    if (!msg.content) {
+        return
+    }
+
     const targetFile = new WeblensFile({ portablePath: msg.content.taskJobTarget, isDir: true })
 
     useTasksStore().upsertTask(msg.subscribeKey, {
@@ -62,7 +70,9 @@ export function handleWebsocketMessage(msg: WsMessage) {
 
     switch (msg.eventTag) {
         case WsEvent.FileCreatedEvent:
-            useFilesStore().addFile(msg.content.fileInfo)
+            if (msg.content?.fileInfo) {
+                useFilesStore().addFile(msg.content.fileInfo)
+            }
             break
 
         case WsEvent.FileUpdatedEvent:
@@ -70,7 +80,9 @@ export function handleWebsocketMessage(msg: WsMessage) {
             break
 
         case WsEvent.FileDeletedEvent:
-            useFilesStore().removeFiles(msg.content.fileInfo.id)
+            if (msg.content?.fileInfo?.id) {
+                useFilesStore().removeFiles(msg.content.fileInfo.id)
+            }
             break
 
         case WsEvent.TaskCreatedEvent: {
@@ -106,7 +118,7 @@ export function handleWebsocketMessage(msg: WsMessage) {
         }
 
         case WsEvent.TaskFailedEvent: {
-            useTasksStore().failTask(msg.subscribeKey, { tasksFailed: msg.content.failedCount })
+            useTasksStore().failTask(msg.subscribeKey, { tasksFailed: msg.content?.failedCount })
 
             break
         }
@@ -119,6 +131,10 @@ export function handleWebsocketMessage(msg: WsMessage) {
         }
 
         case WsEvent.FolderScanCompleteEvent: {
+            if (!msg.content) {
+                break
+            }
+
             const targetFile = new WeblensFile({ portablePath: msg.content.portablePath, isDir: true })
 
             useTasksStore().upsertTask(msg.subscribeKey, {
@@ -137,6 +153,10 @@ export function handleWebsocketMessage(msg: WsMessage) {
         }
 
         case WsEvent.ZipProgressEvent: {
+            if (!msg.content) {
+                break
+            }
+
             useTasksStore().upsertTask(msg.subscribeKey, {
                 taskID: msg.subscribeKey,
                 taskType: TaskType.CreateZip,
@@ -152,7 +172,9 @@ export function handleWebsocketMessage(msg: WsMessage) {
         }
 
         case WsEvent.ZipCompleteEvent: {
-            useTasksStore().setTaskComplete(msg.subscribeKey, msg.content)
+            if (msg.content) {
+                useTasksStore().setTaskComplete(msg.subscribeKey, msg.content)
+            }
 
             break
         }
@@ -165,8 +187,8 @@ export function handleWebsocketMessage(msg: WsMessage) {
 
         case WsEvent.BackupStartedEvent:
         case WsEvent.BackupProgressEvent: {
-            if (!msg.content['coreID']) {
-                console.error('Backup event missing towerID in content:', msg)
+            if (!msg.content?.['coreID']) {
+                console.error('Backup event missing coreID in content:', msg)
                 break
             }
 
@@ -177,8 +199,8 @@ export function handleWebsocketMessage(msg: WsMessage) {
         }
 
         case WsEvent.BackupCompleteEvent: {
-            if (!msg.content['coreID']) {
-                console.error('Backup complete event missing towerID in content:', msg)
+            if (!msg.content?.['coreID']) {
+                console.error('Backup complete event missing coreID in content:', msg)
                 break
             }
 

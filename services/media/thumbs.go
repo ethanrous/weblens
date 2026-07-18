@@ -22,55 +22,78 @@ func HandleCacheCreation(ctx context_service.AppContext, m *media_model.Media, f
 			return nil, err
 		}
 
-		defer img.Close() //nolint:errcheck
+		return nil, writeImageCaches(ctx, m, img)
+	}
 
-		m.PageCount = 1
-
-		// Read image dimensions
-		m.Width, m.Height = img.Dimensions()
-
-		img, err = handleNewHighRes(ctx, m, img, 0)
+	thumb, err := ctx.FileService.NewCacheFile(m.ID(), string(media_model.LowRes), 0)
+	if err != nil && !wlerrors.Is(err, file_model.ErrFileAlreadyExists) {
+		return nil, wlerrors.WithStack(err)
+	} else if err == nil {
+		thumbBytes, err = generateVideoThumbnail(file.GetPortablePath().ToAbsolute())
 		if err != nil {
 			return nil, err
 		}
 
-		img, err = resizeToFit(img, ThumbMaxSize)
+		_, err = thumb.Write(thumbBytes)
 		if err != nil {
-			return nil, wlerrors.WithStack(err)
+			return nil, err
 		}
 
-		// Create and write thumb cache file
-		thumb, err := ctx.FileService.NewCacheFile(m.ID(), string(media_model.LowRes), 0)
-		if err != nil && !wlerrors.Is(err, file_model.ErrFileAlreadyExists) {
-			return nil, wlerrors.WithStack(err)
-		} else if err == nil {
-			err = img.WriteWebP(thumb.GetPortablePath().ToAbsolute())
-			if err != nil {
-				return nil, err
-			}
-
-			m.SetLowresCacheFile(thumb)
-		}
-	} else {
-		thumb, err := ctx.FileService.NewCacheFile(m.ID(), string(media_model.LowRes), 0)
-		if err != nil && !wlerrors.Is(err, file_model.ErrFileAlreadyExists) {
-			return nil, wlerrors.WithStack(err)
-		} else if err == nil {
-			thumbBytes, err = generateVideoThumbnail(file.GetPortablePath().ToAbsolute())
-			if err != nil {
-				return nil, err
-			}
-
-			_, err = thumb.Write(thumbBytes)
-			if err != nil {
-				return nil, err
-			}
-
-			m.SetLowresCacheFile(thumb)
-		}
+		m.SetLowresCacheFile(thumb)
 	}
 
 	return thumbBytes, nil
+}
+
+// writeImageCaches writes the high-res and low-res cache files for a
+// single-page image. Takes ownership of img, including any image returned by
+// the resize chain, and frees it before returning.
+func writeImageCaches(ctx context_service.AppContext, m *media_model.Media, img *agno.Image) (err error) {
+	defer func() {
+		if img != nil {
+			img.Close() //nolint:errcheck
+		}
+	}()
+
+	m.PageCount = 1
+
+	// Read image dimensions
+	m.Width, m.Height = img.Dimensions()
+
+	// Reassign only on non-nil results so the deferred Close keeps the
+	// original image if a resize step fails.
+	highresImg, err := handleNewHighRes(ctx, m, img, 0)
+	if highresImg != nil {
+		img = highresImg
+	}
+
+	if err != nil {
+		return err
+	}
+
+	thumbImg, err := resizeToFit(img, ThumbMaxSize)
+	if thumbImg != nil {
+		img = thumbImg
+	}
+
+	if err != nil {
+		return wlerrors.WithStack(err)
+	}
+
+	// Create and write thumb cache file
+	thumb, err := ctx.FileService.NewCacheFile(m.ID(), string(media_model.LowRes), 0)
+	if err != nil && !wlerrors.Is(err, file_model.ErrFileAlreadyExists) {
+		return wlerrors.WithStack(err)
+	} else if err == nil {
+		err = img.WriteWebP(thumb.GetPortablePath().ToAbsolute())
+		if err != nil {
+			return err
+		}
+
+		m.SetLowresCacheFile(thumb)
+	}
+
+	return nil
 }
 
 // handleMultiPageCache creates cache files for all pages of a multi-page document (e.g., PDF).
@@ -97,12 +120,22 @@ func handleMultiPageCache(ctx context_service.AppContext, m *media_model.Media, 
 		file.GetPortablePath(), m.Width, m.Height, m.PageCount,
 	)
 
-	img, err = handleNewHighRes(ctx, m, img, 0)
+	// Reassign only on non-nil results so the deferred Close keeps the
+	// original image if a resize step fails.
+	highresImg, err := handleNewHighRes(ctx, m, img, 0)
+	if highresImg != nil {
+		img = highresImg
+	}
+
 	if err != nil {
 		return nil, err
 	}
 
-	img, err = resizeToFit(img, ThumbMaxSize)
+	thumbImg, err := resizeToFit(img, ThumbMaxSize)
+	if thumbImg != nil {
+		img = thumbImg
+	}
+
 	if err != nil {
 		return nil, wlerrors.WithStack(err)
 	}

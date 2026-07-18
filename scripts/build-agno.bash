@@ -6,4 +6,4 @@ source ./scripts/lib/all.bash
 
 agnoLibPath="${1:-${WEBLENS_ROOT}/services/media/agno/lib/}"
 
-build_agno "$agnoLibPath"
+fetch_agno "$agnoLibPath"
