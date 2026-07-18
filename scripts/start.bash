@@ -9,6 +9,7 @@ usage="./scripts/quickCore.bash [-r|--rebuild] [-t|--role <role>] [-c|--clean]
 	-c, --clean     Wipe the mongo container and file data
 	-g, --group     Specify the group name to identify the stack (default: quick) e.g. will create a container named 'weblens-quick-core' and a mongo container named 'weblens-quick-core-mongo', assuming the tower role is 'core'
 	--local-agno    Path to a local agno checkout. Builds libagno.a from source and uses its Go bindings (rebuilds every run). Also honored via the WEBLENS_LOCAL_AGNO env var
+	--leaks         Run under macOS 'leaks' with MallocStackLogging for leak detection (macOS only)
 	"
 
 start_ui() {
@@ -76,7 +77,7 @@ tower_role="core"
 sub_stack_group=""
 
 static=false
-valgrind=false
+use_leaks=false
 skip_build=false
 
 mongo_port=27017
@@ -103,8 +104,8 @@ while [ "${1:-}" != "" ]; do
     "--static")
         static=true
         ;;
-    "--valgrind")
-        valgrind=true
+    "--leaks")
+        use_leaks=true
         ;;
     "--trace")
         export WEBLENS_LOG_LEVEL=trace
@@ -171,7 +172,7 @@ show_as_subtask "Starting services" "blue" -- ./scripts/envup.bash
 
 printf "Running \e[34mWeblens\e[0m locally for development...\n"
 
-if [[ "$valgrind" == true ]]; then
+if [[ "$use_leaks" == true ]]; then
     leaks_weblens
 elif [[ "$static" == true ]]; then
     start_static_weblens

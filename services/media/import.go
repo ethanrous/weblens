@@ -27,8 +27,9 @@ func newMedia(ctx context_service.AppContext, f *file_model.WeblensFileImpl) (*m
 	}, nil
 }
 
-// ImportMediaFromFile creates a new Media object and its thumbnail cache files
-// from a single decode of the source file.
+// ImportMediaFromFile creates a new Media object and its thumbnail cache files.
+// Single-page images reuse one decode of the source; video and multi-page types
+// regenerate their caches from the source file via HandleCacheCreation.
 func ImportMediaFromFile(ctx context_service.AppContext, f *file_model.WeblensFileImpl) (*media_model.Media, error) {
 	img, err := agno.Open(f.GetPortablePath().ToAbsolute())
 	if err != nil {

@@ -188,7 +188,7 @@ export function handleWebsocketMessage(msg: WsMessage) {
         case WsEvent.BackupStartedEvent:
         case WsEvent.BackupProgressEvent: {
             if (!msg.content?.['coreID']) {
-                console.error('Backup event missing towerID in content:', msg)
+                console.error('Backup event missing coreID in content:', msg)
                 break
             }
 
@@ -200,7 +200,7 @@ export function handleWebsocketMessage(msg: WsMessage) {
 
         case WsEvent.BackupCompleteEvent: {
             if (!msg.content?.['coreID']) {
-                console.error('Backup complete event missing towerID in content:', msg)
+                console.error('Backup complete event missing coreID in content:', msg)
                 break
             }
 
