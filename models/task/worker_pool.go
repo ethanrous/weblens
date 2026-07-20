@@ -242,6 +242,21 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta Meta
 		pool = wp.GetTaskPool(GlobalTaskPoolID)
 	}
 
+	// If we are queuing a task in a global pool, we want to use the worker pool's context instead of the caller's context.
+	// This is to prevent tasks from being canceled if the caller's context is canceled, since global tasks are meant to be
+	// long-running or background tasks, and not tied to their callers.
+	if pool.IsGlobal() {
+		ctx = context.WithoutCancel(ctx)
+
+		var cancel context.CancelFunc
+
+		// Make sure we still cancel if the worker pool is going down, though
+		ctx, cancel = context.WithCancel(ctx)
+		context.AfterFunc(wp.ctx, func() {
+			cancel()
+		})
+	}
+
 	job := wp.getRegisteredJob(jobName)
 
 	taskID := makeTaskID(meta, job.opts.Unique)
@@ -251,7 +266,7 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta Meta
 	if t != nil {
 		exited, _ := t.Status()
 		if !exited {
-			t.Log().Warn().Msgf("Task [%s] already exists and is running, not re-queuing", taskID)
+			t.Log().Warn().Msgf("Task [%s] already exists and is running (%s), not re-queuing", taskID, t.QueueState())
 
 			return t, nil
 		}
@@ -282,6 +297,8 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta Meta
 		// signal chan must be buffered so caller doesn't block trying to close many tasks
 		waitChan:        make(chan struct{}),
 		firstResultChan: make(chan struct{}),
+
+		WorkerID: -1,
 
 		Ctx:        ctx,
 		cancelFunc: cancel,
@@ -459,6 +476,7 @@ func (wp *WorkerPool) execWorker(workerCtx context.Context, isReplacement bool) 
 					// Check if the task was canceled while in the queue
 					select {
 					case <-t.Ctx.Done():
+						t.Cancel()
 						// Task was canceled, do not run it
 						wlog.FromContext(t.Ctx).Trace().Msgf("Task was canceled before execution, skipping")
 
@@ -700,6 +718,8 @@ func (wp *WorkerPool) taskScheduler(ctx context.Context) {
 		wlog.FromContext(ctx).Debug().Msg("task scheduler exiting")
 	}()
 
+	ticker := time.NewTicker(time.Second * 60)
+
 	for {
 		select {
 		case _, ok := <-ctx.Done():
@@ -708,9 +728,17 @@ func (wp *WorkerPool) taskScheduler(ctx context.Context) {
 			}
 
 			wlog.FromContext(ctx).Warn().Msg("task scheduler not exiting?")
+		case <-ticker.C:
+			// Periodically wake up the scheduler to check for tasks that may have been added to the queue
+			select {
+			case wp.schedulerNotifier <- struct{}{}:
+			default:
+			}
 		case <-wp.schedulerNotifier:
 			// When we get a notification that tasks have been added to the queue, we drain the queue.
 			wp.taskQueueMu.Lock()
+			wlog.FromContext(ctx).Trace().Msgf("task scheduler woken up. %d tasks in queue", len(wp.taskQueue))
+
 			for len(wp.taskQueue) != 0 {
 				// Pop the first task off and schedule it.
 				t := wp.taskQueue[0]
@@ -722,7 +750,11 @@ func (wp *WorkerPool) taskScheduler(ctx context.Context) {
 				select {
 				case <-t.Ctx.Done():
 					// Task was canceled, do not run it
-					wlog.FromContext(t.Ctx).Trace().Msgf("Task was canceled while in queue, not running")
+					wlog.FromContext(t.Ctx).Trace().Msgf("Task (context) was canceled while in queue, not scheduling for execution")
+
+					if t.exitStatus.Load() == TaskNoStatus {
+						t.Cancel()
+					}
 
 					wp.taskQueueMu.Lock()
 
@@ -737,6 +769,8 @@ func (wp *WorkerPool) taskScheduler(ctx context.Context) {
 				case <-ctx.Done():
 					return
 				}
+
+				wlog.FromContext(t.Ctx).Trace().Msgf("Task [%s] sent to taskStream for execution", t.taskID)
 
 				wp.taskQueueMu.Lock()
 			}

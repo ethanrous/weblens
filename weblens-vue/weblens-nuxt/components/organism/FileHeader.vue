@@ -75,22 +75,24 @@ const activeTagID = computed(() => {
     return isTagView.value ? (route.params.tagID as string) : ''
 })
 
-const searchbar = ref<typeof Searchbar>()
+const searchbar = shallowRef<typeof Searchbar>()
 
-const keys = useMagicKeys()
+const { Slash, Shift_Slash } = useMagicKeys({
+    passive: false,
+    onEventFired: (e) => {
+        if ((e.key !== '/' && e.key !== '?') || searchbar.value?.isFocused()) return
 
-whenever(
-    () => keys.Cmd_K?.value || keys.Ctrl_K?.value,
-    () => {
-        if (locationStore.isInTimeline) {
-            return
-        }
-
-        filesStore.setSearchRecurively(keys.shift?.value || false)
-
-        searchbar.value?.focus()
+        e.stopPropagation()
+        e.preventDefault()
     },
-)
+})
+
+watchEffect(() => {
+    if (!Slash.value || searchbar.value?.isFocused()) return
+
+    filesStore.setSearchRecurively(Shift_Slash.value || false)
+    searchbar.value?.focus()
+})
 
 const activeFile = computed(() => {
     return filesStore.activeFile

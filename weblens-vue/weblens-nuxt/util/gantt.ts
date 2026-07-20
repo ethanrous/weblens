@@ -140,6 +140,12 @@ export function buildGantt(tasks: TaskInfo[], nowMs: number, minSpanMs = 0): Gan
         if (isQueued(task)) {
             queuedCount++
             continue
+        } else if (task.workerID < 0) {
+            // A task that is not queued but has no worker assigned is likely a canceled task.
+            // All tasks start with worker -1, but also start "queued". Canceling a task
+            // removes it from the queue, but keeps its worker at -1. So we can ignore these,
+            // without counting them as queued, since they are not actually waiting for a worker.
+            continue
         }
 
         const { startMs, endMs } = barTiming(task, nowMs)

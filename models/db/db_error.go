@@ -39,7 +39,7 @@ type NotFoundError struct {
 
 // Error implements the error interface for NotFoundError.
 func (e *NotFoundError) Error() string {
-	return fmt.Sprintf("%s: not found", e.Message)
+	return fmt.Sprintf("DB error: %s: not found", e.Message)
 }
 
 // Status returns the HTTP status code for a NotFoundError.
@@ -74,7 +74,7 @@ type AlreadyExistsError struct {
 
 // Error implements the error interface for AlreadyExistsError.
 func (e *AlreadyExistsError) Error() string {
-	return fmt.Sprintf("already exists: %s", e.Message)
+	return fmt.Sprintf("DB error: %s: already exists", e.Message)
 }
 
 // NewAlreadyExistsError creates a new AlreadyExistsError with the given message.

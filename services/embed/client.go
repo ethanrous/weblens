@@ -9,9 +9,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ethanrous/weblens/modules/wlerrors"
+	"github.com/ethanrous/weblens/modules/wlog"
 )
 
 // ChunkResult is one entry returned from /extract-and-embed; Page is the 1-indexed source page.
@@ -49,7 +53,7 @@ var ErrExtractionFailed = fmt.Errorf("embed extraction failed")
 func NewClient(baseURL string) *Client {
 	return &Client{
 		baseURL:    baseURL,
-		http:       &http.Client{Timeout: 5 * time.Minute},
+		http:       &http.Client{Timeout: 20 * time.Minute},
 		queryCache: make(map[string]queryVectors),
 	}
 }
@@ -78,13 +82,15 @@ func (c *Client) EncodeImage(ctx context.Context, imgPath string) ([]float64, er
 		return nil, ErrServiceUnavailable
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+	req, err := http.NewRequestWithContext(context.WithoutCancel(ctx), http.MethodGet,
 		c.baseURL+"/encode?img-path="+imgPath, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	resp, err := c.http.Do(req)
+	wlog.FromContext(ctx).Debug().Msgf("embed encode image: %s (Error? %s)", imgPath, err)
+
 	if err != nil {
 		c.flagUnreachable(err)
 
@@ -212,9 +218,15 @@ func (c *Client) ExtractAndEmbedFile(ctx context.Context, path string, mimeHint 
 // platform). A cancelled or expired caller context is not the service's fault,
 // so it is left alone. The health ticker clears the flag once /health returns.
 func (c *Client) flagUnreachable(err error) {
+	if _, ok := errors.AsType[*url.Error](err); !ok {
+		return
+	}
+
 	if err == nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return
 	}
 
+	err = wlerrors.Errorf("embed service unreachable: %w", err)
+	wlog.GlobalLogger().Error().Stack().Err(err).Msgf("embed service flagged as unreachable: %v", err)
 	c.unavailable.Store(true)
 }

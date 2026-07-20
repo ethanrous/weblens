@@ -241,10 +241,6 @@ func (t *Task) Cancel() {
 	if t.childTaskPool != nil {
 		t.childTaskPool.Cancel()
 	}
-
-	// Do not exit task here, so that .Wait() -ing on a task will wait until the task actually exits,
-	// before starting again
-	// t.queueState = Exited
 }
 
 // GetResult returns the task result.
