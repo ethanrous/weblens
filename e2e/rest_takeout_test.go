@@ -46,14 +46,14 @@ func TestZipDownload_CascadesSourceFilePermissions(t *testing.T) {
 	_ = uploadTextFile(t, coreSetup, adminClient, folder.GetId(), "b.txt", "beta")
 
 	share, _, err := adminClient.ShareAPI.CreateFileShare(t.Context()).Request(openapi.FileShareParams{
-		FileID: openapi.PtrString(folder.GetId()), Users: []string{"zipper"},
+		FileID: new(folder.GetId()), Users: []string{"zipper"},
 	}).Execute()
 	require.NoError(t, err)
 
 	shareID := share.GetShareID()
 
 	_, _, err = adminClient.ShareAPI.UpdateShareAccessorPermissions(t.Context(), shareID, "zipper").Request(openapi.PermissionsParams{
-		CanView: openapi.PtrBool(true), CanDownload: openapi.PtrBool(true),
+		CanView: new(true), CanDownload: new(true),
 	}).Execute()
 	require.NoError(t, err)
 

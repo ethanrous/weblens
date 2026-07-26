@@ -4,7 +4,7 @@ import { test, expect, createFolder } from './fixtures'
  * Tests for keyboard shortcuts throughout the application.
  *
  * These tests exercise:
- * - FileHeader.vue (Ctrl+K search focus, Shift+Ctrl+K recursive search)
+ * - FileHeader.vue ('/' search focus, 'Shift+/' recursive search)
  * - FileScroller.vue (Ctrl+A select all, Escape clear selection, Space presentation)
  * - location.ts (highlightFileID via URL hash navigation)
  * - stores/files.ts (selectAll, clearSelected)
@@ -26,13 +26,13 @@ test.describe('Keyboard Shortcuts', () => {
         await page.waitForURL('**/files/home')
     })
 
-    test('should focus search input with Ctrl+K keyboard shortcut', async ({ page }) => {
+    test('should focus search input with / keyboard shortcut', async ({ page }) => {
         await expect(page.locator('[id^="file-card-"]').first()).toBeVisible({
             timeout: 15000,
         })
 
-        // Press Ctrl+K to focus search
-        await page.keyboard.press('ControlOrMeta+k')
+        // Press / to focus search
+        await page.keyboard.press('/')
 
         // The search input should now be focused
         const searchInput = page.getByPlaceholder('Search Files...')
@@ -46,13 +46,13 @@ test.describe('Keyboard Shortcuts', () => {
         await page.keyboard.press('Escape')
     })
 
-    test('should enable recursive search with Shift+Ctrl+K', async ({ page }) => {
+    test('should enable recursive search with Shift+/', async ({ page }) => {
         await expect(page.locator('[id^="file-card-"]').first()).toBeVisible({
             timeout: 15000,
         })
 
-        // Press Shift+Ctrl+K for recursive search
-        await page.keyboard.press('Shift+ControlOrMeta+k')
+        // Press Shift+/ for recursive search
+        await page.keyboard.press('Shift+/')
 
         // Search input should be focused
         const searchInput = page.getByPlaceholder('Search Files...')

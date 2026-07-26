@@ -13,7 +13,7 @@ import { test, expect, createFolder } from './fixtures'
  * Components under test:
  * - Searchbar.vue: Search input with filter panel
  * - FileSearchFilters.vue: Recursive and regex toggles
- * - FileHeader.vue: Ctrl+K keyboard shortcut to focus search
+ * - FileHeader.vue: '/' keyboard shortcut to focus search
  * - stores/files.ts: doSearch, setSearchRecurively, setSearchWithRegex
  * - stores/location.ts: search custom ref
  */

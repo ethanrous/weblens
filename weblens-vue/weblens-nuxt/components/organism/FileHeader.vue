@@ -53,7 +53,7 @@ import useTagsStore from '~/stores/tags'
 import WeblensFile from '~/types/weblensFile'
 import WeblensButton from '../atom/WeblensButton.vue'
 import TimelineControls from '../molecule/TimelineControls.vue'
-import { useMagicKeys, whenever } from '@vueuse/core'
+import { useActiveElement, useMagicKeys } from '@vueuse/core'
 import Searchbar from '../molecule/Searchbar.vue'
 import FileSortControls from '../molecule/FileSortControls.vue'
 import useLocationStore from '~/stores/location'
@@ -77,10 +77,18 @@ const activeTagID = computed(() => {
 
 const searchbar = shallowRef<typeof Searchbar>()
 
+const activeElement = useActiveElement()
+const notUsingInput = computed(
+    () =>
+        activeElement.value?.tagName !== 'INPUT' &&
+        activeElement.value?.tagName !== 'TEXTAREA' &&
+        !activeElement.value?.isContentEditable,
+)
+
 const { Slash, Shift_Slash } = useMagicKeys({
     passive: false,
     onEventFired: (e) => {
-        if ((e.key !== '/' && e.key !== '?') || searchbar.value?.isFocused()) return
+        if ((e.key !== '/' && e.key !== '?') || !notUsingInput.value) return
 
         e.stopPropagation()
         e.preventDefault()
@@ -88,7 +96,7 @@ const { Slash, Shift_Slash } = useMagicKeys({
 })
 
 watchEffect(() => {
-    if (!Slash.value || searchbar.value?.isFocused()) return
+    if (!Slash.value || !notUsingInput.value || searchbar.value?.isFocused()) return
 
     filesStore.setSearchRecurively(Shift_Slash.value || false)
     searchbar.value?.focus()

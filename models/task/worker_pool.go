@@ -242,21 +242,6 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta Meta
 		pool = wp.GetTaskPool(GlobalTaskPoolID)
 	}
 
-	// If we are queuing a task in a global pool, we want to use the worker pool's context instead of the caller's context.
-	// This is to prevent tasks from being canceled if the caller's context is canceled, since global tasks are meant to be
-	// long-running or background tasks, and not tied to their callers.
-	if pool.IsGlobal() {
-		ctx = context.WithoutCancel(ctx)
-
-		var cancel context.CancelFunc
-
-		// Make sure we still cancel if the worker pool is going down, though
-		ctx, cancel = context.WithCancel(ctx)
-		context.AfterFunc(wp.ctx, func() {
-			cancel()
-		})
-	}
-
 	job := wp.getRegisteredJob(jobName)
 
 	taskID := makeTaskID(meta, job.opts.Unique)
@@ -270,6 +255,21 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta Meta
 
 			return t, nil
 		}
+	}
+
+	// If we are queuing a task in a global pool, we want to use the worker pool's context instead of the caller's context.
+	// This is to prevent tasks from being canceled if the caller's context is canceled, since global tasks are meant to be
+	// long-running or background tasks, and not tied to their callers.
+	if pool.IsGlobal() {
+		ctx = context.WithoutCancel(ctx)
+
+		var cancel context.CancelFunc
+
+		// Make sure we still cancel if the worker pool is going down, though
+		ctx, cancel = context.WithCancel(ctx)
+		context.AfterFunc(wp.ctx, func() {
+			cancel()
+		})
 	}
 
 	newl := wlog.FromContext(ctx).With().
@@ -719,6 +719,7 @@ func (wp *WorkerPool) taskScheduler(ctx context.Context) {
 	}()
 
 	ticker := time.NewTicker(time.Second * 60)
+	defer ticker.Stop()
 
 	for {
 		select {
@@ -762,6 +763,8 @@ func (wp *WorkerPool) taskScheduler(ctx context.Context) {
 				default:
 				}
 
+				wlog.FromContext(t.Ctx).Trace().Msgf("Sending task [%s] to taskStream for execution", t.taskID)
+
 				// Send must remain cancellable so a full taskStream cannot block
 				// the scheduler forever during shutdown.
 				select {
@@ -769,8 +772,6 @@ func (wp *WorkerPool) taskScheduler(ctx context.Context) {
 				case <-ctx.Done():
 					return
 				}
-
-				wlog.FromContext(t.Ctx).Trace().Msgf("Task [%s] sent to taskStream for execution", t.taskID)
 
 				wp.taskQueueMu.Lock()
 			}

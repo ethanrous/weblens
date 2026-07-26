@@ -89,7 +89,7 @@ func (c *Client) EncodeImage(ctx context.Context, imgPath string) ([]float64, er
 	}
 
 	resp, err := c.http.Do(req)
-	wlog.FromContext(ctx).Debug().Msgf("embed encode image: %s (Error? %s)", imgPath, err)
+	wlog.FromContext(ctx).Debug().Msgf("embed encode image: %s (Error? %v)", imgPath, err)
 
 	if err != nil {
 		c.flagUnreachable(err)
