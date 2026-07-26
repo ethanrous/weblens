@@ -51,8 +51,9 @@ test.describe('Keyboard Shortcuts', () => {
             timeout: 15000,
         })
 
-        // Press Shift+/ for recursive search
-        await page.keyboard.press('Shift+/')
+        // Press Shift+/ for recursive search. 'Shift+Slash' is the code form, which
+        // resolves to the shifted key '?' the way a real keyboard does.
+        await page.keyboard.press('Shift+Slash')
 
         // Search input should be focused
         const searchInput = page.getByPlaceholder('Search Files...')
@@ -74,7 +75,7 @@ test.describe('Keyboard Shortcuts', () => {
         })
 
         // Enable recursive search in the file browser first
-        await page.keyboard.press('Shift+/')
+        await page.keyboard.press('Shift+Slash')
         const searchInput = page.getByPlaceholder('Search Files...')
         await expect(searchInput).toBeFocused({ timeout: 3000 })
         await expect(page).toHaveURL(/recursive=true/)
