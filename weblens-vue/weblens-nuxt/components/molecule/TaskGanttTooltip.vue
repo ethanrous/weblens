@@ -27,7 +27,7 @@
                 <span>{{ task.status || '-' }}</span>
 
                 <span :class="{ 'text-text-tertiary': true }">Worker</span>
-                <span>{{ isQueuedTask ? 'unassigned' : task.workerID }}</span>
+                <span>{{ workerLabel(task.workerID) }}</span>
 
                 <span :class="{ 'text-text-tertiary': true }">Start</span>
                 <span>{{ formatTime(task.startTime) }}</span>
@@ -99,7 +99,7 @@
 <script setup lang="ts">
 import type { TaskInfo } from '@ethanrous/weblens-api'
 import ProgressSquare from '~/components/atom/ProgressSquare.vue'
-import { isQueued, parseTimeMs, stateColorClass } from '~/util/gantt'
+import { parseTimeMs, stateColorClass, workerLabel } from '~/util/gantt'
 import { humanDuration } from '~/util/humanBytes'
 
 const { task, now, x, y } = defineProps<{
@@ -128,7 +128,6 @@ const clampedY = computed(() => {
 })
 
 const colorClass = computed(() => (task ? stateColorClass(task) : 'bg-muted'))
-const isQueuedTask = computed(() => (task ? isQueued(task) : false))
 
 const childPercent = computed(() => {
     if (!task || !task.totalChildTasks) {

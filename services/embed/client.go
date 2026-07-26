@@ -49,6 +49,9 @@ var ErrServiceUnavailable = fmt.Errorf("embed service unavailable")
 // ErrExtractionFailed means the sidecar could not extract the file (HTTP 422/404), distinct from a successful-but-empty extraction.
 var ErrExtractionFailed = fmt.Errorf("embed extraction failed")
 
+// encodeImageTimeout bounds a single /encode call so a hung sidecar can't pin a worker for the full shared client timeout.
+const encodeImageTimeout = 60 * time.Second
+
 // NewClient constructs a Client. baseURL is the http://host:port of the embed container.
 func NewClient(baseURL string) *Client {
 	return &Client{
@@ -70,6 +73,9 @@ func (c *Client) MarkUnavailable() { c.unavailable.Store(true) }
 // SetBaseURLForTesting overrides the base URL of the client. Only for use in tests.
 func (c *Client) SetBaseURLForTesting(url string) { c.baseURL = url }
 
+// SetHTTPTimeoutForTesting overrides the shared HTTP client timeout. Only for use in tests.
+func (c *Client) SetHTTPTimeoutForTesting(d time.Duration) { c.http.Timeout = d }
+
 // BaseURL returns the configured base URL - used by the health-check ticker.
 func (c *Client) BaseURL() string { return c.baseURL }
 
@@ -82,17 +88,18 @@ func (c *Client) EncodeImage(ctx context.Context, imgPath string) ([]float64, er
 		return nil, ErrServiceUnavailable
 	}
 
-	req, err := http.NewRequestWithContext(context.WithoutCancel(ctx), http.MethodGet,
+	reqCtx, cancel := context.WithTimeout(ctx, encodeImageTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
 		c.baseURL+"/encode?img-path="+imgPath, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	resp, err := c.http.Do(req)
-	wlog.FromContext(ctx).Debug().Msgf("embed encode image: %s (Error? %v)", imgPath, err)
-
 	if err != nil {
-		c.flagUnreachable(err)
+		c.flagUnreachable(ctx, err)
 
 		return nil, fmt.Errorf("embed encode image: %w", err)
 	}
@@ -141,7 +148,7 @@ func (c *Client) EncodeQueryText(ctx context.Context, text string) (plain, image
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		c.flagUnreachable(err)
+		c.flagUnreachable(ctx, err)
 
 		return nil, nil, fmt.Errorf("embed encode text: %w", err)
 	}
@@ -188,7 +195,7 @@ func (c *Client) ExtractAndEmbedFile(ctx context.Context, path string, mimeHint 
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		c.flagUnreachable(err)
+		c.flagUnreachable(ctx, err)
 
 		return nil, fmt.Errorf("embed extract: %w", err)
 	}
@@ -216,17 +223,20 @@ func (c *Client) ExtractAndEmbedFile(ctx context.Context, path string, mimeHint 
 // flagUnreachable trips the circuit breaker on a transport-level failure from
 // Do (DNS, dial, connection refused, timeout - the error wording varies by
 // platform). A cancelled or expired caller context is not the service's fault,
-// so it is left alone. The health ticker clears the flag once /health returns.
-func (c *Client) flagUnreachable(err error) {
+// so it is left alone - including when the caller's own deadline is what
+// caused the failure. Any other transport error, including a client-side
+// timeout, is treated as the service being unreachable. The health ticker
+// clears the flag once /health returns.
+func (c *Client) flagUnreachable(ctx context.Context, err error) {
 	if _, ok := errors.AsType[*url.Error](err); !ok {
 		return
 	}
 
-	if err == nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+	if ctx.Err() != nil {
 		return
 	}
 
 	err = wlerrors.Errorf("embed service unreachable: %w", err)
-	wlog.GlobalLogger().Error().Stack().Err(err).Msgf("embed service flagged as unreachable: %v", err)
+	wlog.GlobalLogger().Error().Stack().Err(err).Msg("embed service flagged as unreachable")
 	c.unavailable.Store(true)
 }

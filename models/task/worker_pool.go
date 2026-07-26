@@ -260,6 +260,8 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta Meta
 	// If we are queuing a task in a global pool, we want to use the worker pool's context instead of the caller's context.
 	// This is to prevent tasks from being canceled if the caller's context is canceled, since global tasks are meant to be
 	// long-running or background tasks, and not tied to their callers.
+	var stopShutdownLink func() bool
+
 	if pool.IsGlobal() {
 		ctx = context.WithoutCancel(ctx)
 
@@ -267,7 +269,7 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta Meta
 
 		// Make sure we still cancel if the worker pool is going down, though
 		ctx, cancel = context.WithCancel(ctx)
-		context.AfterFunc(wp.ctx, func() {
+		stopShutdownLink = context.AfterFunc(wp.ctx, func() {
 			cancel()
 		})
 	}
@@ -300,11 +302,21 @@ func (wp *WorkerPool) DispatchJob(ctx context.Context, jobName string, meta Meta
 
 		WorkerID: -1,
 
-		Ctx:        ctx,
-		cancelFunc: cancel,
+		Ctx:              ctx,
+		cancelFunc:       cancel,
+		stopShutdownLink: stopShutdownLink,
 	}
 
 	t.Log().Trace().Stack().Msgf("Task [%s] created", taskID)
+
+	// Checked synchronously against wp.ctx because the global-pool detachment above
+	// links cancellation via context.AfterFunc, which runs asynchronously in its own
+	// goroutine; t.Ctx.Done() alone can lag behind wp.ctx during shutdown.
+	if wp.ctx.Err() != nil {
+		t.releaseShutdownLink()
+
+		return nil, wlerrors.New("not queuing task while worker pool is going down")
+	}
 
 	select {
 	case _, ok := <-t.Ctx.Done():
@@ -480,6 +492,10 @@ func (wp *WorkerPool) execWorker(workerCtx context.Context, isReplacement bool) 
 						// Task was canceled, do not run it
 						wlog.FromContext(t.Ctx).Trace().Msgf("Task was canceled before execution, skipping")
 
+						if canContinue := wp.completeTask(t, workerID, isReplacement); !canContinue {
+							return
+						}
+
 						continue
 					default:
 					}
@@ -533,92 +549,103 @@ func (wp *WorkerPool) execWorker(workerCtx context.Context, isReplacement bool) 
 						t.Success("closed by worker pool")
 					}
 
-					result := t.GetResults()
-					t.updateMu.Lock()
-					result["task_id"] = t.taskID
-					result["exit_status"] = t.exitStatus
-
-					wp.taskPoolMu.Lock()
-
-					var complete int64
-
-					for _, p := range wp.taskPoolMap {
-						status := p.Status()
-						complete += status.Complete
-					}
-
-					wp.taskPoolMu.Unlock()
-
-					result["queue_remaining"] = complete
-					result["queue_total"] = wp.lifetimeQueuedCount.Load()
-
-					t.updateMu.Unlock()
-
-					// Wake any waiters on this task
-					close(t.waitChan)
-
-					// Potentially find the task pool that houses this task pool. All child
-					// task pools report their status to the root task pool as well.
-					// Do not use any global pool as the root
-					rootTaskPool := t.taskPool.GetRootPool()
-
-					if t.exitStatus.Load() == TaskError && !rootTaskPool.IsGlobal() {
-						rootTaskPool.AddError(t)
-					}
-
-					// Update parent task pools about completed task
-					directParent := t.GetTaskPool()
-					directParent.IncCompletedTasks(1)
-
-					// Run cleanup routines for the task
-					wp.cleanupTask(t, workerID)
-
-					var canContinue bool
-
-					if directParent.IsRoot() {
-						// Updating the number of workers and then checking it's value is dangerous
-						// to do concurrently. Specifically, the waiterGate lock on the queue will,
-						// very rarely, attempt to unlock twice if two tasks finish at the same time.
-						// So we must treat this whole area as a critical section
-						directParent.LockExit()
-
-						// Set values and notifications now that task has completed. Returns
-						// a bool that specifies if this thread should continue and grab another
-						// task, or if it should exit
-						canContinue = directParent.HandleTaskExit(isReplacement)
-
-						directParent.UnlockExit()
-					} else {
-						rootTaskPool.IncCompletedTasks(1)
-
-						// Must hold both locks (and must acquire root lock first) to enter a dual-update.
-						// Any other ordering will result in race conditions or deadlocks
-						rootTaskPool.LockExit()
-
-						directParent.LockExit()
-						uncompletedTasks := directParent.GetTotalTaskCount() - directParent.GetCompletedTaskCount()
-						wlog.FromContext(wp.ctx).Debug().Msgf(
-							"Uncompleted tasks on tp created by %s: %d",
-							directParent.CreatedInTask().ID(), uncompletedTasks-1,
-						)
-
-						canContinue = directParent.HandleTaskExit(isReplacement)
-
-						// We *should* get the same canContinue value from here, so we do not
-						// check it a second time. If we *don't* get the same value, we can safely ignore it
-						rootTaskPool.HandleTaskExit(isReplacement)
-
-						directParent.UnlockExit()
-						rootTaskPool.UnlockExit()
-					}
-
-					if !canContinue {
+					if canContinue := wp.completeTask(t, workerID, isReplacement); !canContinue {
 						return
 					}
 				}
 			}
 		}
 	}(wp.currentWorkers.Add(1) - 1)
+}
+
+// completeTask runs the accounting/teardown tail shared by every path that
+// retires a task: normal completion after safetyWork, and a task dropped
+// because its context was already canceled while queued (see taskScheduler and
+// execWorker). Task.Cancel() may have already marked the task Exited before
+// this runs, so nothing here may assume the task is still un-exited.
+func (wp *WorkerPool) completeTask(t *Task, workerID int64, isReplacement bool) (canContinue bool) {
+	result := t.GetResults()
+	t.updateMu.Lock()
+	result["task_id"] = t.taskID
+	result["exit_status"] = t.exitStatus
+
+	wp.taskPoolMu.Lock()
+
+	var complete int64
+
+	for _, p := range wp.taskPoolMap {
+		status := p.Status()
+		complete += status.Complete
+	}
+
+	wp.taskPoolMu.Unlock()
+
+	result["queue_remaining"] = complete
+	result["queue_total"] = wp.lifetimeQueuedCount.Load()
+
+	t.updateMu.Unlock()
+
+	// Wake any waiters on this task
+	t.closeWaitChan()
+
+	// Release the AfterFunc link tying a detached global-pool task's context to
+	// worker pool shutdown, if one was registered.
+	t.releaseShutdownLink()
+
+	// Potentially find the task pool that houses this task pool. All child
+	// task pools report their status to the root task pool as well.
+	// Do not use any global pool as the root
+	rootTaskPool := t.taskPool.GetRootPool()
+
+	if t.exitStatus.Load() == TaskError && !rootTaskPool.IsGlobal() {
+		rootTaskPool.AddError(t)
+	}
+
+	// Update parent task pools about completed task
+	directParent := t.GetTaskPool()
+	directParent.IncCompletedTasks(1)
+
+	// Run cleanup routines for the task
+	wp.cleanupTask(t, workerID)
+
+	if directParent.IsRoot() {
+		// Updating the number of workers and then checking it's value is dangerous
+		// to do concurrently. Specifically, the waiterGate lock on the queue will,
+		// very rarely, attempt to unlock twice if two tasks finish at the same time.
+		// So we must treat this whole area as a critical section
+		directParent.LockExit()
+
+		// Set values and notifications now that task has completed. Returns
+		// a bool that specifies if this thread should continue and grab another
+		// task, or if it should exit
+		canContinue = directParent.HandleTaskExit(isReplacement)
+
+		directParent.UnlockExit()
+	} else {
+		rootTaskPool.IncCompletedTasks(1)
+
+		// Must hold both locks (and must acquire root lock first) to enter a dual-update.
+		// Any other ordering will result in race conditions or deadlocks
+		rootTaskPool.LockExit()
+
+		directParent.LockExit()
+		uncompletedTasks := directParent.GetTotalTaskCount() - directParent.GetCompletedTaskCount()
+		wlog.FromContext(wp.ctx).Debug().Msgf(
+			"Uncompleted tasks on tp created by %s: %d",
+			directParent.CreatedInTask().ID(), uncompletedTasks-1,
+		)
+
+		canContinue = directParent.HandleTaskExit(isReplacement)
+
+		// We *should* get the same canContinue value from here, so we do not
+		// check it a second time. If we *don't* get the same value, we can safely ignore it
+		rootTaskPool.HandleTaskExit(isReplacement)
+
+		directParent.UnlockExit()
+		rootTaskPool.UnlockExit()
+	}
+
+	return canContinue
 }
 
 /*
@@ -756,6 +783,10 @@ func (wp *WorkerPool) taskScheduler(ctx context.Context) {
 					if t.exitStatus.Load() == TaskNoStatus {
 						t.Cancel()
 					}
+
+					// The scheduler is not a worker, so there is no workerID/replacement
+					// context; canContinue is meaningless here and ignored.
+					wp.completeTask(t, -1, false)
 
 					wp.taskQueueMu.Lock()
 

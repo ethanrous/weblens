@@ -230,8 +230,5 @@ defineExpose({
     focus: () => {
         searchInput.value?.focus()
     },
-    isFocused: (): boolean => {
-        return searchInput.value?.focused ?? false
-    },
 })
 </script>

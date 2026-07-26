@@ -120,7 +120,6 @@ function handleClear() {
 
 defineExpose({
     focus,
-    focused,
     inputContainer,
 })
 

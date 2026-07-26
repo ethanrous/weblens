@@ -5,7 +5,6 @@
             :checked="filesStore.searchRecursively"
             @checked:changed="filesStore.setSearchRecurively"
         />
-        <span :class="{ 'text-text-secondary': true }">Tip: Use <code>Shift+/</code> to enable recursive search</span>
 
         <WeblensCheckbox
             label="Search using Regular Expressions"

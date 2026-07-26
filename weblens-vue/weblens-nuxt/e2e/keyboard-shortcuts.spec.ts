@@ -57,6 +57,7 @@ test.describe('Keyboard Shortcuts', () => {
         // Search input should be focused
         const searchInput = page.getByPlaceholder('Search Files...')
         await expect(searchInput).toBeFocused({ timeout: 3000 })
+        await expect(page).toHaveURL(/recursive=true/)
 
         // Type and press Enter for recursive search
         await page.keyboard.type('test')
@@ -65,6 +66,33 @@ test.describe('Keyboard Shortcuts', () => {
         // Clear search
         await searchInput.clear()
         await page.keyboard.press('Escape')
+    })
+
+    test('should not touch recursive search flag when / is pressed in timeline view', async ({ page }) => {
+        await expect(page.locator('[id^="file-card-"]').first()).toBeVisible({
+            timeout: 15000,
+        })
+
+        // Enable recursive search in the file browser first
+        await page.keyboard.press('Shift+/')
+        const searchInput = page.getByPlaceholder('Search Files...')
+        await expect(searchInput).toBeFocused({ timeout: 3000 })
+        await expect(page).toHaveURL(/recursive=true/)
+        await page.keyboard.press('Escape')
+
+        // Switch to the media timeline
+        const photoToggle = page.locator('button:has(.tabler-icon-photo)')
+        await photoToggle.click()
+        await expect(page.getByPlaceholder('Search Media...')).toBeVisible({ timeout: 15000 })
+
+        // Pressing / in timeline view must not clobber the files store's recursive flag
+        await page.keyboard.press('/')
+        await expect(page).toHaveURL(/recursive=true/)
+
+        // Switch back to the file browser
+        const folderToggle = page.locator('button:has(.tabler-icon-folder)')
+        await folderToggle.last().click()
+        await expect(page.getByPlaceholder('Search Files...')).toBeVisible({ timeout: 15000 })
     })
 
     test('should navigate to URL with file hash to trigger highlight scroll', async ({ page }) => {

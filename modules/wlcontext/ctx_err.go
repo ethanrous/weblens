@@ -11,7 +11,7 @@ type CanceledError struct {
 
 // Error implements the error interface for CanceledError.
 func (e *CanceledError) Error() string {
-	return fmt.Sprintf("DB error: %s: context canceled", e.Message)
+	return fmt.Sprintf("context canceled: %s", e.Message)
 }
 
 // NewCanceledError creates a new CanceledError with the given message.

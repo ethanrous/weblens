@@ -59,7 +59,8 @@ type Task struct {
 
 	timerLock sync.RWMutex
 
-	waitChan chan struct{}
+	waitChan     chan struct{}
+	waitChanOnce sync.Once
 
 	// firstResultChan is closed the first time SetResult is invoked, so
 	// callers waiting on early task progress can unblock without polling.
@@ -69,6 +70,12 @@ type Task struct {
 	// finishOnce guards markFinished so the earliest terminal transition stamps
 	// FinishTime exactly once, even across callers that don't hold updateMu.
 	finishOnce sync.Once
+
+	// stopShutdownLink releases the context.AfterFunc registration (see
+	// WorkerPool.DispatchJob) that links a detached global-pool task's context
+	// to the worker pool's shutdown. Nil for non-global tasks.
+	stopShutdownLink     func() bool
+	stopShutdownLinkOnce sync.Once
 
 	WorkerID int64
 }
@@ -585,5 +592,26 @@ func globbyHash(charLimit int, dataToHash ...any) string {
 func (t *Task) markFinished() {
 	t.finishOnce.Do(func() {
 		t.FinishTime.Set(time.Now())
+	})
+}
+
+// closeWaitChan closes waitChan exactly once, so a task torn down through more
+// than one path (e.g. a reaper cancellation racing the scheduler dropping the
+// same queued task) cannot panic on a double close.
+func (t *Task) closeWaitChan() {
+	t.waitChanOnce.Do(func() {
+		close(t.waitChan)
+	})
+}
+
+// releaseShutdownLink stops the context.AfterFunc registration exactly once, so
+// a finished task doesn't stay registered against the worker pool's
+// process-lifetime context until shutdown. Safe to call on tasks that never
+// registered one.
+func (t *Task) releaseShutdownLink() {
+	t.stopShutdownLinkOnce.Do(func() {
+		if t.stopShutdownLink != nil {
+			t.stopShutdownLink()
+		}
 	})
 }

@@ -53,7 +53,7 @@ import useTagsStore from '~/stores/tags'
 import WeblensFile from '~/types/weblensFile'
 import WeblensButton from '../atom/WeblensButton.vue'
 import TimelineControls from '../molecule/TimelineControls.vue'
-import { useActiveElement, useMagicKeys } from '@vueuse/core'
+import { useActiveElement, useEventListener } from '@vueuse/core'
 import Searchbar from '../molecule/Searchbar.vue'
 import FileSortControls from '../molecule/FileSortControls.vue'
 import useLocationStore from '~/stores/location'
@@ -85,22 +85,24 @@ const notUsingInput = computed(
         !activeElement.value?.isContentEditable,
 )
 
-const { Slash, Shift_Slash } = useMagicKeys({
-    passive: false,
-    onEventFired: (e) => {
+useEventListener(
+    window,
+    'keydown',
+    (e: KeyboardEvent) => {
         if ((e.key !== '/' && e.key !== '?') || !notUsingInput.value) return
 
         e.stopPropagation()
         e.preventDefault()
+
+        // Don't clobber the files store's recursive-search flag from the timeline view
+        if (!locationStore.isInTimeline) {
+            filesStore.setSearchRecurively(e.key === '?')
+        }
+
+        searchbar.value?.focus()
     },
-})
-
-watchEffect(() => {
-    if (!Slash.value || !notUsingInput.value || searchbar.value?.isFocused()) return
-
-    filesStore.setSearchRecurively(Shift_Slash.value || false)
-    searchbar.value?.focus()
-})
+    { passive: false },
+)
 
 const activeFile = computed(() => {
     return filesStore.activeFile

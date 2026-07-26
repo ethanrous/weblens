@@ -24,6 +24,7 @@ export type GanttModel = {
     queuedCount: number
 }
 
+const UNASSIGNED_LANE_KEY = 'unassigned'
 const MIN_BAR_PX = 6
 const AXIS_TARGET_PX = 120
 const TICK_STEPS_MS = [
@@ -62,6 +63,11 @@ export function isQueued(task: TaskInfo): boolean {
 // isRunning is true for tasks actively executing (not queued, not finished).
 export function isRunning(task: TaskInfo): boolean {
     return !task.Completed && (task.State === 'Executing' || task.State === 'Sleeping')
+}
+
+// workerLabel renders a placeholder for tasks that never received a real worker.
+export function workerLabel(workerID: number): string {
+    return workerID < 0 ? 'unassigned' : String(workerID)
 }
 
 // stateColorClass maps a task to a Tailwind background token for its bar.
@@ -140,20 +146,17 @@ export function buildGantt(tasks: TaskInfo[], nowMs: number, minSpanMs = 0): Gan
         if (isQueued(task)) {
             queuedCount++
             continue
-        } else if (task.workerID < 0) {
-            // A task that is not queued but has no worker assigned is likely a canceled task.
-            // All tasks start with worker -1, but also start "queued". Canceling a task
-            // removes it from the queue, but keeps its worker at -1. So we can ignore these,
-            // without counting them as queued, since they are not actually waiting for a worker.
-            continue
         }
 
         const { startMs, endMs } = barTiming(task, nowMs)
-        const key = `worker-${task.workerID}`
+        // Finished tasks that never got a worker (canceled, reaped) still need a bar; lane them separately.
+        const hasWorker = task.workerID >= 0
+        const key = hasWorker ? `worker-${task.workerID}` : UNASSIGNED_LANE_KEY
+        const label = hasWorker ? `Worker ${task.workerID}` : 'Unassigned'
 
         let lane = laneMap.get(key)
         if (!lane) {
-            lane = { key, label: `Worker ${task.workerID}`, bars: [] }
+            lane = { key, label, bars: [] }
             laneMap.set(key, lane)
         }
         lane.bars.push({ task, startMs, endMs, running: isRunning(task) })
@@ -179,9 +182,10 @@ export function buildGantt(tasks: TaskInfo[], nowMs: number, minSpanMs = 0): Gan
     return { lanes, domain: { minMs, maxMs }, queuedCount }
 }
 
+// workerNum sorts numbered worker lanes first, non-numeric lanes (e.g. unassigned) last.
 function workerNum(key: string): number {
     const n = Number.parseInt(key.replace('worker-', ''), 10)
-    return isNaN(n) ? 0 : n
+    return isNaN(n) ? Number.POSITIVE_INFINITY : n
 }
 
 export function totalWidthPx(domain: TimeDomain, pxPerMs: number): number {
