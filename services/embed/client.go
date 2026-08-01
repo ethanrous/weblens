@@ -92,7 +92,7 @@ func (c *Client) EncodeImage(ctx context.Context, imgPath string) ([]float64, er
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet,
-		c.baseURL+"/encode?img-path="+imgPath, nil)
+		c.baseURL+"/encode?img-path="+url.QueryEscape(imgPath), nil)
 	if err != nil {
 		return nil, err
 	}

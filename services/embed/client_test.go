@@ -73,6 +73,24 @@ func TestEncodeQueryText_ReturnsBothVectors(t *testing.T) {
 	assert.Equal(t, []float64{0.3, 0.4}, image)
 }
 
+func TestEncodeImage_EscapesImgPath(t *testing.T) {
+	const imgPath = "CACHES:my photos/a&b?c#d.webp"
+
+	var got string
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.URL.Query().Get("img-path")
+		_ = json.NewEncoder(w).Encode([]float64{0.1, 0.2})
+	}))
+	defer srv.Close()
+
+	c := embed.NewClient(srv.URL)
+
+	_, err := c.EncodeImage(context.Background(), imgPath)
+	require.NoError(t, err)
+	assert.Equal(t, imgPath, got, "the sidecar should receive the path verbatim after decoding")
+}
+
 func TestEncodeImage_RespectsCallerCancellation(t *testing.T) {
 	srv := hangingServer(3 * time.Second)
 	defer srv.Close()

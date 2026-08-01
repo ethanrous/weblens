@@ -25,6 +25,7 @@ export type GanttModel = {
 }
 
 const UNASSIGNED_LANE_KEY = 'unassigned'
+const UNASSIGNED_LABEL = 'Unassigned'
 const MIN_BAR_PX = 6
 const AXIS_TARGET_PX = 120
 const TICK_STEPS_MS = [
@@ -67,7 +68,7 @@ export function isRunning(task: TaskInfo): boolean {
 
 // workerLabel renders a placeholder for tasks that never received a real worker.
 export function workerLabel(workerID: number): string {
-    return workerID < 0 ? 'unassigned' : String(workerID)
+    return workerID < 0 ? UNASSIGNED_LABEL : String(workerID)
 }
 
 // stateColorClass maps a task to a Tailwind background token for its bar.
@@ -152,7 +153,7 @@ export function buildGantt(tasks: TaskInfo[], nowMs: number, minSpanMs = 0): Gan
         // Finished tasks that never got a worker (canceled, reaped) still need a bar; lane them separately.
         const hasWorker = task.workerID >= 0
         const key = hasWorker ? `worker-${task.workerID}` : UNASSIGNED_LANE_KEY
-        const label = hasWorker ? `Worker ${task.workerID}` : 'Unassigned'
+        const label = hasWorker ? `Worker ${task.workerID}` : UNASSIGNED_LABEL
 
         let lane = laneMap.get(key)
         if (!lane) {
