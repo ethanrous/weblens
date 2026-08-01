@@ -50,7 +50,7 @@
                     <div
                         v-if="!slotProps.focused && !filterOpen && locationStore.search === ''"
                         :class="{
-                            'text-text-tertiary pointer-events-none mr-1 max-h-5 leading-none text-nowrap transition': true,
+                            'text-text-secondary bg-text-tertiary/40 pointer-events-none mr-1 max-h-5 rounded-sm p-1 text-center leading-3 text-nowrap transition': true,
                             'hidden lg:inline-flex': true,
                         }"
                     >
@@ -145,7 +145,7 @@ const mediaStore = useMediaStore()
 
 const filterOpen = ref(false)
 
-const searchInput = ref<typeof WeblensInput>()
+const searchInput = shallowRef<typeof WeblensInput>()
 
 const searchFilter = ref<HTMLDivElement>()
 const searchbar = ref<HTMLDivElement>()
@@ -190,11 +190,7 @@ const keyHintText = computed(() => {
         return ''
     }
 
-    if (locationStore.operatingSystem === 'macos') {
-        return '⌘K'
-    }
-
-    return 'Ctrl+K'
+    return '/'
 })
 
 watchEffect(() => {

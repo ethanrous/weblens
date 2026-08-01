@@ -12,6 +12,10 @@ import (
 
 const healthCheckInterval = 30 * time.Second
 
+// healthProbeTimeout bounds a single /health request so a wedged sidecar can never block the health
+// loop for longer than this, regardless of the shared client's own (much longer) timeout.
+const healthProbeTimeout = 3 * time.Second
+
 var (
 	clientOnce sync.Once
 	client     *Client
@@ -51,15 +55,19 @@ func healthLoop(ctx context.Context, c *Client, interval time.Duration) {
 				continue
 			}
 
-			if probeHealth(ctx, c) {
+			if ProbeHealth(ctx, c) {
 				c.MarkAvailable()
 			}
 		}
 	}
 }
 
-func probeHealth(ctx context.Context, c *Client) bool {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL()+"/health", nil)
+// ProbeHealth queries /health with its own bounded deadline. Exported so tests can exercise the health loop's probe directly.
+func ProbeHealth(ctx context.Context, c *Client) bool {
+	reqCtx, cancel := context.WithTimeout(ctx, healthProbeTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, c.BaseURL()+"/health", nil)
 	if err != nil {
 		return false
 	}

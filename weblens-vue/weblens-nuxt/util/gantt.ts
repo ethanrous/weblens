@@ -24,6 +24,8 @@ export type GanttModel = {
     queuedCount: number
 }
 
+const UNASSIGNED_LANE_KEY = 'unassigned'
+const UNASSIGNED_LABEL = 'Unassigned'
 const MIN_BAR_PX = 6
 const AXIS_TARGET_PX = 120
 const TICK_STEPS_MS = [
@@ -62,6 +64,11 @@ export function isQueued(task: TaskInfo): boolean {
 // isRunning is true for tasks actively executing (not queued, not finished).
 export function isRunning(task: TaskInfo): boolean {
     return !task.Completed && (task.State === 'Executing' || task.State === 'Sleeping')
+}
+
+// workerLabel renders a placeholder for tasks that never received a real worker.
+export function workerLabel(workerID: number): string {
+    return workerID < 0 ? UNASSIGNED_LABEL : String(workerID)
 }
 
 // stateColorClass maps a task to a Tailwind background token for its bar.
@@ -143,11 +150,14 @@ export function buildGantt(tasks: TaskInfo[], nowMs: number, minSpanMs = 0): Gan
         }
 
         const { startMs, endMs } = barTiming(task, nowMs)
-        const key = `worker-${task.workerID}`
+        // Finished tasks that never got a worker (canceled, reaped) still need a bar; lane them separately.
+        const hasWorker = task.workerID >= 0
+        const key = hasWorker ? `worker-${task.workerID}` : UNASSIGNED_LANE_KEY
+        const label = hasWorker ? `Worker ${task.workerID}` : UNASSIGNED_LABEL
 
         let lane = laneMap.get(key)
         if (!lane) {
-            lane = { key, label: `Worker ${task.workerID}`, bars: [] }
+            lane = { key, label, bars: [] }
             laneMap.set(key, lane)
         }
         lane.bars.push({ task, startMs, endMs, running: isRunning(task) })
@@ -173,9 +183,10 @@ export function buildGantt(tasks: TaskInfo[], nowMs: number, minSpanMs = 0): Gan
     return { lanes, domain: { minMs, maxMs }, queuedCount }
 }
 
+// workerNum sorts numbered worker lanes first, non-numeric lanes (e.g. unassigned) last.
 function workerNum(key: string): number {
     const n = Number.parseInt(key.replace('worker-', ''), 10)
-    return isNaN(n) ? 0 : n
+    return isNaN(n) ? Number.POSITIVE_INFINITY : n
 }
 
 export function totalWidthPx(domain: TimeDomain, pxPerMs: number): number {

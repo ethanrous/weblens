@@ -2,12 +2,14 @@ package db_test
 
 import (
 	"context"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/ethanrous/weblens/models/db"
 	"github.com/ethanrous/weblens/modules/config"
+	"github.com/ethanrous/weblens/modules/wlcontext"
 	"github.com/ethanrous/weblens/modules/wlerrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -476,4 +478,38 @@ func TestContextualizedCollection_ErrorHandling(t *testing.T) {
 		_, err = collection.Find(ctxTimeout, bson.M{})
 		assert.Error(t, err)
 	})
+}
+
+func TestNotFoundError_ClientFacingMessage(t *testing.T) {
+	err := db.NewNotFoundError("file")
+
+	status, msg := wlerrors.AsStatus(err, 0)
+
+	assert.Equal(t, http.StatusNotFound, status)
+	assert.NotContains(t, msg, "DB error")
+	assert.Equal(t, 1, strings.Count(msg, "not found"))
+}
+
+func TestAlreadyExistsError_ClientFacingMessage(t *testing.T) {
+	err := db.NewAlreadyExistsError("username")
+
+	// Mirrors how routers report AlreadyExistsError: db.IsAlreadyExists + ctx.Error(http.StatusConflict, err),
+	// which routes through wlerrors.AsStatus with the caller-supplied status as the default.
+	status, msg := wlerrors.AsStatus(err, http.StatusConflict)
+
+	assert.Equal(t, http.StatusConflict, status)
+	assert.NotContains(t, msg, "DB error")
+	assert.Equal(t, 1, strings.Count(msg, "already exists"))
+}
+
+func TestWrapError_DoesNotMisclassifyWrappedCanceledError(t *testing.T) {
+	inner := wlcontext.NewCanceledError("unrelated failure")
+
+	err := db.WrapError(inner, "some op")
+
+	require.Error(t, err)
+	// The suffix match in WrapError must key off actual context-cancellation text, not
+	// merely the fact that the source error happens to be a *wlcontext.CanceledError.
+	assert.Contains(t, err.Error(), "unknown database error")
+	assert.Contains(t, err.Error(), "unrelated failure")
 }

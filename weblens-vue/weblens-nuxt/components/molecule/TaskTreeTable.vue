@@ -93,7 +93,7 @@
                         {{ row.task.State }}
                     </td>
                     <td :class="{ 'border-r p-2 text-center align-middle whitespace-nowrap': true }">
-                        {{ row.task.workerID }}
+                        {{ workerLabel(row.task.workerID) }}
                     </td>
                     <td :class="{ 'border-r p-2 text-center align-middle whitespace-nowrap': true }">
                         {{ formatStartTime(row.task.startTime) }}
@@ -123,6 +123,7 @@ import type { TaskInfo } from '@ethanrous/weblens-api'
 import { IconChevronRight } from '@tabler/icons-vue'
 import ProgressSquare from '~/components/atom/ProgressSquare.vue'
 import WeblensButton from '~/components/atom/WeblensButton.vue'
+import { workerLabel } from '~/util/gantt'
 import { buildTaskTree, flattenVisible } from '~/util/tasks'
 
 const { tasks, emptyText = '' } = defineProps<{

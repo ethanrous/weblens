@@ -4,7 +4,7 @@ import { test, expect, createFolder } from './fixtures'
  * Tests for keyboard shortcuts throughout the application.
  *
  * These tests exercise:
- * - FileHeader.vue (Ctrl+K search focus, Shift+Ctrl+K recursive search)
+ * - FileHeader.vue ('/' search focus, 'Shift+/' recursive search)
  * - FileScroller.vue (Ctrl+A select all, Escape clear selection, Space presentation)
  * - location.ts (highlightFileID via URL hash navigation)
  * - stores/files.ts (selectAll, clearSelected)
@@ -26,13 +26,13 @@ test.describe('Keyboard Shortcuts', () => {
         await page.waitForURL('**/files/home')
     })
 
-    test('should focus search input with Ctrl+K keyboard shortcut', async ({ page }) => {
+    test('should focus search input with / keyboard shortcut', async ({ page }) => {
         await expect(page.locator('[id^="file-card-"]').first()).toBeVisible({
             timeout: 15000,
         })
 
-        // Press Ctrl+K to focus search
-        await page.keyboard.press('ControlOrMeta+k')
+        // Press / to focus search
+        await page.keyboard.press('/')
 
         // The search input should now be focused
         const searchInput = page.getByPlaceholder('Search Files...')
@@ -46,17 +46,19 @@ test.describe('Keyboard Shortcuts', () => {
         await page.keyboard.press('Escape')
     })
 
-    test('should enable recursive search with Shift+Ctrl+K', async ({ page }) => {
+    test('should enable recursive search with Shift+/', async ({ page }) => {
         await expect(page.locator('[id^="file-card-"]').first()).toBeVisible({
             timeout: 15000,
         })
 
-        // Press Shift+Ctrl+K for recursive search
-        await page.keyboard.press('Shift+ControlOrMeta+k')
+        // Press Shift+/ for recursive search. 'Shift+Slash' is the code form, which
+        // resolves to the shifted key '?' the way a real keyboard does.
+        await page.keyboard.press('Shift+Slash')
 
         // Search input should be focused
         const searchInput = page.getByPlaceholder('Search Files...')
         await expect(searchInput).toBeFocused({ timeout: 3000 })
+        await expect(page).toHaveURL(/recursive=true/)
 
         // Type and press Enter for recursive search
         await page.keyboard.type('test')
@@ -65,6 +67,33 @@ test.describe('Keyboard Shortcuts', () => {
         // Clear search
         await searchInput.clear()
         await page.keyboard.press('Escape')
+    })
+
+    test('should not touch recursive search flag when / is pressed in timeline view', async ({ page }) => {
+        await expect(page.locator('[id^="file-card-"]').first()).toBeVisible({
+            timeout: 15000,
+        })
+
+        // Enable recursive search in the file browser first
+        await page.keyboard.press('Shift+Slash')
+        const searchInput = page.getByPlaceholder('Search Files...')
+        await expect(searchInput).toBeFocused({ timeout: 3000 })
+        await expect(page).toHaveURL(/recursive=true/)
+        await page.keyboard.press('Escape')
+
+        // Switch to the media timeline
+        const photoToggle = page.locator('button:has(.tabler-icon-photo)')
+        await photoToggle.click()
+        await expect(page.getByPlaceholder('Search Media...')).toBeVisible({ timeout: 15000 })
+
+        // Pressing / in timeline view must not clobber the files store's recursive flag
+        await page.keyboard.press('/')
+        await expect(page).toHaveURL(/recursive=true/)
+
+        // Switch back to the file browser
+        const folderToggle = page.locator('button:has(.tabler-icon-folder)')
+        await folderToggle.last().click()
+        await expect(page.getByPlaceholder('Search Files...')).toBeVisible({ timeout: 15000 })
     })
 
     test('should navigate to URL with file hash to trigger highlight scroll', async ({ page }) => {

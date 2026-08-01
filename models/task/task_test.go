@@ -2315,3 +2315,155 @@ func TestPool_IsRoot_NilCheck(t *testing.T) {
 		assert.False(t, pool.IsRoot())
 	})
 }
+
+// ==================== Queue Cancellation Accounting Tests ====================
+
+func TestPool_QueuedTaskCancelCompletesPool(t *testing.T) {
+	t.Run("task canceled while queued still closes waitChan and lets its pool complete", func(t *testing.T) {
+		wp := task.NewTestWorkerPool(2)
+		wp.Run(task.NewTestContext())
+
+		release := make(chan struct{})
+
+		wp.RegisterJob("occupant-child-job", func(tsk *task.Task) {
+			<-release
+			tsk.Success()
+		})
+
+		wp.RegisterJob("canceled-child-job", func(tsk *task.Task) {
+			// Should not run; it is canceled before ever being scheduled.
+			tsk.Success()
+		})
+
+		var canceledTask *task.Task
+
+		wp.RegisterJob("parent-job", func(parentTsk *task.Task) {
+			pool, err := wp.NewTaskPool(false, parentTsk)
+			if err != nil {
+				parentTsk.Fail(err)
+
+				return
+			}
+
+			// Occupy the second worker so the next dispatched task has to queue.
+			_, err = wp.DispatchJob(context.Background(), "occupant-child-job", newUniqueMeta("occupant-child-job"), pool)
+			if err != nil {
+				parentTsk.Fail(err)
+
+				return
+			}
+
+			canceledTask, err = wp.DispatchJob(context.Background(), "canceled-child-job", newUniqueMeta("canceled-child-job"), pool)
+			if err != nil {
+				parentTsk.Fail(err)
+
+				return
+			}
+
+			canceledTask.Cancel()
+
+			pool.SignalAllQueued()
+
+			close(release)
+
+			pool.Wait(false, parentTsk)
+
+			parentTsk.Success()
+		})
+
+		meta := task.NewTestMetadata("parent-job")
+		parentTsk, err := wp.DispatchJob(context.Background(), "parent-job", meta, nil)
+		require.NoError(t, err)
+
+		waitDone := make(chan struct{})
+
+		go func() {
+			parentTsk.Wait()
+			close(waitDone)
+		}()
+
+		select {
+		case <-waitDone:
+		case <-time.After(2 * time.Second):
+			t.Fatal("pool.Wait() never returned; a queued-canceled task likely left its pool short of complete")
+		}
+
+		done, status := parentTsk.Status()
+		assert.True(t, done)
+		assert.Equal(t, task.TaskSuccess, status)
+
+		canceledWaitDone := make(chan struct{})
+
+		go func() {
+			canceledTask.Wait()
+			close(canceledWaitDone)
+		}()
+
+		select {
+		case <-canceledWaitDone:
+		case <-time.After(2 * time.Second):
+			t.Fatal("canceled task's Wait() never returned; its waitChan was not closed")
+		}
+	})
+}
+
+// ==================== Worker Pool Shutdown / Global Dispatch Tests ====================
+
+func TestWorkerPool_DispatchJob_RejectsAfterShutdown(t *testing.T) {
+	t.Run("rejects dispatch synchronously once the worker pool context is already canceled", func(t *testing.T) {
+		ctx, cancel := task.NewTestContextWithCancel()
+
+		wp := task.NewTestWorkerPool(1)
+		wp.Run(ctx)
+
+		wp.RegisterJob("shutdown-reject-job", func(tsk *task.Task) {
+			tsk.Success()
+		})
+
+		cancel()
+
+		_, err := wp.DispatchJob(context.Background(), "shutdown-reject-job", task.NewTestMetadata("shutdown-reject-job"), nil)
+		assert.Error(t, err)
+	})
+}
+
+func TestWorkerPool_DispatchJob_GlobalPoolSurvivesCallerCancel(t *testing.T) {
+	t.Run("global pool task keeps running after the dispatching caller's context is canceled", func(t *testing.T) {
+		wp := task.NewTestWorkerPool(1)
+		wp.Run(task.NewTestContext())
+
+		started := make(chan struct{})
+		finish := make(chan struct{})
+
+		wp.RegisterJob("global-survive-job", func(tsk *task.Task) {
+			close(started)
+
+			select {
+			case <-tsk.Ctx.Done():
+				tsk.Fail(wlerrors.New("task context was canceled by the dispatching caller's context"))
+			case <-finish:
+				tsk.Success()
+			}
+		})
+
+		callerCtx, callerCancel := context.WithCancel(context.Background())
+
+		meta := task.NewTestMetadata("global-survive-job")
+		tsk, err := wp.DispatchJob(callerCtx, "global-survive-job", meta, nil)
+		require.NoError(t, err)
+
+		<-started
+		callerCancel()
+
+		// Give any (incorrect) cancellation propagation a chance to land before proceeding.
+		time.Sleep(50 * time.Millisecond)
+
+		close(finish)
+
+		tsk.Wait()
+
+		done, status := tsk.Status()
+		assert.True(t, done)
+		assert.Equal(t, task.TaskSuccess, status)
+	})
+}

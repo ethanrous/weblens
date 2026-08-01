@@ -53,7 +53,7 @@ import useTagsStore from '~/stores/tags'
 import WeblensFile from '~/types/weblensFile'
 import WeblensButton from '../atom/WeblensButton.vue'
 import TimelineControls from '../molecule/TimelineControls.vue'
-import { useMagicKeys, whenever } from '@vueuse/core'
+import { useActiveElement, useEventListener } from '@vueuse/core'
 import Searchbar from '../molecule/Searchbar.vue'
 import FileSortControls from '../molecule/FileSortControls.vue'
 import useLocationStore from '~/stores/location'
@@ -75,21 +75,33 @@ const activeTagID = computed(() => {
     return isTagView.value ? (route.params.tagID as string) : ''
 })
 
-const searchbar = ref<typeof Searchbar>()
+const searchbar = shallowRef<typeof Searchbar>()
 
-const keys = useMagicKeys()
+const activeElement = useActiveElement()
+const notUsingInput = computed(
+    () =>
+        activeElement.value?.tagName !== 'INPUT' &&
+        activeElement.value?.tagName !== 'TEXTAREA' &&
+        !activeElement.value?.isContentEditable,
+)
 
-whenever(
-    () => keys.Cmd_K?.value || keys.Ctrl_K?.value,
-    () => {
-        if (locationStore.isInTimeline) {
-            return
+useEventListener(
+    window,
+    'keydown',
+    (e: KeyboardEvent) => {
+        if ((e.key !== '/' && e.key !== '?') || !notUsingInput.value) return
+
+        e.stopPropagation()
+        e.preventDefault()
+
+        // Don't clobber the files store's recursive-search flag from the timeline view
+        if (!locationStore.isInTimeline) {
+            filesStore.setSearchRecurively(e.key === '?')
         }
-
-        filesStore.setSearchRecurively(keys.shift?.value || false)
 
         searchbar.value?.focus()
     },
+    { passive: false },
 )
 
 const activeFile = computed(() => {

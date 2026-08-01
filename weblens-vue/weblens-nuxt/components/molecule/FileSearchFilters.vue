@@ -5,7 +5,6 @@
             :checked="filesStore.searchRecursively"
             @checked:changed="filesStore.setSearchRecurively"
         />
-        <span :class="{ 'text-text-tertiary': true }">Tip: Use Shift+{{ keyHintText }} enable recursive search</span>
 
         <WeblensCheckbox
             label="Search using Regular Expressions"
@@ -64,25 +63,15 @@
 import useFilesStore from '~/stores/files'
 import useTagsStore from '~/stores/tags'
 import WeblensButton from '../atom/WeblensButton.vue'
-import useLocationStore from '~/stores/location'
 import WeblensCheckbox from '../atom/WeblensCheckbox.vue'
 import TagPill from '../atom/TagPill.vue'
 
-const locationStore = useLocationStore()
 const filesStore = useFilesStore()
 const tagsStore = useTagsStore()
 
 defineEmits<{
     (e: 'done'): void
 }>()
-
-const keyHintText = computed(() => {
-    if (locationStore.operatingSystem === 'macos') {
-        return '⌘K'
-    }
-
-    return 'Ctrl+K'
-})
 
 function toggleTagFilter(tagID: string) {
     const newSet = new Set(filesStore.filterTagIDs)
