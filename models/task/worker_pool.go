@@ -765,7 +765,9 @@ func (wp *WorkerPool) taskScheduler(ctx context.Context) {
 		case <-wp.schedulerNotifier:
 			// When we get a notification that tasks have been added to the queue, we drain the queue.
 			wp.taskQueueMu.Lock()
-			wlog.FromContext(ctx).Trace().Msgf("task scheduler woken up. %d tasks in queue", len(wp.taskQueue))
+			if len(wp.taskQueue) != 0 {
+				wlog.FromContext(ctx).Trace().Msgf("task scheduler woken up. %d tasks in queue", len(wp.taskQueue))
+			}
 
 			for len(wp.taskQueue) != 0 {
 				// Pop the first task off and schedule it.

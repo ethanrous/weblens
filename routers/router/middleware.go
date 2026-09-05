@@ -93,8 +93,8 @@ func RequireFilePermissions(permissions ...share_model.Permission) func(next Han
 			}
 
 			var (
-				file       *file_model.WeblensFileImpl
-				accessErr  error
+				file      *file_model.WeblensFileImpl
+				accessErr error
 			)
 
 			if hasTimestamp {
@@ -292,6 +292,8 @@ func WeblensAuth(next Handler) Handler {
 				ctx.Log().Trace().Msgf("Authenticated user via session token: %s", usr.Username)
 
 				ctx = ctx.WithRequester(usr)
+			} else {
+				ctx.Log().Trace().Err(err).Msg("No session token found, proceeding as unauthenticated user")
 			}
 		}
 

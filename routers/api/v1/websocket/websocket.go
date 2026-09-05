@@ -94,6 +94,8 @@ var upgrader = gorilla.Upgrader{
 
 // Connect upgrades an HTTP connection to a websocket connection.
 func Connect(ctx context_service.RequestContext) {
+	ctx.Log().Trace().Msgf("Attempting to establish websocket connection")
+
 	conn, err := upgrader.Upgrade(ctx.W, ctx.Req, nil)
 	if err != nil {
 		ctx.Log().Error().Err(err).Msg("Failed to upgrade connection to websocket")
