@@ -48,6 +48,7 @@ FROM scratch AS agno
 FROM --platform=${BUILDPLATFORM} golang:${GO_VERSION}-bookworm AS agno-remote
 
 ARG AGNO_URL_OVERRIDE
+ARG ARCHITECTURE
 # ARG GH_TOKEN
 
 RUN apt-get update && apt-get install -y --no-install-recommends unzip && rm -rf /var/lib/apt/lists/*;
@@ -57,7 +58,12 @@ COPY go.mod .
 
 # If AGNO_URL has actions/runs in it, we need to unzip the artifact instead of downloading it directly to the final location
 RUN AGNO_VERSION=$(awk '/github.com\/ethanrous\/agno\/bindings\/go\/agno / {print $2}' go.mod); \
-    AGNO_URL=${AGNO_URL_OVERRIDE:-https://github.com/ethanrous/agno/releases/download/${AGNO_VERSION}/libagno-linux-x86_64-gpu.a}; \
+    case "${ARCHITECTURE:-amd64}" in \
+        amd64) AGNO_ARCH=x86_64 ;; \
+        arm64) AGNO_ARCH=aarch64 ;; \
+        *) echo "Unsupported ARCHITECTURE: ${ARCHITECTURE}" >&2; exit 1 ;; \
+    esac; \
+    AGNO_URL=${AGNO_URL_OVERRIDE:-https://github.com/ethanrous/agno/releases/download/${AGNO_VERSION}/libagno-linux-${AGNO_ARCH}-gpu.a}; \
     if echo ${AGNO_URL} | grep -q "/zip"; then \
         curl -fL -H "Authorization: Bearer ${GH_TOKEN}" \
         -H "Accept: application/vnd.github.v3+json" \
