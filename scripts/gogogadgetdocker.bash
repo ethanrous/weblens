@@ -23,6 +23,10 @@ usage="TODO"
 dockerfile="Dockerfile"
 extras=""
 
+# Path to a local agno checkout to build the image against, instead of the
+# release pinned in go.mod
+local_agno="${WEBLENS_LOCAL_AGNO:-}"
+
 while [ "${1:-}" != "" ]; do
     case "$1" in
     "-t" | "--tag")
@@ -52,6 +56,10 @@ while [ "${1:-}" != "" ]; do
         shift
         extras=$1
         ;;
+    "--local-agno")
+        shift
+        local_agno=$1
+        ;;
     *)
         echo "Unknown argument: $1"
         echo "$usage"
@@ -60,6 +68,16 @@ while [ "${1:-}" != "" ]; do
     esac
     shift
 done
+
+# `uname -m` names differ from the docker/GOARCH names the build expects
+case "$arch" in
+"x86_64")
+    arch=amd64
+    ;;
+"aarch64")
+    arch=arm64
+    ;;
+esac
 
 printf "Checking connection to docker..."
 
@@ -92,6 +110,15 @@ echo "Using tag: $full_tag"
 base_version=$(git rev-parse --short HEAD)
 dirty_version=$(git diff | shasum -a 256)
 WEBLENS_BUILD_VERSION="${base_version}-devel-${dirty_version:0:7}"
+
+if [[ -n "$local_agno" ]]; then
+    if ! build_agno_for_image "$local_agno" "$arch"; then
+        exit 1
+    fi
+
+    extras="$extras --build-context agno=./_build/agno-image --build-arg AGNO_SOURCE=local"
+fi
+
 export WEBLENS_BUILD_VERSION
 
 echo "Weblens build version: $WEBLENS_BUILD_VERSION"

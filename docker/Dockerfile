@@ -6,6 +6,11 @@ ARG GO_VERSION=1.26
 # For AGNO_URL_OVERRIDE, you can specify a custom URL to download the AGNO library.
 ARG AGNO_URL_OVERRIDE
 
+# Where the agno library comes from: "remote" downloads the pinned release,
+# "local" takes it from the `agno` build context. Set by
+# `gogogadgetdocker.bash --local-agno <path>`.
+ARG AGNO_SOURCE=remote
+
 # Build UI
 FROM node:${NODE_VERSION}-alpine AS web
 
@@ -33,12 +38,55 @@ RUN --mount=type=cache,target=/pnpm/store \
     pnpm install --frozen-lockfile --prod --offline;
 RUN pnpm generate;
 
+# Placeholder for the local agno checkout, overridden by
+# `docker build --build-context agno=<dir>`. Only referenced when AGNO_SOURCE=local.
+FROM scratch AS agno
+
+# Download the pre-built agno library. The pinned version is derived from go.mod
+# (single source of truth), keeping the native library in lockstep with the Go
+# bindings. Runs on the build platform: it only fetches a file.
+FROM --platform=${BUILDPLATFORM} golang:${GO_VERSION}-bookworm AS agno-remote
+
+ARG AGNO_URL_OVERRIDE
+ARG ARCHITECTURE
+# ARG GH_TOKEN
+
+RUN apt-get update && apt-get install -y --no-install-recommends unzip && rm -rf /var/lib/apt/lists/*;
+
+WORKDIR /agno
+COPY go.mod .
+
+# If AGNO_URL has actions/runs in it, we need to unzip the artifact instead of downloading it directly to the final location
+RUN AGNO_VERSION=$(awk '/github.com\/ethanrous\/agno\/bindings\/go\/agno / {print $2}' go.mod); \
+    case "${ARCHITECTURE:-amd64}" in \
+        amd64) AGNO_ARCH=x86_64 ;; \
+        arm64) AGNO_ARCH=aarch64 ;; \
+        *) echo "Unsupported ARCHITECTURE: ${ARCHITECTURE}" >&2; exit 1 ;; \
+    esac; \
+    AGNO_URL=${AGNO_URL_OVERRIDE:-https://github.com/ethanrous/agno/releases/download/${AGNO_VERSION}/libagno-linux-${AGNO_ARCH}-gpu.a}; \
+    if echo ${AGNO_URL} | grep -q "/zip"; then \
+        curl -fL -H "Authorization: Bearer ${GH_TOKEN}" \
+        -H "Accept: application/vnd.github.v3+json" \
+        ${AGNO_URL} -o /tmp/agno.zip && \
+        unzip /tmp/agno.zip -d /agno/ && \
+        rm /tmp/agno.zip; \
+    else \
+        curl -fL ${AGNO_URL} -o /agno/libagno.a; \
+    fi; \
+    rm /agno/go.mod;
+
+# Take the library, and the Go bindings it was built from, out of the build context
+FROM scratch AS agno-local
+
+COPY --from=agno libagno.a /agno/libagno.a
+COPY --from=agno bindings /agno/bindings
+
+FROM agno-${AGNO_SOURCE} AS agno-lib
+
 # Build server binary
 FROM --platform=linux/${ARCHITECTURE} golang:${GO_VERSION}-bookworm AS backend
 
 ARG ARCHITECTURE
-
-RUN apt-get update && apt-get install -y --no-install-recommends unzip && rm -rf /var/lib/apt/lists/*;
 
 WORKDIR /src
 
@@ -52,23 +100,13 @@ COPY modules/ ./modules/
 COPY routers/ ./routers/
 COPY services/ ./services/
 
-# Download pre-built agno library to standard lib path. The pinned version is
-# derived from go.mod (single source of truth), keeping the native library in
-# lockstep with the Go bindings.
-ARG AGNO_URL_OVERRIDE
-# ARG GH_TOKEN
-
-# If AGNO_URL has actions/runs in it, we need to unzip the artifact instead of downloading it directly to the final location
-RUN AGNO_VERSION=$(awk '/github.com\/ethanrous\/agno\/bindings\/go\/agno / {print $2}' go.mod); \
-    AGNO_URL=${AGNO_URL_OVERRIDE:-https://github.com/ethanrous/agno/releases/download/${AGNO_VERSION}/libagno-linux-x86_64-gpu.a}; \
-    if echo ${AGNO_URL} | grep -q "/zip"; then \
-        curl -fL -H "Authorization: Bearer ${GH_TOKEN}" \
-        -H "Accept: application/vnd.github.v3+json" \
-        ${AGNO_URL} -o /tmp/agno.zip && \
-        unzip /tmp/agno.zip -d /usr/local/lib/ && \
-        rm /tmp/agno.zip; \
-    else \
-        curl -fL ${AGNO_URL} -o /usr/local/lib/libagno.a; \
+# Install the agno library resolved above. In local mode the stage also carries
+# the Go bindings, which replace the pinned module so the library and its
+# binding declarations stay in lockstep.
+COPY --from=agno-lib /agno/ /agno/
+RUN cp /agno/libagno.a /usr/local/lib/libagno.a && \
+    if [ -f /agno/bindings/go/agno/go.mod ]; then \
+        go mod edit -replace github.com/ethanrous/agno/bindings/go/agno=/agno/bindings/go/agno; \
     fi;
 
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
